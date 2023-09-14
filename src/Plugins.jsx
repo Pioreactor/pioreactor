@@ -126,7 +126,22 @@ function ListAvailablePlugins({alreadyInstalledPluginsNames}){
             </ListItemAvatar>
             <ListItemText
               primary={plugin.name}
-              secondary={plugin.description}
+              primaryTypographyProps={{style: {fontSize: '0.95rem'}}}
+              secondary={
+               <>
+                <Typography
+                  sx={{ display: 'block', fontStyle: "italic"}}
+                  component="span"
+                  variant="body2"
+                  color="text.primary"
+                >
+                  {plugin.author}
+                </Typography>
+                <span>
+                 {plugin.description}
+                </span>
+               </>
+              }
               style={{maxWidth: "525px"}}
             />
             <ListItemSecondaryAction sx={{display: {xs: 'contents', md: 'block'}}}>
@@ -210,12 +225,25 @@ function ListInstalledPlugins({installedPlugins}){
             <ListItem key={plugin.name}>
               <ListItemAvatar>
                 <Avatar variant="square" style={{backgroundColor:"#FFFFFF"}}>
-                  <Hashicon value={plugin.name} size={40} />
+                  <Hashicon value={plugin.name} size={42} />
                 </Avatar>
               </ListItemAvatar>
               <ListItemText
                 primary={`${plugin.name} ${(plugin.version === "Unknown")  ? "" : "(" + plugin.version + ")"}`}
-                secondary={`${plugin.description === "Unknown" ? "No description provided." : plugin.description}`}
+                primaryTypographyProps={{style: {fontSize: '0.95rem'}}}
+                secondary={
+                 <>
+                  <Typography
+                    sx={{ display: 'block', fontStyle: "italic" }}
+                    component="span"
+                    variant="body2"
+                    color="text.primary"
+                  >
+                    {plugin.author || "unknown author"}
+                  </Typography>
+                  <span>{`${plugin.description === "Unknown" ? "No description provided." : plugin.description}`}</span>
+                 </>
+                }
                 style={{maxWidth: "525px"}}
               />
               <ListItemSecondaryAction sx={{display: {xs: 'contents', md: 'block'}}}>

@@ -65,7 +65,6 @@ function Overview(props) {
               <React.Fragment key={`grid-chart-${chart_key}`}>
                 <Grid item xs={12} >
                   <Card style={{ maxHeight: "100%"}}>
-
                     <Chart
                       key={`chart-${chart_key}`}
                       config={config}
@@ -84,8 +83,8 @@ function Overview(props) {
                       relabelMap={relabelMap}
                       yTransformation={eval(chart.y_transformation || "(y) => y")}
                       dataSourceColumn={chart.data_source_column}
-                      id={chart_key}
                       isODReading={chart_key === "raw_optical_density"}
+                      isLiveChart={true}
                     />
                   </Card>
                 </Grid>

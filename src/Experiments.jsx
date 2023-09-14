@@ -55,8 +55,11 @@ const useStyles = makeStyles((theme) => ({
       flexDirection: "column",
     }
   },
-  headerButtons: {display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}
-
+  headerButtons: {display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"},
+  textIcon: {
+    verticalAlign: "middle",
+    margin: "0px 3px"
+  },
 }));
 
 
@@ -269,10 +272,10 @@ function ExperimentsContainer(props) {
                         fixedDecimals={chart.fixed_decimals}
                         yTransformation={eval(chart.y_transformation || "(y) => y")}
                         dataSourceColumn={chart.data_source_column}
-                        id={chart_key}
                         relabelMap={relabelMap}
                         isODReading={chart_key === "raw_optical_density"}
                         allowZoom={true}
+                        isLiveChart={false}
                       />
                     </Grid>
                   </React.Fragment>

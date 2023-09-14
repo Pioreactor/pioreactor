@@ -5,7 +5,7 @@ import CardContent from '@mui/material/CardContent';
 
 const useStyles = makeStyles((theme) => ({
   cardContent: {
-    padding: "10px"
+    padding: "10px",
   },
   DisplayProfileCard: {
     maxHeight: "350px",
@@ -28,7 +28,8 @@ const DisplaySourceCode = ({ sourceCode }) => {
   return (
     <Card className={classes.DisplayProfileCard}>
       <CardContent className={classes.cardContent}>
-        <pre>{sourceCode}
+        <pre style={{whiteSpace: "pre-wrap"}}>
+          {sourceCode}
         </pre>
       </CardContent>
     </Card>

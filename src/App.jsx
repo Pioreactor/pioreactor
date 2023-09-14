@@ -11,6 +11,8 @@ import ExperimentOverview from "./ExperimentOverview";
 import ExportData from "./ExportData";
 import Pioreactors from "./Pioreactors";
 import StartNewExperiment from "./StartNewExperiment";
+import CreateExperimentProfile from "./CreateExperimentProfile";
+import EditExperimentProfile from "./EditExperimentProfile";
 import Calibrations from "./Calibrations";
 import EditConfig from "./EditConfig";
 import Updates from "./Updates";
@@ -93,6 +95,8 @@ function MainSite() {
               <Route path="/plugins" element={<Plugins title="Pioreactor ~ Plugins"/>}/>
               <Route path="/experiments" element={<Experiments title="Pioreactor ~ Past experiments"/>}/>
               <Route path="/experiment-profiles" element={<Profiles title="Pioreactor ~ Experiment profiles"/>}/>
+              <Route path="/create-experiment-profile" element={<CreateExperimentProfile title="Pioreactor ~ Create experiment profile"/>}/>
+              <Route path="/edit-experiment-profile" element={<EditExperimentProfile title="Pioreactor ~ Edit experiment profile"/>}/>
               <Route path="/config" element={<EditConfig title="Pioreactor ~ Configuration"/>}/>
               <Route path="/pioreactors" element={ <Pioreactors title="Pioreactor ~ Pioreactors"/>}/>
               <Route path="/updates" element={<Updates title="Pioreactor ~ Updates"/>}/>

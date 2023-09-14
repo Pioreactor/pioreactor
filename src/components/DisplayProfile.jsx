@@ -52,10 +52,14 @@ const DisplayProfile = ({ data }) => {
         <Typography sx={{ mb: 1.5 }} color="text.secondary" gutterBottom>
           Created by {data.metadata.author}
         </Typography>
-        <Typography variant="body2">
-            <b>Description:</b> {data.metadata.description}
-        </Typography>
-        <br/>
+        {data.metadata.description &&
+          <>
+            <Typography variant="body2">
+                <b>Description:</b> {data.metadata.description}
+            </Typography>
+            <br/>
+          </>
+        }
         {data.labels && Object.keys(data.labels).length > 0 && (
           <>
           <Typography variant="body2">
@@ -70,37 +74,41 @@ const DisplayProfile = ({ data }) => {
           </>
         )}
 
-        <Typography variant="body2">
-            <b>All Pioreactor(s) do:</b>
-        </Typography>
-        {data.common && Object.keys(data.common).map(job => (
-            <>
-              <Typography key={job} variant="body2" style={{ marginLeft: '2em' }}>
-                  <b>Job</b>: {job}
-              </Typography>
-              {data.common[job].actions.sort((a, b) => a.hours_elapsed > b.hours_elapsed).map((action, index) => (
-                  <>
-                    <Typography key={`common-action-${index}`} variant="body2" style={{ marginLeft: '4em' }}>
-                        <b>Action {index + 1}</b>: {humanReadableDuration(action.type, action.hours_elapsed)}
-                    </Typography>
-                      {Object.keys(action.options).map((option, index) => (
-                      <Typography key={`common-${option}-${action}-${index}`} variant="body2" style={{ marginLeft: '8em' }}>
-                        {option}: {action.options[option]}
+        {data.common &&
+         <>
+          <Typography variant="body2">
+              <b>All Pioreactor(s) do:</b>
+          </Typography>
+          {data.common && Object.keys(data.common).map(job => (
+              <React.Fragment key={job}>
+                <Typography key={job} variant="body2" style={{ marginLeft: '2em' }}>
+                    <b>Job</b>: {job}
+                </Typography>
+                {data.common[job].actions.sort((a, b) => a.hours_elapsed > b.hours_elapsed).map((action, index) => (
+                    <>
+                      <Typography key={`common-action-${index}`} variant="body2" style={{ marginLeft: '4em' }}>
+                          <b>Action {index + 1}</b>: {humanReadableDuration(action.type, action.hours_elapsed)}
                       </Typography>
-                      ))}
-                  </>
-              ))}
-            </>
-        ))}
-        <br/>
+                        {Object.keys(action.options).map((option, index) => (
+                          <Typography key={`common-${option}-${action}-${index}`} variant="body2" style={{ marginLeft: '8em' }}>
+                            {option}: {action.options[option]}
+                          </Typography>
+                        ))}
+                    </>
+                ))}
+              </React.Fragment>
+          ))}
+          <br/>
+          </>
+        }
 
         {data.pioreactors && Object.keys(data.pioreactors).map(pioreactor => (
-            <>
+            <React.Fragment key={pioreactor}>
                 <Typography key={pioreactor} variant="body2">
                     <b>{pioreactor} does:</b>
                 </Typography>
                 {Object.keys(data.pioreactors[pioreactor].jobs).map(job => (
-                    <>
+                    <React.Fragment key={`${pioreactor}-${job}`}>
                       <Typography key={`${pioreactor}-${job}`}  variant="body2" style={{ marginLeft: '2em' }}>
                           <b>Job</b>: {job}
                       </Typography>
@@ -110,16 +118,16 @@ const DisplayProfile = ({ data }) => {
                                 <b>Action {index + 1}</b>: {humanReadableDuration(action.type, action.hours_elapsed)}
                             </Typography>
                               {Object.keys(action.options).map( (option, index) => (
-                              <Typography key={`${pioreactor}-${option}-${action}-${index}`} variant="body2" style={{ marginLeft: '8em' }}>
-                                {option}: {action.options[option]}
-                              </Typography>
+                                <Typography key={`${pioreactor}-${option}-${action}-${index}`} variant="body2" style={{ marginLeft: '8em' }}>
+                                  {option}: {action.options[option]}
+                                </Typography>
                               ))}
                           </>
                       ))}
-                    </>
+                    </React.Fragment>
                 ))}
-            <br/>
-            </>
+              <br/>
+            </React.Fragment>
         ))}
       </CardContent>
     </Card>

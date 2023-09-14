@@ -18,6 +18,9 @@ import DisplaySourceCode from "./components/DisplaySourceCode"
 import CloseIcon from '@mui/icons-material/Close';
 import CodeIcon from '@mui/icons-material/Code';
 import {runPioreactorJob} from "./utilities"
+import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
+import { Link } from 'react-router-dom';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -48,12 +51,16 @@ const useStyles = makeStyles((theme) => ({
       flexDirection: "column",
     }
   },
-  headerButtons: {display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}
-
+  headerButtons: {display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"},
+  textIcon: {
+    verticalAlign: "middle",
+    margin: "0px 3px"
+  },
 }));
 
 
 function ExperimentProfilesContent(props) {
+  const classes = useStyles();
 
   const [experimentProfilesAvailable, setExperimentProfilesAvailable] = React.useState([])
   const [selectedExperimentProfile, setSelectedExperimentProfile] = React.useState('')
@@ -62,7 +69,7 @@ function ExperimentProfilesContent(props) {
   const [source, setSource] = React.useState("")
 
   React.useEffect(() => {
-    fetch("/api/experiment_profiles")
+    fetch("/api/contrib/experiment_profiles")
       .then(response => {
         return response.json();
       })
@@ -72,11 +79,6 @@ function ExperimentProfilesContent(props) {
         setSelectedExperimentProfile(Object.keys(profilesByKey)[0] ?? "")
       })
   }, [])
-
-  React.useEffect(() => {
-    document.title = props.title;
-  }, [props.title]);
-
 
   const onSubmit = () => runPioreactorJob(props.config['cluster.topology']?.leader_hostname, 'experiment_profile', ['execute', selectedExperimentProfile], {}, () => setConfirmed(true))
 
@@ -94,7 +96,7 @@ function ExperimentProfilesContent(props) {
 
   const getSourceAndView = (e) => {
     if (!viewSource){
-      fetch(`/api/experiment_profiles/${selectedExperimentProfile.split('/').pop()}`, {
+      fetch(`/api/contrib/experiment_profiles/${selectedExperimentProfile.split('/').pop()}`, {
             method: "GET",
         }).then(res => {
           if (res.ok) {
@@ -130,21 +132,32 @@ function ExperimentProfilesContent(props) {
             </FormControl>
           </div>
         </Grid>
-        <Grid item xs={4} />
-        <Grid container xs={2} direction="column" alignItems="flex-end">
+        <Grid item xs={3} />
+        <Grid container xs={3} direction="column" alignItems="flex-end">
           <Grid item xs={6} />
           <Grid item xs={6} >
             <Button
               variant="text"
               size="small"
               color="primary"
+              aria-label="edit source code"
+              onClick={getSourceAndView}
+              style={{marginRight: "10px", textTransform: "none"}}
+              to={`/edit-experiment-profile?profile=${selectedExperimentProfile.split("/").pop()}`}
+              component={Link}
+            >
+              <EditIcon fontSize="15" classes={{root: classes.textIcon}} /> Edit
+            </Button>
+            <Button
+              variant="text"
+              size="small"
+              color="primary"
               aria-label="view source code"
               disabled={selectedExperimentProfile === ""}
-              endIcon={< CodeIcon />}
               onClick={getSourceAndView}
-              style={{marginRight: "10px"}}
+              style={{marginRight: "10px", textTransform: "none"}}
             >
-              View source
+              <CodeIcon fontSize="15" classes={{root: classes.textIcon}} /> {viewSource ? "Back to description": "View source"}
             </Button>
           </Grid>
 
@@ -189,12 +202,17 @@ function ProfilesContainer(props){
   return(
     <React.Fragment>
       <div>
-        <div>
+        <div className={classes.headerMenu}>
           <Typography variant="h5" component="h2">
             <Box fontWeight="fontWeightBold">
               Experiment Profiles
             </Box>
           </Typography>
+          <div className={classes.headerButtons}>
+            <Button to={`/create-experiment-profile`} component={Link} style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="primary">
+              <AddIcon fontSize="15" classes={{root: classes.textIcon}}/> Create new profle
+            </Button>
+          </div>
         </div>
       </div>
       <Card className={classes.root}>

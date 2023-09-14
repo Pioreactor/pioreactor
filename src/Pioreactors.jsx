@@ -2488,9 +2488,12 @@ function PioreactorCard(props){
 
   const parseToType = (payloadString, typeOfSetting) => {
     if (typeOfSetting === "numeric"){
-      return parseFloat(payloadString)
+      return [null, ""].includes(payloadString) ? payloadString : parseFloat(payloadString)
     }
     else if (typeOfSetting === "boolean"){
+      if ([null, ""].includes(payloadString)){
+        return null
+      }
       return (["1", "true", "True", 1].includes(payloadString))
     }
     return payloadString
@@ -2579,7 +2582,7 @@ function PioreactorCard(props){
 
   const getInicatorLabel = (state, isActive) => {
     if ((state === "disconnected") && isActive) {
-      return "Offline, need to power up"
+      return "Offline"
     }
     else if ((state === "disconnected") && !isActive){
       return "Offline, change inventory status in config.ini"
