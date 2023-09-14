@@ -21,33 +21,40 @@ from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 
 def execute_action(
-    unit: str, experiment: str, job_name: str, action: str, options=None, args=None, dry_run=False
+    unit: str,
+    experiment: str,
+    job_name: str,
+    logger,
+    action: str,
+    options=None,
+    args=None,
+    dry_run=False,
 ) -> Callable:
     # Handle each action type accordingly
     if action == "start":
         # start the job with the provided parameters
-        return start_job(unit, experiment, job_name, options, args, dry_run)
+        return start_job(unit, experiment, job_name, options, args, dry_run, logger)
     elif action == "pause":
         # pause the job
-        return pause_job(unit, experiment, job_name, dry_run)
+        return pause_job(unit, experiment, job_name, dry_run, logger)
     elif action == "resume":
         # resume the job
-        return resume_job(unit, experiment, job_name, dry_run)
+        return resume_job(unit, experiment, job_name, dry_run, logger)
     elif action == "stop":
         # stop the job
-        return stop_job(unit, experiment, job_name, dry_run)
+        return stop_job(unit, experiment, job_name, dry_run, logger)
     elif action == "update":
         # update the job with the provided parameters
-        return update_job(unit, experiment, job_name, options, dry_run)
+        return update_job(unit, experiment, job_name, options, dry_run, logger)
     else:
         raise ValueError(f"Not a valid action: {action}")
 
 
 def start_job(
-    unit: str, experiment: str, job_name: str, options: dict, args: list, dry_run: bool
+    unit: str, experiment: str, job_name: str, options: dict, args: list, dry_run: bool, logger
 ) -> Callable:
     if dry_run:
-        return lambda: print(
+        return lambda: logger.info(
             f"Dry-run: Starting {job_name} on {unit} with options {options} and args {args}."
         )
     else:
@@ -57,35 +64,37 @@ def start_job(
         )
 
 
-def pause_job(unit: str, experiment: str, job_name: str, dry_run: bool) -> Callable:
+def pause_job(unit: str, experiment: str, job_name: str, dry_run: bool, logger) -> Callable:
     if dry_run:
-        return lambda: print(f"Dry-run: Pausing {job_name} on {unit}.")
+        return lambda: logger.info(f"Dry-run: Pausing {job_name} on {unit}.")
     else:
         return lambda: publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "sleeping")
 
 
-def resume_job(unit: str, experiment: str, job_name: str, dry_run: bool) -> Callable:
+def resume_job(unit: str, experiment: str, job_name: str, dry_run: bool, logger) -> Callable:
     if dry_run:
-        return lambda: print(f"Dry-run: Resuming {job_name} on {unit}.")
+        return lambda: logger.info(f"Dry-run: Resuming {job_name} on {unit}.")
     else:
         return lambda: publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "ready")
 
 
-def stop_job(unit: str, experiment: str, job_name: str, dry_run: bool) -> Callable:
+def stop_job(unit: str, experiment: str, job_name: str, dry_run: bool, logger) -> Callable:
     if dry_run:
-        return lambda: print(f"Dry-run: Stopping {job_name} on {unit}.")
+        return lambda: logger.info(f"Dry-run: Stopping {job_name} on {unit}.")
     else:
         return lambda: publish(
             f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "disconnected"
         )
 
 
-def update_job(unit: str, experiment: str, job_name: str, options: dict, dry_run: bool) -> Callable:
+def update_job(
+    unit: str, experiment: str, job_name: str, options: dict, dry_run: bool, logger
+) -> Callable:
     if dry_run:
 
         def _update():
             for setting, value in options.items():
-                print(f"Dry-run: Updating {setting} to {value} in {job_name} on {unit}.")
+                logger.info(f"Dry-run: Updating {setting} to {value} in {job_name} on {unit}.")
 
     else:
 
@@ -158,9 +167,14 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
     with publish_ready_to_disconnected_state(unit, experiment, "experiment_profile") as state:
         profile = load_and_verify_profile_file(profile_filename)
 
-        logger.notice(  # type: ignore
-            f"Starting profile {profile.experiment_profile_name}, sourced from {profile_filename}."
-        )
+        if dry_run:
+            logger.notice(  # type: ignore
+                f"Executing DRY-RUN of profile {profile.experiment_profile_name}, sourced from {profile_filename}."
+            )
+        else:
+            logger.notice(  # type: ignore
+                f"Executing profile {profile.experiment_profile_name}, sourced from {profile_filename}."
+            )
 
         try:
             check_plugins(profile.plugins)
@@ -183,6 +197,7 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
                         UNIVERSAL_IDENTIFIER,
                         experiment,
                         job,
+                        logger,
                         action.type,
                         action.options,
                         action.args,
@@ -200,7 +215,14 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
                     t = Timer(
                         hours_to_seconds(action.hours_elapsed),
                         execute_action(
-                            unit, experiment, job, action.type, action.options, action.args, dry_run
+                            unit,
+                            experiment,
+                            job,
+                            logger,
+                            action.type,
+                            action.options,
+                            action.args,
+                            dry_run,
                         ),
                     )
                     t.daemon = True
@@ -220,7 +242,13 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
                     timer.cancel()
                 logger.info(f"Exiting profile {profile.experiment_profile_name} early.")
             else:
-                logger.info(f"Finished executing profile {profile.experiment_profile_name}.")
+                if dry_run:
+                    logger.info(
+                        f"Finished executing DRY-RUN of profile {profile.experiment_profile_name}."
+                    )
+
+                else:
+                    logger.info(f"Finished executing profile {profile.experiment_profile_name}.")
 
 
 @click.group(name="experiment_profile")

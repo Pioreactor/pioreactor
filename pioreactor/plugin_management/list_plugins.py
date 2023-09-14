@@ -27,6 +27,7 @@ def click_list_plugins(json: bool) -> None:
                         else None,
                         "homepage": metadata.homepage if metadata.homepage != "UNKNOWN" else None,
                         "source": metadata.source,
+                        "author": metadata.author if metadata.author != "UNKNOWN" else None,
                     }
                     for plugin, metadata in get_plugins().items()
                 ]

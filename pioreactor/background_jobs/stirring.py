@@ -365,7 +365,7 @@ class Stirrer(BackgroundJob):
 
         if recent_rpm == 0 and self.state == self.READY and not is_testing_env():
             self.logger.warning(
-                "Stirring RPM is 0 - attempting to restart it automatically. Target RPM may be too low, or not reading sensor correctly."
+                "Stirring RPM is 0 - attempting to restart it automatically. It may be a temporary stall, target RPM may be too low, or not reading sensor correctly."
             )
             self.blink_error_code(error_codes.STIRRING_FAILED)
 
