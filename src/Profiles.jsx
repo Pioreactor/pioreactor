@@ -22,8 +22,6 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import { Link } from 'react-router-dom';
 import SelectButton from "./components/SelectButton";
-import PlayArrowOutlinedIcon from '@mui/icons-material/PlayArrowOutlined';
-import PlayCircleFilledIcon from '@mui/icons-material/PlayCircleFilled';
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
 
 const useStyles = makeStyles((theme) => ({
@@ -138,7 +136,7 @@ function ExperimentProfilesContent(props) {
           </div>
         </Grid>
         <Grid item xs={3} />
-        <Grid container xs={3} direction="column" alignItems="flex-end">
+        <Grid container item xs={3} direction="column" alignItems="flex-end">
           <Grid item xs={6} />
           <Grid item xs={6} >
             <Button

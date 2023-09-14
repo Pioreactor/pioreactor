@@ -89,9 +89,14 @@ class Chart extends React.Component {
      if (prevProps.experiment !== this.props.experiment) {
       this.getHistoricalDataFromServer()
 
-      this.client.unsubscribe(
-        `pioreactor/+/${prevProps.experiment}/${prevProps.topic}`
-      )
+      try{
+        this.client.unsubscribe(
+          `pioreactor/+/${prevProps.experiment}/${prevProps.topic}`
+        )
+      }
+      catch (error){
+        // not important.
+      }
 
       this.client.subscribe(
         `pioreactor/+/${this.props.experiment}/${this.props.topic}`

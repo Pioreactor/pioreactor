@@ -85,8 +85,8 @@ const DisplayProfile = ({ data }) => {
                     <b>Job</b>: {job}
                 </Typography>
                 {data.common[job].actions.sort((a, b) => a.hours_elapsed > b.hours_elapsed).map((action, index) => (
-                    <>
-                      <Typography key={`common-action-${index}`} variant="body2" style={{ marginLeft: '4em' }}>
+                    <React.Fragment key={`common-action-${index}`}>
+                      <Typography variant="body2" style={{ marginLeft: '4em' }}>
                           <b>Action {index + 1}</b>: {humanReadableDuration(action.type, action.hours_elapsed)}
                       </Typography>
                         {Object.keys(action.options).map((option, index) => (
@@ -94,7 +94,7 @@ const DisplayProfile = ({ data }) => {
                             {option}: {action.options[option]}
                           </Typography>
                         ))}
-                    </>
+                    </React.Fragment>
                 ))}
               </React.Fragment>
           ))}
@@ -113,8 +113,8 @@ const DisplayProfile = ({ data }) => {
                           <b>Job</b>: {job}
                       </Typography>
                       {data.pioreactors[pioreactor].jobs[job].actions.sort((a, b) => a.hours_elapsed > b.hours_elapsed).map((action, index) => (
-                          <>
-                            <Typography key={`${pioreactor}-action-${index}`} variant="body2" style={{ marginLeft: '4em' }}>
+                          <React.Fragment key={`${pioreactor}-action-${index}`}>
+                            <Typography variant="body2" style={{ marginLeft: '4em' }}>
                                 <b>Action {index + 1}</b>: {humanReadableDuration(action.type, action.hours_elapsed)}
                             </Typography>
                               {Object.keys(action.options).map( (option, index) => (
@@ -122,7 +122,7 @@ const DisplayProfile = ({ data }) => {
                                   {option}: {action.options[option]}
                                 </Typography>
                               ))}
-                          </>
+                          </React.Fragment>
                       ))}
                     </React.Fragment>
                 ))}
