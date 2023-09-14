@@ -163,7 +163,7 @@ metadata:
                 code={this.state.code}
                 onChange={this.onTextChange}
                 editorRef={this.getCodeFlaskRef}
-                language={"python"}
+                language={"yaml"}
               />
             </div>
         </Grid>

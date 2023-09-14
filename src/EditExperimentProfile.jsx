@@ -82,6 +82,7 @@ metadata:
       filename: props.filename || this.DEFAULT_FILENAME,
       filenameEditable: props.filename !== null,
       openSnackbar: false,
+      isChanged: false,
       snackbarMsg: "",
     }
     this.saveCurrentCode = this.saveCurrentCode.bind(this);
@@ -92,7 +93,7 @@ metadata:
   }
 
   onTextChange = (code) => {
-    this.setState({code: code})
+    this.setState({code: code, isChanged: true})
   }
 
   onFilenameChange = (e) => {
@@ -115,7 +116,7 @@ metadata:
       return
     }
 
-    this.setState({saving: true, isError: false})
+    this.setState({saving: true, isError: false, isChanged: false})
     fetch("/api/contrib/experiment_profiles",{
         method: "POST",
         body: JSON.stringify({body :this.state.code, filename: this.state.filename + '.yaml'}),
@@ -172,7 +173,7 @@ metadata:
                 code={this.state.code}
                 onChange={this.onTextChange}
                 editorRef={this.getCodeFlaskRef}
-                language={"python"}
+                language={"yaml"}
               />
             </div>
         </Grid>
@@ -184,7 +185,7 @@ metadata:
               style={{marginLeft: "20px"}}
               onClick={this.saveCurrentCode}
               endIcon={ <SaveIcon /> }
-              disabled={false}
+              disabled={!this.state.isChanged}
             >
               Save
            </Button>

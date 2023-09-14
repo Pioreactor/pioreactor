@@ -21,6 +21,10 @@ import {runPioreactorJob} from "./utilities"
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import { Link } from 'react-router-dom';
+import SelectButton from "./components/SelectButton";
+import PlayArrowOutlinedIcon from '@mui/icons-material/PlayArrowOutlined';
+import PlayCircleFilledIcon from '@mui/icons-material/PlayCircleFilled';
+import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -67,6 +71,7 @@ function ExperimentProfilesContent(props) {
   const [confirmed, setConfirmed] = React.useState(false)
   const [viewSource, setViewSource] = React.useState(false)
   const [source, setSource] = React.useState("")
+  const [dryRun, setDryRun] = React.useState(false)
 
   React.useEffect(() => {
     fetch("/api/contrib/experiment_profiles")
@@ -80,7 +85,7 @@ function ExperimentProfilesContent(props) {
       })
   }, [])
 
-  const onSubmit = () => runPioreactorJob(props.config['cluster.topology']?.leader_hostname, 'experiment_profile', ['execute', selectedExperimentProfile], {}, () => setConfirmed(true))
+  const onSubmit = () => runPioreactorJob(props.config['cluster.topology']?.leader_hostname, 'experiment_profile', ['execute', selectedExperimentProfile], dryRun ? {'dry-run': null} : {}, () => setConfirmed(true))
 
 
   const onStop = () => {
@@ -157,7 +162,7 @@ function ExperimentProfilesContent(props) {
               onClick={getSourceAndView}
               style={{marginRight: "10px", textTransform: "none"}}
             >
-              <CodeIcon fontSize="15" classes={{root: classes.textIcon}} /> {viewSource ? "Back to description": "View source"}
+              <CodeIcon fontSize="15" classes={{root: classes.textIcon}} /> {viewSource ? "View description": "View source"}
             </Button>
           </Grid>
 
@@ -171,17 +176,21 @@ function ExperimentProfilesContent(props) {
             <DisplaySourceCode sourceCode={source}/>
           }
         </Grid>
-        <div style={{display: "flex", justifyContent: "flex-end"}}>
-            <Button
+        <div style={{display: "flex", justifyContent: "flex-end", marginLeft: "20px"}}>
+            <SelectButton
               variant="contained"
               color="primary"
-              style={{marginLeft: "20px"}}
+              value={dryRun ? "execute_dry_run" : "execute"}
               onClick={onSubmit}
-              endIcon={ <PlayArrowIcon /> }
+              endIcon={ dryRun ? <PlayCircleOutlineIcon />  : <PlayArrowIcon />}
               disabled={(selectedExperimentProfile === "") || confirmed}
+              onChange={({ target: { value } }) =>
+                setDryRun(value === "execute_dry_run")
+              }
             >
-              Execute
-           </Button>
+              <MenuItem value={"execute"}>Execute</MenuItem>
+              <MenuItem value={"execute_dry_run"}>Execute dry-run</MenuItem>
+           </SelectButton>
           <Button
             variant="text"
             color="secondary"
