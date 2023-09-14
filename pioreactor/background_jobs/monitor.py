@@ -573,13 +573,14 @@ class Monitor(BackgroundJob):
           "options": {
             "option_A": "value1",
             "option_B": "value2"
+            "flag": None
           },
           "args": ["arg1", "arg2"]
         }
 
 
         effectively runs:
-        > pio run job_name arg1 arg2 --option-A value1 --option-B value2
+        > pio run job_name arg1 arg2 --option-A value1 --option-B value2 --flag
 
         """
 
@@ -639,7 +640,10 @@ class Monitor(BackgroundJob):
 
             list_of_options: list[str] = []
             for option, value in options.items():
-                list_of_options.extend([f"--{option.replace('_', '-')}", str(value)])
+                list_of_options.append(f"--{option.replace('_', '-')}")
+                if value is not None:
+                    # this handles flag arguments, like --dry-run
+                    list_of_options.append(str(value))
 
             suffix = ">/dev/null 2>&1 &"
 
@@ -647,7 +651,7 @@ class Monitor(BackgroundJob):
             # we don't escape the suffix.
             command = prefix + " " + join(core_command + args + list_of_options) + " " + suffix
 
-            self.logger.debug(f"Running `{command}` from Monitor job.")
+            self.logger.debug(f"Running `{command}` from monitor job.")
 
             Thread(
                 target=subprocess.run,
