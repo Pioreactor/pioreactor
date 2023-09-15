@@ -163,13 +163,20 @@ def check_plugins(plugins: list[struct.Plugin]) -> None:
 def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> None:
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
-    logger = create_logger("experiment_profile")
-    with publish_ready_to_disconnected_state(unit, experiment, "experiment_profile") as state:
+    action_name = "experiment_profile"
+    logger = create_logger(action_name)
+    with publish_ready_to_disconnected_state(unit, experiment, action_name) as state:
         profile = load_and_verify_profile_file(profile_filename)
+
+        publish(
+            f"pioreactor/{unit}/{experiment}/{action_name}/experiment_profile_name",
+            profile.experiment_profile_name,
+            retain=True,
+        )
 
         if dry_run:
             logger.notice(  # type: ignore
-                f"Executing DRY-RUN of profile {profile.experiment_profile_name}, sourced from {profile_filename}."
+                f"Executing DRY-RUN of profile {profile.experiment_profile_name}, sourced from {profile_filename}. See logs."
             )
         else:
             logger.notice(  # type: ignore
@@ -208,14 +215,14 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
 
         # process specific jobs
         for unit_or_label in profile.pioreactors:
-            unit = labels_to_units.get(unit_or_label, unit_or_label)
+            _unit = labels_to_units.get(unit_or_label, unit_or_label)
             jobs = profile.pioreactors[unit_or_label]["jobs"]
             for job in jobs:
                 for action in jobs[job]["actions"]:
                     t = Timer(
                         hours_to_seconds(action.hours_elapsed),
                         execute_action(
-                            unit,
+                            _unit,
                             experiment,
                             job,
                             logger,
@@ -236,19 +243,25 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
             while any((timer.is_alive() for timer in timers)) and not state.exit_event.wait(10):
                 pass
         finally:
+            publish(
+                f"pioreactor/{unit}/{experiment}/{action_name}/experiment_profile_name",
+                None,
+                retain=True,
+            )
+
             if state.exit_event.is_set():
                 # ended early
                 for timer in timers:
                     timer.cancel()
-                logger.info(f"Exiting profile {profile.experiment_profile_name} early.")
+                logger.notice(f"Exiting profile {profile.experiment_profile_name} early.")  # type: ignore
             else:
                 if dry_run:
-                    logger.info(
+                    logger.notice(  # type: ignore
                         f"Finished executing DRY-RUN of profile {profile.experiment_profile_name}."
                     )
 
                 else:
-                    logger.info(f"Finished executing profile {profile.experiment_profile_name}.")
+                    logger.notice(f"Finished executing profile {profile.experiment_profile_name}.")  # type: ignore
 
 
 @click.group(name="experiment_profile")
