@@ -316,7 +316,7 @@ function ExperimentSummaryForm(props) {
           <Grid item xs={12} md={4}/>
           <Grid item xs={12} md={8}>
             <div style={{display: "flex", justifyContent: "flex-end"}}>
-              <Button style={{marginRight: "10px"}} size="small" color="primary" onClick={populateFields}>Populate with previous experiment</Button>
+              <Button style={{marginRight: "10px", textTransform: "none"}} size="small" color="primary" onClick={populateFields}>Populate with previous experiment</Button>
               <Button
                 variant="contained"
                 color="primary"

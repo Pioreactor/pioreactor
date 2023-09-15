@@ -201,7 +201,7 @@ function ExperimentSummary(props){
           <Typography variant="subtitle2" style={{flexGrow: 1}}>
             <div style={{display:"inline"}}>
               <Box fontWeight="fontWeightBold" style={{display:"inline-block"}}>
-                <CalendarTodayIcon style={{ fontSize: 12, verticalAlign: "-1px" }}/> Experiment started:
+                <CalendarTodayIcon style={{ fontSize: 12, verticalAlign: "-1px" }}/> Experiment started:&nbsp;
               </Box>
               <Box fontWeight="fontWeightRegular" style={{marginRight: "1%", display:"inline-block"}}>
                 {(startedAt !== "") &&
@@ -212,7 +212,7 @@ function ExperimentSummary(props){
 
             <div style={{display:"inline"}}>
               <Box fontWeight="fontWeightBold" style={{display:"inline-block"}}>
-                <TimelapseIcon style={{ fontSize: 12, verticalAlign: "-1px"  }}/>Time elapsed:
+                <TimelapseIcon style={{ fontSize: 12, verticalAlign: "-1px"  }}/>Time elapsed:&nbsp;
               </Box>
               <Box fontWeight="fontWeightRegular" style={{marginRight: "1%", display:"inline-block"}}>
                {deltaHours}h

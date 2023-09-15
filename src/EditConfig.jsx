@@ -7,7 +7,7 @@ import CardContent from '@mui/material/Card';
 import FormControl from '@mui/material/FormControl';
 import Button from '@mui/material/Button';
 import LoadingButton from '@mui/lab/LoadingButton';
-import InputLabel from '@mui/material/InputLabel';
+import FormLabel from '@mui/material/FormLabel';
 import Box from '@mui/material/Box';
 import MenuItem from '@mui/material/MenuItem';
 import {Typography} from '@mui/material';
@@ -16,7 +16,7 @@ import Select from '@mui/material/Select';
 import SaveIcon from '@mui/icons-material/Save';
 import { CodeFlaskReact } from "react-codeflask"
 import moment from "moment";
-
+import DeleteIcon from '@mui/icons-material/Delete';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -83,7 +83,6 @@ class EditableCodeDiv extends React.Component {
         return response.json();
       })
       .then(listOfHistoricalConfigs => {
-        listOfHistoricalConfigs.shift() // remove the first file, which is equal to current
         this.setState({
           historicalConfigs: listOfHistoricalConfigs,
           timestamp_ix: 0
@@ -173,7 +172,7 @@ class EditableCodeDiv extends React.Component {
         <div style={{width: "100%", margin: "10px", display: "flex", justifyContent:"space-between"}}>
           <FormControl>
             <div>
-              <InputLabel id="configSelect" variant="standard">Config file</InputLabel>
+              <FormLabel component="legend">Config file</FormLabel>
               <Select
                 labelId="configSelect"
                 variant="standard"
@@ -190,7 +189,7 @@ class EditableCodeDiv extends React.Component {
           {this.state.historicalConfigs.length > 0 ? (
           <FormControl style={{marginRight: "20px"}}>
             <div>
-              <InputLabel id="configSelect" variant="standard">Versions</InputLabel>
+              <FormLabel component="legend">Versions</FormLabel>
               <Select
                 labelId="historicalConfigSelect"
                 variant="standard"
@@ -234,11 +233,12 @@ class EditableCodeDiv extends React.Component {
             <p style={{marginLeft: 12}}>{this.state.isError ? <Box color="error.main">{this.state.errorMsg}</Box>: ""}</p>
           </div>
           <Button
-            style={{margin: "5px 10px 5px 10px"}}
+            style={{margin: "5px 10px 5px 10px", textTransform: "none"}}
             color="secondary"
             onClick={this.deleteConfig}
-            disabled={(this.state.filename === "config.ini")}>
-            Delete config file
+            disabled={(this.state.filename === "config.ini")}
+            >
+            <DeleteIcon fontSize="15" /> Delete config file
           </Button>
         </div>
         <Snackbar

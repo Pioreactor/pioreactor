@@ -74,14 +74,14 @@ const DisplayProfile = ({ data }) => {
           </>
         )}
 
-        {data.common &&
+        {Object.keys(data.common).length > 0 &&
          <>
           <Typography variant="body2">
               <b>All Pioreactor(s) do:</b>
           </Typography>
           {data.common && Object.keys(data.common).map(job => (
               <React.Fragment key={job}>
-                <Typography key={job} variant="body2" style={{ marginLeft: '2em' }}>
+                <Typography  variant="body2" style={{ marginLeft: '2em' }}>
                     <b>Job</b>: {job}
                 </Typography>
                 {data.common[job].actions.sort((a, b) => a.hours_elapsed > b.hours_elapsed).map((action, index) => (
@@ -102,9 +102,9 @@ const DisplayProfile = ({ data }) => {
           </>
         }
 
-        {data.pioreactors && Object.keys(data.pioreactors).map(pioreactor => (
+        {Object.keys(data.pioreactors).length > 0 && Object.keys(data.pioreactors).map(pioreactor => (
             <React.Fragment key={pioreactor}>
-                <Typography key={pioreactor} variant="body2">
+                <Typography variant="body2">
                     <b>{pioreactor} does:</b>
                 </Typography>
                 {Object.keys(data.pioreactors[pioreactor].jobs).map(job => (

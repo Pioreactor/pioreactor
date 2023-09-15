@@ -1014,13 +1014,7 @@ function SettingsActionsDialog(props) {
 
   function setPioreactorJobAttr(job_attr, value) {
     var message = new Message(String(value));
-    message.destinationName = [
-      "pioreactor",
-      props.unit,
-      props.experiment,
-      job_attr,
-      "set",
-    ].join("/");
+    message.destinationName = `pioreactor/${props.unit}/${props.experiment}/${job_attr}/set`
     message.qos = 1;
     try{
       props.client.publish(message);

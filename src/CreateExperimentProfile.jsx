@@ -69,6 +69,7 @@ metadata:
       filename: props.filename || this.DEFAULT_FILENAME,
       openSnackbar: false,
       snackbarMsg: "",
+      isChanged: false,
     }
     this.saveCurrentCode = this.saveCurrentCode.bind(this);
   }
@@ -78,11 +79,11 @@ metadata:
   }
 
   onTextChange = (code) => {
-    this.setState({code: code})
+    this.setState({code: code, isChanged: true})
   }
 
   onFilenameChange = (e) => {
-    this.setState({filename: e.target.value})
+    this.setState({filename: e.target.value, isChanged: true})
   }
 
   handleSnackbarClose = () => {
@@ -95,7 +96,7 @@ metadata:
       return
     }
 
-    this.setState({saving: true, isError: false})
+    this.setState({saving: true, isError: false, isChanged: false})
     fetch("/api/contrib/experiment_profiles",{
         method: "POST",
         body: JSON.stringify({body :this.state.code, filename: this.state.filename + '.yaml'}),
@@ -111,7 +112,7 @@ metadata:
         this.setState({snackbarMsg: `Experiment profile ${this.state.filename}.yaml saved.`});
       } else {
         res.json().then(parsedJson =>
-          this.setState({errorMsg: parsedJson['msg'], isError: true, saving: false})
+          this.setState({errorMsg: parsedJson['msg'], isError: true, saving: false, isChanged: true})
         )
       }
     })
@@ -163,7 +164,7 @@ metadata:
               style={{marginLeft: "20px"}}
               onClick={this.saveCurrentCode}
               endIcon={ <SaveIcon /> }
-              disabled={false}
+              disabled={!this.state.isChanged}
             >
               Save
            </Button>

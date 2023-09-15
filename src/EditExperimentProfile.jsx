@@ -137,7 +137,6 @@ metadata:
             <TextField
               label="Filename"
               onChange={this.onFilenameChange}
-              required
               value={this.state.filename}
               disabled={this.state.filenameEditable}
               styles={{width: "200px"}}
