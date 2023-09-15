@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from collections import defaultdict
 from pathlib import Path
 from threading import Timer
 from typing import Callable
@@ -112,7 +113,46 @@ def hours_to_seconds(hours: float) -> float:
 
 def load_and_verify_profile_file(profile_filename: str) -> struct.Profile:
     with open(profile_filename) as f:
-        return decode(f.read(), type=struct.Profile)
+        profile = decode(f.read(), type=struct.Profile)
+
+    actions_per_job = defaultdict(list)
+
+    for job in profile.common.keys():
+        for action in profile.common[job]["actions"]:
+            actions_per_job[job].append(action)
+
+    for unit in profile.pioreactors.values():
+        for job in unit["jobs"].keys():
+            for action in unit["jobs"][job]["actions"]:
+                actions_per_job[job].append(action)
+
+    # TODO: things to check for:
+    # 1. Don't "stop" any *_automations
+    # 2. Don't change generic settings on *_controllers, (Ex: changing target temp on temp_controller is wrong)
+
+    # 1.
+    def check_for_not_stopping_automations(act):
+        if act.type == "stop":
+            raise ValueError("Don't use 'stop' for automations. Use 'stop' for controllers.")
+        return True
+
+    for automation_type in ["temperature_automation", "dosing_automation", "led_automation"]:
+        assert all(
+            check_for_not_stopping_automations(act) for act in actions_per_job[automation_type]
+        )
+
+    # 2.
+    def check_for_settings_change_on_controllers(act):
+        if act.type == "update" and "automation-name" not in act.options:
+            raise ValueError("Update automations, not controllers, with settings.")
+        return True
+
+    for control_type in ["temperature_control", "dosing_control", "led_control"]:
+        assert all(
+            check_for_settings_change_on_controllers(act) for act in actions_per_job[control_type]
+        )
+
+    return profile
 
 
 def publish_labels_to_ui(labels_map: dict[str, str]) -> None:

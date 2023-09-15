@@ -1,7 +1,12 @@
 ### Upcoming
  - When installing plugins, any leader-only commands would not be run. This is fixed.
- - Base automations now subclass from `pioreactor.automations.BaseAutomationJob`. Nothing the user needs to worry about.
+ - Base automations now subclass from `pioreactor.automations.BaseAutomationJob`. You may need to change custom automation imports from, for example, `from pioreactor.automations import DosingAutomationJobContrib` to `from pioreactor.automations.dosing.base import DosingAutomationJobContrib`
  - Fixed bug that ignored `.yml` files in the UI.
+ - Improvements to experiment profiles, both in the UI and in the backend. Executing now verifies common mistakes in experiment profiles before it runs.
+ - Fixed a bug that could cause controllers to have a disconnected automation. #422
+ - SPI is on by default on all new image installs
+ - Plugin author information is presented on the `/plugins` page in the UI.
+
 
 ### 23.8.29
  - Pioreactor's IPv4 and hostname is now displayed under System in the UI.

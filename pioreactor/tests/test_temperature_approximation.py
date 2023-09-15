@@ -34,7 +34,7 @@ def test_temperature_approximation_if_less_than_hardcoded_room_temp() -> None:
         ],
     }
     with temperature_control.TemperatureController(
-        "only_record_temperature", unit=unit, experiment=experiment
+        automation_name="only_record_temperature", unit=unit, experiment=experiment
     ) as t:
         assert 19.0 <= t.approximate_temperature(features) <= 20.0
 
@@ -46,7 +46,7 @@ def test_temperature_approximation_if_constant() -> None:
     features = {"previous_heater_dc": 17, "time_series_of_temp": 30 * [32.0]}
 
     with temperature_control.TemperatureController(
-        "only_record_temperature", unit=unit, experiment=experiment
+        automation_name="only_record_temperature", unit=unit, experiment=experiment
     ) as t:
         for temp in range(20, 45):
             features = {
@@ -72,7 +72,7 @@ def test_temperature_approximation_even_if_very_tiny_heat_source() -> None:
     }
 
     with temperature_control.TemperatureController(
-        "only_record_temperature", unit=unit, experiment=experiment
+        automation_name="only_record_temperature", unit=unit, experiment=experiment
     ) as t:
         assert (32 * np.exp(-0.008 * 17)) < t.approximate_temperature(features) < 32
 
@@ -92,7 +92,7 @@ def test_temperature_approximation_even_if_very_large_heat_source() -> None:
     }
 
     with temperature_control.TemperatureController(
-        "only_record_temperature", unit=unit, experiment=experiment
+        automation_name="only_record_temperature", unit=unit, experiment=experiment
     ) as t:
         assert (24 * np.exp(-0.008 * 17)) < t.approximate_temperature(features) < 25
 
@@ -103,7 +103,7 @@ def test_temperature_approximation_if_dc_is_nil() -> None:
     unit = get_unit_name()
 
     with temperature_control.TemperatureController(
-        "only_record_temperature", unit=unit, experiment=experiment
+        automation_name="only_record_temperature", unit=unit, experiment=experiment
     ) as t:
         assert t.approximate_temperature(features) == 32.1875
 
@@ -150,7 +150,7 @@ def test_temperature_approximation1() -> None:
     }
 
     with temperature_control.TemperatureController(
-        "only_record_temperature", unit=unit, experiment=experiment
+        automation_name="only_record_temperature", unit=unit, experiment=experiment
     ) as t:
         assert 33.389 <= t.approximate_temperature(features) <= 33.830
 
@@ -196,7 +196,7 @@ def test_temperature_approximation_heating_vial1() -> None:
     }
 
     with temperature_control.TemperatureController(
-        "only_record_temperature", unit=unit, experiment=experiment
+        automation_name="only_record_temperature", unit=unit, experiment=experiment
     ) as t:
         assert 33.525 <= t.approximate_temperature(features) <= 34.00
 
@@ -242,7 +242,7 @@ def test_temperature_approximation_heating_vial2() -> None:
     }
 
     with temperature_control.TemperatureController(
-        "only_record_temperature", unit=unit, experiment=experiment
+        automation_name="only_record_temperature", unit=unit, experiment=experiment
     ) as t:
         assert 33.695 <= t.approximate_temperature(features) <= 34.170
 
@@ -288,7 +288,7 @@ def test_temperature_approximation_heating_vial3() -> None:
     }
 
     with temperature_control.TemperatureController(
-        "only_record_temperature", unit=unit, experiment=experiment
+        automation_name="only_record_temperature", unit=unit, experiment=experiment
     ) as t:
         assert 33.898 <= t.approximate_temperature(features) <= 34.339
 
@@ -334,7 +334,7 @@ def test_temperature_approximation_heating_vial4() -> None:
     }
 
     with temperature_control.TemperatureController(
-        "only_record_temperature", unit=unit, experiment=experiment
+        automation_name="only_record_temperature", unit=unit, experiment=experiment
     ) as t:
         assert 34.068 <= t.approximate_temperature(features) <= 34.577
 
@@ -380,7 +380,7 @@ def test_temperature_approximation_heating_vial5() -> None:
     }
 
     with temperature_control.TemperatureController(
-        "only_record_temperature", unit=unit, experiment=experiment
+        automation_name="only_record_temperature", unit=unit, experiment=experiment
     ) as t:
         assert 34.305 <= t.approximate_temperature(features) <= 34.814
 
@@ -426,7 +426,7 @@ def test_temperature_approximation6() -> None:
     }
 
     with temperature_control.TemperatureController(
-        "only_record_temperature", unit=unit, experiment=experiment
+        automation_name="only_record_temperature", unit=unit, experiment=experiment
     ) as t:
         assert 34.475 <= t.approximate_temperature(features) <= 35.018
 
@@ -472,7 +472,7 @@ def test_temperature_approximation7() -> None:
     }
 
     with temperature_control.TemperatureController(
-        "only_record_temperature", unit=unit, experiment=experiment
+        automation_name="only_record_temperature", unit=unit, experiment=experiment
     ) as t:
         assert 34.644 <= t.approximate_temperature(features) <= 35.153
 
@@ -518,7 +518,7 @@ def test_temperature_approximation8() -> None:
     }
 
     with temperature_control.TemperatureController(
-        "only_record_temperature", unit=unit, experiment=experiment
+        automation_name="only_record_temperature", unit=unit, experiment=experiment
     ) as t:
         assert 34.746 <= t.approximate_temperature(features) <= 35.289
 
@@ -563,7 +563,7 @@ def test_temperature_approximation9() -> None:
         ],
     }
     with temperature_control.TemperatureController(
-        "only_record_temperature", unit=unit, experiment=experiment
+        automation_name="only_record_temperature", unit=unit, experiment=experiment
     ) as t:
         assert 34.848 <= t.approximate_temperature(features) <= 35.391
 
@@ -609,7 +609,7 @@ def test_temperature_approximation10() -> None:
     }
 
     with temperature_control.TemperatureController(
-        "only_record_temperature", unit=unit, experiment=experiment
+        automation_name="only_record_temperature", unit=unit, experiment=experiment
     ) as t:
         assert 34.950 <= t.approximate_temperature(features) <= 35.493
 
@@ -655,7 +655,7 @@ def test_temperature_approximation20() -> None:
     }
 
     with temperature_control.TemperatureController(
-        "only_record_temperature", unit=unit, experiment=experiment
+        automation_name="only_record_temperature", unit=unit, experiment=experiment
     ) as t:
         assert 34.950 <= t.approximate_temperature(features) <= 35.493
 
@@ -702,7 +702,7 @@ def test_temperature_approximation_cooling1() -> None:
     }
 
     with temperature_control.TemperatureController(
-        "only_record_temperature", unit=unit, experiment=experiment
+        automation_name="only_record_temperature", unit=unit, experiment=experiment
     ) as t:
         assert 32.169 <= t.approximate_temperature(features)
 
@@ -748,7 +748,7 @@ def test_temperature_approximation_cooling2() -> None:
     }
 
     with temperature_control.TemperatureController(
-        "only_record_temperature", unit=unit, experiment=experiment
+        automation_name="only_record_temperature", unit=unit, experiment=experiment
     ) as t:
         assert 31.118 <= t.approximate_temperature(features)
 
@@ -794,7 +794,7 @@ def test_temperature_approximation11() -> None:
     }
 
     with temperature_control.TemperatureController(
-        "only_record_temperature", unit=unit, experiment=experiment
+        automation_name="only_record_temperature", unit=unit, experiment=experiment
     ) as t:
         assert 29.628 <= t.approximate_temperature(features) <= 30.136
 
@@ -840,7 +840,7 @@ def test_temperature_approximation12() -> None:
     }
 
     with temperature_control.TemperatureController(
-        "only_record_temperature", unit=unit, experiment=experiment
+        automation_name="only_record_temperature", unit=unit, experiment=experiment
     ) as t:
         assert 28.476 <= t.approximate_temperature(features) <= 28.747
 
@@ -886,7 +886,7 @@ def test_temperature_approximation13() -> None:
     }
 
     with temperature_control.TemperatureController(
-        "only_record_temperature", unit=unit, experiment=experiment
+        automation_name="only_record_temperature", unit=unit, experiment=experiment
     ) as t:
         assert 28.374 <= t.approximate_temperature(features) <= 28.645
 
@@ -932,7 +932,7 @@ def test_temperature_approximation14() -> None:
     }
 
     with temperature_control.TemperatureController(
-        "only_record_temperature", unit=unit, experiment=experiment
+        automation_name="only_record_temperature", unit=unit, experiment=experiment
     ) as t:
         assert 28.374 <= t.approximate_temperature(features) <= 28.578
 
@@ -977,7 +977,7 @@ def test_temperature_approximation15() -> None:
         ],
     }
     with temperature_control.TemperatureController(
-        "only_record_temperature", unit=unit, experiment=experiment
+        automation_name="only_record_temperature", unit=unit, experiment=experiment
     ) as t:
         assert 28.815 <= t.approximate_temperature(features) <= 29.119
 
@@ -1024,7 +1024,7 @@ def test_temperature_approximation16() -> None:
     }
 
     with temperature_control.TemperatureController(
-        "only_record_temperature", unit=unit, experiment=experiment
+        automation_name="only_record_temperature", unit=unit, experiment=experiment
     ) as t:
         assert 25.261 <= t.approximate_temperature(features) <= 25.430
 
@@ -1071,6 +1071,6 @@ def test_temperature_approximation17() -> None:
     }
 
     with temperature_control.TemperatureController(
-        "only_record_temperature", unit=unit, experiment=experiment
+        automation_name="only_record_temperature", unit=unit, experiment=experiment
     ) as t:
         assert 25.295 <= t.approximate_temperature(features) <= 25.430

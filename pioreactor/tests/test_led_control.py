@@ -27,7 +27,9 @@ def pause(n=1) -> None:
 
 def test_silent() -> None:
     experiment = "test_silent"
-    with LEDController("silent", duration=60, unit=unit, experiment=experiment) as ld:
+    with LEDController(
+        automation_name="silent", duration=60, unit=unit, experiment=experiment
+    ) as ld:
         pause()
         pause()
         pause()
@@ -54,7 +56,7 @@ def test_changing_automation_over_mqtt() -> None:
     experiment = "test_changing_automation_over_mqtt"
     original_duration = 60
     with LEDController(
-        "silent", duration=original_duration, unit=unit, experiment=experiment
+        automation_name="silent", duration=original_duration, unit=unit, experiment=experiment
     ) as ld:
         assert ld.automation_name == "silent"
         assert ld.automation_job.duration == original_duration
@@ -110,7 +112,7 @@ def test_light_dark_cycle_starts_on() -> None:
     experiment = "test_light_dark_cycle_starts_on"
     unit = get_unit_name()
     with LEDController(
-        "light_dark_cycle",
+        automation_name="light_dark_cycle",
         duration=60,
         light_intensity=50,
         light_duration_minutes=60 * 16,
@@ -130,7 +132,7 @@ def test_light_dark_cycle_turns_off_after_N_cycles() -> None:
     experiment = "test_light_dark_cycle_turns_off_after_N_cycles"
     unit = get_unit_name()
     with LEDController(
-        "light_dark_cycle",
+        automation_name="light_dark_cycle",
         duration=0.01,
         light_intensity=50,
         light_duration_minutes=60 * 16,
@@ -155,7 +157,7 @@ def test_dark_duration_hour_to_zero() -> None:
     experiment = "test_dark_duration_hour_to_zero"
     unit = get_unit_name()
     with LEDController(
-        "light_dark_cycle",
+        automation_name="light_dark_cycle",
         duration=0.005,
         light_intensity=50,
         light_duration_minutes=60 * 16,
@@ -185,7 +187,7 @@ def test_light_duration_hour_to_zero() -> None:
     experiment = "test_light_duration_hour_to_zero"
     unit = get_unit_name()
     with LEDController(
-        "light_dark_cycle",
+        automation_name="light_dark_cycle",
         duration=0.01,
         light_intensity=50,
         light_duration_minutes=60 * 16,
@@ -205,7 +207,7 @@ def test_add_dark_duration_minutes() -> None:
     experiment = "test_add_dark_duration_minutes * 60"
     unit = get_unit_name()
     with LEDController(
-        "light_dark_cycle",
+        automation_name="light_dark_cycle",
         duration=0.01,
         light_intensity=50,
         light_duration_minutes=60 * 16,
@@ -235,7 +237,7 @@ def test_remove_dark_duration_minutes() -> None:
     experiment = "test_remove_dark_duration_minutes * 60"
     unit = get_unit_name()
     with LEDController(
-        "light_dark_cycle",
+        automation_name="light_dark_cycle",
         duration=0.005,
         light_intensity=50,
         light_duration_minutes=60 * 16,
@@ -269,7 +271,7 @@ def test_fractional_hours() -> None:
     experiment = "test_fractional_hours"
     unit = get_unit_name()
     with LEDController(
-        "light_dark_cycle",
+        automation_name="light_dark_cycle",
         duration=0.005,
         light_intensity=50,
         light_duration_minutes=60 * 0.9,
