@@ -350,8 +350,8 @@ def test_changing_parameters_over_mqtt_with_unknown_parameter() -> None:
     assert any(["garbage" in log["message"] for log in bucket])
 
 
-def test_pause_in_dosing_automation() -> None:
-    experiment = "test_pause_in_dosing_automation"
+def test_pause_in_dosing_automation_wont_work_use_controller_instead() -> None:
+    experiment = "test_pause_in_dosing_automation_wont_work_use_controller_instead"
     with DosingAutomationJob(
         target_growth_rate=0.05,
         target_od=1.0,
@@ -361,10 +361,6 @@ def test_pause_in_dosing_automation() -> None:
     ) as algo:
         pause()
         pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/$state/set", "sleeping")
-        pause()
-        assert algo.state == "sleeping"
-
-        pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/$state/set", "ready")
         pause()
         assert algo.state == "ready"
 
@@ -972,8 +968,8 @@ def test_changing_algo_over_mqtt_with_wrong_type_is_okay() -> None:
 def test_disconnect_cleanly() -> None:
     experiment = "test_disconnect_cleanly"
     algo = DosingController(
-        experiment,
         unit,
+        experiment,
         "turbidostat",
         target_normalized_od=1.0,
         duration=50,

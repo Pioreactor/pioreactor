@@ -36,4 +36,4 @@ class BaseAutomationJob(BackgroundSubJob):
         """
         Overwrite in subclass
         """
-        raise NotImplementedError("Overwrite in base class")
+        return None
