@@ -25,7 +25,7 @@ def pause(n=1) -> None:
 def test_thermostat_automation() -> None:
     experiment = "test_thermostat_automation"
     with temperature_control.TemperatureController(
-        "thermostat", target_temperature=50, unit=unit, experiment=experiment
+        automation_name="thermostat", target_temperature=50, unit=unit, experiment=experiment
     ) as algo:
         pause(2)
 
@@ -56,7 +56,7 @@ def test_changing_temperature_algo_over_mqtt() -> None:
     )
 
     with temperature_control.TemperatureController(
-        "only_record_temperature", unit=unit, experiment=experiment
+        unit=unit, experiment=experiment, automation_name="only_record_temperature"
     ) as tc:
         assert tc.automation_name == "only_record_temperature"
         assert isinstance(tc.automation_job, OnlyRecordTemperature)
@@ -86,7 +86,7 @@ def test_changing_temperature_algo_over_mqtt_and_then_update_params() -> None:
     )
 
     with temperature_control.TemperatureController(
-        "only_record_temperature", unit=unit, experiment=experiment
+        unit=unit, experiment=experiment, automation_name="only_record_temperature"
     ) as algo:
         assert algo.automation_name == "only_record_temperature"
         assert isinstance(algo.automation_job, OnlyRecordTemperature)
@@ -113,7 +113,7 @@ def test_changing_temperature_algo_over_mqtt_and_then_update_params() -> None:
 def test_heating_is_reduced_when_set_temp_is_exceeded() -> None:
     experiment = "test_heating_is_reduced_when_set_temp_is_exceeded"
     with temperature_control.TemperatureController(
-        "only_record_temperature", unit=unit, experiment=experiment
+        unit=unit, experiment=experiment, automation_name="only_record_temperature"
     ) as t:
         setattr(
             t.heating_pcb_tmp_driver,
@@ -134,7 +134,7 @@ def test_heating_is_reduced_when_set_temp_is_exceeded() -> None:
 def test_thermostat_doesnt_fail_when_initial_target_is_less_than_initial_temperature() -> None:
     experiment = "test_thermostat_doesnt_fail_when_initial_target_is_less_than_initial_temperature"
     with temperature_control.TemperatureController(
-        "thermostat", unit=unit, experiment=experiment, target_temperature=20
+        unit=unit, experiment=experiment, automation_name="thermostat", target_temperature=20
     ) as t:
         pause(3)
         assert t.automation_job.state == "ready"
@@ -144,7 +144,7 @@ def test_thermostat_doesnt_fail_when_initial_target_is_less_than_initial_tempera
 def test_heating_stops_when_max_temp_is_exceeded() -> None:
     experiment = "test_heating_stops_when_max_temp_is_exceeded"
     with temperature_control.TemperatureController(
-        "thermostat",
+        automation_name="thermostat",
         unit=unit,
         experiment=experiment,
         target_temperature=25,
@@ -172,10 +172,9 @@ def test_heating_stops_when_max_temp_is_exceeded() -> None:
 def test_child_cant_update_heater_when_locked() -> None:
     experiment = "test_child_cant_update_heater_when_locked"
     with temperature_control.TemperatureController(
-        "only_record_temperature",
         unit=unit,
         experiment=experiment,
-        eval_and_publish_immediately=False,
+        automation_name="only_record_temperature",
     ) as t:
         assert t.automation_job.update_heater(50)
 
@@ -196,7 +195,7 @@ def test_constant_duty_cycle_init() -> None:
 
     dc = 50
     with temperature_control.TemperatureController(
-        "constant_duty_cycle", unit=unit, experiment=experiment, duty_cycle=dc
+        automation_name="constant_duty_cycle", unit=unit, experiment=experiment, duty_cycle=dc
     ) as algo:
         pause()
         assert algo.heater_duty_cycle == 50
@@ -206,7 +205,7 @@ def test_setting_pid_control_after_startup_will_start_some_heating() -> None:
     # this test tries to replicate what a user does in the UI
     experiment = "test_setting_pid_control_after_startup_will_start_some_heating"
     with temperature_control.TemperatureController(
-        "thermostat", unit=unit, experiment=experiment, target_temperature=35
+        automation_name="thermostat", unit=unit, experiment=experiment, target_temperature=35
     ) as t:
         pause(3)
         assert t.automation_job.state == "ready"
@@ -226,7 +225,7 @@ def test_duty_cycle_is_published_and_not_settable() -> None:
     )
 
     with temperature_control.TemperatureController(
-        "only_record_temperature", unit=unit, experiment=experiment
+        automation_name="only_record_temperature", unit=unit, experiment=experiment
     ):
         # change to PID thermostat
 
@@ -255,7 +254,7 @@ def test_duty_cycle_is_published_and_not_settable() -> None:
 def test_temperature_control_and_thermostats_relationship() -> None:
     experiment = "test_temperature_control_and_thermostats_relationship"
     with temperature_control.TemperatureController(
-        "thermostat", unit=unit, experiment=experiment, target_temperature=30
+        automation_name="thermostat", unit=unit, experiment=experiment, target_temperature=30
     ) as tc:
         tc.publish_temperature_timer.pause()  # pause this for now. we will manually run evaluate_and_publish_temperature
         pause()
@@ -303,7 +302,7 @@ def test_coprime() -> None:
 
     experiment = "test_coprime"
     with temperature_control.TemperatureController(
-        "thermostat", unit=unit, experiment=experiment, target_temperature=30
+        automation_name="thermostat", unit=unit, experiment=experiment, target_temperature=30
     ) as tc:
         assert coprime2(
             tc.read_external_temperature_timer.interval,
@@ -324,7 +323,7 @@ def test_using_external_thermocouple() -> None:
 
     experiment = "test_using_external_thermocouple"
     with temperature_control.TemperatureController(
-        "only_record_temperature",
+        automation_name="only_record_temperature",
         unit=unit,
         experiment=experiment,
         using_third_party_thermocouple=True,
@@ -369,7 +368,7 @@ def test_that_if_a_user_tries_to_change_thermostat_X_to_thermostat_Y_we_just_cha
     experiment = "test_that_if_a_user_tries_to_change_thermostat_X_to_thermostat_Y_we_just_change_the_attr_instead_of_the_entire_automation"
 
     with temperature_control.TemperatureController(
-        "thermostat", target_temperature=30, unit=unit, experiment=experiment
+        automation_name="thermostat", target_temperature=30, unit=unit, experiment=experiment
     ) as tc:
         assert tc.automation_name == "thermostat"
         assert isinstance(tc.automation_job, Thermostat)
@@ -394,3 +393,23 @@ def test_that_if_a_user_tries_to_change_thermostat_X_to_thermostat_Y_we_just_cha
 
         assert hasattr(tc.automation_job, "test_attr")
         assert tc.automation_job.test_attr
+
+
+def test_that_you_cant_disconnect_the_temperature_automation_directly_but_must_use_the_controller_to_disconnect() -> (
+    None
+):
+    experiment = "test_that_you_cant_disconnect_the_temperature_automation_directly_but_must_use_the_controller_to_disconnect"
+
+    with temperature_control.TemperatureController(
+        unit, experiment, automation_name="thermostat", target_temperature=20
+    ) as algo:
+        assert algo.automation_name == "thermostat"
+        assert algo.automation_job.state == algo.READY
+        pause()
+        pause()
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/temperature_automation/$state/set", "disconnected"
+        )
+        pause()
+        assert algo.automation_job.state == algo.READY
+        pause()

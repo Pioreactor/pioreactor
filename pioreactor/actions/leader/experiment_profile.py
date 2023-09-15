@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from pathlib import Path
 from threading import Timer
 from typing import Callable
 
@@ -176,11 +177,11 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
 
         if dry_run:
             logger.notice(  # type: ignore
-                f"Executing DRY-RUN of profile {profile.experiment_profile_name}, sourced from {profile_filename}. See logs."
+                f"Executing DRY-RUN of profile {profile.experiment_profile_name}, sourced from {Path(profile_filename).name}. See logs."
             )
         else:
             logger.notice(  # type: ignore
-                f"Executing profile {profile.experiment_profile_name}, sourced from {profile_filename}."
+                f"Executing profile {profile.experiment_profile_name}, sourced from {Path(profile_filename).name}."
             )
 
         try:
