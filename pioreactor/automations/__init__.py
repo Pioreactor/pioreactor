@@ -36,4 +36,4 @@ class BaseAutomationJob(BackgroundSubJob):
         """
         Overwrite in subclass
         """
-        return None
+        return events.NoEvent()

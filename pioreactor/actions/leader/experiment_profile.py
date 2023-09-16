@@ -133,7 +133,9 @@ def load_and_verify_profile_file(profile_filename: str) -> struct.Profile:
     # 1.
     def check_for_not_stopping_automations(act):
         if act.type == "stop":
-            raise ValueError("Don't use 'stop' for automations. Use 'stop' for controllers.")
+            raise ValueError(
+                "Don't use 'stop' for automations. To stop automations, use 'stop' for controllers."
+            )
         return True
 
     for automation_type in ["temperature_automation", "dosing_automation", "led_automation"]:
@@ -207,7 +209,11 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
     action_name = "experiment_profile"
     logger = create_logger(action_name)
     with publish_ready_to_disconnected_state(unit, experiment, action_name) as state:
-        profile = load_and_verify_profile_file(profile_filename)
+        try:
+            profile = load_and_verify_profile_file(profile_filename)
+        except Exception as e:
+            logger.error(e)
+            raise e
 
         publish(
             f"pioreactor/{unit}/{experiment}/{action_name}/experiment_profile_name",
