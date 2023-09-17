@@ -77,3 +77,23 @@ def test_run_job_with_monitor() -> None:
             pause()
 
         assert any("pio run example_plugin" in msg["message"] for msg in bucket)
+
+
+def test__job_options_and_args_to_shell_command() -> None:
+    m = Monitor
+    assert (
+        m._job_options_and_args_to_shell_command("stirring", [], {"target_rpm": 400})
+        == "nohup pio run stirring --target-rpm 400 >/dev/null 2>&1 &"
+    )
+    assert (
+        m._job_options_and_args_to_shell_command("stirring", [], {"ignore_rpm": None})
+        == "nohup pio run stirring --ignore-rpm >/dev/null 2>&1 &"
+    )
+    assert (
+        m._job_options_and_args_to_shell_command("stirring", [], {})
+        == "nohup pio run stirring >/dev/null 2>&1 &"
+    )
+    assert (
+        m._job_options_and_args_to_shell_command("od_calibration", ["list"], {})
+        == "nohup pio run od_calibration list >/dev/null 2>&1 &"
+    )

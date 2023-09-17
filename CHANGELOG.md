@@ -7,7 +7,6 @@
  - SPI is on by default on all new image installs
  - Plugin author information is presented on the `/plugins` page in the UI.
 
-
 ### 23.8.29
  - Pioreactor's IPv4 and hostname is now displayed under System in the UI.
  - In configuration, renamed section `dosing_automation` to `dosing_automation.config` (only applies to new installs). It's recommended for existing users to make this change, too.

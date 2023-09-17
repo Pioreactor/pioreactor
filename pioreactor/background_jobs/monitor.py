@@ -5,6 +5,7 @@ import subprocess
 from json import loads
 from threading import Thread
 from time import sleep
+from typing import Any
 from typing import Callable
 from typing import Optional
 
@@ -587,8 +588,6 @@ class Monitor(BackgroundJob):
         # we use a thread here since we want to exit this callback without blocking it.
         # a blocked callback can disconnect from MQTT broker, prevent other callbacks, etc.
 
-        from shlex import join  # https://docs.python.org/3/library/shlex.html#shlex.quote
-
         job_name = msg.topic.split("/")[-1]
         payload = loads(msg.payload) if msg.payload else {"options": {}, "args": []}
 
@@ -634,22 +633,7 @@ class Monitor(BackgroundJob):
             Thread(target=pump_action, kwargs=options, daemon=True).start()
 
         else:
-            prefix = "nohup"
-
-            core_command = ["pio", "run", job_name]
-
-            list_of_options: list[str] = []
-            for option, value in options.items():
-                list_of_options.append(f"--{option.replace('_', '-')}")
-                if value is not None:
-                    # this handles flag arguments, like --dry-run
-                    list_of_options.append(str(value))
-
-            suffix = ">/dev/null 2>&1 &"
-
-            # shell-escaped to protect against injection vulnerabilities, see join docs
-            # we don't escape the suffix.
-            command = prefix + " " + join(core_command + args + list_of_options) + " " + suffix
+            command = self._job_options_and_args_to_shell_command(job_name, args, options)
 
             self.logger.debug(f"Running `{command}` from monitor job.")
 
@@ -659,6 +643,31 @@ class Monitor(BackgroundJob):
                 kwargs={"shell": True, "start_new_session": True},
                 daemon=True,
             ).start()
+
+    @staticmethod
+    def _job_options_and_args_to_shell_command(
+        job_name: str, args: list[str], options: dict[str, Any]
+    ) -> str:
+        from shlex import join  # https://docs.python.org/3/library/shlex.html#shlex.quote
+
+        prefix = "nohup"
+
+        core_command = ["pio", "run", job_name]
+
+        list_of_options: list[str] = []
+        for option, value in options.items():
+            list_of_options.append(f"--{option.replace('_', '-')}")
+            if value is not None:
+                # this handles flag arguments, like --dry-run
+                list_of_options.append(str(value))
+
+        suffix = ">/dev/null 2>&1 &"
+
+        # shell-escaped to protect against injection vulnerabilities, see join docs
+        # we don't escape the suffix.
+        command = prefix + " " + join(core_command + args + list_of_options) + " " + suffix
+
+        return command
 
     def flicker_error_code_from_mqtt(self, message: MQTTMessage) -> None:
         if self.led_in_use:

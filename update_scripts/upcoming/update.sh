@@ -5,4 +5,5 @@ set -e
 
 export LC_ALL=C
 
-wget -O /usr/local/bin/install_pioreactor_plugin.sh https://raw.githubusercontent.com/Pioreactor/CustoPiZer/a70a01c7f9736bbb43d126dbb1388722fe27b6a0/workspace/scripts/files/bash/install_pioreactor_plugin.sh
+wget -O /usr/local/bin/install_pioreactor_plugin.sh https://raw.githubusercontent.com/Pioreactor/CustoPiZer/1d95fa4952398aab1dda09f8cc6d79a8e72197d4/workspace/scripts/files/bash/install_pioreactor_plugin.sh
+sudo chown pioreactor:pioreactor /home/pioreactor/.pioreactor/experiment_profiles/demo_stirring_example.yaml || true
