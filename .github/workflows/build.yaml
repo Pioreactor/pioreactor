@@ -36,6 +36,33 @@ jobs:
           overwrite: true
           file_glob: true
 
+  zip-asset-upload:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+    - name: Download release assets
+      run: |
+        curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r '.assets[].browser_download_url' > assets.txt
+        mkdir release_assets
+        cd release_assets
+        while read -r line; do
+          echo "$line"
+          wget "$line"
+        done < ../assets.txt
+    - name: Zip the assets
+      run: |
+        cd release_assets
+        zip -r ../release_${{ github.event.release.tag_name }}.zip .
+    - name: Upload zipped assets
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: release_${{ github.event.release.tag_name }}.zip
+        tag: ${{ github.ref }}
+        overwrite: true
+
   publish-on-pypi:
     name: 📦 Publish tagged releases to PyPI
     runs-on: ubuntu-latest
