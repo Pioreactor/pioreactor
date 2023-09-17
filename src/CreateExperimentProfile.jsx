@@ -83,7 +83,7 @@ metadata:
   }
 
   onFilenameChange = (e) => {
-    this.setState({filename: e.target.value, isChanged: true})
+    this.setState({filename: e.target.value.replace(/ |\//g, "_"), isChanged: true})
   }
 
   handleSnackbarClose = () => {

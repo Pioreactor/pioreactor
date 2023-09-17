@@ -193,13 +193,18 @@ function ChangelogContainer(){
     async function getData() {
          await fetch("https://raw.githubusercontent.com/Pioreactor/pioreactor/master/CHANGELOG.md")
         .then((response) => {
+          throw new Error('Parameter is not a number!')
           return response.text();
         })
         .then((data) => {
           setChangelog(data)
         }).catch(e => {
           // no internet?
-          setChangelog("Could not retrieve latest Changelog. Are you missing an internet connection? You can find the latest changelog at [https://github.com/pioreactor/pioreactor/master/CHANGELOG.md](https://github.com/pioreactor/pioreactor/master/CHANGELOG.md)")
+          setChangelog(`
+Could not retrieve latest Changelog. Perhaps not connected to the internet.
+ - You can find the latest changelog at this url: [https://github.com/pioreactor/pioreactor/master/CHANGELOG.md](https://github.com/pioreactor/pioreactor/master/CHANGELOG.md)
+ - To update to the latest version of Pioreactor software, even without internet, see documentation here: [https://docs.pioreactor.com/user-guide/common-questions#im-using-a-local-access-point-but-id-like-to-install-plugins-update-software-etc](https://docs.pioreactor.com/user-guide/common-questions#im-using-a-local-access-point-but-id-like-to-install-plugins-update-software-etc).
+          `)
         })
       }
       getData()

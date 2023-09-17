@@ -144,6 +144,7 @@ function ExperimentProfilesContent(props) {
     }
     else if ((setting === "$state") && (payload === "disconnected")){
       setIsProfileActive(false)
+      setConfirmed(false)
     }
     else if(setting === "experiment_profile_name") {
       setRunningProfileName(payload === "" ? null : payload)
@@ -269,7 +270,7 @@ function ExperimentProfilesContent(props) {
               value={dryRun ? "execute_dry_run" : "execute"}
               onClick={onSubmit}
               endIcon={dryRun ? <VisibilityIcon />  : <PlayArrowIcon />}
-              disabled={(selectedExperimentProfile === "") || confirmed || (isProfileActive)}
+              disabled={confirmed || (isProfileActive)}
               onChange={({target: { value } }) =>
                 setDryRun(value === "execute_dry_run")
               }

@@ -27,6 +27,9 @@ const humanReadableDuration = (actionType, hoursElapsed) => {
   if (hoursElapsed === 0){
     return `${actionType} immediately`
   }
+  else if (hoursElapsed < 1./60){
+    return `${actionType} after ${Math.round(hoursElapsed * 60 * 60 * 10) / 10} seconds`
+  }
   else if (hoursElapsed < 1){
     return `${actionType} after ${Math.round(hoursElapsed * 60 * 10) / 10} minutes`
   }
