@@ -21,6 +21,8 @@ from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
+ACTION_COUNT_LIMIT = 248
+
 
 def execute_action(
     unit: str,
@@ -129,6 +131,7 @@ def load_and_verify_profile_file(profile_filename: str) -> struct.Profile:
     # TODO: things to check for:
     # 1. Don't "stop" any *_automations
     # 2. Don't change generic settings on *_controllers, (Ex: changing target temp on temp_controller is wrong)
+    # 3. Current limitation with this architecture. We can't create more than 248 threads.
 
     # 1.
     def check_for_not_stopping_automations(act):
@@ -153,6 +156,11 @@ def load_and_verify_profile_file(profile_filename: str) -> struct.Profile:
         assert all(
             check_for_settings_change_on_controllers(act) for act in actions_per_job[control_type]
         )
+
+    # 3.
+    assert (
+        sum(len(x) for x in actions_per_job.values()) < ACTION_COUNT_LIMIT
+    ), "Too many actions. Must be less than 248. Contact the Pioreactor authors."
 
     return profile
 
@@ -258,6 +266,7 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
                         dry_run,
                     ),
                 )
+                t.daemon = True
                 timers.append(t)
 
         # process specific jobs
