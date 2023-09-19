@@ -563,6 +563,62 @@ if am_I_leader():
             raise click.Abort()
 
     @pios.command(
+        name="shutdown",
+        short_help="shutdown Pioreactors",
+    )
+    @click.option(
+        "--units",
+        multiple=True,
+        default=(UNIVERSAL_IDENTIFIER,),
+        type=click.STRING,
+        help="specify a hostname, default is all active units",
+    )
+    @click.option("-y", is_flag=True, help="Skip asking for confirmation.")
+    def shutdown(units: tuple[str, ...], y: bool) -> None:
+        """
+        Shutdown Pioreactor / Raspberry Pi
+        """
+        from sh import ssh  # type: ignore
+        from sh import ErrorReturnCode_255  # type: ignore
+        from sh import ErrorReturnCode_1  # type: ignore
+
+        command = "sudo shutdown -h now"
+        units = universal_identifier_to_all_workers(units)
+        also_shutdown_leader = get_leader_hostname() in units
+        units_san_leader = remove_leader(units)
+
+        if not y:
+            confirm = input(f"Confirm running `{command}` on {units}? Y/n: ").strip()
+            if confirm != "Y":
+                raise click.Abort()
+
+        def _thread_function(unit: str) -> bool:
+            click.echo(f"Executing `{command}` on {unit}.")
+            try:
+                ssh(add_local(unit), command)
+                return True
+            except ErrorReturnCode_255 as e:
+                logger = create_logger("CLI", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
+                logger.debug(e, exc_info=True)
+                logger.error(f"Unable to connect to unit {unit}. {e.stderr.decode()}")
+                return False
+            except ErrorReturnCode_1 as e:
+                logger.error(f"Error occurred: {e}. See logs for more.")
+                logger.debug(e.stderr, exc_info=True)
+                return False
+
+        if len(units_san_leader) > 0:
+            with ThreadPoolExecutor(max_workers=len(units_san_leader)) as executor:
+                executor.map(_thread_function, units_san_leader)
+
+        # we delay shutdown leader (if asked), since it would prevent
+        # executing the shutdown cmd on other workers
+        if also_shutdown_leader:
+            import os
+
+            os.system(command)
+
+    @pios.command(
         name="reboot",
         short_help="reboot Pioreactors",
     )

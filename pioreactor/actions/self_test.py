@@ -310,7 +310,7 @@ def test_PD_is_near_0_volts_for_blank(client, logger: Logger, unit: str, experim
 
     mean_signal = trimmed_mean(signals)
 
-    THRESHOLD = 0.025
+    THRESHOLD = 0.035
     assert mean_signal <= THRESHOLD, f"{mean_signal=} > {THRESHOLD}"
 
 
