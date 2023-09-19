@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-# test_automation.py
 from __future__ import annotations
 
 from pioreactor.structs import Automation

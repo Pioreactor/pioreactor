@@ -56,7 +56,9 @@ jobs:
            EOT
 
       - name: Run tests
-        run: pytest pioreactor/tests/ -vv --timeout 600 --random-order --durations 15
+        run:  |
+          pytest pioreactor/tests/ -vv --timeout 600 --random-order --durations 15
+          pytest pioreactor/tests/test_automation_imports.py
         env:
           TESTING: 1
           TMPDIR: /tmp/
