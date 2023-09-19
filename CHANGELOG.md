@@ -1,4 +1,4 @@
-### Upcoming
+### 23.9.19
  - When installing plugins, any leader-only commands would not be run. This is fixed.
  - Base automations now subclass from `pioreactor.automations.BaseAutomationJob`. You may need to change custom automation imports from, for example, `from pioreactor.automations import DosingAutomationJobContrib` to `from pioreactor.automations.dosing.base import DosingAutomationJobContrib`
  - Fixed bug that ignored `.yml` files in the UI.
