@@ -6,7 +6,7 @@ The previous change:
 had an import error that I didn't see in my testing. We changed this further to:
 
 - Base automations now subclass from `pioreactor.automations.base.AutomationJob`.
-
+- Fix bug on /updates page.
 
 ### 23.9.19
  - When installing plugins, any leader-only commands would not be run. This is fixed.
