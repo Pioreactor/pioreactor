@@ -982,6 +982,7 @@ function SettingsActionsDialog(props) {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [tabValue, setTabValue] = React.useState(0);
   const [rebooting, setRebooting] = React.useState(false);
+  const [shuttingDown, setShuttingDown] = React.useState(false);
   const [openChangeDosingDialog, setOpenChangeDosingDialog] = React.useState(false);
   const [openChangeLEDDialog, setOpenChangeLEDDialog] = React.useState(false);
   const [openChangeTemperatureDialog, setOpenChangeTemperatureDialog] = React.useState(false);
@@ -1002,6 +1003,13 @@ function SettingsActionsDialog(props) {
     return function() {
       setRebooting(true)
       fetch("/api/reboot/" + props.unit, {method: "POST"})
+    }
+  }
+
+  function shutDownRaspberryPi(){
+    return function() {
+      setShuttingDown(true)
+      fetch("/api/shutdown/" + props.unit, {method: "POST"})
     }
   }
 
@@ -1685,7 +1693,7 @@ function SettingsActionsDialog(props) {
             Reboot
           </Typography>
           <Typography variant="body2" component="p">
-            Reboot the Raspberry Pi operating system. This will stop all jobs, and the Pioreactor will be inaccessible for a few minutes.
+            Reboot the Raspberry Pi operating system. This will stop all jobs, and the Pioreactor will be inaccessible for a few minutes. It will blink its blue LED when back up, or press the onboard button to light up the blue LED.
           </Typography>
 
           <LoadingButton
@@ -1695,9 +1703,31 @@ function SettingsActionsDialog(props) {
             color="primary"
             size="small"
             style={{marginTop: "15px"}}
+            disabled={props.jobs.monitor.state !== "ready"}
             onClick={rebootRaspberryPi()}
           >
             Reboot RPi
+          </LoadingButton>
+
+          <Divider className={classes.divider} />
+
+          <Typography  gutterBottom>
+            Shut down
+          </Typography>
+          <Typography variant="body2" component="p">
+            After 20 seconds, shut down the Pioreactor. This will stop all jobs, and the Pioreactor will be inaccessible until it is restarted by unplugging and replugging the power supply.
+          </Typography>
+          <LoadingButton
+            loadingIndicator="😵"
+            loading={shuttingDown}
+            variant="contained"
+            color="primary"
+            size="small"
+            style={{marginTop: "15px"}}
+            disabled={props.jobs.monitor.state !== "ready"}
+            onClick={shutDownRaspberryPi()}
+          >
+            Shut down
           </LoadingButton>
 
           <Divider className={classes.divider} />
