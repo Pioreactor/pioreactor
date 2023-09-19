@@ -15,8 +15,8 @@ from pioreactor import exc
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.actions.led_intensity import led_intensity
-from pioreactor.automations import BaseAutomationJob
 from pioreactor.automations import events
+from pioreactor.automations.base import AutomationJob
 from pioreactor.background_jobs.led_control import LEDController
 from pioreactor.pubsub import QOS
 from pioreactor.utils import is_pio_job_running
@@ -30,7 +30,7 @@ def brief_pause() -> float:
     return d
 
 
-class LEDAutomationJob(BaseAutomationJob):
+class LEDAutomationJob(AutomationJob):
     """
     This is the super class that LED automations inherit from. The `run` function will
     execute every `duration` minutes (selected at the start of the program), and call the `execute` function

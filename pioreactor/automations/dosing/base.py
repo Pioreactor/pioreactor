@@ -19,8 +19,8 @@ from pioreactor import types as pt
 from pioreactor.actions.pump import add_alt_media
 from pioreactor.actions.pump import add_media
 from pioreactor.actions.pump import remove_waste
-from pioreactor.automations import BaseAutomationJob
 from pioreactor.automations import events
+from pioreactor.automations.base import AutomationJob
 from pioreactor.background_jobs.dosing_control import DosingController
 from pioreactor.config import config
 from pioreactor.pubsub import QOS
@@ -157,7 +157,7 @@ class AltMediaFractionCalculator:
         )
 
 
-class DosingAutomationJob(BaseAutomationJob):
+class DosingAutomationJob(AutomationJob):
     """
     This is the super class that automations inherit from. The `run` function will
     execute every `duration` minutes (selected at the start of the program). If `duration` is left

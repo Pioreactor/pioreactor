@@ -11,14 +11,14 @@ from msgspec.json import encode
 from pioreactor import exc
 from pioreactor import structs
 from pioreactor import types as pt
-from pioreactor.automations import BaseAutomationJob
+from pioreactor.automations.base import AutomationJob
 from pioreactor.background_jobs.temperature_control import TemperatureController
 from pioreactor.pubsub import QOS
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils.timing import current_utc_datetime
 
 
-class TemperatureAutomationJob(BaseAutomationJob):
+class TemperatureAutomationJob(AutomationJob):
     """
     This is the super class that Temperature automations inherit from.
     The `execute` function, which is what subclasses will define, is updated every time a new temperature is recorded to MQTT.

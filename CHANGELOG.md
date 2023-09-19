@@ -1,3 +1,13 @@
+### 23.9.20
+The previous change:
+
+>  - Base automations now subclass from `pioreactor.automations.BaseAutomationJob`. You may need to change custom automation imports from, for example, `from pioreactor.automations import DosingAutomationJobContrib` to `from pioreactor.automations.dosing.base import DosingAutomationJobContrib`
+
+had an import error that I didn't see in my testing. We changed this further to:
+
+- Base automations now subclass from `pioreactor.automations.base.AutomationJob`.
+
+
 ### 23.9.19
  - When installing plugins, any leader-only commands would not be run. This is fixed.
  - Base automations now subclass from `pioreactor.automations.BaseAutomationJob`. You may need to change custom automation imports from, for example, `from pioreactor.automations import DosingAutomationJobContrib` to `from pioreactor.automations.dosing.base import DosingAutomationJobContrib`
