@@ -65,6 +65,9 @@ class DosingController(BackgroundJob):
         try:
             automation_class = self.available_automations[automation_name]
         except KeyError:
+            self.logger.error(
+                f"Unable to find automation {automation_name}. Available automations are {list(self.available_automations.keys())}"
+            )
             self.clean_up()
             raise KeyError(
                 f"Unable to find automation {automation_name}. Available automations are {list(self.available_automations.keys())}"

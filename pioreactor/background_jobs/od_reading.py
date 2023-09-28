@@ -655,7 +655,7 @@ class NullCalibrationTransformer(CalibrationTransformer):
 class CachedCalibrationTransformer(CalibrationTransformer):
     def __init__(self, channel_angle_map: dict[pt.PdChannel, pt.PdAngle]) -> None:
         super().__init__()
-
+        self.has_logged_warning = False
         try:
             self.models = self.get_models_from_disk(channel_angle_map)
         except Exception as e:
@@ -711,17 +711,22 @@ class CachedCalibrationTransformer(CalibrationTransformer):
             this procedure effectively ignores it.
 
             """
-            from numpy import roots, zeros_like, iscomplex, real
+            from numpy import roots, zeros_like, real
 
-            def calibration(x: float) -> float:
+            def calibration(observed_voltage: pt.Voltage) -> pt.OD:
                 poly = calibration_data.curve_data_
+                min_OD, max_OD = calibration_data.minimum_od600, calibration_data.maximum_od600
+                min_voltage, max_voltage = (
+                    calibration_data.minimum_voltage,
+                    calibration_data.maximum_voltage,
+                )
 
-                coef_shift = zeros_like(calibration_data.curve_data_)
-                coef_shift[-1] = x
-                roots_ = roots(poly - coef_shift)
-                min_OD, max_OD = 0, float(calibration_data.maximum_od600)
+                coef_shift = zeros_like(poly)
+                coef_shift[-1] = observed_voltage
+                solve_for_poly = poly - coef_shift
+                roots_ = roots(solve_for_poly)
                 plausible_roots_ = sorted(
-                    [real(r) for r in roots_ if not iscomplex(r) and (min_OD <= r <= max_OD)]
+                    [real(r) for r in roots_ if (r.imag == 0) and (min_OD <= real(r) <= max_OD)]
                 )
 
                 try:
@@ -730,13 +735,29 @@ class CachedCalibrationTransformer(CalibrationTransformer):
                     return ideal_root
 
                 except IndexError:
-                    self.logger.debug(f"Outside suggested calibration range [{min_OD}, {max_OD}].")
-                    return max_OD
+                    if observed_voltage <= min_voltage:
+                        # voltage less than the blank recorded during the calibration and the calibration curve doesn't have solutions (ex even-deg poly)
+                        # this isn't great, as there is nil noise in the signal.
+
+                        if not self.has_logged_warning:
+                            self.logger.warning(
+                                f"Signal below suggested calibration range. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V."
+                            )
+                            self.has_logged_warning = True
+                        return min_OD
+
+                    else:
+                        if not self.has_logged_warning:
+                            self.logger.warning(
+                                f"Signal outside suggested calibration range. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V."
+                            )
+                            self.has_logged_warning = True
+                        return max_OD
 
         else:
 
-            def calibration(x: float) -> float:
-                return x
+            def calibration(observed_voltage: pt.Voltage) -> pt.OD:
+                return observed_voltage
 
         return calibration
 

@@ -597,7 +597,7 @@ def test_calibration_simple_linear_calibration():
         pause()
         pause()
         pause()
-        with collect_all_logs_of_level("debug", unit=get_unit_name(), experiment="+") as bucket:
+        with collect_all_logs_of_level("warning", unit=get_unit_name(), experiment="+") as bucket:
             voltage = 10.0
             pause()
             pause()
@@ -646,7 +646,7 @@ def test_calibration_simple_linear_calibration_negative_slope():
         voltage = 0.5
         assert od.calibration_transformer.models["2"](voltage) == (voltage - 2) / (-0.1)
 
-        with collect_all_logs_of_level("debug", unit=get_unit_name(), experiment="+") as bucket:
+        with collect_all_logs_of_level("warning", unit=get_unit_name(), experiment="+") as bucket:
             voltage = 12.0
             assert voltage > 2.0
 
@@ -839,3 +839,90 @@ def test_ODReader_with_multiple_angles_and_a_ref():
             print(signal)
             if i == 3:
                 break
+
+
+def test_calibration_data_from_user1():
+    # the problem is that the 4th degree polynomial doesn't always have a solution to the inverse problem.
+    experiment = "test_calibration_data_from_user1"
+    poly = [2.583, -3.447, 1.531, 0.223, 0.017]  # email correspondence
+
+    with local_persistant_storage("current_od_calibration") as c:
+        c["90"] = encode(
+            structs.OD90Calibration(
+                created_at=current_utc_datetime(),
+                curve_type="poly",
+                curve_data_=poly,
+                name="multi_test",
+                maximum_od600=1.0,
+                minimum_od600=0.01,
+                ir_led_intensity=90.0,
+                angle="90",
+                minimum_voltage=0.018,
+                maximum_voltage=1.0,
+                voltages=[],
+                od600s=[],
+                pd_channel="2",
+                pioreactor_unit=get_unit_name(),
+            )
+        )
+
+    with start_od_reading("REF", "90", interval=None, fake_data=True, experiment=experiment) as od:
+        assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
+        infer = od.calibration_transformer.models["2"]
+
+        # try varying voltage up over and across the lower bound, and assert we are always non-decreasing.
+        od_0 = 0
+        for i in range(10):
+            voltage = i / 5 * 0.018
+            od_1 = infer(voltage)
+            assert od_0 <= od_1
+            od_0 = od_1
+
+    with local_persistant_storage("current_od_calibration") as c:
+        del c["90"]
+
+
+def test_calibration_data_from_user2():
+    # the difference here is that the 3 degree polynomial always has a solution to the inverse problem.
+    experiment = "test_calibration_data_from_user2"
+    poly = [
+        1.71900012,
+        -1.77900665,
+        0.95000656,
+        -0.01770485,
+    ]  # looks like the degree 4 above: https://chat.openai.com/share/2ef30900-22ef-4a7f-8f34-14a88ffc65a8
+
+    with local_persistant_storage("current_od_calibration") as c:
+        c["90"] = encode(
+            structs.OD90Calibration(
+                created_at=current_utc_datetime(),
+                curve_type="poly",
+                curve_data_=poly,
+                name="multi_test",
+                maximum_od600=1.0,
+                minimum_od600=0.01,
+                ir_led_intensity=90.0,
+                angle="90",
+                minimum_voltage=0.018,
+                maximum_voltage=1.0,
+                voltages=[],
+                od600s=[],
+                pd_channel="2",
+                pioreactor_unit=get_unit_name(),
+            )
+        )
+
+    with start_od_reading("REF", "90", interval=None, fake_data=True, experiment=experiment) as od:
+        assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
+        infer = od.calibration_transformer.models["2"]
+
+        # try varying voltage up over and across the lower bound, and assert we are always non-decreasing.
+        od_0 = 0
+        for i in range(10):
+            voltage = i / 5 * 0.018
+            od_1 = infer(voltage)
+            assert od_0 <= od_1
+            od_0 = od_1
+
+    with local_persistant_storage("current_od_calibration") as c:
+        del c["90"]

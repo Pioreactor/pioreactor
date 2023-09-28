@@ -295,6 +295,9 @@ class DosingAutomationJob(AutomationJob):
 
         """
         event: Optional[events.AutomationEvent]
+
+        self._latest_run_at = current_utc_datetime()
+
         if self.state == self.DISCONNECTED:
             # NOOP
             # we ended early.
@@ -326,7 +329,6 @@ class DosingAutomationJob(AutomationJob):
             self.logger.info(str(event))
 
         self.latest_event = event
-        self._latest_run_at = current_utc_datetime()
         return event
 
     def block_until_not_sleeping(self) -> bool:

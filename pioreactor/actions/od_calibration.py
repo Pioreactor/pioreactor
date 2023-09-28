@@ -172,8 +172,8 @@ def plot_data(
 
 def start_recording_and_diluting(
     st: Stirrer,
-    initial_od600: float,
-    minimum_od600: float,
+    initial_od600: pt.OD,
+    minimum_od600: pt.OD,
     dilution_amount: float,
     signal_channel,
 ):
@@ -194,7 +194,7 @@ def start_recording_and_diluting(
         use_calibration=False,
     ) as od_reader:
 
-        def get_voltage_from_adc() -> float:
+        def get_voltage_from_adc() -> pt.Voltage:
             od_readings1 = od_reader.record_from_adc()
             od_readings2 = od_reader.record_from_adc()
             return 0.5 * (od_readings1.ods[signal_channel].od + od_readings2.ods[signal_channel].od)
@@ -285,19 +285,19 @@ def start_recording_and_diluting(
             x_max=initial_od600,
         )
         click.echo("Empty the vial and replace with 10 mL of the media you used.")
-        inferred_od600 = click.prompt("What is the OD600 of your blank?", type=float)
+        od600_of_blank = click.prompt("What is the OD600 of your blank?", type=float)
         click.echo("Confirm vial outside is dry and clean. Place back into Pioreactor.")
         while not click.confirm("Continue?", default=True):
             pass
 
         voltages.append(get_voltage_from_adc())
-        inferred_od600s.append(inferred_od600)
+        inferred_od600s.append(od600_of_blank)
 
         return inferred_od600s, voltages
 
 
 def calculate_curve_of_best_fit(
-    voltages: list[float], inferred_od600s: list[float], degree: int
+    voltages: list[pt.Voltage], inferred_od600s: list[pt.OD], degree: int
 ) -> tuple[list[float], str]:
     import numpy as np
 
@@ -320,8 +320,8 @@ def calculate_curve_of_best_fit(
 def show_results_and_confirm_with_user(
     curve_data: list[float],
     curve_type: str,
-    voltages: list[float],
-    inferred_od600s: list[float],
+    voltages: list[pt.Voltage],
+    inferred_od600s: list[pt.OD],
 ) -> tuple[bool, int]:
     click.clear()
 
@@ -361,12 +361,10 @@ d: choose a new degree for polynomial fit
 def save_results(
     curve_data_: list[float],
     curve_type: str,
-    voltages: list[float],
-    od600s: list[float],
+    voltages: list[pt.Voltage],
+    od600s: list[pt.OD],
     angle,
     name: str,
-    maximum_od600: float,
-    minimum_od600: float,
     signal_channel: pt.PdChannel,
     unit: str,
 ) -> structs.ODCalibration:
@@ -386,8 +384,8 @@ def save_results(
         pioreactor_unit=unit,
         name=name,
         angle=angle,
-        maximum_od600=maximum_od600,
-        minimum_od600=0,
+        maximum_od600=max(od600s),
+        minimum_od600=min(od600s),
         minimum_voltage=min(voltages),
         maximum_voltage=max(voltages),
         curve_data_=curve_data_,
@@ -431,7 +429,7 @@ def od_calibration() -> None:
                 st, initial_od600, minimum_od600, dilution_amount, signal_channel
             )
 
-        degree = 4
+        degree = 5 if len(voltages) > 5 else 3
         while True:
             curve_data_, curve_type = calculate_curve_of_best_fit(voltages, inferred_od600s, degree)
             okay_with_result, degree = show_results_and_confirm_with_user(
@@ -447,8 +445,6 @@ def od_calibration() -> None:
             inferred_od600s,
             angle,
             name,
-            initial_od600,
-            minimum_od600,
             signal_channel,
             unit,
         )

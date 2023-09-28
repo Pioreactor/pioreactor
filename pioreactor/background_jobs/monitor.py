@@ -448,17 +448,14 @@ class Monitor(BackgroundJob):
         from pioreactor.hardware import voltage_in_aux
 
         voltage_read = voltage_in_aux(precision=0.05)
-        if voltage_read <= 4.80:
-            return (True, voltage_read)
+        under_voltage_flag = new_under_voltage()
 
-        under_voltage = new_under_voltage()
-        if under_voltage is None:
-            # not supported on system
-            return (False, voltage_read)
-        elif under_voltage.get():
-            return (True, voltage_read)
+        under_voltage_status = under_voltage_flag.get() if under_voltage_flag else None
+
+        if voltage_read <= 4.80 and (under_voltage_status is None or under_voltage_status):
+            return True, voltage_read
         else:
-            return (False, voltage_read)
+            return False, voltage_read
 
     def check_for_power_problems(self) -> None:
         is_rpi_having_power_probems, voltage = self.rpi_is_having_power_problems()

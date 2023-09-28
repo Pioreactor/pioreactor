@@ -227,14 +227,14 @@ AnyPumpCalibration = t.Union[
 
 class ODCalibration(Calibration):
     angle: pt.PdAngle
-    maximum_od600: float
-    minimum_od600: float
-    minimum_voltage: float
-    maximum_voltage: float
+    maximum_od600: pt.OD
+    minimum_od600: pt.OD
+    minimum_voltage: pt.Voltage
+    maximum_voltage: pt.Voltage
     curve_type: str
     curve_data_: list[float]
-    voltages: list[float]
-    od600s: list[float]
+    voltages: list[pt.Voltage]
+    od600s: list[pt.OD]
     ir_led_intensity: float
     pd_channel: pt.PdChannel
 
