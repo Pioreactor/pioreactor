@@ -741,7 +741,7 @@ class CachedCalibrationTransformer(CalibrationTransformer):
 
                         if not self.has_logged_warning:
                             self.logger.warning(
-                                f"Signal below suggested calibration range. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V."
+                                f"Signal below suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V."
                             )
                             self.has_logged_warning = True
                         return min_OD
@@ -749,7 +749,7 @@ class CachedCalibrationTransformer(CalibrationTransformer):
                     else:
                         if not self.has_logged_warning:
                             self.logger.warning(
-                                f"Signal outside suggested calibration range. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V."
+                                f"Signal outside suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V."
                             )
                             self.has_logged_warning = True
                         return max_OD

@@ -79,20 +79,22 @@ def is_connected_to_network() -> bool:
 
 
 def get_ip() -> Optional[str]:
-    # TODO: is this always ipv4??
-    from psutil import net_if_addrs  # type: ignore
+    # returns ipv4
+    from psutil import net_if_addrs
 
-    # Check for IP address of wireless network interface 'wlan0'
-    try:
-        return net_if_addrs()["wlan0"][0].address
-    except Exception:
-        return None
+    interfaces = ["wlan0", "eth0"]
 
-    # Check for IP address of ethernet network interface 'eth0'
-    try:
-        return net_if_addrs()["eth0"][0].address
-    except Exception:
-        pass
+    for iface in interfaces:
+        try:
+            ipv4_addresses = [
+                addr.address for addr in net_if_addrs()[iface] if addr.family == 2
+            ]  # AddressFamily.AF_INET == 2
+            if ipv4_addresses:
+                return ipv4_addresses[0]
+        except Exception:
+            continue
+
+    return None
 
 
 def discover_workers_on_network(terminate: bool = False) -> Generator[str, None, None]:
