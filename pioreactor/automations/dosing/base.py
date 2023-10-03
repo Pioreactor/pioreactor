@@ -392,7 +392,7 @@ class DosingAutomationJob(AutomationJob):
                 "Not removing enough waste: waste_ml should be greater than sum of dosed ml"
             )
 
-        max_ = 0.75  # arbitrary, but should be some value that the pump is well calibrated for
+        max_ = 0.75  # arbitrary, but should be some value that the pump is well calibrated for. TODO: should this be a constant on the class?
         volumes_moved = SummableDict(waste_ml=0.0, **{p: 0.0 for p in all_pumps_ml})
         source_of_event = f"{self.job_name}:{self.automation_name}"
 

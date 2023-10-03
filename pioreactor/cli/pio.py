@@ -864,7 +864,7 @@ if whoami.am_I_leader():
         """
         Update the PioreactorUI
 
-        Source, if provided, should be a .tar.gz with a top-level dir like pioreactorui-{branch}/
+        Source, if provided, should be a .tar.gz with a top-level dir like pioreactorui-{version}/
         This is what is provided from Github releases.
         """
         logger = create_logger(
@@ -878,8 +878,8 @@ if whoami.am_I_leader():
             version = f"tags/{version}"
 
         if source is not None:
-            assert branch is not None, "branch must be provided with the -b option"
-            version_installed = branch
+            assert version is not None, "version must be provided with the -v option"
+            version_installed = version
 
         elif branch is not None:
             version_installed = quote(branch)
