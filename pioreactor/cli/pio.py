@@ -474,18 +474,25 @@ def get_tag_to_install(repo: str, version_desired: Optional[str]) -> str:
 @click.option(
     "-r",
     "--repo",
-    help="install from a repo on github. Format: username/project",
+    help="install from a repo on github. Format: 'username/project'",
     default="pioreactor/pioreactor",
 )
 @click.option("--source", help="use a URL or whl file")
 @click.option("-v", "--version", help="install a specific version, default is latest")
+@click.option(
+    "--find-links",
+    help="specify a folder to find dependency wheels. Only used if --source is not empty",
+)
 def update_app(
-    branch: Optional[str], repo: str, source: Optional[str], version: Optional[str]
+    branch: Optional[str],
+    repo: str,
+    source: Optional[str],
+    version: Optional[str],
+    find_links: Optional[str],
 ) -> None:
     """
     Update the Pioreactor core software
     """
-
     logger = create_logger(
         "update-app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
     )
@@ -494,10 +501,18 @@ def update_app(
 
     if source is not None:
         version_installed = source
-        commands_and_priority.append(
-            (f"sudo pip3 install --force-reinstall --no-index {source}", 1)
-        )
 
+        if find_links is not None:
+            commands_and_priority.append(
+                (
+                    f"sudo pip3 install --find-links={find_links} --force-reinstall --no-index {source}",
+                    1,
+                )
+            )
+        else:
+            commands_and_priority.append(
+                (f"sudo pip3 install --force-reinstall --no-index {source}", 1)
+            )
     elif branch is not None:
         version_installed = quote(branch)
         commands_and_priority.append(

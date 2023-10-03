@@ -211,11 +211,11 @@ def choose_settings() -> tuple[float, float]:
     )
     dc = click.prompt(
         click.style(
-            "Optional: Enter duty cycle percent as a whole number. [enter] for default 90%",
+            "Optional: Enter duty cycle percent as a whole number. [enter] for default 95%",
             fg="green",
         ),
         type=click.IntRange(0, 100),
-        default=90,
+        default=95,
         show_default=False,
     )
 
