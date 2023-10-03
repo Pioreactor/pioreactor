@@ -49,10 +49,11 @@ jobs:
           python-version: 3.9
       - name: 🏗 Install build dependencies
         run: |
+          python -m pip install --upgrade pip
           python -m pip install wheel build --user
       - name: 🔨 Build wheels for all dependencies
         run: |
-          pip download . -d wheels -r requirements/requirements_dev.txt --index-url https://piwheels.org/simple --platform linux_armv7l --platform linux_armv6l --platform manylinux_2_36_armv7l --only-binary=:all: --extra-index-url https://pypi.org/simple
+          pip download -d wheels -r requirements/requirements_dev.txt --index-url https://piwheels.org/simple --platform linux_armv7l --platform linux_armv6l --platform manylinux_2_31_armv7l --only-binary=:all: --extra-index-url https://pypi.org/simple --python-version 39
       - name: Zip the wheels
         run: |
           cd wheels
