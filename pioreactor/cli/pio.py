@@ -477,18 +477,13 @@ def get_tag_to_install(repo: str, version_desired: Optional[str]) -> str:
     help="install from a repo on github. Format: 'username/project'",
     default="pioreactor/pioreactor",
 )
-@click.option("--source", help="use a URL or whl file")
+@click.option("--source", help="use a URL, whl file, or release-***.zip file")
 @click.option("-v", "--version", help="install a specific version, default is latest")
-@click.option(
-    "--find-links",
-    help="specify a folder to find dependency wheels. Only used if --source is not empty",
-)
 def update_app(
     branch: Optional[str],
     repo: str,
     source: Optional[str],
     version: Optional[str],
-    find_links: Optional[str],
 ) -> None:
     """
     Update the Pioreactor core software
@@ -500,19 +495,39 @@ def update_app(
     commands_and_priority: list[tuple[str, int]] = []
 
     if source is not None:
-        version_installed = source
+        import re
 
-        if find_links is not None:
-            commands_and_priority.append(
-                (
-                    f"sudo pip3 install --find-links={find_links} --force-reinstall --no-index {source}",
-                    1,
-                )
+        if re.search("release_(.*).zip", source):
+            version_installed = re.search("release_(.*).zip", source).groups()[0]  # type: ignore
+            release_folder = f"/tmp/release_{version_installed}"
+            commands_and_priority.extend(
+                [
+                    (f"rm -rf {release_folder}", -3),
+                    (f"unzip {source} -d {release_folder}", -2),
+                    (
+                        f"unzip {release_folder}/wheels_{version_installed}.zip -d {release_folder}/wheels",
+                        0,
+                    ),
+                    (f"sudo bash {release_folder}/pre_update.sh || true", 1),
+                    (
+                        f"sudo pip install --force-reinstall --no-index --find-links={release_folder}/wheels/ {release_folder}/pioreactor-{version_installed}-py3-none-any.whl",
+                        2,
+                    ),
+                    (f"sudo bash {release_folder}/update.sh", 3),
+                    (
+                        f'sudo sqlite3 {config["storage"]["database"]} < {release_folder}/update.sql || true',
+                        4,
+                    ),
+                    (f"sudo bash {release_folder}/post_update.sh || true", 5),
+                ]
             )
+
         else:
+            version_installed = source
             commands_and_priority.append(
                 (f"sudo pip3 install --force-reinstall --no-index {source}", 1)
             )
+
     elif branch is not None:
         version_installed = quote(branch)
         commands_and_priority.append(
