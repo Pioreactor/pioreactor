@@ -193,12 +193,12 @@ function ChangelogContainer(){
     async function getData() {
          await fetch("https://raw.githubusercontent.com/Pioreactor/pioreactor/master/CHANGELOG.md")
         .then((response) => {
-          throw new Error('Parameter is not a number!')
           return response.text();
         })
         .then((data) => {
           setChangelog(data)
-        }).catch(e => {
+        }
+        ).catch(e => {
           // no internet?
           setChangelog(`
 Could not retrieve latest Changelog. Perhaps not connected to the internet.
