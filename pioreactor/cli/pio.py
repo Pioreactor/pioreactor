@@ -499,26 +499,26 @@ def update_app(
 
         if re.search("release_(.*).zip", source):
             version_installed = re.search("release_(.*).zip", source).groups()[0]  # type: ignore
-            release_folder = f"/tmp/release_{version_installed}"
+            tmp_release_folder = f"/tmp/release_{version_installed}"
             commands_and_priority.extend(
                 [
-                    (f"rm -rf {release_folder}", -3),
-                    (f"unzip {source} -d {release_folder}", -2),
+                    (f"rm -rf {tmp_release_folder}", -3),
+                    (f"unzip {source} -d {tmp_release_folder}", -2),
                     (
-                        f"unzip {release_folder}/wheels_{version_installed}.zip -d {release_folder}/wheels",
+                        f"unzip {tmp_release_folder}/wheels_{version_installed}.zip -d {tmp_release_folder}/wheels",
                         0,
                     ),
-                    (f"sudo bash {release_folder}/pre_update.sh || true", 1),
+                    (f"sudo bash {tmp_release_folder}/pre_update.sh || true", 1),
                     (
-                        f"sudo pip install --force-reinstall --no-index --find-links={release_folder}/wheels/ {release_folder}/pioreactor-{version_installed}-py3-none-any.whl",
+                        f"sudo pip install --force-reinstall --no-index --find-links={tmp_release_folder}/wheels/ {tmp_release_folder}/pioreactor-{version_installed}-py3-none-any.whl",
                         2,
                     ),
-                    (f"sudo bash {release_folder}/update.sh", 3),
+                    (f"sudo bash {tmp_release_folder}/update.sh || true", 3),
                     (
-                        f'sudo sqlite3 {config["storage"]["database"]} < {release_folder}/update.sql || true',
+                        f'sudo sqlite3 {config["storage"]["database"]} < {tmp_release_folder}/update.sql || true',
                         4,
                     ),
-                    (f"sudo bash {release_folder}/post_update.sh || true", 5),
+                    (f"sudo bash {tmp_release_folder}/post_update.sh || true", 5),
                 ]
             )
 

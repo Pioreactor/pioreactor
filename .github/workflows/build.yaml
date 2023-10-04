@@ -47,11 +47,10 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: 3.9
-      - name: 🏗 Install build dependencies
+      - name: 🏗 Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install wheel build --user
-      - name: 🔨 Build wheels for all dependencies
+      - name: 🔨 Download wheels for all dependencies
         run: |
           pip download -d wheels -r requirements/requirements_leader_worker.txt --index-url https://piwheels.org/simple --platform linux_armv7l --platform linux_armv6l --platform manylinux_2_31_armv7l --only-binary=:all: --extra-index-url https://pypi.org/simple --python-version 39
       - name: Zip the wheels
@@ -66,29 +65,10 @@ jobs:
           tag: ${{ github.ref }}
           overwrite: true
 
-  upload-ui:
-    name: ⤵️ Fetch UI tarball
-    runs-on: ubuntu-latest
-    steps:
-      - name: Setup jq
-        run: sudo apt-get install -y jq
-      - name: Download UI tarball
-        run: |
-          latest_release=$(curl -s https://api.github.com/repos/pioreactor/pioreactorui/releases/latest | jq --raw-output '.tag_name')
-          wget https://github.com/pioreactor/pioreactorui/archive/refs/tags/$latest_release.tar.gz -O pioreactorui_$latest_release.tar.gz
-      - name: Upload zipped assets
-        uses: svenstaro/upload-release-action@v2
-        with:
-          file_glob: true
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: pioreactorui_*.tar.gz
-          tag: ${{ github.ref }}
-          overwrite: true
-
   zip-asset-upload:
     name: 🤐 Zip assets
     runs-on: ubuntu-latest
-    needs: [build, upload-ui, build-deps]
+    needs: [build, build-deps]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
