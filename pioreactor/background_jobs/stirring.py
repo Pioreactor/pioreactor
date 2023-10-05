@@ -56,7 +56,6 @@ class RpmCalculator:
 
     """
 
-    hall_sensor_pin: pt.GpioPin = hardware.HALL_SENSOR_PIN
 
     def __init__(self) -> None:
         pass
@@ -64,32 +63,24 @@ class RpmCalculator:
     def setup(self) -> None:
         # we delay the setup so that when all other checks are done (like in stirring's uniqueness), we can start to
         # use the GPIO for this.
-        set_gpio_availability(self.hall_sensor_pin, False)
+        set_gpio_availability(hardware.HALL_SENSOR_PIN, False)
+        from gpiozero import DigitalInputDevice
 
-        self.GPIO.setup(self.hall_sensor_pin, self.GPIO.IN, pull_up_down=self.GPIO.PUD_UP)
+        self.hall_sensor_input_device = DigitalInputDevice(hardware.HALL_SENSOR_PIN, pull_up=True, bounce_time=15)
 
-        # ignore any changes that occur within 15ms - at 1000rpm (very fast), the
-        # delta between changes is ~60ms, so 15ms is good enough.
-        # sometimes this fails with `RuntimeError: Failed to add edge detection`, so we retry.
-        retry(
-            self.GPIO.add_event_detect,
-            args=(self.hall_sensor_pin, self.GPIO.FALLING),
-            kwargs={"callback": self.callback, "bouncetime": 15},
-        )
-        self.turn_off_collection()
 
     def turn_off_collection(self) -> None:
         self.collecting = False
-        self.GPIO.setup(self.hall_sensor_pin, self.GPIO.OUT)
+        self.hall_sensor_input_device.when_activated = None
 
     def turn_on_collection(self) -> None:
         self.collecting = True
-        self.GPIO.setup(self.hall_sensor_pin, self.GPIO.IN, pull_up_down=self.GPIO.PUD_UP)
+        self.hall_sensor_input_device.when_activated = self.callback
 
     def clean_up(self) -> None:
         with suppress(AttributeError):
-            self.GPIO.cleanup(self.hall_sensor_pin)
-        set_gpio_availability(self.hall_sensor_pin, True)
+            self.hall_sensor_input_device.close()
+        set_gpio_availability(hardware.HALL_SENSOR_PIN, True)
 
     def estimate(self, seconds_to_observe: float) -> float:
         return 0.0
