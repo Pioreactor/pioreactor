@@ -408,7 +408,6 @@ class Monitor(BackgroundJob):
         # Warning: this might be called twice: See "Switch debounce" in https://sourceforge.net/p/raspberry-gpio-python/wiki/Inputs/
         # don't put anything that is not idempotent in here.
 
-
         self.button_down = True
 
         for pre_function in self._pre_button:
