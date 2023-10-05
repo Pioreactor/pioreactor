@@ -36,16 +36,6 @@ class RpmCalculator:
     """
     Super class for determining how to calculate the RPM from the hall sensor.
 
-    We do some funky things with RPi.GPIO here.
-
-    1) to minimize global imports, we import in init, and attach the module to self.
-    2) More egregious: we previously had this class call `add_event_detect` and afterwards `remove_event_detect`
-       in each __call__ - this made sure that we were saving CPU resources when we were not measuring the RPM.
-       This was causing `Bus error`, and crashing Python. What I think was happening was that the folder
-       `/sys/class/gpio/gpio25` was constantly being written and deleted in each __call__, causing problems with the
-       SD card. Anyways, what we do now is turn the pin from IN to OUT inbetween the calls to RPM measurement. This
-       is taken care of in `turn_{on,off}_collection`. Flipping this only writes to `/sys/class/gpio/gpio15/direction` once.
-
     Examples
     -----------
 
@@ -71,7 +61,7 @@ class RpmCalculator:
 
     def turn_off_collection(self) -> None:
         self.collecting = False
-        self.hall_sensor_input_device.when_activated = None
+        self.hall_sensor_input_device.when_activated = None  # TODO: supress warning
 
     def turn_on_collection(self) -> None:
         self.collecting = True

@@ -145,16 +145,12 @@ def get_image_git_hash() -> str:
 
 
 if is_testing_env():
-    # import fake_rpi  # type: ignore
-    # fake_rpi.toggle_print(False)
-    # sys.modules["RPi"] = fake_rpi.RPi  # Fake RPi
-    # sys.modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO
-
     # mock out gpiozero's pins
     from gpiozero import Device
     from gpiozero.pins.mock import MockFactory
+    from gpiozero.pins.mock import MockPWMPin
 
-    Device.pin_factory = MockFactory()
+    Device.pin_factory = MockFactory(pin_class=MockPWMPin)
 
     # allow Blinka to think we are an Rpi:
     # https://github.com/adafruit/Adafruit_Python_PlatformDetect/blob/75f69806222fbaf8535130ed2eacd07b06b1a298/adafruit_platformdetect/board.py

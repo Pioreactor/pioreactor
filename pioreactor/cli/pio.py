@@ -29,10 +29,8 @@ from pioreactor.config import config
 from pioreactor.config import get_leader_hostname
 from pioreactor.logging import create_logger
 from pioreactor.mureq import get
-from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistant_storage
-from pioreactor.utils.gpio_helpers import temporarily_set_gpio_unavailable
 from pioreactor.utils.networking import add_local
 
 
@@ -151,41 +149,13 @@ def log(message: str, level: str, name: str, local_only: bool):
 
 @pio.command(name="blink", short_help="blink LED")
 def blink() -> None:
-    monitor_running = is_pio_job_running("monitor")
-
-    if not monitor_running:
-        import RPi.GPIO as GPIO  # type: ignore
-
-        GPIO.setmode(GPIO.BCM)
-
-        from pioreactor.hardware import PCB_LED_PIN as LED_PIN
-
-        def led_on() -> None:
-            GPIO.output(LED_PIN, GPIO.HIGH)
-
-        def led_off() -> None:
-            GPIO.output(LED_PIN, GPIO.LOW)
-
-        with temporarily_set_gpio_unavailable(LED_PIN):
-            GPIO.setup(LED_PIN, GPIO.OUT)
-
-            for _ in range(4):
-                led_on()
-                sleep(0.14)
-                led_off()
-                sleep(0.14)
-                led_on()
-                sleep(0.14)
-                led_off()
-                sleep(0.45)
-
-            GPIO.cleanup(LED_PIN)
-
-    else:
-        pubsub.publish(
-            f"pioreactor/{whoami.get_unit_name()}/{whoami.UNIVERSAL_EXPERIMENT}/monitor/flicker_led_response_okay",
-            1,
-        )
+    """
+    monitor job is required to be running.
+    """
+    pubsub.publish(
+        f"pioreactor/{whoami.get_unit_name()}/{whoami.UNIVERSAL_EXPERIMENT}/monitor/flicker_led_response_okay",
+        1,
+    )
 
 
 @pio.command(name="kill", short_help="kill job(s)")
