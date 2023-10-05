@@ -158,7 +158,6 @@ class Monitor(BackgroundJob):
         self.led = LED(LED_PIN)
         self.button = Button(BUTTON_PIN, pull_up=False)
 
-        self.led.source = self.button
         self.button.when_pressed = self.button_down_and_up
 
     def check_for_network(self) -> None:
@@ -407,6 +406,8 @@ class Monitor(BackgroundJob):
         # Warning: this might be called twice: See "Switch debounce" in https://sourceforge.net/p/raspberry-gpio-python/wiki/Inputs/
         # don't put anything that is not idempotent in here.
 
+
+        self.led_on()
         self.button_down = True
 
         for pre_function in self._pre_button:
@@ -427,6 +428,7 @@ class Monitor(BackgroundJob):
                 )
 
         self.button_down = False
+        self.led_off()
 
     def rpi_is_having_power_problems(self) -> tuple[bool, float]:
         from pioreactor.utils.rpi_bad_power import new_under_voltage
