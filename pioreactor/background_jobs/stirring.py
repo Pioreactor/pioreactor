@@ -65,8 +65,9 @@ class RpmCalculator:
         from gpiozero import DigitalInputDevice
 
         self.hall_sensor_input_device = DigitalInputDevice(
-            hardware.HALL_SENSOR_PIN, pull_up=True, bounce_time=0.015
+            hardware.HALL_SENSOR_PIN, pull_up=True, bounce_time=None
         )
+        self.turn_off_collection()
 
     def turn_off_collection(self) -> None:
         self.collecting = False
