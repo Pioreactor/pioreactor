@@ -56,7 +56,6 @@ class RpmCalculator:
 
     """
 
-
     def __init__(self) -> None:
         pass
 
@@ -66,8 +65,9 @@ class RpmCalculator:
         set_gpio_availability(hardware.HALL_SENSOR_PIN, False)
         from gpiozero import DigitalInputDevice
 
-        self.hall_sensor_input_device = DigitalInputDevice(hardware.HALL_SENSOR_PIN, pull_up=True, bounce_time=15)
-
+        self.hall_sensor_input_device = DigitalInputDevice(
+            hardware.HALL_SENSOR_PIN, pull_up=True, bounce_time=15
+        )
 
     def turn_off_collection(self) -> None:
         self.collecting = False
