@@ -138,6 +138,8 @@ class Monitor(BackgroundJob):
         ).start()
 
         self.add_pre_button_callback(self._republish_state)
+        self.add_pre_button_callback(self.led_on)
+        self.add_post_button_callback(self.led_off)
 
         self.start_passive_listeners()
 
@@ -407,7 +409,6 @@ class Monitor(BackgroundJob):
         # don't put anything that is not idempotent in here.
 
 
-        self.led_on()
         self.button_down = True
 
         for pre_function in self._pre_button:
@@ -428,7 +429,6 @@ class Monitor(BackgroundJob):
                 )
 
         self.button_down = False
-        self.led_off()
 
     def rpi_is_having_power_problems(self) -> tuple[bool, float]:
         from pioreactor.utils.rpi_bad_power import new_under_voltage
