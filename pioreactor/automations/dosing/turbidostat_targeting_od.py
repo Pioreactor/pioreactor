@@ -28,7 +28,7 @@ class TurbidostatTargetingOD(DosingAutomationJob):
         with local_persistant_storage("current_pump_calibration") as cache:
             if "media" not in cache:
                 raise CalibrationError("Media pump calibration must be performed first.")
-            elif "waste" not in cache:
+            if "waste" not in cache:
                 raise CalibrationError("Waste pump calibration must be performed first.")
 
         self.target_od = float(target_od)
@@ -41,7 +41,7 @@ class TurbidostatTargetingOD(DosingAutomationJob):
             results = self.execute_io_action(media_ml=self.volume, waste_ml=self.volume)
             media_moved = results["media_ml"]
             return events.DilutionEvent(
-                f"Latest OD = {latest_od_before_dosing:.2f} ≥ Target  nOD = {target_od_before_dosing:.2f}; cycled {media_moved:.2f} mL",
+                f"Latest OD = {latest_od_before_dosing:.2f} ≥ Target OD = {target_od_before_dosing:.2f}; cycled {media_moved:.2f} mL",
                 {
                     "latest_od": latest_od_before_dosing,
                     "target_od": target_od_before_dosing,
