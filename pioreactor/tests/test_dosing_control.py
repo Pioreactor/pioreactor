@@ -23,6 +23,7 @@ from pioreactor.automations.dosing.base import VialVolumeCalculator
 from pioreactor.automations.dosing.pid_morbidostat import PIDMorbidostat
 from pioreactor.automations.dosing.silent import Silent
 from pioreactor.automations.dosing.turbidostat import Turbidostat
+from pioreactor.automations.dosing.turbidostat_targeting_od import TurbidostatTargetingOD
 from pioreactor.background_jobs.dosing_control import DosingController
 from pioreactor.background_jobs.dosing_control import start_dosing_control
 from pioreactor.structs import DosingEvent
@@ -205,6 +206,84 @@ def test_turbidostat_automation() -> None:
         )
         pause()
         assert algo.run() is None
+
+
+def test_turbidostat_targeting_od_automation() -> None:
+    experiment = "test_turbidostat_targeting_od_automation"
+
+    target_od = 0.2
+    with TurbidostatTargetingOD(
+        target_od=target_od,
+        duration=60,
+        volume=0.25,
+        unit=unit,
+        experiment=experiment,
+        skip_first_run=True,
+    ) as algo:
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/od_reading/ods",
+            encode(
+                structs.ODReadings(
+                    timestamp=current_utc_datetime(),
+                    ods={
+                        "2": structs.ODReading(
+                            timestamp=current_utc_datetime(), angle="45", od=0.05, channel="2"
+                        )
+                    },
+                )
+            ),
+        )
+        pause()
+
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/od_reading/ods",
+            encode(
+                structs.ODReadings(
+                    timestamp=current_utc_datetime(),
+                    ods={
+                        "2": structs.ODReading(
+                            timestamp=current_utc_datetime(), angle="45", od=0.250, channel="2"
+                        )
+                    },
+                )
+            ),
+        )
+        pause()
+        assert isinstance(algo.run(), events.DilutionEvent)
+
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/od_reading/ods",
+            encode(
+                structs.ODReadings(
+                    timestamp=current_utc_datetime(),
+                    ods={
+                        "2": structs.ODReading(
+                            timestamp=current_utc_datetime(), angle="45", od=0.500, channel="2"
+                        )
+                    },
+                )
+            ),
+        )
+        pause()
+        assert isinstance(algo.run(), events.DilutionEvent)
+
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/od_reading/ods",
+            encode(
+                structs.ODReadings(
+                    timestamp=current_utc_datetime(),
+                    ods={
+                        "2": structs.ODReading(
+                            timestamp=current_utc_datetime(), angle="45", od=0.100, channel="2"
+                        )
+                    },
+                )
+            ),
+        )
+        pause()
+        assert algo.run() is None
+
+        assert algo.media_throughput == 0.50
 
 
 def test_pid_morbidostat_automation() -> None:
@@ -410,14 +489,6 @@ def test_old_readings_will_not_execute_io() -> None:
 
 def test_throughput_calculator() -> None:
     experiment = "test_throughput_calculator"
-    with local_persistant_storage("media_throughput") as c:
-        c[experiment] = 0.0
-
-    with local_persistant_storage("alt_media_throughput") as c:
-        c[experiment] = 0.0
-
-    with local_persistant_storage("alt_media_fraction") as c:
-        c[experiment] = 0.0
 
     with DosingController(
         unit,
@@ -534,11 +605,6 @@ def test_throughput_calculator_manual_set() -> None:
 
 def test_execute_io_action() -> None:
     experiment = "test_execute_io_action"
-    with local_persistant_storage("media_throughput") as c:
-        c[experiment] = 0.0
-
-    with local_persistant_storage("alt_media_throughput") as c:
-        c[experiment] = 0.0
 
     with DosingController(unit, experiment, "silent") as ca:
         ca.automation_job.execute_io_action(media_ml=0.50, alt_media_ml=0.35, waste_ml=0.50 + 0.35)
@@ -564,14 +630,6 @@ def test_execute_io_action() -> None:
 
 def test_execute_io_action2() -> None:
     experiment = "test_execute_io_action2"
-    with local_persistant_storage("media_throughput") as c:
-        c[experiment] = 0.0
-
-    with local_persistant_storage("alt_media_throughput") as c:
-        c[experiment] = 0.0
-
-    with local_persistant_storage("alt_media_fraction") as c:
-        c[experiment] = 0.0
 
     with DosingController(unit, experiment, "silent", initial_vial_volume=14.0) as ca:
         ca.automation_job.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
@@ -584,14 +642,6 @@ def test_execute_io_action2() -> None:
 def test_execute_io_action_outputs1() -> None:
     # regression test
     experiment = "test_execute_io_action_outputs1"
-    with local_persistant_storage("media_throughput") as c:
-        c[experiment] = 0.0
-
-    with local_persistant_storage("alt_media_throughput") as c:
-        c[experiment] = 0.0
-
-    with local_persistant_storage("alt_media_fraction") as c:
-        c[experiment] = 0.0
 
     with DosingAutomationJob(unit=unit, experiment=experiment) as ca:
         result = ca.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
@@ -602,14 +652,6 @@ def test_execute_io_action_outputs1() -> None:
 
 def test_mqtt_properties_in_dosing_automations():
     experiment = "test_mqtt_properties"
-    with local_persistant_storage("media_throughput") as c:
-        c[experiment] = 0.0
-
-    with local_persistant_storage("alt_media_throughput") as c:
-        c[experiment] = 0.0
-
-    with local_persistant_storage("alt_media_fraction") as c:
-        c[experiment] = 0.0
 
     with DosingAutomationJob(unit=unit, experiment=experiment) as ca:
         r = pubsub.subscribe(
@@ -661,14 +703,6 @@ def test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined() 
 def test_execute_io_action_outputs_will_shortcut_if_disconnected() -> None:
     # regression test
     experiment = "test_execute_io_action_outputs_will_shortcut_if_disconnected"
-    with local_persistant_storage("media_throughput") as c:
-        c[experiment] = 0.0
-
-    with local_persistant_storage("alt_media_throughput") as c:
-        c[experiment] = 0.0
-
-    with local_persistant_storage("alt_media_fraction") as c:
-        c[experiment] = 0.0
 
     ca = DosingAutomationJob(unit=unit, experiment=experiment)
     ca.clean_up()
@@ -872,14 +906,6 @@ def test_changing_algo_over_mqtt_when_it_fails_will_rollback() -> None:
 
 def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs() -> None:
     experiment = "test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs"
-    with local_persistant_storage("media_throughput") as c:
-        c[experiment] = 0.0
-
-    with local_persistant_storage("alt_media_throughput") as c:
-        c[experiment] = 0.0
-
-    with local_persistant_storage("alt_media_fraction") as c:
-        c[experiment] = 0.0
 
     algo = DosingController(
         unit,
@@ -935,8 +961,6 @@ def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs() -> None:
 
 def test_changing_algo_over_mqtt_with_wrong_type_is_okay() -> None:
     experiment = "test_changing_algo_over_mqtt_with_wrong_type_is_okay"
-    with local_persistant_storage("media_throughput") as c:
-        c[experiment] = 0.0
 
     algo = DosingController(
         unit,
@@ -1139,15 +1163,6 @@ def test_strings_are_okay_for_chemostat() -> None:
     unit = get_unit_name()
     experiment = "test_strings_are_okay_for_chemostat"
 
-    with local_persistant_storage("media_throughput") as c:
-        c[experiment] = 0.0
-
-    with local_persistant_storage("alt_media_throughput") as c:
-        c[experiment] = 0.0
-
-    with local_persistant_storage("alt_media_fraction") as c:
-        c[experiment] = 0.0
-
     with start_dosing_control(
         "chemostat", "20", False, unit, experiment, volume="0.7"
     ) as controller:
@@ -1183,15 +1198,6 @@ def test_pass_in_initial_alt_media_fraction() -> None:
     experiment = "test_pass_in_initial_alt_media_fraction"
     unit = get_unit_name()
 
-    with local_persistant_storage("alt_media_fraction") as c:
-        c.pop(experiment)
-
-    with local_persistant_storage("media_throughput") as c:
-        c.pop(experiment)
-
-    with local_persistant_storage("vial_volume") as c:
-        c.pop(experiment)
-
     with start_dosing_control(
         "chemostat", 20, False, unit, experiment, volume=0.25, initial_alt_media_fraction=0.5
     ) as controller:
@@ -1223,12 +1229,6 @@ def test_chemostat_from_0_volume() -> None:
     experiment = "test_chemostat_from_0_volume"
     unit = get_unit_name()
 
-    with local_persistant_storage("vial_volume") as c:
-        c.pop(experiment)
-
-    with local_persistant_storage("media_throughput") as c:
-        c.pop(experiment)
-
     with start_dosing_control(
         "chemostat",
         0.25,
@@ -1251,15 +1251,6 @@ def test_execute_io_respects_dilutions_ratios() -> None:
 
     unit = get_unit_name()
     experiment = "test_execute_io_respects_dilutions_ratios"
-
-    with local_persistant_storage("alt_media_fraction") as c:
-        c.pop(experiment)
-
-    with local_persistant_storage("media_throughput") as c:
-        c.pop(experiment)
-
-    with local_persistant_storage("alt_media_throughput") as c:
-        c.pop(experiment)
 
     class ChemostatAltMedia(DosingAutomationJob):
         automation_name = "chemostat_alt_media"

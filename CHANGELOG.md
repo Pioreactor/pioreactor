@@ -3,7 +3,10 @@
  - Fix an OD calibration bug that would produce an extremely high value when the signal was below the minimum signal (the blank) during OD calibration.
  - IPv4 is really IPv4 now.
  - Adding ability to install plugins by name via the UI.
- - New tools to update Pioreactors on a local access point. Docs coming soon!
+ - New tools to update Pioreactors on a local access point. More docs coming soon!
+ - New `turbidostat_targeting_od` dosing automation. This is just like the existing `turbidostat`, but
+targets the raw OD instead of normalized OD. This is most useful post-OD calibration.
+ - In the UI, the dosing automation "Turbidostat" has been renamed "Turbidostat Targeting nOD"
 
 
 ### 23.9.20

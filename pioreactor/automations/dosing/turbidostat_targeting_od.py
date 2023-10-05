@@ -36,7 +36,7 @@ class TurbidostatTargetingOD(DosingAutomationJob):
 
     def execute(self) -> Optional[events.DilutionEvent]:
         if self.latest_od["2"] >= self.target_od:
-            latest_od_before_dosing = self.latest_od
+            latest_od_before_dosing = self.latest_od["2"]
             target_od_before_dosing = self.target_od
             results = self.execute_io_action(media_ml=self.volume, waste_ml=self.volume)
             media_moved = results["media_ml"]
