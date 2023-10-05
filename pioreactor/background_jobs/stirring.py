@@ -22,7 +22,6 @@ from pioreactor.pubsub import subscribe
 from pioreactor.utils import clamp
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
-from pioreactor.utils import retry
 from pioreactor.utils.gpio_helpers import set_gpio_availability
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.streaming_calculations import PID
@@ -66,7 +65,7 @@ class RpmCalculator:
         from gpiozero import DigitalInputDevice
 
         self.hall_sensor_input_device = DigitalInputDevice(
-            hardware.HALL_SENSOR_PIN, pull_up=True, bounce_time=15
+            hardware.HALL_SENSOR_PIN, pull_up=True, bounce_time=0.015
         )
 
     def turn_off_collection(self) -> None:
