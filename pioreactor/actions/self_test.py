@@ -63,8 +63,6 @@ def test_REF_is_in_correct_position(
     # The idea is to trigger stirring on and off and the REF should not see a change in signal / variance, but the other PD should.
     from statistics import variance
 
-    assert is_HAT_present()
-
     reference_channel = cast(PdChannel, config["od_config.photodiode_channel_reverse"][REF_keyword])
     signal_channel = "2" if reference_channel == "1" else "1"
 
@@ -121,8 +119,6 @@ def test_all_positive_correlations_between_pds_and_leds(
     """
     from pprint import pformat
     from random import shuffle
-
-    assert is_HAT_present()
 
     # better to err on the side of MORE samples than less - it's only a few extra seconds...
     # we randomize to reduce effects of temperature
@@ -224,8 +220,6 @@ def test_ambient_light_interference(
 ) -> None:
     # test ambient light IR interference. With all LEDs off, and the Pioreactor not in a sunny room, we should see near 0 light.
 
-    assert is_HAT_present()
-
     adc_reader = ADCReader(
         channels=ALL_PD_CHANNELS,
         dynamic_gain=False,
@@ -281,8 +275,6 @@ def test_REF_is_lower_than_0_dot_256_volts(
 
 
 def test_PD_is_near_0_volts_for_blank(client, logger: Logger, unit: str, experiment: str) -> None:
-    assert is_HAT_present()
-
     reference_channel = cast(PdChannel, config["od_config.photodiode_channel_reverse"][REF_keyword])
     signal_channel = "2" if reference_channel == "1" else "1"
     assert config.get("od_config.photodiode_channel", signal_channel, fallback=None) in [
@@ -341,7 +333,6 @@ def test_positive_correlation_between_temperature_and_heating(
 def test_aux_power_is_not_too_high(
     client: Client, logger: Logger, unit: str, experiment: str
 ) -> None:
-    assert is_HAT_present()
     assert voltage_in_aux() <= 18.0
 
 
@@ -382,7 +373,7 @@ def test_positive_correlation_between_rpm_and_stirring(
 
             st.set_duty_cycle(dc)
             sleep(0.75)
-            measured_rpms.append(rpm_calc(3.0))
+            measured_rpms.append(rpm_calc.estimate(3.0))
             dcs.append(dc)
 
         measured_correlation = round(correlation(dcs, measured_rpms), 2)

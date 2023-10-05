@@ -34,7 +34,7 @@ LEADER_REQUIREMENTS = ["zeroconf==0.64.1"] + UI_REQUIREMENTS
 
 
 WORKER_REQUIREMENTS = [
-    "RPi.GPIO==0.7.1",
+    "gpiozero==2.0",
     "adafruit-circuitpython-ads1x15==2.2.12",
     "DAC43608==0.2.7",
     "TMP1075==0.2.1",

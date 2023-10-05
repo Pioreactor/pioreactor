@@ -52,7 +52,7 @@ class RpmCalculator:
 
     > rpm_calc = RpmCalculator()
     > rpm_calc.setup()
-    > rpm_calc(seconds_to_observe=1.5)
+    > rpm_estimate = rpm_calc.estimate(seconds_to_observe=1.5)
 
     """
 
@@ -66,10 +66,6 @@ class RpmCalculator:
         # use the GPIO for this.
         set_gpio_availability(self.hall_sensor_pin, False)
 
-        import RPi.GPIO as GPIO  # type: ignore
-
-        self.GPIO = GPIO
-        self.GPIO.setmode(self.GPIO.BCM)
         self.GPIO.setup(self.hall_sensor_pin, self.GPIO.IN, pull_up_down=self.GPIO.PUD_UP)
 
         # ignore any changes that occur within 15ms - at 1000rpm (very fast), the
@@ -95,7 +91,7 @@ class RpmCalculator:
             self.GPIO.cleanup(self.hall_sensor_pin)
         set_gpio_availability(self.hall_sensor_pin, True)
 
-    def __call__(self, seconds_to_observe: float) -> float:
+    def estimate(self, seconds_to_observe: float) -> float:
         return 0.0
 
     def callback(self, *args) -> None:
@@ -139,7 +135,7 @@ class RpmFromFrequency(RpmCalculator):
         self._running_count = 0
         self._start_time = None
 
-    def __call__(self, seconds_to_observe: float) -> float:
+    def estimate(self, seconds_to_observe: float) -> float:
         self.clear_aggregates()
         self.turn_on_collection()
         self.sleep_for(seconds_to_observe)
@@ -356,7 +352,7 @@ class Stirrer(BackgroundJob):
         if self.rpm_calculator is None:
             return None
 
-        recent_rpm = round(self.rpm_calculator(poll_for_seconds), 2)
+        recent_rpm = round(self.rpm_calculator.estimate(poll_for_seconds), 2)
 
         self._measured_rpm = recent_rpm
         self.measured_rpm = structs.MeasuredRPM(

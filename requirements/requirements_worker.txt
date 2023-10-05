@@ -1,5 +1,5 @@
 -r requirements.txt
-RPi.GPIO==0.7.1; platform_machine == "armv7l"
+gpiozero==2.0; platform_machine == "armv7l"
 adafruit-circuitpython-ads1x15==2.2.12
 DAC43608==0.2.6
 TMP1075==0.2.1
