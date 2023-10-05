@@ -651,7 +651,7 @@ def test_execute_io_action_outputs1() -> None:
 
 
 def test_mqtt_properties_in_dosing_automations():
-    experiment = "test_mqtt_properties"
+    experiment = "test_mqtt_properties_in_dosing_automations"
 
     with DosingAutomationJob(unit=unit, experiment=experiment) as ca:
         r = pubsub.subscribe(
@@ -1301,9 +1301,6 @@ def test_vial_volume_is_published() -> None:
     unit = get_unit_name()
     experiment = "test_vial_volume_is_published"
 
-    with local_persistant_storage("vial_volume") as c:
-        c.pop(experiment)
-
     with start_dosing_control("chemostat", 2, False, unit, experiment, volume=2.0) as controller:
         assert controller.automation_job.vial_volume == 14
         result = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/dosing_automation/vial_volume")
@@ -1522,10 +1519,6 @@ def test_timeout_in_run() -> None:
 
 def test_automation_will_pause_itself_if_pumping_goes_above_safety_threshold() -> None:
     experiment = "test_automation_will_pause_itself_if_pumping_goes_above_safety_threshold"
-
-    with local_persistant_storage("vial_volume") as c:
-        if experiment in c:
-            del c[experiment]
 
     with DosingController(
         unit,
