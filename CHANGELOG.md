@@ -1,4 +1,4 @@
-### Upcoming
+### 23.10.5
 
  - Fix an OD calibration bug that would produce an extremely high value when the signal was below the minimum signal (the blank) during OD calibration.
  - IPv4 is really IPv4 now.
