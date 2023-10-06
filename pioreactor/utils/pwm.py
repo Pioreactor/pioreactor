@@ -45,23 +45,18 @@ class HardwarePWMOutputDevice(HardwarePWM):
         super().__init__(pwm_channel, hz=frequency)
         self._value = initial_value
 
-        if initial_value:
-            self.on()
-
     def close(self):
         self.stop()
-        super().close()
 
     def on(self):
-        self.change_duty_cycle(1.0)
-        self._value = 1.0
+        self.start(self._value * 100)
 
     def off(self):
-        self.change_duty_cycle(0.0)
+        self.change_duty_cycle(0.0 * 100)
         self._value = 0.0
 
     def toggle(self):
-        if self.value:
+        if self.value > 0.0:
             self.off()
         else:
             self.on()
