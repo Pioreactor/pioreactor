@@ -211,8 +211,7 @@ class PWM:
 
     def stop(self) -> None:
         self.pwm.off()
-        self.pwm.value = 0.0
-        self._serialize()
+        self.change_duty_cycle(0.0)
 
     def change_duty_cycle(self, duty_cycle: float) -> None:
         if not (0.0 <= duty_cycle <= 100.0):
