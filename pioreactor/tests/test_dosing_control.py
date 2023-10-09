@@ -627,13 +627,23 @@ def test_execute_io_action() -> None:
         assert ca.automation_job.media_throughput == 1.25
         assert ca.automation_job.alt_media_throughput == 1.1
 
+        ca.automation_job.execute_io_action(media_ml=0.0, alt_media_ml=0.0, waste_ml=0.0)
+        pause()
+        assert ca.automation_job.media_throughput == 1.25
+        assert ca.automation_job.alt_media_throughput == 1.1
+
 
 def test_execute_io_action2() -> None:
     experiment = "test_execute_io_action2"
 
     with DosingController(unit, experiment, "silent", initial_vial_volume=14.0) as ca:
-        ca.automation_job.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
+        results = ca.automation_job.execute_io_action(
+            media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26
+        )
         pause()
+        assert results["media_ml"] == 1.25
+        assert results["alt_media_ml"] == 0.01
+        assert results["waste_ml"] == 1.26
         assert ca.automation_job.media_throughput == 1.25
         assert ca.automation_job.alt_media_throughput == 0.01
         assert close(ca.automation_job.alt_media_fraction, 0.0006688099108144436)
@@ -1272,7 +1282,7 @@ def test_execute_io_respects_dilutions_ratios() -> None:
             cycled = self.execute_io_action(
                 alt_media_ml=alt_media_ml, media_ml=media_ml, waste_ml=self.volume
             )
-            return events.DilutionEvent(cycled[0])
+            return events.DilutionEvent(data=cycled)
 
     with start_dosing_control(
         "chemostat_alt_media",

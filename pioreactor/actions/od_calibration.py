@@ -4,6 +4,7 @@ https://docs.pioreactor.com/developer-guide/adding-calibration-type
 """
 from __future__ import annotations
 
+from math import log2
 from time import sleep
 from typing import Callable
 from typing import cast
@@ -49,8 +50,6 @@ def introduction() -> None:
 
 
 def get_metadata_from_user():
-    from math import log2
-
     with local_persistant_storage("od_calibrations") as cache:
         while True:
             name = click.prompt("Provide a name for this calibration", type=str).strip()
@@ -129,7 +128,7 @@ def start_stirring():
     while not click.confirm("Reading to start stirring?", default=True):
         pass
 
-    click.echo("Starting stirring.")
+    click.echo("Starting stirring and blocking until near target RPM.")
 
     st = stirring(
         target_rpm=config.getfloat("stirring", "target_rpm"),
@@ -182,7 +181,12 @@ def start_recording_and_diluting(
     inferred_od600s = []
     current_volume_in_vial = initial_volume_in_vial = 10.0
     n_samples = int((20 - initial_volume_in_vial) / dilution_amount)
-    click.echo("Starting OD recordings.")
+    total_n_samples = int(
+        log2(initial_od600 / minimum_od600) * (initial_volume_in_vial / dilution_amount)
+    )
+    count_of_samples = 0
+
+    click.echo("Warming up OD...")
 
     with start_od_reading(
         cast(pt.PdAngleOrREF, config.get("od_config.photodiode_channel", "1")),
@@ -224,7 +228,7 @@ def start_recording_and_diluting(
                 )
                 click.echo()
                 click.secho(
-                    f"Test {i+1} of {n_samples} [{'#' * (i+1) }{' ' * (n_samples - i - 1)}]",
+                    f"Test {count_of_samples+1} of {total_n_samples} [{'#' * (count_of_samples+1) }{' ' * (total_n_samples - count_of_samples - 1)}]",
                     fg="green",
                 )
                 click.echo(f"Add {dilution_amount}ml of media to vial.")
@@ -234,7 +238,7 @@ def start_recording_and_diluting(
 
                 current_volume_in_vial = current_volume_in_vial + dilution_amount
 
-                for i in range(4):
+                for _ in range(4):
                     click.echo(".", nl=False)
                     sleep(0.5)
 
@@ -251,6 +255,8 @@ def start_recording_and_diluting(
 
                 if inferred_od600 <= minimum_od600:
                     break
+
+                count_of_samples += 1
 
             else:
                 # executed if the loop did not break

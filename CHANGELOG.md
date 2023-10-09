@@ -14,7 +14,7 @@ The previous change:
 
 >  - Base automations now subclass from `pioreactor.automations.BaseAutomationJob`. You may need to change custom automation imports from, for example, `from pioreactor.automations import DosingAutomationJobContrib` to `from pioreactor.automations.dosing.base import DosingAutomationJobContrib`
 
-had an import error that I didn't see in my testing. We changed this further to:
+had an import error that we didn't see in testing. We changed this to:
 
  - Base automations now subclass from `pioreactor.automations.base.AutomationJob`.
  - Fix bug on /updates page.

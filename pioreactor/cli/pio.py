@@ -29,11 +29,13 @@ from pioreactor.config import config
 from pioreactor.config import get_leader_hostname
 from pioreactor.logging import create_logger
 from pioreactor.mureq import get
+from pioreactor.mureq import HTTPException
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.gpio_helpers import temporarily_set_gpio_unavailable
 from pioreactor.utils.networking import add_local
+from pioreactor.utils.networking import is_using_local_access_point
 
 
 JOBS_TO_SKIP_KILLING = [
@@ -405,7 +407,7 @@ def update() -> None:
     pass
 
 
-def get_non_prerelease_tags_of_pioreactor(repo):
+def get_non_prerelease_tags_of_pioreactor(repo) -> list[str]:
     """
     Returns a list of all the tag names associated with non-prerelease releases, sorted in descending order
     """
@@ -538,7 +540,13 @@ def update_app(
         )
 
     else:
-        tag = get_tag_to_install(repo, version)
+        try:
+            tag = get_tag_to_install(repo, version)
+        except HTTPException:
+            raise HTTPException(
+                f"Unable to retrieve information over internet. Is the Pioreactor connected to the internet? LAP is {is_using_local_access_point()}."
+            )
+
         response = get(f"https://api.github.com/repos/{repo}/releases/{tag}")
         if response.raise_for_status():
             logger.error(f"Version {version} not found")
