@@ -1,4 +1,4 @@
-### Upcoming
+### 23.10.10
 
 #### Bug fixes
  - Fix bug that wasn't allowing for manual dosing / LED updates.
