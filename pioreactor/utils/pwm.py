@@ -57,6 +57,7 @@ class PWM:
     >with PMW(12, 15) as pwm:
     >    pwm.start(100
     >    time.sleep(10)
+    >    pwm.stop()
 
 
     > # locking
@@ -151,17 +152,16 @@ class PWM:
         else:
             current_values = {}
 
-        with local_intermittent_storage("pwm_dc") as cache:
-            cache[self.pin] = self.duty_cycle
-            for pin in cache:
-                if pin != self.pin:
-                    dc = cache[pin]
-                    if dc > 0:
-                        current_values[pin] = dc
-
         self.pubsub_client.publish(
             f"pioreactor/{self.unit}/{self.experiment}/pwms/dc", dumps(current_values), retain=True
         )
+
+        with local_intermittent_storage("pwm_dc") as cache:
+            if self.duty_cycle > 0:
+                cache[self.pin] = self.duty_cycle
+            elif self.pin in cache and self.duty_cycle == 0:
+                cache.pop(self.pin)
+            # else: # self.duty_cycle == 0 and self.pin not in cache, leave it.
 
     def start(self, initial_duty_cycle: float) -> None:
         if not (0 <= initial_duty_cycle <= 100):

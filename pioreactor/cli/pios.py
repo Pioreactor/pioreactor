@@ -211,12 +211,14 @@ if am_I_leader():
         help="install from a repo on github. Format: username/project",
     )
     @click.option("-v", "--version", help="install a specific version, default is latest")
+    @click.option("--source", help="install from a source, whl or release archive")
     @click.option("-y", is_flag=True, help="Skip asking for confirmation.")
     def update(
         units: tuple[str, ...],
         branch: Optional[str],
         repo: Optional[str],
         version: Optional[str],
+        source: Optional[str],
         y: bool,
     ) -> None:
         """
@@ -234,6 +236,8 @@ if am_I_leader():
             commands = ["pio", "update", "app", "-v", version]
         elif branch is not None:
             commands = ["pio", "update", "app", "-b", branch]
+        elif source is not None:
+            commands = ["pio", "update", "app", "--source", source]
         else:
             commands = ["pio", "update", "app"]
 

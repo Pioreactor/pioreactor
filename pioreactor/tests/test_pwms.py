@@ -8,12 +8,37 @@ import time
 import pytest
 
 from pioreactor import pubsub
+from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.pwm import PWM
 from pioreactor.whoami import get_unit_name
 
 
 def pause(n=1) -> None:
     time.sleep(n * 0.25)
+
+
+def test_updates_cache():
+    exp = "test_updates_cache"
+    unit = get_unit_name()
+
+    pwm12 = PWM(12, 10, experiment=exp, unit=unit)
+    pwm12.lock()
+    pwm12.start(50)
+
+    with local_intermittent_storage("pwm_dc") as cache:
+        assert cache[12] == 50
+
+    pwm12.change_duty_cycle(20)
+
+    with local_intermittent_storage("pwm_dc") as cache:
+        assert cache[12] == 20
+
+    pwm12.change_duty_cycle(0)
+
+    with local_intermittent_storage("pwm_dc") as cache:
+        assert 12 not in cache
+
+    pwm12.cleanup()
 
 
 def test_pwm_update_mqtt():
