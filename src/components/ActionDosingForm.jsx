@@ -3,7 +3,6 @@ import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import Snackbar from "@mui/material/Snackbar";
 import { makeStyles } from "@mui/styles";
-import LoadingButton from '@mui/lab/LoadingButton';
 import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
 import FormControlLabel from '@mui/material/FormControlLabel';
@@ -63,7 +62,7 @@ export default function ActionPumpForm(props) {
         msg = actionToAct[props.action] + " continuously"
       }
 
-      runPioreactorJob(props.unit, props.action, [], params)()
+      runPioreactorJob(props.unit, props.action, [], params)
       setSnackbarMsg(msg)
       setOpenSnackbar(true);
       setTimeout(() => setClicked(false), 2500)
@@ -168,8 +167,7 @@ export default function ActionPumpForm(props) {
 
 
       <div style={{display: "flex", marginTop: '5px'}}>
-        <LoadingButton
-          loading={clicked && (props?.job?.state === "disconnected")}
+        <Button
           disabled={(formErrorML && dosingMethod === 'volume') || (formErrorDuration && dosingMethod === 'duration') || (props?.job?.state === "ready")}
           type="submit"
           variant="contained"
@@ -179,7 +177,7 @@ export default function ActionPumpForm(props) {
           style={{marginRight: '3px'}}
         >
           Start
-        </LoadingButton>
+        </Button>
         <Button
           size="small"
           color="secondary"

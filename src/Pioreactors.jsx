@@ -405,16 +405,16 @@ function ButtonStopProcess() {
 function AddNewPioreactor(props){
   const classes = useStyles();
   const [open, setOpen] = useState(false);
-  const [name, setName] = React.useState("");
+  const [name, setName] = useState("");
 
-  const [isError, setIsError] = React.useState(false)
-  const [errorMsg, setErrorMsg] = React.useState("")
+  const [isError, setIsError] = useState(false)
+  const [errorMsg, setErrorMsg] = useState("")
 
-  const [isSuccess, setIsSuccess] = React.useState(false)
-  const [successMsg, setSuccessMsg] = React.useState("")
+  const [isSuccess, setIsSuccess] = useState(false)
+  const [successMsg, setSuccessMsg] = useState("")
 
-  const [isRunning, setIsRunning] = React.useState(false)
-  const [expectedPathMsg, setExpectedPathMsg] = React.useState("")
+  const [isRunning, setIsRunning] = useState(false)
+  const [expectedPathMsg, setExpectedPathMsg] = useState("")
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -483,55 +483,55 @@ function AddNewPioreactor(props){
         </IconButton>
       </DialogTitle>
       <DialogContent>
-      <p>Follow the instructions at <a rel="noopener noreferrer" target="_blank" href="https://docs.pioreactor.com/user-guide/software-set-up#adding-additional-workers-to-your-cluster">set up your new Pioreactor's Raspberry Pi</a>.</p>
+        <p>Follow the instructions at <a rel="noopener noreferrer" target="_blank" href="https://docs.pioreactor.com/user-guide/software-set-up#adding-additional-workers-to-your-cluster">set up your new Pioreactor's Raspberry Pi</a>.</p>
 
-      <p>After
+        <p>After
 
-      <ol>
-       <li> image installation is complete and,</li>
-       <li> the new Pioreactor worker is powered on, </li>
-      </ol>
+        <ol>
+         <li> image installation is complete and,</li>
+         <li> the new Pioreactor worker is powered on, </li>
+        </ol>
 
-      provide the hostname you used when installing the Pioreactor image onto the Raspberry Pi.
-      Your existing Pioreactor will automatically connect the new Pioreactor to the cluster. When finished, the new Pioreactor will show up on this page (after a refresh).</p>
-      <div>
-        <TextField
-          size="small"
-          id="new-pioreactor-name"
-          label="Hostname"
-          variant="outlined"
-          className={classes.textField}
-          onChange={handleNameChange}
-          value={name}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <PioreactorIcon style={{fontSize: "1.1em"}}/>
-              </InputAdornment>
-            ),
-            endAdornment: <InputAdornment position="end">.local</InputAdornment>,
+        provide the hostname you used when installing the Pioreactor image onto the Raspberry Pi.
+        Your existing Pioreactor will automatically connect the new Pioreactor to the cluster. When finished, the new Pioreactor will show up on this page (after a refresh).</p>
+        <div>
+          <TextField
+            size="small"
+            id="new-pioreactor-name"
+            label="Hostname"
+            variant="outlined"
+            className={classes.textField}
+            onChange={handleNameChange}
+            value={name}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <PioreactorIcon style={{fontSize: "1.1em"}}/>
+                </InputAdornment>
+              ),
+              endAdornment: <InputAdornment position="end">.local</InputAdornment>,
+            }
           }
-        }
-        />
-      </div>
+          />
+        </div>
 
-      <div style={{minHeight: "60px", alignItems: "center", display: "flex"}}>
-        {isError   ? <p><CloseIcon className={clsx(classes.textIcon, classes.lostRed)}/>{errorMsg}</p>           : <React.Fragment/>}
-        {isRunning ? <p>{expectedPathMsg}</p>                                                                    : <React.Fragment/>}
-        {isSuccess ? <p><CheckIcon className={clsx(classes.textIcon, classes.readyGreen)}/>{successMsg}</p>      : <React.Fragment/>}
-      </div>
+        <div style={{minHeight: "60px", alignItems: "center", display: "flex"}}>
+          {isError   ? <p><CloseIcon className={clsx(classes.textIcon, classes.lostRed)}/>{errorMsg}</p>           : <React.Fragment/>}
+          {isRunning ? <p>{expectedPathMsg}</p>                                                                    : <React.Fragment/>}
+          {isSuccess ? <p><CheckIcon className={clsx(classes.textIcon, classes.readyGreen)}/>{successMsg}</p>      : <React.Fragment/>}
+        </div>
 
-      <LoadingButton
-        variant="contained"
-        color="primary"
-        style={{marginTop: "10px"}}
-        onClick={onSubmit}
-        type="submit"
-        loading={isRunning}
-        endIcon={<AddIcon />}
-      >
-        Add Pioreactor
-      </LoadingButton>
+        <LoadingButton
+          variant="contained"
+          color="primary"
+          style={{marginTop: "10px"}}
+          onClick={onSubmit}
+          type="submit"
+          loading={isRunning}
+          endIcon={<AddIcon />}
+        >
+          Add Pioreactor
+        </LoadingButton>
 
       </DialogContent>
     </Dialog>
@@ -598,7 +598,7 @@ function PatientButton(props) {
 function CalibrateDialog(props) {
   const classes = useStyles();
   const [open, setOpen] = useState(false);
-  const [tabValue, setTabValue] = React.useState(0);
+  const [tabValue, setTabValue] = useState(0);
 
 
   const handleTabChange = (event, newValue) => {
@@ -980,12 +980,12 @@ function SettingsActionsDialog(props) {
   const [open, setOpen] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
-  const [tabValue, setTabValue] = React.useState(0);
-  const [rebooting, setRebooting] = React.useState(false);
-  const [shuttingDown, setShuttingDown] = React.useState(false);
-  const [openChangeDosingDialog, setOpenChangeDosingDialog] = React.useState(false);
-  const [openChangeLEDDialog, setOpenChangeLEDDialog] = React.useState(false);
-  const [openChangeTemperatureDialog, setOpenChangeTemperatureDialog] = React.useState(false);
+  const [tabValue, setTabValue] = useState(0);
+  const [rebooting, setRebooting] = useState(false);
+  const [shuttingDown, setShuttingDown] = useState(false);
+  const [openChangeDosingDialog, setOpenChangeDosingDialog] = useState(false);
+  const [openChangeLEDDialog, setOpenChangeLEDDialog] = useState(false);
+  const [openChangeTemperatureDialog, setOpenChangeTemperatureDialog] = useState(false);
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
@@ -1760,11 +1760,11 @@ function SettingsActionsDialogAll({config, experiment}) {
   const [client, setClient] = useState(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
-  const [tabValue, setTabValue] = React.useState(0);
-  const [jobs, setJobs] = React.useState({});
-  const [openChangeTemperatureDialog, setOpenChangeTemperatureDialog] = React.useState(false);
-  const [openChangeDosingDialog, setOpenChangeDosingDialog] = React.useState(false);
-  const [openChangeLEDDialog, setOpenChangeLEDDialog] = React.useState(false);
+  const [tabValue, setTabValue] = useState(0);
+  const [jobs, setJobs] = useState({});
+  const [openChangeTemperatureDialog, setOpenChangeTemperatureDialog] = useState(false);
+  const [openChangeDosingDialog, setOpenChangeDosingDialog] = useState(false);
+  const [openChangeLEDDialog, setOpenChangeLEDDialog] = useState(false);
 
   useEffect(() => {
     function fetchContribBackgroundJobs() {
@@ -2276,8 +2276,8 @@ function SettingsActionsDialogAll({config, experiment}) {
 function SettingTextField(props){
     const classes = useStyles();
 
-    const [value, setValue] = React.useState(props.value || "")
-    const [activeSubmit, setActiveSumbit] = React.useState(false)
+    const [value, setValue] = useState(props.value || "")
+    const [activeSubmit, setActiveSumbit] = useState(false)
 
     useEffect(() => {
       if (props.value !== value) {
@@ -2341,7 +2341,7 @@ function SettingTextField(props){
 
 
 function SettingSwitchField(props){
-    const [value, setValue] = React.useState(PythonBoolToJS(props.value) || false)
+    const [value, setValue] = useState(PythonBoolToJS(props.value) || false)
 
     useEffect(() => {
       if (props.value !== value) {
@@ -2370,9 +2370,9 @@ function SettingSwitchField(props){
 
 
 function ActiveUnits(props){
-  const [relabelMap, setRelabelMap] = React.useState({})
+  const [relabelMap, setRelabelMap] = useState({})
 
-  React.useEffect(() => {
+  useEffect(() => {
     getRelabelMap(setRelabelMap)
   }, [])
 
@@ -2794,10 +2794,10 @@ function InactiveUnits(props){
 )}
 
 function Pioreactors({title}) {
-  const [experimentMetadata, setExperimentMetadata] = React.useState({})
-  const [config, setConfig] = React.useState({})
+  const [experimentMetadata, setExperimentMetadata] = useState({})
+  const [config, setConfig] = useState({})
 
-  React.useEffect(() => {
+  useEffect(() => {
     document.title = title;
 
     function getLatestExperiment() {

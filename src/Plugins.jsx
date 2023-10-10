@@ -20,6 +20,12 @@ import Avatar from '@mui/material/Avatar';
 import GetAppIcon from '@mui/icons-material/GetApp';
 import CircularProgress from '@mui/material/CircularProgress';
 import { Link } from 'react-router-dom';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import CloseIcon from '@mui/icons-material/Close';
+import TextField from '@mui/material/TextField';
+import IconButton from '@mui/material/IconButton';
 
 
 const useStyles = makeStyles((theme) => ({
@@ -45,33 +51,155 @@ const useStyles = makeStyles((theme) => ({
   },
   secondaryActionButton:{
     marginLeft: "15px"
-  }
+  },
+  textField: {
+    marginTop: "15px",
+    maxWidth: "180px",
+  },
+  textFieldWide: {
+    marginTop: "15px",
+    width: "320px",
+  },
+  headerMenu: {
+    display: "flex",
+    justifyContent: "space-between",
+    marginBottom: "5px",
+    [theme.breakpoints.down('lg')]:{
+      flexFlow: "nowrap",
+      flexDirection: "column",
+    }
+  },
 }));
+
+
+function InstallByNameDialog(props){
+
+  const classes = useStyles();
+
+  const [open, setOpen] = React.useState(false);
+  const [text, setText] = React.useState("");
+  const [snackbarOpen, setSnackbarOpen] = React.useState(false)
+  const [snackbarMsg, setSnackbarMsg] = React.useState("")
+
+
+  const handleClickOpen = () => {
+    setOpen(true);
+  };
+
+
+  const handleClose = () => {
+    setOpen(false);
+  };
+
+  const handleTextChange = evt => {
+    setText(evt.target.value)
+  }
+
+  const handleSnackbarClose = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setSnackbarOpen(false)
+  }
+
+  const onSubmit = () => {
+    setSnackbarOpen(true);
+    setSnackbarMsg(`Installing ${text} in the background...`);
+    fetch('/api/install_plugin', {
+      method: "POST",
+      body: JSON.stringify({plugin_name: text}),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    })
+    setOpen(false);
+  }
+
+  return (
+    <React.Fragment>
+
+    <Button style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="primary" onClick={handleClickOpen}>
+      <GetAppIcon fontSize="15" classes={{root: classes.textIcon}}/> Install plugin by name
+    </Button>
+    <Dialog open={open} onClose={handleClose} aria-labelledby="form-dialog-title">
+      <DialogTitle>
+        Install plugin by name
+        <IconButton
+          aria-label="close"
+          onClick={handleClose}
+          sx={{
+            position: 'absolute',
+            right: 8,
+            top: 8,
+            color: (theme) => theme.palette.grey[500],
+          }}
+          size="large">
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+      <DialogContent>
+        <div>
+          <TextField
+            size="small"
+            id="plugin-name"
+            label="Plugin name"
+            variant="outlined"
+            className={classes.textFieldWide}
+            onChange={handleTextChange}
+            value={text}
+          />
+        </div>
+
+        <Button
+          variant="contained"
+          color="primary"
+          style={{marginTop: "20px"}}
+          onClick={onSubmit}
+          type="submit"
+          endIcon={<GetAppIcon />}
+        >
+          Install
+        </Button>
+      </DialogContent>
+    </Dialog>
+    <Snackbar
+      anchorOrigin={{vertical: "bottom", horizontal: "center"}}
+      open={snackbarOpen}
+      onClose={handleSnackbarClose}
+      message={snackbarMsg}
+      autoHideDuration={10000}
+      key="snackbar-available"
+    />
+    </React.Fragment>
+)}
 
 
 
 function PageHeader(props) {
+  const classes = useStyles();
   return (
-    <React.Fragment>
     <div>
-      <div>
+      <div className={classes.headerMenu}>
         <Typography variant="h5" component="h2">
           <Box fontWeight="fontWeightBold">
             Plugins
           </Box>
         </Typography>
+        <div className={classes.headerButtons}>
+          <InstallByNameDialog />
+        </div>
       </div>
     </div>
-    </React.Fragment>
   )
 }
 
 
 
-function ListAvailablePlugins({alreadyInstalledPluginsNames}){
+function ListSuggestedPlugins({alreadyInstalledPluginsNames}){
 
   const classes = useStyles();
-  const [availablePlugins, setAvailablePlugins] = React.useState([])
+  const [availablePlugins, setSuggestedPlugins] = React.useState([])
   const [snackbarOpen, setSnackbarOpen] = React.useState(false)
   const [snackbarMsg, setSnackbarMsg] = React.useState("")
 
@@ -83,7 +211,7 @@ function ListAvailablePlugins({alreadyInstalledPluginsNames}){
           return response.json();
         })
         .then((json) => {
-          setAvailablePlugins(json)
+          setSuggestedPlugins(json)
         }).catch(e => {
           // no internet?
         })
@@ -343,7 +471,6 @@ function PluginContainer(){
 
   return(
     <React.Fragment>
-      <PageHeader/>
       <Card className={classes.root}>
         <CardContent className={classes.cardContent}>
           <p> Discover, install, and manage Pioreactor plugins created by the community. These plugins can provide new functionalities for your Pioreactor (additional hardware may be necessary), or new automations to control dosing, temperature and LED tasks.</p>
@@ -363,9 +490,9 @@ function PluginContainer(){
           )}
 
          <Typography variant="h6" component="h3">
-          Available plugins from the community
+          Suggested plugins from the community
          </Typography>
-          <ListAvailablePlugins alreadyInstalledPluginsNames={installedPlugins.map(plugin => plugin.name)}/>
+          <ListSuggestedPlugins alreadyInstalledPluginsNames={installedPlugins.map(plugin => plugin.name)}/>
 
 
           <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about Pioreactor <a href="https://docs.pioreactor.com/user-guide/using-community-plugins" target="_blank" rel="noopener noreferrer">plugins</a>.</p>
@@ -383,6 +510,7 @@ function Plugins(props) {
     return (
         <Grid container spacing={2} >
           <Grid item md={12} xs={12}>
+            <PageHeader/>
             <PluginContainer/>
           </Grid>
         </Grid>
