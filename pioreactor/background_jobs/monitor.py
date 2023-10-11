@@ -137,8 +137,8 @@ class Monitor(BackgroundJob):
             run_immediately=False,
         ).start()
 
-        self.add_pre_button_callback(self.led_on)
         self.add_pre_button_callback(self._republish_state)
+        self.add_pre_button_callback(self.led_on)
         self.add_post_button_callback(self.led_off)
 
         self.start_passive_listeners()
@@ -155,26 +155,12 @@ class Monitor(BackgroundJob):
         set_gpio_availability(BUTTON_PIN, False)
         set_gpio_availability(LED_PIN, False)
 
-        import RPi.GPIO as GPIO  # type: ignore
+        from gpiozero import LED, Button
 
-        # I am hiding all the slow imports, but in this case, I need GPIO module
-        # in many functions.
-        self.GPIO = GPIO
+        self.led = LED(LED_PIN)
+        self.button = Button(BUTTON_PIN, pull_up=False)
 
-        self.GPIO.setmode(GPIO.BCM)
-        self.GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=self.GPIO.PUD_DOWN)
-        self.GPIO.setup(LED_PIN, GPIO.OUT)
-
-        try:
-            retry(
-                self.GPIO.add_event_detect,
-                retries=3,
-                delay=1.0,
-                args=(BUTTON_PIN, self.GPIO.RISING),
-                kwargs={"callback": self.button_down_and_up, "bouncetime": 100},
-            )
-        except RuntimeError:
-            self.logger.warning("Failed to add button detect.")
+        self.button.when_pressed = self.button_down_and_up
 
     def check_for_network(self) -> None:
         if whoami.is_testing_env():
@@ -407,18 +393,18 @@ class Monitor(BackgroundJob):
         self.check_state_of_jobs_on_machine()
 
     def on_disconnected(self) -> None:
-        self.GPIO.cleanup(LED_PIN)
-        self.GPIO.cleanup(BUTTON_PIN)
+        self.led.close()
+        self.button.close()
         set_gpio_availability(BUTTON_PIN, True)
         set_gpio_availability(LED_PIN, True)
 
     def led_on(self) -> None:
-        self.GPIO.output(LED_PIN, self.GPIO.HIGH)
+        self.led.on()
 
     def led_off(self) -> None:
-        self.GPIO.output(LED_PIN, self.GPIO.LOW)
+        self.led.off()
 
-    def button_down_and_up(self, *args) -> None:
+    def button_down_and_up(self, *args) -> None:  # TODO: why args??
         # Warning: this might be called twice: See "Switch debounce" in https://sourceforge.net/p/raspberry-gpio-python/wiki/Inputs/
         # don't put anything that is not idempotent in here.
 
@@ -430,7 +416,7 @@ class Monitor(BackgroundJob):
             except Exception:
                 self.logger.debug(f"Error in pre_function={pre_function.__name__}.", exc_info=True)
 
-        while self.GPIO.input(BUTTON_PIN) == self.GPIO.HIGH:
+        while self.button.is_pressed:
             sleep(0.02)
 
         for post_function in self._post_button:

@@ -373,7 +373,7 @@ def test_positive_correlation_between_rpm_and_stirring(
 
             st.set_duty_cycle(dc)
             sleep(0.75)
-            measured_rpms.append(rpm_calc(3.0))
+            measured_rpms.append(rpm_calc.estimate(3.0))
             dcs.append(dc)
 
         measured_correlation = round(correlation(dcs, measured_rpms), 2)

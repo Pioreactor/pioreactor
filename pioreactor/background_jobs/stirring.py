@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import warnings
 from contextlib import suppress
 from time import perf_counter
 from time import sleep
@@ -22,7 +23,6 @@ from pioreactor.pubsub import subscribe
 from pioreactor.utils import clamp
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
-from pioreactor.utils import retry
 from pioreactor.utils.gpio_helpers import set_gpio_availability
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.streaming_calculations import PID
@@ -37,26 +37,14 @@ class RpmCalculator:
     """
     Super class for determining how to calculate the RPM from the hall sensor.
 
-    We do some funky things with RPi.GPIO here.
-
-    1) to minimize global imports, we import in init, and attach the module to self.
-    2) More egregious: we previously had this class call `add_event_detect` and afterwards `remove_event_detect`
-       in each __call__ - this made sure that we were saving CPU resources when we were not measuring the RPM.
-       This was causing `Bus error`, and crashing Python. What I think was happening was that the folder
-       `/sys/class/gpio/gpio25` was constantly being written and deleted in each __call__, causing problems with the
-       SD card. Anyways, what we do now is turn the pin from IN to OUT inbetween the calls to RPM measurement. This
-       is taken care of in `turn_{on,off}_collection`. Flipping this only writes to `/sys/class/gpio/gpio15/direction` once.
-
     Examples
     -----------
 
     > rpm_calc = RpmCalculator()
     > rpm_calc.setup()
-    > rpm_calc(seconds_to_observe=1.5)
+    > rpm_estimate = rpm_calc.estimate(seconds_to_observe=1.5)
 
     """
-
-    hall_sensor_pin: pt.GpioPin = hardware.HALL_SENSOR_PIN
 
     def __init__(self) -> None:
         pass
@@ -64,38 +52,30 @@ class RpmCalculator:
     def setup(self) -> None:
         # we delay the setup so that when all other checks are done (like in stirring's uniqueness), we can start to
         # use the GPIO for this.
-        set_gpio_availability(self.hall_sensor_pin, False)
+        set_gpio_availability(hardware.HALL_SENSOR_PIN, False)
+        from gpiozero import DigitalInputDevice
 
-        import RPi.GPIO as GPIO  # type: ignore
-
-        self.GPIO = GPIO
-        self.GPIO.setmode(self.GPIO.BCM)
-        self.GPIO.setup(self.hall_sensor_pin, self.GPIO.IN, pull_up_down=self.GPIO.PUD_UP)
-
-        # ignore any changes that occur within 15ms - at 1000rpm (very fast), the
-        # delta between changes is ~60ms, so 15ms is good enough.
-        # sometimes this fails with `RuntimeError: Failed to add edge detection`, so we retry.
-        retry(
-            self.GPIO.add_event_detect,
-            args=(self.hall_sensor_pin, self.GPIO.FALLING),
-            kwargs={"callback": self.callback, "bouncetime": 15},
+        self.hall_sensor_input_device = DigitalInputDevice(
+            hardware.HALL_SENSOR_PIN, pull_up=True, bounce_time=None
         )
         self.turn_off_collection()
 
     def turn_off_collection(self) -> None:
         self.collecting = False
-        self.GPIO.setup(self.hall_sensor_pin, self.GPIO.OUT)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            self.hall_sensor_input_device.when_activated = None
 
     def turn_on_collection(self) -> None:
         self.collecting = True
-        self.GPIO.setup(self.hall_sensor_pin, self.GPIO.IN, pull_up_down=self.GPIO.PUD_UP)
+        self.hall_sensor_input_device.when_activated = self.callback
 
     def clean_up(self) -> None:
         with suppress(AttributeError):
-            self.GPIO.cleanup(self.hall_sensor_pin)
-        set_gpio_availability(self.hall_sensor_pin, True)
+            self.hall_sensor_input_device.close()
+        set_gpio_availability(hardware.HALL_SENSOR_PIN, True)
 
-    def __call__(self, seconds_to_observe: float) -> float:
+    def estimate(self, seconds_to_observe: float) -> float:
         return 0.0
 
     def callback(self, *args) -> None:
@@ -139,7 +119,7 @@ class RpmFromFrequency(RpmCalculator):
         self._running_count = 0
         self._start_time = None
 
-    def __call__(self, seconds_to_observe: float) -> float:
+    def estimate(self, seconds_to_observe: float) -> float:
         self.clear_aggregates()
         self.turn_on_collection()
         self.sleep_for(seconds_to_observe)
@@ -356,7 +336,7 @@ class Stirrer(BackgroundJob):
         if self.rpm_calculator is None:
             return None
 
-        recent_rpm = round(self.rpm_calculator(poll_for_seconds), 2)
+        recent_rpm = round(self.rpm_calculator.estimate(poll_for_seconds), 2)
 
         self._measured_rpm = recent_rpm
         self.measured_rpm = structs.MeasuredRPM(

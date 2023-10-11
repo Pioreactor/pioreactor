@@ -68,7 +68,7 @@ def test_pwm_update_mqtt():
 
 
 def test_pwm_update_mqtt_multiple_at_one():
-    exp = "test_pwm_update_mqtt"
+    exp = "test_pwm_update_mqtt_multiple_at_one"
     unit = get_unit_name()
 
     mqtt_items = []
