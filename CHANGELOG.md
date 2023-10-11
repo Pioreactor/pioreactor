@@ -1,19 +1,23 @@
 ### 23.10.10
 
 #### Bug fixes
+
  - Fix bug that wasn't allowing for manual dosing / LED updates.
  - Fix bug that was disconnecting workers with using "stop all activity" in the UI when pumps were running.
 
 #### Enhancements
+
  - `pios update` now has a `--source` parameter.
 
 ### 23.10.5
 
 #### Bug fixes
+
  - Fix an OD calibration bug that would produce an extremely high value when the signal was below the minimum signal (the blank) during OD calibration.
  - IPv4 is really IPv4 now.
 
- #### Enhancements
+#### Enhancements
+
  - Adding ability to install plugins by name via the UI.
  - New tools to update Pioreactors on a local access point. More docs coming soon!
  - New `turbidostat_targeting_od` dosing automation. This is just like the existing `turbidostat`, but
@@ -53,7 +57,7 @@ had an import error that we didn't see in testing. We changed this to:
 
 ### 23.7.31
 
- - Using builtin PID `controller logic, instead of a 3rd party library. This shouldn't require any updates to PID code or parameters.
+ - Using builtin PID controller logic, instead of a 3rd party library. This shouldn't require any updates to PID code or parameters.
  - Better error handling when the PioreactorUI API can't be reached.
  - Some initial support for Basic Auth in the PioreactorUI
  - improved sensitivity of self-test `test_REF_is_in_correct_position`.

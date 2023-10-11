@@ -121,6 +121,7 @@ class GrowthRateCalculator(BackgroundJob):
             ) = self.get_initial_values()
         except Exception as e:
             # something happened - abort
+            self.logger.error(e)
             self.logger.debug("Aborting early`.", exc_info=True)
             self.clean_up()
             raise e
