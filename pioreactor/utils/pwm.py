@@ -14,6 +14,7 @@ from pioreactor.logging import Logger
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 from pioreactor.types import GpioPin
+from pioreactor.utils import clamp
 from pioreactor.utils import gpio_helpers
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.whoami import get_latest_experiment_name
@@ -27,6 +28,48 @@ else:
         from rpi_hardware_pwm import HardwarePWM  # type: ignore
     except ImportError:
         pass
+
+
+class HardwarePWMOutputDevice(HardwarePWM):
+    HARDWARE_PWM_CHANNELS: dict[GpioPin, int] = {12: 0, 13: 1}
+
+    def __init__(self, pin: GpioPin, active_high=True, initial_value: float = 0.0, frequency=100):
+        if (
+            pin not in self.HARDWARE_PWM_CHANNELS
+        ):  # Only GPIO pins 18 and 19 are supported for hardware PWM
+            raise ValueError(
+                "Only GPIO pins 12 (PWM channel 0) and 13 (PWM channel 1) are supported."
+            )
+
+        pwm_channel = self.HARDWARE_PWM_CHANNELS[pin]
+        super().__init__(pwm_channel, hz=frequency)
+        self._value = initial_value
+
+    def close(self):
+        self.stop()
+
+    def on(self):
+        self.start(self._value * 100)
+
+    def off(self):
+        self.change_duty_cycle(0.0 * 100)
+        self._value = 0.0
+
+    def toggle(self):
+        if self.value > 0.0:
+            self.off()
+        else:
+            self.on()
+
+    @property
+    def value(self) -> float:
+        return self._value
+
+    @value.setter
+    def value(self, value: float) -> None:
+        value = clamp(0.0, value, 1.0)
+        self.change_duty_cycle(value * 100.0)
+        self._value = value
 
 
 class PWM:
@@ -71,7 +114,7 @@ class PWM:
     >
     """
 
-    HARDWARE_PWM_CHANNELS: dict[GpioPin, int] = {12: 0, 13: 1}
+    HARDWARE_PWM_CHANNELS: set[GpioPin] = {12, 13}
 
     def __init__(
         self,
@@ -113,23 +156,18 @@ class PWM:
         gpio_helpers.set_gpio_availability(self.pin, False)
 
         if (not always_use_software) and (pin in self.HARDWARE_PWM_CHANNELS):
-            self.pwm = HardwarePWM(self.HARDWARE_PWM_CHANNELS[self.pin], self.hz)
-
+            self.pwm = HardwarePWMOutputDevice(self.pin, self.hz)
         else:
-            import RPi.GPIO as GPIO  # type: ignore
-
-            GPIO.setwarnings(
-                False
-            )  # we already "registered" this GPIO in the EEPROM, ignore GPIO telling us again.
-            GPIO.setmode(GPIO.BCM)
-            GPIO.setup(self.pin, GPIO.OUT, initial=GPIO.LOW)
+            from gpiozero import PWMOutputDevice
 
             if self.hz >= 1000:
                 self.logger.warning(
                     "Setting a PWM to a very high frequency with software. Did you mean to use a hardware PWM?"
                 )
 
-            self.pwm = GPIO.PWM(self.pin, self.hz)
+            self.pwm = PWMOutputDevice(
+                self.pin, initial_value=0, active_high=True, frequency=self.hz
+            )
 
         with local_intermittent_storage("pwm_hz") as cache:
             cache[self.pin] = self.hz
@@ -141,7 +179,7 @@ class PWM:
     @property
     def using_hardware(self) -> bool:
         try:
-            return isinstance(self.pwm, HardwarePWM)
+            return isinstance(self.pwm, HardwarePWMOutputDevice)
         except AttributeError:
             return False
 
@@ -169,17 +207,16 @@ class PWM:
         )
 
     def start(self, initial_duty_cycle: float) -> None:
-        if not (0 <= initial_duty_cycle <= 100):
+        if not (0.0 <= initial_duty_cycle <= 100.0):
             raise PWMError("duty_cycle should be between 0 and 100, inclusive.")
 
-        self.duty_cycle = round(float(initial_duty_cycle), 5)
-        self.pwm.start(self.duty_cycle)
+        self.change_duty_cycle(initial_duty_cycle)
+        self.pwm.on()
         self._serialize()
 
     def stop(self) -> None:
-        self.pwm.stop()
-        self.duty_cycle = 0
-        self._serialize()
+        self.pwm.off()
+        self.change_duty_cycle(0.0)
 
     def change_duty_cycle(self, duty_cycle: float) -> None:
         if not (0.0 <= duty_cycle <= 100.0):
@@ -187,15 +224,14 @@ class PWM:
 
         self.duty_cycle = round(float(duty_cycle), 5)
 
-        if self.using_hardware:
-            self.pwm.change_duty_cycle(self.duty_cycle)
-        else:
-            self.pwm.ChangeDutyCycle(self.duty_cycle)  # type: ignore
+        self.pwm.value = self.duty_cycle / 100.0
 
         self._serialize()
 
     def cleanup(self) -> None:
         self.stop()
+        self.pwm.close()
+
         self.unlock()
 
         with local_intermittent_storage("pwm_dc") as cache:
@@ -205,16 +241,6 @@ class PWM:
             cache.pop(self.pin)
 
         gpio_helpers.set_gpio_availability(self.pin, True)
-
-        if self.using_hardware:
-            # `stop` handles cleanup.
-            pass
-        else:
-            import RPi.GPIO as GPIO
-
-            GPIO.setmode(GPIO.BCM)
-            GPIO.setup(self.pin, GPIO.OUT, initial=GPIO.LOW)
-            GPIO.cleanup(self.pin)
 
         self.logger.debug(f"Cleaned up GPIO-{self.pin}.")
 
