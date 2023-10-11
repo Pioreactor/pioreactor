@@ -212,7 +212,6 @@ class PWM:
 
         self.change_duty_cycle(initial_duty_cycle)
         self.pwm.on()
-        self._serialize()
 
     def stop(self) -> None:
         self.pwm.off()

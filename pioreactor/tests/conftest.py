@@ -18,6 +18,10 @@ def run_around_tests(request):
 
     test_name = request.node.name
 
+    with local_intermittent_storage("pwm_dc") as cache:
+        for key in cache.iterkeys():
+            del cache[key]
+
     with local_intermittent_storage("led_locks") as cache:
         for key in cache.iterkeys():
             del cache[key]

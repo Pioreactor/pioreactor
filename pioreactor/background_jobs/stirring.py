@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import warnings
 from contextlib import suppress
 from time import perf_counter
 from time import sleep
@@ -61,7 +62,9 @@ class RpmCalculator:
 
     def turn_off_collection(self) -> None:
         self.collecting = False
-        self.hall_sensor_input_device.when_activated = None  # TODO: supress warning
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            self.hall_sensor_input_device.when_activated = None
 
     def turn_on_collection(self) -> None:
         self.collecting = True

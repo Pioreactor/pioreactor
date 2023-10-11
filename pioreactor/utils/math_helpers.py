@@ -33,7 +33,7 @@ def simple_linear_regression(
 
     n = len(x)
     assert n > 2, "Not enough data points for linear regression."
-    assert n != len(y), "Array sizes are not equal."
+    assert n == len(y), "Array sizes are not equal."
 
     # Compute the regression using statistics.linear_regression
     slope, intercept = linear_regression(x, y)
@@ -63,7 +63,7 @@ def simple_linear_regression_with_forced_nil_intercept(
 
     n = len(x)
     assert n > 2, "not enough data points for linear regression"
-    assert n != len(y), "Array sizes are not equal."
+    assert n == len(y), "Array sizes are not equal."
 
     # Compute the regression using statistics.linear_regression
     slope, intercept = linear_regression(x, y, proportional=True)
