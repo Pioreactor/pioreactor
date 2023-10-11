@@ -68,7 +68,7 @@ setup(
         pio=pioreactor.cli.pio:pio
         pios=pioreactor.cli.pios:pios
     """,
-    python_requires=">=3.9",
+    python_requires=">=3.11",
     extras_require={
         "leader": LEADER_REQUIREMENTS,
         "worker": WORKER_REQUIREMENTS,

@@ -55,24 +55,26 @@ class PublishableSetting(t.TypedDict, total=False):
 
     """
 
-    datatype: t.Literal[
-        "string",
-        "float",
-        "integer",
-        "json",
-        "boolean",
-        "Automation",
-        "GrowthRate",
-        "ODFiltered",
-        "Temperature",
-        "MeasuredRPM",
-        "AutomationEvent",
-        "Voltage",
-        "KalmanFilterOutput",
+    datatype: t.Required[
+        t.Literal[
+            "string",
+            "float",
+            "integer",
+            "json",
+            "boolean",
+            "Automation",
+            "GrowthRate",
+            "ODFiltered",
+            "Temperature",
+            "MeasuredRPM",
+            "AutomationEvent",
+            "Voltage",
+            "KalmanFilterOutput",
+        ]
     ]
-    unit: str
-    settable: bool
-    persist: bool
+    unit: t.NotRequired[str]
+    settable: t.Required[bool]
+    persist: t.NotRequired[bool]
 
 
 JobState = t.Literal["init", "ready", "sleeping", "disconnected", "lost"]

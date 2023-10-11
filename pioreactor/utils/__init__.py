@@ -13,6 +13,7 @@ from typing import cast
 from typing import Generator
 from typing import Optional
 from typing import overload
+from typing import Sequence
 
 from diskcache import Cache  # type: ignore
 
@@ -324,7 +325,7 @@ def get_cpu_temperature() -> float:
     return cpu_temperature_celcius
 
 
-def argextrema(x: list) -> tuple[int, int]:
+def argextrema(x: Sequence) -> tuple[int, int]:
     min_, max_ = float("inf"), float("-inf")
     argmin_, argmax_ = 0, 0
     for i, value in enumerate(x):
