@@ -354,13 +354,16 @@ class SummableDict(dict):
 
     # result should be {'a': 1, 'b': 5, 'c': 4}
 
+    # also has a default value:
+    print(result['missing_key']) # 0.0
+
 
     """
 
     def __init__(self, *arg, **kwargs):
         dict.__init__(self, *arg, **kwargs)
 
-    def __add__(self, other):
+    def __add__(self, other: SummableDict):
         s = SummableDict()
         for key in self:
             s[key] += self[key]
@@ -369,12 +372,12 @@ class SummableDict(dict):
 
         return s
 
-    def __iadd__(self, other):
+    def __iadd__(self, other: SummableDict):
         return self + other
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str):
         if key not in self:
-            return 0
+            return 0.0  # TODO: later could be generalized for the init to accept a zero element.
         else:
             return dict.__getitem__(self, key)
 

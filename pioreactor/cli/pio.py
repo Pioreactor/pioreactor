@@ -29,9 +29,12 @@ from pioreactor.config import config
 from pioreactor.config import get_leader_hostname
 from pioreactor.logging import create_logger
 from pioreactor.mureq import get
+from pioreactor.mureq import HTTPException
+from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.networking import add_local
+from pioreactor.utils.networking import is_using_local_access_point
 
 
 JOBS_TO_SKIP_KILLING = [
@@ -45,6 +48,12 @@ JOBS_TO_SKIP_KILLING = [
     "temperature_automation",
     "dosing_automation",
     "led_automation",
+    # pumping jobs are created by a thread in monitor, and inherit the same PID. We don't want to `kill PID`,
+    # so skip killing using `kill`, and instead use MQTT to kill.
+    "add_media",
+    "remove_waste",
+    "add_alt_media",
+    "led_intensity",
 ]
 
 
@@ -176,16 +185,6 @@ def kill(job: list[str], all_jobs: bool) -> None:
             pass
 
     if all_jobs:
-        # kill all running pioreactor processes
-        jobs_killed_already = []
-        with local_intermittent_storage("pio_jobs_running") as cache:
-            for j in cache:
-                if j not in JOBS_TO_SKIP_KILLING:
-                    pid = cache[j]
-                    if pid not in jobs_killed_already:
-                        safe_kill(int(pid))
-                        jobs_killed_already.append(pid)
-
         # kill all pumping
         with pubsub.create_client() as client:
             client.publish(
@@ -203,6 +202,16 @@ def kill(job: list[str], all_jobs: bool) -> None:
                 "disconnected",
                 qos=pubsub.QOS.AT_LEAST_ONCE,
             )
+
+        # kill all running pioreactor processes
+        jobs_killed_already = []
+        with local_intermittent_storage("pio_jobs_running") as cache:
+            for j in cache:
+                if j not in JOBS_TO_SKIP_KILLING:
+                    pid = cache[j]
+                    if pid not in jobs_killed_already:
+                        safe_kill(int(pid))
+                        jobs_killed_already.append(pid)
 
         # kill all LEDs
         sleep(0.25)
@@ -375,7 +384,7 @@ def update() -> None:
     pass
 
 
-def get_non_prerelease_tags_of_pioreactor(repo):
+def get_non_prerelease_tags_of_pioreactor(repo) -> list[str]:
     """
     Returns a list of all the tag names associated with non-prerelease releases, sorted in descending order
     """
@@ -508,7 +517,13 @@ def update_app(
         )
 
     else:
-        tag = get_tag_to_install(repo, version)
+        try:
+            tag = get_tag_to_install(repo, version)
+        except HTTPException:
+            raise HTTPException(
+                f"Unable to retrieve information over internet. Is the Pioreactor connected to the internet? LAP is {is_using_local_access_point()}."
+            )
+
         response = get(f"https://api.github.com/repos/{repo}/releases/{tag}")
         if response.raise_for_status():
             logger.error(f"Version {version} not found")

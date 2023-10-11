@@ -1,7 +1,19 @@
 ### Upcoming
 
+#### Bug fixes
+ - Fix bug that wasn't allowing for manual dosing / LED updates.
+ - Fix bug that was disconnecting workers with using "stop all activity" in the UI when pumps were running.
+
+#### Enhancements
+ - `pios update` now has a `--source` parameter.
+
+### 23.10.5
+
+#### Bug fixes
  - Fix an OD calibration bug that would produce an extremely high value when the signal was below the minimum signal (the blank) during OD calibration.
  - IPv4 is really IPv4 now.
+
+ #### Enhancements
  - Adding ability to install plugins by name via the UI.
  - New tools to update Pioreactors on a local access point. More docs coming soon!
  - New `turbidostat_targeting_od` dosing automation. This is just like the existing `turbidostat`, but
@@ -14,7 +26,7 @@ The previous change:
 
 >  - Base automations now subclass from `pioreactor.automations.BaseAutomationJob`. You may need to change custom automation imports from, for example, `from pioreactor.automations import DosingAutomationJobContrib` to `from pioreactor.automations.dosing.base import DosingAutomationJobContrib`
 
-had an import error that I didn't see in my testing. We changed this further to:
+had an import error that we didn't see in testing. We changed this to:
 
  - Base automations now subclass from `pioreactor.automations.base.AutomationJob`.
  - Fix bug on /updates page.
