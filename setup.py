@@ -8,16 +8,16 @@ exec(compile(open("pioreactor/version.py").read(), "pioreactor/version.py", "exe
 
 
 CORE_REQUIREMENTS = [
-    "click==8.1.6",
+    "click==8.1.7",
     "paho-mqtt==1.6.1",
     "psutil==5.9.5",
-    "sh==1.14.3",
+    "sh==2.0.6",
     "JSON-log-formatter==0.5.1",
     "colorlog==6.7.0",
-    "msgspec==0.18.2",
-    "diskcache==5.6.1",
-    "wheel==0.38.4",
-    "crudini==0.9.4",
+    "msgspec==0.18.4",
+    "diskcache==5.6.3",
+    "wheel==0.41.2",
+    "crudini==0.9.5",
 ]
 
 
@@ -30,12 +30,12 @@ UI_REQUIREMENTS = [
 ]
 
 
-LEADER_REQUIREMENTS = ["zeroconf==0.64.1"] + UI_REQUIREMENTS
+LEADER_REQUIREMENTS = ["zeroconf==0.115.2"] + UI_REQUIREMENTS
 
 
 WORKER_REQUIREMENTS = [
     "gpiozero==2.0",
-    "adafruit-circuitpython-ads1x15==2.2.12",
+    "adafruit-circuitpython-ads1x15==2.2.23",
     "DAC43608==0.2.7",
     "TMP1075==0.2.1",
     "rpi-hardware-pwm==0.1.4",

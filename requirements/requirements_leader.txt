@@ -1,2 +1,2 @@
 -r requirements.txt
-zeroconf==0.64.1
+zeroconf==0.115.2

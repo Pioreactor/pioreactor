@@ -2,4 +2,3 @@
 pytest
 pytest-timeout
 pytest-random-order
-fake-rpi
