@@ -60,7 +60,9 @@ class RpmCalculator:
         # self.hall_sensor_input_device = DigitalInputDevice(
         #    hardware.HALL_SENSOR_PIN, pull_up=True, bounce_time=None
         # )
-
+        lgpio.gpio_claim_alert(
+            self._handle, hardware.HALL_SENSOR_PIN, lgpio.RISING_EDGE, lgpio.SET_PULL_UP
+        )
         self._edge_callback = lgpio.callback(
             self._handle, hardware.HALL_SENSOR_PIN, lgpio.RISING_EDGE
         )
@@ -69,9 +71,7 @@ class RpmCalculator:
 
     def turn_off_collection(self) -> None:
         self.collecting = False
-        self._edge_callback = lgpio.callback(
-            self._handle, hardware.HALL_SENSOR_PIN, lgpio.RISING_EDGE
-        )
+        self._edge_callback.cancel()
 
     def turn_on_collection(self) -> None:
         self.collecting = True
@@ -82,6 +82,8 @@ class RpmCalculator:
     def clean_up(self) -> None:
         with suppress(AttributeError):
             self._edge_callback.cancel()
+            lgpio.gpiochip_close(self._handle)
+
         set_gpio_availability(hardware.HALL_SENSOR_PIN, True)
 
     def estimate(self, seconds_to_observe: float) -> float:

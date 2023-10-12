@@ -163,9 +163,7 @@ class Monitor(BackgroundJob):
         # Set BUTTON_PIN as input with no pull-up
         lgpio.gpio_claim_input(self._handle, BUTTON_PIN)
 
-        lgpio.gpio_claim_alert(
-            self._handle, BUTTON_PIN, lgpio.RISING_EDGE, lgpio.SET_PULL_UP
-        )  # TODO: do I need this???
+        lgpio.gpio_claim_alert(self._handle, BUTTON_PIN, lgpio.RISING_EDGE, lgpio.SET_PULL_UP)
         self._button_callback = lgpio.callback(
             self._handle, BUTTON_PIN, lgpio.RISING_EDGE, self.button_down_and_up
         )
