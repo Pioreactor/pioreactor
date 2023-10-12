@@ -26,7 +26,6 @@ from pioreactor.mureq import get
 from pioreactor.pubsub import QOS
 from pioreactor.structs import Voltage
 from pioreactor.types import MQTTMessage
-from pioreactor.utils import retry
 from pioreactor.utils.gpio_helpers import set_gpio_availability
 from pioreactor.utils.networking import get_ip
 from pioreactor.utils.timing import current_utc_datetime
@@ -406,10 +405,10 @@ class Monitor(BackgroundJob):
         set_gpio_availability(LED_PIN, True)
 
     def led_on(self) -> None:
-        self.led.on()
+        lgpio.gpio_write(self._handle, LED_PIN, 1)
 
     def led_off(self) -> None:
-        self.led.off()
+        lgpio.gpio_write(self._handle, LED_PIN, 0)
 
     def button_down_and_up(self, chip, gpio, level, tick) -> None:
         # Warning: this might be called twice
