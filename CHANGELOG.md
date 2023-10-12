@@ -1,3 +1,8 @@
+### 23.10.12
+
+#### Bug fixes
+ - Web server was crashing on start! Solution was to upgrade flask.
+
 ### 23.10.10
 
 #### Bug fixes
