@@ -23,10 +23,10 @@ CORE_REQUIREMENTS = [
 
 UI_REQUIREMENTS = [
     # pyyaml is installed elsewhere
-    "flask==2.2.2",
+    "flask==3.0.0",
     "flup6==1.1.1",
-    "python-dotenv==0.21.0",
-    "huey==2.4.5",
+    "python-dotenv==1.0.0",
+    "huey==2.5.0",
 ]
 
 
