@@ -7,7 +7,6 @@ from threading import Timer
 from typing import Callable
 
 import click
-import pkg_resources
 from msgspec.json import encode
 from msgspec.yaml import decode
 
@@ -178,6 +177,8 @@ def publish_labels_to_ui(labels_map: dict[str, str]) -> None:
 
 
 def get_installed_packages() -> dict[str, str]:
+    import pkg_resources
+
     """Return a dictionary of installed packages and their versions"""
     installed_packages = {d.project_name: d.version for d in pkg_resources.working_set}
     return installed_packages

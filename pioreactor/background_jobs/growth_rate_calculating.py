@@ -40,7 +40,6 @@ from collections import defaultdict
 from datetime import datetime
 from json import dumps
 from json import loads
-from statistics import mean
 from typing import Generator
 
 from click import command
@@ -309,6 +308,8 @@ class GrowthRateCalculator(BackgroundJob):
             return cache.get(self.experiment, 0.0)
 
     def get_filtered_od_from_cache_or_computed(self) -> float:
+        from statistics import mean
+
         with local_persistant_storage("od_filtered") as cache:
             if self.experiment in cache:
                 return cache[self.experiment]
