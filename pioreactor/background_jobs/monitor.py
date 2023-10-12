@@ -163,7 +163,9 @@ class Monitor(BackgroundJob):
         # Set BUTTON_PIN as input with no pull-up
         lgpio.gpio_claim_input(self._handle, BUTTON_PIN)
 
-        lgpio.gpio_claim_alert(self._handle, BUTTON_PIN, lgpio.RISING_EDGE, lgpio.SET_PULL_UP)
+        lgpio.gpio_claim_alert(
+            self._handle, BUTTON_PIN, lgpio.RISING_EDGE, lgpio.SET_PULL_UP
+        )  # TODO: do I need this???
         self._button_callback = lgpio.callback(
             self._handle, BUTTON_PIN, lgpio.RISING_EDGE, self.button_down_and_up
         )
@@ -195,7 +197,7 @@ class Monitor(BackgroundJob):
 
         if whoami.am_I_leader():
             self.check_for_last_backup()
-            sleep(0 if whoami.is_testing_env() else 10)  # wait for other processes to catch up
+            sleep(0 if whoami.is_testing_env() else 5)  # wait for other processes to catch up
             self.check_for_required_jobs_running()
             self.check_for_webserver()
 

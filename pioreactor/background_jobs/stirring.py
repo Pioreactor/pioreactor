@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import warnings
 from contextlib import suppress
 from time import perf_counter
 from time import sleep
@@ -11,6 +10,7 @@ from typing import Callable
 from typing import Optional
 
 import click
+import lgpio
 
 import pioreactor.types as pt
 from pioreactor import error_codes
@@ -53,26 +53,35 @@ class RpmCalculator:
         # we delay the setup so that when all other checks are done (like in stirring's uniqueness), we can start to
         # use the GPIO for this.
         set_gpio_availability(hardware.HALL_SENSOR_PIN, False)
-        from gpiozero import DigitalInputDevice
+        # from gpiozero import DigitalInputDevice
+        self._handle = lgpio.gpiochip_open(0)
+        lgpio.gpio_claim_input(self._handle, hardware.HALL_SENSOR_PIN, lgpio.SET_PULL_UP)
 
-        self.hall_sensor_input_device = DigitalInputDevice(
-            hardware.HALL_SENSOR_PIN, pull_up=True, bounce_time=None
+        # self.hall_sensor_input_device = DigitalInputDevice(
+        #    hardware.HALL_SENSOR_PIN, pull_up=True, bounce_time=None
+        # )
+
+        self._edge_callback = lgpio.callback(
+            self._handle, hardware.HALL_SENSOR_PIN, lgpio.RISING_EDGE
         )
+
         self.turn_off_collection()
 
     def turn_off_collection(self) -> None:
         self.collecting = False
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            self.hall_sensor_input_device.when_activated = None
+        self._edge_callback = lgpio.callback(
+            self._handle, hardware.HALL_SENSOR_PIN, lgpio.RISING_EDGE
+        )
 
     def turn_on_collection(self) -> None:
         self.collecting = True
-        self.hall_sensor_input_device.when_activated = self.callback
+        self._edge_callback = lgpio.callback(
+            self._handle, hardware.HALL_SENSOR_PIN, lgpio.RISING_EDGE, self.callback
+        )
 
     def clean_up(self) -> None:
         with suppress(AttributeError):
-            self.hall_sensor_input_device.close()
+            self._edge_callback.cancel()
         set_gpio_availability(hardware.HALL_SENSOR_PIN, True)
 
     def estimate(self, seconds_to_observe: float) -> float:
