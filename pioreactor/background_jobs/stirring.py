@@ -53,13 +53,10 @@ class RpmCalculator:
         # we delay the setup so that when all other checks are done (like in stirring's uniqueness), we can start to
         # use the GPIO for this.
         set_gpio_availability(hardware.HALL_SENSOR_PIN, False)
-        # from gpiozero import DigitalInputDevice
+
         self._handle = lgpio.gpiochip_open(0)
         lgpio.gpio_claim_input(self._handle, hardware.HALL_SENSOR_PIN, lgpio.SET_PULL_UP)
 
-        # self.hall_sensor_input_device = DigitalInputDevice(
-        #    hardware.HALL_SENSOR_PIN, pull_up=True, bounce_time=None
-        # )
         lgpio.gpio_claim_alert(
             self._handle, hardware.HALL_SENSOR_PIN, lgpio.RISING_EDGE, lgpio.SET_PULL_UP
         )
