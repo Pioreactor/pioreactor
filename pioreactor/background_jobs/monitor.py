@@ -8,9 +8,9 @@ from time import sleep
 from typing import Any
 from typing import Callable
 from typing import Optional
-import lgpio
 
 import click
+import lgpio
 
 from pioreactor import config
 from pioreactor import error_codes
@@ -166,10 +166,8 @@ class Monitor(BackgroundJob):
 
         lgpio.gpio_claim_alert(self._handle, BUTTON_PIN, lgpio.RISING_EDGE, lgpio.SET_PULL_UP)
         self._button_callback = lgpio.callback(
-            self._handle,
-            BUTTON_PIN,
-            lgpio.RISING_EDGE,
-            self.button_down_and_up)
+            self._handle, BUTTON_PIN, lgpio.RISING_EDGE, self.button_down_and_up
+        )
 
     def check_for_network(self) -> None:
         if whoami.is_testing_env():
@@ -424,7 +422,9 @@ class Monitor(BackgroundJob):
                 try:
                     pre_function()
                 except Exception:
-                    self.logger.debug(f"Error in pre_function={pre_function.__name__}.", exc_info=True)
+                    self.logger.debug(
+                        f"Error in pre_function={pre_function.__name__}.", exc_info=True
+                    )
 
         elif level == 1:
             self.button_down = False
@@ -436,7 +436,6 @@ class Monitor(BackgroundJob):
                     self.logger.debug(
                         f"Error in post_function={post_function.__name__}.", exc_info=True
                     )
-
 
     def rpi_is_having_power_problems(self) -> tuple[bool, float]:
         from pioreactor.utils.rpi_bad_power import new_under_voltage
