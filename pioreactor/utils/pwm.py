@@ -187,14 +187,14 @@ class PWM:
         self._pwm: HardwarePWMOutputDevice | SoftwarePWMOutputDevice
 
         if (not always_use_software) and (pin in self.HARDWARE_PWM_CHANNELS):
-            self._pwm = HardwarePWMOutputDevice(self.pin, self.hz)
+            self._pwm = HardwarePWMOutputDevice(self.pin, 0, self.hz)
         else:
             if self.hz >= 1000:
                 self.logger.warning(
                     "Setting a PWM to a very high frequency with software. Did you mean to use a hardware PWM?"
                 )
 
-            self._pwm = SoftwarePWMOutputDevice(self.pin, self.hz)
+            self._pwm = SoftwarePWMOutputDevice(self.pin, 0, self.hz)
 
         with local_intermittent_storage("pwm_hz") as cache:
             cache[self.pin] = self.hz
