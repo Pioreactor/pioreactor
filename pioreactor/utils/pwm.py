@@ -76,6 +76,7 @@ class SoftwarePWMOutputDevice:
         self._handle = lgpio.gpiochip_open(0)
 
         lgpio.gpio_claim_output(self._handle, self.pin)
+        print(self.dc)
         lgpio.tx_pwm(self._handle, self.pin, self.frequency, self.dc)
 
     def start(self):
@@ -91,7 +92,7 @@ class SoftwarePWMOutputDevice:
 
     @dc.setter
     def dc(self, dc: float) -> None:
-        dc = clamp(0.0, dc, 1.0)
+        dc = clamp(0.0, dc, 100.0)
         self._dc = dc
         if self._started:
             lgpio.tx_pwm(self._handle, self.pin, self.frequency, self.dc)
