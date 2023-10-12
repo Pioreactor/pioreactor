@@ -30,7 +30,6 @@ from pioreactor.config import get_leader_hostname
 from pioreactor.logging import create_logger
 from pioreactor.mureq import get
 from pioreactor.mureq import HTTPException
-from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.networking import add_local
@@ -379,7 +378,7 @@ def update_settings(ctx, job: str) -> None:
 @pio.group()
 def update() -> None:
     """
-    Update software for the app and UI
+    update software for the app and UI
     """
     pass
 

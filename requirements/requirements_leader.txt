@@ -1,2 +1,6 @@
 -r requirements.txt
 zeroconf==0.115.2
+flask==2.2.2
+flup6==1.1.1
+python-dotenv==1.0.0
+huey==2.5.0

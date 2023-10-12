@@ -6,17 +6,23 @@ from typing import Generator
 from typing import Optional
 
 
-def cp_file_across_cluster(unit: str, localpath: str, remotepath: str):
+def cp_file_across_cluster(unit: str, localpath: str, remotepath: str, timeout: int = 5):
     from sh import rsync  # type: ignore
+    from sh import ErrorReturnCode_30  # type: ignore
 
-    rsync(
-        "-z",
-        "--inplace",
-        "-e",
-        "ssh",
-        localpath,
-        f"{add_local(unit)}:{remotepath}",
-    )
+    try:
+        rsync(
+            "-z",
+            "--timeout",
+            timeout,
+            "--inplace",
+            "-e",
+            "ssh",
+            localpath,
+            f"{add_local(unit)}:{remotepath}",
+        )
+    except ErrorReturnCode_30:
+        raise ConnectionRefusedError(f"Error connecting to {unit}.")
 
 
 def is_using_local_access_point() -> bool:

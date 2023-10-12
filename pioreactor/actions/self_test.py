@@ -82,7 +82,7 @@ def test_REF_is_in_correct_position(
         experiment=experiment,
         use_calibration=False,
     ) as od_stream:
-        st.block_until_rpm_is_close_to_target(abs_tolerance=150)
+        st.block_until_rpm_is_close_to_target(abs_tolerance=150, timeout=20)
 
         for i, reading in enumerate(od_stream, start=1):
             signal1.append(reading.ods["1"].od)

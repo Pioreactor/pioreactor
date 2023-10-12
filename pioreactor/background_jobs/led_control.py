@@ -43,13 +43,10 @@ class LEDController(BackgroundJob):
         try:
             automation_class = self.available_automations[automation_name]
         except KeyError:
-            self.logger.error(
-                f"Unable to find automation {automation_name}. Available automations are {list(self.available_automations.keys())}"
-            )
+            msg = f"Unable to find automation {automation_name}. Available automations are {list(self.available_automations.keys())}"
+            self.logger.error(msg)
             self.clean_up()
-            raise KeyError(
-                f"Unable to find automation {automation_name}. Available automations are {list(self.available_automations.keys())}"
-            )
+            raise KeyError(msg)
 
         self.automation = LEDAutomation(automation_name=automation_name, args=kwargs)
         self.logger.info(f"Starting {self.automation}.")

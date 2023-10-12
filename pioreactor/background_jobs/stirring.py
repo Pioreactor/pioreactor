@@ -390,7 +390,7 @@ class Stirrer(BackgroundJob):
         self.pid.set_setpoint(self.target_rpm)
 
     def block_until_rpm_is_close_to_target(
-        self, abs_tolerance: float = 15, timeout: Optional[float] = None
+        self, abs_tolerance: float = 15, timeout: Optional[float] = 60
     ) -> bool:
         """
         This function blocks until the stirring is "close enough" to the target RPM.
