@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import subprocess
+from contextlib import suppress
 from json import loads
 from threading import Thread
 from time import sleep
@@ -32,6 +33,10 @@ from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.utils.timing import to_datetime
+
+if whoami.is_testing_env():
+    from pioreactor.utils.mock import MockCallback
+    from pioreactor.utils.mock import MockHandle
 
 
 class Monitor(BackgroundJob):
@@ -155,18 +160,22 @@ class Monitor(BackgroundJob):
         set_gpio_availability(BUTTON_PIN, False)
         set_gpio_availability(LED_PIN, False)
 
-        self._handle = lgpio.gpiochip_open(0)
+        if not whoami.is_testing_env():
+            self._handle = lgpio.gpiochip_open(0)
 
-        # Set LED_PIN as output and initialize to low
-        lgpio.gpio_claim_output(self._handle, LED_PIN)
-        lgpio.gpio_write(self._handle, LED_PIN, 0)
-        # Set BUTTON_PIN as input with no pull-up
-        lgpio.gpio_claim_input(self._handle, BUTTON_PIN)
+            # Set LED_PIN as output and initialize to low
+            lgpio.gpio_claim_output(self._handle, LED_PIN)
+            lgpio.gpio_write(self._handle, LED_PIN, 0)
+            # Set BUTTON_PIN as input with no pull-up
+            lgpio.gpio_claim_input(self._handle, BUTTON_PIN)
 
-        lgpio.gpio_claim_alert(self._handle, BUTTON_PIN, lgpio.RISING_EDGE, lgpio.SET_PULL_UP)
-        self._button_callback = lgpio.callback(
-            self._handle, BUTTON_PIN, lgpio.RISING_EDGE, self.button_down_and_up
-        )
+            lgpio.gpio_claim_alert(self._handle, BUTTON_PIN, lgpio.RISING_EDGE, lgpio.SET_PULL_UP)
+            self._button_callback = lgpio.callback(
+                self._handle, BUTTON_PIN, lgpio.RISING_EDGE, self.button_down_and_up
+            )
+        else:
+            self._button_callback = MockCallback()
+            self._handle = MockHandle()
 
     def check_for_network(self) -> None:
         if whoami.is_testing_env():
@@ -399,16 +408,20 @@ class Monitor(BackgroundJob):
         self.check_state_of_jobs_on_machine()
 
     def on_disconnected(self) -> None:
-        lgpio.gpiochip_close(self._handle)
-        self._button_callback.cancel()
+        with suppress(AttributeError):
+            lgpio.gpiochip_close(self._handle)
+            self._button_callback.cancel()
+
         set_gpio_availability(BUTTON_PIN, True)
         set_gpio_availability(LED_PIN, True)
 
     def led_on(self) -> None:
-        lgpio.gpio_write(self._handle, LED_PIN, 1)
+        if not whoami.is_testing_env():
+            lgpio.gpio_write(self._handle, LED_PIN, 1)
 
     def led_off(self) -> None:
-        lgpio.gpio_write(self._handle, LED_PIN, 0)
+        if not whoami.is_testing_env():
+            lgpio.gpio_write(self._handle, LED_PIN, 0)
 
     def button_down_and_up(self, chip, gpio, level, tick) -> None:
         # Warning: this might be called twice

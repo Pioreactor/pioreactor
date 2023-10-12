@@ -24,6 +24,7 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
 if is_testing_env():
+    from pioreactor.utils.mock import MockPWMOutputDevice
     from pioreactor.utils.mock import MockHardwarePWM as HardwarePWM
 else:
     try:
@@ -76,7 +77,6 @@ class SoftwarePWMOutputDevice:
         self._handle = lgpio.gpiochip_open(0)
 
         lgpio.gpio_claim_output(self._handle, self.pin)
-        print(self.dc)
         lgpio.tx_pwm(self._handle, self.pin, self.frequency, self.dc)
 
     def start(self):
@@ -184,9 +184,11 @@ class PWM:
 
         gpio_helpers.set_gpio_availability(self.pin, False)
 
-        self._pwm: HardwarePWMOutputDevice | SoftwarePWMOutputDevice
+        self._pwm: HardwarePWMOutputDevice | SoftwarePWMOutputDevice | MockPWMOutputDevice
 
-        if (not always_use_software) and (pin in self.HARDWARE_PWM_CHANNELS):
+        if is_testing_env():
+            self._pwm = MockPWMOutputDevice(self.pin, 0, self.hz)
+        elif (not always_use_software) and (pin in self.HARDWARE_PWM_CHANNELS):
             self._pwm = HardwarePWMOutputDevice(self.pin, 0, self.hz)
         else:
             if self.hz >= 1000:
