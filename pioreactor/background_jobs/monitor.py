@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import subprocess
+from contextlib import suppress
 from json import loads
 from threading import Thread
 from time import sleep
@@ -10,6 +11,7 @@ from typing import Callable
 from typing import Optional
 
 import click
+import lgpio
 
 from pioreactor import config
 from pioreactor import error_codes
@@ -25,13 +27,16 @@ from pioreactor.mureq import get
 from pioreactor.pubsub import QOS
 from pioreactor.structs import Voltage
 from pioreactor.types import MQTTMessage
-from pioreactor.utils import retry
 from pioreactor.utils.gpio_helpers import set_gpio_availability
 from pioreactor.utils.networking import get_ip
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.utils.timing import to_datetime
+
+if whoami.is_testing_env():
+    from pioreactor.utils.mock import MockCallback
+    from pioreactor.utils.mock import MockHandle
 
 
 class Monitor(BackgroundJob):
@@ -155,12 +160,22 @@ class Monitor(BackgroundJob):
         set_gpio_availability(BUTTON_PIN, False)
         set_gpio_availability(LED_PIN, False)
 
-        from gpiozero import LED, Button
+        if not whoami.is_testing_env():
+            self._handle = lgpio.gpiochip_open(0)
 
-        self.led = LED(LED_PIN)
-        self.button = Button(BUTTON_PIN, pull_up=False)
+            # Set LED_PIN as output and initialize to low
+            lgpio.gpio_claim_output(self._handle, LED_PIN)
+            lgpio.gpio_write(self._handle, LED_PIN, 0)
+            # Set BUTTON_PIN as input with no pull-up
+            lgpio.gpio_claim_input(self._handle, BUTTON_PIN)
 
-        self.button.when_pressed = self.button_down_and_up
+            lgpio.gpio_claim_alert(self._handle, BUTTON_PIN, lgpio.RISING_EDGE, lgpio.SET_PULL_UP)
+            self._button_callback = lgpio.callback(
+                self._handle, BUTTON_PIN, lgpio.RISING_EDGE, self.button_down_and_up
+            )
+        else:
+            self._button_callback = MockCallback()
+            self._handle = MockHandle()
 
     def check_for_network(self) -> None:
         if whoami.is_testing_env():
@@ -189,7 +204,7 @@ class Monitor(BackgroundJob):
 
         if whoami.am_I_leader():
             self.check_for_last_backup()
-            sleep(0 if whoami.is_testing_env() else 10)  # wait for other processes to catch up
+            sleep(0 if whoami.is_testing_env() else 5)  # wait for other processes to catch up
             self.check_for_required_jobs_running()
             self.check_for_webserver()
 
@@ -393,41 +408,46 @@ class Monitor(BackgroundJob):
         self.check_state_of_jobs_on_machine()
 
     def on_disconnected(self) -> None:
-        self.led.close()
-        self.button.close()
+        with suppress(AttributeError):
+            lgpio.gpiochip_close(self._handle)
+            self._button_callback.cancel()
+
         set_gpio_availability(BUTTON_PIN, True)
         set_gpio_availability(LED_PIN, True)
 
     def led_on(self) -> None:
-        self.led.on()
+        if not whoami.is_testing_env():
+            lgpio.gpio_write(self._handle, LED_PIN, 1)
 
     def led_off(self) -> None:
-        self.led.off()
+        if not whoami.is_testing_env():
+            lgpio.gpio_write(self._handle, LED_PIN, 0)
 
-    def button_down_and_up(self, *args) -> None:  # TODO: why args??
-        # Warning: this might be called twice: See "Switch debounce" in https://sourceforge.net/p/raspberry-gpio-python/wiki/Inputs/
+    def button_down_and_up(self, chip, gpio, level, tick) -> None:
+        # Warning: this might be called twice
         # don't put anything that is not idempotent in here.
 
-        self.button_down = True
+        if level == 0:
+            self.button_down = True
 
-        for pre_function in self._pre_button:
-            try:
-                pre_function()
-            except Exception:
-                self.logger.debug(f"Error in pre_function={pre_function.__name__}.", exc_info=True)
+            for pre_function in self._pre_button:
+                try:
+                    pre_function()
+                except Exception:
+                    self.logger.debug(
+                        f"Error in pre_function={pre_function.__name__}.", exc_info=True
+                    )
 
-        while self.button.is_pressed:
-            sleep(0.02)
+        elif level == 1:
+            self.button_down = False
 
-        for post_function in self._post_button:
-            try:
-                post_function()
-            except Exception:
-                self.logger.debug(
-                    f"Error in post_function={post_function.__name__}.", exc_info=True
-                )
-
-        self.button_down = False
+            for post_function in self._post_button:
+                try:
+                    post_function()
+                except Exception:
+                    self.logger.debug(
+                        f"Error in post_function={post_function.__name__}.", exc_info=True
+                    )
 
     def rpi_is_having_power_problems(self) -> tuple[bool, float]:
         from pioreactor.utils.rpi_bad_power import new_under_voltage

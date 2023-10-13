@@ -1,14 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import sys
-
-import fake_rpi  # type: ignore
 import pytest
-
-# Replace libraries by fake RPi ones
-
-sys.modules["smbus"] = fake_rpi.smbus  # Fake smbus (I2C)
 
 
 @pytest.fixture(autouse=True)

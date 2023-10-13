@@ -18,6 +18,7 @@ CORE_REQUIREMENTS = [
     "diskcache==5.6.3",
     "wheel==0.41.2",
     "crudini==0.9.5",
+    'lgpio; platform_machine != "armv7l"',
 ]
 
 
@@ -35,7 +36,6 @@ LEADER_REQUIREMENTS = ["zeroconf==0.115.2"] + UI_REQUIREMENTS
 
 
 WORKER_REQUIREMENTS = [
-    "gpiozero==2.0",
     "adafruit-circuitpython-ads1x15==2.2.23",
     "DAC43608==0.2.7",
     "TMP1075==0.2.1",

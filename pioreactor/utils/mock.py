@@ -125,6 +125,39 @@ class MockTMP1075:
         return 3 * math.sin(0.1 * time.time() / 60) + 25 + 0.2 * random.random()
 
 
+class MockPWMOutputDevice:
+    def __init__(self, pin: pt.GpioPin, initial_dc: float = 0.0, frequency=100):
+        self.pin = pin
+        self._dc = initial_dc
+        self.frequency = frequency
+
+    def start(self):
+        pass
+
+    def off(self):
+        self.dc = 0.0
+
+    @property
+    def dc(self) -> float:
+        return self._dc
+
+    @dc.setter
+    def dc(self, dc: float) -> None:
+        self._dc = dc
+
+    def close(self):
+        pass
+
+
+class MockCallback:
+    def cancel(self):
+        pass
+
+
+class MockHandle:
+    pass
+
+
 if is_testing_env():
     from rpi_hardware_pwm import HardwarePWM
 

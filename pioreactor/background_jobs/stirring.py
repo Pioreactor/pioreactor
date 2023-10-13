@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import warnings
 from contextlib import suppress
 from time import perf_counter
 from time import sleep
@@ -11,6 +10,7 @@ from typing import Callable
 from typing import Optional
 
 import click
+import lgpio
 
 import pioreactor.types as pt
 from pioreactor import error_codes
@@ -31,6 +31,10 @@ from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
+
+if is_testing_env():
+    from pioreactor.utils.mock import MockCallback
+    from pioreactor.utils.mock import MockHandle
 
 
 class RpmCalculator:
@@ -53,26 +57,40 @@ class RpmCalculator:
         # we delay the setup so that when all other checks are done (like in stirring's uniqueness), we can start to
         # use the GPIO for this.
         set_gpio_availability(hardware.HALL_SENSOR_PIN, False)
-        from gpiozero import DigitalInputDevice
 
-        self.hall_sensor_input_device = DigitalInputDevice(
-            hardware.HALL_SENSOR_PIN, pull_up=True, bounce_time=None
-        )
+        if not is_testing_env():
+            self._handle = lgpio.gpiochip_open(0)
+            lgpio.gpio_claim_input(self._handle, hardware.HALL_SENSOR_PIN, lgpio.SET_PULL_UP)
+
+            lgpio.gpio_claim_alert(
+                self._handle, hardware.HALL_SENSOR_PIN, lgpio.RISING_EDGE, lgpio.SET_PULL_UP
+            )
+            self._edge_callback = lgpio.callback(
+                self._handle, hardware.HALL_SENSOR_PIN, lgpio.RISING_EDGE
+            )
+        else:
+            self._edge_callback = MockCallback()
+            self._handle = MockHandle()
+
         self.turn_off_collection()
 
     def turn_off_collection(self) -> None:
         self.collecting = False
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            self.hall_sensor_input_device.when_activated = None
+        self._edge_callback.cancel()
 
     def turn_on_collection(self) -> None:
         self.collecting = True
-        self.hall_sensor_input_device.when_activated = self.callback
+
+        if not is_testing_env():
+            self._edge_callback = lgpio.callback(
+                self._handle, hardware.HALL_SENSOR_PIN, lgpio.RISING_EDGE, self.callback
+            )
 
     def clean_up(self) -> None:
         with suppress(AttributeError):
-            self.hall_sensor_input_device.close()
+            self._edge_callback.cancel()
+            lgpio.gpiochip_close(self._handle)
+
         set_gpio_availability(hardware.HALL_SENSOR_PIN, True)
 
     def estimate(self, seconds_to_observe: float) -> float:
@@ -115,7 +133,7 @@ class RpmFromFrequency(RpmCalculator):
         self._start_time = obs_time
 
     def clear_aggregates(self) -> None:
-        self._running_sum = 0
+        self._running_sum = 0.0
         self._running_count = 0
         self._start_time = None
 
@@ -125,8 +143,8 @@ class RpmFromFrequency(RpmCalculator):
         self.sleep_for(seconds_to_observe)
         self.turn_off_collection()
 
-        if self._running_sum == 0:
-            return 0
+        if self._running_sum == 0.0:
+            return 0.0
         else:
             return self._running_count * 60 / self._running_sum
 
