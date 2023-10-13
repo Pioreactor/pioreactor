@@ -8,6 +8,8 @@ from typing import Any
 from typing import Iterator
 from typing import Optional
 
+import lgpio
+
 from pioreactor.exc import PWMError
 from pioreactor.logging import create_logger
 from pioreactor.logging import Logger
@@ -22,6 +24,7 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
 if is_testing_env():
+    from pioreactor.utils.mock import MockPWMOutputDevice
     from pioreactor.utils.mock import MockHardwarePWM as HardwarePWM
 else:
     try:
@@ -33,7 +36,7 @@ else:
 class HardwarePWMOutputDevice(HardwarePWM):
     HARDWARE_PWM_CHANNELS: dict[GpioPin, int] = {12: 0, 13: 1}
 
-    def __init__(self, pin: GpioPin, active_high=True, initial_value: float = 0.0, frequency=100):
+    def __init__(self, pin: GpioPin, initial_dc: float = 0.0, frequency=100):
         if (
             pin not in self.HARDWARE_PWM_CHANNELS
         ):  # Only GPIO pins 18 and 19 are supported for hardware PWM
@@ -43,33 +46,59 @@ class HardwarePWMOutputDevice(HardwarePWM):
 
         pwm_channel = self.HARDWARE_PWM_CHANNELS[pin]
         super().__init__(pwm_channel, hz=frequency)
-        self._value = initial_value
+        self._dc = initial_dc
 
-    def close(self):
-        self.stop()
-
-    def on(self):
-        self.start(self._value * 100)
+    def start(self):
+        super().start(self.dc)
 
     def off(self):
-        self.change_duty_cycle(0.0 * 100)
-        self._value = 0.0
-
-    def toggle(self):
-        if self.value > 0.0:
-            self.off()
-        else:
-            self.on()
+        self.dc = 0.0
 
     @property
-    def value(self) -> float:
-        return self._value
+    def dc(self) -> float:
+        return self._dc
 
-    @value.setter
-    def value(self, value: float) -> None:
-        value = clamp(0.0, value, 1.0)
-        self.change_duty_cycle(value * 100.0)
-        self._value = value
+    @dc.setter
+    def dc(self, dc: float) -> None:
+        dc = clamp(0.0, dc, 100.0)
+        self.change_duty_cycle(dc)
+        self._dc = dc
+
+    def close(self):
+        pass
+
+
+class SoftwarePWMOutputDevice:
+    def __init__(self, pin: GpioPin, initial_dc: float = 0.0, frequency=100):
+        self.pin = pin
+        self._dc = initial_dc
+        self.frequency = frequency
+        self._started = False
+        self._handle = lgpio.gpiochip_open(0)
+
+        lgpio.gpio_claim_output(self._handle, self.pin)
+        lgpio.tx_pwm(self._handle, self.pin, self.frequency, self.dc)
+
+    def start(self):
+        self._started = True
+        lgpio.tx_pwm(self._handle, self.pin, self.frequency, self.dc)
+
+    def off(self):
+        self.dc = 0.0
+
+    @property
+    def dc(self) -> float:
+        return self._dc
+
+    @dc.setter
+    def dc(self, dc: float) -> None:
+        dc = clamp(0.0, dc, 100.0)
+        self._dc = dc
+        if self._started:
+            lgpio.tx_pwm(self._handle, self.pin, self.frequency, self.dc)
+
+    def close(self):
+        lgpio.gpiochip_close(self._handle)
 
 
 class PWM:
@@ -98,7 +127,7 @@ class PWM:
     Use as a context manager:
 
     >with PMW(12, 15) as pwm:
-    >    pwm.start(100
+    >    pwm.start(100)
     >    time.sleep(10)
     >    pwm.stop()
 
@@ -155,19 +184,19 @@ class PWM:
 
         gpio_helpers.set_gpio_availability(self.pin, False)
 
-        if (not always_use_software) and (pin in self.HARDWARE_PWM_CHANNELS):
-            self.pwm = HardwarePWMOutputDevice(self.pin, self.hz)
-        else:
-            from gpiozero import PWMOutputDevice
+        self._pwm: HardwarePWMOutputDevice | SoftwarePWMOutputDevice | MockPWMOutputDevice
 
+        if is_testing_env():
+            self._pwm = MockPWMOutputDevice(self.pin, 0, self.hz)
+        elif (not always_use_software) and (pin in self.HARDWARE_PWM_CHANNELS):
+            self._pwm = HardwarePWMOutputDevice(self.pin, 0, self.hz)
+        else:
             if self.hz >= 1000:
                 self.logger.warning(
                     "Setting a PWM to a very high frequency with software. Did you mean to use a hardware PWM?"
                 )
 
-            self.pwm = PWMOutputDevice(
-                self.pin, initial_value=0, active_high=True, frequency=self.hz
-            )
+            self._pwm = SoftwarePWMOutputDevice(self.pin, 0, self.hz)
 
         with local_intermittent_storage("pwm_hz") as cache:
             cache[self.pin] = self.hz
@@ -179,7 +208,7 @@ class PWM:
     @property
     def using_hardware(self) -> bool:
         try:
-            return isinstance(self.pwm, HardwarePWMOutputDevice)
+            return isinstance(self._pwm, HardwarePWMOutputDevice)
         except AttributeError:
             return False
 
@@ -211,10 +240,10 @@ class PWM:
             raise PWMError("duty_cycle should be between 0 and 100, inclusive.")
 
         self.change_duty_cycle(initial_duty_cycle)
-        self.pwm.on()
+        self._pwm.start()
 
     def stop(self) -> None:
-        self.pwm.off()
+        self._pwm.off()
         self.change_duty_cycle(0.0)
 
     def change_duty_cycle(self, duty_cycle: float) -> None:
@@ -223,13 +252,13 @@ class PWM:
 
         self.duty_cycle = round(float(duty_cycle), 5)
 
-        self.pwm.value = self.duty_cycle / 100.0
+        self._pwm.dc = self.duty_cycle
 
         self._serialize()
 
     def cleanup(self) -> None:
         self.stop()
-        self.pwm.close()
+        self._pwm.close()
 
         self.unlock()
 
