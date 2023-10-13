@@ -122,7 +122,7 @@ class RpmFromFrequency(RpmCalculator):
 
     def callback(self, *args) -> None:
         obs_time = perf_counter()
-
+        delta = 0
         if not self.collecting:
             return
 
