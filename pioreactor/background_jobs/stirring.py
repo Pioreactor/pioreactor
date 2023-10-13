@@ -63,10 +63,10 @@ class RpmCalculator:
             lgpio.gpio_claim_input(self._handle, hardware.HALL_SENSOR_PIN, lgpio.SET_PULL_UP)
 
             lgpio.gpio_claim_alert(
-                self._handle, hardware.HALL_SENSOR_PIN, lgpio.RISING_EDGE, lgpio.SET_PULL_UP
+                self._handle, hardware.HALL_SENSOR_PIN, lgpio.FALLING_EDGE, lgpio.SET_PULL_UP
             )
             self._edge_callback = lgpio.callback(
-                self._handle, hardware.HALL_SENSOR_PIN, lgpio.RISING_EDGE
+                self._handle, hardware.HALL_SENSOR_PIN, lgpio.FALLING_EDGE
             )
         else:
             self._edge_callback = MockCallback()
@@ -83,7 +83,7 @@ class RpmCalculator:
 
         if not is_testing_env():
             self._edge_callback = lgpio.callback(
-                self._handle, hardware.HALL_SENSOR_PIN, lgpio.RISING_EDGE, self.callback
+                self._handle, hardware.HALL_SENSOR_PIN, lgpio.FALLING_EDGE, self.callback
             )
 
     def clean_up(self) -> None:
@@ -111,7 +111,7 @@ class RpmCalculator:
 
 class RpmFromFrequency(RpmCalculator):
     """
-    Averages the duration between pings in an N second window.
+    Averages the duration between pings (edges) in an N second window.
 
     Can't reliably compute faster than 2000 rpm on an RPi.
     """
