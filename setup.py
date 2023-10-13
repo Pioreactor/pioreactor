@@ -18,7 +18,6 @@ CORE_REQUIREMENTS = [
     "diskcache==5.6.3",
     "wheel==0.41.2",
     "crudini==0.9.5",
-    'lgpio==0.2.2.0; platform_machine == "armv7l"',
     'lgpio; platform_machine != "armv7l"',
 ]
 
