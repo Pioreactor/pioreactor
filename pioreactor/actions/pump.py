@@ -192,11 +192,10 @@ def _pump_action(
     Returns the mL cycled. However,
     If calibration is not defined or available on disk, returns gibberish.
     """
-
-    assert (
-        (ml is not None) or (duration is not None) or continuously
-    ), "either ml or duration must be set"
-    assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"
+    if not ((ml is not None) or (duration is not None) or continuously):
+        raise ValueError("either ml or duration must be set")
+    if (ml is not None) and (duration is not None):
+        raise ValueError("Only select ml or duration")
 
     experiment = experiment or get_latest_experiment_name()
     unit = unit or get_unit_name()

@@ -323,6 +323,9 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
 
 @click.group(name="experiment_profile")
 def click_experiment_profile():
+    """
+    (leader only) Run and manage experiment profiles
+    """
     pass
 
 

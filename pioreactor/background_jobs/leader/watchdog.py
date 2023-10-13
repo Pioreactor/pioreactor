@@ -105,7 +105,7 @@ class WatchDog(BackgroundJob):
 @click.command(name="watchdog")
 def click_watchdog():
     """
-    Start the watchdog on the leader
+    (leader only) Start the watchdog on the leader
     """
     import os
 

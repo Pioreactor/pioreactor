@@ -5,7 +5,6 @@ import os
 import sys
 import time
 from functools import cache
-from hashlib import md5
 
 from msgspec.json import decode
 
@@ -125,6 +124,8 @@ def am_I_active_worker() -> bool:
 
 @cache
 def get_hashed_serial_number() -> str:
+    from hashlib import md5
+
     return md5(serial_number.encode()).hexdigest()
 
 

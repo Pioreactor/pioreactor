@@ -148,7 +148,7 @@ class ADCReader(LoggerMixin):
         interval: Optional[float] = 1.0,
         dynamic_gain: bool = True,
         penalizer: float = 700.0,
-        oversampling_count: int = 30,
+        oversampling_count: int = 32,
     ) -> None:
         super().__init__()
         self.fake_data = fake_data
@@ -435,7 +435,7 @@ class ADCReader(LoggerMixin):
                         max(
                             0,
                             -time_sampling_took_to_run()  # the time_sampling_took_to_run() reduces the variance by accounting for the duration of each sampling.
-                            + 0.85 / (oversampling_count - 1)
+                            + 0.85 / (oversampling_count - 1)  # aim for 0.85 per read
                             + 0.0012
                             * (
                                 (counter * 0.618034) % 1

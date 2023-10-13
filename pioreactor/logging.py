@@ -6,7 +6,6 @@ from logging import handlers
 from logging import Logger
 from typing import Optional
 
-import colorlog
 from json_log_formatter import JSONFormatter  # type: ignore
 
 from pioreactor.config import config
@@ -145,6 +144,7 @@ def create_logger(
     to_mqtt: bool
         connect and log to MQTT
     """
+    import colorlog
 
     logger = logging.getLogger(name)
 
