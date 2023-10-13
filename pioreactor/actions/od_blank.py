@@ -43,7 +43,7 @@ def od_statistics(
     logger = logger or create_logger(action_name)
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_latest_experiment_name()
-    testing_experiment = whoami.get_latest_testing_experiment_name()
+
     logger.info(
         f"Starting to compute statistics from OD readings. Collecting {n_samples} data points."
     )
@@ -56,7 +56,7 @@ def od_statistics(
         st = start_stirring(
             target_rpm=config.getfloat("stirring", "target_rpm"),
             unit=unit,
-            experiment=testing_experiment,
+            experiment=experiment,
             use_rpm=use_rpm,
         )
         st.block_until_rpm_is_close_to_target(timeout=120)  # wait for maximum 2 minutes

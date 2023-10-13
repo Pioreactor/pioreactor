@@ -1,3 +1,30 @@
+### Upcoming
+
+#### Bookworm release!
+
+The Raspberry Pi Foundation provides new operating systems every few years (built off of Debian's work). Earlier this month, they released RPi OS Bookworm. There are lots of nice changes, but the important details for us:
+
+ - New Python version
+ - New GPIO libraries
+
+
+**We strongly recommend you upgrade to this release. However, upgrading to a new operating system requires a full SD rewrite. See steps below on how to preserve your data**.
+
+
+#### Optimizations
+
+With some other optimizations, we have significantly improved the performance and responsiveness of the Pioreactor software. You should notice things will feel snappier! For example, the command-line responsiveness is about 33% faster, which means actions from the the UI will start 33% faster. Because of this new performance, we can even squeeze some more data into our bioreactor algorithms and get improved accuracy.
+
+Along with Python being faster, our database is also faster now => faster inserts, UI graphs, and data exports.
+
+
+#### Full changelog
+
+  - Replaced `RPi.GPIO` with `lgpio`
+  - Python 3.9 is replaced by 3.11
+  - Updated lots of our Python dependencies
+
+
 ### 23.10.12
 
 #### Bug fixes

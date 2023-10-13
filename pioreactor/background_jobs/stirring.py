@@ -127,10 +127,12 @@ class RpmFromFrequency(RpmCalculator):
             return
 
         if self._start_time is not None:
-            self._running_sum += obs_time - self._start_time
+            delta = obs_time - self._start_time
+            self._running_sum += delta
             self._running_count += 1
 
         self._start_time = obs_time
+        print(delta)
 
     def clear_aggregates(self) -> None:
         self._running_sum = 0.0

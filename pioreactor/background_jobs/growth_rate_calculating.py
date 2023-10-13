@@ -41,6 +41,7 @@ from datetime import datetime
 from json import dumps
 from json import loads
 from typing import Generator
+from typing import Optional
 
 from click import command
 from click import option
@@ -330,6 +331,7 @@ class GrowthRateCalculator(BackgroundJob):
         scaled_ods = self.scale_raw_observations(
             self._batched_raw_od_readings_to_dict(od_readings.ods)
         )
+        assert scaled_ods is not None
 
         return mean(scaled_ods.values())
 
@@ -377,7 +379,7 @@ class GrowthRateCalculator(BackgroundJob):
 
     def scale_raw_observations(
         self, observations: dict[pt.PdChannel, float]
-    ) -> dict[pt.PdChannel, float]:
+    ) -> Optional[dict[pt.PdChannel, float]]:
         scaled_signals = {
             channel: self._scale_and_shift(
                 raw_signal, self.od_blank[channel], self.od_normalization_factors[channel]
@@ -386,9 +388,12 @@ class GrowthRateCalculator(BackgroundJob):
         }
 
         if any(v <= 0.0 for v in scaled_signals.values()):
-            self.logger.warning(f"Negative normalized value(s) observed: {scaled_signals}")
+            self.logger.warning(
+                f"Negative normalized value(s) observed: {scaled_signals}. Did your blank have inoculant in it?"
+            )
             self.logger.debug(f"od_normalization_factors: {self.od_normalization_factors}")
             self.logger.debug(f"od_blank: {self.od_blank}")
+            return None
 
         return scaled_signals
 
@@ -430,6 +435,9 @@ class GrowthRateCalculator(BackgroundJob):
         scaled_observations = self.scale_raw_observations(
             self._batched_raw_od_readings_to_dict(od_readings.ods)
         )
+        if scaled_observations is None:
+            # exit early
+            return self.growth_rate, self.od_filtered, self.kalman_filter_outputs
 
         if whoami.is_testing_env():
             # when running a mock script, we run at an accelerated rate, but want to mimic
