@@ -8,21 +8,25 @@ The Raspberry Pi Foundation provides new operating systems every few years (buil
  - New GPIO libraries
 
 
-**We strongly recommend you upgrade to this release. However, upgrading to a new operating system requires a full SD rewrite. See steps below on how to preserve your data**.
+**We strongly recommend you upgrade to this release. However, upgrading to a new operating system requires a full SD rewrite. See steps below on how to preserve and transfer your data**.
 
 
 #### Optimizations
 
-With some other optimizations, we have significantly improved the performance and responsiveness of the Pioreactor software. You should notice things will feel snappier! For example, the command-line responsiveness is about 33% faster, which means actions from the the UI will start 33% faster. Because of this new performance, we can even squeeze some more data into our bioreactor algorithms and get improved accuracy.
+With some other optimizations, we have significantly improved the performance and responsiveness of the Pioreactor software. You should notice things will feel snappier! For example, the command-line responsiveness is about 33% faster, which means actions from the the UI will start faster. Because of this new performance, we can even squeeze some more data into our algorithms and get improved accuracy.
 
 Along with Python being faster, our database is also faster now => faster inserts, UI graphs, and data exports.
 
 
-#### Full changelog
+#### Full Changelog
 
-  - Replaced `RPi.GPIO` with `lgpio`
-  - Python 3.9 is replaced by 3.11
-  - Updated lots of our Python dependencies
+ - Replaced `RPi.GPIO` with `lgpio`
+ - Python 3.9 is replaced by 3.11
+ - Updated lots of our Python dependencies
+ - Fixed bug that was not clearing OD blanks from the UI
+ - Improved start up time by hiding dependencies
+ - Ability to choose the x-axis scale in the Overview: clock time, or elapsed time. Use (or add) `time_display_mode` under section `[ui.overview.settings]`, with values `clock_time` or `hours` respectively.
+
 
 
 ### 23.10.12

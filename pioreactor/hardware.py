@@ -57,7 +57,7 @@ else:
     }
 
 
-def is_HAT_present() -> bool:
+def is_i2c_device_present(channel):
     if is_testing_env():
         from pioreactor.utils.mock import MockI2C as I2C
     else:
@@ -67,26 +67,18 @@ def is_HAT_present() -> bool:
 
     with I2C(SCL, SDA) as i2c:
         try:
-            I2CDevice(i2c, DAC, probe=True)
+            I2CDevice(i2c, channel, probe=True)
             return True
         except ValueError:
             return False
 
 
-def is_heating_pcb_present() -> bool:
-    if is_testing_env():
-        from pioreactor.utils.mock import MockI2C as I2C
-    else:
-        from busio import I2C  # type: ignore
+def is_HAT_present():
+    return is_i2c_device_present(DAC)
 
-    from adafruit_bus_device.i2c_device import I2CDevice  # type: ignore
 
-    with I2C(SCL, SDA) as i2c:
-        try:
-            I2CDevice(i2c, TEMP, probe=True)
-            return True
-        except ValueError:
-            return False
+def is_heating_pcb_present():
+    return is_i2c_device_present(TEMP)
 
 
 def round_to_precision(x: float, p: float) -> float:

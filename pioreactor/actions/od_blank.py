@@ -126,6 +126,7 @@ def delete_od_blank(unit=None, experiment=None):
             f"pioreactor/{unit}/{experiment}/{action_name}/means",
             None,
             qos=pubsub.QOS.AT_LEAST_ONCE,
+            retain=True,
         )
 
         means = loads(cache[experiment])
@@ -134,6 +135,7 @@ def delete_od_blank(unit=None, experiment=None):
                 f"pioreactor/{unit}/{experiment}/{action_name}/mean/{channel}",
                 None,
                 qos=pubsub.QOS.AT_LEAST_ONCE,
+                retain=True,
             )
 
         del cache[experiment]
@@ -201,6 +203,7 @@ def od_blank(
                         )
                     ),
                     qos=pubsub.QOS.AT_LEAST_ONCE,
+                    retain=True,
                 )
 
             # publish to UI

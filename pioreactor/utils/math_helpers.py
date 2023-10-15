@@ -6,7 +6,19 @@ from typing import Sequence
 from pioreactor.utils import argextrema
 
 
-def trimmed_variance(x: list) -> float:
+def variance(x: Sequence):
+    from statistics import variance
+
+    return variance(x)
+
+
+def mean(x: Sequence):
+    from statistics import mean
+
+    return mean(x)
+
+
+def trimmed_variance(x: Sequence) -> float:
     from statistics import variance
 
     x = list(x)  # copy it

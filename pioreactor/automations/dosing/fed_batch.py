@@ -2,8 +2,11 @@
 # pump X ml every period (minute, 30min, hour, etc.)
 from __future__ import annotations
 
+from piroeactor.exc import CalibrationError
+
 from pioreactor.automations import events
 from pioreactor.automations.dosing.base import DosingAutomationJob
+from pioreactor.utils import local_persistant_storage
 
 
 class FedBatch(DosingAutomationJob):
@@ -19,6 +22,11 @@ class FedBatch(DosingAutomationJob):
 
     def __init__(self, volume, **kwargs):
         super().__init__(**kwargs)
+
+        with local_persistant_storage("current_pump_calibration") as cache:
+            if "media" not in cache:
+                raise CalibrationError("Media pump calibration must be performed first.")
+
         self.logger.warning(
             "When using the fed-batch automation, no liquid is removed. Carefully monitor the level of liquid to avoid overflow!"
         )

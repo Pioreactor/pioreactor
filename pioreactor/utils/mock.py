@@ -39,7 +39,7 @@ class Mock_ADC(_ADC):
     INIT_STATE = 0.01
     state = INIT_STATE
     _counter = 0.0
-    OFFSET = 0.03
+    OFFSET = 0.00
 
     def __init__(self, *args, **kwargs) -> None:
         self.max_gr = 0.25 + 0.1 * random.random()
@@ -57,10 +57,10 @@ class Mock_ADC(_ADC):
         if not is_ir_on:
             return self.OFFSET
 
-        am_i_REF = str(channel + 1) == config.get("od_config.photodiode_channel_reverse", "REF")
+        am_i_REF = str(channel - 1) == config.get("od_config.photodiode_channel_reverse", "REF")
 
         if am_i_REF:
-            return (0.1 + random.normalvariate(0, sigma=0.001)) / 2**10 * 40 + self.OFFSET
+            return self.from_voltage_to_raw(0.250 + random.normalvariate(0, sigma=0.001) / 2**10)
         else:
             self.gr = self.growth_rate(
                 self._counter / config.getfloat("od_config", "samples_per_second"), am_i_REF
@@ -70,11 +70,12 @@ class Mock_ADC(_ADC):
                 / 60
                 / 60
                 / config.getfloat("od_config", "samples_per_second")
-                / 25  # divide by 25 from oversampling_count
+                / 32  # divide by N from oversampling_count
             )
-            self._counter += 1.0 / 25.0  # divide by 25 from oversampling_count
+            self._counter += 1.0 / 32  # divide by N from oversampling_count
+
             return self.from_voltage_to_raw(
-                self.state + random.normalvariate(0, sigma=self.state * 0.01) + self.OFFSET
+                self.state + random.normalvariate(0, sigma=self.state * 0.03) + self.OFFSET
             )
 
     def growth_rate(self, duration_as_seconds: float, am_i_REF: bool) -> float:

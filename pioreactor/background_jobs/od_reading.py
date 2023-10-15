@@ -435,7 +435,7 @@ class ADCReader(LoggerMixin):
                         max(
                             0,
                             -time_sampling_took_to_run()  # the time_sampling_took_to_run() reduces the variance by accounting for the duration of each sampling.
-                            + 0.85 / (oversampling_count - 1)  # aim for 0.85 per read
+                            + 0.85 / (oversampling_count - 1)  # aim for 0.85s per read
                             + 0.0012
                             * (
                                 (counter * 0.618034) % 1

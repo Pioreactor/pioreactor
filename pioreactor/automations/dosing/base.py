@@ -619,6 +619,9 @@ class DosingAutomationJob(AutomationJob):
             self.logger.warning(
                 f"Vial is calculated to have a volume of {self.vial_volume} mL. Is this expected?"
             )
+        elif self.vial_volume >= self.MAX_VIAL_VOLUME_TO_STOP:
+            pass
+            # TODO: this should publish to pumps to stop them.
 
     def _update_throughput(self, dosing_event: structs.DosingEvent) -> None:
         (

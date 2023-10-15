@@ -44,7 +44,9 @@ from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import publish_ready_to_disconnected_state
 from pioreactor.utils import SummableDict
 from pioreactor.utils.math_helpers import correlation
+from pioreactor.utils.math_helpers import mean
 from pioreactor.utils.math_helpers import trimmed_mean
+from pioreactor.utils.math_helpers import variance
 from pioreactor.version import hardware_version_info
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_latest_testing_experiment_name
@@ -53,7 +55,7 @@ from pioreactor.whoami import is_testing_env
 
 
 def test_pioreactor_HAT_present(client: Client, logger: Logger, unit: str, experiment: str) -> None:
-    assert is_HAT_present()
+    assert is_HAT_present(), "HAT is not connected, or i2c is not working."
 
 
 def test_REF_is_in_correct_position(
@@ -61,7 +63,6 @@ def test_REF_is_in_correct_position(
 ) -> None:
     # this _also_ uses stirring to increase the variance in the non-REF.
     # The idea is to trigger stirring on and off and the REF should not see a change in signal / variance, but the other PD should.
-    from statistics import variance
 
     reference_channel = cast(PdChannel, config["od_config.photodiode_channel_reverse"][REF_keyword])
     signal_channel = "2" if reference_channel == "1" else "1"
@@ -105,7 +106,7 @@ def test_REF_is_in_correct_position(
     assert (
         THRESHOLD * norm_variance_per_channel[reference_channel]
         < norm_variance_per_channel[signal_channel]
-    ), f"{reference_channel=}, {norm_variance_per_channel=}"
+    ), f"REF measured higher variance than SIGNAL. {reference_channel=}, {norm_variance_per_channel=}"
 
 
 def test_all_positive_correlations_between_pds_and_leds(
@@ -243,7 +244,7 @@ def test_ambient_light_interference(
     else:
         assert all(
             [readings[pd_channel] < 0.075 for pd_channel in ALL_PD_CHANNELS]
-        ), readings  # saw a 0.072 blank during testing
+        ), f"Dark signal too high: {readings=}"  # saw a 0.072 blank during testing
 
 
 def test_REF_is_lower_than_0_dot_256_volts(
@@ -267,11 +268,19 @@ def test_REF_is_lower_than_0_dot_256_volts(
         experiment=current_experiment_name,
         verbose=False,
     ):
-        readings = adc_reader.take_reading()
+        samples = []
 
-    assert (
-        0.05 < readings[reference_channel] < 0.256
-    ), f"Recorded {readings[reference_channel]} in REF, should ideally be between 0.05 and 0.256. Current IR LED: {ir_intensity}%."
+        for i in range(6):
+            samples.append(adc_reader.take_reading()[reference_channel])
+
+        assert (
+            0.05 < mean(samples) < 0.256
+        ), f"Recorded {mean(samples)} in REF, should ideally be between 0.05 and 0.256. Current IR LED: {ir_intensity}%."
+
+        # also check for stability: the std. of the reference should be quite low:
+        assert (
+            variance(samples) < 1e-2
+        ), f"Too much noise in REF channel, observed {variance(samples)}."
 
 
 def test_PD_is_near_0_volts_for_blank(client, logger: Logger, unit: str, experiment: str) -> None:
@@ -300,14 +309,14 @@ def test_PD_is_near_0_volts_for_blank(client, logger: Logger, unit: str, experim
             if i == 6:
                 break
 
-    mean_signal = trimmed_mean(signals)
+    mean_signal = mean(signals)
 
     THRESHOLD = 0.035
-    assert mean_signal <= THRESHOLD, f"{mean_signal=} > {THRESHOLD}"
+    assert mean_signal <= THRESHOLD, f"Blank signal too high: {mean_signal=} > {THRESHOLD}"
 
 
 def test_detect_heating_pcb(client: Client, logger: Logger, unit: str, experiment: str) -> None:
-    assert is_heating_pcb_present()
+    assert is_heating_pcb_present(), "Heater PCB is not connected, or i2c is not working."
 
 
 def test_positive_correlation_between_temperature_and_heating(
@@ -327,7 +336,9 @@ def test_positive_correlation_between_temperature_and_heating(
         tc._update_heater(0)
         measured_correlation = round(correlation(dcs, measured_pcb_temps), 2)
         logger.debug(f"Correlation between temp sensor and heating: {measured_correlation}")
-        assert measured_correlation > 0.9, (dcs, measured_pcb_temps)
+        assert (
+            measured_correlation > 0.9
+        ), f"Temp and DC% correlation was not high enough {dcs=}, {measured_pcb_temps=}"
 
 
 def test_aux_power_is_not_too_high(
@@ -406,7 +417,7 @@ class BatchTestRunner:
                 test(client, logger, unit, experiment_name)
                 res = True
             except Exception as e:
-                logger.debug(e, exc_info=True)
+                logger.error(e, exc_info=True)
 
             logger.debug(f"{test_name}: {'✅' if res else '❌'}")
 
