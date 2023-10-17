@@ -25,8 +25,9 @@ Along with Python being faster, our database is also faster now => faster insert
  - Updated lots of our Python dependencies
  - Fixed bug that was not clearing OD blanks from the UI
  - Improved start up time by hiding dependencies
- - Ability to choose the x-axis scale in the Overview: clock time, or elapsed time. Use (or add) `time_display_mode` under section `[ui.overview.settings]`, with values `clock_time` or `hours` respectively.
-
+ - Ability to choose the x-axis scale in the UI Overview: clock time, or elapsed time. Use (or add) `time_display_mode` under section `[ui.overview.settings]`, with values `clock_time` or `hours` respectively.
+ - new watchdog check to restart the Raspberry Pi if it becomes unresponsive.
+ - dropped RaspAP for a native solution. RaspAP handled the local-access-point. The native solution is much simpler, and should show up faster that our RaspAP solution.
 
 
 ### 23.10.12

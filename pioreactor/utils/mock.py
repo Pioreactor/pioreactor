@@ -82,12 +82,12 @@ class Mock_ADC(_ADC):
         if am_i_REF:
             return 0
 
-        import numpy as np
+        from math import exp
 
         return (
             self.max_gr
-            / (1 + np.exp(-self.scale_factor * (duration_as_seconds - self.lag)))
-            * (1 - 1 / (1 + np.exp(-self.scale_factor * 2 * (duration_as_seconds - 3 * self.lag))))
+            / (1 + exp(-self.scale_factor * (duration_as_seconds - self.lag)))
+            * (1 - 1 / (1 + exp(-self.scale_factor * 2 * (duration_as_seconds - 3 * self.lag))))
         )
 
     def check_on_gain(self, *args, **kwargs) -> None:

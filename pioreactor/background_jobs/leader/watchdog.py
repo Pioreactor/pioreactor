@@ -40,7 +40,7 @@ class WatchDog(BackgroundJob):
                 )
                 if result is None:
                     self.logger.notice(
-                        f"Uninitialized worker, {worker}, is available to be added to your cluster."
+                        f"Pioreactor worker, {worker}, is available to be added to your cluster."
                     )
 
     def watch_for_lost_state(self, state_message: MQTTMessage) -> None:

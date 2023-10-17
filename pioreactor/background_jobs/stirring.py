@@ -248,7 +248,7 @@ class Stirrer(BackgroundJob):
             experiment=self.experiment,
             job_name=self.job_name,
             target_name="rpm",
-            output_limits=(-5, 5),  # avoid whiplashing
+            output_limits=(-10, 10),  # avoid whiplashing
         )
 
         # set up thread to periodically check the rpm
@@ -300,7 +300,7 @@ class Stirrer(BackgroundJob):
                 self.rpm_calculator.clean_up()
 
     def start_stirring(self) -> None:
-        self.logger.debug(f"Starting stirring with initial {self.target_rpm} RPM.")
+        self.logger.debug(f"Starting stirring with {self.target_rpm} RPM.")
         self.pwm.start(100)  # get momentum to start
         sleep(0.30)
         self.set_duty_cycle(self.duty_cycle)
