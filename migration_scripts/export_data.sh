@@ -30,7 +30,6 @@ pio run backup_database --force
 # export so UI can download it, this only works on leader...
 tar --exclude='*.sqlite' --exclude='*.sqlite-wal'  --exclude='*.sqlite-shm' --exclude=".pioreactor/plugins/__pycache__" -zcvf $EXPORT_NAME .pioreactor/
 
-echo "Your export is ready as $EXPORT_NAME"
 
 sudo systemctl start lighttpd.service
 sudo systemctl start huey.service
@@ -38,4 +37,4 @@ sudo systemctl start pioreactor_startup_run@monitor.service
 sudo systemctl start pioreactor_startup_run@mqtt_to_db_streaming.service
 sudo systemctl start pioreactor_startup_run@watchdog.service
 
-echo "UI is back online."
+echo "Your export is ready as $EXPORT_NAME"
