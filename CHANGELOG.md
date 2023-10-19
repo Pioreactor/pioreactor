@@ -6,6 +6,7 @@ The Raspberry Pi Foundation provides new operating system every few years (built
 
  - New Python version
  - New GPIO libraries
+ - New local-access-point improvements
 
 
 **We strongly recommend you upgrade to this release. However, upgrading to this new operating system requires a full SD rewrite. See steps below on how to preserve and transfer your data**.
@@ -24,8 +25,8 @@ Along with Python being faster, our database is also faster now => faster insert
  - Python 3.9 is replaced by 3.11
  - Ability to choose the x-axis scale in the UI Overview: clock time, or elapsed time. Use (or add) `time_display_mode` under section `[ui.overview.settings]`, with values `clock_time` or `hours` respectively.
  - Fixed bug that was not clearing OD blanks from the UI
- - dropped RaspAP for a native solution. RaspAP handled the local-access-point. The native solution is much simpler, and should show up faster than our RaspAP solution.
- - new watchdog check to restart the Raspberry Pi if it becomes unresponsive.
+ - dropped RaspAP for a native solution. The native solution is much simpler, and should show up faster than our RaspAP solution.
+  - If your leader Raspberry Pi has an ethernet port, you can connect this into an internet-accessible router and give your cluster access to the internet!
  - Updated lots of our Python dependencies
  - Improved start up time by hiding dependencies
 
@@ -53,7 +54,7 @@ Here's how I suggest your workflow be. We're here to help: we can offer email or
 6. Once your Pioreactor leader is running (check that you can access the UI at http://pioreactor.local), we'll upload the export with:
    ```
    # this is run on your local computer
-   scp <filename of export> pioreactor@<leader name>.local:/home/pioreactor/
+   scp <filename of export> pioreactor@<leader name>.local:/home/pioreactor/ -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
    ```
 7. SSH into the leader, and create a new file with:
    ```
