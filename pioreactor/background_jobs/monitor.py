@@ -175,10 +175,10 @@ class Monitor(BackgroundJob):
             # Set BUTTON_PIN as input with no pull-up
             lgpio.gpio_claim_input(self._handle, BUTTON_PIN, lgpio.SET_PULL_DOWN)
 
-            lgpio.gpio_claim_alert(self._handle, BUTTON_PIN, lgpio.RISING_EDGE, lgpio.SET_PULL_DOWN)
+            lgpio.gpio_claim_alert(self._handle, BUTTON_PIN, lgpio.BOTH_EDGES, lgpio.SET_PULL_DOWN)
 
             self._button_callback = lgpio.callback(
-                self._handle, BUTTON_PIN, lgpio.RISING_EDGE, self.button_down_and_up
+                self._handle, BUTTON_PIN, lgpio.BOTH_EDGES, self.button_down_and_up
             )
         else:
             self._button_callback = MockCallback()
@@ -433,11 +433,12 @@ class Monitor(BackgroundJob):
     def button_down_and_up(self, chip, gpio, level, tick) -> None:
         # Warning: this might be called twice
         # don't put anything that is not idempotent in here.
-        print("here")
+        print("here", level)
         if level == 0:
             self.button_down = True
 
             for pre_function in self._pre_button:
+                print(pre_function)
                 try:
                     pre_function()
                 except Exception:
