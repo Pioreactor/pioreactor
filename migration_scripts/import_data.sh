@@ -25,24 +25,22 @@ fi
 
 # stop everything that might touch the database or config files...
 pio kill --all-jobs > /dev/null
-pio kill monitor
-pio kill mqtt_to_db_streaming
-pio kill watchdog
+pio kill monitor watchdog mqtt_to_db_streaming
 sudo systemctl stop lighttpd.service
 sudo systemctl stop huey.service
 
 # blow away the old .pioreactor
-rm -rf .pioreactor/
+rm -rf /home/pioreactor/.pioreactor/
 
 # create the new .pioreactor/
 tar -xzf $ARCHIVE_NAME
 
 # rename the sqlite .backup
-mv .pioreactor/storage/pioreactor.sqlite.backup .pioreactor/storage/pioreactor.sqlite
+mv /home/pioreactor/.pioreactor/storage/pioreactor.sqlite.backup /home/pioreactor/.pioreactor/storage/pioreactor.sqlite
 
 # confirm permissions
-chmod -R 770 .pioreactor/storage/
-chown -R pioreactor:www-data .pioreactor/storage/
+chmod -R 770 /home/pioreactor/.pioreactor/storage/
+chown -R pioreactor:www-data /home/pioreactor/.pioreactor/storage/
 
 echo "Done! Rebooting..."
 

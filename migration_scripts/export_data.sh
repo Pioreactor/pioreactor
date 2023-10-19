@@ -4,7 +4,6 @@ set -x
 set -e
 
 export LC_ALL=C
-
 # script to back up Pioreactor
 
 
@@ -14,9 +13,7 @@ echo "Starting export of all data. Don't run anything. The Pioreactor UI will be
 
 # stop everything that might touch the database or config files...
 pio kill --all-jobs  > /dev/null
-pio kill monitor
-pio kill mqtt_to_db_streaming
-pio kill watchdog
+pio kill monitor mqtt_to_db_streaming watchdog
 sudo systemctl stop lighttpd.service
 sudo systemctl stop huey.service
 
