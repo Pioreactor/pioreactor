@@ -76,7 +76,6 @@ class Chart extends React.Component {
     this.selectVictoryLines = this.selectVictoryLines.bind(this);
     this.yTransformation = this.props.yTransformation || ((y) => y)
     this.VictoryVoronoiContainer = (this.props.allowZoom  || false) ? createContainer("zoom", "voronoi") : createContainer("voronoi");
-
   }
 
   onConnect() {
@@ -86,7 +85,7 @@ class Chart extends React.Component {
   }
 
   componentDidUpdate(prevProps) {
-     if (prevProps.experiment !== this.props.experiment) {
+    if (prevProps.experiment !== this.props.experiment) {
       this.getHistoricalDataFromServer()
 
       if (this.props.isLiveChart){
@@ -142,6 +141,15 @@ class Chart extends React.Component {
         filter_mod_N: this.props.downSample ? Math.max(Math.floor(tweak * Math.min(this.props.deltaHours, this.props.lookback)), 1) : 1,
         lookback: this.props.lookback
     })
+
+    var transformX
+    if (this.props.byDuration){
+      const experimentStartTime = moment.utc(this.props.experimentStartTime)
+      transformX = (x) => Math.round(moment.utc(x, 'YYYY-MM-DDTHH:mm:ss.SSSSS').diff(experimentStartTime, 'hours', true) * 1e3)/1e3
+    } else {
+      transformX = (x) => moment.utc(x, 'YYYY-MM-DDTHH:mm:ss.SSSSS').local()
+    }
+
     await fetch(`/api/time_series/${this.props.dataSource}/${this.props.experiment}${this.props.dataSourceColumn ? "/" + this.props.dataSourceColumn : ""}?${queryParams}`)
       .then((response) => {
         return response.json();
@@ -151,7 +159,7 @@ class Chart extends React.Component {
         for (const [i, v] of data["series"].entries()) {
           if (data["data"][i].length > 0) {
             initialSeriesMap[v] = {
-              data: (data["data"][i]).map(item => ({y: item.y, x: moment.utc(item.x, 'YYYY-MM-DDTHH:mm:ss.SSSSS').local()})),
+              data: (data["data"][i]).map(item => ({y: item.y, x: transformX(item.x) })),
               name: v,
               color: getColorFromName(v),
             };
@@ -222,24 +230,26 @@ class Chart extends React.Component {
       return
     }
 
-
     if (this.props.payloadKey){
       var payload = JSON.parse(message.payloadString)
-      var timestamp = moment.utc(payload.timestamp).local()
-      var value = parseFloat(payload[this.props.payloadKey])
+      var timestamp = moment.utc(payload.timestamp)
+      var y_value = parseFloat(payload[this.props.payloadKey])
     } else {
-      value = parseFloat(message.payloadString)
-      timestamp = moment.utc().local()
+      y_value = parseFloat(message.payloadString)
+      timestamp = moment.utc()
     }
+    var duration = Math.round(timestamp.diff(moment.utc(this.props.experimentStartTime), 'hours', true) * 1e3)/1e3
+    var local_timestamp = timestamp.local()
+    const x_value = this.props.byDuration ? duration : local_timestamp
 
-    var key = this.props.isODReading //TODO: change this variable name, something like: IsPartitionedBySensor
+    var key = this.props.isPartitionedBySensor
       ? message.topic.split("/")[1] + "-" + message.topic.split("/")[5]
       : message.topic.split("/")[1];
 
     try {
       if (!(key in this.state.seriesMap)){
         const newSeriesMap = {...this.state.seriesMap, [key]:  {
-          data: [{x: timestamp, y: value}],
+          data: [{x: x_value, y: y_value}],
           name: key,
           color: getColorFromName(key)
         }}
@@ -251,8 +261,8 @@ class Chart extends React.Component {
       } else {
         // .push seems like bad state management, and maybe a hit to performance...
         this.state.seriesMap[key].data.push({
-          x: timestamp,
-          y: value,
+          x: x_value,
+          y: y_value,
         });
         this.setState({ seriesMap: this.state.seriesMap })
       }
@@ -261,6 +271,10 @@ class Chart extends React.Component {
       console.log(error)
     }
     return;
+  }
+
+  xTransformation(x){
+    return x
   }
 
   breakString(string){
@@ -289,7 +303,14 @@ class Chart extends React.Component {
 
 
   createToolTip = (d) => {
-      return `${d.datum.x.format("MMM DD HH:mm")}
+    var x_value
+    if (this.props.byDuration) {
+      x_value = `${d.datum.x.toFixed(2)} hours elapsed`
+    } else {
+      x_value = d.datum.x.format("MMM DD HH:mm")
+    }
+
+    return `${x_value}
 ${this.relabelAndFormatSeries(d.datum.childName)}: ${Math.round(this.yTransformation(d.datum.y) * 10 ** this.props.fixedDecimals) / 10 ** this.props.fixedDecimals}`
   }
 
@@ -317,7 +338,7 @@ ${this.relabelAndFormatSeries(d.datum.childName)}: ${Math.round(this.yTransforma
     if (this.state.seriesMap[name].data.length === 1){
       marker = <VictoryScatter
           size={4}
-          key={"line-" + reformattedName + this.props.key}
+          key={"line-" + reformattedName + this.props.chartKey}
           name={reformattedName}
           style={{
             data: {
@@ -329,7 +350,7 @@ ${this.relabelAndFormatSeries(d.datum.childName)}: ${Math.round(this.yTransforma
     else {
         marker = <VictoryLine
           interpolation={this.props.interpolation}
-          key={"line-" + reformattedName + this.props.key}
+          key={"line-" + reformattedName + this.props.chartKey}
           name={reformattedName}
           style={{
             labels: {fill: this.state.seriesMap[name].color},
@@ -344,12 +365,13 @@ ${this.relabelAndFormatSeries(d.datum.childName)}: ${Math.round(this.yTransforma
 
     return (
       <VictoryGroup
-        key={this.props.key}
+        key={this.props.chartKey}
         data={(this.state.hiddenSeries.has(reformattedName)) ? [] : this.state.seriesMap[name].data}
-        x="x"
+        x={(datum) => this.xTransformation(datum.x)}
         y={(datum) => this.yTransformation(datum.y)}
       >
         {marker}
+
       </VictoryGroup>
     );
   }
@@ -364,7 +386,7 @@ ${this.relabelAndFormatSeries(d.datum.childName)}: ${Math.round(this.yTransforma
           events={this.state.legendEvents}
           height={315}
           width={600}
-          scale={{x: 'time'}}
+          scale={{x: this.props.byDuration ? 'linear' : "time"}}
           theme={VictoryTheme.material}
           containerComponent={
            <this.VictoryVoronoiContainer
@@ -405,7 +427,20 @@ ${this.relabelAndFormatSeries(d.datum.childName)}: ${Math.round(this.yTransforma
               },
             }}
             offsetY={80}
+            label={this.props.byDuration ? "Hours" : "Time"}
             orientation="bottom"
+            fixLabelOverlap={true}
+            axisLabelComponent={
+              <VictoryLabel
+                dy={-15}
+                dx={262}
+                style={{
+                  fontSize: 12,
+                  fontFamily: "inherit",
+                  fill: "grey",
+                }}
+              />
+            }
           />
           <VictoryAxis
             crossAxis={false}

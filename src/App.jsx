@@ -20,7 +20,6 @@ import Plugins from "./Plugins";
 import Profiles from "./Profiles";
 //import Analysis from "./Analysis";
 import Experiments from "./Experiments";
-import Feedback from "./Feedback";
 import SideNavAndHeader from "./components/SideNavAndHeader";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ConfirmProvider } from 'material-ui-confirm';
@@ -100,7 +99,6 @@ function MainSite() {
               <Route path="/config" element={<EditConfig title="Pioreactor ~ Configuration"/>}/>
               <Route path="/pioreactors" element={ <Pioreactors title="Pioreactor ~ Pioreactors"/>}/>
               <Route path="/updates" element={<Updates title="Pioreactor ~ Updates"/>}/>
-              <Route path="/feedback" element={<Feedback title="Pioreactor ~ Feedback"/>}/>
               <Route path="/calibrations" element={<Calibrations title="Pioreactor ~ Calibrations"/>}/>
               <Route path="/" element={<ExperimentOverview title="Pioreactor ~ Overview"/>}/>
             </Routes>

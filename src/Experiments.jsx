@@ -256,7 +256,7 @@ function ExperimentsContainer(props) {
                   <React.Fragment key={`grid-chart-${chart_key}`}>
                     <Grid item xs={6}>
                       <Chart
-                        key={`chart-${chart_key}`}
+                        chart_key={`chart-${chart_key}`}
                         config={config}
                         dataSource={chart.data_source}
                         title={chart.title}
@@ -264,6 +264,7 @@ function ExperimentsContainer(props) {
                         payloadKey={chart.payload_key}
                         yAxisLabel={chart.y_axis_label}
                         experiment={experimentSelection}
+                        //experimentStartTime={experimentMetadata.created_at}
                         deltaHours={10}
                         downSample={true}
                         interpolation={chart.interpolation || "stepAfter"}
@@ -273,9 +274,10 @@ function ExperimentsContainer(props) {
                         yTransformation={eval(chart.y_transformation || "(y) => y")}
                         dataSourceColumn={chart.data_source_column}
                         relabelMap={relabelMap}
-                        isODReading={chart_key === "raw_optical_density"}
+                        isPartitionedBySensor={chart_key === "raw_optical_density"}
                         allowZoom={true}
                         isLiveChart={false}
+                        byDuration={false}
                       />
                     </Grid>
                   </React.Fragment>

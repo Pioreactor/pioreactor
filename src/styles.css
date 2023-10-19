@@ -39,8 +39,8 @@ a, u {
 }
 
 .indicator-dot {
-  width:7px;
-  height:7px;
+  width:8px;
+  height:8px;
   border-radius:5px;
   box-shadow: 0 0 8px #ea4c89, inset 0 0 12px #ea4c89;
   margin: 13px 8px;

@@ -15,6 +15,7 @@ import PioreactorIcon from './PioreactorIcon';
 import LibraryAddOutlinedIcon from '@mui/icons-material/LibraryAddOutlined';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
+import SubjectOutlinedIcon from '@mui/icons-material/SubjectOutlined';
 import QueryStatsOutlinedIcon from '@mui/icons-material/QueryStatsOutlined';
 import InsertChartOutlinedIcon from '@mui/icons-material/InsertChartOutlined';
 import ViewTimelineOutlinedIcon from '@mui/icons-material/ViewTimelineOutlined';
@@ -108,7 +109,7 @@ export default function SideNavAndHeader() {
 
 
   const list = () => (
-    <Sidebar>
+    <Sidebar width="230px">
       <Menu
           style={{minWidth: "230px", width: "230px"}}
           renderExpandIcon={({level, active, disabled}) => null }
@@ -155,6 +156,15 @@ export default function SideNavAndHeader() {
 
 
         <MenuItem
+          icon={<SubjectOutlinedIcon/> }
+          component={<Link to="/logs" className="link" />}
+          active={isSelected("/logs")}
+          >
+          Logs
+
+        </MenuItem>
+
+        <MenuItem
           icon={<SettingsOutlinedIcon/> }
           component={<Link to="/config" className="link" />}
           active={isSelected("/config")}
@@ -179,23 +189,6 @@ export default function SideNavAndHeader() {
           Past experiments
         </MenuItem>
 
-        <MenuItem
-          icon={<QueryStatsOutlinedIcon/> }
-          component={<Link to="/analysis" className="link" />}
-          active={isSelected("/analysis")}
-          disabled={true}
-          >
-          Analysis
-        </MenuItem>
-
-        <MenuItem
-          icon={<TuneIcon/> }
-          component={<Link to="/calibrations" className="link" />}
-          active={isSelected("/calibrations")}
-          disabled={true}
-          >
-          Calibrations
-        </MenuItem>
 
         <Divider className={classes.divider} />
 

@@ -686,7 +686,7 @@ function CalibrateDialog(props) {
             </Typography>
             <Typography variant="body2" component="p" gutterBottom>
               For more accurate growth rate and biomass inferences, the Pioreactor can subtract out the
-              media's un-inoculated optical density <i>per experiment</i>. Read more about <a href="https://docs.pioreactor.com/user-guide/od-normal-growth-rate#blanking">using blanks</a>.
+              media's <b>un-inoculated</b> optical density <i>per experiment</i>. Read more about <a href="https://docs.pioreactor.com/user-guide/od-normal-growth-rate#blanking">using blanks</a>.
             </Typography>
             <Typography variant="body2" component="p" style={{margin: "20px 0px"}}>
               Recorded optical densities of blank vial: <code>{props.odBlankReading ? Object.entries(JSON.parse(props.odBlankReading)).map( ([k, v]) => `${k}:${v.toFixed(5)}` ).join(", ") : "—"}</code>
@@ -725,7 +725,7 @@ function CalibrateDialog(props) {
             To use a peristatlic pump with your Pioreactor, you'll need to calibrate it to accuractly dose specific volumes.
             </Typography>
             <Typography variant="body2" component="p" gutterBottom>
-            See instructions <a href="https://docs.pioreactor.com/user-guide/hardware-calibrations#pump-calibration">here</a>.
+            See instructions <a target="_blank" rel="noopener noreferrer" href="https://docs.pioreactor.com/user-guide/hardware-calibrations#pump-calibration">here</a>.
             </Typography>
             <Divider className={classes.divider} />
 
@@ -739,7 +739,7 @@ function CalibrateDialog(props) {
             By performing the following calibration, you can relate Pioreactor's internal OD readings (measured in volts) to an offline OD600 value. The UI and datasets will be measured in your OD600 values instead of voltages.
             </Typography>
             <Typography variant="body2" component="p" gutterBottom>
-            See instructions <a href="https://docs.pioreactor.com/user-guide/calibrate-od600">here</a>.
+            See instructions <a target="_blank" rel="noopener noreferrer" href="https://docs.pioreactor.com/user-guide/calibrate-od600">here</a>.
             </Typography>
             <Divider className={classes.divider} />
           </TabPanel>
@@ -2627,7 +2627,7 @@ function PioreactorCard(props){
       return lostRed
     }
     else {
-      return readyGreen
+      return "#1AFF1A"
     }
   }
 

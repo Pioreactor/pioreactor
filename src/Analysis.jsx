@@ -164,7 +164,7 @@ function AnalysisContainer(props) {
                         yTransformation={eval(chart.y_transformation || "(y) => y")}
                         dataSourceColumn={chart.data_source_column}
                         id={chart_key}
-                        isODReading={chart_key === "raw_optical_density"}
+                        isPartitionedBySensor={chart_key === "raw_optical_density"}
                       />
                     </Grid>
                   </React.Fragment>

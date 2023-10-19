@@ -67,6 +67,7 @@ function Overview(props) {
                   <Card style={{ maxHeight: "100%"}}>
                     <Chart
                       key={`chart-${chart_key}`}
+                      chartKey={chart_key}
                       config={config}
                       dataSource={chart.data_source}
                       title={chart.title}
@@ -75,6 +76,7 @@ function Overview(props) {
                       yAxisLabel={chart.y_axis_label}
                       experiment={experimentMetadata.experiment}
                       deltaHours={experimentMetadata.delta_hours}
+                      experimentStartTime={experimentMetadata.created_at}
                       downSample={chart.down_sample}
                       interpolation={chart.interpolation || "stepAfter"}
                       yAxisDomain={chart.y_axis_domain ? chart.y_axis_domain : null}
@@ -83,8 +85,9 @@ function Overview(props) {
                       relabelMap={relabelMap}
                       yTransformation={eval(chart.y_transformation || "(y) => y")}
                       dataSourceColumn={chart.data_source_column}
-                      isODReading={chart_key === "raw_optical_density"}
+                      isPartitionedBySensor={chart_key === "raw_optical_density"}
                       isLiveChart={true}
+                      byDuration={config['ui.overview.settings']['time_display_mode'] === 'hours'}
                     />
                   </Card>
                 </Grid>
