@@ -64,6 +64,8 @@ def test_REF_is_in_correct_position(
     # this _also_ uses stirring to increase the variance in the non-REF.
     # The idea is to trigger stirring on and off and the REF should not see a change in signal / variance, but the other PD should.
 
+    assert is_HAT_present()
+
     reference_channel = cast(PdChannel, config["od_config.photodiode_channel_reverse"][REF_keyword])
     signal_channel = "2" if reference_channel == "1" else "1"
 
@@ -121,6 +123,7 @@ def test_all_positive_correlations_between_pds_and_leds(
     from pprint import pformat
     from random import shuffle
 
+    assert is_HAT_present()
     # better to err on the side of MORE samples than less - it's only a few extra seconds...
     # we randomize to reduce effects of temperature
     INTENSITIES = list(range(20, 85, 5))
@@ -220,7 +223,7 @@ def test_ambient_light_interference(
     client: Client, logger: Logger, unit: str, experiment: str
 ) -> None:
     # test ambient light IR interference. With all LEDs off, and the Pioreactor not in a sunny room, we should see near 0 light.
-
+    assert is_HAT_present()
     adc_reader = ADCReader(
         channels=ALL_PD_CHANNELS,
         dynamic_gain=False,
@@ -284,6 +287,7 @@ def test_REF_is_lower_than_0_dot_256_volts(
 
 
 def test_PD_is_near_0_volts_for_blank(client, logger: Logger, unit: str, experiment: str) -> None:
+    assert is_HAT_present()
     reference_channel = cast(PdChannel, config["od_config.photodiode_channel_reverse"][REF_keyword])
     signal_channel = "2" if reference_channel == "1" else "1"
     assert config.get("od_config.photodiode_channel", signal_channel, fallback=None) in [
@@ -323,6 +327,7 @@ def test_positive_correlation_between_temperature_and_heating(
     client, logger: Logger, unit: str, experiment: str
 ) -> None:
     assert is_heating_pcb_present()
+    assert is_HAT_present()
 
     with TemperatureController(unit, experiment, "only_record_temperature") as tc:
         measured_pcb_temps = []
@@ -344,12 +349,14 @@ def test_positive_correlation_between_temperature_and_heating(
 def test_aux_power_is_not_too_high(
     client: Client, logger: Logger, unit: str, experiment: str
 ) -> None:
+    assert is_HAT_present()
     assert voltage_in_aux() <= 18.0
 
 
 def test_positive_correlation_between_rpm_and_stirring(
     client, logger: Logger, unit: str, experiment: str
 ) -> None:
+    assert is_HAT_present()
     assert is_heating_pcb_present()
     assert voltage_in_aux() <= 18.0
 

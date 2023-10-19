@@ -35,7 +35,7 @@ sudo systemctl stop huey.service
 rm -rf .pioreactor/
 
 # create the new .pioreactor/
-tar -xzf ARCHIVE_NAME
+tar -xzf $ARCHIVE_NAME
 
 # rename the sqlite .backup
 mv .pioreactor/storage/pioreactor.sqlite.backup .pioreactor/storage/pioreactor.sqlite

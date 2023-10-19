@@ -35,36 +35,7 @@ Along with Python being faster, our database is also faster now => faster insert
 
 Note: you don't _need_ to do this. This is only if you want to move existing data to the new Pioreactor.
 
-Here's how I suggest your workflow be. We're here to help: we can offer email or live support, just email us at hello@pioreactor.com.
-
-1. Starting with your leader Pioreactor, make note of the name of it. The next steps will turn off all data collection, so do this outside of any running experiments.
-1. [SSH](https://docs.pioreactor.com/user-guide/accessing-raspberry-pi) into the leader, and create a new file with:
-   ```
-   nano ~/export_data.sh
-   ```
-   Paste the [code linked here](https://raw.githubusercontent.com/Pioreactor/pioreactor/develop/migration_scripts/export_data.sh) into the editor. `crtl-x` to exit the editor.
-2. Run this export script with `bash export_data.sh`. This creates an export file with all your experiment data, config files, Python plugins, profiles, etc. Exporting will take time proportional to how large your database is.
-3. Once the export is done, make note of the filename of the export. Locally, on the command line (or with FileZilla), download the file. You can do:
-   ```
-   # this is run on your local computer, i.e. the one you SSH from.
-   scp pioreactor@<leader name>.local:/home/pioreactor/<filename of export> .
-   ```
-4. Optional: do this for each Pioreactor worker in your cluster. Exporting workers will save data like calibrations, but we suggest you re-calibrate after anyways. Almost all important data, like historical experiments and logs, are stored on the leader, so you may be okay with just transferring leader data and wiping workers. It's up to you. Happy to chat further at hello@pioreactor.com.
-5. With the export file(s) local, you can now proceed with re-imaging your Pioreactors, by following the same [steps here](https://docs.pioreactor.com/user-guide/software-set-up). The images you download will be the latest image containing the new operating system and software.**Important**: choose the same Pioreactor names!
-6. Once your Pioreactor leader is running (check that you can access the UI at http://pioreactor.local), we'll upload the export with:
-   ```
-   # this is run on your local computer
-   scp <filename of export> pioreactor@<leader name>.local:/home/pioreactor/ -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
-   ```
-7. SSH into the leader, and create a new file with:
-   ```
-   nano ~/import_data.sh
-   ```
-   Paste the [code linked here](https://raw.githubusercontent.com/Pioreactor/pioreactor/develop/migration_scripts/import_data.sh) into the editor. `crtl-x` to exit the editor.
-8. Run this export script with `bash import_data.sh <filename of export>`. The Pioreactor will update itself, and then perform a restart.
-9. Once the Pioreactor is back online, you should see your old experiments in the UI.
-10. Optional: If you exported your worker data, you can do the same thing.
-11. You're done!
+See instructions [here](https://docs.pioreactor.com/user-guide/export-import-existing-data).
 
 
 ### 23.10.12
