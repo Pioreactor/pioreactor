@@ -171,10 +171,11 @@ class Monitor(BackgroundJob):
             # Set LED_PIN as output and initialize to low
             lgpio.gpio_claim_output(self._handle, LED_PIN)
             lgpio.gpio_write(self._handle, LED_PIN, 0)
-            # Set BUTTON_PIN as input with no pull-up
-            lgpio.gpio_claim_input(self._handle, BUTTON_PIN, lgpio.SET_PULL_UP)
 
-            lgpio.gpio_claim_alert(self._handle, BUTTON_PIN, lgpio.RISING_EDGE, lgpio.SET_PULL_UP)
+            # Set BUTTON_PIN as input with no pull-up
+            lgpio.gpio_claim_input(self._handle, BUTTON_PIN)
+
+            lgpio.gpio_claim_alert(self._handle, BUTTON_PIN, lgpio.RISING_EDGE)
 
             self._button_callback = lgpio.callback(
                 self._handle, BUTTON_PIN, lgpio.RISING_EDGE, self.button_down_and_up
