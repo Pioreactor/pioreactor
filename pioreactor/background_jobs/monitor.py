@@ -433,12 +433,10 @@ class Monitor(BackgroundJob):
     def button_down_and_up(self, chip, gpio, level, tick) -> None:
         # Warning: this might be called twice
         # don't put anything that is not idempotent in here.
-        print("here", level)
-        if level == 0:
+        if level == 1:
             self.button_down = True
 
             for pre_function in self._pre_button:
-                print(pre_function)
                 try:
                     pre_function()
                 except Exception:
@@ -446,7 +444,7 @@ class Monitor(BackgroundJob):
                         f"Error in pre_function={pre_function.__name__}.", exc_info=True
                     )
 
-        elif level == 1:
+        elif level == 0:
             self.button_down = False
 
             for post_function in self._post_button:
