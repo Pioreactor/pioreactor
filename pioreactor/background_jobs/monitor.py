@@ -415,6 +415,7 @@ class Monitor(BackgroundJob):
         self.check_state_of_jobs_on_machine()
 
     def on_disconnected(self) -> None:
+        self.led_off()
         with suppress(AttributeError):
             lgpio.gpiochip_close(self._handle)
             self._button_callback.cancel()
