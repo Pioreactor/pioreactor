@@ -26,7 +26,7 @@ def cp_file_across_cluster(unit: str, localpath: str, remotepath: str, timeout: 
 
 
 def is_using_local_access_point() -> bool:
-    return os.path.isfile("/boot/local_access_point")
+    return os.path.isfile("/boot/firmware/local_access_point")
 
 
 def is_hostname_on_network(hostname: str) -> bool:

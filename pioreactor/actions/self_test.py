@@ -417,7 +417,8 @@ class BatchTestRunner:
                 test(client, logger, unit, experiment_name)
                 res = True
             except Exception as e:
-                logger.error(e, exc_info=True)
+                logger.debug(e, exc_info=True)
+                logger.error(e)
 
             logger.debug(f"{test_name}: {'✅' if res else '❌'}")
 
@@ -500,7 +501,7 @@ def click_self_test(k: Optional[str]) -> int:
 
         results = RunnerA.collect() + RunnerB.collect()
         count_tested, count_passed = results["count_tested"], results["count_passed"]
-        count_failures = count_tested - count_passed
+        count_failures = int(count_tested - count_passed)
 
         client.publish(
             f"pioreactor/{unit}/{testing_experiment}/self_test/all_tests_passed",

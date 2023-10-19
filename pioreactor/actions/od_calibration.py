@@ -99,7 +99,9 @@ def get_metadata_from_user():
     click.confirm("Continue?", abort=True, default=True)
 
     if "REF" not in config["od_config.photodiode_channel_reverse"]:
-        raise ValueError("REF required for OD calibration.")
+        raise ValueError(
+            "REF required for OD calibration. Set an input to REF in [od_config.photodiode_channel] in your config."
+        )
         # technically it's not required? we just need a specific PD channel to calibrate from.
 
     ref_channel = config["od_config.photodiode_channel_reverse"]["REF"]

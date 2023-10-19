@@ -24,7 +24,7 @@ fi
 
 
 # stop everything that might touch the database or config files...
-pio kill --all-jobs
+pio kill --all-jobs > /dev/null
 pio kill monitor
 pio kill mqtt_to_db_streaming
 pio kill watchdog
@@ -42,6 +42,7 @@ mv .pioreactor/storage/pioreactor.sqlite.backup .pioreactor/storage/pioreactor.s
 
 # confirm permissions
 chmod -R 770 .pioreactor/storage/
+chown -R pioreactor:www-data .pioreactor/storage/
 
 echo "Done! Rebooting..."
 

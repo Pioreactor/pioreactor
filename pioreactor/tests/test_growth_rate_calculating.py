@@ -584,6 +584,7 @@ class TestGrowthRateCalculating:
         assert calc.od_normalization_factors == {"2": 0.8, "1": 0.5}
         assert calc.od_blank == {"2": 0.4, "1": 0.25}
         results = calc.scale_raw_observations({"2": 1.0, "1": 0.6})
+        assert results is not None
         assert abs(results["2"] - 1.5) < 0.00001
         assert abs(results["1"] - 1.4) < 0.00001
         calc.clean_up()
@@ -671,6 +672,7 @@ class TestGrowthRateCalculating:
             assert calc.od_normalization_factors == {"2": 0.8, "1": 0.5}
             assert calc.od_blank == {"2": 0.0, "1": 0.0}
             results = calc.scale_raw_observations({"2": 1.0, "1": 0.6})
+            assert results is not None
             assert abs(results["2"] - 1.25) < 0.00001
             assert abs(results["1"] - 1.2) < 0.00001
 

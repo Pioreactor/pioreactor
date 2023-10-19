@@ -121,7 +121,7 @@ class PWM:
     > pwm.change_duty_cycle(25) # 25% duty cycle
     >
     > pwm.stop()
-    > pwm.cleanup() # make sure to cleanup! Or use context manager, see below.
+    > pwm.clean_up() # make sure to cleanup! Or use context manager, see below.
 
 
     Use as a context manager:
@@ -136,7 +136,7 @@ class PWM:
     > pwm.lock()
     > pwm.is_locked() # true, and will be true for any other PWM on this channel.
     > pwm.unlock()
-    > pwm.is_locked() # false, .cleanup() and Python's deconstruction will also unlock.
+    > pwm.is_locked() # false, .clean_up() and Python's deconstruction will also unlock.
     >
     > with pwm.lock_temporarily():
     >    # do stuff, will unlock on exit of context statement.
@@ -243,20 +243,19 @@ class PWM:
         self._pwm.start()
 
     def stop(self) -> None:
-        self._pwm.off()
         self.change_duty_cycle(0.0)
 
     def change_duty_cycle(self, duty_cycle: float) -> None:
         if not (0.0 <= duty_cycle <= 100.0):
             raise PWMError("duty_cycle should be between 0 and 100, inclusive.")
 
-        self.duty_cycle = round(float(duty_cycle), 5)
-
         self._pwm.dc = self.duty_cycle
+
+        self.duty_cycle = round(float(duty_cycle), 5)
 
         self._serialize()
 
-    def cleanup(self) -> None:
+    def clean_up(self) -> None:
         self.stop()
         self._pwm.close()
 
@@ -298,7 +297,7 @@ class PWM:
             self.unlock()
 
     def __exit__(self, *args: Any) -> None:
-        self.cleanup()
+        self.clean_up()
 
     def __enter__(self) -> PWM:
         return self

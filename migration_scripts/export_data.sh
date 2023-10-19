@@ -33,8 +33,8 @@ tar --exclude='*.sqlite' --exclude='*.sqlite-wal'  --exclude='*.sqlite-shm' --ex
 
 sudo systemctl start lighttpd.service
 sudo systemctl start huey.service
-sudo systemctl start pioreactor_startup_run@monitor.service
 sudo systemctl start pioreactor_startup_run@mqtt_to_db_streaming.service
 sudo systemctl start pioreactor_startup_run@watchdog.service
+sudo systemctl start pioreactor_startup_run@monitor.service
 
 echo "Your export is ready as $EXPORT_NAME"

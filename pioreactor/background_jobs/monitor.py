@@ -128,6 +128,11 @@ class Monitor(BackgroundJob):
         try:
             # if these fail, don't kill the entire job - sucks for onboarding.
             self._setup_GPIO()
+        except Exception as e:
+            self.logger.debug(e, exc_info=True)
+
+        try:
+            # if these fail, don't kill the entire job - sucks for onboarding.
             self.self_checks()
         except Exception as e:
             self.logger.debug(e, exc_info=True)
@@ -426,7 +431,7 @@ class Monitor(BackgroundJob):
     def button_down_and_up(self, chip, gpio, level, tick) -> None:
         # Warning: this might be called twice
         # don't put anything that is not idempotent in here.
-
+        print("here")
         if level == 0:
             self.button_down = True
 

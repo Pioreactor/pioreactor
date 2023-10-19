@@ -294,7 +294,7 @@ class Stirrer(BackgroundJob):
         with suppress(AttributeError):
             self.rpm_check_repeated_thread.cancel()
         with suppress(AttributeError):
-            self.pwm.cleanup()
+            self.pwm.clean_up()
         with suppress(AttributeError):
             if self.rpm_calculator:
                 self.rpm_calculator.clean_up()
@@ -457,10 +457,10 @@ class Stirrer(BackgroundJob):
 
 
 def start_stirring(
-    target_rpm: float,
+    target_rpm: float = config.getfloat("stirring", "target_rpm", fallback=400),
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
-    use_rpm: bool = True,
+    use_rpm: bool = config.getboolean("stirring", "use_rpm", fallback="true"),
 ) -> Stirrer:
     unit = unit or get_unit_name()
     experiment = experiment or get_latest_experiment_name()

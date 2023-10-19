@@ -68,7 +68,7 @@ class PWMPump:
         self.pwm.lock()
 
     def clean_up(self) -> None:
-        self.pwm.cleanup()
+        self.pwm.clean_up()
 
     def continuously(self, block=True) -> None:
         calibration = self.calibration or DEFAULT_PWM_CALIBRATION
