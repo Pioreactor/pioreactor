@@ -508,6 +508,7 @@ def test_disabled_dodging() -> None:
         od = start_od_reading(
             "90",
             None,
+            interval=5,  # needed
             unit=get_unit_name(),
             experiment=exp,
             fake_data=True,
