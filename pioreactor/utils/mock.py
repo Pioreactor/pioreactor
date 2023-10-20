@@ -57,6 +57,7 @@ class Mock_ADC(_ADC):
         if not is_ir_on:
             return self.OFFSET
 
+        # TODO: I think this below line is wrong.
         am_i_REF = str(channel - 1) == config.get("od_config.photodiode_channel_reverse", "REF")
 
         if am_i_REF:
@@ -75,7 +76,7 @@ class Mock_ADC(_ADC):
             self._counter += 1.0 / 32  # divide by N from oversampling_count
 
             return self.from_voltage_to_raw(
-                self.state + random.normalvariate(0, sigma=self.state * 0.03) + self.OFFSET
+                self.state + random.normalvariate(0, sigma=self.state * 0.25) + self.OFFSET
             )
 
     def growth_rate(self, duration_as_seconds: float, am_i_REF: bool) -> float:

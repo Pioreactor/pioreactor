@@ -428,8 +428,8 @@ class TestGrowthRateCalculating:
         calc.clean_up()
 
     def test_end_to_end(self) -> None:
-        config["od_config.photodiode_channel"]["1"] = "90"
-        config["od_config.photodiode_channel"]["2"] = "135"
+        config["od_config.photodiode_channel"]["1"] = "REF"
+        config["od_config.photodiode_channel"]["2"] = "90"
 
         unit = get_unit_name()
         experiment = "test_end_to_end"
@@ -438,7 +438,7 @@ class TestGrowthRateCalculating:
         config["od_config"]["samples_per_second"] = "0.2"
 
         with start_od_reading(
-            "135",
+            "REF",
             "90",
             interval=interval,
             unit=unit,

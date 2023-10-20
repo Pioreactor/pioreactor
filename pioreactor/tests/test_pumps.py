@@ -125,11 +125,11 @@ def test_pump_io_doesnt_allow_negative() -> None:
 
 def test_pump_io_cant_set_both_duration_and_ml() -> None:
     exp = "test_pump_io_cant_set_both_duration_and_ml"
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         add_media(ml=1, duration=1, unit=unit, experiment=exp)
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         add_alt_media(ml=1, duration=1, unit=unit, experiment=exp)
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         remove_waste(ml=1, duration=1, unit=unit, experiment=exp)
 
 
