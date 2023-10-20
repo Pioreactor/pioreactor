@@ -29,6 +29,7 @@ Along with Python being faster, our database is also faster now => faster insert
   - If your leader Raspberry Pi has an ethernet port, you can connect this into an internet-accessible router and give your cluster access to the internet!
  - Updated lots of our Python dependencies
  - Improved start up time by hiding dependencies
+ - Added database table to track experiment profile starts
 
 
 #### Export and import your existing data into a new image

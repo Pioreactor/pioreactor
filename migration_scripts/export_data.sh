@@ -36,7 +36,7 @@ fi
 
 
 # gzip .pioreactor/
-tar --exclude='*.sqlite' --exclude='*.sqlite-wal'  --exclude='*.sqlite-shm' --exclude=".pioreactor/plugins/__pycache__" -zcvf $EXPORT_NAME .pioreactor/
+tar --exclude='*.sqlite' --exclude='*.sqlite-wal'  --exclude='*.sqlite-shm' --exclude=".pioreactor/plugins/__pycache__" -zcvf "$EXPORT_NAME" .pioreactor/
 
 
 sudo systemctl start lighttpd.service

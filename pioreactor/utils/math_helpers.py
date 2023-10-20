@@ -28,7 +28,7 @@ def trimmed_variance(x: Sequence) -> float:
     return variance(x)
 
 
-def trimmed_mean(x: list) -> float:
+def trimmed_mean(x: Sequence) -> float:
     from statistics import mean
 
     x = list(x)  # copy it
@@ -53,17 +53,14 @@ def simple_linear_regression(
     # Calculate residuals
     residuals = [y_i - slope * x_i - intercept for x_i, y_i in zip(x, y)]
     residuals_sq_sum = sum([r**2 for r in residuals])
+    mean = sum(x) / n
+    x_sq = sum([x_i**2 for x_i in x])
+    x_diff_mean_sq = sum([(x_i - mean) ** 2 for x_i in x])
 
     # Calculate standard errors
-    std_error_slope = (
-        residuals_sq_sum / (n - 2) / sum([(x_i - sum(x) / n) ** 2 for x_i in x])
-    ) ** 0.5
-    std_error_intercept = (
-        residuals_sq_sum
-        / (n - 2)
-        * sum([x_i**2 for x_i in x])
-        / (n * sum([(x_i - sum(x) / n) ** 2 for x_i in x]))
-    ) ** 0.5
+    std_error_slope = (residuals_sq_sum / (n - 2) / x_diff_mean_sq) ** 0.5
+
+    std_error_intercept = (residuals_sq_sum / (n - 2) * x_sq / (n * x_diff_mean_sq)) ** 0.5
 
     return (slope, std_error_slope), (intercept, std_error_intercept)
 
