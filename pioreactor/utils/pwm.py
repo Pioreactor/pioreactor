@@ -243,13 +243,14 @@ class PWM:
         self._pwm.start()
 
     def stop(self) -> None:
+        self._pwm.off()
         self.change_duty_cycle(0.0)
 
     def change_duty_cycle(self, duty_cycle: float) -> None:
         if not (0.0 <= duty_cycle <= 100.0):
             raise PWMError("duty_cycle should be between 0 and 100, inclusive.")
 
-        self._pwm.dc = self.duty_cycle
+        self._pwm.dc = duty_cycle
 
         self.duty_cycle = round(float(duty_cycle), 5)
 
