@@ -273,3 +273,41 @@ def test_produce_metadata():
     assert v.pioreactor_unit == "leader"
     assert v.experiment == "exp1"
     assert v.rest_of_topic == ["this", "is", "a", "test"]
+
+
+def test_table_does_not_exist_in_db_but_parser_exists() -> None:
+    unit = "unit"
+    exp = "test_table_does_not_exist_in_db_but_parser_exists"
+
+    class TestJob(BackgroundJob):
+        job_name = "test_job"
+        published_settings = {
+            "some_key": {
+                "datatype": "string",
+                "settable": False,
+            },
+        }
+
+        def __init__(self, unit, experiment) -> None:
+            super(TestJob, self).__init__(unit=unit, experiment=experiment)
+            self.some_key = "where_am_i"
+
+    def parse_setting(topic, payload) -> dict:
+        return {"some_key": payload}
+
+    # turn on our mqtt to db
+    parsers = [
+        m2db.TopicToParserToTable(
+            "pioreactor/+/+/test_job/some_key",
+            parse_setting,
+            "table_setting",  # this table does not exist
+        )
+    ]
+
+    with m2db.MqttToDBStreamer(unit, exp, parsers):
+        with collect_all_logs_of_level("ERROR", unit, exp) as bucket:
+            t = TestJob(unit=unit, experiment=exp)
+            sleep(2)
+            t.clean_up()
+
+        assert len(bucket) == 0
