@@ -38,7 +38,7 @@ def test_updates_cache():
     with local_intermittent_storage("pwm_dc") as cache:
         assert 12 not in cache
 
-    pwm12.cleanup()
+    pwm12.clean_up()
 
 
 def test_pwm_update_mqtt():
@@ -56,7 +56,7 @@ def test_pwm_update_mqtt():
     pwm12.lock()
     pwm12.start(50)
     pwm12.change_duty_cycle(20)
-    pwm12.cleanup()
+    pwm12.clean_up()
     pause()
 
     assert len(mqtt_items) == 3
@@ -87,8 +87,8 @@ def test_pwm_update_mqtt_multiple_at_one():
     pwm17.start(34)
     pwm17.change_duty_cycle(20)
 
-    pwm17.cleanup()
-    pwm12.cleanup()
+    pwm17.clean_up()
+    pwm12.clean_up()
 
     pause()
 

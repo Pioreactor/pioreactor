@@ -38,6 +38,13 @@ tar -xzf $ARCHIVE_NAME
 # rename the sqlite .backup
 mv /home/pioreactor/.pioreactor/storage/pioreactor.sqlite.backup /home/pioreactor/.pioreactor/storage/pioreactor.sqlite
 
+# check integrity, quickly
+DB_CHECK=$(sqlite3 /home/pioreactor/.pioreactor/storage/pioreactor.sqlite "PRAGMA quick_check;")
+if [[ "$DB_CHECK" != "ok" ]]; then
+    echo "Database integrity check failed: $DB_CHECK"
+    exit 1
+fi
+
 # confirm permissions
 chmod -R 770 /home/pioreactor/.pioreactor/storage/
 chown -R pioreactor:www-data /home/pioreactor/.pioreactor/storage/

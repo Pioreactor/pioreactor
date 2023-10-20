@@ -45,7 +45,7 @@ def test_states() -> None:
     assert bj.state == "init"
 
     # it's kinda an antipattern to use this disconnect method from the main
-    # thread. Better, if in the main thread and able to, to call bj.cleanup().
+    # thread. Better, if in the main thread and able to, to call bj.clean_up().
     # There's no 100% guarantee that this cleans up properly since it is called
     # in the sub thread, which means it's cleaning itself up?? Not clear!
     publish(f"pioreactor/{unit}/{exp}/background_job/$state/set", "disconnected")

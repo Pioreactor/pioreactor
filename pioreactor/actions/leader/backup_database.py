@@ -27,7 +27,7 @@ def count_writes_occurring(unit: str) -> int:
     return count
 
 
-def backup_database(output_file: str, force: bool = False) -> None:
+def backup_database(output_file: str, force: bool = False, backup_to_workers: int = 0) -> None:
     """
     This action will create a backup of the SQLite3 database into specified output. It then
     will try to copy the backup to any available worker Pioreactors as a further backup.
@@ -81,11 +81,10 @@ def backup_database(output_file: str, force: bool = False) -> None:
         logger.info("Completed backup of database.")
 
         # back up to workers, if available
-        n_backups = config.getint("storage", "number_of_backup_replicates_to_workers", fallback=0)
         backups_complete = 0
         available_workers = list(get_active_workers_in_inventory())
 
-        while (backups_complete < n_backups) and (len(available_workers) > 0):
+        while (backups_complete < backup_to_workers) and (len(available_workers) > 0):
             backup_unit = available_workers.pop()
             if backup_unit == unit:
                 continue
@@ -118,8 +117,13 @@ def backup_database(output_file: str, force: bool = False) -> None:
 @click.command(name="backup_database")
 @click.option("--output", default="/home/pioreactor/.pioreactor/storage/pioreactor.sqlite.backup")
 @click.option("--force", is_flag=True, help="force backing up")
-def click_backup_database(output: str, force: bool) -> None:
+@click.option(
+    "--backup-to-workers",
+    default=config.getint("storage", "number_of_backup_replicates_to_workers", fallback=0),
+    help="back up db to N workers",
+)
+def click_backup_database(output: str, force: bool, backup_to_workers: int) -> None:
     """
     (leader only) Backup db to workers.
     """
-    return backup_database(output, force)
+    return backup_database(output, force, backup_to_workers)
