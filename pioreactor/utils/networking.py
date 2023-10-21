@@ -29,15 +29,16 @@ def is_using_local_access_point() -> bool:
     return os.path.isfile("/boot/firmware/local_access_point")
 
 
-def is_hostname_on_network(hostname: str) -> bool:
+def is_hostname_on_network(hostname: str, timeout=10) -> bool:
     import socket
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(timeout)
     try:
         s.connect((hostname, 22))
         s.close()
         return True
-    except socket.error:
+    except (socket.error, socket.timeout):
         return False
 
 

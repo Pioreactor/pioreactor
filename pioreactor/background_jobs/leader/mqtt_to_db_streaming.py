@@ -226,8 +226,11 @@ def parse_dosing_events(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     }
 
 
-def parse_experiment_profile_runs(topic: str, payload: pt.MQTTMessagePayload):
-    return {"started_at": current_utc_datetime(), "experiment_profile_name": str(payload)}
+def parse_experiment_profile_runs(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+    return {
+        "started_at": current_utc_datetime(),
+        "experiment_profile_name": payload.decode("utf-8"),
+    }
 
 
 def parse_led_change_events(topic: str, payload: pt.MQTTMessagePayload) -> dict:

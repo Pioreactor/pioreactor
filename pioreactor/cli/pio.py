@@ -709,8 +709,6 @@ if whoami.am_I_leader():
     def add_pioreactor(hostname: str, password: str) -> None:
         """
         Add a new pioreactor worker to the cluster. The pioreactor should already have the worker image installed and is turned on.
-
-        hostname is without any .local.
         """
         # TODO: move this to its own file
         import socket
@@ -737,7 +735,7 @@ if whoami.am_I_leader():
                 click.echo(f"`{hostname}` not found on network - checking again.")
                 if checks >= max_checks:
                     logger.error(
-                        f"`{hostname}` not found on network after more than {max_checks * sleep_time} seconds. Check that you provided the right WiFi credentials to the network, and that the Raspberry Pi is turned on."
+                        f"`{hostname}` not found on network after more than {max_checks * sleep_time} seconds. Check that you provided the right i) WiFi credentials to the network, ii) the name is correct, the iii) Raspberry Pi is turned on."
                     )
                     raise click.Abort()
 
