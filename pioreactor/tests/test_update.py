@@ -78,3 +78,9 @@ def test_get_tag_to_install(monkeypatch):
 
     monkeypatch.setattr("pioreactor.version.__version__", "30.4.1")
     assert get_tag_to_install("pioreactor/pioreactor", None) == "latest"
+
+    monkeypatch.setattr("pioreactor.version.__version__", "22.4.1dev")
+    assert get_tag_to_install("pioreactor/pioreactor", None) == "latest"
+
+    monkeypatch.setattr("pioreactor.version.__version__", "22.4.1rc0")
+    assert get_tag_to_install("pioreactor/pioreactor", None) == "latest"

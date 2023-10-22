@@ -37,11 +37,11 @@ class MockI2C:
 
 class Mock_ADC(_ADC):
     INIT_STATE = 0.01
-    state = INIT_STATE
-    _counter = 0.0
-    OFFSET = 0.00
+    OFFSET = 0.002
 
     def __init__(self, *args, **kwargs) -> None:
+        self._counter = 0.0
+        self.state = self.INIT_STATE
         self.max_gr = 0.25 + 0.1 * random.random()
         self.scale_factor = 0.00035 + 0.00005 * random.random()
         self.lag = 2 * 60 * 60 - 1 * 60 * 60 * random.random()
@@ -88,7 +88,7 @@ class Mock_ADC(_ADC):
         return (
             self.max_gr
             / (1 + exp(-self.scale_factor * (duration_as_seconds - self.lag)))
-            * (1 - 1 / (1 + exp(-self.scale_factor * 2 * (duration_as_seconds - 3 * self.lag))))
+            * (1 - 1 / (1 + exp(-self.scale_factor * 4 * (duration_as_seconds - 16 * self.lag))))
         )
 
     def check_on_gain(self, *args, **kwargs) -> None:
