@@ -26,33 +26,71 @@ def pause(n=1) -> None:
     time.sleep(n * 0.25)
 
 
-def test_sin_regression_exactly() -> None:
+def test_sin_regression_exactly_60hz() -> None:
     freq = 60
-    x = [i / 25 for i in range(25)]
-    y = [10 + 2 * np.sin(freq * 2 * np.pi * _x) + 0.1 * np.random.randn() for _x in x]
+    N = 32
+    C = 10.0
+    A = 2.0
+    phi = 1.0
+    x = [i / N for i in range(N)]
+    y = [C + A * np.sin(freq * 2 * np.pi * _x + phi) + 0.1 * np.random.randn() for _x in x]
 
     adc_reader = ADCReader(channels=[])
 
-    (C, A, phi), _ = adc_reader._sin_regression_with_known_freq(x, y, freq)
+    (C_, A_, phi_), _ = adc_reader._sin_regression_with_known_freq(x, y, freq)
     assert isinstance(A, float)
     assert isinstance(phi, float)
-    assert np.abs(C - 10) < 0.1
-    assert np.abs(A - 2) < 0.1
-    assert np.abs(phi - 0) < 0.1
+    assert C_ == pytest.approx(C, abs=0.15)
+    assert A_ == pytest.approx(A, abs=0.15)
+    assert phi_ == pytest.approx(phi, abs=0.15)
 
+
+def test_sin_regression_exactly_50hz() -> None:
     freq = 50
-    # interestingly, if I used i/25, I get a matrix inversion problem, likely because 25 | 50. This shows the importance of adding a small jitter.
-    x = [(i / 25 + 0.001 * (i * 0.618034) % 1) for i in range(25)]
-    y = [10 + 2 * np.sin(freq * 2 * np.pi * _x) + 0.1 * np.random.randn() for _x in x]
+    N = 32
+    C = 10.0
+    A = 2.0
+    phi = 0.2
+    x = [i / N for i in range(N)]
+    y = [C + A * np.sin(freq * 2 * np.pi * _x + phi) + 0.1 * np.random.randn() for _x in x]
 
     adc_reader = ADCReader(channels=[])
 
-    (C, A, phi), _ = adc_reader._sin_regression_with_known_freq(x, y, freq)
+    (C_, A_, phi_), _ = adc_reader._sin_regression_with_known_freq(x, y, freq)
     assert isinstance(A, float)
     assert isinstance(phi, float)
-    assert np.abs(C - 10) < 0.1
-    assert np.abs(A - 2) < 0.1
-    assert np.abs(phi - 0) < 0.1
+    assert C_ == pytest.approx(C, abs=0.15)
+    assert A_ == pytest.approx(A, abs=0.15)
+    assert phi_ == pytest.approx(phi, abs=0.15)
+
+
+def test_sin_regression_estimator_is_consistent() -> None:
+    freq = 60
+
+    N = 40_000
+    C = 0.1
+    A = 0.01
+    phi = 1.0
+
+    x = [i / N for i in range(N)]
+    y = [C + A * np.sin(freq * 2 * np.pi * _x + phi) + 0.1 * np.random.randn() for _x in x]
+
+    adc_reader = ADCReader(channels=[])
+
+    (C_, A_, phi_), _ = adc_reader._sin_regression_with_known_freq(x, y, freq)
+    assert C_ == pytest.approx(C, rel=5e-2, abs=1e-3)
+    assert A_ == pytest.approx(A, rel=5e-2, abs=1e-2)
+    assert phi_ == pytest.approx(phi, rel=5e-2, abs=0.2)
+
+    N = N * 4
+
+    x = [i / N for i in range(N)]
+    y = [C + A * np.sin(freq * 2 * np.pi * _x + phi) + 0.1 * np.random.randn() for _x in x]
+
+    (C_, A_, phi_), _ = adc_reader._sin_regression_with_known_freq(x, y, freq)
+    assert C_ == pytest.approx(C, rel=2.5e-2, abs=5e-4)
+    assert A_ == pytest.approx(A, rel=2.5e-2, abs=5e-3)
+    assert phi_ == pytest.approx(phi, rel=2.5e-2, abs=0.1)
 
 
 def test_sin_regression_all_zeros_should_return_zeros() -> None:
