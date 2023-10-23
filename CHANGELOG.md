@@ -1,4 +1,4 @@
-### Upcoming
+### 23.10.23
 
 #### Bookworm release!
 
@@ -19,6 +19,13 @@ With some other optimizations, we have significantly improved the performance an
 Along with Python being faster, our database is also faster now => faster inserts, UI graphs, and data exports.
 
 
+#### Export and import your existing data into a new image
+
+Note: you don't _need_ to do this. This is only if you want to move existing data to the new Pioreactor.
+
+See instructions [here](https://docs.pioreactor.com/user-guide/export-import-existing-data).
+
+
 #### Full Changelog
 
  - Replaced `RPi.GPIO` with `lgpio`
@@ -29,14 +36,7 @@ Along with Python being faster, our database is also faster now => faster insert
   - If your leader Raspberry Pi has an ethernet port, you can connect this into an internet-accessible router and give your cluster access to the internet!
  - Updated lots of our Python dependencies
  - Improved start up time by hiding dependencies
- - Added database table to track experiment profile starts
-
-
-#### Export and import your existing data into a new image
-
-Note: you don't _need_ to do this. This is only if you want to move existing data to the new Pioreactor.
-
-See instructions [here](https://docs.pioreactor.com/user-guide/export-import-existing-data).
+ - Added database table to track experiment profile starts.
 
 
 ### 23.10.12
