@@ -33,6 +33,13 @@ def execute_action(
     args=None,
     dry_run=False,
 ) -> Callable:
+    # hack...
+    if job_name == "led_intensity":
+        if action == "stop":
+            options["A"] = options["B"] = options["C"] = options["D"] = 0
+
+        action = "start"
+
     # Handle each action type accordingly
     if action == "start":
         # start the job with the provided parameters
@@ -49,8 +56,19 @@ def execute_action(
     elif action == "update":
         # update the job with the provided parameters
         return update_job(unit, experiment, job_name, options, dry_run, logger)
+    elif action == "log":
+        assert "message" in options, "must provide message in log call."
+        return log(unit, experiment, job_name, options, dry_run, logger)
     else:
         raise ValueError(f"Not a valid action: {action}")
+
+
+def log(
+    unit: str, experiment: str, job_name: str, options: dict, dry_run: bool, logger
+) -> Callable:
+    return lambda: logger.notice(
+        options["message"].format(unit=unit, job=job_name, experiment=experiment)
+    )
 
 
 def start_job(

@@ -262,3 +262,59 @@ pioreactors:
             hours_elapsed: 2.5
 """
     assert decode(file, type=structs.Profile) is not None
+
+
+def test_log():
+    file = """
+experiment_profile_name: demo_stirring_example
+
+metadata:
+  author: Cam Davidson-Pilon
+  description: A simple profile to start stirring in your Pioreactor(s), update RPM at 90 seconds, and turn off after 180 seconds.
+
+common:
+  stirring:
+    actions:
+      - type: start
+        hours_elapsed: 0.0
+        options:
+          target_rpm: 400.0
+      - type: log
+        hours_elapsed: 0.025
+        options:
+          message: "log {unit}"
+      - type: stop
+        hours_elapsed: 0.05
+
+bioreactor1:
+  jobs:
+    od_reading:
+      actions:
+        - type: log
+          hours_elapsed: 0.01
+          options:
+            message: "log {unit} and {job} and {experiment}"
+
+"""
+    assert decode(file, type=structs.Profile) is not None
+
+
+def test_stop_on_exit():
+    file = """
+experiment_profile_name: minimal
+
+stop_on_exit: True
+"""
+    assert decode(file, type=structs.Profile) is not None
+
+    file = """
+experiment_profile_name: minimal
+
+stop_on_exit: False
+"""
+    assert decode(file, type=structs.Profile) is not None
+
+    file = """
+experiment_profile_name: minimal
+"""
+    assert decode(file, type=structs.Profile) is not None
