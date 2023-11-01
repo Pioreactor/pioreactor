@@ -258,9 +258,7 @@ def test_REF_is_lower_than_0_dot_256_volts(
     ir_intensity = config.getfloat("od_config", "ir_led_intensity")
 
     adc_reader = ADCReader(
-        channels=[reference_channel],
-        dynamic_gain=False,
-        fake_data=is_testing_env(),
+        channels=[reference_channel], dynamic_gain=False, fake_data=is_testing_env(), penalizer=0.0
     ).setup_adc()
 
     current_experiment_name = get_latest_experiment_name()

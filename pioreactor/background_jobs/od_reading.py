@@ -138,6 +138,23 @@ def average_over_pd_channel_to_voltages(*pd_channel_to_voltages: PdChannelToVolt
 
 
 class ADCReader(LoggerMixin):
+    """
+
+
+    Example
+    --------
+
+    from pioreactor.background_jobs.od_reading import ADCReader
+
+    adc = ADCReader(["1", "2"], fake_data=False)
+    adc.setup_adc()
+
+    while True:
+        print(adc.take_reading())
+
+
+    """
+
     _logger_name = "adc_reader"
     _setup_complete = False
 
@@ -145,9 +162,8 @@ class ADCReader(LoggerMixin):
         self,
         channels: list[pt.PdChannel],
         fake_data: bool = False,
-        interval: Optional[float] = 1.0,
         dynamic_gain: bool = True,
-        penalizer: float = 700.0,
+        penalizer: float = 0.0,  # smoothing parameter between samples
         oversampling_count: int = 32,
     ) -> None:
         super().__init__()
@@ -160,7 +176,6 @@ class ADCReader(LoggerMixin):
         self.penalizer = penalizer
         self.oversampling_count = oversampling_count
 
-        self.interval = interval
         if "local_ac_hz" in config["od_config"]:
             self.most_appropriate_AC_hz: Optional[float] = config.getfloat(
                 "od_config", "local_ac_hz"
@@ -468,10 +483,7 @@ class ADCReader(LoggerMixin):
                     prior_C=(self.adc.from_voltage_to_raw(self.batched_readings[channel]))
                     if (channel in self.batched_readings)
                     else None,
-                    penalizer_C=(self.penalizer / self.oversampling_count / self.interval)
-                    if (self.interval is not None and self.interval > 0)
-                    else None
-                    # arbitrary, but should scale with number of samples, and duration between samples
+                    penalizer_C=(self.penalizer / self.oversampling_count),
                 )
 
                 # convert to voltage
@@ -1188,6 +1200,8 @@ def start_od_reading(
     then the correct syntax is `start_od_reading("REF", "90").
 
     """
+    if interval is not None:
+        assert interval > 0, "interval must be positive."
 
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_latest_experiment_name()
@@ -1217,7 +1231,10 @@ def start_od_reading(
         unit=unit,
         experiment=experiment,
         adc_reader=ADCReader(
-            channels=channels, fake_data=fake_data, interval=interval, dynamic_gain=not fake_data
+            channels=channels,
+            fake_data=fake_data,
+            dynamic_gain=not fake_data,
+            penalizer=(700.0 / interval) if (interval is not None) else 0.0,  # 700 is arbitrary
         ),
         ir_led_reference_tracker=ir_led_reference_tracker,
         calibration_transformer=calibration_transformer,
