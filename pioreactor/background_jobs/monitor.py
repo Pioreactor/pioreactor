@@ -193,6 +193,7 @@ class Monitor(BackgroundJob):
                 # no wifi connection? Sound the alarm.
                 self.logger.warning("Unable to connect to network...")
                 self.flicker_led_with_error_code(error_codes.NO_NETWORK_CONNECTION)
+                sleep(1)
                 ipv4 = get_ip()
 
             self.ipv4 = ipv4
@@ -595,7 +596,7 @@ class Monitor(BackgroundJob):
 
         """
 
-        # we use a thread here since we want to exit this callback without blocking it.
+        # we use a thread below since we want to exit this callback without blocking it.
         # a blocked callback can disconnect from MQTT broker, prevent other callbacks, etc.
 
         job_name = msg.topic.split("/")[-1]

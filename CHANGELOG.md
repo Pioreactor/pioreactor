@@ -1,3 +1,9 @@
+### Upcoming
+
+ - Workers can now also be the local-access-point (aka the "router" in a network). Previously only leaders could.
+
+
+
 ### 23.10.23
 
 #### Bookworm release!

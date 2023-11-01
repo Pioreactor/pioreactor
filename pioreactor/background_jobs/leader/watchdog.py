@@ -7,7 +7,7 @@ import time
 import click
 
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.config import get_leader_address
+from pioreactor.config import get_leader_hostname
 from pioreactor.config import get_workers_in_inventory
 from pioreactor.pubsub import subscribe
 from pioreactor.types import MQTTMessage
@@ -30,8 +30,9 @@ class WatchDog(BackgroundJob):
     def announce_new_workers(self):
         for worker in discover_workers_on_network():
             # not in current cluster, and not leader
-            if (worker not in get_workers_in_inventory()) and (worker != get_leader_address()):
+            if (worker not in get_workers_in_inventory()) and (worker != get_leader_hostname()):
                 # is there an MQTT state for this worker?
+                # a new worker doesn't have the leader_address, so it won't connect to the leaders MQTT.
                 result = subscribe(
                     f"pioreactor/{worker}/{UNIVERSAL_EXPERIMENT}/monitor/$state",
                     timeout=5,

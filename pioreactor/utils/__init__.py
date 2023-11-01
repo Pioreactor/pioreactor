@@ -242,7 +242,7 @@ def local_intermittent_storage(
     # gettempdir find the directory named by the TMPDIR environment variable.
     # TMPDIR is set in the Pioreactor img.
     tmp_dir = tempfile.gettempdir()
-    with Cache(f"{tmp_dir}/{cache_name}") as cache:
+    with Cache(f"{tmp_dir}/{cache_name}", sqlite_journal_mode="wal") as cache:
         yield cache  # type: ignore
 
 
@@ -264,9 +264,11 @@ def local_persistant_storage(
     from pioreactor.whoami import is_testing_env
 
     if is_testing_env():
-        cache = Cache(f".pioreactor/storage/{cache_name}")
+        cache = Cache(f".pioreactor/storage/{cache_name}", sqlite_journal_mode="wal")
     else:
-        cache = Cache(f"/home/pioreactor/.pioreactor/storage/{cache_name}")
+        cache = Cache(
+            f"/home/pioreactor/.pioreactor/storage/{cache_name}", sqlite_journal_mode="wal"
+        )
 
     try:
         yield cache  # type: ignore
