@@ -427,7 +427,7 @@ class Stirrer(BackgroundJob):
 
         """
 
-        if self.rpm_calculator is None:
+        if self.rpm_calculator is None or is_testing_env():
             # can't block if we aren't recording the RPM
             return False
 
