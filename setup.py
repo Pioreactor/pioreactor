@@ -28,7 +28,7 @@ UI_REQUIREMENTS = [
     "flup6==1.1.1",
     "python-dotenv==1.0.0",
     "huey==2.5.0",
-    "werkzeug==3.0.0",
+    "werkzeug==3.0.1",
 ]
 
 

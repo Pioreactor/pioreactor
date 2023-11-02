@@ -129,7 +129,7 @@ def test_stirring_with_lookup_linear_v1() -> None:
         def __call__(self, *args):
             return 475
 
-        def cleanup(self):
+        def clean_up(self):
             pass
 
     with local_persistant_storage("stirring_calibration") as cache:

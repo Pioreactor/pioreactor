@@ -427,8 +427,9 @@ class Stirrer(BackgroundJob):
         """
         running_wait_time = 0.0
         sleep_time = 0.2
+        poll_time = 2  # usually 4, but we don't need high accuracy here,
 
-        if (self.rpm_calculator is None) or is_testing_env():
+        if self.rpm_calculator is None or is_testing_env():
             # can't block if we aren't recording the RPM
             return False
 
@@ -443,14 +444,16 @@ class Stirrer(BackgroundJob):
 
         while abs(self._measured_rpm - self.target_rpm) > abs_tolerance:
             sleep(sleep_time)
+            self.poll_and_update_dc(poll_time)
 
-            running_wait_time += sleep_time
+            running_wait_time += sleep_time + poll_time
 
             if (timeout and running_wait_time > timeout) or (self.state != self.READY):
                 self.rpm_check_repeated_thread.unpause()
+                self.logger.debug(
+                    f"Waited {running_wait_time} seconds for RPM to match, breaking out early."
+                )
                 return False
-
-            self.poll_and_update_dc()
 
         self.rpm_check_repeated_thread.unpause()
         return True

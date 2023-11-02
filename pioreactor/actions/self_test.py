@@ -85,7 +85,7 @@ def test_REF_is_in_correct_position(
         experiment=experiment,
         use_calibration=False,
     ) as od_stream:
-        st.block_until_rpm_is_close_to_target(abs_tolerance=150, timeout=20)
+        st.block_until_rpm_is_close_to_target(abs_tolerance=150, timeout=15)
 
         for i, reading in enumerate(od_stream, start=1):
             signal1.append(reading.ods["1"].od)
@@ -459,8 +459,8 @@ def click_self_test(k: Optional[str]) -> int:
         test_ambient_light_interference,
         test_REF_is_lower_than_0_dot_256_volts,
         test_REF_is_in_correct_position,
-        test_positive_correlation_between_rpm_and_stirring,
         test_PD_is_near_0_volts_for_blank,
+        test_positive_correlation_between_rpm_and_stirring,
     ]
 
     with publish_ready_to_disconnected_state(unit, testing_experiment, "self_test") as state:

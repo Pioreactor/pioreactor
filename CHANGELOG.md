@@ -1,7 +1,9 @@
 ### Upcoming
 
  - Workers can now also be the local-access-point (aka the "router" in a network). Previously only leaders could.
-
+ - Slight change to the API of ADCReader. Take a look if you were using that class.
+ - `pio clear_cache` now has an `as_int` option to look for ints - useful when clearing caches with ints as keys.
+ - fix bug in `timeout` in `Stirrer.block_until_rpm_is_close_to_target` that wasn't using it correctly.
 
 
 ### 23.10.23
