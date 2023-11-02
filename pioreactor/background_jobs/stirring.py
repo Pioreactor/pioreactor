@@ -26,6 +26,7 @@ from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.gpio_helpers import set_gpio_availability
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.streaming_calculations import PID
+from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.whoami import get_latest_experiment_name
@@ -425,35 +426,34 @@ class Stirrer(BackgroundJob):
         bool: True if successfully waited until RPM is correct.
 
         """
-        running_wait_time = 0.0
-        sleep_time = 0.2
-        poll_time = 2  # usually 4, but we don't need high accuracy here,
 
-        if self.rpm_calculator is None or is_testing_env():
+        if self.rpm_calculator is None:
             # can't block if we aren't recording the RPM
             return False
 
-        assert isinstance(self.target_rpm, float)
-        self.logger.debug(f"stirring is blocking until RPM is near {self.target_rpm}.")
+        sleep_time = 0.2
+        poll_time = 2  # usually 4, but we don't need high accuracy here,
+        self.logger.debug(f"Stirring is blocking until RPM is near {self.target_rpm}.")
 
         self.rpm_check_repeated_thread.pause()
-        sleep(2)  # on init, the stirring is too fast from the initial "kick"
-        self.poll_and_update_dc()
 
-        assert self._measured_rpm is not None
-
-        while abs(self._measured_rpm - self.target_rpm) > abs_tolerance:
-            sleep(sleep_time)
+        with catchtime() as time_waiting:
+            sleep(2)  # on init, the stirring is too fast from the initial "kick"
             self.poll_and_update_dc(poll_time)
 
-            running_wait_time += sleep_time + poll_time
+            assert isinstance(self.target_rpm, float)
+            assert self._measured_rpm is not None
 
-            if (timeout and running_wait_time > timeout) or (self.state != self.READY):
-                self.rpm_check_repeated_thread.unpause()
-                self.logger.debug(
-                    f"Waited {running_wait_time} seconds for RPM to match, breaking out early."
-                )
-                return False
+            while abs(self._measured_rpm - self.target_rpm) > abs_tolerance:
+                sleep(sleep_time)
+                self.poll_and_update_dc(poll_time)
+
+                if (timeout and time_waiting() > timeout) or (self.state != self.READY):
+                    self.rpm_check_repeated_thread.unpause()
+                    self.logger.debug(
+                        f"Waited {time_waiting():.1f} seconds for RPM to match, breaking out early."
+                    )
+                    return False
 
         self.rpm_check_repeated_thread.unpause()
         return True
