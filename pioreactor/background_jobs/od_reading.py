@@ -506,7 +506,6 @@ class ADCReader(LoggerMixin):
             # this may need to be adjusted for higher rates of data collection
             if self.dynamic_gain:
                 m = self.max_signal_moving_average.get_latest()
-                assert m is not None
                 self.adc.check_on_gain(m)
 
             return batched_estimates_
@@ -616,7 +615,7 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
         # check if funky things are happening by std. banding
         self.led_output_emstd.update(ir_output_reading / self.INITIAL)
         latest_std = self.led_output_emstd.get_latest()
-        if latest_std is not None and latest_std > 0.01:
+        if latest_std > 0.01:
             self.logger.warning(
                 f"The reference PD is very noisy, std={latest_std:.2g}. Is the PD in channel {self.channel} correctly positioned? Is the IR LED behaving as expected?"
             )
@@ -631,7 +630,7 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
 
     def transform(self, od_reading: pt.Voltage) -> pt.Voltage:
         led_output = self.led_output_ema.get_latest()
-        assert led_output is not None
+
         if led_output <= 0.0:
             raise ValueError(
                 "IR Reference is 0.0. Is it connected correctly? Is the IR LED working?"

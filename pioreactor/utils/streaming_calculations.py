@@ -31,7 +31,7 @@ class ExponentialMovingAverage:
 
     def get_latest(self) -> float:
         if self.value is None:
-            raise ValueError("No values supplied yet!")
+            raise ValueError("No values provided yet!")
         assert isinstance(self.value, float)
         return self.value
 
@@ -78,7 +78,7 @@ class ExponentialMovingStd:
 
     def get_latest(self) -> float:
         if self.value is None:
-            raise ValueError("No values supplied yet!")
+            raise ValueError("No values provided yet!")
         assert isinstance(self.value, float)
         return self.value
 
