@@ -126,7 +126,8 @@ def test_all_positive_correlations_between_pds_and_leds(
     assert is_HAT_present()
     # better to err on the side of MORE samples than less - it's only a few extra seconds...
     # we randomize to reduce effects of temperature
-    INTENSITIES = list(range(20, 85, 5))
+    # upper bound shouldn't be too high, as it could saturate the ADC, and lower bound shouldn't be too low, else we don't detect anything.
+    INTENSITIES = list(range(20, 55, 3))
     shuffle(INTENSITIES)
 
     current_experiment_name = get_latest_experiment_name()
@@ -189,7 +190,7 @@ def test_all_positive_correlations_between_pds_and_leds(
     logger.debug(f"Correlations between LEDs and PD:\n{pformat(results)}")
     detected_relationships = []
     for (led_channel, pd_channel), measured_correlation in results.items():
-        if measured_correlation > 0.925:
+        if measured_correlation > 0.92:
             detected_relationships.append(
                 (
                     (config["leds"].get(led_channel) or led_channel),

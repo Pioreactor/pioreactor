@@ -1,9 +1,21 @@
 ### Upcoming
 
- - Workers can now also be the local-access-point (aka the "router" in a network). Previously only leaders could.
- - Slight change to the API of ADCReader. Take a look if you were using that class.
- - `pio clear_cache` now has an `as_int` option to look for ints - useful when clearing caches with ints as keys.
  - fix bug in `timeout` in `Stirrer.block_until_rpm_is_close_to_target` that wasn't using it correctly.
+ - Workers can now also be the local-access-point (aka the "router" in a network). Previously only leaders could.
+ - Slight change to the API initialization of ADCReader. Take a look if you were using that class.
+ - `pio clear_cache` now has an `as_int` option to look for ints - useful when clearing caches with ints as keys.
+ - fix issue where if an extra config.ini was provided in the /boot dir before a worker startup, adding the worker to a cluster would fail due to a permission issue.
+ - potential fix for RPi 3B and RPi Zeros not connecting to hotspots: change the `proto` to `wpa` in your config.ini on the Pioreactor with the local-access-point, and restart that Pioreactor. You config.ini should look like:
+
+ ```
+[local_access_point]
+ssid=pioreactor
+passphrase=raspberry
+proto=wpa
+ ```
+
+**Changing to WPA does weaken the security however!**
+
 
 
 ### 23.10.23
@@ -15,7 +27,6 @@ The Raspberry Pi Foundation provides new operating system every few years (built
  - New Python version
  - New GPIO libraries
  - New local-access-point improvements
-
 
 **We strongly recommend you upgrade to this release. However, upgrading to this new operating system requires a full SD rewrite. See steps below on how to preserve and transfer your data**.
 

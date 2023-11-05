@@ -241,10 +241,10 @@ class Monitor(BackgroundJob):
                 status = result.stdout.strip()
 
                 # Check if the output is okay
-                if status == "failed" or status == "inactive":
+                if status == "failed" or status == "inactive" or status == "deactivating":
                     self.logger.error("lighttpd is not running. Check `systemctl status lighttpd`.")
                     self.flicker_led_with_error_code(error_codes.WEBSERVER_OFFLINE)
-                elif status == "activating":
+                elif status == "activating" or status == "reloading":
                     # try again
                     pass
                 elif status == "active":
@@ -269,10 +269,10 @@ class Monitor(BackgroundJob):
                 status = result.stdout.strip()
 
                 # Check if the output is okay
-                if status == "failed" or status == "inactive":
+                if status == "failed" or status == "inactive" or status == "deactivating":
                     self.logger.error("huey is not running. Check `systemctl status huey`.")
                     self.flicker_led_with_error_code(error_codes.WEBSERVER_OFFLINE)
-                elif status == "activating":
+                elif status == "activating" or status == "reloading":
                     # try again
                     pass
                 elif status == "active":
