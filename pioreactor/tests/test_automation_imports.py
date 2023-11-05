@@ -5,7 +5,7 @@ from __future__ import annotations
 from pioreactor.background_jobs.temperature_control import start_temperature_control
 
 
-def test_start_temperature_control():
+def test_start_temperature_control() -> None:
     import importlib
 
     importlib.invalidate_caches()

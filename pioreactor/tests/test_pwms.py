@@ -17,7 +17,7 @@ def pause(n=1) -> None:
     time.sleep(n * 0.25)
 
 
-def test_updates_cache():
+def test_updates_cache() -> None:
     exp = "test_updates_cache"
     unit = get_unit_name()
 
@@ -41,7 +41,7 @@ def test_updates_cache():
     pwm12.clean_up()
 
 
-def test_pwm_update_mqtt():
+def test_pwm_update_mqtt() -> None:
     exp = "test_pwm_update_mqtt"
     unit = get_unit_name()
 
@@ -67,7 +67,7 @@ def test_pwm_update_mqtt():
         assert json.loads(mqtt_items[2])["12"] == 0.0
 
 
-def test_pwm_update_mqtt_multiple_at_one():
+def test_pwm_update_mqtt_multiple_at_one() -> None:
     exp = "test_pwm_update_mqtt_multiple_at_one"
     unit = get_unit_name()
 

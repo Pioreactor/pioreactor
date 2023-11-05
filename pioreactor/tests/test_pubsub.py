@@ -13,7 +13,7 @@ from pioreactor.pubsub import add_hash_suffix
 from pioreactor.pubsub import create_client
 
 
-def test_add_hash_suffix():
+def test_add_hash_suffix() -> None:
     s = "test_string"
     result = add_hash_suffix(s)
     assert len(result) == len(s) + 5  # 4 random characters and a hyphen
@@ -27,7 +27,7 @@ def mock_client():
         yield mock_client
 
 
-def test_create_client_default_behavior(mock_client):
+def test_create_client_default_behavior(mock_client) -> None:
     hostname = "test_hostname"
     client_instance = MagicMock(spec=Client)
     mock_client.return_value = client_instance
@@ -39,7 +39,7 @@ def test_create_client_default_behavior(mock_client):
     client_instance.loop_start.assert_called_once()
 
 
-def test_create_client_with_last_will(mock_client):
+def test_create_client_with_last_will(mock_client) -> None:
     hostname = "test_hostname"
     client_instance = MagicMock(spec=Client)
     mock_client.return_value = client_instance
@@ -51,7 +51,7 @@ def test_create_client_with_last_will(mock_client):
     client_instance.will_set.assert_called_with(**last_will)
 
 
-def test_create_client_with_custom_on_connect(mock_client):
+def test_create_client_with_custom_on_connect(mock_client) -> None:
     hostname = "test_hostname"
     client_instance = MagicMock(spec=Client)
     mock_client.return_value = client_instance
@@ -62,7 +62,7 @@ def test_create_client_with_custom_on_connect(mock_client):
     assert client_instance.on_connect == on_connect
 
 
-def test_create_client_with_custom_on_message(mock_client):
+def test_create_client_with_custom_on_message(mock_client) -> None:
     hostname = "test_hostname"
     client_instance = MagicMock(spec=Client)
     mock_client.return_value = client_instance
@@ -73,7 +73,7 @@ def test_create_client_with_custom_on_message(mock_client):
     assert client_instance.on_message == on_message
 
 
-def test_create_client_max_connection_attempts(mock_client):
+def test_create_client_max_connection_attempts(mock_client) -> None:
     hostname = "test_hostname"
     client_instance = MagicMock(spec=Client)
     mock_client.return_value = client_instance

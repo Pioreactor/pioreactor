@@ -88,7 +88,7 @@ def test_pump_io() -> None:
     assert ml == remove_waste(duration=ml, unit=unit, experiment=exp)
 
 
-def test_pump_fails_if_calibration_not_present():
+def test_pump_fails_if_calibration_not_present() -> None:
     exp = "test_pump_fails_if_calibration_not_present"
 
     with local_persistant_storage("current_pump_calibration") as cache:
@@ -195,7 +195,7 @@ def test_continuously_running_pump_will_disconnect_via_mqtt() -> None:
     assert resulting_ml > 0
 
 
-def test_pump_publishes_to_state():
+def test_pump_publishes_to_state() -> None:
     exp = "test_pump_publishes_to_state"
 
     add_media(ml=1, unit=unit, experiment=exp)
@@ -206,7 +206,7 @@ def test_pump_publishes_to_state():
         assert False
 
 
-def test_pump_can_be_interrupted():
+def test_pump_can_be_interrupted() -> None:
     experiment = "test_pump_can_be_interrupted"
     calibration = structs.MediaPumpCalibration(
         name="setup_function",
@@ -252,7 +252,7 @@ def test_pump_can_be_interrupted():
             assert cache.get(13, 0) == 0
 
 
-def test_pumps_can_run_in_background():
+def test_pumps_can_run_in_background() -> None:
     experiment = "test_pumps_can_run_in_background"
 
     calibration = structs.MediaPumpCalibration(
@@ -281,13 +281,13 @@ def test_pumps_can_run_in_background():
             assert cache.get(13, 0) == 0
 
 
-def test_media_circulation():
+def test_media_circulation() -> None:
     exp = "test_media_circulation"
     media_added, waste_removed = circulate_media(5, unit, exp)
     assert waste_removed > media_added
 
 
-def test_media_circulation_cant_run_when_waste_pump_is_running():
+def test_media_circulation_cant_run_when_waste_pump_is_running() -> None:
     from threading import Thread
 
     exp = "test_media_circulation_cant_run_when_waste_pump_is_running"
@@ -301,7 +301,7 @@ def test_media_circulation_cant_run_when_waste_pump_is_running():
     t.join()
 
 
-def test_waste_pump_cant_run_when_media_circulation_is_running():
+def test_waste_pump_cant_run_when_media_circulation_is_running() -> None:
     from threading import Thread
 
     exp = "test_waste_pump_cant_run_when_media_circulation_is_running"
@@ -315,7 +315,7 @@ def test_waste_pump_cant_run_when_media_circulation_is_running():
     t.join()
 
 
-def test_media_circulation_will_control_media_pump_if_it_has_a_higher_flow_rate():
+def test_media_circulation_will_control_media_pump_if_it_has_a_higher_flow_rate() -> None:
     exp = "test_media_circulation_will_control_media_pump_if_it_has_a_higher_rate"
 
     with local_persistant_storage("current_pump_calibration") as cache:
@@ -350,7 +350,7 @@ def test_media_circulation_will_control_media_pump_if_it_has_a_higher_flow_rate(
     assert (waste_removed - 2) >= media_added
 
 
-def test_media_circulation_will_control_media_pump_if_it_has_a_lower_flow_rate():
+def test_media_circulation_will_control_media_pump_if_it_has_a_lower_flow_rate() -> None:
     exp = "test_media_circulation_will_control_media_pump_if_it_has_a_lower_flow_rate"
 
     with local_persistant_storage("current_pump_calibration") as cache:
@@ -385,7 +385,7 @@ def test_media_circulation_will_control_media_pump_if_it_has_a_lower_flow_rate()
     assert (waste_removed - 2) >= media_added
 
 
-def test_media_circulation_works_without_calibration_since_we_are_entering_duration():
+def test_media_circulation_works_without_calibration_since_we_are_entering_duration() -> None:
     exp = "test_media_circulation_works_without_calibration_since_we_are_entering_duration"
     with local_persistant_storage("current_pump_calibration") as cache:
         del cache["media"]
@@ -395,7 +395,7 @@ def test_media_circulation_works_without_calibration_since_we_are_entering_durat
     assert waste_removed >= media_added
 
 
-def test_manually_doesnt_trigger_pwm_dcs():
+def test_manually_doesnt_trigger_pwm_dcs() -> None:
     ml = 1.0
     exp = "test_manually_doesnt_trigger_pwm_dcs"
 

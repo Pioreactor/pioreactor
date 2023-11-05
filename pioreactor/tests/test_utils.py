@@ -15,7 +15,7 @@ from pioreactor.utils import publish_ready_to_disconnected_state
 from pioreactor.whoami import get_unit_name
 
 
-def test_that_out_scope_caches_cant_access_keys_created_by_inner_scope_cache():
+def test_that_out_scope_caches_cant_access_keys_created_by_inner_scope_cache() -> None:
     """
     You can modify caches, and the last assignment is valid.
     """
@@ -38,7 +38,7 @@ def test_that_out_scope_caches_cant_access_keys_created_by_inner_scope_cache():
         assert cache["B"] == "2"
 
 
-def test_caches_will_always_save_the_lastest_value_provided():
+def test_caches_will_always_save_the_lastest_value_provided() -> None:
     with local_intermittent_storage("test") as cache:
         for k in cache.iterkeys():
             del cache[k]
@@ -54,7 +54,7 @@ def test_caches_will_always_save_the_lastest_value_provided():
         assert cache["B"] == "2"
 
 
-def test_caches_will_delete_when_asked():
+def test_caches_will_delete_when_asked() -> None:
     with local_intermittent_storage("test") as cache:
         for k in cache.iterkeys():
             del cache[k]
@@ -68,7 +68,7 @@ def test_caches_will_delete_when_asked():
         assert "test" not in cache
 
 
-def test_is_pio_job_running_single():
+def test_is_pio_job_running_single() -> None:
     experiment = "test_is_pio_job_running_single"
     unit = get_unit_name()
 
@@ -83,7 +83,7 @@ def test_is_pio_job_running_single():
     assert not is_pio_job_running("od_reading")
 
 
-def test_is_pio_job_running_multiple():
+def test_is_pio_job_running_multiple() -> None:
     experiment = "test_is_pio_job_running_multiple"
     unit = get_unit_name()
 
@@ -97,7 +97,7 @@ def test_is_pio_job_running_multiple():
     assert not any(is_pio_job_running(["stirring", "od_reading"]))
 
 
-def test_mqtt_disconnect_exit():
+def test_mqtt_disconnect_exit() -> None:
     unit = "test_unit"
     experiment = "test_mqtt_disconnect_exit"
     name = "test_name"
@@ -117,7 +117,7 @@ def goodbye(name):
     print(f"Goodbye, {name}!")
 
 
-def test_callable_stack_append_and_call():
+def test_callable_stack_append_and_call() -> None:
     my_stack = callable_stack()
     my_stack.append(greet)
     my_stack.append(goodbye)
@@ -127,7 +127,7 @@ def test_callable_stack_append_and_call():
         assert output.getvalue() == "Goodbye, Alice!\nHello, Alice!\n"
 
 
-def test_callable_stack_empty_call():
+def test_callable_stack_empty_call() -> None:
     def default_function(name):
         print(f"Default function called, {name}")
 
@@ -138,7 +138,7 @@ def test_callable_stack_empty_call():
         assert output.getvalue() == "Default function called, Alice\n"
 
 
-def test_callable_stack_no_default():
+def test_callable_stack_no_default() -> None:
     my_stack = callable_stack()
 
     with StringIO() as output, redirect_stdout(output):
@@ -154,7 +154,7 @@ def test_callable_stack_no_default():
         ([greet, goodbye], "Goodbye, Alice!\nHello, Alice!\n"),
     ],
 )
-def test_callable_stack_multiple_append_and_call(functions, expected_output):
+def test_callable_stack_multiple_append_and_call(functions, expected_output) -> None:
     my_stack = callable_stack()
 
     for function in functions:

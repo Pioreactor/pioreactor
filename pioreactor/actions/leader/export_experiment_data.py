@@ -8,6 +8,7 @@ import re
 from contextlib import closing
 from contextlib import ExitStack
 from datetime import datetime
+from typing import Optional
 
 import click
 
@@ -50,7 +51,7 @@ def generate_timestamp_to_localtimestamp_clause(cursor, table_name: str) -> str:
 
 
 def export_experiment_data(
-    experiment: str, output: str, partition_by_unit: bool, tables: list
+    experiment: Optional[str], output: str, partition_by_unit: bool, tables: list
 ) -> None:
     """
     Set an experiment, else it defaults to the entire table.

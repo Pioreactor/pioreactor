@@ -21,19 +21,19 @@ def pause() -> None:
     time.sleep(0.5)
 
 
-def test_run_exits_if_command_not_found():
+def test_run_exits_if_command_not_found() -> None:
     runner = CliRunner()
     result = runner.invoke(pio, ["run", "no_command"])
     assert result.exit_code == 2
 
 
-def test_run():
+def test_run() -> None:
     runner = CliRunner()
     result = runner.invoke(pio, ["run"])
     assert result.exit_code == 0
 
 
-def test_led_intensity():
+def test_led_intensity() -> None:
     runner = CliRunner()
     result = runner.invoke(pio, ["run", "led_intensity", "--A", "1"])
     assert result.exit_code == 0
@@ -41,20 +41,20 @@ def test_led_intensity():
         assert float(c["A"]) == 1.0
 
 
-def test_plugin_is_available_to_run():
+def test_plugin_is_available_to_run() -> None:
     runner = CliRunner()
     result = runner.invoke(pio, ["run", "example_plugin"])
     assert result.exit_code == 0
 
 
-def test_list_plugins():
+def test_list_plugins() -> None:
     runner = CliRunner()
     result = runner.invoke(pio, ["list-plugins"])
     assert "example_plugin==0.0.1" in result.output
 
 
 @pytest.mark.skip(reason="not sure why this fails")
-def test_pio_log():
+def test_pio_log() -> None:
     with collect_all_logs_of_level(
         "DEBUG", whoami.get_unit_name(), whoami.UNIVERSAL_EXPERIMENT
     ) as bucket:
@@ -70,7 +70,7 @@ def test_pio_log():
     assert bucket[0]["task"] == "job1"
 
 
-def test_pios_update_settings():
+def test_pios_update_settings() -> None:
     job_name = "test_job"
     published_setting_name = "attr"
 
@@ -94,7 +94,7 @@ def test_pios_update_settings():
     assert len(bucket) > 1
 
 
-def test_pio_kill_cleans_up_automations_correctly():
+def test_pio_kill_cleans_up_automations_correctly() -> None:
     with start_dosing_control("silent"):
         pause()
 

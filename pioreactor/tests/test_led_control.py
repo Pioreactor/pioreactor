@@ -307,7 +307,7 @@ def light_dark_cycle():
     )
 
 
-def test_light_turns_on_in_light_period(light_dark_cycle):
+def test_light_turns_on_in_light_period(light_dark_cycle) -> None:
     # Setting the minutes to 30 (inside the light period of 1 hour)
     light_dark_cycle.minutes_online = 30
 
@@ -316,11 +316,12 @@ def test_light_turns_on_in_light_period(light_dark_cycle):
 
     # Check that the LEDs were turned on
     assert isinstance(event, events.ChangedLedIntensity)
+    assert event.message is not None
     assert "turned on LEDs" in event.message
     assert light_dark_cycle.light_active
 
 
-def test_light_stays_on_in_light_period(light_dark_cycle):
+def test_light_stays_on_in_light_period(light_dark_cycle) -> None:
     # Setting the minutes to 30 (inside the light period of 1 hour) and light_active to True
     light_dark_cycle.minutes_online = 30
     light_dark_cycle.light_active = True
@@ -332,7 +333,7 @@ def test_light_stays_on_in_light_period(light_dark_cycle):
     assert event is None
 
 
-def test_light_turns_off_in_dark_period(light_dark_cycle):
+def test_light_turns_off_in_dark_period(light_dark_cycle) -> None:
     # Setting the minutes to 60 (inside the dark period of 1 hour, after the light period of 1 hour)
     light_dark_cycle.light_active = True
     light_dark_cycle.minutes_online = 60
@@ -342,11 +343,12 @@ def test_light_turns_off_in_dark_period(light_dark_cycle):
 
     # Check that the LEDs were turned off
     assert isinstance(event, events.ChangedLedIntensity)
+    assert event.message is not None
     assert "turned off LEDs" in event.message
     assert not light_dark_cycle.light_active
 
 
-def test_light_stays_off_in_dark_period(light_dark_cycle):
+def test_light_stays_off_in_dark_period(light_dark_cycle) -> None:
     # Setting the minutes to 90 (inside the dark period of 1 hour) and light_active to False
     light_dark_cycle.minutes_online = 90
     light_dark_cycle.light_active = False

@@ -6,14 +6,14 @@ from msgspec.yaml import decode
 from pioreactor.experiment_profiles import profile_struct as structs
 
 
-def test_minimal():
+def test_minimal() -> None:
     file = """
 experiment_profile_name: minimal
 """
     assert decode(file, type=structs.Profile) is not None
 
 
-def test_simple1():
+def test_simple1() -> None:
     file = """
 experiment_profile_name: demo_stirring_example
 
@@ -38,7 +38,7 @@ common:
     assert decode(file, type=structs.Profile) is not None
 
 
-def test_simple2():
+def test_simple2() -> None:
     file = """
 experiment_profile_name: plugin_version_example
 
@@ -89,7 +89,7 @@ pioreactors:
     assert decode(file, type=structs.Profile) is not None
 
 
-def test_simple3():
+def test_simple3() -> None:
     file = """
 experiment_profile_name: simple_stirring_example
 
@@ -117,7 +117,7 @@ pioreactors:
     assert decode(file, type=structs.Profile) is not None
 
 
-def test_complex():
+def test_complex() -> None:
     file = """
 experiment_profile_name: complex_example
 
@@ -151,7 +151,7 @@ common:
     assert decode(file, type=structs.Profile) is not None
 
 
-def test_complex2():
+def test_complex2() -> None:
     file = """
 experiment_profile_name: multi_bioreactor_complex
 
@@ -202,7 +202,7 @@ pioreactors:
     assert decode(file, type=structs.Profile) is not None
 
 
-def test_complex3():
+def test_complex3() -> None:
     file = """
 experiment_profile_name: multi_bioreactor_very_complex
 
@@ -264,7 +264,7 @@ pioreactors:
     assert decode(file, type=structs.Profile) is not None
 
 
-def test_log():
+def test_log() -> None:
     file = """
 experiment_profile_name: demo_stirring_example
 
@@ -299,7 +299,7 @@ bioreactor1:
     assert decode(file, type=structs.Profile) is not None
 
 
-def test_stop_on_exit():
+def test_stop_on_exit() -> None:
     file = """
 experiment_profile_name: minimal
 

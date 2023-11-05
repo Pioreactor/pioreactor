@@ -364,7 +364,9 @@ def test_using_external_thermocouple() -> None:
         assert tc.automation_job.latest_value_arrived == 41
 
 
-def test_that_if_a_user_tries_to_change_thermostat_X_to_thermostat_Y_we_just_change_the_attr_instead_of_the_entire_automation():
+def test_that_if_a_user_tries_to_change_thermostat_X_to_thermostat_Y_we_just_change_the_attr_instead_of_the_entire_automation() -> (
+    None
+):
     experiment = "test_that_if_a_user_tries_to_change_thermostat_X_to_thermostat_Y_we_just_change_the_attr_instead_of_the_entire_automation"
 
     with temperature_control.TemperatureController(

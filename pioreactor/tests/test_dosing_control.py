@@ -660,40 +660,48 @@ def test_execute_io_action_outputs1() -> None:
         assert result["waste_ml"] == 1.26
 
 
-def test_mqtt_properties_in_dosing_automations():
+def test_mqtt_properties_in_dosing_automations() -> None:
     experiment = "test_mqtt_properties_in_dosing_automations"
 
     with DosingAutomationJob(unit=unit, experiment=experiment) as ca:
-        r = pubsub.subscribe(
+        msg = pubsub.subscribe(
             f"pioreactor/{unit}/{experiment}/dosing_automation/alt_media_throughput"
-        ).payload
+        )
+        assert msg is not None
+        r = msg.payload
         assert float(r) == 0
 
-        r = pubsub.subscribe(
-            f"pioreactor/{unit}/{experiment}/dosing_automation/media_throughput"
-        ).payload
+        msg = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/dosing_automation/media_throughput")
+        assert msg is not None
+        r = msg.payload
         assert float(r) == 0
 
-        r = pubsub.subscribe(
+        msg = pubsub.subscribe(
             f"pioreactor/{unit}/{experiment}/dosing_automation/alt_media_fraction"
-        ).payload
+        )
+        assert msg is not None
+        r = msg.payload
         assert float(r) == 0
 
         ca.execute_io_action(media_ml=0.35, alt_media_ml=0.25, waste_ml=0.6)
 
-        r = pubsub.subscribe(
+        msg = pubsub.subscribe(
             f"pioreactor/{unit}/{experiment}/dosing_automation/alt_media_throughput"
-        ).payload
+        )
+        assert msg is not None
+        r = msg.payload
         assert float(r) == 0.25
 
-        r = pubsub.subscribe(
-            f"pioreactor/{unit}/{experiment}/dosing_automation/media_throughput"
-        ).payload
+        msg = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/dosing_automation/media_throughput")
+        assert msg is not None
+        r = msg.payload
         assert float(r) == 0.35
 
-        r = pubsub.subscribe(
+        msg = pubsub.subscribe(
             f"pioreactor/{unit}/{experiment}/dosing_automation/alt_media_fraction"
-        ).payload
+        )
+        assert msg is not None
+        r = msg.payload
         assert close(float(r), 0.017123287671232876)
 
 

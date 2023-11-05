@@ -527,7 +527,7 @@ def test_disabled_dodging() -> None:
     jp.clean_up()
 
 
-def test_job_write_metadata_correctly():
+def test_job_write_metadata_correctly() -> None:
     experiment = "test_job_write_metadata_correctly"
     unit = get_unit_name()
 

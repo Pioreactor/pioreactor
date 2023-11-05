@@ -268,7 +268,7 @@ def test_empty_payload_is_filtered_early() -> None:
         assert len(bucket) == 0
 
 
-def test_produce_metadata():
+def test_produce_metadata() -> None:
     v = m2db.produce_metadata("pioreactor/leader/exp1/this/is/a/test")
     assert v.pioreactor_unit == "leader"
     assert v.experiment == "exp1"

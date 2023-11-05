@@ -4,7 +4,7 @@ from __future__ import annotations
 from pioreactor.structs import Automation
 
 
-def test_str_representation():
+def test_str_representation() -> None:
     a = Automation(
         automation_name="test",
         args={"growth": 0.1, "intensity": "high", "value": True},
@@ -13,7 +13,7 @@ def test_str_representation():
     assert str(a) == "test(growth=0.1, intensity=high, value=True)"
 
 
-def test_str_representation_of_skip_first_run():
+def test_str_representation_of_skip_first_run() -> None:
     a = Automation(
         automation_name="test",
         args={"skip_first_run": 0, "intensity": "high", "value": True},

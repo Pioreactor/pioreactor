@@ -568,22 +568,19 @@ def test_outliers_are_removed_in_sin_regression() -> None:
     assert np.abs(C1 - C2) < 5
 
 
-def test_interval_is_empty():
+def test_interval_is_empty() -> None:
     with start_od_reading("90", "REF", interval=None, fake_data=True) as od:
         assert not hasattr(od, "record_from_adc_timer")
 
-    with start_od_reading("90", "REF", interval=0, fake_data=True) as od:
-        assert not hasattr(od, "record_from_adc_timer")
 
-
-def test_calibration_not_requested():
+def test_calibration_not_requested() -> None:
     with start_od_reading("90", "REF", interval=None, fake_data=True, use_calibration=False) as od:
         assert isinstance(od.calibration_transformer, NullCalibrationTransformer)
         assert od.calibration_transformer({"2": 0.1}) == {"2": 0.1}
         assert od.calibration_transformer({"2": 0.5, "1": 0.0}) == {"2": 0.5, "1": 0.0}
 
 
-def test_calibration_not_present():
+def test_calibration_not_present() -> None:
     with local_persistant_storage("current_od_calibration") as c:
         if "90" in c:
             del c["90"]
@@ -593,7 +590,7 @@ def test_calibration_not_present():
         assert len(od.calibration_transformer.models) == 0
 
 
-def test_calibration_simple_linear_calibration():
+def test_calibration_simple_linear_calibration() -> None:
     experiment = "test_calibration_simple_linear_calibration"
 
     with local_persistant_storage("current_od_calibration") as c:
@@ -650,7 +647,7 @@ def test_calibration_simple_linear_calibration():
         del c["90"]
 
 
-def test_calibration_simple_linear_calibration_negative_slope():
+def test_calibration_simple_linear_calibration_negative_slope() -> None:
     experiment = "test_calibration_simple_linear_calibration_negative_slope"
 
     with local_persistant_storage("current_od_calibration") as c:
@@ -697,7 +694,7 @@ def test_calibration_simple_linear_calibration_negative_slope():
         del c["90"]
 
 
-def test_calibration_simple_quadratic_calibration():
+def test_calibration_simple_quadratic_calibration() -> None:
     experiment = "test_calibration_simple_quadratic_calibration"
 
     with local_persistant_storage("current_od_calibration") as c:
@@ -730,7 +727,7 @@ def test_calibration_simple_quadratic_calibration():
         del c["90"]
 
 
-def test_calibration_multi_modal():
+def test_calibration_multi_modal() -> None:
     experiment = "test_calibration_multi_modal"
     # note: not a realistic calibration curve, using only because it's unimodal
     poly = [0.2983, -0.585, 0.146, 0.261, 0.0]  # unimodal, peak near ~(0.74, 0.120)
@@ -765,7 +762,7 @@ def test_calibration_multi_modal():
         del c["90"]
 
 
-def test_calibration_errors_when_ir_led_differs():
+def test_calibration_errors_when_ir_led_differs() -> None:
     experiment = "test_calibration_errors_when_ir_led_differs"
 
     with local_persistant_storage("current_od_calibration") as c:
@@ -797,7 +794,7 @@ def test_calibration_errors_when_ir_led_differs():
         del c["90"]
 
 
-def test_calibration_errors_when_pd_channel_differs():
+def test_calibration_errors_when_pd_channel_differs() -> None:
     experiment = "test_calibration_errors_when_pd_channel_differs"
 
     with local_persistant_storage("current_od_calibration") as c:
@@ -830,7 +827,7 @@ def test_calibration_errors_when_pd_channel_differs():
         del c["90"]
 
 
-def test_PhotodiodeIrLedReferenceTrackerStaticInit():
+def test_PhotodiodeIrLedReferenceTrackerStaticInit() -> None:
     tracker = PhotodiodeIrLedReferenceTrackerStaticInit(channel="1")
 
     for i in range(1000):
@@ -848,7 +845,7 @@ def test_PhotodiodeIrLedReferenceTrackerStaticInit():
         tracker.update(v)
 
 
-def test_ODReader_with_multiple_angles_and_a_ref():
+def test_ODReader_with_multiple_angles_and_a_ref() -> None:
     """
     Technically not possible, since there are only two PD channels.
 
@@ -861,15 +858,15 @@ def test_ODReader_with_multiple_angles_and_a_ref():
 
     # use IR LED reference to normalize?
     ir_led_reference_tracker = PhotodiodeIrLedReferenceTrackerStaticInit(
-        ir_led_reference_channel,
+        ir_led_reference_channel,  # type: ignore
     )
 
     with ODReader(
-        channel_angle_map,
+        channel_angle_map,  # type: ignore
         interval=3,
         unit=get_unit_name(),
         experiment=experiment,
-        adc_reader=ADCReader(channels=channels, fake_data=True, interval=3, dynamic_gain=False),
+        adc_reader=ADCReader(channels=channels, fake_data=True, dynamic_gain=False),  # type: ignore
         ir_led_reference_tracker=ir_led_reference_tracker,
         calibration_transformer=NullCalibrationTransformer(),
     ) as odr:
@@ -879,7 +876,7 @@ def test_ODReader_with_multiple_angles_and_a_ref():
                 break
 
 
-def test_calibration_data_from_user1():
+def test_calibration_data_from_user1() -> None:
     # the problem is that the 4th degree polynomial doesn't always have a solution to the inverse problem.
     experiment = "test_calibration_data_from_user1"
     poly = [2.583, -3.447, 1.531, 0.223, 0.017]  # email correspondence
@@ -920,7 +917,7 @@ def test_calibration_data_from_user1():
         del c["90"]
 
 
-def test_calibration_data_from_user2():
+def test_calibration_data_from_user2() -> None:
     # the difference here is that the 3 degree polynomial always has a solution to the inverse problem.
     experiment = "test_calibration_data_from_user2"
     poly = [

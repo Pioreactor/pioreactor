@@ -13,7 +13,7 @@ from pioreactor.pubsub import subscribe_and_callback
 
 
 # First test the hours_to_seconds function
-def test_hours_to_seconds():
+def test_hours_to_seconds() -> None:
     assert hours_to_seconds(1) == 3600
     assert hours_to_seconds(0.5) == 1800
     assert hours_to_seconds(0) == 0
@@ -21,7 +21,7 @@ def test_hours_to_seconds():
 
 # Test execute_experiment_profile function
 @patch("pioreactor.actions.leader.experiment_profile.load_and_verify_profile_file")
-def test_execute_experiment_profile_order(mock_load_and_verify_profile_file):
+def test_execute_experiment_profile_order(mock_load_and_verify_profile_file) -> None:
     # Setup some test data
     action1 = Action(type="start", hours_elapsed=0 / 60 / 60)
     action2 = Action(type="start", hours_elapsed=5 / 60 / 60)
@@ -59,7 +59,9 @@ def test_execute_experiment_profile_order(mock_load_and_verify_profile_file):
 
 
 @patch("pioreactor.actions.leader.experiment_profile.load_and_verify_profile_file")
-def test_execute_experiment_profile_hack_for_led_intensity(mock_load_and_verify_profile_file):
+def test_execute_experiment_profile_hack_for_led_intensity(
+    mock_load_and_verify_profile_file,
+) -> None:
     # Setup some test data
     action1 = Action(type="start", hours_elapsed=0 / 60 / 60, options={"A": 50})
     action2 = Action(type="update", hours_elapsed=2 / 60 / 60, options={"A": 40})
@@ -106,7 +108,7 @@ def test_execute_experiment_profile_hack_for_led_intensity(mock_load_and_verify_
 
 # Test execute_experiment_profile function
 @patch("pioreactor.actions.leader.experiment_profile.load_and_verify_profile_file")
-def test_execute_experiment_log_actions(mock_load_and_verify_profile_file):
+def test_execute_experiment_log_actions(mock_load_and_verify_profile_file) -> None:
     # Setup some test data
     action1 = Action(type="log", hours_elapsed=0 / 60 / 60, options={"message": "test {unit}"})
     action2 = Action(type="log", hours_elapsed=5 / 60 / 60, options={"message": "test {job}"})

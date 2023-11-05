@@ -13,12 +13,12 @@ from pioreactor.utils.timing import to_datetime
 from pioreactor.utils.timing import to_iso_format
 
 
-def test_inverse_relationship():
+def test_inverse_relationship() -> None:
     dt = current_utc_datetime()
     assert dt == to_datetime(to_iso_format(dt))
 
 
-def test_repeated_timer_will_not_execute_if_killed_during_run_immediately_paused():
+def test_repeated_timer_will_not_execute_if_killed_during_run_immediately_paused() -> None:
     class Counter:
         counter = 0
 
@@ -34,7 +34,7 @@ def test_repeated_timer_will_not_execute_if_killed_during_run_immediately_paused
     assert c.counter == 0
 
 
-def test_repeated_timer_has_low_variance():
+def test_repeated_timer_has_low_variance() -> None:
     import time
     import numpy as np
 
@@ -74,7 +74,7 @@ def test_repeated_timer_has_low_variance():
     assert std < 0.005
 
 
-def test_repeated_timer_has_low_variance_even_for_noisy_process():
+def test_repeated_timer_has_low_variance_even_for_noisy_process() -> None:
     import time
     import numpy as np
 
@@ -97,7 +97,7 @@ def test_repeated_timer_has_low_variance_even_for_noisy_process():
     assert std < 0.005
 
 
-def test_repeated_timer_run_immediately_works_as_intended():
+def test_repeated_timer_run_immediately_works_as_intended() -> None:
     class Counter:
         counter = 0
 
@@ -122,7 +122,7 @@ def test_repeated_timer_run_immediately_works_as_intended():
     assert c.counter == 1
 
 
-def test_repeated_timer_run_after_works_as_intended():
+def test_repeated_timer_run_after_works_as_intended() -> None:
     class Counter:
         counter = 0
 
@@ -145,7 +145,7 @@ def test_repeated_timer_run_after_works_as_intended():
     assert c.counter == 0
 
 
-def test_repeated_timer_pause_works_as_intended():
+def test_repeated_timer_pause_works_as_intended() -> None:
     class Counter:
         counter = 0
 
@@ -172,7 +172,7 @@ def test_repeated_timer_pause_works_as_intended():
     assert c.counter > 2
 
 
-def test_repeated_timer_run_immediately():
+def test_repeated_timer_run_immediately() -> None:
     event = Event()
 
     def sample_function():
@@ -184,7 +184,7 @@ def test_repeated_timer_run_immediately():
     rt.cancel()
 
 
-def test_repeated_timer_pause_unpause():
+def test_repeated_timer_pause_unpause() -> None:
     counter = [0]
 
     def sample_function():
@@ -203,7 +203,7 @@ def test_repeated_timer_pause_unpause():
     rt.cancel()
 
 
-def test_repeated_timer_args_kwargs():
+def test_repeated_timer_args_kwargs() -> None:
     event = Event()
 
     def sample_function(arg1, kwarg1=None):
@@ -217,7 +217,7 @@ def test_repeated_timer_args_kwargs():
     rt.cancel()
 
 
-def test_repeated_timer_cancel():
+def test_repeated_timer_cancel() -> None:
     counter = [0]
 
     def sample_function():
@@ -232,7 +232,7 @@ def test_repeated_timer_cancel():
     assert counter[0] == current_count
 
 
-def test_repeated_timer_interval_accuracy_single_interval():
+def test_repeated_timer_interval_accuracy_single_interval() -> None:
     event = Event()
 
     def sample_function():
@@ -248,7 +248,7 @@ def test_repeated_timer_interval_accuracy_single_interval():
     assert pytest.approx(end_time - start_time, rel=0.1) == interval
 
 
-def test_repeated_timer_interval_accuracy_multiple_intervals():
+def test_repeated_timer_interval_accuracy_multiple_intervals() -> None:
     counter = [0]
 
     def sample_function():
@@ -263,7 +263,7 @@ def test_repeated_timer_interval_accuracy_multiple_intervals():
     assert counter[0] >= 3
 
 
-def test_repeated_timer_interval_accuracy_with_pause_unpause():
+def test_repeated_timer_interval_accuracy_with_pause_unpause() -> None:
     counter = {"_": 0}
 
     def sample_function():

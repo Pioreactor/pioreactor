@@ -8,7 +8,7 @@ from pioreactor.config import config
 from pioreactor.utils import local_persistant_storage
 
 
-def test_returns_means_and_outputs_to_cache():
+def test_returns_means_and_outputs_to_cache() -> None:
     experiment = "test_returns_means_and_outputs_to_cache"
     config["od_config.photodiode_channel"]["1"] = "90"
     output = od_blank("90", "REF", n_samples=10, experiment=experiment)

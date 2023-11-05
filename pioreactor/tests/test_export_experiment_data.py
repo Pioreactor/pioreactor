@@ -19,13 +19,13 @@ from pioreactor.actions.leader.export_experiment_data import is_valid_table_name
 from pioreactor.actions.leader.export_experiment_data import source_exists
 
 
-def test_is_valid_table_name():
+def test_is_valid_table_name() -> None:
     assert is_valid_table_name("valid_table_name")
     assert not is_valid_table_name("invalid table name")
     assert not is_valid_table_name("123invalid")
 
 
-def test_source_exists():
+def test_source_exists() -> None:
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE test_table (id INTEGER)")
     cursor = conn.cursor()
@@ -34,7 +34,7 @@ def test_source_exists():
     assert not source_exists(cursor, "nonexistent_table")
 
 
-def test_get_column_names():
+def test_get_column_names() -> None:
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp DATETIME)")
     cursor = conn.cursor()
@@ -42,12 +42,12 @@ def test_get_column_names():
     assert get_column_names(cursor, "test_table") == ["id", "name", "timestamp"]
 
 
-def test_filter_to_timestamp_columns():
+def test_filter_to_timestamp_columns() -> None:
     columns = ["id", "name", "timestamp", "created_at", "updated_at"]
     assert filter_to_timestamp_columns(columns) == ["timestamp", "created_at", "updated_at"]
 
 
-def test_generate_timestamp_to_localtimestamp_clause():
+def test_generate_timestamp_to_localtimestamp_clause() -> None:
     conn = sqlite3.connect(":memory:")
     conn.execute(
         "CREATE TABLE test_table (id INTEGER, name TEXT, timestamp DATETIME, created_at DATETIME)"
@@ -65,7 +65,7 @@ def temp_zipfile(tmpdir):
     return tmpdir.join("test.zip")
 
 
-def test_export_experiment_data(temp_zipfile):
+def test_export_experiment_data(temp_zipfile) -> None:
     # Set up a temporary SQLite database with sample data
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp DATETIME)")
@@ -109,7 +109,7 @@ def test_export_experiment_data(temp_zipfile):
             )  # can't compare exactly since it uses datetime(ts, 'locatime') in sqlite3, and the localtime will vary between CI servers.
 
 
-def test_export_experiment_data_with_experiment(temp_zipfile):
+def test_export_experiment_data_with_experiment(temp_zipfile) -> None:
     # Set up a temporary SQLite database with sample data
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE test_table (id INTEGER, experiment TEXT, timestamp DATETIME)")

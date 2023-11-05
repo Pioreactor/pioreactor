@@ -8,7 +8,7 @@ from pioreactor.utils.math_helpers import simple_linear_regression
 from pioreactor.utils.math_helpers import trimmed_mean
 
 
-def test_simple_linear_regression_cases():
+def test_simple_linear_regression_cases() -> None:
     x = [1.47, 1.50, 1.52, 1.55, 1.57, 1.60, 1.63, 1.65, 1.68, 1.70, 1.73, 1.75, 1.78, 1.80, 1.83]
     y = [
         52.21,
@@ -36,7 +36,7 @@ def test_simple_linear_regression_cases():
     assert std_error_intercept**2 == pytest.approx(8.63185)
 
 
-def test_trimmed_mean():
+def test_trimmed_mean() -> None:
     assert trimmed_mean([2, 2, 2, 10]) == 2.0
     assert trimmed_mean([-10, 0, 1, 10]) == 0.5
     assert trimmed_mean([-1, -10, 0, 1]) == -0.5

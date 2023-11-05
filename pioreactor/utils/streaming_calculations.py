@@ -29,7 +29,10 @@ class ExponentialMovingAverage:
             self.value = (1 - self.alpha) * new_value + self.alpha * self.value
         return self.value
 
-    def get_latest(self) -> Optional[float]:
+    def get_latest(self) -> float:
+        if self.value is None:
+            raise ValueError("No values supplied yet!")
+        assert isinstance(self.value, float)
         return self.value
 
     def clear(self) -> None:
@@ -73,7 +76,10 @@ class ExponentialMovingStd:
         self.value = sqrt(self._var_value)
         return self.value
 
-    def get_latest(self) -> Optional[float]:
+    def get_latest(self) -> float:
+        if self.value is None:
+            raise ValueError("No values supplied yet!")
+        assert isinstance(self.value, float)
         return self.value
 
     def clear(self) -> None:

@@ -16,7 +16,7 @@ def mock_get(status_code, body):
     return response
 
 
-def test_get_non_prerelease_tags_of_pioreactor(monkeypatch):
+def test_get_non_prerelease_tags_of_pioreactor(monkeypatch) -> None:
     fake_releases = [
         {"prerelease": False, "tag_name": "22.1.1"},
         {"prerelease": True, "tag_name": "22.2.1rc"},
@@ -42,7 +42,7 @@ def test_get_non_prerelease_tags_of_pioreactor(monkeypatch):
         get_non_prerelease_tags_of_pioreactor("pioreactor/pioreactor")
 
 
-def test_get_non_prerelease_tags_of_pioreactor_sorts_calver_correctly(monkeypatch):
+def test_get_non_prerelease_tags_of_pioreactor_sorts_calver_correctly(monkeypatch) -> None:
     fake_releases = [
         {"prerelease": False, "tag_name": "23.4.5"},
         {"prerelease": False, "tag_name": "23.4.4"},
@@ -59,7 +59,7 @@ def test_get_non_prerelease_tags_of_pioreactor_sorts_calver_correctly(monkeypatc
     assert result == ["23.4.15", "23.4.5", "23.4.4", "22.12.1"]
 
 
-def test_get_tag_to_install(monkeypatch):
+def test_get_tag_to_install(monkeypatch) -> None:
     monkeypatch.setattr(
         "pioreactor.cli.pio.get_non_prerelease_tags_of_pioreactor",
         lambda _: ["22.4.1", "22.3.1", "22.2.1", "22.1.1", "21.12.1"],

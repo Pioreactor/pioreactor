@@ -148,7 +148,7 @@ def test_stirring_with_lookup_linear_v1() -> None:
         assert st.duty_cycle == current_dc - 0.9 * (current_dc - (0.1 * target_rpm + 20))
 
 
-def test_stirring_will_try_to_restart_and_dodge_od_reading():
+def test_stirring_will_try_to_restart_and_dodge_od_reading() -> None:
     # TODO make this an actual test
     exp = "test_stirring_will_try_to_restart_and_dodge_od_reading"
 
