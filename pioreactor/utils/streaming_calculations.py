@@ -56,10 +56,10 @@ class ExponentialMovingStd:
         self.ema = ExponentialMovingAverage(ema_alpha or self.alpha)
 
     def update(self, new_value: float) -> Optional[float]:
-        if self.ema.get_latest() is None:
+        if self.ema.value is None:
             # need at least two data points for this algo
             self.ema.update(new_value)
-            return self.value  # None
+            return None  # None
 
         mean_prev = self.ema.get_latest()
         self.ema.update(new_value)

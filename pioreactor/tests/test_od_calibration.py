@@ -17,8 +17,8 @@ def test_linear_data_produces_linear_curve_in_range_even_if_high_degree() -> Non
         ]
     )
 
-    od = [float(_) for _ in np.insert(od, 0, 0)]  # type: ignore
-    v = [float(_) for _ in (0.5 * od + 0.01 * np.random.randn(od.shape[0]))]
+    od = np.insert(od, 0, 0)
+    v = 0.5 * od + 0.01 * np.random.randn(od.shape[0])
 
     curve_data_, curve_type = calculate_curve_of_best_fit(v, od, degree=4)  # type: ignore
     curve_callable = curve_to_callable(curve_type, curve_data_)

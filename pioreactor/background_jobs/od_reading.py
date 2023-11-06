@@ -614,12 +614,16 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
 
         # check if funky things are happening by std. banding
         self.led_output_emstd.update(ir_output_reading / self.INITIAL)
-        latest_std = self.led_output_emstd.get_latest()
-        if latest_std > 0.01:
-            self.logger.warning(
-                f"The reference PD is very noisy, std={latest_std:.2g}. Is the PD in channel {self.channel} correctly positioned? Is the IR LED behaving as expected?"
-            )
-            self.led_output_emstd.clear()  # reset it for i) reduce warnings, ii) if the user purposely changed the IR intensity, this is an approx of that
+        try:
+            latest_std = self.led_output_emstd.get_latest()
+            if latest_std > 0.01:
+                self.logger.warning(
+                    f"The reference PD is very noisy, std={latest_std:.2g}. Is the PD in channel {self.channel} correctly positioned? Is the IR LED behaving as expected?"
+                )
+                self.led_output_emstd.clear()  # reset it for i) reduce warnings, ii) if the user purposely changed the IR intensity, this is an approx of that
+        except ValueError:
+            # can happen if there is only a single data points, and the variance can't be computed.
+            pass
 
     def __call__(self, batched_readings: PdChannelToVoltage) -> PdChannelToVoltage:
         return {
