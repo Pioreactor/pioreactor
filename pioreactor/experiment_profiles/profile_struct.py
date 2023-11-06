@@ -30,7 +30,7 @@ JobName = str
 Jobs = dict[JobName, dict[t.Literal["actions"], list[Action]]]
 
 
-class Profile(Struct):
+class Profile(Struct, forbid_unknown_fields=True):
     experiment_profile_name: str
     metadata: Metadata = field(default_factory=Metadata)
     plugins: list[Plugin] = []

@@ -23,22 +23,36 @@ from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 ACTION_COUNT_LIMIT = 248
 
 
+def _led_intensity_hack(action: str, options: dict) -> tuple[str, dict]:
+    # we do this hack because led_intensity doesn't really behave like a background job, but its useful to
+    # treat it as one.
+    if action == "log":
+        return action, options
+
+    assert options is not None
+
+    if action == "stop" or action == "pause":
+        options["A"] = options["B"] = options["C"] = options["D"] = 0
+
+    action = "start"
+
+    return action, options
+
+
 def execute_action(
     unit: str,
     experiment: str,
     job_name: str,
     logger,
     action: str,
-    options=None,
-    args=None,
-    dry_run=False,
+    options: dict,
+    args,
+    dry_run: bool = False,
 ) -> Callable:
     # hack...
     if job_name == "led_intensity":
-        if action == "stop":
-            options["A"] = options["B"] = options["C"] = options["D"] = 0
-
-        action = "start"
+        # ignore pause and resume?
+        action, options = _led_intensity_hack(action, options)
 
     # Handle each action type accordingly
     if action == "start":

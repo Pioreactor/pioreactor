@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import msgspec
+import pytest
 from msgspec.yaml import decode
 
 from pioreactor.experiment_profiles import profile_struct as structs
@@ -97,7 +99,7 @@ metadata:
   author: John Doe
   description: A simple example of a stirring job in a single pioreactor
 
-aliases:
+labels:
   reactor_1: PR-001
 
 common:
@@ -159,7 +161,7 @@ metadata:
   author: Jane Doe
   description: Complex experiment with multiple jobs and bioreactors
 
-aliases:
+labels:
   bioreactor_A: BR-001
   bioreactor_B: BR-002
 
@@ -210,7 +212,7 @@ metadata:
   author: Alex Doe
   description: Very complex experiment with multiple jobs and bioreactors, different jobs on different bioreactors
 
-aliases:
+labels:
   bioreactor_A: BR-001
   bioreactor_B: BR-002
   bioreactor_C: BR-003
@@ -286,14 +288,15 @@ common:
       - type: stop
         hours_elapsed: 0.05
 
-bioreactor1:
-  jobs:
-    od_reading:
-      actions:
-        - type: log
-          hours_elapsed: 0.01
-          options:
-            message: "log {unit} and {job} and {experiment}"
+pioreactors:
+    bioreactor1:
+      jobs:
+        od_reading:
+          actions:
+            - type: log
+              hours_elapsed: 0.01
+              options:
+                message: "log {unit} and {job} and {experiment}"
 
 """
     assert decode(file, type=structs.Profile) is not None
@@ -341,3 +344,42 @@ def test_profiles_in_github_repo() -> None:
         content = get(file["download_url"]).content
         print(content.decode())
         decode(content, type=structs.Profile)
+
+
+def test_fails_on_wrong_field():
+    file = """
+experiment_profile_name: demo_of_logging
+
+metadata:
+  author: Cam Davidson-Pilon
+  description: A  profile to demonstrate logging, start stirring in your Pioreactor(s), update RPM at 90 seconds, and turn off after 180 seconds.
+
+common:
+  stirring:
+    actions:
+      - type: start
+        hours_elapsed: 0.0
+        options:
+          target_rpm: 400.0
+      - type: log
+        hours_elapsed: 0.025
+        options:
+          message: "{job} increasing to 800 RPM" # alerts the message: "stirring increasing to 800 RPM"
+      - type: update
+        hours_elapsed: 0.025
+        options:
+          target_rpm: 800.0
+      - type: stop
+        hours_elapsed: 0.05
+
+worker1:
+  jobs:
+    od_reading:
+      actions:
+        - type: log
+          hours_elapsed: 0.01
+          options:
+            message: "Hello {unit} and {job} and {experiment}" # alerts the message "Hello worker1 and od_reading and _testing_experiment"
+    """
+    with pytest.raises(msgspec.ValidationError):
+        decode(file, type=structs.Profile)
