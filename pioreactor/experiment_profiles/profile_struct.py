@@ -17,11 +17,47 @@ class Plugin(Struct):
     version: str  # can be a version, or version bound with version. Ex: "1.0.2", or ">=1.02", or "==1.0.2". See
 
 
-class Action(Struct, forbid_unknown_fields=True):
-    type: t.Literal["start", "pause", "resume", "stop", "update", "log"]
+######## Actions
+
+
+class _LogOptions(Struct, tag=str.lower):
+    message: str
+    level: t.Literal[
+        "DEBUG", "debug", "WARNING", "warning", "INFO", "info", "NOTICE", "notice", "ERROR", "error"
+    ] = "notice"
+
+
+class Log(Struct, tag=str.lower, forbid_unknown_fields=True):
+    hours_elapsed: float
+    options: _LogOptions
+
+
+class Start(Struct, tag=str.lower, forbid_unknown_fields=True):
     hours_elapsed: float
     options: dict[str, t.Any] = {}
     args: list[str] = []
+
+
+class Pause(Struct, tag=str.lower, forbid_unknown_fields=True):
+    hours_elapsed: float
+
+
+class Stop(Struct, tag=str.lower, forbid_unknown_fields=True):
+    hours_elapsed: float
+
+
+class Update(Struct, tag=str.lower, forbid_unknown_fields=True):
+    hours_elapsed: float
+    options: dict[str, t.Any] = {}
+
+
+class Resume(Struct, tag=str.lower, forbid_unknown_fields=True):
+    hours_elapsed: float
+
+
+Action = t.Union[Log, Start, Pause, Stop, Update, Resume]
+
+#######
 
 
 PioreactorUnitName = str

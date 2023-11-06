@@ -12,18 +12,19 @@
    ```
    See full example [here](https://github.com/Pioreactor/experiment_profile_examples/blob/main/08_logging.yaml).
  - Experiment profiles now supports changing LEDs like any other job (i.e. they can use `start`, `update` and `stop` directives). See example [here](https://github.com/Pioreactor/experiment_profile_examples/blob/main/03_dosing_and_leds.yaml).
+ - Experiment profile clean up. I think there are less bugs!
  - `pio clear_cache` now has an `as_int` option to look for ints - useful when clearing caches with ints as keys.
  - fix issue where if an extra config.ini was provided in the /boot dir before a worker startup, adding the worker to a cluster would fail due to a permission issue.
  - potential fix for RPi 3B and RPi Zeros not connecting to hotspots: change the `proto` to `wpa` in your config.ini on the Pioreactor with the local-access-point, and restart that Pioreactor. You config.ini should look like:
 
- ```
-[local_access_point]
-ssid=pioreactor
-passphrase=raspberry
-proto=wpa
- ```
+   ```
+  [local_access_point]
+  ssid=pioreactor
+  passphrase=raspberry
+  proto=wpa
+   ```
 
-**Changing to WPA does weaken the security however!**
+  **Changing to WPA does weaken the security however! Its easier to unwanted users to get onto this wifi**
 
 
 

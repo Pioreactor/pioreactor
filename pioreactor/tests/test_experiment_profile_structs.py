@@ -346,7 +346,29 @@ def test_profiles_in_github_repo() -> None:
         decode(content, type=structs.Profile)
 
 
-def test_fails_on_wrong_field():
+def test_fails_on_extra_top_level_field():
+    # common mistake
+    file = """
+experiment_profile_name: demo_of_logging
+
+metadata:
+  author: Cam Davidson-Pilon
+  description: A  profile to demonstrate logging, start stirring in your Pioreactor(s), update RPM at 90 seconds, and turn off after 180 seconds.
+
+worker1:
+  jobs:
+    od_reading:
+      actions:
+        - type: log
+          hours_elapsed: 0.01
+          options:
+            message: "Hello {unit} and {job} and {experiment}"
+    """
+    with pytest.raises(msgspec.ValidationError):
+        decode(file, type=structs.Profile)
+
+
+def test_fails_on_adding_options_where_they_shouldnt_be():
     file = """
 experiment_profile_name: demo_of_logging
 
@@ -361,25 +383,15 @@ common:
         hours_elapsed: 0.0
         options:
           target_rpm: 400.0
-      - type: log
-        hours_elapsed: 0.025
-        options:
-          message: "{job} increasing to 800 RPM" # alerts the message: "stirring increasing to 800 RPM"
       - type: update
         hours_elapsed: 0.025
         options:
           target_rpm: 800.0
       - type: stop
         hours_elapsed: 0.05
+        options: # stop doesn't have options
+            this_fails: 0
 
-worker1:
-  jobs:
-    od_reading:
-      actions:
-        - type: log
-          hours_elapsed: 0.01
-          options:
-            message: "Hello {unit} and {job} and {experiment}" # alerts the message "Hello worker1 and od_reading and _testing_experiment"
     """
-    with pytest.raises(msgspec.ValidationError):
+    with pytest.raises(msgspec.ValidationError, match="Object contains unknown field `options`"):
         decode(file, type=structs.Profile)

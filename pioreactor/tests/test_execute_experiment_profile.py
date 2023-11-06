@@ -3,11 +3,18 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+import pytest
+
 from pioreactor.actions.leader.experiment_profile import execute_experiment_profile
 from pioreactor.actions.leader.experiment_profile import hours_to_seconds
+from pioreactor.experiment_profiles.profile_struct import _LogOptions
 from pioreactor.experiment_profiles.profile_struct import Action
+from pioreactor.experiment_profiles.profile_struct import Log
 from pioreactor.experiment_profiles.profile_struct import Metadata
 from pioreactor.experiment_profiles.profile_struct import Profile
+from pioreactor.experiment_profiles.profile_struct import Start
+from pioreactor.experiment_profiles.profile_struct import Stop
+from pioreactor.experiment_profiles.profile_struct import Update
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import subscribe_and_callback
 
@@ -19,13 +26,11 @@ def test_hours_to_seconds() -> None:
     assert hours_to_seconds(0) == 0
 
 
-# Test execute_experiment_profile function
-@patch("pioreactor.actions.leader.experiment_profile.load_and_verify_profile_file")
-def test_execute_experiment_profile_order(mock_load_and_verify_profile_file) -> None:
-    # Setup some test data
-    action1 = Action(type="start", hours_elapsed=0 / 60 / 60)
-    action2 = Action(type="start", hours_elapsed=5 / 60 / 60)
-    action3 = Action(type="stop", hours_elapsed=10 / 60 / 60)
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_profile_order(mock__load_experiment_profile) -> None:
+    action1 = Start(hours_elapsed=0 / 60 / 60)
+    action2 = Start(hours_elapsed=2 / 60 / 60)
+    action3 = Stop(hours_elapsed=4 / 60 / 60)
 
     profile = Profile(
         experiment_profile_name="test_profile",
@@ -36,7 +41,7 @@ def test_execute_experiment_profile_order(mock_load_and_verify_profile_file) -> 
         labels={"unit1": "label1"},
     )
 
-    mock_load_and_verify_profile_file.return_value = profile
+    mock__load_experiment_profile.return_value = profile
 
     actions = []
 
@@ -58,14 +63,13 @@ def test_execute_experiment_profile_order(mock_load_and_verify_profile_file) -> 
     ]
 
 
-@patch("pioreactor.actions.leader.experiment_profile.load_and_verify_profile_file")
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_profile_hack_for_led_intensity(
-    mock_load_and_verify_profile_file,
+    mock__load_experiment_profile,
 ) -> None:
-    # Setup some test data
-    action1 = Action(type="start", hours_elapsed=0 / 60 / 60, options={"A": 50})
-    action2 = Action(type="update", hours_elapsed=2 / 60 / 60, options={"A": 40, "B": 22.5})
-    action3 = Action(type="stop", hours_elapsed=4 / 60 / 60)
+    action1 = Start(hours_elapsed=0 / 60 / 60, options={"A": 50})
+    action2 = Update(hours_elapsed=1 / 60 / 60, options={"A": 40, "B": 22.5})
+    action3 = Stop(hours_elapsed=2 / 60 / 60)
     job = "led_intensity"
 
     profile = Profile(
@@ -75,7 +79,7 @@ def test_execute_experiment_profile_hack_for_led_intensity(
         metadata=Metadata(author="test_author"),
     )
 
-    mock_load_and_verify_profile_file.return_value = profile
+    mock__load_experiment_profile.return_value = profile
 
     actions = []
 
@@ -106,19 +110,13 @@ def test_execute_experiment_profile_hack_for_led_intensity(
     ]
 
 
-# Test execute_experiment_profile function
-@patch("pioreactor.actions.leader.experiment_profile.load_and_verify_profile_file")
-def test_execute_experiment_log_actions(mock_load_and_verify_profile_file) -> None:
-    # Setup some test data
-    action1 = Action(type="log", hours_elapsed=0 / 60 / 60, options={"message": "test {unit}"})
-    action2 = Action(
-        type="log",
-        hours_elapsed=5 / 60 / 60,
-        options={"message": "test {job} on {unit}", "level": "INFO"},
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_log_actions(mock__load_experiment_profile) -> None:
+    action1 = Log(hours_elapsed=0 / 60 / 60, options=_LogOptions(message="test {unit}"))
+    action2 = Log(
+        hours_elapsed=2 / 60 / 60, options=_LogOptions(message="test {job} on {unit}", level="INFO")
     )
-    action3 = Action(
-        type="log", hours_elapsed=10 / 60 / 60, options={"message": "test {experiment}"}
-    )
+    action3 = Log(hours_elapsed=4 / 60 / 60, options=_LogOptions(message="test {experiment}"))
 
     profile = Profile(
         experiment_profile_name="test_profile",
@@ -129,7 +127,7 @@ def test_execute_experiment_log_actions(mock_load_and_verify_profile_file) -> No
         labels={"unit1": "label1"},
     )
 
-    mock_load_and_verify_profile_file.return_value = profile
+    mock__load_experiment_profile.return_value = profile
 
     with collect_all_logs_of_level(
         "NOTICE", "testing_unit", "_testing_experiment"
@@ -147,3 +145,85 @@ def test_execute_experiment_log_actions(mock_load_and_verify_profile_file) -> No
         assert [log["message"] for log in info_bucket] == [
             "test job2 on unit1",
         ]
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_start_and_stop_controller(mock__load_experiment_profile) -> None:
+    action1 = Start(hours_elapsed=0 / 60 / 60, options={"automation_name": "silent"})
+    action2 = Stop(
+        hours_elapsed=1 / 60 / 60,
+    )
+
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        common={"temperature_control": {"actions": [action1, action2]}},
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    execute_experiment_profile("profile.yaml")
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_update_automations_not_controllers(
+    mock__load_experiment_profile,
+) -> None:
+    action1 = Start(
+        hours_elapsed=0 / 60 / 60,
+        options={"automation_name": "thermostat", "target_temperature": 25},
+    )
+    action2 = Update(hours_elapsed=1 / 60 / 60, options={"target_temperature": 30})
+
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        common={"temperature_control": {"actions": [action1, action2]}},
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    with pytest.raises(ValueError, match="Update"):
+        execute_experiment_profile("profile.yaml")
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_start_controller_and_stop_automation_fails(
+    mock__load_experiment_profile,
+) -> None:
+    action1 = Start(hours_elapsed=0 / 60 / 60, options={"automation_name": "silent"})
+    action2 = Stop(
+        hours_elapsed=1 / 60 / 60,
+    )
+
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        common={
+            "temperature_control": {"actions": [action1]},
+            "temperature_automation": {"actions": [action2]},
+        },
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    with pytest.raises(ValueError, match="stop"):
+        execute_experiment_profile("profile.yaml")
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_too_many_actions(mock__load_experiment_profile) -> None:
+    actions: list[Action] = []
+    for _ in range(250):
+        actions.append(Start(hours_elapsed=0 / 60 / 60))
+
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        common={"dummy": {"actions": actions}},
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    with pytest.raises(AssertionError, match="248"):
+        execute_experiment_profile("profile.yaml")

@@ -23,20 +23,26 @@ from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 ACTION_COUNT_LIMIT = 248
 
 
-def _led_intensity_hack(action: str, options: dict) -> tuple[str, dict]:
+def _led_intensity_hack(action: struct.Action) -> struct.Action:
     # we do this hack because led_intensity doesn't really behave like a background job, but its useful to
     # treat it as one.
-    if action == "log":
-        return action, options
+    match action:
+        case struct.Log(hours, options):
+            # noop
+            return action
 
-    assert options is not None
+        case struct.Start(_, _, _):
+            return action
 
-    if action == "stop" or action == "pause":
-        options["A"] = options["B"] = options["C"] = options["D"] = 0
+        case struct.Pause(hours) | struct.Stop(hours):
+            options = {"A": 0, "B": 0, "C": 0, "D": 0}
+            return struct.Start(hours, options, [])
 
-    action = "start"
+        case struct.Update(hours, options):
+            return struct.Start(hours, options, [])
 
-    return action, options
+        case _:
+            raise ValueError
 
 
 def execute_action(
@@ -44,45 +50,45 @@ def execute_action(
     experiment: str,
     job_name: str,
     logger,
-    action: str,
-    options: dict,
-    args,
+    action: struct.Action,
     dry_run: bool = False,
 ) -> Callable:
     # hack...
+    # args, options = action.args, action.options
+
     if job_name == "led_intensity":
         # ignore pause and resume?
-        action, options = _led_intensity_hack(action, options)
+        action = _led_intensity_hack(action)
 
-    # Handle each action type accordingly
-    if action == "start":
-        # start the job with the provided parameters
-        return start_job(unit, experiment, job_name, options, args, dry_run, logger)
-    elif action == "pause":
-        # pause the job
-        return pause_job(unit, experiment, job_name, dry_run, logger)
-    elif action == "resume":
-        # resume the job
-        return resume_job(unit, experiment, job_name, dry_run, logger)
-    elif action == "stop":
-        # stop the job
-        return stop_job(unit, experiment, job_name, dry_run, logger)
-    elif action == "update":
-        # update the job with the provided parameters
-        return update_job(unit, experiment, job_name, options, dry_run, logger)
-    elif action == "log":
-        return log(unit, experiment, job_name, options, dry_run, logger)
-    else:
-        raise ValueError(f"Not a valid action: {action}")
+    match action:
+        case struct.Start(_, options, args):
+            return start_job(unit, experiment, job_name, options, args, dry_run, logger)
+
+        case struct.Pause(_):
+            return pause_job(unit, experiment, job_name, dry_run, logger)
+
+        case struct.Resume(_):
+            return resume_job(unit, experiment, job_name, dry_run, logger)
+
+        case struct.Stop(_):
+            return stop_job(unit, experiment, job_name, dry_run, logger)
+
+        case struct.Update(_, options):
+            return update_job(unit, experiment, job_name, options, dry_run, logger)
+
+        case struct.Log(_, options):
+            return log(unit, experiment, job_name, options, dry_run, logger)
+
+        case _:
+            raise ValueError(f"Not a valid action: {action}")
 
 
 def log(
-    unit: str, experiment: str, job_name: str, options: dict, dry_run: bool, logger
+    unit: str, experiment: str, job_name: str, options: struct._LogOptions, dry_run: bool, logger
 ) -> Callable:
-    assert "message" in options, "must provide `message` in log call options."
-    level = options.get("level", "NOTICE").lower()
+    level = options.level.lower()
     return lambda: getattr(logger, level)(
-        options["message"].format(unit=unit, job=job_name, experiment=experiment)
+        options.message.format(unit=unit, job=job_name, experiment=experiment)
     )
 
 
@@ -145,9 +151,11 @@ def hours_to_seconds(hours: float) -> float:
     return hours * 60 * 60
 
 
-def load_and_verify_profile_file(profile_filename: str) -> struct.Profile:
-    with open(profile_filename) as f:
-        profile = decode(f.read(), type=struct.Profile)
+def _verify_experiment_profile(profile: struct.Profile) -> struct.Profile:
+    # things to check for:
+    # 1. Don't "stop" any *_automations
+    # 2. Don't change generic settings on *_controllers, (Ex: changing target temp on temp_controller is wrong)
+    # 3. Current limitation with this architecture. We can't create more than 248 threads.
 
     actions_per_job = defaultdict(list)
 
@@ -160,17 +168,13 @@ def load_and_verify_profile_file(profile_filename: str) -> struct.Profile:
             for action in unit["jobs"][job]["actions"]:
                 actions_per_job[job].append(action)
 
-    # TODO: things to check for:
-    # 1. Don't "stop" any *_automations
-    # 2. Don't change generic settings on *_controllers, (Ex: changing target temp on temp_controller is wrong)
-    # 3. Current limitation with this architecture. We can't create more than 248 threads.
-
     # 1.
     def check_for_not_stopping_automations(act):
-        if act.type == "stop":
-            raise ValueError(
-                "Don't use 'stop' for automations. To stop automations, use 'stop' for controllers."
-            )
+        match action:
+            case struct.Stop(_):
+                raise ValueError(
+                    "Don't use 'stop' for automations. To stop automations, use 'stop' for controllers."
+                )
         return True
 
     for automation_type in ["temperature_automation", "dosing_automation", "led_automation"]:
@@ -180,8 +184,10 @@ def load_and_verify_profile_file(profile_filename: str) -> struct.Profile:
 
     # 2.
     def check_for_settings_change_on_controllers(act):
-        if act.type == "update" and "automation-name" not in act.options:
-            raise ValueError("Update automations, not controllers, with settings.")
+        match action:
+            case struct.Update(_, options):
+                if "automation_name" not in options:
+                    raise ValueError("Update automations, not controllers, with settings.")
         return True
 
     for control_type in ["temperature_control", "dosing_control", "led_control"]:
@@ -194,6 +200,17 @@ def load_and_verify_profile_file(profile_filename: str) -> struct.Profile:
         sum(len(x) for x in actions_per_job.values()) < ACTION_COUNT_LIMIT
     ), "Too many actions. Must be less than 248. Contact the Pioreactor authors."
 
+    return profile
+
+
+def _load_experiment_profile(profile_filename: str) -> struct.Profile:
+    with open(profile_filename) as f:
+        return decode(f.read(), type=struct.Profile)
+
+
+def load_and_verify_profile(profile_filename: str) -> struct.Profile:
+    profile = _load_experiment_profile(profile_filename)
+    _verify_experiment_profile(profile)
     return profile
 
 
@@ -252,7 +269,7 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
     logger = create_logger(action_name)
     with publish_ready_to_disconnected_state(unit, experiment, action_name) as state:
         try:
-            profile = load_and_verify_profile_file(profile_filename)
+            profile = load_and_verify_profile(profile_filename)
         except Exception as e:
             logger.error(e)
             raise e
@@ -294,9 +311,7 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
                         experiment,
                         job,
                         logger,
-                        action.type,
-                        action.options,
-                        action.args,
+                        action,
                         dry_run,
                     ),
                 )
@@ -316,9 +331,7 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
                             experiment,
                             job,
                             logger,
-                            action.type,
-                            action.options,
-                            action.args,
+                            action,
                             dry_run,
                         ),
                     )
@@ -378,4 +391,4 @@ def click_verify_experiment_profile(filename: str) -> None:
     """
     (leader only) Verify an experiment profile for correctness.
     """
-    load_and_verify_profile_file(filename)
+    load_and_verify_profile(filename)
