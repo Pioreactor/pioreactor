@@ -318,3 +318,26 @@ stop_on_exit: False
 experiment_profile_name: minimal
 """
     assert decode(file, type=structs.Profile) is not None
+
+
+def test_profiles_in_github_repo() -> None:
+    from pioreactor.mureq import get
+
+    # Set the API endpoint URL
+    owner = "Pioreactor"
+    repo = "experiment_profile_examples"
+    path = ""  # Top level directory
+    api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{path}"
+
+    # Make a GET request to the GitHub API
+    response = get(api_url)
+    response.raise_for_status()  # Will raise an HTTPError if the HTTP request returned an unsuccessful status code
+
+    # Check for YAML files
+    yaml_files = [file for file in response.json() if file["name"].endswith(".yaml")]
+
+    # Print the list of YAML files
+    for file in yaml_files:
+        content = get(file["download_url"]).content
+        print(content.decode())
+        decode(content, type=structs.Profile)

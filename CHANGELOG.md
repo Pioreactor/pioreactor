@@ -3,6 +3,15 @@
  - fix bug in `timeout` in `Stirrer.block_until_rpm_is_close_to_target` that wasn't using it correctly.
  - Workers can now also be the local-access-point (aka the "router" in a network). Previously only leaders could.
  - Slight change to the API initialization of ADCReader. Take a look if you were using that class.
+ - Experiment profiles now support a `log` directive with some dynamic templating:
+   ```
+      - type: log
+        hours_elapsed: 0.025
+        options:
+          message: "{job} increasing to 800 RPM" # alerts the message: "stirring increasing to 800 RPM"
+   ```
+   See full example [here](https://github.com/Pioreactor/experiment_profile_examples/blob/main/08_logging.yaml).
+ - Experiment profiles now supports changing LEDs like any other job (i.e. they can use `start`, `update` and `stop` directives). See example [here](https://github.com/Pioreactor/experiment_profile_examples/blob/main/03_dosing_and_leds.yaml).
  - `pio clear_cache` now has an `as_int` option to look for ints - useful when clearing caches with ints as keys.
  - fix issue where if an extra config.ini was provided in the /boot dir before a worker startup, adding the worker to a cluster would fail due to a permission issue.
  - potential fix for RPi 3B and RPi Zeros not connecting to hotspots: change the `proto` to `wpa` in your config.ini on the Pioreactor with the local-access-point, and restart that Pioreactor. You config.ini should look like:

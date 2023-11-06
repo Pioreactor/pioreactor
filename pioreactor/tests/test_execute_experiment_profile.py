@@ -64,7 +64,7 @@ def test_execute_experiment_profile_hack_for_led_intensity(
 ) -> None:
     # Setup some test data
     action1 = Action(type="start", hours_elapsed=0 / 60 / 60, options={"A": 50})
-    action2 = Action(type="update", hours_elapsed=2 / 60 / 60, options={"A": 40})
+    action2 = Action(type="update", hours_elapsed=2 / 60 / 60, options={"A": 40, "B": 22.5})
     action3 = Action(type="stop", hours_elapsed=4 / 60 / 60)
     job = "led_intensity"
 
@@ -97,7 +97,7 @@ def test_execute_experiment_profile_hack_for_led_intensity(
         ),
         (
             "pioreactor/unit1/_testing_experiment/run/led_intensity",
-            '{"options":{"A":40},"args":[]}',
+            '{"options":{"A":40,"B":22.5},"args":[]}',
         ),
         (
             "pioreactor/unit1/_testing_experiment/run/led_intensity",
