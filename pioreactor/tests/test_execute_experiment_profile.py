@@ -111,7 +111,11 @@ def test_execute_experiment_profile_hack_for_led_intensity(
 def test_execute_experiment_log_actions(mock_load_and_verify_profile_file) -> None:
     # Setup some test data
     action1 = Action(type="log", hours_elapsed=0 / 60 / 60, options={"message": "test {unit}"})
-    action2 = Action(type="log", hours_elapsed=5 / 60 / 60, options={"message": "test {job}"})
+    action2 = Action(
+        type="log",
+        hours_elapsed=5 / 60 / 60,
+        options={"message": "test {job} on {unit}", "level": "INFO"},
+    )
     action3 = Action(
         type="log", hours_elapsed=10 / 60 / 60, options={"message": "test {experiment}"}
     )
@@ -127,11 +131,19 @@ def test_execute_experiment_log_actions(mock_load_and_verify_profile_file) -> No
 
     mock_load_and_verify_profile_file.return_value = profile
 
-    with collect_all_logs_of_level("NOTICE", "testing_unit", "_testing_experiment") as bucket:
+    with collect_all_logs_of_level(
+        "NOTICE", "testing_unit", "_testing_experiment"
+    ) as notice_bucket, collect_all_logs_of_level(
+        "INFO", "testing_unit", "_testing_experiment"
+    ) as info_bucket:
         execute_experiment_profile("profile.yaml")
 
-        assert [log["message"] for log in bucket[1:-1]] == [
+        assert [
+            log["message"] for log in notice_bucket[1:-1]
+        ] == [  # slice to remove the first and last NOTICE
             "test $broadcast",
-            "test job2",
             "test _testing_experiment",
+        ]
+        assert [log["message"] for log in info_bucket] == [
+            "test job2 on unit1",
         ]

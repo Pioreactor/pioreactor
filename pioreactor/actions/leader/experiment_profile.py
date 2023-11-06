@@ -71,7 +71,6 @@ def execute_action(
         # update the job with the provided parameters
         return update_job(unit, experiment, job_name, options, dry_run, logger)
     elif action == "log":
-        assert "message" in options, "must provide message in log call."
         return log(unit, experiment, job_name, options, dry_run, logger)
     else:
         raise ValueError(f"Not a valid action: {action}")
@@ -80,7 +79,9 @@ def execute_action(
 def log(
     unit: str, experiment: str, job_name: str, options: dict, dry_run: bool, logger
 ) -> Callable:
-    return lambda: logger.notice(
+    assert "message" in options, "must provide `message` in log call options."
+    level = options.get("level", "NOTICE").lower()
+    return lambda: getattr(logger, level)(
         options["message"].format(unit=unit, job=job_name, experiment=experiment)
     )
 
