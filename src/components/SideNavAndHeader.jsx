@@ -156,15 +156,6 @@ export default function SideNavAndHeader() {
 
 
         <MenuItem
-          icon={<SubjectOutlinedIcon/> }
-          component={<Link to="/logs" className="link" />}
-          active={isSelected("/logs")}
-          >
-          Logs
-
-        </MenuItem>
-
-        <MenuItem
           icon={<SettingsOutlinedIcon/> }
           component={<Link to="/config" className="link" />}
           active={isSelected("/config")}

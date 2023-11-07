@@ -55,7 +55,7 @@ function UpdateToLatestConfirmDialog(props) {
 
   const handleClick = () => {
     confirm({
-      description: 'To avoid possible data interruptions, we suggest updating between running experiments. ' + (installDev ? "We recommend being on the latest release of software before doing this. Confirm you are on the latest software before updating." : ""),
+      description: 'This requires an internet connection. To avoid possible data interruptions, we suggest updating between running experiments. ' + (installDev ? "We recommend being on the latest release of software before doing this. Confirm you are on the latest software before updating." : ""),
       title: installDev ? "Update to development build?" : "Update to next release?" ,
       confirmationText: "Update",
       confirmationButtonProps: {color: "primary"},

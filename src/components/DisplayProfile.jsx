@@ -92,7 +92,7 @@ const DisplayProfile = ({ data }) => {
                       <Typography variant="body2" style={{ marginLeft: '4em' }}>
                           <b>Action {index + 1}</b>: {humanReadableDuration(action.type, action.hours_elapsed)}
                       </Typography>
-                        {Object.keys(action.options).map((option, index) => (
+                        {Object.keys(action.options || {}).map((option, index) => (
                           <Typography key={`common-${option}-${action}-${index}`} variant="body2" style={{ marginLeft: '8em' }}>
                             {option}: {action.options[option]}
                           </Typography>
@@ -104,7 +104,6 @@ const DisplayProfile = ({ data }) => {
           <br/>
           </>
         }
-
         {Object.keys(data.pioreactors).length > 0 && Object.keys(data.pioreactors).map(pioreactor => (
             <React.Fragment key={pioreactor}>
                 <Typography variant="body2">
@@ -120,7 +119,7 @@ const DisplayProfile = ({ data }) => {
                             <Typography variant="body2" style={{ marginLeft: '4em' }}>
                                 <b>Action {index + 1}</b>: {humanReadableDuration(action.type, action.hours_elapsed)}
                             </Typography>
-                              {Object.keys(action.options).map( (option, index) => (
+                              {Object.keys(action.options || {}).map( (option, index) => (
                                 <Typography key={`${pioreactor}-${option}-${action}-${index}`} variant="body2" style={{ marginLeft: '8em' }}>
                                   {option}: {action.options[option]}
                                 </Typography>
