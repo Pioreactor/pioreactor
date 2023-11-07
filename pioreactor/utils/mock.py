@@ -160,6 +160,19 @@ class MockHandle:
     pass
 
 
+class MockRpmCalculator:
+    ALWAYS_RETURN_RPM = config.getfloat("stirring", "target_rpm")
+
+    def setup(self):
+        pass
+
+    def estimate(self, seconds_to_observe=0.1):
+        import time
+
+        time.sleep(seconds_to_observe)
+        return self.ALWAYS_RETURN_RPM
+
+
 if is_testing_env():
     from rpi_hardware_pwm import HardwarePWM
 

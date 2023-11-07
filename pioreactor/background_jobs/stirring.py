@@ -34,6 +34,7 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
 if is_testing_env():
+    from pioreactor.utils.mock import MockRpmCalculator
     from pioreactor.utils.mock import MockCallback
     from pioreactor.utils.mock import MockHandle
 
@@ -362,7 +363,7 @@ class Stirrer(BackgroundJob):
             timestamp=current_utc_datetime(), measured_rpm=self._measured_rpm
         )
 
-        if recent_rpm == 0 and self.state == self.READY and not is_testing_env():
+        if recent_rpm == 0 and self.state == self.READY:  # and not is_testing_env():
             self.logger.warning(
                 "Stirring RPM is 0 - attempting to restart it automatically. It may be a temporary stall, target RPM may be too low, or not reading sensor correctly."
             )
@@ -427,7 +428,7 @@ class Stirrer(BackgroundJob):
 
         """
 
-        if self.rpm_calculator is None or is_testing_env():
+        if self.rpm_calculator is None:  # or is_testing_env():
             # can't block if we aren't recording the RPM
             return False
 
@@ -468,8 +469,10 @@ def start_stirring(
     unit = unit or get_unit_name()
     experiment = experiment or get_latest_experiment_name()
 
-    if use_rpm:
+    if use_rpm and not is_testing_env():
         rpm_calculator = RpmFromFrequency()
+    elif use_rpm and is_testing_env():
+        rpm_calculator = MockRpmCalculator()  # type: ignore
     else:
         rpm_calculator = None
 

@@ -1,8 +1,7 @@
 ### Upcoming
 
- - fix bug in `timeout` in `Stirrer.block_until_rpm_is_close_to_target` that wasn't using it correctly.
+ - fix bug in `timeout` in `Stirrer.block_until_rpm_is_close_to_target` that wasn't using time correctly.
  - Workers can now also be the local-access-point (aka the "router" in a network). Previously only leaders could.
- - Slight change to the API initialization of ADCReader. Take a look if you were using that class.
  - Experiment profiles now support a `log` directive with some dynamic templating:
    ```
       - type: log
@@ -25,6 +24,7 @@
    ```
 
   **Changing to WPA does weaken the security however! Its easier to unwanted users to get onto this wifi**
+ - Slight change to the API initialization of ADCReader. Take a look if you were using that class.
 
 
 

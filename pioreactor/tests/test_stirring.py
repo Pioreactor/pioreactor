@@ -12,6 +12,8 @@ from pioreactor.background_jobs.stirring import Stirrer
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
 from pioreactor.utils import local_persistant_storage
+from pioreactor.utils.mock import MockRpmCalculator
+from pioreactor.utils.timing import catchtime
 from pioreactor.whoami import get_unit_name
 
 unit = get_unit_name()
@@ -159,3 +161,23 @@ def test_stirring_will_try_to_restart_and_dodge_od_reading() -> None:
             st.start_stirring()
 
             pause(20)
+
+
+def test_block_until_rpm_is_close_to_target_will_timeout() -> None:
+    exp = "test_block_until_rpm_is_close_to_target_will_timeout"
+    with Stirrer(
+        2 * MockRpmCalculator.ALWAYS_RETURN_RPM, unit, exp, rpm_calculator=MockRpmCalculator()  # type: ignore
+    ) as st:
+        with catchtime() as delta:
+            st.block_until_rpm_is_close_to_target(timeout=10)
+        assert delta() < 12
+
+
+def test_block_until_rpm_is_close_will_exit() -> None:
+    exp = "test_block_until_rpm_is_close_to_target_will_timeout"
+    with Stirrer(
+        MockRpmCalculator.ALWAYS_RETURN_RPM, unit, exp, rpm_calculator=MockRpmCalculator()  # type: ignore
+    ) as st:
+        with catchtime() as delta:
+            st.block_until_rpm_is_close_to_target(timeout=50)
+        assert delta() < 5
