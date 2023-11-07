@@ -374,7 +374,7 @@ def click_experiment_profile():
 
 
 @click_experiment_profile.command(name="execute")
-@click.argument("filename", type=click.Path(exists=True))
+@click.argument("filename", type=click.Path())
 @click.option("--dry-run", is_flag=True, help="Don't actually execute, just print to screen")
 def click_execute_experiment_profile(filename: str, dry_run: bool) -> None:
     """
@@ -384,7 +384,7 @@ def click_execute_experiment_profile(filename: str, dry_run: bool) -> None:
 
 
 @click_experiment_profile.command(name="verify")
-@click.argument("filename", type=click.Path(exists=True))
+@click.argument("filename", type=click.Path())
 def click_verify_experiment_profile(filename: str) -> None:
     """
     (leader only) Verify an experiment profile for correctness.
