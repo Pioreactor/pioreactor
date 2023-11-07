@@ -106,9 +106,9 @@ class AutomationEvent(Struct, tag=True, tag_field="event_name"):  # type: ignore
         name = type(self).__name__
         return name
 
-    @property
-    def type(self) -> str:
-        return self.__class__.__struct_tag__  # type: ignore
+    # @property
+    # def type(self) -> str:
+    #    return self.__class__.__struct_tag__  # type: ignore
 
 
 class LEDChangeEvent(Struct):

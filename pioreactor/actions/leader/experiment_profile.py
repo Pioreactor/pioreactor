@@ -32,6 +32,7 @@ def _led_intensity_hack(action: struct.Action) -> struct.Action:
             return action
 
         case struct.Start(_, _, _):
+            # noop
             return action
 
         case struct.Pause(hours) | struct.Stop(hours):
@@ -54,10 +55,7 @@ def execute_action(
     dry_run: bool = False,
 ) -> Callable:
     # hack...
-    # args, options = action.args, action.options
-
     if job_name == "led_intensity":
-        # ignore pause and resume?
         action = _led_intensity_hack(action)
 
     match action:
@@ -198,7 +196,7 @@ def _verify_experiment_profile(profile: struct.Profile) -> struct.Profile:
     # 3.
     assert (
         sum(len(x) for x in actions_per_job.values()) < ACTION_COUNT_LIMIT
-    ), "Too many actions. Must be less than 248. Contact the Pioreactor authors."
+    ), f"Too many actions. Must be less than {ACTION_COUNT_LIMIT}. Contact the Pioreactor authors."
 
     return profile
 

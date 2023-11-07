@@ -20,7 +20,7 @@ class Plugin(Struct):
 ######## Actions
 
 
-class _LogOptions(Struct, tag=str.lower):
+class _LogOptions(Struct):
     message: str
     level: t.Literal[
         "DEBUG", "debug", "WARNING", "warning", "INFO", "info", "NOTICE", "notice", "ERROR", "error"
