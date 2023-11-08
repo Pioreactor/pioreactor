@@ -1,4 +1,4 @@
-### Upcoming
+### 23.11.08
 
  - fix bug in `timeout` in `Stirrer.block_until_rpm_is_close_to_target` that wasn't using time correctly.
  - Workers can now also be the local-access-point (aka the "router" in a network). Previously only leaders could.
