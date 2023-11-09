@@ -66,7 +66,7 @@ class GrowthRateCalculator(BackgroundJob):
     -----------
     ignore_cache: bool
         ignore any cached calculated statistics from this experiment.
-    from_mqtt: bool
+    source_obs_from_mqtt: bool
         listen for data from MQTT to respond to.
 
     """
@@ -92,21 +92,25 @@ class GrowthRateCalculator(BackgroundJob):
         unit: str,
         experiment: str,
         ignore_cache: bool = False,
-        from_mqtt=True,
+        source_obs_from_mqtt=True,
     ):
         super(GrowthRateCalculator, self).__init__(unit=unit, experiment=experiment)
 
-        self.from_mqtt = from_mqtt
+        self.source_obs_from_mqtt = source_obs_from_mqtt
         self.ignore_cache = ignore_cache
         self.time_of_previous_observation: datetime | None = None
         self.expected_dt = 1 / (60 * 60 * config.getfloat("od_config", "samples_per_second"))
 
-    def on_init_to_ready(self) -> None:
+    def on_ready(self) -> None:
         # this is here since the below is long running, and if kept in the init(), there is a large window where
         # two growth_rate_calculating jobs can be started.
 
         # Note that this function runs in the __post__init__, i.e. in the same frame as __init__, i.e.
         # when we initialize the class. Thus, we need to handle errors and cleanup resources gracefully.
+
+        if hasattr(self, "ekf"):
+            # we've already done this, don't do it again. Ex: pause to resume
+            return
 
         try:
             (
@@ -122,7 +126,7 @@ class GrowthRateCalculator(BackgroundJob):
         except Exception as e:
             # something happened - abort
             self.logger.error(e)
-            self.logger.debug("Aborting early`.", exc_info=True)
+            self.logger.debug("Aborting early.", exc_info=True)
             self.clean_up()
             raise e
 
@@ -136,7 +140,7 @@ class GrowthRateCalculator(BackgroundJob):
             obs_std=config.getfloat("growth_rate_kalman", "obs_std"),
         )
 
-        if self.from_mqtt:
+        if self.source_obs_from_mqtt:
             self.start_passive_listeners()
 
     def initialize_extended_kalman_filter(
@@ -529,7 +533,7 @@ class GrowthRateCalculator(BackgroundJob):
     @staticmethod
     def _batched_raw_od_readings_to_dict(
         raw_od_readings: dict[pt.PdChannel, structs.ODReading]
-    ) -> dict[pt.PdChannel, float]:
+    ) -> dict[pt.PdChannel, pt.OD]:
         """
         Extract the od floats from ODReading but keep the same keys
         """
@@ -555,7 +559,7 @@ class GrowthRateCalculator(BackgroundJob):
                 continue
 
             counter += 1
-            if counter <= 3:
+            if counter <= 5:
                 continue  # skip the first few values. If users turn on growth_rate, THEN od_reading, we should ignore the noisiest part of od_reading.
 
             yield decode(msg.payload, type=structs.ODReadings)

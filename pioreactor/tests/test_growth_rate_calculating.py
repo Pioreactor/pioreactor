@@ -739,7 +739,9 @@ class TestGrowthRateCalculating:
             experiment=experiment,
             use_calibration=False,
         ) as od_stream:
-            with GrowthRateCalculator(unit=unit, experiment=experiment, from_mqtt=False) as gr:
+            with GrowthRateCalculator(
+                unit=unit, experiment=experiment, source_obs_from_mqtt=False
+            ) as gr:
                 results = []
 
                 for i, reading in enumerate(od_stream):
