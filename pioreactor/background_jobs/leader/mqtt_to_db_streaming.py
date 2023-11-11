@@ -145,10 +145,9 @@ class MqttToDBStreamer(BackgroundJob):
 
     def initialize_callbacks(self, topics_and_callbacks: list[TopicToCallback]) -> None:
         for topic_and_callback in topics_and_callbacks:
-            print(str(topic_and_callback.topic))
             self.subscribe_and_callback(
                 topic_and_callback.callback,
-                str(topic_and_callback.topic),
+                topic_and_callback.topic,
                 qos=QOS.EXACTLY_ONCE,
                 allow_retained=False,
             )
