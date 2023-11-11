@@ -10,6 +10,7 @@ from typing import Optional
 
 import lgpio
 
+from pioreactor import types as pt
 from pioreactor.exc import PWMError
 from pioreactor.logging import create_logger
 from pioreactor.logging import Logger
@@ -36,7 +37,9 @@ else:
 class HardwarePWMOutputDevice(HardwarePWM):
     HARDWARE_PWM_CHANNELS: dict[GpioPin, int] = {12: 0, 13: 1}
 
-    def __init__(self, pin: GpioPin, initial_dc: float = 0.0, frequency=100):
+    def __init__(
+        self, pin: GpioPin, initial_dc: pt.FloatBetween0and100 = 0.0, frequency: float = 100
+    ) -> None:
         if (
             pin not in self.HARDWARE_PWM_CHANNELS
         ):  # Only GPIO pins 18 and 19 are supported for hardware PWM
@@ -48,28 +51,28 @@ class HardwarePWMOutputDevice(HardwarePWM):
         super().__init__(pwm_channel, hz=frequency)
         self._dc = initial_dc
 
-    def start(self):
+    def start(self) -> None:
         super().start(self.dc)
 
-    def off(self):
+    def off(self) -> None:
         self.dc = 0.0
 
     @property
-    def dc(self) -> float:
+    def dc(self) -> pt.FloatBetween0and100:
         return self._dc
 
     @dc.setter
-    def dc(self, dc: float) -> None:
+    def dc(self, dc: pt.FloatBetween0and100) -> None:
         dc = clamp(0.0, dc, 100.0)
         self.change_duty_cycle(dc)
         self._dc = dc
 
-    def close(self):
+    def close(self) -> None:
         pass
 
 
 class SoftwarePWMOutputDevice:
-    def __init__(self, pin: GpioPin, initial_dc: float = 0.0, frequency=100):
+    def __init__(self, pin: GpioPin, initial_dc: pt.FloatBetween0and100 = 0.0, frequency=100):
         self.pin = pin
         self._dc = initial_dc
         self.frequency = frequency
@@ -91,11 +94,11 @@ class SoftwarePWMOutputDevice:
             pass
 
     @property
-    def dc(self) -> float:
+    def dc(self) -> pt.FloatBetween0and100:
         return self._dc
 
     @dc.setter
-    def dc(self, dc: float) -> None:
+    def dc(self, dc: pt.FloatBetween0and100) -> None:
         dc = clamp(0.0, dc, 100.0)
         self._dc = dc
         if self._started:
@@ -239,18 +242,18 @@ class PWM:
             f"pioreactor/{self.unit}/{self.experiment}/pwms/dc", dumps(current_values), retain=True
         )
 
-    def start(self, initial_duty_cycle: float) -> None:
-        if not (0.0 <= initial_duty_cycle <= 100.0):
+    def start(self, duty_cycle: pt.FloatBetween0and100) -> None:
+        if not (0.0 <= duty_cycle <= 100.0):
             raise PWMError("duty_cycle should be between 0 and 100, inclusive.")
 
-        self.change_duty_cycle(initial_duty_cycle)
+        self.change_duty_cycle(duty_cycle)
         self._pwm.start()
 
     def stop(self) -> None:
         self._pwm.off()
         self.change_duty_cycle(0.0)
 
-    def change_duty_cycle(self, duty_cycle: float) -> None:
+    def change_duty_cycle(self, duty_cycle: pt.FloatBetween0and100) -> None:
         if not (0.0 <= duty_cycle <= 100.0):
             raise PWMError("duty_cycle should be between 0 and 100, inclusive.")
 

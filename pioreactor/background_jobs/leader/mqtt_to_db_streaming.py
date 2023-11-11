@@ -114,7 +114,7 @@ class MqttToDBStreamer(BackgroundJob):
             try:
                 new_rows = parser(message.topic, message.payload)
             except Exception as e:
-                self.logger.error(e)
+                self.logger.error(f"Encountered error in saving to DB: {e}. See logs.")
                 self.logger.debug(
                     f"Error in {parser.__name__}. message.payload that caused error: `{message.payload.decode()}`",
                     exc_info=True,
@@ -145,6 +145,7 @@ class MqttToDBStreamer(BackgroundJob):
 
     def initialize_callbacks(self, topics_and_callbacks: list[TopicToCallback]) -> None:
         for topic_and_callback in topics_and_callbacks:
+            print(str(topic_and_callback.topic))
             self.subscribe_and_callback(
                 topic_and_callback.callback,
                 str(topic_and_callback.topic),
