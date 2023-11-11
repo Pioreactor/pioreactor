@@ -56,7 +56,6 @@ class TopicToCallback(Struct):
 
 
 class MqttToDBStreamer(BackgroundJob):
-    topics_to_tables_from_plugins: list[TopicToParserToTable] = []
     job_name = "mqtt_to_db_streaming"
     published_settings = {
         "inserts_in_last_60s": {"datatype": "integer", "settable": False},
@@ -77,8 +76,7 @@ class MqttToDBStreamer(BackgroundJob):
             config["storage"]["database"], max_queue_size=250, raise_on_error=False
         )
 
-        topics_to_tables.extend(self.topics_to_tables_from_plugins)
-
+        self.logger.debug(f"Listening to {topics_to_tables}")
         topics_and_callbacks = [
             TopicToCallback(
                 topic_to_table.topic,

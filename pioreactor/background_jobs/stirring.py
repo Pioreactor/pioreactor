@@ -492,7 +492,7 @@ def start_stirring(
     default=config.getfloat("stirring", "target_rpm", fallback=400),
     help="set the target RPM",
     show_default=True,
-    type=click.FloatRange(0, 1200, clamp=True),
+    type=click.FloatRange(0, 1500, clamp=True),
 )
 @click.option(
     "--use-rpm/--ignore-rpm", default=config.getboolean("stirring", "use_rpm", fallback="true")

@@ -188,7 +188,7 @@ class LEDAutomationJob(AutomationJob):
                 self.edited_channels.add(channel)
                 return True
 
-            time.sleep(0.6)
+            time.sleep(0.5)
 
         self.logger.warning(f"{self.automation_name} was unable to update channel {channel}.")
         return False

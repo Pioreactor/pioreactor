@@ -155,8 +155,8 @@ def led_intensity(
         for channel in list(desired_state.keys()):
             if is_led_channel_locked(channel):
                 updated_successfully = False
-                logger.warning(
-                    f"Unable to update channel {channel} due to a lock on it. Please try again."
+                logger.debug(
+                    f"Unable to update channel {channel} due to a software lock on it. Please try again."
                 )
                 del desired_state[channel]
 

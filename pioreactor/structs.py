@@ -158,7 +158,7 @@ class ODFiltered(Struct):
 class ODReading(Struct):
     timestamp: t.Annotated[datetime, Meta(tz=True)]
     angle: pt.PdAngle
-    od: t.Annotated[float, Meta(ge=0)]
+    od: pt.OD
     channel: pt.PdChannel
 
 

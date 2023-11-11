@@ -1,3 +1,8 @@
+### Upcoming
+ - No more waiting around for growth-rate-calculating to get to "Ready" state
+ - The "Label" step in the New Experiment flow is skipped if there is only 1 active Pioreactor in the cluster.
+ - Silenced the "LED is locked" warning - now it's a DEBUG level message.
+
 ### 23.11.08
 
  - fix bug in `timeout` in `Stirrer.block_until_rpm_is_close_to_target` that wasn't using time correctly.
@@ -17,13 +22,16 @@
  - potential fix for RPi 3B and RPi Zeros not connecting to hotspots: change the `proto` to `wpa` in your config.ini on the Pioreactor with the local-access-point, and restart that Pioreactor. You config.ini should look like:
 
    ```
-  [local_access_point]
-  ssid=pioreactor
-  passphrase=raspberry
-  proto=wpa
+   [local_access_point]
+   ssid=pioreactor
+   passphrase=raspberry
+   proto=wpa
    ```
 
-  **Changing to WPA does weaken the security however! Its easier to unwanted users to get onto this wifi**
+   **Changing to WPA does weaken the security however! It's easier for unwanted users to get onto this wifi.**
+
+   A more robust solution is in the works for RPi 3B and Zeros.
+
  - Slight change to the API initialization of ADCReader. Take a look if you were using that class.
 
 
