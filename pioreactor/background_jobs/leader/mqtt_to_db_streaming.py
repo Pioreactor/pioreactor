@@ -147,7 +147,7 @@ class MqttToDBStreamer(BackgroundJob):
         for topic_and_callback in topics_and_callbacks:
             self.subscribe_and_callback(
                 topic_and_callback.callback,
-                topic_and_callback.topic,
+                topic_and_callback.topic,  # this can be a str, or list of str
                 qos=QOS.EXACTLY_ONCE,
                 allow_retained=False,
             )

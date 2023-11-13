@@ -2,6 +2,8 @@
  - No more waiting around for growth-rate-calculating to get to "Ready" state
  - The "Label" step in the New Experiment flow is skipped if there is only 1 active Pioreactor in the cluster.
  - Silenced the "LED is locked" warning - now it's a DEBUG level message.
+ - Fixed bug that wasn't passing lists correctly  in `TopicToParserToTable`
+ -
 
 ### 23.11.08
 

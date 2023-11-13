@@ -43,6 +43,7 @@ WORKER_REQUIREMENTS = [
     "plotext==5.2.8",
 ]
 
+
 setup(
     name="pioreactor",
     version=__version__,  # type: ignore # noqa: F821
