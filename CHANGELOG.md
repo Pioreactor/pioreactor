@@ -3,7 +3,10 @@
  - The "Label" step in the New Experiment flow is skipped if there is only 1 active Pioreactor in the cluster.
  - Silenced the "LED is locked" warning - now it's a DEBUG level message.
  - Fixed bug that wasn't passing lists correctly  in `TopicToParserToTable`
- -
+ - Faster boot times
+ - Fixed a bug where a plugin would not be loaded if it's name collided with a module in the stdlib. For example, putting `test.py` in `.pioreactor/plugins` would not be loaded, since when we tried to import `test`, it would load the stdlib's `test`, not ours. This has been fixed.
+ - Simplify some UI elements.
+ - Security improvements.
 
 ### 23.11.08
 

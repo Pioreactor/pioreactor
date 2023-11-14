@@ -479,6 +479,8 @@ def update_app(
     commands_and_priority: list[tuple[str, int]] = []
 
     if source is not None:
+        source = quote(source)
+
         import re
 
         if re.search("release_(.*).zip", source):
@@ -513,10 +515,12 @@ def update_app(
             )
 
     elif branch is not None:
-        version_installed = quote(branch)
+        cleaned_branch = quote(branch)
+        cleaned_repo = quote(repo)
+        version_installed = cleaned_branch
         commands_and_priority.append(
             (
-                f"sudo pip3 install -U --force-reinstall https://github.com/{repo}/archive/{branch}.zip",
+                f"sudo pip3 install -U --force-reinstall https://github.com/{cleaned_repo}/archive/{cleaned_branch}.zip",
                 1,
             )
         )
@@ -617,6 +621,7 @@ def update_firmware(version: Optional[str]) -> None:
     if version is None:
         version = "latest"
     else:
+        version = quote(version)
         version = f"tags/{version}"
 
     release_metadata = loads(
@@ -881,12 +886,15 @@ if whoami.am_I_leader():
             version = f"tags/{version}"
 
         if source is not None:
+            source = quote(source)
             assert version is not None, "version must be provided with the -v option"
             version_installed = version
 
         elif branch is not None:
-            version_installed = quote(branch)
-            url = f"https://github.com/{repo}/archive/{branch}.tar.gz"
+            cleaned_branch = quote(branch)
+            cleaned_repo = quote(repo)
+            version_installed = cleaned_branch
+            url = f"https://github.com/{cleaned_repo}/archive/{cleaned_branch}.tar.gz"
             source = "/tmp/pioreactorui.tar.gz"
             commands.append(["wget", url, "-O", source])
 

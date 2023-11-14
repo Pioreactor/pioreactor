@@ -31,7 +31,6 @@ def od_statistics(
     experiment: Optional[str] = None,
     unit: Optional[str] = None,
     n_samples: int = 30,
-    use_rpm: bool = True,
     logger=None,
 ) -> tuple[dict[pt.PdChannel, float], dict[pt.PdChannel, float]]:
     """
@@ -54,12 +53,10 @@ def od_statistics(
 
         logger.info("Starting stirring.")
         st = start_stirring(
-            target_rpm=config.getfloat("stirring", "target_rpm"),
             unit=unit,
             experiment=experiment,
-            use_rpm=use_rpm,
         )
-        st.block_until_rpm_is_close_to_target(timeout=120)  # wait for maximum 2 minutes
+        st.block_until_rpm_is_close_to_target(timeout=40)  # wait for maximum 2 minutes
     else:
         st = nullcontext()  # type: ignore
 
@@ -166,7 +163,6 @@ def od_blank(
             experiment=testing_experiment,
             fake_data=whoami.is_testing_env(),
         ) as od_stream, start_stirring(
-            target_rpm=config.getfloat("stirring", "target_rpm"),
             unit=unit,
             experiment=testing_experiment,
         ) as st:
