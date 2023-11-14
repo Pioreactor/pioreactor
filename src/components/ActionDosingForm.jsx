@@ -37,7 +37,6 @@ export default function ActionPumpForm(props) {
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMsg, setSnackbarMsg] = useState("");
   const [textfieldError, setTextfieldError] = useState(false);
-  const [clicked, setClicked] = useState(false)
   const [dosingMethod, setDosingMethod] = useState("volume")
 
   const [formErrorDuration, setFormErrorDuration] = useState(false)
@@ -47,7 +46,6 @@ export default function ActionPumpForm(props) {
   function onSubmit(e) {
     e.preventDefault();
     if ((dosingMethod === "continuously") || (dosingMethod === 'volume' && mL !== EMPTYSTATE) || (dosingMethod === 'duration' && duration !== EMPTYSTATE)) {
-      setClicked(true)
 
       var params = {}
       var msg = ""
@@ -65,7 +63,6 @@ export default function ActionPumpForm(props) {
       runPioreactorJob(props.unit, props.action, [], params)
       setSnackbarMsg(msg)
       setOpenSnackbar(true);
-      setTimeout(() => setClicked(false), 2500)
     }
     else {
       setTextfieldError(true)

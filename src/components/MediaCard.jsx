@@ -129,7 +129,7 @@ class MediaCard extends React.Component {
 
   render(){
     return (
-    <Card>
+    <Card style={{marginBottom: "6px"}}>
       <CardContent>
         <Typography variant="h6" component="h2">
           <Box fontWeight="fontWeightRegular">

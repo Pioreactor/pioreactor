@@ -105,7 +105,7 @@ function ExperimentSelection(props) {
       </FormControl>
       <Box sx={{ p: 2, pt: 0 }}>
         <Typography sx={{ fontSize: 16 }} color="text.secondary" gutterBottom>
-          Experiment started
+          Experiment created
         </Typography>
         <Typography variant="body2" style={{whiteSpace: "pre-line"}} gutterBottom>
           {moment(selectedExperient?.created_at).format("MMMM D, YYYY, h:mm a")}

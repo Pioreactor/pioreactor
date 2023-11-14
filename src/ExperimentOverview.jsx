@@ -6,7 +6,6 @@ import LogTable from "./components/LogTable";
 import ExperimentSummary from "./components/ExperimentSummary";
 import Chart from "./components/Chart";
 import MediaCard from "./components/MediaCard";
-import PioreactorIcon from './components/PioreactorIcon';
 import { Link } from 'react-router-dom';
 import {getConfig, getRelabelMap} from "./utilities"
 import Card from "@mui/material/Card";
@@ -102,9 +101,6 @@ function Overview(props) {
           {( config['ui.overview.cards'] && (config['ui.overview.cards']['dosings'] === "1")) &&
             <Grid item xs={12} >
               <MediaCard experiment={experimentMetadata.experiment} config={config} relabelMap={relabelMap}/>
-              <Button to="/pioreactors" component={Link} color="primary" style={{textTransform: "none", verticalAlign: "middle", margin: "0px 3px"}}>
-                <PioreactorIcon style={{ fontSize: 17, margin: "0px 3px"}} color="primary"/> See all Pioreactor details
-              </Button>
             </Grid>
           }
 

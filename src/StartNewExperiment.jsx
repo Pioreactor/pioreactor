@@ -342,8 +342,7 @@ function StartNewExperimentContainer(props) {
   const classes = useStyles();
   const [activeStep, setActiveStep] = React.useState(0);
   const [skipped, setSkipped] = React.useState(new Set());
-
-
+  const countActiveUnits = props.config['cluster.inventory'] ? Object.entries(props.config['cluster.inventory']).filter((v) => v[1] === "1").map((v) => v[0]).length : 0
 
 
   const getStepContent = (index) => {
@@ -373,12 +372,11 @@ function StartNewExperimentContainer(props) {
 
   const steps = [
     {title: 'Experiment summary', content: <ExperimentSummaryForm config={props.config} handleNext={handleNext}/>, optional: false},
-    //{title: 'Cleaning and preparation', content: <CleaningScript config={props.config}/>, optional: true},
-    //{title: 'Run from experiment profile', content: <RunFromExperimentProfile config={props.config} handleNext={handleNext} />,  optional: true},
-    {title: 'Assign labels', content:               <AssignLabels config={props.config} handleNext={handleNext} />,              optional: true},
-    //{title: 'Start sensors', content: <StartSensors config={props.config}/>, optional: false},
-    //{title: 'Start calculations', content: <StartCalculations config={props.config}/>, optional: false},
-  ];
+  ]
+
+  if (countActiveUnits > 1){
+    steps.push({title: 'Assign labels', content: <AssignLabels config={props.config} handleNext={handleNext} />, optional: true})
+  }
 
   return (
     <Card className={classes.root}>

@@ -11,7 +11,6 @@ import Divider from '@mui/material/Divider';
 import Button from '@mui/material/Button';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import TimelapseIcon from '@mui/icons-material/Timelapse';
-import GetAppIcon from '@mui/icons-material/GetApp';
 import ClearIcon from '@mui/icons-material/Clear';
 import AddIcon from '@mui/icons-material/Add';
 import { useConfirm } from 'material-ui-confirm';
@@ -152,7 +151,7 @@ const ButtonEndExperiment = () =>{
 
   const handleClick = () => {
     confirm({
-      description: 'This will halt all activities (stirring, dosing, optical density reading, etc.) in all Pioreactor units. You can manually start them again later. Do you wish to end the experiment?',
+      description: 'This will stop all activities (stirring, dosing, etc.) in all Pioreactor units. Do you wish to end the experiment?',
       title: "End experiment?",
       confirmationText: "Confirm",
       confirmationButtonProps: {color: "primary"},
@@ -190,9 +189,6 @@ function ExperimentSummary(props){
           <div className={classes.headerButtons}>
             <ButtonNewExperiment/>
             <ButtonEndExperiment/>
-            <Button to={`/export-data?experiment=${experiment}`} component={Link} style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="primary">
-              <GetAppIcon fontSize="15" classes={{root: classes.textIcon}}/> Export experiment data
-            </Button>
           </div>
         </div>
 
@@ -201,7 +197,7 @@ function ExperimentSummary(props){
           <Typography variant="subtitle2" style={{flexGrow: 1}}>
             <div style={{display:"inline"}}>
               <Box fontWeight="fontWeightBold" style={{display:"inline-block"}}>
-                <CalendarTodayIcon style={{ fontSize: 12, verticalAlign: "-1px" }}/> Experiment started:&nbsp;
+                <CalendarTodayIcon style={{ fontSize: 12, verticalAlign: "-1px" }}/> Experiment created:&nbsp;
               </Box>
               <Box fontWeight="fontWeightRegular" style={{marginRight: "1%", display:"inline-block"}}>
                 {(startedAt !== "") &&

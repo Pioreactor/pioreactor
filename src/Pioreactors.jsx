@@ -383,7 +383,7 @@ function ButtonStopProcess() {
 
   const handleClick = () => {
     confirm({
-      description: 'This will immediately halt all activities (stirring, dosing, etc.) in all Pioreactor units. You can manually start them again later. Do you wish to continue?',
+      description: 'This will immediately stop all activities (stirring, dosing, etc.) in all Pioreactor units. Do you wish to continue?',
       title: "Stop all activities?",
       confirmationText: "Confirm",
       confirmationButtonProps: {color: "primary"},

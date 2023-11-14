@@ -11,7 +11,6 @@ import Card from '@mui/material/Card';
 import Divider from '@mui/material/Divider';
 import CardContent from '@mui/material/Card';
 import {getConfig} from "./utilities"
-import InputLabel from '@mui/material/InputLabel';
 import FormLabel from '@mui/material/FormLabel';
 import MenuItem from '@mui/material/MenuItem';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';

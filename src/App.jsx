@@ -13,7 +13,6 @@ import Pioreactors from "./Pioreactors";
 import StartNewExperiment from "./StartNewExperiment";
 import CreateExperimentProfile from "./CreateExperimentProfile";
 import EditExperimentProfile from "./EditExperimentProfile";
-import Calibrations from "./Calibrations";
 import EditConfig from "./EditConfig";
 import Updates from "./Updates";
 import Plugins from "./Plugins";
@@ -99,7 +98,6 @@ function MainSite() {
               <Route path="/config" element={<EditConfig title="Pioreactor ~ Configuration"/>}/>
               <Route path="/pioreactors" element={ <Pioreactors title="Pioreactor ~ Pioreactors"/>}/>
               <Route path="/updates" element={<Updates title="Pioreactor ~ Updates"/>}/>
-              <Route path="/calibrations" element={<Calibrations title="Pioreactor ~ Calibrations"/>}/>
               <Route path="/" element={<ExperimentOverview title="Pioreactor ~ Overview"/>}/>
             </Routes>
             <ErrorSnackbar />
