@@ -532,7 +532,6 @@ def update_app(
             raise HTTPException(
                 f"Unable to retrieve information over internet. Is the Pioreactor connected to the internet? LAP is {is_using_local_access_point()}."
             )
-
         response = get(f"https://api.github.com/repos/{repo}/releases/{tag}")
         if response.raise_for_status():
             logger.error(f"Version {version} not found")
@@ -540,6 +539,7 @@ def update_app(
 
         release_metadata = loads(response.body)
         version_installed = release_metadata["tag_name"]
+        found_whl = False
         for asset in release_metadata["assets"]:
             # add the following files to the release. They should ideally be idempotent!
 
@@ -561,6 +561,7 @@ def update_app(
                     ]
                 )
             elif asset_name.startswith("pioreactor") and asset_name.endswith(".whl"):
+                found_whl = True
                 assert (
                     version_installed in url
                 ), f"Hm, pip installing {url} but this doesn't match version specified for installing: {version_installed}"
@@ -586,6 +587,8 @@ def update_app(
                         ("sudo bash /tmp/post_update.sh", 100),
                     ]
                 )
+        if not found_whl:
+            raise FileNotFoundError(f"Could not find a whl file in the {repo=} {tag=} release.")
 
     for command, _ in sorted(commands_and_priority, key=lambda t: t[1]):
         logger.debug(command)
