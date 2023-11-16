@@ -87,6 +87,13 @@ def stirring_calibration(min_dc: int, max_dc: int) -> None:
             logger.error("No RPMs were measured. Is the stirring spinning?")
             return
 
+        if len(filtered_dcs) <= n_samples * 0.75:
+            # the above can fail if all measured rpms are 0
+            logger.warning(
+                "Not enough RPMs were measured. Is the stirring spinning and working correctly? Try changing your initial_duty_cycle."
+            )
+            return
+
         # since in practice, we want a look up from RPM -> required DC, we
         # set x=measure_rpms, y=dcs
         (rpm_coef, rpm_coef_std), (intercept, intercept_std) = simple_linear_regression(
@@ -100,7 +107,7 @@ def stirring_calibration(min_dc: int, max_dc: int) -> None:
             )
             return
 
-        if intercept <= 0:
+        elif intercept <= 0:
             logger.warning("Something went wrong - the intercept should be greater than 0.")
             return
 

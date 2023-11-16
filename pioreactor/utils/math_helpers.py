@@ -99,6 +99,10 @@ def residuals_of_simple_linear_regression(x: Sequence, y: Sequence, trimmed=Fals
 
 
 def correlation(x: Sequence, y: Sequence) -> float:
-    from statistics import correlation
+    from statistics import correlation, StatisticsError
 
-    return correlation(x, y)
+    try:
+        return correlation(x, y)
+    except StatisticsError as e:
+        # Raising the original error with additional data
+        raise StatisticsError(f"{e}. x: {x}, y: {y}") from e
