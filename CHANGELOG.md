@@ -10,6 +10,7 @@
  - Security improvements.
  - Reduce the default LED intensity in `light_dark_cycle` from 50% to 5%. This is more appropriate for sparse cultures.
  - Fixed a race condition when starting a hotspot with boot config.ini.
+ - changed how `is_HAT_present` determine is the HAT is on the Pi. Previously, it used the i2c bus to check if the RP2040's firmware was active. This would fail if the HAT was present, but the firmware or i2c wasn't working. Now we check the EEPROM, which is a much more robust test.
 
 ### 23.11.08
 
