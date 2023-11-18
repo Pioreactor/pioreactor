@@ -73,12 +73,29 @@ def is_i2c_device_present(channel):
             return False
 
 
-def is_HAT_present():
+def is_DAC_present():
     return is_i2c_device_present(DAC)
+
+
+def is_ADC_present():
+    return is_i2c_device_present(ADC)
 
 
 def is_heating_pcb_present():
     return is_i2c_device_present(TEMP)
+
+
+def is_HAT_present():
+    if is_testing_env():
+        return True
+
+    with open("/proc/device-tree/hat/vendor", "r") as f:
+        vendor = f.readline().strip()
+
+    with open("/proc/device-tree/hat/product_id", "r") as f:
+        product_id = f.readline().strip()
+
+    return vendor == "Pioreactor Inc." and product_id == "0x0001"
 
 
 def round_to_precision(x: float, p: float) -> float:
