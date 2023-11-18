@@ -57,7 +57,7 @@ else:
     }
 
 
-def is_i2c_device_present(channel):
+def is_i2c_device_present(channel: int) -> bool:
     if is_testing_env():
         from pioreactor.utils.mock import MockI2C as I2C
     else:
@@ -73,29 +73,32 @@ def is_i2c_device_present(channel):
             return False
 
 
-def is_DAC_present():
+def is_DAC_present() -> bool:
     return is_i2c_device_present(DAC)
 
 
-def is_ADC_present():
+def is_ADC_present() -> bool:
     return is_i2c_device_present(ADC)
 
 
-def is_heating_pcb_present():
+def is_heating_pcb_present() -> bool:
     return is_i2c_device_present(TEMP)
 
 
-def is_HAT_present():
+def is_HAT_present() -> bool:
     if is_testing_env():
         return True
 
-    with open("/proc/device-tree/hat/vendor", "r") as f:
-        vendor = f.readline().strip()
+    try:
+        with open("/proc/device-tree/hat/vendor", "r") as f:
+            vendor = f.readline().strip("\x00")
 
-    with open("/proc/device-tree/hat/product_id", "r") as f:
-        product_id = f.readline().strip()
+        with open("/proc/device-tree/hat/product_id", "r") as f:
+            product_id = f.readline().strip("\x00")
 
-    return vendor == "Pioreactor Inc." and product_id == "0x0001"
+        return vendor == "Pioreactor Inc." and product_id == "0x0001"
+    except FileNotFoundError:
+        return False
 
 
 def round_to_precision(x: float, p: float) -> float:
