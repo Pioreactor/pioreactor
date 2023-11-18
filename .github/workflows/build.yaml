@@ -32,7 +32,7 @@ jobs:
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: dist/*.whl
-          tag: ${{ github.ref }}
+          tag: ${{ github.event.release.tag_name }}
           overwrite: true
           file_glob: true
 
@@ -62,7 +62,7 @@ jobs:
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: wheels_${{ github.event.release.tag_name }}.zip
-          tag: ${{ github.ref }}
+          tag: ${{ github.event.release.tag_name }}
           overwrite: true
 
   zip-asset-upload:
@@ -90,7 +90,7 @@ jobs:
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: release_${{ github.event.release.tag_name }}.zip
-          tag: ${{ github.ref }}
+          tag: ${{ github.event.release.tag_name }}
           overwrite: true
 
   publish-on-pypi:

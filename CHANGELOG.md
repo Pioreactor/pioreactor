@@ -9,6 +9,7 @@
  - Simplify some UI elements.
  - Security improvements.
  - Reduce the default LED intensity in `light_dark_cycle` from 50% to 5%. This is more appropriate for sparse cultures.
+ - Fixed a race condition when starting a hotspot with boot config.ini.
 
 ### 23.11.08
 
