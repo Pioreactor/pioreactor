@@ -1,3 +1,7 @@
+### Upcoming
+ - Fix experiment profile validation error
+ - The "Stop" button is always available now in the "Dosing" tab for "Manage all Pioreactors".
+
 ### 23.11.18
  - No more waiting around for growth-rate-calculating to get to "Ready" state
  - The "Label" step in the New Experiment flow is skipped if there is only 1 active Pioreactor in the cluster.
