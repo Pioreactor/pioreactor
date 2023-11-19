@@ -167,11 +167,11 @@ def _verify_experiment_profile(profile: struct.Profile) -> struct.Profile:
                 actions_per_job[job].append(action)
 
     # 1.
-    def check_for_not_stopping_automations(act):
+    def check_for_not_stopping_automations(action: struct.Action) -> bool:
         match action:
             case struct.Stop(_):
                 raise ValueError(
-                    "Don't use 'stop' for automations. To stop automations, use 'stop' for controllers."
+                    f"Don't use 'stop' for automations. To stop automations, use 'stop' for controllers: {action}"
                 )
         return True
 
@@ -181,11 +181,13 @@ def _verify_experiment_profile(profile: struct.Profile) -> struct.Profile:
         )
 
     # 2.
-    def check_for_settings_change_on_controllers(act):
+    def check_for_settings_change_on_controllers(action: struct.Action) -> bool:
         match action:
             case struct.Update(_, options):
                 if "automation_name" not in options:
-                    raise ValueError("Update automations, not controllers, with settings.")
+                    raise ValueError(
+                        f"Update automations, not controllers, with settings: {action}."
+                    )
         return True
 
     for control_type in ["temperature_control", "dosing_control", "led_control"]:
