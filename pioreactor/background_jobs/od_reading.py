@@ -192,10 +192,7 @@ class ADCReader(LoggerMixin):
 
         """
 
-        if not hardware.is_HAT_present():
-            self.logger.error("Pioreactor HAT must be present.")
-            raise exc.HardwareNotFoundError("Pioreactor HAT must be present.")
-        elif not hardware.is_ADC_present():
+        if not hardware.is_ADC_present():
             self.logger.error("The internal ADC is not responding. Exiting.")
             raise exc.HardwareNotFoundError("The internal ADC is not responding. Exiting.")
         elif not hardware.is_DAC_present():
