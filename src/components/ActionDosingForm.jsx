@@ -178,7 +178,7 @@ export default function ActionPumpForm(props) {
         <Button
           size="small"
           color="secondary"
-          disabled={(props?.job?.state !== "ready")}
+          disabled={ (props?.job?.state !== "ready") && (props.unit !== "$broadcast")} // always allow for "stop" in the "Manage all" dialog
           onClick={stopPump}
         >
           Stop

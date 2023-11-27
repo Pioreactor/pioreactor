@@ -54,7 +54,7 @@ function TactileButtonNotification(props) {
     var client
     if (config.remote && config.remote.ws_url) {
       client = new Client(
-        `ws://${config.remote.ws_url}/`,
+        `${config.remote.ws_url}/`,
         "webui_TactileButtonNotification" + Math.floor(Math.random()*10000)
       )}
     else {

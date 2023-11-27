@@ -83,7 +83,7 @@ class LogTable extends React.Component {
     this.getData()
     if (this.props.config.remote && this.props.config.remote.ws_url) {
       this.client = new Client(
-        `ws://${this.props.config.remote.ws_url}/`,
+        `${this.props.config.remote.ws_url}/`,
         "webui_LogTable" + Math.floor(Math.random()*10000)
       )}
     else {

@@ -1802,7 +1802,7 @@ function SettingsActionsDialogAll({config, experiment}) {
     var client
     if (config.remote && config.remote.ws_url) {
       client = new Client(
-        `ws://${config.remote.ws_url}/`,
+        `${config.remote.ws_url}/`,
         "webui_SettingsActionsDialogAll" + Math.floor(Math.random()*10000)
       )}
     else {
@@ -2590,7 +2590,7 @@ function PioreactorCard(props){
     var client
     if (props.config.remote && props.config.remote.ws_url) {
       client = new Client(
-        `ws://${props.config.remote.ws_url}/`,
+        `${props.config.remote.ws_url}/`,
         "webui_PioreactorCard" + Math.floor(Math.random()*10000)
       )}
     else {

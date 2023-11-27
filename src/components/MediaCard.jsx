@@ -72,7 +72,7 @@ class MediaCard extends React.Component {
   componentDidMount() {
     if (this.props.config.remote && this.props.config.remote.ws_url) {
       this.client = new Client(
-        `ws://${this.props.config.remote.ws_url}/`,
+        `${this.props.config.remote.ws_url}/`,
         "webui_MediaCard" + Math.floor(Math.random()*10000)
       )}
     else {

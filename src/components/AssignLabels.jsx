@@ -86,7 +86,7 @@ function AssignLabels(props){
     var client
     if (props.config.remote && props.config.remote.ws_url) {
       client = new Client(
-        `ws://${props.config.remote.ws_url}/`,
+        `${props.config.remote.ws_url}/`,
         "webui_publishExpNameToMQTT" + Math.floor(Math.random()*10000)
       )}
     else {
