@@ -141,19 +141,8 @@ class LogTable extends React.Component {
     const ts = moment.utc(timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]')
     const localTs = ts.local()
     if (this.props.byDuration){
-      const deltaHours = Math.round(ts.diff(this.props.experimentStartTime, 'hours', true) * 1e1)/1e1
-      const deltaMin = Math.round(ts.diff(this.props.experimentStartTime, 'minutes', true))
-      const deltaSec = Math.round(ts.diff(this.props.experimentStartTime, 'seconds', true))
-
-      if (deltaSec < 60) {
-        return <span title={localTs.format('YYYY-MM-DD HH:mm:ss.SS')}> {deltaSec} s </span>
-      }
-      else if (deltaMin < 60) {
-        return <span title={localTs.format('YYYY-MM-DD HH:mm:ss.SS')}> {deltaMin} min </span>
-      }
-      else {
-        return <span title={localTs.format('YYYY-MM-DD HH:mm:ss.SS')}> {deltaHours} h </span>
-      }
+      const deltaHours = Math.round(ts.diff(this.props.experimentStartTime, 'hours', true) * 1e2)/1e2
+      return <span title={localTs.format('YYYY-MM-DD HH:mm:ss.SS')}> {deltaHours} h </span>
     }
     else {
       return <span title={localTs.format('YYYY-MM-DD HH:mm:ss.SS')}>{localTs.format('HH:mm:ss')} </span>
@@ -174,7 +163,7 @@ class LogTable extends React.Component {
             <Table stickyHeader size="small" aria-label="log table">
                <TableHead>
                 <TableRow>
-                  <TableCell className={clsx(classes.headerCell)}>{this.props.byDuration ? "Elapsed" : "Time"}</TableCell>
+                  <TableCell className={clsx(classes.headerCell)}>Time</TableCell>
                   <TableCell className={clsx(classes.headerCell)}>Pioreactor</TableCell>
                   <TableCell className={clsx(classes.headerCell)}>Source</TableCell>
                   <TableCell className={clsx(classes.headerCell)}>Message</TableCell>
@@ -184,8 +173,9 @@ class LogTable extends React.Component {
               <TableBody>
                 {this.state.listOfLogs.map(log => (
                   <TableRow key={log.key}>
-                    <TableCell className={clsx(classes.tightCell, classes.smallText, {[classes.noticeLog]: log.is_notice, [classes.errorLog]: log.is_error, [classes.warningLog]: log.is_warning})}>
-                      {this.timestampCell(log.timestamp)}
+                    <Tablell className={clsx(classes.tightCell, classes.smallText, {[classes.noticeLog]: log.is_notice, [classes.errorLog]: log.is_error, [classes.warningLog]: log.is_warning})}>
+                      <span title={moment.utc(log.timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]').local().format
+('YYYY-MM-DD HH:mm:ss')}>{this.timestampCell(log.timestamp)}</span>
                     </TableCell>
                     <TableCell className={clsx(classes.tightCell, classes.smallText, {[classes.noticeLog]: log.is_notice, [classes.errorLog]: log.is_error, [classes.warningLog]: log.is_warning})}> {this.relabelUnit(log.pioreactor_unit)}</TableCell>
                     <TableCell className={clsx(classes.tightCell, classes.smallText, {[classes.noticeLog]: log.is_notice, [classes.errorLog]: log.is_error, [classes.warningLog]: log.is_warning})}>{log.task.replace(/_/g, ' ')}</TableCell>
