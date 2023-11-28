@@ -25,6 +25,15 @@ from pioreactor.pubsub import QOS
 from pioreactor.pubsub import subscribe_and_callback
 
 
+def boolean_retry(function: Callable, f_args, max_attempts: int = 3, sleep_for=0.25) -> bool:
+    for _ in range(max_attempts):
+        res = function(*f_args)
+        if res:
+            return res
+        time.sleep(sleep_for)
+    return False
+
+
 class callable_stack:
     """
     A class for managing a stack of callable objects in Python.

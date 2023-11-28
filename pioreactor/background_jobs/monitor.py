@@ -622,8 +622,8 @@ class Monitor(BackgroundJob):
             options["unit"] = self.unit
             options["experiment"] = whoami._get_latest_experiment_name()  # techdebt
             Thread(
-                target=led_intensity,
-                args=(state,),
+                target=utils.boolean_retry,
+                args=(led_intensity, state),
                 kwargs=options,
             ).start()
 
