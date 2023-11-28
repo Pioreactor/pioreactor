@@ -1,21 +1,28 @@
 ### Upcoming
- - Fix experiment profile validation error
- - The "Stop" button is always available now in the "Dosing" tab for "Manage all Pioreactors".
- - Fix for Ngrok remote access.
- - `ws_url` in the configuration now requires a fully qualified url. Example: `ws://...` or `wss://...`.
+
+#### Breaking changes
  - Merged the turbidostat automations into one. You can either select target target nOD or target OD, but not both!
+ - `ws_url` in the configuration now requires a fully qualified url. Example: `ws://...` or `wss://...`.
+ - Removed `morbidostat` dosing automation, users should try to use pid_morbidostat. The morbidostat code is still available to be added as a custom plugin here: https://github.com/Pioreactor/automation-examples/blob/main/dosing/morbidostat.py
+ - Removed `constant_duty_cycle` temperature automation. Again, the code is available here: https://github.com/Pioreactor/automation-examples/blob/main/temperature/constant_duty_cycle.py
+
+#### Enhancements
  - Both "Target OD" and "Target nOD" displayed and editable in the UI.
- - `pid_morbidostat` now explicitly uses the keyword arg `target_normalized_od`, instead of `target_od`. It always has been nOD.
  - Previously, if the LED channel was locked (most common when OD reading was running), then any changes to the LED intensity (via the UI) would be silently rejected. This is changed: we have added retry logic that will attempt to keep changing it a few more times (hopefully to avoid the lock)
- - Fixed a race condition between starting an automation and not getting OD data in time.
+ - `pid_morbidostat` now explicitly uses the keyword arg `target_normalized_od`, instead of `target_od`. It always has been nOD.
  - Added some light form validation in the automations dialog in the UI.
  - New environment variable to skip loading plugins, `SKIP_PLUGINS`. Useful for debugging. Ex:
    ```
    SKIP_PLUGINS=1 pio run stirring
    ```
+
+#### Bug Fixes
+ - Fix experiment profile validation error
+ - The "Stop" button is always available now in the "Dosing" tab for "Manage all Pioreactors".
+ - Fix for Ngrok remote access.
+ - Fixed a race condition between starting an automation and not getting OD data in time.
  - The automation form in the UI for pid_morbidostat was missing `volume`, that's been added now.
- - Removed `morbidostat` dosing automation, users should try to use pid_morbidostat. The morbidostat code is still available to be added as a custom plugin here: https://github.com/Pioreactor/automation-examples/blob/main/dosing/morbidostat.py
- - Removed `constant_duty_cycle` temperature automation. Again, the code is available here: https://github.com/Pioreactor/automation-examples/blob/main/temperature/constant_duty_cycle.py
+
 
 ### 23.11.18
  - No more waiting around for growth-rate-calculating to get to "Ready" state

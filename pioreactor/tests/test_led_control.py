@@ -195,7 +195,7 @@ def test_light_duration_hour_to_zero() -> None:
         unit=unit,
         experiment=experiment,
     ) as lc:
-        pause(12)
+        pause(22)
         assert lc.automation_job.light_active
 
         lc.automation_job.set_light_duration_minutes(60 * 0)

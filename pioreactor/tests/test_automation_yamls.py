@@ -18,37 +18,41 @@ def get_specific_yaml(path):
 
 
 def test_automations_and_their_yamls_have_the_same_data():
-    for automation_name, klass in LEDController.available_automations.items():
-        data = get_specific_yaml(f"contrib/automations/led/{automation_name}.yaml")
-        assert data["automation_name"] == automation_name
+    try:
+        for automation_name, klass in LEDController.available_automations.items():
+            data = get_specific_yaml(f"contrib/automations/led/{automation_name}.yaml")
+            assert data["automation_name"] == automation_name
 
-        # check yaml -> settings
-        for field in data["fields"]:
-            key = field["key"]
-            assert field["unit"] == klass.published_settings[key]["unit"]
+            # check yaml -> settings
+            for field in data["fields"]:
+                key = field["key"]
+                assert field["unit"] == klass.published_settings[key]["unit"]
 
-        # check settings -> yaml
-        for setting in klass.published_settings:
-            assert any([f["key"] == setting for f in data["fields"]])
+            # check settings -> yaml
+            for setting in klass.published_settings:
+                assert any([f["key"] == setting for f in data["fields"]])
 
-    for automation_name, klass in DosingController.available_automations.items():
-        data = get_specific_yaml(f"contrib/automations/dosing/{automation_name}.yaml")
-        assert data["automation_name"] == automation_name
+        for automation_name, klass in DosingController.available_automations.items():
+            data = get_specific_yaml(f"contrib/automations/dosing/{automation_name}.yaml")
+            assert data["automation_name"] == automation_name
 
-        for field in data["fields"]:
-            key = field["key"]
-            assert field["unit"] == klass.published_settings[key]["unit"]
+            for field in data["fields"]:
+                key = field["key"]
+                assert field["unit"] == klass.published_settings[key]["unit"]
 
-        for setting in klass.published_settings:
-            assert any([f["key"] == setting for f in data["fields"]])
+            for setting in klass.published_settings:
+                assert any([f["key"] == setting for f in data["fields"]])
 
-    for automation_name, klass in TemperatureController.available_automations.items():
-        data = get_specific_yaml(f"contrib/automations/temperature/{automation_name}.yaml")
-        assert data["automation_name"] == automation_name
+        for automation_name, klass in TemperatureController.available_automations.items():
+            data = get_specific_yaml(f"contrib/automations/temperature/{automation_name}.yaml")
+            assert data["automation_name"] == automation_name
 
-        for field in data["fields"]:
-            key = field["key"]
-            assert field["unit"] == klass.published_settings[key]["unit"]
+            for field in data["fields"]:
+                key = field["key"]
+                assert field["unit"] == klass.published_settings[key]["unit"]
 
-        for setting in klass.published_settings:
-            assert any([f["key"] == setting for f in data["fields"]])
+            for setting in klass.published_settings:
+                assert any([f["key"] == setting for f in data["fields"]])
+    except Exception as e:
+        print(automation_name, klass)
+        raise e
