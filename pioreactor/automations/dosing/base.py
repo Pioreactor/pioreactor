@@ -270,7 +270,8 @@ class DosingAutomationJob(AutomationJob):
             else:
                 # there is a race condition here: self.run() will run immediately (see run_immediately), but the state of the job is not READY, since
                 # set_duration is run in the __init__ (hence the job is INIT). So we wait 2 seconds for the __init__ to finish, and then run.
-                run_after = 2
+                # Later: in fact, we actually want this to run after an OD reading cycle so we have internal data, so it should wait a cycle of that.
+                run_after = 1.0 / config.getfloat("od_config", "samples_per_second")
 
             self.run_thread = RepeatedTimer(
                 self.duration * 60,

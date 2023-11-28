@@ -624,6 +624,7 @@ class Monitor(BackgroundJob):
             Thread(
                 target=utils.boolean_retry,
                 args=(led_intensity, (state,), options),
+                kwargs={"sleep_for": 0.4, "retries": 5},
             ).start()
 
         elif job_name in (

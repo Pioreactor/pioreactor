@@ -8,6 +8,7 @@ import time
 from contextlib import contextmanager
 from functools import wraps
 from threading import Event
+from typing import Any
 from typing import Callable
 from typing import cast
 from typing import Generator
@@ -23,21 +24,6 @@ from pioreactor import whoami
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import QOS
 from pioreactor.pubsub import subscribe_and_callback
-
-
-def boolean_retry(
-    func: Callable[..., bool],
-    f_args: tuple,
-    f_kwargs: dict,
-    max_attempts: int = 4,
-    sleep_for: float = 0.25,
-) -> bool:
-    for _ in range(max_attempts):
-        res = func(*f_args, **f_kwargs)
-        if res:
-            return res
-        time.sleep(sleep_for)
-    return False
 
 
 class callable_stack:
@@ -400,14 +386,30 @@ class SummableDict(dict):
             return dict.__getitem__(self, key)
 
 
-def retry(func: Callable, retries=3, delay=0.5, args=(), kwargs={}):
+def boolean_retry(
+    func: Callable[..., bool],
+    f_args: tuple,
+    f_kwargs: dict,
+    retries: int = 3,
+    sleep_for: float = 0.25,
+) -> bool:
+    """
+    Retries a function upon encountering an False return until it succeeds or the maximum number of retries is exhausted.
+
+    """
+    for _ in range(retries):
+        res = func(*f_args, **f_kwargs)
+        if res:
+            return res
+        time.sleep(sleep_for)
+    return False
+
+
+def exception_retry(
+    func: Callable, retries: int = 3, sleep_for: float = 0.5, args=(), kwargs={}
+) -> Any:
     """
     Retries a function upon encountering an exception until it succeeds or the maximum number of retries is exhausted.
-
-    This function executes the provided function and handles any exceptions it raises. If an exception is raised,
-    the function will wait for a specified delay before attempting to execute the function again. This process repeats
-    until either the function execution is successful or the specified maximum number of retries is exhausted.
-    On the final attempt, if the function still raises an exception, that exception will be re-raised to the caller.
 
     Parameters
     -----------
@@ -432,7 +434,7 @@ def retry(func: Callable, retries=3, delay=0.5, args=(), kwargs={}):
     >     return x / y
     >
     > # Call the function with retry
-    > result = retry(risky_function, retries=5, delay=1, args=(10, 0))
+    > result = exception_retry(risky_function, retries=5, sleep_for=1, args=(10, 0))
     """
     for i in range(retries):
         try:
@@ -440,4 +442,4 @@ def retry(func: Callable, retries=3, delay=0.5, args=(), kwargs={}):
         except Exception as e:
             if i == retries - 1:  # If this was the last attempt
                 raise e
-            time.sleep(delay)
+            time.sleep(sleep_for)
