@@ -8,6 +8,7 @@
  - `pid_morbidostat` now explicitly uses the keyword arg `target_normalized_od`, instead of `target_od`. It always has been nOD.
  - Previously, if the LED channel was locked (most common when OD reading was running), then any changes to the LED intensity (via the UI) would be silently rejected. This is changed: we have added retry logic that will attempt to keep changing it a few more times (hopefully to avoid the lock)
  - Fixed a race condition between starting an automation and not getting OD data in time.
+ - Added some light form validation in the automations dialog in the UI.
 
 ### 23.11.18
  - No more waiting around for growth-rate-calculating to get to "Ready" state
