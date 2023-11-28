@@ -8,7 +8,6 @@ from msgspec.json import encode
 
 from pioreactor import pubsub
 from pioreactor import structs
-from pioreactor.automations.temperature import ConstantDutyCycle
 from pioreactor.automations.temperature import OnlyRecordTemperature
 from pioreactor.automations.temperature import Thermostat
 from pioreactor.background_jobs import temperature_control
@@ -96,18 +95,20 @@ def test_changing_temperature_algo_over_mqtt_and_then_update_params() -> None:
             f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
             encode(
                 structs.TemperatureAutomation(
-                    automation_name="constant_duty_cycle", args={"duty_cycle": 25}
+                    automation_name="thermostat", args={"target_temperature": 25}
                 )
             ),
         )
         time.sleep(15)
-        assert algo.automation_name == "constant_duty_cycle"
-        assert isinstance(algo.automation_job, ConstantDutyCycle)
-        assert algo.automation_job.duty_cycle == 25
+        assert algo.automation_name == "thermostat"
+        assert isinstance(algo.automation_job, Thermostat)
+        assert algo.automation_job.target_temperature == 25
 
-        pubsub.publish(f"pioreactor/{unit}/{experiment}/temperature_automation/duty_cycle/set", 30)
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/temperature_automation/target_temperature/set", 30
+        )
         pause()
-        assert algo.automation_job.duty_cycle == 30
+        assert algo.automation_job.target_temperature == 30
 
 
 def test_heating_is_reduced_when_set_temp_is_exceeded() -> None:

@@ -9,6 +9,13 @@
  - Previously, if the LED channel was locked (most common when OD reading was running), then any changes to the LED intensity (via the UI) would be silently rejected. This is changed: we have added retry logic that will attempt to keep changing it a few more times (hopefully to avoid the lock)
  - Fixed a race condition between starting an automation and not getting OD data in time.
  - Added some light form validation in the automations dialog in the UI.
+ - New environment variable to skip loading plugins, `SKIP_PLUGINS`. Useful for debugging. Ex:
+   ```
+   SKIP_PLUGINS=1 pio run stirring
+   ```
+ - The automation form in the UI for pid_morbidostat was missing `volume`, that's been added now.
+ - Removed `morbidostat` dosing automation, users should try to use pid_morbidostat. The morbidostat code is still available to be added as a custom plugin here: https://github.com/Pioreactor/automation-examples/blob/main/dosing/morbidostat.py
+ - Removed `constant_duty_cycle` temperature automation. Again, the code is available here: https://github.com/Pioreactor/automation-examples/blob/main/temperature/constant_duty_cycle.py
 
 ### 23.11.18
  - No more waiting around for growth-rate-calculating to get to "Ready" state

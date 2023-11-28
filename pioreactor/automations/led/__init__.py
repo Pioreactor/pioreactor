@@ -8,6 +8,7 @@ from pioreactor.automations.led.base import LEDAutomationJob
 
 class Silent(LEDAutomationJob):
     automation_name = "silent"
+    published_settings = {"duration": {"datatype": "float", "settable": True, "unit": "min"}}
 
     def __init__(self, **kwargs) -> None:
         super(Silent, self).__init__(**kwargs)

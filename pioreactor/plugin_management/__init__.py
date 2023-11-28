@@ -63,6 +63,10 @@ def get_plugins() -> dict[str, Plugin]:
 
     plugins: dict[str, Plugin] = {}
 
+    if os.environ.get("SKIP_PLUGINS"):
+        # short circuit out
+        return plugins
+
     # get entry point plugins
     # Users can use Python's entry point system to create rich plugins, see
     # example here: https://github.com/Pioreactor/pioreactor-air-bubbler
