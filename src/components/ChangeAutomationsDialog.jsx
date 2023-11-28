@@ -108,6 +108,11 @@ function ChangeAutomationsDialog(props) {
   },[props.config])
 
 
+  const removeEmpty = (obj) => {
+    return Object.fromEntries(Object.entries(obj).filter(([_, v]) => v != null));
+  }
+
+
   const handleClose = () => {
     props.onFinished();
   };
@@ -129,7 +134,7 @@ function ChangeAutomationsDialog(props) {
 
   const startJob = (event) => {
     event.preventDefault()
-    runPioreactorJob(props.unit, `${automationType}_control`, [], {"automation_name": automationName, ...algoSettings})
+    runPioreactorJob(props.unit, `${automationType}_control`, [], {"automation_name": automationName, ...removeEmpty(algoSettings)})
     setOpenSnackbar(true);
     handleClose()
   }
