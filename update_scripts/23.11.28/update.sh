@@ -5,4 +5,4 @@ set -e
 
 export LC_ALL=C
 
-sudo rm /var/www/pioreactorui/contrib/automations/dosing/turbidostat_targeting_od.yaml
+sudo rm /var/www/pioreactorui/contrib/automations/dosing/turbidostat_targeting_od.yaml || true
