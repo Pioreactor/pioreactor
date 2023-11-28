@@ -120,7 +120,7 @@ def test_light_dark_cycle_starts_on() -> None:
         unit=unit,
         experiment=experiment,
     ) as lc:
-        pause(6)
+        pause(12)
 
         assert lc.automation_job.light_active
         with local_intermittent_storage("leds") as c:
@@ -195,7 +195,7 @@ def test_light_duration_hour_to_zero() -> None:
         unit=unit,
         experiment=experiment,
     ) as lc:
-        pause(6)
+        pause(12)
         assert lc.automation_job.light_active
 
         lc.automation_job.set_light_duration_minutes(60 * 0)

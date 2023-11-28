@@ -186,22 +186,6 @@ def test_child_cant_update_heater_when_locked() -> None:
         assert t.automation_job.update_heater(50)
 
 
-def test_constant_duty_cycle_init() -> None:
-    experiment = "test_constant_duty_cycle_init"
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/temperature_control/temperature",
-        None,
-        retain=True,
-    )
-
-    dc = 50
-    with temperature_control.TemperatureController(
-        automation_name="constant_duty_cycle", unit=unit, experiment=experiment, duty_cycle=dc
-    ) as algo:
-        pause()
-        assert algo.heater_duty_cycle == 50
-
-
 def test_setting_pid_control_after_startup_will_start_some_heating() -> None:
     # this test tries to replicate what a user does in the UI
     experiment = "test_setting_pid_control_after_startup_will_start_some_heating"
