@@ -173,7 +173,7 @@ class LogTable extends React.Component {
               <TableBody>
                 {this.state.listOfLogs.map(log => (
                   <TableRow key={log.key}>
-                    <Tablell className={clsx(classes.tightCell, classes.smallText, {[classes.noticeLog]: log.is_notice, [classes.errorLog]: log.is_error, [classes.warningLog]: log.is_warning})}>
+                    <TableCell className={clsx(classes.tightCell, classes.smallText, {[classes.noticeLog]: log.is_notice, [classes.errorLog]: log.is_error, [classes.warningLog]: log.is_warning})}>
                       <span title={moment.utc(log.timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]').local().format
 ('YYYY-MM-DD HH:mm:ss')}>{this.timestampCell(log.timestamp)}</span>
                     </TableCell>
