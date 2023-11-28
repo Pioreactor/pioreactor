@@ -63,13 +63,13 @@ class Turbidostat(DosingAutomationJob):
 
     def set_target_normalized_od(self, new_target: float) -> None:
         if not self.is_targeting_nOD:
-            self.logger.warning("You are currently target nOD, and can only change that.")
+            self.logger.warning("You are currently targeting OD, and can only change that.")
         else:
             self.target_normalized_od = float(new_target)
 
     def set_target_od(self, new_target: float) -> None:
         if self.is_targeting_nOD:
-            self.logger.warning("You are currently target OD, and can only change that.")
+            self.logger.warning("You are currently targeting nOD, and can only change that.")
         else:
             self.target_od = float(new_target)
 

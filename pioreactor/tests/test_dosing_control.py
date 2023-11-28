@@ -226,18 +226,23 @@ def test_cant_target_both_in_turbidostat() -> None:
 def test_cant_change_target_in_turbidostat() -> None:
     experiment = "test_cant_change_target_in_turbidostat"
 
-    with pytest.raises(ValueError):
-        with Turbidostat(
-            target_od=0.5,
-            duration=60,
-            volume=0.25,
-            unit=unit,
-            experiment=experiment,
-            skip_first_run=True,
-        ) as algo:
-            assert not algo.is_targeting_nOD
-            algo.set_target_normalized_od(2.0)
-            assert not algo.is_targeting_nOD
+    with Turbidostat(
+        target_od=0.5,
+        duration=60,
+        volume=0.25,
+        unit=unit,
+        experiment=experiment,
+        skip_first_run=True,
+    ) as algo:
+        assert not algo.is_targeting_nOD
+        assert algo.target_od == 0.5
+        assert algo.target_normalized_od is None
+
+        algo.set_target_normalized_od(2.0)
+
+        assert not algo.is_targeting_nOD
+        assert algo.target_od == 0.5
+        assert algo.target_normalized_od is None
 
 
 def test_turbidostat_targeting_od() -> None:
@@ -252,6 +257,7 @@ def test_turbidostat_targeting_od() -> None:
         experiment=experiment,
         skip_first_run=True,
     ) as algo:
+        assert algo.target_od == target_od
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/od_reading/ods",
             encode(
