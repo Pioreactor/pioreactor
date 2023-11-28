@@ -241,7 +241,7 @@ def test_cant_change_target_in_turbidostat() -> None:
 
 
 def test_turbidostat_targeting_od() -> None:
-    experiment = "test_turbidostat_targeting_od_automation"
+    experiment = "test_turbidostat_targeting_od"
 
     target_od = 0.2
     with Turbidostat(
