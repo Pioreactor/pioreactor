@@ -3,7 +3,6 @@ import { makeStyles } from "@mui/styles";
 import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
 
-
 const useStyles = makeStyles((theme) => ({
   textFieldCompact: {
     marginTop: theme.spacing(3),
@@ -22,32 +21,57 @@ function AutomationForm(props){
     props.updateParent(defaults)
   }, [props.fields])
 
+
   const onSettingsChange = (e) => {
     props.updateParent({[e.target.id]: e.target.value})
   }
-  var listOfTextField = props.fields.map(field =>
-        <TextField
-          size="small"
-          autoComplete={"off"}
-          id={field.key}
-          key={field.key + props.name}
-          label={field.label}
-          defaultValue={field.default}
-          disabled={field.disabled}
-          InputProps={{
-            endAdornment: <InputAdornment position="end">{field.unit}</InputAdornment>,
-          }}
-          variant="outlined"
-          onChange={onSettingsChange}
-          onKeyPress={(e) => {e.key === 'Enter' && e.preventDefault();}}
-          className={classes.textFieldCompact}
-        />
+
+
+  var listOfDisplayFields = props.fields.map(field => {
+      switch (field.type) {
+        case 'numeric':
+          return <TextField
+            type="number"
+            size="small"
+            autoComplete={"off"}
+            id={field.key}
+            key={field.key + props.name}
+            label={field.label}
+            defaultValue={field.default}
+            disabled={field.disabled}
+            InputProps={{
+              endAdornment: <InputAdornment position="end">{field.unit}</InputAdornment>,
+            }}
+            variant="outlined"
+            onChange={onSettingsChange}
+            onKeyPress={(e) => {e.key === 'Enter' && e.preventDefault();}}
+            className={classes.textFieldCompact}
+          />
+        case 'string':
+          return <TextField
+            size="small"
+            autoComplete={"off"}
+            id={field.key}
+            key={field.key + props.name}
+            label={field.label}
+            defaultValue={field.default}
+            disabled={field.disabled}
+            InputProps={{
+              endAdornment: <InputAdornment position="end">{field.unit}</InputAdornment>,
+            }}
+            variant="outlined"
+            onChange={onSettingsChange}
+            onKeyPress={(e) => {e.key === 'Enter' && e.preventDefault();}}
+            className={classes.textFieldCompact}
+          />
+      }
+    }
   )
 
   return (
     <div>
         <p style={{whiteSpace: "pre-line"}}> {props.description} </p>
-        {listOfTextField}
+        {listOfDisplayFields}
     </div>
 )}
 

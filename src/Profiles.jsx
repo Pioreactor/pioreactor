@@ -26,6 +26,7 @@ import SelectButton from "./components/SelectButton";
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ViewTimelineOutlinedIcon from '@mui/icons-material/ViewTimelineOutlined';
+import PlayDisabledIcon from '@mui/icons-material/PlayDisabled';
 import { Client, Message } from "paho-mqtt";
 
 
@@ -268,14 +269,14 @@ function ExperimentProfilesContent(props) {
               color="primary"
               value={dryRun ? "execute_dry_run" : "execute"}
               onClick={onSubmit}
-              endIcon={dryRun ? <VisibilityIcon />  : <PlayArrowIcon />}
+              endIcon={dryRun ? <PlayDisabledIcon />  : <PlayArrowIcon />}
               disabled={confirmed || (isProfileActive)}
               onChange={({target: { value } }) =>
                 setDryRun(value === "execute_dry_run")
               }
             >
               <MenuItem value={"execute"}>Run profile</MenuItem>
-              <MenuItem value={"execute_dry_run"}>Preview profile</MenuItem>
+              <MenuItem value={"execute_dry_run"}>Dry-run profile</MenuItem>
            </SelectButton>
           <Button
             variant="text"

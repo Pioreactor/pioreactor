@@ -21,7 +21,7 @@ const useStyles = makeStyles({
 
 export default function ActionLEDForm(props) {
   const EMPTYSTATE = "";
-  const re = /^[0-9.\b]+$/;
+  const re = /^[0-9.]+$/;
   const classes = useStyles();
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [intensity, setIntensity] = useState(EMPTYSTATE);
