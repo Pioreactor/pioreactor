@@ -1,6 +1,10 @@
 ### Upcoming
  - Fix experiment profile validation error
  - The "Stop" button is always available now in the "Dosing" tab for "Manage all Pioreactors".
+ - Fix for Ngrok remote access
+ - Merged the turbidostat automations into one. You can either select target target nOD or target OD, but not both!
+ - Both "Target OD" and "Target nOD" are available to be changed in the UI.
+
 
 ### 23.11.18
  - No more waiting around for growth-rate-calculating to get to "Ready" state

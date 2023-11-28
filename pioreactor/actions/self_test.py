@@ -326,7 +326,6 @@ def test_positive_correlation_between_temperature_and_heating(
     client, logger: Logger, unit: str, experiment: str
 ) -> None:
     assert is_heating_pcb_present()
-    assert is_HAT_present()
 
     with TemperatureController(unit, experiment, "only_record_temperature") as tc:
         measured_pcb_temps = []

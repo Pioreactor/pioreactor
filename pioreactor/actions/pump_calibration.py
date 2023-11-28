@@ -54,7 +54,12 @@ def introduction() -> None:
 We will dose for a set duration, you'll measure how much volume was expelled, and then record it back here. After doing this a few times, we can construct a calibration line for this pump.
 """
     )
-    click.confirm(click.style("Ready?", fg="green"))
+    click.confirm(click.style("Proceed?", fg="green"))
+    click.clear()
+    click.echo(
+        "You don't need to place your vial in your Pioreactor. While performing this calibration, keep liquids away from the Pioreactor to keep it safe & dry"
+    )
+    click.confirm(click.style("Proceed?", fg="green"))
     click.clear()
 
 
