@@ -23,7 +23,6 @@ from pioreactor.automations.dosing.base import VialVolumeCalculator
 from pioreactor.automations.dosing.pid_morbidostat import PIDMorbidostat
 from pioreactor.automations.dosing.silent import Silent
 from pioreactor.automations.dosing.turbidostat import Turbidostat
-from pioreactor.automations.dosing.turbidostat_targeting_od import TurbidostatTargetingOD
 from pioreactor.background_jobs.dosing_control import DosingController
 from pioreactor.background_jobs.dosing_control import start_dosing_control
 from pioreactor.structs import DosingEvent
@@ -208,11 +207,44 @@ def test_turbidostat_automation() -> None:
         assert algo.run() is None
 
 
-def test_turbidostat_targeting_od_automation() -> None:
+def test_cant_target_both_in_turbidostat() -> None:
+    experiment = "test_cant_target_both_in_turbidostat"
+
+    with pytest.raises(ValueError):
+        with Turbidostat(
+            target_od=0.5,
+            target_normalized_od=2.0,
+            duration=60,
+            volume=0.25,
+            unit=unit,
+            experiment=experiment,
+            skip_first_run=True,
+        ):
+            pass
+
+
+def test_cant_change_target_in_turbidostat() -> None:
+    experiment = "test_cant_change_target_in_turbidostat"
+
+    with pytest.raises(ValueError):
+        with Turbidostat(
+            target_od=0.5,
+            duration=60,
+            volume=0.25,
+            unit=unit,
+            experiment=experiment,
+            skip_first_run=True,
+        ) as algo:
+            assert not algo.is_targeting_nOD
+            algo.set_target_normalized_od(2.0)
+            assert not algo.is_targeting_nOD
+
+
+def test_turbidostat_targeting_od() -> None:
     experiment = "test_turbidostat_targeting_od_automation"
 
     target_od = 0.2
-    with TurbidostatTargetingOD(
+    with Turbidostat(
         target_od=target_od,
         duration=60,
         volume=0.25,
