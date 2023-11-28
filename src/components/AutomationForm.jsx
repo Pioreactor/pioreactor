@@ -46,7 +46,7 @@ function AutomationForm(props){
 
   return (
     <div>
-        <p> {props.description} </p>
+        <p style={{whiteSpace: "pre-line"}}> {props.description} </p>
         {listOfTextField}
     </div>
 )}
