@@ -623,7 +623,7 @@ class Monitor(BackgroundJob):
             options["experiment"] = whoami._get_latest_experiment_name()  # techdebt
             Thread(
                 target=utils.boolean_retry,
-                args=(led_intensity, (state, options)),
+                args=(led_intensity, (state,), options),
             ).start()
 
         elif job_name in (
