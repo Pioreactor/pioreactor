@@ -22,10 +22,12 @@ def test_automations_and_their_yamls_have_the_same_data():
         data = get_specific_yaml(f"contrib/automations/led/{automation_name}.yaml")
         assert data["automation_name"] == automation_name
 
+        # check yaml -> settings
         for field in data["fields"]:
             key = field["key"]
             assert field["unit"] == klass.published_settings[key]["unit"]
 
+        # check settings -> yaml
         for setting in klass.published_settings:
             assert any([f["key"] == setting for f in data["fields"]])
 
@@ -50,6 +52,3 @@ def test_automations_and_their_yamls_have_the_same_data():
 
         for setting in klass.published_settings:
             assert any([f["key"] == setting for f in data["fields"]])
-
-
-# TODO: turn off plugin loading with a env variable.
