@@ -20,6 +20,9 @@ def get_specific_yaml(path):
 def test_automations_and_their_yamls_have_the_same_data():
     try:
         for automation_name, klass in LEDController.available_automations.items():
+            if automation_name.startswith("_test"):
+                continue
+
             data = get_specific_yaml(f"contrib/automations/led/{automation_name}.yaml")
             assert data["automation_name"] == automation_name
 
@@ -33,6 +36,9 @@ def test_automations_and_their_yamls_have_the_same_data():
                 assert any([f["key"] == setting for f in data["fields"]])
 
         for automation_name, klass in DosingController.available_automations.items():
+            if automation_name.startswith("_test"):
+                continue
+
             data = get_specific_yaml(f"contrib/automations/dosing/{automation_name}.yaml")
             assert data["automation_name"] == automation_name
 
@@ -44,6 +50,9 @@ def test_automations_and_their_yamls_have_the_same_data():
                 assert any([f["key"] == setting for f in data["fields"]])
 
         for automation_name, klass in TemperatureController.available_automations.items():
+            if automation_name.startswith("_test"):
+                continue
+
             data = get_specific_yaml(f"contrib/automations/temperature/{automation_name}.yaml")
             assert data["automation_name"] == automation_name
 

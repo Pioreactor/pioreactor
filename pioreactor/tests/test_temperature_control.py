@@ -300,7 +300,7 @@ def test_using_external_thermocouple() -> None:
     from pioreactor.utils.timing import current_utc_datetime
 
     class MySuperSimpleAutomation(TemperatureAutomationJob):
-        automation_name = "my_super_simple_automation"
+        automation_name = "_test_my_super_simple_automation"
 
         def execute(self):
             self.latest_value_arrived = self.latest_temperature
@@ -315,14 +315,16 @@ def test_using_external_thermocouple() -> None:
     ) as tc:
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
-            encode(structs.TemperatureAutomation(automation_name="my_super_simple_automation")),
+            encode(
+                structs.TemperatureAutomation(automation_name="_test_my_super_simple_automation")
+            ),
         )
         pause()
         pause()
         pause()
         pause()
         pause()
-        assert tc.automation_name == "my_super_simple_automation"
+        assert tc.automation_name == "_test_my_super_simple_automation"
 
         # start publishing from our external temperature
         pubsub.publish(
