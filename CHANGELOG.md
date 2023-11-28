@@ -1,4 +1,4 @@
-### Upcoming
+### 23.11.28
 
 #### Breaking changes
  - Merged the turbidostat automations into one. You can either select target target nOD or target OD, but not both!
