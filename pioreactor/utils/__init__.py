@@ -25,9 +25,11 @@ from pioreactor.pubsub import QOS
 from pioreactor.pubsub import subscribe_and_callback
 
 
-def boolean_retry(function: Callable, f_args, max_attempts: int = 3, sleep_for=0.25) -> bool:
+def boolean_retry(
+    func: Callable[..., bool], f_args: tuple, max_attempts: int = 3, sleep_for: float = 0.25
+) -> bool:
     for _ in range(max_attempts):
-        res = function(*f_args)
+        res = func(*f_args)
         if res:
             return res
         time.sleep(sleep_for)
