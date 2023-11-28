@@ -1,9 +1,10 @@
 ### Upcoming
  - Fix experiment profile validation error
  - The "Stop" button is always available now in the "Dosing" tab for "Manage all Pioreactors".
- - Fix for Ngrok remote access
+ - Fix for Ngrok remote access.
+ - `ws_url` in the configuration now requires a fully qualified url. Example: `ws://...` or `wss://...`.
  - Merged the turbidostat automations into one. You can either select target target nOD or target OD, but not both!
- - Both "Target OD" and "Target nOD" are available to be changed in the UI.
+ - Both "Target OD" and "Target nOD" dislayed and editable in the UI.
  - `pid_morbidostat` now explicitly uses the keyword arg `target_normalized_od`, instead of `target_od`. It always has been nOD.
 
 ### 23.11.18
