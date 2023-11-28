@@ -4,7 +4,7 @@
  - Fix for Ngrok remote access
  - Merged the turbidostat automations into one. You can either select target target nOD or target OD, but not both!
  - Both "Target OD" and "Target nOD" are available to be changed in the UI.
-
+ - `pid_morbidostat` now explicitly uses the keyword arg `target_normalized_od`, instead of `target_od`. It always has been nOD.
 
 ### 23.11.18
  - No more waiting around for growth-rate-calculating to get to "Ready" state

@@ -322,7 +322,7 @@ def test_pid_morbidostat_automation() -> None:
     experiment = "test_pid_morbidostat_automation"
     target_growth_rate = 0.09
     with PIDMorbidostat(
-        target_od=1.0,
+        target_normalized_od=1.0,
         target_growth_rate=target_growth_rate,
         duration=60,
         unit=unit,
@@ -375,7 +375,7 @@ def test_changing_morbidostat_parameters_over_mqtt() -> None:
     target_growth_rate = 0.05
     algo = PIDMorbidostat(
         target_growth_rate=target_growth_rate,
-        target_od=1.0,
+        target_normalized_od=1.0,
         duration=60,
         unit=unit,
         experiment=experiment,
@@ -527,7 +527,7 @@ def test_throughput_calculator() -> None:
         experiment,
         "pid_morbidostat",
         target_growth_rate=0.05,
-        target_od=1.0,
+        target_normalized_od=1.0,
         duration=60,
     ) as algo:
         assert algo.automation_job.media_throughput == 0
@@ -765,7 +765,7 @@ def test_execute_io_action_outputs_will_shortcut_if_disconnected() -> None:
 def test_PIDMorbidostat() -> None:
     experiment = "test_PIDMorbidostat"
     algo = PIDMorbidostat(
-        target_od=1.0,
+        target_normalized_od=1.0,
         target_growth_rate=0.01,
         duration=5 / 60,
         unit=unit,
@@ -801,7 +801,7 @@ def test_PIDMorbidostat() -> None:
 def test_changing_duration_over_mqtt() -> None:
     experiment = "test_changing_duration_over_mqtt"
     with PIDMorbidostat(
-        target_od=1.0,
+        target_normalized_od=1.0,
         target_growth_rate=0.01,
         duration=5 / 60,
         unit=unit,
@@ -831,7 +831,7 @@ def test_changing_duration_over_mqtt() -> None:
 def test_changing_duration_over_mqtt_will_start_next_run_earlier() -> None:
     experiment = "test_changing_duration_over_mqtt_will_start_next_run_earlier"
     with PIDMorbidostat(
-        target_od=1.0,
+        target_normalized_od=1.0,
         target_growth_rate=0.01,
         duration=10 / 60,
         unit=unit,
@@ -879,7 +879,7 @@ def test_changing_algo_over_mqtt_with_wrong_automation_type() -> None:
                     "type": "led",
                     "args": {
                         "duration": 60,
-                        "target_od": 1.0,
+                        "target_normalized_od": 1.0,
                         "target_growth_rate": 0.07,
                     },
                 }
@@ -909,7 +909,7 @@ def test_changing_algo_over_mqtt_solo() -> None:
                     "type": "dosing",
                     "args": {
                         "duration": 60,
-                        "target_od": 1.0,
+                        "target_normalized_od": 1.0,
                         "target_growth_rate": 0.07,
                     },
                 }

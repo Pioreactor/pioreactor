@@ -20,14 +20,16 @@ class PIDMorbidostat(DosingAutomationJob):
     automation_name = "pid_morbidostat"
     published_settings = {
         "volume": {"datatype": "float", "settable": True, "unit": "mL"},
-        "target_od": {"datatype": "float", "settable": True, "unit": "AU"},
+        "target_normalized_od": {"datatype": "float", "settable": True, "unit": "AU"},
         "target_growth_rate": {"datatype": "float", "settable": True, "unit": "h⁻¹"},
         "duration": {"datatype": "float", "settable": True, "unit": "min"},
     }
 
-    def __init__(self, target_growth_rate: float | str, target_od: float | str, **kwargs):
+    def __init__(
+        self, target_growth_rate: float | str, target_normalized_od: float | str, **kwargs
+    ):
         super(PIDMorbidostat, self).__init__(**kwargs)
-        assert target_od is not None, "`target_od` must be set"
+        assert target_normalized_od is not None, "`target_normalized_od` must be set"
         assert target_growth_rate is not None, "`target_growth_rate` must be set"
 
         with local_persistant_storage("current_pump_calibration") as cache:
@@ -39,7 +41,7 @@ class PIDMorbidostat(DosingAutomationJob):
                 raise CalibrationError("Alt-Media pump calibration must be performed first.")
 
         self.set_target_growth_rate(target_growth_rate)
-        self.target_od = float(target_od)
+        self.target_normalized_od = float(target_normalized_od)
 
         Kp = config.getfloat("dosing_automation.pid_morbidostat", "Kp")
         Ki = config.getfloat("dosing_automation.pid_morbidostat", "Ki")
@@ -105,11 +107,11 @@ class PIDMorbidostat(DosingAutomationJob):
 
     @property
     def min_od(self):
-        return 0.7 * self.target_od
+        return 0.7 * self.target_normalized_od
 
     @property
     def max_od(self):
-        return 1.25 * self.target_od
+        return 1.25 * self.target_normalized_od
 
     def set_target_growth_rate(self, value: str | float | int):
         self.target_growth_rate = float(value)
