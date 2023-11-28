@@ -26,10 +26,14 @@ from pioreactor.pubsub import subscribe_and_callback
 
 
 def boolean_retry(
-    func: Callable[..., bool], f_args: tuple, max_attempts: int = 3, sleep_for: float = 0.25
+    func: Callable[..., bool],
+    f_args: tuple,
+    f_kwargs: dict,
+    max_attempts: int = 4,
+    sleep_for: float = 0.25,
 ) -> bool:
     for _ in range(max_attempts):
-        res = func(*f_args)
+        res = func(*f_args, **f_kwargs)
         if res:
             return res
         time.sleep(sleep_for)
