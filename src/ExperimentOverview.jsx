@@ -107,7 +107,7 @@ function Overview(props) {
 
           {( config['ui.overview.cards'] && (config['ui.overview.cards']['event_logs'] === "1")) &&
             <Grid item xs={12}>
-              <LogTable experiment={experimentMetadata.experiment} config={config} relabelMap={relabelMap}/>
+              <LogTable byDuration={config['ui.overview.settings']['time_display_mode'] === 'hours'} experimentStartTime={experimentMetadata.created_at} experiment={experimentMetadata.experiment} config={config} relabelMap={relabelMap}/>
               <Button to={`/export-data?experiment=${experimentMetadata.experiment}&logs=1`} component={Link} color="primary" style={{textTransform: "none", verticalAlign: "middle", margin: "0px 3px"}}>
                 <ListAltOutlinedIcon style={{ fontSize: 17, margin: "0px 3px"}} color="primary"/> Export all logs
               </Button>
