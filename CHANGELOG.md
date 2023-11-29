@@ -1,20 +1,25 @@
+### 23.11.29
+
+ - fix for exporting data from the UI
+
 ### 23.11.28
 
 #### Breaking changes
- - Merged the turbidostat automations into one. You can either select target target nOD or target OD, but not both!
+ - Merged the turbidostat automations into one. You can either select to target nOD or target OD, but not both!
  - `ws_url` in the configuration now requires a fully qualified url. Example: `ws://...` or `wss://...`.
  - Removed `morbidostat` dosing automation, users should try to use pid_morbidostat. The morbidostat code is still available to be added as a custom plugin here: https://github.com/Pioreactor/automation-examples/blob/main/dosing/morbidostat.py
  - Removed `constant_duty_cycle` temperature automation. Again, the code is available here: https://github.com/Pioreactor/automation-examples/blob/main/temperature/constant_duty_cycle.py
+ - `pid_morbidostat` now explicitly uses the keyword arg `target_normalized_od`, instead of `target_od`. It always has been nOD.
 
 #### Enhancements
  - Both "Target OD" and "Target nOD" displayed and editable in the UI.
  - Previously, if the LED channel was locked (most common when OD reading was running), then any changes to the LED intensity (via the UI) would be silently rejected. This is changed: we have added retry logic that will attempt to keep changing it a few more times (hopefully to avoid the lock)
- - `pid_morbidostat` now explicitly uses the keyword arg `target_normalized_od`, instead of `target_od`. It always has been nOD.
  - Added some light form validation in the automations dialog in the UI.
  - New environment variable to skip loading plugins, `SKIP_PLUGINS`. Useful for debugging. Ex:
    ```
    SKIP_PLUGINS=1 pio run stirring
    ```
+ - elements in the `field` array in automation yamls now can include a `type` option (`numeric` or `string` for now). Default is `numeric` if not specified.
 
 #### Bug Fixes
  - Fix experiment profile validation error
