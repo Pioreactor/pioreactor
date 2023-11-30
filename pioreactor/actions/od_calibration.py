@@ -11,6 +11,7 @@ from typing import cast
 from typing import Type
 
 import click
+import msgspec
 from msgspec.json import decode
 from msgspec.json import encode
 
@@ -26,10 +27,19 @@ from pioreactor.mureq import put
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import publish_ready_to_disconnected_state
+from pioreactor.utils.timing import current_utc_datestamp
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_latest_testing_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
+
+
+def green(string):
+    return click.style(string, fg="green")
+
+
+def bold(string):
+    return click.style(string, bold=True)
 
 
 def introduction() -> None:
@@ -49,29 +59,38 @@ def introduction() -> None:
     )
 
 
-def get_metadata_from_user():
+def get_name_from_user() -> str:
     with local_persistant_storage("od_calibrations") as cache:
         while True:
-            name = click.prompt("Provide a name for this calibration", type=str).strip()
+            name = click.prompt(
+                green(
+                    f"Optional: Provide a name for this calibration. [enter] to use default name `od-cal-{current_utc_datestamp()}`"
+                ),
+                type=str,
+                default=f"od-cal-{current_utc_datestamp()}",
+                show_default=False,
+            ).strip()
             if name == "":
                 click.echo("Name cannot be empty")
                 continue
             elif name in cache:
                 if click.confirm("❗️ Name already exists. Do you wish to overwrite?"):
-                    break
+                    return name
             elif name == "current":
                 click.echo("Name cannot be `current`.")
                 continue
             else:
-                break
+                return name
 
+
+def get_metadata_from_user():
     initial_od600 = click.prompt(
-        "Provide the OD600 measurement of your initial, high density, culture",
+        green("Provide the OD600 measurement of your initial, high density, culture"),
         type=click.FloatRange(min=0.01, clamp=False),
     )
 
     minimum_od600 = click.prompt(
-        "Provide the minimum OD600 measurement you wish to calibrate to",
+        green("Provide the minimum OD600 measurement you wish to calibrate to"),
         type=click.FloatRange(min=0, max=initial_od600, clamp=False),
     )
 
@@ -85,7 +104,7 @@ def get_metadata_from_user():
         minimum_od600 = 0.01
 
     dilution_amount = click.prompt(
-        "Provide the volume to be added to your vial each iteration (default = 1 mL)",
+        green("Provide the volume to be added to your vial each iteration (default = 1 mL)"),
         default=1,
         type=click.FloatRange(min=0.01, max=10, clamp=False),
     )
@@ -96,7 +115,7 @@ def get_metadata_from_user():
     click.echo(
         f"You will need at least {number_of_points * dilution_amount + 10}mL of media available."
     )
-    click.confirm("Continue?", abort=True, default=True)
+    click.confirm(green("Continue?"), abort=True, default=True)
 
     if "REF" not in config["od_config.photodiode_channel_reverse"]:
         raise ValueError(
@@ -108,12 +127,14 @@ def get_metadata_from_user():
     signal_channel = "1" if ref_channel == "2" else "2"
 
     click.confirm(
-        f"Confirm using channel {signal_channel} with angle {config['od_config.photodiode_channel'][signal_channel]}° position in the Pioreactor",
+        green(
+            f"Confirm using channel {signal_channel} with angle {config['od_config.photodiode_channel'][signal_channel]}° position in the Pioreactor"
+        ),
         abort=True,
         default=True,
     )
     angle = str(config["od_config.photodiode_channel"][signal_channel])
-    return name, initial_od600, minimum_od600, dilution_amount, angle, signal_channel
+    return initial_od600, minimum_od600, dilution_amount, angle, signal_channel
 
 
 def setup_HDC_instructions() -> None:
@@ -127,7 +148,7 @@ def setup_HDC_instructions() -> None:
 
 
 def start_stirring():
-    while not click.confirm("Reading to start stirring?", default=True):
+    while not click.confirm(green("Reading to start stirring?"), default=True):
         pass
 
     click.echo("Starting stirring and blocking until near target RPM.")
@@ -177,7 +198,7 @@ def start_recording_and_diluting(
     minimum_od600: pt.OD,
     dilution_amount: float,
     signal_channel,
-):
+) -> tuple[list[float], list[float]]:
     inferred_od600 = initial_od600
     voltages = []
     inferred_od600s = []
@@ -230,12 +251,13 @@ def start_recording_and_diluting(
                 )
                 click.echo()
                 click.secho(
-                    f"Test {count_of_samples+1} of {total_n_samples} [{'#' * (count_of_samples+1) }{' ' * (total_n_samples - count_of_samples - 1)}]",
-                    fg="green",
+                    bold(
+                        f"Test {count_of_samples+1} of {total_n_samples} [{'#' * (count_of_samples+1) }{' ' * (total_n_samples - count_of_samples - 1)}]"
+                    )
                 )
                 click.echo(f"Add {dilution_amount}ml of media to vial.")
 
-                while not click.confirm("Continue?", default=True):
+                while not click.confirm(green("Continue?"), default=True):
                     pass
 
                 current_volume_in_vial = current_volume_in_vial + dilution_amount
@@ -277,7 +299,7 @@ def start_recording_and_diluting(
                 click.echo("(Optional: take new OD600 reading with external instrument.)")
                 click.echo("Reduce volume in vial back to 10ml.")
                 click.echo("Confirm vial outside is dry and clean. Place back into Pioreactor.")
-                while not click.confirm("Continue?", default=True):
+                while not click.confirm(green("Continue?"), default=True):
                     pass
                 current_volume_in_vial = initial_volume_in_vial
                 st.set_state("ready")
@@ -293,12 +315,25 @@ def start_recording_and_diluting(
             x_max=initial_od600,
         )
         click.echo("Empty the vial and replace with 10 mL of the media you used.")
-        od600_of_blank = click.prompt("What is the OD600 of your blank?", type=float)
+        od600_of_blank = click.prompt(green("What is the OD600 of your blank?"), type=float)
         click.echo("Confirm vial outside is dry and clean. Place back into Pioreactor.")
-        while not click.confirm("Continue?", default=True):
+        while not click.confirm(green("Continue?"), default=True):
             pass
+        click.echo("Reading blank...")
 
-        voltages.append(get_voltage_from_adc())
+        value = get_voltage_from_adc()
+        for i in range(5):
+            if value > min(voltages):
+                click.echo("Something went wrong, trying again...")
+                value = get_voltage_from_adc()
+            else:
+                break
+        else:
+            raise ValueError(
+                f"Why is the blank reading, {value}V, higher than everything else: {voltages}V?"
+            )
+
+        voltages.append(value)
         inferred_od600s.append(od600_of_blank)
 
         return inferred_od600s, voltages
@@ -413,7 +448,20 @@ def save_results(
     return data_blob
 
 
-def od_calibration() -> None:
+def get_data_from_data_file(data_file: str) -> tuple[list[float], list[float]]:
+    import json
+
+    with open(data_file, "r") as f:
+        data = json.loads(f.read())
+
+    ods, voltages = data["od600s"], data["voltages"]
+    assert len(ods) == len(voltages), "data must be the same length."
+    return ods, voltages
+
+
+def od_calibration(data_file: str | None) -> None:
+    from pprint import pprint
+
     unit = get_unit_name()
     experiment = get_latest_testing_experiment_name()
 
@@ -422,20 +470,27 @@ def od_calibration() -> None:
 
     with publish_ready_to_disconnected_state(unit, experiment, "od_calibration"):
         introduction()
-        (
-            name,
-            initial_od600,
-            minimum_od600,
-            dilution_amount,
-            angle,
-            signal_channel,
-        ) = get_metadata_from_user()
-        setup_HDC_instructions()
+        name = get_name_from_user()
 
-        with start_stirring() as st:
-            inferred_od600s, voltages = start_recording_and_diluting(
-                st, initial_od600, minimum_od600, dilution_amount, signal_channel
-            )
+        if data_file is None:
+            (
+                initial_od600,
+                minimum_od600,
+                dilution_amount,
+                angle,
+                signal_channel,
+            ) = get_metadata_from_user()
+            setup_HDC_instructions()
+
+            with start_stirring() as st:
+                inferred_od600s, voltages = start_recording_and_diluting(
+                    st, initial_od600, minimum_od600, dilution_amount, signal_channel
+                )
+        else:
+            ref_channel = config["od_config.photodiode_channel_reverse"]["REF"]
+            signal_channel = "1" if ref_channel == "2" else "2"
+            angle = str(config["od_config.photodiode_channel"][signal_channel])
+            inferred_od600s, voltages = get_data_from_data_file(data_file)
 
         degree = 5 if len(voltages) > 5 else 3
         while True:
@@ -456,11 +511,11 @@ def od_calibration() -> None:
             signal_channel,
             unit,
         )
-        click.echo(click.style(f"Data for {name}", underline=True, bold=True))
-        click.echo(data_blob)
-        click.echo()
         click.echo(click.style(f"Calibration curve for `{name}`", underline=True, bold=True))
         click.echo(curve_to_functional_form(curve_type, curve_data_))
+        click.echo()
+        click.echo(click.style(f"Data for {name}", underline=True, bold=True))
+        pprint(msgspec.structs.asdict(data_blob))
         click.echo()
         click.echo(f"Finished calibration of {name} ✅")
 
@@ -504,7 +559,7 @@ def curve_to_callable(curve_type: str, curve_data) -> Callable:
 def display(name: str | None) -> None:
     from pprint import pprint
 
-    def display_from_calibration_blob(data_blob) -> None:
+    def display_from_calibration_blob(data_blob: dict) -> None:
         voltages = data_blob["voltages"]
         ods = data_blob["od600s"]
         name, angle = data_blob["name"], data_blob["angle"]
@@ -598,6 +653,7 @@ def change_current(name: str) -> None:
             click.echo(f"Replaced {old_calibration.name} with {new_calibration.name}   ✅")
         else:
             click.echo(f"Set {new_calibration.name} to current calibration  ✅")
+        click.echo()
 
     except Exception:
         click.echo("Failed to swap.")
@@ -628,13 +684,14 @@ def list_() -> None:
 
 
 @click.group(invoke_without_command=True, name="od_calibration")
+@click.option("-f", "--data-file")
 @click.pass_context
-def click_od_calibration(ctx):
+def click_od_calibration(ctx, data_file):
     """
     Calibrate OD600 to voltages
     """
     if ctx.invoked_subcommand is None:
-        od_calibration()
+        od_calibration(data_file)
 
 
 @click_od_calibration.command(name="display")

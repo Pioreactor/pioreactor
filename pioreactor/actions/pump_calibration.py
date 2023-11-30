@@ -307,7 +307,7 @@ def run_tests(
             )
             click.echo()
             click.secho(
-                f"Test {i+1} of {n_samples} [{'#' * (i+1) }{' ' * (n_samples - i - 1)}]", fg="green"
+                f"Test {i+1} of {n_samples} [{'#' * (i+1) }{' ' * (n_samples - i - 1)}]", bold=True
             )
             while not click.confirm(click.style(f"Ready to test {duration:.2f}s?", fg="green")):
                 pass
