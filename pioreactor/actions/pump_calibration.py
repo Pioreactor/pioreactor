@@ -12,6 +12,11 @@ from typing import Optional
 from typing import Type
 
 import click
+from click import clear
+from click import confirm
+from click import echo
+from click import prompt
+from click import style
 from msgspec.json import decode
 from msgspec.json import encode
 
@@ -36,13 +41,21 @@ from pioreactor.whoami import get_latest_testing_experiment_name
 from pioreactor.whoami import get_unit_name
 
 
+def green(string):
+    return style(string, fg="green")
+
+
+def bold(string):
+    return style(string, bold=True)
+
+
 def introduction() -> None:
     import logging
 
     logging.disable(logging.WARNING)
 
-    click.clear()
-    click.echo(
+    clear()
+    echo(
         """This routine will calibrate the pumps on your current Pioreactor. You'll need:
 
     1. A Pioreactor
@@ -54,20 +67,20 @@ def introduction() -> None:
 We will dose for a set duration, you'll measure how much volume was expelled, and then record it back here. After doing this a few times, we can construct a calibration line for this pump.
 """
     )
-    click.confirm(click.style("Proceed?", fg="green"))
-    click.clear()
-    click.echo(
+    confirm(green("Proceed?"))
+    clear()
+    echo(
         "You don't need to place your vial in your Pioreactor. While performing this calibration, keep liquids away from the Pioreactor to keep it safe & dry"
     )
-    click.confirm(click.style("Proceed?", fg="green"))
-    click.clear()
+    confirm(green("Proceed?"))
+    clear()
 
 
 def get_metadata_from_user(pump_type) -> str:
     with local_persistant_storage("pump_calibrations") as cache:
         while True:
-            name = click.prompt(
-                click.style(
+            name = prompt(
+                style(
                     f"Optional: Provide a name for this calibration. [enter] to use default name `{pump_type}-{current_utc_datestamp()}`",
                     fg="green",
                 ),
@@ -76,15 +89,13 @@ def get_metadata_from_user(pump_type) -> str:
                 show_default=False,
             ).strip()
             if name == "":
-                click.echo("Name cannot be empty")
+                echo("Name cannot be empty")
                 continue
             elif name in cache:
-                if click.confirm(
-                    click.style("❗️ Name already exists. Do you wish to overwrite?", fg="green")
-                ):
+                if confirm(green("❗️ Name already exists. Do you wish to overwrite?")):
                     break
             elif name == "current":
-                click.echo("Name cannot be `current`.")
+                echo("Name cannot be `current`.")
                 continue
             else:
                 break
@@ -111,9 +122,9 @@ def which_pump_are_you_calibrating() -> tuple[str, Callable]:
             ).created_at
             alt_media_name = decode(cache["alt_media"], type=structs.AltMediaPumpCalibration).name
 
-    click.secho("Step 1", fg="green", bold=True)
-    r = click.prompt(
-        click.style(
+    echo(green(bold("Step 1")))
+    r = prompt(
+        style(
             f"""Which pump are you calibrating?
 1. Media       {f'[{media_name}, last ran {media_timestamp:%d %b, %Y}]' if has_media else '[No calibration]'}
 2. Alt-media   {f'[{alt_media_name}, last ran {alt_media_timestamp:%d %b, %Y}]' if has_alt_media else '[No calibration]'}
@@ -127,24 +138,24 @@ def which_pump_are_you_calibrating() -> tuple[str, Callable]:
 
     if r == "1":
         if has_media:
-            click.confirm(
-                click.style("Confirm replacing current calibration?", fg="green"),
+            confirm(
+                green("Confirm replacing current calibration?"),
                 abort=True,
                 prompt_suffix=" ",
             )
         return ("media", add_media)
     elif r == "2":
         if has_alt_media:
-            click.confirm(
-                click.style("Confirm replacing current calibration?", fg="green"),
+            confirm(
+                green("Confirm replacing current calibration?"),
                 abort=True,
                 prompt_suffix=" ",
             )
         return ("alt_media", add_alt_media)
     elif r == "3":
         if has_waste:
-            click.confirm(
-                click.style("Confirm replacing current calibration?", fg="green"),
+            confirm(
+                green("Confirm replacing current calibration?"),
                 abort=True,
                 prompt_suffix=" ",
             )
@@ -158,27 +169,27 @@ def setup(pump_type: str, execute_pump: Callable, hz: float, dc: float, unit: st
     try:
         channel_pump_is_configured_for = config.get("PWM_reverse", pump_type)
     except KeyError:
-        click.echo(
+        echo(
             f"❌ {pump_type} is not present in config.ini. Please add it to the [PWM] section and try again."
         )
         raise click.Abort()
-    click.clear()
-    click.echo()
-    click.secho("Step 2", fg="green", bold=True)
-    click.echo("We need to prime the pump by filling the tubes completely with water.")
-    click.echo("1. Fill a container with water.")
-    click.echo("2. Submerge both ends of the pump's tubes into the water.")
-    click.echo(
+    clear()
+    echo()
+    echo(green(bold("Step 2")))
+    echo("We need to prime the pump by filling the tubes completely with water.")
+    echo("1. Fill a container with water.")
+    echo("2. Submerge both ends of the pump's tubes into the water.")
+    echo(
         "Make sure the pump's power is connected to "
-        + click.style(f"PWM channel {channel_pump_is_configured_for}.", bold=True)
+        + bold(f"PWM channel {channel_pump_is_configured_for}.")
     )
-    click.echo("We'll run the pumps continuously until the tubes are completely filled with water.")
-    click.echo()
+    echo("We'll run the pumps continuously until the tubes are completely filled with water.")
+    echo()
 
-    while not click.confirm(click.style("Ready to start pumping?", fg="green")):
+    while not confirm(green("Ready to start pumping?")):
         pass
 
-    click.secho("Press CTRL+C when the tubes are completely filled with water.", bold=True)
+    echo(bold("Press CTRL+C when the tubes are completely filled with water."))
 
     try:
         execute_pump(
@@ -201,23 +212,22 @@ def setup(pump_type: str, execute_pump: Callable, hz: float, dc: float, unit: st
     except KeyboardInterrupt:
         pass
 
-    click.echo()
+    echo()
 
     time.sleep(0.5)  # pure UX
     return
 
 
 def choose_settings() -> tuple[float, float]:
-    hz = click.prompt(
-        click.style("Optional: Enter frequency of PWM. [enter] for default 250 hz", fg="green"),
+    hz = prompt(
+        style(green("Optional: Enter frequency of PWM. [enter] for default 250 hz")),
         type=click.FloatRange(0.1, 10000),
         default=250,
         show_default=False,
     )
-    dc = click.prompt(
-        click.style(
+    dc = prompt(
+        green(
             "Optional: Enter duty cycle percent as a whole number. [enter] for default 95%",
-            fg="green",
         ),
         type=click.IntRange(0, 100),
         default=95,
@@ -258,10 +268,10 @@ def run_tests(
     pump_type: str,
     unit: str,
 ) -> tuple[list[float], list[float]]:
-    click.clear()
-    click.echo()
-    click.secho("Step 3", fg="green", bold=True)
-    click.echo("Beginning tests.")
+    clear()
+    echo()
+    echo(green(bold("Step 3")))
+    echo("Beginning tests.")
 
     empty_calibration = structs.PumpCalibration(
         name="_test",
@@ -293,23 +303,23 @@ def run_tests(
                 )
 
             if i > 0:
-                click.echo()
-                click.echo(
-                    "Remove the water from the measuring container or tare your weighing scale."
-                )
+                echo()
+                echo("Remove the water from the measuring container or tare your weighing scale.")
 
-            click.echo(
+            echo(
                 "We will run the pump for a set amount of time, and you will measure how much liquid is expelled."
             )
-            click.echo("Use a small container placed on top of an accurate weighing scale.")
-            click.echo(
+            echo("Use a small container placed on top of an accurate weighing scale.")
+            echo(
                 "Hold the end of the outflow tube above so the container catches the expelled liquid."
             )
-            click.echo()
-            click.secho(
-                f"Test {i+1} of {n_samples} [{'#' * (i+1) }{' ' * (n_samples - i - 1)}]", bold=True
+            echo()
+            echo(
+                bold(
+                    f"Test {i+1} of {n_samples} [{'#' * (i+1) }{' ' * (n_samples - i - 1)}]",
+                )
             )
-            while not click.confirm(click.style(f"Ready to test {duration:.2f}s?", fg="green")):
+            while not confirm(style(green(f"Ready to test {duration:.2f}s?"))):
                 pass
 
             execute_pump(
@@ -320,22 +330,22 @@ def run_tests(
                 calibration=empty_calibration,
             )
 
-            r = click.prompt(
-                click.style("Enter amount of water expelled (g or ml), or REDO", fg="green"),
-                confirmation_prompt=click.style("Repeat for confirmation", fg="green"),
+            r = prompt(
+                style(green("Enter amount of water expelled (g or ml), or REDO")),
+                confirmation_prompt=style(green("Repeat for confirmation")),
             )
             if r == "REDO":
-                click.clear()
-                click.echo()
+                clear()
+                echo()
                 continue
 
             try:
                 results.append(float(r))
-                click.clear()
-                click.echo()
+                clear()
+                echo()
                 break
             except ValueError:
-                click.echo("Not a number - retrying.")
+                echo("Not a number - retrying.")
 
     return durations_to_test, results
 
@@ -405,7 +415,7 @@ def publish_to_leader(name: str) -> bool:
     except Exception:
         success = False
     if not success:
-        click.echo(f"❌ Could not publish on leader at http://{leader_address}/api/calibrations")
+        echo(f"❌ Could not publish on leader at http://{leader_address}/api/calibrations")
     return success
 
 
@@ -426,8 +436,8 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
             hz, dc = choose_settings()
             setup(pump_type, execute_pump, hz, dc, unit)
 
-            is_ready = click.confirm(
-                click.style("Do you want to change the frequency or duty cycle?", fg="green"),
+            is_ready = confirm(
+                style(green("Do you want to change the frequency or duty cycle?")),
                 prompt_suffix=" ",
                 default=False,
             )
@@ -464,9 +474,9 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
             unit=unit,
         )
 
-        click.echo(f"slope={slope:0.3f} ± {std_slope:0.3f}, bias={bias:0.3f} ± {std_bias:0.3f}")
+        echo(f"slope={slope:0.3f} ± {std_slope:0.3f}, bias={bias:0.3f} ± {std_bias:0.3f}")
 
-        click.echo(
+        echo(
             f"Calibration is best for volumes between {(slope * min_duration + bias):0.2f}mL to {(slope * max_duration + bias):0.2f}mL, but will be okay for outside this range too."
         )
 
@@ -480,7 +490,7 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
                 "Too much uncertainty in slope - you probably want to rerun this calibration..."
             )
 
-        click.echo(f"Finished {pump_type} pump calibration.")
+        echo(f"Finished {pump_type} pump calibration.")
 
 
 def curve_to_callable(curve_type: str, curve_data) -> Optional[Callable]:
@@ -512,7 +522,7 @@ def display(name: str | None) -> None:
                 "poly", [pump_calibration["duration_"], pump_calibration["bias_"]]
             ),
         )
-        click.echo(click.style(f"Data for {name}", underline=True, bold=True))
+        echo(style(f"Data for {name}", underline=True, bold=True))
         pprint(pump_calibration)
 
     if name is not None:
@@ -522,9 +532,9 @@ def display(name: str | None) -> None:
         with local_persistant_storage("current_pump_calibration") as c:
             for pump in c.iterkeys():
                 display_from_calibration_blob(decode(c[pump]))
-                click.echo()
-                click.echo()
-                click.echo()
+                echo()
+                echo()
+                echo()
 
 
 def change_current(name: str) -> bool:
@@ -559,17 +569,17 @@ def change_current(name: str) -> bool:
             )
             res.raise_for_status()
         except Exception:
-            click.echo(
+            echo(
                 f"❌ Could not update on leader at http://{leader_address}/api/calibrations/{get_unit_name()}/{new_calibration.type}/{new_calibration.name}"
             )
             return False
 
         if old_calibration:
-            click.echo(
+            echo(
                 f"Replaced {old_calibration.name} with {new_calibration.name} as current calibration."
             )
         else:
-            click.echo(f"Set {new_calibration.name} to current calibration.")
+            echo(f"Set {new_calibration.name} to current calibration.")
         return True
 
 
@@ -581,15 +591,16 @@ def list_():
             cal = decode(c[pump], type=structs.subclass_union(structs.PumpCalibration))
             current.append(cal.name)
 
-    click.secho(
-        f"{'Name':17s} {'Date':18s} {'Pump type':12s} {'Currently in use?':20s}",
-        bold=True,
+    echo(
+        bold(
+            f"{'Name':17s} {'Date':18s} {'Pump type':12s} {'Currently in use?':20s}",
+        )
     )
     with local_persistant_storage("pump_calibrations") as c:
         for name in c.iterkeys():
             try:
                 cal = decode(c[name], type=structs.subclass_union(structs.PumpCalibration))
-                click.secho(
+                echo(
                     f"{cal.name:17s} {cal.created_at:%d %b, %Y}       {cal.pump:12s} {'✅' if cal.name in current else ''}",
                 )
             except Exception as e:
