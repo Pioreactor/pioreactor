@@ -11,7 +11,6 @@ from typing import cast
 from typing import Type
 
 import click
-import msgspec
 from click import clear
 from click import confirm
 from click import echo
@@ -19,6 +18,7 @@ from click import prompt
 from click import style
 from msgspec.json import decode
 from msgspec.json import encode
+from msgspec.json import format
 
 from pioreactor import structs
 from pioreactor import types as pt
@@ -56,7 +56,7 @@ def introduction() -> None:
     echo(
         """This routine will calibrate the current Pioreactor to (offline) OD600 readings. You'll need:
     1. The Pioreactor you wish to calibrate (the one you are using)
-    2. At least 10mL of a culture with density the most you'll ever observe, and its OD600 measurement.
+    2. At least 10mL of a culture with density the most you'll ever observe, and its OD600 measurement
     3. A micro-pipette
     4. Accurate 10mL measurement tool
     5. Sterile media, amount to be determined shortly.
@@ -189,7 +189,7 @@ def plot_data(
 
     if interpolation_curve:
         plt.plot(x, [interpolation_curve(x_) for x_ in x], color=204)
-        plt.plot_size(145, 42)
+        plt.plot_size(145, 26)
 
     plt.xlim(x_min, x_max)
     plt.show()
@@ -257,7 +257,7 @@ def start_recording_and_diluting(
                     x_max=initial_od600,
                 )
                 echo()
-                click.secho(
+                echo(
                     bold(
                         f"Test {count_of_samples+1} of {total_n_samples} [{'#' * (count_of_samples+1) }{' ' * (total_n_samples - count_of_samples - 1)}]"
                     )
@@ -392,18 +392,16 @@ def show_results_and_confirm_with_user(
     echo(f"Calibration curve: {curve_to_functional_form(curve_type, curve_data)}")
     r = prompt(
         green(
-            """
-What next?
-
-Y: confirm and save to disk
+            f"""
+y: confirm and save to disk
 n: abort completely
-d: choose a new degree for polynomial fit
+d: choose a new degree for polynomial fit (currently {len(curve_data)-1})
 
 """
         ),
-        type=click.Choice(["Y", "n", "d"]),
+        type=click.Choice(["y", "n", "d"]),
     )
-    if r == "Y":
+    if r == "y":
         return True, -1
     elif r == "n":
         raise click.Abort()
@@ -464,6 +462,8 @@ def save_results(
 def get_data_from_data_file(data_file: str) -> tuple[str, str, list[float], list[float]]:
     import json
 
+    click.echo(f"Pulling data from {data_file}...")
+
     with open(data_file, "r") as f:
         data = json.loads(f.read())
 
@@ -480,8 +480,6 @@ def get_data_from_data_file(data_file: str) -> tuple[str, str, list[float], list
 
 
 def od_calibration(data_file: str | None) -> None:
-    from pprint import pprint
-
     unit = get_unit_name()
     experiment = get_latest_testing_experiment_name()
 
@@ -518,6 +516,7 @@ def od_calibration(data_file: str | None) -> None:
             if okay_with_result:
                 break
 
+        echo("Saving results...")
         data_blob = save_results(
             curve_data_,
             curve_type,
@@ -531,10 +530,10 @@ def od_calibration(data_file: str | None) -> None:
         echo(style(f"Calibration curve for `{name}`", underline=True, bold=True))
         echo(curve_to_functional_form(curve_type, curve_data_))
         echo()
-        echo(style(f"Data for {name}", underline=True, bold=True))
-        pprint(msgspec.structs.asdict(data_blob))
+        echo(style(f"Data for `{name}`", underline=True, bold=True))
+        print(format(encode(data_blob)).decode())
         echo()
-        echo(f"Finished calibration of {name} ✅")
+        echo(f"Finished calibration of `{name}` ✅")
 
         if not config.getboolean("od_config", "use_calibration", fallback=False):
             echo()
@@ -573,8 +572,6 @@ def curve_to_callable(curve_type: str, curve_data) -> Callable:
 
 
 def display(name: str | None) -> None:
-    from pprint import pprint
-
     def display_from_calibration_blob(data_blob: dict) -> None:
         voltages = data_blob["voltages"]
         ods = data_blob["od600s"]
@@ -595,7 +592,7 @@ def display(name: str | None) -> None:
         echo(curve_to_functional_form(data_blob["curve_type"], data_blob["curve_data_"]))
         echo()
         echo(style(f"Data for `{name}`", underline=True, bold=True))
-        pprint(data_blob)
+        print(format(encode(data_blob)).decode())
 
     if name is not None:
         with local_persistant_storage("od_calibrations") as c:
@@ -666,9 +663,9 @@ def change_current(name: str) -> None:
             echo("Could not update in database on leader ❌")
 
         if old_calibration:
-            echo(f"Replaced {old_calibration.name} with {new_calibration.name}   ✅")
+            echo(f"Replaced `{old_calibration.name}` with `{new_calibration.name}`   ✅")
         else:
-            echo(f"Set {new_calibration.name} to current calibration  ✅")
+            echo(f"Set `{new_calibration.name}` to current calibration  ✅")
         echo()
 
     except Exception:
@@ -689,7 +686,7 @@ def list_() -> None:
         for name in c.iterkeys():
             try:
                 cal = decode(c[name], type=structs.subclass_union(structs.ODCalibration))
-                click.secho(
+                echo(
                     f"{cal.name:15s} {cal.created_at:%d %b, %Y}       {cal.angle:12s} {'✅' if cal.name in current else ''}",
                 )
             except Exception:

@@ -19,6 +19,7 @@ from click import prompt
 from click import style
 from msgspec.json import decode
 from msgspec.json import encode
+from msgspec.json import format
 
 from pioreactor import structs
 from pioreactor.actions.pump import add_alt_media
@@ -507,8 +508,6 @@ def curve_to_callable(curve_type: str, curve_data) -> Optional[Callable]:
 
 
 def display(name: str | None) -> None:
-    from pprint import pprint
-
     def display_from_calibration_blob(pump_calibration: dict) -> None:
         volumes = pump_calibration["volumes"]
         durations = pump_calibration["durations"]
@@ -522,8 +521,8 @@ def display(name: str | None) -> None:
                 "poly", [pump_calibration["duration_"], pump_calibration["bias_"]]
             ),
         )
-        echo(style(f"Data for {name}", underline=True, bold=True))
-        pprint(pump_calibration)
+        echo(style(f"Data for `{name}`", underline=True, bold=True))
+        print(format(encode(pump_calibration)).decode())
 
     if name is not None:
         with local_persistant_storage("pump_calibrations") as c:
