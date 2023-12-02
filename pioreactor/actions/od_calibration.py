@@ -258,8 +258,10 @@ def start_recording_and_diluting(
                 )
                 echo()
                 echo(
-                    bold(
-                        f"Test {count_of_samples+1} of {total_n_samples} [{'#' * (count_of_samples+1) }{' ' * (total_n_samples - count_of_samples - 1)}]"
+                    green(
+                        bold(
+                            f"Test {count_of_samples+1} of {total_n_samples} [{'#' * (count_of_samples+1) }{' ' * (total_n_samples - count_of_samples - 1)}]"
+                        )
                     )
                 )
                 echo(f"Add {dilution_amount}ml of media to vial.")

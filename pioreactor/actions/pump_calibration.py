@@ -55,7 +55,6 @@ def introduction() -> None:
 
     logging.disable(logging.WARNING)
 
-    clear()
     echo(
         """This routine will calibrate the pumps on your current Pioreactor. You'll need:
 
@@ -125,13 +124,12 @@ def which_pump_are_you_calibrating() -> tuple[str, Callable]:
 
     echo(green(bold("Step 1")))
     r = prompt(
-        style(
+        green(
             f"""Which pump are you calibrating?
 1. Media       {f'[{media_name}, last ran {media_timestamp:%d %b, %Y}]' if has_media else '[No calibration]'}
 2. Alt-media   {f'[{alt_media_name}, last ran {alt_media_timestamp:%d %b, %Y}]' if has_alt_media else '[No calibration]'}
 3. Waste       {f'[{waste_name}, last ran {waste_timestamp:%d %b, %Y}]' if has_waste else '[No calibration]'}
 """,
-            fg="green",
         ),
         type=click.Choice(["1", "2", "3"]),
         show_choices=True,
@@ -316,8 +314,10 @@ def run_tests(
             )
             echo()
             echo(
-                bold(
-                    f"Test {i+1} of {n_samples} [{'#' * (i+1) }{' ' * (n_samples - i - 1)}]",
+                green(
+                    bold(
+                        f"Test {i+1} of {n_samples} [{'#' * (i+1) }{' ' * (n_samples - i - 1)}]",
+                    )
                 )
             )
             while not confirm(style(green(f"Ready to test {duration:.2f}s?"))):
@@ -420,7 +420,21 @@ def publish_to_leader(name: str) -> bool:
     return success
 
 
-def pump_calibration(min_duration: float, max_duration: float) -> None:
+def get_data_from_data_file(data_file: str):
+    import json
+
+    click.echo(f"Pulling data from {data_file}...")
+
+    with open(data_file, "r") as f:
+        data = json.loads(f.read())
+
+    durations, volumes, hz, dc = data["durations"], data["volumes"], data["hz"], data["dc"]
+    assert len(durations) == len(volumes), "data must be the same length."
+
+    return durations, volumes, hz, dc
+
+
+def pump_calibration(min_duration: float, max_duration: float, json_file: str | None) -> None:
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
 
@@ -428,24 +442,30 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
     logger.info("Starting pump calibration.")
 
     with publish_ready_to_disconnected_state(unit, experiment, "pump_calibration"):
-        introduction()
+        clear()
+        if json_file is None:
+            introduction()
+
         pump_type, execute_pump = which_pump_are_you_calibrating()
         name = get_metadata_from_user(pump_type)
 
-        is_ready = True
-        while is_ready:
-            hz, dc = choose_settings()
-            setup(pump_type, execute_pump, hz, dc, unit)
+        if json_file is None:
+            is_ready = True
+            while is_ready:
+                hz, dc = choose_settings()
+                setup(pump_type, execute_pump, hz, dc, unit)
 
-            is_ready = confirm(
-                style(green("Do you want to change the frequency or duty cycle?")),
-                prompt_suffix=" ",
-                default=False,
+                is_ready = confirm(
+                    style(green("Do you want to change the frequency or duty cycle?")),
+                    prompt_suffix=" ",
+                    default=False,
+                )
+
+            durations, volumes = run_tests(
+                execute_pump, hz, dc, min_duration, max_duration, pump_type, unit
             )
-
-        durations, volumes = run_tests(
-            execute_pump, hz, dc, min_duration, max_duration, pump_type, unit
-        )
+        else:
+            durations, volumes, hz, dc = get_data_from_data_file(json_file)
 
         (slope, std_slope), (
             bias,
@@ -456,13 +476,13 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
             durations,
             volumes,
             title="Pump Calibration",
-            x_min=min_duration,
-            x_max=max_duration,
+            x_min=min(durations),
+            x_max=max(durations),
             interpolation_curve=curve_to_callable("poly", [slope, bias]),
             highlight_recent_point=False,
         )
 
-        save_results(
+        data_blob = save_results(
             name=name,
             pump_type=pump_type,
             duration_=slope,
@@ -474,8 +494,14 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
             volumes=volumes,
             unit=unit,
         )
-
+        echo()
+        echo(style(f"Linear calibration curve for `{name}`", underline=True, bold=True))
+        echo()
         echo(f"slope={slope:0.3f} ± {std_slope:0.3f}, bias={bias:0.3f} ± {std_bias:0.3f}")
+        echo()
+        echo(style(f"Data for `{name}`", underline=True, bold=True))
+        print(format(encode(data_blob)).decode())
+        echo()
 
         echo(
             f"Calibration is best for volumes between {(slope * min_duration + bias):0.2f}mL to {(slope * max_duration + bias):0.2f}mL, but will be okay for outside this range too."
@@ -491,7 +517,7 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
                 "Too much uncertainty in slope - you probably want to rerun this calibration..."
             )
 
-        echo(f"Finished {pump_type} pump calibration.")
+        echo(f"Finished {pump_type} pump calibration `{name}`.")
 
 
 def curve_to_callable(curve_type: str, curve_data) -> Optional[Callable]:
@@ -610,7 +636,10 @@ def list_():
 @click.pass_context
 @click.option("--min-duration", type=float)
 @click.option("--max-duration", type=float)
-def click_pump_calibration(ctx, min_duration, max_duration):
+@click.option("-f", "--json-file")
+def click_pump_calibration(
+    ctx, min_duration: float | None, max_duration: float | None, json_file: str | None
+):
     """
     Calibrate a pump
     """
@@ -622,7 +651,7 @@ def click_pump_calibration(ctx, min_duration, max_duration):
         else:
             raise ValueError("min_duration and max_duration must both be set.")
 
-        pump_calibration(min_duration, max_duration)
+        pump_calibration(min_duration, max_duration, json_file)
 
 
 @click_pump_calibration.command(name="display")
