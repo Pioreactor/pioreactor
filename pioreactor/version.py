@@ -6,7 +6,7 @@ import os
 # Append "dev" if a dev version
 # Append "rc0" if a rc version
 # No zero padding!
-__version__ = "23.12.4rc0"
+__version__ = "23.12.4rc1g"
 
 
 def _get_hardware_version() -> tuple[int, int] | tuple[int, int, str]:
