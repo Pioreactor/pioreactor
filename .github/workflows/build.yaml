@@ -37,7 +37,7 @@ jobs:
           file_glob: true
 
   build-deps:
-    name: 🔨 Build dependencies
+    name: 🔨 Build dependencies and upload
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -57,7 +57,7 @@ jobs:
         run: |
           cd wheels
           zip -r ../wheels_${{ github.event.release.tag_name }}.zip .
-      - name: Upload zipped assets
+      - name: Upload zipped wheels
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
@@ -65,8 +65,30 @@ jobs:
           tag: ${{ github.event.release.tag_name }}
           overwrite: true
 
+  fetch-release:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v2
+    - name: Get Latest Release
+      id: get-latest-release
+      run: |
+        LATEST_RELEASE=$(curl -s https://api.github.com/repos/pioreactor/pioreactorui/releases/latest)
+        echo "RELEASE_UI_TAG=$(echo $LATEST_RELEASE | jq -r .tag_name)" >> $GITHUB_ENV
+        echo "RELEASE_UI_URL=$(echo $LATEST_RELEASE | jq -r .tarball_url)" >> $GITHUB_ENV
+    - name: Download Release Tarball
+      run: |
+        curl -L $RELEASE_UI_URL -o pioreactorui_${{ env.RELEASE_UI_TAG }}.tar.gz
+    - name: Upload UI tarball
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: pioreactorui_${{ env.RELEASE_UI_TAG }}.tar.gz
+        tag: ${{ github.event.release.tag_name }}
+        overwrite: true
+
   zip-asset-upload:
-    name: 🤐 Zip assets
+    name: 🤐 Zip assets and upload
     runs-on: ubuntu-latest
     needs: [build, build-deps]
     steps:
