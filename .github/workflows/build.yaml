@@ -74,8 +74,9 @@ jobs:
       id: get-latest-release
       run: |
         LATEST_RELEASE=$(curl -s https://api.github.com/repos/pioreactor/pioreactorui/releases/latest)
-        echo "RELEASE_UI_TAG=$(echo $LATEST_RELEASE | jq -r .tag_name)" >> $GITHUB_ENV
-        echo "RELEASE_UI_URL=https://github.com/pioreactor/pioreactorui/archive/refs/tags/${{ env.RELEASE_UI_TAG }}.tar.gz" >> $GITHUB_ENV
+        TAG=$(echo $LATEST_RELEASE | jq -r .tag_name)
+        echo "RELEASE_UI_TAG=$TAG" >> $GITHUB_ENV
+        echo "RELEASE_UI_URL=https://github.com/pioreactor/pioreactorui/archive/refs/tags/$TAG.tar.gz" >> $GITHUB_ENV
     - name: Download Release Tarball
       run: |
         curl -L $RELEASE_UI_URL -o pioreactorui_${{ env.RELEASE_UI_TAG }}.tar.gz
