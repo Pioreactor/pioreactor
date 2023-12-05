@@ -1,8 +1,11 @@
+import clsx from 'clsx';
+
 import React from "react";
 import MarkdownView from 'react-showdown';
 
 import Grid from '@mui/material/Grid';
 import { makeStyles } from '@mui/styles';
+import { styled } from '@mui/material/styles';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/Card';
 import Button from '@mui/material/Button';
@@ -19,8 +22,32 @@ import { useConfirm } from 'material-ui-confirm';
 import UnderlineSpan from "./components/UnderlineSpan";
 import SelectButton from "./components/SelectButton";
 import ScienceIcon from '@mui/icons-material/Science';
+import FolderZipIcon from '@mui/icons-material/FolderZip';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
+import DialogTitle from '@mui/material/DialogTitle';
+import CloseIcon from '@mui/icons-material/Close';
+
+const VisuallyHiddenInput = styled('input')({
+  clip: 'rect(0 0 0 0)',
+  clipPath: 'inset(50%)',
+  height: 1,
+  overflow: 'hidden',
+  position: 'absolute',
+  bottom: 0,
+  left: 0,
+  whiteSpace: 'nowrap',
+  width: 1,
+});
+
+const lostRed = "#DE3618"
 
 const useStyles = makeStyles((theme) => ({
+  lostRed: {
+    color: lostRed
+  },
   title: {
     fontSize: 14,
   },
@@ -38,50 +65,197 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 
-function UpdateToLatestConfirmDialog(props) {
+function UploadArchiveAndConfirm(props) {
+  const classes = useStyles()
+  const [selectedFile, setSelectedFile] = React.useState(null);
+  const [errorMsg, setErrorMsg] = React.useState(null);
+  const handleClose = props.onClose
+
+  const handleFileChange = (event) => {
+    const file = event.target.files[0]
+
+    if (/^release_\d{0,2}\.\d{0,2}\.\d{0,2}\w{0,6}\.zip$/.test(file.name)) {
+      setSelectedFile(event.target.files[0]);
+      setErrorMsg(null)
+    }
+    else {
+      setErrorMsg("Not a valid release archive file. It should be a zip file, starting with `release_`.")
+    }
+  };
+
+  const handleFileUpload = async () => {
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    try {
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        // Handle non-2xx responses here
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Upload failed with status ' + response.status);
+      }
+
+      const data = await response.json();
+      return data.save_path;
+    } catch (error) {
+      setErrorMsg(error.message)
+      return null;
+    }
+  };
+
+  const handleUpdate = async (savePath) => {
+    try {
+      await fetch("/api/update_app_from_release_archive", {
+        method: "POST",
+        body: JSON.stringify({ release_archive_location: savePath }),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleUploadClick = async () => {
+    const savePath = await handleFileUpload();
+
+    if (savePath === null) {
+      // Exit the function if there was a problem in handleFileUpload
+      return;
+    }
+
+    await handleUpdate(savePath);
+    handleClose();
+    props.onSuccess()
+  }
+
+
+
+  return (
+    <React.Fragment>
+      <Dialog
+        open={true}
+        onClose={handleClose}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">
+          {props.title}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description">
+            {props.description}
+            <br/>
+            <br/>
+            <Button component="label" style={{textTransform: 'none'}}>Choose file <VisuallyHiddenInput onChange={handleFileChange} accept=".zip" type="file" /></Button>
+            {selectedFile == null ? "" : selectedFile.name}
+            <div style={{minHeight: "30px", alignItems: "center", display: "flex"}}>
+              {errorMsg   ? <p><CloseIcon className={clsx(classes.textIcon, classes.lostRed)}/>{errorMsg}</p>           : <React.Fragment/>}
+            </div>
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClose} color="secondary">Cancel</Button>
+          <Button disabled={selectedFile == null} onClick={handleUploadClick}>Update</Button>
+        </DialogActions>
+      </Dialog>
+    </React.Fragment>
+  );
+}
+
+
+function UpdateSoftwareConfirmDialog(props) {
   const confirm = useConfirm();
   const [updating, setUpdating] = React.useState(false)
   const [openSnackbar, setOpenSnackbar] = React.useState(false)
-  const [installDev, setInstallDev] = React.useState(false)
+  const [installOption, setInstallOption] = React.useState("latest")
+  const [showArchiveConfirm, setShowArchiveConfirm] = React.useState(false);
 
   const updateVersion = () => {
     setOpenSnackbar(true)
-    if (installDev){
+    if (installOption === "development"){
       fetch("/api/update_app_to_develop", {method: "POST"})
-    } else {
+    } else if (installOption === "latest") {
       fetch("/api/update_app", {method: "POST"})
     }
   }
 
   const handleClick = () => {
-    confirm({
-      description: 'This requires an internet connection. To avoid possible data interruptions, we suggest updating between running experiments. ' + (installDev ? "We recommend being on the latest release of software before doing this. Confirm you are on the latest software before updating." : ""),
-      title: installDev ? "Update to development build?" : "Update to next release?" ,
-      confirmationText: "Update",
-      confirmationButtonProps: {color: "primary"},
-      cancellationButtonProps: {color: "secondary"},
-
-      }).then(() => {
-        updateVersion();
-        setUpdating(true)
-      }
-    )
+    if (installOption === "archive") {
+      // Open the UploadArchiveAndConfirm dialog
+      setShowArchiveConfirm(true);
+    }
+    else {
+      confirm({
+        description: getDescription(),
+        title: getTitle(),
+        confirmationText: "Update",
+        confirmationButtonProps: {color: "primary"},
+        cancellationButtonProps: {color: "secondary"}, //style: {textTransform: 'none'}
+        }).then(() => {
+          updateVersion();
+          setUpdating(true)
+        }
+      )
+    }
   };
+
+  const getIcon = () =>{
+    if ( installOption ==="development"){
+      return <ScienceIcon/>
+    }
+    else if (installOption === "latest") {
+      return <UpdateIcon/>
+    }
+    else if (installOption === "archive"){
+      return <FolderZipIcon/>
+    }
+  }
+
+  const getTitle = () => {
+    if (installOption === "development"){
+      return "Update to development build?"
+    }
+    else if (installOption === "latest") {
+      return "Update to next release?"
+    }
+    else if (installOption === "archive"){
+      return "Update from release archive?"
+    }
+  }
+
+  const getDescription = () => {
+    if (installOption === "development"){
+      return "This requires an internet connection. To avoid possible data interruptions, we suggest updating between running experiments. We also recommend being on the latest release of software before doing this. Check you are on the latest software before updating."
+    }
+    else if (installOption === "latest") {
+      return "This requires an internet connection. To avoid possible data interruptions, we suggest updating between running experiments."
+    }
+    else if (installOption === "archive"){
+      return "To avoid possible data interruptions, we suggest updating between running experiments. Choose the release archive below."
+    }
+  }
 
   return (
     <React.Fragment>
       <SelectButton
         buttonStyle={{textTransform: 'none'}}
-        value={installDev ? "development" : "latest"}
+        value={installOption}
         onClick={handleClick}
         onChange={({ target: { value } }) =>
-          setInstallDev(value === "development")
+          setInstallOption(value)
         }
         disabled={updating}
-        endIcon={installDev ? <ScienceIcon /> :  <UpdateIcon />}
+        endIcon={getIcon()}
       >
         <MenuItem value={"latest"}>Update to next release</MenuItem>
         <MenuItem value={"development"}>Update to development</MenuItem>
+        <MenuItem value={"archive"}>Update from release archive</MenuItem>
       </SelectButton>
       <Snackbar
         anchorOrigin={{vertical: "bottom", horizontal: "center"}}
@@ -90,7 +264,15 @@ function UpdateToLatestConfirmDialog(props) {
         autoHideDuration={20000}
         key="snackbar-update"
       />
-    </React.Fragment>
+      {showArchiveConfirm && (
+        <UploadArchiveAndConfirm
+          title={getTitle()}
+          description={getDescription()}
+          onSuccess={() => setOpenSnackbar(true)}
+          onClose={() => setShowArchiveConfirm(false)}
+        />
+      )}
+      </React.Fragment>
   );
 }
 
@@ -100,6 +282,7 @@ function PageHeader(props) {
   const [version, setVersion] = React.useState("")
   const [uiVersion, setUIVersion] = React.useState("")
   const [latestVersion, setLatestVersion] = React.useState("")
+
 
   React.useEffect(() => {
     async function getCurrentAppVersion() {
@@ -150,7 +333,7 @@ function PageHeader(props) {
         </Typography>
         <div>
           <div style={{float: "right", marginRight: "0px", marginLeft: "10px"}}>
-            <UpdateToLatestConfirmDialog />
+            <UpdateSoftwareConfirmDialog />
           </div>
           <Link color="inherit" underline="none" href={`https://github.com/Pioreactor/pioreactor/releases/tag/${latestVersion}`} target="_blank" rel="noopener noreferrer">
             <Button style={{textTransform: 'none', float: "right", marginRight: "0px"}} color="primary">
