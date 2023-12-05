@@ -1,6 +1,6 @@
 ### Upcoming
 
- - Improvements to OD calibration and pump calibrations
+ - Improvements to OD calibration and pump calibrations. Both now have a `-f` option to provide a json file with calibration data, to skip rerunning data-gathering routines. For example: `pio run pump_calibration -f pump_data.json`.
 
 ### 23.11.29
 

@@ -292,9 +292,7 @@ def view_cache(cache: str) -> None:
     tmp_dir = tempfile.gettempdir()
 
     persistant_dir = (
-        "/home/pioreactor/.pioreactor/storage/"
-        if not whoami.is_testing_env()
-        else ".pioreactor/storage"
+        "/home/pioreactor/.pioreactor/storage/" if not whoami.is_testing_env() else ".pioreactor/storage"
     )
 
     # is it a temp cache or persistant cache?
@@ -316,9 +314,7 @@ def view_cache(cache: str) -> None:
 @pio.command(name="clear-cache", short_help="clear out the contents of a cache")
 @click.argument("cache")
 @click.argument("key")
-@click.option(
-    "--as-int", is_flag=True, help="evict after casting key to int, useful for gpio pins."
-)
+@click.option("--as-int", is_flag=True, help="evict after casting key to int, useful for gpio pins.")
 def clear_cache(cache: str, key: str, as_int: bool) -> None:
     import os.path
     import tempfile
@@ -326,9 +322,7 @@ def clear_cache(cache: str, key: str, as_int: bool) -> None:
     tmp_dir = tempfile.gettempdir()
 
     persistant_dir = (
-        "/home/pioreactor/.pioreactor/storage/"
-        if not whoami.is_testing_env()
-        else ".pioreactor/storage"
+        "/home/pioreactor/.pioreactor/storage/" if not whoami.is_testing_env() else ".pioreactor/storage"
     )
 
     # is it a temp cache or persistant cache?
@@ -376,9 +370,7 @@ def update_settings(ctx, job: str) -> None:
 
     for setting, value in extra_args.items():
         setting = setting.replace("-", "_")
-        pubsub.publish(
-            f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value, qos=pubsub.QOS.EXACTLY_ONCE
-        )
+        pubsub.publish(f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value, qos=pubsub.QOS.EXACTLY_ONCE)
 
 
 @pio.group()
@@ -472,11 +464,9 @@ def update_app(
     """
     Update the Pioreactor core software
     """
-    logger = create_logger(
-        "update-app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
-    )
+    logger = create_logger("update-app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT)
 
-    commands_and_priority: list[tuple[str, int]] = []
+    commands_and_priority: list[tuple[str, float]] = []
 
     if source is not None:
         source = quote(source)
@@ -486,43 +476,32 @@ def update_app(
         if re.search("release_(.*).zip", source):
             version_installed = re.search("release_(.*).zip", source).groups()[0]  # type: ignore
             tmp_release_folder = f"/tmp/release_{version_installed}"
+            # fmt: off
             commands_and_priority.extend(
                 [
                     (f"rm -rf {tmp_release_folder}", -3),
                     (f"unzip {source} -d {tmp_release_folder}", -2),
-                    (
-                        f"unzip {tmp_release_folder}/wheels_{version_installed}.zip -d {tmp_release_folder}/wheels",
-                        0,
-                    ),
-                    (f"sudo bash {tmp_release_folder}/pre_update.sh || true", 1),
-                    (
-                        f"sudo pip install --force-reinstall --no-index --find-links={tmp_release_folder}/wheels/ {tmp_release_folder}/pioreactor-{version_installed}-py3-none-any.whl",
-                        2,
-                    ),
-                    (f"sudo bash {tmp_release_folder}/update.sh || true", 3),
-                    (
-                        f'sudo sqlite3 {config["storage"]["database"]} < {tmp_release_folder}/update.sql || true',
-                        4,
-                    ),
-                    (f"sudo bash {tmp_release_folder}/post_update.sh || true", 5),
+                    (f"unzip {tmp_release_folder}/wheels_{version_installed}.zip -d {tmp_release_folder}/wheels", 0),
+                    (f"mv {tmp_release_folder}/pioreactorui_*.tar.gz /tmp/pioreactorui_archive || :", 0.5),
+                    (f"sudo bash {tmp_release_folder}/pre_update.sh || :", 1),
+                    (f"sudo pip install --force-reinstall --no-index --find-links={tmp_release_folder}/wheels/ {tmp_release_folder}/pioreactor-{version_installed}-py3-none-any.whl", 2),
+                    (f"sudo bash {tmp_release_folder}/update.sh || :", 3),
+                    (f'sudo sqlite3 {config["storage"]["database"]} < {tmp_release_folder}/update.sql || :', 4),
+                    (f"sudo bash {tmp_release_folder}/post_update.sh || :", 5),
                 ]
             )
+            # fmt: on
 
         else:
             version_installed = source
-            commands_and_priority.append(
-                (f"sudo pip3 install --force-reinstall --no-index {source}", 1)
-            )
+            commands_and_priority.append((f"sudo pip3 install --force-reinstall --no-index {source}", 1))
 
     elif branch is not None:
         cleaned_branch = quote(branch)
         cleaned_repo = quote(repo)
         version_installed = cleaned_branch
         commands_and_priority.append(
-            (
-                f"sudo pip3 install -U --force-reinstall https://github.com/{cleaned_repo}/archive/{cleaned_branch}.zip",
-                1,
-            )
+            (f"sudo pip3 install -U --force-reinstall https://github.com/{cleaned_repo}/archive/{cleaned_branch}.zip", 1,)  # fmt: skip
         )
 
     else:
@@ -616,9 +595,7 @@ def update_firmware(version: Optional[str]) -> None:
     """
     Update the RP2040 firmware
     """
-    logger = create_logger(
-        "update-app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
-    )
+    logger = create_logger("update-app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT)
     commands_and_priority: list[tuple[str, int]] = []
 
     if version is None:
@@ -713,9 +690,7 @@ if whoami.am_I_leader():
     def mqtt(topic: str) -> None:
         import os
 
-        os.system(
-            f"""mosquitto_sub -v -t '{topic}' -F "%19.19I  |  %t   %p" -u pioreactor -P raspberry"""
-        )
+        os.system(f"""mosquitto_sub -v -t '{topic}' -F "%19.19I  |  %t   %p" -u pioreactor -P raspberry""")
 
     @pio.command(name="add-pioreactor", short_help="add a new Pioreactor to cluster")
     @click.argument("hostname")
@@ -829,15 +804,17 @@ if whoami.am_I_leader():
 
             ip, state, reachable, versions = get_metadata(hostname)
 
-            statef = click.style(
-                f"{state:15s}", fg="green" if state in ("ready", "init") else "red"
-            )
+            statef = click.style(f"{state:15s}", fg="green" if state in ("ready", "init") else "red")
             ipf = f"{ip if (ip is not None) else 'unknown':20s}"
 
             is_leaderf = f"{('Y' if hostname==get_leader_hostname() else 'N'):15s}"
             hostnamef = f"{hostname:20s}"
-            reachablef = f"{(click.style('Y', fg='green') if reachable       else click.style('N', fg='red')):23s}"
-            statusf = f"{(click.style('Y', fg='green') if (status == '1') else click.style('N', fg='red')):23s}"
+            reachablef = (
+                f"{(click.style('Y', fg='green') if reachable       else click.style('N', fg='red')):23s}"
+            )
+            statusf = (
+                f"{(click.style('Y', fg='green') if (status == '1') else click.style('N', fg='red')):23s}"
+            )
             versionf = f"{versions['hat']:15s}"
 
             click.echo(f"{hostnamef} {is_leaderf} {ipf} {statef} {reachablef} {statusf} {versionf}")
@@ -869,9 +846,7 @@ if whoami.am_I_leader():
     )
     @click.option("--source", help="use a tar.gz file")
     @click.option("-v", "--version", help="install a specific version")
-    def update_ui(
-        branch: Optional[str], repo: str, source: Optional[str], version: Optional[str]
-    ) -> None:
+    def update_ui(branch: Optional[str], repo: str, source: Optional[str], version: Optional[str]) -> None:
         """
         Update the PioreactorUI
 
@@ -890,8 +865,7 @@ if whoami.am_I_leader():
 
         if source is not None:
             source = quote(source)
-            assert version is not None, "version must be provided with the -v option"
-            version_installed = version
+            version_installed = source
 
         elif branch is not None:
             cleaned_branch = quote(branch)
@@ -911,8 +885,7 @@ if whoami.am_I_leader():
             commands.append(["wget", url, "-O", source])
 
         assert source is not None
-        assert version_installed is not None
-        commands.append(["bash", "/usr/local/bin/update_ui.sh", source, version_installed])
+        commands.append(["bash", "/usr/local/bin/update_ui.sh", source])
 
         for command in commands:
             logger.debug(" ".join(command))

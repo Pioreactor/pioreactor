@@ -165,7 +165,7 @@ def led_intensity(
             try:
                 assert (
                     channel in ALL_LED_CHANNELS
-                ), f"saw incorrect channel {channel}, not in {ALL_LED_CHANNELS}"
+                ), f"Saw incorrect channel {channel}, not in {ALL_LED_CHANNELS}"
                 assert (
                     0.0 <= intensity <= 100.0
                 ), f"Channel {channel} intensity should be between 0 and 100, inclusive"

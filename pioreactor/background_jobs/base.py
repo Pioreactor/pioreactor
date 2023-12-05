@@ -635,9 +635,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # Error codes are below, but don't always align
         # https://github.com/eclipse/paho.mqtt.python/blob/42f0b13001cb39aee97c2b60a3b4807314dfcb4d/src/paho/mqtt/client.py#L147
         elif rc == mqtt.MQTT_ERR_KEEPALIVE:
-            self.logger.warning(
-                "Lost contact with MQTT server. Is the leader Pioreactor still online?"
-            )
+            self.logger.warning("Lost contact with MQTT server. Is the leader Pioreactor still online?")
         else:
             self.logger.debug(f"Disconnected from MQTT with {rc=}: {mqtt.error_string(rc)}")
         return
@@ -814,9 +812,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         self._clean = True
 
-    def _publish_properties_to_broker(
-        self, published_settings: dict[str, pt.PublishableSetting]
-    ) -> None:
+    def _publish_properties_to_broker(self, published_settings: dict[str, pt.PublishableSetting]) -> None:
         # this follows some of the Homie convention: https://homieiot.github.io/specification/
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$properties",
@@ -825,9 +821,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             retain=True,
         )
 
-    def _publish_settings_to_broker(
-        self, published_settings: dict[str, pt.PublishableSetting]
-    ) -> None:
+    def _publish_settings_to_broker(self, published_settings: dict[str, pt.PublishableSetting]) -> None:
         # this follows some of the Homie convention: https://homieiot.github.io/specification/
         for setting, props in published_settings.items():
             self.publish(
@@ -867,9 +861,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.debug(f"Unable to set `{attr}` in {self.job_name}.")
             return
         elif not self.published_settings[attr]["settable"]:
-            self.logger.warning(
-                f"Unable to set `{attr}` in {self.job_name}. `{attr}` is read-only."
-            )
+            self.logger.warning(f"Unable to set `{attr}` in {self.job_name}. `{attr}` is read-only.")
             return
 
         previous_value = getattr(self, attr)
@@ -1016,9 +1008,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
     def __init__(self, *args, source="app", **kwargs) -> None:
         super().__init__(*args, source=source, **kwargs)  # type: ignore
 
-        self.add_to_published_settings(
-            "enable_dodging_od", {"datatype": "boolean", "settable": True}
-        )
+        self.add_to_published_settings("enable_dodging_od", {"datatype": "boolean", "settable": True})
         self.set_enable_dodging_od(bool(self.get_from_config("enable_dodging_od", fallback=True)))
 
     def get_from_config(self, key, **get_kwargs):
@@ -1047,9 +1037,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
                 self.action_to_do_after_od_reading()
             except Exception:
                 pass
-            self.sub_client.unsubscribe(
-                f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval"
-            )
+            self.sub_client.unsubscribe(f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval")
 
     def _setup_actions(self, msg: pt.MQTTMessage) -> None:
         if not msg.payload:
@@ -1057,9 +1045,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
             if hasattr(self, "sneak_in_timer"):
                 self.sneak_in_timer.cancel()
             self.action_to_do_after_od_reading()
-            self.sub_client.unsubscribe(
-                f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval"
-            )
+            self.sub_client.unsubscribe(f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval")
             return
 
         # OD found - revert to paused state
@@ -1081,17 +1067,13 @@ class BackgroundJobWithDodging(_BackgroundJob):
             pass
 
         post_delay = float(self.get_from_config("post_delay_duration", fallback=1.0))
-        pre_delay = float(self.get_from_config("pre_delay_duration", fallback=1.0))
+        pre_delay = float(self.get_from_config("pre_delay_duration", fallback=1.5))
 
         if post_delay <= 0.25:
-            self.logger.warning(
-                "For optimal OD readings, keep `post_delay_duration` more than 0.25 seconds."
-            )
+            self.logger.warning("For optimal OD readings, keep `post_delay_duration` more than 0.25 seconds.")
 
-        if pre_delay <= 0.1:
-            self.logger.warning(
-                "For optimal OD readings, keep `pre_delay_duration` more than 0.1 seconds."
-            )
+        if pre_delay <= 0.25:
+            self.logger.warning("For optimal OD readings, keep `pre_delay_duration` more than 0.25 seconds.")
 
         def sneak_in(ads_interval, post_delay, pre_delay) -> None:
             if self.state != self.READY:
@@ -1113,9 +1095,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
         else:
             return
 
-        ads_interval_msg = subscribe(
-            f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval"
-        )
+        ads_interval_msg = subscribe(f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval")
         if ads_interval_msg:
             ads_interval = float(ads_interval_msg.payload)
         else:
