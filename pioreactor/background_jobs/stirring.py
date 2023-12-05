@@ -67,9 +67,7 @@ class RpmCalculator:
             lgpio.gpio_claim_alert(
                 self._handle, hardware.HALL_SENSOR_PIN, lgpio.FALLING_EDGE, lgpio.SET_PULL_UP
             )
-            self._edge_callback = lgpio.callback(
-                self._handle, hardware.HALL_SENSOR_PIN, lgpio.FALLING_EDGE
-            )
+            self._edge_callback = lgpio.callback(self._handle, hardware.HALL_SENSOR_PIN, lgpio.FALLING_EDGE)
         else:
             self._edge_callback = MockCallback()
             self._handle = MockHandle()
@@ -286,9 +284,7 @@ class Stirrer(BackgroundJob):
                 # we scale this by 90% to make sure the PID + prediction doesn't overshoot,
                 # better to be conservative here.
                 # equivalent to a weighted average: 0.1 * current + 0.9 * predicted
-                return lambda rpm: self.duty_cycle - 0.90 * (
-                    self.duty_cycle - (coef * rpm + intercept)
-                )
+                return lambda rpm: self.duty_cycle - 0.90 * (self.duty_cycle - (coef * rpm + intercept))
             else:
                 return lambda rpm: self.duty_cycle
 
@@ -334,9 +330,7 @@ class Stirrer(BackgroundJob):
             self.kick_stirring()
             return
 
-        interval_msg = subscribe(
-            f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval", timeout=3
-        )
+        interval_msg = subscribe(f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval", timeout=3)
 
         if interval_msg is not None and interval_msg.payload:
             interval = float(interval_msg.payload)
@@ -407,7 +401,7 @@ class Stirrer(BackgroundJob):
         if self.rpm_calculator is None:
             raise ValueError("Can't set target RPM when no RPM measurement is being made")
 
-        self.target_rpm = value
+        self.target_rpm = clamp(0, value, 5_000)
         self.set_duty_cycle(self.rpm_to_dc_lookup(self.target_rpm))
         self.pid.set_setpoint(self.target_rpm)
 
@@ -496,9 +490,7 @@ def start_stirring(
     show_default=True,
     type=click.FloatRange(0, 1500, clamp=True),
 )
-@click.option(
-    "--use-rpm/--ignore-rpm", default=config.getboolean("stirring", "use_rpm", fallback="true")
-)
+@click.option("--use-rpm/--ignore-rpm", default=config.getboolean("stirring", "use_rpm", fallback="true"))
 def click_stirring(target_rpm: float, use_rpm: bool):
     """
     Start the stirring of the Pioreactor.

@@ -473,7 +473,8 @@ def update_app(
 
         import re
 
-        if re.search("release_(.*).zip", source):
+        if re.search(r"^release_\d{0,2}\.\d{0,2}\.\d{0,2}\w{0,6}\.zip$", source):
+            # provided a release archive
             version_installed = re.search("release_(.*).zip", source).groups()[0]  # type: ignore
             tmp_release_folder = f"/tmp/release_{version_installed}"
             # fmt: off
@@ -482,26 +483,30 @@ def update_app(
                     (f"rm -rf {tmp_release_folder}", -3),
                     (f"unzip {source} -d {tmp_release_folder}", -2),
                     (f"unzip {tmp_release_folder}/wheels_{version_installed}.zip -d {tmp_release_folder}/wheels", 0),
-                    (f"mv {tmp_release_folder}/pioreactorui_*.tar.gz /tmp/pioreactorui_archive || :", 0.5),
+                    (f"mv {tmp_release_folder}/pioreactorui_*.tar.gz /tmp/pioreactorui_archive || :", 0.5),  # move ui folder to be accessed by a `pio update ui`
                     (f"sudo bash {tmp_release_folder}/pre_update.sh || :", 1),
                     (f"sudo pip install --force-reinstall --no-index --find-links={tmp_release_folder}/wheels/ {tmp_release_folder}/pioreactor-{version_installed}-py3-none-any.whl", 2),
                     (f"sudo bash {tmp_release_folder}/update.sh || :", 3),
                     (f'sudo sqlite3 {config["storage"]["database"]} < {tmp_release_folder}/update.sql || :', 4),
                     (f"sudo bash {tmp_release_folder}/post_update.sh || :", 5),
+                    (f"rm -rf {tmp_release_folder}", 6),
                 ]
             )
             # fmt: on
 
-        else:
+        elif source.endswith(".whl"):
+            # provided a whl
             version_installed = source
             commands_and_priority.append((f"sudo pip3 install --force-reinstall --no-index {source}", 1))
+        else:
+            raise click.Abort("Not a valid source file. Should be either a whl or release archive.")
 
     elif branch is not None:
         cleaned_branch = quote(branch)
         cleaned_repo = quote(repo)
         version_installed = cleaned_branch
         commands_and_priority.append(
-            (f"sudo pip3 install -U --force-reinstall https://github.com/{cleaned_repo}/archive/{cleaned_branch}.zip", 1,)  # fmt: skip
+            (f"sudo pip3 install https://github.com/{cleaned_repo}/archive/{cleaned_branch}.zip", 1,)  # fmt: skip
         )
 
     else:
@@ -509,7 +514,7 @@ def update_app(
             tag = get_tag_to_install(repo, version)
         except HTTPException:
             raise HTTPException(
-                f"Unable to retrieve information over internet. Is the Pioreactor connected to the internet? LAP is {is_using_local_access_point()}."
+                f"Unable to retrieve information over internet. Is the Pioreactor connected to the internet? Local access point is {'active' if is_using_local_access_point() else 'inactive'}."
             )
         response = get(f"https://api.github.com/repos/{repo}/releases/{tag}")
         if response.raise_for_status():
