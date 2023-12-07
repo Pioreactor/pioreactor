@@ -470,20 +470,21 @@ def update_app(
 
     if source is not None:
         source = quote(source)
-
         import re
+        import tempfile
 
-        if re.search(r"^release_\d{0,2}\.\d{0,2}\.\d{0,2}\w{0,6}\.zip$", source):
+        if re.search(r"release_\d{0,2}\.\d{0,2}\.\d{0,2}\w{0,6}\.zip$", source):
             # provided a release archive
-            version_installed = re.search("release_(.*).zip", source).groups()[0]  # type: ignore
-            tmp_release_folder = f"/tmp/release_{version_installed}"
+            version_installed = re.search(r"release_(.*).zip$", source).groups()[0]  # type: ignore
+            tmp_dir = tempfile.gettempdir()
+            tmp_release_folder = f"{tmp_dir}/release_{version_installed}"
             # fmt: off
             commands_and_priority.extend(
                 [
                     (f"rm -rf {tmp_release_folder}", -3),
                     (f"unzip {source} -d {tmp_release_folder}", -2),
                     (f"unzip {tmp_release_folder}/wheels_{version_installed}.zip -d {tmp_release_folder}/wheels", 0),
-                    (f"mv {tmp_release_folder}/pioreactorui_*.tar.gz /tmp/pioreactorui_archive || :", 0.5),  # move ui folder to be accessed by a `pio update ui`
+                    (f"mv {tmp_release_folder}/pioreactorui_*.tar.gz {tmp_dir}/pioreactorui_archive || :", 0.5),  # move ui folder to be accessed by a `pio update ui`
                     (f"sudo bash {tmp_release_folder}/pre_update.sh || :", 1),
                     (f"sudo pip install --force-reinstall --no-index --find-links={tmp_release_folder}/wheels/ {tmp_release_folder}/pioreactor-{version_installed}-py3-none-any.whl", 2),
                     (f"sudo bash {tmp_release_folder}/update.sh || :", 3),
@@ -493,20 +494,21 @@ def update_app(
                 ]
             )
             # fmt: on
-
         elif source.endswith(".whl"):
             # provided a whl
             version_installed = source
             commands_and_priority.append((f"sudo pip3 install --force-reinstall --no-index {source}", 1))
         else:
-            raise click.Abort("Not a valid source file. Should be either a whl or release archive.")
+            raise click.Abort(
+                "Not a valid source file. Should be either a whl or release archive."
+            )  # TODO: this doesn't print any message on error...
 
     elif branch is not None:
         cleaned_branch = quote(branch)
         cleaned_repo = quote(repo)
         version_installed = cleaned_branch
         commands_and_priority.append(
-            (f"sudo pip3 install https://github.com/{cleaned_repo}/archive/{cleaned_branch}.zip", 1,)  # fmt: skip
+            (f"sudo pip3 install --force-reinstall https://github.com/{cleaned_repo}/archive/{cleaned_branch}.zip", 1,)  # fmt: skip
         )
 
     else:

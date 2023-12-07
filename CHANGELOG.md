@@ -2,7 +2,6 @@
 
  - Improvements to OD calibration and pump calibrations. Both now have a `-f` option to provide a json file with calibration data, to skip rerunning data-gathering routines. For example: `pio run pump_calibration -f pump_data.json`.
  - Ability to update via our release_archives (available on the github release page) via the UI. To turn this feature off (which is a recommended practice when you expose your UI publically), add an empty file called `DISALLOW_UI_UPLOADS` to the `~/.pioreactor` directory.
- -
 
 
 ### 23.11.29
