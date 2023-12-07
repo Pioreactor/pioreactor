@@ -26,8 +26,8 @@ fi
 # stop everything that might touch the database or config files...
 pio kill --all-jobs > /dev/null
 pio kill monitor watchdog mqtt_to_db_streaming
-sudo systemctl stop lighttpd.service
-sudo systemctl stop huey.service
+sudo systemctl stop lighttpd.service || true
+sudo systemctl stop huey.service || true
 
 # blow away the old .pioreactor
 rm -rf /home/pioreactor/.pioreactor/
