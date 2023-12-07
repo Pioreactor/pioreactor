@@ -109,9 +109,7 @@ class Monitor(BackgroundJob):
             "timestamp": current_utc_timestamp(),
         }
 
-        self.logger.debug(
-            f"Pioreactor software version: {pretty_version(version.software_version_info)}"
-        )
+        self.logger.debug(f"Pioreactor software version: {pretty_version(version.software_version_info)}")
 
         if whoami.am_I_active_worker():
             self.logger.debug(f"Pioreactor HAT version: {self.versions['hat']}")
@@ -240,6 +238,14 @@ class Monitor(BackgroundJob):
                 )
                 status = result.stdout.strip()
 
+                # Check stderr if stdout is empty
+                if not status:
+                    status = result.stderr.strip()
+
+                # Handle case where status is still empty
+                if not status:
+                    raise ValueError("No output from systemctl command")
+
                 # Check if the output is okay
                 if status == "failed" or status == "inactive" or status == "deactivating":
                     self.logger.error("lighttpd is not running. Check `systemctl status lighttpd`.")
@@ -263,10 +269,16 @@ class Monitor(BackgroundJob):
             while attempt < retries:
                 attempt += 1
                 # Run the command 'systemctl is-active huey' and capture the output
-                result = subprocess.run(
-                    ["systemctl", "is-active", "huey"], capture_output=True, text=True
-                )
+                result = subprocess.run(["systemctl", "is-active", "huey"], capture_output=True, text=True)
                 status = result.stdout.strip()
+
+                # Check stderr if stdout is empty
+                if not status:
+                    status = result.stderr.strip()
+
+                # Handle case where status is still empty
+                if not status:
+                    raise ValueError("No output from systemctl command")
 
                 # Check if the output is okay
                 if status == "failed" or status == "inactive" or status == "deactivating":
@@ -300,9 +312,7 @@ class Monitor(BackgroundJob):
 
     def check_for_required_jobs_running(self):
         if not all(utils.is_pio_job_running(["watchdog", "mqtt_to_db_streaming"])):
-            self.logger.debug(
-                "watchdog and mqtt_to_db_streaming should be running on leader. Double check."
-            )
+            self.logger.debug("watchdog and mqtt_to_db_streaming should be running on leader. Double check.")
 
     def check_for_HAT(self) -> None:
         if not is_HAT_present():
@@ -442,9 +452,7 @@ class Monitor(BackgroundJob):
                 try:
                     pre_function()
                 except Exception:
-                    self.logger.debug(
-                        f"Error in pre_function={pre_function.__name__}.", exc_info=True
-                    )
+                    self.logger.debug(f"Error in pre_function={pre_function.__name__}.", exc_info=True)
 
         elif level == 0:
             self.button_down = False
@@ -453,9 +461,7 @@ class Monitor(BackgroundJob):
                 try:
                     post_function()
                 except Exception:
-                    self.logger.debug(
-                        f"Error in post_function={post_function.__name__}.", exc_info=True
-                    )
+                    self.logger.debug(f"Error in post_function={post_function.__name__}.", exc_info=True)
 
     def rpi_is_having_power_problems(self) -> tuple[bool, float]:
         from pioreactor.utils.rpi_bad_power import new_under_voltage
@@ -474,9 +480,7 @@ class Monitor(BackgroundJob):
     def check_for_power_problems(self) -> None:
         is_rpi_having_power_probems, voltage = self.rpi_is_having_power_problems()
         self.logger.debug(f"PWM power supply at ~{voltage:.2f}V.")
-        self.voltage_on_pwm_rail = Voltage(
-            voltage=round(voltage, 2), timestamp=current_utc_datetime()
-        )
+        self.voltage_on_pwm_rail = Voltage(voltage=round(voltage, 2), timestamp=current_utc_datetime())
         if is_rpi_having_power_probems:
             self.logger.warning(
                 f"Low-voltage detected on rail. PWM power supply at {voltage:.1f}V. Suggestion: use a better power supply or an AUX power. See docs at: https://docs.pioreactor.com/user-guide/external-power"
@@ -603,9 +607,7 @@ class Monitor(BackgroundJob):
         payload = loads(msg.payload) if msg.payload else {"options": {}, "args": []}
 
         if "options" not in payload:
-            self.logger.debug(
-                "`options` key missing from payload. You should provide an empty dictionary."
-            )
+            self.logger.debug("`options` key missing from payload. You should provide an empty dictionary.")
         options = payload.get("options", {})
 
         if "args" not in payload:

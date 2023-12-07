@@ -117,9 +117,7 @@ def which_pump_are_you_calibrating() -> tuple[str, Callable]:
             waste_name = decode(cache["waste"], type=structs.WastePumpCalibration).name
 
         if has_alt_media:
-            alt_media_timestamp = decode(
-                cache["alt_media"], type=structs.AltMediaPumpCalibration
-            ).created_at
+            alt_media_timestamp = decode(cache["alt_media"], type=structs.AltMediaPumpCalibration).created_at
             alt_media_name = decode(cache["alt_media"], type=structs.AltMediaPumpCalibration).name
 
     echo(green(bold("Step 1")))
@@ -168,9 +166,7 @@ def setup(pump_type: str, execute_pump: Callable, hz: float, dc: float, unit: st
     try:
         channel_pump_is_configured_for = config.get("PWM_reverse", pump_type)
     except KeyError:
-        echo(
-            f"❌ {pump_type} is not present in config.ini. Please add it to the [PWM] section and try again."
-        )
+        echo(f"❌ {pump_type} is not present in config.ini. Please add it to the [PWM] section and try again.")
         raise click.Abort()
     clear()
     echo()
@@ -179,16 +175,21 @@ def setup(pump_type: str, execute_pump: Callable, hz: float, dc: float, unit: st
     echo("1. Fill a container with water.")
     echo("2. Submerge both ends of the pump's tubes into the water.")
     echo(
-        "Make sure the pump's power is connected to "
-        + bold(f"PWM channel {channel_pump_is_configured_for}.")
+        "Make sure the pump's power is connected to " + bold(f"PWM channel {channel_pump_is_configured_for}.")
     )
-    echo("We'll run the pumps continuously until the tubes are completely filled with water.")
+    echo(
+        "Run the pumps continuously until the tubes are completely filled with water and there are no air pockets in the tubes."
+    )
     echo()
 
     while not confirm(green("Ready to start pumping?")):
         pass
 
-    echo(bold("Press CTRL+C when the tubes are completely filled with water."))
+    echo(
+        bold(
+            "Press CTRL+C when the tubes are completely filled with water and there are no air pockets in the tubes."
+        )
+    )
 
     try:
         execute_pump(
@@ -236,9 +237,7 @@ def choose_settings() -> tuple[float, float]:
     return hz, dc
 
 
-def plot_data(
-    x, y, title, x_min=None, x_max=None, interpolation_curve=None, highlight_recent_point=True
-):
+def plot_data(x, y, title, x_min=None, x_max=None, interpolation_curve=None, highlight_recent_point=True):
     import plotext as plt  # type: ignore
 
     plt.clf()
@@ -285,9 +284,7 @@ def run_tests(
     )
 
     results: list[float] = []
-    durations_to_test = (
-        [min_duration] * 4 + [(min_duration + max_duration) / 2] * 2 + [max_duration] * 4
-    )
+    durations_to_test = [min_duration] * 4 + [(min_duration + max_duration) / 2] * 2 + [max_duration] * 4
     n_samples = len(durations_to_test)
 
     for i, duration in enumerate(durations_to_test):
@@ -309,9 +306,7 @@ def run_tests(
                 "We will run the pump for a set amount of time, and you will measure how much liquid is expelled."
             )
             echo("Use a small container placed on top of an accurate weighing scale.")
-            echo(
-                "Hold the end of the outflow tube above so the container catches the expelled liquid."
-            )
+            echo("Hold the end of the outflow tube above so the container catches the expelled liquid.")
             echo()
             echo(
                 green(
@@ -461,9 +456,7 @@ def pump_calibration(min_duration: float, max_duration: float, json_file: str | 
                     default=False,
                 )
 
-            durations, volumes = run_tests(
-                execute_pump, hz, dc, min_duration, max_duration, pump_type, unit
-            )
+            durations, volumes = run_tests(execute_pump, hz, dc, min_duration, max_duration, pump_type, unit)
         else:
             durations, volumes, hz, dc = get_data_from_data_file(json_file)
 
@@ -509,13 +502,9 @@ def pump_calibration(min_duration: float, max_duration: float, json_file: str | 
 
         # check parameters for problems
         if correlation(durations, volumes) < 0:
-            logger.warning(
-                "Correlation is negative - you probably want to rerun this calibration..."
-            )
+            logger.warning("Correlation is negative - you probably want to rerun this calibration...")
         if std_slope > 0.04:
-            logger.warning(
-                "Too much uncertainty in slope - you probably want to rerun this calibration..."
-            )
+            logger.warning("Too much uncertainty in slope - you probably want to rerun this calibration...")
 
         echo(f"Finished {pump_type} pump calibration `{name}`.")
 
@@ -569,9 +558,7 @@ def change_current(name: str) -> bool:
                 all_calibrations[name], type=structs.subclass_union(structs.PumpCalibration)
             )  # decode name from list of all names
         except KeyError:
-            create_logger("pump_calibration").error(
-                f"Failed to swap. Calibration `{name}` not found."
-            )
+            create_logger("pump_calibration").error(f"Failed to swap. Calibration `{name}` not found.")
             raise click.Abort()
 
         pump_type_from_new_calibration = new_calibration.pump  # retrieve the pump type
@@ -600,9 +587,7 @@ def change_current(name: str) -> bool:
             return False
 
         if old_calibration:
-            echo(
-                f"Replaced {old_calibration.name} with {new_calibration.name} as current calibration."
-            )
+            echo(f"Replaced {old_calibration.name} with {new_calibration.name} as current calibration.")
         else:
             echo(f"Set {new_calibration.name} to current calibration.")
         return True
@@ -645,7 +630,7 @@ def click_pump_calibration(
     """
     if ctx.invoked_subcommand is None:
         if max_duration is None and min_duration is None:
-            min_duration, max_duration = 0.5, 1.5
+            min_duration, max_duration = 0.65, 1.6
         elif (max_duration is not None) and (min_duration is not None):
             assert min_duration < max_duration, "min_duration >= max_duration"
         else:

@@ -37,6 +37,8 @@ tar -xzf $ARCHIVE_NAME
 
 # rename the sqlite .backup
 mv /home/pioreactor/.pioreactor/storage/pioreactor.sqlite.backup /home/pioreactor/.pioreactor/storage/pioreactor.sqlite
+touch /home/pioreactor/.pioreactor/storage/pioreactor.sqlite-shm
+touch /home/pioreactor/.pioreactor/storage/pioreactor.sqlite-wal
 
 # check integrity, quickly
 DB_CHECK=$(sqlite3 /home/pioreactor/.pioreactor/storage/pioreactor.sqlite "PRAGMA quick_check;")
