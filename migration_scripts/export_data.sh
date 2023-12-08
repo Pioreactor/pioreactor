@@ -14,8 +14,8 @@ echo "Starting export of all data. Don't run anything. The Pioreactor UI will be
 # stop everything that might touch the database or config files...
 pio kill --all-jobs  > /dev/null
 pio kill monitor mqtt_to_db_streaming watchdog
-sudo systemctl stop lighttpd.service
-sudo systemctl stop huey.service
+sudo systemctl stop lighttpd.service || true
+sudo systemctl stop huey.service || true
 
 # check integrity, quickly
 DB_CHECK=$(sqlite3 /home/pioreactor/.pioreactor/storage/pioreactor.sqlite "PRAGMA quick_check;")

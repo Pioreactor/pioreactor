@@ -99,11 +99,6 @@ class TemperatureController(BackgroundJob):
     ) -> None:
         super().__init__(unit=unit, experiment=experiment)
 
-        if not hardware.is_HAT_present():
-            self.logger.error("Pioreactor HAT must be present.")
-            self.clean_up()
-            raise exc.HardwareNotFoundError("Pioreactor HAT must be present.")
-
         if not hardware.is_heating_pcb_present():
             self.logger.error("Heating PCB must be attached to Pioreactor HAT")
             self.clean_up()
@@ -170,9 +165,7 @@ class TemperatureController(BackgroundJob):
     def seconds_since_last_active_heating() -> float:
         with local_intermittent_storage("temperature_and_heating") as cache:
             if "last_heating_timestamp" in cache:
-                return (
-                    current_utc_datetime() - to_datetime(cache["last_heating_timestamp"])
-                ).total_seconds()
+                return (current_utc_datetime() - to_datetime(cache["last_heating_timestamp"])).total_seconds()
             else:
                 return 1_000_000
 
@@ -261,9 +254,7 @@ class TemperatureController(BackgroundJob):
             self.logger.debug(
                 "Bypassing changing automations, and just updating the setting on the existing Thermostat automation."
             )
-            self.automation_job.set_target_temperature(
-                float(algo_metadata.args["target_temperature"])
-            )
+            self.automation_job.set_target_temperature(float(algo_metadata.args["target_temperature"]))
             self.automation = algo_metadata
             return
 
@@ -338,9 +329,7 @@ class TemperatureController(BackgroundJob):
             self._update_heater(0)
 
             if self.automation_name != "only_record_temperature":
-                self.set_automation(
-                    TemperatureAutomation(automation_name="only_record_temperature")
-                )
+                self.set_automation(TemperatureAutomation(automation_name="only_record_temperature"))
 
         elif temp > self.MAX_TEMP_TO_REDUCE_HEATING:
             self.logger.debug(
@@ -594,9 +583,7 @@ def click_temperature_control(ctx, automation_name: str) -> None:
 
     os.nice(1)
 
-    kwargs = {
-        ctx.args[i][2:].replace("-", "_"): ctx.args[i + 1] for i in range(0, len(ctx.args), 2)
-    }
+    kwargs = {ctx.args[i][2:].replace("-", "_"): ctx.args[i + 1] for i in range(0, len(ctx.args), 2)}
     if "skip_first_run" in kwargs:
         del kwargs["skip_first_run"]
 

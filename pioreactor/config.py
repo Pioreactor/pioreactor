@@ -120,7 +120,7 @@ def get_config() -> ConfigParserMod:
     and `od_config.photodiode_channel_reverse`
 
     """
-    config = ConfigParserMod()
+    config = ConfigParserMod(strict=False)
     from pioreactor.whoami import is_testing_env
 
     if is_testing_env():
@@ -150,7 +150,7 @@ def get_config() -> ConfigParserMod:
         raise e
     except configparser.DuplicateSectionError as e:
         print(e)
-        raise e
+        pass
 
     # some helpful additions - see docs above
     if "leds" in config:
@@ -158,9 +158,7 @@ def get_config() -> ConfigParserMod:
     if "PWM" in config:
         config["PWM_reverse"] = config.invert_section("PWM")
     if "od_config.photodiode_channel" in config:
-        config["od_config.photodiode_channel_reverse"] = config.invert_section(
-            "od_config.photodiode_channel"
-        )
+        config["od_config.photodiode_channel_reverse"] = config.invert_section("od_config.photodiode_channel")
 
     return config
 
