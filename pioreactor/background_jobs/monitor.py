@@ -213,6 +213,7 @@ class Monitor(BackgroundJob):
             sleep(0 if whoami.is_testing_env() else 5)  # wait for other processes to catch up
             self.check_for_required_jobs_running()
             self.check_for_webserver()
+            self.check_for_correct_permissions()
 
         if whoami.am_I_active_worker():
             self.check_for_HAT()
@@ -222,6 +223,26 @@ class Monitor(BackgroundJob):
         if not whoami.am_I_leader():
             # check for MQTT connection to leader
             self.check_for_mqtt_connection_to_leader()
+
+    def check_for_correct_permissions(self):
+        if whoami.is_testing_env():
+            return
+
+        from pathlib import Path
+
+        storage_path = Path(config.get("storage", "database")).parent()
+
+        for file in [
+            storage_path / "pioreactor.sqlite",
+            storage_path / "pioreactor.sqlite-shm",
+            storage_path / "pioreactor.sqlite-wal",
+        ]:
+            if file.owner() != "pioreactor" or file.group() != "www-data":
+                self.logger.error(
+                    f"Pioreactor sqlite database files has the wrong permissions. Check `ls -al {config.get('storage', 'database')}*`."
+                )
+
+        return
 
     def check_for_webserver(self):
         if whoami.is_testing_env():

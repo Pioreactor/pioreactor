@@ -486,7 +486,7 @@ def update_app(
                     (f"unzip {tmp_release_folder}/wheels_{version_installed}.zip -d {tmp_release_folder}/wheels", 0),
                     (f"mv {tmp_release_folder}/pioreactorui_*.tar.gz {tmp_dir}/pioreactorui_archive || :", 0.5),  # move ui folder to be accessed by a `pio update ui`
                     (f"sudo bash {tmp_release_folder}/pre_update.sh || :", 1),
-                    (f"sudo pip install --force-reinstall --no-index --find-links={tmp_release_folder}/wheels/ {tmp_release_folder}/pioreactor-{version_installed}-py3-none-any.whl", 2),
+                    (f"sudo pip install --no-index --find-links={tmp_release_folder}/wheels/ {tmp_release_folder}/pioreactor-{version_installed}-py3-none-any.whl", 2),
                     (f"sudo bash {tmp_release_folder}/update.sh || :", 3),
                     (f'sudo sqlite3 {config["storage"]["database"]} < {tmp_release_folder}/update.sql || :', 4),
                     (f"sudo bash {tmp_release_folder}/post_update.sh || :", 5),

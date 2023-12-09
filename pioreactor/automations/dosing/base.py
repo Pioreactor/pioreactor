@@ -44,9 +44,7 @@ def briefer_pause() -> float:
 
 
 def pause_between_subdoses() -> float:
-    d = float(
-        config.get("dosing_automation.config", "pause_between_subdoses_seconds", fallback=5.0)
-    )
+    d = float(config.get("dosing_automation.config", "pause_between_subdoses_seconds", fallback=5.0))
     time.sleep(d)
     return d
 
@@ -125,20 +123,14 @@ class AltMediaFractionCalculator:
         volume, event = float(new_dosing_event.volume_change), new_dosing_event.event
 
         if event == "add_media":
-            return cls._update_alt_media_fraction(
-                current_alt_media_fraction, volume, 0, current_vial_volume
-            )
+            return cls._update_alt_media_fraction(current_alt_media_fraction, volume, 0, current_vial_volume)
         elif event == "add_alt_media":
-            return cls._update_alt_media_fraction(
-                current_alt_media_fraction, 0, volume, current_vial_volume
-            )
+            return cls._update_alt_media_fraction(current_alt_media_fraction, 0, volume, current_vial_volume)
         elif event == "remove_waste":
             return current_alt_media_fraction
         else:
             # if the users added, ex, "add_salty_media", well this is the same as adding media (from the POV of alt_media_fraction)
-            return cls._update_alt_media_fraction(
-                current_alt_media_fraction, volume, 0, current_vial_volume
-            )
+            return cls._update_alt_media_fraction(current_alt_media_fraction, volume, 0, current_vial_volume)
 
     @classmethod
     def _update_alt_media_fraction(
@@ -214,16 +206,16 @@ class DosingAutomationJob(AutomationJob):
     MAX_VIAL_VOLUME_TO_STOP: float = config.getfloat(
         "dosing_automation.config", "max_volume_to_stop", fallback=18.0
     )
+    MAX_SUBDOSE = config.getfloat(
+        "dosing_automation.config", "max_subdose", fallback=0.75
+    )  # arbitrary, but should be some value that the pump is well calibrated for.
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
 
         # this registers all subclasses of DosingAutomationJob back to DosingController, so the subclass
         # can be invoked in DosingController.
-        if (
-            hasattr(cls, "automation_name")
-            and getattr(cls, "automation_name") != "dosing_automation_base"
-        ):
+        if hasattr(cls, "automation_name") and getattr(cls, "automation_name") != "dosing_automation_base":
             DosingController.available_automations[cls.automation_name] = cls
 
     def __init__(
@@ -235,9 +227,7 @@ class DosingAutomationJob(AutomationJob):
         initial_alt_media_fraction: float = config.getfloat(
             "bioreactor", "initial_alt_media_fraction", fallback=0.0
         ),
-        initial_vial_volume: float = config.getfloat(
-            "bioreactor", "initial_volume_ml", fallback=14
-        ),
+        initial_vial_volume: float = config.getfloat("bioreactor", "initial_volume_ml", fallback=14),
         **kwargs,
     ) -> None:
         super(DosingAutomationJob, self).__init__(unit, experiment)
@@ -391,15 +381,12 @@ class DosingAutomationJob(AutomationJob):
         sum_of_volumes = sum(ml for ml in all_pumps_ml.values())
 
         if not (waste_ml >= sum_of_volumes):
-            raise ValueError(
-                "Not removing enough waste: waste_ml should be greater than sum of dosed ml"
-            )
+            raise ValueError("Not removing enough waste: waste_ml should be greater than sum of dosed ml")
 
-        max_ = 0.75  # arbitrary, but should be some value that the pump is well calibrated for. TODO: should this be a constant on the class?
         volumes_moved = SummableDict(waste_ml=0.0, **{p: 0.0 for p in all_pumps_ml})
         source_of_event = f"{self.job_name}:{self.automation_name}"
 
-        if sum_of_volumes > max_:
+        if sum_of_volumes > self.MAX_SUBDOSE:
             volumes_moved += self.execute_io_action(
                 waste_ml=sum_of_volumes / 2,
                 **{pump: volume_ml / 2 for pump, volume_ml in all_pumps_ml.items()},
@@ -418,11 +405,7 @@ class DosingAutomationJob(AutomationJob):
                     )
                     self.set_state(self.SLEEPING)
 
-                if (
-                    (volume_ml > 0)
-                    and (self.state in (self.READY,))
-                    and self.block_until_not_sleeping()
-                ):
+                if (volume_ml > 0) and (self.state in (self.READY,)) and self.block_until_not_sleeping():
                     pump_function = getattr(self, f"add_{pump.removesuffix('_ml')}_to_bioreactor")
 
                     volume_moved_ml = pump_function(
@@ -455,9 +438,7 @@ class DosingAutomationJob(AutomationJob):
                     unit=self.unit,
                     experiment=self.experiment,
                     ml=waste_ml
-                    * config.getfloat(
-                        "dosing_automation.config", "waste_removal_multiplier", fallback=2.0
-                    ),
+                    * config.getfloat("dosing_automation.config", "waste_removal_multiplier", fallback=2.0),
                     source_of_event=source_of_event,
                 )
                 briefer_pause()
@@ -475,9 +456,7 @@ class DosingAutomationJob(AutomationJob):
             # this should really only happen on the initialization.
             self.logger.debug("Waiting for OD and growth rate data to arrive")
             if not all(is_pio_job_running(["od_reading", "growth_rate_calculating"])):
-                raise exc.JobRequiredError(
-                    "`od_reading` and `growth_rate_calculating` should be Ready."
-                )
+                raise exc.JobRequiredError("`od_reading` and `growth_rate_calculating` should be Ready.")
 
         # check most stale time
         if (current_utc_datetime() - self.most_stale_time).seconds > 5 * 60:
@@ -494,9 +473,7 @@ class DosingAutomationJob(AutomationJob):
             # this should really only happen on the initialization.
             self.logger.debug("Waiting for OD and growth rate data to arrive")
             if not all(is_pio_job_running(["od_reading", "growth_rate_calculating"])):
-                raise exc.JobRequiredError(
-                    "`od_reading` and `growth_rate_calculating` should be Ready."
-                )
+                raise exc.JobRequiredError("`od_reading` and `growth_rate_calculating` should be Ready.")
 
         # check most stale time
         if (current_utc_datetime() - self.most_stale_time).seconds > 5 * 60:
@@ -630,9 +607,7 @@ class DosingAutomationJob(AutomationJob):
         (
             self.media_throughput,
             self.alt_media_throughput,
-        ) = ThroughputCalculator.update(
-            dosing_event, self.media_throughput, self.alt_media_throughput
-        )
+        ) = ThroughputCalculator.update(dosing_event, self.media_throughput, self.alt_media_throughput)
 
         # add to cache
         with local_persistant_storage("alt_media_throughput") as cache:
