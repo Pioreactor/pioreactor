@@ -322,7 +322,7 @@ class Monitor(BackgroundJob):
         retries = 5
         while attempt < retries:
             attempt += 1
-            res = get("http://localhost")
+            res = get("http://localhost/api/experiments/latest")
             if res.ok:
                 break
             sleep(1.0)
