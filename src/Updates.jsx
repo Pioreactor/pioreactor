@@ -79,7 +79,7 @@ function UploadArchiveAndConfirm(props) {
       setErrorMsg(null)
     }
     else {
-      setErrorMsg("Not a valid release archive file. It should be a zip file, starting with `release_`.")
+      setErrorMsg("Not a valid release zip file. It should be a zip file, starting with `release_`.")
     }
   };
 
@@ -152,7 +152,7 @@ function UploadArchiveAndConfirm(props) {
             {props.description}
             <br/>
             <br/>
-            <Button component="label" style={{textTransform: 'none'}}>Choose file <VisuallyHiddenInput onChange={handleFileChange} accept=".zip" type="file" /></Button>
+            <Button component="label" style={{textTransform: 'none'}}>Choose zip file <VisuallyHiddenInput onChange={handleFileChange} accept=".zip" type="file" /></Button>
             {selectedFile == null ? "" : selectedFile.name}
             <div style={{minHeight: "30px", alignItems: "center", display: "flex"}}>
               {errorMsg   ? <p><CloseIcon className={clsx(classes.textIcon, classes.lostRed)}/>{errorMsg}</p>           : <React.Fragment/>}
@@ -225,7 +225,7 @@ function UpdateSoftwareConfirmDialog(props) {
       return "Update to next release?"
     }
     else if (installOption === "archive"){
-      return "Update from release archive?"
+      return "Update from zip file?"
     }
   }
 
@@ -237,7 +237,7 @@ function UpdateSoftwareConfirmDialog(props) {
       return "This requires an internet connection. To avoid possible data interruptions, we suggest updating between running experiments."
     }
     else if (installOption === "archive"){
-      return "To avoid possible data interruptions, we suggest updating between running experiments. Choose the release archive below."
+      return "You can update the Pioreactor software from our pre-built zip files. Choose the file below. To avoid possible data interruptions, we suggest updating between running experiments. "
     }
   }
 
@@ -255,7 +255,7 @@ function UpdateSoftwareConfirmDialog(props) {
       >
         <MenuItem value={"latest"}>Update to next release</MenuItem>
         <MenuItem value={"development"}>Update to development</MenuItem>
-        <MenuItem value={"archive"}>Update from release archive</MenuItem>
+        <MenuItem value={"archive"}>Update from zip file</MenuItem>
       </SelectButton>
       <Snackbar
         anchorOrigin={{vertical: "bottom", horizontal: "center"}}
