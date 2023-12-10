@@ -58,9 +58,7 @@ def test_pioreactor_HAT_present(client: Client, logger: Logger, unit: str, exper
     assert is_HAT_present(), "HAT is not connected, or i2c is not working."
 
 
-def test_REF_is_in_correct_position(
-    client: Client, logger: Logger, unit: str, experiment: str
-) -> None:
+def test_REF_is_in_correct_position(client: Client, logger: Logger, unit: str, experiment: str) -> None:
     # this _also_ uses stirring to increase the variance in the non-REF.
     # The idea is to trigger stirring on and off and the REF should not see a change in signal / variance, but the other PD should.
 
@@ -106,8 +104,7 @@ def test_REF_is_in_correct_position(
 
     THRESHOLD = 6.0
     assert (
-        THRESHOLD * norm_variance_per_channel[reference_channel]
-        < norm_variance_per_channel[signal_channel]
+        THRESHOLD * norm_variance_per_channel[reference_channel] < norm_variance_per_channel[signal_channel]
     ), f"REF measured higher variance than SIGNAL. {reference_channel=}, {norm_variance_per_channel=}"
 
 
@@ -171,9 +168,7 @@ def test_all_positive_correlations_between_pds_and_leds(
 
         # compute the linear correlation between the intensities and observed PD measurements
         for pd_channel in ALL_PD_CHANNELS:
-            measured_correlation = round(
-                correlation(INTENSITIES, varying_intensity_results[pd_channel]), 2
-            )
+            measured_correlation = round(correlation(INTENSITIES, varying_intensity_results[pd_channel]), 2)
             results[(led_channel, pd_channel)] = measured_correlation
             logger.debug(f"Corr({led_channel}, {pd_channel}) = {measured_correlation}")
 
@@ -215,14 +210,10 @@ def test_all_positive_correlations_between_pds_and_leds(
     ir_led_channel = cast(LedChannel, config["leds_reverse"][IR_keyword])
 
     for ir_pd_channel in pd_channels_to_test:
-        assert (
-            results[(ir_led_channel, ir_pd_channel)] > 0.9
-        ), f"missing {ir_led_channel} ⇝ {ir_pd_channel}"
+        assert results[(ir_led_channel, ir_pd_channel)] > 0.9, f"missing {ir_led_channel} ⇝ {ir_pd_channel}"
 
 
-def test_ambient_light_interference(
-    client: Client, logger: Logger, unit: str, experiment: str
-) -> None:
+def test_ambient_light_interference(client: Client, logger: Logger, unit: str, experiment: str) -> None:
     # test ambient light IR interference. With all LEDs off, and the Pioreactor not in a sunny room, we should see near 0 light.
     assert is_HAT_present()
     adc_reader = ADCReader(
@@ -251,9 +242,7 @@ def test_ambient_light_interference(
         ), f"Dark signal too high: {readings=}"  # saw a 0.072 blank during testing
 
 
-def test_REF_is_lower_than_0_dot_256_volts(
-    client, logger: Logger, unit: str, experiment: str
-) -> None:
+def test_REF_is_lower_than_0_dot_256_volts(client, logger: Logger, unit: str, experiment: str) -> None:
     reference_channel = cast(PdChannel, config["od_config.photodiode_channel_reverse"][REF_keyword])
     ir_channel = cast(LedChannel, config["leds_reverse"][IR_keyword])
     ir_intensity = config.getfloat("od_config", "ir_led_intensity")
@@ -280,9 +269,7 @@ def test_REF_is_lower_than_0_dot_256_volts(
         ), f"Recorded {mean(samples)} in REF, should ideally be between 0.05 and 0.256. Current IR LED: {ir_intensity}%."
 
         # also check for stability: the std. of the reference should be quite low:
-        assert (
-            variance(samples) < 1e-2
-        ), f"Too much noise in REF channel, observed {variance(samples)}."
+        assert variance(samples) < 1e-2, f"Too much noise in REF channel, observed {variance(samples)}."
 
 
 def test_PD_is_near_0_volts_for_blank(client, logger: Logger, unit: str, experiment: str) -> None:
@@ -344,9 +331,7 @@ def test_positive_correlation_between_temperature_and_heating(
         ), f"Temp and DC% correlation was not high enough {dcs=}, {measured_pcb_temps=}"
 
 
-def test_aux_power_is_not_too_high(
-    client: Client, logger: Logger, unit: str, experiment: str
-) -> None:
+def test_aux_power_is_not_too_high(client: Client, logger: Logger, unit: str, experiment: str) -> None:
     assert is_HAT_present()
     assert voltage_in_aux() <= 18.0
 
@@ -464,7 +449,7 @@ def click_self_test(k: Optional[str]) -> int:
     ]
 
     with publish_ready_to_disconnected_state(unit, testing_experiment, "self_test") as state:
-        client = state.client
+        client = state.mqtt_client
         if any(
             is_pio_job_running(
                 ["od_reading", "temperature_control", "stirring", "dosing_control", "led_control"]
@@ -497,12 +482,8 @@ def click_self_test(k: Optional[str]) -> int:
 
         # some tests can be run in parallel.
         test_args = (client, logger, unit, testing_experiment)
-        RunnerA = BatchTestRunner(
-            [f for f in A_TESTS if f in functions_to_test], *test_args
-        ).start()
-        RunnerB = BatchTestRunner(
-            [f for f in B_TESTS if f in functions_to_test], *test_args
-        ).start()
+        RunnerA = BatchTestRunner([f for f in A_TESTS if f in functions_to_test], *test_args).start()
+        RunnerB = BatchTestRunner([f for f in B_TESTS if f in functions_to_test], *test_args).start()
 
         results = RunnerA.collect() + RunnerB.collect()
         count_tested, count_passed = results["count_tested"], results["count_passed"]

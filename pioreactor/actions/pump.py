@@ -148,9 +148,7 @@ def _get_calibration(pump_type: str) -> structs.AnyPumpCalibration:
         try:
             return decode(cache[pump_type], type=structs.AnyPumpCalibration)  # type: ignore
         except KeyError:
-            raise exc.CalibrationError(
-                f"Calibration not defined. Run {pump_type} pump calibration first."
-            )
+            raise exc.CalibrationError(f"Calibration not defined. Run {pump_type} pump calibration first.")
 
 
 def _publish_pump_action(
@@ -187,6 +185,7 @@ def _pump_action(
     continuously: bool = False,
     config=config,  # techdebt, don't use
     manually: bool = False,
+    mqtt_client: Optional[Client] = None,
 ) -> pt.mL:
     """
     Returns the mL cycled. However,
@@ -219,12 +218,13 @@ def _pump_action(
         unit,
         experiment,
         action_name,
+        mqtt_client=mqtt_client,
         exit_on_mqtt_disconnect=True,
         mqtt_client_kwargs={"keepalive": 10},
     ) as state:
-        client = state.client
+        mqtt_client = state.mqtt_client
 
-        with PWMPump(unit, experiment, pin, calibration=calibration, mqtt_client=client) as pump:
+        with PWMPump(unit, experiment, pin, calibration=calibration, mqtt_client=mqtt_client) as pump:
             if manually:
                 assert ml is not None
                 ml = float(ml)
@@ -265,7 +265,7 @@ def _pump_action(
 
             # publish this first, as downstream jobs need to know about it.
             dosing_event = _publish_pump_action(
-                action_name, ml, client, unit, experiment, source_of_event
+                action_name, ml, mqtt_client, unit, experiment, source_of_event
             )
 
             pump_start_time = time.monotonic()
@@ -287,7 +287,7 @@ def _pump_action(
                 while not state.exit_event.wait(duration):
                     # republish information
                     dosing_event = replace(dosing_event, timestamp=current_utc_datetime())
-                    client.publish(
+                    mqtt_client.publish(
                         f"pioreactor/{unit}/{experiment}/dosing_events",
                         encode(dosing_event),
                         qos=QOS.AT_MOST_ONCE,  # we don't need the same level of accuracy here
@@ -345,10 +345,7 @@ def _liquid_circulation(
     # if we know the calibrations for each pump, we will use a different rate.
     ratio = 0.85
 
-    if (
-        waste_calibration != DEFAULT_PWM_CALIBRATION
-        and media_calibration != DEFAULT_PWM_CALIBRATION
-    ):
+    if waste_calibration != DEFAULT_PWM_CALIBRATION and media_calibration != DEFAULT_PWM_CALIBRATION:
         # provided with calibrations, we can compute if media_rate > waste_rate, which is a danger zone!
         if media_calibration.duration_ > waste_calibration.duration_:
             ratio = min(waste_calibration.duration_ / media_calibration.duration_, ratio)
@@ -364,20 +361,20 @@ def _liquid_circulation(
         exit_on_mqtt_disconnect=True,
         mqtt_client_kwargs={"keepalive": 10},
     ) as state:
-        client = state.client
+        mqtt_client = state.mqtt_client
 
         with PWMPump(
             unit,
             experiment,
             pin=waste_pin,
             calibration=waste_calibration,
-            mqtt_client=client,
+            mqtt_client=mqtt_client,
         ) as waste_pump, PWMPump(
             unit,
             experiment,
             pin=media_pin,
             calibration=media_calibration,
-            mqtt_client=client,
+            mqtt_client=mqtt_client,
         ) as media_pump:
             logger.info("Running waste continuously.")
             with catchtime() as running_waste_duration:

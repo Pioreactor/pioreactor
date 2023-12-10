@@ -17,6 +17,7 @@ from pioreactor.actions.pump import PWMPump
 from pioreactor.actions.pump import remove_waste
 from pioreactor.exc import CalibrationError
 from pioreactor.exc import PWMError
+from pioreactor.pubsub import create_client
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
 from pioreactor.pubsub import subscribe_and_callback
@@ -180,9 +181,7 @@ def test_continuously_running_pump_will_disconnect_via_mqtt() -> None:
             threading.Thread.join(self)
             return self._return
 
-    t = ThreadWithReturnValue(
-        target=add_media, args=(unit, exp), kwargs={"continuously": True}, daemon=True
-    )
+    t = ThreadWithReturnValue(target=add_media, args=(unit, exp), kwargs={"continuously": True}, daemon=True)
     t.start()
 
     pause()
@@ -404,9 +403,7 @@ def test_manually_doesnt_trigger_pwm_dcs() -> None:
     def collect_pwm_updates(msg):
         pwm_updates.append(msg.payload.decode())
 
-    subscribe_and_callback(
-        collect_pwm_updates, f"pioreactor/{unit}/{exp}/pwms/dc", allow_retained=False
-    )
+    subscribe_and_callback(collect_pwm_updates, f"pioreactor/{unit}/{exp}/pwms/dc", allow_retained=False)
     assert add_media(ml=ml, unit=unit, experiment=exp, manually=True) == 0.0
     assert add_alt_media(ml=ml, unit=unit, experiment=exp, manually=True) == 0.0
     assert remove_waste(ml=ml, unit=unit, experiment=exp, manually=True) == 0.0
@@ -415,3 +412,12 @@ def test_manually_doesnt_trigger_pwm_dcs() -> None:
     assert pwm_updates[0] == r"{}"
     assert pwm_updates[1] == r"{}"
     assert pwm_updates[2] == r"{}"
+
+
+def test_can_provide_mqtt_client() -> None:
+    experiment = "test_can_provide_mqtt_client"
+    client = create_client(hostname="localhost")
+    time.sleep(4)
+    add_media(ml=1.0, unit=unit, experiment=experiment, mqtt_client=client)
+    info = client.publish(topic="test_can_provide_mqtt_client", payload="hello!")
+    info.wait_for_publish()

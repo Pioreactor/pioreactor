@@ -251,6 +251,7 @@ class LEDAutomationJob(AutomationJob):
             {channel: 0.0 for channel in self.edited_channels},
             unit=self.unit,
             experiment=self.experiment,
+            pubsub_client=self.pub_client,
             source_of_event=f"{self.job_name}:{self.automation_name}",
         )
 

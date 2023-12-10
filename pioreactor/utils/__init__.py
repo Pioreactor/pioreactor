@@ -21,6 +21,7 @@ from diskcache import Cache  # type: ignore
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor import whoami
+from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import QOS
 from pioreactor.pubsub import subscribe_and_callback
@@ -127,6 +128,7 @@ class publish_ready_to_disconnected_state:
         unit: str,
         experiment: str,
         name: str,
+        mqtt_client: Optional[Client] = None,
         exit_on_mqtt_disconnect: bool = False,
         mqtt_client_kwargs: Optional[dict] = None,
     ) -> None:
@@ -148,11 +150,16 @@ class publish_ready_to_disconnected_state:
             "client_id": f"{self.name}-{self.unit}-{self.experiment}",
         }
 
-        self.client = create_client(
-            last_will=last_will,
-            on_disconnect=self._on_disconnect if exit_on_mqtt_disconnect else None,
-            **(default_mqtt_client_kwargs | (mqtt_client_kwargs or dict())),  # type: ignore
-        )
+        if mqtt_client:
+            self._externally_provided_client = True
+            self.mqtt_client = mqtt_client
+        else:
+            self._externally_provided_client = False
+            self.mqtt_client = create_client(
+                last_will=last_will,
+                on_disconnect=self._on_disconnect if exit_on_mqtt_disconnect else None,
+                **(default_mqtt_client_kwargs | (mqtt_client_kwargs or dict())),  # type: ignore
+            )
 
         self.start_passive_listeners()
 
@@ -172,7 +179,7 @@ class publish_ready_to_disconnected_state:
             pass
 
         self.state = "ready"
-        self.client.publish(
+        self.mqtt_client.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
             self.state,
             qos=QOS.AT_LEAST_ONCE,
@@ -186,14 +193,15 @@ class publish_ready_to_disconnected_state:
 
     def __exit__(self, *args) -> None:
         self.state = "disconnected"
-        self.client.publish(
+        self.mqtt_client.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
             b"disconnected",
             qos=QOS.AT_LEAST_ONCE,
             retain=True,
         )
-        self.client.loop_stop()
-        self.client.disconnect()
+        if not self._externally_provided_client:
+            self.mqtt_client.loop_stop()
+            self.mqtt_client.disconnect()
 
         with local_intermittent_storage("pio_jobs_running") as cache:
             cache.pop(self.name)
@@ -212,7 +220,7 @@ class publish_ready_to_disconnected_state:
                 f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{whoami.UNIVERSAL_EXPERIMENT}/{self.name}/$state/set",
                 f"pioreactor/{self.unit}/{whoami.UNIVERSAL_EXPERIMENT}/{self.name}/$state/set",
             ],
-            client=self.client,
+            client=self.mqtt_client,
         )
         return
 
@@ -267,9 +275,7 @@ def local_persistant_storage(
     if is_testing_env():
         cache = Cache(f".pioreactor/storage/{cache_name}", sqlite_journal_mode="wal")
     else:
-        cache = Cache(
-            f"/home/pioreactor/.pioreactor/storage/{cache_name}", sqlite_journal_mode="wal"
-        )
+        cache = Cache(f"/home/pioreactor/.pioreactor/storage/{cache_name}", sqlite_journal_mode="wal")
 
     try:
         yield cache  # type: ignore
@@ -405,9 +411,7 @@ def boolean_retry(
     return False
 
 
-def exception_retry(
-    func: Callable, retries: int = 3, sleep_for: float = 0.5, args=(), kwargs={}
-) -> Any:
+def exception_retry(func: Callable, retries: int = 3, sleep_for: float = 0.5, args=(), kwargs={}) -> Any:
     """
     Retries a function upon encountering an exception until it succeeds or the maximum number of retries is exhausted.
 

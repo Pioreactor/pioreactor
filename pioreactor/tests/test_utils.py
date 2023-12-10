@@ -102,10 +102,8 @@ def test_mqtt_disconnect_exit() -> None:
     experiment = "test_mqtt_disconnect_exit"
     name = "test_name"
 
-    with publish_ready_to_disconnected_state(
-        unit, experiment, name, exit_on_mqtt_disconnect=True
-    ) as state:
-        state.client.disconnect()  # Simulate a disconnect
+    with publish_ready_to_disconnected_state(unit, experiment, name, exit_on_mqtt_disconnect=True) as state:
+        state.mqtt_client.disconnect()  # Simulate a disconnect
         state.block_until_disconnected()  # exits immediately
 
 
