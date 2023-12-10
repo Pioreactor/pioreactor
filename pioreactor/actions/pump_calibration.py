@@ -621,7 +621,9 @@ def list_():
 @click.pass_context
 @click.option("--min-duration", type=float)
 @click.option("--max-duration", type=float)
-@click.option("-f", "--json-file")
+@click.option(
+    "-f", "--json-file", type=click.Path(exists=True, dir_okay=False, readable=True, resolve_path=True)
+)
 def click_pump_calibration(
     ctx, min_duration: float | None, max_duration: float | None, json_file: str | None
 ):

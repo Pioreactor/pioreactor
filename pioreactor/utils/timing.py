@@ -174,13 +174,13 @@ class RepeatedTimer:
         """
         self.is_paused = False
 
-    def cancel(self) -> None:
+    def cancel(self, timeout: t.Optional[float] = None) -> None:
         self.event.set()
 
         with suppress(RuntimeError):
             # possible to happen if self.thread hasn't started yet,
             # so cancelling doesn't do anything
-            self.thread.join()
+            self.thread.join(timeout=timeout)
 
     def start(self) -> RepeatedTimer:
         # this is idempotent
@@ -188,5 +188,8 @@ class RepeatedTimer:
             self.thread.start()
         return self
 
-    def join(self) -> None:
-        self.cancel()
+    def join(self, timeout: t.Optional[float] = None) -> None:
+        self.cancel(timeout=timeout)
+
+    def is_alive(self) -> bool:
+        return self.thread.is_alive()
