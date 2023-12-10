@@ -207,9 +207,7 @@ def start_recording_and_diluting(
     inferred_od600s = []
     current_volume_in_vial = initial_volume_in_vial = 10.0
     n_samples = int((20 - initial_volume_in_vial) / dilution_amount)
-    total_n_samples = int(
-        log2(initial_od600 / minimum_od600) * (initial_volume_in_vial / dilution_amount)
-    )
+    total_n_samples = int(log2(initial_od600 / minimum_od600) * (initial_volume_in_vial / dilution_amount))
     count_of_samples = 0
 
     echo("Warming up OD...")
@@ -280,9 +278,7 @@ def start_recording_and_diluting(
                 echo(".", nl=False)
 
                 inferred_od600 = (
-                    inferred_od600
-                    * (current_volume_in_vial - dilution_amount)
-                    / current_volume_in_vial
+                    inferred_od600 * (current_volume_in_vial - dilution_amount) / current_volume_in_vial
                 )
                 inferred_od600s.append(inferred_od600)
 
@@ -342,9 +338,7 @@ def start_recording_and_diluting(
             else:
                 break
         else:
-            raise ValueError(
-                f"Why is the blank reading, {value}V, higher than everything else: {voltages}V?"
-            )
+            raise ValueError(f"Why is the blank reading, {value}V, higher than everything else: {voltages}V?")
 
         voltages.append(value)
         inferred_od600s.append(od600_of_blank)
@@ -551,10 +545,7 @@ def curve_to_functional_form(curve_type: str, curve_data) -> str:
     if curve_type == "poly":
         d = len(curve_data)
         return " + ".join(
-            [
-                (f"{c:0.3f}x^{d - i - 1}" if (i < d - 1) else f"{c:0.3f}")
-                for i, c in enumerate(curve_data)
-            ]
+            [(f"{c:0.3f}x^{d - i - 1}" if (i < d - 1) else f"{c:0.3f}") for i, c in enumerate(curve_data)]
         )
     else:
         raise ValueError()
@@ -585,9 +576,7 @@ def display(name: str | None) -> None:
             voltages,
             title=f"`{name}`, calibration of {angle}°",
             highlight_recent_point=False,
-            interpolation_curve=curve_to_callable(
-                data_blob["curve_type"], data_blob["curve_data_"]
-            ),
+            interpolation_curve=curve_to_callable(data_blob["curve_type"], data_blob["curve_data_"]),
         )
         echo()
         echo(style(f"Calibration curve for `{name}`", underline=True, bold=True))
@@ -628,9 +617,7 @@ def publish_to_leader(name: str) -> bool:
         print(e)
         success = False
     if not success:
-        echo(
-            f"Could not update in database on leader at http://{leader_address}/api/calibrations ❌"
-        )
+        echo(f"Could not update in database on leader at http://{leader_address}/api/calibrations ❌")
     return success
 
 
@@ -698,7 +685,7 @@ def list_() -> None:
 @click.group(invoke_without_command=True, name="od_calibration")
 @click.option("-f", "--json-file")
 @click.pass_context
-def click_od_calibration(ctx, json_file: str | None):
+def click_od_calibration(ctx, json_file: str | None) -> None:
     """
     Calibrate OD600 to voltages
 
@@ -717,16 +704,16 @@ def click_od_calibration(ctx, json_file: str | None):
 
 @click_od_calibration.command(name="display")
 @click.option("-n", "--name", type=click.STRING)
-def click_display(name: str):
+def click_display(name: str) -> None:
     display(name)
 
 
 @click_od_calibration.command(name="change_current")
 @click.argument("name", type=click.STRING)
-def click_change_current(name: str):
+def click_change_current(name: str) -> None:
     change_current(name)
 
 
 @click_od_calibration.command(name="list")
-def click_list():
+def click_list() -> None:
     list_()

@@ -24,10 +24,10 @@ class WatchDog(BackgroundJob):
 
         self.start_passive_listeners()
 
-    def on_init_to_ready(self):
+    def on_init_to_ready(self) -> None:
         threading.Thread(target=self.announce_new_workers, daemon=True).start()
 
-    def announce_new_workers(self):
+    def announce_new_workers(self) -> None:
         for worker in discover_workers_on_network():
             # not in current cluster, and not leader
             if (worker not in get_workers_in_inventory()) and (worker != get_leader_hostname()):
@@ -40,7 +40,7 @@ class WatchDog(BackgroundJob):
                     retries=1,
                 )
                 if result is None:
-                    self.logger.notice(
+                    self.logger.notice(  # type: ignore
                         f"Pioreactor worker, {worker}, is available to be added to your cluster."
                     )
 
@@ -104,7 +104,7 @@ class WatchDog(BackgroundJob):
 
 
 @click.command(name="watchdog")
-def click_watchdog():
+def click_watchdog() -> None:
     """
     (leader only) Start the watchdog on the leader
     """

@@ -13,12 +13,15 @@ from typing import Optional
 import click
 import lgpio
 
-from pioreactor import config
 from pioreactor import error_codes
 from pioreactor import utils
 from pioreactor import version
 from pioreactor import whoami
 from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.config import config
+from pioreactor.config import get_config
+from pioreactor.config import leader_address
+from pioreactor.config import leader_hostname
 from pioreactor.hardware import is_HAT_present
 from pioreactor.hardware import PCB_BUTTON_PIN as BUTTON_PIN
 from pioreactor.hardware import PCB_LED_PIN as LED_PIN
@@ -152,11 +155,11 @@ class Monitor(BackgroundJob):
         self.start_passive_listeners()
 
     @classmethod
-    def add_pre_button_callback(cls, function: Callable):
+    def add_pre_button_callback(cls, function: Callable) -> None:
         cls._pre_button.append(function)
 
     @classmethod
-    def add_post_button_callback(cls, function: Callable):
+    def add_post_button_callback(cls, function: Callable) -> None:
         cls._post_button.append(function)
 
     def _setup_GPIO(self) -> None:
@@ -224,13 +227,13 @@ class Monitor(BackgroundJob):
             # check for MQTT connection to leader
             self.check_for_mqtt_connection_to_leader()
 
-    def check_for_correct_permissions(self):
+    def check_for_correct_permissions(self) -> None:
         if whoami.is_testing_env():
             return
 
         from pathlib import Path
 
-        storage_path = Path(config.get("storage", "database")).parent()
+        storage_path = Path(config.get("storage", "database")).parent
 
         for file in [
             storage_path / "pioreactor.sqlite",
@@ -244,7 +247,7 @@ class Monitor(BackgroundJob):
 
         return
 
-    def check_for_webserver(self):
+    def check_for_webserver(self) -> None:
         if whoami.is_testing_env():
             return
 
@@ -327,11 +330,11 @@ class Monitor(BackgroundJob):
                 break
             sleep(1.0)
         else:
-            self.logger.debug(f"Error pinging UI: {res.status}")
-            self.logger.error(f"Error pinging UI: {res.status}")
+            self.logger.debug(f"Error pinging UI: {res.status_code}")
+            self.logger.error(f"Error pinging UI: {res.status_code}")
             self.flicker_led_with_error_code(error_codes.WEBSERVER_OFFLINE)
 
-    def check_for_required_jobs_running(self):
+    def check_for_required_jobs_running(self) -> None:
         if not all(utils.is_pio_job_running(["watchdog", "mqtt_to_db_streaming"])):
             self.logger.debug("watchdog and mqtt_to_db_streaming should be running on leader. Double check.")
 
@@ -378,7 +381,7 @@ class Monitor(BackgroundJob):
         while (not self.pub_client.is_connected()) or (not self.sub_client.is_connected()):
             self.logger.warning(
                 f"""Not able to connect MQTT clients to leader.
-1. Is the leader, {config.leader_hostname} at {config.leader_address}, in config.ini correct?
+1. Is the leader, {leader_hostname} at {leader_address}, in config.ini correct?
 2. Is the Pioreactor leader online and responsive?
 """
             )  # remember, this doesn't get published to leader...
@@ -663,7 +666,7 @@ class Monitor(BackgroundJob):
 
             options["unit"] = self.unit
             options["experiment"] = whoami._get_latest_experiment_name()  # techdebt
-            options["config"] = config.get_config()  # techdebt
+            options["config"] = get_config()  # techdebt
             Thread(target=pump_action, kwargs=options, daemon=True).start()
 
         else:

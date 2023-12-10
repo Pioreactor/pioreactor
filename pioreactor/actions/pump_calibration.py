@@ -415,7 +415,7 @@ def publish_to_leader(name: str) -> bool:
     return success
 
 
-def get_data_from_data_file(data_file: str):
+def get_data_from_data_file(data_file: str) -> tuple[list[float], list[float], float, float]:
     import json
 
     click.echo(f"Pulling data from {data_file}...")
@@ -641,7 +641,7 @@ def click_pump_calibration(
 
 @click_pump_calibration.command(name="display")
 @click.option("-n", "--name", type=click.STRING)
-def click_display(name: str | None):
+def click_display(name: str | None) -> None:
     """
     Display a graph and metadata about the current pump calibrations.
     """
@@ -650,7 +650,7 @@ def click_display(name: str | None):
 
 @click_pump_calibration.command(name="change_current")
 @click.argument("name", type=click.STRING)
-def click_change_current(name: str):
+def click_change_current(name: str) -> None:
     """
     Change the current calibration
     """
@@ -658,7 +658,7 @@ def click_change_current(name: str):
 
 
 @click_pump_calibration.command(name="list")
-def click_list():
+def click_list() -> None:
     """
     Print a list of all pump calibrations done
     """
@@ -667,7 +667,7 @@ def click_list():
 
 @click_pump_calibration.command(name="publish")
 @click.argument("name", type=click.STRING)
-def click_publish(name: str):
+def click_publish(name: str) -> None:
     """
     Publish calibration to the leader's database.
     """

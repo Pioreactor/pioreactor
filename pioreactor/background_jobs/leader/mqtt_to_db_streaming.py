@@ -89,7 +89,7 @@ class MqttToDBStreamer(BackgroundJob):
 
         self.initialize_callbacks(topics_and_callbacks)
 
-    def publish_stats(self):
+    def publish_stats(self) -> None:
         self.inserts_in_last_60s = self._inserts_in_last_60s
         self._inserts_in_last_60s = 0
 
@@ -374,9 +374,7 @@ def add_default_source_to_sinks() -> list[TopicToParserToTable]:
                 "od_readings_filtered",
             ),
             TopicToParserToTable("pioreactor/+/+/od_reading/od/+", parse_od, "od_readings"),
-            TopicToParserToTable(
-                "pioreactor/+/+/dosing_events", parse_dosing_events, "dosing_events"
-            ),
+            TopicToParserToTable("pioreactor/+/+/dosing_events", parse_dosing_events, "dosing_events"),
             TopicToParserToTable(
                 "pioreactor/+/+/led_change_events",
                 parse_led_change_events,
@@ -457,7 +455,9 @@ def add_default_source_to_sinks() -> list[TopicToParserToTable]:
     return source_to_sinks
 
 
-def register_source_to_sink(t2p2t: TopicToParserToTable | list[TopicToParserToTable]):
+def register_source_to_sink(
+    t2p2t: TopicToParserToTable | list[TopicToParserToTable],
+) -> list[TopicToParserToTable]:
     """
     Entry point for adding parsers to be used in the job.
 
@@ -476,7 +476,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
 
 
 @click.command(name="mqtt_to_db_streaming")
-def click_mqtt_to_db_streaming():
+def click_mqtt_to_db_streaming() -> None:
     """
     (leader only) Send MQTT streams to the database. Parsers should return a dict of all the entries in the corresponding table.
     """
