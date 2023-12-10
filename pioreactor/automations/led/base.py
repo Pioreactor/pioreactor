@@ -66,10 +66,7 @@ class LEDAutomationJob(AutomationJob):
 
         # this registers all subclasses of LEDAutomation back to LEDController, so the subclass
         # can be invoked in LEDController.
-        if (
-            hasattr(cls, "automation_name")
-            and getattr(cls, "automation_name") != "led_automation_base"
-        ):
+        if hasattr(cls, "automation_name") and getattr(cls, "automation_name") != "led_automation_base":
             LEDController.available_automations[cls.automation_name] = cls
 
     def __init__(
@@ -207,9 +204,7 @@ class LEDAutomationJob(AutomationJob):
             # this should really only happen on the initialization.
             self.logger.debug("Waiting for OD and growth rate data to arrive")
             if not all(is_pio_job_running(["od_reading", "growth_rate_calculating"])):
-                raise exc.JobRequiredError(
-                    "`od_reading` and `growth_rate_calculating` should be Ready."
-                )
+                raise exc.JobRequiredError("`od_reading` and `growth_rate_calculating` should be Ready.")
 
         # check most stale time
         if (current_utc_datetime() - self.most_stale_time).seconds > 5 * 60:
@@ -229,9 +224,7 @@ class LEDAutomationJob(AutomationJob):
             # this should really only happen on the initialization.
             self.logger.debug("Waiting for OD and growth rate data to arrive")
             if not all(is_pio_job_running(["od_reading", "growth_rate_calculating"])):
-                raise exc.JobRequiredError(
-                    "`od_reading` and `growth_rate_calculating` should be Ready."
-                )
+                raise exc.JobRequiredError("`od_reading` and `growth_rate_calculating` should be Ready.")
 
         # check most stale time
         if (current_utc_datetime() - self.most_stale_time).seconds > 5 * 60:
@@ -248,7 +241,11 @@ class LEDAutomationJob(AutomationJob):
         self._send_details_to_mqtt()
 
         with suppress(AttributeError):
-            self.run_thread.join()
+            self.run_thread.join(
+                timeout=10
+            )  # thread has N seconds to end. If not, something is wrong, like a while loop in execute that isn't stopping.
+            if self.run_thread.is_alive():
+                self.logger.debug("run_thread still alive!")
 
         led_intensity(
             {channel: 0.0 for channel in self.edited_channels},

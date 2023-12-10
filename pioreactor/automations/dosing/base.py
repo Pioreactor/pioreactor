@@ -509,7 +509,7 @@ class DosingAutomationJob(AutomationJob):
 
         with suppress(AttributeError):
             self.run_thread.join(
-                timeout=5
+                timeout=10
             )  # thread has N seconds to end. If not, something is wrong, like a while loop in execute that isn't stopping.
             if self.run_thread.is_alive():
                 self.logger.debug("run_thread still alive!")
