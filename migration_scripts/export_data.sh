@@ -17,6 +17,9 @@ pio kill monitor mqtt_to_db_streaming watchdog
 sudo systemctl stop lighttpd.service || true
 sudo systemctl stop huey.service || true
 
+# write any data in the WAL file to disk
+sqlite3 /home/pioreactor/.pioreactor/storage/pioreactor.sqlite "PRAGMA wal_checkpoint;"
+
 # check integrity, quickly
 DB_CHECK=$(sqlite3 /home/pioreactor/.pioreactor/storage/pioreactor.sqlite "PRAGMA quick_check;")
 if [[ "$DB_CHECK" != "ok" ]]; then

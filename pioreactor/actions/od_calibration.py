@@ -683,7 +683,9 @@ def list_() -> None:
 
 
 @click.group(invoke_without_command=True, name="od_calibration")
-@click.option("-f", "--json-file")
+@click.option(
+    "-f", "--json-file", type=click.Path(exists=True, dir_okay=False, readable=True, resolve_path=True)
+)
 @click.pass_context
 def click_od_calibration(ctx, json_file: str | None) -> None:
     """

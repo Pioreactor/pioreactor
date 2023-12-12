@@ -1,10 +1,13 @@
 ### 23.12.11
 
-#### Improvements
+#### Enhancements
 
  - Improvements to OD calibration and pump calibrations. Both now have a `-f` option to provide a json file with calibration data, to skip rerunning data-gathering routines. For example: `pio run pump_calibration -f pump_data.json`.
  - Ability to update via our release_archives (available on the [Github release page](https://github.com/Pioreactor/pioreactor/releases)) via the UI. To turn this feature off (which is a recommended practice when you expose your UI publically), add an empty file called `DISALLOW_UI_UPLOADS` to the `~/.pioreactor` directory.
  - A new config option to change the max volume to dose when a larger dose volume is split. For example, if your chemostat asks to dose 1.6ml, our internal algorithm will dose 0.75, 0.75 and 0.1 (this is to avoid overflow). The 0.75 was previously hardcoded, but is now a config `max_subdose` under section `[dosing_automation.config]` (default is still 0.75ml).
+
+#### Breaking changes
+
  - Changes to `types.DosingProgram`, now it requires an MQTT client. Usually this is `automation.pub_client`. This is to avoid a memory leak!
 
 #### Bug fixes

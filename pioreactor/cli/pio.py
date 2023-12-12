@@ -216,7 +216,7 @@ def kill(job: list[str], all_jobs: bool) -> None:
         sleep(0.25)
         try:
             # non-workers won't have this hardware, so just skip it
-            led_intensity({"A": 0.0, "B": 0.0, "C": 0.0, "D": 0.0}, verbose=False)
+            led_intensity({"A": 0.0, "B": 0.0, "C": 0.0, "D": 0.0}, verbose=False, experiment="_test")
         except Exception:
             pass
 

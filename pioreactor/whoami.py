@@ -37,7 +37,7 @@ def _get_latest_experiment_name() -> str:
 
     from pioreactor.config import leader_address
 
-    retries = 10
+    retries = 6
     exit_reason = ""
 
     for attempt in range(retries):
