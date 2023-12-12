@@ -35,16 +35,21 @@ rm -rf /home/pioreactor/.pioreactor/
 # create the new .pioreactor/
 tar -xzf $ARCHIVE_NAME
 
-# rename the sqlite .backup
-mv /home/pioreactor/.pioreactor/storage/pioreactor.sqlite.backup /home/pioreactor/.pioreactor/storage/pioreactor.sqlite
-touch /home/pioreactor/.pioreactor/storage/pioreactor.sqlite-shm
-touch /home/pioreactor/.pioreactor/storage/pioreactor.sqlite-wal
 
-# check integrity, quickly
-DB_CHECK=$(sqlite3 /home/pioreactor/.pioreactor/storage/pioreactor.sqlite "PRAGMA quick_check;")
-if [[ "$DB_CHECK" != "ok" ]]; then
-    echo "Database integrity check failed: $DB_CHECK"
-    exit 1
+leader_hostname=$(crudini --get /home/pioreactor/.pioreactor/config.ini cluster.topology leader_hostname)
+
+if [ "$leader_hostname" = "$CURRENT_HOSTNAME" ]; then
+  # rename the sqlite .backup, if leader
+  mv /home/pioreactor/.pioreactor/storage/pioreactor.sqlite.backup /home/pioreactor/.pioreactor/storage/pioreactor.sqlite
+  touch /home/pioreactor/.pioreactor/storage/pioreactor.sqlite-shm
+  touch /home/pioreactor/.pioreactor/storage/pioreactor.sqlite-wal
+
+  # check integrity, quickly
+  DB_CHECK=$(sqlite3 /home/pioreactor/.pioreactor/storage/pioreactor.sqlite "PRAGMA quick_check;")
+  if [[ "$DB_CHECK" != "ok" ]]; then
+      echo "Database integrity check failed: $DB_CHECK"
+  fi
+
 fi
 
 # confirm permissions
