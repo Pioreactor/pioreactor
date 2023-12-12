@@ -439,9 +439,7 @@ def test_changing_turbidostat_params_over_mqtt() -> None:
     assert algo.volume == 1.0
 
     new_od = 1.5
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/dosing_automation/target_normalized_od/set", new_od
-    )
+    pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/target_normalized_od/set", new_od)
     pause()
     assert algo.target_normalized_od == new_od
     algo.clean_up()
@@ -675,9 +673,7 @@ def test_execute_io_action2() -> None:
     experiment = "test_execute_io_action2"
 
     with DosingController(unit, experiment, "silent", initial_vial_volume=14.0) as ca:
-        results = ca.automation_job.execute_io_action(
-            media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26
-        )
+        results = ca.automation_job.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
         pause()
         assert results["media_ml"] == 1.25
         assert results["alt_media_ml"] == 0.01
@@ -702,9 +698,7 @@ def test_mqtt_properties_in_dosing_automations() -> None:
     experiment = "test_mqtt_properties_in_dosing_automations"
 
     with DosingAutomationJob(unit=unit, experiment=experiment) as ca:
-        msg = pubsub.subscribe(
-            f"pioreactor/{unit}/{experiment}/dosing_automation/alt_media_throughput"
-        )
+        msg = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/dosing_automation/alt_media_throughput")
         assert msg is not None
         r = msg.payload
         assert float(r) == 0
@@ -714,18 +708,14 @@ def test_mqtt_properties_in_dosing_automations() -> None:
         r = msg.payload
         assert float(r) == 0
 
-        msg = pubsub.subscribe(
-            f"pioreactor/{unit}/{experiment}/dosing_automation/alt_media_fraction"
-        )
+        msg = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/dosing_automation/alt_media_fraction")
         assert msg is not None
         r = msg.payload
         assert float(r) == 0
 
         ca.execute_io_action(media_ml=0.35, alt_media_ml=0.25, waste_ml=0.6)
 
-        msg = pubsub.subscribe(
-            f"pioreactor/{unit}/{experiment}/dosing_automation/alt_media_throughput"
-        )
+        msg = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/dosing_automation/alt_media_throughput")
         assert msg is not None
         r = msg.payload
         assert float(r) == 0.25
@@ -735,9 +725,7 @@ def test_mqtt_properties_in_dosing_automations() -> None:
         r = msg.payload
         assert float(r) == 0.35
 
-        msg = pubsub.subscribe(
-            f"pioreactor/{unit}/{experiment}/dosing_automation/alt_media_fraction"
-        )
+        msg = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/dosing_automation/alt_media_fraction")
         assert msg is not None
         r = msg.payload
         assert close(float(r), 0.017123287671232876)
@@ -1006,9 +994,7 @@ def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs() -> None:
     time.sleep(5)
     assert algo.automation_job.media_throughput == 1.0
 
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/dosing_automation/target_normalized_od/set", 1.5
-    )
+    pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/target_normalized_od/set", 1.5)
     pause()
     pause()
     assert algo.automation_job.target_normalized_od == 1.5
@@ -1188,7 +1174,7 @@ def test_latest_event_goes_to_mqtt() -> None:
         Do nothing, ever. Just pass.
         """
 
-        automation_name = "fake_automation"
+        automation_name = "_test_fake_automation"
         published_settings = {"duration": {"datatype": "float", "settable": True, "unit": "min"}}
 
         def __init__(self, **kwargs) -> None:
@@ -1200,7 +1186,7 @@ def test_latest_event_goes_to_mqtt() -> None:
     with DosingController(
         get_unit_name(),
         experiment,
-        "fake_automation",
+        "_test_fake_automation",
         duration=0.1,
     ) as dc:
         assert "latest_event" in dc.automation_job.published_settings
@@ -1219,9 +1205,7 @@ def test_strings_are_okay_for_chemostat() -> None:
     unit = get_unit_name()
     experiment = "test_strings_are_okay_for_chemostat"
 
-    with start_dosing_control(
-        "chemostat", "20", False, unit, experiment, volume="0.7"
-    ) as controller:
+    with start_dosing_control("chemostat", "20", False, unit, experiment, volume="0.7") as controller:
         assert controller.automation_job.volume == 0.7
         pause(n=35)
         assert controller.automation_job.media_throughput == 0.7
@@ -1457,9 +1441,7 @@ def test_alt_media_calcualtor_from_0_volume() -> None:
     vc = VialVolumeCalculator
 
     current_volume = 0.0
-    current_alt_media_fraction = (
-        0.0  # this value doesn't matter, could be anything since volume = 0.
-    )
+    current_alt_media_fraction = 0.0  # this value doesn't matter, could be anything since volume = 0.
 
     # adding 6ml of media
     event = DosingEvent(
@@ -1611,7 +1593,7 @@ def test_warning_is_logged_if_under_remove_waste() -> None:
     class BadWasteRemoval(DosingAutomationJob):
         automation_name = "bad_waste_removal"
 
-        def remove_waste_from_bioreactor(self, unit, experiment, ml, source_of_event):
+        def remove_waste_from_bioreactor(self, unit, experiment, ml, source_of_event, mqtt_client):
             return ml / 2
 
         def execute(self):
@@ -1629,9 +1611,7 @@ def test_warning_is_logged_if_under_remove_waste() -> None:
 def test_a_failing_automation_cleans_duration_attr_in_mqtt_up() -> None:
     experiment = "test_a_failing_automation_cleans_itself_up"
 
-    pubsub.publish(
-        f"pioreactor/{get_unit_name()}/{experiment}/dosing_automation/duration", None, retain=True
-    )
+    pubsub.publish(f"pioreactor/{get_unit_name()}/{experiment}/dosing_automation/duration", None, retain=True)
 
     class Failure(DosingAutomationJob):
         automation_name = "failure"
