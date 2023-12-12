@@ -50,6 +50,7 @@ fi
 # confirm permissions
 chmod -R 770 /home/pioreactor/.pioreactor/storage/
 chown -R pioreactor:www-data /home/pioreactor/.pioreactor/storage/
+chmod g+s /home/pioreactor/.pioreactor/storage/
 
 echo "Done! Rebooting..."
 

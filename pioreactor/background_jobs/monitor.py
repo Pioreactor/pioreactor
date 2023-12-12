@@ -89,6 +89,7 @@ class Monitor(BackgroundJob):
         "versions": {"datatype": "json", "settable": False},
         "voltage_on_pwm_rail": {"datatype": "Voltage", "settable": False},
         "ipv4": {"datatype": "string", "settable": False},
+        "wlan_mac_address": {"datatype": "string", "settable": False},
     }
     computer_statistics: Optional[dict] = None
     led_in_use: bool = False
@@ -199,7 +200,11 @@ class Monitor(BackgroundJob):
 
             self.ipv4 = ipv4
 
+        with open("/sys/class/net/wlan0/address", "r") as f:
+            self.wlan_mac_address = f.read().strip()
+
         self.logger.debug(f"IPv4 address: {self.ipv4}")
+        self.logger.debug(f"WLAN MAC address: {self.wlan_mac_address}")
 
     def self_checks(self) -> None:
         # check active network connection
