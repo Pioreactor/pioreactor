@@ -8,7 +8,6 @@ Possible update scripts and their sequence:
 - `post_update.sh` runs (if exists). Useful for restarting jobs, or rebooting RPis.
 
 
-
 It's very important that update scripts are idempotent. Some tips:
 
  - Use ChatGPT to assist psuedo-check if a script is idempotent, or making suggestions.

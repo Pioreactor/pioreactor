@@ -1591,7 +1591,7 @@ def test_warning_is_logged_if_under_remove_waste() -> None:
     experiment = "test_warning_is_logged_if_under_remove_waste"
 
     class BadWasteRemoval(DosingAutomationJob):
-        automation_name = "bad_waste_removal"
+        automation_name = "_test_bad_waste_removal"
 
         def remove_waste_from_bioreactor(self, unit, experiment, ml, source_of_event, mqtt_client):
             return ml / 2

@@ -499,9 +499,8 @@ def update_app(
             version_installed = source
             commands_and_priority.append((f"sudo pip3 install --force-reinstall --no-index {source}", 1))
         else:
-            raise click.Abort(
-                "Not a valid source file. Should be either a whl or release archive."
-            )  # TODO: this doesn't print any message on error...
+            click.echo("Not a valid source file. Should be either a whl or release archive.")
+            raise click.Abort()
 
     elif branch is not None:
         cleaned_branch = quote(branch)
@@ -526,6 +525,12 @@ def update_app(
         release_metadata = loads(response.body)
         version_installed = release_metadata["tag_name"]
         found_whl = False
+
+        # nuke all existing assets in /tmp
+        # TODO: just make a new tempdir, put all files there, and then nuke that temp dir......
+        # BETTER TODO: just download the release archive and run the script above.....
+        commands_and_priority.append(("rm -f /tmp/*update.sh /tmp/update.sql", -1))
+
         for asset in release_metadata["assets"]:
             # add the following files to the release. They should ideally be idempotent!
 
@@ -534,8 +539,6 @@ def update_app(
             # update.sh runs (if exists)
             # update.sql to update sqlite schema runs (if exists)
             # post_update.sh runs (if exists)
-
-            # TODO: potential supply chain attack is to add malicious assets to releases
             url = asset["browser_download_url"]
             asset_name = asset["name"]
 
@@ -600,7 +603,9 @@ def update_app(
 @click.option("-v", "--version", help="install a specific version, default is latest")
 def update_firmware(version: Optional[str]) -> None:
     """
-    Update the RP2040 firmware
+    Update the RP2040 firmware.
+
+    # TODO: this needs accept a --source arg
     """
     logger = create_logger("update-app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT)
     commands_and_priority: list[tuple[str, int]] = []

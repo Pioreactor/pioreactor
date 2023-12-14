@@ -20,7 +20,7 @@ def _get_hardware_version() -> tuple[int, int] | tuple[int, int, str]:
             text = f.read().rstrip("\x00")
             return (int(text[-2]), int(text[-1]))
     except FileNotFoundError:
-        # no eeprom? Probably dev board with no EEPROM, or testing env, or EEPROM not written.
+        # no eeprom? Probably dev board with no EEPROM, or testing env, or EEPROM not written, or cable exists between HAT and Pi -> signal degradation.
         return (0, 0)
 
 

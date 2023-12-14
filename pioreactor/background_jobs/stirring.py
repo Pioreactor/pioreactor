@@ -309,10 +309,10 @@ class Stirrer(BackgroundJob):
     def kick_stirring(self) -> None:
         self.logger.debug("Kicking stirring")
         self.set_duty_cycle(100)
-        sleep(0.20)
+        sleep(0.10)
         self.set_duty_cycle(
             max(1.01 * self._previous_duty_cycle, 60)
-        )  # DC should never be above 60. We want to avoid the death spiral to 100%.
+        )  # DC should never need to be above 60 - simply not realistic. We want to avoid the death spiral to 100%.
 
     def kick_stirring_but_avoid_od_reading(self) -> None:
         """
