@@ -104,14 +104,14 @@ if am_I_leader():
         if shared and unit != get_leader_hostname():
             localpath = "/home/pioreactor/.pioreactor/config.ini"
             remotepath = "/home/pioreactor/.pioreactor/config.ini"
-            cp_file_across_cluster(unit, localpath, remotepath)
+            cp_file_across_cluster(unit, localpath, remotepath, timeout=30)
 
         # move the specific unit config.ini
         if specific:
             try:
                 localpath = f"/home/pioreactor/.pioreactor/config_{unit}.ini"
                 remotepath = "/home/pioreactor/.pioreactor/unit_config.ini"
-                cp_file_across_cluster(unit, localpath, remotepath)
+                cp_file_across_cluster(unit, localpath, remotepath, timeout=30)
 
             except Exception as e:
                 click.echo(
@@ -140,7 +140,7 @@ if am_I_leader():
         def _thread_function(unit: str) -> bool:
             logger.debug(f"Moving {filepath} to {unit}:{filepath}...")
             try:
-                cp_file_across_cluster(unit, filepath, filepath)
+                cp_file_across_cluster(unit, filepath, filepath, timeout=30)
                 return True
             except Exception as e:
                 logger.error(f"Error occurred: {e}. See logs for more.")
@@ -290,9 +290,7 @@ if am_I_leader():
         from sh import ErrorReturnCode_255  # type: ignore
         from sh import ErrorReturnCode_1  # type: ignore
 
-        logger = create_logger(
-            "install_plugin", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT
-        )
+        logger = create_logger("install_plugin", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
         command = f"pio install-plugin {plugin}"
 
@@ -335,9 +333,7 @@ if am_I_leader():
         from sh import ErrorReturnCode_255  # type: ignore
         from sh import ErrorReturnCode_1  # type: ignore
 
-        logger = create_logger(
-            "uninstall_plugin", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT
-        )
+        logger = create_logger("uninstall_plugin", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
         command = f"pio uninstall-plugin {plugin}"
 
@@ -391,9 +387,7 @@ if am_I_leader():
 
         If neither `--shared` not `--specific` are specified, both are set to true.
         """
-        logger = create_logger(
-            "sync_configs", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT
-        )
+        logger = create_logger("sync_configs", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
         units = universal_identifier_to_all_workers(units)
 
         if not shared and not specific:
@@ -405,7 +399,7 @@ if am_I_leader():
                 sync_config_files(unit, shared, specific)
                 return True
             except Exception as e:
-                logger.error(f"Unable to connect to unit {unit}.")
+                logger.error(f"Error syncing configs to {unit}: {e}.")
                 logger.debug(e, exc_info=True)
                 return False
 

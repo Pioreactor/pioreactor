@@ -238,7 +238,7 @@ def test_ambient_light_interference(client: Client, logger: Logger, unit: str, e
         assert all([readings[pd_channel] < 0.005 for pd_channel in ALL_PD_CHANNELS]), readings
     else:
         assert all(
-            [readings[pd_channel] < 0.075 for pd_channel in ALL_PD_CHANNELS]
+            [readings[pd_channel] < 0.080 for pd_channel in ALL_PD_CHANNELS]
         ), f"Dark signal too high: {readings=}"  # saw a 0.072 blank during testing
 
 

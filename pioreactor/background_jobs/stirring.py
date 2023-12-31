@@ -300,19 +300,19 @@ class Stirrer(BackgroundJob):
     def start_stirring(self) -> None:
         self.logger.debug(f"Starting stirring with {self.target_rpm} RPM.")
         self.pwm.start(100)  # get momentum to start
-        sleep(0.30)
+        sleep(0.20)
         self.set_duty_cycle(self.duty_cycle)
-        sleep(0.70)
+        sleep(0.50)
         if self.rpm_calculator is not None:
             self.rpm_check_repeated_thread.start()  # .start is idempotent
 
     def kick_stirring(self) -> None:
         self.logger.debug("Kicking stirring")
         self.set_duty_cycle(100)
-        sleep(0.10)
+        sleep(0.25)
         self.set_duty_cycle(
-            max(1.01 * self._previous_duty_cycle, 60)
-        )  # DC should never need to be above 60 - simply not realistic. We want to avoid the death spiral to 100%.
+            min(1.01 * self._previous_duty_cycle, 50)
+        )  # DC should never need to be above 50 - simply not realistic. We want to avoid the death spiral to 100%.
 
     def kick_stirring_but_avoid_od_reading(self) -> None:
         """
@@ -406,7 +406,7 @@ class Stirrer(BackgroundJob):
         self.pid.set_setpoint(self.target_rpm)
 
     def block_until_rpm_is_close_to_target(
-        self, abs_tolerance: float = 15, timeout: Optional[float] = 60
+        self, abs_tolerance: float = 20, timeout: Optional[float] = 60
     ) -> bool:
         """
         This function blocks until the stirring is "close enough" to the target RPM.

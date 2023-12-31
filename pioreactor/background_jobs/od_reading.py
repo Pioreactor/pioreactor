@@ -126,15 +126,10 @@ def average_over_pd_channel_to_voltages(*pd_channel_to_voltages: PdChannelToVolt
     summed_pd_channel_to_voltage: PdChannelToVoltage = {}
     for pd_channel_to_voltage in pd_channel_to_voltages:
         for channel, voltage in pd_channel_to_voltage.items():
-            summed_pd_channel_to_voltage[channel] = (
-                summed_pd_channel_to_voltage.get(channel, 0) + voltage
-            )
+            summed_pd_channel_to_voltage[channel] = summed_pd_channel_to_voltage.get(channel, 0) + voltage
         running_count += 1
 
-    return {
-        channel: voltage / running_count
-        for channel, voltage in summed_pd_channel_to_voltage.items()
-    }
+    return {channel: voltage / running_count for channel, voltage in summed_pd_channel_to_voltage.items()}
 
 
 class ADCReader(LoggerMixin):
@@ -177,9 +172,7 @@ class ADCReader(LoggerMixin):
         self.oversampling_count = oversampling_count
 
         if "local_ac_hz" in config["od_config"]:
-            self.most_appropriate_AC_hz: Optional[float] = config.getfloat(
-                "od_config", "local_ac_hz"
-            )
+            self.most_appropriate_AC_hz: Optional[float] = config.getfloat("od_config", "local_ac_hz")
         else:
             self.most_appropriate_AC_hz = None
 
@@ -445,9 +438,7 @@ class ADCReader(LoggerMixin):
                         for pd_channel in self.channels:
                             adc_channel = ADC_CHANNEL_FUNCS[pd_channel]
                             timestamps[pd_channel][counter] = time_since_start()
-                            aggregated_signals[pd_channel][counter] = self.adc.read_from_channel(
-                                adc_channel
-                            )
+                            aggregated_signals[pd_channel][counter] = self.adc.read_from_channel(adc_channel)
 
                     sleep(
                         max(
@@ -534,9 +525,7 @@ class ADCReader(LoggerMixin):
             min_AIC = float("inf")
 
             for freq in FREQS_TO_TRY:
-                _, AIC = self._sin_regression_with_known_freq(
-                    timestamps, aggregated_signals, freq=freq
-                )
+                _, AIC = self._sin_regression_with_known_freq(timestamps, aggregated_signals, freq=freq)
                 if AIC < min_AIC:
                     min_AIC = AIC
                     argmin_freq = freq
@@ -604,29 +593,29 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
 
     def __init__(self, channel: pt.PdChannel) -> None:
         super().__init__()
-        self.led_output_ema = ExponentialMovingAverage(
-            config.getfloat("od_config", "pd_reference_ema")
-        )
+        self.led_output_ema = ExponentialMovingAverage(config.getfloat("od_config", "pd_reference_ema"))
         self.led_output_emstd = ExponentialMovingStd(alpha=0.95, ema_alpha=0.8)
         self.channel = channel
         self.logger.debug(f"Using PD channel {channel} as IR LED reference.")
 
     def update(self, ir_output_reading: pt.Voltage) -> None:
-        # Note, in extreme circumstances, this can be negative, or even blow up to some large number.
-        self.led_output_ema.update(ir_output_reading / self.INITIAL)
-
         # check if funky things are happening by std. banding
         self.led_output_emstd.update(ir_output_reading / self.INITIAL)
+
         try:
             latest_std = self.led_output_emstd.get_latest()
-            if latest_std > 0.01:
-                self.logger.warning(
-                    f"The reference PD is very noisy, std={latest_std:.2g}. Is the PD in channel {self.channel} correctly positioned? Is the IR LED behaving as expected?"
-                )
-                self.led_output_emstd.clear()  # reset it for i) reduce warnings, ii) if the user purposely changed the IR intensity, this is an approx of that
         except ValueError:
             # can happen if there is only a single data points, and the variance can't be computed.
-            pass
+            latest_std = 0.0
+
+        if latest_std <= 0.01:
+            # only update if the std looks "okay""
+            self.led_output_ema.update(ir_output_reading / self.INITIAL)
+        else:
+            self.logger.warning(
+                f"The reference PD is very noisy, std={latest_std:.2g}. Is the PD in channel {self.channel} correctly positioned? Is the IR LED behaving as expected?"
+            )
+            self.led_output_emstd.clear()  # reset it for i) reduce warnings, ii) if the user purposely changed the IR intensity, this is an approx of that
 
     def __call__(self, batched_readings: PdChannelToVoltage) -> PdChannelToVoltage:
         return {
@@ -639,9 +628,7 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
         led_output = self.led_output_ema.get_latest()
 
         if led_output <= 0.0:
-            raise ValueError(
-                "IR Reference is 0.0. Is it connected correctly? Is the IR LED working?"
-            )
+            raise ValueError("IR Reference is 0.0. Is it connected correctly? Is the IR LED working?")
         return od_reading / led_output
 
 
@@ -693,9 +680,7 @@ class CachedCalibrationTransformer(CalibrationTransformer):
                     name = calibration_data.name
 
                     # confirm that current IR intensity is the same as when calibration was performed
-                    if calibration_data.ir_led_intensity != config.getfloat(
-                        "od_config", "ir_led_intensity"
-                    ):
+                    if calibration_data.ir_led_intensity != config.getfloat("od_config", "ir_led_intensity"):
                         msg = f"The calibration `{name}` was calibrated with a different IR LED intensity ({calibration_data.ir_led_intensity} vs current: {config.getfloat('od_config', 'ir_led_intensity')}). Either re-calibrate or change the ir_led_intensity in the config.ini."
                         self.logger.error(msg)
                         raise exc.CalibrationError(msg)
@@ -780,10 +765,7 @@ class CachedCalibrationTransformer(CalibrationTransformer):
         return calibration
 
     def __call__(self, batched_readings: PdChannelToVoltage) -> PdChannelToVoltage:
-        return {
-            ch: self.models[ch](od) if self.models.get(ch) else od
-            for ch, od in batched_readings.items()
-        }
+        return {ch: self.models[ch](od) if self.models.get(ch) else od for ch, od in batched_readings.items()}
 
 
 class ODReader(BackgroundJob):
@@ -869,9 +851,7 @@ class ODReader(BackgroundJob):
         self._set_for_iterating = threading.Event()
 
         self.ir_channel: pt.LedChannel = self._get_ir_led_channel_from_configuration()
-        self.ir_led_intensity: pt.LedIntensityValue = config.getfloat(
-            "od_config", "ir_led_intensity"
-        )
+        self.ir_led_intensity: pt.LedIntensityValue = config.getfloat("od_config", "ir_led_intensity")
         if self.ir_led_intensity > 90:
             self.logger.warning(
                 f"The value for the IR LED, {self.ir_led_intensity}%, is very high. We suggest a value 90% or less to avoid damaging the LED."
@@ -1008,6 +988,8 @@ class ODReader(BackgroundJob):
                     },
                 )
 
+        # TODO: put a filter here that noops if the signal looks wrong...
+
         self.latest_od_readings = od_readings
 
         self._publish_single(self.latest_od_readings)
@@ -1019,9 +1001,7 @@ class ODReader(BackgroundJob):
             try:
                 post_function(od_readings)
             except Exception:
-                self.logger.debug(
-                    f"Error in post_function={post_function.__name__}.", exc_info=True
-                )
+                self.logger.debug(f"Error in post_function={post_function.__name__}.", exc_info=True)
 
         return od_readings
 
@@ -1164,17 +1144,13 @@ def create_channel_angle_map(
 
     if od_angle_channel1 and od_angle_channel1 != REF_keyword:
         if od_angle_channel1 not in VALID_PD_ANGLES:
-            raise ValueError(
-                f"{od_angle_channel1=} is not a valid angle. Must be one of {VALID_PD_ANGLES}"
-            )
+            raise ValueError(f"{od_angle_channel1=} is not a valid angle. Must be one of {VALID_PD_ANGLES}")
         od_angle_channel1 = cast(pt.PdAngle, od_angle_channel1)
         channel_angle_map["1"] = od_angle_channel1
 
     if od_angle_channel2 and od_angle_channel2 != REF_keyword:
         if od_angle_channel2 not in VALID_PD_ANGLES:
-            raise ValueError(
-                f"{od_angle_channel2=} is not a valid angle. Must be one of {VALID_PD_ANGLES}"
-            )
+            raise ValueError(f"{od_angle_channel2=} is not a valid angle. Must be one of {VALID_PD_ANGLES}")
 
         od_angle_channel2 = cast(pt.PdAngle, od_angle_channel2)
         channel_angle_map["2"] = od_angle_channel2
@@ -1231,16 +1207,18 @@ def start_od_reading(
     else:
         calibration_transformer = NullCalibrationTransformer()  # type: ignore
 
+    if interval is not None:
+        penalizer = config.get("od_config", "smoothing_penalzier", fallback=700.0) / interval
+    else:
+        penalizer = 0.0
+
     return ODReader(
         channel_angle_map,
         interval=interval,
         unit=unit,
         experiment=experiment,
         adc_reader=ADCReader(
-            channels=channels,
-            fake_data=fake_data,
-            dynamic_gain=not fake_data,
-            penalizer=(700.0 / interval) if (interval is not None) else 0.0,  # 700 is arbitrary
+            channels=channels, fake_data=fake_data, dynamic_gain=not fake_data, penalizer=penalizer
         ),
         ir_led_reference_tracker=ir_led_reference_tracker,
         calibration_transformer=calibration_transformer,

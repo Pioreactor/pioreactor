@@ -1074,3 +1074,57 @@ def test_temperature_approximation17() -> None:
         automation_name="only_record_temperature", unit=unit, experiment=experiment
     ) as t:
         assert 25.295 <= t.approximate_temperature(features) <= 25.430
+
+
+def test_temperature_approximation19() -> None:
+    # this was real data from a user
+    unit = get_unit_name()
+    experiment = "test_temperature_approximation19"
+
+    ts_of_temps = [
+        28.6875,
+        27.75,
+        27.0,
+        26.375,
+        25.825,
+        25.375,
+        25.0,
+        24.625,
+        24.3125,
+        24.05,
+        23.7875,
+        23.5625,
+        23.375,
+        23.1875,
+        23.025,
+        22.875,
+        22.75,
+        22.625,
+        22.5,
+        22.4375,
+        22.3125,
+        22.25,
+        22.1875,
+        22.1125,
+        22.0,
+        21.95,
+        21.9125,
+        21.85,
+        21.8125,
+    ]
+
+    with temperature_control.TemperatureController(
+        automation_name="only_record_temperature", unit=unit, experiment=experiment
+    ) as t:
+        with pytest.raises(ValueError):
+            features = {"previous_heater_dc": 25.0, "room_temp": 22.0, "time_series_of_temp": ts_of_temps}
+            t.approximate_temperature(features)
+
+        better_room_temp = 20
+        features = {
+            "previous_heater_dc": 25.0,
+            "room_temp": better_room_temp,
+            "time_series_of_temp": ts_of_temps,
+        }
+
+        assert better_room_temp < t.approximate_temperature(features) <= 25

@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from os import environ
+
 from pioreactor.types import AdcChannel
 from pioreactor.types import GpioPin
 from pioreactor.types import PdChannel
@@ -86,7 +88,7 @@ def is_heating_pcb_present() -> bool:
 
 
 def is_HAT_present() -> bool:
-    if is_testing_env():
+    if is_testing_env() or (environ.get("HAT_PRESENT", "0") == "1"):
         return True
 
     try:

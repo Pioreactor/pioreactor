@@ -1,3 +1,10 @@
+### Upcoming
+ - fixed a bug where stirring DC would jump up too high when RPM measured 0.
+ - new ENV variable, `HAT_PRESENT=1`, can be set to skip `is_HAT_present` checks.
+ - added the RPis unique MAC addresses to the `Manage -> System` tab on the Pioreactors page.
+ - added table `ir_led_intensities` to be able to be exported on the Exports page.
+ - added a new `smoothing_penalizer` config option to `[od_config]`. This parameter, which has default value 700, controls how much smoothing to apply to optical density measurements. This smoothing has always been applied, but now it's a config option.
+
 ### 23.12.11
 
 #### Enhancements

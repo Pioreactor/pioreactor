@@ -62,7 +62,7 @@ def introduction() -> None:
     2. A vial placed on a scale with accuracy at least 0.1g
        OR an accurate graduated cylinder.
     3. A larger container filled with water
-    4. A pump connected to the correct PWM channel (1, 2, 3, or 4) as determined in your Configurations.
+    4. A pump connected to the correct PWM channel (1, 2, 3, or 4) as determined in your Configuration.
 
 We will dose for a set duration, you'll measure how much volume was expelled, and then record it back here. After doing this a few times, we can construct a calibration line for this pump.
 """
@@ -172,8 +172,11 @@ def setup(pump_type: str, execute_pump: Callable, hz: float, dc: float, unit: st
     echo()
     echo(green(bold("Step 2")))
     echo("We need to prime the pump by filling the tubes completely with water.")
-    echo("1. Fill a container with water.")
-    echo("2. Submerge both ends of the pump's tubes into the water.")
+    echo(
+        "1. From your Pioreactor vial, remove one of the female luer locks. Attach it to the end of the *sink tube*."
+    )
+    echo("2. Fill a container with water.")
+    echo("3. Submerge both ends of the pump's tubes into the water.")
     echo(
         "Make sure the pump's power is connected to " + bold(f"PWM channel {channel_pump_is_configured_for}.")
     )

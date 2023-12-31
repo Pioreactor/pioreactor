@@ -125,7 +125,7 @@ class GrowthRateCalculator(BackgroundJob):
             ) = self.get_initial_values()
         except Exception as e:
             # something happened - abort
-            self.logger.error(e)
+            self.logger.info("Aborting early.")
             self.logger.debug("Aborting early.", exc_info=True)
             self.clean_up()
             raise e
@@ -173,14 +173,10 @@ class GrowthRateCalculator(BackgroundJob):
         self.logger.debug(f"Process noise covariance matrix:\n{repr(process_noise_covariance)}")
 
         observation_noise_covariance = self.create_obs_noise_covariance(obs_std)
-        self.logger.debug(
-            f"Observation noise covariance matrix:\n{repr(observation_noise_covariance)}"
-        )
+        self.logger.debug(f"Observation noise covariance matrix:\n{repr(observation_noise_covariance)}")
 
         angles = [
-            angle
-            for (_, angle) in config["od_config.photodiode_channel"].items()
-            if angle in VALID_PD_ANGLES
+            angle for (_, angle) in config["od_config.photodiode_channel"].items() if angle in VALID_PD_ANGLES
         ]
 
         self.logger.debug(f"{angles=}")
@@ -287,9 +283,7 @@ class GrowthRateCalculator(BackgroundJob):
         # I think we should not use od_blank if so
         for channel in od_normalization_factors.keys():
             if od_normalization_factors[channel] * 0.90 < od_blank[channel]:
-                self.logger.debug(
-                    "Resetting od_blank because it is too close to current observations."
-                )
+                self.logger.debug("Resetting od_blank because it is too close to current observations.")
                 od_blank[channel] = 0
 
         return (
@@ -332,9 +326,7 @@ class GrowthRateCalculator(BackgroundJob):
             return 1.0  # default?
 
         od_readings = decode(msg.payload, type=structs.ODReadings)
-        scaled_ods = self.scale_raw_observations(
-            self._batched_raw_od_readings_to_dict(od_readings.ods)
-        )
+        scaled_ods = self.scale_raw_observations(self._batched_raw_od_readings_to_dict(od_readings.ods))
         assert scaled_ods is not None
 
         return mean(scaled_ods.values())
@@ -473,9 +465,7 @@ class GrowthRateCalculator(BackgroundJob):
         else:
             # TODO: EKF values can be nans...
 
-            latest_od_filtered, latest_growth_rate = float(updated_state[0]), float(
-                updated_state[1]
-            )
+            latest_od_filtered, latest_growth_rate = float(updated_state[0]), float(updated_state[1])
 
             growth_rate = structs.GrowthRate(
                 growth_rate=latest_growth_rate,
@@ -537,10 +527,7 @@ class GrowthRateCalculator(BackgroundJob):
         """
         Extract the od floats from ODReading but keep the same keys
         """
-        return {
-            channel: raw_od_readings[channel].od
-            for channel in sorted(raw_od_readings, reverse=True)
-        }
+        return {channel: raw_od_readings[channel].od for channel in sorted(raw_od_readings, reverse=True)}
 
     def _yield_od_readings_from_mqtt(self) -> Generator[structs.ODReadings, None, None]:
         counter = 0
