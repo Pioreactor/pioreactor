@@ -129,14 +129,6 @@ def get_hashed_serial_number() -> str:
     return md5(serial_number.encode()).hexdigest()
 
 
-def get_rpi_machine() -> str:
-    if not is_testing_env():
-        with open("/proc/device-tree/model") as f:
-            return f.read().strip()
-    else:
-        return "Raspberry Pi 3 - testing"
-
-
 def get_image_git_hash() -> str:
     try:
         with open("/home/pioreactor/.pioreactor/.image_info") as f:

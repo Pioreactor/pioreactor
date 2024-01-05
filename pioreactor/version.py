@@ -35,6 +35,14 @@ def _get_serial_number() -> str:
         return "00000000-0000-0000-0000-000000000000"
 
 
+def get_rpi_machine() -> str:
+    try:
+        with open("/proc/device-tree/model") as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        return "Raspberry Pi 3 - testing"
+
+
 def get_firmware_version() -> tuple[int, int]:
     if os.environ.get("FIRMWARE") is not None:
         # ex: > FIRMWARE=1.1 pio ...
@@ -71,3 +79,4 @@ def safe_int(s):
 hardware_version_info = _get_hardware_version()
 software_version_info = tuple(safe_int(c) for c in __version__.split("."))
 serial_number = _get_serial_number()
+rpi_version_info = get_rpi_machine()

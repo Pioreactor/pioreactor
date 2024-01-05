@@ -13,7 +13,7 @@ from pioreactor.whoami import is_testing_env
 
 
 class MockI2C:
-    def __init__(self, SCL: int, SDA: int) -> None:
+    def __init__(self, SCL: pt.I2CPin, SDA: pt.I2CPin) -> None:
         pass
 
     def writeto(self, *args, **kwargs) -> None:

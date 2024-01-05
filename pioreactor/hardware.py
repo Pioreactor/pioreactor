@@ -5,9 +5,11 @@ from os import environ
 
 from pioreactor.types import AdcChannel
 from pioreactor.types import GpioPin
+from pioreactor.types import I2CPin
 from pioreactor.types import PdChannel
 from pioreactor.types import PwmChannel
 from pioreactor.version import hardware_version_info
+from pioreactor.version import rpi_version_info
 from pioreactor.whoami import is_testing_env
 
 # All GPIO pins below are BCM numbered
@@ -32,8 +34,10 @@ PCB_BUTTON_PIN: GpioPin = 24 if (0, 0) < hardware_version_info <= (1, 0) else 4
 HALL_SENSOR_PIN: GpioPin = 25 if (0, 0) < hardware_version_info <= (1, 0) else 21
 
 # I2C GPIO pins
-SDA: GpioPin = 2
-SCL: GpioPin = 3
+# TODO: generalize this better
+SDA: I2CPin = 2 if not rpi_version_info.startswith("Raspberry Pi 5") else (4, 2)
+SCL: I2CPin = 3 if not rpi_version_info.startswith("Raspberry Pi 5") else (4, 3)
+
 
 # I2C channels used
 ADC = 0x48 if (0, 0) < hardware_version_info <= (1, 0) else 0x30
