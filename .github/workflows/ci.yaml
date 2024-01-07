@@ -23,11 +23,12 @@ jobs:
       - name: Install python libraries
         run: |
           wget https://github.com/Gadgetoid/PY_LGPIO/releases/download/0.2.2.0/lgpio-0.2.2.0.tar.gz -O lgpio-0.2.2.0.tar.gz
-          pip install lgpio-0.2.2.0.tar.gz
           pip install -e .
           pip install -r requirements/requirements_dev.txt
+          pip install lgpio-0.2.2.0.tar.gz
           pip install pyyaml
           pip list
+          python -c "import lgpio"
 
       - name: Mosquitto MQTT Broker in GitHub Actions
         uses: Namoshek/mosquitto-github-action@v1
