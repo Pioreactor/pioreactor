@@ -22,6 +22,7 @@ jobs:
 
       - name: Install
         run: |
+          apt-get install python3-lgpio
           pip install -e .
           pip install -r requirements/requirements_dev.txt
           pip install pyyaml

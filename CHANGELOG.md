@@ -1,17 +1,25 @@
 ### Upcoming
- - fixed a bug where stirring DC would jump up too high when RPM measured 0.
+
+#### Enhancements
+ - Support for RPi5! To use an RPi5, we recommend not upgrading the software, but using a fresh install. Under the hood: we are using a new route to load the firmware on the HATs RP2040, which was the blocker previously.
  - new ENV variable, `HAT_PRESENT=1`, can be set to skip `is_HAT_present` checks.
  - added the RPis unique MAC addresses to the `Manage -> System` tab on the Pioreactors page.
  - added table `ir_led_intensities` to be able to be exported on the Exports page.
  - added a new `smoothing_penalizer` config option to `[od_config]`. This parameter, which has default value 700, controls how much smoothing to apply to optical density measurements. This smoothing has always been applied, but now it's a config option.
+ - Cleaned up some UI interactions
+
+#### Bug fixes
+ - Ack! I reintroduced a UI export bug. Fix is present going forward. For existing users, try the following: https://forum.pioreactor.com/t/new-pioreactor-release-23-11-18/179/2
+ - fixed a bug where stirring DC would jump up too high when RPM measured 0.
+
 
 ### 23.12.11
 
 #### Enhancements
 
  - Improvements to OD calibration and pump calibrations. Both now have a `-f` option to provide a json file with calibration data, to skip rerunning data-gathering routines. For example: `pio run pump_calibration -f pump_data.json`.
- - Ability to update via our release_archives (available on the [Github release page](https://github.com/Pioreactor/pioreactor/releases)) via the UI. To turn this feature off (which is a recommended practice when you expose your UI publically), add an empty file called `DISALLOW_UI_UPLOADS` to the `~/.pioreactor` directory.
- - A new config option to change the max volume to dose when a larger dose volume is split. For example, if your chemostat asks to dose 1.6ml, our internal algorithm will dose 0.75, 0.75 and 0.1 (this is to avoid overflow). The 0.75 was previously hardcoded, but is now a config `max_subdose` under section `[dosing_automation.config]` (default is still 0.75ml).
+ - Ability to update via our release_archives (available on the [Github release page](https://github.com/Pioreactor/pioreactor/releases)) via the UI. To turn this feature off (which is a recommended practice when you expose your UI publicly), add an empty file called `DISALLOW_UI_UPLOADS` to the `~/.pioreactor` directory.
+ - A new config option to change the max volume to dose when a larger dose volume is split. For example, if your chemostat asks to dose 1.6 ml, our internal algorithm will dose 0.75, 0.75 and 0.1 (this is to avoid overflow). The 0.75 was previously hardcoded, but is now a config `max_subdose` under section `[dosing_automation.config]` (default is still 0.75 ml).
 
 #### Breaking changes
 

@@ -36,16 +36,13 @@ else:
 
 class HardwarePWMOutputDevice(HardwarePWM):
     HARDWARE_PWM_CHANNELS: dict[GpioPin, int] = {12: 0, 13: 1}
+    _started = False
 
     def __init__(
         self, pin: GpioPin, initial_dc: pt.FloatBetween0and100 = 0.0, frequency: float = 100
     ) -> None:
-        if (
-            pin not in self.HARDWARE_PWM_CHANNELS
-        ):  # Only GPIO pins 18 and 19 are supported for hardware PWM
-            raise ValueError(
-                "Only GPIO pins 12 (PWM channel 0) and 13 (PWM channel 1) are supported."
-            )
+        if pin not in self.HARDWARE_PWM_CHANNELS:  # Only GPIO pins 18 and 19 are supported for hardware PWM
+            raise ValueError("Only GPIO pins 12 (PWM channel 0) and 13 (PWM channel 1) are supported.")
 
         pwm_channel = self.HARDWARE_PWM_CHANNELS[pin]
         super().__init__(pwm_channel, hz=frequency)
@@ -53,6 +50,7 @@ class HardwarePWMOutputDevice(HardwarePWM):
 
     def start(self) -> None:
         super().start(self.dc)
+        self._started = True
 
     def off(self) -> None:
         self.dc = 0.0
@@ -63,20 +61,24 @@ class HardwarePWMOutputDevice(HardwarePWM):
 
     @dc.setter
     def dc(self, dc: pt.FloatBetween0and100) -> None:
-        dc = clamp(0.0, dc, 100.0)
-        self.change_duty_cycle(dc)
-        self._dc = dc
+        if self._started:
+            dc = clamp(0.0, dc, 100.0)
+            self.change_duty_cycle(dc)
+            self._dc = dc
+        else:
+            raise ValueError("must call .start() first!")
 
     def close(self) -> None:
         pass
 
 
 class SoftwarePWMOutputDevice:
+    _started = False
+
     def __init__(self, pin: GpioPin, initial_dc: pt.FloatBetween0and100 = 0.0, frequency=100):
         self.pin = pin
         self._dc = initial_dc
         self.frequency = frequency
-        self._started = False
         self._handle = lgpio.gpiochip_open(0)
 
         lgpio.gpio_claim_output(self._handle, self.pin)
@@ -103,6 +105,8 @@ class SoftwarePWMOutputDevice:
         self._dc = dc
         if self._started:
             lgpio.tx_pwm(self._handle, self.pin, self.frequency, self.dc)
+        else:
+            raise ValueError("must call .start() first!")
 
     def close(self):
         lgpio.gpiochip_close(self._handle)
@@ -173,9 +177,7 @@ class PWM:
             self.pubsub_client = pubsub_client
 
         if logger is None:
-            self.logger = create_logger(
-                f"PWM@GPIO-{pin}", experiment=self.experiment, unit=self.unit
-            )
+            self.logger = create_logger(f"PWM@GPIO-{pin}", experiment=self.experiment, unit=self.unit)
         else:
             self.logger = logger
 
