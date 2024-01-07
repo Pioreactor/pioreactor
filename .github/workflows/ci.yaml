@@ -22,8 +22,8 @@ jobs:
 
       - name: Install python libraries
         run: |
-          sudo apt-get install -y swig python-dev python3-dev
-          sudo apt-get install -y python-setuptools python3-setuptools
+          sudo apt-get install -y swig python3-dev
+          sudo apt-get install -y python3-setuptools
           wget https://github.com/Gadgetoid/PY_LGPIO/releases/download/0.2.2.0/lgpio-0.2.2.0.tar.gz -O lgpio-0.2.2.0.tar.gz
           pip install -e .
           pip install -r requirements/requirements_dev.txt
