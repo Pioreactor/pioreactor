@@ -27,7 +27,7 @@ jobs:
           pip install pyyaml
 
           wget https://github.com/Gadgetoid/PY_LGPIO/releases/download/0.2.2.0/lgpio-0.2.2.0.tar.gz -O lgpio-0.2.2.0.tar.gz
-          gunzip lgpio-0.2.2.0.tar.gz
+          tar -xvzf lgpio-0.2.2.0.tar.gz
           cd lgpio-0.2.2.0
           python setup.py develop
 
