@@ -63,10 +63,25 @@ const DisplayProfile = ({ data }) => {
             <br/>
           </>
         }
+
+        {data.plugins && data.plugins.length > 0 && (
+          <>
+          <Typography variant="body2">
+              <b>Plugins required:</b>
+          </Typography>
+          {(data.plugins).map(plugin => (
+              <Typography key={plugin.name} variant="body2" style={{ marginLeft: '2em' }}>
+                  {plugin.name} {plugin.version}
+              </Typography>
+          ))}
+          <br/>
+          </>
+        )}
+
         {data.labels && Object.keys(data.labels).length > 0 && (
           <>
           <Typography variant="body2">
-              <b>Labels:</b>
+              <b>Assign labels:</b>
           </Typography>
           {Object.keys(data.labels).map(worker => (
               <Typography key={worker} variant="body2" style={{ marginLeft: '2em' }}>
@@ -77,6 +92,8 @@ const DisplayProfile = ({ data }) => {
           </>
         )}
 
+
+
         {Object.keys(data.common).length > 0 &&
          <>
           <Typography variant="body2">
@@ -85,12 +102,12 @@ const DisplayProfile = ({ data }) => {
           {data.common && Object.keys(data.common).map(job => (
               <React.Fragment key={job}>
                 <Typography  variant="body2" style={{ marginLeft: '2em' }}>
-                    <b>Job</b>: {job}
+                    <b> {job}</b>:
                 </Typography>
                 {data.common[job].actions.sort((a, b) => a.hours_elapsed > b.hours_elapsed).map((action, index) => (
                     <React.Fragment key={`common-action-${index}`}>
                       <Typography variant="body2" style={{ marginLeft: '4em' }}>
-                          <b>Action {index + 1}</b>: {humanReadableDuration(action.type, action.hours_elapsed)}
+                          {index + 1}: {humanReadableDuration(action.type, action.hours_elapsed)}
                       </Typography>
                         {Object.keys(action.options || {}).map((option, index) => (
                           <Typography key={`common-${option}-${action}-${index}`} variant="body2" style={{ marginLeft: '8em' }}>
@@ -107,21 +124,24 @@ const DisplayProfile = ({ data }) => {
         {Object.keys(data.pioreactors).length > 0 && Object.keys(data.pioreactors).map(pioreactor => (
             <React.Fragment key={pioreactor}>
                 <Typography variant="body2">
-                    <b>{pioreactor} does:</b>
+                  <b>Pioreactor { pioreactor in data.labels ?
+                        <>{data.labels[pioreactor]} does:</>
+                      : <>{pioreactor} does:</>
+                  }</b>
                 </Typography>
                 {Object.keys(data.pioreactors[pioreactor].jobs).map(job => (
                     <React.Fragment key={`${pioreactor}-${job}`}>
                       <Typography key={`${pioreactor}-${job}`}  variant="body2" style={{ marginLeft: '2em' }}>
-                          <b>Job</b>: {job}
+                          <b> {job}</b>:
                       </Typography>
                       {data.pioreactors[pioreactor].jobs[job].actions.sort((a, b) => a.hours_elapsed > b.hours_elapsed).map((action, index) => (
                           <React.Fragment key={`${pioreactor}-action-${index}`}>
                             <Typography variant="body2" style={{ marginLeft: '4em' }}>
-                                <b>Action {index + 1}</b>: {humanReadableDuration(action.type, action.hours_elapsed)}
+                                {index + 1}: {humanReadableDuration(action.type, action.hours_elapsed)}
                             </Typography>
                               {Object.keys(action.options || {}).map( (option, index) => (
-                                <Typography key={`${pioreactor}-${option}-${action}-${index}`} variant="body2" style={{ marginLeft: '8em' }}>
-                                  {option}: {action.options[option]}
+                                <Typography key={`${pioreactor}-${option}-${action}-${index}`} variant="body2" style={{ marginLeft: '6em' }}>
+                                  set {option} to {action.options[option]}
                                 </Typography>
                               ))}
                           </React.Fragment>

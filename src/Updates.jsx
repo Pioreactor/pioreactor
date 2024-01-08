@@ -2,6 +2,7 @@ import clsx from 'clsx';
 
 import React from "react";
 import MarkdownView from 'react-showdown';
+import LoadingButton from '@mui/lab/LoadingButton';
 
 import Grid from '@mui/material/Grid';
 import { makeStyles } from '@mui/styles';
@@ -69,6 +70,7 @@ function UploadArchiveAndConfirm(props) {
   const classes = useStyles()
   const [selectedFile, setSelectedFile] = React.useState(null);
   const [errorMsg, setErrorMsg] = React.useState(null);
+  const [isUploading, setIsUploading] = React.useState(false);
   const handleClose = props.onClose
 
   const handleFileChange = (event) => {
@@ -84,6 +86,7 @@ function UploadArchiveAndConfirm(props) {
   };
 
   const handleFileUpload = async () => {
+    setIsUploading(true)
     const formData = new FormData();
     formData.append('file', selectedFile);
     try {
@@ -161,7 +164,7 @@ function UploadArchiveAndConfirm(props) {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose} color="secondary">Cancel</Button>
-          <Button disabled={selectedFile == null} onClick={handleUploadClick}>Update</Button>
+          <LoadingButton loading={isUploading} disabled={selectedFile == null} onClick={handleUploadClick}>Update</LoadingButton>
         </DialogActions>
       </Dialog>
     </React.Fragment>

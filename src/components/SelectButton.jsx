@@ -21,7 +21,7 @@ const SelectButton = React.forwardRef((
 ) => {
   const { textPrefix, onChange = () => {}, onClick = () => {}, value: initialValue, children } = props
   const classes = useStyles(props)
-  const anchorRef = (ref || React.useRef(null))
+  const anchorRef = React.useRef(null)
   const [isOpen, setOpen] = React.useState(false)
   const valueRef = React.useRef(initialValue)
   valueRef.current = initialValue

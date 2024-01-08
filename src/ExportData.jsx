@@ -329,6 +329,16 @@ const CheckboxesGroup = (props) => {
             </Typography>
           </div>
 
+          <div className={clsx(classes.datasetItem)}>
+            <FormControlLabel
+            control={<Checkbox checked={props.isChecked.ir_led_intensities} onChange={props.handleChange} name="ir_led_intensities" />}
+            label="IR LED intensities"
+            />
+            <Typography  className={classes.datasetDescription} gutterBottom>
+              This dataset contains a time series of the relative IR intensities used to normalized OD readings. Useful for debugging OD readings.
+            </Typography>
+          </div>
+
         </FormGroup>
       </FormControl>
     </div>
@@ -366,6 +376,7 @@ function ExportDataContainer() {
       dosing_automation_events: false || queryParams.get("dosing_automation_events") === "1",
       temperature_automation_events: false || queryParams.get("temperature_automation_events") === "1",
       pwm_dcs: false || queryParams.get("pwm_dcs") === "1",
+      ir_led_intensities: false || queryParams.get("ir_led_intensities") === "1",
       pioreactor_unit_activity_data_rollup: false || queryParams.get("pioreactor_unit_activity_data_rollup") === "1",
     }
   });

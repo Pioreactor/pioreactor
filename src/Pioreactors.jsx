@@ -488,7 +488,7 @@ function AddNewPioreactor(props){
         <p>After
 
         <ol>
-         <li> image installation is complete and,</li>
+         <li> worker image installation is complete and,</li>
          <li> the new Pioreactor worker is powered on, </li>
         </ol>
 
@@ -500,7 +500,7 @@ function AddNewPioreactor(props){
             id="new-pioreactor-name"
             label="Hostname"
             variant="outlined"
-            className={classes.textField}
+            className={classes.textFieldWide}
             onChange={handleNameChange}
             value={name}
             InputProps={{
@@ -615,7 +615,7 @@ function CalibrateDialog(props) {
   };
 
 
-  function createUserButtonsBasedOnState(jobState, job){
+  function createUserButtonsBasedOnState(jobState, job, always_disable=false){
 
     switch (jobState){
       case "disconnected":
@@ -625,6 +625,7 @@ function CalibrateDialog(props) {
                 variant="contained"
                 onClick={() => runPioreactorJob(props.unit, job)}
                 buttonText="Start"
+                disabled={always_disable}
                />
               </div>)
       case "ready":
@@ -633,7 +634,7 @@ function CalibrateDialog(props) {
                 color="primary"
                 variant="contained"
                 buttonText="Running"
-                disabled={true}
+                disabled={true || always_disable}
                />
               </div>)
       default:
@@ -641,9 +642,9 @@ function CalibrateDialog(props) {
     }
    }
 
-  const blankODButton = createUserButtonsBasedOnState(props.odBlankJobState, "od_blank")
+  const isGrowRateJobRunning = props.growthRateJobState === "ready"
+  const blankODButton = createUserButtonsBasedOnState(props.odBlankJobState, "od_blank", isGrowRateJobRunning)
   const stirringCalibrationButton = createUserButtonsBasedOnState(props.stirringCalibrationState, "stirring_calibration")
-
 
   return (
     <React.Fragment>
@@ -686,7 +687,7 @@ function CalibrateDialog(props) {
             </Typography>
             <Typography variant="body2" component="p" gutterBottom>
               For more accurate growth rate and biomass inferences, the Pioreactor can subtract out the
-              media's <b>un-inoculated</b> optical density <i>per experiment</i>. Read more about <a href="https://docs.pioreactor.com/user-guide/od-normal-growth-rate#blanking">using blanks</a>.
+              media's <i>un-inoculated</i> optical density <i>per experiment</i>. Read more about <a href="https://docs.pioreactor.com/user-guide/od-normal-growth-rate#blanking">using blanks</a>.
             </Typography>
             <Typography variant="body2" component="p" style={{margin: "20px 0px"}}>
               Recorded optical densities of blank vial: <code>{props.odBlankReading ? Object.entries(JSON.parse(props.odBlankReading)).map( ([k, v]) => `${k}:${v.toFixed(5)}` ).join(", ") : "—"}</code>
@@ -694,7 +695,7 @@ function CalibrateDialog(props) {
 
             <div style={{display: "flex"}}>
               {blankODButton}
-              <div><Button size="small" className={classes.patientButton} color="secondary" disabled={props.odBlankReading === null} onClick={() => runPioreactorJob(props.unit, "od_blank", ['delete']) }> Clear </Button></div>
+              <div><Button size="small" className={classes.patientButton} color="secondary" disabled={(props.odBlankReading === null) || (isGrowRateJobRunning)} onClick={() => runPioreactorJob(props.unit, "od_blank", ['delete']) }> Clear </Button></div>
             </div>
             <Divider className={classes.divider} />
 
@@ -1152,6 +1153,7 @@ function SettingsActionsDialog(props) {
   const versionInfo = JSON.parse(props.jobs.monitor.publishedSettings.versions.value || "{}")
   const voltageInfo = JSON.parse(props.jobs.monitor.publishedSettings.voltage_on_pwm_rail.value || "{}")
   const ipInfo = props.jobs.monitor.publishedSettings.ipv4.value
+  const macInfo = props.jobs.monitor.publishedSettings.wlan_mac_address.value
 
   const stateDisplay = {
     "init":          {display: "Starting", color: readyGreen},
@@ -1654,6 +1656,11 @@ function SettingsActionsDialog(props) {
 
             <Typography variant="body2" component="p">
               IPv4: <code className={classes.code}>{ipInfo}</code>
+            </Typography>
+
+
+            <Typography variant="body2" component="p">
+              WLAN MAC: <code className={classes.code}>{macInfo}</code>
             </Typography>
 
             <Typography variant="body2" component="p">
@@ -2473,6 +2480,9 @@ function PioreactorCard(props){
         ipv4: {
             value: null, label: null, type: "string", unit: null, display: false, description: null
         },
+        wlan_mac_address: {
+            value: null, label: null, type: "string", unit: null, display: false, description: null
+        },
       },
     },
   })
@@ -2673,6 +2683,7 @@ function PioreactorCard(props){
                   client={client}
                   odBlankReading={jobs['od_blank'] ? jobs['od_blank'].publishedSettings.means.value : null}
                   odBlankJobState={jobs['od_blank'] ? jobs['od_blank'].state : null}
+                  growthRateJobState={jobs['growth_rate_calculating'] ? jobs['growth_rate_calculating'].state : null}
                   stirringCalibrationState={jobs['stirring_calibration'] ? jobs['stirring_calibration'].state : null}
                   experiment={experiment}
                   unit={unit}

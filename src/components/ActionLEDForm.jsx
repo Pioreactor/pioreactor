@@ -26,6 +26,7 @@ export default function ActionLEDForm(props) {
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [intensity, setIntensity] = useState(EMPTYSTATE);
   const [errorForm, setErrorForm] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
   const validInput = (intensity) => {
     if (intensity !== EMPTYSTATE && re.test(intensity)){
@@ -39,7 +40,8 @@ export default function ActionLEDForm(props) {
   function onSubmit(e) {
     if (validInput(intensity)) {
       setErrorForm(false)
-      setOpenSnackbar(true);
+      setIsSubmitted(true)
+      setOpenSnackbar(true)
 
       const params = {[props.channel]: parseFloat(intensity), source_of_event: "UI"}
       runPioreactorJob(props.unit, "led_intensity", [], params)
@@ -53,7 +55,8 @@ export default function ActionLEDForm(props) {
 
   function onChange(e) {
     const proposedIntensity = e.target.value
-    setIntensity(proposedIntensity);
+    setIntensity(proposedIntensity)
+    setIsSubmitted(false)
     if (validInput(proposedIntensity)) {
       setErrorForm(false)
     } else if (proposedIntensity === EMPTYSTATE) {
@@ -101,7 +104,7 @@ export default function ActionLEDForm(props) {
           size="small"
           color="primary"
           onClick={onSubmit}
-          disabled={!validInput(intensity)}
+          disabled={(!validInput(intensity) || isSubmitted)}
           style={{marginLeft: "7px"}}
         >
           Update

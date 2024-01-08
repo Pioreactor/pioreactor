@@ -23,7 +23,6 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import { Link } from 'react-router-dom';
 import SelectButton from "./components/SelectButton";
-import VisibilityIcon from '@mui/icons-material/Visibility';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ViewTimelineOutlinedIcon from '@mui/icons-material/ViewTimelineOutlined';
 import PlayDisabledIcon from '@mui/icons-material/PlayDisabled';
