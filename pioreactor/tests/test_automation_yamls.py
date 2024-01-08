@@ -29,11 +29,11 @@ def test_automations_and_their_yamls_have_the_same_data():
             # check yaml -> settings
             for field in data["fields"]:
                 key = field["key"]
-                assert field["unit"] == klass.published_settings[key]["unit"]
+                assert field["unit"] == klass.published_settings[key]["unit"], (automation_name, field)
 
             # check settings -> yaml
             for setting in klass.published_settings:
-                assert any([f["key"] == setting for f in data["fields"]])
+                assert any([f["key"] == setting for f in data["fields"]]), (automation_name, setting)
 
         for automation_name, klass in DosingController.available_automations.items():
             if automation_name.startswith("_test"):
@@ -44,10 +44,10 @@ def test_automations_and_their_yamls_have_the_same_data():
 
             for field in data["fields"]:
                 key = field["key"]
-                assert field["unit"] == klass.published_settings[key]["unit"]
+                assert field["unit"] == klass.published_settings[key]["unit"], (automation_name, field)
 
             for setting in klass.published_settings:
-                assert any([f["key"] == setting for f in data["fields"]])
+                assert any([f["key"] == setting for f in data["fields"]]), (automation_name, setting)
 
         for automation_name, klass in TemperatureController.available_automations.items():
             if automation_name.startswith("_test"):
@@ -58,10 +58,10 @@ def test_automations_and_their_yamls_have_the_same_data():
 
             for field in data["fields"]:
                 key = field["key"]
-                assert field["unit"] == klass.published_settings[key]["unit"]
+                assert field["unit"] == klass.published_settings[key]["unit"], (automation_name, field)
 
             for setting in klass.published_settings:
-                assert any([f["key"] == setting for f in data["fields"]])
+                assert any([f["key"] == setting for f in data["fields"]]), (automation_name, setting)
     except Exception as e:
         print(automation_name, klass)
         raise e
