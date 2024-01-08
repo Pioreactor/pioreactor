@@ -20,6 +20,7 @@ from pioreactor.types import GpioPin
 from pioreactor.utils import clamp
 from pioreactor.utils import gpio_helpers
 from pioreactor.utils import local_intermittent_storage
+from pioreactor.version import rpi_version_info
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
@@ -45,7 +46,12 @@ class HardwarePWMOutputDevice(HardwarePWM):
             raise ValueError("Only GPIO pins 12 (PWM channel 0) and 13 (PWM channel 1) are supported.")
 
         pwm_channel = self.HARDWARE_PWM_CHANNELS[pin]
-        super().__init__(pwm_channel, hz=frequency)
+
+        if rpi_version_info.startswith("Raspberry Pi 5"):
+            super().__init__(pwm_channel, hz=frequency, chip=2)
+        else:
+            super().__init__(pwm_channel, hz=frequency)  # default is chip=0
+
         self._dc = initial_dc
 
     def start(self) -> None:

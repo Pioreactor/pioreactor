@@ -177,7 +177,7 @@ if is_testing_env():
     from rpi_hardware_pwm import HardwarePWM
 
     class MockHardwarePWM(HardwarePWM):
-        def __init__(self, pwm_channel: int, hz: float) -> None:
+        def __init__(self, pwm_channel: int, hz: float, chip: int = 0) -> None:
             self.pwm_channel = pwm_channel
             self._hz = hz
             self.pwm_dir = ""

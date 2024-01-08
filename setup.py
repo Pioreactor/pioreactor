@@ -39,7 +39,7 @@ WORKER_REQUIREMENTS = [
     "adafruit-circuitpython-ads1x15==2.2.23",
     "DAC43608==0.2.7",
     "TMP1075==0.2.1",
-    "rpi-hardware-pwm==0.1.4",
+    "rpi-hardware-pwm==0.2.1",
     "plotext==5.2.8",
 ]
 
