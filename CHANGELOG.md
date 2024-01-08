@@ -1,7 +1,9 @@
 ### Upcoming
 
 #### Enhancements
- - Support for RPi5! To use an RPi5, we recommend not upgrading the software, but using a fresh install. Under the hood: we are using a new route to load the firmware on the HATs RP2040, which was the blocker previously.
+ - Initial support for RPi5! To use an RPi5, we recommend not upgrading the software, but using a fresh install. Under the hood:
+  - we are using a new route to load the firmware on the HATs RP2040 (using `linuxgpio`)
+  - the hardware PWMs on the RPi5 use a different chip location. This required a new `rpi_hardware_pwm` release.
  - new ENV variable, `HAT_PRESENT=1`, can be set to skip `is_HAT_present` checks.
  - added the RPis unique MAC addresses to the `Manage -> System` tab on the Pioreactors page.
  - added table `ir_led_intensities` to be able to be exported on the Exports page.

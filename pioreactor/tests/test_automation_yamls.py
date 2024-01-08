@@ -24,7 +24,7 @@ def test_automations_and_their_yamls_have_the_same_data():
                 continue
 
             data = get_specific_yaml(f"contrib/automations/led/{automation_name}.yaml")
-            assert data["automation_name"] == automation_name
+            assert data["automation_name"] == automation_name, automation_name
 
             # check yaml -> settings
             for field in data["fields"]:
@@ -40,7 +40,7 @@ def test_automations_and_their_yamls_have_the_same_data():
                 continue
 
             data = get_specific_yaml(f"contrib/automations/dosing/{automation_name}.yaml")
-            assert data["automation_name"] == automation_name
+            assert data["automation_name"] == automation_name, automation_name
 
             for field in data["fields"]:
                 key = field["key"]
@@ -54,7 +54,7 @@ def test_automations_and_their_yamls_have_the_same_data():
                 continue
 
             data = get_specific_yaml(f"contrib/automations/temperature/{automation_name}.yaml")
-            assert data["automation_name"] == automation_name
+            assert data["automation_name"] == automation_name, automation_name
 
             for field in data["fields"]:
                 key = field["key"]
