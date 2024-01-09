@@ -1,7 +1,7 @@
 ### Upcoming
 
 #### Enhancements
- - Initial support for RPi5! To use an RPi5, we recommend not upgrading the software, but using a fresh install. Under the hood:
+ - Initial support for RPi5! To use an RPi5, we recommend not upgrading the software, but using a fresh image install. Under the hood:
   - we are using a new route to load the firmware on the HATs RP2040 (using `linuxgpio`)
   - the hardware PWMs on the RPi5 use a different chip location. This required a new `rpi_hardware_pwm` release.
  - new ENV variable, `HAT_PRESENT=1`, can be set to skip `is_HAT_present` checks.
@@ -9,6 +9,11 @@
  - added table `ir_led_intensities` to be able to be exported on the Exports page.
  - added a new `smoothing_penalizer` config option to `[od_config]`. This parameter, which has default value 700, controls how much smoothing to apply to optical density measurements. This smoothing has always been applied, but now it's a config option.
  - Cleaned up some UI interactions
+
+#### Breaking changes
+ - `PWM` class is no longer initialized with a `duty_cycle`, instead:
+ - `PWM` class must be started with `start(initial_duty_cyle)`
+ - moved `get_rpi_machine` to `pioreactor.version`
 
 #### Bug fixes
  - Ack! I reintroduced a UI export bug. Fix is present going forward. For existing users, try the following: https://forum.pioreactor.com/t/new-pioreactor-release-23-11-18/179/2
