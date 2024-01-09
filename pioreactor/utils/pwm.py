@@ -39,9 +39,7 @@ class HardwarePWMOutputDevice(HardwarePWM):
     HARDWARE_PWM_CHANNELS: dict[GpioPin, int] = {12: 0, 13: 1}
     _started = False
 
-    def __init__(
-        self, pin: GpioPin, initial_dc: pt.FloatBetween0and100 = 0.0, frequency: float = 100
-    ) -> None:
+    def __init__(self, pin: GpioPin, frequency: float = 100) -> None:
         if pin not in self.HARDWARE_PWM_CHANNELS:  # Only GPIO pins 18 and 19 are supported for hardware PWM
             raise ValueError("Only GPIO pins 12 (PWM channel 0) and 13 (PWM channel 1) are supported.")
 
@@ -52,11 +50,10 @@ class HardwarePWMOutputDevice(HardwarePWM):
         else:
             super().__init__(pwm_channel, hz=frequency)  # default is chip=0
 
-        self._dc = initial_dc
-
-    def start(self) -> None:
-        super().start(self.dc)
+    def start(self, initial_dc: pt.FloatBetween0and100) -> None:
         self._started = True
+        super().start(initial_dc)
+        self._dc = initial_dc
 
     def off(self) -> None:
         self.dc = 0.0
@@ -81,17 +78,17 @@ class HardwarePWMOutputDevice(HardwarePWM):
 class SoftwarePWMOutputDevice:
     _started = False
 
-    def __init__(self, pin: GpioPin, initial_dc: pt.FloatBetween0and100 = 0.0, frequency=100):
+    def __init__(self, pin: GpioPin, frequency=100):
         self.pin = pin
-        self._dc = initial_dc
         self.frequency = frequency
         self._handle = lgpio.gpiochip_open(0)
 
         lgpio.gpio_claim_output(self._handle, self.pin)
         lgpio.tx_pwm(self._handle, self.pin, self.frequency, self.dc)
 
-    def start(self):
+    def start(self, initial_dc: pt.FloatBetween0and100):
         self._started = True
+        self.dc = initial_dc
         lgpio.tx_pwm(self._handle, self.pin, self.frequency, self.dc)
 
     def off(self):
@@ -202,16 +199,16 @@ class PWM:
         self._pwm: HardwarePWMOutputDevice | SoftwarePWMOutputDevice | MockPWMOutputDevice
 
         if is_testing_env():
-            self._pwm = MockPWMOutputDevice(self.pin, 0, self.hz)
+            self._pwm = MockPWMOutputDevice(self.pin, self.hz)
         elif (not always_use_software) and (pin in self.HARDWARE_PWM_CHANNELS):
-            self._pwm = HardwarePWMOutputDevice(self.pin, 0, self.hz)
+            self._pwm = HardwarePWMOutputDevice(self.pin, self.hz)
         else:
             if self.hz >= 1000:
                 self.logger.warning(
                     "Setting a PWM to a very high frequency with software. Did you mean to use a hardware PWM?"
                 )
 
-            self._pwm = SoftwarePWMOutputDevice(self.pin, 0, self.hz)
+            self._pwm = SoftwarePWMOutputDevice(self.pin, self.hz)
 
         with local_intermittent_storage("pwm_hz") as cache:
             cache[self.pin] = self.hz
@@ -254,8 +251,9 @@ class PWM:
         if not (0.0 <= duty_cycle <= 100.0):
             raise PWMError("duty_cycle should be between 0 and 100, inclusive.")
 
-        self.change_duty_cycle(duty_cycle)
-        self._pwm.start()
+        self._pwm.start(duty_cycle)
+        self.duty_cycle = round(float(duty_cycle), 5)
+        self._serialize()
 
     def stop(self) -> None:
         self._pwm.off()

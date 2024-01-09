@@ -133,7 +133,7 @@ class MockPWMOutputDevice:
         self._dc = initial_dc
         self.frequency = frequency
 
-    def start(self):
+    def start(self, initial_dc: pt.FloatBetween0and100):
         pass
 
     def off(self):
