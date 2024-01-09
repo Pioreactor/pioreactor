@@ -84,7 +84,7 @@ class SoftwarePWMOutputDevice:
         self._handle = lgpio.gpiochip_open(0)
 
         lgpio.gpio_claim_output(self._handle, self.pin)
-        lgpio.tx_pwm(self._handle, self.pin, self.frequency, self.dc)
+        lgpio.tx_pwm(self._handle, self.pin, self.frequency, 0)
 
     def start(self, initial_dc: pt.FloatBetween0and100):
         self._started = True
@@ -189,7 +189,7 @@ class PWM:
         self.duty_cycle = 0.0
 
         if self.is_locked():
-            msg = f"GPIO-{self.pin} is currently locked but a task is overwriting it. Either too many jobs are trying to access this pin, or a job didn't clean up properly."
+            msg = f"GPIO-{self.pin} is currently locked but a task is overwriting it. Either too many jobs are trying to access this pin, or a job didn't clean up properly. If your confident you can release it, use `pio clear-cache pwm_locks {self.pin} --as-int` on the command line for {self.unit}."
 
             self.logger.error(msg)
             raise PWMError(msg)
