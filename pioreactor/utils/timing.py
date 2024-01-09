@@ -13,7 +13,7 @@ from time import perf_counter
 
 
 @contextmanager
-def catchtime() -> t.Generator[t.Callable, None, None]:
+def catchtime() -> t.Generator[t.Callable[[], float], None, None]:
     """
     A context manager that measures the elapsed time between entering and exiting the context.
 

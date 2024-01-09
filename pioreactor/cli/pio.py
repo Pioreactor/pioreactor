@@ -34,7 +34,7 @@ from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.networking import add_local
 from pioreactor.utils.networking import is_using_local_access_point
-
+from pioreactor.utils.timing import catchtime
 
 JOBS_TO_SKIP_KILLING = [
     # this is used in `pio kill --all-jobs`, but accessible so that plugins can edit it.
@@ -725,21 +725,23 @@ if whoami.am_I_leader():
         hostname = hostname.removesuffix(".local")
         hostname_dot_local = hostname + ".local"
 
-        # check to make sure hostname.local is on network
-        checks, max_checks = 0, 20
+        # check to make sure <hostname>.local is on network
+        checks, max_checks = 0, 15
         sleep_time = 3
-        while not networking.is_hostname_on_network(hostname_dot_local):
-            checks += 1
-            try:
-                socket.gethostbyname(hostname_dot_local)
-            except socket.gaierror:
-                sleep(sleep_time)
-                click.echo(f"`{hostname}` not found on network - checking again.")
-                if checks >= max_checks:
-                    logger.error(
-                        f"`{hostname}` not found on network after more than {max_checks * sleep_time} seconds. Check that you provided the right i) WiFi credentials to the network, ii) the name is correct, the iii) Raspberry Pi is turned on."
-                    )
-                    raise click.Abort()
+
+        with catchtime() as elapsed:
+            while not networking.is_hostname_on_network(hostname_dot_local):
+                checks += 1
+                try:
+                    socket.gethostbyname(hostname_dot_local)
+                except socket.gaierror:
+                    sleep(sleep_time)
+                    click.echo(f"`{hostname}` not found on network - checking again.")
+                    if checks >= max_checks:
+                        logger.error(
+                            f"`{hostname}` not found on network after {round(elapsed())} seconds. Check that you provided the right i) WiFi credentials to the network, ii) the hostname is correct, the iii) worker is turned on."
+                        )
+                        raise click.Abort()
 
         res = subprocess.run(
             ["bash", "/usr/local/bin/add_new_pioreactor_worker_from_leader.sh", hostname, password],
