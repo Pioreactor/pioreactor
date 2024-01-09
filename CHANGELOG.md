@@ -1,4 +1,4 @@
-### Upcoming
+### 24.1.9
 
 #### Enhancements
  - Initial support for RPi5! To use an RPi5, we recommend not upgrading the software, but using a fresh image install. Under the hood:
