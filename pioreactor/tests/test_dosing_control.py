@@ -1493,7 +1493,7 @@ def test_adding_pumps_and_calling_them_from_execute_io_action() -> None:
     unit = get_unit_name()
 
     class ExternalAutomation(DosingAutomationJob):
-        automation_name = "external_automation"
+        automation_name = "_test_external_automation"
 
         def add_salty_media_to_bioreactor(self, unit, experiment, ml, source_of_event):
             self.logger.info(f"dosing {ml / 2}mL from salty")
@@ -1513,7 +1513,7 @@ def test_adding_pumps_and_calling_them_from_execute_io_action() -> None:
             return
 
     with start_dosing_control(
-        "external_automation",
+        "_test_external_automation",
         5,
         False,
         unit,

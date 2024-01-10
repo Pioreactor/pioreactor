@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import time
 from collections import defaultdict
 from pathlib import Path
-from threading import Timer
+from sched import scheduler
 from typing import Callable
 
 import click
@@ -19,8 +20,6 @@ from pioreactor.utils import publish_ready_to_disconnected_state
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
-
-ACTION_COUNT_LIMIT = 248
 
 
 def _led_intensity_hack(action: struct.Action) -> struct.Action:
@@ -46,7 +45,7 @@ def _led_intensity_hack(action: struct.Action) -> struct.Action:
             raise ValueError
 
 
-def execute_action(
+def wrapped_execute_action(
     unit: str,
     experiment: str,
     job_name: str,
@@ -122,14 +121,10 @@ def stop_job(unit: str, experiment: str, job_name: str, dry_run: bool, logger) -
     if dry_run:
         return lambda: logger.info(f"Dry-run: Stopping {job_name} on {unit}.")
     else:
-        return lambda: publish(
-            f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "disconnected"
-        )
+        return lambda: publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "disconnected")
 
 
-def update_job(
-    unit: str, experiment: str, job_name: str, options: dict, dry_run: bool, logger
-) -> Callable:
+def update_job(unit: str, experiment: str, job_name: str, options: dict, dry_run: bool, logger) -> Callable:
     if dry_run:
 
         def _update():
@@ -153,7 +148,6 @@ def _verify_experiment_profile(profile: struct.Profile) -> struct.Profile:
     # things to check for:
     # 1. Don't "stop" any *_automations
     # 2. Don't change generic settings on *_controllers, (Ex: changing target temp on temp_controller is wrong)
-    # 3. Current limitation with this architecture. We can't create more than 248 threads.
 
     actions_per_job = defaultdict(list)
 
@@ -176,29 +170,18 @@ def _verify_experiment_profile(profile: struct.Profile) -> struct.Profile:
         return True
 
     for automation_type in ["temperature_automation", "dosing_automation", "led_automation"]:
-        assert all(
-            check_for_not_stopping_automations(act) for act in actions_per_job[automation_type]
-        )
+        assert all(check_for_not_stopping_automations(act) for act in actions_per_job[automation_type])
 
     # 2.
     def check_for_settings_change_on_controllers(action: struct.Action) -> bool:
         match action:
             case struct.Update(_, options):
                 if "automation_name" not in options:
-                    raise ValueError(
-                        f"Update automations, not controllers, with settings: {action}."
-                    )
+                    raise ValueError(f"Update automations, not controllers, with settings: {action}.")
         return True
 
     for control_type in ["temperature_control", "dosing_control", "led_control"]:
-        assert all(
-            check_for_settings_change_on_controllers(act) for act in actions_per_job[control_type]
-        )
-
-    # 3.
-    assert (
-        sum(len(x) for x in actions_per_job.values()) < ACTION_COUNT_LIMIT
-    ), f"Too many actions. Must be less than {ACTION_COUNT_LIMIT}. Contact the Pioreactor authors."
+        assert all(check_for_settings_change_on_controllers(act) for act in actions_per_job[control_type])
 
     return profile
 
@@ -214,7 +197,7 @@ def load_and_verify_profile(profile_filename: str) -> struct.Profile:
     return profile
 
 
-def publish_labels_to_ui(labels_map: dict[str, str]) -> None:
+def push_labels_to_ui(labels_map: dict[str, str]) -> None:
     try:
         for unit_name, label in labels_map.items():
             put(
@@ -236,6 +219,11 @@ def get_installed_packages() -> dict[str, str]:
 
 def check_plugins(plugins: list[struct.Plugin]) -> None:
     """Check if the specified packages with versions are installed"""
+
+    if not plugins:
+        # this can be slow, so skip it if no plugins are needed
+        return
+
     installed_packages = get_installed_packages()
     not_installed = []
 
@@ -274,7 +262,7 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
             logger.error(e)
             raise e
 
-        publish(
+        state.mqtt_client.publish(
             f"pioreactor/{unit}/{experiment}/{action_name}/experiment_profile_name",
             profile.experiment_profile_name,
             retain=True,
@@ -297,16 +285,17 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
             raise e
 
         labels_to_units = {v: k for k, v in profile.labels.items()}
-        publish_labels_to_ui(profile.labels)
+        push_labels_to_ui(profile.labels)
 
-        timers = []
+        s = scheduler()
 
         # process common jobs
         for job in profile.common:
             for action in profile.common[job]["actions"]:
-                t = Timer(
-                    hours_to_seconds(action.hours_elapsed),
-                    execute_action(
+                s.enter(
+                    delay=hours_to_seconds(action.hours_elapsed),
+                    priority=0,
+                    action=wrapped_execute_action(
                         UNIVERSAL_IDENTIFIER,
                         experiment,
                         job,
@@ -315,19 +304,18 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
                         dry_run,
                     ),
                 )
-                t.daemon = True
-                timers.append(t)
 
         # process specific jobs
         for unit_or_label in profile.pioreactors:
-            _unit = labels_to_units.get(unit_or_label, unit_or_label)
+            unit = labels_to_units.get(unit_or_label, unit_or_label)
             jobs = profile.pioreactors[unit_or_label]["jobs"]
             for job in jobs:
                 for action in jobs[job]["actions"]:
-                    t = Timer(
-                        hours_to_seconds(action.hours_elapsed),
-                        execute_action(
-                            _unit,
+                    s.enter(
+                        delay=hours_to_seconds(action.hours_elapsed),
+                        priority=0,
+                        action=wrapped_execute_action(
+                            unit,
                             experiment,
                             job,
                             logger,
@@ -335,18 +323,21 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
                             dry_run,
                         ),
                     )
-                    t.daemon = True
-                    timers.append(t)
 
-        logger.debug(f"Starting execution of {len(timers)} actions.")
-        for timer in timers:
-            timer.start()
+        logger.debug(f"Starting execution of {len(s.queue)} actions.")
 
         try:
-            while any((timer.is_alive() for timer in timers)) and not state.exit_event.wait(10):
-                pass
+            # try / finally to handle keyboard interrupts
+
+            # the below is so the schedule can be canceled by setting the event.
+            while not state.exit_event.wait(timeout=0):
+                next_ev = s.run(blocking=False)
+                if next_ev is not None:
+                    time.sleep(min(1, next_ev))
+                else:
+                    break
         finally:
-            publish(
+            state.mqtt_client.publish(
                 f"pioreactor/{unit}/{experiment}/{action_name}/experiment_profile_name",
                 None,
                 retain=True,
@@ -354,9 +345,7 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
 
             if state.exit_event.is_set():
                 # ended early
-                for timer in timers:
-                    timer.cancel()
-                logger.notice(f"Exiting profile {profile.experiment_profile_name} early.")  # type: ignore
+                logger.notice(f"Exiting profile {profile.experiment_profile_name} early: {len(s.queue)} actions not started.")  # type: ignore
             else:
                 if dry_run:
                     logger.notice(  # type: ignore
