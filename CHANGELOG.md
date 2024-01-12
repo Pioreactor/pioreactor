@@ -1,4 +1,4 @@
-### Upcoming
+### 24.1.12
 
 #### Enhancements
  - optimized performance and memory consumption of experiment profiles.
