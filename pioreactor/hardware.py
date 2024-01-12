@@ -4,6 +4,7 @@ from __future__ import annotations
 from os import environ
 
 from pioreactor.types import AdcChannel
+from pioreactor.types import GpioChip
 from pioreactor.types import GpioPin
 from pioreactor.types import I2CPin
 from pioreactor.types import PdChannel
@@ -26,6 +27,7 @@ PWM_TO_PIN: dict[PwmChannel, GpioPin] = {
     HEATER_PWM_TO_PIN: 18,  # dedicated to heater
 }
 
+
 # led and button GPIO pins
 PCB_LED_PIN: GpioPin = 23
 PCB_BUTTON_PIN: GpioPin = 24 if (0, 0) < hardware_version_info <= (1, 0) else 4
@@ -33,10 +35,19 @@ PCB_BUTTON_PIN: GpioPin = 24 if (0, 0) < hardware_version_info <= (1, 0) else 4
 # hall sensor
 HALL_SENSOR_PIN: GpioPin = 25 if (0, 0) < hardware_version_info <= (1, 0) else 21
 
-# I2C GPIO pins
-# TODO: generalize this better
-SDA: I2CPin = 2 if not rpi_version_info.startswith("Raspberry Pi 5") else (4, 2)
-SCL: I2CPin = 3 if not rpi_version_info.startswith("Raspberry Pi 5") else (4, 3)
+
+GPIOCHIP: GpioChip
+SDA: I2CPin
+SCL: I2CPin
+
+if rpi_version_info.startswith("Raspberry Pi 5"):
+    GPIOCHIP = 4
+    SDA = (4, 2)
+    SCL = (4, 3)
+else:
+    GPIOCHIPg = 0
+    SDA = 2
+    SCL = 3
 
 
 # I2C channels used

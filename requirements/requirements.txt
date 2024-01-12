@@ -4,7 +4,7 @@ psutil==5.9.5
 sh==2.0.6
 JSON-log-formatter==0.5.1
 colorlog==6.7.0
-msgspec==0.18.4
+msgspec==0.18.5
 diskcache==5.6.3
 wheel==0.41.2
 crudini==0.9.5

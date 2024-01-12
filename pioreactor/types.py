@@ -138,5 +138,7 @@ GpioPin = t.Literal[
 
 I2CPin = t.Union[GpioPin, tuple[int, GpioPin]]
 
+GpioChip = t.Literal[0, 4]
+
 mL = float
 Seconds = float

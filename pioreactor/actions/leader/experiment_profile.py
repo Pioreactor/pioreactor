@@ -52,7 +52,7 @@ def wrapped_execute_action(
     logger,
     action: struct.Action,
     dry_run: bool = False,
-) -> Callable:
+) -> Callable[..., None]:
     # hack...
     if job_name == "led_intensity":
         action = _led_intensity_hack(action)
@@ -82,7 +82,7 @@ def wrapped_execute_action(
 
 def log(
     unit: str, experiment: str, job_name: str, options: struct._LogOptions, dry_run: bool, logger
-) -> Callable:
+) -> Callable[..., None]:
     level = options.level.lower()
     return lambda: getattr(logger, level)(
         options.message.format(unit=unit, job=job_name, experiment=experiment)
@@ -91,7 +91,7 @@ def log(
 
 def start_job(
     unit: str, experiment: str, job_name: str, options: dict, args: list, dry_run: bool, logger
-) -> Callable:
+) -> Callable[..., None]:
     if dry_run:
         return lambda: logger.info(
             f"Dry-run: Starting {job_name} on {unit} with options {options} and args {args}."
@@ -103,28 +103,30 @@ def start_job(
         )
 
 
-def pause_job(unit: str, experiment: str, job_name: str, dry_run: bool, logger) -> Callable:
+def pause_job(unit: str, experiment: str, job_name: str, dry_run: bool, logger) -> Callable[..., None]:
     if dry_run:
         return lambda: logger.info(f"Dry-run: Pausing {job_name} on {unit}.")
     else:
         return lambda: publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "sleeping")
 
 
-def resume_job(unit: str, experiment: str, job_name: str, dry_run: bool, logger) -> Callable:
+def resume_job(unit: str, experiment: str, job_name: str, dry_run: bool, logger) -> Callable[..., None]:
     if dry_run:
         return lambda: logger.info(f"Dry-run: Resuming {job_name} on {unit}.")
     else:
         return lambda: publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "ready")
 
 
-def stop_job(unit: str, experiment: str, job_name: str, dry_run: bool, logger) -> Callable:
+def stop_job(unit: str, experiment: str, job_name: str, dry_run: bool, logger) -> Callable[..., None]:
     if dry_run:
         return lambda: logger.info(f"Dry-run: Stopping {job_name} on {unit}.")
     else:
         return lambda: publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "disconnected")
 
 
-def update_job(unit: str, experiment: str, job_name: str, options: dict, dry_run: bool, logger) -> Callable:
+def update_job(
+    unit: str, experiment: str, job_name: str, options: dict, dry_run: bool, logger
+) -> Callable[..., None]:
     if dry_run:
 
         def _update():

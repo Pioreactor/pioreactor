@@ -12,6 +12,7 @@ import lgpio
 
 from pioreactor import types as pt
 from pioreactor.exc import PWMError
+from pioreactor.hardware import GPIOCHIP
 from pioreactor.logging import create_logger
 from pioreactor.logging import Logger
 from pioreactor.pubsub import Client
@@ -81,7 +82,7 @@ class SoftwarePWMOutputDevice:
     def __init__(self, pin: GpioPin, frequency=100):
         self.pin = pin
         self.frequency = frequency
-        self._handle = lgpio.gpiochip_open(0)
+        self._handle = lgpio.gpiochip_open(GPIOCHIP)
 
         lgpio.gpio_claim_output(self._handle, self.pin)
         lgpio.tx_pwm(self._handle, self.pin, self.frequency, 0)
