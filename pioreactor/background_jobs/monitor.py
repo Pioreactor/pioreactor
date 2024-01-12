@@ -190,6 +190,7 @@ class Monitor(BackgroundJob):
     def check_for_network(self) -> None:
         if whoami.is_testing_env():
             self.ipv4 = "127.0.0.1"
+            self.wlan_mac_address = "d8:3a:dd:61:01:59"
         else:
             ipv4 = get_ip()
             while ipv4 == "127.0.0.1" or ipv4 is None:
@@ -201,8 +202,8 @@ class Monitor(BackgroundJob):
 
             self.ipv4 = ipv4
 
-        with open("/sys/class/net/wlan0/address", "r") as f:
-            self.wlan_mac_address = f.read().strip()
+            with open("/sys/class/net/wlan0/address", "r") as f:
+                self.wlan_mac_address = f.read().strip()
 
         self.logger.debug(f"IPv4 address: {self.ipv4}")
         self.logger.debug(f"WLAN MAC address: {self.wlan_mac_address}")

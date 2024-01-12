@@ -1,7 +1,11 @@
 ### Upcoming
- - fix initial state of boolean switches in UI
- - optimized performance and memory consumption of experiment profiles
 
+#### Enhancements
+ - optimized performance and memory consumption of experiment profiles.
+
+#### Bug fixes
+ - fix initial state of boolean switches in UI.
+ - fix Raspberry Pi 5 not addressing PWMs correctly.
 
 ### 24.1.9
 

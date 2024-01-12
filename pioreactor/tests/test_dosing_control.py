@@ -1315,7 +1315,7 @@ def test_execute_io_respects_dilutions_ratios() -> None:
             return events.DilutionEvent(data=cycled)
 
     with start_dosing_control(
-        "chemostat_alt_media",
+        "_test_chemostat_alt_media",
         2,
         False,
         unit,
@@ -1330,7 +1330,7 @@ def test_execute_io_respects_dilutions_ratios() -> None:
 
     # change fraction_alt_media to increase alt_media being added
     with start_dosing_control(
-        "chemostat_alt_media", 2, False, unit, experiment, volume=2.0, fraction_alt_media=1.0
+        "_test_chemostat_alt_media", 2, False, unit, experiment, volume=2.0, fraction_alt_media=1.0
     ) as controller:
         assert controller.automation_job.alt_media_fraction == 0.5
         pause(n=20)

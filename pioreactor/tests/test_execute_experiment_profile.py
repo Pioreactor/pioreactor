@@ -8,7 +8,6 @@ import pytest
 from pioreactor.actions.leader.experiment_profile import execute_experiment_profile
 from pioreactor.actions.leader.experiment_profile import hours_to_seconds
 from pioreactor.experiment_profiles.profile_struct import _LogOptions
-from pioreactor.experiment_profiles.profile_struct import Action
 from pioreactor.experiment_profiles.profile_struct import Log
 from pioreactor.experiment_profiles.profile_struct import Metadata
 from pioreactor.experiment_profiles.profile_struct import Profile
@@ -208,22 +207,4 @@ def test_execute_experiment_start_controller_and_stop_automation_fails(
     mock__load_experiment_profile.return_value = profile
 
     with pytest.raises(ValueError, match="stop"):
-        execute_experiment_profile("profile.yaml")
-
-
-@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
-def test_execute_experiment_too_many_actions(mock__load_experiment_profile) -> None:
-    actions: list[Action] = []
-    for _ in range(250):
-        actions.append(Start(hours_elapsed=0 / 60 / 60))
-
-    profile = Profile(
-        experiment_profile_name="test_profile",
-        common={"dummy": {"actions": actions}},
-        metadata=Metadata(author="test_author"),
-    )
-
-    mock__load_experiment_profile.return_value = profile
-
-    with pytest.raises(AssertionError, match="248"):
         execute_experiment_profile("profile.yaml")
