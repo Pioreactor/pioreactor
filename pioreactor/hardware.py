@@ -45,7 +45,7 @@ if rpi_version_info.startswith("Raspberry Pi 5"):
     SDA = (4, 2)
     SCL = (4, 3)
 else:
-    GPIOCHIPg = 0
+    GPIOCHIP = 0
     SDA = 2
     SCL = 3
 
