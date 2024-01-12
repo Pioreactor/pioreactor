@@ -22,6 +22,7 @@ from pioreactor.config import config
 from pioreactor.config import get_config
 from pioreactor.config import leader_address
 from pioreactor.config import leader_hostname
+from pioreactor.hardware import GPIOCHIP
 from pioreactor.hardware import is_HAT_present
 from pioreactor.hardware import PCB_BUTTON_PIN as BUTTON_PIN
 from pioreactor.hardware import PCB_LED_PIN as LED_PIN
@@ -168,7 +169,7 @@ class Monitor(BackgroundJob):
         set_gpio_availability(LED_PIN, False)
 
         if not whoami.is_testing_env():
-            self._handle = lgpio.gpiochip_open(0)
+            self._handle = lgpio.gpiochip_open(GPIOCHIP)
 
             # Set LED_PIN as output and initialize to low
             lgpio.gpio_claim_output(self._handle, LED_PIN)

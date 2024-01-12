@@ -61,7 +61,7 @@ class RpmCalculator:
         set_gpio_availability(hardware.HALL_SENSOR_PIN, False)
 
         if not is_testing_env():
-            self._handle = lgpio.gpiochip_open(0)
+            self._handle = lgpio.gpiochip_open(hardware.GPIOCHIP)
             lgpio.gpio_claim_input(self._handle, hardware.HALL_SENSOR_PIN, lgpio.SET_PULL_UP)
 
             lgpio.gpio_claim_alert(
