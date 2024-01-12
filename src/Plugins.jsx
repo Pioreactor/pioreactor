@@ -104,7 +104,7 @@ function InstallByNameDialog(props){
 
   const onSubmit = () => {
     setSnackbarOpen(true);
-    setSnackbarMsg(`Installing ${text} in the background...`);
+    setSnackbarMsg(`Installing ${text} in the background - this may take a minute...`);
     fetch('/api/install_plugin', {
       method: "POST",
       body: JSON.stringify({plugin_name: text}),
@@ -221,7 +221,7 @@ function ListSuggestedPlugins({alreadyInstalledPluginsNames}){
 
   const installPlugin = (plugin_name) => () => {
       setSnackbarOpen(true);
-      setSnackbarMsg(`Installing ${plugin_name} in the background...`);
+      setSnackbarMsg(`Installing ${plugin_name} in the background - this may take a minute...`);
       fetch('/api/install_plugin', {
         method: "POST",
         body: JSON.stringify({plugin_name: plugin_name}),

@@ -186,17 +186,6 @@ const useStyles = makeStyles((theme) => ({
   patientButton: {width: "70px", marginTop: "5px", height: "31px", marginRight: '3px'},
 }));
 
-function PythonBoolToJS(pythonBoolAsString){
-  if (pythonBoolAsString === "True"){
-    return true
-  } else if (pythonBoolAsString === "False"){
-    return false
-  }
-  else {
-    return null
-  }
-}
-
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -1658,14 +1647,14 @@ function SettingsActionsDialog(props) {
               IPv4: <code className={classes.code}>{ipInfo}</code>
             </Typography>
 
+            <Typography variant="body2" component="p">
+              Hostname: <code className={classes.code}>{props.unit}.local</code>
+            </Typography>
 
             <Typography variant="body2" component="p">
               WLAN MAC: <code className={classes.code}>{macInfo}</code>
             </Typography>
 
-            <Typography variant="body2" component="p">
-              Hostname: <code className={classes.code}>{props.unit}.local</code>
-            </Typography>
 
           <Divider className={classes.divider} />
 
@@ -2348,19 +2337,18 @@ function SettingTextField(props){
 
 
 function SettingSwitchField(props){
-    const [value, setValue] = useState(PythonBoolToJS(props.value) || false)
+    const [value, setValue] = useState(props.value || false)
 
     useEffect(() => {
       if (props.value !== value) {
-        setValue(PythonBoolToJS(props.value) || false);
+        setValue(props.value|| false);
       }
-    }, [props.value]);
+    }, [props]);
 
     const onChange = (e) => {
       setValue(e.target.checked)
       props.onUpdate(props.id,  e.target.checked ? 1 : 0);
-      const v = e.target.checked ? "on" : "off"
-      props.setSnackbarMessage(`Updating to ${v}.`)
+      props.setSnackbarMessage(`Updating to ${e.target.checked ? "on" : "off"}.`)
       props.setSnackbarOpen(true)
     }
 
