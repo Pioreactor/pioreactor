@@ -45,6 +45,24 @@ def _led_intensity_hack(action: struct.Action) -> struct.Action:
             raise ValueError
 
 
+def get_simple_priority(action):
+    match action:
+        case struct.Start():
+            return 0
+        case struct.Pause():
+            return 2
+        case struct.Resume():
+            return 3
+        case struct.Stop():
+            return 1
+        case struct.Update():
+            return 4
+        case struct.Log():
+            return 10
+        case _:
+            raise ValueError(f"Not a valid action: {action}")
+
+
 def wrapped_execute_action(
     unit: str,
     experiment: str,
@@ -296,7 +314,7 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
             for action in profile.common[job]["actions"]:
                 s.enter(
                     delay=hours_to_seconds(action.hours_elapsed),
-                    priority=0,
+                    priority=get_simple_priority(action),
                     action=wrapped_execute_action(
                         UNIVERSAL_IDENTIFIER,
                         experiment,
@@ -309,15 +327,15 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
 
         # process specific jobs
         for unit_or_label in profile.pioreactors:
-            unit = labels_to_units.get(unit_or_label, unit_or_label)
+            unit_ = labels_to_units.get(unit_or_label, unit_or_label)
             jobs = profile.pioreactors[unit_or_label]["jobs"]
             for job in jobs:
                 for action in jobs[job]["actions"]:
                     s.enter(
                         delay=hours_to_seconds(action.hours_elapsed),
-                        priority=0,
+                        priority=get_simple_priority(action),
                         action=wrapped_execute_action(
-                            unit,
+                            unit_,
                             experiment,
                             job,
                             logger,

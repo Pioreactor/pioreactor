@@ -1293,7 +1293,7 @@ def test_execute_io_respects_dilutions_ratios() -> None:
     experiment = "test_execute_io_respects_dilutions_ratios"
 
     class ChemostatAltMedia(DosingAutomationJob):
-        automation_name = "chemostat_alt_media"
+        automation_name = "_test_chemostat_alt_media"
         published_settings = {
             "volume": {"datatype": "float", "settable": True, "unit": "mL"},
             "duration": {"datatype": "float", "settable": True, "unit": "min"},
