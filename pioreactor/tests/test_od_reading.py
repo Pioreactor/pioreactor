@@ -252,9 +252,7 @@ def test_sin_regression_real_data_and_that_60hz_is_the_minimum2() -> None:
 def test_sin_regression_constant_should_return_constant() -> None:
     adc_reader = ADCReader(channels=[])
 
-    (C, A, phi), _ = adc_reader._sin_regression_with_known_freq(
-        [i / 25 for i in range(25)], [1.0] * 25, 60
-    )
+    (C, A, phi), _ = adc_reader._sin_regression_with_known_freq([i / 25 for i in range(25)], [1.0] * 25, 60)
     assert C == 1.0
     assert abs(A - 0.0) < 1e-10  # type: ignore
 
@@ -353,9 +351,7 @@ def test_error_thrown_if_wrong_angle() -> None:
     with pytest.raises(ValueError):
         start_od_reading("100", "REF", fake_data=True, experiment="test_error_thrown_if_wrong_angle")  # type: ignore
 
-    st = start_od_reading(
-        "135", "90", fake_data=True, experiment="test_error_thrown_if_wrong_angle"
-    )
+    st = start_od_reading("135", "90", fake_data=True, experiment="test_error_thrown_if_wrong_angle")
     st.clean_up()
 
 
@@ -367,9 +363,7 @@ def test_sin_regression_penalizer_C_is_independent_of_scale_of_observed_values()
 
     adc_reader = ADCReader(channels=[])
 
-    (C, A, phi), _ = adc_reader._sin_regression_with_known_freq(
-        x, y, freq, prior_C=12, penalizer_C=10.0
-    )
+    (C, A, phi), _ = adc_reader._sin_regression_with_known_freq(x, y, freq, prior_C=12, penalizer_C=10.0)
     ratio = C / C_True
 
     # scale everything by 10
@@ -428,7 +422,7 @@ def test_ability_to_be_iterated() -> None:
 
     assert len(results) > 0
     assert results[0].timestamp < results[1].timestamp < results[2].timestamp
-    assert results[-1] == od_stream.latest_od_readings
+    assert results[-1] == od_stream.ods
     od_stream.clean_up()
 
 

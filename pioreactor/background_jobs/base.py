@@ -653,7 +653,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr_name}",
             getattr(self, attr),
             retain=True,
-            qos=QOS.EXACTLY_ONCE,
+            qos=QOS.EXACTLY_ONCE,  # TODO: this requires four messages between client and broker. QOS 1 requires two...
         )
 
     def _set_up_exit_protocol(self) -> None:

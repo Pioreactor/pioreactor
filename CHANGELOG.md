@@ -1,3 +1,10 @@
+### Upcoming
+
+ - using the 2023-12-11 RPi base image
+ - removing `ODReadings.latest_od_reading` and it's replaced by `ODReadings.ods`.
+ - `ods` is now a published setting of `ODReadings`
+ - removed the topic `pioreactor/{unit}/.../od_readings/od/{channel}`. Use `pioreactor/{unit}/.../od_readings/ods` instead.
+
 ### 24.1.12
 
 #### Enhancements

@@ -6,10 +6,10 @@ import os
 # Append "dev" if a dev version
 # Append "rc0" if a rc version
 # No zero padding!
-__version__ = "24.1.12"
+__version__ = "24.1.12dev"
 
 
-def _get_hardware_version() -> tuple[int, int] | tuple[int, int, str]:
+def get_hardware_version() -> tuple[int, int] | tuple[int, int, str]:
     if os.environ.get("HARDWARE") is not None:
         # ex: > HARDWARE=1.1 pio ...
         return int(os.environ["HARDWARE"].split(".")[0]), int(os.environ["HARDWARE"].split(".")[1])
@@ -24,7 +24,7 @@ def _get_hardware_version() -> tuple[int, int] | tuple[int, int, str]:
         return (0, 0)
 
 
-def _get_product_from_id() -> str:
+def get_product_from_id() -> str:
     try:
         # check version in /proc/device-tree/hat/
         with open("/proc/device-tree/hat/product_id", "r") as f:
@@ -35,7 +35,7 @@ def _get_product_from_id() -> str:
         return "Unknown"
 
 
-def _get_serial_number() -> str:
+def get_serial_number() -> str:
     try:
         # check version in /proc/device-tree/hat/
         with open("/proc/device-tree/hat/uuid", "r") as f:
@@ -87,7 +87,7 @@ def safe_int(s):
         return s
 
 
-hardware_version_info = _get_hardware_version()
+hardware_version_info = get_hardware_version()
 software_version_info = tuple(safe_int(c) for c in __version__.split("."))
-serial_number = _get_serial_number()
+serial_number = get_serial_number()
 rpi_version_info = get_rpi_machine()

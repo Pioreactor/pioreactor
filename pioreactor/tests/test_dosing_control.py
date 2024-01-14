@@ -1069,7 +1069,7 @@ def test_custom_class_will_register_and_run() -> None:
     experiment = "test_custom_class_will_register_and_run"
 
     class NaiveTurbidostat(DosingAutomationJob):
-        automation_name = "naive_turbidostat"
+        automation_name = "_test_naive_turbidostat"
         published_settings = {
             "target_od": {"datatype": "float", "settable": True, "unit": "AU"},
             "duration": {"datatype": "float", "settable": True, "unit": "min"},
@@ -1086,7 +1086,7 @@ def test_custom_class_will_register_and_run() -> None:
     with DosingController(
         get_unit_name(),
         experiment,
-        "naive_turbidostat",
+        "_test_naive_turbidostat",
         target_od=2.0,
         duration=10,
     ):
@@ -1614,7 +1614,7 @@ def test_a_failing_automation_cleans_duration_attr_in_mqtt_up() -> None:
     pubsub.publish(f"pioreactor/{get_unit_name()}/{experiment}/dosing_automation/duration", None, retain=True)
 
     class Failure(DosingAutomationJob):
-        automation_name = "failure"
+        automation_name = "_test_failure"
 
         published_settings = {
             "duration": {"datatype": "float", "settable": True, "unit": "min"},
@@ -1625,7 +1625,7 @@ def test_a_failing_automation_cleans_duration_attr_in_mqtt_up() -> None:
             raise exc.CalibrationError("Media pump calibration must be performed first.")
 
     with pytest.raises(exc.CalibrationError):
-        with start_dosing_control("failure", 60, False, get_unit_name(), experiment, volume=10):
+        with start_dosing_control("_test_failure", 60, False, get_unit_name(), experiment, volume=10):
             pass
 
     result = pubsub.subscribe(

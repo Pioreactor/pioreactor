@@ -75,6 +75,7 @@ class PublishableSetting(t.TypedDict, total=False):
             "AutomationEvent",
             "Voltage",
             "KalmanFilterOutput",
+            "ODReadings",
         ]
     ]
     unit: t.NotRequired[str]

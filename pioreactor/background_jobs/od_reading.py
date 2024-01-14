@@ -90,7 +90,6 @@ from typing import Optional
 
 import click
 from msgspec.json import decode
-from msgspec.json import encode
 
 import pioreactor.actions.led_intensity as led_utils
 from pioreactor import error_codes
@@ -104,7 +103,6 @@ from pioreactor.background_jobs.base import LoggerMixin
 from pioreactor.config import config
 from pioreactor.hardware import ADC_CHANNEL_FUNCS
 from pioreactor.pubsub import publish
-from pioreactor.pubsub import QOS
 from pioreactor.utils import argextrema
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistant_storage
@@ -785,7 +783,7 @@ class ODReader(BackgroundJob):
     ------------
     adc_reader: ADCReader
     ir_led_reference_tracker: ir_led_reference_tracker
-    latest_od_readings:
+    ods:
         represents the most recent readings (post transformations)
 
 
@@ -795,7 +793,7 @@ class ODReader(BackgroundJob):
     Initializing this class will start reading in the background, if ``interval`` is not ``None``.
 
     > od_reader = ODReader({'1': '45'}, 5)
-    > # readings will start to be published to MQTT, and the latest reading will be available as od_reader.latest_od_readings
+    > # readings will start to be published to MQTT, and the latest reading will be available as od_reader.ods
 
     It can also be iterated over:
 
@@ -815,8 +813,8 @@ class ODReader(BackgroundJob):
         "ir_led_intensity": {"datatype": "float", "settable": True, "unit": "%"},
         "interval": {"datatype": "float", "settable": False, "unit": "s"},
         "relative_intensity_of_ir_led": {"datatype": "float", "settable": False},
+        "ods": {"datatype": "ODReadings", "settable": False},
     }
-    latest_od_readings: structs.ODReadings
 
     _pre_read: list[Callable] = []
     _post_read: list[Callable] = []
@@ -990,11 +988,8 @@ class ODReader(BackgroundJob):
 
         # TODO: put a filter here that noops if the signal looks wrong...
 
-        self.latest_od_readings = od_readings
-
-        self._publish_single(self.latest_od_readings)
-        self._publish_batch(self.latest_od_readings)
-        self._log_relative_intensity_of_ir_led(self.latest_od_readings)
+        self.ods = od_readings
+        self._log_relative_intensity_of_ir_led(self.ods)
         self._unblock_internal_event()
 
         for post_function in self.post_read_callbacks:
@@ -1081,27 +1076,6 @@ class ODReader(BackgroundJob):
 
         return self.calibration_transformer(self.ir_led_reference_tracker(batched_readings))
 
-    def _publish_batch(self, od_readings: structs.ODReadings) -> None:
-        if self.state != self.READY:
-            return
-
-        self.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/ods",
-            encode(od_readings),
-            qos=QOS.EXACTLY_ONCE,
-        )
-
-    def _publish_single(self, od_readings: structs.ODReadings) -> None:
-        if self.state != self.READY:
-            return
-
-        for channel, _ in self.channel_angle_map.items():
-            self.publish(
-                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od/{channel}",
-                encode(od_readings.ods[channel]),
-                qos=QOS.EXACTLY_ONCE,
-            )
-
     def _log_relative_intensity_of_ir_led(self, od_readings) -> None:
         if od_readings.timestamp.microsecond % 8 == 0:  # some pseudo randomness
             self.relative_intensity_of_ir_led = {
@@ -1122,8 +1096,8 @@ class ODReader(BackgroundJob):
     def __next__(self):
         while self._set_for_iterating.wait():
             self._set_for_iterating.clear()
-            assert self.latest_od_readings is not None
-            return self.latest_od_readings
+            assert self.ods is not None
+            return self.ods
 
 
 def find_ir_led_reference(od_angle_channel1, od_angle_channel2) -> Optional[pt.PdChannel]:
