@@ -8,6 +8,7 @@ from pioreactor.whoami import get_latest_experiment_name
 
 # TODO: add >= and <=
 
+
 class BoolLexer(Lexer):
     tokens = {NAME, AND, OR, NOT, EQUAL, LESS_THAN, GREATER_THAN, NUMBER, UNIT_JOB_SETTING}
     ignore = " \t"
@@ -67,7 +68,7 @@ class BoolParser(Parser):
         elif p.NAME == "False":
             return False
         else:
-            raise SyntaxError(p.NAME) # return p.NAME
+            raise SyntaxError(p.NAME)  # return p.NAME
 
     @_('"(" expr ")"')
     def expr(self, p):

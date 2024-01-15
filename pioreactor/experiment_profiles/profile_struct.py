@@ -77,6 +77,6 @@ class Profile(Struct, forbid_unknown_fields=True):
     experiment_profile_name: str
     metadata: Metadata = field(default_factory=Metadata)
     plugins: list[Plugin] = []
-    stop_on_exit: bool = False  #TODO: not implemented
+    stop_on_exit: bool = False  # TODO: not implemented
     common: dict[t.Literal["jobs"], Jobs] = {}  # later this might expand to include other fields
     pioreactors: dict[PioreactorUnitName, PioreactorSpecificProfile] = {}
