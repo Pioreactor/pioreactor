@@ -69,14 +69,14 @@ Jobs = dict[JobName, dict[t.Literal["actions"], list[Action]]]
 class PioreactorSpecificProfile(t.TypedDict, total=False):
     jobs: Jobs = {}
     label: t.Optional[str] = None
-    # calibration_settings
-    # config_options
+    # calibration_settings?
+    # config_options?
 
 
 class Profile(Struct, forbid_unknown_fields=True):
     experiment_profile_name: str
     metadata: Metadata = field(default_factory=Metadata)
     plugins: list[Plugin] = []
-    stop_on_exit: bool = False  # not implemented
+    stop_on_exit: bool = False  #TODO: not implemented
     common: dict[t.Literal["jobs"], Jobs] = {}  # later this might expand to include other fields
     pioreactors: dict[PioreactorUnitName, PioreactorSpecificProfile] = {}
