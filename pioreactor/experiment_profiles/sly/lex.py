@@ -36,7 +36,6 @@ from __future__ import annotations
 __all__ = ["Lexer", "LexerStateChange"]
 
 import re
-import copy
 
 
 class LexError(Exception):

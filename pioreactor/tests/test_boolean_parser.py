@@ -6,6 +6,8 @@ from msgspec.json import encode
 
 from pioreactor import structs
 from pioreactor.experiment_profiles.boolean_parser import parse_profile_if_directive_to_bool
+from pioreactor.experiment_profiles.sly.lex import LexError
+
 from pioreactor.pubsub import publish
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
@@ -24,13 +26,11 @@ def test_simple_bool():
     assert not parse_profile_if_directive_to_bool("not (True)")
 
 
-def test_typos():
+def test_syntax_errors_and_typos():
     assert parse_profile_if_directive_to_bool("(False or True) or False)") is None  # unbalanced paren
 
-    with pytest.raises(SyntaxError):
-        assert parse_profile_if_directive_to_bool("true")  # true not defined
-    with pytest.raises(SyntaxError):
-        assert parse_profile_if_directive_to_bool("test")  # test not defined
+    with pytest.raises(LexError):
+        assert parse_profile_if_directive_to_bool("test.test > 1")  # test.test is too few for mqtt fetches
 
 
 def test_simple_float():

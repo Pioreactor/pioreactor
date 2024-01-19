@@ -35,9 +35,7 @@ from __future__ import annotations
 
 import inspect
 import sys
-from collections import Counter
 from collections import defaultdict
-from collections import OrderedDict
 
 __all__ = ["Parser"]
 
@@ -46,7 +44,6 @@ class YaccError(Exception):
     """
     Exception raised for yacc-related build errors.
     """
-
     pass
 
 
@@ -60,29 +57,6 @@ class YaccError(Exception):
 ERROR_COUNT = 3  # Number of symbols that must be shifted to leave recovery mode
 MAXINT = sys.maxsize
 
-# This object is a stand-in for a logging object created by the
-# logging module.   SLY will use this by default to create things
-# such as the parser.out file.  If a user wants more detailed
-# information, they can create their own logging object and pass
-# it into SLY.
-
-
-class SlyLogger(object):
-    def __init__(self, f):
-        self.f = f
-
-    def debug(self, msg, *args, **kwargs):
-        self.f.write((msg % args) + "\n")
-
-    info = debug
-
-    def warning(self, msg, *args, **kwargs):
-        self.f.write("WARNING: " + (msg % args) + "\n")
-
-    def error(self, msg, *args, **kwargs):
-        self.f.write("ERROR: " + (msg % args) + "\n")
-
-    critical = debug
 
 
 # ----------------------------------------------------------------------
@@ -206,7 +180,7 @@ class YaccProduction:
 # -----------------------------------------------------------------------------
 
 
-class Production(object):
+class Production:
     reduced = 0
 
     def __init__(self, number, name, prod, precedence=("right", 0), func=None, file="", line=0):
@@ -334,7 +308,7 @@ class Production(object):
 # -----------------------------------------------------------------------------
 
 
-class LRItem(object):
+class LRItem:
     def __init__(self, p, n):
         self.name = p.name
         self.prod = list(p.prod)
@@ -384,7 +358,7 @@ class GrammarError(YaccError):
     pass
 
 
-class Grammar(object):
+class Grammar:
     def __init__(self, terminals):
         self.Productions = [None]  # A list of all of the productions.  The first
         # entry is always reserved for the purpose of
@@ -967,7 +941,7 @@ class LALRError(YaccError):
 # -----------------------------------------------------------------------------
 
 
-class LRTable(object):
+class LRTable:
     def __init__(self, grammar):
         self.grammar = grammar
 
@@ -980,7 +954,7 @@ class LRTable(object):
         self._add_count = 0  # Internal counter used to detect cycles
 
         # Diagonistic information filled in by the table generator
-        self.state_descriptions = OrderedDict()
+        self.state_descriptions = dict()
         self.sr_conflict = 0
         self.rr_conflict = 0
         self.conflicts = []  # List of conflicts
@@ -1881,24 +1855,15 @@ class Parser(metaclass=ParserMeta):
     # Automatic tracking of position information
     track_positions = True
 
-    # Logging object where debugging/diagnostic messages are sent
-    log = SlyLogger(sys.stderr)
-
-    # Debugging filename where parsetab.out data can be written
-    debugfile = None
-
     @classmethod
     def __validate_tokens(cls):
         if not hasattr(cls, "tokens"):
-            cls.log.error("No token list is defined")
             return False
 
         if not cls.tokens:
-            cls.log.error("tokens is empty")
             return False
 
         if "error" in cls.tokens:
-            cls.log.error("Illegal token name 'error'. Is a reserved word")
             return False
 
         return True
@@ -1911,20 +1876,16 @@ class Parser(metaclass=ParserMeta):
 
         preclist = []
         if not isinstance(cls.precedence, (list, tuple)):
-            cls.log.error("precedence must be a list or tuple")
             return False
 
         for level, p in enumerate(cls.precedence, start=1):
             if not isinstance(p, (list, tuple)):
-                cls.log.error(f"Bad precedence table entry {p!r}. Must be a list or tuple")
                 return False
 
             if len(p) < 2:
-                cls.log.error(f"Malformed precedence entry {p!r}. Must be (assoc, term, ..., term)")
                 return False
 
             if not all(isinstance(term, str) for term in p):
-                cls.log.error("precedence items must be strings")
                 return False
 
             assoc = p[0]
@@ -1990,27 +1951,10 @@ class Parser(metaclass=ParserMeta):
         unused_terminals = grammar.unused_terminals()
         if unused_terminals:
             unused_str = "{" + ",".join(unused_terminals) + "}"
-            cls.log.warning(
-                f'Token{"(s)" if len(unused_terminals) >1 else ""} {unused_str} defined, but not used'
-            )
 
         unused_rules = grammar.unused_rules()
-        for prod in unused_rules:
-            cls.log.warning("%s:%d: Rule %r defined, but not used", prod.file, prod.line, prod.name)
-
-        if len(unused_terminals) == 1:
-            cls.log.warning("There is 1 unused token")
-        if len(unused_terminals) > 1:
-            cls.log.warning("There are %d unused tokens", len(unused_terminals))
-
-        if len(unused_rules) == 1:
-            cls.log.warning("There is 1 unused rule")
-        if len(unused_rules) > 1:
-            cls.log.warning("There are %d unused rules", len(unused_rules))
 
         unreachable = grammar.find_unreachable()
-        for u in unreachable:
-            cls.log.warning("Symbol %r is unreachable", u)
 
         if len(undefined_symbols) == 0:
             infinite = grammar.infinite_cycles()
@@ -2032,20 +1976,6 @@ class Parser(metaclass=ParserMeta):
         """
         lrtable = LRTable(cls._grammar)
         num_sr = len(lrtable.sr_conflicts)
-
-        # Report shift/reduce and reduce/reduce conflicts
-        if num_sr != getattr(cls, "expected_shift_reduce", None):
-            if num_sr == 1:
-                cls.log.warning("1 shift/reduce conflict")
-            elif num_sr > 1:
-                cls.log.warning("%d shift/reduce conflicts", num_sr)
-
-        num_rr = len(lrtable.rr_conflicts)
-        if num_rr != getattr(cls, "expected_reduce_reduce", None):
-            if num_rr == 1:
-                cls.log.warning("1 reduce/reduce conflict")
-            elif num_rr > 1:
-                cls.log.warning("%d reduce/reduce conflicts", num_rr)
 
         cls._lrtable = lrtable
         return True
@@ -2082,13 +2012,6 @@ class Parser(metaclass=ParserMeta):
         if not cls.__build_lrtables():
             raise YaccError("Can't build parsing tables")
 
-        if cls.debugfile:
-            with open(cls.debugfile, "w") as f:
-                f.write(str(cls._grammar))
-                f.write("\n")
-                f.write(str(cls._lrtable))
-            cls.log.info("Parser debugging for %s written to %s", cls.__qualname__, cls.debugfile)
-
     # ----------------------------------------------------------------------
     # Parsing Support.  This is the parsing runtime that users use to
     # ----------------------------------------------------------------------
@@ -2096,14 +2019,7 @@ class Parser(metaclass=ParserMeta):
         """
         Default error handling function.  This may be subclassed.
         """
-        if token:
-            lineno = getattr(token, "lineno", 0)
-            if lineno:
-                sys.stderr.write(f"sly: Syntax error at line {lineno}, token={token.type}\n")
-            else:
-                sys.stderr.write(f"sly: Syntax error, token={token.type}")
-        else:
-            sys.stderr.write("sly: Parse error in input. EOF\n")
+        pass
 
     def errok(self):
         """
