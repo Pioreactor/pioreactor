@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from msgspec import DecodeError
+from msgspec.json import decode
+
 from .sly import Lexer
 from .sly import Parser
 from pioreactor.pubsub import subscribe
@@ -9,12 +12,30 @@ from pioreactor.whoami import get_latest_experiment_name
 # TODO: add >= and <=
 
 
+def convert_string(input_str: str) -> bool | float | str:
+    # Try to convert to float
+    try:
+        return float(input_str)
+    except ValueError:
+        pass
+
+    # Try to convert to boolean
+    if input_str.lower() == "true":
+        return True
+    elif input_str.lower() == "false":
+        return False
+
+    # Return string if other conversions fail
+    return input_str
+
+
 class BoolLexer(Lexer):
+    # != is the same as not !=
     tokens = {NAME, AND, OR, NOT, EQUAL, LESS_THAN, GREATER_THAN, NUMBER, UNIT_JOB_SETTING}
     ignore = " \t"
 
     # Tokens
-    UNIT_JOB_SETTING = r"([a-zA-Z_][a-zA-Z0-9_]*\.)+[a-zA-Z_][a-zA-Z0-9_]*'"
+    UNIT_JOB_SETTING = r"([a-zA-Z_][a-zA-Z0-9_]*\.){2,}[a-zA-Z_][a-zA-Z0-9_]*"
 
     NAME = r"[a-zA-Z_][a-zA-Z0-9_]*"
     NAME["and"] = AND
@@ -68,7 +89,7 @@ class BoolParser(Parser):
         elif p.NAME == "False":
             return False
         else:
-            raise SyntaxError(p.NAME)  # return p.NAME
+            return p.NAME
 
     @_('"(" expr ")"')
     def expr(self, p):
@@ -79,16 +100,30 @@ class BoolParser(Parser):
         return float(p.NUMBER)
 
     @_("UNIT_JOB_SETTING")
-    def expr(self, p) -> float:
-        unit, job, setting = p.UNIT_JOB_SETTING.split(".")
+    def expr(self, p) -> bool | float | str:
+        unit, job, setting, *keys = p.UNIT_JOB_SETTING.split(".")
         experiment = get_latest_experiment_name()
-        result = subscribe(f"pioreactor/{unit}/{experiment}/{job}/{setting}")
+        result = subscribe(f"pioreactor/{unit}/{experiment}/{job}/{setting}", timeout=3)
 
         if result:
             # error handling here
-            return float(result.payload)
+            try:
+                data_blob = decode(result.payload)
+            except DecodeError:
+                # just a string?
+                return result.payload.decode()
+
+            value = data_blob
+
+            if len(keys) > 0:
+                # its a nested json object, iteratively nest into it.
+                for key in keys:
+                    value = value[key]
+
+            return convert_string(value)
+
         else:
-            return None
+            raise ValueError(f"{p.UNIT_JOB_SETTING} does not exist.")
 
 
 def parse_profile_if_directive_to_bool(directive: str) -> bool:
