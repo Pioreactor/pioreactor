@@ -387,24 +387,25 @@ class Monitor(BackgroundJob):
 
     def check_for_mqtt_connection_to_leader(self) -> None:
         while (not self.pub_client.is_connected()) or (not self.sub_client.is_connected()):
+            try:
+                error_code_pc = self.pub_client.reconnect()
+            except Exception:
+                pass
+            try:
+                error_code_sc = self.sub_client.reconnect()
+            except Exception:
+                pass
+
             self.logger.warning(
                 f"""Not able to connect MQTT clients to leader.
 1. Is the leader, {leader_hostname} at {leader_address}, in config.ini correct?
 2. Is the Pioreactor leader online and responsive?
 """
             )  # remember, this doesn't get published to leader...
+            self.logger.debug(f"{error_code_pc=}, {error_code_sc=}")
 
-            self.set_state(self.LOST)
+            # self.set_state(self.LOST)
             self.flicker_led_with_error_code(error_codes.MQTT_CLIENT_NOT_CONNECTED_TO_LEADER)
-
-            try:
-                self.pub_client.reconnect()
-            except Exception:
-                pass
-            try:
-                self.sub_client.reconnect()
-            except Exception:
-                pass
 
     def check_for_last_backup(self) -> None:
         with utils.local_persistant_storage("database_backups") as cache:

@@ -423,6 +423,7 @@ def test_ability_to_be_iterated() -> None:
     assert len(results) > 0
     assert results[0].timestamp < results[1].timestamp < results[2].timestamp
     assert results[-1] == od_stream.ods
+    assert od_stream.od1 == od_stream.ods.ods["1"]
     od_stream.clean_up()
 
 

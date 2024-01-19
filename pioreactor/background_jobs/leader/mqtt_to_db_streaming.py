@@ -373,7 +373,9 @@ def add_default_source_to_sinks() -> list[TopicToParserToTable]:
                 parse_od_filtered,
                 "od_readings_filtered",
             ),
-            TopicToParserToTable("pioreactor/+/+/od_reading/od/+", parse_od, "od_readings"),
+            TopicToParserToTable(
+                ["pioreactor/+/+/od_reading/od1", "pioreactor/+/+/od_reading/od2"], parse_od, "od_readings"
+            ),
             TopicToParserToTable("pioreactor/+/+/dosing_events", parse_dosing_events, "dosing_events"),
             TopicToParserToTable(
                 "pioreactor/+/+/led_change_events",

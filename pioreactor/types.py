@@ -76,6 +76,7 @@ class PublishableSetting(t.TypedDict, total=False):
             "Voltage",
             "KalmanFilterOutput",
             "ODReadings",
+            "ODReading",
         ]
     ]
     unit: t.NotRequired[str]

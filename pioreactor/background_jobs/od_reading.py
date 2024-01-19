@@ -3,11 +3,11 @@
 Continuously take an optical density reading (more accurately: a turbidity reading, which is a proxy for OD).
 Topics published to
 
-    pioreactor/<unit>/<experiment>/od_reading/od/<channel>
+    pioreactor/<unit>/<experiment>/od_reading/od1
 
 Ex:
 
-    pioreactor/pioreactor1/trial15/od_reading/od/1
+    pioreactor/pioreactor1/trial15/od_reading/od1
 
 a json blob like:
 
@@ -814,10 +814,15 @@ class ODReader(BackgroundJob):
         "interval": {"datatype": "float", "settable": False, "unit": "s"},
         "relative_intensity_of_ir_led": {"datatype": "float", "settable": False},
         "ods": {"datatype": "ODReadings", "settable": False},
+        "od1": {"datatype": "ODReading", "settable": False},
+        "od2": {"datatype": "ODReading", "settable": False},
     }
 
     _pre_read: list[Callable] = []
     _post_read: list[Callable] = []
+    od1: structs.ODReading
+    od2: structs.ODReading
+    ods: structs.ODReadings
 
     def __init__(
         self,
@@ -989,7 +994,10 @@ class ODReader(BackgroundJob):
         # TODO: put a filter here that noops if the signal looks wrong...
 
         self.ods = od_readings
-        self._log_relative_intensity_of_ir_led(self.ods)
+        for channel, _ in self.channel_angle_map.items():
+            setattr(self, f"od{channel}", od_readings.ods[channel])
+
+        self._log_relative_intensity_of_ir_led()
         self._unblock_internal_event()
 
         for post_function in self.post_read_callbacks:
@@ -1076,12 +1084,12 @@ class ODReader(BackgroundJob):
 
         return self.calibration_transformer(self.ir_led_reference_tracker(batched_readings))
 
-    def _log_relative_intensity_of_ir_led(self, od_readings) -> None:
-        if od_readings.timestamp.microsecond % 8 == 0:  # some pseudo randomness
+    def _log_relative_intensity_of_ir_led(self) -> None:
+        if self.ods.timestamp.microsecond % 8 == 0:  # some pseudo randomness
             self.relative_intensity_of_ir_led = {
                 # represents the relative intensity of the LED.
                 "relative_intensity_of_ir_led": 1 / self.ir_led_reference_tracker.transform(1.0),
-                "timestamp": od_readings.timestamp,
+                "timestamp": self.ods.timestamp,
             }
 
     def _unblock_internal_event(self) -> None:

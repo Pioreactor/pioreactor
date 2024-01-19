@@ -15,10 +15,11 @@ from pioreactor.whoami import is_testing_env
 
 # All GPIO pins below are BCM numbered
 
+# PWMs
 # Heater PWM
 HEATER_PWM_TO_PIN: PwmChannel = "5"
 
-# map between PCB labels and GPIO pins
+# map between PWM channels and GPIO pins
 PWM_TO_PIN: dict[PwmChannel, GpioPin] = {
     "1": 6 if hardware_version_info == (0, 1) else 17,
     "2": 13,  # hardware PWM1 available
@@ -32,10 +33,12 @@ PWM_TO_PIN: dict[PwmChannel, GpioPin] = {
 PCB_LED_PIN: GpioPin = 23
 PCB_BUTTON_PIN: GpioPin = 24 if (0, 0) < hardware_version_info <= (1, 0) else 4
 
+
 # hall sensor
 HALL_SENSOR_PIN: GpioPin = 25 if (0, 0) < hardware_version_info <= (1, 0) else 21
 
 
+# I2C pins
 GPIOCHIP: GpioChip
 SDA: I2CPin
 SCL: I2CPin
@@ -49,11 +52,17 @@ else:
     SDA = 2
     SCL = 3
 
+if hardware_version_info >= (1, 1):
+    # SWD, used in HAT version >= 1.1
+    SWCLK: GpioPin = 25
+    SWDIO: GpioPin = 24
+
 
 # I2C channels used
 ADC = 0x48 if (0, 0) < hardware_version_info <= (1, 0) else 0x30
 DAC = 0x49 if (0, 0) < hardware_version_info <= (1, 0) else 0x30
 TEMP = 0x4F
+
 
 # ADC map of function to hardware ADC channel
 ADC_CHANNEL_FUNCS: dict[str | PdChannel, AdcChannel]

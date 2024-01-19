@@ -2,8 +2,10 @@
 
  - using the 2023-12-11 RPi base image
  - removing `ODReadings.latest_od_reading` and it's replaced by `ODReadings.ods`.
- - `ods` is now a published setting of `ODReadings`
- - removed the topic `pioreactor/{unit}/.../od_readings/od/{channel}`. Use `pioreactor/{unit}/.../od_readings/ods` instead.
+ - `ods`, `od1`, `od2` now a published settings of `ODReadings`.
+ - removed the topic `pioreactor/{unit}/.../od_readings/od/{channel}`. Use `pioreactor/{unit}/.../od_readings/od1` or `pioreactor/{unit}/.../od_readings/od2`.
+ - when a worker is first turned on, and pre-connecting, the LED is turned on to give _some_ feedback to the user.
+
 
 ### 24.1.12
 
