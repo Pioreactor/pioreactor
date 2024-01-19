@@ -39,4 +39,6 @@ def test_mqtt_fetches():
 
     # doesn't know how to decode
     assert parse_profile_if_directive_to_bool("_testing_unit.od_reading.od1.od > 1.0")
-    assert parse_profile_if_directive_to_bool("_testing_unit.temperature_control.temperature.temperature > 1.0")
+    assert parse_profile_if_directive_to_bool(
+        "_testing_unit.temperature_control.temperature.temperature > 1.0"
+    )
