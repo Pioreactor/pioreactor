@@ -24,6 +24,16 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 
+def wrap_in_try_except(func, logger):
+    def inner_function(*args, **kwargs):
+        try:
+            func(*args, **kwargs)
+        except Exception as e:
+            logger.error(f"Error in action: {e}")
+
+    return inner_function
+
+
 def _led_intensity_hack(action: struct.Action) -> struct.Action:
     # we do this hack because led_intensity doesn't really behave like a background job, but its useful to
     # treat it as one.
@@ -108,7 +118,7 @@ def log(
             level = options.level.lower()
             getattr(logger, level)(options.message.format(unit=unit, job=job_name, experiment=experiment))
 
-    return _callable
+    return wrap_in_try_except(_callable, logger)
 
 
 def start_job(
@@ -124,7 +134,7 @@ def start_job(
                     encode({"options": options, "args": args}),
                 )
 
-    return _callable
+    return wrap_in_try_except(_callable, logger)
 
 
 def pause_job(
@@ -137,7 +147,7 @@ def pause_job(
             else:
                 publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "sleeping")
 
-    return _callable
+    return wrap_in_try_except(_callable, logger)
 
 
 def resume_job(
@@ -150,7 +160,7 @@ def resume_job(
             else:
                 publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "ready")
 
-    return _callable
+    return wrap_in_try_except(_callable, logger)
 
 
 def stop_job(
@@ -163,7 +173,7 @@ def stop_job(
             else:
                 publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "disconnected")
 
-    return _callable
+    return wrap_in_try_except(_callable, logger)
 
 
 def update_job(
@@ -179,7 +189,7 @@ def update_job(
                 for setting, value in options.items():
                     publish(f"pioreactor/{unit}/{experiment}/{job_name}/{setting}/set", value)
 
-    return _callable
+    return wrap_in_try_except(_callable, logger)
 
 
 def hours_to_seconds(hours: float) -> float:

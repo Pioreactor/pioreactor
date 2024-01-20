@@ -47,7 +47,7 @@ class BoolLexer(Lexer):
     ignore = " \t"
 
     # Tokens
-    UNIT_JOB_SETTING = r"([a-zA-Z_][a-zA-Z0-9_]*\.){2,}[a-zA-Z_][a-zA-Z0-9_]*"
+    UNIT_JOB_SETTING = r"([a-zA-Z_][a-zA-Z0-9_]*:){2,}([a-zA-Z_][a-zA-Z0-9_]*\.)*[a-zA-Z_][a-zA-Z0-9_]*"
 
     NAME = r"[a-zA-Z_][a-zA-Z0-9_]*"
     NAME["and"] = AND
@@ -127,7 +127,8 @@ class BoolParser(Parser):
     def expr(self, p) -> bool | float | str:
         # TODO: how does this work for common blocks?
 
-        unit, job, setting, *keys = p.UNIT_JOB_SETTING.split(".")
+        unit, job, setting_keys = p.UNIT_JOB_SETTING.split(":")
+        setting, *keys = setting_keys.split(".")
         experiment = get_latest_experiment_name()
         result = subscribe(f"pioreactor/{unit}/{experiment}/{job}/{setting}", timeout=3)
 

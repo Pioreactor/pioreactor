@@ -54,28 +54,28 @@ def test_mqtt_fetches():
         retain=True,
     )
 
-    assert parse_profile_if_directive_to_bool(f"{unit}.od_reading.od1.od > 1.0")
-    assert parse_profile_if_directive_to_bool(f"{unit}.od_reading.od1.od < 2.0")
-    assert not parse_profile_if_directive_to_bool(f"{unit}.od_reading.od1.od > 2.0")
+    assert parse_profile_if_directive_to_bool(f"{unit}:od_reading:od1.od > 1.0")
+    assert parse_profile_if_directive_to_bool(f"{unit}:od_reading:od1.od < 2.0")
+    assert not parse_profile_if_directive_to_bool(f"{unit}:od_reading:od1.od > 2.0")
 
     # floats
     publish(f"pioreactor/{unit}/{exp}/test_job/float", 101.5, retain=True)
-    assert parse_profile_if_directive_to_bool(f"{unit}.test_job.float > 100.0")
-    assert parse_profile_if_directive_to_bool(f"{unit}.test_job.float == 101.5")
+    assert parse_profile_if_directive_to_bool(f"{unit}:test_job:float > 100.0")
+    assert parse_profile_if_directive_to_bool(f"{unit}:test_job:float == 101.5")
 
     # str
     publish(f"pioreactor/{unit}/{exp}/test_job/string", "hi", retain=True)
-    assert parse_profile_if_directive_to_bool(f"{unit}.test_job.string == hi")
-    assert parse_profile_if_directive_to_bool(f"not {unit}.test_job.string == test")
+    assert parse_profile_if_directive_to_bool(f"{unit}:test_job:string == hi")
+    assert parse_profile_if_directive_to_bool(f"not {unit}:test_job:string == test")
 
     # bool
     publish(f"pioreactor/{unit}/{exp}/test_job/bool_true", "true", retain=True)
     publish(f"pioreactor/{unit}/{exp}/test_job/bool_false", "false", retain=True)
-    assert parse_profile_if_directive_to_bool(f"{unit}.test_job.bool_true")
-    assert parse_profile_if_directive_to_bool(f"not {unit}.test_job.bool_false")
-    assert parse_profile_if_directive_to_bool(f"{unit}.test_job.bool_false or {unit}.test_job.bool_true")
+    assert parse_profile_if_directive_to_bool(f"{unit}:test_job:bool_true")
+    assert parse_profile_if_directive_to_bool(f"not {unit}:test_job:bool_false")
+    assert parse_profile_if_directive_to_bool(f"{unit}:test_job:bool_false or {unit}:test_job:bool_true")
 
 
 def test_mqtt_timeout():
     with pytest.raises(ValueError):
-        assert parse_profile_if_directive_to_bool(f"{unit}.test_job.does_not_exist or True")
+        assert parse_profile_if_directive_to_bool(f"{unit}:test_job:does_not_exist or True")
