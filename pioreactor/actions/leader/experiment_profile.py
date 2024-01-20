@@ -13,6 +13,7 @@ from msgspec.yaml import decode
 
 from pioreactor.config import leader_address
 from pioreactor.experiment_profiles import profile_struct as struct
+from pioreactor.experiment_profiles.boolean_parser import check_syntax_of_if_directive
 from pioreactor.experiment_profiles.boolean_parser import parse_profile_if_directive_to_bool
 from pioreactor.logging import create_logger
 from pioreactor.mureq import put
@@ -189,6 +190,7 @@ def _verify_experiment_profile(profile: struct.Profile) -> struct.Profile:
     # things to check for:
     # 1. Don't "stop" any *_automations
     # 2. Don't change generic settings on *_controllers, (Ex: changing target temp on temp_controller is wrong)
+    # 3. check syntax of if statements
 
     actions_per_job = defaultdict(list)
 
@@ -223,6 +225,12 @@ def _verify_experiment_profile(profile: struct.Profile) -> struct.Profile:
 
     for control_type in ["temperature_control", "dosing_control", "led_control"]:
         assert all(check_for_settings_change_on_controllers(act) for act in actions_per_job[control_type])
+
+    # 3.
+    for job in actions_per_job:
+        for action in actions_per_job[job]:
+            if not check_syntax_of_if_directive(action.if_):
+                raise SyntaxError(f"Syntax error in `{action.if_}`")
 
     return profile
 

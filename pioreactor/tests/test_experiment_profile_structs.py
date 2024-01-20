@@ -392,3 +392,29 @@ common:
     """
     with pytest.raises(msgspec.ValidationError, match="Object contains unknown field `options`"):
         decode(file, type=structs.Profile)
+
+
+def test_if_statement() -> None:
+    file = """
+experiment_profile_name: simple_stirring_example
+
+metadata:
+  author: John Doe
+  description: A simple example of a stirring job in a single pioreactor
+
+pioreactors:
+  reactor_1:
+    jobs:
+      stirring:
+        actions:
+          - type: start
+            if: "True"
+            hours_elapsed: 0.0
+            options:
+              target_rpm: 200.0
+          - type: stop
+            hours_elapsed: 2.0
+            if: 1 > 0
+
+"""
+    assert decode(file, type=structs.Profile) is not None

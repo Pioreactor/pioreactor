@@ -156,3 +156,11 @@ def parse_profile_if_directive_to_bool(directive: str) -> bool:
     lexer = BoolLexer()
     parser = BoolParser()
     return parser.parse(lexer.tokenize(directive))
+
+
+def check_syntax_of_if_directive(directive: str) -> bool:
+    try:
+        list(BoolLexer().tokenize(directive))  # materialize it to force error
+        return True
+    except Exception:
+        return False

@@ -261,3 +261,26 @@ def test_execute_experiment_profile_simple_if(mock__load_experiment_profile) -> 
         "pioreactor/unit1/_testing_experiment/run/jobbing",
         "pioreactor/unit1/_testing_experiment/run/conditional_jobbing",
     ]
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_wrong_syntax_in_if_statement(mock__load_experiment_profile) -> None:
+    action = Start(hours_elapsed=0, if_="1 % 1 and ")
+
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        plugins=[],
+        pioreactors={
+            "unit1": PioreactorSpecific(
+                jobs={
+                    "jobbing": {"actions": [action]},
+                }
+            ),
+        },
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    with pytest.raises(SyntaxError):
+        execute_experiment_profile("profile.yaml")
