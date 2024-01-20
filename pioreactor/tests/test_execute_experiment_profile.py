@@ -8,8 +8,10 @@ import pytest
 from pioreactor.actions.leader.experiment_profile import execute_experiment_profile
 from pioreactor.actions.leader.experiment_profile import hours_to_seconds
 from pioreactor.experiment_profiles.profile_struct import _LogOptions
+from pioreactor.experiment_profiles.profile_struct import CommonBlock
 from pioreactor.experiment_profiles.profile_struct import Log
 from pioreactor.experiment_profiles.profile_struct import Metadata
+from pioreactor.experiment_profiles.profile_struct import PioreactorSpecificBlock
 from pioreactor.experiment_profiles.profile_struct import Profile
 from pioreactor.experiment_profiles.profile_struct import Start
 from pioreactor.experiment_profiles.profile_struct import Stop
@@ -34,10 +36,11 @@ def test_execute_experiment_profile_order(mock__load_experiment_profile) -> None
     profile = Profile(
         experiment_profile_name="test_profile",
         plugins=[],
-        common={"job1": {"actions": [action1]}},
-        pioreactors={"unit1": {"jobs": {"job2": {"actions": [action2, action3]}}}},
+        common=CommonBlock(jobs={"job1": {"actions": [action1]}}),
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(jobs={"job2": {"actions": [action2, action3]}}, label="label1"),
+        },
         metadata=Metadata(author="test_author"),
-        labels={"unit1": "label1"},
     )
 
     mock__load_experiment_profile.return_value = profile
@@ -74,7 +77,7 @@ def test_execute_experiment_profile_hack_for_led_intensity(
     profile = Profile(
         experiment_profile_name="test_profile",
         plugins=[],
-        pioreactors={"unit1": {"jobs": {job: {"actions": [action1, action2, action3]}}}},
+        pioreactors={"unit1": PioreactorSpecificBlock(jobs={job: {"actions": [action1, action2, action3]}})},
         metadata=Metadata(author="test_author"),
     )
 
@@ -120,10 +123,11 @@ def test_execute_experiment_log_actions(mock__load_experiment_profile) -> None:
     profile = Profile(
         experiment_profile_name="test_profile",
         plugins=[],
-        common={"job1": {"actions": [action1]}},
-        pioreactors={"unit1": {"jobs": {"job2": {"actions": [action2, action3]}}}},
+        common=CommonBlock(jobs={"job1": {"actions": [action1]}}),
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(jobs={"job2": {"actions": [action2, action3]}}, label="label1")
+        },
         metadata=Metadata(author="test_author"),
-        labels={"unit1": "label1"},
     )
 
     mock__load_experiment_profile.return_value = profile
@@ -155,7 +159,7 @@ def test_execute_experiment_start_and_stop_controller(mock__load_experiment_prof
 
     profile = Profile(
         experiment_profile_name="test_profile",
-        common={"temperature_control": {"actions": [action1, action2]}},
+        common=CommonBlock(jobs={"temperature_control": {"actions": [action1, action2]}}),
         metadata=Metadata(author="test_author"),
     )
 
@@ -176,7 +180,7 @@ def test_execute_experiment_update_automations_not_controllers(
 
     profile = Profile(
         experiment_profile_name="test_profile",
-        common={"temperature_control": {"actions": [action1, action2]}},
+        common=CommonBlock(jobs={"temperature_control": {"actions": [action1, action2]}}),
         metadata=Metadata(author="test_author"),
     )
 
@@ -197,14 +201,86 @@ def test_execute_experiment_start_controller_and_stop_automation_fails(
 
     profile = Profile(
         experiment_profile_name="test_profile",
-        common={
-            "temperature_control": {"actions": [action1]},
-            "temperature_automation": {"actions": [action2]},
-        },
+        common=CommonBlock(
+            jobs={
+                "temperature_control": {"actions": [action1]},
+                "temperature_automation": {"actions": [action2]},
+            }
+        ),
         metadata=Metadata(author="test_author"),
     )
 
     mock__load_experiment_profile.return_value = profile
 
     with pytest.raises(ValueError, match="stop"):
+        execute_experiment_profile("profile.yaml")
+
+
+@pytest.mark.xfail(reason="need to write a good test for this")
+def test_label_fires_a_relabel_to_leader_endpoint():
+    assert False
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_profile_simple_if(mock__load_experiment_profile) -> None:
+    action_true = Start(hours_elapsed=0, if_="True")
+    action_false = Start(hours_elapsed=0, if_="False")
+    action_true_conditional = Start(hours_elapsed=1 / 60 / 60, if_="(1 >= 0) and (0 <= 1)")
+
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        plugins=[],
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(
+                jobs={
+                    "jobbing": {"actions": [action_true]},
+                    "not_jobbing": {"actions": [action_false]},
+                    "conditional_jobbing": {"actions": [action_true_conditional]},
+                }
+            ),
+        },
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    actions = []
+
+    def collection_actions(msg):
+        actions.append(msg.topic)
+
+    subscribe_and_callback(
+        collection_actions,
+        ["pioreactor/unit1/_testing_experiment/#"],
+        allow_retained=False,
+    )
+
+    execute_experiment_profile("profile.yaml")
+
+    assert actions == [
+        "pioreactor/unit1/_testing_experiment/run/jobbing",
+        "pioreactor/unit1/_testing_experiment/run/conditional_jobbing",
+    ]
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_wrong_syntax_in_if_statement(mock__load_experiment_profile) -> None:
+    action = Start(hours_elapsed=0, if_="1 % 1 and ")
+
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        plugins=[],
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(
+                jobs={
+                    "jobbing": {"actions": [action]},
+                }
+            ),
+        },
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    with pytest.raises(SyntaxError):
         execute_experiment_profile("profile.yaml")

@@ -30,29 +30,33 @@ class _LogOptions(Struct):
 class Log(Struct, tag=str.lower, forbid_unknown_fields=True):
     hours_elapsed: float
     options: _LogOptions
+    if_: str = field(name="if", default="True")
 
 
-class Start(Struct, tag=str.lower, forbid_unknown_fields=True):
+class _Action(Struct, tag=str.lower, forbid_unknown_fields=True):
     hours_elapsed: float
+    if_: str = field(name="if", default="True")
+
+
+class Start(_Action, tag=str.lower, forbid_unknown_fields=True):
     options: dict[str, t.Any] = {}
     args: list[str] = []
 
 
-class Pause(Struct, tag=str.lower, forbid_unknown_fields=True):
-    hours_elapsed: float
+class Pause(_Action, tag=str.lower, forbid_unknown_fields=True):
+    pass
 
 
-class Stop(Struct, tag=str.lower, forbid_unknown_fields=True):
-    hours_elapsed: float
+class Stop(_Action, tag=str.lower, forbid_unknown_fields=True):
+    pass
 
 
-class Update(Struct, tag=str.lower, forbid_unknown_fields=True):
-    hours_elapsed: float
+class Update(_Action, tag=str.lower, forbid_unknown_fields=True):
     options: dict[str, t.Any] = {}
 
 
-class Resume(Struct, tag=str.lower, forbid_unknown_fields=True):
-    hours_elapsed: float
+class Resume(_Action, tag=str.lower, forbid_unknown_fields=True):
+    pass
 
 
 Action = t.Union[Log, Start, Pause, Stop, Update, Resume]
@@ -66,13 +70,23 @@ JobName = str
 Jobs = dict[JobName, dict[t.Literal["actions"], list[Action]]]
 
 
+class PioreactorSpecificBlock(Struct, forbid_unknown_fields=True):
+    jobs: Jobs = {}
+    label: t.Optional[str] = None
+    # calibration_settings?
+    # config_options?
+
+
+class CommonBlock(Struct, forbid_unknown_fields=True):
+    jobs: Jobs = {}
+
+
 class Profile(Struct, forbid_unknown_fields=True):
     experiment_profile_name: str
     metadata: Metadata = field(default_factory=Metadata)
     plugins: list[Plugin] = []
-    stop_on_exit: bool = False
-    labels: dict[PioreactorUnitName, PioreactorLabel] = {}
-    common: Jobs = {}
-    pioreactors: dict[
-        t.Union[PioreactorLabel, PioreactorUnitName], dict[t.Literal["jobs"], Jobs]
-    ] = {}
+    stop_on_exit: bool = False  # TODO: not implemented
+    common: CommonBlock = field(
+        default_factory=CommonBlock
+    )  # later this might expand to include other fields
+    pioreactors: dict[PioreactorUnitName, PioreactorSpecificBlock] = {}

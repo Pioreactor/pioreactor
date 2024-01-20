@@ -13,6 +13,8 @@ from msgspec.yaml import decode
 
 from pioreactor.config import leader_address
 from pioreactor.experiment_profiles import profile_struct as struct
+from pioreactor.experiment_profiles.boolean_parser import check_syntax_of_if_directive
+from pioreactor.experiment_profiles.boolean_parser import parse_profile_if_directive_to_bool
 from pioreactor.logging import create_logger
 from pioreactor.mureq import put
 from pioreactor.pubsub import publish
@@ -22,24 +24,34 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 
+def wrap_in_try_except(func, logger):
+    def inner_function(*args, **kwargs):
+        try:
+            func(*args, **kwargs)
+        except Exception as e:
+            logger.warning(f"Error in action: {e}")
+
+    return inner_function
+
+
 def _led_intensity_hack(action: struct.Action) -> struct.Action:
     # we do this hack because led_intensity doesn't really behave like a background job, but its useful to
     # treat it as one.
     match action:
-        case struct.Log(hours, options):
+        case struct.Log(_, _, _):
             # noop
             return action
 
-        case struct.Start(_, _, _):
+        case struct.Start(_, _, _, _):
             # noop
             return action
 
-        case struct.Pause(hours) | struct.Stop(hours):
+        case struct.Pause(hours, if_) | struct.Stop(hours, if_):
             options = {"A": 0, "B": 0, "C": 0, "D": 0}
-            return struct.Start(hours, options, [])
+            return struct.Start(hours, if_, options, [])
 
-        case struct.Update(hours, options):
-            return struct.Start(hours, options, [])
+        case struct.Update(hours, if_, options):
+            return struct.Start(hours, if_, options, [])
 
         case _:
             raise ValueError
@@ -49,12 +61,12 @@ def get_simple_priority(action):
     match action:
         case struct.Start():
             return 0
+        case struct.Stop():
+            return 1
         case struct.Pause():
             return 2
         case struct.Resume():
             return 3
-        case struct.Stop():
-            return 1
         case struct.Update():
             return 4
         case struct.Log():
@@ -76,88 +88,108 @@ def wrapped_execute_action(
         action = _led_intensity_hack(action)
 
     match action:
-        case struct.Start(_, options, args):
-            return start_job(unit, experiment, job_name, options, args, dry_run, logger)
+        case struct.Start(_, if_, options, args):
+            return start_job(unit, experiment, job_name, options, args, dry_run, if_, logger)
 
-        case struct.Pause(_):
-            return pause_job(unit, experiment, job_name, dry_run, logger)
+        case struct.Pause(_, if_):
+            return pause_job(unit, experiment, job_name, dry_run, if_, logger)
 
-        case struct.Resume(_):
-            return resume_job(unit, experiment, job_name, dry_run, logger)
+        case struct.Resume(_, if_):
+            return resume_job(unit, experiment, job_name, dry_run, if_, logger)
 
-        case struct.Stop(_):
-            return stop_job(unit, experiment, job_name, dry_run, logger)
+        case struct.Stop(_, if_):
+            return stop_job(unit, experiment, job_name, dry_run, if_, logger)
 
-        case struct.Update(_, options):
-            return update_job(unit, experiment, job_name, options, dry_run, logger)
+        case struct.Update(_, if_, options):
+            return update_job(unit, experiment, job_name, options, dry_run, if_, logger)
 
-        case struct.Log(_, options):
-            return log(unit, experiment, job_name, options, dry_run, logger)
+        case struct.Log(_, options, if_):
+            return log(unit, experiment, job_name, options, dry_run, if_, logger)
 
         case _:
             raise ValueError(f"Not a valid action: {action}")
 
 
 def log(
-    unit: str, experiment: str, job_name: str, options: struct._LogOptions, dry_run: bool, logger
+    unit: str, experiment: str, job_name: str, options: struct._LogOptions, dry_run: bool, if_: str, logger
 ) -> Callable[..., None]:
-    level = options.level.lower()
-    return lambda: getattr(logger, level)(
-        options.message.format(unit=unit, job=job_name, experiment=experiment)
-    )
+    def _callable() -> None:
+        if parse_profile_if_directive_to_bool(if_):
+            level = options.level.lower()
+            getattr(logger, level)(options.message.format(unit=unit, job=job_name, experiment=experiment))
+
+    return wrap_in_try_except(_callable, logger)
 
 
 def start_job(
-    unit: str, experiment: str, job_name: str, options: dict, args: list, dry_run: bool, logger
+    unit: str, experiment: str, job_name: str, options: dict, args: list, dry_run: bool, if_: str, logger
 ) -> Callable[..., None]:
-    if dry_run:
-        return lambda: logger.info(
-            f"Dry-run: Starting {job_name} on {unit} with options {options} and args {args}."
-        )
-    else:
-        return lambda: publish(
-            f"pioreactor/{unit}/{experiment}/run/{job_name}",
-            encode({"options": options, "args": args}),
-        )
+    def _callable() -> None:
+        if parse_profile_if_directive_to_bool(if_):
+            if dry_run:
+                logger.info(f"Dry-run: Starting {job_name} on {unit} with options {options} and args {args}.")
+            else:
+                publish(
+                    f"pioreactor/{unit}/{experiment}/run/{job_name}",
+                    encode({"options": options, "args": args}),
+                )
+
+    return wrap_in_try_except(_callable, logger)
 
 
-def pause_job(unit: str, experiment: str, job_name: str, dry_run: bool, logger) -> Callable[..., None]:
-    if dry_run:
-        return lambda: logger.info(f"Dry-run: Pausing {job_name} on {unit}.")
-    else:
-        return lambda: publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "sleeping")
+def pause_job(
+    unit: str, experiment: str, job_name: str, dry_run: bool, if_: str, logger
+) -> Callable[..., None]:
+    def _callable() -> None:
+        if parse_profile_if_directive_to_bool(if_):
+            if dry_run:
+                logger.info(f"Dry-run: Pausing {job_name} on {unit}.")
+            else:
+                publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "sleeping")
+
+    return wrap_in_try_except(_callable, logger)
 
 
-def resume_job(unit: str, experiment: str, job_name: str, dry_run: bool, logger) -> Callable[..., None]:
-    if dry_run:
-        return lambda: logger.info(f"Dry-run: Resuming {job_name} on {unit}.")
-    else:
-        return lambda: publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "ready")
+def resume_job(
+    unit: str, experiment: str, job_name: str, dry_run: bool, if_: str, logger
+) -> Callable[..., None]:
+    def _callable() -> None:
+        if parse_profile_if_directive_to_bool(if_):
+            if dry_run:
+                logger.info(f"Dry-run: Resuming {job_name} on {unit}.")
+            else:
+                publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "ready")
+
+    return wrap_in_try_except(_callable, logger)
 
 
-def stop_job(unit: str, experiment: str, job_name: str, dry_run: bool, logger) -> Callable[..., None]:
-    if dry_run:
-        return lambda: logger.info(f"Dry-run: Stopping {job_name} on {unit}.")
-    else:
-        return lambda: publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "disconnected")
+def stop_job(
+    unit: str, experiment: str, job_name: str, dry_run: bool, if_: str, logger
+) -> Callable[..., None]:
+    def _callable() -> None:
+        if parse_profile_if_directive_to_bool(if_):
+            if dry_run:
+                logger.info(f"Dry-run: Stopping {job_name} on {unit}.")
+            else:
+                publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "disconnected")
+
+    return wrap_in_try_except(_callable, logger)
 
 
 def update_job(
-    unit: str, experiment: str, job_name: str, options: dict, dry_run: bool, logger
+    unit: str, experiment: str, job_name: str, options: dict, dry_run: bool, if_: str, logger
 ) -> Callable[..., None]:
-    if dry_run:
+    def _callable() -> None:
+        if parse_profile_if_directive_to_bool(if_):
+            if dry_run:
+                for setting, value in options.items():
+                    logger.info(f"Dry-run: Updating {setting} to {value} in {job_name} on {unit}.")
 
-        def _update():
-            for setting, value in options.items():
-                logger.info(f"Dry-run: Updating {setting} to {value} in {job_name} on {unit}.")
+            else:
+                for setting, value in options.items():
+                    publish(f"pioreactor/{unit}/{experiment}/{job_name}/{setting}/set", value)
 
-    else:
-
-        def _update():
-            for setting, value in options.items():
-                publish(f"pioreactor/{unit}/{experiment}/{job_name}/{setting}/set", value)
-
-    return _update
+    return wrap_in_try_except(_callable, logger)
 
 
 def hours_to_seconds(hours: float) -> float:
@@ -168,16 +200,17 @@ def _verify_experiment_profile(profile: struct.Profile) -> struct.Profile:
     # things to check for:
     # 1. Don't "stop" any *_automations
     # 2. Don't change generic settings on *_controllers, (Ex: changing target temp on temp_controller is wrong)
+    # 3. check syntax of if statements
 
     actions_per_job = defaultdict(list)
 
-    for job in profile.common.keys():
-        for action in profile.common[job]["actions"]:
+    for job in profile.common.jobs.keys():
+        for action in profile.common.jobs[job]["actions"]:
             actions_per_job[job].append(action)
 
     for unit in profile.pioreactors.values():
-        for job in unit["jobs"].keys():
-            for action in unit["jobs"][job]["actions"]:
+        for job in unit.jobs.keys():
+            for action in unit.jobs[job]["actions"]:
                 actions_per_job[job].append(action)
 
     # 1.
@@ -202,6 +235,12 @@ def _verify_experiment_profile(profile: struct.Profile) -> struct.Profile:
 
     for control_type in ["temperature_control", "dosing_control", "led_control"]:
         assert all(check_for_settings_change_on_controllers(act) for act in actions_per_job[control_type])
+
+    # 3.
+    for job in actions_per_job:
+        for action in actions_per_job[job]:
+            if not check_syntax_of_if_directive(action.if_):
+                raise SyntaxError(f"Syntax error in `{action.if_}`")
 
     return profile
 
@@ -304,40 +343,40 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
             logger.error(e)
             raise e
 
-        labels_to_units = {v: k for k, v in profile.labels.items()}
-        push_labels_to_ui(profile.labels)
-
         s = scheduler()
 
-        # process common jobs
-        for job in profile.common:
-            for action in profile.common[job]["actions"]:
+        # process common
+        for job_name, job in profile.common.jobs.items():
+            for action in job["actions"]:
                 s.enter(
                     delay=hours_to_seconds(action.hours_elapsed),
                     priority=get_simple_priority(action),
                     action=wrapped_execute_action(
                         UNIVERSAL_IDENTIFIER,
                         experiment,
-                        job,
+                        job_name,
                         logger,
                         action,
                         dry_run,
                     ),
                 )
 
-        # process specific jobs
-        for unit_or_label in profile.pioreactors:
-            unit_ = labels_to_units.get(unit_or_label, unit_or_label)
-            jobs = profile.pioreactors[unit_or_label]["jobs"]
-            for job in jobs:
-                for action in jobs[job]["actions"]:
+        # process specific pioreactors
+        for unit_ in profile.pioreactors:
+            pioreactor_specific_block = profile.pioreactors[unit_]
+            if pioreactor_specific_block.label is not None:
+                label = pioreactor_specific_block.label
+                push_labels_to_ui({unit_: label})
+
+            for job_name, job in pioreactor_specific_block.jobs.items():
+                for action in job["actions"]:
                     s.enter(
                         delay=hours_to_seconds(action.hours_elapsed),
                         priority=get_simple_priority(action),
                         action=wrapped_execute_action(
                             unit_,
                             experiment,
-                            job,
+                            job_name,
                             logger,
                             action,
                             dry_run,

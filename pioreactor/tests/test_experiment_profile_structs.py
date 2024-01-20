@@ -24,18 +24,19 @@ metadata:
   description: A simple profile to start stirring in your Pioreactor(s), update RPM at 90 seconds, and turn off after 180 seconds.
 
 common:
-  stirring:
-    actions:
-      - type: start
-        hours_elapsed: 0.0
-        options:
-          target_rpm: 400.0
-      - type: update
-        hours_elapsed: 0.025
-        options:
-          target_rpm: 800.0
-      - type: stop
-        hours_elapsed: 0.05
+  jobs:
+    stirring:
+      actions:
+        - type: start
+          hours_elapsed: 0.0
+          options:
+            target_rpm: 400.0
+        - type: update
+          hours_elapsed: 0.025
+          options:
+            target_rpm: 800.0
+        - type: stop
+          hours_elapsed: 0.05
 """
     assert decode(file, type=structs.Profile) is not None
 
@@ -54,20 +55,18 @@ plugins:
   - name: temperature_control_plugin
     version: ">=0.9.5"
 
-labels:
-  worker1: hot
-  worker2: cold
-
 common:
-  od_reading:
-    actions:
-      - type: start
-        hours_elapsed: 1.0
-      - type: stop
-        hours_elapsed: 5.0
+  jobs:
+    od_reading:
+      actions:
+        - type: start
+          hours_elapsed: 1.0
+        - type: stop
+          hours_elapsed: 5.0
 
 pioreactors:
-  hot:
+  worker1:
+    label: hot
     jobs:
       stirring:
         actions:
@@ -77,7 +76,8 @@ pioreactors:
               target_rpm: 200.0
           - type: stop
             hours_elapsed: 4.0
-  cold:
+  worker2:
+    label: cold
     jobs:
       stirring:
         actions:
@@ -99,21 +99,20 @@ metadata:
   author: John Doe
   description: A simple example of a stirring job in a single pioreactor
 
-labels:
-  reactor_1: PR-001
-
 common:
-  stirring:
-    actions:
-      - type: start
-        hours_elapsed: 0.0
-        options:
-          target_rpm: 200.0
-      - type: stop
-        hours_elapsed: 2.0
+  jobs:
+    stirring:
+      actions:
+        - type: start
+          hours_elapsed: 0.0
+          options:
+            target_rpm: 200.0
+        - type: stop
+          hours_elapsed: 2.0
 
 pioreactors:
   reactor_1:
+    label: PR-001
     jobs: {}
 """
     assert decode(file, type=structs.Profile) is not None
@@ -128,27 +127,28 @@ metadata:
   description: A more complex profile to start stirring, heating, and (later) od_reading and growth_rate_calculating.
 
 common:
-  stirring:
-    actions:
-      - type: start
-        hours_elapsed: 0.0
-        options:
-          target_rpm: 400.0
-  temperature_control:
-    actions:
-      - type: start
-        hours_elapsed: 0.0
-        options:
-          automation_name: thermostat
-          target_temperature: 30
-  od_reading:
-    actions:
-      - type: start
-        hours_elapsed: 0.25
-  growth_rate_calculating:
-    actions:
-      - type: start
-        hours_elapsed: 0.33
+  jobs:
+    stirring:
+      actions:
+        - type: start
+          hours_elapsed: 0.0
+          options:
+            target_rpm: 400.0
+    temperature_control:
+      actions:
+        - type: start
+          hours_elapsed: 0.0
+          options:
+            automation_name: thermostat
+            target_temperature: 30
+    od_reading:
+      actions:
+        - type: start
+          hours_elapsed: 0.25
+    growth_rate_calculating:
+      actions:
+        - type: start
+          hours_elapsed: 0.33
 """
     assert decode(file, type=structs.Profile) is not None
 
@@ -161,31 +161,28 @@ metadata:
   author: Jane Doe
   description: Complex experiment with multiple jobs and bioreactors
 
-labels:
-  bioreactor_A: BR-001
-  bioreactor_B: BR-002
-
 common:
-  stirring:
-    actions:
-      - type: start
-        hours_elapsed: 0.0
-        options:
-          target_rpm: 200.0
-      - type: stop
-        hours_elapsed: 4.0
-  od_reading:
-    actions:
-      - type: start
-        hours_elapsed: 0.0
-      - type: stop
-        hours_elapsed: 4.0
-  growth_rate_calculating:
-    actions:
-      - type: start
-        hours_elapsed: 0.5
-      - type: stop
-        hours_elapsed: 3.5
+  jobs:
+    stirring:
+      actions:
+        - type: start
+          hours_elapsed: 0.0
+          options:
+            target_rpm: 200.0
+        - type: stop
+          hours_elapsed: 4.0
+    od_reading:
+      actions:
+        - type: start
+          hours_elapsed: 0.0
+        - type: stop
+          hours_elapsed: 4.0
+    growth_rate_calculating:
+      actions:
+        - type: start
+          hours_elapsed: 0.5
+        - type: stop
+          hours_elapsed: 3.5
 
 pioreactors:
   bioreactor_A:
@@ -212,29 +209,26 @@ metadata:
   author: Alex Doe
   description: Very complex experiment with multiple jobs and bioreactors, different jobs on different bioreactors
 
-labels:
-  bioreactor_A: BR-001
-  bioreactor_B: BR-002
-  bioreactor_C: BR-003
-
 common:
-  stirring:
-    actions:
-      - type: start
-        hours_elapsed: 0.0
-        options:
-          target_rpm: 200.0
-      - type: stop
-        hours_elapsed: 4.0
-  od_reading:
-    actions:
-      - type: start
-        hours_elapsed: 0.0
-      - type: stop
-        hours_elapsed: 4.0
+  jobs:
+    stirring:
+      actions:
+        - type: start
+          hours_elapsed: 0.0
+          options:
+            target_rpm: 200.0
+        - type: stop
+          hours_elapsed: 4.0
+    od_reading:
+      actions:
+        - type: start
+          hours_elapsed: 0.0
+        - type: stop
+          hours_elapsed: 4.0
 
 pioreactors:
   bioreactor_A:
+    label: BR-001
     jobs:
       dosing_control:
         actions:
@@ -247,6 +241,7 @@ pioreactors:
           - type: stop
             hours_elapsed: 3.0
   bioreactor_B:
+    label: BR-002
     jobs:
       growth_rate_calculating:
         actions:
@@ -275,18 +270,19 @@ metadata:
   description: A simple profile to start stirring in your Pioreactor(s), update RPM at 90 seconds, and turn off after 180 seconds.
 
 common:
-  stirring:
-    actions:
-      - type: start
-        hours_elapsed: 0.0
-        options:
-          target_rpm: 400.0
-      - type: log
-        hours_elapsed: 0.025
-        options:
-          message: "log {unit}"
-      - type: stop
-        hours_elapsed: 0.05
+  jobs:
+    stirring:
+      actions:
+        - type: start
+          hours_elapsed: 0.0
+          options:
+            target_rpm: 400.0
+        - type: log
+          hours_elapsed: 0.025
+          options:
+            message: "log {unit}"
+        - type: stop
+          hours_elapsed: 0.05
 
 pioreactors:
     bioreactor1:
@@ -377,21 +373,48 @@ metadata:
   description: A  profile to demonstrate logging, start stirring in your Pioreactor(s), update RPM at 90 seconds, and turn off after 180 seconds.
 
 common:
-  stirring:
-    actions:
-      - type: start
-        hours_elapsed: 0.0
-        options:
-          target_rpm: 400.0
-      - type: update
-        hours_elapsed: 0.025
-        options:
-          target_rpm: 800.0
-      - type: stop
-        hours_elapsed: 0.05
-        options: # stop doesn't have options
-            this_fails: 0
+  jobs:
+    stirring:
+      actions:
+        - type: start
+          hours_elapsed: 0.0
+          options:
+            target_rpm: 400.0
+        - type: update
+          hours_elapsed: 0.025
+          options:
+            target_rpm: 800.0
+        - type: stop
+          hours_elapsed: 0.05
+          options: # stop doesn't have options
+              this_fails: 0
 
     """
     with pytest.raises(msgspec.ValidationError, match="Object contains unknown field `options`"):
         decode(file, type=structs.Profile)
+
+
+def test_if_statement() -> None:
+    file = """
+experiment_profile_name: simple_stirring_example
+
+metadata:
+  author: John Doe
+  description: A simple example of a stirring job in a single pioreactor
+
+pioreactors:
+  reactor_1:
+    jobs:
+      stirring:
+        actions:
+          - type: start
+            if: "True"
+            hours_elapsed: 0.0
+            options:
+              target_rpm: 200.0
+          - type: stop
+            hours_elapsed: 2.0
+            if: 1 > 0
+
+"""
+    assert decode(file, type=structs.Profile) is not None
