@@ -27,13 +27,15 @@ class _LogOptions(Struct):
     ] = "notice"
 
 
-class _Action(Struct, tag=str.lower, forbid_unknown_fields=True):
+class Log(Struct, tag=str.lower, forbid_unknown_fields=True):
     hours_elapsed: float
+    options: _LogOptions
     if_: str = field(name="if", default="True")
 
 
-class Log(_Action, tag=str.lower, forbid_unknown_fields=True):
-    options: _LogOptions = _LogOptions("<empty>", "DEBUG")
+class _Action(Struct, tag=str.lower, forbid_unknown_fields=True):
+    hours_elapsed: float
+    if_: str = field(name="if", default="True")
 
 
 class Start(_Action, tag=str.lower, forbid_unknown_fields=True):

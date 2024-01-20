@@ -37,6 +37,9 @@ import inspect
 import sys
 from collections import defaultdict
 
+# mypy: ignore-errors
+# flake8: noqa
+
 __all__ = ["Parser"]
 
 
@@ -44,6 +47,7 @@ class YaccError(Exception):
     """
     Exception raised for yacc-related build errors.
     """
+
     pass
 
 
@@ -56,7 +60,6 @@ class YaccError(Exception):
 
 ERROR_COUNT = 3  # Number of symbols that must be shifted to leave recovery mode
 MAXINT = sys.maxsize
-
 
 
 # ----------------------------------------------------------------------

@@ -13,6 +13,7 @@ from msgspec.yaml import decode
 
 from pioreactor.config import leader_address
 from pioreactor.experiment_profiles import profile_struct as struct
+from pioreactor.experiment_profiles.boolean_parser import parse_profile_if_directive_to_bool
 from pioreactor.logging import create_logger
 from pioreactor.mureq import put
 from pioreactor.pubsub import publish
@@ -26,7 +27,7 @@ def _led_intensity_hack(action: struct.Action) -> struct.Action:
     # we do this hack because led_intensity doesn't really behave like a background job, but its useful to
     # treat it as one.
     match action:
-        case struct.Log(_, _):
+        case struct.Log(_, _, _):
             # noop
             return action
 
@@ -49,12 +50,12 @@ def get_simple_priority(action):
     match action:
         case struct.Start():
             return 0
+        case struct.Stop():
+            return 1
         case struct.Pause():
             return 2
         case struct.Resume():
             return 3
-        case struct.Stop():
-            return 1
         case struct.Update():
             return 4
         case struct.Log():
@@ -91,7 +92,7 @@ def wrapped_execute_action(
         case struct.Update(_, if_, options):
             return update_job(unit, experiment, job_name, options, dry_run, if_, logger)
 
-        case struct.Log(_, if_, options):
+        case struct.Log(_, options, if_):
             return log(unit, experiment, job_name, options, dry_run, if_, logger)
 
         case _:
@@ -101,69 +102,83 @@ def wrapped_execute_action(
 def log(
     unit: str, experiment: str, job_name: str, options: struct._LogOptions, dry_run: bool, if_: str, logger
 ) -> Callable[..., None]:
-    level = options.level.lower()
-    return lambda: getattr(logger, level)(
-        options.message.format(unit=unit, job=job_name, experiment=experiment)
-    )
+    def _callable() -> None:
+        if parse_profile_if_directive_to_bool(if_):
+            level = options.level.lower()
+            getattr(logger, level)(options.message.format(unit=unit, job=job_name, experiment=experiment))
+
+    return _callable
 
 
 def start_job(
     unit: str, experiment: str, job_name: str, options: dict, args: list, dry_run: bool, if_: str, logger
 ) -> Callable[..., None]:
-    if dry_run:
-        return lambda: logger.info(
-            f"Dry-run: Starting {job_name} on {unit} with options {options} and args {args}."
-        )
-    else:
-        return lambda: publish(
-            f"pioreactor/{unit}/{experiment}/run/{job_name}",
-            encode({"options": options, "args": args}),
-        )
+    def _callable() -> None:
+        if parse_profile_if_directive_to_bool(if_):
+            if dry_run:
+                logger.info(f"Dry-run: Starting {job_name} on {unit} with options {options} and args {args}.")
+            else:
+                publish(
+                    f"pioreactor/{unit}/{experiment}/run/{job_name}",
+                    encode({"options": options, "args": args}),
+                )
+
+    return _callable
 
 
 def pause_job(
     unit: str, experiment: str, job_name: str, dry_run: bool, if_: str, logger
 ) -> Callable[..., None]:
-    if dry_run:
-        return lambda: logger.info(f"Dry-run: Pausing {job_name} on {unit}.")
-    else:
-        return lambda: publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "sleeping")
+    def _callable() -> None:
+        if parse_profile_if_directive_to_bool(if_):
+            if dry_run:
+                logger.info(f"Dry-run: Pausing {job_name} on {unit}.")
+            else:
+                publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "sleeping")
+
+    return _callable
 
 
 def resume_job(
     unit: str, experiment: str, job_name: str, dry_run: bool, if_: str, logger
 ) -> Callable[..., None]:
-    if dry_run:
-        return lambda: logger.info(f"Dry-run: Resuming {job_name} on {unit}.")
-    else:
-        return lambda: publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "ready")
+    def _callable() -> None:
+        if parse_profile_if_directive_to_bool(if_):
+            if dry_run:
+                logger.info(f"Dry-run: Resuming {job_name} on {unit}.")
+            else:
+                publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "ready")
+
+    return _callable
 
 
 def stop_job(
     unit: str, experiment: str, job_name: str, dry_run: bool, if_: str, logger
 ) -> Callable[..., None]:
-    if dry_run:
-        return lambda: logger.info(f"Dry-run: Stopping {job_name} on {unit}.")
-    else:
-        return lambda: publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "disconnected")
+    def _callable() -> None:
+        if parse_profile_if_directive_to_bool(if_):
+            if dry_run:
+                logger.info(f"Dry-run: Stopping {job_name} on {unit}.")
+            else:
+                publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "disconnected")
+
+    return _callable
 
 
 def update_job(
     unit: str, experiment: str, job_name: str, options: dict, dry_run: bool, if_: str, logger
 ) -> Callable[..., None]:
-    if dry_run:
+    def _callable() -> None:
+        if parse_profile_if_directive_to_bool(if_):
+            if dry_run:
+                for setting, value in options.items():
+                    logger.info(f"Dry-run: Updating {setting} to {value} in {job_name} on {unit}.")
 
-        def _update():
-            for setting, value in options.items():
-                logger.info(f"Dry-run: Updating {setting} to {value} in {job_name} on {unit}.")
+            else:
+                for setting, value in options.items():
+                    publish(f"pioreactor/{unit}/{experiment}/{job_name}/{setting}/set", value)
 
-    else:
-
-        def _update():
-            for setting, value in options.items():
-                publish(f"pioreactor/{unit}/{experiment}/{job_name}/{setting}/set", value)
-
-    return _update
+    return _callable
 
 
 def hours_to_seconds(hours: float) -> float:

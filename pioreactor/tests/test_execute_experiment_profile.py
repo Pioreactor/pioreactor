@@ -214,3 +214,50 @@ def test_execute_experiment_start_controller_and_stop_automation_fails(
 
     with pytest.raises(ValueError, match="stop"):
         execute_experiment_profile("profile.yaml")
+
+
+@pytest.mark.xfail(reason="need to write a good test for this")
+def test_label_fires_a_relabel_to_leader_endpoint():
+    assert False
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_profile_simple_if(mock__load_experiment_profile) -> None:
+    action_true = Start(hours_elapsed=0, if_="True")
+    action_false = Start(hours_elapsed=0, if_="False")
+    action_true_conditional = Start(hours_elapsed=1 / 60 / 60, if_="(1 >= 0) and (0 <= 1)")
+
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        plugins=[],
+        pioreactors={
+            "unit1": PioreactorSpecific(
+                jobs={
+                    "jobbing": {"actions": [action_true]},
+                    "not_jobbing": {"actions": [action_false]},
+                    "conditional_jobbing": {"actions": [action_true_conditional]},
+                }
+            ),
+        },
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    actions = []
+
+    def collection_actions(msg):
+        actions.append(msg.topic)
+
+    subscribe_and_callback(
+        collection_actions,
+        ["pioreactor/unit1/_testing_experiment/#"],
+        allow_retained=False,
+    )
+
+    execute_experiment_profile("profile.yaml")
+
+    assert actions == [
+        "pioreactor/unit1/_testing_experiment/run/jobbing",
+        "pioreactor/unit1/_testing_experiment/run/conditional_jobbing",
+    ]
