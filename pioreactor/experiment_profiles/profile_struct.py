@@ -70,14 +70,14 @@ JobName = str
 Jobs = dict[JobName, dict[t.Literal["actions"], list[Action]]]
 
 
-class PioreactorSpecific(Struct, forbid_unknown_fields=True):
+class PioreactorSpecificBlock(Struct, forbid_unknown_fields=True):
     jobs: Jobs = {}
     label: t.Optional[str] = None
     # calibration_settings?
     # config_options?
 
 
-class Common(Struct, forbid_unknown_fields=True):
+class CommonBlock(Struct, forbid_unknown_fields=True):
     jobs: Jobs = {}
 
 
@@ -86,5 +86,7 @@ class Profile(Struct, forbid_unknown_fields=True):
     metadata: Metadata = field(default_factory=Metadata)
     plugins: list[Plugin] = []
     stop_on_exit: bool = False  # TODO: not implemented
-    common: Common = field(default_factory=Common)  # later this might expand to include other fields
-    pioreactors: dict[PioreactorUnitName, PioreactorSpecific] = {}
+    common: CommonBlock = field(
+        default_factory=CommonBlock
+    )  # later this might expand to include other fields
+    pioreactors: dict[PioreactorUnitName, PioreactorSpecificBlock] = {}

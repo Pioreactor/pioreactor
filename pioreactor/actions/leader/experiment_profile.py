@@ -29,7 +29,7 @@ def wrap_in_try_except(func, logger):
         try:
             func(*args, **kwargs)
         except Exception as e:
-            logger.error(f"Error in action: {e}")
+            logger.warning(f"Error in action: {e}")
 
     return inner_function
 
@@ -343,40 +343,40 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
             logger.error(e)
             raise e
 
-        # TODO
-        # labels_to_units = {v: k for k, v in profile.labels.items()}
-        # push_labels_to_ui(profile.labels)
-
         s = scheduler()
 
-        # process common jobs
-        for job in profile.common.jobs:
-            for action in profile.common.jobs[job]["actions"]:
+        # process common
+        for job_name, job in profile.common.jobs.items():
+            for action in job["actions"]:
                 s.enter(
                     delay=hours_to_seconds(action.hours_elapsed),
                     priority=get_simple_priority(action),
                     action=wrapped_execute_action(
                         UNIVERSAL_IDENTIFIER,
                         experiment,
-                        job,
+                        job_name,
                         logger,
                         action,
                         dry_run,
                     ),
                 )
 
-        # process specific jobs
+        # process specific pioreactors
         for unit_ in profile.pioreactors:
-            jobs = profile.pioreactors[unit_].jobs
-            for job in jobs:
-                for action in jobs[job]["actions"]:
+            pioreactor_specific_block = profile.pioreactors[unit_]
+            if pioreactor_specific_block.label is not None:
+                label = pioreactor_specific_block.label
+                push_labels_to_ui({unit_: label})
+
+            for job_name, job in pioreactor_specific_block.jobs.items():
+                for action in job["actions"]:
                     s.enter(
                         delay=hours_to_seconds(action.hours_elapsed),
                         priority=get_simple_priority(action),
                         action=wrapped_execute_action(
                             unit_,
                             experiment,
-                            job,
+                            job_name,
                             logger,
                             action,
                             dry_run,

@@ -8,10 +8,10 @@ import pytest
 from pioreactor.actions.leader.experiment_profile import execute_experiment_profile
 from pioreactor.actions.leader.experiment_profile import hours_to_seconds
 from pioreactor.experiment_profiles.profile_struct import _LogOptions
-from pioreactor.experiment_profiles.profile_struct import Common
+from pioreactor.experiment_profiles.profile_struct import CommonBlock
 from pioreactor.experiment_profiles.profile_struct import Log
 from pioreactor.experiment_profiles.profile_struct import Metadata
-from pioreactor.experiment_profiles.profile_struct import PioreactorSpecific
+from pioreactor.experiment_profiles.profile_struct import PioreactorSpecificBlock
 from pioreactor.experiment_profiles.profile_struct import Profile
 from pioreactor.experiment_profiles.profile_struct import Start
 from pioreactor.experiment_profiles.profile_struct import Stop
@@ -36,9 +36,9 @@ def test_execute_experiment_profile_order(mock__load_experiment_profile) -> None
     profile = Profile(
         experiment_profile_name="test_profile",
         plugins=[],
-        common=Common(jobs={"job1": {"actions": [action1]}}),
+        common=CommonBlock(jobs={"job1": {"actions": [action1]}}),
         pioreactors={
-            "unit1": PioreactorSpecific(jobs={"job2": {"actions": [action2, action3]}}, label="label1"),
+            "unit1": PioreactorSpecificBlock(jobs={"job2": {"actions": [action2, action3]}}, label="label1"),
         },
         metadata=Metadata(author="test_author"),
     )
@@ -77,7 +77,7 @@ def test_execute_experiment_profile_hack_for_led_intensity(
     profile = Profile(
         experiment_profile_name="test_profile",
         plugins=[],
-        pioreactors={"unit1": PioreactorSpecific(jobs={job: {"actions": [action1, action2, action3]}})},
+        pioreactors={"unit1": PioreactorSpecificBlock(jobs={job: {"actions": [action1, action2, action3]}})},
         metadata=Metadata(author="test_author"),
     )
 
@@ -123,9 +123,9 @@ def test_execute_experiment_log_actions(mock__load_experiment_profile) -> None:
     profile = Profile(
         experiment_profile_name="test_profile",
         plugins=[],
-        common=Common(jobs={"job1": {"actions": [action1]}}),
+        common=CommonBlock(jobs={"job1": {"actions": [action1]}}),
         pioreactors={
-            "unit1": PioreactorSpecific(jobs={"job2": {"actions": [action2, action3]}}, label="label1")
+            "unit1": PioreactorSpecificBlock(jobs={"job2": {"actions": [action2, action3]}}, label="label1")
         },
         metadata=Metadata(author="test_author"),
     )
@@ -159,7 +159,7 @@ def test_execute_experiment_start_and_stop_controller(mock__load_experiment_prof
 
     profile = Profile(
         experiment_profile_name="test_profile",
-        common=Common(jobs={"temperature_control": {"actions": [action1, action2]}}),
+        common=CommonBlock(jobs={"temperature_control": {"actions": [action1, action2]}}),
         metadata=Metadata(author="test_author"),
     )
 
@@ -180,7 +180,7 @@ def test_execute_experiment_update_automations_not_controllers(
 
     profile = Profile(
         experiment_profile_name="test_profile",
-        common=Common(jobs={"temperature_control": {"actions": [action1, action2]}}),
+        common=CommonBlock(jobs={"temperature_control": {"actions": [action1, action2]}}),
         metadata=Metadata(author="test_author"),
     )
 
@@ -201,7 +201,7 @@ def test_execute_experiment_start_controller_and_stop_automation_fails(
 
     profile = Profile(
         experiment_profile_name="test_profile",
-        common=Common(
+        common=CommonBlock(
             jobs={
                 "temperature_control": {"actions": [action1]},
                 "temperature_automation": {"actions": [action2]},
@@ -231,7 +231,7 @@ def test_execute_experiment_profile_simple_if(mock__load_experiment_profile) -> 
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
-            "unit1": PioreactorSpecific(
+            "unit1": PioreactorSpecificBlock(
                 jobs={
                     "jobbing": {"actions": [action_true]},
                     "not_jobbing": {"actions": [action_false]},
@@ -271,7 +271,7 @@ def test_wrong_syntax_in_if_statement(mock__load_experiment_profile) -> None:
         experiment_profile_name="test_profile",
         plugins=[],
         pioreactors={
-            "unit1": PioreactorSpecific(
+            "unit1": PioreactorSpecificBlock(
                 jobs={
                     "jobbing": {"actions": [action]},
                 }
