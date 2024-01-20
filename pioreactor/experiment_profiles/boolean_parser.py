@@ -9,8 +9,6 @@ from .sly import Parser
 from pioreactor.pubsub import subscribe
 from pioreactor.whoami import get_latest_experiment_name
 
-# TODO: add >= and <=
-
 
 def convert_string(input_str: str) -> bool | float | str:
     # Try to convert to float
@@ -31,7 +29,19 @@ def convert_string(input_str: str) -> bool | float | str:
 
 class BoolLexer(Lexer):
     # != is the same as not !=
-    tokens = {NAME, AND, OR, NOT, EQUAL, LESS_THAN, GREATER_THAN, NUMBER, UNIT_JOB_SETTING}
+    tokens = {
+        NAME,
+        AND,
+        OR,
+        NOT,
+        EQUAL,
+        LESS_THAN,
+        GREATER_THAN,
+        LESS_THAN_OR_EQUAL,
+        GREATER_THAN_OR_EQUAL,
+        NUMBER,
+        UNIT_JOB_SETTING,
+    }
     ignore = " \t"
 
     # Tokens
@@ -43,8 +53,10 @@ class BoolLexer(Lexer):
     NAME["not"] = NOT
 
     # Comparison Operators
-    LESS_THAN = r"<"
+    LESS_THAN_OR_EQUAL = r"<="
+    GREATER_THAN_OR_EQUAL = r">="
     EQUAL = r"=="
+    LESS_THAN = r"<"
     GREATER_THAN = r">"
 
     NUMBER = r"[+-]?([0-9]*[.])?[0-9]+"  # decimal number
@@ -69,7 +81,13 @@ class BoolParser(Parser):
         elif p[1] == "or":
             return p.expr0 or p.expr1
 
-    @_("expr LESS_THAN expr", "expr EQUAL expr", "expr GREATER_THAN expr")
+    @_(
+        "expr LESS_THAN expr",
+        "expr EQUAL expr",
+        "expr GREATER_THAN expr",
+        "expr GREATER_THAN_OR_EQUAL expr",
+        "expr LESS_THAN_OR_EQUAL expr",
+    )
     def expr(self, p):
         if p[1] == "<":
             return p.expr0 < p.expr1
@@ -77,6 +95,10 @@ class BoolParser(Parser):
             return p.expr0 == p.expr1
         elif p[1] == ">":
             return p.expr0 > p.expr1
+        elif p[1] == ">=":
+            return p.expr0 >= p.expr1
+        elif p[1] == "<=":
+            return p.expr0 <= p.expr1
 
     @_("NOT expr")
     def expr(self, p):
@@ -101,6 +123,8 @@ class BoolParser(Parser):
 
     @_("UNIT_JOB_SETTING")
     def expr(self, p) -> bool | float | str:
+        # TODO: how does this work for common blocks?
+
         unit, job, setting, *keys = p.UNIT_JOB_SETTING.split(".")
         experiment = get_latest_experiment_name()
         result = subscribe(f"pioreactor/{unit}/{experiment}/{job}/{setting}", timeout=3)

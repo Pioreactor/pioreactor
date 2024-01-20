@@ -7,7 +7,6 @@ from msgspec.json import encode
 from pioreactor import structs
 from pioreactor.experiment_profiles.boolean_parser import parse_profile_if_directive_to_bool
 from pioreactor.experiment_profiles.sly.lex import LexError
-
 from pioreactor.pubsub import publish
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
@@ -40,6 +39,11 @@ def test_simple_float():
     assert not parse_profile_if_directive_to_bool("1.1 > 1.1")
     assert parse_profile_if_directive_to_bool("-1.1 > -2")
     assert parse_profile_if_directive_to_bool("(0 > 1) or (1 > 0)")
+    assert parse_profile_if_directive_to_bool("1.0 == 1.0")
+    assert parse_profile_if_directive_to_bool("1.0 >= 1.0")
+    assert parse_profile_if_directive_to_bool("2.5 >= 1.0")
+    assert not parse_profile_if_directive_to_bool("2.5 <= 1.0")
+    assert parse_profile_if_directive_to_bool("-1 <= 1.0")
 
 
 def test_mqtt_fetches():
