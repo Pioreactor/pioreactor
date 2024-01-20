@@ -26,20 +26,20 @@ def _led_intensity_hack(action: struct.Action) -> struct.Action:
     # we do this hack because led_intensity doesn't really behave like a background job, but its useful to
     # treat it as one.
     match action:
-        case struct.Log(hours, options):
+        case struct.Log(_, _):
             # noop
             return action
 
-        case struct.Start(_, _, _):
+        case struct.Start(_, _, _, _):
             # noop
             return action
 
-        case struct.Pause(hours) | struct.Stop(hours):
+        case struct.Pause(hours, if_) | struct.Stop(hours, if_):
             options = {"A": 0, "B": 0, "C": 0, "D": 0}
-            return struct.Start(hours, options, [])
+            return struct.Start(hours, if_, options, [])
 
-        case struct.Update(hours, options):
-            return struct.Start(hours, options, [])
+        case struct.Update(hours, if_, options):
+            return struct.Start(hours, if_, options, [])
 
         case _:
             raise ValueError
@@ -76,30 +76,30 @@ def wrapped_execute_action(
         action = _led_intensity_hack(action)
 
     match action:
-        case struct.Start(_, options, args):
-            return start_job(unit, experiment, job_name, options, args, dry_run, logger)
+        case struct.Start(_, if_, options, args):
+            return start_job(unit, experiment, job_name, options, args, dry_run, if_, logger)
 
-        case struct.Pause(_):
-            return pause_job(unit, experiment, job_name, dry_run, logger)
+        case struct.Pause(_, if_):
+            return pause_job(unit, experiment, job_name, dry_run, if_, logger)
 
-        case struct.Resume(_):
-            return resume_job(unit, experiment, job_name, dry_run, logger)
+        case struct.Resume(_, if_):
+            return resume_job(unit, experiment, job_name, dry_run, if_, logger)
 
-        case struct.Stop(_):
-            return stop_job(unit, experiment, job_name, dry_run, logger)
+        case struct.Stop(_, if_):
+            return stop_job(unit, experiment, job_name, dry_run, if_, logger)
 
-        case struct.Update(_, options):
-            return update_job(unit, experiment, job_name, options, dry_run, logger)
+        case struct.Update(_, if_, options):
+            return update_job(unit, experiment, job_name, options, dry_run, if_, logger)
 
-        case struct.Log(_, options):
-            return log(unit, experiment, job_name, options, dry_run, logger)
+        case struct.Log(_, if_, options):
+            return log(unit, experiment, job_name, options, dry_run, if_, logger)
 
         case _:
             raise ValueError(f"Not a valid action: {action}")
 
 
 def log(
-    unit: str, experiment: str, job_name: str, options: struct._LogOptions, dry_run: bool, logger
+    unit: str, experiment: str, job_name: str, options: struct._LogOptions, dry_run: bool, if_: str, logger
 ) -> Callable[..., None]:
     level = options.level.lower()
     return lambda: getattr(logger, level)(
@@ -108,7 +108,7 @@ def log(
 
 
 def start_job(
-    unit: str, experiment: str, job_name: str, options: dict, args: list, dry_run: bool, logger
+    unit: str, experiment: str, job_name: str, options: dict, args: list, dry_run: bool, if_: str, logger
 ) -> Callable[..., None]:
     if dry_run:
         return lambda: logger.info(
@@ -121,21 +121,27 @@ def start_job(
         )
 
 
-def pause_job(unit: str, experiment: str, job_name: str, dry_run: bool, logger) -> Callable[..., None]:
+def pause_job(
+    unit: str, experiment: str, job_name: str, dry_run: bool, if_: str, logger
+) -> Callable[..., None]:
     if dry_run:
         return lambda: logger.info(f"Dry-run: Pausing {job_name} on {unit}.")
     else:
         return lambda: publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "sleeping")
 
 
-def resume_job(unit: str, experiment: str, job_name: str, dry_run: bool, logger) -> Callable[..., None]:
+def resume_job(
+    unit: str, experiment: str, job_name: str, dry_run: bool, if_: str, logger
+) -> Callable[..., None]:
     if dry_run:
         return lambda: logger.info(f"Dry-run: Resuming {job_name} on {unit}.")
     else:
         return lambda: publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "ready")
 
 
-def stop_job(unit: str, experiment: str, job_name: str, dry_run: bool, logger) -> Callable[..., None]:
+def stop_job(
+    unit: str, experiment: str, job_name: str, dry_run: bool, if_: str, logger
+) -> Callable[..., None]:
     if dry_run:
         return lambda: logger.info(f"Dry-run: Stopping {job_name} on {unit}.")
     else:
@@ -143,7 +149,7 @@ def stop_job(unit: str, experiment: str, job_name: str, dry_run: bool, logger) -
 
 
 def update_job(
-    unit: str, experiment: str, job_name: str, options: dict, dry_run: bool, logger
+    unit: str, experiment: str, job_name: str, options: dict, dry_run: bool, if_: str, logger
 ) -> Callable[..., None]:
     if dry_run:
 
@@ -171,13 +177,13 @@ def _verify_experiment_profile(profile: struct.Profile) -> struct.Profile:
 
     actions_per_job = defaultdict(list)
 
-    for job in profile.common.keys():
-        for action in profile.common[job]["actions"]:
+    for job in profile.common.jobs.keys():
+        for action in profile.common.jobs[job]["actions"]:
             actions_per_job[job].append(action)
 
     for unit in profile.pioreactors.values():
-        for job in unit["jobs"].keys():
-            for action in unit["jobs"][job]["actions"]:
+        for job in unit.jobs.keys():
+            for action in unit.jobs[job]["actions"]:
                 actions_per_job[job].append(action)
 
     # 1.
@@ -304,14 +310,15 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
             logger.error(e)
             raise e
 
-        labels_to_units = {v: k for k, v in profile.labels.items()}
-        push_labels_to_ui(profile.labels)
+        # TODO
+        # labels_to_units = {v: k for k, v in profile.labels.items()}
+        # push_labels_to_ui(profile.labels)
 
         s = scheduler()
 
         # process common jobs
-        for job in profile.common:
-            for action in profile.common[job]["actions"]:
+        for job in profile.common.jobs:
+            for action in profile.common.jobs[job]["actions"]:
                 s.enter(
                     delay=hours_to_seconds(action.hours_elapsed),
                     priority=get_simple_priority(action),
@@ -326,9 +333,8 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
                 )
 
         # process specific jobs
-        for unit_or_label in profile.pioreactors:
-            unit_ = labels_to_units.get(unit_or_label, unit_or_label)
-            jobs = profile.pioreactors[unit_or_label]["jobs"]
+        for unit_ in profile.pioreactors:
+            jobs = profile.pioreactors[unit_].jobs
             for job in jobs:
                 for action in jobs[job]["actions"]:
                     s.enter(
