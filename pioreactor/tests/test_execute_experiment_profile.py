@@ -216,6 +216,28 @@ def test_execute_experiment_start_controller_and_stop_automation_fails(
         execute_experiment_profile("profile.yaml")
 
 
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_start_automation_fails(
+    mock__load_experiment_profile,
+) -> None:
+    action = Start(hours_elapsed=0 / 60 / 60, options={"target_temperature": 20})
+
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        common=CommonBlock(
+            jobs={
+                "temperature_automation": {"actions": [action]},
+            }
+        ),
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    with pytest.raises(ValueError, match="start"):
+        execute_experiment_profile("profile.yaml")
+
+
 @pytest.mark.xfail(reason="need to write a good test for this")
 def test_label_fires_a_relabel_to_leader_endpoint():
     assert False

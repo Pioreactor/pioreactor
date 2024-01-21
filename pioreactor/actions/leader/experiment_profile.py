@@ -117,6 +117,8 @@ def log(
         if parse_profile_if_directive_to_bool(if_):
             level = options.level.lower()
             getattr(logger, level)(options.message.format(unit=unit, job=job_name, experiment=experiment))
+        else:
+            logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
 
     return wrap_in_try_except(_callable, logger)
 
@@ -133,6 +135,8 @@ def start_job(
                     f"pioreactor/{unit}/{experiment}/run/{job_name}",
                     encode({"options": options, "args": args}),
                 )
+        else:
+            logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
 
     return wrap_in_try_except(_callable, logger)
 
@@ -146,6 +150,8 @@ def pause_job(
                 logger.info(f"Dry-run: Pausing {job_name} on {unit}.")
             else:
                 publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "sleeping")
+        else:
+            logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
 
     return wrap_in_try_except(_callable, logger)
 
@@ -159,6 +165,8 @@ def resume_job(
                 logger.info(f"Dry-run: Resuming {job_name} on {unit}.")
             else:
                 publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "ready")
+        else:
+            logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
 
     return wrap_in_try_except(_callable, logger)
 
@@ -172,6 +180,8 @@ def stop_job(
                 logger.info(f"Dry-run: Stopping {job_name} on {unit}.")
             else:
                 publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "disconnected")
+        else:
+            logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
 
     return wrap_in_try_except(_callable, logger)
 
@@ -188,6 +198,8 @@ def update_job(
             else:
                 for setting, value in options.items():
                     publish(f"pioreactor/{unit}/{experiment}/{job_name}/{setting}/set", value)
+        else:
+            logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
 
     return wrap_in_try_except(_callable, logger)
 
@@ -198,7 +210,7 @@ def hours_to_seconds(hours: float) -> float:
 
 def _verify_experiment_profile(profile: struct.Profile) -> struct.Profile:
     # things to check for:
-    # 1. Don't "stop" any *_automations
+    # 1. Don't "stop" or "start" any *_automations
     # 2. Don't change generic settings on *_controllers, (Ex: changing target temp on temp_controller is wrong)
     # 3. check syntax of if statements
 
@@ -219,6 +231,10 @@ def _verify_experiment_profile(profile: struct.Profile) -> struct.Profile:
             case struct.Stop(_):
                 raise ValueError(
                     f"Don't use 'stop' for automations. To stop automations, use 'stop' for controllers: {action}"
+                )
+            case struct.Start(_):
+                raise ValueError(
+                    f"Don't use 'start' for automations. To start automations, use 'start' for controllers with `options`: {action}"
                 )
         return True
 
