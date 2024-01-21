@@ -138,7 +138,7 @@ class BoolParser(Parser):
                 data_blob = decode(result.payload)
             except DecodeError:
                 # just a string?
-                return result.payload.decode()
+                return convert_string(result.payload.decode())
 
             value = data_blob
 

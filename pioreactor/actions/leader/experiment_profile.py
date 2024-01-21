@@ -6,6 +6,7 @@ from collections import defaultdict
 from pathlib import Path
 from sched import scheduler
 from typing import Callable
+from typing import Optional
 
 import click
 from msgspec.json import encode
@@ -111,10 +112,16 @@ def wrapped_execute_action(
 
 
 def log(
-    unit: str, experiment: str, job_name: str, options: struct._LogOptions, dry_run: bool, if_: str, logger
+    unit: str,
+    experiment: str,
+    job_name: str,
+    options: struct._LogOptions,
+    dry_run: bool,
+    if_: Optional[str],
+    logger,
 ) -> Callable[..., None]:
     def _callable() -> None:
-        if parse_profile_if_directive_to_bool(if_):
+        if (if_ is None) or parse_profile_if_directive_to_bool(if_):
             level = options.level.lower()
             getattr(logger, level)(options.message.format(unit=unit, job=job_name, experiment=experiment))
         else:
@@ -124,10 +131,17 @@ def log(
 
 
 def start_job(
-    unit: str, experiment: str, job_name: str, options: dict, args: list, dry_run: bool, if_: str, logger
+    unit: str,
+    experiment: str,
+    job_name: str,
+    options: dict,
+    args: list,
+    dry_run: bool,
+    if_: Optional[str],
+    logger,
 ) -> Callable[..., None]:
     def _callable() -> None:
-        if parse_profile_if_directive_to_bool(if_):
+        if (if_ is None) or parse_profile_if_directive_to_bool(if_):
             if dry_run:
                 logger.info(f"Dry-run: Starting {job_name} on {unit} with options {options} and args {args}.")
             else:
@@ -142,10 +156,10 @@ def start_job(
 
 
 def pause_job(
-    unit: str, experiment: str, job_name: str, dry_run: bool, if_: str, logger
+    unit: str, experiment: str, job_name: str, dry_run: bool, if_: Optional[str], logger
 ) -> Callable[..., None]:
     def _callable() -> None:
-        if parse_profile_if_directive_to_bool(if_):
+        if (if_ is None) or parse_profile_if_directive_to_bool(if_):
             if dry_run:
                 logger.info(f"Dry-run: Pausing {job_name} on {unit}.")
             else:
@@ -157,10 +171,10 @@ def pause_job(
 
 
 def resume_job(
-    unit: str, experiment: str, job_name: str, dry_run: bool, if_: str, logger
+    unit: str, experiment: str, job_name: str, dry_run: bool, if_: Optional[str], logger
 ) -> Callable[..., None]:
     def _callable() -> None:
-        if parse_profile_if_directive_to_bool(if_):
+        if (if_ is None) or parse_profile_if_directive_to_bool(if_):
             if dry_run:
                 logger.info(f"Dry-run: Resuming {job_name} on {unit}.")
             else:
@@ -172,10 +186,10 @@ def resume_job(
 
 
 def stop_job(
-    unit: str, experiment: str, job_name: str, dry_run: bool, if_: str, logger
+    unit: str, experiment: str, job_name: str, dry_run: bool, if_: Optional[str], logger
 ) -> Callable[..., None]:
     def _callable() -> None:
-        if parse_profile_if_directive_to_bool(if_):
+        if (if_ is None) or parse_profile_if_directive_to_bool(if_):
             if dry_run:
                 logger.info(f"Dry-run: Stopping {job_name} on {unit}.")
             else:
@@ -187,10 +201,10 @@ def stop_job(
 
 
 def update_job(
-    unit: str, experiment: str, job_name: str, options: dict, dry_run: bool, if_: str, logger
+    unit: str, experiment: str, job_name: str, options: dict, dry_run: bool, if_: Optional[str], logger
 ) -> Callable[..., None]:
     def _callable() -> None:
-        if parse_profile_if_directive_to_bool(if_):
+        if (if_ is None) or parse_profile_if_directive_to_bool(if_):
             if dry_run:
                 for setting, value in options.items():
                     logger.info(f"Dry-run: Updating {setting} to {value} in {job_name} on {unit}.")
@@ -213,16 +227,20 @@ def _verify_experiment_profile(profile: struct.Profile) -> struct.Profile:
     # 1. Don't "stop" or "start" any *_automations
     # 2. Don't change generic settings on *_controllers, (Ex: changing target temp on temp_controller is wrong)
     # 3. check syntax of if statements
+    # 4. No if statements in the common
 
     actions_per_job = defaultdict(list)
 
     for job in profile.common.jobs.keys():
-        for action in profile.common.jobs[job]["actions"]:
+        for action in profile.common.jobs[job].actions:
             actions_per_job[job].append(action)
+            # 4.
+            if action.if_ is not None:
+                raise ValueError("Can't put `if` in common yet!")
 
     for unit in profile.pioreactors.values():
         for job in unit.jobs.keys():
-            for action in unit.jobs[job]["actions"]:
+            for action in unit.jobs[job].actions:
                 actions_per_job[job].append(action)
 
     # 1.
@@ -244,7 +262,7 @@ def _verify_experiment_profile(profile: struct.Profile) -> struct.Profile:
     # 2.
     def check_for_settings_change_on_controllers(action: struct.Action) -> bool:
         match action:
-            case struct.Update(_, options):
+            case struct.Update(_, _, options):
                 if "automation_name" not in options:
                     raise ValueError(f"Update automations, not controllers, with settings: {action}.")
         return True
@@ -255,7 +273,7 @@ def _verify_experiment_profile(profile: struct.Profile) -> struct.Profile:
     # 3.
     for job in actions_per_job:
         for action in actions_per_job[job]:
-            if not check_syntax_of_if_directive(action.if_):
+            if action.if_ and not check_syntax_of_if_directive(action.if_):
                 raise SyntaxError(f"Syntax error in `{action.if_}`")
 
     return profile
@@ -363,7 +381,7 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
 
         # process common
         for job_name, job in profile.common.jobs.items():
-            for action in job["actions"]:
+            for action in job.actions:
                 s.enter(
                     delay=hours_to_seconds(action.hours_elapsed),
                     priority=get_simple_priority(action),
@@ -385,7 +403,7 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
                 push_labels_to_ui({unit_: label})
 
             for job_name, job in pioreactor_specific_block.jobs.items():
-                for action in job["actions"]:
+                for action in job.actions:
                     s.enter(
                         delay=hours_to_seconds(action.hours_elapsed),
                         priority=get_simple_priority(action),
