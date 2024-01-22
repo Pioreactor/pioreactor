@@ -424,9 +424,9 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
 
             # the below is so the schedule can be canceled by setting the event.
             while not state.exit_event.wait(timeout=0):
-                next_ev = s.run(blocking=False)
-                if next_ev is not None:
-                    time.sleep(min(1, next_ev))
+                next_event_in = s.run(blocking=False)
+                if next_event_in is not None:
+                    time.sleep(min(0.5, next_event_in))
                 else:
                     break
         finally:
