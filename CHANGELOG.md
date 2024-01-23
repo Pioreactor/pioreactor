@@ -1,10 +1,6 @@
 ### Upcoming
 
- - using the 2023-12-11 RPi base image
- - removing `ODReadings.latest_od_reading` and it's replaced by `ODReadings.ods`.
- - `ods`, `od1`, `od2` now a published settings of `ODReadings`.
- - removed the topic `pioreactor/{unit}/.../od_readings/od/{channel}`. Use `pioreactor/{unit}/.../od_readings/od1` or `pioreactor/{unit}/.../od_readings/od2`. This change was made to fit more and more published data into the same format (and it makes `od1` and `od2` published settings on `ODReader`)
- - when a worker is first turned on, and pre-connected to a cluster, the LED is turned on to give _some_ feedback to the user.
+#### Expressions in experiment profiles!
  - adding `if` directives to experiment_profiles, with dynamic expressions.
    ```yaml
    - type: update
@@ -14,7 +10,6 @@
        - target_rpm: 600
    ```
 
-   Full docs are available here:
  - adding dynamic options:
    ```yaml
    - type: update
@@ -23,6 +18,19 @@
      options:
        - target_rpm: ${{ pio1:stirring:target_rpm * 1.1 }}
    ```
+
+
+### Breaking changes
+ - removing `ODReadings.latest_od_reading` and it's replaced by `ODReadings.ods`.
+ - removed the topic `pioreactor/{unit}/.../od_readings/od/{channel}`. Use `pioreactor/{unit}/.../od_readings/od1` or `pioreactor/{unit}/.../od_readings/od2`. This change was made to fit more and more published data into the same format (and it makes `od1` and `od2` published settings on `ODReader`)
+
+### Enhancements
+ - `ods`, `od1`, `od2` now a published settings of `ODReadings`.
+ - when a worker is first turned on, and pre-connected to a cluster, the LED is turned on to give _some_ feedback to the user.
+ - using the 2023-12-11 RPi base image
+
+#### Bug fixes
+
 
 ### 24.1.12
 

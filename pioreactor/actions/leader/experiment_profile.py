@@ -33,7 +33,6 @@ def wrap_in_try_except(func, logger):
             func(*args, **kwargs)
         except Exception as e:
             logger.warning(f"Error in action: {e}")
-            raise e
 
     return inner_function
 
