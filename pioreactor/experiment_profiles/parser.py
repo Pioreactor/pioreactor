@@ -29,14 +29,18 @@ def convert_string(input_str: str) -> bool | float | str:
     return input_str
 
 
-class BoolLexer(Lexer):
-    # != is the same as not !=
+class ProfileLexer(Lexer):
+    # != is the same as not
     tokens = {
         NAME,
         AND,
         OR,
         NOT,
         EQUAL,
+        PLUS,
+        MINUS,
+        TIMES,
+        DIVIDE,
         LESS_THAN,
         GREATER_THAN,
         LESS_THAN_OR_EQUAL,
@@ -54,6 +58,12 @@ class BoolLexer(Lexer):
     NAME["or"] = OR
     NAME["not"] = NOT
 
+    # Arithmetic Operators
+    PLUS = r"\+"
+    MINUS = r"-"
+    TIMES = r"\*"
+    DIVIDE = r"/"
+
     # Comparison Operators
     LESS_THAN_OR_EQUAL = r"<="
     GREATER_THAN_OR_EQUAL = r">="
@@ -67,13 +77,16 @@ class BoolLexer(Lexer):
     literals = {"(", ")"}
 
 
-class BoolParser(Parser):
-    tokens = BoolLexer.tokens
+class ProfileParser(Parser):
+    tokens = ProfileLexer.tokens
 
     precedence = (
         ("left", AND, OR),
         ("right", NOT),
         ("nonassoc", LESS_THAN, EQUAL, GREATER_THAN),
+        ("right", UMINUS),
+        ("left", PLUS, MINUS),
+        ("left", TIMES, DIVIDE),
     )
 
     @_("expr AND expr", "expr OR expr")
@@ -82,6 +95,27 @@ class BoolParser(Parser):
             return p.expr0 and p.expr1
         elif p[1] == "or":
             return p.expr0 or p.expr1
+
+    @_("PLUS expr %prec UMINUS", "MINUS expr %prec UMINUS")
+    def expr(self, p):
+        if p[0] == "+":
+            return p.expr
+        elif p[0] == "-":
+            return -p.expr
+
+    @_("expr PLUS expr", "expr MINUS expr", "expr TIMES expr", "expr DIVIDE expr")
+    def expr(self, p):
+        if p[1] == "+":
+            return p.expr0 + p.expr1
+        elif p[1] == "-":
+            return p.expr0 - p.expr1
+        elif p[1] == "*":
+            return p.expr0 * p.expr1
+        elif p[1] == "/":
+            # Handle division by zero
+            if p.expr1 == 0:
+                raise ValueError("Division by zero is not allowed.")
+            return p.expr0 / p.expr1
 
     @_(
         "expr LESS_THAN expr",
@@ -153,15 +187,19 @@ class BoolParser(Parser):
             raise ValueError(f"{p.UNIT_JOB_SETTING} does not exist.")
 
 
-def parse_profile_if_directive_to_bool(directive: str) -> bool:
-    lexer = BoolLexer()
-    parser = BoolParser()
-    return parser.parse(lexer.tokenize(directive))
+def parse_profile_expression_to_bool(profile_string: str) -> bool:
+    return bool(parse_profile_expression(profile_string))
 
 
-def check_syntax_of_if_directive(directive: str) -> bool:
+def parse_profile_expression(profile_string: str):
+    lexer = ProfileLexer()
+    parser = ProfileParser()
+    return parser.parse(lexer.tokenize(profile_string))
+
+
+def check_syntax(profile_string: str) -> bool:
     try:
-        list(BoolLexer().tokenize(directive))  # materialize it to force error
+        list(ProfileLexer().tokenize(profile_string))  # materialize it to force error
         return True
     except Exception:
         return False

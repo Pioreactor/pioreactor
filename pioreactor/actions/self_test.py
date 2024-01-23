@@ -86,8 +86,8 @@ def test_REF_is_in_correct_position(client: Client, logger: Logger, unit: str, e
         st.block_until_rpm_is_close_to_target(abs_tolerance=150, timeout=15)
 
         for i, reading in enumerate(od_stream, start=1):
-            signal1.append(reading.ods["1"].od)
-            signal2.append(reading.ods["2"].od)
+            signal1.append(reading.od1.od)
+            signal2.append(reading.od2.od)
 
             if i % 5 == 0 and i % 2 == 0:
                 st.set_state("ready")

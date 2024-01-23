@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import re
 import time
 from collections import defaultdict
 from pathlib import Path
@@ -14,8 +15,9 @@ from msgspec.yaml import decode
 
 from pioreactor.config import leader_address
 from pioreactor.experiment_profiles import profile_struct as struct
-from pioreactor.experiment_profiles.boolean_parser import check_syntax_of_if_directive
-from pioreactor.experiment_profiles.boolean_parser import parse_profile_if_directive_to_bool
+from pioreactor.experiment_profiles.parser import check_syntax
+from pioreactor.experiment_profiles.parser import parse_profile_expression
+from pioreactor.experiment_profiles.parser import parse_profile_expression_to_bool
 from pioreactor.logging import create_logger
 from pioreactor.mureq import put
 from pioreactor.pubsub import publish
@@ -33,6 +35,33 @@ def wrap_in_try_except(func, logger):
             logger.warning(f"Error in action: {e}")
 
     return inner_function
+
+
+def strip_eval_brackets(value) -> str:
+    pattern = r"\${{(.*?)}}"
+    if bool(re.search(pattern, str(value))):
+        match = re.search(pattern, value)
+        assert match is not None
+        return match.group(1)
+    return value
+
+
+def evaluate_options(options: dict) -> dict:
+    """
+    Users can provide options like {'target_rpm': '${{ bioreactor_A:stirring:target_rpm + 10 }}'}, and the latter
+    should be evaluated
+    """
+    for key, value in options.items():
+        options[key] = parse_profile_expression(strip_eval_brackets(value))
+    return options
+
+
+def evaluate_if(if_string: str) -> bool:
+    return parse_profile_expression_to_bool(strip_eval_brackets(if_string))
+
+
+def check_syntax_of_if_string(if_string: str) -> bool:
+    return check_syntax(strip_eval_brackets(if_string))
 
 
 def _led_intensity_hack(action: struct.Action) -> struct.Action:
@@ -121,7 +150,7 @@ def log(
     logger,
 ) -> Callable[..., None]:
     def _callable() -> None:
-        if (if_ is None) or parse_profile_if_directive_to_bool(if_):
+        if (if_ is None) or evaluate_if(if_):
             level = options.level.lower()
             getattr(logger, level)(options.message.format(unit=unit, job=job_name, experiment=experiment))
         else:
@@ -141,13 +170,13 @@ def start_job(
     logger,
 ) -> Callable[..., None]:
     def _callable() -> None:
-        if (if_ is None) or parse_profile_if_directive_to_bool(if_):
+        if (if_ is None) or evaluate_if(if_):
             if dry_run:
                 logger.info(f"Dry-run: Starting {job_name} on {unit} with options {options} and args {args}.")
             else:
                 publish(
                     f"pioreactor/{unit}/{experiment}/run/{job_name}",
-                    encode({"options": options, "args": args}),
+                    encode({"options": evaluate_options(options), "args": args}),
                 )
         else:
             logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
@@ -159,7 +188,7 @@ def pause_job(
     unit: str, experiment: str, job_name: str, dry_run: bool, if_: Optional[str], logger
 ) -> Callable[..., None]:
     def _callable() -> None:
-        if (if_ is None) or parse_profile_if_directive_to_bool(if_):
+        if (if_ is None) or evaluate_if(if_):
             if dry_run:
                 logger.info(f"Dry-run: Pausing {job_name} on {unit}.")
             else:
@@ -174,7 +203,7 @@ def resume_job(
     unit: str, experiment: str, job_name: str, dry_run: bool, if_: Optional[str], logger
 ) -> Callable[..., None]:
     def _callable() -> None:
-        if (if_ is None) or parse_profile_if_directive_to_bool(if_):
+        if (if_ is None) or evaluate_if(if_):
             if dry_run:
                 logger.info(f"Dry-run: Resuming {job_name} on {unit}.")
             else:
@@ -189,7 +218,7 @@ def stop_job(
     unit: str, experiment: str, job_name: str, dry_run: bool, if_: Optional[str], logger
 ) -> Callable[..., None]:
     def _callable() -> None:
-        if (if_ is None) or parse_profile_if_directive_to_bool(if_):
+        if (if_ is None) or evaluate_if(if_):
             if dry_run:
                 logger.info(f"Dry-run: Stopping {job_name} on {unit}.")
             else:
@@ -204,13 +233,13 @@ def update_job(
     unit: str, experiment: str, job_name: str, options: dict, dry_run: bool, if_: Optional[str], logger
 ) -> Callable[..., None]:
     def _callable() -> None:
-        if (if_ is None) or parse_profile_if_directive_to_bool(if_):
+        if (if_ is None) or evaluate_if(if_):
             if dry_run:
                 for setting, value in options.items():
                     logger.info(f"Dry-run: Updating {setting} to {value} in {job_name} on {unit}.")
 
             else:
-                for setting, value in options.items():
+                for setting, value in evaluate_options(options).items():
                     publish(f"pioreactor/{unit}/{experiment}/{job_name}/{setting}/set", value)
         else:
             logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
@@ -273,7 +302,7 @@ def _verify_experiment_profile(profile: struct.Profile) -> struct.Profile:
     # 3.
     for job in actions_per_job:
         for action in actions_per_job[job]:
-            if action.if_ and not check_syntax_of_if_directive(action.if_):
+            if action.if_ and not check_syntax_of_if_string(action.if_):
                 raise SyntaxError(f"Syntax error in `{action.if_}`")
 
     return profile

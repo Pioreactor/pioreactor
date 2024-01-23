@@ -18,6 +18,7 @@ from pioreactor.experiment_profiles.profile_struct import Start
 from pioreactor.experiment_profiles.profile_struct import Stop
 from pioreactor.experiment_profiles.profile_struct import Update
 from pioreactor.pubsub import collect_all_logs_of_level
+from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe_and_callback
 
 
@@ -245,8 +246,45 @@ def test_label_fires_a_relabel_to_leader_endpoint():
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_profile_simple_if2(mock__load_experiment_profile) -> None:
+    action_true = Start(hours_elapsed=0, if_="${{1 == 1}}")
+
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        plugins=[],
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(
+                jobs={
+                    "jobbing": Job(actions=[action_true]),
+                }
+            ),
+        },
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    actions = []
+
+    def collection_actions(msg):
+        actions.append(msg.topic)
+
+    subscribe_and_callback(
+        collection_actions,
+        ["pioreactor/unit1/_testing_experiment/#"],
+        allow_retained=False,
+    )
+
+    execute_experiment_profile("profile.yaml")
+
+    assert actions == [
+        "pioreactor/unit1/_testing_experiment/run/jobbing",
+    ]
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_profile_simple_if(mock__load_experiment_profile) -> None:
-    action_true = Start(hours_elapsed=0, if_="True")
+    action_true = Start(hours_elapsed=0, if_="1 == 1")
     action_false = Start(hours_elapsed=0, if_="False")
     action_true_conditional = Start(hours_elapsed=1 / 60 / 60, if_="(1 >= 0) and (0 <= 1)")
 
@@ -284,6 +322,45 @@ def test_execute_experiment_profile_simple_if(mock__load_experiment_profile) -> 
         "pioreactor/unit1/_testing_experiment/run/jobbing",
         "pioreactor/unit1/_testing_experiment/run/conditional_jobbing",
     ]
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_profile_expression(mock__load_experiment_profile) -> None:
+    unit = "unit1"
+    job_name = "jobbing"
+    publish(f"pioreactor/{unit}/_testing_experiment/{job_name}/target", 10, retain=True)
+
+    action = Start(hours_elapsed=0, options={"target": "${{unit1:jobbing:target + 1}}"})
+
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        plugins=[],
+        pioreactors={
+            unit: PioreactorSpecificBlock(
+                jobs={
+                    job_name: Job(actions=[action]),
+                }
+            ),
+        },
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    actions = []
+
+    def collection_actions(msg):
+        actions.append(msg.payload.decode())
+
+    subscribe_and_callback(
+        collection_actions,
+        ["pioreactor/unit1/_testing_experiment/run/jobbing"],
+        allow_retained=False,
+    )
+
+    execute_experiment_profile("profile.yaml")
+
+    assert actions == ['{"options":{"target":11.0},"args":[]}']
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
