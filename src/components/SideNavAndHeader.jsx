@@ -106,7 +106,7 @@ export default function SideNavAndHeader() {
 
 
   const list = () => (
-    <Sidebar width="230px">
+    <Sidebar width="230px" backgroundColor="white">
       <Menu
           style={{minWidth: "230px", width: "230px"}}
           renderExpandIcon={({level, active, disabled}) => null }

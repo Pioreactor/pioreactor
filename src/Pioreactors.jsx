@@ -607,17 +607,9 @@ function CalibrateDialog(props) {
   function createUserButtonsBasedOnState(jobState, job, always_disable=false){
 
     switch (jobState){
-      case "disconnected":
-       return (<div>
-               <PatientButton
-                color="primary"
-                variant="contained"
-                onClick={() => runPioreactorJob(props.unit, job)}
-                buttonText="Start"
-                disabled={always_disable}
-               />
-              </div>)
       case "ready":
+      case "init":
+      case "sleeping":
        return (<div>
                <PatientButton
                 color="primary"
@@ -627,7 +619,15 @@ function CalibrateDialog(props) {
                />
               </div>)
       default:
-        return(<div></div>)
+       return (<div>
+               <PatientButton
+                color="primary"
+                variant="contained"
+                onClick={() => runPioreactorJob(props.unit, job)}
+                buttonText="Start"
+                disabled={always_disable}
+               />
+              </div>)
     }
    }
 
@@ -776,16 +776,9 @@ function SelfTestDialog(props) {
   function createUserButtonsBasedOnState(jobState, job){
 
     switch (jobState){
-      case "disconnected":
-       return (<div key={"disconnected_" + job}>
-               <PatientButton
-                color="primary"
-                variant="contained"
-                onClick={() => runPioreactorJob(props.unit, job)}
-                buttonText="Start"
-               />
-              </div>)
+      case "init":
       case "ready":
+      case "sleeping":
        return (<div key={"ready_" + job}>
                <PatientButton
                 color="primary"
@@ -795,7 +788,14 @@ function SelfTestDialog(props) {
                />
               </div>)
       default:
-        return(<div></div>)
+       return (<div key={"disconnected_" + job}>
+               <PatientButton
+                color="primary"
+                variant="contained"
+                onClick={() => runPioreactorJob(props.unit, job)}
+                buttonText="Start"
+               />
+              </div>)
     }
   }
 

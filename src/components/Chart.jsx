@@ -43,7 +43,7 @@ function getColorFromName(name){
     return colorMaps[name]
   }
 
-  let sensorRe = /(.*)-[1234]/;
+  let sensorRe = /(.*)-od[12]/;
   if (sensorRe.test(name)){
     let primaryName = name.match(sensorRe)[1]
     return getColorFromName(primaryName)
@@ -51,10 +51,8 @@ function getColorFromName(name){
   else{
     var newPallete = colors.shift()
     colorMaps[name] = newPallete.primary
-    colorMaps[name + "-1"] = newPallete["1"]
-    colorMaps[name + "-2"] = newPallete["2"]
-    colorMaps[name + "-3"] = newPallete["3"]
-    colorMaps[name + "-4"] = newPallete["4"]
+    colorMaps[name + "-od1"] = newPallete["1"]
+    colorMaps[name + "-od2"] = newPallete["2"]
     return getColorFromName(name)
   }
 }
@@ -70,6 +68,14 @@ class Chart extends React.Component {
       legendEvents: [],
       fetched: false,
     };
+
+    if (Array.isArray(this.props.topic)){
+      this.topics = this.props.topic
+    } else {
+      this.topics = [this.props.topic]
+    }
+
+
     this.onConnect = this.onConnect.bind(this);
     this.onMessageArrived = this.onMessageArrived.bind(this);
     this.selectLegendData = this.selectLegendData.bind(this);
@@ -79,9 +85,11 @@ class Chart extends React.Component {
   }
 
   onConnect() {
-    this.client.subscribe(
-      `pioreactor/+/${this.props.experiment}/${this.props.topic}`
-    );
+
+      this.topics.forEach(topic => {
+        this.client.subscribe(`pioreactor/+/${this.props.experiment}/${topic}`);
+      });
+
   }
 
   componentDidUpdate(prevProps) {
@@ -90,12 +98,12 @@ class Chart extends React.Component {
 
       if (this.props.isLiveChart){
         try{
-          this.client.unsubscribe(
-            `pioreactor/+/${prevProps.experiment}/${prevProps.topic}`
-          )
-          this.client.subscribe(
-            `pioreactor/+/${this.props.experiment}/${this.props.topic}`
-          )
+          this.topics.forEach(topic => {
+            this.client.unsubscribe(`pioreactor/+/${this.props.experiment}/${topic}`);
+          });
+          this.topics.forEach(topic => {
+            this.client.subscribe(`pioreactor/+/${this.props.experiment}/${topic}`);
+          });
         }
         catch (error){
           // not important.
@@ -243,7 +251,7 @@ class Chart extends React.Component {
     const x_value = this.props.byDuration ? duration : local_timestamp
 
     var key = this.props.isPartitionedBySensor
-      ? message.topic.split("/")[1] + "-" + message.topic.split("/")[5]
+      ? message.topic.split("/")[1] + "-" + message.topic.split("/")[4]
       : message.topic.split("/")[1];
 
     try {
