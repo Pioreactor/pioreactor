@@ -330,7 +330,9 @@ def test_execute_experiment_profile_expression(mock__load_experiment_profile) ->
     job_name = "jobbing"
     publish(f"pioreactor/{unit}/_testing_experiment/{job_name}/target", 10, retain=True)
 
-    action = Start(hours_elapsed=0, options={"target": "${{unit1:jobbing:target + 1}}"})
+    action = Start(
+        hours_elapsed=0, options={"target": "${{unit1:jobbing:target + 1}}", "dont_eval": "1.0 + 1.0"}
+    )
 
     profile = Profile(
         experiment_profile_name="test_profile",
@@ -360,7 +362,7 @@ def test_execute_experiment_profile_expression(mock__load_experiment_profile) ->
 
     execute_experiment_profile("profile.yaml")
 
-    assert actions == ['{"options":{"target":11.0},"args":[]}']
+    assert actions == ['{"options":{"target":11.0,"dont_eval":"1.0 + 1.0"},"args":[]}']
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")

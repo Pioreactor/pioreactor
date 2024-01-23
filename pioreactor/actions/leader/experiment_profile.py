@@ -33,17 +33,21 @@ def wrap_in_try_except(func, logger):
             func(*args, **kwargs)
         except Exception as e:
             logger.warning(f"Error in action: {e}")
+            raise e
 
     return inner_function
 
 
+def is_expression(value) -> bool:
+    pattern = r"\${{(.*?)}}"
+    return bool(re.search(pattern, str(value)))
+
+
 def strip_eval_brackets(value) -> str:
     pattern = r"\${{(.*?)}}"
-    if bool(re.search(pattern, str(value))):
-        match = re.search(pattern, value)
-        assert match is not None
-        return match.group(1)
-    return value
+    match = re.search(pattern, value)
+    assert match is not None
+    return match.group(1)
 
 
 def evaluate_options(options: dict) -> dict:
@@ -52,7 +56,8 @@ def evaluate_options(options: dict) -> dict:
     should be evaluated
     """
     for key, value in options.items():
-        options[key] = parse_profile_expression(strip_eval_brackets(value))
+        if is_expression(value):
+            options[key] = parse_profile_expression(strip_eval_brackets(value))
     return options
 
 

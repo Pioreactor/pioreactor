@@ -20,6 +20,7 @@ def test_identity():
     assert parse_profile_expression("test") == "test"
     assert parse_profile_expression("test_test") == "test_test"
     assert parse_profile_expression("-1.5") == -1.5
+    assert parse_profile_expression("-1.5") == -1.5
     assert parse_profile_expression("True") is True
 
 
