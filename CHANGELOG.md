@@ -1,22 +1,30 @@
 ### Upcoming
 
-#### Expressions in experiment profiles!
- - adding `if` directives to experiment_profiles, with dynamic expressions.
-   ```yaml
-   - type: update
-     hours_elapsed: 12.0
-     if: pio1:od_reading:od1.od > 2.0
-     options:
-       - target_rpm: 600
-   ```
+#### Conditions and expressions in experiment profiles!
 
- - adding dynamic options:
+ - adding `if` directives to experiment_profiles, with dynamic expressions. See full docs [here](https://docs.pioreactor.com/user-guide/create-edit-experiment-profiles#how-the-if-directive-works)
    ```yaml
-   - type: update
-     hours_elapsed: 12.0
-     if: pio1:od_reading:od1.od > 2.0
-     options:
-       - target_rpm: ${{ pio1:stirring:target_rpm * 1.1 }}
+...
+   stirring:
+     actions:
+       ...
+       - type: update
+         hours_elapsed: 12.0
+         if: pio1:od_reading:od1.od > 2.0
+         options:
+           - target_rpm: 600
+   ```
+ - adding dynamic options via expressions, see full docs [here](https://docs.pioreactor.com/user-guide/create-edit-experiment-profiles#expressions-in-options)
+
+   ```yaml
+...
+   stirring:
+     actions:
+       ...
+       - type: update
+         hours_elapsed: 12.0
+         options:
+           - target_rpm: ${{ pio1:stirring:target_rpm * 1.1 }}
    ```
 
 
