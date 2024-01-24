@@ -30,7 +30,7 @@ class _LogOptions(Struct):
 class Log(Struct, tag=str.lower, forbid_unknown_fields=True):
     hours_elapsed: float
     options: _LogOptions
-    if_: t.Optional[str] = field(name="if", default=None)
+    if_: t.Optional[str | bool] = field(name="if", default=None)
 
     def __str__(self):
         return f"Log(hours_elapsed={self.hours_elapsed:.5f}, message={self.options['message']})"
@@ -38,7 +38,7 @@ class Log(Struct, tag=str.lower, forbid_unknown_fields=True):
 
 class _Action(Struct, tag=str.lower, forbid_unknown_fields=True):
     hours_elapsed: float
-    if_: t.Optional[str] = field(name="if", default=None)
+    if_: t.Optional[str | bool] = field(name="if", default=None)
 
     def __str__(self):
         return f"{self.__class__.__name__}(hours_elapsed={self.hours_elapsed:.5f})"

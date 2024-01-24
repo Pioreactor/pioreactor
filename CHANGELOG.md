@@ -3,7 +3,8 @@
 #### Conditions and expressions in experiment profiles!
 
  - adding `if` directives to experiment_profiles, with dynamic expressions. See full docs [here](https://docs.pioreactor.com/user-guide/create-edit-experiment-profiles#how-the-if-directive-works)
-   ```yaml
+
+```yaml
 ...
    stirring:
      actions:
@@ -13,10 +14,10 @@
          if: pio1:od_reading:od1.od > 2.0
          options:
            - target_rpm: 600
-   ```
+```
  - adding dynamic options via expressions, see full docs [here](https://docs.pioreactor.com/user-guide/create-edit-experiment-profiles#expressions-in-options)
 
-   ```yaml
+```yaml
 ...
    stirring:
      actions:
@@ -25,7 +26,7 @@
          hours_elapsed: 12.0
          options:
            - target_rpm: ${{ pio1:stirring:target_rpm * 1.1 }}
-   ```
+```
 
 
 ### Breaking changes
