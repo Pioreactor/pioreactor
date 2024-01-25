@@ -114,7 +114,7 @@ class ProfileParser(Parser):
         elif p[1] == "/":
             # Handle division by zero
             if p.expr1 == 0:
-                raise ValueError("Division by zero is not allowed.")
+                raise ZeroDivisionError("Division by zero is not allowed.")
             return p.expr0 / p.expr1
 
     @_(
@@ -188,7 +188,12 @@ class ProfileParser(Parser):
 
 
 def parse_profile_expression_to_bool(profile_string: str) -> bool:
-    return bool(parse_profile_expression(profile_string))
+    result = parse_profile_expression(profile_string)
+    if result is None:
+        # syntax error or something funky.
+        raise SyntaxError(profile_string)
+    else:
+        return bool(parse_profile_expression(profile_string))
 
 
 def parse_profile_expression(profile_string: str):

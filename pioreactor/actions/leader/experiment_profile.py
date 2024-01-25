@@ -37,12 +37,12 @@ def wrap_in_try_except(func, logger):
     return inner_function
 
 
-def is_expression(value) -> bool:
+def is_bracketed_expression(value) -> bool:
     pattern = r"\${{(.*?)}}"
     return bool(re.search(pattern, str(value)))
 
 
-def strip_eval_brackets(value) -> str:
+def strip_expression_brackets(value) -> str:
     pattern = r"\${{(.*?)}}"
     match = re.search(pattern, value)
     assert match is not None
@@ -55,17 +55,27 @@ def evaluate_options(options: dict) -> dict:
     should be evaluated
     """
     for key, value in options.items():
-        if is_expression(value):
-            options[key] = parse_profile_expression(strip_eval_brackets(value))
+        if is_bracketed_expression(value):
+            options[key] = parse_profile_expression(strip_expression_brackets(value))
     return options
 
 
-def evaluate_if(if_string: str) -> bool:
-    return parse_profile_expression_to_bool(strip_eval_brackets(if_string))
+def evaluate_if(if_expression: str | bool) -> bool:
+    if isinstance(if_expression, bool):
+        return if_expression
+
+    if is_bracketed_expression(if_expression):
+        if_expression = strip_expression_brackets(if_expression)
+    return parse_profile_expression_to_bool(if_expression)
 
 
-def check_syntax_of_if_string(if_string: str) -> bool:
-    return check_syntax(strip_eval_brackets(if_string))
+def check_syntax_of_if_expression(if_expression: str | bool) -> bool:
+    if isinstance(if_expression, bool):
+        return True
+
+    if is_bracketed_expression(if_expression):
+        if_expression = strip_expression_brackets(if_expression)
+    return check_syntax(if_expression)
 
 
 def _led_intensity_hack(action: struct.Action) -> struct.Action:
@@ -150,7 +160,7 @@ def log(
     job_name: str,
     options: struct._LogOptions,
     dry_run: bool,
-    if_: Optional[str],
+    if_: Optional[str | bool],
     logger,
 ) -> Callable[..., None]:
     def _callable() -> None:
@@ -170,7 +180,7 @@ def start_job(
     options: dict,
     args: list,
     dry_run: bool,
-    if_: Optional[str],
+    if_: Optional[str | bool],
     logger,
 ) -> Callable[..., None]:
     def _callable() -> None:
@@ -189,7 +199,7 @@ def start_job(
 
 
 def pause_job(
-    unit: str, experiment: str, job_name: str, dry_run: bool, if_: Optional[str], logger
+    unit: str, experiment: str, job_name: str, dry_run: bool, if_: Optional[str | bool], logger
 ) -> Callable[..., None]:
     def _callable() -> None:
         if (if_ is None) or evaluate_if(if_):
@@ -204,7 +214,7 @@ def pause_job(
 
 
 def resume_job(
-    unit: str, experiment: str, job_name: str, dry_run: bool, if_: Optional[str], logger
+    unit: str, experiment: str, job_name: str, dry_run: bool, if_: Optional[str | bool], logger
 ) -> Callable[..., None]:
     def _callable() -> None:
         if (if_ is None) or evaluate_if(if_):
@@ -219,7 +229,7 @@ def resume_job(
 
 
 def stop_job(
-    unit: str, experiment: str, job_name: str, dry_run: bool, if_: Optional[str], logger
+    unit: str, experiment: str, job_name: str, dry_run: bool, if_: Optional[str | bool], logger
 ) -> Callable[..., None]:
     def _callable() -> None:
         if (if_ is None) or evaluate_if(if_):
@@ -234,7 +244,7 @@ def stop_job(
 
 
 def update_job(
-    unit: str, experiment: str, job_name: str, options: dict, dry_run: bool, if_: Optional[str], logger
+    unit: str, experiment: str, job_name: str, options: dict, dry_run: bool, if_: Optional[str | bool], logger
 ) -> Callable[..., None]:
     def _callable() -> None:
         if (if_ is None) or evaluate_if(if_):
@@ -306,7 +316,7 @@ def _verify_experiment_profile(profile: struct.Profile) -> struct.Profile:
     # 3.
     for job in actions_per_job:
         for action in actions_per_job[job]:
-            if action.if_ and not check_syntax_of_if_string(action.if_):
+            if action.if_ and not check_syntax_of_if_expression(action.if_):
                 raise SyntaxError(f"Syntax error in `{action.if_}`")
 
     return profile

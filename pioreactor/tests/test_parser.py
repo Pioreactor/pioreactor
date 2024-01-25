@@ -35,7 +35,8 @@ def test_simple_bool():
 
 
 def test_syntax_errors_and_typos():
-    assert parse_profile_expression_to_bool("(False or True) or False)") is None  # unbalanced paren
+    with pytest.raises(SyntaxError):
+        assert parse_profile_expression_to_bool("(False or True) or False)") is None  # unbalanced paren
 
     with pytest.raises(LexError):
         assert parse_profile_expression_to_bool("test.test > 1")  # test.test is too few for mqtt fetches
