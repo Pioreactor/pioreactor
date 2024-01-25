@@ -83,7 +83,7 @@ metadata:
   }
 
   onFilenameChange = (e) => {
-    this.setState({filename: e.target.value.replace(/ |\//g, "_"), isChanged: true})
+    this.setState({filename: e.target.value.replace(/ |\/|\.|\\/g, "_"), isChanged: true})
   }
 
   handleSnackbarClose = () => {
@@ -95,6 +95,7 @@ metadata:
       this.setState({isError: true, errorMsg: "Filename can't be blank"})
       return
     }
+
 
     this.setState({saving: true, isError: false, isChanged: false})
     fetch("/api/contrib/experiment_profiles",{

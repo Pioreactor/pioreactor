@@ -74,7 +74,7 @@ function ExperimentProfilesContent(props) {
   const [selectedExperimentProfile, setSelectedExperimentProfile] = React.useState('')
   const [confirmed, setConfirmed] = React.useState(false)
   const [viewSource, setViewSource] = React.useState(false)
-  const [source, setSource] = React.useState("")
+  const [source, setSource] = React.useState("Loading...")
   const [dryRun, setDryRun] = React.useState(false)
   const [isProfileActive, setIsProfileActive] = React.useState(false)
   const [experimentMetadata, setExperimentMetadata] = React.useState({})
@@ -225,7 +225,7 @@ function ExperimentProfilesContent(props) {
               style={{textTransform: "none"}}
               to={`/edit-experiment-profile?profile=${selectedExperimentProfile.split("/").pop()}`}
               component={Link}
-              disabled={isProfileActive}
+              disabled={isProfileActive || selectedExperimentProfile === ''}
             >
               <EditIcon fontSize="15" classes={{root: classes.textIcon}} /> Edit
             </Button>
@@ -247,6 +247,8 @@ function ExperimentProfilesContent(props) {
               aria-label="delete profile"
               onClick={deleteProfile}
               style={{marginRight: "10px", textTransform: "none"}}
+              disabled={selectedExperimentProfile === ''}
+
             >
               <DeleteIcon fontSize="15" classes={{root: classes.textIcon}} /> Delete
             </Button>

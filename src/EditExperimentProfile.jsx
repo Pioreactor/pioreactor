@@ -55,12 +55,7 @@ const useStyles = makeStyles((theme) => ({
 
 
 class EditExperimentProfilesContent extends React.Component {
-  DEFAULT_CODE = `experiment_profile_name:
-
-metadata:
-  description:
-  author:
-`
+  DEFAULT_CODE = 'loading...'
   DEFAULT_FILENAME = ""
 
   constructor(props) {
