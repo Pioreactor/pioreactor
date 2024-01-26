@@ -1,4 +1,4 @@
-### Upcoming
+### 24.1.26
 
 #### Conditionals and expressions in experiment profiles!
 
@@ -30,7 +30,7 @@
 
 
 ### Breaking changes
- - Breaking changes to experiment profiles:
+Breaking changes to experiment profiles:
   1. the `common` block requires a `jobs` block. Previously:
      ```
      experiment_profile_name: demo_stirring_example
