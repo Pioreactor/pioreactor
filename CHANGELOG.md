@@ -1,6 +1,6 @@
 ### Upcoming
 
-#### Conditions and expressions in experiment profiles!
+#### Conditionals and expressions in experiment profiles!
 
  - adding `if` directives to experiment_profiles, with dynamic expressions. See full docs [here](https://docs.pioreactor.com/user-guide/create-edit-experiment-profiles#how-the-if-directive-works)
 
@@ -30,8 +30,80 @@
 
 
 ### Breaking changes
+ - Breaking changes to experiment profiles:
+  1. the `common` block requires a `jobs` block. Previously:
+     ```
+     experiment_profile_name: demo_stirring_example
+
+     metadata:
+       author: Cam Davidson-Pilon
+       description:
+
+     common:
+       stirring:
+         actions:
+           - type: start
+             hours_elapsed: 0.0
+             options:
+               target_rpm: 400.0
+     ```
+
+     Now:
+     ```
+     experiment_profile_name: demo_stirring_example
+
+     metadata:
+       author: Cam Davidson-Pilon
+       description:
+
+     common:
+      jobs:            # this text is required
+        stirring:
+          actions:
+            - type: start
+              hours_elapsed: 0.0
+              options:
+                target_rpm: 400.0
+     ```
+  2. `labels` has moved into the `pioreactors` block. Previously,
+
+     ```
+     experiment_profile_name: simple_stirring_example
+
+     labels:
+      worker1: PR-001
+
+     metadata:
+       author: John Doe
+       description:
+
+     pioreactors:
+       worker1:
+         jobs: {}
+     ```
+
+     Now,
+
+     ```
+     experiment_profile_name: simple_stirring_example
+
+     metadata:
+       author: John Doe
+       description:
+
+     pioreactors:
+       worker1:
+         label: PR-001
+         jobs: {}
+     ```
+
+     Related, you can't use the label as an alias in the `pioreactor` block.
+
+     Need a hand updating your profiles? Let us know, support@pioreactor.com!
+
  - removing `ODReadings.latest_od_reading` and it's replaced by `ODReadings.ods`.
  - removed the topic `pioreactor/{unit}/.../od_readings/od/{channel}`. Use `pioreactor/{unit}/.../od_readings/od1` or `pioreactor/{unit}/.../od_readings/od2`. This change was made to fit more and more published data into the same format (and it makes `od1` and `od2` published settings on `ODReader`)
+
 
 ### Enhancements
  - `ods`, `od1`, `od2` now a published settings of `ODReadings`.
@@ -39,6 +111,16 @@
  - using the 2023-12-11 RPi base image
 
 #### Bug fixes
+ - fixed the UI crashing if trying to edit a blank experiment profile
+
+### Experimental builds
+
+We've released new 64 bit builds, and a 64 bit "headful" build. These builds are experimental, and require a RPi4, RPi5, or RPi400 due to their larger memory requirements.
+
+  - 64 bit leader-worker and worker builds will be marginally more performant, at the cost of some additional memory consumption.
+  - The "headful" leader-worker build allows you to attach a monitor, keyboard, mouse, etc. to the Raspberry Pi and use it as an interface for your cluster.
+
+These builds are available only on our [nightly page](https://nightly.pioreactor.com).
 
 
 ### 24.1.12

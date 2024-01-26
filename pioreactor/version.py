@@ -28,7 +28,7 @@ def get_product_from_id() -> str:
     try:
         # check version in /proc/device-tree/hat/
         with open("/proc/device-tree/hat/product_id", "r") as f:
-            id_ = int(f.read(), 16)
+            id_ = int(f.read().rstrip("\x00"), 16)
             return {1: "Pioreactor 20ml"}.get(id_, "Unknown")
     except FileNotFoundError:
         # no eeprom? Probably the first dev boards, or testing env, or EEPROM not written.
