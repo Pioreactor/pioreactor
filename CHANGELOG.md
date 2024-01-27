@@ -1,3 +1,36 @@
+### Upcoming
+ - `repeat` directive in experiment profiles.
+   ```
+   experiment_profile_name: demo_stirring_repeat
+
+   metadata:
+     author: Cam Davidson-Pilon
+     description: A simple profile that shows of a repeat
+
+   common:
+     jobs:
+       stirring:
+         actions:
+           - type: start
+             hours_elapsed: 0.0
+             options:
+               target_rpm: 400.0
+           - type: log
+             hours_elapsed: 0.001
+             options:
+               message: "start repeat"
+           - type: repeat
+             hours_elapsed: 0.001
+             while: True
+             interval: 0.002
+             actions:
+               - type: update
+                 hours_elapsed: 0.0
+                 options:
+                   target_rpm: 400
+   ```
+
+
 ### 24.1.26
 
 #### Conditionals and expressions in experiment profiles!

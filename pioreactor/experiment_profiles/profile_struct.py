@@ -7,6 +7,9 @@ from msgspec import field
 from msgspec import Struct
 
 
+bool_expression = str | bool
+
+
 class Metadata(Struct):
     author: t.Optional[str] = None
     description: t.Optional[str] = None
@@ -30,7 +33,7 @@ class _LogOptions(Struct):
 class Log(Struct, tag=str.lower, forbid_unknown_fields=True):
     hours_elapsed: float
     options: _LogOptions
-    if_: t.Optional[str | bool] = field(name="if", default=None)
+    if_: t.Optional[bool_expression] = field(name="if", default=None)
 
     def __str__(self):
         return f"Log(hours_elapsed={self.hours_elapsed:.5f}, message={self.options['message']})"
@@ -38,34 +41,46 @@ class Log(Struct, tag=str.lower, forbid_unknown_fields=True):
 
 class _Action(Struct, tag=str.lower, forbid_unknown_fields=True):
     hours_elapsed: float
-    if_: t.Optional[str | bool] = field(name="if", default=None)
+    if_: t.Optional[bool_expression] = field(name="if", default=None)
 
     def __str__(self):
         return f"{self.__class__.__name__}(hours_elapsed={self.hours_elapsed:.5f})"
 
 
-class Start(_Action, tag=str.lower, forbid_unknown_fields=True):
+class Start(_Action):
     options: dict[str, t.Any] = {}
     args: list[str] = []
 
 
-class Pause(_Action, tag=str.lower, forbid_unknown_fields=True):
+class Pause(_Action):
     pass
 
 
-class Stop(_Action, tag=str.lower, forbid_unknown_fields=True):
+class Stop(_Action):
     pass
 
 
-class Update(_Action, tag=str.lower, forbid_unknown_fields=True):
+class Update(_Action):
     options: dict[str, t.Any] = {}
 
 
-class Resume(_Action, tag=str.lower, forbid_unknown_fields=True):
+class Resume(_Action):
     pass
 
 
-Action = t.Union[Log, Start, Pause, Stop, Update, Resume]
+class Repeat(_Action):
+    interval: float = 0.0
+    while_: t.Optional[str | bool] = field(name="while", default=None)
+    duration: t.Optional[float] = None
+    actions: list[ActionWithoutRepeat] = []
+    _completed_loops: int = 0
+
+    def __str__(self):
+        return f"{self.__class__.__name__}({self.hours_elapsed=:.5f}, {self.interval=}, {self.duration=}, {self.while_=})"
+
+
+Action = t.Union[Log, Start, Pause, Stop, Update, Resume, Repeat]
+ActionWithoutRepeat = t.Union[Log, Start, Pause, Stop, Update, Resume]
 
 #######
 

@@ -27,6 +27,9 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 
+bool_expression = str | bool
+
+
 def wrap_in_try_except(func, logger):
     def inner_function(*args, **kwargs):
         try:
@@ -60,22 +63,22 @@ def evaluate_options(options: dict) -> dict:
     return options
 
 
-def evaluate_if(if_expression: str | bool) -> bool:
-    if isinstance(if_expression, bool):
-        return if_expression
+def evaluate_bool_expression(bool_expression: bool_expression) -> bool:
+    if isinstance(bool_expression, bool):
+        return bool_expression
 
-    if is_bracketed_expression(if_expression):
-        if_expression = strip_expression_brackets(if_expression)
-    return parse_profile_expression_to_bool(if_expression)
+    if is_bracketed_expression(bool_expression):
+        bool_expression = strip_expression_brackets(bool_expression)
+    return parse_profile_expression_to_bool(bool_expression)
 
 
-def check_syntax_of_if_expression(if_expression: str | bool) -> bool:
-    if isinstance(if_expression, bool):
+def check_syntax_of_bool_expression(bool_expression: bool_expression) -> bool:
+    if isinstance(bool_expression, bool):
         return True
 
-    if is_bracketed_expression(if_expression):
-        if_expression = strip_expression_brackets(if_expression)
-    return check_syntax(if_expression)
+    if is_bracketed_expression(bool_expression):
+        bool_expression = strip_expression_brackets(bool_expression)
+    return check_syntax(bool_expression)
 
 
 def _led_intensity_hack(action: struct.Action) -> struct.Action:
@@ -90,6 +93,10 @@ def _led_intensity_hack(action: struct.Action) -> struct.Action:
             # noop
             return action
 
+        case struct.Repeat(_, _, _, _, _, _):
+            # noop
+            return action
+
         case struct.Pause(hours, if_) | struct.Stop(hours, if_):
             options = {"A": 0, "B": 0, "C": 0, "D": 0}
             return struct.Start(hours, if_, options, [])
@@ -98,7 +105,7 @@ def _led_intensity_hack(action: struct.Action) -> struct.Action:
             return struct.Start(hours, if_, options, [])
 
         case _:
-            raise ValueError
+            raise ValueError()
 
 
 def get_simple_priority(action):
@@ -113,6 +120,8 @@ def get_simple_priority(action):
             return 3
         case struct.Update():
             return 4
+        case struct.Repeat():
+            return 6
         case struct.Log():
             return 10
         case _:
@@ -124,6 +133,7 @@ def wrapped_execute_action(
     experiment: str,
     job_name: str,
     logger,
+    schedule,
     action: struct.Action,
     dry_run: bool = False,
 ) -> Callable[..., None]:
@@ -150,8 +160,88 @@ def wrapped_execute_action(
         case struct.Log(_, options, if_):
             return log(unit, experiment, job_name, options, dry_run, if_, logger)
 
+        case struct.Repeat(_, if_, interval, while_, duration, actions):
+            return repeat(
+                unit,
+                experiment,
+                job_name,
+                dry_run,
+                if_,
+                logger,
+                action,
+                while_,
+                interval,
+                duration,
+                actions,
+                schedule,
+            )
+
         case _:
             raise ValueError(f"Not a valid action: {action}")
+
+
+def repeat(
+    unit: str,
+    experiment: str,
+    job_name: str,
+    dry_run: bool,
+    if_: Optional[bool_expression],
+    logger,
+    repeat_action: struct.Repeat,
+    while_: Optional[bool_expression],
+    interval: float,
+    duration: Optional[float],
+    actions: list[struct.ActionWithoutRepeat],
+    schedule: scheduler,
+):
+    """
+    TODO:
+    what happens if interval is greater than duration?
+
+    """
+
+    def _callable() -> None:
+        if ((if_ is None) or evaluate_bool_expression(if_)) and (
+            ((while_ is None) or evaluate_bool_expression(while_))
+        ):
+            for action in actions:
+                if action.hours_elapsed > interval:
+                    logger.warning(
+                        f"Action {action} hours_elapsed is greater than the repeat's interval. Skipping."
+                    )
+                    # don't allow schedualing events outside the interval, it's meaningless and confusing.
+                    continue
+
+                schedule.enter(
+                    delay=hours_to_seconds(action.hours_elapsed),
+                    priority=get_simple_priority(action),
+                    action=wrapped_execute_action(
+                        unit, experiment, job_name, logger, schedule, action, dry_run
+                    ),
+                )
+
+            repeat_action.if_ = None  # not eval'd after the first loop
+            repeat_action._completed_loops += 1
+
+            if (duration is not None) and (
+                repeat_action._completed_loops * hours_to_seconds(interval) < hours_to_seconds(duration)
+            ):
+                schedule.enter(
+                    delay=hours_to_seconds(interval),
+                    priority=get_simple_priority(repeat_action),
+                    action=wrapped_execute_action(
+                        unit, experiment, job_name, logger, schedule, repeat_action, dry_run
+                    ),
+                )
+            else:
+                logger.debug(f"Exiting {repeat_action} loop as `duration` exceeded.")
+
+        else:
+            logger.debug(
+                f"Action's `if` or `while` condition, `{if_=}` or `{while_=}`, evaluated False. Skipping."
+            )
+
+    return wrap_in_try_except(_callable, logger)
 
 
 def log(
@@ -164,7 +254,7 @@ def log(
     logger,
 ) -> Callable[..., None]:
     def _callable() -> None:
-        if (if_ is None) or evaluate_if(if_):
+        if (if_ is None) or evaluate_bool_expression(if_):
             level = options.level.lower()
             getattr(logger, level)(options.message.format(unit=unit, job=job_name, experiment=experiment))
         else:
@@ -184,7 +274,7 @@ def start_job(
     logger,
 ) -> Callable[..., None]:
     def _callable() -> None:
-        if (if_ is None) or evaluate_if(if_):
+        if (if_ is None) or evaluate_bool_expression(if_):
             if dry_run:
                 logger.info(f"Dry-run: Starting {job_name} on {unit} with options {options} and args {args}.")
             else:
@@ -202,7 +292,7 @@ def pause_job(
     unit: str, experiment: str, job_name: str, dry_run: bool, if_: Optional[str | bool], logger
 ) -> Callable[..., None]:
     def _callable() -> None:
-        if (if_ is None) or evaluate_if(if_):
+        if (if_ is None) or evaluate_bool_expression(if_):
             if dry_run:
                 logger.info(f"Dry-run: Pausing {job_name} on {unit}.")
             else:
@@ -217,7 +307,7 @@ def resume_job(
     unit: str, experiment: str, job_name: str, dry_run: bool, if_: Optional[str | bool], logger
 ) -> Callable[..., None]:
     def _callable() -> None:
-        if (if_ is None) or evaluate_if(if_):
+        if (if_ is None) or evaluate_bool_expression(if_):
             if dry_run:
                 logger.info(f"Dry-run: Resuming {job_name} on {unit}.")
             else:
@@ -232,7 +322,7 @@ def stop_job(
     unit: str, experiment: str, job_name: str, dry_run: bool, if_: Optional[str | bool], logger
 ) -> Callable[..., None]:
     def _callable() -> None:
-        if (if_ is None) or evaluate_if(if_):
+        if (if_ is None) or evaluate_bool_expression(if_):
             if dry_run:
                 logger.info(f"Dry-run: Stopping {job_name} on {unit}.")
             else:
@@ -247,7 +337,7 @@ def update_job(
     unit: str, experiment: str, job_name: str, options: dict, dry_run: bool, if_: Optional[str | bool], logger
 ) -> Callable[..., None]:
     def _callable() -> None:
-        if (if_ is None) or evaluate_if(if_):
+        if (if_ is None) or evaluate_bool_expression(if_):
             if dry_run:
                 for setting, value in options.items():
                     logger.info(f"Dry-run: Updating {setting} to {value} in {job_name} on {unit}.")
@@ -316,7 +406,7 @@ def _verify_experiment_profile(profile: struct.Profile) -> struct.Profile:
     # 3.
     for job in actions_per_job:
         for action in actions_per_job[job]:
-            if action.if_ and not check_syntax_of_if_expression(action.if_):
+            if action.if_ and not check_syntax_of_bool_expression(action.if_):
                 raise SyntaxError(f"Syntax error in `{action.if_}`")
 
     return profile
@@ -433,6 +523,7 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
                         experiment,
                         job_name,
                         logger,
+                        s,
                         action,
                         dry_run,
                     ),
@@ -455,12 +546,13 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
                             experiment,
                             job_name,
                             logger,
+                            s,
                             action,
                             dry_run,
                         ),
                     )
 
-        logger.debug(f"Starting execution of {len(s.queue)} actions.")
+        logger.debug("Starting execution actions.")
 
         try:
             # try / finally to handle keyboard interrupts
