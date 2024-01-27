@@ -14,6 +14,7 @@ from pioreactor.experiment_profiles.profile_struct import Log
 from pioreactor.experiment_profiles.profile_struct import Metadata
 from pioreactor.experiment_profiles.profile_struct import PioreactorSpecificBlock
 from pioreactor.experiment_profiles.profile_struct import Profile
+from pioreactor.experiment_profiles.profile_struct import Repeat
 from pioreactor.experiment_profiles.profile_struct import Start
 from pioreactor.experiment_profiles.profile_struct import Stop
 from pioreactor.experiment_profiles.profile_struct import Update
@@ -407,3 +408,45 @@ def test_if_statement_in_common(mock__load_experiment_profile) -> None:
 
     with pytest.raises(ValueError):
         execute_experiment_profile("profile.yaml")
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_repeat_block(mock__load_experiment_profile) -> None:
+    start = Start(hours_elapsed=0)
+    repeat = Repeat(
+        hours_elapsed=0,
+        if_="1 > 0",
+        interval=0.001,
+        duration=0.004,
+        actions=[Update(hours_elapsed=0.0, options={"setting": "1"})],
+    )
+
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        plugins=[],
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(
+                jobs={
+                    "jobbing": Job(actions=[start, repeat]),
+                }
+            ),
+        },
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    actions = []
+
+    def collect_actions(msg):
+        actions.append(msg.payload.decode())
+
+    subscribe_and_callback(
+        collect_actions,
+        ["pioreactor/unit1/_testing_experiment/jobbing/setting/set"],
+        allow_retained=False,
+    )
+
+    execute_experiment_profile("profile.yaml")
+
+    assert actions == ["1", "1", "1", "1"]

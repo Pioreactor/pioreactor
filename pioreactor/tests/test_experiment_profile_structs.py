@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import msgspec
 import pytest
+from msgspec import DecodeError
 from msgspec.yaml import decode
 
 from pioreactor.experiment_profiles import profile_struct as structs
@@ -418,3 +419,104 @@ pioreactors:
 
 """
     assert decode(file, type=structs.Profile) is not None
+
+
+def test_repeat_statement() -> None:
+    file = """
+experiment_profile_name: demo_stirring_repeat
+
+metadata:
+  author: Cam Davidson-Pilon
+  description: A simple profile that shows of a repeat
+
+pioreactors:
+  worker1:
+    jobs:
+      stirring:
+        actions:
+          - type: start
+            hours_elapsed: 0.0
+            options:
+              target_rpm: 400.0
+          - type: log
+            hours_elapsed: 0.001
+            options:
+              message: "start repeat"
+          - type: repeat
+            hours_elapsed: 0.001
+            while: (1 > 0)
+            if: (0 > 0)
+            duration: 0.010
+            interval: 0.002
+            actions:
+              - type: update
+                hours_elapsed: 0.0
+                options:
+                  target_rpm: 400
+
+    """
+    assert decode(file, type=structs.Profile) is not None
+
+    file = """
+  experiment_profile_name: demo_stirring_repeat
+
+  metadata:
+    author: Cam Davidson-Pilon
+    description: A simple profile that shows of a repeat
+
+  pioreactors:
+    worker1:
+      jobs:
+        stirring:
+          actions:
+            - type: start
+              hours_elapsed: 0.0
+              options:
+                target_rpm: 400.0
+            - type: log
+              hours_elapsed: 0.001
+              options:
+                message: "start repeat"
+            - type: repeat
+              hours_elapsed: 0.001
+              duration: 0.010
+              interval: 0.002
+              actions: []
+    """
+    assert decode(file, type=structs.Profile) is not None
+
+
+def test_no_repeats_in_repeats():
+    bad_file = """
+  experiment_profile_name: demo_stirring_repeat
+
+  metadata:
+    author: Cam Davidson-Pilon
+    description: A simple profile that shows of a repeat
+
+  pioreactors:
+    worker1:
+      jobs:
+        stirring:
+          actions:
+            - type: start
+              hours_elapsed: 0.0
+              options:
+                target_rpm: 400.0
+            - type: log
+              hours_elapsed: 0.001
+              options:
+                message: "start repeat"
+            - type: repeat
+              hours_elapsed: 0.001
+              while: True
+              interval: 0.002
+              actions:
+                - type: repeat
+                  hours_elapsed: 0.001
+                  while: True
+                  interval: 0.002
+                  actions: []
+    """
+    with pytest.raises(DecodeError):
+        decode(bad_file, type=structs.Profile)
