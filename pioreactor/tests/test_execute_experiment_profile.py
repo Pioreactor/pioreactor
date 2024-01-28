@@ -457,3 +457,44 @@ def test_repeat_block(mock__load_experiment_profile) -> None:
     execute_experiment_profile("profile.yaml")
 
     assert actions == ["1"] * repeat_num
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_profile_expression_in_common(mock__load_experiment_profile) -> None:
+    unit = get_active_workers_in_inventory()[0]
+    job_name = "jobbing"
+    publish(f"pioreactor/{unit}/_testing_experiment/{job_name}/target", 10, retain=True)
+
+    action = Start(
+        hours_elapsed=0,
+        options={"target": "${{::jobbing:target + 1}}", "dont_eval": "1.0 + 1.0"},
+        if_="::jobbing:target > 0",
+    )
+
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        plugins=[],
+        common=CommonBlock(
+            jobs={
+                job_name: Job(actions=[action]),
+            }
+        ),
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    actions = []
+
+    def collection_actions(msg):
+        actions.append(msg.payload.decode())
+
+    subscribe_and_callback(
+        collection_actions,
+        [f"pioreactor/{unit}/_testing_experiment/run/jobbing"],
+        allow_retained=False,
+    )
+
+    execute_experiment_profile("profile.yaml")
+
+    assert actions == ['{"options":{"target":11.0,"dont_eval":"1.0 + 1.0"},"args":[]}']

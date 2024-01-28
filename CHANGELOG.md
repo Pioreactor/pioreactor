@@ -1,4 +1,5 @@
 ### Upcoming
+  - `$` can be used in expressions (this is used to specify the `$state` setting).
   - `repeat` directive in experiment profiles.
    ```
    experiment_profile_name: demo_stirring_repeat
