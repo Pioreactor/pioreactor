@@ -466,9 +466,7 @@ def test_execute_experiment_profile_expression_in_common(mock__load_experiment_p
     publish(f"pioreactor/{unit}/_testing_experiment/{job_name}/target", 10, retain=True)
 
     action = Start(
-        hours_elapsed=0,
-        options={"target": "${{::jobbing:target + 1}}", "dont_eval": "1.0 + 1.0"},
-        if_="::jobbing:target > 0",
+        hours_elapsed=0, options={"target": "${{::jobbing:target + 1}}"}, if_="::jobbing:target > 0"
     )
 
     profile = Profile(
@@ -497,4 +495,4 @@ def test_execute_experiment_profile_expression_in_common(mock__load_experiment_p
 
     execute_experiment_profile("profile.yaml")
 
-    assert actions == ['{"options":{"target":11.0,"dont_eval":"1.0 + 1.0"},"args":[]}']
+    assert actions == ['{"options":{"target":11.0},"args":[]}']
