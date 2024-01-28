@@ -170,7 +170,7 @@ def wrapped_execute_action(
         case struct.Log(_, options, if_):
             return log(unit, experiment, job_name, options, dry_run, if_, logger)
 
-        case struct.Repeat(_, if_, interval, while_, duration, actions):
+        case struct.Repeat(_, if_, repeat_every_hours, while_, max_hours, actions):
             return repeat(
                 unit,
                 experiment,
@@ -180,8 +180,8 @@ def wrapped_execute_action(
                 logger,
                 action,
                 while_,
-                interval,
-                duration,
+                repeat_every_hours,
+                max_hours,
                 actions,
                 schedule,
             )
@@ -224,8 +224,8 @@ def repeat(
     logger,
     repeat_action: struct.Repeat,
     while_: Optional[bool_expression],
-    interval: float,
-    duration: Optional[float],
+    repeat_every_hours: float,
+    max_hours: Optional[float],
     actions: list[struct.ActionWithoutRepeat],
     schedule: scheduler,
 ):
@@ -234,11 +234,11 @@ def repeat(
             ((while_ is None) or evaluate_bool_expression(while_, unit))
         ):
             for action in actions:
-                if action.hours_elapsed > interval:
+                if action.hours_elapsed > repeat_every_hours:
                     logger.warning(
-                        f"Action {action} hours_elapsed is greater than the repeat's interval. Skipping."
+                        f"Action {action} hours_elapsed is greater than the repeat's repeat_every_hours. Skipping."
                     )
-                    # don't allow schedualing events outside the interval, it's meaningless and confusing.
+                    # don't allow schedualing events outside the repeat_every_hours, it's meaningless and confusing.
                     continue
 
                 schedule.enter(
@@ -252,18 +252,19 @@ def repeat(
             repeat_action.if_ = None  # not eval'd after the first loop
             repeat_action._completed_loops += 1
 
-            if (duration is None) or (
-                repeat_action._completed_loops * hours_to_seconds(interval) < hours_to_seconds(duration)
+            if (max_hours is None) or (
+                repeat_action._completed_loops * hours_to_seconds(repeat_every_hours)
+                < hours_to_seconds(max_hours)
             ):
                 schedule.enter(
-                    delay=hours_to_seconds(interval),
+                    delay=hours_to_seconds(repeat_every_hours),
                     priority=get_simple_priority(repeat_action),
                     action=wrapped_execute_action(
                         unit, experiment, job_name, logger, schedule, repeat_action, dry_run
                     ),
                 )
             else:
-                logger.debug(f"Exiting {repeat_action} loop as `duration` exceeded.")
+                logger.debug(f"Exiting {repeat_action} loop as `max_hours` exceeded.")
 
         else:
             logger.debug(

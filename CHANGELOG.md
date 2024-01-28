@@ -1,12 +1,9 @@
 ### Upcoming
+  - new config option: `samples_for_od_statistics` in `[growth_rate_calculating.config]` for specifying the number of OD samples to take for initial statistics.
   - `$` can be used in expressions (this is used to specify the `$state` setting).
   - `repeat` directive in experiment profiles.
-   ```
+   ```yaml
    experiment_profile_name: demo_stirring_repeat
-
-   metadata:
-     author: Cam Davidson-Pilon
-     description: A simple profile that shows of a repeat
 
    common:
      jobs:
@@ -16,31 +13,28 @@
              hours_elapsed: 0.0
              options:
                target_rpm: 400.0
-           - type: log
-             hours_elapsed: 0.001
-             options:
-               message: "start repeat"
            - type: repeat
              hours_elapsed: 0.001
-             while: True
-             interval: 0.002
+             while: ::stirring:target_rpm <= 1000
+             repeat_every_hours: 12
+             max_hours: 10
              actions:
                - type: update
                  hours_elapsed: 0.0
                  options:
-                   target_rpm: 400
+                   target_rpm: ${{::stirring:target_rpm + 100}}
    ```
   - use expressions in `common` block. Instead of the usual `unit:job:setting` syntax, use `::job:setting`. For example:
-  ```
+  ```yaml
   common:
-  jobs:
-    stirring:
-      actions:
-        - type: update
-          hours_elapsed: 0.002
-          if: ${{::stirring:target_rpm > 600}}
-          options:
-            target_rpm: ${{::stirring:target_rpm - 100}}
+    jobs:
+      stirring:
+        actions:
+          - type: update
+            hours_elapsed: 0.002
+            if: ::stirring:target_rpm > 600
+            options:
+              target_rpm: ${{::stirring:target_rpm - 100}}
   ```
 
 

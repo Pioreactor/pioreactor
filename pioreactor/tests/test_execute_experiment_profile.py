@@ -418,13 +418,13 @@ def test_if_statement_in_common(mock__load_experiment_profile) -> None:
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_repeat_block(mock__load_experiment_profile) -> None:
     repeat_num = 6
-    interval = 0.001
+    repeat_every_hours = 0.001
     start = Start(hours_elapsed=0)
     repeat = Repeat(
         hours_elapsed=0,
         if_="1 > 0",
-        interval=interval,
-        duration=interval * repeat_num,
+        repeat_every_hours=repeat_every_hours,
+        max_hours=repeat_every_hours * repeat_num,
         actions=[Update(hours_elapsed=0.0, options={"setting": "1"})],
     )
 
