@@ -7,6 +7,7 @@ import pytest
 
 from pioreactor.actions.leader.experiment_profile import execute_experiment_profile
 from pioreactor.actions.leader.experiment_profile import hours_to_seconds
+from pioreactor.config import get_active_workers_in_inventory
 from pioreactor.experiment_profiles.profile_struct import _LogOptions
 from pioreactor.experiment_profiles.profile_struct import CommonBlock
 from pioreactor.experiment_profiles.profile_struct import Job
@@ -121,7 +122,9 @@ def test_execute_experiment_log_actions(mock__load_experiment_profile) -> None:
     action2 = Log(
         hours_elapsed=2 / 60 / 60, options=_LogOptions(message="test {job} on {unit}", level="INFO")
     )
-    action3 = Log(hours_elapsed=4 / 60 / 60, options=_LogOptions(message="test {experiment}"))
+    action3 = Log(
+        hours_elapsed=4 / 60 / 60, options=_LogOptions(message="test experiment={experiment}", level="DEBUG")
+    )
 
     profile = Profile(
         experiment_profile_name="test_profile",
@@ -139,17 +142,19 @@ def test_execute_experiment_log_actions(mock__load_experiment_profile) -> None:
         "NOTICE", "testing_unit", "_testing_experiment"
     ) as notice_bucket, collect_all_logs_of_level(
         "INFO", "testing_unit", "_testing_experiment"
-    ) as info_bucket:
+    ) as info_bucket, collect_all_logs_of_level(
+        "DEBUG", "testing_unit", "_testing_experiment"
+    ) as debug_bucket:
         execute_experiment_profile("profile.yaml")
 
-        assert [
-            log["message"] for log in notice_bucket[1:-1]
-        ] == [  # slice to remove the first and last NOTICE
-            "test $broadcast",
-            "test _testing_experiment",
+        assert [log["message"] for log in notice_bucket[1:-1]] == [
+            f"test {unit}" for unit in get_active_workers_in_inventory()
         ]
         assert [log["message"] for log in info_bucket] == [
             "test job2 on unit1",
+        ]
+        assert [log["message"] for log in debug_bucket[1:]] == [
+            "test experiment=_testing_experiment",
         ]
 
 

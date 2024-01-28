@@ -1,5 +1,5 @@
 ### Upcoming
- - `repeat` directive in experiment profiles.
+  - `repeat` directive in experiment profiles.
    ```
    experiment_profile_name: demo_stirring_repeat
 
@@ -29,6 +29,18 @@
                  options:
                    target_rpm: 400
    ```
+  - use expressions in `common` block. Instead of the usual `unit:job:setting` syntax, use `::job:setting`. For example:
+  ```
+  common:
+  jobs:
+    stirring:
+      actions:
+        - type: update
+          hours_elapsed: 0.002
+          if: ${{::stirring:target_rpm > 600}}
+          options:
+            target_rpm: ${{::stirring:target_rpm - 100}}
+  ```
 
 
 ### 24.1.26

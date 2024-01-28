@@ -51,9 +51,9 @@ class ProfileLexer(Lexer):
     ignore = " \t"
 
     # Tokens
-    UNIT_JOB_SETTING = r"([a-zA-Z_][a-zA-Z0-9_]*:){2,}([a-zA-Z_][a-zA-Z0-9_]*\.)*[a-zA-Z_][a-zA-Z0-9_]*"
+    UNIT_JOB_SETTING = r"([a-zA-Z_\$][a-zA-Z0-9_]*:){2,}([a-zA-Z_\$][a-zA-Z0-9_]*\.)*[a-zA-Z_\$][a-zA-Z0-9_]*"
 
-    NAME = r"[a-zA-Z_][a-zA-Z0-9_]*"
+    NAME = r"[a-zA-Z_$][a-zA-Z0-9_]*"
     NAME["and"] = AND
     NAME["or"] = OR
     NAME["not"] = NOT

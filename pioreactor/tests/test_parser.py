@@ -68,6 +68,11 @@ def test_mqtt_fetches():
     assert parse_profile_expression_to_bool(f"{unit}:od_reading:od1.od < 2.0")
     assert not parse_profile_expression_to_bool(f"{unit}:od_reading:od1.od > 2.0")
 
+    # ints
+    publish(f"pioreactor/{unit}/{exp}/test_job/int", 101, retain=True)
+    assert parse_profile_expression_to_bool(f"{unit}:test_job:int == 101")
+    assert parse_profile_expression_to_bool(f"{unit}:test_job:int > 100")
+
     # floats
     publish(f"pioreactor/{unit}/{exp}/test_job/float", 101.5, retain=True)
     assert parse_profile_expression_to_bool(f"{unit}:test_job:float > 100.0")
@@ -77,6 +82,11 @@ def test_mqtt_fetches():
     publish(f"pioreactor/{unit}/{exp}/test_job/string", "hi", retain=True)
     assert parse_profile_expression_to_bool(f"{unit}:test_job:string == hi")
     assert parse_profile_expression_to_bool(f"not {unit}:test_job:string == test")
+
+    # states as str
+    publish(f"pioreactor/{unit}/{exp}/test_job/$state", "ready", retain=True)
+    assert parse_profile_expression_to_bool(f"{unit}:test_job:$state == ready")
+    assert parse_profile_expression_to_bool(f"not {unit}:test_job:$state == sleeping")
 
     # bool
     publish(f"pioreactor/{unit}/{exp}/test_job/bool_true", "true", retain=True)
@@ -91,7 +101,7 @@ def test_mqtt_timeout():
         assert parse_profile_expression_to_bool(f"{unit}:test_job:does_not_exist or True")
 
 
-def test_calculator_floats():
+def test_calculator():
     assert parse_profile_expression("True + True") == 2.0
     assert parse_profile_expression("1 + 1") == 2
     assert parse_profile_expression("1.0 - 1.0") == 0.0
