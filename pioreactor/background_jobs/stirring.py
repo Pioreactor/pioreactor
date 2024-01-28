@@ -394,14 +394,14 @@ class Stirrer(BackgroundJob):
 
     def set_duty_cycle(self, value: float) -> None:
         self._previous_duty_cycle = self.duty_cycle
-        self.duty_cycle = clamp(0, round(value, 5), 100)
+        self.duty_cycle = clamp(0.0, round(value, 5), 100.0)
         self.pwm.change_duty_cycle(self.duty_cycle)
 
     def set_target_rpm(self, value: float) -> None:
         if self.rpm_calculator is None:
             raise ValueError("Can't set target RPM when no RPM measurement is being made")
 
-        self.target_rpm = clamp(0, value, 5_000)
+        self.target_rpm = clamp(0.0, value, 5_000.0)
         self.set_duty_cycle(self.rpm_to_dc_lookup(self.target_rpm))
         self.pid.set_setpoint(self.target_rpm)
 

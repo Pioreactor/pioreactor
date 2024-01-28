@@ -57,10 +57,13 @@ def evaluate_options(options: dict) -> dict:
     Users can provide options like {'target_rpm': '${{ bioreactor_A:stirring:target_rpm + 10 }}'}, and the latter
     should be evaluated
     """
+    options_expressed = {}
     for key, value in options.items():
         if is_bracketed_expression(value):
-            options[key] = parse_profile_expression(strip_expression_brackets(value))
-    return options
+            options_expressed[key] = parse_profile_expression(strip_expression_brackets(value))
+        else:
+            options_expressed[key] = value
+    return options_expressed
 
 
 def evaluate_bool_expression(bool_expression: bool_expression) -> bool:
@@ -223,7 +226,7 @@ def repeat(
             repeat_action.if_ = None  # not eval'd after the first loop
             repeat_action._completed_loops += 1
 
-            if (duration is not None) and (
+            if (duration is None) or (
                 repeat_action._completed_loops * hours_to_seconds(interval) < hours_to_seconds(duration)
             ):
                 schedule.enter(

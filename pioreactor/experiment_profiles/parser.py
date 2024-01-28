@@ -165,7 +165,6 @@ class ProfileParser(Parser):
         setting, *keys = setting_keys.split(".")
         experiment = get_latest_experiment_name()
         result = subscribe(f"pioreactor/{unit}/{experiment}/{job}/{setting}", timeout=3)
-
         if result:
             # error handling here
             try:
@@ -193,13 +192,14 @@ def parse_profile_expression_to_bool(profile_string: str) -> bool:
         # syntax error or something funky.
         raise SyntaxError(profile_string)
     else:
-        return bool(parse_profile_expression(profile_string))
+        return bool(result)
 
 
 def parse_profile_expression(profile_string: str):
     lexer = ProfileLexer()
     parser = ProfileParser()
-    return parser.parse(lexer.tokenize(profile_string))
+    r = parser.parse(lexer.tokenize(profile_string))
+    return r
 
 
 def check_syntax(profile_string: str) -> bool:
