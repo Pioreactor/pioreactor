@@ -931,10 +931,11 @@ class _BackgroundJob(metaclass=PostInitCaller):
         if is_pio_job_running(self.job_name) and not is_testing_env():
             self.logger.error(f"{self.job_name} is already running.")
             raise RuntimeError(f"{self.job_name} is already running.")
-        elif is_pio_job_running("self_test"):
-            # don't ever run anything while self_test runs.
-            self.logger.error("self_test is running.")
-            raise RuntimeError("self_test is running.")
+        # elif is_pio_job_running("self_test"):
+        #     # don't ever run anything while self_test runs.
+        #     self.logger.error("self_test is running.")
+        #     raise RuntimeError("self_test is running.")
+        ### this doesn't work because self_test invokes jobs, and we hit this line.
 
     def __setattr__(self, name: str, value: t.Any) -> None:
         super(_BackgroundJob, self).__setattr__(name, value)

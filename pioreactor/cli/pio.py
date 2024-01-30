@@ -30,11 +30,13 @@ from pioreactor.config import get_leader_hostname
 from pioreactor.logging import create_logger
 from pioreactor.mureq import get
 from pioreactor.mureq import HTTPException
+from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.networking import add_local
 from pioreactor.utils.networking import is_using_local_access_point
 from pioreactor.utils.timing import catchtime
+
 
 JOBS_TO_SKIP_KILLING = [
     # this is used in `pio kill --all-jobs`, but accessible so that plugins can edit it.
@@ -249,6 +251,9 @@ def run() -> None:
         click.echo(
             f"Running `pio` on a non-active Pioreactor. Do you need to change `{whoami.get_unit_name()}` in `cluster.inventory` section in `config.ini`?"
         )
+        raise click.Abort()
+    if is_pio_job_running("self_test"):
+        click.echo("Can't run jobs while self-test is running")
         raise click.Abort()
 
 
