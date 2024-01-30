@@ -1106,7 +1106,7 @@ class ODReader(BackgroundJob):
             self._set_for_iterating.clear()
             assert self.ods is not None
             return self.ods
-        assert False
+        assert False  # we never reach here - this is to silence mypy
 
 
 def find_ir_led_reference(od_angle_channel1, od_angle_channel2) -> Optional[pt.PdChannel]:

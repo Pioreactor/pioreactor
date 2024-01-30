@@ -46,6 +46,7 @@
  - fixed a bug in the chart of OD reading that was causing historical and realtime data to be different lines.
  - fixed bug where a PWM wouldn't clean up correctly if the job was canceled too early.
  - fix for self-test `test_REF_is_in_correct_position`
+ - accidentally _appended_ text to the end of an old experiment profile in the last update. We've fixed that in this update.
 
 ### 24.1.26
 
