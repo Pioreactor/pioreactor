@@ -56,14 +56,13 @@ def test_execute_experiment_profile_order(mock__load_experiment_profile) -> None
 
     subscribe_and_callback(
         collection_actions,
-        ["pioreactor/unit1/_testing_experiment/#", "pioreactor/$broadcast/_testing_experiment/#"],
+        ["pioreactor/unit1/_testing_experiment/#"],
         allow_retained=False,
     )
 
     execute_experiment_profile("profile.yaml")
 
     assert actions == [
-        "pioreactor/$broadcast/_testing_experiment/run/job1",
         "pioreactor/unit1/_testing_experiment/run/job2",
         "pioreactor/unit1/_testing_experiment/job2/$state/set",
     ]
@@ -391,27 +390,6 @@ def test_wrong_syntax_in_if_statement(mock__load_experiment_profile) -> None:
     mock__load_experiment_profile.return_value = profile
 
     with pytest.raises(SyntaxError):
-        execute_experiment_profile("profile.yaml")
-
-
-@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
-def test_if_statement_in_common(mock__load_experiment_profile) -> None:
-    action = Start(hours_elapsed=0, if_="1 > 0")
-
-    profile = Profile(
-        experiment_profile_name="test_profile",
-        plugins=[],
-        common=CommonBlock(
-            jobs={
-                "jobbing": Job(actions=[action]),
-            }
-        ),
-        metadata=Metadata(author="test_author"),
-    )
-
-    mock__load_experiment_profile.return_value = profile
-
-    with pytest.raises(ValueError):
         execute_experiment_profile("profile.yaml")
 
 

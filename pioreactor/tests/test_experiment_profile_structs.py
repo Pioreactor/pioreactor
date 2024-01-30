@@ -446,8 +446,8 @@ pioreactors:
             hours_elapsed: 0.001
             while: (1 > 0)
             if: (0 > 0)
-            duration: 0.010
-            interval: 0.002
+            max_hours: 0.010
+            repeat_every_hours: 0.002
             actions:
               - type: update
                 hours_elapsed: 0.0
@@ -479,8 +479,8 @@ pioreactors:
                 message: "start repeat"
             - type: repeat
               hours_elapsed: 0.001
-              duration: 0.010
-              interval: 0.002
+              max_hours: 0.010
+              repeat_every_hours: 0.002
               actions: []
     """
     assert decode(file, type=structs.Profile) is not None
@@ -510,12 +510,12 @@ def test_no_repeats_in_repeats():
             - type: repeat
               hours_elapsed: 0.001
               while: True
-              interval: 0.002
+              repeat_every_hours: 0.002
               actions:
                 - type: repeat
                   hours_elapsed: 0.001
                   while: True
-                  interval: 0.002
+                  repeat_every_hours: 0.002
                   actions: []
     """
     with pytest.raises(DecodeError):

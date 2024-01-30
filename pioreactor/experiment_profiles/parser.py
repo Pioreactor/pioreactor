@@ -204,5 +204,5 @@ def check_syntax(profile_string: str) -> bool:
     try:
         list(ProfileLexer().tokenize(profile_string))  # materialize it to force error
         return True
-    except Exception:
+    except Exception as e:
         return False

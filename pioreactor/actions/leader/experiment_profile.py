@@ -88,6 +88,10 @@ def check_syntax_of_bool_expression(bool_expression: bool_expression) -> bool:
 
     if is_bracketed_expression(bool_expression):
         bool_expression = strip_expression_brackets(bool_expression)
+
+    # in a common expressions, users can use ::word:work which is technically not allowed. For checking, we replace with garbage
+    bool_expression = bool_expression.replace("::", "dummy:", 1)
+
     return check_syntax(bool_expression)
 
 
@@ -398,6 +402,10 @@ def _verify_experiment_profile(profile: struct.Profile) -> struct.Profile:
             for action in unit.jobs[job].actions:
                 actions_per_job[job].append(action)
 
+    for job in profile.common.jobs.keys():
+        for action in profile.common.jobs[job].actions:
+            actions_per_job[job].append(action)
+
     # 1.
     def check_for_not_stopping_automations(action: struct.Action) -> bool:
         match action:
@@ -409,6 +417,8 @@ def _verify_experiment_profile(profile: struct.Profile) -> struct.Profile:
                 raise ValueError(
                     f"Don't use 'start' for automations. To start automations, use 'start' for controllers with `options`: {action}"
                 )
+            case _:
+                raise ValueError("why am i here")
         return True
 
     for automation_type in ["temperature_automation", "dosing_automation", "led_automation"]:
