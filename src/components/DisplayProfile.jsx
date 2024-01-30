@@ -33,28 +33,135 @@ const useStyles = makeStyles((theme) => ({
     color: "#872298",
   },
   highlightedActionType: {},
+  highlightedMessage: {fontStyle: "italic"},
 }));
 
+function processBracketedExpression(value) {
+    const pattern = /\${{(.*?)}}/;
+    const match = pattern.exec(String(value));
+
+    if (match) {
+        return match[1]; // Return the content inside the brackets
+    } else {
+        return value; // Return the original value if no brackets are found
+    }
+}
 
 const humanReadableDuration = (hoursElapsed) => {
   if (hoursElapsed === 0){
     return `immediately`
   }
   else if (hoursElapsed < 1./60){
-    return `after ${Math.round(hoursElapsed * 60 * 60 * 10) / 10} seconds`
+    return `${Math.round(hoursElapsed * 60 * 60 * 10) / 10} seconds`
   }
   else if (hoursElapsed < 1){
-    return `after ${Math.round(hoursElapsed * 60 * 10) / 10} minutes`
+    return `${Math.round(hoursElapsed * 60 * 10) / 10} minutes`
   }
   else if (hoursElapsed === 1){
-    return `after ${hoursElapsed} hour`
+    return `${hoursElapsed} hour`
   }
   else {
-    return `after ${hoursElapsed} hours`
+    return `${hoursElapsed} hours`
   }
 
 }
 
+const after = (hoursElapsed) => {
+  if ((hoursElapsed) > 0) {
+    return "after"
+  }
+  else{
+    return ""
+  }
+}
+
+
+const ActionDetails = ({ action, jobName, index }) => {
+  const classes = useStyles();
+
+  switch (action.type) {
+    case 'start':
+    case 'update':
+      return (
+        <>
+          <Typography variant="body2" style={{ marginLeft: '4em' }}>
+            {index + 1}: <span className={classes.highlightedActionType}>{action.type}</span> {jobName} {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)}
+          </Typography>
+          {action.if && (
+            <Typography variant="body2" style={{ marginLeft: '6em' }}>
+              only if <span className={classes.highlightedIf}>{processBracketedExpression(action.if)}</span>
+            </Typography>
+          )}
+          {Object.keys(action.options || {}).map((option, idx) => (
+            <Typography key={`option-${idx}`} variant="body2" style={{ marginLeft: '6em' }}>
+              — set <span className={classes.highlightedTarget}>{option}</span> to <span className={classes.highlightedSetting}>{processBracketedExpression(action.options[option])}</span>
+            </Typography>
+          ))}
+        </>
+      );
+    case 'log':
+      return (
+        <>
+          <Typography variant="body2" style={{ marginLeft: '4em' }}>
+            {index + 1}: <span className={classes.highlightedActionType}>log</span> {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)} the message:
+          </Typography>
+            <Typography variant="body2" style={{ marginLeft: '6em' }}>
+             "<span className={classes.highlightedMessage}>{action.options['message']}</span>"
+            </Typography>
+          {action.if && (
+            <Typography variant="body2" style={{ marginLeft: '6em' }}>
+              only if <span className={classes.highlightedIf}>{processBracketedExpression(action.if)}</span>
+            </Typography>
+          )}
+        </>
+      );
+    case 'stop':
+    case 'pause':
+    case 'resume':
+      return (
+        <>
+          <Typography variant="body2" style={{ marginLeft: '4em' }}>
+            {index + 1}: <span className={classes.highlightedActionType}>{action.type}</span> {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)}
+          </Typography>
+          {action.if && (
+            <Typography variant="body2" style={{ marginLeft: '6em' }}>
+              only if <span className={classes.highlightedIf}>{processBracketedExpression(action.if)}</span>
+            </Typography>
+          )}
+        </>
+      );
+    case 'repeat':
+      return (
+        <>
+          <Typography variant="body2" style={{ marginLeft: '4em' }}>
+            {index + 1}: {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)}, <span className={classes.highlightedActionType}>repeat</span> the following every {humanReadableDuration(action.repeat_every_hours)},
+          </Typography>
+          {action.if && (
+            <Typography variant="body2" style={{ marginLeft: '6em' }}>
+              only if <span className={classes.highlightedIf}>{processBracketedExpression(action.if)}</span>
+            </Typography>
+          )}
+          {action.while && (
+            <Typography variant="body2" style={{ marginLeft: '6em' }}>
+              while <span className={classes.highlightedIf}>{processBracketedExpression(action.while)}</span> {action.max_hours ? "or" : ""}
+            </Typography>
+          )}
+          {action.max_hours && (
+            <Typography variant="body2" style={{ marginLeft: '6em' }}>
+              until {humanReadableDuration(action.max_hours)} have passed
+            </Typography>
+          )}
+          <div style={{ marginLeft: '2em' }}>
+          {action.actions.map((action, idx) => (
+            <ActionDetails action={action} jobName={jobName} index={idx} />
+          ))}
+          </div>
+        </>
+      );
+    default:
+      return null;
+  }
+};
 
 
 const DisplayProfile = ({ data }) => {
@@ -104,16 +211,7 @@ const DisplayProfile = ({ data }) => {
                     {job}:
                 </Typography>
                 {data.common.jobs[job].actions.sort((a, b) => a.hours_elapsed > b.hours_elapsed).map((action, index) => (
-                    <React.Fragment key={`common-action-${index}`}>
-                      <Typography variant="body2" style={{ marginLeft: '4em' }}>
-                          {index + 1}: <span class={classes.highlightedActionType}>{action.type}</span> {action.type === "start" ? job : ""} {humanReadableDuration(action.hours_elapsed)}
-                      </Typography>
-                        {Object.keys(action.options || {}).map((option, index) => (
-                          <Typography key={`common-${option}-${action}-${index}`} variant="body2" style={{ marginLeft: '6em' }}>
-                            — set <span class={classes.highlightedTarget}>{option}</span> to <span class={classes.highlightedSetting}>{action.options[option]}</span>
-                          </Typography>
-                        ))}
-                    </React.Fragment>
+                      <ActionDetails key={`common-action-${index}`} action={action} jobName={job} index={index} />
                 ))}
               </React.Fragment>
           ))}
@@ -130,30 +228,16 @@ const DisplayProfile = ({ data }) => {
                    <> Relabel to <span class={classes.highlightedTarget}>{data.pioreactors[pioreactor].label}</span> </> : <></>
                 }
                 </Typography>
-                {Object.keys(data.pioreactors[pioreactor].jobs).map(job => (
+                  {Object.keys(data.pioreactors[pioreactor].jobs).map(job => (
                     <React.Fragment key={`${pioreactor}-${job}`}>
                       <Typography key={`${pioreactor}-${job}`}  variant="subtitle2" style={{ marginLeft: '2em' }}>
                           {job}:
                       </Typography>
-                      {data.pioreactors[pioreactor].jobs[job].actions.sort((a, b) => a.hours_elapsed > b.hours_elapsed).map((action, index) => (
-                          <React.Fragment key={`${pioreactor}-action-${index}`}>
-                            <Typography variant="body2" style={{ marginLeft: '4em' }}>
-                                {index + 1}: <span class={classes.highlightedActionType}>{action.type}</span> {action.type === "start" ? job : ""}  {humanReadableDuration(action.hours_elapsed)}
-                            </Typography>
-                            {action.if ?
-                            <Typography variant="body2" style={{ marginLeft: '6em' }}>
-                                only if <span class={classes.highlightedIf}>{action.if}</span>
-                            </Typography>
-                             : <></>}
-                              {Object.keys(action.options || {}).map( (option, index) => (
-                                <Typography key={`${pioreactor}-${option}-${action}-${index}`} variant="body2" style={{ marginLeft: '6em' }}>
-                                — set <span class={classes.highlightedTarget}>{option}</span> to <span class={classes.highlightedSetting}>{action.options[option]}</span>
-                                </Typography>
-                              ))}
-                          </React.Fragment>
-                      ))}
-                    </React.Fragment>
-                ))}
+                        {data.pioreactors[pioreactor].jobs[job].actions.sort((a, b) => a.hours_elapsed - b.hours_elapsed).map((action, index) => (
+                          <ActionDetails key={`${pioreactor}-action-${index}`} action={action} jobName={job} index={index} />
+                        ))}
+                      </React.Fragment>
+                  ))}
               <br/>
             </React.Fragment>
         ))}

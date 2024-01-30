@@ -414,7 +414,8 @@ function ExportDataContainer() {
     }).catch(e => {
       setIsRunning(false)
       setIsError(true)
-      setErrorMsg("Server error occurred. Check UI logs.")
+      setErrorMsg("Server error occurred. Check logs.")
+      console.log(e)
     });
   }
 

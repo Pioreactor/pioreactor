@@ -209,7 +209,7 @@ function ProfilesContainer(props){
       <Card className={classes.root}>
         <CardContent className={classes.cardContent}>
           <EditExperimentProfilesContent />
-          <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/experiment-profiles-schema" target="_blank" rel="noopener noreferrer">experiment profile schemas</a>.</p>
+          <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about creating <a href="https://docs.pioreactor.com/user-guide/create-edit-experiment-profiles" target="_blank" rel="noopener noreferrer">experiment profile schemas</a>.</p>
         </CardContent>
       </Card>
     </React.Fragment>
