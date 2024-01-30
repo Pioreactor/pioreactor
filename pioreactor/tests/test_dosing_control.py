@@ -1601,8 +1601,10 @@ def test_warning_is_logged_if_under_remove_waste() -> None:
             return
 
     with pubsub.collect_all_logs_of_level("WARNING", unit, experiment) as bucket:
+        pause(2)
         with DosingController(unit, experiment, "_test_bad_waste_removal", duration=5):
             time.sleep(30)
+        pause(2)
 
         assert len(bucket) >= 1
 
