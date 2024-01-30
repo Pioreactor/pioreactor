@@ -1,44 +1,51 @@
 ### Upcoming
+
+#### Enhancements
   - profiles in the UI are sorted by their last edit time.
+  - Jobs can't run if `self_test` is running
   - exporting `pioreactor_unit_activity_data` no longer requires an experiment name to be included.
   - new config option: `samples_for_od_statistics` in `[growth_rate_calculating.config]` for specifying the number of OD samples to take for initial statistics.
   - `$` can be used in expressions (this is used to specify the `$state` setting).
   - `repeat` directive in experiment profiles.
-   ```yaml
-   experiment_profile_name: demo_stirring_repeat
+    ```yaml
+    experiment_profile_name: demo_stirring_repeat
 
-   common:
-     jobs:
-       stirring:
-         actions:
-           - type: start
-             hours_elapsed: 0.0
-             options:
-               target_rpm: 400.0
-           - type: repeat
-             hours_elapsed: 0.001
-             while: ::stirring:target_rpm <= 1000
-             repeat_every_hours: 12
-             max_hours: 10
-             actions:
-               - type: update
-                 hours_elapsed: 0.0
-                 options:
-                   target_rpm: ${{::stirring:target_rpm + 100}}
-   ```
+    common:
+      jobs:
+        stirring:
+          actions:
+            - type: start
+              hours_elapsed: 0.0
+              options:
+                target_rpm: 400.0
+            - type: repeat
+              hours_elapsed: 0.001
+              while: ::stirring:target_rpm <= 1000
+              repeat_every_hours: 12
+              max_hours: 10
+              actions:
+                - type: update
+                  hours_elapsed: 0.0
+                  options:
+                    target_rpm: ${{::stirring:target_rpm + 100}}
+    ```
   - use expressions in `common` block. Instead of the usual `unit:job:setting` syntax, use `::job:setting`. For example:
-  ```yaml
-  common:
-    jobs:
-      stirring:
-        actions:
-          - type: update
-            hours_elapsed: 0.002
-            if: ::stirring:target_rpm > 600
-            options:
-              target_rpm: ${{::stirring:target_rpm - 100}}
-  ```
+    ```yaml
+    common:
+      jobs:
+        stirring:
+          actions:
+            - type: update
+              hours_elapsed: 0.002
+              if: ::stirring:target_rpm > 600
+              options:
+                target_rpm: ${{::stirring:target_rpm - 100}}
+    ```
 
+#### Bug fixes
+ - fixed a bug in the chart of OD reading that was causing historical and realtime data to be different lines.
+ - fixed bug where a PWM wouldn't clean up correctly if the job was canceled too early.
+ - fix for self-test `test_REF_is_in_correct_position`
 
 ### 24.1.26
 

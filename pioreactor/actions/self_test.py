@@ -86,8 +86,8 @@ def test_REF_is_in_correct_position(client: Client, logger: Logger, unit: str, e
         st.block_until_rpm_is_close_to_target(abs_tolerance=150, timeout=15)
 
         for i, reading in enumerate(od_stream, start=1):
-            signal1.append(reading.od1.od)
-            signal2.append(reading.od2.od)
+            signal1.append(reading.ods["1"].od)
+            signal2.append(reading.ods["2"].od)
 
             if i % 5 == 0 and i % 2 == 0:
                 st.set_state("ready")
@@ -275,7 +275,7 @@ def test_REF_is_lower_than_0_dot_256_volts(client, logger: Logger, unit: str, ex
 def test_PD_is_near_0_volts_for_blank(client, logger: Logger, unit: str, experiment: str) -> None:
     assert is_HAT_present()
     reference_channel = cast(PdChannel, config["od_config.photodiode_channel_reverse"][REF_keyword])
-    signal_channel = "2" if reference_channel == "1" else "1"
+    signal_channel = cast(PdChannel, "2" if reference_channel == "1" else "1")
     assert config.get("od_config.photodiode_channel", signal_channel, fallback=None) in [
         "90",
         "45",

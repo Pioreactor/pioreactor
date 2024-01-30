@@ -455,11 +455,11 @@ def test_changing_parameters_over_mqtt_with_unknown_parameter() -> None:
             unit=unit,
             experiment=experiment,
         ):
+            pause(2)
             pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/garbage/set", 0.07)
             # there should be a log published with "Unable to set garbage in dosing_automation"
-            pause()
-            pause()
-            pause()
+            pause(2)
+        pause(2)
 
     assert len(bucket) > 0
     assert any(["garbage" in log["message"] for log in bucket])

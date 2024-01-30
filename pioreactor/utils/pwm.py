@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from contextlib import suppress
 from json import dumps
 from os import getpid
 from typing import Any
@@ -271,7 +272,10 @@ class PWM:
         self._serialize()
 
     def clean_up(self) -> None:
-        self.stop()
+        with suppress(ValueError):
+            # this is thrown if the _pwm hasn't started yet.
+            self.stop()
+
         self._pwm.close()
 
         self.unlock()

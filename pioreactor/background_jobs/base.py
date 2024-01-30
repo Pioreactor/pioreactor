@@ -929,8 +929,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def _check_for_duplicate_activity(self) -> None:
         if is_pio_job_running(self.job_name) and not is_testing_env():
-            self.logger.error(f"{self.job_name} is already running. Exiting.")
-            raise RuntimeError(f"{self.job_name} is already running. Exiting.")
+            self.logger.error(f"{self.job_name} is already running.")
+            raise RuntimeError(f"{self.job_name} is already running.")
+        elif is_pio_job_running("self_test"):
+            # don't ever run anything while self_test runs.
+            self.logger.error("self_test is running.")
+            raise RuntimeError("self_test is running.")
 
     def __setattr__(self, name: str, value: t.Any) -> None:
         super(_BackgroundJob, self).__setattr__(name, value)

@@ -5,6 +5,8 @@ set -e
 
 export LC_ALL=C
 
+rm -f /home/pioreactor/.pioreactor/experiment_profiles/demo_stirring_example.yaml
+
 cat <<EOT >> /home/pioreactor/.pioreactor/experiment_profiles/demo_stirring_example.yaml
 experiment_profile_name: demo_stirring_example
 

@@ -1098,14 +1098,15 @@ class ODReader(BackgroundJob):
 
         self._set_for_iterating.set()
 
-    def __iter__(self):
+    def __iter__(self) -> ODReader:
         return self
 
-    def __next__(self):
+    def __next__(self) -> structs.ODReadings:
         while self._set_for_iterating.wait():
             self._set_for_iterating.clear()
             assert self.ods is not None
             return self.ods
+        assert False
 
 
 def find_ir_led_reference(od_angle_channel1, od_angle_channel2) -> Optional[pt.PdChannel]:
