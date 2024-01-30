@@ -429,7 +429,14 @@ def _verify_experiment_profile(profile: struct.Profile) -> struct.Profile:
     for job in actions_per_job:
         for action in actions_per_job[job]:
             if action.if_ and not check_syntax_of_bool_expression(action.if_):
-                raise SyntaxError(f"Syntax error in `{action.if_}`")
+                raise SyntaxError(f"Syntax error in {action}: `{action.if_}`")
+
+            if (
+                isinstance(action, struct.Repeat)
+                and action.while_
+                and not check_syntax_of_bool_expression(action.while_)
+            ):
+                raise SyntaxError(f"Syntax error in {action}: `{action.while_}`")
 
     return profile
 

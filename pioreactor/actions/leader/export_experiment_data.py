@@ -81,15 +81,11 @@ def export_experiment_data(
             if not (source_exists(cursor, table) and is_valid_table_name(table)):
                 raise ValueError(f"Table {table} does not exist.")
 
-            timestamp_to_localtimestamp_clause = generate_timestamp_to_localtimestamp_clause(
-                cursor, table
-            )
+            timestamp_to_localtimestamp_clause = generate_timestamp_to_localtimestamp_clause(cursor, table)
 
             timestamp_columns = filter_to_timestamp_columns(get_column_names(cursor, table))
             if not timestamp_columns:
-                order_by = (
-                    "rowid"  # yes this is stupid, but I need a placeholder for the queries below
-                )
+                order_by = "rowid"  # yes this is stupid, but I need a placeholder for the queries below
             else:
                 order_by = timestamp_columns[0]  # just take first...
 
@@ -119,11 +115,13 @@ def export_experiment_data(
                 os.remove(path_to_file)
 
             else:
-                if experiment is None:
-                    raise ValueError("Experiment name should be provided.")
-
-                query = f"SELECT {timestamp_to_localtimestamp_clause} * from {table} WHERE experiment=:experiment ORDER BY :order_by"
-                cursor.execute(query, {"experiment": experiment, "order_by": order_by})
+                if experiment is not None:
+                    query = f"SELECT {timestamp_to_localtimestamp_clause} * from {table} WHERE experiment=:experiment ORDER BY :order_by"
+                    cursor.execute(query, {"experiment": experiment, "order_by": order_by})
+                else:
+                    query = f"SELECT {timestamp_to_localtimestamp_clause} * from {table} ORDER BY :order_by"
+                    cursor.execute(query, {"order_by": order_by})
+                    experiment = "all_experiments"
 
                 headers = [_[0] for _ in cursor.description]
                 iloc_pioreactor_unit = headers.index("pioreactor_unit")

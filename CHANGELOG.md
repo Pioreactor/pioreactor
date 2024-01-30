@@ -1,4 +1,6 @@
 ### Upcoming
+  - profiles in the UI are sorted by their last edit time.
+  - exporting `pioreactor_unit_activity_data` no longer requires an experiment name to be included.
   - new config option: `samples_for_od_statistics` in `[growth_rate_calculating.config]` for specifying the number of OD samples to take for initial statistics.
   - `$` can be used in expressions (this is used to specify the `$state` setting).
   - `repeat` directive in experiment profiles.
@@ -45,7 +47,7 @@
  - adding `if` directives to experiment_profiles, with dynamic expressions. See full docs [here](https://docs.pioreactor.com/user-guide/create-edit-experiment-profiles#how-the-if-directive-works)
 
 ```yaml
-...
+   ...
    stirring:
      actions:
        ...
@@ -58,7 +60,7 @@
  - adding dynamic options via expressions, see full docs [here](https://docs.pioreactor.com/user-guide/create-edit-experiment-profiles#expressions-in-options)
 
 ```yaml
-...
+   ...
    stirring:
      actions:
        ...

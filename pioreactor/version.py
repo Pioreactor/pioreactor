@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 
+# pioreactor version
 # Append "dev" if a dev version
 # Append "rc0" if a rc version
 # No zero padding!
