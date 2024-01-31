@@ -684,7 +684,9 @@ function CalibrateDialog(props) {
 
             <div style={{display: "flex"}}>
               {blankODButton}
-              <div><Button size="small" className={classes.patientButton} color="secondary" disabled={(props.odBlankReading === null) || (isGrowRateJobRunning)} onClick={() => runPioreactorJob(props.unit, "od_blank", ['delete']) }> Clear </Button></div>
+              <div>
+                <Button size="small" className={classes.patientButton} color="secondary" disabled={(props.odBlankReading === null) || (isGrowRateJobRunning)} onClick={() => runPioreactorJob(props.unit, "od_blank", ['delete']) }> Clear </Button>
+              </div>
             </div>
             <Divider className={classes.divider} />
 
@@ -898,7 +900,7 @@ function SelfTestDialog(props) {
                 <ListItemIcon className={classes.testingListItemIcon}>
                   {displayIcon("test_PD_is_near_0_volts_for_blank", props.selfTestState)}
                 </ListItemIcon>
-                <ListItemText primary="Photodiode measures near nil signal for aturbid water" />
+                <ListItemText primary="Photodiode measures near zero signal for clear water" />
               </ListItem>
 
             </List>

@@ -51,8 +51,8 @@ function getColorFromName(name){
   else{
     var newPallete = colors.shift()
     colorMaps[name] = newPallete.primary
-    colorMaps[name + "-od1"] = newPallete["1"]
-    colorMaps[name + "-od2"] = newPallete["2"]
+    colorMaps[name + "-1"] = newPallete["1"]
+    colorMaps[name + "-2"] = newPallete["2"]
     return getColorFromName(name)
   }
 }
@@ -251,7 +251,7 @@ class Chart extends React.Component {
     const x_value = this.props.byDuration ? duration : local_timestamp
 
     var key = this.props.isPartitionedBySensor
-      ? message.topic.split("/")[1] + "-" + message.topic.split("/")[4]
+      ? message.topic.split("/")[1] + "-" + (message.topic.split("/")[4]).replace('od', '')
       : message.topic.split("/")[1];
 
     try {
@@ -297,8 +297,8 @@ class Chart extends React.Component {
       return name
     }
 
-    if (name.match(/(.*)-([1234])/g)){
-      const results = name.match(/(.*)-([1234])/);
+    if (name.match(/(.*)-([12])/g)){
+      const results = name.match(/(.*)-([12])/);
       const index = results[1];
       const sensor = results[2];
       return this.breakString(this.props.relabelMap[index] || index) + "-ch" + sensor

@@ -27,6 +27,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import ViewTimelineOutlinedIcon from '@mui/icons-material/ViewTimelineOutlined';
 import PlayDisabledIcon from '@mui/icons-material/PlayDisabled';
 import { Client, Message } from "paho-mqtt";
+import { useConfirm } from 'material-ui-confirm';
 
 
 const useStyles = makeStyles((theme) => ({
@@ -69,6 +70,7 @@ const useStyles = makeStyles((theme) => ({
 function ExperimentProfilesContent(props) {
   const classes = useStyles();
   const config = props.config
+  const confirm = useConfirm();
 
   const [experimentProfilesAvailable, setExperimentProfilesAvailable] = React.useState([])
   const [selectedExperimentProfile, setSelectedExperimentProfile] = React.useState('')
@@ -166,13 +168,24 @@ function ExperimentProfilesContent(props) {
   }
 
   const deleteProfile = () => {
-    fetch(`/api/contrib/experiment_profiles/${selectedExperimentProfile.split('/').pop()}`, {
-          method: "DELETE",
-      }).then(res => {
-          if (res.ok) {
-            window.location.reload();
-          }
-      })
+      confirm({
+        title: `Are you sure you wish to delete this profile?`,
+        description: "This action is permanent.",
+        confirmationText: "Delete",
+        confirmationButtonProps: {color: "primary"},
+        cancellationButtonProps: {color: "secondary"}, //style: {textTransform: 'none'}
+        }).then(() => {
+          fetch(`/api/contrib/experiment_profiles/${selectedExperimentProfile.split('/').pop()}`, {
+                method: "DELETE",
+            }).then(res => {
+                if (res.ok) {
+                  window.location.reload();
+                }
+            })
+        }
+      )
+
+
   }
 
   const getSourceAndView = (e) => {
