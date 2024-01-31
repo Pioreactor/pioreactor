@@ -1,4 +1,4 @@
-### Upcoming
+### 24.1.30
 
 #### Enhancements
   - profiles in the UI are sorted by their last edit time.
