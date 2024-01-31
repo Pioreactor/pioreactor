@@ -304,8 +304,7 @@ class PWM:
 
     def unlock(self) -> None:
         with local_intermittent_storage("pwm_locks") as pwm_locks:
-            if self.pin in pwm_locks:
-                del pwm_locks[self.pin]
+            pwm_locks.pop(self.pin)
 
     @contextmanager
     def lock_temporarily(self) -> Iterator[None]:
