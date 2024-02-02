@@ -6,7 +6,7 @@ from typing import Generator
 from typing import Optional
 
 
-def cp_file_across_cluster(unit: str, localpath: str, remotepath: str, timeout: int = 5):
+def cp_file_across_cluster(unit: str, localpath: str, remotepath: str, timeout: int = 5) -> None:
     from sh import rsync  # type: ignore
     from sh import ErrorReturnCode_30  # type: ignore
 
@@ -29,7 +29,7 @@ def is_using_local_access_point() -> bool:
     return os.path.isfile("/boot/firmware/local_access_point")
 
 
-def is_hostname_on_network(hostname: str, timeout=10) -> bool:
+def is_hostname_on_network(hostname: str, timeout: float = 10.0) -> bool:
     import socket
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -122,7 +122,7 @@ def discover_workers_on_network(terminate: bool = False) -> Generator[str, None,
             except Empty:
                 raise StopIteration
 
-        def __iter__(self):
+        def __iter__(self) -> Listener:
             return self
 
     listener = Listener()

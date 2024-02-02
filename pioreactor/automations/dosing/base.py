@@ -210,7 +210,7 @@ class DosingAutomationJob(AutomationJob):
         "dosing_automation.config", "max_subdose", fallback=0.75
     )  # arbitrary, but should be some value that the pump is well calibrated for.
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, **kwargs) -> None:
         super().__init_subclass__(**kwargs)
 
         # this registers all subclasses of DosingAutomationJob back to DosingController, so the subclass
@@ -640,7 +640,7 @@ class DosingAutomationJob(AutomationJob):
 
         return
 
-    def _init_vial_volume(self, initial_vial_volume: float):
+    def _init_vial_volume(self, initial_vial_volume: float) -> None:
         assert initial_vial_volume >= 0
 
         self.add_to_published_settings(
@@ -657,7 +657,7 @@ class DosingAutomationJob(AutomationJob):
 
         return
 
-    def _init_volume_throughput(self):
+    def _init_volume_throughput(self) -> None:
         self.add_to_published_settings(
             "alt_media_throughput",
             {

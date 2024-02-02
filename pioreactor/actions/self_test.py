@@ -109,7 +109,7 @@ def test_REF_is_in_correct_position(client: Client, logger: Logger, unit: str, e
 
 
 def test_all_positive_correlations_between_pds_and_leds(
-    client, logger: Logger, unit: str, experiment: str
+    client: Client, logger: Logger, unit: str, experiment: str
 ) -> None:
     """
     This tests that there is a positive correlation between the IR LED channel, and the photodiodes
@@ -242,7 +242,9 @@ def test_ambient_light_interference(client: Client, logger: Logger, unit: str, e
         ), f"Dark signal too high: {readings=}"  # saw a 0.072 blank during testing
 
 
-def test_REF_is_lower_than_0_dot_256_volts(client, logger: Logger, unit: str, experiment: str) -> None:
+def test_REF_is_lower_than_0_dot_256_volts(
+    client: Client, logger: Logger, unit: str, experiment: str
+) -> None:
     reference_channel = cast(PdChannel, config["od_config.photodiode_channel_reverse"][REF_keyword])
     ir_channel = cast(LedChannel, config["leds_reverse"][IR_keyword])
     ir_intensity = config.getfloat("od_config", "ir_led_intensity")
@@ -272,7 +274,7 @@ def test_REF_is_lower_than_0_dot_256_volts(client, logger: Logger, unit: str, ex
         assert variance(samples) < 1e-2, f"Too much noise in REF channel, observed {variance(samples)}."
 
 
-def test_PD_is_near_0_volts_for_blank(client, logger: Logger, unit: str, experiment: str) -> None:
+def test_PD_is_near_0_volts_for_blank(client: Client, logger: Logger, unit: str, experiment: str) -> None:
     assert is_HAT_present()
     reference_channel = cast(PdChannel, config["od_config.photodiode_channel_reverse"][REF_keyword])
     signal_channel = cast(PdChannel, "2" if reference_channel == "1" else "1")

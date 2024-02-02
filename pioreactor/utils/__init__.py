@@ -370,10 +370,10 @@ class SummableDict(dict):
 
     """
 
-    def __init__(self, *arg, **kwargs):
+    def __init__(self, *arg, **kwargs) -> None:
         dict.__init__(self, *arg, **kwargs)
 
-    def __add__(self, other: SummableDict):
+    def __add__(self, other: SummableDict) -> SummableDict:
         s = SummableDict()
         for key in self:
             s[key] += self[key]
@@ -382,10 +382,10 @@ class SummableDict(dict):
 
         return s
 
-    def __iadd__(self, other: SummableDict):
+    def __iadd__(self, other: SummableDict) -> SummableDict:
         return self + other
 
-    def __getitem__(self, key: str):
+    def __getitem__(self, key: str) -> float:
         if key not in self:
             return 0.0  # TODO: later could be generalized for the init to accept a zero element.
         else:

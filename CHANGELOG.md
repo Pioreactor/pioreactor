@@ -1,12 +1,17 @@
+### Upcoming
+ - improved RPM calculation for lower target RPMs.
+
+
 ### 24.1.30
 
 #### Enhancements
-  - profiles in the UI are sorted by their last edit time.
-  - Jobs can't run if `self_test` is running
-  - exporting `pioreactor_unit_activity_data` no longer requires an experiment name to be included.
-  - new config option: `samples_for_od_statistics` in `[growth_rate_calculating.config]` for specifying the number of OD samples to take for initial statistics.
-  - `$` can be used in expressions (this is used to specify the `$state` setting).
-  - `repeat` directive in experiment profiles.
+
+ - profiles in the UI are sorted by their last edit time.
+ - Jobs can't run if `self_test` is running
+ - exporting `pioreactor_unit_activity_data` no longer requires an experiment name to be included.
+ - new config option: `samples_for_od_statistics` in `[growth_rate_calculating.config]` for specifying the number of OD samples to take for initial statistics.
+ - `$` can be used in expressions (this is used to specify the `$state` setting).
+ - `repeat` directive in experiment profiles.
     ```yaml
     experiment_profile_name: demo_stirring_repeat
 
@@ -29,7 +34,7 @@
                   options:
                     target_rpm: ${{::stirring:target_rpm + 100}}
     ```
-  - use expressions in `common` block. Instead of the usual `unit:job:setting` syntax, use `::job:setting`. For example:
+ - use expressions in `common` block. Instead of the usual `unit:job:setting` syntax, use `::job:setting`. For example:
     ```yaml
     common:
       jobs:
@@ -79,7 +84,7 @@
 ```
 
 
-### Breaking changes
+#### Breaking changes
 Breaking changes to experiment profiles:
   1. the `common` block requires a `jobs` block. Previously:
      ```
@@ -155,7 +160,7 @@ Breaking changes to experiment profiles:
  - removed the topic `pioreactor/{unit}/.../od_readings/od/{channel}`. Use `pioreactor/{unit}/.../od_readings/od1` or `pioreactor/{unit}/.../od_readings/od2`. This change was made to fit more and more published data into the same format (and it makes `od1` and `od2` published settings on `ODReader`)
 
 
-### Enhancements
+#### Enhancements
  - `ods`, `od1`, `od2` now a published settings of `ODReadings`.
  - when a worker is first turned on, and pre-connected to a cluster, the LED is turned on to give _some_ feedback to the user.
  - using the 2023-12-11 RPi base image
@@ -163,7 +168,7 @@ Breaking changes to experiment profiles:
 #### Bug fixes
  - fixed the UI crashing if trying to edit a blank experiment profile
 
-### Experimental builds
+#### Experimental builds
 
 We've released new 64 bit builds, and a 64 bit "headful" build. These builds are experimental, and require a RPi4, RPi5, or RPi400 due to their larger memory requirements.
 

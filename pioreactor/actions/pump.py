@@ -70,7 +70,7 @@ class PWMPump:
     def clean_up(self) -> None:
         self.pwm.clean_up()
 
-    def continuously(self, block=True) -> None:
+    def continuously(self, block: bool = True) -> None:
         calibration = self.calibration or DEFAULT_PWM_CALIBRATION
         self.interrupt.clear()
 
@@ -96,7 +96,7 @@ class PWMPump:
         seconds = self.ml_to_durations(ml)
         return self.by_duration(seconds, block=block)
 
-    def by_duration(self, seconds: pt.Seconds, block=True) -> None:
+    def by_duration(self, seconds: pt.Seconds, block: bool = True) -> None:
         assert seconds >= 0
         self.interrupt.clear()
         calibration = self.calibration or DEFAULT_PWM_CALIBRATION
@@ -430,7 +430,7 @@ def click_add_alt_media(
     continuously: bool,
     source_of_event: Optional[str],
     manually: bool,
-):
+) -> float:
     """
     Remove waste/media from unit
     """
@@ -465,7 +465,7 @@ def click_remove_waste(
     continuously: bool,
     source_of_event: Optional[str],
     manually: bool,
-):
+) -> float:
     """
     Remove waste/media from unit
     """
@@ -500,7 +500,7 @@ def click_add_media(
     continuously: bool,
     source_of_event: Optional[str],
     manually: bool,
-):
+) -> float:
     """
     Add media to unit
     """

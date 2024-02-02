@@ -15,5 +15,5 @@ class Silent(DosingAutomationJob):
     def __init__(self, **kwargs) -> None:
         super(Silent, self).__init__(**kwargs)
 
-    def execute(self):
+    def execute(self) -> None:
         return
