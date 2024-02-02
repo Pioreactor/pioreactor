@@ -222,7 +222,7 @@ class ADCReader(LoggerMixin):
         With the IR LED off, determine the offsets. These offsets are used later to shift the raw signals such that "dark" is 0.
         """
         for channel, blank_reading in batched_readings.items():
-            self.adc_offsets[channel] = self.adc.from_voltage_to_raw(blank_reading)
+            self.adc_offsets[channel] = 0#self.adc.from_voltage_to_raw(blank_reading)
 
         self.logger.debug(
             f"ADC offsets: {self.adc_offsets}, and in voltage: { {c: self.adc.from_raw_to_voltage(i) for c, i in  self.adc_offsets.items()}}"
@@ -888,12 +888,12 @@ class ODReader(BackgroundJob):
             with led_utils.lock_leds_temporarily(self.non_ir_led_channels):
                 # IR led is on
                 self.start_ir_led()
-                sleep(0.10)
+                sleep(3)
                 self.adc_reader.setup_adc()  # determine best gain, max-signal, etc.
 
                 # IR led is off so we can set blanks
                 self.stop_ir_led()
-                sleep(0.10)
+                sleep(3)
 
                 avg_blank_reading = average_over_pd_channel_to_voltages(
                     self.adc_reader.take_reading(),
@@ -903,6 +903,9 @@ class ODReader(BackgroundJob):
 
                 # clear the history in adc_reader, so that we don't blank readings in later inference.
                 self.adc_reader.clear_batched_readings()
+                
+        self.start_ir_led()
+        sleep(3)
 
         if (self.interval is not None) and self.interval > 0:
             if self.interval <= 1.0:
