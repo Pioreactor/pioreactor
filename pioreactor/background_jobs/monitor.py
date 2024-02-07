@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import subprocess
 from contextlib import suppress
-from json import loads
+from shlex import join  # https://docs.python.org/3/library/shlex.html#shlex.quote
 from threading import Thread
 from time import sleep
 from typing import Any
@@ -12,6 +12,7 @@ from typing import Optional
 
 import click
 import lgpio
+from msgspec.json import decode as loads
 
 from pioreactor import error_codes
 from pioreactor import utils
@@ -639,12 +640,13 @@ class Monitor(BackgroundJob):
         job_name = msg.topic.split("/")[-1]
         payload = loads(msg.payload) if msg.payload else {"options": {}, "args": []}
 
-        if "options" not in payload:
-            self.logger.debug("`options` key missing from payload. You should provide an empty dictionary.")
+        # if "options" not in payload:
+        #    self.logger.debug("`options` key missing from payload. You should provide an empty dictionary.")
+
         options = payload.get("options", {})
 
-        if "args" not in payload:
-            self.logger.debug("`args` key missing from payload. You should provide an empty list.")
+        # if "args" not in payload:
+        #    self.logger.debug("`args` key missing from payload. You should provide an empty list.")
 
         args = payload.get("args", [])
 
@@ -662,13 +664,13 @@ class Monitor(BackgroundJob):
                 kwargs={"sleep_for": 0.4, "retries": 5},
             ).start()
 
-        elif job_name in (
+        elif job_name in {
             "add_media",
             "add_alt_media",
             "remove_waste",
             "circulate_media",
             "circulate_alt_media",
-        ):
+        }:
             from pioreactor.actions import pump as pump_actions
 
             pump_action = getattr(pump_actions, job_name)
@@ -677,27 +679,22 @@ class Monitor(BackgroundJob):
             options["experiment"] = whoami._get_latest_experiment_name()  # techdebt
             options["config"] = get_config()  # techdebt
             Thread(target=pump_action, kwargs=options, daemon=True).start()
+            self.logger.debug(f"Running `{job_name}` from monitor job.")
 
         else:
             command = self._job_options_and_args_to_shell_command(job_name, args, options)
-
-            self.logger.debug(f"Running `{command}` from monitor job.")
-
             Thread(
                 target=subprocess.run,
                 args=(command,),
                 kwargs={"shell": True, "start_new_session": True},
                 daemon=True,
             ).start()
+            self.logger.debug(f"Running `{command}` from monitor job.")
 
     @staticmethod
     def _job_options_and_args_to_shell_command(
         job_name: str, args: list[str], options: dict[str, Any]
     ) -> str:
-        from shlex import join  # https://docs.python.org/3/library/shlex.html#shlex.quote
-
-        prefix = "nohup"
-
         core_command = ["pio", "run", job_name]
 
         list_of_options: list[str] = []
@@ -707,13 +704,9 @@ class Monitor(BackgroundJob):
                 # this handles flag arguments, like --dry-run
                 list_of_options.append(str(value))
 
-        suffix = ">/dev/null 2>&1 &"
-
         # shell-escaped to protect against injection vulnerabilities, see join docs
         # we don't escape the suffix.
-        command = prefix + " " + join(core_command + args + list_of_options) + " " + suffix
-
-        return command
+        return f"nohup {join(core_command + args + list_of_options)} >/dev/null 2>&1 &"
 
     def flicker_error_code_from_mqtt(self, message: MQTTMessage) -> None:
         if self.led_in_use:

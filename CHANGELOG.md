@@ -1,5 +1,7 @@
 ### Upcoming
- - improved RPM calculation for lower target RPMs.
+ - boot-up performance improvements
+ - job start performance improvements
+ - improved RPM calculation for lower RPMs.
 
 
 ### 24.1.30

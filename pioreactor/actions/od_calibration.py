@@ -705,7 +705,7 @@ def click_od_calibration(ctx, json_file: str | None) -> None:
 
 
 @click_od_calibration.command(name="display")
-@click.option("-n", "--name", type=click.STRING)
+@click.option("-n", "--name", type=click.STRING, help="default is current")
 def click_display(name: str) -> None:
     display(name)
 

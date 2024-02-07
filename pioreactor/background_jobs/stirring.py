@@ -222,7 +222,7 @@ class Stirrer(BackgroundJob):
         channel: Optional[pt.PwmChannel] = config.get("PWM_reverse", "stirring")
 
         if channel is None:
-            self.logger.error(f"Add stirring to `PWM` section to config_{self.unit}.ini.")
+            self.logger.error("Add stirring to [PWM] section to configuration file.")
             self.clean_up()
             return
 
@@ -374,10 +374,10 @@ class Stirrer(BackgroundJob):
     def poll_and_update_dc(self, poll_for_seconds: Optional[float] = None) -> None:
         if poll_for_seconds is None:
             if self.target_rpm is None:
-                poll_for_seconds = 4  # this never runs? If target_rpm is None, what are we polling for?
+                poll_for_seconds = 4.0  # this never runs? If target_rpm is None, what are we polling for?
             else:
                 target_n_data_points = 12
-                rps = self.target_rpm / 60
+                rps = self.target_rpm / 60.0
                 poll_for_seconds = target_n_data_points / rps
 
         self.poll(poll_for_seconds)

@@ -864,6 +864,11 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.warning(f"Unable to set `{attr}` in {self.job_name}. `{attr}` is read-only.")
             return
 
+        if not hasattr(self, attr):
+            # for some reason, the attr isn't on the object yet. Could be a race condition, or the author forgot something.
+            self.logger.debug(f"attribute `{attr}` is not a property of {self}.")
+            return
+
         previous_value = getattr(self, attr)
         new_value = cast_bytes_to_type(message.payload, self.published_settings[attr]["datatype"])
 
@@ -871,7 +876,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # for example, see Stirring.set_target_rpm, and `set_state` here
         if hasattr(self, f"set_{attr}"):
             getattr(self, f"set_{attr}")(new_value)
-
         else:
             setattr(self, attr, new_value)
 
