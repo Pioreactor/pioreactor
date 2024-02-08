@@ -5,7 +5,6 @@ import random
 import socket
 import string
 import threading
-from enum import IntEnum
 from time import sleep
 from typing import Any
 from typing import Callable
@@ -64,7 +63,7 @@ class Client(PahoClient):
         return self
 
 
-class QOS(IntEnum):
+class QOS:
     AT_MOST_ONCE = 0
     AT_LEAST_ONCE = 1
     EXACTLY_ONCE = 2
@@ -132,9 +131,7 @@ def create_client(
     return client
 
 
-def publish(
-    topic: str, message, hostname: str = leader_address, retries: int = 10, **mqtt_kwargs
-) -> None:
+def publish(topic: str, message, hostname: str = leader_address, retries: int = 10, **mqtt_kwargs) -> None:
     from paho.mqtt import publish as mqtt_publish
     import socket
 
@@ -280,9 +277,7 @@ def subscribe_and_callback(
         subscriber "fresh", it will have retain=False on the client side. More here:
         https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L364
     """
-    assert callable(
-        callback
-    ), "callback should be callable - do you need to change the order of arguments?"
+    assert callable(callback), "callback should be callable - do you need to change the order of arguments?"
 
     def wrap_callback(actual_callback: Callable[[MQTTMessage], Any]) -> Callable:
         def _callback(client: Client, userdata: dict, message):

@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import os
-import re
 from contextlib import closing
 from contextlib import ExitStack
 from datetime import datetime
@@ -17,6 +16,8 @@ from pioreactor.logging import create_logger
 
 
 def is_valid_table_name(table_name: str) -> bool:
+    import re
+
     return bool(re.fullmatch(r"^[a-zA-Z]\w*$", table_name))
 
 

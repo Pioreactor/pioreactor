@@ -404,6 +404,7 @@ class Stirrer(BackgroundJob):
 
     def set_target_rpm(self, value: float) -> None:
         if self.rpm_calculator is None:
+            # probably use_rpm=0 is in config.ini
             raise ValueError("Can't set target RPM when no RPM measurement is being made")
 
         self.target_rpm = clamp(0.0, value, 5_000.0)

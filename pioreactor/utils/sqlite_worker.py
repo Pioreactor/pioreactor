@@ -44,7 +44,7 @@ class Sqlite3Worker(threading.Thread):
         sql_worker.close()
     """
 
-    def __init__(self, file_name, max_queue_size=100, raise_on_error=True):
+    def __init__(self, file_name: str, max_queue_size: int = 100, raise_on_error: bool = True) -> None:
         """Automatically starts the thread.
 
         Args:
@@ -70,7 +70,7 @@ class Sqlite3Worker(threading.Thread):
         self._close_lock = threading.Lock()
         self.start()
 
-    def run(self):
+    def run(self) -> None:
         """Thread loop.
 
         This is an infinite loop.  The iter method calls self._sql_queue.get()
@@ -103,7 +103,7 @@ class Sqlite3Worker(threading.Thread):
                 self._sqlite3_conn.close()
                 return
 
-    def _run_query(self, token: str, query: str, values: tuple):
+    def _run_query(self, token: str, query: str, values: tuple) -> None:
         """Run a query.
 
         Args:
@@ -135,7 +135,7 @@ class Sqlite3Worker(threading.Thread):
             except sqlite3.Error:
                 pass
 
-    def close(self):
+    def close(self) -> None:
         """Close down the thread."""
         with self._close_lock:
             if not self.is_alive():
@@ -148,7 +148,7 @@ class Sqlite3Worker(threading.Thread):
             self.join()
 
     @property
-    def queue_size(self):
+    def queue_size(self) -> int:
         """Return the queue size."""
         return self._sql_queue.qsize()
 

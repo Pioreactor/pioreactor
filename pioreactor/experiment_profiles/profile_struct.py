@@ -35,15 +35,15 @@ class Log(Struct, tag=str.lower, forbid_unknown_fields=True):
     options: _LogOptions
     if_: t.Optional[bool_expression] = field(name="if", default=None)
 
-    def __str__(self):
-        return f"Log(hours_elapsed={self.hours_elapsed:.5f}, message={self.options['message']})"
+    def __str__(self) -> str:
+        return f"Log(hours_elapsed={self.hours_elapsed:.5f}, message={self.options.message})"
 
 
 class _Action(Struct, tag=str.lower, forbid_unknown_fields=True):
     hours_elapsed: float
     if_: t.Optional[bool_expression] = field(name="if", default=None)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.__class__.__name__}(hours_elapsed={self.hours_elapsed:.5f})"
 
 
@@ -75,7 +75,7 @@ class Repeat(_Action):
     actions: list[ActionWithoutRepeat] = []
     _completed_loops: int = 0
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.__class__.__name__}({self.hours_elapsed=:.5f}, {self.repeat_every_hours=}, {self.max_hours=}, {self.while_=})"
 
 

@@ -46,7 +46,7 @@ DISALLOWED_JOB_NAMES = {
 }
 
 
-def cast_bytes_to_type(value: bytes, type_: str):
+def cast_bytes_to_type(value: bytes, type_: str) -> t.Any:
     try:
         if type_ == "string":
             return value.decode()
@@ -83,7 +83,7 @@ class LoggerMixin:
     _logger_name: t.Optional[str] = None
     _logger = None
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
     @property
@@ -524,7 +524,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             error_code,
         )
 
-    def clean_up(self):
+    def clean_up(self) -> None:
         """
         Disconnect from brokers, set state to "disconnected", stop any activity.
         """
@@ -779,7 +779,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # we "set" the internal event, which will cause any event.waits to finishing blocking.
         self._blocking_event.set()
 
-    def _remove_from_cache(self):
+    def _remove_from_cache(self) -> None:
         with local_intermittent_storage(f"job_metadata_{self.job_name}") as cache:
             cache["is_running"] = "0"
             cache["ended_at"] = current_utc_timestamp()
@@ -787,7 +787,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         with local_intermittent_storage("pio_jobs_running") as cache:
             cache.pop(self.job_name)
 
-    def _disconnect_from_loggers(self):
+    def _disconnect_from_loggers(self) -> None:
         # clean up logger handlers
 
         handlers = self.logger.logger.handlers[:]
@@ -795,7 +795,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.logger.removeHandler(handler)
             handler.close()
 
-    def _disconnect_from_mqtt_clients(self):
+    def _disconnect_from_mqtt_clients(self) -> None:
         # disconnect from MQTT
         self.sub_client.loop_stop()
         self.sub_client.disconnect()
@@ -804,7 +804,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.pub_client.loop_stop()  # pretty sure this doesn't close the thread if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
         self.pub_client.disconnect()
 
-    def _clean_up_resources(self):
+    def _clean_up_resources(self) -> None:
         self._remove_from_cache()
         # Explicitly cleanup MQTT resources...
         self._disconnect_from_mqtt_clients()

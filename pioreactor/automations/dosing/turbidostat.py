@@ -52,7 +52,7 @@ class Turbidostat(DosingAutomationJob):
         self.volume = float(volume)
 
     @property
-    def is_targeting_nOD(self):
+    def is_targeting_nOD(self) -> bool:
         return self.target_normalized_od is not None
 
     def execute(self) -> Optional[events.DilutionEvent]:

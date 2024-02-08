@@ -15,9 +15,7 @@ class Thermostat(TemperatureAutomationJob):
 
     MAX_TARGET_TEMP = 50
     automation_name = "thermostat"
-    published_settings = {
-        "target_temperature": {"datatype": "float", "unit": "℃", "settable": True}
-    }
+    published_settings = {"target_temperature": {"datatype": "float", "unit": "℃", "settable": True}}
 
     def __init__(self, target_temperature: float | str, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -56,7 +54,7 @@ class Thermostat(TemperatureAutomationJob):
             },
         )
 
-    def set_target_temperature(self, target_temperature: float, update_dc_now=True) -> None:
+    def set_target_temperature(self, target_temperature: float, update_dc_now: bool = True) -> None:
         """
 
         Parameters
@@ -90,9 +88,7 @@ class Thermostat(TemperatureAutomationJob):
                 self.update_heater_with_delta(output)
             else:
                 # if another cycle is occurring very soon, don't bother updating the DC too much, as we don't want to "double dip" and change the dc twice quickly.
-                time_to_next_run = (
-                    self.temperature_control_parent.publish_temperature_timer.time_to_next_run
-                )
+                time_to_next_run = self.temperature_control_parent.publish_temperature_timer.time_to_next_run
                 duration_of_cycle = 90.0  # approx...
                 f = time_to_next_run / duration_of_cycle
                 self.update_heater_with_delta((1 - f) * output)

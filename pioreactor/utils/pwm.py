@@ -80,7 +80,7 @@ class HardwarePWMOutputDevice(HardwarePWM):
 class SoftwarePWMOutputDevice:
     _started = False
 
-    def __init__(self, pin: GpioPin, frequency=100):
+    def __init__(self, pin: GpioPin, frequency: float = 100) -> None:
         self.pin = pin
         self.frequency = frequency
         self._handle = lgpio.gpiochip_open(GPIOCHIP)
@@ -88,12 +88,12 @@ class SoftwarePWMOutputDevice:
         lgpio.gpio_claim_output(self._handle, self.pin)
         lgpio.tx_pwm(self._handle, self.pin, self.frequency, 0)
 
-    def start(self, initial_dc: pt.FloatBetween0and100):
+    def start(self, initial_dc: pt.FloatBetween0and100) -> None:
         self._started = True
         self.dc = initial_dc
         lgpio.tx_pwm(self._handle, self.pin, self.frequency, self.dc)
 
-    def off(self):
+    def off(self) -> None:
         try:
             self.dc = 0.0
         except lgpio.error:
@@ -226,7 +226,7 @@ class PWM:
         except AttributeError:
             return False
 
-    def _serialize(self):
+    def _serialize(self) -> None:
         # don't send 0 values to MQTT - waste of space and time
         if self.duty_cycle > 0:
             current_values = {self.pin: self.duty_cycle}
