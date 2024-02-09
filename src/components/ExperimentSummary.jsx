@@ -208,7 +208,7 @@ function ExperimentSummary(props){
 
             <div style={{display:"inline"}}>
               <Box fontWeight="fontWeightBold" style={{display:"inline-block"}}>
-                <TimelapseIcon style={{ fontSize: 12, verticalAlign: "-1px"  }}/>Time elapsed:&nbsp;
+                <TimelapseIcon style={{ fontSize: 12, verticalAlign: "-1px"  }}/>Hours elapsed:&nbsp;
               </Box>
               <Box fontWeight="fontWeightRegular" style={{marginRight: "1%", display:"inline-block"}}>
                {deltaHours}h

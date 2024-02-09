@@ -110,6 +110,14 @@ class Chart extends React.Component {
         }
       }
     }
+
+    if (this.props.byDuration !== prevProps.byDuration){
+      this.getHistoricalDataFromServer()
+    }
+
+    if (this.props.lookback !== prevProps.lookback){
+      this.getHistoricalDataFromServer()
+    }
   }
 
   componentDidMount() {
@@ -307,8 +315,6 @@ class Chart extends React.Component {
       return this.breakString(this.props.relabelMap[name] || name)
     }
   }
-
-
 
   createToolTip = (d) => {
     var x_value

@@ -30,6 +30,7 @@ class ErrorBoundary extends React.Component {
             <code>
             URL: {window.location.href}
             </code>
+            <br/>
             <code>
             {this.state.errorMsg}
             </code>
