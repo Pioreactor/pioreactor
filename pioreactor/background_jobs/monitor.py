@@ -245,14 +245,15 @@ class Monitor(BackgroundJob):
 
         for file in [
             storage_path / "pioreactor.sqlite",
-            storage_path
-            / "pioreactor.sqlite-shm",  # this and wal sometimes aren't present at when monitor starts
+            # shm and wal sometimes aren't present at when monitor starts
+            storage_path / "pioreactor.sqlite-shm",
             storage_path / "pioreactor.sqlite-wal",
         ]:
             if file.exists() and (file.owner() != "pioreactor" or file.group() != "www-data"):
-                self.logger.error(
-                    f"Pioreactor sqlite database files has the wrong permissions. Check `ls -al {config.get('storage', 'database')}*`."
+                self.logger.warning(
+                    f"Pioreactor sqlite database file {file} has the wrong permissions / does not exist."
                 )
+                break
 
         return
 

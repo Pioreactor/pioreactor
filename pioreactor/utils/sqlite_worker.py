@@ -21,10 +21,11 @@
 """Thread safe sqlite3 interface."""
 from __future__ import annotations
 
-import queue as Queue
 import sqlite3
 import threading
 import uuid
+from queue import Queue
+from typing import Any
 from typing import Optional
 
 
@@ -58,12 +59,12 @@ class Sqlite3Worker(threading.Thread):
             file_name, check_same_thread=False, detect_types=sqlite3.PARSE_DECLTYPES
         )
         self._sqlite3_cursor = self._sqlite3_conn.cursor()
-        self._sql_queue = Queue.Queue(maxsize=max_queue_size)
-        self._results = {}
+        self._sql_queue: Queue[tuple[str, str, tuple]] = Queue(maxsize=max_queue_size)
+        self._results: dict[str, list | str] = {}
         self._max_queue_size = max_queue_size
         self._raise_on_error = raise_on_error
         # Event that is triggered once the run_query has been executed.
-        self._select_events = {}
+        self._select_events: dict[str, Any] = {}
         # Event to start the close process.
         self._close_event = threading.Event()
         # Event that closes out the threads.
@@ -139,11 +140,11 @@ class Sqlite3Worker(threading.Thread):
         """Close down the thread."""
         with self._close_lock:
             if not self.is_alive():
-                return "Already Closed"
+                return
             self._close_event.set()
             # Put a value in the queue to push through the block waiting for
             # items in the queue.
-            self._sql_queue.put(("", "", ""), timeout=5)
+            self._sql_queue.put(("", "", ("",)), timeout=5)
             # Check that the thread is done before returning.
             self.join()
 
@@ -171,7 +172,7 @@ class Sqlite3Worker(threading.Thread):
             del self._results[token]
             del self._select_events[token]
 
-    def execute(self, query: str, values: Optional[list] = None):
+    def execute(self, query: str, values: Optional[tuple] = None):
         """Execute a query.
 
         Args:
@@ -184,7 +185,7 @@ class Sqlite3Worker(threading.Thread):
         if self._close_event.is_set():
             return "Close Called"
 
-        values = values or []
+        values = values or tuple()
         # A token to track this query with.
         token = str(uuid.uuid4())
         self._sql_queue.put((token, query, values), timeout=5)

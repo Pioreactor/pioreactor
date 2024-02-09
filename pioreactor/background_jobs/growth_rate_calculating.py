@@ -45,6 +45,7 @@ from typing import Optional
 
 from click import command
 from click import option
+from msgspec import DecodeError
 from msgspec.json import decode
 
 from pioreactor import structs
@@ -399,9 +400,11 @@ class GrowthRateCalculator(BackgroundJob):
         if self.state != self.READY:
             return
 
-        od_readings = decode(message.payload, type=structs.ODReadings)
-
-        self.update_state_from_observation(od_readings)
+        try:
+            od_readings = decode(message.payload, type=structs.ODReadings)
+            self.update_state_from_observation(od_readings)
+        except DecodeError:
+            pass
 
         return
 

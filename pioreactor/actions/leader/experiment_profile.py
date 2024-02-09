@@ -19,7 +19,7 @@ from pioreactor.experiment_profiles.parser import check_syntax
 from pioreactor.experiment_profiles.parser import parse_profile_expression
 from pioreactor.experiment_profiles.parser import parse_profile_expression_to_bool
 from pioreactor.logging import create_logger
-from pioreactor.logging import Logger
+from pioreactor.logging import CustomLoggerAdapter
 from pioreactor.mureq import put
 from pioreactor.pubsub import publish
 from pioreactor.utils import publish_ready_to_disconnected_state
@@ -29,7 +29,7 @@ from pioreactor.whoami import get_unit_name
 bool_expression = str | bool
 
 
-def wrap_in_try_except(func, logger: Logger) -> Callable:
+def wrap_in_try_except(func, logger: CustomLoggerAdapter) -> Callable:
     def inner_function(*args, **kwargs) -> None:
         try:
             func(*args, **kwargs)
@@ -150,7 +150,7 @@ def wrapped_execute_action(
     unit: str,
     experiment: str,
     job_name: str,
-    logger: Logger,
+    logger: CustomLoggerAdapter,
     schedule: scheduler,
     action: struct.Action,
     dry_run: bool = False,
@@ -209,7 +209,7 @@ def chain_functions(*funcs: Callable[[], None]) -> Callable[[], None]:
 def common_wrapped_execute_action(
     experiment: str,
     job_name: str,
-    logger: Logger,
+    logger: CustomLoggerAdapter,
     schedule: scheduler,
     action: struct.Action,
     dry_run: bool = False,
@@ -229,7 +229,7 @@ def repeat(
     job_name: str,
     dry_run: bool,
     if_: Optional[bool_expression],
-    logger: Logger,
+    logger: CustomLoggerAdapter,
     repeat_action: struct.Repeat,
     while_: Optional[bool_expression],
     repeat_every_hours: float,
@@ -289,7 +289,7 @@ def log(
     options: struct._LogOptions,
     dry_run: bool,
     if_: Optional[str | bool],
-    logger: Logger,
+    logger: CustomLoggerAdapter,
 ) -> Callable[..., None]:
     def _callable() -> None:
         if (if_ is None) or evaluate_bool_expression(if_, unit):
@@ -309,7 +309,7 @@ def start_job(
     args: list,
     dry_run: bool,
     if_: Optional[str | bool],
-    logger: Logger,
+    logger: CustomLoggerAdapter,
 ) -> Callable[..., None]:
     def _callable() -> None:
         if (if_ is None) or evaluate_bool_expression(if_, unit):
@@ -327,7 +327,12 @@ def start_job(
 
 
 def pause_job(
-    unit: str, experiment: str, job_name: str, dry_run: bool, if_: Optional[str | bool], logger: Logger
+    unit: str,
+    experiment: str,
+    job_name: str,
+    dry_run: bool,
+    if_: Optional[str | bool],
+    logger: CustomLoggerAdapter,
 ) -> Callable[..., None]:
     def _callable() -> None:
         if (if_ is None) or evaluate_bool_expression(if_, unit):
@@ -342,7 +347,12 @@ def pause_job(
 
 
 def resume_job(
-    unit: str, experiment: str, job_name: str, dry_run: bool, if_: Optional[str | bool], logger: Logger
+    unit: str,
+    experiment: str,
+    job_name: str,
+    dry_run: bool,
+    if_: Optional[str | bool],
+    logger: CustomLoggerAdapter,
 ) -> Callable[..., None]:
     def _callable() -> None:
         if (if_ is None) or evaluate_bool_expression(if_, unit):
@@ -357,7 +367,12 @@ def resume_job(
 
 
 def stop_job(
-    unit: str, experiment: str, job_name: str, dry_run: bool, if_: Optional[str | bool], logger: Logger
+    unit: str,
+    experiment: str,
+    job_name: str,
+    dry_run: bool,
+    if_: Optional[str | bool],
+    logger: CustomLoggerAdapter,
 ) -> Callable[..., None]:
     def _callable() -> None:
         if (if_ is None) or evaluate_bool_expression(if_, unit):
@@ -378,7 +393,7 @@ def update_job(
     options: dict,
     dry_run: bool,
     if_: Optional[str | bool],
-    logger: Logger,
+    logger: CustomLoggerAdapter,
 ) -> Callable[..., None]:
     def _callable() -> None:
         if (if_ is None) or evaluate_bool_expression(if_, unit):
