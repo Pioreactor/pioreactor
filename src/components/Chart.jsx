@@ -37,13 +37,13 @@ const colors = [
 ];
 
 const colorMaps = {}
+const sensorRe = /(.*)-[12]/;
 
 function getColorFromName(name){
   if (name in colorMaps){
     return colorMaps[name]
   }
 
-  let sensorRe = /(.*)-od[12]/;
   if (sensorRe.test(name)){
     let primaryName = name.match(sensorRe)[1]
     return getColorFromName(primaryName)

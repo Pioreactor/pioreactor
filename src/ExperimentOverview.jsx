@@ -40,8 +40,8 @@ const TimeFormatSwitch = (props) => {
       onChange={onChange}
       size="small"
     >
-      <ToggleButton style={{textTransform: "None"}} value="hours">Hours</ToggleButton>
-      <ToggleButton style={{textTransform: "None"}} value="clock_time">Time</ToggleButton>
+      <ToggleButton style={{textTransform: "None"}} value="hours">Elapsed time</ToggleButton>
+      <ToggleButton style={{textTransform: "None"}} value="clock_time">Timestamp</ToggleButton>
     </ToggleButtonGroup>
 
   );
@@ -74,9 +74,8 @@ const TimeWindowSwitch = (props) => {
       size="small"
     >
       <ToggleButton style={{textTransform: "None"}} value={10000000}>All time</ToggleButton>
-      <ToggleButton style={{textTransform: "None"}} value={1}>Past hour</ToggleButton>
       <ToggleButton style={{textTransform: "None"}} value={12}>Past 12h</ToggleButton>
-      <ToggleButton style={{textTransform: "None"}} value={24}>Past day</ToggleButton>
+      <ToggleButton style={{textTransform: "None"}} value={1}>Past hour</ToggleButton>
     </ToggleButtonGroup>
 
   );
@@ -181,12 +180,12 @@ function Overview(props) {
 
         <Grid item xs={12} md={5} container spacing={1} justifyContent="flex-end" style={{height: "100%"}}>
 
-          <Grid item xs={9} md={9}>
+          <Grid item xs={6} md={6}>
             <Stack direction="row" justifyContent="start">
               <TimeWindowSwitch setTimeWindow={setTimeWindow} initTimeWindow={10000000}/>
             </Stack>
           </Grid>
-          <Grid item xs={3} md={3}>
+          <Grid item xs={6} md={6}>
             <Stack direction="row" justifyContent="end">
               <TimeFormatSwitch setTimeScale={setTimeScale} initTimeScale={timeScale}/>
             </Stack>
