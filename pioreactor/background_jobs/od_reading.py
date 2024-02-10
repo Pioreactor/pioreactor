@@ -225,13 +225,6 @@ class ADCReader(LoggerMixin):
             self.adc_offsets[channel] =self.adc.from_voltage_to_raw(blank_reading)
 
         self.logger.debug(
-            f"ADC offsets should have been: {self.adc_offsets}, and in voltage: { {c: self.adc.from_raw_to_voltage(i) for c, i in  self.adc_offsets.items()}}"
-        )
-        
-        for channel, blank_reading in batched_readings.items():
-            self.adc_offsets[channel] =0;
-
-        self.logger.debug(
             f"ADC offsets: {self.adc_offsets}, and in voltage: { {c: self.adc.from_raw_to_voltage(i) for c, i in  self.adc_offsets.items()}}"
         )
 
