@@ -2,8 +2,7 @@
  - boot-up performance improvements
  - job start performance improvements
  - improved RPM calculation for lower RPMs.
- - Added interactions to the Overview UI to change common settings.
-
+ - Added buttons to the Overview UI to change common settings.
 
 ### 24.1.30
 

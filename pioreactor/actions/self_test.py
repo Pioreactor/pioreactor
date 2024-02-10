@@ -118,14 +118,18 @@ def test_all_positive_correlations_between_pds_and_leds(
     TODO: if this exits early, we should turn off the LEDs
     """
     from pprint import pformat
-    from random import shuffle
 
     assert is_HAT_present()
     # better to err on the side of MORE samples than less - it's only a few extra seconds...
     # we randomize to reduce effects of temperature
     # upper bound shouldn't be too high, as it could saturate the ADC, and lower bound shouldn't be too low, else we don't detect anything.
-    INTENSITIES = list(range(20, 55, 3))
-    shuffle(INTENSITIES)
+
+    # what's up with this order? We originally did a shuffle() of list(range(20, 55, 3))
+    # so as to reduce the effects of temperature.
+    # the problem is that if an LED is directly across from a PD, a high intensity will quickly
+    # saturate it and fail the test. So we try low intensities first, and if we exceed some threshold
+    # we exit before moving to the high intensities.
+    INTENSITIES = [20, 23, 26, 53, 44, 38, 35, 29, 47, 50, 32, 41]
 
     current_experiment_name = get_latest_experiment_name()
     results: dict[tuple[LedChannel, PdChannel], float] = {}
@@ -165,6 +169,12 @@ def test_all_positive_correlations_between_pds_and_leds(
             # Add to accumulating list
             for pd_channel in ALL_PD_CHANNELS:
                 varying_intensity_results[pd_channel].append(avg_reading[pd_channel])
+
+                if avg_reading[pd_channel] >= 2.0:
+                    # we are probably going to saturate the PD - clearly we are detecting something though!
+                    logger.debug(
+                        f"Saw {avg_reading:.2f} for pair {pd_channel=}, {led_channel=}@{intensity=} . Saturation possible. No solution implemented yet! See issue #445"
+                    )
 
         # compute the linear correlation between the intensities and observed PD measurements
         for pd_channel in ALL_PD_CHANNELS:
