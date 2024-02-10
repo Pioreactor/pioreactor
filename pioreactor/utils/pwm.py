@@ -15,7 +15,7 @@ from pioreactor import types as pt
 from pioreactor.exc import PWMError
 from pioreactor.hardware import GPIOCHIP
 from pioreactor.logging import create_logger
-from pioreactor.logging import CustomLoggerAdapter
+from pioreactor.logging import CustomLogger
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 from pioreactor.types import GpioPin
@@ -169,7 +169,7 @@ class PWM:
         experiment: Optional[str] = None,
         always_use_software: bool = False,
         pubsub_client: Optional[Client] = None,
-        logger: Optional[CustomLoggerAdapter] = None,
+        logger: Optional[CustomLogger] = None,
     ) -> None:
         self.unit = unit or get_unit_name()
         self.experiment = experiment or get_latest_experiment_name()

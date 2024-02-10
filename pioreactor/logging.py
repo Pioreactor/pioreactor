@@ -60,7 +60,7 @@ NOTICE = logging.INFO + 5
 add_logging_level("NOTICE", NOTICE)
 
 
-class CustomLoggerAdapter(logging.LoggerAdapter):
+class CustomLogger(logging.LoggerAdapter):
     def notice(self, msg, *args, **kwargs):
         self.log(NOTICE, msg, *args, **kwargs)
 
@@ -131,7 +131,7 @@ def create_logger(
     source: str = "app",
     to_mqtt: bool = True,
     mqtt_hostname: Optional[str] = None,
-) -> CustomLoggerAdapter:
+) -> CustomLogger:
     """
 
     Parameters
@@ -148,7 +148,7 @@ def create_logger(
     logger = logging.getLogger(name)
 
     if len(logger.handlers) > 0:
-        return CustomLoggerAdapter(logger, {"source": source})  # type: ignore
+        return CustomLogger(logger, {"source": source})  # type: ignore
 
     logger.setLevel(logging.DEBUG)
 
@@ -212,4 +212,4 @@ def create_logger(
         # add MQTT/remote log handlers
         logger.addHandler(mqtt_to_db_handler)
 
-    return CustomLoggerAdapter(logger, {"source": source})  # type: ignore
+    return CustomLogger(logger, {"source": source})  # type: ignore
