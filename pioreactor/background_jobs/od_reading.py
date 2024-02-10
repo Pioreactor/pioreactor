@@ -222,7 +222,7 @@ class ADCReader(LoggerMixin):
         With the IR LED off, determine the offsets. These offsets are used later to shift the raw signals such that "dark" is 0.
         """
         for channel, blank_reading in batched_readings.items():
-            self.adc_offsets[channel] = 0#self.adc.from_voltage_to_raw(blank_reading)
+            self.adc_offsets[channel] =self.adc.from_voltage_to_raw(blank_reading)
 
         self.logger.debug(
             f"ADC offsets: {self.adc_offsets}, and in voltage: { {c: self.adc.from_raw_to_voltage(i) for c, i in  self.adc_offsets.items()}}"
