@@ -1,4 +1,4 @@
-### Upcoming
+### 24.2.11
  - boot-up performance improvements
  - job start performance improvements
  - improved RPM calculation for lower RPMs.
