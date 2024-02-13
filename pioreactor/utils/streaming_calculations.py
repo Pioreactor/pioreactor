@@ -228,7 +228,7 @@ class CultureGrowthEKF:
         process_noise_covariance,
         observation_noise_covariance,
         angles: list[str],
-        outlier_std_threshold: float = 10.0,
+        outlier_std_threshold: float = 20.0,
     ) -> None:
         import numpy as np
 
