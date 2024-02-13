@@ -228,7 +228,7 @@ class CultureGrowthEKF:
         process_noise_covariance,
         observation_noise_covariance,
         angles: list[str],
-        outlier_std_threshold: float = 5.0,
+        outlier_std_threshold: float = 10.0,
     ) -> None:
         import numpy as np
 
@@ -276,6 +276,7 @@ class CultureGrowthEKF:
             abs(residual_state[0]) > self.outlier_std_threshold * np.sqrt(self.covariance_[0, 0])
         ):
             # don't update if so.
+            print(abs(residual_state[0]) / np.sqrt(self.covariance_[0, 0]))
             return self.state_, self.covariance_
 
         H = self._J_update_observations_from_state(state_prediction)

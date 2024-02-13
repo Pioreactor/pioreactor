@@ -184,7 +184,7 @@ class GrowthRateCalculator(BackgroundJob):
         outlier_std_threshold = config.getfloat(
             "growth_rate_calculating.config",
             "outlier_std_threshold",
-            fallback=5.0,
+            fallback=10.0,
         )
         self.logger.debug(f"{outlier_std_threshold=}")
 
