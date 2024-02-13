@@ -50,7 +50,7 @@ def current_utc_datestamp() -> str:
 
 
 def default_datetime_for_pioreactor(delta_seconds=0) -> datetime:
-    return datetime(2000, 1, 1) + timedelta(seconds=delta_seconds)
+    return (datetime(2000, 1, 1) + timedelta(seconds=delta_seconds)).replace(tzinfo=timezone.utc)
 
 
 def to_datetime(timestamp: str) -> datetime:

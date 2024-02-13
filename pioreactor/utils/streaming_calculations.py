@@ -219,6 +219,8 @@ class CultureGrowthEKF:
      is trusted less and less, while the predicted measurement is trusted more and more
     """
 
+    ignore_outliers = True
+
     def __init__(
         self,
         initial_state,
@@ -226,6 +228,7 @@ class CultureGrowthEKF:
         process_noise_covariance,
         observation_noise_covariance,
         angles: list[str],
+        outlier_std_threshold: float = 5.0,
     ) -> None:
         import numpy as np
 
@@ -247,6 +250,7 @@ class CultureGrowthEKF:
         self.n_sensors = observation_noise_covariance.shape[0]
         self.n_states = initial_state.shape[0]
         self.angles = angles
+        self.outlier_std_threshold = outlier_std_threshold
 
         self._currently_scaling_covariance = False
         self._currently_scaling_process_covariance = False
@@ -261,13 +265,19 @@ class CultureGrowthEKF:
 
         # Predict
         state_prediction = self.update_state_from_previous_state(self.state_, dt)
-        covariance_prediction = self.update_covariance_from_old_covariance(
-            self.state_, self.covariance_, dt
-        )
+        covariance_prediction = self.update_covariance_from_old_covariance(self.state_, self.covariance_, dt)
 
         # Update
         ### innovation
         residual_state = observation - self.update_observations_from_state(state_prediction)
+
+        # check if outlier
+        if self.ignore_outliers and (
+            abs(residual_state[0]) > self.outlier_std_threshold * np.sqrt(self.covariance_[0, 0])
+        ):
+            # don't update if so.
+            return self.state_, self.covariance_
+
         H = self._J_update_observations_from_state(state_prediction)
         residual_covariance = (
             # see Scaling note above for why we multiple by state_[0]
@@ -281,7 +291,8 @@ class CultureGrowthEKF:
         ### update estimates
         self.state_ = state_prediction + kalman_gain_ @ residual_state
         self.covariance_ = (np.eye(self.n_states) - kalman_gain_ @ H) @ covariance_prediction
-        return self.state_
+
+        return self.state_, self.covariance_
 
     def scale_OD_variance_for_next_n_seconds(self, factor: float, seconds: float):
         """
@@ -299,6 +310,7 @@ class CultureGrowthEKF:
             self._currently_scaling_covariance = False
             self.covariance_ = self._covariance_pre_scale
             self._covariance_pre_scale = None
+            self.ignore_outliers = True
 
         def forward_scale_covariance():
             if not self._currently_scaling_covariance:
@@ -307,6 +319,7 @@ class CultureGrowthEKF:
             self._currently_scaling_covariance = True
             self.covariance_ = np.diag(self._covariance_pre_scale.diagonal())
             self.covariance_[0, 0] *= factor
+            self.ignore_outliers = False
 
         if self._currently_scaling_covariance:
             assert self._scale_covariance_timer is not None
@@ -469,9 +482,7 @@ class PID:
         self.experiment = experiment
         self.target_name = target_name
         self.job_name = job_name
-        self.client = create_client(
-            client_id=f"pid-{self.unit}-{self.experiment}-{self.target_name}"
-        )
+        self.client = create_client(client_id=f"pid-{self.unit}-{self.experiment}-{self.target_name}")
 
     def reset(self) -> None:
         """

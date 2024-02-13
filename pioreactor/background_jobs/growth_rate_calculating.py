@@ -181,6 +181,12 @@ class GrowthRateCalculator(BackgroundJob):
         ]
 
         self.logger.debug(f"{angles=}")
+        outlier_std_threshold = config.getfloat(
+            "growth_rate_calculating.config",
+            "outlier_std_threshold",
+            fallback=5.0,
+        )
+        self.logger.debug(f"{outlier_std_threshold=}")
 
         return CultureGrowthEKF(
             initial_state,
@@ -188,6 +194,7 @@ class GrowthRateCalculator(BackgroundJob):
             process_noise_covariance,
             observation_noise_covariance,
             angles,
+            outlier_std_threshold,
         )
 
     def create_obs_noise_covariance(self, obs_std):  # typing: ignore
@@ -321,7 +328,7 @@ class GrowthRateCalculator(BackgroundJob):
         # then this could be a different value.
         msg = subscribe(
             f"pioreactor/{self.unit}/{self.experiment}/od_reading/ods",
-            allow_retained=True,
+            allow_retained=True,  # maybe?
             timeout=10,
         )
 
@@ -414,11 +421,17 @@ class GrowthRateCalculator(BackgroundJob):
         """
         this is like _update_state_from_observation, but also updates attributes, caches, mqtt
         """
-        (
-            self.growth_rate,
-            self.od_filtered,
-            self.kalman_filter_outputs,
-        ) = self._update_state_from_observation(od_readings)
+        try:
+            (
+                self.growth_rate,
+                self.od_filtered,
+                self.kalman_filter_outputs,
+            ) = self._update_state_from_observation(od_readings)
+        except Exception as e:
+            self.logger.debug(e, exc_info=True)
+            self.logger.warning(f"Updating Kalman Filter failed with {str(e)}")
+            # just return the previous data
+            return self.growth_rate, self.od_filtered, self.kalman_filter_outputs
 
         # save to cache
         with local_persistant_storage("growth_rate") as cache:
@@ -438,7 +451,7 @@ class GrowthRateCalculator(BackgroundJob):
         )
         if scaled_observations is None:
             # exit early
-            return self.growth_rate, self.od_filtered, self.kalman_filter_outputs
+            raise ValueError()
 
         if whoami.is_testing_env():
             # when running a mock script, we run at an accelerated rate, but want to mimic
@@ -454,40 +467,32 @@ class GrowthRateCalculator(BackgroundJob):
                     self.logger.debug(
                         f"Late arriving data: {timestamp=}, {self.time_of_previous_observation=}"
                     )
-                    return self.growth_rate, self.od_filtered, self.kalman_filter_outputs
+                    raise ValueError()
 
             else:
                 dt = 0.0
 
             self.time_of_previous_observation = timestamp
 
-        try:
-            updated_state = self.ekf.update(list(scaled_observations.values()), dt)
-        except Exception as e:
-            self.logger.debug(e, exc_info=True)
-            self.logger.error(f"Updating Kalman Filter failed with {str(e)}")
-            return self.growth_rate, self.od_filtered, self.kalman_filter_outputs
-        else:
-            # TODO: EKF values can be nans...
+        updated_state_, covariance_ = self.ekf.update(list(scaled_observations.values()), dt)
+        latest_od_filtered, latest_growth_rate = float(updated_state_[0]), float(updated_state_[1])
 
-            latest_od_filtered, latest_growth_rate = float(updated_state[0]), float(updated_state[1])
+        growth_rate = structs.GrowthRate(
+            growth_rate=latest_growth_rate,
+            timestamp=timestamp,
+        )
+        od_filtered = structs.ODFiltered(
+            od_filtered=latest_od_filtered,
+            timestamp=timestamp,
+        )
 
-            growth_rate = structs.GrowthRate(
-                growth_rate=latest_growth_rate,
-                timestamp=timestamp,
-            )
-            od_filtered = structs.ODFiltered(
-                od_filtered=latest_od_filtered,
-                timestamp=timestamp,
-            )
+        kf_outputs = structs.KalmanFilterOutput(
+            state=self.ekf.state_.tolist(),
+            covariance_matrix=covariance_.tolist(),
+            timestamp=timestamp,
+        )
 
-            kf_outputs = structs.KalmanFilterOutput(
-                state=self.ekf.state_.tolist(),
-                covariance_matrix=self.ekf.covariance_.tolist(),
-                timestamp=timestamp,
-            )
-
-            return growth_rate, od_filtered, kf_outputs
+        return growth_rate, od_filtered, kf_outputs
 
     def respond_to_dosing_event_from_mqtt(self, message: pt.MQTTMessage) -> None:
         dosing_event = decode(message.payload, type=structs.DosingEvent)

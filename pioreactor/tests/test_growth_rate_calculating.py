@@ -16,6 +16,7 @@ from pioreactor.config import config
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
 from pioreactor.utils import local_persistant_storage
+from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import default_datetime_for_pioreactor
 from pioreactor.utils.timing import to_datetime
 from pioreactor.whoami import get_unit_name
@@ -78,10 +79,10 @@ class TestGrowthRateCalculating:
         experiment = "test_subscribing"
 
         with local_persistant_storage("od_normalization_mean") as cache:
-            cache[experiment] = json.dumps({1: 1, 2: 1})
+            cache[experiment] = json.dumps({1: 1.0, 2: 1.0})
 
         with local_persistant_storage("od_normalization_variance") as cache:
-            cache[experiment] = json.dumps({1: 1, 2: 1})
+            cache[experiment] = json.dumps({1: 1e-3, 2: 1e-3})
 
         with local_persistant_storage("growth_rate") as cache:
             cache[experiment] = 1.0
@@ -89,7 +90,7 @@ class TestGrowthRateCalculating:
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/ods",
             create_od_raw_batched_json(
-                ["2", "1"], [0.9, 1.1], ["135", "90"], timestamp="2010-01-01T12:00:00.000000Z"
+                ["1", "2"], [1.01, 0.99], ["90", "135"], timestamp="2010-01-01T12:00:00.000000Z"
             ),
             retain=True,
         )
@@ -102,7 +103,7 @@ class TestGrowthRateCalculating:
                 f"pioreactor/{unit}/{experiment}/od_reading/ods",
                 create_od_raw_batched_json(
                     ["1", "2"],
-                    [1.12, 0.88],
+                    [1.012, 0.985],
                     ["90", "135"],
                     timestamp="2010-01-01T12:00:15.000000Z",
                 ),
@@ -111,9 +112,9 @@ class TestGrowthRateCalculating:
             publish(
                 f"pioreactor/{unit}/{experiment}/od_reading/ods",
                 create_od_raw_batched_json(
-                    ["2", "1"],
-                    [0.87, 1.14],
-                    ["135", "90"],
+                    ["1", "2"],
+                    [1.014, 0.987],
+                    ["90", "135"],
                     timestamp="2010-01-01T12:00:15.000000Z",
                 ),
             )
@@ -121,9 +122,9 @@ class TestGrowthRateCalculating:
             publish(
                 f"pioreactor/{unit}/{experiment}/od_reading/ods",
                 create_od_raw_batched_json(
-                    ["2", "1"],
-                    [0.85, 1.16],
-                    ["135", "90"],
+                    ["1", "2"],
+                    [1.016, 0.985],
+                    ["90", "135"],
                     timestamp="2010-01-01T12:00:15.000000Z",
                 ),
             )
@@ -135,7 +136,7 @@ class TestGrowthRateCalculating:
                 f"pioreactor/{unit}/{experiment}/od_reading/ods",
                 create_od_raw_batched_json(
                     ["1", "2"],
-                    [1.14, 0.92],
+                    [1.014, 0.992],
                     ["90", "135"],
                     timestamp="2010-01-01T12:00:15.000000Z",
                 ),
@@ -155,7 +156,7 @@ class TestGrowthRateCalculating:
                 f"pioreactor/{unit}/{experiment}/od_reading/ods",
                 create_od_raw_batched_json(
                     ["1", "2"],
-                    [1.15, 0.93],
+                    [1.015, 0.993],
                     ["90", "135"],
                     timestamp="2010-01-01T12:00:15.000000Z",
                 ),
@@ -260,9 +261,7 @@ class TestGrowthRateCalculating:
 
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/ods",
-            create_od_raw_batched_json(
-                ["1"], [1.153], ["90"], timestamp="2010-01-01T12:00:30.000000Z"
-            ),
+            create_od_raw_batched_json(["1"], [1.153], ["90"], timestamp="2010-01-01T12:00:30.000000Z"),
             retain=True,
         )
 
@@ -270,9 +269,7 @@ class TestGrowthRateCalculating:
 
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/ods",
-            create_od_raw_batched_json(
-                ["1"], [1.155], ["90"], timestamp="2010-01-01T12:00:35.000000Z"
-            ),
+            create_od_raw_batched_json(["1"], [1.155], ["90"], timestamp="2010-01-01T12:00:35.000000Z"),
         )
         pause()
 
@@ -466,10 +463,10 @@ class TestGrowthRateCalculating:
             cache[experiment] = json.dumps({"1": 3.3})
 
         with local_persistant_storage("od_normalization_variance") as cache:
-            cache[experiment] = json.dumps({"1": 8.2e-02})
+            cache[experiment] = json.dumps({"1": 1e-6})
 
         class Mock180ODReadings:
-            growth_rate = 0.1
+            growth_rate = 0.05
             od_reading = 1.0
 
             def __call__(self):
@@ -517,10 +514,10 @@ class TestGrowthRateCalculating:
             cache[experiment] = json.dumps({"1": 0.1})
 
         with local_persistant_storage("od_normalization_variance") as cache:
-            cache[experiment] = json.dumps({"1": 8.2e-02})
+            cache[experiment] = json.dumps({"1": 1e-6})
 
         class Mock90ODReadings:
-            growth_rate = 0.1
+            growth_rate = 0.025
             od_reading = 1.0
 
             def __call__(self):
@@ -538,7 +535,6 @@ class TestGrowthRateCalculating:
                     },
                     "timestamp": "2021-06-06T15:08:12.081153Z",
                 }
-
                 publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/ods",
                     json.dumps(payload),
@@ -556,6 +552,10 @@ class TestGrowthRateCalculating:
     def test_od_blank_being_non_zero(self) -> None:
         unit = get_unit_name()
         experiment = "test_od_blank_being_non_zero"
+
+        config["od_config.photodiode_channel"]["1"] = "90"
+        config["od_config.photodiode_channel"]["2"] = "135"
+
         with local_persistant_storage("od_blank") as cache:
             cache[experiment] = json.dumps({"1": 0.25, "2": 0.4})
 
@@ -638,6 +638,10 @@ class TestGrowthRateCalculating:
     def test_od_blank_being_empty(self) -> None:
         unit = get_unit_name()
         experiment = "test_od_blank_being_empty"
+
+        config["od_config.photodiode_channel"]["1"] = "90"
+        config["od_config.photodiode_channel"]["2"] = "135"
+
         with local_persistant_storage("od_blank") as cache:
             if experiment in cache:
                 del cache[experiment]
@@ -725,10 +729,10 @@ class TestGrowthRateCalculating:
         experiment = "test_ability_to_yield_into_growth_rate_calc"
 
         with local_persistant_storage("od_normalization_mean") as cache:
-            cache[experiment] = json.dumps({1: 1.0})
+            cache[experiment] = json.dumps({1: 0.05})
 
         with local_persistant_storage("od_normalization_variance") as cache:
-            cache[experiment] = json.dumps({1: 1.0})
+            cache[experiment] = json.dumps({1: 1e-5})
 
         with start_od_reading(
             "90",
@@ -739,9 +743,7 @@ class TestGrowthRateCalculating:
             experiment=experiment,
             use_calibration=False,
         ) as od_stream:
-            with GrowthRateCalculator(
-                unit=unit, experiment=experiment, source_obs_from_mqtt=False
-            ) as gr:
+            with GrowthRateCalculator(unit=unit, experiment=experiment, source_obs_from_mqtt=False) as gr:
                 results = []
 
                 for i, reading in enumerate(od_stream):
@@ -774,3 +776,48 @@ class TestGrowthRateCalculating:
             pause()
             assert calc.od_normalization_factors == {"1": 0.05, "2": 0.10}
             assert calc.initial_nOD == 15.0 == 0.5 * (1 / 0.05 + 1 / 0.10)
+
+    def test_outlier_gets_rejected(self) -> None:
+        config["od_config.photodiode_channel"]["1"] = "REF"
+        config["od_config.photodiode_channel"]["2"] = "90"
+
+        unit = get_unit_name()
+        experiment = "test_outlier_gets_rejected"
+
+        interval = 0.1
+        config["od_config"]["samples_per_second"] = "0.2"
+
+        # clear mqtt
+        publish(
+            f"pioreactor/{unit}/{experiment}/od_reading/ods",
+            None,
+            retain=True,
+        )
+
+        with local_persistant_storage("od_normalization_mean") as cache:
+            cache[experiment] = json.dumps({"2": 0.0483})
+
+        with local_persistant_storage("od_normalization_variance") as cache:
+            cache[experiment] = json.dumps({"2": 1e-6})
+
+        with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
+            with start_od_reading(
+                "REF",
+                "90",
+                interval=interval,
+                unit=unit,
+                experiment=experiment,
+                fake_data=True,
+            ):
+                time.sleep(60)
+
+            time.sleep(1.0)
+            previous = calc.od_filtered
+            # EKF is warmed up, introduce outlier
+            publish(
+                f"pioreactor/{unit}/{experiment}/od_reading/ods",
+                create_od_raw_batched_json(["2"], [10.0], ["90"], timestamp=current_utc_timestamp()),
+                retain=True,
+            )
+            time.sleep(1.0)
+            assert previous.od_filtered == calc.od_filtered.od_filtered

@@ -1,3 +1,6 @@
+### Upcoming
+ - introducing some outlier protection in growth rate calculations
+
 ### 24.2.11
  - boot-up performance improvements
  - job start performance improvements
