@@ -728,15 +728,18 @@ class TestGrowthRateCalculating:
         unit = "unit"
         experiment = "test_ability_to_yield_into_growth_rate_calc"
 
+        config["od_config.photodiode_channel"]["1"] = "REF"
+        config["od_config.photodiode_channel"]["2"] = "90"
+
         with local_persistant_storage("od_normalization_mean") as cache:
-            cache[experiment] = json.dumps({1: 0.05})
+            cache[experiment] = json.dumps({2: 0.05})
 
         with local_persistant_storage("od_normalization_variance") as cache:
-            cache[experiment] = json.dumps({1: 1e-5})
+            cache[experiment] = json.dumps({2: 1e-5})
 
         with start_od_reading(
-            "90",
             "REF",
+            "90",
             interval=1.0,
             fake_data=True,
             unit=unit,

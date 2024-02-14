@@ -184,7 +184,7 @@ class GrowthRateCalculator(BackgroundJob):
         outlier_std_threshold = config.getfloat(
             "growth_rate_calculating.config",
             "outlier_std_threshold",
-            fallback=20.0,
+            fallback=5.0,
         )
         self.logger.debug(f"{outlier_std_threshold=}")
 
@@ -223,15 +223,8 @@ class GrowthRateCalculator(BackgroundJob):
 
             obs_variances = obs_std**2 * np.diag(scaling_obs_variances)
             return obs_variances
-        except ZeroDivisionError as e:
-            self.logger.debug(
-                "Is there an OD Reading that is 0? Maybe there's a loose photodiode connection?",
-                exc_info=True,
-            )
-            self.logger.error(
-                "Is there an OD Reading that is 0? Maybe there's a loose photodiode connection?"
-            )
-
+        except ZeroDivisionError:
+            self.logger.debug(exc_info=True)
             # we should clear the cache here...
 
             with local_persistant_storage("od_normalization_mean") as cache:
@@ -240,7 +233,9 @@ class GrowthRateCalculator(BackgroundJob):
             with local_persistant_storage("od_normalization_variance") as cache:
                 del cache[self.experiment]
 
-            raise e
+            raise ZeroDivisionError(
+                "Is there an OD Reading that is 0? Maybe there's a loose photodiode connection?"
+            )
 
     def _compute_and_cache_od_statistics(
         self,
@@ -331,14 +326,14 @@ class GrowthRateCalculator(BackgroundJob):
             allow_retained=True,  # maybe?
             timeout=10,
         )
-
+        print(f"pioreactor/{self.unit}/{self.experiment}/od_reading/ods")
         if msg is None:
             return 1.0  # default?
 
         od_readings = decode(msg.payload, type=structs.ODReadings)
+        print(od_readings)
         scaled_ods = self.scale_raw_observations(self._batched_raw_od_readings_to_dict(od_readings.ods))
         assert scaled_ods is not None
-
         return mean(scaled_ods.values())
 
     def get_od_normalization_from_cache(self) -> dict[pt.PdChannel, float]:

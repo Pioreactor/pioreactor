@@ -228,7 +228,7 @@ class CultureGrowthEKF:
         process_noise_covariance,
         observation_noise_covariance,
         angles: list[str],
-        outlier_std_threshold: float = 20.0,
+        outlier_std_threshold: float,
     ) -> None:
         import numpy as np
 
@@ -260,6 +260,7 @@ class CultureGrowthEKF:
     def update(self, observation_: list[float], dt: float):
         import numpy as np
 
+        alpha = 1.0
         observation = np.asarray(observation_)
         assert observation.shape[0] == self.n_sensors, (observation, self.n_sensors)
 
@@ -271,27 +272,33 @@ class CultureGrowthEKF:
         ### innovation
         residual_state = observation - self.update_observations_from_state(state_prediction)
 
-        # check if outlier
-        if self.ignore_outliers and (
-            abs(residual_state[0]) > self.outlier_std_threshold * np.sqrt(self.covariance_[0, 0])
-        ):
-            # don't update if so.
-            print(abs(residual_state[0]) / np.sqrt(self.covariance_[0, 0]))
-            return self.state_, self.covariance_
-
         H = self._J_update_observations_from_state(state_prediction)
+
         residual_covariance = (
             # see Scaling note above for why we multiple by state_[0]
             H @ covariance_prediction @ H.T
             + self.state_[0] * self.observation_noise_covariance
         )
 
+        # print(abs(residual_state[0])/np.sqrt(residual_covariance[0, 0]))
+        # check if outlier
+        if self.ignore_outliers and (
+            abs(residual_state[0]) > self.outlier_std_threshold * np.sqrt(residual_covariance[0, 0])
+        ):
+            print("OUTLIER!")
+            # don't update, but allow randomly
+            if np.random.random() > 0.1:
+                return self.state_, self.covariance_
+            else:
+                # nudge things along...
+                alpha = 0.1
+
         ### optimal gain
         kalman_gain_ = np.linalg.solve(residual_covariance.T, (H @ covariance_prediction.T)).T
 
         ### update estimates
-        self.state_ = state_prediction + kalman_gain_ @ residual_state
-        self.covariance_ = (np.eye(self.n_states) - kalman_gain_ @ H) @ covariance_prediction
+        self.state_ = state_prediction + alpha * kalman_gain_ @ residual_state
+        self.covariance_ = (np.eye(self.n_states) - alpha * kalman_gain_ @ H) @ covariance_prediction
 
         return self.state_, self.covariance_
 
