@@ -181,12 +181,17 @@ class GrowthRateCalculator(BackgroundJob):
         ]
 
         self.logger.debug(f"{angles=}")
-        outlier_std_threshold = config.getfloat(
+        ekf_outlier_std_threshold = config.getfloat(
             "growth_rate_calculating.config",
-            "outlier_std_threshold",
+            "ekf_outlier_std_threshold",
             fallback=5.0,
         )
-        self.logger.debug(f"{outlier_std_threshold=}")
+        if ekf_outlier_std_threshold <= 2.0:
+            raise ValueError(
+                "outlier_std_threshold should not be less than 2.0 - that's eliminating too many data points."
+            )
+
+        self.logger.debug(f"{ekf_outlier_std_threshold=}")
 
         return CultureGrowthEKF(
             initial_state,
@@ -194,7 +199,7 @@ class GrowthRateCalculator(BackgroundJob):
             process_noise_covariance,
             observation_noise_covariance,
             angles,
-            outlier_std_threshold,
+            ekf_outlier_std_threshold,
         )
 
     def create_obs_noise_covariance(self, obs_std):  # typing: ignore
@@ -326,12 +331,10 @@ class GrowthRateCalculator(BackgroundJob):
             allow_retained=True,  # maybe?
             timeout=10,
         )
-        print(f"pioreactor/{self.unit}/{self.experiment}/od_reading/ods")
         if msg is None:
             return 1.0  # default?
 
         od_readings = decode(msg.payload, type=structs.ODReadings)
-        print(od_readings)
         scaled_ods = self.scale_raw_observations(self._batched_raw_od_readings_to_dict(od_readings.ods))
         assert scaled_ods is not None
         return mean(scaled_ods.values())

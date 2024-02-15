@@ -1,5 +1,7 @@
 ### Upcoming
- - introducing some outlier protection in growth rate calculations
+ - fixed `datum` bug in the Overview that was crashing the UI. Sorry!
+ - introducing some outlier protection in growth rate calculations. This is tunable with the `ekf_outlier_std_threshold` value under `[growth_rate_calculating.config]`. The default value, 5.0, is pretty conservative, and will still allow some spikes to permeate to the growth rate and nOD. Try a value of 3.5 or 4.0 if you want to see more. Don't put it less than 3.0 - that's silly.
+
 
 ### 24.2.11
  - boot-up performance improvements

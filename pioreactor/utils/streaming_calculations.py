@@ -280,12 +280,10 @@ class CultureGrowthEKF:
             + self.state_[0] * self.observation_noise_covariance
         )
 
-        # print(abs(residual_state[0])/np.sqrt(residual_covariance[0, 0]))
         # check if outlier
         if self.ignore_outliers and (
             abs(residual_state[0]) > self.outlier_std_threshold * np.sqrt(residual_covariance[0, 0])
         ):
-            print("OUTLIER!")
             # don't update, but allow randomly
             if np.random.random() > 0.1:
                 return self.state_, self.covariance_

@@ -88,7 +88,7 @@ class Monitor(BackgroundJob):
     published_settings = {
         "computer_statistics": {"datatype": "json", "settable": False},
         "button_down": {"datatype": "boolean", "settable": False},
-        "versions": {"datatype": "json", "settable": False},
+        "versions": {"datatype": "json", "settable": True},
         "voltage_on_pwm_rail": {"datatype": "Voltage", "settable": False},
         "ipv4": {"datatype": "string", "settable": False},
         "wlan_mac_address": {"datatype": "string", "settable": False},
@@ -109,20 +109,21 @@ class Monitor(BackgroundJob):
         # Sol2: pio update app republishes this data, OR publishes an event that Monitor listens to.
         #
         self.versions = {
-            "software": pretty_version(version.software_version_info),
+            "app": pretty_version(version.software_version_info),
             "hat": pretty_version(version.hardware_version_info),
+            "firmware": pretty_version(version.get_firmware_version()),
             "hat_serial": version.serial_number,
+            "rpi_machine": version.rpi_version_info,
             "timestamp": current_utc_timestamp(),
         }
 
-        self.logger.debug(f"Pioreactor software version: {pretty_version(version.software_version_info)}")
+        self.logger.debug(f"Pioreactor software version: {self.versions['app']}")
+        self.logger.debug(f"Raspberry Pi: {self.versions['rpi_machine']}")
 
         if whoami.am_I_active_worker():
             self.logger.debug(f"Pioreactor HAT version: {self.versions['hat']}")
 
-            self.logger.debug(
-                f"Pioreactor firmware version: {pretty_version(version.get_firmware_version())}"
-            )
+            self.logger.debug(f"Pioreactor firmware version: {self.versions['firmware']}")
 
             self.logger.debug(f"Pioreactor HAT serial number: {self.versions['hat_serial']}")
 
@@ -715,6 +716,12 @@ class Monitor(BackgroundJob):
 
         error_code = int(message.payload)
         Thread(target=self.flicker_led_with_error_code, args=(error_code,), daemon=True).start()
+
+    def set_versions(self, data: dict):
+        # TODO: this can also be a dict merge
+        for key, value in data.items():
+            if key in self.versions:
+                self.versions[key] = value
 
     def start_passive_listeners(self) -> None:
         self.subscribe_and_callback(

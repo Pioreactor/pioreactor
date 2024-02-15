@@ -36,6 +36,7 @@ from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.networking import add_local
 from pioreactor.utils.networking import is_using_local_access_point
 from pioreactor.utils.timing import catchtime
+from pioreactor.utils.timing import current_utc_timestamp
 
 
 JOBS_TO_SKIP_KILLING = [
@@ -605,6 +606,11 @@ def update_app(
             logger.debug(p.stdout)
 
     logger.notice(f"Updated {whoami.get_unit_name()} to version {version_installed}.")  # type: ignore
+    # everything work? Let's publish to MQTT. This is a terrible hack, as monitor should do this.
+    pubsub.publish(
+        f"pioreactor/{whoami.get_unit_name()}/{whoami.UNIVERSAL_EXPERIMENT}/monitor/versions/set",
+        {"app": version_installed, "timestamp": current_utc_timestamp()},
+    )
 
 
 @update.command(name="firmware")
