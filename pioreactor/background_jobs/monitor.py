@@ -104,10 +104,6 @@ class Monitor(BackgroundJob):
         def pretty_version(info: tuple) -> str:
             return ".".join((str(x) for x in info))
 
-        # TODO: problem: these values aren't updated when software updates, only on monitor init. This makes them unreliable
-        # Sol1: restart monitor after pio update app - but this is very heavy handed.
-        # Sol2: pio update app republishes this data, OR publishes an event that Monitor listens to.
-        #
         self.versions = {
             "app": pretty_version(version.software_version_info),
             "hat": pretty_version(version.hardware_version_info),

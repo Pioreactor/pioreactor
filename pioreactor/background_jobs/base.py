@@ -5,6 +5,7 @@ import atexit
 import signal
 import threading
 import typing as t
+from copy import copy
 from os import getpid
 from time import sleep
 from time import time
@@ -70,13 +71,18 @@ def format_with_optional_units(value: pt.PublishableSettingDataType, units: t.Op
     Ex:
     > format_with_optional_units(25.0, "cm") # returns "25.0 cm"
     > format_with_optional_units(25.0, None) # returns "25.0"
+    > format_with_optional_units("some_very_long_string___", None) # returns "some_very_long_stri..."
     """
+    max_ = 40
+
     if units is None:
-        return f"{value}"
+        s = f"{value}"
     elif units == "%":
-        return f"{value}{units}"
+        s = f"{value}{units}"
     else:
-        return f"{value} {units}"
+        s = f"{value} {units}"
+
+    return s[:max_] + (s[max_:] and "..")
 
 
 class LoggerMixin:
@@ -869,7 +875,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.debug(f"attribute `{attr}` is not a property of {self}.")
             return
 
-        previous_value = getattr(self, attr)
+        previous_value = copy(getattr(self, attr))
         new_value = cast_bytes_to_type(message.payload, self.published_settings[attr]["datatype"])
 
         # a subclass may want to define a `set_<attr>` method that will be used instead
@@ -933,8 +939,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def _check_for_duplicate_activity(self) -> None:
         if is_pio_job_running(self.job_name) and not is_testing_env():
-            self.logger.error(f"{self.job_name} is already running.")
-            raise RuntimeError(f"{self.job_name} is already running.")
+            self.logger.warning(f"{self.job_name} is already running. Skipping")
+            raise RuntimeError(f"{self.job_name} is already running. Skipping")
         # elif is_pio_job_running("self_test"):
         #     # don't ever run anything while self_test runs.
         #     self.logger.error("self_test is running.")

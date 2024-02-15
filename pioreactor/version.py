@@ -50,7 +50,7 @@ def get_serial_number() -> str:
 def get_rpi_machine() -> str:
     try:
         with open("/proc/device-tree/model") as f:
-            return f.read().strip()
+            return f.read().strip().rstrip("\x00")
     except FileNotFoundError:
         return "Raspberry Pi 3 - testing"
 

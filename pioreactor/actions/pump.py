@@ -234,6 +234,7 @@ def _pump_action(
             elif ml is not None:
                 ml = float(ml)
                 if calibration is None:
+                    logger.error(f"Calibration not defined. Run {pump_type} pump calibration first.")
                     raise exc.CalibrationError(
                         f"Calibration not defined. Run {pump_type} pump calibration first."
                     )
