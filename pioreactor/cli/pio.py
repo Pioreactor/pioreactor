@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
+from json import dumps
 from json import loads
 from shlex import quote
 from sys import exit
@@ -609,7 +610,7 @@ def update_app(
     # everything work? Let's publish to MQTT. This is a terrible hack, as monitor should do this.
     pubsub.publish(
         f"pioreactor/{whoami.get_unit_name()}/{whoami.UNIVERSAL_EXPERIMENT}/monitor/versions/set",
-        {"app": version_installed, "timestamp": current_utc_timestamp()},
+        dumps({"app": version_installed, "timestamp": current_utc_timestamp()}),
     )
 
 
