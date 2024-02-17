@@ -1,5 +1,5 @@
 import React from "react";
-import { Client } from "paho-mqtt";
+import mqtt from 'mqtt'
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
 import {getConfig, getRelabelMap} from "../utilities"
@@ -23,7 +23,7 @@ function TactileButtonNotification(props) {
       return
     }
 
-    const onMessageArrived = (msg) => {
+    const onMessage = (msg) => {
       if (msg.payloadString === "True"){
         var unit = msg.topic.split("/")[1]
         setUnit(unit)
@@ -53,12 +53,17 @@ function TactileButtonNotification(props) {
 
     const userName = config.mqtt.username || "pioreactor"
     const password = config.mqtt.password || "raspberry"
-    const client = new Client(
-        config.mqtt.broker_address, parseInt(config.mqtt.broker_ws_port || 9001),
-        "webui_TactileButtonNotification" + Math.floor(Math.random()*10000)
-      );
-    client.connect({userName: userName, password: password, keepAliveInterval: 60 * 15, onSuccess: onSuccess, timeout: 180, reconnect: true});
-    client.onMessageArrived = onMessageArrived;
+    const brokerUrl = `${config.mqtt.ws_protocol}://${config.mqtt.broker_address}:${config.mqtt.broker_ws_port || 9001}/mqtt`;
+
+    const client = mqtt.connect(brokerUrl, {
+      username: userName,
+      password: password,
+      keepalive: 60 * 15,
+    });
+    client.on("connect", () => onSuccess() )
+    client.on("message", (topic, message) => {
+      onMessage(message);
+    });
 
   },[config, relabelMap])
 

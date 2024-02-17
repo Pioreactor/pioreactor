@@ -1,7 +1,7 @@
 import React from "react";
 import Grid from '@mui/material/Grid';
 import FlareIcon from '@mui/icons-material/Flare';
-import { Client, Message } from "paho-mqtt";
+import mqtt from 'mqtt'
 import clsx from 'clsx';
 import {useState, useEffect} from "react";
 import { makeStyles } from '@mui/styles';
@@ -40,17 +40,9 @@ function FlashLEDButton(props){
   const onClick = () => {
     setFlashing(true)
     const sendMessage = () => {
-      var message = new Message("1");
-      message.destinationName = [
-        "pioreactor",
-        props.unit,
-        "$experiment",
-        "monitor",
-        "flicker_led_response_okay",
-      ].join("/");
-      message.qos = 0;
+      const topic = `pioreactor/${props.unit}/$experiment/monitor/flicker_led_response_okay`;
       try{
-        props.client.publish(message);
+        props.client.publish(topic, "1", {qos: 0})
       }
       catch (e){
         console.log(e)
@@ -85,11 +77,14 @@ function AssignLabels(props){
   useEffect(() => {
     const userName = props.config.mqtt.username || "pioreactor"
     const password = props.config.mqtt.password || "raspberry"
-    const client = new Client(
-        props.config.mqtt.broker_address, parseInt(props.config.mqtt.broker_port),
-        "webui_publishExpNameToMQTT" + Math.floor(Math.random()*10000)
-      );
-    client.connect({userName: userName, password: password, keepAliveInterval: 60 * 15, reconnect: true});
+    const brokerUrl = `${props.config.mqtt.ws_protocol}://${props.config.mqtt.broker_address}:${props.config.mqtt.broker_ws_port || 9001}/mqtt`;
+
+    const client = mqtt.connect(brokerUrl, {
+      username: userName,
+      password: password,
+      keepalive: 60 * 15,
+    });
+
     setClient(client)
   },[props.config])
 

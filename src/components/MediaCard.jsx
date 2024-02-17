@@ -1,6 +1,6 @@
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import {Client} from 'paho-mqtt';
+import mqtt from 'mqtt'
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import React, { useState, useEffect } from 'react';
@@ -28,21 +28,23 @@ function MediaCard(props) {
 
     const userName = props.config.mqtt.username || "pioreactor"
     const password = props.config.mqtt.password || "raspberry"
-    const client = new Client(
-        props.config.mqtt.broker_address,
-        parseInt(props.config.mqtt.broker_ws_port || 9001),
-        'webui_MediaCard' + Math.floor(Math.random() * 10000)
-      );
+    const brokerUrl = `${props.config.mqtt.ws_protocol}://${props.config.mqtt.broker_address}:${props.config.mqtt.broker_ws_port || 9001}/mqtt`;
 
-    client.connect({
-      userName: userName,
+    const client = mqtt.connect(brokerUrl, {
+      username: userName,
       password: password,
-      keepAliveInterval: 60 * 15,
-      timeout: 180,
-      onSuccess: onConnect,
-      reconnect: true
     });
-    client.onMessageArrived = onMessageArrived;
+
+    client.on("connect", () => {
+      client.subscribe(
+        `pioreactor/+/${props.experiment}/'dosing_automation/alt_media_throughput`,
+        `pioreactor/+/${props.experiment}/'dosing_automation/media_throughput`,
+      )
+    })
+
+    client.on("message", (topic, message) => {
+      onMessage(topic, message);
+    });
 
     setActiveUnits(
       Object.entries(props.config['cluster.inventory'])
@@ -58,14 +60,6 @@ function MediaCard(props) {
     setRates(data);
   }
 
-  function onConnect() {
-    this.client.subscribe(
-      ['pioreactor', '+', props.experiment, 'dosing_automation', 'alt_media_throughput'].join('/')
-    );
-    this.client.subscribe(
-      ['pioreactor', '+', props.experiment, 'dosing_automation', 'media_throughput'].join('/')
-    );
-  }
 
   function addOrUpdate(hash, object, value) {
     if (Object.hasOwnProperty(hash)) {
@@ -76,10 +70,9 @@ function MediaCard(props) {
     return object;
   }
 
-  function onMessageArrived(message) {
-    const topic = message.destinationName;
-    const topicParts = topic.split('/');
-    const payload = parseFloat(message.payloadString);
+  function onMessage(topic, message) {
+    const topicParts = topic.toString().split('/');
+    const payload = parseFloat(message.toString());
     const unit = topicParts[1];
     const objectRef =
       topicParts.slice(-1)[0] === 'alt_media_throughput' ? 'altMediaThroughputPerUnit' : 'mediaThroughputPerUnit';

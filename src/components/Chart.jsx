@@ -1,5 +1,5 @@
 import React from "react";
-import { Client } from "paho-mqtt";
+import mqtt from 'mqtt'
 import {
   VictoryChart,
   VictoryLabel,
@@ -77,7 +77,7 @@ class Chart extends React.Component {
 
 
     this.onConnect = this.onConnect.bind(this);
-    this.onMessageArrived = this.onMessageArrived.bind(this);
+    this.onMessage = this.onMessage.bind(this);
     this.selectLegendData = this.selectLegendData.bind(this);
     this.selectVictoryLines = this.selectVictoryLines.bind(this);
     this.yTransformation = this.props.yTransformation || ((y) => y)
@@ -134,12 +134,18 @@ class Chart extends React.Component {
 
     const userName = this.props.config.mqtt.username || "pioreactor"
     const password = this.props.config.mqtt.password || "raspberry"
-    this.client = new Client(
-        this.props.config.mqtt.broker_address, parseInt(this.props.config.mqtt.broker_port),
-        "webui_Chart" + Math.floor(Math.random()*10000)
-      );
-    this.client.connect({userName: userName, password: password, keepAliveInterval: 60 * 15,  onSuccess: this.onConnect, reconnect: true});
-    this.client.onMessageArrived = this.onMessageArrived;
+
+    const brokerUrl = `${this.props.config.mqtt.ws_protocol}://${this.props.config.mqtt.broker_address}:${this.props.config.mqtt.broker_ws_port || 9001}/mqtt`;
+
+    this.client = mqtt.connect(brokerUrl, {
+      username: userName,
+      password: password,
+    });
+    this.client.on("connect", () => this.onConnect() )
+    this.client.on("message", (topic, message) => {
+      this.onMessage(topic, message);
+    });
+
   }
 
   async getHistoricalDataFromServer() {
@@ -228,7 +234,7 @@ class Chart extends React.Component {
     }]
   }
 
-  onMessageArrived(message) {
+  onMessage(topic, message) {
     if (!this.state.fetched){
       return
     }
@@ -236,12 +242,12 @@ class Chart extends React.Component {
       return
     }
 
-    if (!message.payloadString){
+    if (!message.toString()){
       return
     }
 
     if (this.props.payloadKey){
-      var payload = JSON.parse(message.payloadString)
+      var payload = JSON.parse(message.toString())
       var timestamp = moment.utc(payload.timestamp)
       var y_value = parseFloat(payload[this.props.payloadKey])
     } else {
@@ -253,8 +259,8 @@ class Chart extends React.Component {
     const x_value = this.props.byDuration ? duration : local_timestamp
 
     var key = this.props.isPartitionedBySensor
-      ? message.topic.split("/")[1] + "-" + (message.topic.split("/")[4]).replace('od', '')
-      : message.topic.split("/")[1];
+      ? topic.split("/")[1] + "-" + (topic.split("/")[4]).replace('od', '')
+      : topic.split("/")[1];
 
     try {
       if (!(key in this.state.seriesMap)){

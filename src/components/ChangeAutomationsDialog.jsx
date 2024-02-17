@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 
-import { Client, Message } from "paho-mqtt";
+import mqtt from 'mqtt'
 import { makeStyles } from "@mui/styles";
 
 import Button from "@mui/material/Button";
@@ -64,7 +64,6 @@ function ChangeAutomationsDialog(props) {
   const [automations, setAutomations] = useState({})
   const [openSnackbar, setOpenSnackbar] = useState(false);
 
-
   useEffect(() => {
     function fetchAutomations() {
       fetch("/api/contrib/automations/" + automationType)
@@ -92,11 +91,14 @@ function ChangeAutomationsDialog(props) {
 
     const userName = props.config.mqtt.username || "pioreactor"
     const password = props.config.mqtt.password || "raspberry"
-    const client = new Client(
-        props.config.mqtt.broker_address, parseInt(props.config.mqtt.broker_port),
-        "webui_ButtonChangeDialog" + Math.floor(Math.random()*10000)
-      );
-    client.connect({userName: userName, password: password, keepAliveInterval: 60 * 15, reconnect: true });
+    const brokerUrl = `${props.config.mqtt.ws_protocol}://${props.config.mqtt.broker_address}:${props.config.mqtt.broker_ws_port || 9001}/mqtt`;
+
+    const client = mqtt.connect(brokerUrl, {
+      username: userName,
+      password: password,
+      keepalive: 60 * 15,
+    });
+
     setClient(client)
   },[props.config])
 
@@ -134,8 +136,8 @@ function ChangeAutomationsDialog(props) {
 
   const changeAutomation = (event) => {
     event.preventDefault()
-    var message = new Message(JSON.stringify({"automation_name": automationName, "type": automationType, "args": algoSettings}),);
-    message.destinationName = [
+    const message =JSON.stringify({"automation_name": automationName, "type": automationType, "args": algoSettings})
+    const topic = [
       "pioreactor",
       props.unit,
       props.experiment,
@@ -143,9 +145,8 @@ function ChangeAutomationsDialog(props) {
       "automation",
       "set",
     ].join("/");
-    message.qos = 2;
     try{
-      client.publish(message);
+      client.publish(topic, message, {qos: 2});
       setOpenSnackbar(true);
     }
     catch (e){

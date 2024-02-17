@@ -26,7 +26,7 @@ import SelectButton from "./components/SelectButton";
 import DeleteIcon from '@mui/icons-material/Delete';
 import ViewTimelineOutlinedIcon from '@mui/icons-material/ViewTimelineOutlined';
 import PlayDisabledIcon from '@mui/icons-material/PlayDisabled';
-import { Client, Message } from "paho-mqtt";
+import mqtt from 'mqtt'
 import { useConfirm } from 'material-ui-confirm';
 
 
@@ -118,22 +118,30 @@ function ExperimentProfilesContent(props) {
       client.subscribe(`pioreactor/${config['cluster.topology']?.leader_hostname}/${experimentMetadata.experiment}/experiment_profile/+`, { qos: 1 })
     }
 
+
     const userName = config.mqtt.username || "pioreactor"
     const password = config.mqtt.password || "raspberry"
-    const client = new Client(
-        props.config.mqtt.broker_address, parseInt(config.mqtt.broker_port),
-        "webui_Profiles" + Math.floor(Math.random()*10000)
-      );
-    client.connect({userName: userName, password: password, onSuccess: onSuccess, reconnect: true});
-    client.onMessageArrived = onMessageArrived;
+    const brokerUrl = `${config.mqtt.ws_protocol}://${config.mqtt.broker_address}:${config.mqtt.broker_ws_port || 9001}/mqtt`;
+
+    const client = mqtt.connect(brokerUrl, {
+      username: userName,
+      password: password,
+      keepalive: 60 * 15,
+    });
+
+    client.on("connect", () => onSuccess() )
+    client.on("message", (topic, message) => {
+      onMessage(message);
+    });
+
     setClient(client)
 
   },[config, experimentMetadata])
 
 
-  const onMessageArrived = (message) => {
-    const payload = message.payloadString
-    const setting = message.topic.split("/")[4]
+  const onMessage = (topic, message) => {
+    const payload = message.toString()
+    const setting = topic.toString().split("/")[4]
     if ((setting === "$state") && (payload === "ready")){
       setIsProfileActive(true)
     }
@@ -150,9 +158,8 @@ function ExperimentProfilesContent(props) {
   const onSubmit = () => runPioreactorJob(config['cluster.topology']?.leader_hostname, 'experiment_profile', ['execute', selectedExperimentProfile], dryRun ? {'dry-run': null} : {}, () => setConfirmed(true))
 
   const onStop = () => {
-    var message = new Message("disconnected");
-    message.destinationName = `pioreactor/${config['cluster.topology']?.leader_hostname}/${experimentMetadata.experiment}/experiment_profile/$state/set`
-    client.publish(message)
+    const topic = `pioreactor/${config['cluster.topology']?.leader_hostname}/${experimentMetadata.experiment}/experiment_profile/$state/set`
+    client.publish(topic, "disconnected")
     setIsProfileActive(false)
   }
 

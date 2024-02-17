@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { Client, Message } from "paho-mqtt";
+import mqtt from 'mqtt'
 import moment from 'moment';
 
 import React, {useState, useEffect} from "react";
@@ -1013,10 +1013,8 @@ function SettingsActionsDialog(props) {
   }
 
   function setPioreactorJobAttr(job_attr, value) {
-    var message = new Message(String(value));
-    message.destinationName = `pioreactor/${props.unit}/${props.experiment}/${job_attr}/set`
-    message.qos = 1;
-    props.client.publish(message);
+    const topic = `pioreactor/${props.unit}/${props.experiment}/${job_attr}/set`
+    props.client.publish(topic, String(value), {qos: 1});
   }
 
 
@@ -1795,13 +1793,16 @@ function SettingsActionsDialogAll({config, experiment}) {
       return
     }
 
-    const userName = config.mqtt?.username || "pioreactor"
-    const password = config.mqtt?.password || "raspberry"
-    const client = new Client(
-      config.mqtt.broker_address, parseInt(config.mqtt.broker_ws_port || 9001),
-      "webui_SettingsActionsDialogAll" + Math.floor(Math.random()*10000)
-    );
-    client.connect({userName: userName, password: password, keepAliveInterval: 60 * 15, reconnect: true});
+    const userName = config.mqtt.username || "pioreactor"
+    const password = config.mqtt.password || "raspberry"
+    const brokerUrl = `${config.mqtt.ws_protocol}://${config.mqtt.broker_address}:${config.mqtt.broker_ws_port || 9001}/mqtt`;
+
+    const client = mqtt.connect(brokerUrl, {
+      username: userName,
+      password: password,
+      keepalive: 60 * 15,
+    });
+
     setClient(client)
   },[config])
 
@@ -1812,8 +1813,7 @@ function SettingsActionsDialogAll({config, experiment}) {
 
   function setPioreactorJobState(job, state) {
     return function sendMessage() {
-      var message = new Message(String(state));
-      message.destinationName = [
+      const topic = [
         "pioreactor",
         unit,
         experiment,
@@ -1821,9 +1821,8 @@ function SettingsActionsDialogAll({config, experiment}) {
         "$state",
         "set",
       ].join("/");
-      message.qos = 1;
       try{
-        client.publish(message);
+        client.publish(topic, String(state), {qos: 1});
       }
       catch (e){
         console.log(e)
@@ -1843,16 +1842,14 @@ function SettingsActionsDialogAll({config, experiment}) {
 
 
   function setPioreactorJobAttr(job_attr, value) {
-    var message = new Message(String(value));
-    message.destinationName = [
+    const topic = [
       "pioreactor",
       unit,
       experiment,
       job_attr,
       "set",
     ].join("/");
-    message.qos = 1;
-    client.publish(message);
+    client.publish(topic, String(value), {qos: 1});
     setSnackbarOpen(true)
   }
 
@@ -2403,17 +2400,9 @@ function FlashLEDButton(props){
   const onClick = () => {
     setFlashing(true)
     const sendMessage = () => {
-      var message = new Message("1");
-      message.destinationName = [
-        "pioreactor",
-        props.unit,
-        "$experiment",
-        "monitor",
-        "flicker_led_response_okay",
-      ].join("/");
-      message.qos = 0;
+      const topic = `pioreactor/${props.unit}/$experiment/monitor/flicker_led_response_okay`
       try{
-        props.client.publish(message);
+        props.client.publish(topic, "1", {qos: 0});
       }
       catch (e){
         console.log(e)
@@ -2511,13 +2500,13 @@ function PioreactorCard(props){
 
   useEffect(() => {
     const onConnect = () => {
-      client.subscribe(["pioreactor", unit, "$experiment", "monitor", "$state"].join("/"));
+      client.subscribe(`pioreactor/${unit}/$experiment/monitor/$state`);
       for (const job of Object.keys(jobs)) {
 
         // for some jobs (self_test), we use a different experiment name to not clutter datasets,
         const experimentName = jobs[job].metadata.is_testing ? "_testing_" + experiment : experiment
 
-        client.subscribe(["pioreactor", unit, experimentName, job, "$state"].join("/"));
+        client.subscribe(`pioreactor/${unit}/${experimentName}/${job}/$state`);
         for (const setting of Object.keys(jobs[job].publishedSettings)){
             var topic = [
               "pioreactor",
@@ -2531,21 +2520,21 @@ function PioreactorCard(props){
       }
     }
 
-    const onMessageArrived = (message) => {
-      var [job, setting] = message.topic.split('/').slice(-2)
+    const onMessage = (topic, message) => {
+      var [job, setting] = topic.toString().split('/').slice(-2)
       if (setting === "$state"){
-        var payload = message.payloadString
+        var payload = message.toString()
         setJobs((prev) => ({...prev, [job]: {...prev[job], state: payload}}))
       } else if (job.endsWith("_automation")) {
         // needed because settings are attached to _automations, not _control
         job = job.replace("_automation", "_control")
-        var payload = parseToType(message.payloadString, jobs[job].publishedSettings[setting].type)
+        var payload = parseToType(message.toString(), jobs[job].publishedSettings[setting].type)
         setJobs((prev) => ({...prev, [job]: {...prev[job], publishedSettings:
             {...prev[job].publishedSettings,
               [setting]:
                 {...prev[job].publishedSettings[setting], value: payload }}}}))
       } else {
-        var payload = parseToType(message.payloadString, jobs[job].publishedSettings[setting].type)
+        var payload = parseToType(message.toString(), jobs[job].publishedSettings[setting].type)
         setJobs(prev => {
           const updatedJob = { ...prev[job] };
           const updatedSetting = { ...updatedJob.publishedSettings[setting], value: payload };
@@ -2575,12 +2564,18 @@ function PioreactorCard(props){
 
     const userName = config.mqtt.username || "pioreactor"
     const password = config.mqtt.password || "raspberry"
-    const client = new Client(
-        props.config.mqtt.broker_address, parseInt(config.mqtt.broker_ws_port || 9001),
-        "webui_PioreactorCard" + Math.floor(Math.random()*10000)
-      );
-    client.onMessageArrived = onMessageArrived
-    client.connect({userName: userName, password: password, keepAliveInterval: 60 * 15, onSuccess: onConnect, reconnect: true});
+    const brokerUrl = `${config.mqtt.ws_protocol}://${config.mqtt.broker_address}:${config.mqtt.broker_ws_port || 9001}/mqtt`;
+
+    const client = mqtt.connect(brokerUrl, {
+      username: userName,
+      password: password,
+      keepalive: 60 * 15,
+    });
+    client.on("connect", () => onConnect() )
+    client.on("message", (topic, message) => {
+      onMessage(topic, message);
+    });
+
     setClient(client)
   },[config, experiment, jobFetchComplete, isUnitActive])
 

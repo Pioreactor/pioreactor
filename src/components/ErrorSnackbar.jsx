@@ -1,8 +1,8 @@
 import React from "react";
-import { Client } from "paho-mqtt";
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
 import {getConfig, getRelabelMap} from "../utilities"
+import mqtt from 'mqtt'
 
 import Snackbar from '@mui/material/Snackbar';
 
@@ -50,17 +50,31 @@ function ErrorSnackbar(props) {
 
     const userName = config.mqtt.username || "pioreactor"
     const password = config.mqtt.password || "raspberry"
-    const client = new Client(
-        config.mqtt.broker_address, parseInt(config.mqtt.broker_port),
-        "webui_ErrorSnackbarNotification" + Math.floor(Math.random()*10000)
-      );
-    client.connect({userName: userName, password: password, keepAliveInterval: 60 * 15, timeout: 20, onSuccess: onSuccess, onFailure: onFailure, reconnect: true});
-    client.onMessageArrived = onMessageArrived;
+
+    const brokerUrl = `${config.mqtt.ws_protocol}://${config.mqtt.broker_address}:${config.mqtt.broker_ws_port || 9001}/mqtt`;
+
+    const client = mqtt.connect(brokerUrl, {
+      username: userName,
+      password: password,
+      keepalive: 60 * 15,
+      connectTimeout: 20 * 1000,
+      reconnectPeriod: 1000 // Set this to enable automatic reconnection
+    });
+
+    client.on("connect", () => onSuccess() )
+
+    client.on('error', function (error) {
+      onFailure(error);
+    });
+
+    client.on("message", (topic, message) => {
+      onMessage(message);
+    });
 
   },[config])
 
-  const onMessageArrived = (message) => {
-      const payload = JSON.parse(message.payloadString)
+  const onMessage = (message) => {
+      const payload = JSON.parse(message.toString())
 
       if ((payload.level === "ERROR" || payload.level === "WARNING" || payload.level === "NOTICE") && (!message.topic.endsWith("/ui"))){
         const unit = message.topic.split("/")[1]

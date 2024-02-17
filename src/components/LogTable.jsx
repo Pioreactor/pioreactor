@@ -1,8 +1,8 @@
 import React from 'react'
 
 import clsx from 'clsx';
-import {Client} from 'paho-mqtt';
 import moment from 'moment';
+import mqtt from 'mqtt'
 
 
 import {withStyles} from '@mui/styles';
@@ -62,7 +62,7 @@ class LogTable extends React.Component {
     super(props);
     this.state = {listOfLogs: []};
     this.onConnect = this.onConnect.bind(this);
-    this.onMessageArrived = this.onMessageArrived.bind(this);
+    this.onMessage = this.onMessage.bind(this);
   }
 
   async getData() {
@@ -84,14 +84,23 @@ class LogTable extends React.Component {
 
   componentDidMount() {
     this.getData()
+
     const userName = this.props.config.mqtt.username || "pioreactor"
     const password = this.props.config.mqtt.password || "raspberry"
-    this.client = new Client(
-        this.props.config.mqtt.broker_address, parseInt(this.props.config.mqtt.broker_ws_port || 9001),
-        "webui_LogTable" + Math.floor(Math.random()*10000)
-      );
-    this.client.connect({userName: userName, password: password, keepAliveInterval: 60 * 15, timeout: 180, 'onSuccess': this.onConnect, reconnect: true});
-    this.client.onMessageArrived = this.onMessageArrived;
+
+    const brokerUrl = `${this.props.config.mqtt.ws_protocol}://${this.props.config.mqtt.broker_address}:${this.props.config.mqtt.broker_ws_port || 9001}/mqtt`;
+
+    this.client = mqtt.connect(brokerUrl, {
+      username: userName,
+      password: password,
+    });
+
+    this.client.on("connect", () => this.onConnect() )
+
+    this.client.on("message", (topic, message) => {
+      this.onMessage(topic, message);
+    });
+
   }
 
   componentDidUpdate(prevProps) {
@@ -101,16 +110,15 @@ class LogTable extends React.Component {
   }
 
   onConnect() {
-    this.client.subscribe(["pioreactor", "+", this.props.experiment, "logs", "+"].join("/"))
-    this.client.subscribe(["pioreactor", "+", "$experiment",         "logs", "+"].join("/"))
+    this.client.subscribe([`pioreactor/+/${this.props.experiment}/logs/+`,`pioreactor/+/$experiment/logs/+`])
   }
 
-  onMessageArrived(message) {
+  onMessage(topic, message) {
     if (this.state.listOfLogs.length > 50){
       this.state.listOfLogs.pop()
     }
-    const unit = message.topic.split("/")[1]
-    const payload = JSON.parse(message.payloadString)
+    const unit = topic.toString().split("/")[1]
+    const payload = JSON.parse(message.toString())
 
     if (levelMappingToOrdinal[payload.level.toUpperCase()] < levelMappingToOrdinal[this.props.config.logging.ui_log_level.toUpperCase()]){
       return
