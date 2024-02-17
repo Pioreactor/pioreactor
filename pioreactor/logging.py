@@ -130,7 +130,6 @@ def create_logger(
     experiment: Optional[str] = None,
     source: str = "app",
     to_mqtt: bool = True,
-    mqtt_hostname: Optional[str] = None,
 ) -> CustomLogger:
     """
 
@@ -195,7 +194,6 @@ def create_logger(
 
     if to_mqtt:
         pub_client = create_client(
-            hostname=mqtt_hostname,
             client_id=f"{name}-logging-{unit}-{experiment}",
             max_connection_attempts=2,
             keepalive=15 * 60,

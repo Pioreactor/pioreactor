@@ -21,7 +21,7 @@ from pioreactor import whoami
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.config import config
 from pioreactor.config import get_config
-from pioreactor.config import leader_address
+from pioreactor.config import mqtt_address
 from pioreactor.config import leader_hostname
 from pioreactor.hardware import GPIOCHIP
 from pioreactor.hardware import is_HAT_present
@@ -397,7 +397,7 @@ class Monitor(BackgroundJob):
 
             self.logger.warning(
                 f"""Not able to connect MQTT clients to leader.
-1. Is the leader, {leader_hostname} at {leader_address}, in config.ini correct?
+1. Is the {mqtt_address=}, in config.ini correct?
 2. Is the Pioreactor leader online and responsive?
 """
             )  # remember, this doesn't get published to leader...

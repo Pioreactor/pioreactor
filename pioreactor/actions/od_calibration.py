@@ -39,6 +39,7 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
 
+
 def green(string):
     return style(string, fg="green")
 
@@ -75,6 +76,7 @@ def get_name_from_user() -> str:
                 default=f"od-cal-{current_utc_datestamp()}",
                 show_default=False,
             ).strip()
+
             if name == "":
                 echo("Name cannot be empty")
                 continue
@@ -88,7 +90,7 @@ def get_name_from_user() -> str:
                 return name
 
 
-def get_metadata_from_user():
+def get_metadata_from_user() -> tuple[pt.OD600, pt.OD600, pt.mL, pt.PdAngle, pt.PdChannel]:
     initial_od600 = prompt(
         green("Provide the OD600 measurement of your initial, high density, culture"),
         type=click.FloatRange(min=0.01, clamp=False),
@@ -105,6 +107,7 @@ def get_metadata_from_user():
             type=click.FloatRange(min=0, max=initial_od600, clamp=False),
         )
 
+    assert isinstance(minimum_od600, )
     if minimum_od600 == 0:
         minimum_od600 = 0.01
 
@@ -128,6 +131,7 @@ def get_metadata_from_user():
 
     ref_channel = config["od_config.photodiode_channel_reverse"]["REF"]
     signal_channel = "1" if ref_channel == "2" else "2"
+    #assert isinstance(signal_channel, pt.PdChannel)
 
     confirm(
         green(
@@ -136,7 +140,8 @@ def get_metadata_from_user():
         abort=True,
         default=True,
     )
-    angle = str(config["od_config.photodiode_channel"][signal_channel])
+    angle = config["od_config.photodiode_channel"][signal_channel]
+    #assert isinstance(angle, pt.PdAngle)
     return initial_od600, minimum_od600, dilution_amount, angle, signal_channel
 
 

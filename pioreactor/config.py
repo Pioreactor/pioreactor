@@ -15,6 +15,10 @@ def __getattr__(attr):  # type: ignore
         return get_leader_hostname()
     elif attr == "leader_address":
         return get_leader_address()
+    elif attr == "mqtt_address":
+        return get_mqtt_address()
+    elif attr == "mqtt_port":
+        return get_mqtt_port()
     else:
         raise AttributeError
 
@@ -171,6 +175,14 @@ def get_leader_hostname() -> str:
 @cache
 def get_leader_address() -> str:
     return get_config().get("cluster.topology", "leader_address", fallback="localhost")
+
+@cache
+def get_mqtt_address() -> str:
+    return get_config().get("mqtt", "broker_address", fallback=get_leader_address())
+
+@cache
+def get_mqtt_port() -> str:
+    return get_config().getint("mqtt", "broker_port", fallback=1883)
 
 
 def check_firstboot_successful() -> bool:

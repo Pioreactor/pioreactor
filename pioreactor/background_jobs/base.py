@@ -16,7 +16,6 @@ from msgspec.json import encode as dumps
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.config import config
-from pioreactor.config import leader_address
 from pioreactor.config import leader_hostname
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import Client
@@ -269,7 +268,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
             unit=self.unit,
             experiment=self.experiment,
             source=self._source,
-            mqtt_hostname=leader_address,
         )
 
         self._check_for_duplicate_activity()
@@ -576,7 +574,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def _create_pub_client(self) -> Client:
         # see note above as to why we split pub and sub.
         client = create_client(
-            hostname=leader_address,
             client_id=f"{self.job_name}-pub-{self.unit}-{self.experiment}",
             keepalive=15 * 60,
         )
@@ -609,7 +606,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         }
 
         client = create_client(
-            hostname=leader_address,
             client_id=f"{self.job_name}-sub-{self.unit}-{self.experiment}",
             last_will=last_will,
             keepalive=60,

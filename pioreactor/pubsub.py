@@ -12,7 +12,9 @@ from typing import Optional
 
 from paho.mqtt.client import Client as PahoClient
 
-from pioreactor.config import leader_address
+from pioreactor.config import mqtt_address
+from pioreactor.config import mqtt_port
+from pioreactor.config import config
 from pioreactor.types import MQTTMessage
 
 
@@ -70,7 +72,7 @@ class QOS:
 
 
 def create_client(
-    hostname: Optional[str] = None,
+    hostname: str = mqtt_address,
     last_will: Optional[dict] = None,
     client_id: str = "",
     keepalive=60,
@@ -80,6 +82,7 @@ def create_client(
     on_disconnect: Optional[Callable] = None,
     on_message: Optional[Callable] = None,
     userdata: Optional[dict] = None,
+    port: int = mqtt_port
 ):
     """
     Create a MQTT client and connect to a host.
@@ -98,7 +101,10 @@ def create_client(
         clean_session=clean_session,
         userdata=userdata,
     )
-    client.username_pw_set("pioreactor", "raspberry")
+    client.username_pw_set(
+            config.get("mqtt", "username", fallback="pioreactor"),
+            config.get("mqtt", "password", fallback="raspberry")
+    )
 
     if on_connect:
         client.on_connect = on_connect  # type: ignore
@@ -114,12 +120,9 @@ def create_client(
     if last_will is not None:
         client.will_set(**last_will)
 
-    if hostname is None:
-        hostname = leader_address
-
     for retries in range(1, max_connection_attempts + 1):
         try:
-            client.connect(hostname, keepalive=keepalive)
+            client.connect(hostname, port, keepalive=keepalive)
         except (socket.gaierror, OSError):
             if retries == max_connection_attempts:
                 break
@@ -131,7 +134,7 @@ def create_client(
     return client
 
 
-def publish(topic: str, message, hostname: str = leader_address, retries: int = 10, **mqtt_kwargs) -> None:
+def publish(topic: str, message, hostname: str = mqtt_address, retries: int = 10, port: int = mqtt_port, **mqtt_kwargs) -> None:
     from paho.mqtt import publish as mqtt_publish
     import socket
 
@@ -141,6 +144,7 @@ def publish(topic: str, message, hostname: str = leader_address, retries: int = 
                 topic,
                 payload=message,
                 hostname=hostname,
+                port=port,
                 auth={"username": "pioreactor", "password": "raspberry"},
                 **mqtt_kwargs,
             )
@@ -164,11 +168,12 @@ def publish(topic: str, message, hostname: str = leader_address, retries: int = 
 
 def subscribe(
     topics: str | list[str],
-    hostname: str = leader_address,
+    hostname: str = mqtt_address,
     retries: int = 5,
     timeout: Optional[float] = None,
     allow_retained: bool = True,
     name: Optional[str] = None,
+    port: int = mqtt_port,
     **mqtt_kwargs,
 ) -> Optional[MQTTMessage]:
     """
@@ -222,7 +227,7 @@ def subscribe(
             client.username_pw_set("pioreactor", "raspberry")
             client.on_connect = on_connect  # type: ignore
             client.on_message = on_message  # type: ignore
-            client.connect(hostname)
+            client.connect(hostname, port=port)
 
             if timeout is None:
                 client.loop_forever()
@@ -255,11 +260,12 @@ def subscribe(
 def subscribe_and_callback(
     callback: Callable[[MQTTMessage], Any],
     topics: str | list[str],
-    hostname: str = leader_address,
+    hostname: str = mqtt_address,
     last_will: Optional[dict] = None,
     name: Optional[str] = None,
     allow_retained: bool = True,
     client: Optional[Client] = None,
+    port: int = mqtt_port,
     **mqtt_kwargs,
 ) -> Client:
     """
@@ -313,6 +319,7 @@ def subscribe_and_callback(
             on_connect=on_connect,
             on_message=wrap_callback(callback),
             userdata=userdata,
+            port=port,
             **mqtt_kwargs,
         )
 
@@ -325,7 +332,7 @@ def subscribe_and_callback(
     return client
 
 
-def prune_retained_messages(topics_to_prune: str = "#", hostname=leader_address):
+def prune_retained_messages(topics_to_prune: str = "#", hostname=mqtt_address):
     topics = []
 
     def on_message(message):

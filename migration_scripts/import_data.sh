@@ -16,6 +16,9 @@ ARCHIVE_HOSTNAME=$(echo "$ARCHIVE_NAME" | cut -d'_' -f 2)
 # Get the current hostname of the system
 CURRENT_HOSTNAME=$(hostname)
 
+PIO_DIR=/home/pioreactor/.pioreactor
+
+
 # the hostname of this system and the archive file should be the same. Exit if not.
 if [ "$ARCHIVE_HOSTNAME" != "$CURRENT_HOSTNAME" ]; then
   echo "Error: Hostname of the archive does not match this hostname."
@@ -30,22 +33,22 @@ sudo systemctl stop lighttpd.service || true
 sudo systemctl stop huey.service || true
 
 # blow away the old .pioreactor
-rm -rf /home/pioreactor/.pioreactor/
+rm -rf $PIO_DIR/
 
 # create the new .pioreactor/
 tar -xzf $ARCHIVE_NAME
 
 
-leader_hostname=$(crudini --get /home/pioreactor/.pioreactor/config.ini cluster.topology leader_hostname)
+leader_hostname=$(crudini --get $PIO_DIR/config.ini cluster.topology leader_hostname)
 
 if [ "$leader_hostname" = "$CURRENT_HOSTNAME" ]; then
   # rename the sqlite .backup, if leader
-  mv /home/pioreactor/.pioreactor/storage/pioreactor.sqlite.backup /home/pioreactor/.pioreactor/storage/pioreactor.sqlite
-  touch /home/pioreactor/.pioreactor/storage/pioreactor.sqlite-shm
-  touch /home/pioreactor/.pioreactor/storage/pioreactor.sqlite-wal
+  mv $PIO_DIR/storage/pioreactor.sqlite.backup $PIO_DIR/storage/pioreactor.sqlite
+  touch $PIO_DIR/storage/pioreactor.sqlite-shm
+  touch $PIO_DIR/storage/pioreactor.sqlite-wal
 
   # check integrity, quickly
-  DB_CHECK=$(sqlite3 /home/pioreactor/.pioreactor/storage/pioreactor.sqlite "PRAGMA quick_check;")
+  DB_CHECK=$(sqlite3 $PIO_DIR/storage/pioreactor.sqlite "PRAGMA quick_check;")
   if [[ "$DB_CHECK" != "ok" ]]; then
       echo "Database integrity check failed: $DB_CHECK"
   fi
@@ -53,9 +56,9 @@ if [ "$leader_hostname" = "$CURRENT_HOSTNAME" ]; then
 fi
 
 # confirm permissions
-chmod -R 770 /home/pioreactor/.pioreactor/storage/
-chown -R pioreactor:www-data /home/pioreactor/.pioreactor/storage/
-chmod g+s /home/pioreactor/.pioreactor/storage/
+chmod -R 770 $PIO_DIR/storage/
+chown -R pioreactor:www-data $PIO_DIR/storage/
+chmod g+s $PIO_DIR/storage/
 
 echo "Done! Rebooting..."
 
