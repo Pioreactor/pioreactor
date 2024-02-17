@@ -83,19 +83,13 @@ function AssignLabels(props){
 
 
   useEffect(() => {
-    var client
-    if (props.config.remote && props.config.remote.ws_url) {
-      client = new Client(
-        `${props.config.remote.ws_url}/`,
-        "webui_publishExpNameToMQTT" + Math.floor(Math.random()*10000)
-      )}
-    else {
-      client = new Client(
-        `${props.config['cluster.topology']['leader_address']}`, 9001,
+    const userName = props.config.mqtt.username || "pioreactor"
+    const password = props.config.mqtt.password || "raspberry"
+    const client = new Client(
+        props.config.mqtt.broker_address, parseInt(props.config.mqtt.broker_port),
         "webui_publishExpNameToMQTT" + Math.floor(Math.random()*10000)
       );
-    }
-    client.connect();
+    client.connect({userName: userName, password: password, keepAliveInterval: 60 * 15, reconnect: true});
     setClient(client)
   },[props.config])
 

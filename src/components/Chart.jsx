@@ -132,19 +132,13 @@ class Chart extends React.Component {
       return
     }
 
-    if (this.props.config.remote && this.props.config.remote.ws_url) {
-      this.client = new Client(
-        `${this.props.config.remote.ws_url}/`,
-        "webui_Chart" + Math.floor(Math.random()*10000)
-      )}
-    else {
-      this.client = new Client(
-        `${this.props.config['cluster.topology']['leader_address']}`, 9001,
+    const userName = this.props.config.mqtt.username || "pioreactor"
+    const password = this.props.config.mqtt.password || "raspberry"
+    this.client = new Client(
+        this.props.config.mqtt.broker_address, parseInt(this.props.config.mqtt.broker_port),
         "webui_Chart" + Math.floor(Math.random()*10000)
       );
-    }
-
-    this.client.connect({userName: 'pioreactor', password: 'raspberry', keepAliveInterval: 60 * 15,  onSuccess: this.onConnect, reconnect: true});
+    this.client.connect({userName: userName, password: password, keepAliveInterval: 60 * 15,  onSuccess: this.onConnect, reconnect: true});
     this.client.onMessageArrived = this.onMessageArrived;
   }
 
@@ -318,10 +312,14 @@ class Chart extends React.Component {
 
   createToolTip = (d) => {
     var x_value
-    if (this.props.byDuration) {
-      x_value = `${d.datum.x.toFixed(2)} hours elapsed`
-    } else {
-      x_value = d.datum.x.format("MMM DD HH:mm")
+    try {
+      if (this.props.byDuration) {
+        x_value = `${d.datum.x.toFixed(2)} hours elapsed`
+      } else {
+        x_value = d.datum.x.format("MMM DD HH:mm")
+      }
+    } catch {
+      x_value = d.datum.x
     }
 
     return `${x_value}

@@ -22,16 +22,17 @@ function ErrorSnackbar(props) {
   }, [])
 
   React.useEffect(() => {
-    if (!config['cluster.topology']){
+    if (!config.mqtt){
       return
     }
 
-    const onFailure = () => {
-      setMsg(`Failed to connect to MQTT. Is configuration for leader_address correct? Currently set to ${config['cluster.topology']['leader_address']}.`)
+    const onFailure = (response) => {
+      setMsg(`Failed to connect to MQTT. Is configuration for MQTT's address correct? Currently set to ${config['mqtt']['broker_address']}.`)
       setTask("PioreactorUI")
       setLevel("ERROR")
       setUnit(config['cluster.topology']['leader_hostname'])
       setOpen(true)
+      console.log(response)
     }
 
     const onSuccess = () => {
@@ -47,19 +48,13 @@ function ErrorSnackbar(props) {
       )
     }
 
-    var client
-    if (config.remote && config.remote.ws_url) {
-      client = new Client(
-        `${config.remote.ws_url}/`,
-        "webui_ErrorSnackbarNotification" + Math.floor(Math.random()*10000)
-      )}
-    else {
-      client = new Client(
-        `${config['cluster.topology']['leader_address']}`, 9001,
+    const userName = config.mqtt.username || "pioreactor"
+    const password = config.mqtt.password || "raspberry"
+    const client = new Client(
+        config.mqtt.broker_address, parseInt(config.mqtt.broker_port),
         "webui_ErrorSnackbarNotification" + Math.floor(Math.random()*10000)
       );
-    }
-    client.connect({userName: 'pioreactor', password: 'raspberry', keepAliveInterval: 60 * 15, timeout: 10, onSuccess: onSuccess, onFailure: onFailure});
+    client.connect({userName: userName, password: password, keepAliveInterval: 60 * 15, timeout: 20, onSuccess: onSuccess, onFailure: onFailure, reconnect: true});
     client.onMessageArrived = onMessageArrived;
 
   },[config])

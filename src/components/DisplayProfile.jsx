@@ -92,11 +92,17 @@ const ActionDetails = ({ action, jobName, index }) => {
               only if <span className={classes.highlightedIf}>{processBracketedExpression(action.if)}</span>
             </Typography>
           )}
-          {Object.keys(action.options || {}).map((option, idx) => (
-            <Typography key={`option-${idx}`} variant="body2" style={{ marginLeft: '6em' }}>
-              — set <span className={classes.highlightedTarget}>{option}</span> to <span className={classes.highlightedSetting}>{processBracketedExpression(action.options[option])}</span>
-            </Typography>
-          ))}
+          {Object.keys(action.options || {}).map((option, idx) => {
+            const optionValue = action.options[option];
+            return (
+              <Typography key={`option-${idx}`} variant="body2" style={{ marginLeft: '6em' }}>
+                — set <span className={classes.highlightedTarget}>{option}</span>
+                {optionValue !== null ? (
+                  <> to <span className={classes.highlightedSetting}>{processBracketedExpression(optionValue)}</span></>
+                ) : null}
+              </Typography>
+            );
+          })}
         </>
       );
     case 'log':

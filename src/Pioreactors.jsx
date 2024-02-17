@@ -1016,13 +1016,7 @@ function SettingsActionsDialog(props) {
     var message = new Message(String(value));
     message.destinationName = `pioreactor/${props.unit}/${props.experiment}/${job_attr}/set`
     message.qos = 1;
-    try{
-      props.client.publish(message);
-    }
-    catch (e) {
-      console.log(e)
-      props.client.connect({userName: 'pioreactor', password: 'raspberry', keepAliveInterval: 60 * 15, onSuccess: () => setPioreactorJobAttr(job_attr, value)});
-    }
+    props.client.publish(message);
   }
 
 
@@ -1164,8 +1158,6 @@ function SettingsActionsDialog(props) {
 
   var temperatureControlJob = props.jobs.temperature_control
   var temperatureControlJobRunning = ["ready", "sleeping", "init"].includes(temperatureControlJob?.state)
-
-
 
   return (
     <div>
@@ -1665,9 +1657,15 @@ function SettingsActionsDialog(props) {
           </Typography>
 
             <Typography variant="body2" component="p">
+              Software version: {versionInfo.app}
+            </Typography>
+            <Typography variant="body2" component="p">
+              Raspberry Pi: {versionInfo.rpi_machine}
+            </Typography>
+            <Typography variant="body2" component="p">
               HAT version: {versionInfo.hat}
             </Typography>
-              <Typography variant="body2" component="p">
+            <Typography variant="body2" component="p">
               HAT serial number: <code className={classes.code}>{versionInfo.hat_serial}</code>
             </Typography>
 
@@ -1793,23 +1791,17 @@ function SettingsActionsDialogAll({config, experiment}) {
 
 
   useEffect(() => {
-    if (!config['cluster.topology']){
+    if (!config.mqtt){
       return
     }
 
-    var client
-    if (config.remote && config.remote.ws_url) {
-      client = new Client(
-        `${config.remote.ws_url}/`,
-        "webui_SettingsActionsDialogAll" + Math.floor(Math.random()*10000)
-      )}
-    else {
-      client = new Client(
-        `${config['cluster.topology']['leader_address']}`, 9001,
-        "webui_SettingsActionsDialogAll" + Math.floor(Math.random()*10000)
-      );
-    }
-    client.connect({userName: 'pioreactor', password: 'raspberry', keepAliveInterval: 60 * 15, reconnect: true});
+    const userName = config.mqtt?.username || "pioreactor"
+    const password = config.mqtt?.password || "raspberry"
+    const client = new Client(
+      config.mqtt.broker_address, parseInt(config.mqtt.broker_ws_port || 9001),
+      "webui_SettingsActionsDialogAll" + Math.floor(Math.random()*10000)
+    );
+    client.connect({userName: userName, password: password, keepAliveInterval: 60 * 15, reconnect: true});
     setClient(client)
   },[config])
 
@@ -1860,14 +1852,8 @@ function SettingsActionsDialogAll({config, experiment}) {
       "set",
     ].join("/");
     message.qos = 1;
-    try{
-      client.publish(message);
-      setSnackbarOpen(true)
-    }
-    catch (e) {
-      console.log(e)
-      client.connect({userName: 'pioreactor', password: 'raspberry', keepAliveInterval: 60 * 15, onSuccess: () => setPioreactorJobAttr(job_attr, value)});
-    }
+    client.publish(message);
+    setSnackbarOpen(true)
   }
 
   const handleClickOpen = () => {
@@ -2458,7 +2444,7 @@ function PioreactorCard(props){
   const [client, setClient] = useState(null)
   const [jobs, setJobs] = useState({
     monitor: {
-      state : "disconnected",
+      state : null,
       metadata: {display: false},
       publishedSettings: {
         versions: {
@@ -2571,7 +2557,7 @@ function PioreactorCard(props){
       }
     }
 
-    if (!props.config['cluster.topology']){
+    if (!props.config.mqtt){
       return
     }
 
@@ -2587,20 +2573,14 @@ function PioreactorCard(props){
       return
     }
 
-    var client
-    if (props.config.remote && props.config.remote.ws_url) {
-      client = new Client(
-        `${props.config.remote.ws_url}/`,
-        "webui_PioreactorCard" + Math.floor(Math.random()*10000)
-      )}
-    else {
-      client = new Client(
-        `${props.config['cluster.topology']['leader_address']}`, 9001,
+    const userName = config.mqtt.username || "pioreactor"
+    const password = config.mqtt.password || "raspberry"
+    const client = new Client(
+        props.config.mqtt.broker_address, parseInt(config.mqtt.broker_ws_port || 9001),
         "webui_PioreactorCard" + Math.floor(Math.random()*10000)
       );
-    }
     client.onMessageArrived = onMessageArrived
-    client.connect({userName: 'pioreactor', password: 'raspberry', keepAliveInterval: 60 * 15, onSuccess: onConnect, reconnect: true});
+    client.connect({userName: userName, password: password, keepAliveInterval: 60 * 15, onSuccess: onConnect, reconnect: true});
     setClient(client)
   },[config, experiment, jobFetchComplete, isUnitActive])
 
@@ -2614,6 +2594,9 @@ function PioreactorCard(props){
     else if (state === "lost"){
       return "Lost, something went wrong. Try manually power-cycling the unit."
     }
+    else if (state === null){
+      return "Waiting for information..."
+    }
     else {
       return "Online and ready"
     }
@@ -2625,6 +2608,9 @@ function PioreactorCard(props){
     }
     else if (state === "lost"){
       return lostRed
+    }
+    else if (state === null){
+      return "#ececec"
     }
     else {
       return "#1AFF1A"

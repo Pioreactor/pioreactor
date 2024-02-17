@@ -51,19 +51,13 @@ function TactileButtonNotification(props) {
       )
     }
 
-    var client
-    if (config.remote && config.remote.ws_url) {
-      client = new Client(
-        `${config.remote.ws_url}/`,
-        "webui_TactileButtonNotification" + Math.floor(Math.random()*10000)
-      )}
-    else {
-      client = new Client(
-        `${config['cluster.topology']['leader_address']}`, 9001,
+    const userName = config.mqtt.username || "pioreactor"
+    const password = config.mqtt.password || "raspberry"
+    const client = new Client(
+        config.mqtt.broker_address, parseInt(config.mqtt.broker_ws_port || 9001),
         "webui_TactileButtonNotification" + Math.floor(Math.random()*10000)
       );
-    }
-    client.connect({userName: 'pioreactor', password: 'raspberry', keepAliveInterval: 60 * 15, onSuccess: onSuccess, timeout: 180, reconnect: true});
+    client.connect({userName: userName, password: password, keepAliveInterval: 60 * 15, onSuccess: onSuccess, timeout: 180, reconnect: true});
     client.onMessageArrived = onMessageArrived;
 
   },[config, relabelMap])

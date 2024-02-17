@@ -118,19 +118,13 @@ function ExperimentProfilesContent(props) {
       client.subscribe(`pioreactor/${config['cluster.topology']?.leader_hostname}/${experimentMetadata.experiment}/experiment_profile/+`, { qos: 1 })
     }
 
-    var client
-    if (config.remote && config.remote.ws_url) {
-      client = new Client(
-        `${config.remote.ws_url}/`,
-        "webui_Profiles" + Math.floor(Math.random()*10000)
-      )}
-    else {
-      client = new Client(
-        `${config['cluster.topology']['leader_address']}`, 9001,
+    const userName = config.mqtt.username || "pioreactor"
+    const password = config.mqtt.password || "raspberry"
+    const client = new Client(
+        props.config.mqtt.broker_address, parseInt(config.mqtt.broker_port),
         "webui_Profiles" + Math.floor(Math.random()*10000)
       );
-    }
-    client.connect({userName: 'pioreactor', password: 'raspberry', onSuccess: onSuccess});
+    client.connect({userName: userName, password: password, onSuccess: onSuccess, reconnect: true});
     client.onMessageArrived = onMessageArrived;
     setClient(client)
 
