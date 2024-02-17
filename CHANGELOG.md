@@ -4,8 +4,8 @@
  - added options alternative mqtt brokers with the new configuration
  ```
 [mqtt]
-mqtt_username=pioreactor
-mqtt_password=raspberry
+username=pioreactor
+password=raspberry
 broker_address=
  ```
 
