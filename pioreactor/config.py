@@ -17,8 +17,6 @@ def __getattr__(attr):  # type: ignore
         return get_leader_address()
     elif attr == "mqtt_address":
         return get_mqtt_address()
-    elif attr == "mqtt_port":
-        return get_mqtt_port()
     else:
         raise AttributeError
 
@@ -56,15 +54,7 @@ class ConfigParserMod(configparser.ConfigParser):
 
             logger = create_logger("read config")
 
-            if section.endswith("_reverse"):
-                msg = f"""Not found in configuration: '{section.removesuffix("_reverse")}.{option}'. Are you missing the following in your config?
-
-[{section.removesuffix("_reverse")}]
-{option}=some value
-
-    """
-            else:
-                msg = f"""Not found in configuration: '{section}.{option}'. Are you missing the following in your config?
+            msg = f"""Not found in configuration: '{section}.{option}'. Are you missing the following in your config?
 
 [{section}]
 {option}=some value
@@ -176,13 +166,10 @@ def get_leader_hostname() -> str:
 def get_leader_address() -> str:
     return get_config().get("cluster.topology", "leader_address", fallback="localhost")
 
+
 @cache
 def get_mqtt_address() -> str:
     return get_config().get("mqtt", "broker_address", fallback=get_leader_address())
-
-@cache
-def get_mqtt_port() -> str:
-    return get_config().getint("mqtt", "broker_port", fallback=1883)
 
 
 def check_firstboot_successful() -> bool:

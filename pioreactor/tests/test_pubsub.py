@@ -35,7 +35,7 @@ def test_create_client_default_behavior(mock_client) -> None:
     create_client(hostname=hostname)
 
     client_instance.username_pw_set.assert_called_with("pioreactor", "raspberry")
-    client_instance.connect.assert_called_with(hostname, keepalive=60)
+    client_instance.connect.assert_called_with(hostname, 1883, keepalive=60)
     client_instance.loop_start.assert_called_once()
 
 

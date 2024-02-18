@@ -7,7 +7,13 @@
 username=pioreactor
 password=raspberry
 broker_address=
- ```
+broker_ws_port=9001
+broker_port=1883
+ws_protocol=ws
+tls=0
+```
+ - new UI MQTT library
+ - cleaned up app MQTT code, too.
 
 
 ### 24.2.11
