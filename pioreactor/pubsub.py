@@ -11,7 +11,6 @@ from typing import Callable
 from typing import Optional
 
 from paho.mqtt.client import Client as PahoClient
-from paho.mqtt.client import ssl
 
 from pioreactor.config import config
 from pioreactor.config import mqtt_address
@@ -108,6 +107,8 @@ def create_client(
         config.get("mqtt", "password", fallback="raspberry"),
     )
     if tls:
+        import ssl
+
         client.tls_set(tls_version=ssl.PROTOCOL_TLS)
 
     if on_connect:
@@ -166,8 +167,8 @@ def publish(topic: str, message, retries: int = 3, **mqtt_kwargs) -> None:
 
     else:
         logger = create_logger("pubsub.publish", to_mqtt=False)
-        logger.error(f"Unable to connect to MQTT.")
-        raise ConnectionRefusedError(f"Unable to connect to MQTT.")
+        logger.error("Unable to connect to MQTT.")
+        raise ConnectionRefusedError("Unable to connect to MQTT.")
 
 
 def subscribe(

@@ -39,7 +39,6 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
 
-
 def green(string):
     return style(string, fg="green")
 
@@ -102,12 +101,14 @@ def get_metadata_from_user() -> tuple[pt.OD600, pt.OD600, pt.mL, pt.PdAngle, pt.
     )
 
     while minimum_od600 >= initial_od600:
-        minimum_od600 = prompt(
-            "The minimum OD600 measurement must be less than the initial OD600 culture measurement",
-            type=click.FloatRange(min=0, max=initial_od600, clamp=False),
+        minimum_od600 = cast(
+            pt.OD600,
+            prompt(
+                "The minimum OD600 measurement must be less than the initial OD600 culture measurement",
+                type=click.FloatRange(min=0, max=initial_od600, clamp=False),
+            ),
         )
 
-    assert isinstance(minimum_od600, )
     if minimum_od600 == 0:
         minimum_od600 = 0.01
 
@@ -130,8 +131,7 @@ def get_metadata_from_user() -> tuple[pt.OD600, pt.OD600, pt.mL, pt.PdAngle, pt.
         # technically it's not required? we just need a specific PD channel to calibrate from.
 
     ref_channel = config["od_config.photodiode_channel_reverse"]["REF"]
-    signal_channel = "1" if ref_channel == "2" else "2"
-    #assert isinstance(signal_channel, pt.PdChannel)
+    signal_channel = cast(pt.PdChannel, "1" if ref_channel == "2" else "2")
 
     confirm(
         green(
@@ -140,8 +140,7 @@ def get_metadata_from_user() -> tuple[pt.OD600, pt.OD600, pt.mL, pt.PdAngle, pt.
         abort=True,
         default=True,
     )
-    angle = config["od_config.photodiode_channel"][signal_channel]
-    #assert isinstance(angle, pt.PdAngle)
+    angle = cast(pt.PdAngle, config["od_config.photodiode_channel"][signal_channel])
     return initial_od600, minimum_od600, dilution_amount, angle, signal_channel
 
 
@@ -460,7 +459,7 @@ def save_results(
     return data_blob
 
 
-def get_data_from_data_file(data_file: str) -> tuple[str, str, list[float], list[float]]:
+def get_data_from_data_file(data_file: str) -> tuple[pt.PdChannel, pt.PdAngle, list[float], list[float]]:
     import json
 
     click.echo(f"Pulling data from {data_file}...")
