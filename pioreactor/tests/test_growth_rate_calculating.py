@@ -780,14 +780,13 @@ class TestGrowthRateCalculating:
             assert calc.od_normalization_factors == {"1": 0.05, "2": 0.10}
             assert calc.initial_nOD == 15.0 == 0.5 * (1 / 0.05 + 1 / 0.10)
 
-    def test_outlier_gets_rejected(self) -> None:
+    def test_single_outlier_spike_gets_absorbed(self) -> None:
         config["od_config.photodiode_channel"]["1"] = "REF"
         config["od_config.photodiode_channel"]["2"] = "90"
 
         unit = get_unit_name()
         experiment = "test_outlier_gets_rejected"
 
-        interval = 0.1
         config["od_config"]["samples_per_second"] = "0.2"
 
         # clear mqtt
@@ -798,29 +797,108 @@ class TestGrowthRateCalculating:
         )
 
         with local_persistant_storage("od_normalization_mean") as cache:
-            cache[experiment] = json.dumps({"2": 0.0483})
+            cache[experiment] = json.dumps({"2": 0.05})
 
         with local_persistant_storage("od_normalization_variance") as cache:
             cache[experiment] = json.dumps({"2": 1e-6})
 
         with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
-            with start_od_reading(
-                "REF",
-                "90",
-                interval=interval,
-                unit=unit,
-                experiment=experiment,
-                fake_data=True,
-            ):
-                time.sleep(60)
+            for _ in range(40):
+                publish(
+                    f"pioreactor/{unit}/{experiment}/od_reading/ods",
+                    create_od_raw_batched_json(
+                        ["2"], [0.05 + 1e-3 * np.random.random()], ["90"], timestamp=current_utc_timestamp()
+                    ),
+                    retain=True,
+                )
+                time.sleep(0.5)
 
-            time.sleep(1.0)
-            previous = calc.od_filtered
+            previous_nOD = calc.od_filtered
+            previous_gr = calc.growth_rate
             # EKF is warmed up, introduce outlier
             publish(
                 f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                create_od_raw_batched_json(["2"], [10.0], ["90"], timestamp=current_utc_timestamp()),
+                create_od_raw_batched_json(["2"], [0.500], ["90"], timestamp=current_utc_timestamp()),
                 retain=True,
             )
             time.sleep(1.0)
-            assert previous.od_filtered == calc.od_filtered.od_filtered
+
+            current_nOD = calc.od_filtered
+            current_gr = calc.growth_rate
+
+            assert previous_nOD.od_filtered < current_nOD.od_filtered
+            assert abs(previous_gr.growth_rate - current_gr.growth_rate) < 0.01
+
+            # continue normal data
+            for _ in range(20):
+                publish(
+                    f"pioreactor/{unit}/{experiment}/od_reading/ods",
+                    create_od_raw_batched_json(
+                        ["2"], [0.05 + 1e-3 * np.random.random()], ["90"], timestamp=current_utc_timestamp()
+                    ),
+                    retain=True,
+                )
+                time.sleep(0.5)
+
+            # reverts back to previous
+            current_nOD = calc.od_filtered
+            current_gr = calc.growth_rate
+
+            assert abs(previous_nOD.od_filtered - current_nOD.od_filtered) < 0.05
+            assert abs(previous_gr.growth_rate - current_gr.growth_rate) < 0.01
+
+    def test_baseline_shift_gets_absorbed(self) -> None:
+        config["od_config.photodiode_channel"]["1"] = "REF"
+        config["od_config.photodiode_channel"]["2"] = "90"
+
+        unit = get_unit_name()
+        experiment = "test_outlier_gets_rejected"
+
+        config["od_config"]["samples_per_second"] = "0.2"
+
+        # clear mqtt
+        publish(
+            f"pioreactor/{unit}/{experiment}/od_reading/ods",
+            None,
+            retain=True,
+        )
+
+        with local_persistant_storage("od_normalization_mean") as cache:
+            cache[experiment] = json.dumps({"2": 0.05})
+
+        with local_persistant_storage("od_normalization_variance") as cache:
+            cache[experiment] = json.dumps({"2": 1e-6})
+
+        with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
+            for _ in range(30):
+                publish(
+                    f"pioreactor/{unit}/{experiment}/od_reading/ods",
+                    create_od_raw_batched_json(
+                        ["2"], [0.05 + 1e-3 * np.random.random()], ["90"], timestamp=current_utc_timestamp()
+                    ),
+                    retain=True,
+                )
+                time.sleep(0.4)
+
+            previous_gr = calc.growth_rate
+            # EKF is warmed up,
+
+            # offset
+            print("OFFSET!")
+            for _ in range(40):
+                publish(
+                    f"pioreactor/{unit}/{experiment}/od_reading/ods",
+                    create_od_raw_batched_json(
+                        ["2"],
+                        [0.05 + 0.015 + 1e-3 * np.random.random()],
+                        ["90"],
+                        timestamp=current_utc_timestamp(),
+                    ),
+                    retain=True,
+                )
+                time.sleep(0.4)
+
+            # reverts back to previous
+            current_gr = calc.growth_rate
+
+            assert abs(previous_gr.growth_rate - current_gr.growth_rate) < 0.01

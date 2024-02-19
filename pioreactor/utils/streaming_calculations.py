@@ -260,7 +260,6 @@ class CultureGrowthEKF:
     def update(self, observation_: list[float], dt: float):
         import numpy as np
 
-        alpha = 1.0
         observation = np.asarray(observation_)
         assert observation.shape[0] == self.n_sensors, (observation, self.n_sensors)
 
@@ -274,29 +273,25 @@ class CultureGrowthEKF:
 
         H = self._J_update_observations_from_state(state_prediction)
 
+        ### optimal gain
         residual_covariance = (
             # see Scaling note above for why we multiple by state_[0]
             H @ covariance_prediction @ H.T
             + self.state_[0] * self.observation_noise_covariance
         )
+        kalman_gain_ = np.linalg.solve(residual_covariance.T, (H @ covariance_prediction.T)).T
 
         # check if outlier
         if self.ignore_outliers and (
             abs(residual_state[0]) > self.outlier_std_threshold * np.sqrt(residual_covariance[0, 0])
         ):
-            # don't update, but allow randomly
-            if np.random.random() > 0.1:
-                return self.state_, self.covariance_
-            else:
-                # nudge things along...
-                alpha = 0.1
-
-        ### optimal gain
-        kalman_gain_ = np.linalg.solve(residual_covariance.T, (H @ covariance_prediction.T)).T
+            # shrink nOD to not explode it immediately, and don't update gr or acc
+            kalman_gain_[0, 0] = 0.30 * np.sign(kalman_gain_[0, 0]) * np.log(abs(kalman_gain_[0, 0]) + 1)
+            kalman_gain_[1:, 0] = 0
 
         ### update estimates
-        self.state_ = state_prediction + alpha * kalman_gain_ @ residual_state
-        self.covariance_ = (np.eye(self.n_states) - alpha * kalman_gain_ @ H) @ covariance_prediction
+        self.state_ = state_prediction + kalman_gain_ @ residual_state
+        self.covariance_ = (np.eye(self.n_states) - kalman_gain_ @ H) @ covariance_prediction
 
         return self.state_, self.covariance_
 

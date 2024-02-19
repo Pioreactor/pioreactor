@@ -43,7 +43,7 @@ from json import loads
 from typing import Generator
 from typing import Optional
 
-from click import command
+from click import group
 from click import option
 from msgspec import DecodeError
 from msgspec.json import decode
@@ -366,7 +366,7 @@ class GrowthRateCalculator(BackgroundJob):
     def update_ekf_variance_after_event(self, minutes: float, factor: float) -> None:
         if whoami.is_testing_env():
             msg = subscribe(  # needs to be pubsub.subscribe (ie not sub_client.subscribe) since this is called in a callback
-                f"pioreactor/{self.unit}/{self.experiment}/adc_reader/interval",
+                f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval",
                 timeout=1.0,
             )
             if msg:
@@ -377,15 +377,14 @@ class GrowthRateCalculator(BackgroundJob):
         else:
             self.ekf.scale_OD_variance_for_next_n_seconds(factor, minutes * 60)
 
-    @staticmethod
-    def _scale_and_shift(obs, shift, scale) -> float:
-        return (obs - shift) / (scale - shift)
-
     def scale_raw_observations(
         self, observations: dict[pt.PdChannel, float]
     ) -> Optional[dict[pt.PdChannel, float]]:
+        def _scale_and_shift(obs, shift, scale) -> float:
+            return (obs - shift) / (scale - shift)
+
         scaled_signals = {
-            channel: self._scale_and_shift(
+            channel: _scale_and_shift(
                 raw_signal, self.od_blank[channel], self.od_normalization_factors[channel]
             )
             for channel, raw_signal in observations.items()
@@ -544,7 +543,7 @@ class GrowthRateCalculator(BackgroundJob):
             msg = subscribe(
                 f"pioreactor/{self.unit}/{self.experiment}/od_reading/ods",
                 allow_retained=False,
-                timeout=10,
+                timeout=5,
             )
 
             if self.state not in (self.READY, self.INIT):
@@ -560,19 +559,34 @@ class GrowthRateCalculator(BackgroundJob):
             yield decode(msg.payload, type=structs.ODReadings)
 
 
-@command(name="growth_rate_calculating")
+@group(invoke_without_command=True, name="growth_rate_calculating")
 @option("--ignore-cache", is_flag=True, help="Ignore the cached values (rerun)")
-def click_growth_rate_calculating(ignore_cache):
+def click_growth_rate_calculating(ctx, ignore_cache):
     """
     Start calculating growth rate
     """
-    import os
+    if ctx.invoked_subcommand is None:
+        import os
 
-    os.nice(1)
+        os.nice(1)
 
-    calculator = GrowthRateCalculator(  # noqa: F841
-        ignore_cache=ignore_cache,
-        unit=whoami.get_unit_name(),
-        experiment=whoami.get_latest_experiment_name(),
-    )
-    calculator.block_until_disconnected()
+        calculator = GrowthRateCalculator(  # noqa: F841
+            ignore_cache=ignore_cache,
+            unit=whoami.get_unit_name(),
+            experiment=whoami.get_latest_experiment_name(),
+        )
+        calculator.block_until_disconnected()
+
+
+@click_growth_rate_calculating.command(name="clear_cache")
+def click_clear_cache(name: str) -> None:
+    experiment = whoami.get_latest_experiment_name()
+
+    with local_persistant_storage("od_filtered") as cache:
+        cache.pop(experiment)
+    with local_persistant_storage("growth_rate") as cache:
+        cache.pop(experiment)
+    with local_persistant_storage("od_normalization_mean") as cache:
+        cache.pop(experiment)
+    with local_persistant_storage("od_normalization_variance") as cache:
+        cache.pop(experiment)

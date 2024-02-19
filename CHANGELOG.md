@@ -1,7 +1,10 @@
 ### Upcoming
+ - clear the growth-rate cache with `pio run growth_rate_cacluating clear_cache`
+ - added Pioreactor specific software version to the UI: Page *Pioreactors -> Manage -> System*
+ - fixed bug that was partially crashing the UI if some bad syntax was entered into a customer yaml file.
  - fixed bug that was causing bad json from the server, causing empty / non-loading areas in the UI. Sorry!
  - fixed `datum` bug in the Overview that was crashing the UI. Sorry!
- - introducing some outlier protection in growth rate calculations. This is tunable with the `ekf_outlier_std_threshold` value under `[growth_rate_calculating.config]`. The default value, 5.0, is pretty conservative, and will still allow some spikes to permeate to the growth rate and nOD. Try a value of 3.5 or 4.0 if you want to see more. Don't put it less than 3.0 - that's silly.
+ - **Experimental** introducing some outlier protection in growth rate calculations. This is tunable with the `ekf_outlier_std_threshold` value under `[growth_rate_calculating.config]`. The default value, 10.0, is pretty conservative, and will still allow some spikes to permeate to the growth rate and nOD. Try a value of 5.0 or 4.0 if you want to see more filtering. Don't put it less than 3.0 - that's silly.
  - added options alternative mqtt brokers with the new configuration
  ```
 [mqtt]

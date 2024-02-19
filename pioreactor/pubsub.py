@@ -82,7 +82,7 @@ def create_client(
     on_message: Optional[Callable] = None,
     userdata: Optional[dict] = None,
     port: int = config.getint("mqtt", "broker_port", fallback=1883),
-    tls: bool = config.getboolean("mqtt", "tls", fallback=False),
+    tls: bool = config.getboolean("mqtt", "use_tls", fallback=False),
     skip_loop: bool = False,
 ):
     """
