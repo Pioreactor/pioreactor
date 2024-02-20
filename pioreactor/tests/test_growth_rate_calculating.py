@@ -785,7 +785,7 @@ class TestGrowthRateCalculating:
         config["od_config.photodiode_channel"]["2"] = "90"
 
         unit = get_unit_name()
-        experiment = "test_outlier_gets_rejected"
+        experiment = "6Yeast experiment with AMP9"
 
         config["od_config"]["samples_per_second"] = "0.2"
 
@@ -795,33 +795,59 @@ class TestGrowthRateCalculating:
             None,
             retain=True,
         )
-
+        var = 1e-6
+        std = float(np.sqrt(var))
         with local_persistant_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({"2": 0.05})
 
         with local_persistant_storage("od_normalization_variance") as cache:
-            cache[experiment] = json.dumps({"2": 1e-6})
+            cache[experiment] = json.dumps({"2": var})
 
         with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
-            for _ in range(40):
-                publish(
+            for _ in range(90):
+                v = 0.05 + std * np.random.randn()
+                t = current_utc_timestamp()
+                calc.publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                    create_od_raw_batched_json(
-                        ["2"], [0.05 + 1e-3 * np.random.randn()], ["90"], timestamp=current_utc_timestamp()
-                    ),
+                    create_od_raw_batched_json(["2"], [v], ["90"], timestamp=t),
+                    retain=True,
+                )
+                calc.publish(
+                    f"pioreactor/{unit}/{experiment}/od_reading/od2",
+                    encode(structs.ODReading(od=v, angle="90", timestamp=to_datetime(t), channel="2")),
                     retain=True,
                 )
                 time.sleep(0.5)
 
             previous_nOD = calc.od_filtered
             previous_gr = calc.growth_rate
-            # EKF is warmed up, introduce outlier
-            publish(
+            # EKF is warmed up, introduce outlier. This outlier is "expected", given the smoothing we do.
+            v = 0.10 + std * np.random.randn()
+            t = current_utc_timestamp()
+            calc.publish(
                 f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                create_od_raw_batched_json(["2"], [0.500], ["90"], timestamp=current_utc_timestamp()),
+                create_od_raw_batched_json(["2"], [v], ["90"], timestamp=t),
                 retain=True,
             )
-            time.sleep(1.0)
+            calc.publish(
+                f"pioreactor/{unit}/{experiment}/od_reading/od2",
+                encode(structs.ODReading(od=v, angle="90", timestamp=to_datetime(t), channel="2")),
+                retain=True,
+            )
+
+            v = 0.06 + std * np.random.randn()
+            t = current_utc_timestamp()
+            calc.publish(
+                f"pioreactor/{unit}/{experiment}/od_reading/ods",
+                create_od_raw_batched_json(["2"], [v], ["90"], timestamp=t),
+                retain=True,
+            )
+            calc.publish(
+                f"pioreactor/{unit}/{experiment}/od_reading/od2",
+                encode(structs.ODReading(od=v, angle="90", timestamp=to_datetime(t), channel="2")),
+                retain=True,
+            )
+            time.sleep(0.5)
 
             current_nOD = calc.od_filtered
             current_gr = calc.growth_rate
@@ -830,12 +856,17 @@ class TestGrowthRateCalculating:
             assert abs(previous_gr.growth_rate - current_gr.growth_rate) < 0.01
 
             # continue normal data
-            for _ in range(20):
-                publish(
+            for _ in range(90):
+                v = 0.05 + std * np.random.randn()
+                t = current_utc_timestamp()
+                calc.publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                    create_od_raw_batched_json(
-                        ["2"], [0.05 + 1e-3 * np.random.randn()], ["90"], timestamp=current_utc_timestamp()
-                    ),
+                    create_od_raw_batched_json(["2"], [v], ["90"], timestamp=t),
+                    retain=True,
+                )
+                calc.publish(
+                    f"pioreactor/{unit}/{experiment}/od_reading/od2",
+                    encode(structs.ODReading(od=v, angle="90", timestamp=to_datetime(t), channel="2")),
                     retain=True,
                 )
                 time.sleep(0.5)
@@ -882,7 +913,7 @@ class TestGrowthRateCalculating:
                 )
                 calc.publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                    encode(structs.ODReading(od=v, angle="90", timestamp=t, channel=2)),
+                    encode(structs.ODReading(od=v, angle="90", timestamp=to_datetime(t), channel="2")),
                     retain=True,
                 )
                 time.sleep(0.5)
@@ -902,7 +933,7 @@ class TestGrowthRateCalculating:
                 )
                 calc.publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                    encode(structs.ODReading(od=v, angle="90", timestamp=t, channel=2)),
+                    encode(structs.ODReading(od=v, angle="90", timestamp=to_datetime(t), channel="2")),
                     retain=True,
                 )
                 time.sleep(0.5)
@@ -910,4 +941,89 @@ class TestGrowthRateCalculating:
             # reverts back to previous
             current_gr = calc.growth_rate
 
+            assert abs(previous_gr.growth_rate - current_gr.growth_rate) < 0.01
+
+    def test_massive_outlier_spike_gets_absorbed(self) -> None:
+        config["od_config.photodiode_channel"]["1"] = "REF"
+        config["od_config.photodiode_channel"]["2"] = "90"
+
+        unit = get_unit_name()
+        experiment = "6Yeast experiment with AMP9"
+
+        config["od_config"]["samples_per_second"] = "0.2"
+
+        # clear mqtt
+        publish(
+            f"pioreactor/{unit}/{experiment}/od_reading/ods",
+            None,
+            retain=True,
+        )
+        var = 1e-6
+        std = float(np.sqrt(var))
+        with local_persistant_storage("od_normalization_mean") as cache:
+            cache[experiment] = json.dumps({"2": 0.05})
+
+        with local_persistant_storage("od_normalization_variance") as cache:
+            cache[experiment] = json.dumps({"2": var})
+
+        with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
+            for _ in range(90):
+                v = 0.05 + std * np.random.randn()
+                t = current_utc_timestamp()
+                calc.publish(
+                    f"pioreactor/{unit}/{experiment}/od_reading/ods",
+                    create_od_raw_batched_json(["2"], [v], ["90"], timestamp=t),
+                    retain=True,
+                )
+                calc.publish(
+                    f"pioreactor/{unit}/{experiment}/od_reading/od2",
+                    encode(structs.ODReading(od=v, angle="90", timestamp=to_datetime(t), channel="2")),
+                    retain=True,
+                )
+                time.sleep(0.5)
+
+            previous_nOD = calc.od_filtered
+            previous_gr = calc.growth_rate
+
+            v = 0.6 + std * np.random.randn()
+            t = current_utc_timestamp()
+            calc.publish(
+                f"pioreactor/{unit}/{experiment}/od_reading/ods",
+                create_od_raw_batched_json(["2"], [v], ["90"], timestamp=t),
+                retain=True,
+            )
+            calc.publish(
+                f"pioreactor/{unit}/{experiment}/od_reading/od2",
+                encode(structs.ODReading(od=v, angle="90", timestamp=to_datetime(t), channel="2")),
+                retain=True,
+            )
+            time.sleep(0.5)
+
+            current_nOD = calc.od_filtered
+            current_gr = calc.growth_rate
+
+            assert previous_nOD.od_filtered < current_nOD.od_filtered
+            assert abs(previous_gr.growth_rate - current_gr.growth_rate) < 0.01
+
+            # continue normal data
+            for _ in range(90):
+                v = 0.05 + std * np.random.randn()
+                t = current_utc_timestamp()
+                calc.publish(
+                    f"pioreactor/{unit}/{experiment}/od_reading/ods",
+                    create_od_raw_batched_json(["2"], [v], ["90"], timestamp=t),
+                    retain=True,
+                )
+                calc.publish(
+                    f"pioreactor/{unit}/{experiment}/od_reading/od2",
+                    encode(structs.ODReading(od=v, angle="90", timestamp=to_datetime(t), channel="2")),
+                    retain=True,
+                )
+                time.sleep(0.5)
+
+            # reverts back to previous
+            current_nOD = calc.od_filtered
+            current_gr = calc.growth_rate
+
+            assert abs(previous_nOD.od_filtered - current_nOD.od_filtered) < 0.05
             assert abs(previous_gr.growth_rate - current_gr.growth_rate) < 0.01

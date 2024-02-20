@@ -279,21 +279,17 @@ class CultureGrowthEKF:
             H @ covariance_prediction @ H.T
             + self.state_[0] * self.observation_noise_covariance
         )
-        kalman_gain_ = np.linalg.solve(residual_covariance.T, (H @ covariance_prediction.T)).T
-
-        # check if outlier
-        print(
-            abs(residual_state[0]) > self.outlier_std_threshold * np.sqrt(residual_covariance[0, 0]),
-            abs(residual_state[0]),
-            self.outlier_std_threshold * np.sqrt(residual_covariance[0, 0]),
+        currently_is_outlier = abs(residual_state[0]) > self.outlier_std_threshold * np.sqrt(
+            residual_covariance[0, 0]
         )
-        if self.ignore_outliers and (
-            abs(residual_state[0]) > self.outlier_std_threshold * np.sqrt(residual_covariance[0, 0])
-        ):
-            # shrink nOD to not explode it immediately, and don't update gr or acc
-            # kalman_gain_[0, 0] *= 2 #0.5 * np.sign(kalman_gain_[0, 0]) * np.log(abs(kalman_gain_[0, 0]) + 1)
-            kalman_gain_[1:, 0] = 0
+
+        if self.ignore_outliers and (currently_is_outlier):
             covariance_prediction[0, 0] = 2 * covariance_prediction[0, 0]
+            kalman_gain_ = np.linalg.solve(residual_covariance.T, (H @ covariance_prediction.T)).T
+            kalman_gain_[1:, 0] = 0
+            kalman_gain_[0, 0] *= 0.5
+        else:
+            kalman_gain_ = np.linalg.solve(residual_covariance.T, (H @ covariance_prediction.T)).T
 
         ### update estimates
         self.state_ = state_prediction + kalman_gain_ @ residual_state
