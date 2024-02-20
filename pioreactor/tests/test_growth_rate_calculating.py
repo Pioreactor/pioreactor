@@ -807,7 +807,7 @@ class TestGrowthRateCalculating:
                 publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/ods",
                     create_od_raw_batched_json(
-                        ["2"], [0.05 + 1e-3 * np.random.random()], ["90"], timestamp=current_utc_timestamp()
+                        ["2"], [0.05 + 1e-3 * np.random.randn()], ["90"], timestamp=current_utc_timestamp()
                     ),
                     retain=True,
                 )
@@ -834,7 +834,7 @@ class TestGrowthRateCalculating:
                 publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/ods",
                     create_od_raw_batched_json(
-                        ["2"], [0.05 + 1e-3 * np.random.random()], ["90"], timestamp=current_utc_timestamp()
+                        ["2"], [0.05 + 1e-3 * np.random.randn()], ["90"], timestamp=current_utc_timestamp()
                     ),
                     retain=True,
                 )
@@ -852,7 +852,7 @@ class TestGrowthRateCalculating:
         config["od_config.photodiode_channel"]["2"] = "90"
 
         unit = get_unit_name()
-        experiment = "test_outlier_gets_rejected"
+        experiment = "6Yeast experiment with AMP9"
 
         config["od_config"]["samples_per_second"] = "0.2"
 
@@ -863,40 +863,49 @@ class TestGrowthRateCalculating:
             retain=True,
         )
 
+        var = 1e-6
+        std = float(np.sqrt(var))
         with local_persistant_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({"2": 0.05})
 
         with local_persistant_storage("od_normalization_variance") as cache:
-            cache[experiment] = json.dumps({"2": 1e-6})
+            cache[experiment] = json.dumps({"2": std**2})
 
         with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
-            for _ in range(30):
-                publish(
+            for _ in range(120):
+                v = 0.05 + std * np.random.randn()
+                t = current_utc_timestamp()
+                calc.publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                    create_od_raw_batched_json(
-                        ["2"], [0.05 + 1e-3 * np.random.random()], ["90"], timestamp=current_utc_timestamp()
-                    ),
+                    create_od_raw_batched_json(["2"], [v], ["90"], timestamp=t),
                     retain=True,
                 )
-                time.sleep(0.4)
+                calc.publish(
+                    f"pioreactor/{unit}/{experiment}/od_reading/od2",
+                    encode(structs.ODReading(od=v, angle="90", timestamp=t, channel=2)),
+                    retain=True,
+                )
+                time.sleep(0.5)
 
             previous_gr = calc.growth_rate
             # EKF is warmed up,
 
             # offset
-            print("OFFSET!")
-            for _ in range(40):
-                publish(
+            calc.logger.info("OFFSET!")
+            for _ in range(240):
+                v = 0.05 + 0.01 + std * np.random.randn()
+                t = current_utc_timestamp()
+                calc.publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                    create_od_raw_batched_json(
-                        ["2"],
-                        [0.05 + 0.015 + 1e-3 * np.random.random()],
-                        ["90"],
-                        timestamp=current_utc_timestamp(),
-                    ),
+                    create_od_raw_batched_json(["2"], [v], ["90"], timestamp=t),
                     retain=True,
                 )
-                time.sleep(0.4)
+                calc.publish(
+                    f"pioreactor/{unit}/{experiment}/od_reading/od2",
+                    encode(structs.ODReading(od=v, angle="90", timestamp=t, channel=2)),
+                    retain=True,
+                )
+                time.sleep(0.5)
 
             # reverts back to previous
             current_gr = calc.growth_rate
