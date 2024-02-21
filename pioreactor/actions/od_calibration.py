@@ -56,7 +56,7 @@ def introduction() -> None:
     echo(
         """This routine will calibrate the current Pioreactor to (offline) OD600 readings. You'll need:
     1. The Pioreactor you wish to calibrate (the one you are using)
-    2. At least 10mL of a culture with density the most you'll ever observe, and its OD600 measurement
+    2. At least 10mL of a culture with the highest density you'll ever observe, and its OD600 measurement
     3. A micro-pipette
     4. Accurate 10mL measurement tool
     5. Sterile media, amount to be determined shortly.
@@ -155,7 +155,7 @@ def setup_HDC_instructions() -> None:
 
 
 def start_stirring():
-    while not confirm(green("Reading to start stirring?"), default=True):
+    while not confirm(green("Reading to start stirring?"), default=True, abort=True):
         pass
 
     echo("Starting stirring and blocking until near target RPM.")
@@ -189,6 +189,8 @@ def plot_data(
 
     plt.theme("pro")
     plt.title(title)
+    plt.xlabel("OD600")
+    plt.ylabel("OD Reading (Raw)")
     plt.plot_size(105, 22)
 
     if interpolation_curve:
@@ -211,6 +213,9 @@ def start_recording_and_diluting(
     inferred_od600s = []
     current_volume_in_vial = initial_volume_in_vial = 10.0
     n_samples = int((20 - initial_volume_in_vial) / dilution_amount)
+    if initial_volume_in_vial + dilution_amount * n_samples >= 18:
+        n_samples = n_samples - 1 
+        #20mL in one vial is very scary 
     total_n_samples = int(log2(initial_od600 / minimum_od600) * (initial_volume_in_vial / dilution_amount))
     count_of_samples = 0
 
@@ -236,14 +241,24 @@ def start_recording_and_diluting(
             od_reader.record_from_adc()
 
         while inferred_od600 > minimum_od600:
-            if inferred_od600 < initial_od600 and confirm(
-                green("Do you want to enter an updated OD600 value for the current density?")
-            ):
-                inferred_od600 = prompt(
-                    green("Updated OD600"),
-                    type=float,
-                    confirmation_prompt=green("Repeat for confirmation"),
-                )
+            while True:
+                if inferred_od600 < initial_od600 and confirm(
+                    green("Do you want to enter an updated OD600 value for the current density?")
+                ):
+                    r = prompt(
+                        green("Enter updated OD600, or SKIP"),
+                        type=str,
+                        confirmation_prompt=green("Repeat for confirmation"),
+                    )
+                    if r == "SKIP":
+                        break
+                        
+                    else:
+                        try:
+                            inferred_od600 = float(r)
+                            break
+                        except ValueError:
+                            echo("OD600 entered is invalid.")
 
             inferred_od600s.append(inferred_od600)
 
@@ -268,7 +283,7 @@ def start_recording_and_diluting(
                 )
                 echo(f"Add {dilution_amount}ml of media to vial.")
 
-                while not confirm(green("Continue?"), default=True):
+                while not confirm(green("Continue?"), default=False):
                     pass
 
                 current_volume_in_vial = current_volume_in_vial + dilution_amount
@@ -306,9 +321,9 @@ def start_recording_and_diluting(
                 echo(style("Stop❗", fg="red"))
                 echo("Carefully remove vial.")
                 echo("(Optional: take new OD600 reading with external instrument.)")
-                echo("Reduce volume in vial back to 10ml.")
+                echo(f"Reduce volume in vial by {n_samples*dilution_amount}mL. There should be 10mL remaining in your vial.")
                 echo("Confirm vial outside is dry and clean. Place back into Pioreactor.")
-                while not confirm(green("Continue?"), default=True):
+                while not confirm(green("Continue?"), default=False):
                     pass
                 current_volume_in_vial = initial_volume_in_vial
                 st.set_state("ready")
@@ -330,7 +345,7 @@ def start_recording_and_diluting(
             confirmation_prompt=green("Repeat for confirmation"),
         )
         echo("Confirm vial outside is dry and clean. Place back into Pioreactor.")
-        while not confirm(green("Continue?"), default=True):
+        while not confirm(green("Continue?"), default=False):
             pass
         echo("Reading blank...")
 
