@@ -151,33 +151,6 @@ class CultureGrowthEKF:
     2. Part of https://github.com/Pioreactor/pioreactor/issues/74
 
 
-    Tuning
-    --------
-
-    *Note*: the below didn't work, I just trial-and-error it
-
-    Because I had such a pain tuning this, lets talk about what worked.
-
-    So, to start our mental model, we are estimating the following:
-
-    p(x_t | y_t, z_t), where x_t is our unknown state vector, and y_t is our prediction, and z_t is our
-    latest observation. This is a Bayesian update:
-
-    y_t ~ Normal( F(x_{t-1}), Prediction Uncertainty + Q), where F is the dynamical system
-    z_t ~ Normal(mu, R)
-
-    First, note the covariance of y_t. If Q is large, then we are _less_ confident in our prediction. How should we pick values of
-    Q? Because our model says that r_t = r_{t-1} + var, we should choose var s.t. it is the expected movement in one
-    time step. Back of the envelope: in 1 hour, a rate change of 0.05 is exceptional => a 2 std. movement.
-    => hourly std = 0.025
-    => per observation-interval std =  0.025 * (5 / 3600)
-    => per observation-interval var = (0.025 * (5 / 3600)) ** 2
-
-    The paper above suggests to make the process variance of OD equal to a small number. This means we (almost) fully trust the dynamic model to tell us what
-    OD is. However, this means that changes in observed OD are due to changes in rate. What happens when there is a large jump due to noise? We can apply the same
-    idea above to the observation variance, R. A 0.1 jump is not unexpected, but in the tails, => 2std = 0.1 => 1std = 0.05 => ....
-
-
     Note on 180°
     -------------
     The measurement model for 180 is obs_t = exp(-(od_t - 1)), which comes from the beer lambert model:
@@ -279,15 +252,17 @@ class CultureGrowthEKF:
             H @ covariance_prediction @ H.T
             + self.state_[0] * self.observation_noise_covariance
         )
-        currently_is_outlier = abs(residual_state[0]) > self.outlier_std_threshold * np.sqrt(
-            residual_covariance[0, 0]
-        )
+
+        huber_threshold = self.outlier_std_threshold * np.sqrt(residual_covariance[0, 0])
+        currently_is_outlier = abs(residual_state[0]) > huber_threshold
 
         if self.ignore_outliers and (currently_is_outlier):
             covariance_prediction[0, 0] = 2 * covariance_prediction[0, 0]
             kalman_gain_ = np.linalg.solve(residual_covariance.T, (H @ covariance_prediction.T)).T
+
+            # adjust the gain s.t. we freeze acc and gr, and scale the nOD inversely by the size of the outlier.
+            kalman_gain_[0, 0] *= huber_threshold / abs(residual_state[0])
             kalman_gain_[1:, 0] = 0
-            kalman_gain_[0, 0] *= 0.5
         else:
             kalman_gain_ = np.linalg.solve(residual_covariance.T, (H @ covariance_prediction.T)).T
 

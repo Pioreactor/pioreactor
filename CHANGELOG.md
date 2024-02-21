@@ -1,23 +1,38 @@
 ### Upcoming
+
+#### Highlights
+ - **Experimental** introducing outlier filtering in growth rate calculations. This is tunable with the new `ekf_outlier_std_threshold` parameter under `[growth_rate_calculating.config]`. To turn off outlier filtering, set this parameter to some very large number (1000s). Don't put it less than 3.0 - that's silly.
+ - With this new filtering, we can provide more reasonable values for the parameters of the growth rate Kalman filter. We previously had to artificially _increase_ the measurement std. deviation (`obs_std`) to allow for some outliers. This had the knock-on effect of hiding growth-rate changes, so we had to also increase that parameter `rate_std`. With better outlier protection in the model, we can move these values back. New installs will have the following parameters, and we encourage existing users to try these values if you plan to use the outlier filtering.
+  ```
+  [growth_rate_kalman]
+  acc_std=0.0008
+  obs_std=1.0
+  od_std=0.005
+  rate_std=0.10
+  ```
+ - added configuration for alternative mqtt brokers with the new configuration
+   ```
+  [mqtt]
+  username=pioreactor
+  password=raspberry
+  broker_address=
+  broker_ws_port=9001
+  broker_port=1883
+  ws_protocol=ws
+  tls=0
+  ```
+
+#### Enhancements
  - clear the growth-rate cache with `pio run growth_rate_cacluating clear_cache`
- - added Pioreactor specific software version to the UI: Page *Pioreactors -> Manage -> System*
- - fixed bug that was partially crashing the UI if some bad syntax was entered into a customer yaml file.
+ - added Pioreactor specific software version to the UI: Page *Pioreactors -> Manage -> System -> Version*
+ - new UI MQTT library. Is it faster? Maybe!
+ - cleaned up `pioreactor.pubsub` MQTT code, too - API has likely changed.
+
+
+#### Bug fixes
+ - fixed bug that was partially crashing the UI if some bad syntax was entered into a customer yaml file. Sorry!
  - fixed bug that was causing bad json from the server, causing empty / non-loading areas in the UI. Sorry!
  - fixed `datum` bug in the Overview that was crashing the UI. Sorry!
- - **Experimental** introducing some outlier protection in growth rate calculations. This is tunable with the `ekf_outlier_std_threshold` value under `[growth_rate_calculating.config]`. The default value, 10.0, is pretty conservative, and will still allow some spikes to permeate to the growth rate and nOD. Try a value of 5.0 or 4.0 if you want to see more filtering. Don't put it less than 3.0 - that's silly.
- - added options alternative mqtt brokers with the new configuration
- ```
-[mqtt]
-username=pioreactor
-password=raspberry
-broker_address=
-broker_ws_port=9001
-broker_port=1883
-ws_protocol=ws
-tls=0
-```
- - new UI MQTT library
- - cleaned up `pioreactor.pubsub` MQTT code, too.
 
 
 ### 24.2.11
