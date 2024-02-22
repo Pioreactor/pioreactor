@@ -10,6 +10,9 @@
   od_std=0.005
   rate_std=0.10
   ```
+
+  If it's a good feature, we may also have it replace our logic when dosing occurs.
+
  - added configuration for alternative mqtt brokers with the new configuration
    ```
   [mqtt]

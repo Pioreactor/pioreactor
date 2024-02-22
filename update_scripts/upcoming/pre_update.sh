@@ -21,4 +21,4 @@ crudini --ini-options=nospace --set  $PIO_DIR/config.ini mqtt username pioreacto
                               --set  $PIO_DIR/config.ini growth_rate_calculating.config ekf_outlier_std_threshold 3.0
 
 # this was causing bad responses from the server...
-sudo lighttpd-disable-mod compress
+sudo lighttpd-disable-mod compress || true

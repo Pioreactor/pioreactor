@@ -57,8 +57,8 @@ def introduction() -> None:
         """This routine will calibrate the current Pioreactor to (offline) OD600 readings. You'll need:
     1. The Pioreactor you wish to calibrate (the one you are using)
     2. At least 10mL of a culture with the highest density you'll ever observe, and its OD600 measurement
-    3. A micro-pipette
-    4. Accurate 10mL measurement tool
+    3. A micro-pipette, or accurate tool to dispense 1ml of liquid.
+    4. Accurate 10mL measurement tool (ex: graduated cylinder)
     5. Sterile media, amount to be determined shortly.
 """
     )
@@ -148,8 +148,8 @@ def setup_HDC_instructions() -> None:
     clear()
     echo(
         """ Setting up:
-    1. Add 10ml of your culture to the glass vial, with a stir bar. Add cap.
-    2. Place into Pioreactor.
+    1. Add 10ml of your culture to the glass vial, with a stir bar. Leave the cap off.
+    2. Confirm the vial is dry and carefully place into Pioreactor.
 """
     )
 
