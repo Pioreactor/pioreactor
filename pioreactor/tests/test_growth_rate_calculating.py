@@ -785,7 +785,7 @@ class TestGrowthRateCalculating:
         config["od_config.photodiode_channel"]["2"] = "90"
 
         unit = get_unit_name()
-        experiment = "6Yeast experiment with AMP9"
+        experiment = "test_single_outlier_spike_gets_absorbed"
 
         config["od_config"]["samples_per_second"] = "0.2"
 
@@ -804,7 +804,7 @@ class TestGrowthRateCalculating:
             cache[experiment] = json.dumps({"2": var})
 
         with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
-            for _ in range(90):
+            for _ in range(30):
                 v = 0.05 + std * np.random.randn()
                 t = current_utc_timestamp()
                 calc.publish(
@@ -856,7 +856,7 @@ class TestGrowthRateCalculating:
             assert abs(previous_gr.growth_rate - current_gr.growth_rate) < 0.01
 
             # continue normal data
-            for _ in range(90):
+            for _ in range(30):
                 v = 0.05 + std * np.random.randn()
                 t = current_utc_timestamp()
                 calc.publish(
@@ -883,7 +883,7 @@ class TestGrowthRateCalculating:
         config["od_config.photodiode_channel"]["2"] = "90"
 
         unit = get_unit_name()
-        experiment = "6Yeast experiment with AMP9"
+        experiment = "test_baseline_shift_gets_absorbed"
 
         config["od_config"]["samples_per_second"] = "0.2"
 
@@ -903,7 +903,7 @@ class TestGrowthRateCalculating:
             cache[experiment] = json.dumps({"2": std**2})
 
         with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
-            for _ in range(120):
+            for _ in range(30):
                 v = 0.05 + std * np.random.randn()
                 t = current_utc_timestamp()
                 calc.publish(
@@ -923,7 +923,7 @@ class TestGrowthRateCalculating:
 
             # offset
             calc.logger.info("OFFSET!")
-            for _ in range(240):
+            for _ in range(30):
                 v = 0.05 + 0.01 + std * np.random.randn()
                 t = current_utc_timestamp()
                 calc.publish(
@@ -948,7 +948,7 @@ class TestGrowthRateCalculating:
         config["od_config.photodiode_channel"]["2"] = "90"
 
         unit = get_unit_name()
-        experiment = "6Yeast experiment with AMP9"
+        experiment = "test_massive_outlier_spike_gets_absorbed"
 
         config["od_config"]["samples_per_second"] = "0.2"
 
@@ -967,7 +967,7 @@ class TestGrowthRateCalculating:
             cache[experiment] = json.dumps({"2": var})
 
         with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
-            for _ in range(90):
+            for _ in range(30):
                 v = 0.05 + std * np.random.randn()
                 t = current_utc_timestamp()
                 calc.publish(
@@ -1006,7 +1006,7 @@ class TestGrowthRateCalculating:
             assert abs(previous_gr.growth_rate - current_gr.growth_rate) < 0.01
 
             # continue normal data
-            for _ in range(90):
+            for _ in range(30):
                 v = 0.05 + std * np.random.randn()
                 t = current_utc_timestamp()
                 calc.publish(

@@ -26,12 +26,12 @@
  - clear the growth-rate cache with `pio run growth_rate_cacluating clear_cache`
  - added Pioreactor specific software version to the UI: Page *Pioreactors -> Manage -> System -> Version*
  - new UI MQTT library. Is it faster? Maybe!
- - cleaned up `pioreactor.pubsub` MQTT code, too - API has likely changed.
+ - increased the default `max_subdose` to 1.0.
 
 
 #### Bug fixes
  - fixed a race condition that caused an error to occur when a software PWM channel was closed too quickly.
- - fixed bug that was partially crashing the UI if some bad syntax was entered into a customer yaml file. Sorry!
+ - fixed bug that was partially crashing the UI if some bad syntax was entered into a custom yaml file. Sorry!
  - fixed bug that was causing bad json from the server, causing empty / non-loading areas in the UI. Sorry!
  - fixed `datum` bug in the Overview that was crashing the UI. Sorry!
 
