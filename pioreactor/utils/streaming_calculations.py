@@ -192,7 +192,7 @@ class CultureGrowthEKF:
      is trusted less and less, while the predicted measurement is trusted more and more
     """
 
-    ignore_outliers = True
+    handle_outliers = True
 
     def __init__(
         self,
@@ -256,7 +256,7 @@ class CultureGrowthEKF:
         huber_threshold = self.outlier_std_threshold * np.sqrt(residual_covariance[0, 0])
         currently_is_outlier = abs(residual_state[0]) > huber_threshold
 
-        if self.ignore_outliers and (currently_is_outlier):
+        if self.handle_outliers and (currently_is_outlier):
             covariance_prediction[0, 0] = 2 * covariance_prediction[0, 0]
             kalman_gain_ = np.linalg.solve(residual_covariance.T, (H @ covariance_prediction.T)).T
 
@@ -288,7 +288,7 @@ class CultureGrowthEKF:
             self._currently_scaling_covariance = False
             self.covariance_ = self._covariance_pre_scale
             self._covariance_pre_scale = None
-            self.ignore_outliers = True
+            self.handle_outliers = True
 
         def forward_scale_covariance():
             if not self._currently_scaling_covariance:
@@ -297,7 +297,7 @@ class CultureGrowthEKF:
             self._currently_scaling_covariance = True
             self.covariance_ = np.diag(self._covariance_pre_scale.diagonal())
             self.covariance_[0, 0] *= factor
-            self.ignore_outliers = False
+            self.handle_outliers = False
 
         if self._currently_scaling_covariance:
             assert self._scale_covariance_timer is not None

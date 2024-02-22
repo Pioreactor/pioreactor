@@ -109,7 +109,12 @@ class SoftwarePWMOutputDevice:
         dc = clamp(0.0, dc, 100.0)
         self._dc = dc
         if self._started:
-            lgpio.tx_pwm(self._handle, self.pin, self.frequency, self.dc)
+            try:
+                lgpio.tx_pwm(self._handle, self.pin, self.frequency, self.dc)
+            except lgpio.error:
+                # see issue #435
+                pass
+
         else:
             raise ValueError("must call .start() first!")
 

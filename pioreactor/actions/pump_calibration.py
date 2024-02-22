@@ -256,6 +256,8 @@ def plot_data(x, y, title, x_min=None, x_max=None, interpolation_curve=None, hig
     plt.theme("pro")
     plt.title(title)
     plt.plot_size(105, 20)
+    plt.xlabel("Duration")
+    plt.ylabel("Volume")
     plt.xlim(x_min, x_max)
     plt.show()
 
@@ -606,7 +608,7 @@ def list_():
 
     echo(
         bold(
-            f"{'Name':17s} {'Date':18s} {'Pump type':12s} {'Currently in use?':20s}",
+            f"{'Name':21s} {'Date':18s} {'Pump type':12s} {'Currently in use?':20s}",
         )
     )
     with local_persistant_storage("pump_calibrations") as c:
@@ -614,7 +616,7 @@ def list_():
             try:
                 cal = decode(c[name], type=structs.subclass_union(structs.PumpCalibration))
                 echo(
-                    f"{cal.name:17s} {cal.created_at:%d %b, %Y}       {cal.pump:12s} {'✅' if cal.name in current else ''}",
+                    f"{cal.name:21s} {cal.created_at:%d %b, %Y}       {cal.pump:12s} {'✅' if cal.name in current else ''}",
                 )
             except Exception as e:
                 raise e

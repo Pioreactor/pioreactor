@@ -30,6 +30,7 @@
 
 
 #### Bug fixes
+ - fixed a race condition that caused an error to occur when a software PWM channel was closed too quickly.
  - fixed bug that was partially crashing the UI if some bad syntax was entered into a customer yaml file. Sorry!
  - fixed bug that was causing bad json from the server, causing empty / non-loading areas in the UI. Sorry!
  - fixed `datum` bug in the Overview that was crashing the UI. Sorry!
@@ -51,7 +52,7 @@
  - new config option: `samples_for_od_statistics` in `[growth_rate_calculating.config]` for specifying the number of OD samples to take for initial statistics.
  - `$` can be used in expressions (this is used to specify the `$state` setting).
  - `repeat` directive in experiment profiles.
-    ```yaml
+   ```yaml
     experiment_profile_name: demo_stirring_repeat
 
     common:
@@ -72,9 +73,9 @@
                   hours_elapsed: 0.0
                   options:
                     target_rpm: ${{::stirring:target_rpm + 100}}
-    ```
+   ```
  - use expressions in `common` block. Instead of the usual `unit:job:setting` syntax, use `::job:setting`. For example:
-    ```yaml
+   ```yaml
     common:
       jobs:
         stirring:
@@ -84,7 +85,7 @@
               if: ::stirring:target_rpm > 600
               options:
                 target_rpm: ${{::stirring:target_rpm - 100}}
-    ```
+   ```
 
 #### Bug fixes
  - fixed a bug in the chart of OD reading that was causing historical and realtime data to be different lines.

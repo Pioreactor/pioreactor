@@ -695,13 +695,13 @@ def list_() -> None:
             cal = decode(c[_], type=structs.subclass_union(structs.ODCalibration))
             current.append(cal.name)
 
-    echo(bold(f"{'Name':15s} {'Date':18s} {'Angle':12s} {'Currently in use?':20s}"))
+    echo(bold(f"{'Name':18s} {'Date':18s} {'Angle':12s} {'Currently in use?':20s}"))
     with local_persistant_storage("od_calibrations") as c:
         for name in c.iterkeys():
             try:
                 cal = decode(c[name], type=structs.subclass_union(structs.ODCalibration))
                 echo(
-                    f"{cal.name:15s} {cal.created_at:%d %b, %Y}       {cal.angle:12s} {'✅' if cal.name in current else ''}",
+                    f"{cal.name:18s} {cal.created_at:%d %b, %Y}       {cal.angle:12s} {'✅' if cal.name in current else ''}",
                 )
             except Exception:
                 pass
