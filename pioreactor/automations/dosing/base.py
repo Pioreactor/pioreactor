@@ -207,7 +207,7 @@ class DosingAutomationJob(AutomationJob):
         "dosing_automation.config", "max_volume_to_stop", fallback=18.0
     )
     MAX_SUBDOSE = config.getfloat(
-        "dosing_automation.config", "max_subdose", fallback=0.75
+        "dosing_automation.config", "max_subdose", fallback=1.0
     )  # arbitrary, but should be some value that the pump is well calibrated for.
 
     def __init_subclass__(cls, **kwargs) -> None:
