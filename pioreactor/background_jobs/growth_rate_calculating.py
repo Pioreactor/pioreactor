@@ -43,8 +43,7 @@ from json import loads
 from typing import Generator
 from typing import Optional
 
-from click import group
-from click import option
+import click
 from msgspec import DecodeError
 from msgspec.json import decode
 
@@ -559,8 +558,9 @@ class GrowthRateCalculator(BackgroundJob):
             yield decode(msg.payload, type=structs.ODReadings)
 
 
-@group(invoke_without_command=True, name="growth_rate_calculating")
-@option("--ignore-cache", is_flag=True, help="Ignore the cached values (rerun)")
+@click.group(invoke_without_command=True, name="growth_rate_calculating")
+@click.option("--ignore-cache", is_flag=True, help="Ignore the cached values (rerun)")
+@click.pass_context
 def click_growth_rate_calculating(ctx, ignore_cache):
     """
     Start calculating growth rate

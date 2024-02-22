@@ -213,9 +213,11 @@ def start_recording_and_diluting(
     inferred_od600s = []
     current_volume_in_vial = initial_volume_in_vial = 10.0
     n_samples = int((20 - initial_volume_in_vial) / dilution_amount)
-    if initial_volume_in_vial + dilution_amount * n_samples >= 18:
-        n_samples = n_samples - 1 
-        #20mL in one vial is very scary 
+
+    if initial_volume_in_vial + dilution_amount * n_samples > 18:
+        n_samples = n_samples - 1
+        # 20mL in one vial is very scary
+
     total_n_samples = int(log2(initial_od600 / minimum_od600) * (initial_volume_in_vial / dilution_amount))
     count_of_samples = 0
 
@@ -246,19 +248,21 @@ def start_recording_and_diluting(
                     green("Do you want to enter an updated OD600 value for the current density?")
                 ):
                     r = prompt(
-                        green("Enter updated OD600, or SKIP"),
+                        green('Enter updated OD600, or "SKIP"'),
                         type=str,
                         confirmation_prompt=green("Repeat for confirmation"),
                     )
                     if r == "SKIP":
                         break
-                        
+
                     else:
                         try:
                             inferred_od600 = float(r)
                             break
                         except ValueError:
                             echo("OD600 entered is invalid.")
+                else:
+                    break
 
             inferred_od600s.append(inferred_od600)
 
@@ -321,7 +325,9 @@ def start_recording_and_diluting(
                 echo(style("Stop❗", fg="red"))
                 echo("Carefully remove vial.")
                 echo("(Optional: take new OD600 reading with external instrument.)")
-                echo(f"Reduce volume in vial by {n_samples*dilution_amount}mL. There should be 10mL remaining in your vial.")
+                echo(
+                    f"Reduce volume in vial by {n_samples*dilution_amount}mL. There should be 10mL remaining in your vial."
+                )
                 echo("Confirm vial outside is dry and clean. Place back into Pioreactor.")
                 while not confirm(green("Continue?"), default=False):
                     pass
