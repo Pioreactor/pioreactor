@@ -579,7 +579,7 @@ def click_growth_rate_calculating(ctx, ignore_cache):
 
 
 @click_growth_rate_calculating.command(name="clear_cache")
-def click_clear_cache(name: str) -> None:
+def click_clear_cache() -> None:
     experiment = whoami.get_latest_experiment_name()
 
     with local_persistant_storage("od_filtered") as cache:
