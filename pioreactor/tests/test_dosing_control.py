@@ -1495,13 +1495,17 @@ def test_adding_pumps_and_calling_them_from_execute_io_action() -> None:
     class ExternalAutomation(DosingAutomationJob):
         automation_name = "_test_external_automation"
 
-        def add_salty_media_to_bioreactor(self, unit, experiment, ml, source_of_event, mqtt_client) -> float:
-            self.logger.info(f"dosing {ml / 2}mL from salty")
+        def add_salty_media_to_bioreactor(
+            self, unit, experiment, ml, source_of_event, mqtt_client, logger
+        ) -> float:
+            logger.info(f"dosing {ml / 2}mL from salty")
             pause()
             return ml / 2
 
-        def add_acid_media_to_bioreactor(self, unit, experiment, ml, source_of_event, mqtt_client) -> float:
-            self.logger.info(f"dosing {ml}mL from acid")
+        def add_acid_media_to_bioreactor(
+            self, unit, experiment, ml, source_of_event, mqtt_client, logger
+        ) -> float:
+            logger.info(f"dosing {ml}mL from acid")
             pause()
             return ml
 
@@ -1593,7 +1597,7 @@ def test_warning_is_logged_if_under_remove_waste() -> None:
     class BadWasteRemoval(DosingAutomationJob):
         automation_name = "_test_bad_waste_removal"
 
-        def remove_waste_from_bioreactor(self, unit, experiment, ml, source_of_event, mqtt_client):
+        def remove_waste_from_bioreactor(self, unit, experiment, ml, source_of_event, mqtt_client, logger):
             return ml / 2
 
         def execute(self):

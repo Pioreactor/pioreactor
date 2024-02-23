@@ -20,6 +20,7 @@ from pioreactor import utils
 from pioreactor.config import config
 from pioreactor.hardware import PWM_TO_PIN
 from pioreactor.logging import create_logger
+from pioreactor.logging import CustomLogger
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import QOS
 from pioreactor.utils.pwm import PWM
@@ -194,6 +195,7 @@ def _pump_action(
     config=config,  # techdebt, don't use
     manually: bool = False,
     mqtt_client: Optional[Client] = None,
+    logger: Optional[CustomLogger] = None,
 ) -> pt.mL:
     """
     Returns the mL cycled. However,
@@ -208,7 +210,9 @@ def _pump_action(
     unit = unit or get_unit_name()
 
     action_name = _get_pump_action(pump_type)
-    logger = create_logger(action_name, experiment=experiment, unit=unit)
+
+    if logger is None:
+        logger = create_logger(action_name, experiment=experiment, unit=unit)
 
     try:
         pin = _get_pin(pump_type, config)
@@ -317,6 +321,8 @@ def _liquid_circulation(
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
     config=config,
+    mqtt_client: Optional[Client] = None,
+    logger: Optional[CustomLogger] = None,
     **kwargs,
 ) -> tuple[pt.mL, pt.mL]:
     """
@@ -336,7 +342,9 @@ def _liquid_circulation(
     experiment = experiment or get_latest_experiment_name()
     unit = unit or get_unit_name()
     duration = float(duration)
-    logger = create_logger(action_name, experiment=experiment, unit=unit)
+
+    if logger is None:
+        logger = create_logger(action_name, experiment=experiment, unit=unit)
 
     waste_pin, media_pin = _get_pin("waste", config), _get_pin(pump_type, config)
 
@@ -367,6 +375,7 @@ def _liquid_circulation(
         unit,
         experiment,
         action_name,
+        mqtt_client=mqtt_client,
         exit_on_mqtt_disconnect=True,
         mqtt_client_kwargs={"keepalive": 10},
     ) as state:

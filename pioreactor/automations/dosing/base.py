@@ -414,6 +414,7 @@ class DosingAutomationJob(AutomationJob):
                         ml=volume_ml,
                         source_of_event=source_of_event,
                         mqtt_client=self.pub_client,
+                        logger=self.logger,
                     )
                     volumes_moved[pump] += volume_moved_ml
                     pause_between_subdoses()  # allow time for the addition to mix, and reduce the step response that can cause ringing in the output V.
@@ -426,6 +427,7 @@ class DosingAutomationJob(AutomationJob):
                     ml=waste_ml,
                     source_of_event=source_of_event,
                     mqtt_client=self.pub_client,
+                    logger=self.logger,
                 )
                 volumes_moved["waste_ml"] += waste_moved_ml
 
@@ -448,6 +450,7 @@ class DosingAutomationJob(AutomationJob):
                         ml=extra_waste_ml,
                         source_of_event=source_of_event,
                         mqtt_client=self.pub_client,
+                        logger=self.logger,
                     )
                     briefer_pause()
 

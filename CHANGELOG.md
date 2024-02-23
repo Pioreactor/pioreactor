@@ -31,8 +31,8 @@
  - new UI MQTT library. Is it faster? Maybe!
  - increased the default `max_subdose` to 1.0.
 
-
 #### Bug fixes
+ - fixed a memory leak in long running dosing automations that had thousands of dosing events.
  - fixed a race condition that caused an error to occur when a software PWM channel was closed too quickly.
  - fixed bug that was partially crashing the UI if some bad syntax was entered into a custom yaml file. Sorry!
  - fixed bug that was causing bad json from the server, causing empty / non-loading areas in the UI. Sorry!
