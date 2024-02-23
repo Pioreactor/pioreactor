@@ -1519,7 +1519,7 @@ def test_adding_pumps_and_calling_them_from_execute_io_action() -> None:
         unit,
         experiment,
     ):
-        pause(20)
+        pause(40)
 
 
 def test_execute_io_action_errors() -> None:
