@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 import time
+from concurrent.futures import ThreadPoolExecutor
 from configparser import NoOptionError
 from functools import partial
 from threading import Event
-from threading import Thread
 from typing import Optional
 
 import click
@@ -53,6 +53,7 @@ class PWMPump:
         pin: pt.GpioPin,
         calibration: Optional[structs.AnyPumpCalibration] = None,
         mqtt_client: Optional[Client] = None,
+        logger: Optional[CustomLogger] = None,
     ) -> None:
         self.pin = pin
         self.calibration = calibration
@@ -64,12 +65,16 @@ class PWMPump:
             experiment=experiment,
             unit=unit,
             pubsub_client=mqtt_client,
+            logger=logger,
         )
 
         self.pwm.lock()
+        # Initialize the thread pool with a single worker thread
+        self._thread_pool = ThreadPoolExecutor(max_workers=1)
 
     def clean_up(self) -> None:
         self.pwm.clean_up()
+        self._thread_pool.shutdown(wait=False)  # Shutdown the thread pool
 
     def continuously(self, block: bool = True) -> None:
         calibration = self.calibration or DEFAULT_PWM_CALIBRATION
@@ -87,7 +92,9 @@ class PWMPump:
         self.interrupt.set()
 
     def by_volume(self, ml: pt.mL, block: bool = True) -> None:
-        assert ml >= 0
+        if ml < 0:
+            raise ValueError("ml >= 0")
+
         self.interrupt.clear()
 
         if ml == 0:
@@ -102,7 +109,9 @@ class PWMPump:
         return self.by_duration(seconds, block=block)
 
     def by_duration(self, seconds: pt.Seconds, block: bool = True) -> None:
-        assert seconds >= 0
+        if seconds < 0:
+            raise ValueError("seconds >= 0")
+
         self.interrupt.clear()
 
         if seconds == 0:
@@ -114,7 +123,7 @@ class PWMPump:
             self.interrupt.wait(seconds)
             self.stop()
         else:
-            Thread(target=self.by_duration, args=(seconds, True), daemon=True).start()
+            self._thread_pool.submit(self.by_duration, seconds, True)
             return
 
     def duration_to_ml(self, seconds: pt.Seconds) -> pt.mL:
@@ -236,11 +245,14 @@ def _pump_action(
     ) as state:
         mqtt_client = state.mqtt_client
 
-        with PWMPump(unit, experiment, pin, calibration=calibration, mqtt_client=mqtt_client) as pump:
+        with PWMPump(
+            unit, experiment, pin, calibration=calibration, mqtt_client=mqtt_client, logger=logger
+        ) as pump:
             if manually:
                 assert ml is not None
                 ml = float(ml)
-                assert ml >= 0, "ml should be greater than or equal to 0"
+                if ml < 0:
+                    raise ValueError("ml should be greater than or equal to 0")
                 duration = 0.0
                 logger.info(f"{round(ml, 2)}mL (added manually)")
             elif ml is not None:
@@ -251,7 +263,8 @@ def _pump_action(
                         f"Calibration not defined. Run {pump_type} pump calibration first."
                     )
 
-                assert ml >= 0, "ml should be greater than or equal to 0"
+                if ml < 0:
+                    raise ValueError("ml should be greater than or equal to 0")
                 duration = pump.ml_to_durations(ml)
                 logger.info(f"{round(ml, 2)}mL")
             elif duration is not None:
@@ -287,7 +300,6 @@ def _pump_action(
                 return 0.0
             elif not continuously:
                 pump.by_duration(duration, block=False)
-
                 # how does this work? What's up with the (or True)?
                 # exit_event.wait returns True iff the event is set, i.e by an interrupt. If we timeout (good path)
                 # then we eval (False or True), hence we break out of this while loop.
