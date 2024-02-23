@@ -435,18 +435,21 @@ class DosingAutomationJob(AutomationJob):
                     )
 
                 briefer_pause()
+
                 # run remove_waste for an additional few seconds to keep volume constant (determined by the length of the waste tube)
-                self.remove_waste_from_bioreactor(
-                    unit=self.unit,
-                    experiment=self.experiment,
-                    ml=waste_ml
-                    * config.getfloat(
-                        "dosing_automation.config", "waste_removal_multiplier", fallback=2.0
-                    ),  # fmt: skip
-                    source_of_event=source_of_event,
-                    mqtt_client=self.pub_client,
+                extra_waste_ml = waste_ml * config.getfloat(
+                    "dosing_automation.config", "waste_removal_multiplier", fallback=2.0
                 )
-                briefer_pause()
+                # fmt: skip
+                if extra_waste_ml > 0:
+                    self.remove_waste_from_bioreactor(
+                        unit=self.unit,
+                        experiment=self.experiment,
+                        ml=extra_waste_ml,
+                        source_of_event=source_of_event,
+                        mqtt_client=self.pub_client,
+                    )
+                    briefer_pause()
 
         return volumes_moved
 

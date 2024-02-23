@@ -1495,12 +1495,12 @@ def test_adding_pumps_and_calling_them_from_execute_io_action() -> None:
     class ExternalAutomation(DosingAutomationJob):
         automation_name = "_test_external_automation"
 
-        def add_salty_media_to_bioreactor(self, unit, experiment, ml, source_of_event):
+        def add_salty_media_to_bioreactor(self, unit, experiment, ml, source_of_event, mqtt_client) -> float:
             self.logger.info(f"dosing {ml / 2}mL from salty")
             pause()
             return ml / 2
 
-        def add_acid_media_to_bioreactor(self, unit, experiment, ml, source_of_event):
+        def add_acid_media_to_bioreactor(self, unit, experiment, ml, source_of_event, mqtt_client) -> float:
             self.logger.info(f"dosing {ml}mL from acid")
             pause()
             return ml
@@ -1519,7 +1519,7 @@ def test_adding_pumps_and_calling_them_from_execute_io_action() -> None:
         unit,
         experiment,
     ):
-        pause(60)
+        pause(20)
 
 
 def test_execute_io_action_errors() -> None:

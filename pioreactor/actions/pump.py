@@ -88,6 +88,10 @@ class PWMPump:
     def by_volume(self, ml: pt.mL, block: bool = True) -> None:
         assert ml >= 0
         self.interrupt.clear()
+
+        if ml == 0:
+            return
+
         if self.calibration is None:
             raise exc.CalibrationError(
                 "Calibration not defined. Run pump calibration first to use volume-based dosing."
@@ -99,6 +103,10 @@ class PWMPump:
     def by_duration(self, seconds: pt.Seconds, block: bool = True) -> None:
         assert seconds >= 0
         self.interrupt.clear()
+
+        if seconds == 0:
+            return
+
         calibration = self.calibration or DEFAULT_PWM_CALIBRATION
         if block:
             self.pwm.start(calibration.dc)
