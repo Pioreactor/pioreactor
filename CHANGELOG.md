@@ -10,9 +10,6 @@
   od_std=0.005
   rate_std=0.10
   ```
-
-  If it's a good feature, we may also have it replace our logic when dosing occurs.
-
  - added configuration for alternative mqtt brokers with the new configuration
    ```
   [mqtt]
@@ -32,6 +29,7 @@
  - increased the default `max_subdose` to 1.0.
 
 #### Bug fixes
+ - fixed a case where dosing automation IO execution would not run due to a floating point rounding error.
  - fixed a memory leak in long running dosing automations that had thousands of dosing events.
  - fixed a race condition that caused an error to occur when a software PWM channel was closed too quickly.
  - fixed bug that was partially crashing the UI if some bad syntax was entered into a custom yaml file. Sorry!

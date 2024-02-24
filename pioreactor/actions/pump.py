@@ -172,9 +172,9 @@ def _get_calibration(pump_type: str) -> structs.AnyPumpCalibration:
 def _publish_pump_action(
     pump_action: str,
     ml: pt.mL,
+    unit: str,
+    experiment: str,
     mqtt_client: Client,
-    unit: Optional[str] = None,
-    experiment: Optional[str] = None,
     source_of_event: Optional[str] = None,
 ) -> structs.DosingEvent:
     dosing_event = structs.DosingEvent(
@@ -317,7 +317,7 @@ def _pump_action(
 
             # publish this first, as downstream jobs need to know about it.
             dosing_event = _publish_pump_action(
-                action_name, ml, mqtt_client, unit, experiment, source_of_event
+                action_name, ml, unit, experiment, mqtt_client, source_of_event
             )
 
             pump_start_time = time.monotonic()

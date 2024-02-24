@@ -38,7 +38,7 @@ def brief_pause() -> float:
 
 
 def briefer_pause() -> float:
-    d = 0.5
+    d = 0.05
     time.sleep(d)
     return d
 
