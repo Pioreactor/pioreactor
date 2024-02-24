@@ -161,7 +161,12 @@ def test_turbidostat_automation() -> None:
     experiment = "test_turbidostat_automation"
     target_od = 1.0
     with Turbidostat(
-        target_normalized_od=target_od, duration=60, volume=0.25, unit=unit, experiment=experiment
+        target_normalized_od=target_od,
+        duration=60,
+        volume=0.25,
+        unit=unit,
+        experiment=experiment,
+        skip_first_run=True,
     ) as algo:
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
@@ -410,6 +415,7 @@ def test_changing_turbidostat_params_over_mqtt() -> None:
         duration=60,
         unit=unit,
         experiment=experiment,
+        skip_first_run=True,
     )
     assert algo.volume == og_volume
 
@@ -1122,13 +1128,12 @@ def test_what_happens_when_no_od_data_is_coming_in() -> None:
         retain=True,
     )
 
-    algo = Turbidostat(
+    with Turbidostat(
         target_normalized_od=0.1, duration=40 / 60, volume=0.25, unit=unit, experiment=experiment
-    )
-    pause()
-    event = algo.run()
-    assert isinstance(event, events.ErrorOccurred)
-    algo.clean_up()
+    ) as algo:
+        pause()
+        event = algo.run()
+        assert isinstance(event, events.ErrorOccurred)
 
 
 def test_AltMediaFractionCalculator() -> None:
