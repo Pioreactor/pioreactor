@@ -45,6 +45,11 @@ DEFAULT_PWM_CALIBRATION = structs.PumpCalibration(
 )
 
 
+# Initialize the thread pool with a single worker thread.
+# this is needed to avoid eventual memory overflow
+_thread_pool = ThreadPoolExecutor(max_workers=1)
+
+
 class PWMPump:
     def __init__(
         self,
@@ -69,12 +74,10 @@ class PWMPump:
         )
 
         self.pwm.lock()
-        # Initialize the thread pool with a single worker thread
-        self._thread_pool = ThreadPoolExecutor(max_workers=1)
 
     def clean_up(self) -> None:
         self.pwm.clean_up()
-        self._thread_pool.shutdown(wait=False)  # Shutdown the thread pool
+        # self._thread_pool.shutdown(wait=False)  # Shutdown the thread pool
 
     def continuously(self, block: bool = True) -> None:
         calibration = self.calibration or DEFAULT_PWM_CALIBRATION
@@ -123,7 +126,7 @@ class PWMPump:
             self.interrupt.wait(seconds)
             self.stop()
         else:
-            self._thread_pool.submit(self.by_duration, seconds, True)
+            _thread_pool.submit(self.by_duration, seconds, True)
             return
 
     def duration_to_ml(self, seconds: pt.Seconds) -> pt.mL:

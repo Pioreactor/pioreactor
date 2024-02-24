@@ -18,6 +18,7 @@ from pioreactor import pubsub
 from pioreactor import structs
 from pioreactor.automations import events
 from pioreactor.automations.dosing.base import AltMediaFractionCalculator
+from pioreactor.automations.dosing.base import close
 from pioreactor.automations.dosing.base import DosingAutomationJob
 from pioreactor.automations.dosing.base import VialVolumeCalculator
 from pioreactor.automations.dosing.pid_morbidostat import PIDMorbidostat
@@ -33,10 +34,6 @@ from pioreactor.whoami import get_unit_name
 
 
 unit = get_unit_name()
-
-
-def close(x: float, y: float) -> bool:
-    return abs(x - y) < 1e-10
 
 
 def pause(n=1) -> None:

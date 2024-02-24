@@ -679,7 +679,7 @@ class CachedCalibrationTransformer(CalibrationTransformer):
 
                     # confirm that current IR intensity is the same as when calibration was performed
                     if calibration_data.ir_led_intensity != config.getfloat("od_config", "ir_led_intensity"):
-                        msg = f"The calibration `{name}` was calibrated with a different IR LED intensity ({calibration_data.ir_led_intensity} vs current: {config.getfloat('od_config', 'ir_led_intensity')}). Either re-calibrate or change the ir_led_intensity in the config.ini."
+                        msg = f"The calibration `{name}` was calibrated with a different IR LED intensity ({calibration_data.ir_led_intensity} vs current: {config.getfloat('od_config', 'ir_led_intensity')}). Either re-calibrate, turn off calibration, or change the ir_led_intensity in the config.ini."
                         self.logger.error(msg)
                         raise exc.CalibrationError(msg)
                     # confirm that PD channel is the same as when calibration was performed

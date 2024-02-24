@@ -31,6 +31,10 @@ from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import RepeatedTimer
 
 
+def close(x: float, y: float) -> bool:
+    return abs(x - y) < 1e-10
+
+
 def brief_pause() -> float:
     d = 5.0
     time.sleep(d)
@@ -379,10 +383,11 @@ class DosingAutomationJob(AutomationJob):
         all_pumps_ml = {**{"media_ml": media_ml, "alt_media_ml": alt_media_ml}, **other_pumps_ml}
 
         sum_of_volumes = sum(ml for ml in all_pumps_ml.values())
-        if not (
-            waste_ml >= (sum_of_volumes - 1e-9)
-        ):  # why 1e-9? account for floating point imprecision, ex: .6299999999999999 >= 0.63
-            raise ValueError("Not removing enough waste: waste_ml should be greater than sum of dosed ml")
+        if not close(waste_ml, sum_of_volumes) or waste_ml > sum_of_volumes:
+            # why close? account for floating point imprecision, ex: .6299999999999999 != 0.63
+            raise ValueError(
+                "Not removing enough waste: waste_ml should be greater than or equal to sum of dosed ml"
+            )
 
         volumes_moved = SummableDict(waste_ml=0.0, **{p: 0.0 for p in all_pumps_ml})
         source_of_event = f"{self.job_name}:{self.automation_name}"
@@ -554,6 +559,9 @@ class DosingAutomationJob(AutomationJob):
         self.latest_normalized_od_at = payload.timestamp
 
     def _set_ods(self, message: pt.MQTTMessage) -> None:
+        if message.payload is None:
+            return
+
         self.previous_od = self._latest_od
         payload = decode(message.payload, type=structs.ODReadings)
         self._latest_od: dict[pt.PdChannel, float] = {c: payload.ods[c].od for c in payload.ods}
