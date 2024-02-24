@@ -25,9 +25,7 @@ class PIDMorbidostat(DosingAutomationJob):
         "duration": {"datatype": "float", "settable": True, "unit": "min"},
     }
 
-    def __init__(
-        self, target_growth_rate: float | str, target_normalized_od: float | str, **kwargs
-    ):
+    def __init__(self, target_growth_rate: float | str, target_normalized_od: float | str, **kwargs):
         super(PIDMorbidostat, self).__init__(**kwargs)
         assert target_normalized_od is not None, "`target_normalized_od` must be set"
         assert target_growth_rate is not None, "`target_growth_rate` must be set"
@@ -74,9 +72,7 @@ class PIDMorbidostat(DosingAutomationJob):
 
             # dilute more if our OD keeps creeping up - we want to stay in the linear range.
             if self.latest_normalized_od > self.max_od:
-                self.logger.info(
-                    f"executing larger dilution since we are above max OD, {self.max_od:.2f}AU."
-                )
+                self.logger.info(f"executing larger dilution since we are above max OD, {self.max_od:.2f}AU.")
                 volume_ml = 2.5 * self.volume
             else:
                 volume_ml = self.volume
@@ -95,9 +91,9 @@ class PIDMorbidostat(DosingAutomationJob):
                 volume_ml -= media_ml
                 media_ml = 0.0
 
-            self.execute_io_action(alt_media_ml=alt_media_ml, media_ml=media_ml, waste_ml=volume_ml)
+            results = self.execute_io_action(alt_media_ml=alt_media_ml, media_ml=media_ml, waste_ml=volume_ml)
             return events.AddAltMediaEvent(
-                f"PID output={fraction_of_alt_media_to_add:.2f}, alt_media_ml={alt_media_ml:.2f}mL, media_ml={media_ml:.2f}mL",
+                f"PID output={fraction_of_alt_media_to_add:.2f}, alt_media_ml={results['alt_media_ml']:.2f}mL, media_ml={results['media_ml']:.2f}mL",
                 data={
                     "fraction_of_alt_media_to_add": fraction_of_alt_media_to_add,
                     "alt_media_ml": alt_media_ml,

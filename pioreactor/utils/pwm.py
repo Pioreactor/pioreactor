@@ -196,7 +196,7 @@ class PWM:
         self.duty_cycle = 0.0
 
         if self.is_locked():
-            msg = f"GPIO-{self.pin} is currently locked but a task is overwriting it. Either too many jobs are trying to access this pin, or a job didn't clean up properly. If your confident you can release it, use `pio clear-cache pwm_locks {self.pin} --as-int` on the command line for {self.unit}."
+            msg = f"GPIO-{self.pin} is currently locked by but a task is overwriting it. Either too many jobs are trying to access this pin, or a job didn't clean up properly. If your confident you can release it, use `pio clear-cache pwm_locks {self.pin} --as-int` on the command line for {self.unit}."
 
             self.logger.error(msg)
             raise PWMError(msg)
@@ -294,6 +294,9 @@ class PWM:
         gpio_helpers.set_gpio_availability(self.pin, True)
 
         self.logger.debug(f"Cleaned up GPIO-{self.pin}.")
+
+        with local_intermittent_storage("pwm_locks") as pwm_locks:
+            assert pwm_locks.get(self.pin) is None
 
         if not self._external_client:
             self.pubsub_client.loop_stop()

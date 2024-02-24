@@ -192,6 +192,32 @@ def _publish_pump_action(
     return dosing_event
 
 
+def _to_human_readable_action(ml: Optional[float], duration: Optional[float], pump_type: str) -> str:
+    if pump_type == "waste":
+        if duration is not None:
+            return f"Removing waste for {round(duration,2)}s."
+        elif ml is not None:
+            return f"Removing {round(ml,3)} mL waste."
+        else:
+            raise ValueError()
+    elif pump_type == "media":
+        if duration is not None:
+            return f"Adding media for {round(duration,2)}s."
+        elif ml is not None:
+            return f"Adding {round(ml,3)} mL media."
+        else:
+            raise ValueError()
+    elif pump_type == "alt_media":
+        if duration is not None:
+            return f"Adding alt-media for {round(duration,2)}s."
+        elif ml is not None:
+            return f"Adding {round(ml,3)} mL alt-media."
+        else:
+            raise ValueError()
+    else:
+        raise ValueError()
+
+
 def _pump_action(
     pump_type: str,
     unit: Optional[str] = None,
@@ -254,7 +280,7 @@ def _pump_action(
                 if ml < 0:
                     raise ValueError("ml should be greater than or equal to 0")
                 duration = 0.0
-                logger.info(f"{round(ml, 2)}mL (added manually)")
+                logger.info(f"{_to_human_readable_action(ml, None, pump_type)} (exchanged manually)")
             elif ml is not None:
                 ml = float(ml)
                 if calibration is None:
@@ -266,14 +292,14 @@ def _pump_action(
                 if ml < 0:
                     raise ValueError("ml should be greater than or equal to 0")
                 duration = pump.ml_to_durations(ml)
-                logger.info(f"{round(ml, 2)}mL")
+                logger.info(_to_human_readable_action(ml, None, pump_type))
             elif duration is not None:
                 duration = float(duration)
                 try:
                     ml = pump.duration_to_ml(duration)  # can be wrong if calibration is not defined
                 except exc.CalibrationError:
                     ml = DEFAULT_PWM_CALIBRATION.duration_to_ml(duration)  # naive
-                logger.info(f"{round(duration, 2)}s")
+                logger.info(_to_human_readable_action(None, duration, pump_type))
             elif continuously:
                 duration = 10.0
                 try:
