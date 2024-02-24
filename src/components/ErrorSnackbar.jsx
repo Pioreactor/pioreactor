@@ -57,8 +57,7 @@ function ErrorSnackbar(props) {
       username: userName,
       password: password,
       keepalive: 60 * 15,
-      connectTimeout: 20 * 1000,
-      reconnectPeriod: 1000 // Set this to enable automatic reconnection
+      connectTimeout: 20,
     });
 
     client.on("connect", () => onSuccess() )
@@ -68,16 +67,15 @@ function ErrorSnackbar(props) {
     });
 
     client.on("message", (topic, message) => {
-      onMessage(message);
+      onMessage(topic, message);
     });
 
   },[config])
 
-  const onMessage = (message) => {
+  const onMessage = (topic, message) => {
       const payload = JSON.parse(message.toString())
-
-      if ((payload.level === "ERROR" || payload.level === "WARNING" || payload.level === "NOTICE") && (!message.topic.endsWith("/ui"))){
-        const unit = message.topic.split("/")[1]
+      if ((payload.level === "ERROR" || payload.level === "WARNING" || payload.level === "NOTICE") && (!topic.toString().endsWith("/ui"))){
+        const unit = topic.toString().split("/")[1]
         try {
           setRenamedUnit(relabelMap[unit])
         }

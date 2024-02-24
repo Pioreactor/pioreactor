@@ -213,7 +213,7 @@ class EditableCodeDiv extends React.Component {
             code={this.state.code}
             onChange={this.onTextChange}
             editorRef={this.getCodeFlaskRef}
-            language={"python"}
+            language={"html"}
           />
         </div>
         <div style={{display: "flex", justifyContent: "space-between"}}>

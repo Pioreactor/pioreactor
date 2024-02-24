@@ -37,8 +37,8 @@ function MediaCard(props) {
 
     client.on("connect", () => {
       client.subscribe(
-        `pioreactor/+/${props.experiment}/'dosing_automation/alt_media_throughput`,
-        `pioreactor/+/${props.experiment}/'dosing_automation/media_throughput`,
+        `pioreactor/+/${props.experiment}/dosing_automation/alt_media_throughput`,
+        `pioreactor/+/${props.experiment}/dosing_automation/media_throughput`,
       )
     })
 
