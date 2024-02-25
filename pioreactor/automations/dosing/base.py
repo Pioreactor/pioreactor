@@ -32,7 +32,7 @@ from pioreactor.utils.timing import RepeatedTimer
 
 
 def close(x: float, y: float) -> bool:
-    return abs(x - y) < 1e-10
+    return abs(x - y) < 1e-9
 
 
 def brief_pause() -> float:
@@ -383,10 +383,10 @@ class DosingAutomationJob(AutomationJob):
         all_pumps_ml = {**{"media_ml": media_ml, "alt_media_ml": alt_media_ml}, **other_pumps_ml}
 
         sum_of_volumes = sum(ml for ml in all_pumps_ml.values())
-        if not close(waste_ml, sum_of_volumes) or waste_ml > sum_of_volumes:
+        if not (waste_ml >= sum_of_volumes - 1e-9):
             # why close? account for floating point imprecision, ex: .6299999999999999 != 0.63
             raise ValueError(
-                "Not removing enough waste: waste_ml should be greater than or equal to sum of dosed ml"
+                "Not removing enough waste: waste_ml should be greater than or equal to sum of all dosed ml"
             )
 
         volumes_moved = SummableDict(waste_ml=0.0, **{p: 0.0 for p in all_pumps_ml})
