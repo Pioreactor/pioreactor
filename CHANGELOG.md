@@ -1,4 +1,4 @@
-### Upcoming
+### 24.2.25r0
 
 #### Highlights
  - **Experimental** introducing outlier filtering in growth rate calculations. This is tunable with the new `ekf_outlier_std_threshold` parameter under `[growth_rate_calculating.config]`. To turn off outlier filtering, set this parameter to some very large number (1000s). Don't put it less than 3.0 - that's silly.
@@ -29,8 +29,8 @@
  - increased the default `max_subdose` to 1.0.
 
 #### Bug fixes
- - fixed a case where dosing automation IO execution would not run due to a floating point rounding error.
- - fixed a memory leak in long running dosing automations that had thousands of dosing events.
+ - fixed a case where dosing automation IO execution would not run due to a floating point rounding error. Sorry!
+ - fixed a memory leak in long running dosing automations that had thousands of dosing events. Sorry!
  - fixed a race condition that caused an error to occur when a software PWM channel was closed too quickly.
  - fixed bug that was partially crashing the UI if some bad syntax was entered into a custom yaml file. Sorry!
  - fixed bug that was causing bad json from the server, causing empty / non-loading areas in the UI. Sorry!

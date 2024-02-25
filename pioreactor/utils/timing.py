@@ -23,7 +23,7 @@ def catchtime() -> t.Generator[t.Callable[[], float], None, None]:
     Usage:
         with catchtime() as elapsed_time:
             # some code here
-        print(f"Elapsed time: {elapsed_time():.2f} seconds")
+            print(f"Elapsed time: {elapsed_time():.2f} seconds")
 
     Returns:
         A generator that yields a function.
