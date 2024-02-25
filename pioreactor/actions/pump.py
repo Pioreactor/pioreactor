@@ -45,9 +45,9 @@ DEFAULT_PWM_CALIBRATION = structs.PumpCalibration(
 )
 
 
-# Initialize the thread pool with a single worker thread.
-# this is needed to avoid eventual memory overflow
-_thread_pool = ThreadPoolExecutor(max_workers=1)
+# Initialize the thread pool with a worker threads.
+# a pool is needed to avoid eventual memory overflow when multiple threads are created and allocated over time.
+_thread_pool = ThreadPoolExecutor(max_workers=3)  # one for each pump
 
 
 class PWMPump:
