@@ -7,7 +7,7 @@
   [growth_rate_kalman]
   acc_std=0.0008
   obs_std=1.5
-  od_std=0.005
+  od_std=0.0025
   rate_std=0.1
   ```
  - added configuration for alternative mqtt brokers with the new configuration
