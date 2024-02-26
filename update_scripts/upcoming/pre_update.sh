@@ -9,7 +9,7 @@ PIO_DIR=/home/pioreactor/.pioreactor
 
 
 # update MQTT configuration
-LEADER_ADDRESS=$(crudini --get $PIO_DIR/config.ini cluster.inventory leader_address)
+LEADER_ADDRESS=$(crudini --get $PIO_DIR/config.ini cluster.topology leader_address)
 
 crudini --ini-options=nospace --set  $PIO_DIR/config.ini mqtt username pioreactor \
                               --set  $PIO_DIR/config.ini mqtt password raspberry \

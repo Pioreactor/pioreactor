@@ -22,7 +22,6 @@ from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.config import config
 from pioreactor.config import get_config
 from pioreactor.config import mqtt_address
-from pioreactor.config import leader_hostname
 from pioreactor.hardware import GPIOCHIP
 from pioreactor.hardware import is_HAT_present
 from pioreactor.hardware import PCB_BUTTON_PIN as BUTTON_PIN
@@ -714,10 +713,12 @@ class Monitor(BackgroundJob):
         Thread(target=self.flicker_led_with_error_code, args=(error_code,), daemon=True).start()
 
     def set_versions(self, data: dict):
-        # TODO: this can also be a dict merge
-        for key, value in data.items():
-            if key in self.versions:
-                self.versions[key] = value
+        # first remove any extra keys
+        for key in data:
+            if key not in self.versions:
+                data.pop(key)
+
+        self.versions = self.versions | data
 
     def start_passive_listeners(self) -> None:
         self.subscribe_and_callback(

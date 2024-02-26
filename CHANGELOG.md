@@ -12,15 +12,15 @@
   ```
  - added configuration for alternative mqtt brokers with the new configuration
    ```
-  [mqtt]
-  username=pioreactor
-  password=raspberry
-  broker_address=
-  broker_ws_port=9001
-  broker_port=1883
-  ws_protocol=ws
-  tls=0
-  ```
+   [mqtt]
+   username=pioreactor
+   password=raspberry
+   broker_address=
+   broker_ws_port=9001
+   broker_port=1883
+   ws_protocol=ws
+   tls=0
+   ```
 
 #### Enhancements
  - clear the growth-rate cache with `pio run growth_rate_cacluating clear_cache`
@@ -29,9 +29,9 @@
  - increased the default `max_subdose` to 1.0.
 
 #### Bug fixes
- - fixed a case where dosing automation IO execution would not run due to a floating point rounding error.
- - fixed a memory leak in long running dosing automations that had thousands of dosing events.
- - fixed a race condition that caused an error to occur when a software PWM channel was closed too quickly.
+ - fixed a case where dosing automation IO execution would not run due to a floating point rounding error.  Sorry!
+ - fixed a memory leak in long running dosing automations that had thousands of dosing events.  Sorry!
+ - fixed a race condition that caused an error to occur when a software PWM channel was closed too quickly.  Sorry!
  - fixed bug that was partially crashing the UI if some bad syntax was entered into a custom yaml file. Sorry!
  - fixed bug that was causing bad json from the server, causing empty / non-loading areas in the UI. Sorry!
  - fixed `datum` bug in the Overview that was crashing the UI. Sorry!
