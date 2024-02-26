@@ -19,12 +19,12 @@
    broker_ws_port=9001
    broker_port=1883
    ws_protocol=ws
-   tls=0
+   use_tls=0
    ```
 
 #### Enhancements
  - clear the growth-rate cache with `pio run growth_rate_cacluating clear_cache`
- - added Pioreactor specific software version to the UI: Page *Pioreactors -> Manage -> System -> Version*
+ - added Pioreactor specific software version to the UI: Page *Pioreactors -> Manage -> System -> Version*. **this requires a restart to display correctly**
  - new UI MQTT library. Is it faster? Maybe!
  - increased the default `max_subdose` to 1.0.
 
