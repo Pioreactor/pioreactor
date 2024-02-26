@@ -1,4 +1,4 @@
-### Upcoming
+### 24.2.26
 
 #### Highlights
  - **Experimental** introducing outlier filtering in growth rate calculations. This is tunable with the new `ekf_outlier_std_threshold` parameter under `[growth_rate_calculating.config]`. To turn off outlier filtering, set this parameter to some very large number (1000s). Don't put it less than 3.0 - that's silly.
@@ -6,9 +6,9 @@
   ```
   [growth_rate_kalman]
   acc_std=0.0008
-  obs_std=1.0
+  obs_std=1.5
   od_std=0.005
-  rate_std=0.10
+  rate_std=0.1
   ```
  - added configuration for alternative mqtt brokers with the new configuration
    ```
