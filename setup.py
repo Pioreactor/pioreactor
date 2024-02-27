@@ -70,6 +70,9 @@ setup(
         pio=pioreactor.cli.pio:pio
         pios=pioreactor.cli.pios:pios
     """,
+    data_files=[
+        ("", ["CHANGELOG.md"]),
+    ],
     python_requires=">=3.11",
     extras_require={
         "leader": LEADER_REQUIREMENTS,
