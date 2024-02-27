@@ -16,7 +16,7 @@ CORE_REQUIREMENTS = [
     "colorlog==6.7.0",
     "msgspec==0.18.5",
     "diskcache==5.6.3",
-    "wheel==0.41.2",
+    "wheel==0.42.0",
     "crudini==0.9.5",
     # "lgpio; platform_machine!='armv7l' and platform_machine!='armv6l'", # primarily available with base image, or via apt-get install python3-lgpio
 ]
