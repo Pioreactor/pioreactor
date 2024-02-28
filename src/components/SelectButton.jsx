@@ -57,6 +57,7 @@ const SelectButton = React.forwardRef((
           data-value-readable={valueReadable}
           data-value={child.props.value}
           value={undefined}
+          disabled={child.props.disabled || false}
         >
           {icon}{valueReadable}
         </MenuItem>

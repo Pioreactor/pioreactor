@@ -176,8 +176,25 @@ function UpdateSoftwareConfirmDialog(props) {
   const confirm = useConfirm();
   const [updating, setUpdating] = React.useState(false)
   const [openSnackbar, setOpenSnackbar] = React.useState(false)
-  const [installOption, setInstallOption] = React.useState("latest")
+  const [installOption, setInstallOption] = React.useState("archive")
   const [showArchiveConfirm, setShowArchiveConfirm] = React.useState(false);
+  const [internetAccess, setInternetAccess] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkConnectivity = () => {
+      fetch(`https://www.google.com/favicon.ico?${new Date().getTime()}`, {method: 'GET', mode: 'no-cors'})
+        .then(() => {
+          setInstallOption("latest");
+          setInternetAccess(true);
+        })
+        .catch(() => {
+          setInstallOption("archive");
+          setInternetAccess(false);
+        })
+    };
+    // Check connectivity on mount
+  checkConnectivity();
+  }, []);
 
   const updateVersion = () => {
     setOpenSnackbar(true)
@@ -256,8 +273,8 @@ function UpdateSoftwareConfirmDialog(props) {
         disabled={updating}
         endIcon={getIcon()}
       >
-        <MenuItem value={"latest"}>Update to next release</MenuItem>
-        <MenuItem value={"development"}>Update to development</MenuItem>
+        <MenuItem disabled={!internetAccess} value={"latest"}>Update to next release</MenuItem>
+        <MenuItem disabled={!internetAccess} value={"development"}>Update to development</MenuItem>
         <MenuItem value={"archive"}>Update from zip file</MenuItem>
       </SelectButton>
       <Snackbar
