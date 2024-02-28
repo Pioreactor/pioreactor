@@ -263,15 +263,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.unit = unit
         self._source = source
 
-        self.logger = create_logger(
-            self.job_name,
-            unit=self.unit,
-            experiment=self.experiment,
-            source=self._source,
-        )
-
-        self._check_for_duplicate_activity()
-
         # why do we need two clients? Paho lib can't publish a message in a callback,
         # but this is critical to our usecase: listen for events, and fire a response (ex: state change)
         # so we split the listening and publishing. I've tried combining them and got stuck a lot
@@ -281,6 +272,16 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # we want to give the sub_client (has the will msg) as much time as possible to disconnect.
         self.pub_client = self._create_pub_client()
         self.sub_client = self._create_sub_client()
+
+        self.logger = create_logger(
+            self.job_name,
+            unit=self.unit,
+            experiment=self.experiment,
+            source=self._source,
+            pub_client=self.pub_client,
+        )
+
+        self._check_for_duplicate_activity()
 
         # add state
         self.published_settings = self.published_settings | {

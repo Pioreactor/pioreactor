@@ -1,3 +1,12 @@
+### Upcoming
+
+
+#### Enhancements
+ - reusing more MQTT clients internally => faster job startup
+
+#### Bug fixes
+ - using the archive upload method to update Pioreactors had a bug when distributing the archive to workers on the cluster. That has been fixed. The first time, you archive update may fail. But it should succeed the second time.
+
 ### 24.2.26
 
 #### Highlights

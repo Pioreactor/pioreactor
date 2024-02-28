@@ -130,6 +130,7 @@ def create_logger(
     experiment: Optional[str] = None,
     source: str = "app",
     to_mqtt: bool = True,
+    pub_client: Optional[Client] = None,
 ) -> CustomLogger:
     """
 
@@ -193,11 +194,13 @@ def create_logger(
     logger.addHandler(console_handler)
 
     if to_mqtt:
-        pub_client = create_client(
-            client_id=f"{name}-logging-{unit}-{experiment}",
-            max_connection_attempts=2,
-            keepalive=15 * 60,
-        )
+        if pub_client is None:
+            pub_client = create_client(
+                client_id=f"{name}-logging-{unit}-{experiment}",
+                max_connection_attempts=2,
+                keepalive=15 * 60,
+            )
+        assert pub_client is not None
 
         experiment = experiment if am_I_active_worker() else UNIVERSAL_EXPERIMENT
 

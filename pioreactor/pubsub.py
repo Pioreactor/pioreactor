@@ -98,7 +98,9 @@ def create_client(
             logger.error(f"Connection failed with error code {rc=}: {connack_string(rc)}")
 
     client = Client(
-        client_id=add_hash_suffix(client_id) if client_id else "",
+        client_id=add_hash_suffix(client_id)
+        if client_id
+        else "",  # Note: if empty string, paho or mosquitto will autogenerate a good client id.
         clean_session=clean_session,
         userdata=userdata,
     )

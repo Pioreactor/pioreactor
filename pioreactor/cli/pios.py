@@ -130,10 +130,17 @@ if am_I_leader():
         type=click.STRING,
         help="specify a Pioreactor name, default is all active non-leader units",
     )
+    @click.option("-y", is_flag=True, help="Skip asking for confirmation.")
     def cp(
         filepath: str,
         units: tuple[str, ...],
+        y: bool,
     ) -> None:
+        if not y:
+            confirm = input(f"Confirm copying {filepath} onto {units}? Y/n: ").strip()
+            if confirm != "Y":
+                raise click.Abort()
+
         logger = create_logger("cp", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
         units = remove_leader(universal_identifier_to_all_workers(units))
 
