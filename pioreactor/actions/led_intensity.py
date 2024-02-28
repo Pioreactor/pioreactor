@@ -135,7 +135,7 @@ def led_intensity(
     experiment = experiment or get_latest_experiment_name()
     unit = unit or get_unit_name()
 
-    logger = create_logger("led_intensity", experiment=experiment, unit=unit)
+    logger = create_logger("led_intensity", experiment=experiment, unit=unit, pub_client=pubsub_client)
     updated_successfully = True
 
     if not is_testing_env():

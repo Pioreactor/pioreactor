@@ -35,6 +35,15 @@ jobs:
           tag: ${{ github.event.release.tag_name }}
           overwrite: true
           file_glob: true
+      - name: ➕ Upload CHANGELOG to GH release page
+        uses: svenstaro/upload-release-action@v2
+        if: github.event_name == 'release' && github.repository == 'Pioreactor/pioreactor'
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: CHANGELOG.md
+          tag: ${{ github.event.release.tag_name }}
+          overwrite: true
+          file_glob: true
 
   build-deps:
     name: 🔨 Build dependencies and upload
