@@ -214,6 +214,8 @@ def start_recording_and_diluting(
     current_volume_in_vial = initial_volume_in_vial = 10.0
     n_samples = int((20 - initial_volume_in_vial) / dilution_amount)
 
+    import numpy as np
+
     if initial_volume_in_vial + dilution_amount * n_samples > 18:
         n_samples = n_samples - 1
         # 20mL in one vial is very scary
@@ -307,7 +309,31 @@ def start_recording_and_diluting(
 
                 if inferred_od600 <= minimum_od600:
                     break
+                
+                # create a polyfit after each data point is recorded
 
+                degree = 5 if len(voltages) > 10 else 3
+                try:
+                    coefs = np.polyfit(inferred_od600s, voltages, deg=degree).tolist()
+                    
+                    # test if region is linear
+                    f = np.poly1d(coefs)
+                    f_prime = np.polyder(f)
+                    f_primeprime = np.polyder(f_prime)
+                    
+                    tolerance = 1e-3
+                    
+                    print(f_prime(inferred_od600))
+                    print(f_primeprime(inferred_od600))
+                    
+                    if f_prime(inferred_od600) > 0.1 and abs(f_primeprime(inferred_od600)) < tolerance: 
+                        echo("Sufficient data points acquired. Stopping data collection.")
+                        sleep(1)
+                        break
+                except Exception as e:
+                    print(e)
+                    pass
+                    
                 count_of_samples += 1
 
             else:
