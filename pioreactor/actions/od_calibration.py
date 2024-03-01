@@ -91,7 +91,7 @@ def get_name_from_user() -> str:
 
 def get_metadata_from_user() -> tuple[pt.OD600, pt.OD600, pt.mL, pt.PdAngle, pt.PdChannel]:
     initial_od600 = prompt(
-        green("Provide the OD600 measurement of your initial, high density, culture"),
+        green("Provide the maximum OD600 measurement of your high density culture"),
         type=click.FloatRange(min=0.01, clamp=False),
     )
 
@@ -244,6 +244,22 @@ def start_recording_and_diluting(
             # warm up
             od_reader.record_from_adc()
 
+        echo("Empty the vial and replace with 10 mL of the media you used.")
+        od600_of_blank = prompt(
+            green("What is the OD600 of your blank?"),
+            type=float,
+            confirmation_prompt=green("Repeat for confirmation"),
+        )
+        echo("Confirm vial outside is dry and clean. Place back into Pioreactor.")
+        while not confirm(green("Continue?"), default=False):
+            pass
+        echo("Reading blank...")
+        
+        value = get_voltage_from_adc()
+        
+        voltages.append(value)
+        inferred_od600s.append(od600_of_blank)
+
         while inferred_od600 > minimum_od600:
             while True:
                 if inferred_od600 < initial_od600 and confirm(
@@ -352,7 +368,7 @@ def start_recording_and_diluting(
                 echo("Carefully remove vial.")
                 echo("(Optional: take new OD600 reading with external instrument.)")
                 echo(
-                    f"Reduce volume in vial by {n_samples*dilution_amount}mL. There should be 10mL remaining in your vial."
+                    f"Remove {n_samples*dilution_amount}mL from your vial. There should be 10mL remaining in your vial."
                 )
                 echo("Confirm vial outside is dry and clean. Place back into Pioreactor.")
                 while not confirm(green("Continue?"), default=False):
@@ -370,29 +386,18 @@ def start_recording_and_diluting(
             x_min=minimum_od600,
             x_max=initial_od600,
         )
-        echo("Empty the vial and replace with 10 mL of the media you used.")
-        od600_of_blank = prompt(
-            green("What is the OD600 of your blank?"),
-            type=float,
-            confirmation_prompt=green("Repeat for confirmation"),
-        )
-        echo("Confirm vial outside is dry and clean. Place back into Pioreactor.")
-        while not confirm(green("Continue?"), default=False):
-            pass
-        echo("Reading blank...")
 
-        value = get_voltage_from_adc()
-        for i in range(5):
-            if value > min(voltages):
-                echo("Reading is too high, trying again...")
-                value = get_voltage_from_adc()
-            else:
-                break
-        else:
-            raise ValueError(f"Why is the blank reading, {value}V, higher than everything else: {voltages}V?")
+# to do: reimplement this check 
 
-        voltages.append(value)
-        inferred_od600s.append(od600_of_blank)
+
+#        for i in range(5):
+#            if value > min(voltages):
+#                echo("Reading is too high, trying again...")
+#                value = get_voltage_from_adc()
+#            else:
+#                break
+#        else:
+#            raise ValueError(f"Why is the blank reading, {value}V, higher than everything else: {voltages}V?")
 
         return inferred_od600s, voltages
 
