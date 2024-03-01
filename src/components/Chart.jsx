@@ -142,8 +142,8 @@ class Chart extends React.Component {
       password: password,
     });
     this.client.on("connect", () => this.onConnect() )
-    this.client.on("message", (topic, message) => {
-      this.onMessage(topic, message);
+    this.client.on("message", (topic, message, packet) => {
+      this.onMessage(topic, message, packet);
     });
 
   }
@@ -234,11 +234,11 @@ class Chart extends React.Component {
     }]
   }
 
-  onMessage(topic, message) {
+  onMessage(topic, message, packet) {
     if (!this.state.fetched){
       return
     }
-    if (message.retained){
+    if (packet.retain){
       return
     }
 
@@ -251,7 +251,7 @@ class Chart extends React.Component {
       var timestamp = moment.utc(payload.timestamp)
       var y_value = parseFloat(payload[this.props.payloadKey])
     } else {
-      y_value = parseFloat(message.payloadString)
+      y_value = parseFloat(message.toString())
       timestamp = moment.utc()
     }
     var duration = Math.round(timestamp.diff(moment.utc(this.props.experimentStartTime), 'hours', true) * 1e3)/1e3
