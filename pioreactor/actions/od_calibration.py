@@ -131,17 +131,17 @@ def get_metadata_from_user() -> tuple[pt.OD600, pt.OD600, pt.mL, pt.PdAngle, pt.
         # technically it's not required? we just need a specific PD channel to calibrate from.
 
     ref_channel = config["od_config.photodiode_channel_reverse"]["REF"]
-    signal_channel = cast(pt.PdChannel, "1" if ref_channel == "2" else "2")
+    pd_channel = cast(pt.PdChannel, "1" if ref_channel == "2" else "2")
 
     confirm(
         green(
-            f"Confirm using channel {signal_channel} with angle {config['od_config.photodiode_channel'][signal_channel]}° position in the Pioreactor"
+            f"Confirm using channel {pd_channel} with angle {config['od_config.photodiode_channel'][pd_channel]}° position in the Pioreactor"
         ),
         abort=True,
         default=True,
     )
-    angle = cast(pt.PdAngle, config["od_config.photodiode_channel"][signal_channel])
-    return initial_od600, minimum_od600, dilution_amount, angle, signal_channel
+    angle = cast(pt.PdAngle, config["od_config.photodiode_channel"][pd_channel])
+    return initial_od600, minimum_od600, dilution_amount, angle, pd_channel
 
 
 def setup_HDC_instructions() -> None:
@@ -206,7 +206,7 @@ def start_recording_and_diluting(
     initial_od600: pt.OD,
     minimum_od600: pt.OD,
     dilution_amount: float,
-    signal_channel,
+    pd_channel: pt.PdChannel,
 ) -> tuple[list[float], list[float]]:
     inferred_od600 = initial_od600
     voltages = []
@@ -236,7 +236,7 @@ def start_recording_and_diluting(
         def get_voltage_from_adc() -> pt.Voltage:
             od_readings1 = od_reader.record_from_adc()
             od_readings2 = od_reader.record_from_adc()
-            return 0.5 * (od_readings1.ods[signal_channel].od + od_readings2.ods[signal_channel].od)
+            return 0.5 * (od_readings1.ods[pd_channel].od + od_readings2.ods[pd_channel].od)
 
         for _ in range(4):
             # warm up
@@ -440,7 +440,7 @@ def save_results(
     od600s: list[pt.OD],
     angle,
     name: str,
-    signal_channel: pt.PdChannel,
+    pd_channel: pt.PdChannel,
     unit: str,
 ) -> structs.ODCalibration:
     if angle == "45":
@@ -468,7 +468,7 @@ def save_results(
         voltages=voltages,
         od600s=od600s,
         ir_led_intensity=float(config["od_config"]["ir_led_intensity"]),
-        pd_channel=signal_channel,
+        pd_channel=pd_channel,
     )
 
     with local_persistant_storage("od_calibrations") as cache:
@@ -491,13 +491,13 @@ def get_data_from_data_file(data_file: str) -> tuple[pt.PdChannel, pt.PdAngle, l
     ods, voltages = data["od600s"], data["voltages"]
     assert len(ods) == len(voltages), "data must be the same length."
 
-    signal_channel = data.get(
-        "signal_channel",
+    pd_channel = data.get(
+        "pd_channel",
         "1" if config["od_config.photodiode_channel_reverse"]["REF"] == "2" else "2",
     )
-    angle = data.get("angle", str(config["od_config.photodiode_channel"][signal_channel]))
+    angle = data.get("angle", str(config["od_config.photodiode_channel"][pd_channel]))
 
-    return signal_channel, angle, ods, voltages
+    return pd_channel, angle, ods, voltages
 
 
 def od_calibration(data_file: str | None) -> None:
@@ -517,16 +517,16 @@ def od_calibration(data_file: str | None) -> None:
                 minimum_od600,
                 dilution_amount,
                 angle,
-                signal_channel,
+                pd_channel,
             ) = get_metadata_from_user()
             setup_HDC_instructions()
 
             with start_stirring() as st:
                 inferred_od600s, voltages = start_recording_and_diluting(
-                    st, initial_od600, minimum_od600, dilution_amount, signal_channel
+                    st, initial_od600, minimum_od600, dilution_amount, pd_channel
                 )
         else:
-            signal_channel, angle, inferred_od600s, voltages = get_data_from_data_file(data_file)
+            pd_channel, angle, inferred_od600s, voltages = get_data_from_data_file(data_file)
 
         degree = 5 if len(voltages) > 10 else 3
         while True:
@@ -545,7 +545,7 @@ def od_calibration(data_file: str | None) -> None:
             inferred_od600s,
             angle,
             name,
-            signal_channel,
+            pd_channel,
             unit,
         )
         echo(style(f"Calibration curve for `{name}`", underline=True, bold=True))
@@ -716,7 +716,7 @@ def click_od_calibration(ctx, json_file: str | None) -> None:
     """
     Calibrate OD600 to voltages
 
-    To load in data from a json file, the necessary fields are "od600s" and "voltages", optional: "signal_channel" and "angle"
+    To load in data from a json file, the necessary fields are "od600s" and "voltages", optional: "pd_channel" and "angle"
     Ex:
 
     {

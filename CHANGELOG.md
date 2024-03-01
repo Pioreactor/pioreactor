@@ -6,6 +6,10 @@
 
 #### Bug fixes
  - using the archive upload method to update Pioreactors had a bug when distributing the archive to workers on the cluster. That has been fixed. The first time, you archive update may fail. But it should succeed the second time.
+ - fix UI bug that was preventing real-time data from showing up in some charts.
+ - fix UI bug that was causing stale datum to appear.
+ - To avoid downstream permission issues, `pio` can't be run as root. That is, `sudo pio ...` will fail.
+ - a typo prevented `od_config.smoothing_penalizer` from being able to change anything internally. This is fixed.
 
 ### 24.2.26
 

@@ -11,6 +11,7 @@ import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from json import dumps
 from json import loads
+from os import geteuid
 from shlex import quote
 from sys import exit
 from time import sleep
@@ -83,6 +84,9 @@ def pio(ctx) -> None:
         raise SystemError(
             "/usr/local/bin/firstboot.sh found on disk. firstboot.sh likely failed. Try looking for errors in `sudo systemctl status firstboot.service`."
         )
+
+    if geteuid() == 0:
+        raise SystemError("Don't run as root!")
 
 
 @pio.command(name="logs", short_help="show recent logs")

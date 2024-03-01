@@ -1191,7 +1191,7 @@ def start_od_reading(
         calibration_transformer = NullCalibrationTransformer()  # type: ignore
 
     if interval is not None:
-        penalizer = config.get("od_config", "smoothing_penalzier", fallback=700.0) / interval
+        penalizer = config.get("od_config", "smoothing_penalizer", fallback=700.0) / interval
     else:
         penalizer = 0.0
 
