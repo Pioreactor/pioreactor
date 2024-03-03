@@ -201,7 +201,7 @@ class GrowthRateCalculator(BackgroundJob):
             ekf_outlier_std_threshold,
         )
 
-    def create_obs_noise_covariance(self, obs_std):  # typing: ignore
+    def create_obs_noise_covariance(self, obs_std):  # type: ignore
         """
         Our sensor measurements have initial variance V, but in our KF, we scale them their
         initial mean, M. Hence the observed variance of the _normalized_ measurements is

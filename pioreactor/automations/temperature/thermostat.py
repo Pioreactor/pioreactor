@@ -5,6 +5,7 @@ from pioreactor.automations.events import UpdatedHeaterDC
 from pioreactor.automations.temperature.base import TemperatureAutomationJob
 from pioreactor.config import config
 from pioreactor.utils import clamp
+from pioreactor.utils import is_pio_job_running
 from pioreactor.utils.streaming_calculations import PID
 
 
@@ -33,6 +34,9 @@ class Thermostat(TemperatureAutomationJob):
             target_name="temperature",
             output_limits=(-25, 25),  # avoid whiplashing
         )
+
+        if not is_pio_job_running("stirring"):
+            self.logger.warning("It's recommended to have stirring on when using the thermostat.")
 
     def execute(self) -> UpdatedHeaterDC:
         while not hasattr(self, "pid"):

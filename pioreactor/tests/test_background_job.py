@@ -68,7 +68,8 @@ def test_init_state_is_sent_to_mqtt() -> None:
     )
 
     with BackgroundJob(unit=unit, experiment=exp):
-        pass
+        pause()
+        pause()
 
     assert len(states) == 3
     assert states == ["init", "ready", "disconnected"]
@@ -345,9 +346,7 @@ def test_adding_key_in_published_settings() -> None:
 
         def __init__(self, *args, **kwargs) -> None:
             super(TestJob, self).__init__(*args, **kwargs)
-            self.add_to_published_settings(
-                "test", {"datatype": "string", "persist": True, "settable": True}
-            )
+            self.add_to_published_settings("test", {"datatype": "string", "persist": True, "settable": True})
 
     with TestJob(unit=get_unit_name(), experiment=exp):
         msg = subscribe(f"pioreactor/testing_unit/{exp}/test_job/test/$settable")
@@ -429,9 +428,7 @@ def test_dodging() -> None:
     )
     time.sleep(5)
 
-    with collect_all_logs_of_level(
-        "NOTICE", unit=get_unit_name(), experiment="test_dodging"
-    ) as bucket:
+    with collect_all_logs_of_level("NOTICE", unit=get_unit_name(), experiment="test_dodging") as bucket:
         with JustPause():
             time.sleep(26)
             assert len(bucket) > 4, bucket
@@ -450,9 +447,7 @@ def test_dodging_when_od_reading_stops_first() -> None:
         job_name = "just_pause"
 
         def __init__(self):
-            super().__init__(
-                unit=get_unit_name(), experiment="test_dodging_when_od_reading_stops_first"
-            )
+            super().__init__(unit=get_unit_name(), experiment="test_dodging_when_od_reading_stops_first")
 
         def action_to_do_before_od_reading(self):
             self.logger.notice(f"   Pausing at {time.time()} 🛑")
@@ -542,3 +537,19 @@ def test_job_write_metadata_correctly() -> None:
     with local_intermittent_storage(f"job_metadata_{bj.job_name}") as cache:
         assert cache["is_running"] == "0"
         assert cache["ended_at"] != ""
+
+
+def test_that_job_will_republish_state_if_not_correct_in_broker() -> None:
+    experiment = "test_that_job_will_republish_state_if_not_correct_in_broker"
+    unit = get_unit_name()
+
+    with BackgroundJob(unit=unit, experiment=experiment) as bj:
+        pause()
+        assert bj.state == bj.READY
+        assert subscribe(f"pioreactor/{unit}/{experiment}/{bj.job_name}/$state").payload.decode() == bj.READY  # type: ignore
+        pause()
+        # override state
+        publish(f"pioreactor/{unit}/{experiment}/{bj.job_name}/$state", "lost", retain=True)
+        pause()
+        assert bj.state == bj.READY
+        assert subscribe(f"pioreactor/{unit}/{experiment}/{bj.job_name}/$state").payload.decode() == bj.READY  # type: ignore

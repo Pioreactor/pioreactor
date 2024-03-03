@@ -219,7 +219,7 @@ def subscribe(
 
     topics = [topics] if isinstance(topics, str) else topics
     userdata: dict[str, Any] = {
-        "topics": [(topic, mqtt_kwargs.pop("qos", 0)) for topic in topics],
+        "topics": [(topic, mqtt_kwargs.pop("qos", QOS.EXACTLY_ONCE)) for topic in topics],
         "messages": None,
         "lock": lock,
     }
@@ -289,7 +289,7 @@ def subscribe_and_callback(
             client.subscribe(userdata["topics"])
 
         userdata = {
-            "topics": [(topic, mqtt_kwargs.pop("qos", 0)) for topic in topics],
+            "topics": [(topic, mqtt_kwargs.pop("qos", QOS.EXACTLY_ONCE)) for topic in topics],
             "name": name,
         }
 

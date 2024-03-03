@@ -313,7 +313,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             raise e
 
         # this should happen _after_ pub clients are set up
-        self.start_general_passive_listeners()
+        self._start_general_passive_listeners()
 
         # next thing that run is the subclasses __init__
 
@@ -431,7 +431,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         callback: t.Callable[[pt.MQTTMessage], None],
         subscriptions: list[str | MQTT_TOPIC] | str | MQTT_TOPIC,
         allow_retained: bool = True,
-        qos: int = QOS.AT_MOST_ONCE,
+        qos: int = QOS.EXACTLY_ONCE,
     ) -> None:
         """
         Parameters
@@ -591,7 +591,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         def reconnect_protocol(client: Client, userdata, flags, rc: int, properties=None):
             self.logger.info("Reconnected to the MQTT broker on leader.")  # type: ignore
             self._publish_attr("state")
-            self.start_general_passive_listeners()
+            self._start_general_passive_listeners()
             self.start_passive_listeners()
 
         def on_disconnect(client, userdata, rc: int) -> None:
@@ -887,7 +887,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             f"Updated {attr} from {format_with_optional_units(previous_value, units)} to {format_with_optional_units(getattr(self, attr), units)}."
         )
 
-    def start_general_passive_listeners(self) -> None:
+    def _start_general_passive_listeners(self) -> None:
         # listen to changes in editable properties
         self.subscribe_and_callback(
             self._set_attr_from_message,
@@ -898,6 +898,20 @@ class _BackgroundJob(metaclass=PostInitCaller):
             ],
             allow_retained=False,
         )
+
+        self.subscribe_and_callback(
+            self._confirm_state_in_broker,
+            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$state",
+        )
+
+    def _confirm_state_in_broker(self, message: pt.MQTTMessage) -> None:
+        if message.payload is None:
+            return
+
+        state_in_broker = message.payload.decode()
+        if state_in_broker == self.LOST and state_in_broker != self.state:
+            self.logger.debug(f"Wrong state {state_in_broker} in broker - fixing by publishing {self.state}")
+            self._publish_attr("state")
 
     def _clear_mqtt_cache(self) -> None:
         """
