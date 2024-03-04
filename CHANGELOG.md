@@ -1,4 +1,4 @@
-### Upcoming
+### 24.3.4
 
 #### Enhancements
  - reusing more MQTT clients internally => faster job startup and less network overhead
