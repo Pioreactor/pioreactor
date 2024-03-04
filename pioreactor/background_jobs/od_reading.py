@@ -945,7 +945,7 @@ class ODReader(BackgroundJob):
             raise ValueError("Too many REFs?")
         else:
             # only element of the dict is our REF signal
-            target_voltage = 0.225
+            target_voltage = 0.100
             _, signal_voltage = signals.popitem()
             return clamp(0.0, target_voltage * (self.ir_led_intensity / signal_voltage), 100.0)
 
