@@ -131,7 +131,7 @@ function ExperimentProfilesContent(props) {
 
     client.on("connect", () => onSuccess() )
     client.on("message", (topic, message) => {
-      onMessage(message);
+      onMessage(topic, message);
     });
 
     setClient(client)
