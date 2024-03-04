@@ -10,7 +10,7 @@
  - To avoid downstream permission issues, `pio` can't be run as root. That is, `sudo pio ...` will fail.
  - a typo prevented `od_config.smoothing_penalizer` from being used internally. This is fixed.
  - some retry logic for fixing "lost" state in the UI.
- - fixed numerous MQTT connections from accumulating
+ - fixed numerous MQTT connections from accumulating in the UI
 
 ### 24.2.26
 
