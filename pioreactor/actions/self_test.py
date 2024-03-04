@@ -136,7 +136,8 @@ def test_all_positive_correlations_between_pds_and_leds(
 
     adc_reader = ADCReader(
         channels=ALL_PD_CHANNELS, dynamic_gain=False, fake_data=is_testing_env(), penalizer=0.0
-    ).setup_adc()
+    )
+    adc_reader.setup_adc()
 
     # set all to 0, but use original experiment name, since we indeed are setting them to 0.
     led_intensity(
@@ -257,11 +258,16 @@ def test_REF_is_lower_than_0_dot_256_volts(
 ) -> None:
     reference_channel = cast(PdChannel, config["od_config.photodiode_channel_reverse"][REF_keyword])
     ir_channel = cast(LedChannel, config["leds_reverse"][IR_keyword])
-    ir_intensity = config.getfloat("od_config", "ir_led_intensity")
+    config_ir_intensity = config.get("od_config", "ir_led_intensity")
+    if config_ir_intensity == "auto":
+        ir_intensity = 50.0  # this has been our historical default, and should generally work. Default now is "auto", which targets 0.225 V into REF
+    else:
+        ir_intensity = float(config_ir_intensity)
 
     adc_reader = ADCReader(
         channels=[reference_channel], dynamic_gain=False, fake_data=is_testing_env(), penalizer=0.0
-    ).setup_adc()
+    )
+    adc_reader.setup_adc()
 
     current_experiment_name = get_latest_experiment_name()
     with change_leds_intensities_temporarily(
