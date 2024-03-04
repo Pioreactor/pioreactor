@@ -559,7 +559,7 @@ class DosingAutomationJob(AutomationJob):
         self.latest_normalized_od_at = payload.timestamp
 
     def _set_ods(self, message: pt.MQTTMessage) -> None:
-        if message.payload is None:
+        if not message.payload:
             return
 
         self.previous_od = self._latest_od

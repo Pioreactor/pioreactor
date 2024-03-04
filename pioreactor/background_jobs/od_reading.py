@@ -127,7 +127,11 @@ def average_over_pd_channel_to_voltages(*pd_channel_to_voltages: PdChannelToVolt
             summed_pd_channel_to_voltage[channel] = summed_pd_channel_to_voltage.get(channel, 0) + voltage
         running_count += 1
 
-    return {channel: voltage / running_count for channel, voltage in summed_pd_channel_to_voltage.items()}
+    v = {channel: voltage / running_count for channel, voltage in summed_pd_channel_to_voltage.items()}
+    print(pd_channel_to_voltages)
+    print(summed_pd_channel_to_voltage)
+    print(v)
+    return v
 
 
 class ADCReader(LoggerMixin):
