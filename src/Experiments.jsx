@@ -86,6 +86,9 @@ function ExperimentSelection(props) {
     props.handleExperimentSelectionChange(e.target.value)
   }
 
+  const experimentOptions = experiments.map((v, index) => {
+            return <MenuItem key={index} value={v.experiment}>{v.experiment +  (v.created_at ? ` (${moment(v.created_at).format("MMMM D, YYYY")})` : "")}</MenuItem>
+  })
 
   return (
     <div style={{maxWidth: "450px", margin: "10px"}}>
@@ -97,10 +100,7 @@ function ExperimentSelection(props) {
           value={props.experimentSelection}
           onChange={handleExperimentSelectionChange}
         >
-          {experiments.map((v) => {
-            return <MenuItem key={v.experiment} value={v.experiment}>{v.experiment +  (v.created_at ? ` (${moment(v.created_at).format("MMMM D, YYYY")})` : "")}</MenuItem>
-            }
-          )}
+        {experimentOptions}
         </Select>
       </FormControl>
       <Box sx={{ p: 2, pt: 0 }}>

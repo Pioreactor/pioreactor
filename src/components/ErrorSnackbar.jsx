@@ -52,12 +52,10 @@ function ErrorSnackbar(props) {
     const password = config.mqtt.password || "raspberry"
 
     const brokerUrl = `${config.mqtt.ws_protocol}://${config.mqtt.broker_address}:${config.mqtt.broker_ws_port || 9001}/mqtt`;
-
     const client = mqtt.connect(brokerUrl, {
       username: userName,
       password: password,
-      keepalive: 60 * 15,
-      connectTimeout: 20,
+      keepalive: 15 * 60,
     });
 
     client.on("connect", () => onSuccess() )
@@ -69,6 +67,8 @@ function ErrorSnackbar(props) {
     client.on("message", (topic, message) => {
       onMessage(topic, message);
     });
+
+    return () => {client.end()};
 
   },[config])
 

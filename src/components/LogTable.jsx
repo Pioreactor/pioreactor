@@ -93,6 +93,7 @@ class LogTable extends React.Component {
     this.client = mqtt.connect(brokerUrl, {
       username: userName,
       password: password,
+      keepalive: 15 * 60,
     });
 
     this.client.on("connect", () => this.onConnect() )
@@ -108,6 +109,12 @@ class LogTable extends React.Component {
       this.getData()
      }
   }
+
+  componentWillUnmount() {
+    // Disconnect from the MQTT broker when the component unmounts
+    this.client.end()
+  }
+
 
   onConnect() {
     this.client.subscribe([`pioreactor/+/${this.props.experiment}/logs/+`,`pioreactor/+/$experiment/logs/+`])

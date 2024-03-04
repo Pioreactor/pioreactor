@@ -126,7 +126,7 @@ function ExperimentProfilesContent(props) {
     const client = mqtt.connect(brokerUrl, {
       username: userName,
       password: password,
-      keepalive: 60 * 15,
+      keepalive: 15 * 60,
     });
 
     client.on("connect", () => onSuccess() )
@@ -135,6 +135,7 @@ function ExperimentProfilesContent(props) {
     });
 
     setClient(client)
+    return () => {client.end()};
 
   },[config, experimentMetadata])
 

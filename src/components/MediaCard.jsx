@@ -51,7 +51,7 @@ function MediaCard(props) {
         .filter((v) => v[1] === '1')
         .map((v) => v[0])
     );
-
+    return () => {client.end()};
   }, [props.config, props.experiment]);
 
   async function getRecentRates() {

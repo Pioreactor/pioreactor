@@ -85,10 +85,9 @@ class Chart extends React.Component {
   }
 
   onConnect() {
-
-      this.topics.forEach(topic => {
-        this.client.subscribe(`pioreactor/+/${this.props.experiment}/${topic}`);
-      });
+    this.topics.forEach(topic => {
+      this.client.subscribe(`pioreactor/+/${this.props.experiment}/${topic}`);
+    });
 
   }
 
@@ -145,7 +144,11 @@ class Chart extends React.Component {
     this.client.on("message", (topic, message, packet) => {
       this.onMessage(topic, message, packet);
     });
+  }
 
+  componentWillUnmount() {
+    // Disconnect from the MQTT broker when the component unmounts
+    this.client.end()
   }
 
   async getHistoricalDataFromServer() {

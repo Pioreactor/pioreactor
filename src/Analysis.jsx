@@ -65,6 +65,10 @@ function ExperimentSelection(props) {
     props.handleChange(e.target.value)
   }
 
+  const options = experiments.map((v, index) => {
+            return <option key={`${v.experiment}`} value={v.experiment}>{v.experiment +  (v.created_at ? ` (started ${moment(v.created_at).format("MMMM D, YYYY")})` : "")}</option>
+  })
+
   return (
     <div style={{maxWidth: "450px", margin: "10px"}}>
       <FormControl fullWidth component="fieldset" className={classes.formControl}>
@@ -80,10 +84,7 @@ function ExperimentSelection(props) {
             id: 'experiment',
           }}
         >
-          {experiments.map((v) => {
-            return <option value={v.experiment}>{v.experiment +  (v.created_at ? ` (started ${moment(v.created_at).format("MMMM D, YYYY")})` : "")}</option>
-            }
-          )}
+          {options}
         </Select>
       </FormControl>
     </div>

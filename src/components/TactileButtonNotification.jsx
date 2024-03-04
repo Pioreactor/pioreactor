@@ -58,12 +58,15 @@ function TactileButtonNotification(props) {
     const client = mqtt.connect(brokerUrl, {
       username: userName,
       password: password,
-      keepalive: 60 * 15,
     });
     client.on("connect", () => onSuccess() )
     client.on("message", (topic, message) => {
       onMessage(message);
     });
+    client.on('error', function (error) {
+      console.log(error)
+    });
+    return () => {client.end()};
 
   },[config, relabelMap])
 

@@ -82,10 +82,12 @@ function AssignLabels(props){
     const client = mqtt.connect(brokerUrl, {
       username: userName,
       password: password,
-      keepalive: 60 * 15,
+      keepalive: 15 * 60,
     });
 
     setClient(client)
+    return () => {client.end()};
+
   },[props.config])
 
 

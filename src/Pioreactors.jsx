@@ -1800,10 +1800,13 @@ function SettingsActionsDialogAll({config, experiment}) {
     const client = mqtt.connect(brokerUrl, {
       username: userName,
       password: password,
-      keepalive: 60 * 15,
+      keepalive: 15 * 60,
     });
 
     setClient(client)
+
+    return () => {client.end()};
+
   },[config])
 
 
@@ -2569,7 +2572,7 @@ function PioreactorCard(props){
     const client = mqtt.connect(brokerUrl, {
       username: userName,
       password: password,
-      keepalive: 60 * 15,
+      keepalive: 15 * 60,
     });
     client.on("connect", () => onConnect() )
     client.on("message", (topic, message) => {
@@ -2577,6 +2580,8 @@ function PioreactorCard(props){
     });
 
     setClient(client)
+    return () => {client.end()};
+
   },[config, experiment, jobFetchComplete, isUnitActive])
 
   const getInicatorLabel = (state, isActive) => {

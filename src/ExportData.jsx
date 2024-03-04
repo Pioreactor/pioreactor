@@ -95,7 +95,7 @@ function ExperimentSelection(props) {
           onChange={handleExperimentSelectionChange}
         >
           {experiments.map((v) => {
-            return <MenuItem value={v.experiment}>{v.experiment +  (v.created_at ? ` (started ${moment(v.created_at).format("MMMM D, YYYY")})` : "")}</MenuItem>
+            return <MenuItem key={v.experiment} value={v.experiment}>{v.experiment +  (v.created_at ? ` (started ${moment(v.created_at).format("MMMM D, YYYY")})` : "")}</MenuItem>
             }
           )}
         </Select>
