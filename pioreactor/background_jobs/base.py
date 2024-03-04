@@ -609,7 +609,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         client = create_client(
             client_id=f"{self.job_name}-sub-{self.unit}-{self.experiment}",
             last_will=last_will,
-            keepalive=60,
+            keepalive=120,
             clean_session=False,  # this, in theory, will reconnect to old subs when we reconnect.
         )
         # we catch exceptions and report them in our software
