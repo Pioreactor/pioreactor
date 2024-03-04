@@ -111,6 +111,9 @@ class Pico_ADC(_ADC):
     def from_voltage_to_raw(self, voltage: pt.Voltage) -> pt.AnalogValue:
         return int((voltage / 3.3) * 4095 * 16)
 
+    def from_voltage_to_raw_precise(self, voltage: pt.Voltage) -> float:
+        return (voltage / 3.3) * 4095 * 16
+
     def from_raw_to_voltage(self, raw: pt.AnalogValue) -> pt.Voltage:
         return (raw / 4095 / 16) * 3.3
 

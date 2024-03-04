@@ -97,6 +97,9 @@ class Mock_ADC(_ADC):
     def from_voltage_to_raw(self, voltage) -> int:
         return round(voltage * 32767 / 4.096)
 
+    def from_voltage_to_raw_precise(self, voltage) -> float:
+        return voltage * 32767 / 4.096
+
     def from_raw_to_voltage(self, raw) -> float:
         return 4.096 * raw / 32767
 

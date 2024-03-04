@@ -119,19 +119,19 @@ REF_keyword = "REF"
 IR_keyword = "IR"
 
 
-def average_over_pd_channel_to_voltages(*pd_channel_to_voltages: PdChannelToVoltage):
+def average_over_pd_channel_to_voltages(*pd_channel_to_voltages: PdChannelToVoltage) -> PdChannelToVoltage:
     running_count = 0
     summed_pd_channel_to_voltage: PdChannelToVoltage = {}
     for pd_channel_to_voltage in pd_channel_to_voltages:
-        for channel, voltage in pd_channel_to_voltage.items():
-            summed_pd_channel_to_voltage[channel] = summed_pd_channel_to_voltage.get(channel, 0) + voltage
+        for pd_channel, voltage in pd_channel_to_voltage.items():
+            summed_pd_channel_to_voltage[pd_channel] = (
+                summed_pd_channel_to_voltage.get(pd_channel, 0) + voltage
+            )
         running_count += 1
 
-    v = {channel: voltage / running_count for channel, voltage in summed_pd_channel_to_voltage.items()}
-    print(pd_channel_to_voltages)
-    print(summed_pd_channel_to_voltage)
-    print(v)
-    return v
+    return {
+        pd_channel: voltage / running_count for pd_channel, voltage in summed_pd_channel_to_voltage.items()
+    }
 
 
 class ADCReader(LoggerMixin):
@@ -169,7 +169,7 @@ class ADCReader(LoggerMixin):
         self.max_signal_moving_average = ExponentialMovingAverage(alpha=0.05)
         self.channels: list[pt.PdChannel] = channels
         self.batched_readings: PdChannelToVoltage = {}
-        self.adc_offsets: dict[pt.PdChannel, pt.AnalogValue] = {}
+        self.adc_offsets: dict[pt.PdChannel, float] = {}
         self.penalizer = penalizer
         self.oversampling_count = oversampling_count
 
@@ -226,7 +226,7 @@ class ADCReader(LoggerMixin):
         With the IR LED off, determine the offsets. These offsets are used later to shift the raw signals such that "dark" is 0.
         """
         for channel, blank_reading in batched_readings.items():
-            self.adc_offsets[channel] = self.adc.from_voltage_to_raw(blank_reading)
+            self.adc_offsets[channel] = self.adc.from_voltage_to_raw_precise(blank_reading)
 
         self.logger.debug(
             f"ADC offsets: {self.adc_offsets}, and in voltage: { {c: self.adc.from_raw_to_voltage(i) for c, i in  self.adc_offsets.items()}}"
@@ -401,9 +401,7 @@ class ADCReader(LoggerMixin):
         self.batched_readings = {}
 
     @staticmethod
-    def _remove_offset_from_signal(
-        signals: list[pt.AnalogValue], offset: pt.AnalogValue
-    ) -> list[pt.AnalogValue]:
+    def _remove_offset_from_signal(signals: list[pt.AnalogValue], offset: float) -> list[float]:
         return [x - offset for x in signals]
 
     def take_reading(self) -> PdChannelToVoltage:
@@ -476,7 +474,7 @@ class ADCReader(LoggerMixin):
                     timestamps[channel],
                     shifted_signals,
                     self.most_appropriate_AC_hz,
-                    prior_C=(self.adc.from_voltage_to_raw(self.batched_readings[channel]))
+                    prior_C=(self.adc.from_voltage_to_raw_precise(self.batched_readings[channel]))
                     if (channel in self.batched_readings)
                     else None,
                     penalizer_C=(self.penalizer / self.oversampling_count),
