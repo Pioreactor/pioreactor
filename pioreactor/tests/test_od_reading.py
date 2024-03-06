@@ -956,3 +956,14 @@ def test_calibration_data_from_user2() -> None:
 
     with local_persistant_storage("current_od_calibration") as c:
         del c["90"]
+
+
+def test_auto_ir_led_intensity() -> None:
+    from pioreactor.config import config
+
+    config["od_config"]["ir_led_intensity"] = "auto"
+
+    experiment = "test_auto_ir_led_intensity"
+
+    with start_od_reading("REF", "90", interval=None, fake_data=True, experiment=experiment) as od:
+        assert od.ir_led_intensity == 20.0
