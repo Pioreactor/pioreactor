@@ -1,3 +1,11 @@
+### Upcoming
+
+#### Highlights
+ - For better consistency between Pioreactors, we've introduced a new configuration option that will automatically vary the IR LED intensity to match a target value in the reference. This means that if your IR LED is slightly different between Pioreactors, the intensity % will be adjusted to match an internal value. To enable this feature, change the `[od_config]` config parameter `ir_led_intensity` value to `auto`
+
+#### Bug fixes
+ - Fixes updating automations in experiment profiles
+
 ### 24.3.4
 
 #### Enhancements

@@ -443,7 +443,7 @@ def _verify_experiment_profile(profile: struct.Profile) -> struct.Profile:
                     f"Don't use 'start' for automations. To start automations, use 'start' for controllers with `options`: {action}"
                 )
             case _:
-                raise ValueError("why am i here")
+                pass
         return True
 
     for automation_type in ["temperature_automation", "dosing_automation", "led_automation"]:

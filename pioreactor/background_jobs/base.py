@@ -271,7 +271,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # The order we add them to the list is important too, as disconnects occur async,
         # we want to give the sub_client (has the will msg) as much time as possible to disconnect.
         self.pub_client = self._create_pub_client()
-        self.sub_client = self._create_sub_client()
 
         self.logger = create_logger(
             self.job_name,
@@ -283,6 +282,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         self._check_for_duplicate_activity()
 
+        # if we no-op in the _check_for_duplicate_activity, we don't want to fire the LWT, so we delay subclient until after.
+        self.sub_client = self._create_sub_client()
+
         # add state
         self.published_settings = self.published_settings | {
             "state": {
@@ -292,6 +294,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             }
         }
 
+        # this comes _after_ adding state to published settings
         self.set_state(self.INIT)
 
         self._set_up_exit_protocol()
