@@ -14,7 +14,7 @@ import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Typography from "@mui/material/Typography";
 import Stack from "@mui/material/Stack";
-import { MQTTProvider, useMQTT } from './MQTTContext';
+import { useMQTT } from './MQTTContext';
 
 
 const TimeFormatSwitch = (props) => {
@@ -187,44 +187,39 @@ function Overview(props) {
         </Grid>
 
 
+        <Grid item xs={12} md={7} container spacing={2} justifyContent="flex-start" style={{height: "100%"}}>
+          <Charts config={config} timeScale={timeScale} timeWindow={timeWindow} experimentMetadata={experimentMetadata} relabelMap={relabelMap}/>
+        </Grid>
 
-        <MQTTProvider config={config}>
+        <Grid item xs={12} md={5} container spacing={1} justifyContent="flex-end" style={{height: "100%"}}>
 
-          <Grid item xs={12} md={7} container spacing={2} justifyContent="flex-start" style={{height: "100%"}}>
-            <Charts config={config} timeScale={timeScale} timeWindow={timeWindow} experimentMetadata={experimentMetadata} relabelMap={relabelMap}/>
+          <Grid item xs={6} md={6}>
+            <Stack direction="row" justifyContent="start">
+              <TimeWindowSwitch setTimeWindow={setTimeWindow} initTimeWindow={10000000}/>
+            </Stack>
+          </Grid>
+          <Grid item xs={6} md={6}>
+            <Stack direction="row" justifyContent="end">
+              <TimeFormatSwitch setTimeScale={setTimeScale} initTimeScale={timeScale}/>
+            </Stack>
           </Grid>
 
-          <Grid item xs={12} md={5} container spacing={1} justifyContent="flex-end" style={{height: "100%"}}>
-
-            <Grid item xs={6} md={6}>
-              <Stack direction="row" justifyContent="start">
-                <TimeWindowSwitch setTimeWindow={setTimeWindow} initTimeWindow={10000000}/>
-              </Stack>
-            </Grid>
-            <Grid item xs={6} md={6}>
-              <Stack direction="row" justifyContent="end">
-                <TimeFormatSwitch setTimeScale={setTimeScale} initTimeScale={timeScale}/>
-              </Stack>
-            </Grid>
-
-            {( config['ui.overview.cards'] && (config['ui.overview.cards']['dosings'] === "1")) &&
-              <Grid item xs={12} >
-                <MediaCard experiment={experimentMetadata.experiment} config={config} relabelMap={relabelMap}/>
-              </Grid>
-            }
-
-
-          {( config['ui.overview.cards'] && (config['ui.overview.cards']['event_logs'] === "1")) &&
-            <Grid item xs={12}>
-              <LogTable byDuration={timeScale==="hours"} experimentStartTime={experimentMetadata.created_at} experiment={experimentMetadata.experiment} config={config} relabelMap={relabelMap}/>
-              <Button to={`/export-data?experiment=${experimentMetadata.experiment}&logs=1`} component={Link} color="primary" style={{textTransform: "none", verticalAlign: "middle", margin: "0px 3px"}}>
-                <ListAltOutlinedIcon style={{ fontSize: 17, margin: "0px 3px"}} color="primary"/> Export all logs
-              </Button>
+          {( config['ui.overview.cards'] && (config['ui.overview.cards']['dosings'] === "1")) &&
+            <Grid item xs={12} >
+              <MediaCard experiment={experimentMetadata.experiment} config={config} relabelMap={relabelMap}/>
             </Grid>
           }
-          </Grid>
 
-        </MQTTProvider>
+
+        {( config['ui.overview.cards'] && (config['ui.overview.cards']['event_logs'] === "1")) &&
+          <Grid item xs={12}>
+            <LogTable byDuration={timeScale==="hours"} experimentStartTime={experimentMetadata.created_at} experiment={experimentMetadata.experiment} config={config} relabelMap={relabelMap}/>
+            <Button to={`/export-data?experiment=${experimentMetadata.experiment}&logs=1`} component={Link} color="primary" style={{textTransform: "none", verticalAlign: "middle", margin: "0px 3px"}}>
+              <ListAltOutlinedIcon style={{ fontSize: 17, margin: "0px 3px"}} color="primary"/> Export all logs
+            </Button>
+          </Grid>
+        }
+        </Grid>
 
       </Grid>
     </Fragment>

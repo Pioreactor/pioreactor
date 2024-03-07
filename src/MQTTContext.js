@@ -23,6 +23,7 @@ export const MQTTProvider = ({ config, children }) => {
       const mqttClient = mqtt.connect(`${ws_protocol}://${broker_address}:${broker_ws_port || 9001}/mqtt`, {
         username: username || 'pioreactor',
         password: password || 'raspberry',
+        keepalive: 2 * 60,
       });
 
       mqttClient.on('connect', () => {
@@ -30,7 +31,6 @@ export const MQTTProvider = ({ config, children }) => {
       });
 
       mqttClient.on('message', (topic, message, packet) => {
-        console.log("new message:", topic, message.toString())
         // Iterate over the topicHandlers to find a matching pattern
         Object.keys(topicHandlersRef.current).forEach((pattern) => {
           if (MQTTPattern.matches(pattern, topic)) {
