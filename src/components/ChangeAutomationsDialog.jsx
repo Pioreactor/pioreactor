@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 
-import mqtt from 'mqtt'
 import { makeStyles } from "@mui/styles";
 
 import Button from "@mui/material/Button";

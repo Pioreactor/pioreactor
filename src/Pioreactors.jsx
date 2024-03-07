@@ -1,5 +1,4 @@
 import clsx from 'clsx';
-import mqtt from 'mqtt'
 import moment from 'moment';
 
 import React, {useState, useEffect} from "react";
@@ -2608,7 +2607,7 @@ function PioreactorCard(props){
                 />
               </div>
               <div>
-                <FlashLEDButton client={client} disabled={!isUnitActive} config={props.config} unit={unit}/>
+                <FlashLEDButton client={client} disabled={!isUnitActive} config={config} unit={unit}/>
               </div>
               <div>
                 <CalibrateDialog
@@ -2624,7 +2623,7 @@ function PioreactorCard(props){
                 />
               </div>
               <SettingsActionsDialog
-                config={props.config}
+                config={config}
                 client={client}
                 unit={unit}
                 label={label}
@@ -2707,7 +2706,7 @@ function PioreactorCard(props){
                       default="—"
                       isLEDIntensity={setting.label === "LED intensity"}
                       isPWMDc={setting.label === "PWM intensity"}
-                      config={props.config}
+                      config={config}
                     />
                   </div>
             )))}
@@ -2762,7 +2761,7 @@ function Pioreactors({title}) {
   const inactiveUnits = config['cluster.inventory'] ? entries(config['cluster.inventory']).filter((v) => v[1] === "0").map((v) => v[0]) : []
 
   return (
-    <MQTTProvider config={config}>
+    <MQTTProvider name="pioreactor" config={config}>
       <Grid container spacing={2} >
         <Grid item md={12} xs={12}>
           <PioreactorHeader config={config} experiment={experimentMetadata.experiment}/>

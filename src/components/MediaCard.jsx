@@ -1,6 +1,5 @@
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import mqtt from 'mqtt'
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import React, { useState, useEffect } from 'react';

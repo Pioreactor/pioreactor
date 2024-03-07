@@ -340,7 +340,7 @@ function Profiles(props) {
       document.title = props.title;
     }, [props.title]);
     return (
-      <MQTTProvider config={config}>
+      <MQTTProvider name="profiles" config={config}>
         <Grid container spacing={2} >
           <Grid item md={12} xs={12}>
             <ProfilesContainer config={config}/>

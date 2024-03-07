@@ -48,6 +48,7 @@ function AutomationForm(props){
             className={classes.textFieldCompact}
           />
         case 'string':
+        default:
           return <TextField
             size="small"
             autoComplete={"off"}

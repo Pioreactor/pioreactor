@@ -1,5 +1,4 @@
 import React from "react";
-import mqtt from 'mqtt'
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
 import {getRelabelMap} from "../utilities"

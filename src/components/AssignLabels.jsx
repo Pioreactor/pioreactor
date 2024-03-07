@@ -1,9 +1,8 @@
 import React from "react";
 import Grid from '@mui/material/Grid';
 import FlareIcon from '@mui/icons-material/Flare';
-import mqtt from 'mqtt'
 import clsx from 'clsx';
-import {useState, useEffect} from "react";
+import {useState} from "react";
 import { makeStyles } from '@mui/styles';
 import Button from "@mui/material/Button";
 import TextField from '@mui/material/TextField';
@@ -12,6 +11,8 @@ import PioreactorIcon from "./PioreactorIcon"
 import EditIcon from '@mui/icons-material/Edit';
 import {getRelabelMap} from "../utilities"
 import CheckIcon from '@mui/icons-material/Check';
+import { useMQTT } from '../MQTTContext';
+
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -64,7 +65,7 @@ function AssignLabels(props){
   const classes = useStyles();
   const [labels, setLabels] = useState({})
   const [relabelMap, setRelabelMap] = useState({})
-  const [client, setClient] = useState(null)
+  const {client } = useMQTT();
   const [confirmed, setConfirmed] = useState(false)
   const activeUnits = props.config['cluster.inventory'] ? Object.entries(props.config['cluster.inventory']).filter((v) => v[1] === "1").map((v) => v[0]) : []
 
@@ -72,23 +73,6 @@ function AssignLabels(props){
   React.useEffect(() => {
     getRelabelMap(setRelabelMap)
   }, [])
-
-
-  useEffect(() => {
-    const userName = props.config.mqtt.username || "pioreactor"
-    const password = props.config.mqtt.password || "raspberry"
-    const brokerUrl = `${props.config.mqtt.ws_protocol}://${props.config.mqtt.broker_address}:${props.config.mqtt.broker_ws_port || 9001}/mqtt`;
-
-    const client = mqtt.connect(brokerUrl, {
-      username: userName,
-      password: password,
-      keepalive: 15 * 60,
-    });
-
-    setClient(client)
-    return () => {client.end()};
-
-  },[props.config])
 
 
   const onSubmit = () => {
