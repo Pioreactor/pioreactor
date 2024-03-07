@@ -1,9 +1,8 @@
 import React from "react";
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
-import {getConfig, getRelabelMap} from "../utilities"
-import mqtt from 'mqtt'
-
+import {getRelabelMap} from "../utilities"
+import { useMQTT } from '../MQTTContext';
 import Snackbar from '@mui/material/Snackbar';
 
 function ErrorSnackbar(props) {
@@ -14,11 +13,13 @@ function ErrorSnackbar(props) {
   const [level, setLevel] = React.useState("error")
   const [task, setTask] = React.useState("")
   const [relabelMap, setRelabelMap] = React.useState({})
-  const [config, setConfig] = React.useState({})
+  const {client, subscribeToTopic } = useMQTT();
+
+  const config = props.config
+
 
   React.useEffect(() => {
     getRelabelMap(setRelabelMap)
-    getConfig(setConfig)
   }, [])
 
   React.useEffect(() => {
@@ -26,53 +27,11 @@ function ErrorSnackbar(props) {
       return
     }
 
-    const onFailure = (response) => {
-      setMsg(`Failed to connect to MQTT. Is configuration for MQTT's address correct? Currently set to ${config['mqtt']['broker_address']}.`)
-      setTask("PioreactorUI")
-      setLevel("ERROR")
-      setUnit(config['cluster.topology']['leader_hostname'])
-      setOpen(true)
-      console.log(response)
-    }
+    subscribeToTopic("pioreactor/+/+/logs/+", onMessage)
 
-    const onSuccess = () => {
-      client.subscribe(
-      [
-        "pioreactor",
-        "+",
-        "+",
-        "logs",
-        "+"
-      ].join("/"),
-      { qos: 1 }
-      )
-    }
+  },[config, client])
 
-    const userName = config.mqtt.username || "pioreactor"
-    const password = config.mqtt.password || "raspberry"
-
-    const brokerUrl = `${config.mqtt.ws_protocol}://${config.mqtt.broker_address}:${config.mqtt.broker_ws_port || 9001}/mqtt`;
-    const client = mqtt.connect(brokerUrl, {
-      username: userName,
-      password: password,
-      keepalive: 15 * 60,
-    });
-
-    client.on("connect", () => onSuccess() )
-
-    client.on('error', function (error) {
-      onFailure(error);
-    });
-
-    client.on("message", (topic, message) => {
-      onMessage(topic, message);
-    });
-
-    return () => {client.end()};
-
-  },[config])
-
-  const onMessage = (topic, message) => {
+  const onMessage = (topic, message, packet) => {
       const payload = JSON.parse(message.toString())
       if ((payload.level === "ERROR" || payload.level === "WARNING" || payload.level === "NOTICE") && (!topic.toString().endsWith("/ui"))){
         const unit = topic.toString().split("/")[1]

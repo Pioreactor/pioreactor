@@ -23,6 +23,9 @@ import SideNavAndHeader from "./components/SideNavAndHeader";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ConfirmProvider } from 'material-ui-confirm';
 import { ProSidebarProvider } from "react-pro-sidebar";
+import {getConfig} from "./utilities"
+import { MQTTProvider, useMQTT } from './MQTTContext';
+
 
 import "@fontsource/roboto/300.css"
 import "@fontsource/roboto/400.css"
@@ -80,6 +83,12 @@ function App() {
 }
 
 function MainSite() {
+  const [config, setConfig] = React.useState({})
+
+  React.useEffect(() => {
+    getConfig(setConfig)
+  }, [])
+
   return (
     <div style={{display: 'flex'}}>
       <ErrorBoundary>
@@ -100,8 +109,10 @@ function MainSite() {
               <Route path="/updates" element={<Updates title="Pioreactor ~ Updates"/>}/>
               <Route path="/" element={<ExperimentOverview title="Pioreactor ~ Overview"/>}/>
             </Routes>
-            <ErrorSnackbar />
-            <TactileButtonNotification />
+            <MQTTProvider config={config}>
+              <ErrorSnackbar config={config} />
+              <TactileButtonNotification config={config}  />
+            </MQTTProvider>
           </div>
         </main>
       </ErrorBoundary>

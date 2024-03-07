@@ -13,6 +13,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 
 import PioreactorIcon from "./PioreactorIcon"
+import { useMQTT } from '../MQTTContext';
 
 
 function MediaCard(props) {
@@ -22,37 +23,23 @@ function MediaCard(props) {
   const [altMediaThroughput, setAltMediaThroughput] = useState(0);
   const [rates, setRates] = useState({ all: { mediaRate: 0, altMediaRate: 0 } });
   const [activeUnits, setActiveUnits] = useState([]);
+  const config = props.config
+  const {client, subscribeToTopic } = useMQTT();
+
 
   useEffect(() => {
     getRecentRates();
 
-    const userName = props.config.mqtt.username || "pioreactor"
-    const password = props.config.mqtt.password || "raspberry"
-    const brokerUrl = `${props.config.mqtt.ws_protocol}://${props.config.mqtt.broker_address}:${props.config.mqtt.broker_ws_port || 9001}/mqtt`;
+    subscribeToTopic(`pioreactor/+/${props.experiment}/dosing_automation/alt_media_throughput`, onMessage)
+    subscribeToTopic(`pioreactor/+/${props.experiment}/dosing_automation/media_throughput`, onMessage)
 
-    const client = mqtt.connect(brokerUrl, {
-      username: userName,
-      password: password,
-    });
-
-    client.on("connect", () => {
-      client.subscribe(
-        [`pioreactor/+/${props.experiment}/dosing_automation/alt_media_throughput`,
-        `pioreactor/+/${props.experiment}/dosing_automation/media_throughput`],
-      )
-    })
-
-    client.on("message", (topic, message) => {
-      onMessage(topic, message);
-    });
 
     setActiveUnits(
-      Object.entries(props.config['cluster.inventory'])
+      Object.entries(config['cluster.inventory'])
         .filter((v) => v[1] === '1')
         .map((v) => v[0])
     );
-    return () => {client.end()};
-  }, [props.config, props.experiment]);
+  }, [config, props.experiment, client]);
 
   async function getRecentRates() {
     const response = await fetch(`/api/media_rates/current`);
@@ -70,7 +57,7 @@ function MediaCard(props) {
     return object;
   }
 
-  function onMessage(topic, message) {
+  function onMessage(topic, message, packet) {
     const topicParts = topic.toString().split('/');
     const payload = parseFloat(message.toString());
     const unit = topicParts[1];

@@ -20,6 +20,7 @@
     "material-ui-confirm": "^3.0.5",
     "moment": "^2.29.1",
     "mqtt": "^5.3.5",
+    "mqtt-pattern": "^2.1.0",
     "react": "^17.0.0",
     "react-bootstrap": "^1.3.0",
     "react-codeflask": "0.0.5",

@@ -1,4 +1,4 @@
-import React from "react";
+import { useState, useEffect, Fragment } from 'react';
 
 import Grid from "@mui/material/Grid";
 import Button from "@mui/material/Button";
@@ -14,13 +14,14 @@ import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Typography from "@mui/material/Typography";
 import Stack from "@mui/material/Stack";
+import { MQTTProvider, useMQTT } from './MQTTContext';
 
 
 const TimeFormatSwitch = (props) => {
-  const [state, setState] = React.useState(props.initTimeScale);
+  const [state, setState] = useState(props.initTimeScale);
 
   // Update state when props.init changes
-  React.useEffect(() => {
+  useEffect(() => {
     setState(props.initTimeScale);
   }, [props.initTimeScale]);
 
@@ -50,10 +51,10 @@ const TimeFormatSwitch = (props) => {
 
 
 const TimeWindowSwitch = (props) => {
-  const [state, setState] = React.useState(props.initTimeWindow);
+  const [state, setState] = useState(props.initTimeWindow);
 
   // Update state when props.init changes
-  React.useEffect(() => {
+  useEffect(() => {
     setState(props.initTimeWindow);
   }, [props.initTimeWindow]);
 
@@ -81,17 +82,72 @@ const TimeWindowSwitch = (props) => {
   );
 }
 
+function Charts(props) {
+  const [charts, setCharts] = useState({})
+  const config = props.config
+  const { client, subscribeToTopic } = useMQTT();
+
+
+  useEffect(() => {
+    fetch('/api/contrib/charts')
+      .then((response) => response.json())
+      .then((data) => {
+        setCharts(data.reduce((map, obj) => ((map[obj.chart_key] = obj), map), {}));
+      });
+  }, []);
+
+
+  return (
+    <Fragment>
+      {Object.entries(charts)
+        .filter(([chart_key, _]) => config['ui.overview.charts'] && (config['ui.overview.charts'][chart_key] === "1"))
+        .map(([chart_key, chart]) =>
+          <Fragment key={`grid-chart-${chart_key}`}>
+            <Grid item xs={12} >
+              <Card style={{ maxHeight: "100%"}}>
+                <Chart
+                  key={`chart-${chart_key}`}
+                  chartKey={chart_key}
+                  config={config}
+                  dataSource={chart.data_source}
+                  title={chart.title}
+                  topic={chart.mqtt_topic}
+                  payloadKey={chart.payload_key}
+                  yAxisLabel={chart.y_axis_label}
+                  experiment={props.experimentMetadata.experiment}
+                  deltaHours={props.experimentMetadata.delta_hours}
+                  experimentStartTime={props.experimentMetadata.created_at}
+                  downSample={chart.down_sample}
+                  interpolation={chart.interpolation || "stepAfter"}
+                  yAxisDomain={chart.y_axis_domain ? chart.y_axis_domain : null}
+                  lookback={props.timeWindow ? props.timeWindow : (chart.lookback ? eval(chart.lookback) : 10000)}
+                  fixedDecimals={chart.fixed_decimals}
+                  relabelMap={props.relabelMap}
+                  yTransformation={eval(chart.y_transformation || "(y) => y")}
+                  dataSourceColumn={chart.data_source_column}
+                  isPartitionedBySensor={chart_key === "raw_optical_density"}
+                  isLiveChart={true}
+                  byDuration={props.timeScale === "hours"}
+                  client={client}
+                  subscribeToTopic={subscribeToTopic}
+                />
+              </Card>
+            </Grid>
+          </Fragment>
+     )}
+    </Fragment>
+)}
+
 
 function Overview(props) {
 
-  const [experimentMetadata, setExperimentMetadata] = React.useState({})
-  const [relabelMap, setRelabelMap] = React.useState({})
-  const [config, setConfig] = React.useState({})
-  const [charts, setCharts] = React.useState({})
-  const [timeScale, setTimeScale] = React.useState(null)
-  const [timeWindow, setTimeWindow] = React.useState(null)
+  const [experimentMetadata, setExperimentMetadata] = useState({})
+  const [config, setConfig] = useState({})
+  const [timeScale, setTimeScale] = useState(null)
+  const [timeWindow, setTimeWindow] = useState(null)
+  const [relabelMap, setRelabelMap] = useState({})
 
-  React.useEffect(() => {
+  useEffect(() => {
     document.title = props.title;
 
     function getLatestExperiment() {
@@ -104,22 +160,14 @@ function Overview(props) {
         });
       }
 
-    function getCharts() {
-        fetch("/api/contrib/charts")
-        .then((response) => {
-          return response.json();
-        })
-        .then((data) => {
-          setCharts(data.reduce((map, obj) => (map[obj.chart_key] = obj, map), {}))
-        });
-      }
+
     getLatestExperiment()
-    getCharts()
-    getRelabelMap(setRelabelMap)
     getConfig(setConfig)
+    getRelabelMap(setRelabelMap)
+
   }, [props.title])
 
-  React.useEffect(() => {
+  useEffect(() => {
     // Check if the 'ui.overview.settings' and 'time_display_mode' exist in the config
     const timeDisplayMode = config['ui.overview.settings']?.['time_display_mode'];
     if (timeDisplayMode !== undefined) {
@@ -132,70 +180,38 @@ function Overview(props) {
   }, [config]);
 
   return (
-    <React.Fragment>
+    <Fragment>
       <Grid container spacing={2} justifyContent="space-between">
         <Grid item xs={12} md={12}>
           <ExperimentSummary experimentMetadata={experimentMetadata}/>
         </Grid>
 
-        <Grid item xs={12} md={7} container spacing={2} justifyContent="flex-start" style={{height: "100%"}}>
 
 
-          {Object.entries(charts)
-            .filter(([chart_key, _]) => config['ui.overview.charts'] && (config['ui.overview.charts'][chart_key] === "1"))
-            .map(([chart_key, chart]) =>
-              <React.Fragment key={`grid-chart-${chart_key}`}>
-                <Grid item xs={12} >
-                  <Card style={{ maxHeight: "100%"}}>
-                    <Chart
-                      key={`chart-${chart_key}`}
-                      chartKey={chart_key}
-                      config={config}
-                      dataSource={chart.data_source}
-                      title={chart.title}
-                      topic={chart.mqtt_topic}
-                      payloadKey={chart.payload_key}
-                      yAxisLabel={chart.y_axis_label}
-                      experiment={experimentMetadata.experiment}
-                      deltaHours={experimentMetadata.delta_hours}
-                      experimentStartTime={experimentMetadata.created_at}
-                      downSample={chart.down_sample}
-                      interpolation={chart.interpolation || "stepAfter"}
-                      yAxisDomain={chart.y_axis_domain ? chart.y_axis_domain : null}
-                      lookback={timeWindow ?  timeWindow : (chart.lookback ? eval(chart.lookback) : 10000)}
-                      fixedDecimals={chart.fixed_decimals}
-                      relabelMap={relabelMap}
-                      yTransformation={eval(chart.y_transformation || "(y) => y")}
-                      dataSourceColumn={chart.data_source_column}
-                      isPartitionedBySensor={chart_key === "raw_optical_density"}
-                      isLiveChart={true}
-                      byDuration={timeScale === "hours"}
-                    />
-                  </Card>
-                </Grid>
-              </React.Fragment>
+        <MQTTProvider config={config}>
 
-        )}
-        </Grid>
-
-        <Grid item xs={12} md={5} container spacing={1} justifyContent="flex-end" style={{height: "100%"}}>
-
-          <Grid item xs={6} md={6}>
-            <Stack direction="row" justifyContent="start">
-              <TimeWindowSwitch setTimeWindow={setTimeWindow} initTimeWindow={10000000}/>
-            </Stack>
-          </Grid>
-          <Grid item xs={6} md={6}>
-            <Stack direction="row" justifyContent="end">
-              <TimeFormatSwitch setTimeScale={setTimeScale} initTimeScale={timeScale}/>
-            </Stack>
+          <Grid item xs={12} md={7} container spacing={2} justifyContent="flex-start" style={{height: "100%"}}>
+            <Charts config={config} timeScale={timeScale} timeWindow={timeWindow} experimentMetadata={experimentMetadata} relabelMap={relabelMap}/>
           </Grid>
 
-          {( config['ui.overview.cards'] && (config['ui.overview.cards']['dosings'] === "1")) &&
-            <Grid item xs={12} >
-              <MediaCard experiment={experimentMetadata.experiment} config={config} relabelMap={relabelMap}/>
+          <Grid item xs={12} md={5} container spacing={1} justifyContent="flex-end" style={{height: "100%"}}>
+
+            <Grid item xs={6} md={6}>
+              <Stack direction="row" justifyContent="start">
+                <TimeWindowSwitch setTimeWindow={setTimeWindow} initTimeWindow={10000000}/>
+              </Stack>
             </Grid>
-          }
+            <Grid item xs={6} md={6}>
+              <Stack direction="row" justifyContent="end">
+                <TimeFormatSwitch setTimeScale={setTimeScale} initTimeScale={timeScale}/>
+              </Stack>
+            </Grid>
+
+            {( config['ui.overview.cards'] && (config['ui.overview.cards']['dosings'] === "1")) &&
+              <Grid item xs={12} >
+                <MediaCard experiment={experimentMetadata.experiment} config={config} relabelMap={relabelMap}/>
+              </Grid>
+            }
 
 
           {( config['ui.overview.cards'] && (config['ui.overview.cards']['event_logs'] === "1")) &&
@@ -206,10 +222,12 @@ function Overview(props) {
               </Button>
             </Grid>
           }
+          </Grid>
 
-        </Grid>
+        </MQTTProvider>
+
       </Grid>
-    </React.Fragment>
+    </Fragment>
   );
 }
 export default Overview;

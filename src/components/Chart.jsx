@@ -74,9 +74,6 @@ class Chart extends React.Component {
     } else {
       this.topics = [this.props.topic]
     }
-
-
-    this.onConnect = this.onConnect.bind(this);
     this.onMessage = this.onMessage.bind(this);
     this.selectLegendData = this.selectLegendData.bind(this);
     this.selectVictoryLines = this.selectVictoryLines.bind(this);
@@ -84,30 +81,23 @@ class Chart extends React.Component {
     this.VictoryVoronoiContainer = (this.props.allowZoom  || false) ? createContainer("zoom", "voronoi") : createContainer("voronoi");
   }
 
-  onConnect() {
-    this.topics.forEach(topic => {
-      this.client.subscribe(`pioreactor/+/${this.props.experiment}/${topic}`);
-    });
-
-  }
-
   componentDidUpdate(prevProps) {
     if (prevProps.experiment !== this.props.experiment) {
       this.getHistoricalDataFromServer()
 
-      if (this.props.isLiveChart){
-        try{
-          this.topics.forEach(topic => {
-            this.client.unsubscribe(`pioreactor/+/${this.props.experiment}/${topic}`);
-          });
-          this.topics.forEach(topic => {
-            this.client.subscribe(`pioreactor/+/${this.props.experiment}/${topic}`);
-          });
-        }
-        catch (error){
-          // not important.
-        }
-      }
+      //if (this.props.isLiveChart){
+      //  try{
+      //    this.topics.forEach(topic => {
+      //      this.client.unsubscribe(`pioreactor/+/${this.props.experiment}/${topic}`);
+      //    });
+      //    this.topics.forEach(topic => {
+      //      this.client.subscribe(`pioreactor/+/${this.props.experiment}/${topic}`);
+      //    });
+      //  }
+      //  catch (error){
+      //    // not important.
+      //  }
+      //}
     }
 
     if (this.props.byDuration !== prevProps.byDuration){
@@ -117,39 +107,24 @@ class Chart extends React.Component {
     if (this.props.lookback !== prevProps.lookback){
       this.getHistoricalDataFromServer()
     }
+
+    if (this.props.isLiveChart && this.props.client && this.props.client !== prevProps.client) {
+      this.topics.forEach(topic => {
+        this.props.subscribeToTopic(`pioreactor/+/${this.props.experiment}/${topic}`, this.onMessage)
+      });
+    }
+
   }
 
   componentDidMount() {
     this.getHistoricalDataFromServer()
-
-    if (!this.props.isLiveChart){
-      return
+    if (this.props.client && this.props.isLiveChart) {
+      this.topics.forEach(topic => {
+        this.props.subscribeToTopic(`pioreactor/+/${this.props.experiment}/${topic}`, this.onMessage)
+      });
     }
-
-
-    if (!this.props.config || !this.props.config['cluster.topology']){
-      return
-    }
-
-    const userName = this.props.config.mqtt.username || "pioreactor"
-    const password = this.props.config.mqtt.password || "raspberry"
-
-    const brokerUrl = `${this.props.config.mqtt.ws_protocol}://${this.props.config.mqtt.broker_address}:${this.props.config.mqtt.broker_ws_port || 9001}/mqtt`;
-
-    this.client = mqtt.connect(brokerUrl, {
-      username: userName,
-      password: password,
-    });
-    this.client.on("connect", () => this.onConnect() )
-    this.client.on("message", (topic, message, packet) => {
-      this.onMessage(topic, message, packet);
-    });
   }
 
-  componentWillUnmount() {
-    // Disconnect from the MQTT broker when the component unmounts
-    this.client.end()
-  }
 
   async getHistoricalDataFromServer() {
     if (!this.props.experiment){
