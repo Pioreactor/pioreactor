@@ -1,7 +1,10 @@
 ### Upcoming
 
 #### Highlights
- - For better consistency between Pioreactors, we've introduced a new configuration option that will automatically vary the IR LED intensity to match a target value in the reference. This means that if your IR LED is slightly different between Pioreactors, the intensity % will be adjusted to match an internal value. To enable this feature, change the `[od_config]` config parameter `ir_led_intensity` value to `auto`
+ - For better consistency between Pioreactors, we've introduced a new configuration option that will automatically vary the IR LED intensity to match a target value in the reference photodiode at the start of OD reading. This means that if your IR LED is slightly different between Pioreactors, the intensity % will be adjusted to match an internal value. To enable this feature, change the `[od_config]` config parameter `ir_led_intensity` value to `auto`. Note that this can't be used with OD calibrations. For new installs, this is the default configuration.
+
+#### Enhancements
+ - Significant UI performance improvements
 
 #### Bug fixes
  - Fixes updating automations in experiment profiles

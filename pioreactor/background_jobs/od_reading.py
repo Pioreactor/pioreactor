@@ -60,8 +60,8 @@ Dataflow of raw signal to final output:
 │   │ ┌──────────────┐   ┌──────────────┐    ┌───────────────┐ │  │  ┌─────────────────┐   │  │  ┌─────────────────┐   │   │
 │   │ │              ├───►              ├────►               │ │  │  │                 │   │  │  │                 │   │   │
 │   │ │              │   │              │    │               │ │  │  │                 │   │  │  │                 │   │   │
-│   │ │ samples from ├───►   ADC offset ├────►      sin      ├─┼──┼──►  IR output      ├───┼──┼──►  Transform via  ├───┼───┼───►
-│   │ │     ADC      │   │    removed   │    │   regression  │ │  │  │  compensation   │   │  │  │  calibration    │   │   │
+│   │ │ samples from ├───►  ADC offset  ├────►      sin      ├─┼──┼──►  IR output      ├───┼──┼──►  Transform via  ├───┼───┼───►
+│   │ │     ADC      │   │   removed    │    │   regression  │ │  │  │  compensation   │   │  │  │  calibration    │   │   │
 │   │ │              ├───►              ├────►               │ │  │  │                 │   │  │  │  curve          │   │   │
 │   │ └──────────────┘   └──────────────┘    └───────────────┘ │  │  └─────────────────┘   │  │  │  (or no-op)     │   │   │
 │   │                                                          │  │                        │  │  └─────────────────┘   │   │
@@ -945,9 +945,11 @@ class ODReader(BackgroundJob):
             raise ValueError("Too many REFs?")
         else:
             # only element of the dict is our REF signal
-            target_voltage = 0.1
+            TARGET_VOLTAGE = 0.15
             _, signal_voltage = signals.popitem()
-            return clamp(0.0, round(target_voltage * (self.ir_led_intensity / signal_voltage), 2), 100.0)
+            return clamp(
+                20.0, round(TARGET_VOLTAGE * (self.ir_led_intensity / signal_voltage), 2), 80.0
+            )  # more than 80% is a bad idea for this LED
 
     def _prepare_post_callbacks(self) -> list[Callable]:
         callbacks: list[Callable] = []
