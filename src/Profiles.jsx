@@ -26,8 +26,8 @@ import SelectButton from "./components/SelectButton";
 import DeleteIcon from '@mui/icons-material/Delete';
 import ViewTimelineOutlinedIcon from '@mui/icons-material/ViewTimelineOutlined';
 import PlayDisabledIcon from '@mui/icons-material/PlayDisabled';
-import mqtt from 'mqtt'
 import { useConfirm } from 'material-ui-confirm';
+import { MQTTProvider, useMQTT } from './MQTTContext';
 
 
 const useStyles = makeStyles((theme) => ({
@@ -80,8 +80,8 @@ function ExperimentProfilesContent(props) {
   const [dryRun, setDryRun] = React.useState(false)
   const [isProfileActive, setIsProfileActive] = React.useState(false)
   const [experimentMetadata, setExperimentMetadata] = React.useState({})
-  const [client, setClient] = React.useState(null);
   const [runningProfileName, setRunningProfileName] = React.useState(null);
+  const {client, subscribeToTopic } = useMQTT();
 
 
   React.useEffect(() => {
@@ -106,41 +106,16 @@ function ExperimentProfilesContent(props) {
 
 
   React.useEffect(() => {
-    if (!config['cluster.topology']){
-      return
-    }
-
     if (experimentMetadata.length === 0){
       return
     }
 
-    const onSuccess = () => {
-      client.subscribe(`pioreactor/${config['cluster.topology']?.leader_hostname}/${experimentMetadata.experiment}/experiment_profile/+`, { qos: 1 })
-    }
+    subscribeToTopic(`pioreactor/${config['cluster.topology']?.leader_hostname}/${experimentMetadata.experiment}/experiment_profile/+`, onMessage)
+
+  },[experimentMetadata, client])
 
 
-    const userName = config.mqtt.username || "pioreactor"
-    const password = config.mqtt.password || "raspberry"
-    const brokerUrl = `${config.mqtt.ws_protocol}://${config.mqtt.broker_address}:${config.mqtt.broker_ws_port || 9001}/mqtt`;
-
-    const client = mqtt.connect(brokerUrl, {
-      username: userName,
-      password: password,
-      keepalive: 15 * 60,
-    });
-
-    client.on("connect", () => onSuccess() )
-    client.on("message", (topic, message) => {
-      onMessage(topic, message);
-    });
-
-    setClient(client)
-    return () => {client.end()};
-
-  },[config, experimentMetadata])
-
-
-  const onMessage = (topic, message) => {
+  const onMessage = (topic, message, packet) => {
     const payload = message.toString()
     const setting = topic.toString().split("/")[4]
     if ((setting === "$state") && (payload === "ready")){
@@ -365,11 +340,13 @@ function Profiles(props) {
       document.title = props.title;
     }, [props.title]);
     return (
+      <MQTTProvider config={config}>
         <Grid container spacing={2} >
           <Grid item md={12} xs={12}>
             <ProfilesContainer config={config}/>
           </Grid>
         </Grid>
+      </MQTTProvider>
     )
 }
 

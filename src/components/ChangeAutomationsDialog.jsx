@@ -25,6 +25,8 @@ import { Link } from 'react-router-dom';
 
 import PioreactorIcon from "./PioreactorIcon"
 import AutomationForm from "./AutomationForm"
+import { useMQTT } from '../MQTTContext';
+
 
 const useStyles = makeStyles((theme) => ({
   formControl: {
@@ -60,9 +62,9 @@ function ChangeAutomationsDialog(props) {
   const [algoSettings, setAlgoSettings] = useState({
     skip_first_run: 0 //TODO: this should be not included if !props.no_skip_first_run
   })
-  const [client, setClient] = useState(null)
   const [automations, setAutomations] = useState({})
   const [openSnackbar, setOpenSnackbar] = useState(false);
+  const {client } = useMQTT();
 
   useEffect(() => {
     function fetchAutomations() {
@@ -81,28 +83,6 @@ function ChangeAutomationsDialog(props) {
     }
     fetchAutomations();
   }, [automationType])
-
-
-  useEffect(() => {
-    // MQTT - client ids should be unique
-    if (!props.config['cluster.topology']){
-      return
-    }
-
-    const userName = props.config.mqtt.username || "pioreactor"
-    const password = props.config.mqtt.password || "raspberry"
-    const brokerUrl = `${props.config.mqtt.ws_protocol}://${props.config.mqtt.broker_address}:${props.config.mqtt.broker_ws_port || 9001}/mqtt`;
-
-    const client = mqtt.connect(brokerUrl, {
-      username: userName,
-      password: password,
-      keepalive: 15 * 60,
-    });
-
-    setClient(client)
-    return () => {client.end()};
-
-  },[props.config])
 
 
   const removeEmpty = (obj) => {

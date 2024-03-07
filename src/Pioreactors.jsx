@@ -54,6 +54,8 @@ import ActionCirculatingForm from "./components/ActionCirculatingForm"
 import ActionLEDForm from "./components/ActionLEDForm"
 import PioreactorIcon from "./components/PioreactorIcon"
 import UnderlineSpan from "./components/UnderlineSpan";
+import { MQTTProvider, useMQTT } from './MQTTContext';
+
 
 const readyGreen = "#4caf50"
 const disconnectedGrey = "grey"
@@ -1294,7 +1296,6 @@ function SettingsActionsDialog(props) {
               onFinished={() => setOpenChangeTemperatureDialog(false)}
               unit={props.unit}
               label={props.label}
-              config={props.config}
               experiment={props.experiment}
               isJobRunning={temperatureControlJobRunning}
               automationType="temperature"
@@ -1368,7 +1369,6 @@ function SettingsActionsDialog(props) {
               onFinished={() => setOpenChangeDosingDialog(false)}
               unit={props.unit}
               label={props.label}
-              config={props.config}
               experiment={props.experiment}
               isJobRunning={dosingControlJobRunning}
               no_skip_first_run={false}
@@ -1441,7 +1441,6 @@ function SettingsActionsDialog(props) {
               open={openChangeLEDDialog}
               onFinished={() => setOpenChangeLEDDialog(false)}
               unit={props.unit}
-              config={props.config}
               label={props.label}
               experiment={props.experiment}
               isJobRunning={ledControlJobRunning}
@@ -1751,7 +1750,6 @@ function SettingsActionsDialogAll({config, experiment}) {
   const classes = useStyles();
   const unit = "$broadcast"
   const [open, setOpen] = useState(false);
-  const [client, setClient] = useState(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [tabValue, setTabValue] = useState(0);
@@ -1759,6 +1757,7 @@ function SettingsActionsDialogAll({config, experiment}) {
   const [openChangeTemperatureDialog, setOpenChangeTemperatureDialog] = useState(false);
   const [openChangeDosingDialog, setOpenChangeDosingDialog] = useState(false);
   const [openChangeLEDDialog, setOpenChangeLEDDialog] = useState(false);
+  const {client } = useMQTT();
 
   useEffect(() => {
     function fetchContribBackgroundJobs() {
@@ -1786,28 +1785,6 @@ function SettingsActionsDialogAll({config, experiment}) {
     }
     fetchContribBackgroundJobs();
   }, [])
-
-
-  useEffect(() => {
-    if (!config.mqtt){
-      return
-    }
-
-    const userName = config.mqtt.username || "pioreactor"
-    const password = config.mqtt.password || "raspberry"
-    const brokerUrl = `${config.mqtt.ws_protocol}://${config.mqtt.broker_address}:${config.mqtt.broker_ws_port || 9001}/mqtt`;
-
-    const client = mqtt.connect(brokerUrl, {
-      username: userName,
-      password: password,
-      keepalive: 15 * 60,
-    });
-
-    setClient(client)
-
-    return () => {client.end()};
-
-  },[config])
 
 
   const handleTabChange = (event, newValue) => {
@@ -2433,7 +2410,8 @@ function PioreactorCard(props){
   const config = props.config
   const [jobFetchComplete, setJobFetchComplete] = useState(false)
   const [label, setLabel] = useState("")
-  const [client, setClient] = useState(null)
+  const {client, subscribeToTopic } = useMQTT();
+
   const [jobs, setJobs] = useState({
     monitor: {
       state : null,
@@ -2502,56 +2480,6 @@ function PioreactorCard(props){
   }
 
   useEffect(() => {
-    const onConnect = () => {
-      client.subscribe(`pioreactor/${unit}/$experiment/monitor/$state`);
-      for (const job of Object.keys(jobs)) {
-
-        // for some jobs (self_test), we use a different experiment name to not clutter datasets,
-        const experimentName = jobs[job].metadata.is_testing ? "_testing_" + experiment : experiment
-
-        client.subscribe(`pioreactor/${unit}/${experimentName}/${job}/$state`);
-        for (const setting of Object.keys(jobs[job].publishedSettings)){
-            var topic = [
-              "pioreactor",
-              unit,
-              (job === "monitor" ? "$experiment" : experimentName),
-              (setting === "automation_name") ? job : job.replace("_control", "_automation"), // this is for, ex, automation_name
-              setting
-            ].join("/")
-            client.subscribe(topic);
-        }
-      }
-    }
-
-    const onMessage = (topic, message) => {
-      var [job, setting] = topic.toString().split('/').slice(-2)
-      if (setting === "$state"){
-        var payload = message.toString()
-        setJobs((prev) => ({...prev, [job]: {...prev[job], state: payload}}))
-      } else if (job.endsWith("_automation")) {
-        // needed because settings are attached to _automations, not _control
-        job = job.replace("_automation", "_control")
-        var payload = parseToType(message.toString(), jobs[job].publishedSettings[setting].type)
-        setJobs((prev) => ({...prev, [job]: {...prev[job], publishedSettings:
-            {...prev[job].publishedSettings,
-              [setting]:
-                {...prev[job].publishedSettings[setting], value: payload }}}}))
-      } else {
-        var payload = parseToType(message.toString(), jobs[job].publishedSettings[setting].type)
-        setJobs(prev => {
-          const updatedJob = { ...prev[job] };
-          const updatedSetting = { ...updatedJob.publishedSettings[setting], value: payload };
-
-          updatedJob.publishedSettings = { ...updatedJob.publishedSettings, [setting]: updatedSetting };
-
-          return { ...prev, [job]: updatedJob };
-        });
-      }
-    }
-
-    if (!props.config.mqtt){
-      return
-    }
 
     if (!isUnitActive){
       return
@@ -2565,24 +2493,52 @@ function PioreactorCard(props){
       return
     }
 
-    const userName = config.mqtt.username || "pioreactor"
-    const password = config.mqtt.password || "raspberry"
-    const brokerUrl = `${config.mqtt.ws_protocol}://${config.mqtt.broker_address}:${config.mqtt.broker_ws_port || 9001}/mqtt`;
+    subscribeToTopic(`pioreactor/${unit}/$experiment/monitor/$state`, onMessage);
+    for (const job of Object.keys(jobs)) {
 
-    const client = mqtt.connect(brokerUrl, {
-      username: userName,
-      password: password,
-      keepalive: 15 * 60,
-    });
-    client.on("connect", () => onConnect() )
-    client.on("message", (topic, message) => {
-      onMessage(topic, message);
-    });
+      // for some jobs (self_test), we use a different experiment name to not clutter datasets,
+      const experimentName = jobs[job].metadata.is_testing ? "_testing_" + experiment : experiment
 
-    setClient(client)
-    return () => {client.end()};
+      subscribeToTopic(`pioreactor/${unit}/${experimentName}/${job}/$state`, onMessage);
+      for (const setting of Object.keys(jobs[job].publishedSettings)){
+          var topic = [
+            "pioreactor",
+            unit,
+            (job === "monitor" ? "$experiment" : experimentName),
+            (setting === "automation_name") ? job : job.replace("_control", "_automation"), // this is for, ex, automation_name
+            setting
+          ].join("/")
+          subscribeToTopic(topic, onMessage);
+      }
+    }
 
-  },[config, experiment, jobFetchComplete, isUnitActive])
+  },[experiment, jobFetchComplete, isUnitActive, client])
+
+  const onMessage = (topic, message, packet) => {
+    var [job, setting] = topic.toString().split('/').slice(-2)
+    if (setting === "$state"){
+      var payload = message.toString()
+      setJobs((prev) => ({...prev, [job]: {...prev[job], state: payload}}))
+    } else if (job.endsWith("_automation")) {
+      // needed because settings are attached to _automations, not _control
+      job = job.replace("_automation", "_control")
+      var payload = parseToType(message.toString(), jobs[job].publishedSettings[setting].type)
+      setJobs((prev) => ({...prev, [job]: {...prev[job], publishedSettings:
+          {...prev[job].publishedSettings,
+            [setting]:
+              {...prev[job].publishedSettings[setting], value: payload }}}}))
+    } else {
+      var payload = parseToType(message.toString(), jobs[job].publishedSettings[setting].type)
+      setJobs(prev => {
+        const updatedJob = { ...prev[job] };
+        const updatedSetting = { ...updatedJob.publishedSettings[setting], value: payload };
+
+        updatedJob.publishedSettings = { ...updatedJob.publishedSettings, [setting]: updatedSetting };
+
+        return { ...prev, [job]: updatedJob };
+      });
+    }
+  }
 
   const getInicatorLabel = (state, isActive) => {
     if ((state === "disconnected") && isActive) {
@@ -2806,15 +2762,17 @@ function Pioreactors({title}) {
   const inactiveUnits = config['cluster.inventory'] ? entries(config['cluster.inventory']).filter((v) => v[1] === "0").map((v) => v[0]) : []
 
   return (
-    <Grid container spacing={2} >
-      <Grid item md={12} xs={12}>
-        <PioreactorHeader config={config} experiment={experimentMetadata.experiment}/>
-        <ActiveUnits experiment={experimentMetadata.experiment} config={config} units={activeUnits} />
-        { (inactiveUnits.length > 0) &&
-        <InactiveUnits experiment={experimentMetadata.experiment} config={config} units={inactiveUnits}/>
-        }
+    <MQTTProvider config={config}>
+      <Grid container spacing={2} >
+        <Grid item md={12} xs={12}>
+          <PioreactorHeader config={config} experiment={experimentMetadata.experiment}/>
+          <ActiveUnits experiment={experimentMetadata.experiment} config={config} units={activeUnits} />
+          { (inactiveUnits.length > 0) &&
+          <InactiveUnits experiment={experimentMetadata.experiment} config={config} units={inactiveUnits}/>
+          }
+        </Grid>
       </Grid>
-    </Grid>
+    </MQTTProvider>
   )
 }
 

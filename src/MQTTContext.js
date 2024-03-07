@@ -30,7 +30,7 @@ export const MQTTProvider = ({ config, children }) => {
       });
 
       mqttClient.on('message', (topic, message, packet) => {
-
+        console.log("new message:", topic, message.toString())
         // Iterate over the topicHandlers to find a matching pattern
         Object.keys(topicHandlersRef.current).forEach((pattern) => {
           if (MQTTPattern.matches(pattern, topic)) {
@@ -50,16 +50,11 @@ export const MQTTProvider = ({ config, children }) => {
 
 
   const subscribeToTopic = (topic, messageHandler) => {
-    client?.subscribe(topic, (err) => {
-      if (!err) {
-        setTopicHandlers((prevHandlers) => {
-          const newHandlers = { ...prevHandlers, [topic]: messageHandler };
-          return newHandlers;
-        });
-      } else {
-        console.error(`Error subscribing to topic ${topic}:`, err);
-      }
+    setTopicHandlers((prevHandlers) => {
+      const newHandlers = { ...prevHandlers, [topic]: messageHandler };
+      return newHandlers;
     });
+    client?.subscribe(topic)
   };
 
   return (
