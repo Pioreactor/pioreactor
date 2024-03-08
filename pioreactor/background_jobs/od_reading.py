@@ -683,8 +683,9 @@ class CachedCalibrationTransformer(CalibrationTransformer):
                     calibration_data = decode(c[angle], type=structs.AnyODCalibration)  # type: ignore
                     name = calibration_data.name
 
-                    # confirm that current IR intensity is the same as when calibration was performed
-                    if calibration_data.ir_led_intensity != config.getfloat("od_config", "ir_led_intensity"):
+                    if config.get("od_config", "ir_led_intensity") != "auto" and (
+                        calibration_data.ir_led_intensity != config.getfloat("od_config", "ir_led_intensity")
+                    ):
                         msg = f"The calibration `{name}` was calibrated with a different IR LED intensity ({calibration_data.ir_led_intensity} vs current: {config.getfloat('od_config', 'ir_led_intensity')}). Either re-calibrate, turn off calibration, or change the ir_led_intensity in the config.ini."
                         self.logger.error(msg)
                         raise exc.CalibrationError(msg)
@@ -829,6 +830,7 @@ class ODReader(BackgroundJob):
     od1: structs.ODReading
     od2: structs.ODReading
     ods: structs.ODReadings
+    TARGET_REF_VOLTAGE = 0.1
 
     def __init__(
         self,
@@ -945,10 +947,9 @@ class ODReader(BackgroundJob):
             raise ValueError("Too many REFs?")
         else:
             # only element of the dict is our REF signal
-            TARGET_VOLTAGE = 0.15
             _, signal_voltage = signals.popitem()
             return clamp(
-                20.0, round(TARGET_VOLTAGE * (self.ir_led_intensity / signal_voltage), 2), 80.0
+                20.0, round(self.TARGET_REF_VOLTAGE * (self.ir_led_intensity / signal_voltage), 2), 80.0
             )  # more than 80% is a bad idea for this LED
 
     def _prepare_post_callbacks(self) -> list[Callable]:
