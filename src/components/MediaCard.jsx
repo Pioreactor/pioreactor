@@ -68,17 +68,17 @@ function MediaCard(props) {
     const updatedObject = addOrUpdate(unit, objectRef === 'altMediaThroughputPerUnit' ? altMediaThroughputPerUnit : mediaThroughputPerUnit, payload);
 
     if (objectRef === 'altMediaThroughputPerUnit') {
-      setAltMediaThroughputPerUnit(updatedObject);
+      setAltMediaThroughputPerUnit(updatedObject || 0);
     } else {
-      setMediaThroughputPerUnit(updatedObject);
+      setMediaThroughputPerUnit(updatedObject || 0);
     }
 
     var total = Object.values(updatedObject).reduce((a, b) => a + b, 0);
 
     if (totalRef === 'altMediaThroughput') {
-      setAltMediaThroughput(total);
+      setAltMediaThroughput(total || 0);
     } else {
-      setMediaThroughput(total);
+      setMediaThroughput(total || 0);
     }
   }
 
@@ -111,10 +111,10 @@ function MediaCard(props) {
                   All Pioreactors
                 </TableCell>
                 <TableCell align="right" style={{ fontSize: 13, padding: '6px 0px' }}>
-                  {mediaThroughput.toFixed(1)}mL (~{rates.all.mediaRate.toFixed(1)}mL/h)
+                  {(mediaThroughput || 0).toFixed(1)}mL (~{rates.all.mediaRate.toFixed(1)}mL/h)
                 </TableCell>
                 <TableCell align="right" style={{ fontSize: 13, padding: '6px 0px' }}>
-                  {altMediaThroughput.toFixed(1)}mL (~{rates.all.altMediaRate.toFixed(1)}mL/h)
+                  {(altMediaThroughput || 0).toFixed(1)}mL (~{rates.all.altMediaRate.toFixed(1)}mL/h)
                 </TableCell>
               </TableRow>
 

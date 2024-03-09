@@ -20,7 +20,7 @@ function TactileButtonNotification(props) {
 
   React.useEffect(() => {
     if (!config['cluster.topology']){
-      return
+      return //TODO: is this needed?
     }
 
     subscribeToTopic("pioreactor/+/$experiment/monitor/button_down", onMessage)

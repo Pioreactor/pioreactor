@@ -20,6 +20,7 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
 import { Link, useLocation } from 'react-router-dom';
 import { Sidebar, Menu, MenuItem} from "react-pro-sidebar";
+import SensorsIcon from '@mui/icons-material/Sensors';
 
 const drawerWidth = 230;
 
@@ -65,9 +66,20 @@ export default function SideNavAndHeader() {
 
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [version, setVersion] = React.useState(null)
+  const [lap, setLAP] = React.useState(false)
   const [latestVersion, setLatestVersion] = React.useState(null)
 
   React.useEffect(() => {
+    async function getLAP() {
+         await fetch("/api/is_local_access_point_active")
+        .then((response) => {
+          return response.text();
+        })
+        .then((data) => {
+          setLAP(data === "true")
+        });
+      }
+
     async function getCurrentApp() {
          await fetch("/api/versions/app")
         .then((response) => {
@@ -93,6 +105,7 @@ export default function SideNavAndHeader() {
 
       getCurrentApp()
       getLatestVersion()
+      getLAP()
   }, [])
 
 
@@ -245,8 +258,13 @@ export default function SideNavAndHeader() {
                 <img alt="pioreactor logo" src="/white_colour.png" style={{width: "120px", height: "29px"}}/> <
               /Link>
             </Typography>
+            { lap &&
+              <Button color="inherit" style={{textTransform: "none"}}>
+               <SensorsIcon style={{ fontSize: 18, verticalAlign: "middle", marginRight: 3 }}/> LAP online
+              </Button>
+            }
             <Button component={Link} target="_blank" rel="noopener noreferrer" to={{pathname: "https://docs.pioreactor.com"}} color="inherit" style={{textTransform: "none"}}>
-              Help <HelpOutlineIcon style={{ fontSize: 18, verticalAlign: "middle", marginLeft: 5 }}/>
+              <HelpOutlineIcon style={{ fontSize: 18, verticalAlign: "middle", marginRight: 3 }}/>Help
             </Button>
           </Toolbar>
         </AppBar>
