@@ -339,7 +339,6 @@ def test_profiles_in_github_repo() -> None:
     # Print the list of YAML files
     for file in yaml_files:
         content = get(file["download_url"]).content
-        print(content.decode())
         decode(content, type=structs.Profile)
 
 

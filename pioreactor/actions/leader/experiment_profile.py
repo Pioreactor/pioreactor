@@ -414,7 +414,7 @@ def hours_to_seconds(hours: float) -> float:
     return hours * 60 * 60
 
 
-def _verify_experiment_profile(profile: struct.Profile) -> struct.Profile:
+def _verify_experiment_profile(profile: struct.Profile) -> bool:
     # things to check for:
     # 1. Don't "stop" or "start" any *_automations
     # 2. Don't change generic settings on *_controllers, (Ex: changing target temp on temp_controller is wrong)
@@ -473,7 +473,7 @@ def _verify_experiment_profile(profile: struct.Profile) -> struct.Profile:
             ):
                 raise SyntaxError(f"Syntax error in {action}: `{action.while_}`")
 
-    return profile
+    return True
 
 
 def _load_experiment_profile(profile_filename: str) -> struct.Profile:

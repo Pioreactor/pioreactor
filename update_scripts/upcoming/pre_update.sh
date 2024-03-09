@@ -23,6 +23,6 @@ crudini --ini-options=nospace --set  $PIO_DIR/config.ini mqtt username pioreacto
 sudo lighttpd-disable-mod compress || true
 
 # rename the old contrib job files
-mv /var/www/pioreactorui/contrib/jobs/07_self_test.yaml /var/www/pioreactorui/contrib/jobs/50_self_test.yaml
-mv /var/www/pioreactorui/contrib/jobs/08_od_blank.yaml /var/www/pioreactorui/contrib/jobs/51_od_blank.yaml
-mv /var/www/pioreactorui/contrib/jobs/09_stirring_calibration.yaml /var/www/pioreactorui/contrib/jobs/52_stirring_calibration.yaml
+mv /var/www/pioreactorui/contrib/jobs/07_od_blank.yaml /var/www/pioreactorui/contrib/jobs/51_od_blank.yaml || true
+mv /var/www/pioreactorui/contrib/jobs/08_self_test.yaml /var/www/pioreactorui/contrib/jobs/50_self_test.yaml || true
+mv /var/www/pioreactorui/contrib/jobs/09_stirring_calibration.yaml /var/www/pioreactorui/contrib/jobs/52_stirring_calibration.yaml || true
