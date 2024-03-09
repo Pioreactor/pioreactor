@@ -24,7 +24,8 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ConfirmProvider } from 'material-ui-confirm';
 import { ProSidebarProvider } from "react-pro-sidebar";
 import {getConfig} from "./utilities"
-import { MQTTProvider } from './MQTTContext';
+import { MQTTProvider } from './providers/MQTTContext';
+import { ExperimentProvider } from './providers/ExperimentContext';
 
 
 import "@fontsource/roboto/300.css"
@@ -96,22 +97,24 @@ function MainSite() {
         <main style={{flexGrow: 1, paddingTop: theme.spacing(9), paddingLeft: theme.spacing(4), paddingRight: theme.spacing(4)}}>
           <div className="pageContainer">
             <MQTTProvider name="global" config={config}>
-              <Routes>
-                <Route path="/export-data" element={<ExportData title="Pioreactor ~ Export data"/>}/>
-                <Route path="/start-new-experiment" element={<StartNewExperiment title="Pioreactor ~ Start new experiment" />}/>
-                <Route path="/overview" element={<ExperimentOverview title="Pioreactor ~ Overview"/>}/>
-                <Route path="/plugins" element={<Plugins title="Pioreactor ~ Plugins"/>}/>
-                <Route path="/experiments" element={<Experiments title="Pioreactor ~ Past experiments"/>}/>
-                <Route path="/experiment-profiles" element={<Profiles title="Pioreactor ~ Experiment profiles"/>}/>
-                <Route path="/create-experiment-profile" element={<CreateExperimentProfile title="Pioreactor ~ Create experiment profile"/>}/>
-                <Route path="/edit-experiment-profile" element={<EditExperimentProfile title="Pioreactor ~ Edit experiment profile"/>}/>
-                <Route path="/config" element={<EditConfig title="Pioreactor ~ Configuration"/>}/>
-                <Route path="/pioreactors" element={ <Pioreactors title="Pioreactor ~ Pioreactors"/>}/>
-                <Route path="/updates" element={<Updates title="Pioreactor ~ Updates"/>}/>
-                <Route path="/" element={<ExperimentOverview title="Pioreactor ~ Overview"/>}/>
-              </Routes>
-              <ErrorSnackbar config={config} />
-              <TactileButtonNotification config={config}  />
+              <ExperimentProvider>
+                <Routes>
+                  <Route path="/export-data" element={<ExportData title="Pioreactor ~ Export data"/>}/>
+                  <Route path="/start-new-experiment" element={<StartNewExperiment title="Pioreactor ~ Start new experiment" />}/>
+                  <Route path="/overview" element={<ExperimentOverview title="Pioreactor ~ Overview"/>}/>
+                  <Route path="/plugins" element={<Plugins title="Pioreactor ~ Plugins"/>}/>
+                  <Route path="/experiments" element={<Experiments title="Pioreactor ~ Past experiments"/>}/>
+                  <Route path="/experiment-profiles" element={<Profiles title="Pioreactor ~ Experiment profiles"/>}/>
+                  <Route path="/create-experiment-profile" element={<CreateExperimentProfile title="Pioreactor ~ Create experiment profile"/>}/>
+                  <Route path="/edit-experiment-profile" element={<EditExperimentProfile title="Pioreactor ~ Edit experiment profile"/>}/>
+                  <Route path="/config" element={<EditConfig title="Pioreactor ~ Configuration"/>}/>
+                  <Route path="/pioreactors" element={ <Pioreactors title="Pioreactor ~ Pioreactors"/>}/>
+                  <Route path="/updates" element={<Updates title="Pioreactor ~ Updates"/>}/>
+                  <Route path="/" element={<ExperimentOverview title="Pioreactor ~ Overview"/>}/>
+                </Routes>
+                <ErrorSnackbar config={config} />
+                <TactileButtonNotification config={config}  />
+              </ExperimentProvider>
             </MQTTProvider>
           </div>
         </main>

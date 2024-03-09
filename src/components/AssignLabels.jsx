@@ -11,7 +11,7 @@ import PioreactorIcon from "./PioreactorIcon"
 import EditIcon from '@mui/icons-material/Edit';
 import {getRelabelMap} from "../utilities"
 import CheckIcon from '@mui/icons-material/Check';
-import { useMQTT } from '../MQTTContext';
+import { useMQTT } from '../providers/MQTTContext';
 
 
 const useStyles = makeStyles((theme) => ({

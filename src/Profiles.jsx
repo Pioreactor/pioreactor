@@ -27,7 +27,8 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import ViewTimelineOutlinedIcon from '@mui/icons-material/ViewTimelineOutlined';
 import PlayDisabledIcon from '@mui/icons-material/PlayDisabled';
 import { useConfirm } from 'material-ui-confirm';
-import { MQTTProvider, useMQTT } from './MQTTContext';
+import { MQTTProvider, useMQTT } from './providers/MQTTContext';
+import { useExperiment } from './providers/ExperimentContext';
 
 
 const useStyles = makeStyles((theme) => ({
@@ -72,6 +73,7 @@ function ExperimentProfilesContent(props) {
   const config = props.config
   const confirm = useConfirm();
 
+  const {experimentMetadata} = useExperiment()
   const [experimentProfilesAvailable, setExperimentProfilesAvailable] = React.useState([])
   const [selectedExperimentProfile, setSelectedExperimentProfile] = React.useState('')
   const [confirmed, setConfirmed] = React.useState(false)
@@ -79,7 +81,6 @@ function ExperimentProfilesContent(props) {
   const [source, setSource] = React.useState("Loading...")
   const [dryRun, setDryRun] = React.useState(false)
   const [isProfileActive, setIsProfileActive] = React.useState(false)
-  const [experimentMetadata, setExperimentMetadata] = React.useState({})
   const [runningProfileName, setRunningProfileName] = React.useState(null);
   const {client, subscribeToTopic } = useMQTT();
 
@@ -94,13 +95,6 @@ function ExperimentProfilesContent(props) {
         setExperimentProfilesAvailable(profilesByKey)
         setSelectedExperimentProfile(Object.keys(profilesByKey)[0] ?? "")
       })
-    fetch("/api/experiments/latest")
-      .then((response) => {
-        return response.json();
-      })
-      .then((data) => {
-        setExperimentMetadata(data)
-      });
 
   }, [])
 

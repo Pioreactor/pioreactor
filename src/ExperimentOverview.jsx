@@ -12,9 +12,9 @@ import Card from "@mui/material/Card";
 import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
-import Typography from "@mui/material/Typography";
 import Stack from "@mui/material/Stack";
-import { useMQTT } from './MQTTContext';
+import { useMQTT } from './providers/MQTTContext';
+import { useExperiment } from './providers/ExperimentContext';
 
 
 const TimeFormatSwitch = (props) => {
@@ -141,7 +141,7 @@ function Charts(props) {
 
 function Overview(props) {
 
-  const [experimentMetadata, setExperimentMetadata] = useState({})
+  const {experimentMetadata} = useExperiment()
   const [config, setConfig] = useState({})
   const [timeScale, setTimeScale] = useState(null)
   const [timeWindow, setTimeWindow] = useState(null)
@@ -150,18 +150,6 @@ function Overview(props) {
   useEffect(() => {
     document.title = props.title;
 
-    function getLatestExperiment() {
-        fetch("/api/experiments/latest")
-        .then((response) => {
-          return response.json();
-        })
-        .then((data) => {
-          setExperimentMetadata(data)
-        });
-      }
-
-
-    getLatestExperiment()
     getConfig(setConfig)
     getRelabelMap(setRelabelMap)
 

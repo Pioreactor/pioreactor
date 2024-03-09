@@ -174,10 +174,10 @@ const ButtonEndExperiment = () =>{
 
 function ExperimentSummary(props){
   const classes = useStyles();
-  const experiment = props.experimentMetadata.experiment || ""
-  const startedAt = props.experimentMetadata.created_at || ""
-  const desc = props.experimentMetadata.description || ""
-  const deltaHours = props.experimentMetadata.delta_hours || 0
+  const experiment = props.experimentMetadata.experiment
+  const startedAt = props.experimentMetadata.created_at
+  const desc = props.experimentMetadata.description
+  const deltaHours = props.experimentMetadata.delta_hours
 
   return(
     <React.Fragment>

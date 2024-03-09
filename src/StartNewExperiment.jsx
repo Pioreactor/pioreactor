@@ -18,6 +18,7 @@ import AssignLabels from "./components/AssignLabels"
 //import StartSensors from "./components/StartSensors"
 //import StartCalculations from "./components/StartCalculations"
 import {getConfig} from "./utilities"
+import { useExperiment } from './providers/ExperimentContext';
 
 
 const useStyles = makeStyles((theme) => ({
@@ -137,6 +138,7 @@ function FreeSoloCreateOption(props) {
 
 function ExperimentSummaryForm(props) {
   const classes = useStyles();
+  const { updateExperiment } = useExperiment();
   const timestamp = moment.utc()
   const [formError, setFormError] = React.useState(false);
   const [helperText, setHelperText] = React.useState(" ");
@@ -216,9 +218,11 @@ function ExperimentSummaryForm(props) {
       return
     }
 
-    fetch('/api/experiments',{
+    const experimentMetadata = {experiment : expName.trim(), created_at: timestamp.toISOString(), description: description, mediaUsed: mediaUsed, organismUsed: organismUsed}
+
+    fetch('/api/experiments', {
         method: "POST",
-        body: JSON.stringify({experiment : expName.trim(), created_at: timestamp.toISOString(), description: description, mediaUsed: mediaUsed, organismUsed: organismUsed }),
+        body: JSON.stringify(experimentMetadata),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
@@ -227,6 +231,7 @@ function ExperimentSummaryForm(props) {
         if (res.ok){
           setHelperText(" ")
           setFormError(false);
+          updateExperiment(experimentMetadata)
           killExistingJobs()
           props.handleNext()
         }

@@ -24,7 +24,7 @@ import { Link } from 'react-router-dom';
 
 import PioreactorIcon from "./PioreactorIcon"
 import AutomationForm from "./AutomationForm"
-import { useMQTT } from '../MQTTContext';
+import { useMQTT } from '../providers/MQTTContext';
 
 
 const useStyles = makeStyles((theme) => ({

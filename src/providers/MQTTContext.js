@@ -69,10 +69,10 @@ export const MQTTProvider = ({name, config, children }) => {
 
   useEffect(() => {
     if (Object.keys(config).length) {
-      const { username, password, ws_protocol, broker_address, broker_ws_port } = config.mqtt;
-      const mqttClient = mqtt.connect(`${ws_protocol}://${broker_address}:${broker_ws_port || 9001}/mqtt`, {
-        username: username || 'pioreactor',
-        password: password || 'raspberry',
+      const { username, password, ws_protocol, broker_address, broker_ws_port } = config.mqtt ?? {};
+      const mqttClient = mqtt.connect(`${ws_protocol ?? 'ws'}://${broker_address ?? 'localhost'}:${broker_ws_port ?? 9001}/mqtt`, {
+        username: username ?? 'pioreactor',
+        password: password ?? 'raspberry',
         keepalive: 2 * 60,
       });
 
@@ -91,7 +91,7 @@ export const MQTTProvider = ({name, config, children }) => {
         mqttClient.end();
       };
     }
-  }, [config]);
+  }, [config, name]);
 
   const subscribeToTopic = (topic, messageHandler) => {
     addHandlerToTrie(topicTrie.current, topic, messageHandler);

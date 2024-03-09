@@ -53,7 +53,8 @@ import ActionCirculatingForm from "./components/ActionCirculatingForm"
 import ActionLEDForm from "./components/ActionLEDForm"
 import PioreactorIcon from "./components/PioreactorIcon"
 import UnderlineSpan from "./components/UnderlineSpan";
-import { MQTTProvider, useMQTT } from './MQTTContext';
+import { MQTTProvider, useMQTT } from './providers/MQTTContext';
+import { useExperiment } from './providers/ExperimentContext';
 
 
 const readyGreen = "#4caf50"
@@ -2736,24 +2737,13 @@ function InactiveUnits(props){
 )}
 
 function Pioreactors({title}) {
-  const [experimentMetadata, setExperimentMetadata] = useState({})
+  const {experimentMetadata} = useExperiment()
   const [config, setConfig] = useState({})
 
   useEffect(() => {
     document.title = title;
 
-    function getLatestExperiment() {
-        fetch("/api/experiments/latest")
-        .then((response) => {
-          return response.json();
-        })
-        .then((data) => {
-          setExperimentMetadata(data)
-        });
-      }
-
     getConfig(setConfig)
-    getLatestExperiment()
   }, [title])
 
   const entries = (a) => Object.entries(a)

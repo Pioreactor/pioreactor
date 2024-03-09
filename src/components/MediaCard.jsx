@@ -12,7 +12,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 
 import PioreactorIcon from "./PioreactorIcon"
-import { useMQTT } from '../MQTTContext';
+import { useMQTT } from '../providers/MQTTContext';
 
 
 function MediaCard(props) {

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useMQTT } from '../MQTTContext'; // Import the useMQTT hook
+import { useMQTT } from '../providers/MQTTContext'; // Import the useMQTT hook
 import clsx from 'clsx';
 import moment from 'moment';
 import { withStyles } from '@mui/styles';

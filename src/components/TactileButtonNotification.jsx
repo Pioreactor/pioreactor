@@ -2,7 +2,7 @@ import React from "react";
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
 import {getRelabelMap} from "../utilities"
-import { useMQTT } from '../MQTTContext';
+import { useMQTT } from '../providers/MQTTContext';
 
 import Snackbar from '@mui/material/Snackbar';
 
