@@ -901,23 +901,24 @@ class ODReader(BackgroundJob):
                 # IR led is on
                 self.start_ir_led()
                 sleep(0.10)
-                testing_signals = self.adc_reader.setup_adc()  # determine best gain, max-signal, etc.
 
-                if determine_best_ir_led_intensity:
-                    self.ir_led_intensity = self._determine_best_ir_led_intensity(testing_signals)
+                on_reading = self.adc_reader.setup_adc()  # determine best gain, max-signal, etc.
 
                 # IR led is off so we can set blanks
                 self.stop_ir_led()
                 sleep(0.10)
 
-                avg_blank_reading = average_over_pd_channel_to_voltages(
+                blank_reading = average_over_pd_channel_to_voltages(
                     self.adc_reader.take_reading(),
                     self.adc_reader.take_reading(),
                 )
-                self.adc_reader.set_offsets(avg_blank_reading)  # set dark offset
+                self.adc_reader.set_offsets(blank_reading)  # set dark offset
 
                 # clear the history in adc_reader, so that we don't blank readings in later inference.
                 self.adc_reader.clear_batched_readings()
+
+                if determine_best_ir_led_intensity:
+                    self.ir_led_intensity = self._determine_best_ir_led_intensity(on_reading, blank_reading)
 
         if (self.interval is not None) and self.interval > 0:
             if self.interval <= 1.0:
@@ -936,21 +937,38 @@ class ODReader(BackgroundJob):
             f"Starting od_reading with PD channels {channel_angle_map}, with IR LED intensity {self.ir_led_intensity}% from channel {self.ir_channel}."
         )
 
-    def _determine_best_ir_led_intensity(self, signals: PdChannelToVoltage) -> float:
+    def _determine_best_ir_led_intensity(
+        self, on_reading: PdChannelToVoltage, blank_reading: PdChannelToVoltage
+    ) -> float:
         for pd_channel in self.channel_angle_map:
-            signals.pop(pd_channel)
+            culture_on_signal = on_reading.pop(pd_channel)
+            blank_on_signal = blank_reading.pop(pd_channel)
 
-        if len(signals) == 0:
+            # if the blank signal is too close to the culture signal, its possible the culture is very sparse
+            # this could create poor lower sensitivity, so we bump up the IR LED slightly.
+            if culture_on_signal / blank_on_signal < 1.5:
+                sparse_signal_factor = 0.1
+            else:
+                sparse_signal_factor = 0.0
+
+        if len(on_reading) == 0:
             # no op, didn't specify a REF, so we can't do much.
             return self.ir_led_intensity
-        elif len(signals) > 1:
+        elif len(on_reading) > 1:
             raise ValueError("Too many REFs?")
         else:
             # only element of the dict is our REF signal
-            _, signal_voltage = signals.popitem()
+            _, signal_voltage = on_reading.popitem()
             return clamp(
-                20.0, round(self.TARGET_REF_VOLTAGE * (self.ir_led_intensity / signal_voltage), 2), 80.0
-            )  # more than 80% is a bad idea for this LED
+                20.0,
+                round(
+                    self.TARGET_REF_VOLTAGE
+                    * (self.ir_led_intensity / signal_voltage)
+                    * (1 + sparse_signal_factor),
+                    2,
+                ),
+                80.0,
+            )  # more than 80% is a bad idea for IR LED
 
     def _prepare_post_callbacks(self) -> list[Callable]:
         callbacks: list[Callable] = []

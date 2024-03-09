@@ -139,6 +139,8 @@ def test_all_positive_correlations_between_pds_and_leds(
     )
     adc_reader.setup_adc()
 
+    ir_led_channel = cast(LedChannel, config["leds_reverse"][IR_keyword])
+
     # set all to 0, but use original experiment name, since we indeed are setting them to 0.
     led_intensity(
         {channel: 0 for channel in ALL_LED_CHANNELS},
@@ -148,7 +150,8 @@ def test_all_positive_correlations_between_pds_and_leds(
         source_of_event="self_test",
     )
 
-    for led_channel in ALL_LED_CHANNELS:
+    # for led_channel in ALL_LED_CHANNELS: # we use to check all LED channels, but most users don't need to check all, also https://github.com/Pioreactor/pioreactor/issues/445
+    for led_channel in [ir_led_channel]:  # fast to just check IR
         varying_intensity_results: dict[PdChannel, list[float]] = {
             pd_channel: [] for pd_channel in ALL_PD_CHANNELS
         }
@@ -217,8 +220,6 @@ def test_all_positive_correlations_between_pds_and_leds(
         if angle_or_ref != "":
             channel = cast(PdChannel, channel)
             pd_channels_to_test.append(channel)
-
-    ir_led_channel = cast(LedChannel, config["leds_reverse"][IR_keyword])
 
     for ir_pd_channel in pd_channels_to_test:
         assert results[(ir_led_channel, ir_pd_channel)] > 0.9, f"missing {ir_led_channel} ⇝ {ir_pd_channel}"
