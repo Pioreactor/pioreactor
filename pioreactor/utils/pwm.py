@@ -279,8 +279,7 @@ class PWM:
     def clean_up(self) -> None:
         with suppress(ValueError):
             # this is thrown if the _pwm hasn't started yet.
-            self._pwm.dc = 0
-            self._pwm.off()
+            self.stop()
 
         self._pwm.close()
 

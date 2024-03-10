@@ -946,6 +946,7 @@ class ODReader(BackgroundJob):
 
             # if the blank signal is too close to the culture signal, its possible the culture is very sparse
             # this could create poor lower sensitivity, so we bump up the IR LED slightly.
+            # 1.5 and 0.1 are arbitrary!
             if culture_on_signal / blank_on_signal < 1.5:
                 sparse_signal_factor = 0.1
             else:
