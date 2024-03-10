@@ -100,9 +100,7 @@ def test_dosing_events_land_in_db() -> None:
     cursor = connection.cursor()
 
     cursor.executescript("DROP TABLE IF EXISTS dosing_events;")
-    cursor.executescript(
-        "DROP TRIGGER IF EXISTS update_pioreactor_unit_activity_data_from_dosing_events;"
-    )
+    cursor.executescript("DROP TRIGGER IF EXISTS update_pioreactor_unit_activity_data_from_dosing_events;")
     cursor.executescript(
         mureq.get(
             "https://raw.githubusercontent.com/Pioreactor/CustoPiZer/pioreactor/workspace/scripts/files/sql/create_tables.sql"
@@ -117,9 +115,7 @@ def test_dosing_events_land_in_db() -> None:
     connection.commit()
 
     parsers = [
-        m2db.TopicToParserToTable(
-            "pioreactor/+/+/dosing_events", m2db.parse_dosing_events, "dosing_events"
-        ),
+        m2db.TopicToParserToTable("pioreactor/+/+/dosing_events", m2db.parse_dosing_events, "dosing_events"),
     ]
 
     with m2db.MqttToDBStreamer(unit, exp, parsers):
@@ -168,6 +164,12 @@ def test_kalman_filter_entries() -> None:
     )
     connection.commit()
 
+    with local_persistant_storage("od_normalization_mean") as cache:
+        cache[exp] = json.dumps({"1": 0.5, "2": 0.5})
+
+    with local_persistant_storage("od_normalization_variance") as cache:
+        cache[exp] = json.dumps({"1": 1e-6, "2": 1e-4})
+
     # turn on data collection
     interval = 0.5
     od = start_od_reading(
@@ -179,12 +181,6 @@ def test_kalman_filter_entries() -> None:
         experiment=exp,
         use_calibration=False,
     )
-
-    with local_persistant_storage("od_normalization_mean") as cache:
-        cache[exp] = json.dumps({"1": 0.5, "2": 0.8})
-
-    with local_persistant_storage("od_normalization_variance") as cache:
-        cache[exp] = json.dumps({"1": 1e-6, "2": 1e-4})
 
     gr = GrowthRateCalculator(unit=unit, experiment=exp)
 
