@@ -15,9 +15,6 @@ from msgspec.yaml import decode
 from pioreactor.config import get_active_workers_in_inventory
 from pioreactor.config import leader_address
 from pioreactor.experiment_profiles import profile_struct as struct
-from pioreactor.experiment_profiles.parser import check_syntax
-from pioreactor.experiment_profiles.parser import parse_profile_expression
-from pioreactor.experiment_profiles.parser import parse_profile_expression_to_bool
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
 from pioreactor.mureq import put
@@ -60,6 +57,8 @@ def evaluate_options(options: dict, unit: str) -> dict:
     Users can provide options like {'target_rpm': '${{ bioreactor_A:stirring:target_rpm + 10 }}'}, and the latter
     should be evaluated
     """
+    from pioreactor.experiment_profiles.parser import parse_profile_expression
+
     options_expressed = {}
     for key, value in options.items():
         if is_bracketed_expression(value):
@@ -73,6 +72,8 @@ def evaluate_options(options: dict, unit: str) -> dict:
 
 
 def evaluate_bool_expression(bool_expression: bool_expression, unit: str) -> bool:
+    from pioreactor.experiment_profiles.parser import parse_profile_expression_to_bool
+
     if isinstance(bool_expression, bool):
         return bool_expression
 
@@ -87,6 +88,8 @@ def evaluate_bool_expression(bool_expression: bool_expression, unit: str) -> boo
 
 
 def check_syntax_of_bool_expression(bool_expression: bool_expression) -> bool:
+    from pioreactor.experiment_profiles.parser import check_syntax
+
     if isinstance(bool_expression, bool):
         return True
 
