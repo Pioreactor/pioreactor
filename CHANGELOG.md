@@ -1,4 +1,4 @@
-### Upcoming
+### 24.3.10
 
 #### Enhancements
  - For better consistency between Pioreactors, we've introduced a new configuration option that will automatically adjust the IR LED intensity to match a target value in the reference photodiode, at the start of OD reading. This means that if your IR LEDs are slightly different between Pioreactors, the IR LED output will be adjusted to match a hardcoded value. To enable this feature, change the `[od_config]` config parameter `ir_led_intensity` value to `auto`. For new installs, this is the default configuration. This _shouldn't_ change your actual OD readings very much (since we normalize raw PD by REF, and increase or decrease in REF is balanced by increase or decrease in PD), but it will make analysis easier.
