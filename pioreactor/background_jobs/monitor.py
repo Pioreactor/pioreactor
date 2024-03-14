@@ -91,6 +91,7 @@ class Monitor(BackgroundJob):
         "voltage_on_pwm_rail": {"datatype": "Voltage", "settable": False},
         "ipv4": {"datatype": "string", "settable": False},
         "wlan_mac_address": {"datatype": "string", "settable": False},
+        "eth_mac_address": {"datatype": "string", "settable": False},
     }
     computer_statistics: Optional[dict] = None
     led_in_use: bool = False
@@ -188,6 +189,7 @@ class Monitor(BackgroundJob):
         if whoami.is_testing_env():
             self.ipv4 = "127.0.0.1"
             self.wlan_mac_address = "d8:3a:dd:61:01:59"
+            self.eth_mac_address = "d8:3a:dd:61:01:60"
         else:
             ipv4 = get_ip()
             while ipv4 == "127.0.0.1" or ipv4 is None:
@@ -202,8 +204,12 @@ class Monitor(BackgroundJob):
             with open("/sys/class/net/wlan0/address", "r") as f:
                 self.wlan_mac_address = f.read().strip()
 
+            with open("/sys/class/net/eth0/address", "r") as f:
+                self.eth_mac_address = f.read().strip()
+
         self.logger.debug(f"IPv4 address: {self.ipv4}")
         self.logger.debug(f"WLAN MAC address: {self.wlan_mac_address}")
+        self.logger.debug(f"Ethernet MAC address: {self.wlan_mac_address}")
 
     def self_checks(self) -> None:
         # check active network connection

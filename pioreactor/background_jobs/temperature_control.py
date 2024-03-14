@@ -209,7 +209,7 @@ class TemperatureController(BackgroundJob):
         running_sum, running_count = 0.0, 0
         try:
             # check temp is fast, let's do it a few times to reduce variance.
-            for i in range(5):
+            for i in range(6):
                 running_sum += self.heating_pcb_tmp_driver.get_temperature()
                 running_count += 1
                 sleep(0.05)

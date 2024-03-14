@@ -183,7 +183,7 @@ class GrowthRateCalculator(BackgroundJob):
         ekf_outlier_std_threshold = config.getfloat(
             "growth_rate_calculating.config",
             "ekf_outlier_std_threshold",
-            fallback=5.0,
+            fallback=3.0,
         )
         if ekf_outlier_std_threshold <= 2.0:
             raise ValueError(

@@ -1,3 +1,7 @@
+### Upcoming
+ - replace the `ip` file that is written to on startup with a new `network_info` file that contains the IPv4 address, and MAC addresses.
+ - Adding the ethernet (wired) mac address to the system tab.
+
 ### 24.3.10
 
 #### Enhancements

@@ -43,9 +43,7 @@ def od_statistics(
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_latest_experiment_name()
 
-    logger.info(
-        f"Starting to compute statistics from OD readings. Collecting {n_samples} data points."
-    )
+    logger.info(f"Starting to compute statistics from OD readings. Collecting {n_samples} data points.")
 
     # turn on stirring if not already on
     if not is_pio_job_running("stirring"):
@@ -160,7 +158,7 @@ def od_blank(
             od_angle_channel2,
             unit=unit,
             interval=1.5,
-            experiment=testing_experiment,
+            experiment=testing_experiment,  # use testing experiment to not pollute the database (and they would show up in the UI)
             fake_data=whoami.is_testing_env(),
         ) as od_stream, start_stirring(
             unit=unit,
@@ -193,9 +191,7 @@ def od_blank(
                             timestamp=current_utc_datetime(),
                             channel=channel,
                             od=means[channel],
-                            angle=config.get(
-                                "od_config.photodiode_channel", channel, fallback=None
-                            ),
+                            angle=config.get("od_config.photodiode_channel", channel, fallback=None),
                         )
                     ),
                     qos=pubsub.QOS.AT_LEAST_ONCE,
