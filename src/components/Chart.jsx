@@ -84,6 +84,7 @@ class Chart extends React.Component {
     if (prevProps.experiment !== this.props.experiment) {
       this.getHistoricalDataFromServer()
 
+      // this was removed when we migrated to mqtt.js - why was it ever here?
       //if (this.props.isLiveChart){
       //  try{
       //    this.topics.forEach(topic => {

@@ -1,9 +1,9 @@
 import React from "react";
 import Alert from '@mui/material/Alert';
+import Snackbar from '@mui/material/Snackbar';
 import AlertTitle from '@mui/material/AlertTitle';
 import {getRelabelMap} from "../utilities"
 import { useMQTT } from '../providers/MQTTContext';
-import Snackbar from '@mui/material/Snackbar';
 
 function ErrorSnackbar(props) {
   const [open, setOpen] = React.useState(false)

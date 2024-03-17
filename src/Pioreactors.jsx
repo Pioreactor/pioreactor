@@ -186,6 +186,13 @@ const useStyles = makeStyles((theme) => ({
   },
   headerButtons: {display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"},
   patientButton: {width: "70px", marginTop: "5px", height: "31px", marginRight: '3px'},
+  dataTable: {
+    borderCollapse: "separate",
+    borderSpacing: "5px",
+    fontSize: "0.90rem"
+  },
+  dataTableQuestion: {textAlign: "right", minWidth: "120px", color: ""},
+  dataTableResponse: {}
 }));
 
 
@@ -1138,7 +1145,8 @@ function SettingsActionsDialog(props) {
   const versionInfo = JSON.parse(props.jobs.monitor.publishedSettings.versions.value || "{}")
   const voltageInfo = JSON.parse(props.jobs.monitor.publishedSettings.voltage_on_pwm_rail.value || "{}")
   const ipInfo = props.jobs.monitor.publishedSettings.ipv4.value
-  const macInfo = props.jobs.monitor.publishedSettings.wlan_mac_address.value
+  const macInfoWlan = props.jobs.monitor.publishedSettings.wlan_mac_address.value
+  const macInfoEth = props.jobs.monitor.publishedSettings.eth_mac_address.value
 
   const stateDisplay = {
     "init":          {display: "Starting", color: readyGreen},
@@ -1634,17 +1642,40 @@ function SettingsActionsDialog(props) {
               Learn about how to <a target="_blank" rel="noopener noreferrer" href="https://docs.pioreactor.com/user-guide/accessing-raspberry-pi">access the Pioreactor's Raspberry Pi</a>.
             </Typography>
 
-            <Typography variant="body2" component="p">
-              IPv4: <code className={classes.code}>{ipInfo}</code>
-            </Typography>
-
-            <Typography variant="body2" component="p">
-              Hostname: <code className={classes.code}>{props.unit}.local</code>
-            </Typography>
-
-            <Typography variant="body2" component="p">
-              WLAN MAC: <code className={classes.code}>{macInfo}</code>
-            </Typography>
+            <table className={classes.dataTable}>
+              <tr>
+                <td className={classes.dataTableQuestion}>
+                    IPv4
+                </td>
+                <td>
+                  <code className={classes.code}>{ipInfo || "-"}</code>
+                </td>
+              </tr>
+              <tr>
+                <td className={classes.dataTableQuestion}>
+                    Hostname
+                </td>
+                <td>
+                  <code className={classes.code}>{props.unit}.local</code>
+                </td>
+              </tr>
+              <tr>
+                <td className={classes.dataTableQuestion}>
+                    WLAN MAC
+                </td>
+                <td>
+                  <code className={classes.code}>{macInfoWlan || "-"}</code>
+                </td>
+              </tr>
+              <tr>
+                <td className={classes.dataTableQuestion}>
+                    Ethernet MAC
+                </td>
+                <td>
+                  <code className={classes.code}>{macInfoEth || "-"}</code>
+                </td>
+              </tr>
+            </table>
 
 
           <Divider className={classes.divider} />
@@ -1653,18 +1684,41 @@ function SettingsActionsDialog(props) {
             Version information
           </Typography>
 
-            <Typography variant="body2" component="p">
-              Software version: {versionInfo.app}
-            </Typography>
-            <Typography variant="body2" component="p">
-              Raspberry Pi: {versionInfo.rpi_machine}
-            </Typography>
-            <Typography variant="body2" component="p">
-              HAT version: {versionInfo.hat}
-            </Typography>
-            <Typography variant="body2" component="p">
-              HAT serial number: <code className={classes.code}>{versionInfo.hat_serial}</code>
-            </Typography>
+
+            <table className={classes.dataTable}>
+              <tr>
+                <td className={classes.dataTableQuestion}>
+                    Software version
+                </td>
+                <td className={classes.dataTableResponse}>
+                  <code className={classes.code}>{versionInfo.app || "-"}</code>
+                </td>
+              </tr>
+              <tr>
+                <td className={classes.dataTableQuestion}>
+                    Raspberry Pi
+                </td>
+                <td className={classes.dataTableResponse}>
+                  <code className={classes.code}>{versionInfo.rpi_machine || "-"}</code>
+                </td>
+              </tr>
+              <tr>
+                <td className={classes.dataTableQuestion}>
+                    HAT version
+                </td>
+                <td className={classes.dataTableResponse}>
+                  <code className={classes.code}>{versionInfo.hat || "-"}</code>
+                </td>
+              </tr>
+              <tr>
+                <td className={classes.dataTableQuestion}>
+                    HAT serial number
+                </td>
+                <td className={classes.dataTableResponse}>
+                  <code className={classes.code}>{versionInfo.hat_serial || "-"}</code>
+                </td>
+              </tr>
+            </table>
 
 
           <Divider className={classes.divider} />
@@ -1673,12 +1727,25 @@ function SettingsActionsDialog(props) {
             Voltage on PWM rail
           </Typography>
 
-            <Typography variant="body2" component="p">
-              Voltage: {voltageInfo.voltage}V
-            </Typography>
-            <Typography variant="body2" component="p">
-              Last updated at: {moment.utc(voltageInfo.timestamp || "", 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]').local().format('MMMM Do, h:mm a') }
-            </Typography>
+            <table className={classes.dataTable}>
+              <tr>
+                <td className={classes.dataTableQuestion}>
+                    Voltage
+                </td>
+                <td className={classes.dataTableResponse}>
+                  <code className={classes.code}>{voltageInfo.voltage ? `${voltageInfo.voltage} V` : "-" }</code>
+                </td>
+              </tr>
+              <tr>
+                <td className={classes.dataTableQuestion}>
+                    Last updated at
+                </td>
+                <td className={classes.dataTableResponse}>
+                  <code className={classes.code}>{voltageInfo.timestamp ? moment.utc(voltageInfo.timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]').local().format('MMMM Do, h:mm a') : "-"}</code>
+                </td>
+              </tr>
+            </table>
+
 
           <Divider className={classes.divider} />
 
@@ -2427,6 +2494,9 @@ function PioreactorCard(props){
             value: null, label: null, type: "string", unit: null, display: false, description: null
         },
         wlan_mac_address: {
+            value: null, label: null, type: "string", unit: null, display: false, description: null
+        },
+        eth_mac_address: {
             value: null, label: null, type: "string", unit: null, display: false, description: null
         },
       },

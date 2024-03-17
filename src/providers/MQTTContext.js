@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import mqtt from 'mqtt';
-//import MQTTPattern from 'mqtt-pattern';
+import Alert from '@mui/material/Alert';
+import Snackbar from '@mui/material/Snackbar';
 
 const MQTTContext = createContext();
 
@@ -8,7 +9,7 @@ export const useMQTT = () => useContext(MQTTContext);
 
 const TrieNode = function() {
   this.children = {};
-  this.handler = null;
+  this.handlers = []; // array to store multiple handlers
 };
 
 const addHandlerToTrie = (root, topic, handler) => {
@@ -22,13 +23,13 @@ const addHandlerToTrie = (root, topic, handler) => {
     node = node.children[level];
   }
 
-  node.handler = handler;
+  node.handlers.push(handler); // Add the handler to the array
 };
 
 const findHandlersInTrie = (root, topic) => {
   const levels = topic.split('/');
-  const handlers = [];
   let node = root;
+  const handlers = [];
 
   const search = (index, currentNode) => {
     if (!currentNode) {
@@ -36,9 +37,7 @@ const findHandlersInTrie = (root, topic) => {
     }
 
     if (index === levels.length) {
-      if (currentNode.handler) {
-        handlers.push(currentNode.handler);
-      }
+      handlers.push(...currentNode.handlers); // Add all handlers at this node
       return;
     }
 
@@ -53,8 +52,8 @@ const findHandlersInTrie = (root, topic) => {
     }
 
     // Check for multi-level wildcard '#'
-    if (currentNode.children['#'] && currentNode.children['#'].handler) {
-      handlers.push(currentNode.children['#'].handler);
+    if (currentNode.children['#']) {
+      handlers.push(...currentNode.children['#'].handlers); // Add all handlers for the '#' wildcard
     }
   };
 
@@ -66,6 +65,7 @@ const findHandlersInTrie = (root, topic) => {
 export const MQTTProvider = ({name, config, children }) => {
   const [client, setClient] = useState(null);
   const topicTrie = useRef(new TrieNode());
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (Object.keys(config).length) {
@@ -85,6 +85,17 @@ export const MQTTProvider = ({name, config, children }) => {
         handlers.forEach((handler) => handler(topic, message, packet));
       });
 
+      mqttClient.on('error', (error) => {
+        console.log(`MQTT Connection Error: ${error}`);
+        setError(`MQTT Connection Error: ${error}`);
+      });
+
+      mqttClient.on('close', () => {
+        console.warn('MQTT Client connection closed');
+        setError('MQTT Client connection closed');
+      });
+
+
       setClient(mqttClient);
 
       return () => {
@@ -98,9 +109,18 @@ export const MQTTProvider = ({name, config, children }) => {
     client?.subscribe(topic);
   };
 
+  const handleCloseSnackbar = () => {
+    setError(null);
+  };
+
   return (
     <MQTTContext.Provider value={{ client, subscribeToTopic }}>
       {children}
+      <Snackbar anchorOrigin={{vertical: "bottom", horizontal: "right"}} style={{maxWidth: "500px"}} open={!!error} autoHideDuration={6000} onClose={handleCloseSnackbar}>
+        <Alert variant="standard" onClose={handleCloseSnackbar} severity="error" variant="filled">
+          Failed to connect to MQTT. Is configuration for mqtt.broker_address correct? Currently set to {config?.mqtt?.broker_address}
+        </Alert>
+      </Snackbar>
     </MQTTContext.Provider>
   );
 };
