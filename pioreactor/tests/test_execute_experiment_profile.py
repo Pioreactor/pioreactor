@@ -132,6 +132,7 @@ def test_execute_experiment_log_actions(
     mock__load_experiment_profile, mock__get_active_workers_for_experiment
 ) -> None:
     experiment = "test_execute_experiment_log_actions"
+
     action1 = Log(hours_elapsed=0 / 60 / 60, options=_LogOptions(message="test {unit}"))
     action2 = Log(
         hours_elapsed=2 / 60 / 60, options=_LogOptions(message="test {job} on {unit}", level="INFO")
