@@ -12,11 +12,11 @@ import click
 from msgspec.json import encode
 from msgspec.yaml import decode
 
-from pioreactor.config import get_active_workers_in_inventory
 from pioreactor.config import leader_address
 from pioreactor.experiment_profiles import profile_struct as struct
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
+from pioreactor.mureq import get
 from pioreactor.mureq import put
 from pioreactor.pubsub import publish
 from pioreactor.utils import publish_ready_to_disconnected_state
@@ -208,6 +208,11 @@ def chain_functions(*funcs: Callable[[], None]) -> Callable[[], None]:
     return combined_function
 
 
+def get_active_workers_for_experiment(experiment: str) -> list[str]:
+    results = get(f"http://{leader_address}/api/experiments/{experiment}/workers")
+    return [d["pioreactor_unit"] for d in decode(results.body)]
+
+
 def common_wrapped_execute_action(
     experiment: str,
     job_name: str,
@@ -217,7 +222,7 @@ def common_wrapped_execute_action(
     dry_run: bool = False,
 ) -> Callable[..., None]:
     actions_to_execute = []
-    for worker in get_active_workers_in_inventory():
+    for worker in get_active_workers_for_experiment(experiment):
         actions_to_execute.append(
             wrapped_execute_action(worker, experiment, job_name, logger, schedule, action, dry_run)
         )
@@ -545,7 +550,7 @@ def check_plugins(plugins: list[struct.Plugin]) -> None:
 def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: bool = False) -> None:
     unit = get_unit_name()
     action_name = "experiment_profile"
-    logger = create_logger(action_name)
+    logger = create_logger(action_name, unit=unit, experiment=experiment)
     with publish_ready_to_disconnected_state(unit, experiment, action_name) as state:
         try:
             profile = load_and_verify_profile(profile_filename)

@@ -9,7 +9,6 @@ from msgspec.yaml import decode
 from pioreactor.actions.leader.experiment_profile import _verify_experiment_profile
 from pioreactor.actions.leader.experiment_profile import execute_experiment_profile
 from pioreactor.actions.leader.experiment_profile import hours_to_seconds
-from pioreactor.config import get_active_workers_in_inventory
 from pioreactor.experiment_profiles.profile_struct import _LogOptions
 from pioreactor.experiment_profiles.profile_struct import CommonBlock
 from pioreactor.experiment_profiles.profile_struct import Job
@@ -33,8 +32,11 @@ def test_hours_to_seconds() -> None:
     assert hours_to_seconds(0) == 0
 
 
+@patch("pioreactor.actions.leader.experiment_profile.get_active_workers_for_experiment")
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
-def test_execute_experiment_profile_order(mock__load_experiment_profile) -> None:
+def test_execute_experiment_profile_order(
+    mock__load_experiment_profile, mock__get_active_workers_for_experiment
+) -> None:
     experiment = "test_execute_experiment_profile_order"
 
     action1 = Start(hours_elapsed=0 / 60 / 60)
@@ -52,6 +54,7 @@ def test_execute_experiment_profile_order(mock__load_experiment_profile) -> None
     )
 
     mock__load_experiment_profile.return_value = profile
+    mock__get_active_workers_for_experiment.return_value = ["unit1"]
 
     actions = []
 
@@ -67,14 +70,16 @@ def test_execute_experiment_profile_order(mock__load_experiment_profile) -> None
     execute_experiment_profile("profile.yaml", experiment)
 
     assert actions == [
-        "pioreactor/unit1/_testing_experiment/run/job2",
-        "pioreactor/unit1/_testing_experiment/job2/$state/set",
+        f"pioreactor/unit1/{experiment}/run/job1",
+        f"pioreactor/unit1/{experiment}/run/job2",
+        f"pioreactor/unit1/{experiment}/job2/$state/set",
     ]
 
 
+@patch("pioreactor.actions.leader.experiment_profile.get_active_workers_for_experiment")
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_profile_hack_for_led_intensity(
-    mock__load_experiment_profile,
+    mock__load_experiment_profile, mock__get_active_workers_for_experiment
 ) -> None:
     experiment = "test_execute_experiment_profile_hack_for_led_intensity"
     action1 = Start(hours_elapsed=0 / 60 / 60, options={"A": 50})
@@ -90,6 +95,7 @@ def test_execute_experiment_profile_hack_for_led_intensity(
     )
 
     mock__load_experiment_profile.return_value = profile
+    mock__get_active_workers_for_experiment.return_value = ["unit1"]
 
     actions = []
 
@@ -120,8 +126,11 @@ def test_execute_experiment_profile_hack_for_led_intensity(
     ]
 
 
+@patch("pioreactor.actions.leader.experiment_profile.get_active_workers_for_experiment")
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
-def test_execute_experiment_log_actions(mock__load_experiment_profile) -> None:
+def test_execute_experiment_log_actions(
+    mock__load_experiment_profile, mock__get_active_workers_for_experiment
+) -> None:
     experiment = "test_execute_experiment_log_actions"
     action1 = Log(hours_elapsed=0 / 60 / 60, options=_LogOptions(message="test {unit}"))
     action2 = Log(
@@ -142,6 +151,7 @@ def test_execute_experiment_log_actions(mock__load_experiment_profile) -> None:
     )
 
     mock__load_experiment_profile.return_value = profile
+    mock__get_active_workers_for_experiment.return_value = ["unit1", "unit2"]
 
     with collect_all_logs_of_level(
         "NOTICE", "testing_unit", experiment
@@ -151,9 +161,9 @@ def test_execute_experiment_log_actions(mock__load_experiment_profile) -> None:
         "DEBUG", "testing_unit", experiment
     ) as debug_bucket:
         execute_experiment_profile("profile.yaml", experiment)
-
+        print(notice_bucket)
         assert [log["message"] for log in notice_bucket[1:-1]] == [
-            f"test {unit}" for unit in get_active_workers_in_inventory()
+            f"test {unit}" for unit in ["unit1", "unit2"]
         ]
         assert [log["message"] for log in info_bucket] == [
             "test job2 on unit1",
@@ -163,8 +173,11 @@ def test_execute_experiment_log_actions(mock__load_experiment_profile) -> None:
         ]
 
 
+@patch("pioreactor.actions.leader.experiment_profile.get_active_workers_for_experiment")
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
-def test_execute_experiment_start_and_stop_controller(mock__load_experiment_profile) -> None:
+def test_execute_experiment_start_and_stop_controller(
+    mock__load_experiment_profile, mock__get_active_workers_for_experiment
+) -> None:
     experiment = "test_execute_experiment_start_and_stop_controller"
     action1 = Start(hours_elapsed=0 / 60 / 60, options={"automation_name": "silent"})
     action2 = Stop(
@@ -178,6 +191,7 @@ def test_execute_experiment_start_and_stop_controller(mock__load_experiment_prof
     )
 
     mock__load_experiment_profile.return_value = profile
+    mock__get_active_workers_for_experiment.return_value = ["unit1"]
 
     execute_experiment_profile("profile.yaml", experiment)
 
@@ -205,9 +219,10 @@ def test_execute_experiment_update_automations_not_controllers(
         execute_experiment_profile("profile.yaml", experiment)
 
 
+@patch("pioreactor.actions.leader.experiment_profile.get_active_workers_for_experiment")
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_update_automation(
-    mock__load_experiment_profile,
+    mock__load_experiment_profile, mock__get_active_workers_for_experiment
 ) -> None:
     experiment = "test_execute_experiment_update_automation"
     action1 = Start(
@@ -228,6 +243,7 @@ def test_execute_experiment_update_automation(
     )
 
     mock__load_experiment_profile.return_value = profile
+    mock__get_active_workers_for_experiment.return_value = ["unit1"]
 
     execute_experiment_profile("profile.yaml", experiment)
 
@@ -434,8 +450,9 @@ def test_wrong_syntax_in_if_statement(mock__load_experiment_profile) -> None:
         execute_experiment_profile("profile.yaml", experiment)
 
 
+@patch("pioreactor.actions.leader.experiment_profile.get_active_workers_for_experiment")
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
-def test_repeat_block(mock__load_experiment_profile) -> None:
+def test_repeat_block(mock__load_experiment_profile, mock__get_active_workers_for_experiment) -> None:
     experiment = "test_repeat_block"
     repeat_num = 6
     repeat_every_hours = 0.001
@@ -462,6 +479,7 @@ def test_repeat_block(mock__load_experiment_profile) -> None:
     )
 
     mock__load_experiment_profile.return_value = profile
+    mock__get_active_workers_for_experiment.return_value = ["unit1"]
 
     actions = []
 
@@ -470,7 +488,7 @@ def test_repeat_block(mock__load_experiment_profile) -> None:
 
     subscribe_and_callback(
         collect_actions,
-        [f"pioreactor/unit1/{test_repeat_block}/jobbing/setting/set"],
+        [f"pioreactor/unit1/{experiment}/jobbing/setting/set"],
         allow_retained=False,
     )
 
@@ -479,10 +497,14 @@ def test_repeat_block(mock__load_experiment_profile) -> None:
     assert actions == ["1"] * repeat_num
 
 
+@patch("pioreactor.whoami._get_assigned_experiment_name")
+@patch("pioreactor.actions.leader.experiment_profile.get_active_workers_for_experiment")
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
-def test_execute_experiment_profile_expression_in_common(mock__load_experiment_profile) -> None:
+def test_execute_experiment_profile_expression_in_common(
+    mock__load_experiment_profile, mock__get_active_workers_for_experiment, mock__get_assigned_experiment_name
+) -> None:
     experiment = "test_execute_experiment_profile_expression_in_common"
-    unit = get_active_workers_in_inventory()[0]
+    unit = "unit1"
     job_name = "jobbing"
     publish(f"pioreactor/{unit}/{experiment}/{job_name}/target", 10, retain=True)
 
@@ -502,6 +524,8 @@ def test_execute_experiment_profile_expression_in_common(mock__load_experiment_p
     )
 
     mock__load_experiment_profile.return_value = profile
+    mock__get_active_workers_for_experiment.return_value = ["unit1"]
+    mock__get_assigned_experiment_name.return_value = experiment
 
     actions = []
 

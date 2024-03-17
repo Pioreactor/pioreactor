@@ -163,9 +163,8 @@ class ProfileParser(Parser):
         unit, job, setting_keys = p.UNIT_JOB_SETTING.split(":")
         setting, *keys = setting_keys.split(".")
         experiment = get_assigned_experiment_name(unit)
-        is_active = is_active(unit, experiment)
 
-        if not is_active:
+        if not is_active(unit, experiment):
             raise NotActiveInExperimentError(f"Worker {unit} is not active in experiment {experiment}.")
 
         result = subscribe(f"pioreactor/{unit}/{experiment}/{job}/{setting}", timeout=2)
@@ -187,7 +186,7 @@ class ProfileParser(Parser):
             return convert_string(value)
 
         else:
-            raise ValueError(f"{p.UNIT_JOB_SETTING} does not exist.")
+            raise ValueError(f"{p.UNIT_JOB_SETTING} does not exist for experiment {experiment}")
 
 
 def parse_profile_expression_to_bool(profile_string: str) -> bool:
