@@ -427,7 +427,7 @@ class Monitor(BackgroundJob):
 
         See answer here: https://iot.stackexchange.com/questions/5784/does-mosquito-broker-persist-lwt-messages-to-disk-so-they-may-be-recovered-betw
         """
-        latest_exp = whoami._get_latest_experiment_name()
+        latest_exp = whoami._get_assigned_experiment_name(self.unit)
 
         def check_against_processes_running(msg: MQTTMessage) -> None:
             job = msg.topic.split("/")[3]
@@ -660,7 +660,7 @@ class Monitor(BackgroundJob):
             state = {ch: options.pop(ch) for ch in ALL_LED_CHANNELS if ch in options}
             options["pubsub_client"] = self.pub_client
             options["unit"] = self.unit
-            options["experiment"] = whoami._get_latest_experiment_name()  # techdebt
+            options["experiment"] = whoami._get_assigned_experiment_name(self.unit)  # techdebt
             Thread(
                 target=utils.boolean_retry,
                 args=(led_intensity, (state,), options),
@@ -679,7 +679,7 @@ class Monitor(BackgroundJob):
             pump_action = getattr(pump_actions, job_name)
 
             options["unit"] = self.unit
-            options["experiment"] = whoami._get_latest_experiment_name()  # techdebt
+            options["experiment"] = whoami._get_assigned_experiment_name(self.unit)  # techdebt
             options["config"] = get_config()  # techdebt
             Thread(target=pump_action, kwargs=options, daemon=True).start()
             self.logger.debug(f"Running `{job_name}` from monitor job.")

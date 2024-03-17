@@ -20,24 +20,22 @@ from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import publish_ready_to_disconnected_state
 from pioreactor.utils.math_helpers import simple_linear_regression
 from pioreactor.utils.timing import current_utc_timestamp
-from pioreactor.whoami import get_latest_experiment_name
-from pioreactor.whoami import get_latest_testing_experiment_name
+from pioreactor.whoami import get_assigned_experiment_name
+from pioreactor.whoami import get_testing_experiment_name
 from pioreactor.whoami import get_unit_name
 
 
 def stirring_calibration(min_dc: int, max_dc: int) -> None:
     unit = get_unit_name()
-    experiment = get_latest_testing_experiment_name()
+    experiment = get_testing_experiment_name()
     action_name = "stirring_calibration"
     logger = create_logger(action_name)
 
-    with publish_ready_to_disconnected_state(unit, get_latest_experiment_name(), action_name):
+    with publish_ready_to_disconnected_state(unit, get_assigned_experiment_name(unit), action_name):
         logger.info("Starting stirring calibration.")
 
         if is_pio_job_running("stirring"):
-            logger.error(
-                "Make sure Stirring job is off before running stirring calibration. Exiting."
-            )
+            logger.error("Make sure Stirring job is off before running stirring calibration. Exiting.")
             return
 
         measured_rpms = []
@@ -79,9 +77,7 @@ def stirring_calibration(min_dc: int, max_dc: int) -> None:
 
         # drop any 0 in RPM, too little DC
         try:
-            filtered_dcs, filtered_measured_rpms = zip(
-                *filter(lambda d: d[1] > 0, zip(dcs, measured_rpms))
-            )
+            filtered_dcs, filtered_measured_rpms = zip(*filter(lambda d: d[1] > 0, zip(dcs, measured_rpms)))
         except ValueError:
             # the above can fail if all measured rpms are 0
             logger.error("No RPMs were measured. Is the stirring spinning?")
@@ -102,9 +98,7 @@ def stirring_calibration(min_dc: int, max_dc: int) -> None:
         logger.debug(f"{rpm_coef=}, {rpm_coef_std=}, {intercept=}, {intercept_std=}")
 
         if rpm_coef <= 0:
-            logger.warning(
-                "Something went wrong - detected negative correlation between RPM and stirring."
-            )
+            logger.warning("Something went wrong - detected negative correlation between RPM and stirring.")
             return
 
         elif intercept <= 0:
@@ -146,9 +140,7 @@ def click_stirring_calibration(min_dc: int, max_dc: int) -> None:
     if max_dc is None and min_dc is None:
         # seed with initial_duty_cycle
         config_initial_duty_cycle = config.getfloat("stirring", "initial_duty_cycle")
-        min_dc, max_dc = round(config_initial_duty_cycle * 0.75), round(
-            config_initial_duty_cycle * 1.33
-        )
+        min_dc, max_dc = round(config_initial_duty_cycle * 0.75), round(config_initial_duty_cycle * 1.33)
     elif (max_dc is not None) and (min_dc is not None):
         assert min_dc < max_dc, "min_dc >= max_dc"
     else:

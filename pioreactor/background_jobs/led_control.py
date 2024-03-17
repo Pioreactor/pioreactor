@@ -19,7 +19,7 @@ from pioreactor import exc
 from pioreactor import hardware
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.structs import LEDAutomation
-from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 
 
@@ -51,9 +51,7 @@ class LEDController(BackgroundJob):
         self.automation = LEDAutomation(automation_name=automation_name, args=kwargs)
         self.logger.info(f"Starting {self.automation}.")
         try:
-            self.automation_job = automation_class(
-                unit=self.unit, experiment=self.experiment, **kwargs
-            )
+            self.automation_job = automation_class(unit=self.unit, experiment=self.experiment, **kwargs)
         except Exception as e:
             self.logger.error(e)
             self.logger.debug(e, exc_info=True)
@@ -74,9 +72,7 @@ class LEDController(BackgroundJob):
         try:
             klass = self.available_automations[algo_metadata.automation_name]
             self.logger.info(f"Starting {algo_metadata}.")
-            self.automation_job = klass(
-                unit=self.unit, experiment=self.experiment, **algo_metadata.args
-            )
+            self.automation_job = klass(unit=self.unit, experiment=self.experiment, **algo_metadata.args)
             self.automation = algo_metadata
             self.automation_name = self.automation.automation_name
         except KeyError:
@@ -114,9 +110,11 @@ def start_led_control(
     experiment: Optional[str] = None,
     **kwargs,
 ) -> LEDController:
+    unit = unit or get_unit_name()
+    experiment = experiment or get_assigned_experiment_name(unit)
     return LEDController(
-        unit=unit or get_unit_name(),
-        experiment=experiment or get_latest_experiment_name(),
+        unit=unit,
+        experiment=experiment,
         automation_name=automation_name,
         skip_first_run=skip_first_run,
         duration=duration,

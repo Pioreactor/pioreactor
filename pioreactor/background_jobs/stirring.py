@@ -29,7 +29,7 @@ from pioreactor.utils.streaming_calculations import PID
 from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import RepeatedTimer
-from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
@@ -469,7 +469,7 @@ def start_stirring(
     use_rpm: bool = config.getboolean("stirring", "use_rpm", fallback="true"),
 ) -> Stirrer:
     unit = unit or get_unit_name()
-    experiment = experiment or get_latest_experiment_name()
+    experiment = experiment or get_assigned_experiment_name(unit)
 
     if use_rpm and not is_testing_env():
         rpm_calculator = RpmFromFrequency()

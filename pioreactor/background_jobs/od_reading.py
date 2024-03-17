@@ -237,12 +237,15 @@ class ADCReader(LoggerMixin):
         )
 
     def check_on_max(self, value: pt.Voltage) -> None:
-        if value > 3.2:
+        unit = whoami.get_unit_name()
+        exp = whoami.get_assigned_experiment_name(unit)
+
+        if value <= 3.0:
+            return
+        elif value > 3.2:
             self.logger.error(
                 f"An ADC channel is recording a very high voltage, {round(value, 2)}V. We are shutting down components and jobs to keep the ADC safe."
             )
-
-            unit, exp = whoami.get_unit_name(), whoami.get_latest_experiment_name()
 
             with local_intermittent_storage("led_locks") as cache:
                 for c in led_utils.ALL_LED_CHANNELS:
@@ -275,7 +278,7 @@ class ADCReader(LoggerMixin):
                 f"An ADC channel is recording a very high voltage, {round(value, 2)}V. It's recommended to keep it less than 3.0V. Suggestion: decrease the IR intensity, or change the PD angle to a lower angle."
             )
             publish(
-                f"pioreactor/{whoami.get_unit_name()}/{whoami.get_latest_experiment_name()}/monitor/flicker_led_with_error_code",
+                f"pioreactor/{unit}/{exp}/monitor/flicker_led_with_error_code",
                 error_codes.ADC_INPUT_TOO_HIGH,
             )
             return
@@ -1221,7 +1224,7 @@ def start_od_reading(
         assert interval > 0, "interval must be positive."
 
     unit = unit or whoami.get_unit_name()
-    experiment = experiment or whoami.get_latest_experiment_name()
+    experiment = experiment or whoami.get_assigned_experiment_name(unit)
 
     ir_led_reference_channel = find_ir_led_reference(od_angle_channel1, od_angle_channel2)
     channel_angle_map = create_channel_angle_map(od_angle_channel1, od_angle_channel2)

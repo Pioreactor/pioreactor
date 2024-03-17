@@ -78,8 +78,7 @@ def test_pios_update_settings() -> None:
         bucket.append(msg)
 
     subscribe_and_callback(
-        put_into_bucket,
-        f"pioreactor/+/{whoami.get_latest_experiment_name()}/{job_name}/{published_setting_name}/set",
+        put_into_bucket, f"pioreactor/+/+/{job_name}/{published_setting_name}/set", allow_retain=False
     )
 
     runner = CliRunner()

@@ -41,7 +41,7 @@ def od_statistics(
 
     logger = logger or create_logger(action_name)
     unit = unit or whoami.get_unit_name()
-    experiment = experiment or whoami.get_latest_experiment_name()
+    experiment = experiment or whoami.get_assigned_experiment_name(unit)
 
     logger.info(f"Starting to compute statistics from OD readings. Collecting {n_samples} data points.")
 
@@ -111,7 +111,7 @@ def od_statistics(
 def delete_od_blank(unit=None, experiment=None):
     action_name = "od_blank"
     unit = unit or whoami.get_unit_name()
-    experiment = experiment or whoami.get_latest_experiment_name()
+    experiment = experiment or whoami.get_assigned_experiment_name(unit)
 
     with local_persistant_storage(action_name) as cache:
         if experiment not in cache:
@@ -146,8 +146,8 @@ def od_blank(
     action_name = "od_blank"
     logger = create_logger(action_name)
     unit = unit or whoami.get_unit_name()
-    experiment = experiment or whoami.get_latest_experiment_name()
-    testing_experiment = whoami.get_latest_testing_experiment_name()
+    experiment = experiment or whoami.get_assigned_experiment_name(unit)
+    testing_experiment = whoami.get_testing_experiment_name()
 
     from pioreactor.background_jobs.od_reading import start_od_reading
     from pioreactor.background_jobs.stirring import start_stirring
@@ -238,7 +238,7 @@ def click_od_blank(ctx, od_angle_channel1, od_angle_channel2, n_samples: int) ->
     Compute statistics about the blank OD time series
     """
     unit = whoami.get_unit_name()
-    experiment = whoami.get_latest_experiment_name()
+    experiment = whoami.get_assigned_experiment_name(unit)
 
     if ctx.invoked_subcommand is None:
         od_blank(
@@ -257,6 +257,6 @@ def click_od_blank(ctx, od_angle_channel1, od_angle_channel2, n_samples: int) ->
 )
 def click_delete_od_blank(experiment):
     unit = whoami.get_unit_name()
-    experiment = experiment or whoami.get_latest_experiment_name()
+    experiment = experiment or whoami.get_assigned_experiment_name(unit)
 
     delete_od_blank(unit, experiment)

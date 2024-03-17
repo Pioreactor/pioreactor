@@ -570,17 +570,21 @@ def click_growth_rate_calculating(ctx, ignore_cache):
 
         os.nice(1)
 
+        unit = whoami.get_unit_name()
+        experiment = whoami.get_assigned_experiment_name(unit)
+
         calculator = GrowthRateCalculator(  # noqa: F841
             ignore_cache=ignore_cache,
-            unit=whoami.get_unit_name(),
-            experiment=whoami.get_latest_experiment_name(),
+            unit=unit,
+            experiment=experiment,
         )
         calculator.block_until_disconnected()
 
 
 @click_growth_rate_calculating.command(name="clear_cache")
 def click_clear_cache() -> None:
-    experiment = whoami.get_latest_experiment_name()
+    unit = whoami.get_unit_name()
+    experiment = whoami.get_assigned_experiment_name(unit)
 
     with local_persistant_storage("od_filtered") as cache:
         cache.pop(experiment)

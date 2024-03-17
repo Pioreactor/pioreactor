@@ -9,7 +9,8 @@ from msgspec.json import decode
 from .sly import Lexer
 from .sly import Parser
 from pioreactor.pubsub import subscribe
-from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_assigned_experiment_name
+from pioreactor.whoami import is_active
 
 
 def convert_string(input_str: str) -> bool | float | str:
@@ -161,7 +162,12 @@ class ProfileParser(Parser):
     def expr(self, p) -> bool | float | str:
         unit, job, setting_keys = p.UNIT_JOB_SETTING.split(":")
         setting, *keys = setting_keys.split(".")
-        experiment = get_latest_experiment_name()
+        experiment = get_assigned_experiment_name(unit)
+        is_active = is_active(unit, experiment)
+
+        if not is_active:
+            raise NotActiveInExperimentError(f"Worker {unit} is not active in experiment {experiment}.")
+
         result = subscribe(f"pioreactor/{unit}/{experiment}/{job}/{setting}", timeout=2)
         if result:
             # error handling here

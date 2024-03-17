@@ -18,7 +18,7 @@ from pioreactor.utils.networking import add_local
 from pioreactor.utils.networking import cp_file_across_cluster
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import am_I_leader
-from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
@@ -703,7 +703,6 @@ if am_I_leader():
 
         """
 
-        exp = get_latest_experiment_name()
         extra_args = {ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)}
 
         if "unit" in extra_args:
@@ -715,8 +714,9 @@ if am_I_leader():
         from pioreactor.pubsub import publish
 
         def _thread_function(unit: str) -> bool:
+            experiment = get_assigned_experiment_name(unit)
             for setting, value in extra_args.items():
-                publish(f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value)
+                publish(f"pioreactor/{unit}/{experiment}/{job}/{setting}/set", value)
             return True
 
         units = universal_identifier_to_all_active_workers(units)

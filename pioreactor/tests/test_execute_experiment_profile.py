@@ -35,6 +35,8 @@ def test_hours_to_seconds() -> None:
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_profile_order(mock__load_experiment_profile) -> None:
+    experiment = "test_execute_experiment_profile_order"
+
     action1 = Start(hours_elapsed=0 / 60 / 60)
     action2 = Start(hours_elapsed=2 / 60 / 60)
     action3 = Stop(hours_elapsed=4 / 60 / 60)
@@ -58,11 +60,11 @@ def test_execute_experiment_profile_order(mock__load_experiment_profile) -> None
 
     subscribe_and_callback(
         collection_actions,
-        ["pioreactor/unit1/_testing_experiment/#"],
+        [f"pioreactor/unit1/{experiment}/#"],
         allow_retained=False,
     )
 
-    execute_experiment_profile("profile.yaml")
+    execute_experiment_profile("profile.yaml", experiment)
 
     assert actions == [
         "pioreactor/unit1/_testing_experiment/run/job2",
@@ -74,6 +76,7 @@ def test_execute_experiment_profile_order(mock__load_experiment_profile) -> None
 def test_execute_experiment_profile_hack_for_led_intensity(
     mock__load_experiment_profile,
 ) -> None:
+    experiment = "test_execute_experiment_profile_hack_for_led_intensity"
     action1 = Start(hours_elapsed=0 / 60 / 60, options={"A": 50})
     action2 = Update(hours_elapsed=1 / 60 / 60, options={"A": 40, "B": 22.5})
     action3 = Stop(hours_elapsed=2 / 60 / 60)
@@ -95,23 +98,23 @@ def test_execute_experiment_profile_hack_for_led_intensity(
 
     subscribe_and_callback(
         collection_actions,
-        ["pioreactor/unit1/_testing_experiment/#"],
+        [f"pioreactor/unit1/{experiment}/#"],
         allow_retained=False,
     )
 
-    execute_experiment_profile("profile.yaml")
+    execute_experiment_profile("profile.yaml", experiment)
 
     assert actions == [
         (
-            "pioreactor/unit1/_testing_experiment/run/led_intensity",
+            f"pioreactor/unit1/{experiment}/run/led_intensity",
             '{"options":{"A":50},"args":[]}',
         ),
         (
-            "pioreactor/unit1/_testing_experiment/run/led_intensity",
+            f"pioreactor/unit1/{experiment}/run/led_intensity",
             '{"options":{"A":40,"B":22.5},"args":[]}',
         ),
         (
-            "pioreactor/unit1/_testing_experiment/run/led_intensity",
+            f"pioreactor/unit1/{experiment}/run/led_intensity",
             '{"options":{"A":0,"B":0,"C":0,"D":0},"args":[]}',
         ),
     ]
@@ -119,6 +122,7 @@ def test_execute_experiment_profile_hack_for_led_intensity(
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_log_actions(mock__load_experiment_profile) -> None:
+    experiment = "test_execute_experiment_log_actions"
     action1 = Log(hours_elapsed=0 / 60 / 60, options=_LogOptions(message="test {unit}"))
     action2 = Log(
         hours_elapsed=2 / 60 / 60, options=_LogOptions(message="test {job} on {unit}", level="INFO")
@@ -140,13 +144,13 @@ def test_execute_experiment_log_actions(mock__load_experiment_profile) -> None:
     mock__load_experiment_profile.return_value = profile
 
     with collect_all_logs_of_level(
-        "NOTICE", "testing_unit", "_testing_experiment"
+        "NOTICE", "testing_unit", experiment
     ) as notice_bucket, collect_all_logs_of_level(
-        "INFO", "testing_unit", "_testing_experiment"
+        "INFO", "testing_unit", experiment
     ) as info_bucket, collect_all_logs_of_level(
-        "DEBUG", "testing_unit", "_testing_experiment"
+        "DEBUG", "testing_unit", experiment
     ) as debug_bucket:
-        execute_experiment_profile("profile.yaml")
+        execute_experiment_profile("profile.yaml", experiment)
 
         assert [log["message"] for log in notice_bucket[1:-1]] == [
             f"test {unit}" for unit in get_active_workers_in_inventory()
@@ -155,12 +159,13 @@ def test_execute_experiment_log_actions(mock__load_experiment_profile) -> None:
             "test job2 on unit1",
         ]
         assert [log["message"] for log in debug_bucket[1:]] == [
-            "test experiment=_testing_experiment",
+            f"test experiment={experiment}",
         ]
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_start_and_stop_controller(mock__load_experiment_profile) -> None:
+    experiment = "test_execute_experiment_start_and_stop_controller"
     action1 = Start(hours_elapsed=0 / 60 / 60, options={"automation_name": "silent"})
     action2 = Stop(
         hours_elapsed=1 / 60 / 60,
@@ -174,13 +179,14 @@ def test_execute_experiment_start_and_stop_controller(mock__load_experiment_prof
 
     mock__load_experiment_profile.return_value = profile
 
-    execute_experiment_profile("profile.yaml")
+    execute_experiment_profile("profile.yaml", experiment)
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_update_automations_not_controllers(
     mock__load_experiment_profile,
 ) -> None:
+    experiment = "test_execute_experiment_update_automations_not_controllers"
     action1 = Start(
         hours_elapsed=0 / 60 / 60,
         options={"automation_name": "thermostat", "target_temperature": 25},
@@ -196,13 +202,14 @@ def test_execute_experiment_update_automations_not_controllers(
     mock__load_experiment_profile.return_value = profile
 
     with pytest.raises(ValueError, match="Update"):
-        execute_experiment_profile("profile.yaml")
+        execute_experiment_profile("profile.yaml", experiment)
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_update_automation(
     mock__load_experiment_profile,
 ) -> None:
+    experiment = "test_execute_experiment_update_automation"
     action1 = Start(
         hours_elapsed=0 / 60 / 60,
         options={"automation_name": "thermostat", "target_temperature": 25},
@@ -222,13 +229,14 @@ def test_execute_experiment_update_automation(
 
     mock__load_experiment_profile.return_value = profile
 
-    execute_experiment_profile("profile.yaml")
+    execute_experiment_profile("profile.yaml", experiment)
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_start_controller_and_stop_automation_fails(
     mock__load_experiment_profile,
 ) -> None:
+    experiment = "test_execute_experiment_start_controller_and_stop_automation_fails"
     action1 = Start(hours_elapsed=0 / 60 / 60, options={"automation_name": "silent"})
     action2 = Stop(
         hours_elapsed=1 / 60 / 60,
@@ -248,13 +256,14 @@ def test_execute_experiment_start_controller_and_stop_automation_fails(
     mock__load_experiment_profile.return_value = profile
 
     with pytest.raises(ValueError, match="stop"):
-        execute_experiment_profile("profile.yaml")
+        execute_experiment_profile("profile.yaml", experiment)
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_start_automation_fails(
     mock__load_experiment_profile,
 ) -> None:
+    experiment = "test_execute_experiment_start_automation_fails"
     action = Start(hours_elapsed=0 / 60 / 60, options={"target_temperature": 20})
 
     profile = Profile(
@@ -270,7 +279,7 @@ def test_execute_experiment_start_automation_fails(
     mock__load_experiment_profile.return_value = profile
 
     with pytest.raises(ValueError, match="start"):
-        execute_experiment_profile("profile.yaml")
+        execute_experiment_profile("profile.yaml", experiment)
 
 
 @pytest.mark.xfail(reason="need to write a good test for this")
@@ -280,6 +289,7 @@ def test_label_fires_a_relabel_to_leader_endpoint():
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_profile_simple_if2(mock__load_experiment_profile) -> None:
+    experiment = "test_execute_experiment_profile_simple_if2"
     action_true = Start(hours_elapsed=0, if_="${{1 == 1}}")
 
     profile = Profile(
@@ -304,19 +314,20 @@ def test_execute_experiment_profile_simple_if2(mock__load_experiment_profile) ->
 
     subscribe_and_callback(
         collection_actions,
-        ["pioreactor/unit1/_testing_experiment/#"],
+        [f"pioreactor/unit1/{experiment}/#"],
         allow_retained=False,
     )
 
-    execute_experiment_profile("profile.yaml")
+    execute_experiment_profile("profile.yaml", experiment)
 
     assert actions == [
-        "pioreactor/unit1/_testing_experiment/run/jobbing",
+        f"pioreactor/unit1/{experiment}/run/jobbing",
     ]
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_profile_simple_if(mock__load_experiment_profile) -> None:
+    experiment = "test_execute_experiment_profile_simple_if"
     action_true = Start(hours_elapsed=0, if_="1 == 1")
     action_false = Start(hours_elapsed=0, if_="False")
     action_true_conditional = Start(hours_elapsed=1 / 60 / 60, if_="(1 >= 0) and (0 <= 1)")
@@ -345,23 +356,24 @@ def test_execute_experiment_profile_simple_if(mock__load_experiment_profile) -> 
 
     subscribe_and_callback(
         collection_actions,
-        ["pioreactor/unit1/_testing_experiment/#"],
+        [f"pioreactor/unit1/{experiment}/#"],
         allow_retained=False,
     )
 
-    execute_experiment_profile("profile.yaml")
+    execute_experiment_profile("profile.yaml", experiment)
 
     assert actions == [
-        "pioreactor/unit1/_testing_experiment/run/jobbing",
-        "pioreactor/unit1/_testing_experiment/run/conditional_jobbing",
+        f"pioreactor/unit1/{experiment}/run/jobbing",
+        f"pioreactor/unit1/{experiment}/run/conditional_jobbing",
     ]
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_profile_expression(mock__load_experiment_profile) -> None:
+    experiment = "test_execute_experiment_profile_expression"
     unit = "unit1"
     job_name = "jobbing"
-    publish(f"pioreactor/{unit}/_testing_experiment/{job_name}/target", 10, retain=True)
+    publish(f"pioreactor/{unit}/{experiment}/{job_name}/target", 10, retain=True)
 
     action = Start(
         hours_elapsed=0, options={"target": "${{unit1:jobbing:target + 1}}", "dont_eval": "1.0 + 1.0"}
@@ -389,17 +401,18 @@ def test_execute_experiment_profile_expression(mock__load_experiment_profile) ->
 
     subscribe_and_callback(
         collection_actions,
-        ["pioreactor/unit1/_testing_experiment/run/jobbing"],
+        [f"pioreactor/unit1/{experiment}/run/jobbing"],
         allow_retained=False,
     )
 
-    execute_experiment_profile("profile.yaml")
+    execute_experiment_profile("profile.yaml", experiment)
 
     assert actions == ['{"options":{"target":11.0,"dont_eval":"1.0 + 1.0"},"args":[]}']
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_wrong_syntax_in_if_statement(mock__load_experiment_profile) -> None:
+    experiment = "test_wrong_syntax_in_if_statement"
     action = Start(hours_elapsed=0, if_="1 % 1 and ")
 
     profile = Profile(
@@ -418,11 +431,12 @@ def test_wrong_syntax_in_if_statement(mock__load_experiment_profile) -> None:
     mock__load_experiment_profile.return_value = profile
 
     with pytest.raises(SyntaxError):
-        execute_experiment_profile("profile.yaml")
+        execute_experiment_profile("profile.yaml", experiment)
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_repeat_block(mock__load_experiment_profile) -> None:
+    experiment = "test_repeat_block"
     repeat_num = 6
     repeat_every_hours = 0.001
     start = Start(hours_elapsed=0)
@@ -456,20 +470,21 @@ def test_repeat_block(mock__load_experiment_profile) -> None:
 
     subscribe_and_callback(
         collect_actions,
-        ["pioreactor/unit1/_testing_experiment/jobbing/setting/set"],
+        [f"pioreactor/unit1/{test_repeat_block}/jobbing/setting/set"],
         allow_retained=False,
     )
 
-    execute_experiment_profile("profile.yaml")
+    execute_experiment_profile("profile.yaml", experiment)
 
     assert actions == ["1"] * repeat_num
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_profile_expression_in_common(mock__load_experiment_profile) -> None:
+    experiment = "test_execute_experiment_profile_expression_in_common"
     unit = get_active_workers_in_inventory()[0]
     job_name = "jobbing"
-    publish(f"pioreactor/{unit}/_testing_experiment/{job_name}/target", 10, retain=True)
+    publish(f"pioreactor/{unit}/{experiment}/{job_name}/target", 10, retain=True)
 
     action = Start(
         hours_elapsed=0, options={"target": "${{::jobbing:target + 1}}"}, if_="::jobbing:target > 0"
@@ -495,11 +510,11 @@ def test_execute_experiment_profile_expression_in_common(mock__load_experiment_p
 
     subscribe_and_callback(
         collection_actions,
-        [f"pioreactor/{unit}/_testing_experiment/run/jobbing"],
+        [f"pioreactor/{unit}/{experiment}/run/jobbing"],
         allow_retained=False,
     )
 
-    execute_experiment_profile("profile.yaml")
+    execute_experiment_profile("profile.yaml", experiment)
 
     assert actions == ['{"options":{"target":11.0},"args":[]}']
 

@@ -27,7 +27,7 @@ from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import default_datetime_for_pioreactor
-from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 
 DEFAULT_PWM_CALIBRATION = structs.PumpCalibration(
@@ -244,8 +244,8 @@ def _pump_action(
     if (ml is not None) and (duration is not None):
         raise ValueError("Only select ml or duration")
 
-    experiment = experiment or get_latest_experiment_name()
     unit = unit or get_unit_name()
+    experiment = experiment or get_assigned_experiment_name(unit)
 
     action_name = _get_pump_action(pump_type)
 
@@ -380,8 +380,8 @@ def _liquid_circulation(
     :return: None
     """
     action_name = f"circulate_{pump_type}"
-    experiment = experiment or get_latest_experiment_name()
     unit = unit or get_unit_name()
+    experiment = experiment or get_assigned_experiment_name(unit)
     duration = float(duration)
 
     if logger is None:
@@ -494,7 +494,7 @@ def click_add_alt_media(
     Remove waste/media from unit
     """
     unit = get_unit_name()
-    experiment = get_latest_experiment_name()
+    experiment = get_assigned_experiment_name(unit)
 
     return add_alt_media(
         ml=ml,
@@ -529,7 +529,7 @@ def click_remove_waste(
     Remove waste/media from unit
     """
     unit = get_unit_name()
-    experiment = get_latest_experiment_name()
+    experiment = get_assigned_experiment_name(unit)
 
     return remove_waste(
         ml=ml,
@@ -564,7 +564,7 @@ def click_add_media(
     Add media to unit
     """
     unit = get_unit_name()
-    experiment = get_latest_experiment_name()
+    experiment = get_assigned_experiment_name(unit)
 
     return add_media(
         ml=ml,

@@ -37,8 +37,8 @@ from pioreactor.utils.math_helpers import correlation
 from pioreactor.utils.math_helpers import simple_linear_regression_with_forced_nil_intercept
 from pioreactor.utils.timing import current_utc_datestamp
 from pioreactor.utils.timing import current_utc_datetime
-from pioreactor.whoami import get_latest_experiment_name
-from pioreactor.whoami import get_latest_testing_experiment_name
+from pioreactor.whoami import get_assigned_experiment_name
+from pioreactor.whoami import get_testing_experiment_name
 from pioreactor.whoami import get_unit_name
 
 
@@ -199,7 +199,7 @@ def setup(pump_type: str, execute_pump: Callable, hz: float, dc: float, unit: st
             continuously=True,
             source_of_event="pump_calibration",
             unit=get_unit_name(),
-            experiment=get_latest_testing_experiment_name(),
+            experiment=get_testing_experiment_name(),
             calibration=structs.PumpCalibration(
                 name="calibration",
                 created_at=current_utc_datetime(),
@@ -327,7 +327,7 @@ def run_tests(
                 duration=duration,
                 source_of_event="pump_calibration",
                 unit=get_unit_name(),
-                experiment=get_latest_testing_experiment_name(),
+                experiment=get_testing_experiment_name(),
                 calibration=empty_calibration,
             )
 
@@ -436,7 +436,7 @@ def get_data_from_data_file(data_file: str) -> tuple[list[float], list[float], f
 
 def pump_calibration(min_duration: float, max_duration: float, json_file: str | None) -> None:
     unit = get_unit_name()
-    experiment = get_latest_experiment_name()
+    experiment = get_assigned_experiment_name(unit)
 
     logger = create_logger("pump_calibration", unit=unit, experiment=experiment)
     logger.info("Starting pump calibration.")

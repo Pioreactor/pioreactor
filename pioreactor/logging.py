@@ -13,7 +13,7 @@ from pioreactor.pubsub import create_client
 from pioreactor.pubsub import publish_to_pioreactor_cloud
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import am_I_active_worker
-from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
@@ -158,7 +158,7 @@ def create_logger(
     if experiment is None:
         # this fails if we aren't able to connect to leader, hence the to_mqtt check
         if to_mqtt:
-            experiment = get_latest_experiment_name()
+            experiment = get_assigned_experiment_name(unit)
         else:
             experiment = UNIVERSAL_EXPERIMENT
 

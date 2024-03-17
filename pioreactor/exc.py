@@ -24,3 +24,15 @@ class CalibrationError(Exception):
     """
     An issue with calibration (pump, stirring, OD, etc.)
     """
+
+
+class NotActiveInExperimentError(Exception):
+    """
+    if a worker is not active in an experiment, things shouldn't happen.
+    """
+
+
+class NotAssignedAnExperimentError(Exception):
+    """
+    if a worker is assigned an experiment, and something is trying to run
+    """

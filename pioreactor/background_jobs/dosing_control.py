@@ -78,9 +78,7 @@ class DosingController(BackgroundJob):
         self.logger.info(f"Starting {self.automation}.")
 
         try:
-            self.automation_job = automation_class(
-                unit=self.unit, experiment=self.experiment, **kwargs
-            )
+            self.automation_job = automation_class(unit=self.unit, experiment=self.experiment, **kwargs)
         except Exception as e:
             self.logger.error(e)
             self.logger.debug(e, exc_info=True)
@@ -106,9 +104,7 @@ class DosingController(BackgroundJob):
         try:
             klass = self.available_automations[algo_metadata.automation_name]
             self.logger.info(f"Starting {algo_metadata}.")
-            self.automation_job = klass(
-                unit=self.unit, experiment=self.experiment, **algo_metadata.args
-            )
+            self.automation_job = klass(unit=self.unit, experiment=self.experiment, **algo_metadata.args)
             self.automation = algo_metadata
             self.automation_name = self.automation.automation_name
         except KeyError:
@@ -151,9 +147,10 @@ def start_dosing_control(
     experiment: Optional[str] = None,
     **kwargs,
 ) -> DosingController:
+    unit = unit or whoami.get_unit_name()
     return DosingController(
-        unit=unit or whoami.get_unit_name(),
-        experiment=experiment or whoami.get_latest_experiment_name(),
+        unit=unit,
+        experiment=experiment or whoami.get_assigned_experiment_name(unit),
         automation_name=automation_name,
         duration=duration,
         skip_first_run=skip_first_run,

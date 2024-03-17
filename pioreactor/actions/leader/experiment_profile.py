@@ -20,7 +20,6 @@ from pioreactor.logging import CustomLogger
 from pioreactor.mureq import put
 from pioreactor.pubsub import publish
 from pioreactor.utils import publish_ready_to_disconnected_state
-from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
 
 bool_expression = str | bool
@@ -543,9 +542,8 @@ def check_plugins(plugins: list[struct.Plugin]) -> None:
         raise ImportError(f"Missing packages {not_installed}")
 
 
-def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> None:
+def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: bool = False) -> None:
     unit = get_unit_name()
-    experiment = get_latest_experiment_name()
     action_name = "experiment_profile"
     logger = create_logger(action_name)
     with publish_ready_to_disconnected_state(unit, experiment, action_name) as state:
@@ -660,12 +658,13 @@ def click_experiment_profile():
 
 @click_experiment_profile.command(name="execute")
 @click.argument("filename", type=click.Path())
+@click.argument("experiment", type=str)
 @click.option("--dry-run", is_flag=True, help="Don't actually execute, just print to screen")
-def click_execute_experiment_profile(filename: str, dry_run: bool) -> None:
+def click_execute_experiment_profile(filename: str, experiment, dry_run: bool) -> None:
     """
     (leader only) Run an experiment profile.
     """
-    execute_experiment_profile(filename, dry_run)
+    execute_experiment_profile(filename, experiment, dry_run)
 
 
 @click_experiment_profile.command(name="verify")

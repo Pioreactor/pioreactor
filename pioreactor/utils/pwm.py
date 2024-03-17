@@ -23,7 +23,7 @@ from pioreactor.utils import clamp
 from pioreactor.utils import gpio_helpers
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.version import rpi_version_info
-from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
@@ -177,7 +177,7 @@ class PWM:
         logger: Optional[CustomLogger] = None,
     ) -> None:
         self.unit = unit or get_unit_name()
-        self.experiment = experiment or get_latest_experiment_name()
+        self.experiment = experiment or get_assigned_experiment_name(unit)
 
         if pubsub_client is None:
             self._external_client = False

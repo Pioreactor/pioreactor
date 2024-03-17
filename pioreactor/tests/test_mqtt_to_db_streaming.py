@@ -16,13 +16,13 @@ from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.timing import current_utc_datetime
-from pioreactor.whoami import get_latest_testing_experiment_name
+from pioreactor.whoami import get_testing_experiment_name
 from pioreactor.whoami import get_unit_name
 
 
 def test_testing_data_is_filtered() -> None:
     unit = "unit"
-    exp = get_latest_testing_experiment_name()  # contains _testing_ prefix
+    exp = get_testing_experiment_name()  # contains _testing_ prefix
 
     class TestJob(BackgroundJob):
         job_name = "test_job"

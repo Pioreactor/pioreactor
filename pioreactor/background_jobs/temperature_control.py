@@ -556,9 +556,11 @@ def start_temperature_control(
     experiment: Optional[str] = None,
     **kwargs,
 ) -> TemperatureController:
+    unit = unit or whoami.get_unit_name()
+    experiment = experiment or whoami.get_assigned_experiment_name(unit)
     return TemperatureController(
-        unit=unit or whoami.get_unit_name(),
-        experiment=experiment or whoami.get_latest_experiment_name(),
+        unit=unit,
+        experiment=experiment,
         automation_name=automation_name,
         **kwargs,
     )

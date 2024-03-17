@@ -9,11 +9,11 @@ from pioreactor.experiment_profiles.parser import parse_profile_expression
 from pioreactor.experiment_profiles.parser import parse_profile_expression_to_bool
 from pioreactor.experiment_profiles.sly.lex import LexError
 from pioreactor.pubsub import publish
-from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 
 unit = get_unit_name()
-exp = get_latest_experiment_name()
+exp = get_assigned_experiment_name(unit)
 
 
 def test_identity():

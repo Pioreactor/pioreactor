@@ -48,8 +48,8 @@ from pioreactor.utils.math_helpers import mean
 from pioreactor.utils.math_helpers import trimmed_mean
 from pioreactor.utils.math_helpers import variance
 from pioreactor.version import hardware_version_info
-from pioreactor.whoami import get_latest_experiment_name
-from pioreactor.whoami import get_latest_testing_experiment_name
+from pioreactor.whoami import get_assigned_experiment_name
+from pioreactor.whoami import get_testing_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
@@ -131,7 +131,6 @@ def test_all_positive_correlations_between_pds_and_leds(
     # we exit before moving to the high intensities.
     INTENSITIES = [20, 23, 26, 53, 44, 38, 35, 29, 47, 50, 32, 41]
 
-    current_experiment_name = get_latest_experiment_name()
     results: dict[tuple[LedChannel, PdChannel], float] = {}
 
     adc_reader = ADCReader(
@@ -145,7 +144,7 @@ def test_all_positive_correlations_between_pds_and_leds(
     led_intensity(
         {channel: 0 for channel in ALL_LED_CHANNELS},
         unit=unit,
-        experiment=current_experiment_name,
+        experiment=experiment,
         verbose=False,
         source_of_event="self_test",
     )
@@ -160,7 +159,7 @@ def test_all_positive_correlations_between_pds_and_leds(
             led_intensity(
                 {led_channel: intensity},
                 unit=unit,
-                experiment=current_experiment_name,
+                experiment=experiment,
                 verbose=False,
                 source_of_event="self_test",
             )
@@ -190,7 +189,7 @@ def test_all_positive_correlations_between_pds_and_leds(
         led_intensity(
             {led_channel: 0},
             unit=unit,
-            experiment=current_experiment_name,
+            experiment=experiment,
             verbose=False,
             source_of_event="self_test",
         )
@@ -235,12 +234,11 @@ def test_ambient_light_interference(client: Client, logger: CustomLogger, unit: 
     )
 
     adc_reader.setup_adc()
-    current_experiment_name = get_latest_experiment_name()
     led_intensity(
         {channel: 0 for channel in ALL_LED_CHANNELS},
         unit=unit,
         source_of_event="self_test",
-        experiment=current_experiment_name,
+        experiment=experiment,
         verbose=False,
     )
 
@@ -270,12 +268,11 @@ def test_REF_is_lower_than_0_dot_256_volts(
     )
     adc_reader.setup_adc()
 
-    current_experiment_name = get_latest_experiment_name()
     with change_leds_intensities_temporarily(
         {ir_channel: ir_intensity},
         unit=unit,
         source_of_event="self_test",
-        experiment=current_experiment_name,
+        experiment=experiment,
         verbose=False,
     ):
         samples = []
@@ -450,8 +447,8 @@ def click_self_test(k: Optional[str]) -> int:
     Test the input/output in the Pioreactor
     """
     unit = get_unit_name()
-    testing_experiment = get_latest_testing_experiment_name()
-    experiment = get_latest_experiment_name()
+    testing_experiment = get_testing_experiment_name()
+    experiment = get_assigned_experiment_name(unit)
     logger = create_logger("self_test", unit=unit, experiment=experiment)
 
     A_TESTS = [

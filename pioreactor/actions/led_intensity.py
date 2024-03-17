@@ -21,7 +21,7 @@ from pioreactor.types import LedChannel
 from pioreactor.types import LedIntensityValue
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.timing import current_utc_datetime
-from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
@@ -132,8 +132,8 @@ def led_intensity(
         pioreactor/<unit>/<experiment>/leds/intensity    {'A': intensityA, 'B': intensityB, ...}
 
     """
-    experiment = experiment or get_latest_experiment_name()
     unit = unit or get_unit_name()
+    experiment = experiment or get_assigned_experiment_name(unit)
 
     logger = create_logger("led_intensity", experiment=experiment, unit=unit, pub_client=pubsub_client)
     updated_successfully = True
@@ -258,7 +258,7 @@ def click_led_intensity(
     Modify the intensity of LED channel(s)
     """
     unit = get_unit_name()
-    experiment = get_latest_experiment_name()
+    experiment = get_assigned_experiment_name(unit)
 
     state: dict[LedChannel, LedIntensityValue] = {}
     if a is not None:

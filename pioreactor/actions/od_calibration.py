@@ -34,7 +34,7 @@ from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import publish_ready_to_disconnected_state
 from pioreactor.utils.timing import current_utc_datestamp
 from pioreactor.utils.timing import current_utc_datetime
-from pioreactor.whoami import get_latest_testing_experiment_name
+from pioreactor.whoami import get_testing_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
@@ -163,7 +163,7 @@ def start_stirring():
     st = stirring(
         target_rpm=config.getfloat("stirring", "target_rpm"),
         unit=get_unit_name(),
-        experiment=get_latest_testing_experiment_name(),
+        experiment=get_testing_experiment_name(),
     )
     st.block_until_rpm_is_close_to_target(abs_tolerance=120)
     return st
@@ -229,7 +229,7 @@ def start_recording_and_diluting(
         interval=None,
         unit=get_unit_name(),
         fake_data=is_testing_env(),
-        experiment=get_latest_testing_experiment_name(),
+        experiment=get_testing_experiment_name(),
         use_calibration=False,
     ) as od_reader:
 
@@ -502,7 +502,7 @@ def get_data_from_data_file(data_file: str) -> tuple[pt.PdChannel, pt.PdAngle, l
 
 def od_calibration(data_file: str | None) -> None:
     unit = get_unit_name()
-    experiment = get_latest_testing_experiment_name()
+    experiment = get_testing_experiment_name()
 
     if any(is_pio_job_running(["stirring", "od_reading"])):
         raise ValueError("Stirring and OD reading should be turned off.")

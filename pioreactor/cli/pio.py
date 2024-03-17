@@ -371,8 +371,8 @@ def update_settings(ctx, job: str) -> None:
     > pio update-settings dosing_control --automation '{"type": "dosing", "automation_name": "silent", "args": {}}
 
     """
-    exp = whoami.get_latest_experiment_name()
     unit = whoami.get_unit_name()
+    exp = whoami.get_assigned_experiment_name(unit)
 
     extra_args = {ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)}
 

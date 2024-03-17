@@ -4,29 +4,37 @@ from __future__ import annotations
 import os
 import sys
 import time
+import warnings
 from functools import cache
 
 from msgspec.json import decode
 
-from pioreactor.structs import ExperimentMetadata
+from pioreactor.exc import NotAssignedAnExperimentError
 from pioreactor.version import serial_number
+
 
 UNIVERSAL_IDENTIFIER = "$broadcast"
 UNIVERSAL_EXPERIMENT = "$experiment"
 NO_EXPERIMENT = "$no_experiment_present"
 
 
-def get_latest_testing_experiment_name() -> str:
+def get_testing_experiment_name() -> str:
     exp = get_latest_experiment_name()
     return f"_testing_{exp}"
 
 
 @cache
 def get_latest_experiment_name() -> str:
-    return _get_latest_experiment_name()
+    warnings.warn("Use get_assigned_experiment_name instead", DeprecationWarning, stacklevel=2)
+    return get_assigned_experiment_name(get_unit_name())
 
 
-def _get_latest_experiment_name() -> str:
+@cache
+def get_assigned_experiment_name(unit_name: str) -> str:
+    return _get_assigned_experiment_name(unit_name)
+
+
+def _get_assigned_experiment_name(unit_name: str) -> str:
     from pioreactor.logging import create_logger
     from pioreactor import mureq
 
@@ -42,14 +50,17 @@ def _get_latest_experiment_name() -> str:
 
     for attempt in range(retries):
         try:
-            result = mureq.get(f"http://{leader_address}/api/experiments/latest")
+            result = mureq.get(f"http://{leader_address}/api/workers/{unit_name}/experiment")
             result.raise_for_status()
-            return decode(result.body, type=ExperimentMetadata).experiment
+            data = decode(result.body)
+            return data.experiment
         except mureq.HTTPErrorStatus as e:
             if e.status_code == 401:
                 # auth error, something is wrong
                 exit_reason = "auth"
                 break
+            elif e.status_code == 404:
+                raise NotAssignedAnExperimentError("Worker is not assigned to an experiment")
         except mureq.HTTPException:
             exit_reason = "connection_refused"
         except Exception:
@@ -66,14 +77,40 @@ def _get_latest_experiment_name() -> str:
             f"Error in authentication to UI. Check http://{leader_address} and config.ini for api_key."
         )
     elif exit_reason == "timeout":
-        logger.warning(
-            f"Not able to access experiments in UI. Check http://{leader_address}/api/experiments/latest"
-        )
+        logger.warning(f"Not able to access experiments in UI. Check http://{leader_address}/api/experiments")
     elif exit_reason == "connection_refused":
         logger.warning(
             f"Not able to access experiments in UI. Check http://{leader_address} is online and check network."
         )
+    elif exit_reason == "unassigned":
+        logger.warning(f"Worker {unit_name} not found or not assigned to any experiment.")
     return NO_EXPERIMENT
+
+
+def is_active(unit_name: str, experiment: str) -> bool:
+    from pioreactor import mureq
+    from pioreactor.config import leader_address
+
+    if is_testing_env():
+        return True
+
+    if experiment == UNIVERSAL_EXPERIMENT or experiment == get_testing_experiment_name():
+        return True
+
+    try:
+        result = mureq.get(f"http://{leader_address}/api/experiments/{experiment}/workers/{unit_name}/status")
+        result.raise_for_status()
+        data = decode(result.body)
+        return bool(data.is_active)
+    except mureq.HTTPErrorStatus as e:
+        if e.status_code == 404:
+            raise NotAssignedAnExperimentError("Not assigned to an experiment")
+        else:
+            raise e
+    except mureq.HTTPException as e:
+        raise e
+    except Exception as e:
+        raise e
 
 
 @cache
