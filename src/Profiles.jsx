@@ -125,7 +125,7 @@ function ExperimentProfilesContent(props) {
     }
   }
 
-  const onSubmit = () => runPioreactorJob(config['cluster.topology']?.leader_hostname, 'experiment_profile', ['execute', selectedExperimentProfile], dryRun ? {'dry-run': null} : {}, () => setConfirmed(true))
+  const onSubmit = () => runPioreactorJob(config['cluster.topology']?.leader_hostname, 'experiment_profile', ['execute', selectedExperimentProfile, experimentMetadata.experiment], dryRun ? {'dry-run': null} : {}, () => setConfirmed(true))
 
   const onStop = () => {
     const topic = `pioreactor/${config['cluster.topology']?.leader_hostname}/${experimentMetadata.experiment}/experiment_profile/$state/set`
