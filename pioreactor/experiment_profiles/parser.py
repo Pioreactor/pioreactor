@@ -9,7 +9,7 @@ from msgspec.json import decode
 from .sly import Lexer
 from .sly import Parser
 from pioreactor.pubsub import subscribe
-from pioreactor.whoami import get_assigned_experiment_name
+from pioreactor.whoami import _get_assigned_experiment_name  # get the non-cached version
 from pioreactor.whoami import is_active
 
 
@@ -162,12 +162,12 @@ class ProfileParser(Parser):
     def expr(self, p) -> bool | float | str:
         unit, job, setting_keys = p.UNIT_JOB_SETTING.split(":")
         setting, *keys = setting_keys.split(".")
-        experiment = get_assigned_experiment_name(unit)
+        experiment = self.experiment
 
         if not is_active(unit, experiment):
             raise NotActiveInExperimentError(f"Worker {unit} is not active in experiment {experiment}.")
 
-        result = subscribe(f"pioreactor/{unit}/{experiment}/{job}/{setting}", timeout=2)
+        result = subscribe(f"pioreactor/{unit}/{experiment}/{job}/{setting}", timeout=3)
         if result:
             # error handling here
             try:
@@ -188,9 +188,13 @@ class ProfileParser(Parser):
         else:
             raise ValueError(f"{p.UNIT_JOB_SETTING} does not exist for experiment {experiment}")
 
+    def __init__(self, **kwargs):
+        super().__init__()
+        self.experiment = kwargs.get("experiment", "")
 
-def parse_profile_expression_to_bool(profile_string: str) -> bool:
-    result = parse_profile_expression(profile_string)
+
+def parse_profile_expression_to_bool(profile_string: str, **kwargs) -> bool:
+    result = parse_profile_expression(profile_string, **kwargs)
     if result is None:
         # syntax error or something funky.
         raise SyntaxError(profile_string)
@@ -198,9 +202,9 @@ def parse_profile_expression_to_bool(profile_string: str) -> bool:
         return bool(result)
 
 
-def parse_profile_expression(profile_string: str):
+def parse_profile_expression(profile_string: str, **kwargs):
     lexer = ProfileLexer()
-    parser = ProfileParser()
+    parser = ProfileParser(**kwargs)
     r = parser.parse(lexer.tokenize(profile_string))
     return r
 

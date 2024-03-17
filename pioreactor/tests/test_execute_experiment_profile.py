@@ -161,7 +161,6 @@ def test_execute_experiment_log_actions(
         "DEBUG", "testing_unit", experiment
     ) as debug_bucket:
         execute_experiment_profile("profile.yaml", experiment)
-        print(notice_bucket)
         assert [log["message"] for log in notice_bucket[1:-1]] == [
             f"test {unit}" for unit in ["unit1", "unit2"]
         ]

@@ -58,47 +58,52 @@ def test_simple_float_comparison():
 
 def test_mqtt_fetches():
     # complex
+
+    experiment = "test_mqtt_fetches"
+
     publish(
-        f"pioreactor/{unit}/{exp}/od_reading/od1",
+        f"pioreactor/{unit}/{experiment}/od_reading/od1",
         encode(structs.ODReading(timestamp="2021-01-01", angle="90", od=1.2, channel="2")),
         retain=True,
     )
 
-    assert parse_profile_expression_to_bool(f"{unit}:od_reading:od1.od > 1.0")
-    assert parse_profile_expression_to_bool(f"{unit}:od_reading:od1.od < 2.0")
-    assert not parse_profile_expression_to_bool(f"{unit}:od_reading:od1.od > 2.0")
+    assert parse_profile_expression_to_bool(f"{unit}:od_reading:od1.od > 1.0", experiment=experiment)
+    assert parse_profile_expression_to_bool(f"{unit}:od_reading:od1.od < 2.0", experiment=experiment)
+    assert not parse_profile_expression_to_bool(f"{unit}:od_reading:od1.od > 2.0", experiment=experiment)
 
     # ints
-    publish(f"pioreactor/{unit}/{exp}/test_job/int", 101, retain=True)
-    assert parse_profile_expression_to_bool(f"{unit}:test_job:int == 101")
-    assert parse_profile_expression_to_bool(f"{unit}:test_job:int > 100")
+    publish(f"pioreactor/{unit}/{experiment}/test_job/int", 101, retain=True)
+    assert parse_profile_expression_to_bool(f"{unit}:test_job:int == 101", experiment=experiment)
+    assert parse_profile_expression_to_bool(f"{unit}:test_job:int > 100", experiment=experiment)
 
     # floats
-    publish(f"pioreactor/{unit}/{exp}/test_job/float", 101.5, retain=True)
-    assert parse_profile_expression_to_bool(f"{unit}:test_job:float > 100.0")
-    assert parse_profile_expression_to_bool(f"{unit}:test_job:float == 101.5")
+    publish(f"pioreactor/{unit}/{experiment}/test_job/float", 101.5, retain=True)
+    assert parse_profile_expression_to_bool(f"{unit}:test_job:float > 100.0", experiment=experiment)
+    assert parse_profile_expression_to_bool(f"{unit}:test_job:float == 101.5", experiment=experiment)
 
     # str
-    publish(f"pioreactor/{unit}/{exp}/test_job/string", "hi", retain=True)
-    assert parse_profile_expression_to_bool(f"{unit}:test_job:string == hi")
-    assert parse_profile_expression_to_bool(f"not {unit}:test_job:string == test")
+    publish(f"pioreactor/{unit}/{experiment}/test_job/string", "hi", retain=True)
+    assert parse_profile_expression_to_bool(f"{unit}:test_job:string == hi", experiment=experiment)
+    assert parse_profile_expression_to_bool(f"not {unit}:test_job:string == test", experiment=experiment)
 
     # states as str
-    publish(f"pioreactor/{unit}/{exp}/test_job/$state", "ready", retain=True)
-    assert parse_profile_expression_to_bool(f"{unit}:test_job:$state == ready")
-    assert parse_profile_expression_to_bool(f"not {unit}:test_job:$state == sleeping")
+    publish(f"pioreactor/{unit}/{experiment}/test_job/$state", "ready", retain=True)
+    assert parse_profile_expression_to_bool(f"{unit}:test_job:$state == ready", experiment=experiment)
+    assert parse_profile_expression_to_bool(f"not {unit}:test_job:$state == sleeping", experiment=experiment)
 
     # bool
-    publish(f"pioreactor/{unit}/{exp}/test_job/bool_true", "true", retain=True)
-    publish(f"pioreactor/{unit}/{exp}/test_job/bool_false", "false", retain=True)
-    assert parse_profile_expression_to_bool(f"{unit}:test_job:bool_true")
-    assert parse_profile_expression_to_bool(f"not {unit}:test_job:bool_false")
-    assert parse_profile_expression_to_bool(f"{unit}:test_job:bool_false or {unit}:test_job:bool_true")
+    publish(f"pioreactor/{unit}/{experiment}/test_job/bool_true", "true", retain=True)
+    publish(f"pioreactor/{unit}/{experiment}/test_job/bool_false", "false", retain=True)
+    assert parse_profile_expression_to_bool(f"{unit}:test_job:bool_true", experiment=experiment)
+    assert parse_profile_expression_to_bool(f"not {unit}:test_job:bool_false", experiment=experiment)
+    assert parse_profile_expression_to_bool(
+        f"{unit}:test_job:bool_false or {unit}:test_job:bool_true", experiment=experiment
+    )
 
 
 def test_mqtt_timeout():
     with pytest.raises(ValueError):
-        assert parse_profile_expression_to_bool(f"{unit}:test_job:does_not_exist or True")
+        assert parse_profile_expression_to_bool(f"{unit}:test_job:does_not_exist or True", experiment="test")
 
 
 def test_calculator():
@@ -115,17 +120,24 @@ def test_calculator():
 
 
 def test_mqtt_fetches_with_calculations():
+    experiment = "test_mqtt_fetches_with_calculations"
     publish(
-        f"pioreactor/{unit}/{exp}/od_reading/od1",
+        f"pioreactor/{unit}/{experiment}/od_reading/od1",
         encode(structs.ODReading(timestamp="2021-01-01", angle="90", od=1.2, channel="2")),
         retain=True,
     )
 
-    assert parse_profile_expression(f"2 * {unit}:od_reading:od1.od ") == 2 * 1.2
+    assert parse_profile_expression(f"2 * {unit}:od_reading:od1.od ", experiment=experiment) == 2 * 1.2
     assert (
         parse_profile_expression(
-            f"{unit}:od_reading:od1.od + {unit}:od_reading:od1.od + {unit}:od_reading:od1.od"
+            f"{unit}:od_reading:od1.od + {unit}:od_reading:od1.od + {unit}:od_reading:od1.od",
+            experiment=experiment,
         )
         == 3 * 1.2
     )
-    assert parse_profile_expression(f"({unit}:od_reading:od1.od + {unit}:od_reading:od1.od) > 2.0 ") is True
+    assert (
+        parse_profile_expression(
+            f"({unit}:od_reading:od1.od + {unit}:od_reading:od1.od) > 2.0 ", experiment=experiment
+        )
+        is True
+    )

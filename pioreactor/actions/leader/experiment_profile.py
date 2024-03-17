@@ -51,7 +51,7 @@ def strip_expression_brackets(value: str) -> str:
     return match.group(1)
 
 
-def evaluate_options(options: dict, unit: str) -> dict:
+def evaluate_options(options: dict, unit: str, experiment: str) -> dict:
     """
     Users can provide options like {'target_rpm': '${{ bioreactor_A:stirring:target_rpm + 10 }}'}, and the latter
     should be evaluated
@@ -64,13 +64,13 @@ def evaluate_options(options: dict, unit: str) -> dict:
             expression = strip_expression_brackets(value)
             # replace :: placeholder with unit
             expression = expression.replace("::", f"{unit}:", 1)
-            options_expressed[key] = parse_profile_expression(expression)
+            options_expressed[key] = parse_profile_expression(expression, experiment=experiment)
         else:
             options_expressed[key] = value
     return options_expressed
 
 
-def evaluate_bool_expression(bool_expression: bool_expression, unit: str) -> bool:
+def evaluate_bool_expression(bool_expression: bool_expression, unit: str, experiment: str) -> bool:
     from pioreactor.experiment_profiles.parser import parse_profile_expression_to_bool
 
     if isinstance(bool_expression, bool):
@@ -83,7 +83,7 @@ def evaluate_bool_expression(bool_expression: bool_expression, unit: str) -> boo
     bool_expression = bool_expression.replace("::", f"{unit}:", 1)
 
     # bool_expression is a str
-    return parse_profile_expression_to_bool(bool_expression)
+    return parse_profile_expression_to_bool(bool_expression, experiment=experiment)
 
 
 def check_syntax_of_bool_expression(bool_expression: bool_expression) -> bool:
@@ -210,7 +210,7 @@ def chain_functions(*funcs: Callable[[], None]) -> Callable[[], None]:
 
 def get_active_workers_for_experiment(experiment: str) -> list[str]:
     results = get(f"http://{leader_address}/api/experiments/{experiment}/workers")
-    return [d["pioreactor_unit"] for d in decode(results.body)]
+    return [d["pioreactor_unit"] for d in decode(results.body) if bool(d["is_active"])]
 
 
 def common_wrapped_execute_action(
@@ -245,8 +245,8 @@ def repeat(
     schedule: scheduler,
 ):
     def _callable() -> None:
-        if ((if_ is None) or evaluate_bool_expression(if_, unit)) and (
-            ((while_ is None) or evaluate_bool_expression(while_, unit))
+        if ((if_ is None) or evaluate_bool_expression(if_, unit, experiment)) and (
+            ((while_ is None) or evaluate_bool_expression(while_, unit, experiment))
         ):
             for action in actions:
                 if action.hours_elapsed > repeat_every_hours:
@@ -299,7 +299,7 @@ def log(
     logger: CustomLogger,
 ) -> Callable[..., None]:
     def _callable() -> None:
-        if (if_ is None) or evaluate_bool_expression(if_, unit):
+        if (if_ is None) or evaluate_bool_expression(if_, unit, experiment):
             level = options.level.lower()
             getattr(logger, level)(options.message.format(unit=unit, job=job_name, experiment=experiment))
         else:
@@ -319,13 +319,13 @@ def start_job(
     logger: CustomLogger,
 ) -> Callable[..., None]:
     def _callable() -> None:
-        if (if_ is None) or evaluate_bool_expression(if_, unit):
+        if (if_ is None) or evaluate_bool_expression(if_, unit, experiment):
             if dry_run:
                 logger.info(f"Dry-run: Starting {job_name} on {unit} with options {options} and args {args}.")
             else:
                 publish(
                     f"pioreactor/{unit}/{experiment}/run/{job_name}",
-                    encode({"options": evaluate_options(options, unit), "args": args}),
+                    encode({"options": evaluate_options(options, unit, experiment), "args": args}),
                 )
         else:
             logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
@@ -342,7 +342,7 @@ def pause_job(
     logger: CustomLogger,
 ) -> Callable[..., None]:
     def _callable() -> None:
-        if (if_ is None) or evaluate_bool_expression(if_, unit):
+        if (if_ is None) or evaluate_bool_expression(if_, unit, experiment):
             if dry_run:
                 logger.info(f"Dry-run: Pausing {job_name} on {unit}.")
             else:
@@ -362,7 +362,7 @@ def resume_job(
     logger: CustomLogger,
 ) -> Callable[..., None]:
     def _callable() -> None:
-        if (if_ is None) or evaluate_bool_expression(if_, unit):
+        if (if_ is None) or evaluate_bool_expression(if_, unit, experiment):
             if dry_run:
                 logger.info(f"Dry-run: Resuming {job_name} on {unit}.")
             else:
@@ -382,7 +382,7 @@ def stop_job(
     logger: CustomLogger,
 ) -> Callable[..., None]:
     def _callable() -> None:
-        if (if_ is None) or evaluate_bool_expression(if_, unit):
+        if (if_ is None) or evaluate_bool_expression(if_, unit, experiment):
             if dry_run:
                 logger.info(f"Dry-run: Stopping {job_name} on {unit}.")
             else:
@@ -403,13 +403,13 @@ def update_job(
     logger: CustomLogger,
 ) -> Callable[..., None]:
     def _callable() -> None:
-        if (if_ is None) or evaluate_bool_expression(if_, unit):
+        if (if_ is None) or evaluate_bool_expression(if_, unit, experiment):
             if dry_run:
                 for setting, value in options.items():
                     logger.info(f"Dry-run: Updating {setting} to {value} in {job_name} on {unit}.")
 
             else:
-                for setting, value in evaluate_options(options, unit).items():
+                for setting, value in evaluate_options(options, unit, experiment).items():
                     publish(f"pioreactor/{unit}/{experiment}/{job_name}/{setting}/set", value)
         else:
             logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")

@@ -25,7 +25,9 @@ def get_testing_experiment_name() -> str:
 
 @cache
 def get_latest_experiment_name() -> str:
-    warnings.warn("Use get_assigned_experiment_name instead", DeprecationWarning, stacklevel=2)
+    warnings.warn(
+        "Use whoami.get_assigned_experiment_name function instead", DeprecationWarning, stacklevel=2
+    )
     return get_assigned_experiment_name(get_unit_name())
 
 
@@ -98,7 +100,9 @@ def is_active(unit_name: str, experiment: str) -> bool:
         return True
 
     try:
-        result = mureq.get(f"http://{leader_address}/api/experiments/{experiment}/workers/{unit_name}/status")
+        result = mureq.get(
+            f"http://{leader_address}/api/experiments/{experiment}/workers/{unit_name}/is_active"
+        )
         result.raise_for_status()
         data = decode(result.body)
         return bool(data.is_active)

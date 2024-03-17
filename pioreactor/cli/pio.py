@@ -29,6 +29,7 @@ from pioreactor import whoami
 from pioreactor.config import check_firstboot_successful
 from pioreactor.config import config
 from pioreactor.config import get_leader_hostname
+from pioreactor.config import leader_address
 from pioreactor.logging import create_logger
 from pioreactor.mureq import get
 from pioreactor.mureq import HTTPException
@@ -819,19 +820,26 @@ if whoami.am_I_leader():
                 name="CLI",
             )
             if result:
-                versions = loads(result.payload.decode())
+                app_version = loads(result.payload.decode())["app"]
             else:
-                versions = {"hat": "unknown", "hat_serial": "unknown"}
+                app_version = "unknown"
 
             # is reachable?
             reachable = networking.is_reachable(add_local(hostname))
 
-            return ip, state, reachable, versions
+            # get experiment
+            try:
+                result = get(f"http://{leader_address}/api/{hostname}/experiment")
+                experiment = loads(result)["experiment"]
+            except Exception:
+                experiment = "unknown"
+
+            return ip, state, reachable, app_version, experiment
 
         def display_data_for(hostname_status: tuple[str, str]) -> bool:
-            hostname, status = hostname_status
+            hostname, _ = hostname_status
 
-            ip, state, reachable, versions = get_metadata(hostname)
+            ip, state, reachable, version, experiment = get_metadata(hostname)
 
             statef = click.style(f"{state:15s}", fg="green" if state in ("ready", "init") else "red")
             ipf = f"{ip if (ip is not None) else 'unknown':20s}"
@@ -841,19 +849,18 @@ if whoami.am_I_leader():
             reachablef = (
                 f"{(click.style('Y', fg='green') if reachable       else click.style('N', fg='red')):23s}"
             )
-            statusf = (
-                f"{(click.style('Y', fg='green') if (status == '1') else click.style('N', fg='red')):23s}"
-            )
-            versionf = f"{versions['hat']:15s}"
+            versionf = f"{version:15s}"
 
-            click.echo(f"{hostnamef} {is_leaderf} {ipf} {statef} {reachablef} {statusf} {versionf}")
+            experimentf = f"{experiment:15s}"
+
+            click.echo(f"{hostnamef} {is_leaderf} {ipf} {statef} {reachablef} {versionf} {experimentf}")
             return reachable & (state == "ready")
 
         worker_statuses = list(config["cluster.inventory"].items())
         n_workers = len(worker_statuses)
 
         click.secho(
-            f"{'Unit / hostname':20s} {'Is leader?':15s} {'IP address':20s} {'State':15s} {'Reachable?':14s} {'Active?':14s} {'HAT version':15s}",
+            f"{'Unit / hostname':20s} {'Is leader?':15s} {'IP address':20s} {'State':15s} {'Reachable?':14s} {'Version':15s} {'Experiment':15s}",
             bold=True,
         )
         if n_workers == 0:
