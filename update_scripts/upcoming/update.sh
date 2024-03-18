@@ -21,3 +21,9 @@ systemctl daemon-reload
 
 systemctl restart avahi_aliases.service
 systemctl restart load_rp2040.service
+
+
+
+########
+
+# 1. create new sql table, and populate it.

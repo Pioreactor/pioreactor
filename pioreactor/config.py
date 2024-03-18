@@ -5,6 +5,10 @@ import configparser
 import os
 from functools import cache
 
+from msgspec.json import decode
+
+from pioreactor.mureq import get
+
 
 def __getattr__(attr):  # type: ignore
     """
@@ -181,21 +185,19 @@ def check_firstboot_successful() -> bool:
 
 
 def get_active_workers_in_inventory() -> tuple[str, ...]:
-    # note that this rehydrates conifg.ini from disk before checking.
-    # because we are not using config.getboolean here, values like "0" are seen as true,
-    # hence we use the built in config.BOOLEAN_STATES to determine truthiness
-    config = get_config()
-    return tuple(
-        str(unit)
-        for (unit, available) in config["cluster.inventory"].items()
-        if config.BOOLEAN_STATES[available]
-    )
+    result = get(f"http://{get_leader_address()}/api/workers/is_active")
+    return tuple(worker["pioreactor_unit"] for worker in decode(result.body))
+
+
+def get_active_workers_in_experiment(experiment: str) -> tuple[str, ...]:
+    result = get(f"http://{get_leader_address()}/api/experiments/{experiment}/workers")
+    return tuple(worker["pioreactor_unit"] for worker in decode(result.body) if bool(worker["is_active"]))
 
 
 def get_workers_in_inventory() -> tuple[str, ...]:
-    # note that this rehydrates config.ini from disk before checking.
-    config = get_config()
-    return tuple(str(unit) for (unit, available) in config["cluster.inventory"].items())
+    # assigned to experiments or not, active or not.
+    result = get(f"http://{get_leader_address()}/api/workers")
+    return tuple(worker["pioreactor_unit"] for worker in decode(result.body))
 
 
 config = get_config()

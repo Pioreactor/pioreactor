@@ -494,11 +494,11 @@ def load_and_verify_profile(profile_filename: str) -> struct.Profile:
     return profile
 
 
-def push_labels_to_ui(labels_map: dict[str, str]) -> None:
+def push_labels_to_ui(experiment, labels_map: dict[str, str]) -> None:
     try:
         for unit_name, label in labels_map.items():
             put(
-                f"http://{leader_address}/api/unit_labels/current",
+                f"http://{leader_address}/api/experiments/{experiment}/unit_labels",
                 encode({"unit": unit_name, "label": label}),
                 headers={"Content-Type": "application/json"},
             )
@@ -603,7 +603,7 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
             pioreactor_specific_block = profile.pioreactors[unit_]
             if pioreactor_specific_block.label is not None:
                 label = pioreactor_specific_block.label
-                push_labels_to_ui({unit_: label})
+                push_labels_to_ui(experiment, {unit_: label})
 
             for job_name, job in pioreactor_specific_block.jobs.items():
                 for action in job.actions:

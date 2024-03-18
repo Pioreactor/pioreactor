@@ -25,12 +25,9 @@ from http.client import HTTPSConnection
 from typing import Generator
 from typing import Optional
 
-from pioreactor.config import config
-
 
 DEFAULT_TIMEOUT = 15.0
 DEFAULT_UA = "Python/Pioreactor"
-DEFAULT_AUTH = f'Basic {config.get("ui_basic_auth", "api_key", fallback="")}'
 
 
 def basic_auth(username: str, password: str):
@@ -337,6 +334,10 @@ def _check_redirect(url, status, response_headers):
 
 
 def _prepare_outgoing_headers(headers):
+    from pioreactor.config import config
+
+    DEFAULT_AUTH = f'Basic {config.get("ui_basic_auth", "api_key", fallback="")}'
+
     if headers is None:
         headers = HTTPMessage()
     elif not isinstance(headers, HTTPMessage):

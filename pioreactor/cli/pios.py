@@ -38,10 +38,6 @@ def pios() -> None:
         click.echo("workers cannot run `pios` commands. Try `pio` instead.", err=True)
         raise click.Abort()
 
-    if len(get_active_workers_in_inventory()) == 0:
-        logger = create_logger("CLI", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
-        logger.warning("No active workers. See `cluster.inventory` section in config.ini.")
-
 
 if am_I_leader():
 
