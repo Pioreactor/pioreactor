@@ -49,7 +49,7 @@ def run_around_tests(request):
 def mock_external_leader_webserver_apis(mocker):
     # used mostly in pioreactor.config.py
     def mock_get_response(url):
-        if url.endswith("/api/workers/is_active"):
+        if url.endswith("/api/workers?is_active=1"):
             return MagicMock(body='[{"pioreactor_unit": "unit1"}, {"pioreactor_unit": "unit2"}]')
         elif url.endswith("/api/experiments/some_experiment/workers"):
             return MagicMock(

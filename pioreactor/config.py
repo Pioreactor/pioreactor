@@ -176,28 +176,24 @@ def get_mqtt_address() -> str:
     return get_config().get("mqtt", "broker_address", fallback=get_leader_address())
 
 
-def check_firstboot_successful() -> bool:
-    from pioreactor.whoami import is_testing_env
-
-    if is_testing_env():
-        return True
-    return os.path.isfile("/usr/local/bin/firstboot.sh.done")
+def get_workers_in_inventory() -> tuple[str, ...]:
+    result = get(f"http://{get_leader_address()}/api/workers")
+    return tuple(worker["pioreactor_unit"] for worker in decode(result.body))
 
 
 def get_active_workers_in_inventory() -> tuple[str, ...]:
-    result = get(f"http://{get_leader_address()}/api/workers/is_active")
+    result = get(f"http://{get_leader_address()}/api/workers")
+    return tuple(worker["pioreactor_unit"] for worker in decode(result.body) if bool(worker["is_active"]))
+
+
+def get_workers_in_experiment(experiment: str) -> tuple[str, ...]:
+    result = get(f"http://{get_leader_address()}/api/experiments/{experiment}/workers")
     return tuple(worker["pioreactor_unit"] for worker in decode(result.body))
 
 
 def get_active_workers_in_experiment(experiment: str) -> tuple[str, ...]:
     result = get(f"http://{get_leader_address()}/api/experiments/{experiment}/workers")
     return tuple(worker["pioreactor_unit"] for worker in decode(result.body) if bool(worker["is_active"]))
-
-
-def get_workers_in_inventory() -> tuple[str, ...]:
-    # assigned to experiments or not, active or not.
-    result = get(f"http://{get_leader_address()}/api/workers")
-    return tuple(worker["pioreactor_unit"] for worker in decode(result.body))
 
 
 config = get_config()

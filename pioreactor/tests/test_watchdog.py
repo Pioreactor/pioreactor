@@ -42,9 +42,9 @@ def test_watchdog_doesnt_alert_if_already_in_cluster() -> None:
 
     info = zeroconf.ServiceInfo(
         "_pio-worker._tcp.local.",
-        "pioreactor-worker-on-pioreactor2._pio-worker._tcp.local.",
+        "pioreactor-worker-on-unit2._pio-worker._tcp.local.",
         addresses=["192.168.1.0"],
-        server="pioreactor2.local.",
+        server="unit2.local.",
         port=1234,
     )
 

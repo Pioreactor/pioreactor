@@ -162,10 +162,9 @@ class ProfileParser(Parser):
     def expr(self, p) -> bool | float | str:
         unit, job, setting_keys = p.UNIT_JOB_SETTING.split(":")
         setting, *keys = setting_keys.split(".")
-        experiment = self.experiment
 
-        if not is_active(unit, experiment):
-            raise NotActiveInExperimentError(f"Worker {unit} is not active in experiment {experiment}.")
+        if not is_active(unit):
+            raise NotActiveWorkerError(f"Worker {unit} is not active.")
 
         result = subscribe(f"pioreactor/{unit}/{experiment}/{job}/{setting}", timeout=3)
         if result:
@@ -188,13 +187,9 @@ class ProfileParser(Parser):
         else:
             raise ValueError(f"{p.UNIT_JOB_SETTING} does not exist for experiment {experiment}")
 
-    def __init__(self, **kwargs):
-        super().__init__()
-        self.experiment = kwargs.get("experiment", "")
 
-
-def parse_profile_expression_to_bool(profile_string: str, **kwargs) -> bool:
-    result = parse_profile_expression(profile_string, **kwargs)
+def parse_profile_expression_to_bool(profile_string: str) -> bool:
+    result = parse_profile_expression(profile_string)
     if result is None:
         # syntax error or something funky.
         raise SyntaxError(profile_string)
@@ -202,9 +197,9 @@ def parse_profile_expression_to_bool(profile_string: str, **kwargs) -> bool:
         return bool(result)
 
 
-def parse_profile_expression(profile_string: str, **kwargs):
+def parse_profile_expression(profile_string: str):
     lexer = ProfileLexer()
-    parser = ProfileParser(**kwargs)
+    parser = ProfileParser()
     r = parser.parse(lexer.tokenize(profile_string))
     return r
 

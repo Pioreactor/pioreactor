@@ -9,7 +9,9 @@ from functools import cache
 
 from msgspec.json import decode
 
+from pioreactor import mureq
 from pioreactor.exc import NotAssignedAnExperimentError
+from pioreactor.exc import NoWorkerFoundError
 from pioreactor.version import serial_number
 
 
@@ -19,8 +21,11 @@ NO_EXPERIMENT = "$no_experiment_present"
 
 
 def get_testing_experiment_name() -> str:
-    exp = get_latest_experiment_name()
-    return f"_testing_{exp}"
+    try:
+        exp = get_assigned_experiment_name(get_unit_name())
+        return f"_testing_{exp}"
+    except NotAssignedAnExperimentError:
+        return f"_testing_{NO_EXPERIMENT}"
 
 
 @cache
@@ -89,26 +94,20 @@ def _get_assigned_experiment_name(unit_name: str) -> str:
     return NO_EXPERIMENT
 
 
-def is_active(unit_name: str, experiment: str) -> bool:
-    from pioreactor import mureq
+def is_active(unit_name: str) -> bool:
     from pioreactor.config import leader_address
 
     if is_testing_env():
         return True
 
-    if experiment == UNIVERSAL_EXPERIMENT or experiment == get_testing_experiment_name():
-        return True
-
     try:
-        result = mureq.get(
-            f"http://{leader_address}/api/experiments/{experiment}/workers/{unit_name}/is_active"
-        )
+        result = mureq.get(f"http://{leader_address}/api/workers/{unit_name}")
         result.raise_for_status()
         data = decode(result.body)
         return bool(data.is_active)
     except mureq.HTTPErrorStatus as e:
         if e.status_code == 404:
-            raise NotAssignedAnExperimentError("Not assigned to an experiment")
+            raise NoWorkerFoundError("Worker is not present in leader's inventory")
         else:
             raise e
     except mureq.HTTPException as e:
@@ -176,6 +175,12 @@ def get_image_git_hash() -> str:
             return f.read().strip().split("=")[1]
     except OSError:  # catch FileNotFoundError, PermissionError, and other file-related exceptions
         return "<Failed to fetch>"
+
+
+def check_firstboot_successful() -> bool:
+    if is_testing_env():
+        return True
+    return os.path.isfile("/usr/local/bin/firstboot.sh.done")
 
 
 if is_testing_env():

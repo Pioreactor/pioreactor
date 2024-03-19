@@ -26,13 +26,19 @@ class CalibrationError(Exception):
     """
 
 
-class NotActiveInExperimentError(Exception):
+class NotActiveWorkerError(Exception):
     """
-    if a worker is not active in an experiment, things shouldn't happen.
+    if a worker is not active, things shouldn't happen.
     """
 
 
 class NotAssignedAnExperimentError(Exception):
+    """
+    if a worker is assigned an experiment, and something is trying to run
+    """
+
+
+class NoWorkerFoundError(Exception):
     """
     if a worker is assigned an experiment, and something is trying to run
     """

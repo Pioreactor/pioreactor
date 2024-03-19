@@ -12,7 +12,6 @@ from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import publish_to_pioreactor_cloud
 from pioreactor.utils.timing import current_utc_timestamp
-from pioreactor.whoami import am_I_active_worker
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
@@ -201,8 +200,6 @@ def create_logger(
                 keepalive=15 * 60,
             )
         assert pub_client is not None
-
-        experiment = experiment if am_I_active_worker() else UNIVERSAL_EXPERIMENT
 
         # create MQTT handlers for logs table
         topic = f"pioreactor/{unit}/{experiment}/logs/{source}"

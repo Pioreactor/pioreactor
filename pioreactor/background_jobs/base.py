@@ -17,7 +17,7 @@ from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.config import config
 from pioreactor.config import leader_hostname
-from pioreactor.exc import NotActiveInExperimentError
+from pioreactor.exc import NotActiveWorkerError
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
@@ -260,8 +260,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
             raise ValueError("Job name not allowed.")
         if not self.job_name.islower():
             raise ValueError("Job name should be all lowercase.")
-        if not is_active(unit, experiment):
-            raise NotActiveInExperimentError(f"{unit} is not active for experiment {experiment}.")
+        if not is_active(unit):
+            raise NotActiveWorkerError(f"{unit} is not active for experiment.")
 
         self.experiment = experiment
         self.unit = unit

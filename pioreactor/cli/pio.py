@@ -23,13 +23,10 @@ import pioreactor
 import pioreactor.utils.networking as networking
 from pioreactor import actions
 from pioreactor import background_jobs as jobs
+from pioreactor import config
 from pioreactor import plugin_management
 from pioreactor import pubsub
 from pioreactor import whoami
-from pioreactor.config import check_firstboot_successful
-from pioreactor.config import config
-from pioreactor.config import get_leader_hostname
-from pioreactor.config import leader_address
 from pioreactor.logging import create_logger
 from pioreactor.mureq import get
 from pioreactor.mureq import HTTPException
@@ -80,7 +77,7 @@ def pio(ctx) -> None:
         click.echo(ctx.get_help())
 
     # this check could go somewhere else. TODO This check won't execute if calling pioreactor from a script.
-    if not check_firstboot_successful():
+    if not whoami.check_firstboot_successful():
         raise SystemError(
             "/usr/local/bin/firstboot.sh found on disk. firstboot.sh likely failed. Try looking for errors in `sudo systemctl status firstboot.service`."
         )
@@ -129,7 +126,7 @@ def logs(n: int) -> None:
                 else:
                     sleep(sleep_sec)
 
-    for line in follow(config["logging"]["log_file"]):
+    for line in follow(config.config["logging"]["log_file"]):
         click.echo(line, nl=False)
 
 
@@ -254,9 +251,7 @@ def kill(job: list[str], all_jobs: bool) -> None:
 @pio.group(short_help="run a job")
 def run() -> None:
     if not (whoami.am_I_active_worker() or whoami.am_I_leader()):
-        click.echo(
-            f"Running `pio` on a non-active Pioreactor. Do you need to change `{whoami.get_unit_name()}` in `cluster.inventory` section in `config.ini`?"
-        )
+        click.echo("Running `pio` on a non-active Pioreactor. Change this worker in the leader.")
         raise click.Abort()
 
 
@@ -499,7 +494,7 @@ def update_app(
                     (f"sudo bash {tmp_release_folder}/pre_update.sh || :", 1),
                     (f"sudo pip install --no-index --find-links={tmp_release_folder}/wheels/ {tmp_release_folder}/pioreactor-{version_installed}-py3-none-any.whl", 2),
                     (f"sudo bash {tmp_release_folder}/update.sh || :", 3),
-                    (f'sudo sqlite3 {config["storage"]["database"]} < {tmp_release_folder}/update.sql || :', 4),
+                    (f'sudo sqlite3 {config.config["storage"]["database"]} < {tmp_release_folder}/update.sql || :', 4),
                     (f"sudo bash {tmp_release_folder}/post_update.sh || :", 5),
                     (f"rm -rf {tmp_release_folder}", 6),
                 ]
@@ -577,7 +572,7 @@ def update_app(
                 commands_and_priority.extend(
                     [
                         (f"wget -O /tmp/update.sql {url}", 5),
-                        (f'sudo sqlite3 {config["storage"]["database"]} < /tmp/update.sql', 6),
+                        (f'sudo sqlite3 {config.config["storage"]["database"]} < /tmp/update.sql', 6),
                     ]
                 )
             elif asset_name == "post_update.sh":
@@ -711,7 +706,7 @@ if whoami.am_I_leader():
     def db() -> None:
         import os
 
-        os.system(f"sqlite3 {config['storage']['database']} -column -header")
+        os.system(f"sqlite3 {config.config['storage']['database']} -column -header")
 
     @pio.command(short_help="tail MQTT")
     @click.option("--topic", "-t", default="pioreactor/#")
@@ -829,7 +824,7 @@ if whoami.am_I_leader():
 
             # get experiment
             try:
-                result = get(f"http://{leader_address}/api/{hostname}/experiment")
+                result = get(f"http://{config.leader_address}/api/{hostname}/experiment")
                 experiment = loads(result)["experiment"]
             except Exception:
                 experiment = "unknown"
@@ -844,7 +839,7 @@ if whoami.am_I_leader():
             statef = click.style(f"{state:15s}", fg="green" if state in ("ready", "init") else "red")
             ipf = f"{ip if (ip is not None) else 'unknown':20s}"
 
-            is_leaderf = f"{('Y' if hostname==get_leader_hostname() else 'N'):15s}"
+            is_leaderf = f"{('Y' if hostname==config.get_leader_hostname() else 'N'):15s}"
             hostnamef = f"{hostname:20s}"
             reachablef = (
                 f"{(click.style('Y', fg='green') if reachable       else click.style('N', fg='red')):23s}"
@@ -856,7 +851,7 @@ if whoami.am_I_leader():
             click.echo(f"{hostnamef} {is_leaderf} {ipf} {statef} {reachablef} {versionf} {experimentf}")
             return reachable & (state == "ready")
 
-        worker_statuses = list(config["cluster.inventory"].items())
+        worker_statuses = list(config.config["cluster.inventory"].items())
         n_workers = len(worker_statuses)
 
         click.secho(
