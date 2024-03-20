@@ -67,38 +67,36 @@ def test_mqtt_fetches():
         retain=True,
     )
 
-    assert parse_profile_expression_to_bool(f"{unit}:od_reading:od1.od > 1.0", experiment=experiment)
-    assert parse_profile_expression_to_bool(f"{unit}:od_reading:od1.od < 2.0", experiment=experiment)
-    assert not parse_profile_expression_to_bool(f"{unit}:od_reading:od1.od > 2.0", experiment=experiment)
+    assert parse_profile_expression_to_bool(f"{unit}:od_reading:od1.od > 1.0")
+    assert parse_profile_expression_to_bool(f"{unit}:od_reading:od1.od < 2.0")
+    assert not parse_profile_expression_to_bool(f"{unit}:od_reading:od1.od > 2.0")
 
     # ints
     publish(f"pioreactor/{unit}/{experiment}/test_job/int", 101, retain=True)
-    assert parse_profile_expression_to_bool(f"{unit}:test_job:int == 101", experiment=experiment)
-    assert parse_profile_expression_to_bool(f"{unit}:test_job:int > 100", experiment=experiment)
+    assert parse_profile_expression_to_bool(f"{unit}:test_job:int == 101")
+    assert parse_profile_expression_to_bool(f"{unit}:test_job:int > 100")
 
     # floats
     publish(f"pioreactor/{unit}/{experiment}/test_job/float", 101.5, retain=True)
-    assert parse_profile_expression_to_bool(f"{unit}:test_job:float > 100.0", experiment=experiment)
-    assert parse_profile_expression_to_bool(f"{unit}:test_job:float == 101.5", experiment=experiment)
+    assert parse_profile_expression_to_bool(f"{unit}:test_job:float > 100.0")
+    assert parse_profile_expression_to_bool(f"{unit}:test_job:float == 101.5")
 
     # str
     publish(f"pioreactor/{unit}/{experiment}/test_job/string", "hi", retain=True)
-    assert parse_profile_expression_to_bool(f"{unit}:test_job:string == hi", experiment=experiment)
-    assert parse_profile_expression_to_bool(f"not {unit}:test_job:string == test", experiment=experiment)
+    assert parse_profile_expression_to_bool(f"{unit}:test_job:string == hi")
+    assert parse_profile_expression_to_bool(f"not {unit}:test_job:string == test")
 
     # states as str
     publish(f"pioreactor/{unit}/{experiment}/test_job/$state", "ready", retain=True)
-    assert parse_profile_expression_to_bool(f"{unit}:test_job:$state == ready", experiment=experiment)
-    assert parse_profile_expression_to_bool(f"not {unit}:test_job:$state == sleeping", experiment=experiment)
+    assert parse_profile_expression_to_bool(f"{unit}:test_job:$state == ready")
+    assert parse_profile_expression_to_bool(f"not {unit}:test_job:$state == sleeping")
 
     # bool
     publish(f"pioreactor/{unit}/{experiment}/test_job/bool_true", "true", retain=True)
     publish(f"pioreactor/{unit}/{experiment}/test_job/bool_false", "false", retain=True)
-    assert parse_profile_expression_to_bool(f"{unit}:test_job:bool_true", experiment=experiment)
-    assert parse_profile_expression_to_bool(f"not {unit}:test_job:bool_false", experiment=experiment)
-    assert parse_profile_expression_to_bool(
-        f"{unit}:test_job:bool_false or {unit}:test_job:bool_true", experiment=experiment
-    )
+    assert parse_profile_expression_to_bool(f"{unit}:test_job:bool_true")
+    assert parse_profile_expression_to_bool(f"not {unit}:test_job:bool_false")
+    assert parse_profile_expression_to_bool(f"{unit}:test_job:bool_false or {unit}:test_job:bool_true")
 
 
 def test_mqtt_timeout():
@@ -127,17 +125,11 @@ def test_mqtt_fetches_with_calculations():
         retain=True,
     )
 
-    assert parse_profile_expression(f"2 * {unit}:od_reading:od1.od ", experiment=experiment) == 2 * 1.2
+    assert parse_profile_expression(f"2 * {unit}:od_reading:od1.od ") == 2 * 1.2
     assert (
         parse_profile_expression(
             f"{unit}:od_reading:od1.od + {unit}:od_reading:od1.od + {unit}:od_reading:od1.od",
-            experiment=experiment,
         )
         == 3 * 1.2
     )
-    assert (
-        parse_profile_expression(
-            f"({unit}:od_reading:od1.od + {unit}:od_reading:od1.od) > 2.0 ", experiment=experiment
-        )
-        is True
-    )
+    assert parse_profile_expression(f"({unit}:od_reading:od1.od + {unit}:od_reading:od1.od) > 2.0 ") is True

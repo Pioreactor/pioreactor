@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import re
 from unittest.mock import MagicMock
 
 import pytest
@@ -49,18 +50,27 @@ def run_around_tests(request):
 def mock_external_leader_webserver_apis(mocker):
     # used mostly in pioreactor.config.py
     def mock_get_response(url):
-        if url.endswith("/api/workers?is_active=1"):
-            return MagicMock(body='[{"pioreactor_unit": "unit1"}, {"pioreactor_unit": "unit2"}]')
-        elif url.endswith("/api/experiments/some_experiment/workers"):
-            return MagicMock(
-                body='[{"pioreactor_unit": "unit1", "is_active": true}, {"pioreactor_unit": "unit2", "is_active": true}, {"pioreactor_unit": "unit3", "is_active": false}]'
-            )
-        elif url.endswith("/api/workers"):
-            return MagicMock(
-                body='[{"pioreactor_unit": "unit1"}, {"pioreactor_unit": "unit2"}, {"pioreactor_unit": "unit3"}]'
-            )
+        if url.endswith("/api/workers"):
+            mm = MagicMock()
+            mm.json.return_value = [
+                {"pioreactor_unit": "unit1", "is_active": 1},
+                {"pioreactor_unit": "unit2", "is_active": 1},
+                {"pioreactor_unit": "unit3", "is_active": 0},
+            ]
+            return mm
+        elif re.search("/api/experiments/.*/workers", url):
+            mm = MagicMock()
+            mm.json.return_value = [
+                {"pioreactor_unit": "unit1", "is_active": 1},
+                {"pioreactor_unit": "unit2", "is_active": 1},
+            ]
+            return mm
+        elif re.search("/api/workers/.*/experiment", url):
+            mm = MagicMock()
+            mm.json.return_value = {"experiment": "_testing_experiment"}
+            return mm
         else:
-            raise ValueError("Not mocked")
+            raise ValueError(f"{url} not mocked")
 
     mock_get = mocker.patch("pioreactor.config.get", autospec=True, side_effect=mock_get_response)
 

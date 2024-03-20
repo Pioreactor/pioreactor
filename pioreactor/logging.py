@@ -144,7 +144,7 @@ def create_logger(
     """
     import colorlog
 
-    logger = logging.getLogger(name + (unit or "") + (experiment or ""))
+    logger = logging.getLogger(name)
 
     if len(logger.handlers) > 0:
         return CustomLogger(logger, {"source": source})  # type: ignore

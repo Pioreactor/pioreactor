@@ -41,7 +41,6 @@ from datetime import datetime
 from json import dumps
 from json import loads
 from typing import Generator
-from typing import Optional
 
 import click
 from msgspec import DecodeError
@@ -376,9 +375,7 @@ class GrowthRateCalculator(BackgroundJob):
         else:
             self.ekf.scale_OD_variance_for_next_n_seconds(factor, minutes * 60)
 
-    def scale_raw_observations(
-        self, observations: dict[pt.PdChannel, float]
-    ) -> Optional[dict[pt.PdChannel, float]]:
+    def scale_raw_observations(self, observations: dict[pt.PdChannel, float]) -> dict[pt.PdChannel, float]:
         def _scale_and_shift(obs, shift, scale) -> float:
             return (obs - shift) / (scale - shift)
 
@@ -390,12 +387,11 @@ class GrowthRateCalculator(BackgroundJob):
         }
 
         if any(v <= 0.0 for v in scaled_signals.values()):
-            self.logger.warning(
-                f"Negative normalized value(s) observed: {scaled_signals}. Did your blank have inoculant in it?"
-            )
             self.logger.debug(f"od_normalization_factors: {self.od_normalization_factors}")
             self.logger.debug(f"od_blank: {dict(self.od_blank)}")
-            return None
+            raise ValueError(
+                f"Negative normalized value(s) observed: {scaled_signals}. Did your blank have inoculant in it?"
+            )
 
         return scaled_signals
 
@@ -425,7 +421,7 @@ class GrowthRateCalculator(BackgroundJob):
             ) = self._update_state_from_observation(od_readings)
         except Exception as e:
             self.logger.debug(e, exc_info=True)
-            self.logger.warning(f"Updating Kalman Filter failed with {str(e)}")
+            self.logger.warning(f"Updating Kalman Filter failed with {e}")
             # just return the previous data
             return self.growth_rate, self.od_filtered, self.kalman_filter_outputs
 
@@ -442,12 +438,10 @@ class GrowthRateCalculator(BackgroundJob):
         self, od_readings: structs.ODReadings
     ) -> tuple[structs.GrowthRate, structs.ODFiltered, structs.KalmanFilterOutput]:
         timestamp = od_readings.timestamp
+
         scaled_observations = self.scale_raw_observations(
             self._batched_raw_od_readings_to_dict(od_readings.ods)
         )
-        if scaled_observations is None:
-            # exit early
-            raise ValueError()
 
         if whoami.is_testing_env():
             # when running a mock script, we run at an accelerated rate, but want to mimic
@@ -463,7 +457,7 @@ class GrowthRateCalculator(BackgroundJob):
                     self.logger.debug(
                         f"Late arriving data: {timestamp=}, {self.time_of_previous_observation=}"
                     )
-                    raise ValueError()
+                    raise ValueError("Late arriving data: {timestamp=}, {self.time_of_previous_observation=}")
 
             else:
                 dt = 0.0

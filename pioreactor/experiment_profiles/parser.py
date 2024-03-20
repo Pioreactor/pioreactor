@@ -163,6 +163,8 @@ class ProfileParser(Parser):
         unit, job, setting_keys = p.UNIT_JOB_SETTING.split(":")
         setting, *keys = setting_keys.split(".")
 
+        experiment = _get_assigned_experiment_name(unit)
+
         if not is_active(unit):
             raise NotActiveWorkerError(f"Worker {unit} is not active.")
 

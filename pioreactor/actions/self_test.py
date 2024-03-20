@@ -426,7 +426,7 @@ class BatchTestRunner:
                 res = True
             except Exception as e:
                 logger.debug(e, exc_info=True)
-                logger.error(f"{test_name.replace('_', ' ')}: {e}")
+                logger.warning(f"{test_name.replace('_', ' ')}: {e}")
 
             logger.debug(f"{test_name}: {'✅' if res else '❌'}")
 
