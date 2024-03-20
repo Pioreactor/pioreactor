@@ -9,10 +9,10 @@ from typing import Optional
 
 import click
 
+from pioreactor.cluster_management import get_active_workers_in_inventory
+from pioreactor.cluster_management import get_workers_in_inventory
 from pioreactor.config import config
-from pioreactor.config import get_active_workers_in_inventory
 from pioreactor.config import get_leader_hostname
-from pioreactor.config import get_workers_in_inventory
 from pioreactor.logging import create_logger
 from pioreactor.utils.networking import add_local
 from pioreactor.utils.networking import cp_file_across_cluster

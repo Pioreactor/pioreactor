@@ -7,8 +7,8 @@ import time
 import click
 
 from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.cluster_management import get_workers_in_inventory
 from pioreactor.config import get_leader_hostname
-from pioreactor.config import get_workers_in_inventory
 from pioreactor.pubsub import subscribe
 from pioreactor.types import MQTTMessage
 from pioreactor.utils.networking import discover_workers_on_network

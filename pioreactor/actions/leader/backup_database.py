@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import click
 
+from pioreactor.cluster_management import get_active_workers_in_inventory
 from pioreactor.config import config
-from pioreactor.config import get_active_workers_in_inventory
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import subscribe
 from pioreactor.utils import local_persistant_storage

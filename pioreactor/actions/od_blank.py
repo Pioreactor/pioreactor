@@ -43,7 +43,9 @@ def od_statistics(
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_assigned_experiment_name(unit)
 
-    logger.info(f"Starting to compute statistics from OD readings. Collecting {n_samples} data points.")
+    logger.info(
+        f"Starting to compute statistics from OD readings. Collecting {n_samples} data points. This may take a while."
+    )
 
     # turn on stirring if not already on
     if not is_pio_job_running("stirring"):
@@ -54,7 +56,7 @@ def od_statistics(
             unit=unit,
             experiment=experiment,
         )
-        st.block_until_rpm_is_close_to_target(timeout=40)  # wait for maximum 2 minutes
+        st.block_until_rpm_is_close_to_target(timeout=40)  # wait for stirring to be reasonable.
     else:
         st = nullcontext()  # type: ignore
 

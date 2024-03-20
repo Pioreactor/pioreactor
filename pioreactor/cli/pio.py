@@ -30,7 +30,9 @@ from pioreactor import pubsub
 from pioreactor import whoami
 from pioreactor.exc import BashScriptError
 from pioreactor.logging import create_logger
+from pioreactor.mureq import delete
 from pioreactor.mureq import get
+from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
 from pioreactor.mureq import put
 from pioreactor.utils import local_intermittent_storage
@@ -718,10 +720,14 @@ if whoami.am_I_leader():
 
         os.system(f"""mosquitto_sub -v -t '{topic}' -F "%19.19I  |  %t   %p" -u pioreactor -P raspberry""")
 
-    @pio.command(name="add-pioreactor", short_help="add a new Pioreactor to cluster")
+    @pio.group(short_help="manage workers")
+    def workers():
+        pass
+
+    @workers.command(name="add", short_help="add a pioreactor worker")
     @click.argument("hostname")
     @click.option("--password", "-p", default="raspberry")
-    def add_pioreactor(hostname: str, password: str) -> None:
+    def add_worker(hostname: str, password: str) -> None:
         """
         Add a new pioreactor worker to the cluster. The pioreactor should already have the worker image installed and is turned on.
         """
@@ -782,8 +788,68 @@ if whoami.am_I_leader():
 
         logger.notice(f"New pioreactor {hostname} successfully added to cluster.")  # type: ignore
 
-    @pio.command(
-        name="discover-workers",
+    @workers.command(name="remove", short_help="remove a pioreactor worker")
+    @click.argument("hostname")
+    def remove_worker(hostname: str) -> None:
+        try:
+            r = delete(f"http://{config.leader_address}/api/workers/{hostname}")
+            r.raise_for_status()
+        except HTTPErrorStatus:
+            click.echo(f"Worker {hostname} present to be removed. Check hostname.")
+        except HTTPException:
+            click.echo("Not able to connect to leader's backend.")
+        else:
+            click.echo(f"Removed {hostname} from cluster.")  # this needs to shutdown the worker too???
+
+    @workers.command(name="assign", short_help="assign a pioreactor worker")
+    @click.argument("hostname")
+    @click.argument("experiment")
+    def assign_worker_to_experiment(hostname: str, experiment: str) -> None:
+        try:
+            r = put(
+                f"http://{config.leader_address}/api/experiments/{experiment}/workers",
+                json={"pioreactor_unit": hostname},
+            )
+            r.raise_for_status()
+        except HTTPErrorStatus:
+            click.echo("Not valid data. Check hostname or experiment.")
+        except HTTPException:
+            click.echo("Not able to connect to leader's backend.")
+        else:
+            click.echo(f"Assigned {hostname} to {experiment}")
+
+    @workers.command(name="unassign", short_help="unassign a pioreactor worker")
+    @click.argument("hostname")
+    @click.argument("experiment")
+    def unassign_worker_to_experiment(hostname: str, experiment: str) -> None:
+        try:
+            r = delete(
+                f"http://{config.leader_address}/api/experiments/{experiment}/workers",
+                json={"pioreactor_unit": hostname},
+            )
+            r.raise_for_status()
+        except HTTPException:
+            click.echo("Not able to connect to leader's backend.")
+        else:
+            click.echo(f"Unassigned {hostname} to {experiment}")
+
+    @workers.command(name="update-active", short_help="change active of worker")
+    @click.argument("hostname")
+    @click.argument("active", type=int)
+    def update_active(hostname: str, active: int) -> None:
+        try:
+            r = delete(
+                f"http://{config.leader_address}/api//workers/{hostname}/is_active",
+                json={"is_active": active},
+            )
+            r.raise_for_status()
+        except HTTPException:
+            click.echo("Not able to connect to leader's backend.")
+        else:
+            click.echo(f"Updated {hostname}'s active to {bool(active)}")
+
+    @workers.command(
+        name="discover",
         short_help="discover all pioreactor workers on the network",
     )
     @click.option(
@@ -798,7 +864,7 @@ if whoami.am_I_leader():
         for hostname in discover_workers_on_network(terminate):
             click.echo(hostname)
 
-    @pio.command(name="cluster-status", short_help="report information on the cluster")
+    @workers.command(name="status", short_help="report information on the cluster")
     def cluster_status() -> None:
         """
         Note that this only looks at the current cluster as defined in config.ini.

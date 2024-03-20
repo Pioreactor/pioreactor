@@ -12,7 +12,7 @@ import click
 from msgspec.json import encode
 from msgspec.yaml import decode
 
-from pioreactor.config import get_active_workers_in_experiment
+from pioreactor.cluster_management import get_active_workers_in_experiment
 from pioreactor.config import leader_address
 from pioreactor.experiment_profiles import profile_struct as struct
 from pioreactor.logging import create_logger

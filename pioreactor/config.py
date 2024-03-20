@@ -5,8 +5,6 @@ import configparser
 import os
 from functools import cache
 
-from pioreactor.mureq import get
-
 
 def __getattr__(attr):  # type: ignore
     """
@@ -172,26 +170,6 @@ def get_leader_address() -> str:
 @cache
 def get_mqtt_address() -> str:
     return get_config().get("mqtt", "broker_address", fallback=get_leader_address())
-
-
-def get_workers_in_inventory() -> tuple[str, ...]:
-    result = get(f"http://{get_leader_address()}/api/workers")
-    return tuple(worker["pioreactor_unit"] for worker in result.json())
-
-
-def get_active_workers_in_inventory() -> tuple[str, ...]:
-    result = get(f"http://{get_leader_address()}/api/workers")
-    return tuple(worker["pioreactor_unit"] for worker in result.json() if bool(worker["is_active"]))
-
-
-def get_workers_in_experiment(experiment: str) -> tuple[str, ...]:
-    result = get(f"http://{get_leader_address()}/api/experiments/{experiment}/workers")
-    return tuple(worker["pioreactor_unit"] for worker in result.json())
-
-
-def get_active_workers_in_experiment(experiment: str) -> tuple[str, ...]:
-    result = get(f"http://{get_leader_address()}/api/experiments/{experiment}/workers")
-    return tuple(worker["pioreactor_unit"] for worker in result.json() if bool(worker["is_active"]))
 
 
 config = get_config()

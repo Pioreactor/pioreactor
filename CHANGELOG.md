@@ -1,8 +1,9 @@
 ### Upcoming
- - replace the `ip` file that is written to on startup with a new `network_info` file that contains the IPv4 address, and MAC addresses.
+ - replace the `ip` file that is written to on startup with a new `network_info` file that contains the hostname, IPv4 address, and MAC addresses.
  - Adding the ethernet (wired) mac address to the system tab.
- - fix for not being able to access `htttp://pioreactor.local` reliably.
+ - fix for not being able to access `http://pioreactor.local` reliably.
  - `[cluster.inventory]` is deprecated and unused. Use the UI to handle inventory.
+ - new module `pioreactor.cluster_management`
 
 ### 24.3.10
 

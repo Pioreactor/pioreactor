@@ -31,6 +31,8 @@ from msgspec.json import encode as dumps
 DEFAULT_TIMEOUT = 15.0
 DEFAULT_UA = "Python/Pioreactor"
 
+JSON_HEADERS = {"Content-Type": "application/json"}
+
 
 def basic_auth(username: str, password: str):
     # get(..., headers={ 'Authorization' : f'Basic {basic_auth(username, password)}'})
