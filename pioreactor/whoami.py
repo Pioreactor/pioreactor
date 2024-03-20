@@ -7,8 +7,6 @@ import time
 import warnings
 from functools import cache
 
-from msgspec.json import decode
-
 from pioreactor import mureq
 from pioreactor.exc import NotAssignedAnExperimentError
 from pioreactor.exc import NoWorkerFoundError
@@ -59,7 +57,7 @@ def _get_assigned_experiment_name(unit_name: str) -> str:
         try:
             result = mureq.get(f"http://{leader_address}/api/workers/{unit_name}/experiment")
             result.raise_for_status()
-            data = decode(result.body)
+            data = result.json()
             return data.experiment
         except mureq.HTTPErrorStatus as e:
             if e.status_code == 401:
@@ -103,7 +101,7 @@ def is_active(unit_name: str) -> bool:
     try:
         result = mureq.get(f"http://{leader_address}/api/workers/{unit_name}")
         result.raise_for_status()
-        data = decode(result.body)
+        data = result.json()
         return bool(data.is_active)
     except mureq.HTTPErrorStatus as e:
         if e.status_code == 404:

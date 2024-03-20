@@ -40,5 +40,11 @@ class NotAssignedAnExperimentError(Exception):
 
 class NoWorkerFoundError(Exception):
     """
-    if a worker is assigned an experiment, and something is trying to run
+    Worker isn't present in the leader's inventory
+    """
+
+
+class BashScriptError(Exception):
+    """
+    Some external bash script failed
     """

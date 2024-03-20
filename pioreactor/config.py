@@ -5,8 +5,6 @@ import configparser
 import os
 from functools import cache
 
-from msgspec.json import decode
-
 from pioreactor.mureq import get
 
 
@@ -178,22 +176,22 @@ def get_mqtt_address() -> str:
 
 def get_workers_in_inventory() -> tuple[str, ...]:
     result = get(f"http://{get_leader_address()}/api/workers")
-    return tuple(worker["pioreactor_unit"] for worker in decode(result.body))
+    return tuple(worker["pioreactor_unit"] for worker in result.json())
 
 
 def get_active_workers_in_inventory() -> tuple[str, ...]:
     result = get(f"http://{get_leader_address()}/api/workers")
-    return tuple(worker["pioreactor_unit"] for worker in decode(result.body) if bool(worker["is_active"]))
+    return tuple(worker["pioreactor_unit"] for worker in result.json() if bool(worker["is_active"]))
 
 
 def get_workers_in_experiment(experiment: str) -> tuple[str, ...]:
     result = get(f"http://{get_leader_address()}/api/experiments/{experiment}/workers")
-    return tuple(worker["pioreactor_unit"] for worker in decode(result.body))
+    return tuple(worker["pioreactor_unit"] for worker in result.json())
 
 
 def get_active_workers_in_experiment(experiment: str) -> tuple[str, ...]:
     result = get(f"http://{get_leader_address()}/api/experiments/{experiment}/workers")
-    return tuple(worker["pioreactor_unit"] for worker in decode(result.body) if bool(worker["is_active"]))
+    return tuple(worker["pioreactor_unit"] for worker in result.json() if bool(worker["is_active"]))
 
 
 config = get_config()

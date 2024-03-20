@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import contextlib
 import io
-import json as jsonlib
 import os.path
 import socket
 import ssl
@@ -24,6 +23,9 @@ from http.client import HTTPResponse
 from http.client import HTTPSConnection
 from typing import Generator
 from typing import Optional
+
+from msgspec.json import decode as loads
+from msgspec.json import encode as dumps
 
 
 DEFAULT_TIMEOUT = 15.0
@@ -230,7 +232,7 @@ class Response:
 
     def json(self):
         """Attempts to deserialize the response body as UTF-8 encoded JSON."""
-        return jsonlib.loads(self.body)
+        return loads(self.body)
 
     def _debugstr(self):
         buf = io.StringIO()
@@ -381,7 +383,7 @@ def _prepare_body(body, form, json, headers):
 
     if json is not None:
         _setdefault_header(headers, "Content-Type", _JSON_CONTENTTYPE)
-        return jsonlib.dumps(json).encode("utf-8")
+        return dumps(json).encode("utf-8")
 
     if form is not None:
         _setdefault_header(headers, "Content-Type", _FORM_CONTENTTYPE)

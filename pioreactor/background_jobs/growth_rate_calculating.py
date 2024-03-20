@@ -407,7 +407,7 @@ class GrowthRateCalculator(BackgroundJob):
             od_readings = decode(message.payload, type=structs.ODReadings)
             self.update_state_from_observation(od_readings)
         except DecodeError:
-            pass
+            self.logger.debug(f"Decode error in `{message.payload.decode()}` to structs.ODReadings")
 
         return
 

@@ -12,11 +12,11 @@ import click
 from msgspec.json import encode
 from msgspec.yaml import decode
 
+from pioreactor.config import get_active_workers_in_experiment
 from pioreactor.config import leader_address
 from pioreactor.experiment_profiles import profile_struct as struct
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
-from pioreactor.mureq import get
 from pioreactor.mureq import put
 from pioreactor.pubsub import publish
 from pioreactor.utils import publish_ready_to_disconnected_state
@@ -208,11 +208,6 @@ def chain_functions(*funcs: Callable[[], None]) -> Callable[[], None]:
     return combined_function
 
 
-def get_active_workers_for_experiment(experiment: str) -> list[str]:
-    results = get(f"http://{leader_address}/api/experiments/{experiment}/workers")
-    return [d["pioreactor_unit"] for d in decode(results.body) if bool(d["is_active"])]
-
-
 def common_wrapped_execute_action(
     experiment: str,
     job_name: str,
@@ -222,7 +217,7 @@ def common_wrapped_execute_action(
     dry_run: bool = False,
 ) -> Callable[..., None]:
     actions_to_execute = []
-    for worker in get_active_workers_for_experiment(experiment):
+    for worker in get_active_workers_in_experiment(experiment):
         actions_to_execute.append(
             wrapped_execute_action(worker, experiment, job_name, logger, schedule, action, dry_run)
         )
@@ -490,7 +485,7 @@ def _load_experiment_profile(profile_filename: str) -> struct.Profile:
 
 def load_and_verify_profile(profile_filename: str) -> struct.Profile:
     profile = _load_experiment_profile(profile_filename)
-    _verify_experiment_profile(profile)
+    assert _verify_experiment_profile(profile), "profile is incorrect"
     return profile
 
 

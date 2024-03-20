@@ -9,8 +9,6 @@ from __future__ import annotations
 
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
-from json import dumps
-from json import loads
 from os import geteuid
 from shlex import quote
 from sys import exit
@@ -18,18 +16,23 @@ from time import sleep
 from typing import Optional
 
 import click
+from msgspec.json import decode as loads
+from msgspec.json import encode as dumps
 
 import pioreactor
 import pioreactor.utils.networking as networking
 from pioreactor import actions
 from pioreactor import background_jobs as jobs
 from pioreactor import config
+from pioreactor import exc
 from pioreactor import plugin_management
 from pioreactor import pubsub
 from pioreactor import whoami
+from pioreactor.exc import BashScriptError
 from pioreactor.logging import create_logger
 from pioreactor.mureq import get
 from pioreactor.mureq import HTTPException
+from pioreactor.mureq import put
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.networking import add_local
@@ -758,11 +761,26 @@ if whoami.am_I_leader():
             capture_output=True,
             text=True,
         )
-        if res.returncode == 0:
-            logger.notice(f"New pioreactor {hostname} successfully added to cluster.")  # type: ignore
-        else:
-            logger.error(res.stderr)
-            raise click.Abort()
+        try:
+            if res.returncode > 0:
+                logger.error(res.stderr)
+                raise BashScriptError(res.stderr)
+
+            result = put(
+                f"http://{config.leader_address}/api/workers",
+                dumps({"pioreactor_unit": hostname}),
+                headers={"Content-Type": "application/json"},
+            )
+            result.raise_for_status()
+        except HTTPException:
+            logger.error("Could not connect to leader's webserver")
+            raise HTTPException("Could not connect to leader's webserver")
+        except BashScriptError as e:
+            raise e
+        except Exception as e:
+            raise e
+
+        logger.notice(f"New pioreactor {hostname} successfully added to cluster.")  # type: ignore
 
     @pio.command(
         name="discover-workers",
@@ -824,15 +842,15 @@ if whoami.am_I_leader():
 
             # get experiment
             try:
-                result = get(f"http://{config.leader_address}/api/{hostname}/experiment")
-                experiment = loads(result)["experiment"]
-            except Exception:
+                result = get(f"http://{config.leader_address}/api/workers/{hostname}/experiment")
+                experiment = result.json()["experiment"]
+            except HTTPException:
                 experiment = "unknown"
 
             return ip, state, reachable, app_version, experiment
 
-        def display_data_for(hostname_status: tuple[str, str]) -> bool:
-            hostname, _ = hostname_status
+        def display_data_for(worker: dict[str, str]) -> bool:
+            hostname, is_active = worker["pioreactor_unit"], worker["is_active"]
 
             ip, state, reachable, version, experiment = get_metadata(hostname)
 
@@ -841,28 +859,28 @@ if whoami.am_I_leader():
 
             is_leaderf = f"{('Y' if hostname==config.get_leader_hostname() else 'N'):15s}"
             hostnamef = f"{hostname:20s}"
-            reachablef = (
-                f"{(click.style('Y', fg='green') if reachable       else click.style('N', fg='red')):23s}"
-            )
+            reachablef = f"{(click.style('Y', fg='green') if reachable else click.style('N', fg='red')):23s}"
             versionf = f"{version:15s}"
-
+            is_activef = f"{(click.style('Y', fg='green') if is_active else click.style('N', fg='red')):24s}"
             experimentf = f"{experiment:15s}"
 
-            click.echo(f"{hostnamef} {is_leaderf} {ipf} {statef} {reachablef} {versionf} {experimentf}")
+            click.echo(
+                f"{hostnamef} {is_leaderf} {ipf} {statef} {is_activef} {reachablef} {versionf} {experimentf}"
+            )
             return reachable & (state == "ready")
 
-        worker_statuses = list(config.config["cluster.inventory"].items())
-        n_workers = len(worker_statuses)
+        workers = get(f"http://{config.leader_address}/api/workers").json()
+        n_workers = len(workers)
 
         click.secho(
-            f"{'Unit / hostname':20s} {'Is leader?':15s} {'IP address':20s} {'State':15s} {'Reachable?':14s} {'Version':15s} {'Experiment':15s}",
+            f"{'Unit / hostname':20s} {'Is leader?':15s} {'IP address':20s} {'State':15s} {'Active?':15s} {'Reachable?':14s} {'Version':15s} {'Experiment':15s}",
             bold=True,
         )
         if n_workers == 0:
             return
 
         with ThreadPoolExecutor(max_workers=n_workers) as executor:
-            results = executor.map(display_data_for, worker_statuses)
+            results = executor.map(display_data_for, workers)
 
         if not all(results):
             exit(1)
@@ -928,7 +946,7 @@ if whoami.am_I_leader():
             )
             if p.returncode != 0:
                 logger.error(p.stderr)
-                raise click.Abort()
+                raise exc.BashScriptError(p.stderr)
 
         logger.notice(f"Updated PioreactorUI to version {version_installed}.")  # type: ignore
 
