@@ -4,6 +4,8 @@
  - fix for not being able to access `http://pioreactor.local` reliably.
  - `[cluster.inventory]` is deprecated and unused. Use the UI to handle inventory.
  - new module `pioreactor.cluster_management`
+ - `pio cluster-status` is now `pio workers status`
+ - `pio add-pioreactor <name>` is now `pio workers add <name>`
 
 ### 24.3.10
 

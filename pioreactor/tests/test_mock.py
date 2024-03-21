@@ -2,11 +2,11 @@
 # tests the mocking in our test suite
 from __future__ import annotations
 
-from pioreactor.config import get_active_workers_in_inventory
+from pioreactor.cluster_management import get_active_workers_in_inventory
 
 
 # Define the test function
-def test_get_active_workers_in_inventory():
+def test_get_active_workers_in_inventory() -> None:
     # Call the function under test
     active_workers = get_active_workers_in_inventory()
 

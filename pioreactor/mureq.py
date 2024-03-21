@@ -385,7 +385,7 @@ def _prepare_body(body, form, json, headers):
 
     if json is not None:
         _setdefault_header(headers, "Content-Type", _JSON_CONTENTTYPE)
-        return dumps(json).encode("utf-8")
+        return dumps(json)
 
     if form is not None:
         _setdefault_header(headers, "Content-Type", _FORM_CONTENTTYPE)

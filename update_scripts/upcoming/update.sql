@@ -8,3 +8,6 @@ CREATE TABLE IF NOT EXISTS experiment_worker_assignments (
     is_active           INTEGER DEFAULT 1 NOT NULL,
     UNIQUE(pioreactor_unit, experiment)
 );
+
+
+## TODO: add new experiments column to table experiment_profile_runs

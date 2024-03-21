@@ -8,10 +8,8 @@ cmd line interface for running individual pioreactor units (including leader)
 from __future__ import annotations
 
 import subprocess
-from concurrent.futures import ThreadPoolExecutor
 from os import geteuid
 from shlex import quote
-from sys import exit
 from time import sleep
 from typing import Optional
 
@@ -20,7 +18,6 @@ from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
 
 import pioreactor
-import pioreactor.utils.networking as networking
 from pioreactor import actions
 from pioreactor import background_jobs as jobs
 from pioreactor import config
@@ -28,18 +25,12 @@ from pioreactor import exc
 from pioreactor import plugin_management
 from pioreactor import pubsub
 from pioreactor import whoami
-from pioreactor.exc import BashScriptError
 from pioreactor.logging import create_logger
-from pioreactor.mureq import delete
 from pioreactor.mureq import get
-from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
-from pioreactor.mureq import put
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistant_storage
-from pioreactor.utils.networking import add_local
 from pioreactor.utils.networking import is_using_local_access_point
-from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_timestamp
 
 
@@ -60,6 +51,8 @@ JOBS_TO_SKIP_KILLING = [
     "remove_waste",
     "add_alt_media",
     "led_intensity",
+    "circulate_media",
+    "circulate_alt_media",
 ]
 
 
@@ -701,11 +694,31 @@ if whoami.am_I_active_worker():
 
 
 if whoami.am_I_leader():
+    from pioreactor.cluster_management import add_worker
+    from pioreactor.cluster_management import remove_worker
+    from pioreactor.cluster_management import assign_worker_to_experiment
+    from pioreactor.cluster_management import unassign_worker_from_experiment
+    from pioreactor.cluster_management import update_active
+    from pioreactor.cluster_management import discover_workers
+    from pioreactor.cluster_management import cluster_status
+
     run.add_command(jobs.mqtt_to_db_streaming.click_mqtt_to_db_streaming)
     run.add_command(jobs.watchdog.click_watchdog)
     run.add_command(actions.export_experiment_data.click_export_experiment_data)
     run.add_command(actions.backup_database.click_backup_database)
     run.add_command(actions.experiment_profile.click_experiment_profile)
+
+    @pio.group(short_help="manage workers")
+    def workers():
+        pass
+
+    workers.add_command(add_worker)
+    workers.add_command(remove_worker)
+    workers.add_command(assign_worker_to_experiment)
+    workers.add_command(unassign_worker_from_experiment)
+    workers.add_command(update_active)
+    workers.add_command(discover_workers)
+    workers.add_command(cluster_status)
 
     @pio.command(short_help="access the db CLI")
     def db() -> None:
@@ -719,237 +732,6 @@ if whoami.am_I_leader():
         import os
 
         os.system(f"""mosquitto_sub -v -t '{topic}' -F "%19.19I  |  %t   %p" -u pioreactor -P raspberry""")
-
-    @pio.group(short_help="manage workers")
-    def workers():
-        pass
-
-    @workers.command(name="add", short_help="add a pioreactor worker")
-    @click.argument("hostname")
-    @click.option("--password", "-p", default="raspberry")
-    def add_worker(hostname: str, password: str) -> None:
-        """
-        Add a new pioreactor worker to the cluster. The pioreactor should already have the worker image installed and is turned on.
-        """
-        # TODO: move this to its own file
-        import socket
-
-        logger = create_logger(
-            "add_pioreactor",
-            unit=whoami.get_unit_name(),
-            experiment=whoami.UNIVERSAL_EXPERIMENT,
-        )
-        logger.info(f"Adding new pioreactor {hostname} to cluster.")
-
-        hostname = hostname.removesuffix(".local")
-        hostname_dot_local = hostname + ".local"
-
-        # check to make sure <hostname>.local is on network
-        checks, max_checks = 0, 15
-        sleep_time = 3
-
-        with catchtime() as elapsed:
-            while not networking.is_hostname_on_network(hostname_dot_local):
-                checks += 1
-                try:
-                    socket.gethostbyname(hostname_dot_local)
-                except socket.gaierror:
-                    sleep(sleep_time)
-                    click.echo(f"`{hostname}` not found on network - checking again.")
-                    if checks >= max_checks:
-                        logger.error(
-                            f"`{hostname}` not found on network after {round(elapsed())} seconds. Check that you provided the right i) WiFi credentials to the network, ii) the hostname is correct, the iii) worker is turned on."
-                        )
-                        raise click.Abort()
-
-        res = subprocess.run(
-            ["bash", "/usr/local/bin/add_new_pioreactor_worker_from_leader.sh", hostname, password],
-            capture_output=True,
-            text=True,
-        )
-        try:
-            if res.returncode > 0:
-                logger.error(res.stderr)
-                raise BashScriptError(res.stderr)
-
-            result = put(
-                f"http://{config.leader_address}/api/workers",
-                dumps({"pioreactor_unit": hostname}),
-                headers={"Content-Type": "application/json"},
-            )
-            result.raise_for_status()
-        except HTTPException:
-            logger.error("Could not connect to leader's webserver")
-            raise HTTPException("Could not connect to leader's webserver")
-        except BashScriptError as e:
-            raise e
-        except Exception as e:
-            raise e
-
-        logger.notice(f"New pioreactor {hostname} successfully added to cluster.")  # type: ignore
-
-    @workers.command(name="remove", short_help="remove a pioreactor worker")
-    @click.argument("hostname")
-    def remove_worker(hostname: str) -> None:
-        try:
-            r = delete(f"http://{config.leader_address}/api/workers/{hostname}")
-            r.raise_for_status()
-        except HTTPErrorStatus:
-            click.echo(f"Worker {hostname} present to be removed. Check hostname.")
-        except HTTPException:
-            click.echo("Not able to connect to leader's backend.")
-        else:
-            click.echo(f"Removed {hostname} from cluster.")  # this needs to shutdown the worker too???
-
-    @workers.command(name="assign", short_help="assign a pioreactor worker")
-    @click.argument("hostname")
-    @click.argument("experiment")
-    def assign_worker_to_experiment(hostname: str, experiment: str) -> None:
-        try:
-            r = put(
-                f"http://{config.leader_address}/api/experiments/{experiment}/workers",
-                json={"pioreactor_unit": hostname},
-            )
-            r.raise_for_status()
-        except HTTPErrorStatus:
-            click.echo("Not valid data. Check hostname or experiment.")
-        except HTTPException:
-            click.echo("Not able to connect to leader's backend.")
-        else:
-            click.echo(f"Assigned {hostname} to {experiment}")
-
-    @workers.command(name="unassign", short_help="unassign a pioreactor worker")
-    @click.argument("hostname")
-    @click.argument("experiment")
-    def unassign_worker_to_experiment(hostname: str, experiment: str) -> None:
-        try:
-            r = delete(
-                f"http://{config.leader_address}/api/experiments/{experiment}/workers",
-                json={"pioreactor_unit": hostname},
-            )
-            r.raise_for_status()
-        except HTTPException:
-            click.echo("Not able to connect to leader's backend.")
-        else:
-            click.echo(f"Unassigned {hostname} to {experiment}")
-
-    @workers.command(name="update-active", short_help="change active of worker")
-    @click.argument("hostname")
-    @click.argument("active", type=int)
-    def update_active(hostname: str, active: int) -> None:
-        try:
-            r = delete(
-                f"http://{config.leader_address}/api//workers/{hostname}/is_active",
-                json={"is_active": active},
-            )
-            r.raise_for_status()
-        except HTTPException:
-            click.echo("Not able to connect to leader's backend.")
-        else:
-            click.echo(f"Updated {hostname}'s active to {bool(active)}")
-
-    @workers.command(
-        name="discover",
-        short_help="discover all pioreactor workers on the network",
-    )
-    @click.option(
-        "-t",
-        "--terminate",
-        is_flag=True,
-        help="Terminate after dumping a more or less complete list",
-    )
-    def discover_workers(terminate: bool) -> None:
-        from pioreactor.utils.networking import discover_workers_on_network
-
-        for hostname in discover_workers_on_network(terminate):
-            click.echo(hostname)
-
-    @workers.command(name="status", short_help="report information on the cluster")
-    def cluster_status() -> None:
-        """
-        Note that this only looks at the current cluster as defined in config.ini.
-        """
-        import socket
-
-        def get_metadata(hostname):
-            # get ip
-            if whoami.get_unit_name() == hostname:
-                ip = networking.get_ip()
-            else:
-                try:
-                    ip = socket.gethostbyname(add_local(hostname))
-                except OSError:
-                    ip = "unknown"
-
-            # get state
-            result = pubsub.subscribe(
-                f"pioreactor/{hostname}/{whoami.UNIVERSAL_EXPERIMENT}/monitor/$state",
-                timeout=1,
-                name="CLI",
-            )
-            if result:
-                state = result.payload.decode()
-            else:
-                state = "unknown"
-
-            # get version
-            result = pubsub.subscribe(
-                f"pioreactor/{hostname}/{whoami.UNIVERSAL_EXPERIMENT}/monitor/versions",
-                timeout=1,
-                name="CLI",
-            )
-            if result:
-                app_version = loads(result.payload.decode())["app"]
-            else:
-                app_version = "unknown"
-
-            # is reachable?
-            reachable = networking.is_reachable(add_local(hostname))
-
-            # get experiment
-            try:
-                result = get(f"http://{config.leader_address}/api/workers/{hostname}/experiment")
-                experiment = result.json()["experiment"]
-            except HTTPException:
-                experiment = "unknown"
-
-            return ip, state, reachable, app_version, experiment
-
-        def display_data_for(worker: dict[str, str]) -> bool:
-            hostname, is_active = worker["pioreactor_unit"], worker["is_active"]
-
-            ip, state, reachable, version, experiment = get_metadata(hostname)
-
-            statef = click.style(f"{state:15s}", fg="green" if state in ("ready", "init") else "red")
-            ipf = f"{ip if (ip is not None) else 'unknown':20s}"
-
-            is_leaderf = f"{('Y' if hostname==config.get_leader_hostname() else 'N'):15s}"
-            hostnamef = f"{hostname:20s}"
-            reachablef = f"{(click.style('Y', fg='green') if reachable else click.style('N', fg='red')):23s}"
-            versionf = f"{version:15s}"
-            is_activef = f"{(click.style('Y', fg='green') if is_active else click.style('N', fg='red')):24s}"
-            experimentf = f"{experiment:15s}"
-
-            click.echo(
-                f"{hostnamef} {is_leaderf} {ipf} {statef} {is_activef} {reachablef} {versionf} {experimentf}"
-            )
-            return reachable & (state == "ready")
-
-        workers = get(f"http://{config.leader_address}/api/workers").json()
-        n_workers = len(workers)
-
-        click.secho(
-            f"{'Unit / hostname':20s} {'Is leader?':15s} {'IP address':20s} {'State':15s} {'Active?':15s} {'Reachable?':14s} {'Version':15s} {'Experiment':15s}",
-            bold=True,
-        )
-        if n_workers == 0:
-            return
-
-        with ThreadPoolExecutor(max_workers=n_workers) as executor:
-            results = executor.map(display_data_for, workers)
-
-        if not all(results):
-            exit(1)
 
     @update.command(name="ui")
     @click.option("-b", "--branch", help="install from a branch on github")
