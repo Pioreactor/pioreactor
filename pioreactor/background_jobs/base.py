@@ -26,8 +26,7 @@ from pioreactor.pubsub import QOS
 from pioreactor.pubsub import subscribe
 from pioreactor.utils import append_signal_handlers
 from pioreactor.utils import is_pio_job_running
-from pioreactor.utils import local_intermittent_storage
-from pioreactor.utils.timing import current_utc_timestamp
+from pioreactor.utils import JobManager
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.whoami import is_active
 from pioreactor.whoami import is_testing_env
@@ -336,22 +335,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
         C.on_ready()
         """
 
-        with local_intermittent_storage("pio_job_metadata") as cache:
-            # we set the "lock" in ready as then we know the __init__ finished successfully. Previously,
-            # __init__ might fail, and not clean up pio_job_* correctly.
-            # the catch is that there is a window where two jobs can be started, see growth_rate_calculating.
-            # sol for authors: move the long-running parts to the on_init_to_ready function.
-            key = (self.unit, self.experiment, self.job_name)
-            cache[key] = {
-                "started_at": current_utc_timestamp(),
-                "is_running": "1",
-                "source": self._source,
-                "experiment": self.experiment,
-                "unit": self.unit,
-                "leader_hostname": leader_hostname,
-                "pid": getpid(),
-                "ended_at": "",  # populated later
-            }
+        with JobManager() as jm:
+            self._jm_key = jm.register_and_set_running(
+                self.unit, self.experiment, self.job_name, self._source, getpid(), leader_hostname
+            )
 
         self.set_state(self.READY)
 
@@ -788,9 +775,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self._blocking_event.set()
 
     def _remove_from_cache(self) -> None:
-        with local_intermittent_storage("pio_job_metadata") as cache:
-            key = (self.unit, self.experiment, self.job_name)
-            cache.pop(key)
+        with JobManager() as jm:
+            jm.set_not_running(self._jm_key)
 
     def _disconnect_from_loggers(self) -> None:
         # clean up logger handlers

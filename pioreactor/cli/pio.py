@@ -28,32 +28,11 @@ from pioreactor import whoami
 from pioreactor.logging import create_logger
 from pioreactor.mureq import get
 from pioreactor.mureq import HTTPException
+from pioreactor.utils import JobManager
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.networking import is_using_local_access_point
 from pioreactor.utils.timing import current_utc_timestamp
-
-
-JOBS_TO_SKIP_KILLING = [
-    # this is used in `pio kill --all-jobs`, but accessible so that plugins can edit it.
-    # don't kill our permanent jobs
-    "monitor",
-    "watchdog",
-    "mqtt_to_db_streaming",
-    # don't kill automations, let the parent controller do it.
-    # probably all BackgroundSubJob should be here.
-    "temperature_automation",
-    "dosing_automation",
-    "led_automation",
-    # pumping jobs are created by a thread in monitor, and inherit the same PID. We don't want to `kill PID`,
-    # so skip killing using `kill`, and instead use MQTT to kill.
-    "add_media",
-    "remove_waste",
-    "add_alt_media",
-    "led_intensity",
-    "circulate_media",
-    "circulate_alt_media",
-]
 
 
 @click.group(invoke_without_command=True)
@@ -170,92 +149,15 @@ def blink() -> None:
 
 
 @pio.command(name="kill", short_help="kill job(s)")
-@click.option("--job", multiple=True, type=click.STRING)
-@click.option("--experiment", multiple=True, type=click.STRING)
+@click.option("--name", type=click.STRING)
+@click.option("--experiment", type=click.STRING)
 @click.option("--all-jobs", is_flag=True, help="kill all Pioreactor jobs running")
-def kill(job: tuple[str, ...], experiment: tuple[str, ...], all_jobs: bool) -> None:
+def kill(name: str | None, experiment: str | None, all_jobs: bool) -> None:
     """
     stop job(s).
-    this sucks
     """
-
-    from sh import kill  # type: ignore
-    from pioreactor.actions.led_intensity import led_intensity
-
-    def safe_kill(*args: int) -> None:
-        try:
-            kill(*args)
-        except Exception:
-            pass
-
-    if all_jobs:
-        # kill all pumping
-        with pubsub.create_client() as client:
-            client.publish(
-                f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{whoami.UNIVERSAL_EXPERIMENT}/add_media/$state/set",
-                "disconnected",
-                qos=pubsub.QOS.AT_LEAST_ONCE,
-            )
-            client.publish(
-                f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{whoami.UNIVERSAL_EXPERIMENT}/remove_waste/$state/set",
-                "disconnected",
-                qos=pubsub.QOS.AT_LEAST_ONCE,
-            )
-            client.publish(
-                f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{whoami.UNIVERSAL_EXPERIMENT}/add_alt_media/$state/set",
-                "disconnected",
-                qos=pubsub.QOS.AT_LEAST_ONCE,
-            )
-
-        # kill all running pioreactor processes
-        jobs_killed_already = []
-        with local_intermittent_storage("pio_job_metadata") as cache:
-            for u, e, j in cache:
-                if j not in JOBS_TO_SKIP_KILLING:
-                    pid = cache[(u, e, j)]["pid"]
-                    if pid not in jobs_killed_already:
-                        safe_kill(int(pid))
-                        jobs_killed_already.append(pid)
-
-        # kill all LEDs
-        sleep(0.10)
-        try:
-            # non-workers won't have this hardware, so just skip it
-            led_intensity({"A": 0.0, "B": 0.0, "C": 0.0, "D": 0.0}, verbose=False, experiment="_test")
-        except Exception:
-            pass
-
-        # assert everything is off
-        with local_intermittent_storage("pwm_dc") as cache:
-            for pin in cache:
-                if cache[pin] != 0.0:
-                    print(f"pin {pin} is not off!")
-
-        # assert everything is off
-        with local_intermittent_storage("leds") as cache:
-            for led in cache:
-                if cache[led] != 0.0:
-                    print(f"LED {led} is not off!")
-
-    elif experiment:
-        jobs_killed_already = []
-        with local_intermittent_storage("pio_job_metadata") as cache:
-            for u, e, j in cache:
-                if e in experiment:
-                    pid = cache[j]
-                    if pid not in jobs_killed_already:
-                        safe_kill(int(pid))
-                        jobs_killed_already.append(pid)
-
-    elif job:
-        jobs_killed_already = []
-        with local_intermittent_storage("pio_job_metadata") as cache:
-            for u, e, j in cache:
-                if j in job:
-                    pid = cache[j]
-                    if pid not in jobs_killed_already:
-                        safe_kill(int(pid))
-                        jobs_killed_already.append(pid)
+    with JobManager() as jm:
+        jm.kill_jobs(all_jobs=all_jobs, name=name, experiment=experiment)
 
 
 @pio.group(short_help="run a job")

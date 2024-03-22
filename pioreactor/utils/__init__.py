@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import signal
+import sqlite3
 import tempfile
 import time
 from contextlib import contextmanager
@@ -28,6 +29,9 @@ from pioreactor.pubsub import create_client
 from pioreactor.pubsub import QOS
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.utils.timing import current_utc_timestamp
+
+
+JobMetadataKey = int
 
 
 class callable_stack:
@@ -195,18 +199,10 @@ class managed_lifecycle:
             retain=True,
         )
 
-        with local_intermittent_storage("pio_job_metadata") as cache:
-            key = (self.unit, self.experiment, self.name)
-            cache[key] = {
-                "started_at": current_utc_timestamp(),
-                "is_running": "1",
-                "source": self._source,
-                "experiment": self.experiment,
-                "unit": self.unit,
-                "leader_hostname": "",  # TODO,
-                "pid": getpid(),
-                "ended_at": "",
-            }
+        with JobManager() as jm:
+            self._jm_key = jm.register_and_set_running(
+                self.unit, self.experiment, self.name, self._source, getpid(), ""
+            )
 
         return self
 
@@ -222,8 +218,9 @@ class managed_lifecycle:
             self.mqtt_client.loop_stop()
             self.mqtt_client.disconnect()
 
-        with local_intermittent_storage("pio_job_metadata") as cache:
-            cache.pop(self.name)
+        with JobManager() as jm:
+            jm.set_not_running(self._jm_key)
+
         return
 
     def exit_from_mqtt(self, message: pt.MQTTMessage) -> None:
@@ -467,3 +464,125 @@ def exception_retry(func: Callable, retries: int = 3, sleep_for: float = 0.5, ar
             if i == retries - 1:  # If this was the last attempt
                 raise e
             time.sleep(sleep_for)
+
+
+def safe_kill(*args: int) -> None:
+    from sh import kill  # type: ignore
+
+    try:
+        kill(*args)
+    except Exception:
+        pass
+
+
+class JobManager:
+    AUTOMATION_JOBS = ("temperature_automation", "dosing_automation", "led_automation")
+    PUMPING_JOBS = (
+        "add_media",
+        "remove_waste",
+        "add_alt_media",
+        "led_intensity",
+        "circulate_media",
+        "circulate_alt_media",
+    )
+    LONG_RUNNING_JOBS = ("monitor", "mqtt_to_db_streaming", "watchdog")
+
+    def __init__(self):
+        self.db_path = f"{tempfile.gettempdir()}/pio_jobs.db"
+        self.conn = sqlite3.connect(self.db_path)
+        self.cursor = self.conn.cursor()
+        self._create_table()
+
+    def _create_table(self):
+        create_table_query = """
+            CREATE TABLE IF NOT EXISTS pio_job_metadata (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            unit         TEXT NOT NULL,
+            experiment   TEXT NOT NULL,
+            name         TEXT NOT NULL,
+            source       TEXT NOT NULL,
+            started_at   TEXT NOT NULL,
+            is_running   INTEGER NOT NULL,
+            leader       TEXT NOT NULL,
+            pid          INTEGER NOT NULL,
+            ended_at     TEXT
+        );
+        """
+        self.cursor.execute(create_table_query)
+        self.conn.commit()
+
+    def register_and_set_running(
+        self, unit: str, experiment: str, name: str, source: str, pid: int, leader: str
+    ) -> JobMetadataKey:
+        insert_query = "INSERT INTO pio_job_metadata (started_at, is_running, source, experiment, unit, name, leader, pid, ended_at) VALUES (STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW'), 1, :source, :experiment, :unit, :name, :leader, :pid, NULL);"
+        self.cursor.execute(
+            insert_query,
+            {
+                "unit": unit,
+                "experiment": experiment,
+                "source": source,
+                "pid": pid,
+                "leader": leader,
+                "name": name,
+            },
+        )
+        self.conn.commit()
+        return self.cursor.lastrowid
+
+    def set_not_running(self, job_metadata_key: JobMetadataKey):
+        update_query = "UPDATE pio_job_metadata SET is_running=0, ended_at=STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW') WHERE id=(?)"
+        self.cursor.execute(update_query, (job_metadata_key,))
+        self.conn.commit()
+        return
+
+    def kill_jobs(self, all_jobs: bool = False, **query):
+        # ex: kill_jobs(experiment="testing_exp") should return end all jobs with experiment='testing_exp'
+        # Construct the WHERE clause based on the query parameters
+
+        if not all_jobs:
+            where_clause = " AND ".join([f"{key} = :{key}" for key in query.keys() if query[key] is not None])
+
+            # Construct the SELECT query
+            select_query = f"SELECT name, pid FROM pio_job_metadata WHERE {where_clause} AND is_running=1;"
+
+            # Execute the query and fetch the results
+            self.cursor.execute(select_query, query)
+
+        else:
+            # Construct the SELECT query
+            select_query = f"SELECT name, pid FROM pio_job_metadata WHERE is_running=1 AND name NOT IN {self.LONG_RUNNING_JOBS}"
+
+            # Execute the query and fetch the results
+            self.cursor.execute(select_query)
+
+        jobs = self.cursor.fetchall()
+        for job in jobs:
+            self._kill_job(job)
+
+    def _kill_job(self, job):
+        name, pid = job
+        if name in self.PUMPING_JOBS:
+            self._kill_pumping_job(job)
+        elif name == "led_intensity":
+            pass
+        elif name in self.AUTOMATION_JOBS:
+            # don't kill them, the parent will.
+            pass
+        else:
+            safe_kill(pid)
+
+    def _kill_pumping_job(self, pump_job):
+        name, _ = pump_job
+        with create_client() as client:
+            client.publish(
+                f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{whoami.UNIVERSAL_EXPERIMENT}/{name}/$state/set",
+                "disconnected",
+                qos=QOS.AT_LEAST_ONCE,
+            )
+
+    def __enter__(self) -> JobManager:
+        return self
+
+    def __exit__(self, *args) -> None:
+        self.conn.close()
+        return
