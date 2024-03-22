@@ -72,6 +72,6 @@ def mock_external_leader_webserver_apis(mocker):
         else:
             raise ValueError(f"{url} not mocked")
 
-    mock_get = mocker.patch("pioreactor.config.get", autospec=True, side_effect=mock_get_response)
+    mock_get = mocker.patch("pioreactor.cluster_management.get", autospec=True, side_effect=mock_get_response)
 
     return mock_get

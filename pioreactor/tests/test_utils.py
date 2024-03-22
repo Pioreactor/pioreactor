@@ -11,7 +11,7 @@ from pioreactor.background_jobs.stirring import start_stirring
 from pioreactor.utils import callable_stack
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_intermittent_storage
-from pioreactor.utils import publish_ready_to_disconnected_state
+from pioreactor.utils import managed_lifecycle
 from pioreactor.whoami import get_unit_name
 
 
@@ -102,7 +102,7 @@ def test_mqtt_disconnect_exit() -> None:
     experiment = "test_mqtt_disconnect_exit"
     name = "test_name"
 
-    with publish_ready_to_disconnected_state(unit, experiment, name, exit_on_mqtt_disconnect=True) as state:
+    with managed_lifecycle(unit, experiment, name, exit_on_mqtt_disconnect=True) as state:
         state.mqtt_client.disconnect()  # Simulate a disconnect
         state.block_until_disconnected()  # exits immediately
 

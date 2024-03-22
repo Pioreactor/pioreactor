@@ -18,7 +18,7 @@ from pioreactor import error_codes
 from pioreactor import utils
 from pioreactor import version
 from pioreactor import whoami
-from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.background_jobs.base import LongRunningBackgroundJob
 from pioreactor.config import config
 from pioreactor.config import get_config
 from pioreactor.config import mqtt_address
@@ -43,7 +43,7 @@ if whoami.is_testing_env():
     from pioreactor.utils.mock import MockHandle
 
 
-class Monitor(BackgroundJob):
+class Monitor(LongRunningBackgroundJob):
     """
     This job starts at Rpi startup, and isn't connected to any experiment. It has the following roles:
 

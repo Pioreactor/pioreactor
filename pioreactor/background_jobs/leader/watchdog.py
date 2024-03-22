@@ -6,7 +6,7 @@ import time
 
 import click
 
-from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.background_jobs.base import LongRunningBackgroundJob
 from pioreactor.cluster_management import get_workers_in_inventory
 from pioreactor.config import get_leader_hostname
 from pioreactor.pubsub import subscribe
@@ -16,7 +16,7 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
-class WatchDog(BackgroundJob):
+class WatchDog(LongRunningBackgroundJob):
     job_name = "watchdog"
 
     def __init__(self, unit: str, experiment: str) -> None:

@@ -19,7 +19,7 @@ from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
 from pioreactor.mureq import put
 from pioreactor.pubsub import publish
-from pioreactor.utils import publish_ready_to_disconnected_state
+from pioreactor.utils import managed_lifecycle
 from pioreactor.whoami import get_unit_name
 
 bool_expression = str | bool
@@ -546,7 +546,7 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
     unit = get_unit_name()
     action_name = "experiment_profile"
     logger = create_logger(action_name, unit=unit, experiment=experiment)
-    with publish_ready_to_disconnected_state(unit, experiment, action_name) as state:
+    with managed_lifecycle(unit, experiment, action_name, ignore_is_active_state=True) as state:
         try:
             profile = load_and_verify_profile(profile_filename)
         except Exception as e:

@@ -20,8 +20,8 @@ from pioreactor.config import config
 from pioreactor.logging import create_logger
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import managed_lifecycle
 from pioreactor.utils import math_helpers
-from pioreactor.utils import publish_ready_to_disconnected_state
 from pioreactor.utils.timing import current_utc_datetime
 
 
@@ -154,7 +154,7 @@ def od_blank(
     from pioreactor.background_jobs.od_reading import start_od_reading
     from pioreactor.background_jobs.stirring import start_stirring
 
-    with publish_ready_to_disconnected_state(unit, experiment, action_name):
+    with managed_lifecycle(unit, experiment, action_name):
         with start_od_reading(
             od_angle_channel1,
             od_angle_channel2,

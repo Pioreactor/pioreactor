@@ -41,7 +41,7 @@ from pioreactor.types import LedChannel
 from pioreactor.types import PdChannel
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
-from pioreactor.utils import publish_ready_to_disconnected_state
+from pioreactor.utils import managed_lifecycle
 from pioreactor.utils import SummableDict
 from pioreactor.utils.math_helpers import correlation
 from pioreactor.utils.math_helpers import mean
@@ -466,7 +466,7 @@ def click_self_test(k: Optional[str]) -> int:
         test_positive_correlation_between_rpm_and_stirring,
     ]
 
-    with publish_ready_to_disconnected_state(unit, testing_experiment, "self_test") as state:
+    with managed_lifecycle(unit, testing_experiment, "self_test") as state:
         client = state.mqtt_client
         if any(
             is_pio_job_running(

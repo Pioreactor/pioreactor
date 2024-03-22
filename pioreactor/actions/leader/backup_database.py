@@ -8,7 +8,7 @@ from pioreactor.config import config
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import subscribe
 from pioreactor.utils import local_persistant_storage
-from pioreactor.utils import publish_ready_to_disconnected_state
+from pioreactor.utils import managed_lifecycle
 from pioreactor.utils.networking import add_local
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import get_unit_name
@@ -48,7 +48,7 @@ def backup_database(output_file: str, force: bool = False, backup_to_workers: in
     unit = get_unit_name()
     experiment = UNIVERSAL_EXPERIMENT
 
-    with publish_ready_to_disconnected_state(unit, experiment, "backup_database"):
+    with managed_lifecycle(unit, experiment, "backup_database", ignore_is_active_state=True):
         logger = create_logger(
             "backup_database", experiment=experiment, unit=unit, to_mqtt=False
         )  # the backup would take so long that the mqtt client would disconnect. We also don't want to write to the db.

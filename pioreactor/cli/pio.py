@@ -170,11 +170,13 @@ def blink() -> None:
 
 
 @pio.command(name="kill", short_help="kill job(s)")
-@click.argument("job", nargs=-1)
+@click.option("--job", multiple=True, type=click.String)
+@click.option("--experiment", multiple=True, type=click.String)
 @click.option("--all-jobs", is_flag=True, help="kill all Pioreactor jobs running")
-def kill(job: list[str], all_jobs: bool) -> None:
+def kill(job: tuple[str, ...], experiment: tuple[str, ...], all_jobs: bool) -> None:
     """
     stop job(s).
+    this sucks
     """
 
     from sh import kill  # type: ignore
@@ -207,16 +209,16 @@ def kill(job: list[str], all_jobs: bool) -> None:
 
         # kill all running pioreactor processes
         jobs_killed_already = []
-        with local_intermittent_storage("pio_jobs_running") as cache:
-            for j in cache:
+        with local_intermittent_storage("pio_job_metadata") as cache:
+            for u, e, j in cache:
                 if j not in JOBS_TO_SKIP_KILLING:
-                    pid = cache[j]
+                    pid = cache[(u, e, j)]["pid"]
                     if pid not in jobs_killed_already:
                         safe_kill(int(pid))
                         jobs_killed_already.append(pid)
 
         # kill all LEDs
-        sleep(0.25)
+        sleep(0.10)
         try:
             # non-workers won't have this hardware, so just skip it
             led_intensity({"A": 0.0, "B": 0.0, "C": 0.0, "D": 0.0}, verbose=False, experiment="_test")
@@ -235,10 +237,20 @@ def kill(job: list[str], all_jobs: bool) -> None:
                 if cache[led] != 0.0:
                     print(f"LED {led} is not off!")
 
-    else:
+    elif experiment:
         jobs_killed_already = []
-        with local_intermittent_storage("pio_jobs_running") as cache:
-            for j in cache:
+        with local_intermittent_storage("pio_job_metadata") as cache:
+            for u, e, j in cache:
+                if e in experiment:
+                    pid = cache[j]
+                    if pid not in jobs_killed_already:
+                        safe_kill(int(pid))
+                        jobs_killed_already.append(pid)
+
+    elif job:
+        jobs_killed_already = []
+        with local_intermittent_storage("pio_job_metadata") as cache:
+            for u, e, j in cache:
                 if j in job:
                     pid = cache[j]
                     if pid not in jobs_killed_already:

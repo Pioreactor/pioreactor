@@ -11,3 +11,6 @@ CREATE TABLE IF NOT EXISTS experiment_worker_assignments (
 
 
 ## TODO: add new experiments column to table experiment_profile_runs
+
+ALTER TABLE experiment_profile_runs
+ADD COLUMN experiment TEXT;

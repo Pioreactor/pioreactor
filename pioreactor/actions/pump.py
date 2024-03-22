@@ -264,7 +264,7 @@ def _pump_action(
         except exc.CalibrationError:
             pass
 
-    with utils.publish_ready_to_disconnected_state(
+    with utils.managed_lifecycle(
         unit,
         experiment,
         action_name,
@@ -412,7 +412,7 @@ def _liquid_circulation(
             "Calibrations don't exist for pump(s). Keep an eye on the liquid level to avoid overflowing!"
         )
 
-    with utils.publish_ready_to_disconnected_state(
+    with utils.managed_lifecycle(
         unit,
         experiment,
         action_name,

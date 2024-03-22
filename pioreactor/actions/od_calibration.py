@@ -31,7 +31,7 @@ from pioreactor.mureq import patch
 from pioreactor.mureq import put
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
-from pioreactor.utils import publish_ready_to_disconnected_state
+from pioreactor.utils import managed_lifecycle
 from pioreactor.utils.timing import current_utc_datestamp
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_testing_experiment_name
@@ -507,7 +507,7 @@ def od_calibration(data_file: str | None) -> None:
     if any(is_pio_job_running(["stirring", "od_reading"])):
         raise ValueError("Stirring and OD reading should be turned off.")
 
-    with publish_ready_to_disconnected_state(unit, experiment, "od_calibration"):
+    with managed_lifecycle(unit, experiment, "od_calibration"):
         introduction()
         name = get_name_from_user()
 

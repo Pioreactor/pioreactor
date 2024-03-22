@@ -260,8 +260,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
             raise ValueError("Job name not allowed.")
         if not self.job_name.islower():
             raise ValueError("Job name should be all lowercase.")
-        if not is_active(unit):
-            raise NotActiveWorkerError(f"{unit} is not active for experiment.")
 
         self.experiment = experiment
         self.unit = unit
@@ -338,22 +336,22 @@ class _BackgroundJob(metaclass=PostInitCaller):
         C.on_ready()
         """
 
-        with local_intermittent_storage(f"job_metadata_{self.job_name}") as cache:
+        with local_intermittent_storage("pio_job_metadata") as cache:
             # we set the "lock" in ready as then we know the __init__ finished successfully. Previously,
             # __init__ might fail, and not clean up pio_job_* correctly.
             # the catch is that there is a window where two jobs can be started, see growth_rate_calculating.
             # sol for authors: move the long-running parts to the on_init_to_ready function.
-            cache["started_at"] = current_utc_timestamp()
-            cache["is_running"] = "1"
-            cache["source"] = self._source
-            cache["experiment"] = self.experiment
-            cache["unit"] = self.unit
-            cache["leader_hostname"] = leader_hostname
-            cache["pid"] = getpid()
-            cache["ended_at"] = ""  # populated later
-
-        with local_intermittent_storage("pio_jobs_running") as cache:
-            cache[self.job_name] = getpid()
+            key = (self.unit, self.experiment, self.job_name)
+            cache[key] = {
+                "started_at": current_utc_timestamp(),
+                "is_running": "1",
+                "source": self._source,
+                "experiment": self.experiment,
+                "unit": self.unit,
+                "leader_hostname": leader_hostname,
+                "pid": getpid(),
+                "ended_at": "",  # populated later
+            }
 
         self.set_state(self.READY)
 
@@ -790,12 +788,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self._blocking_event.set()
 
     def _remove_from_cache(self) -> None:
-        with local_intermittent_storage(f"job_metadata_{self.job_name}") as cache:
-            cache["is_running"] = "0"
-            cache["ended_at"] = current_utc_timestamp()
-
-        with local_intermittent_storage("pio_jobs_running") as cache:
-            cache.pop(self.job_name)
+        with local_intermittent_storage("pio_job_metadata") as cache:
+            key = (self.unit, self.experiment, self.job_name)
+            cache.pop(key)
 
     def _disconnect_from_loggers(self) -> None:
         # clean up logger handlers
@@ -977,12 +972,23 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.clean_up()
 
 
-class BackgroundJob(_BackgroundJob):
+class LongRunningBackgroundJob(_BackgroundJob):
     """
-    Native jobs should inherit from this class.
+    This doesn't check for is_active, so should be used for jobs like monitor, etc.
     """
 
     def __init__(self, unit: str, experiment: str) -> None:
+        super().__init__(unit, experiment, source="app")
+
+
+class BackgroundJob(_BackgroundJob):
+    """
+    Worker jobs should inherit from this class.
+    """
+
+    def __init__(self, unit: str, experiment: str) -> None:
+        if not is_active(unit):
+            raise NotActiveWorkerError(f"{unit} is not active.")
         super().__init__(unit, experiment, source="app")
 
 

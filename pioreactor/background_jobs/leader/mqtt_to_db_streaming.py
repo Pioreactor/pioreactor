@@ -14,7 +14,7 @@ from msgspec.json import decode as msgspec_loads
 
 from pioreactor import structs
 from pioreactor import types as pt
-from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.background_jobs.base import LongRunningBackgroundJob
 from pioreactor.config import config
 from pioreactor.hardware import PWM_TO_PIN
 from pioreactor.pubsub import MQTT_TOPIC
@@ -55,7 +55,7 @@ class TopicToCallback(Struct):
     callback: Callable[[pt.MQTTMessage], None]
 
 
-class MqttToDBStreamer(BackgroundJob):
+class MqttToDBStreamer(LongRunningBackgroundJob):
     job_name = "mqtt_to_db_streaming"
     published_settings = {
         "inserts_in_last_60s": {"datatype": "integer", "settable": False},

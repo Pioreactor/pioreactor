@@ -7,6 +7,7 @@ import tempfile
 import time
 from contextlib import contextmanager
 from functools import wraps
+from os import getpid
 from threading import Event
 from typing import Any
 from typing import Callable
@@ -21,10 +22,12 @@ from diskcache import Cache  # type: ignore
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor import whoami
+from pioreactor.exc import NotActiveWorkerError
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import QOS
 from pioreactor.pubsub import subscribe_and_callback
+from pioreactor.utils.timing import current_utc_timestamp
 
 
 class callable_stack:
@@ -97,7 +100,7 @@ def append_signal_handlers(signal_value: signal.Signals, new_callbacks: list[Cal
         append_signal_handler(signal_value, callback)
 
 
-class publish_ready_to_disconnected_state:
+class managed_lifecycle:
     """
     Wrap a block of code to have "state" in MQTT. See od_normalization, self_test, pump
 
@@ -106,15 +109,15 @@ class publish_ready_to_disconnected_state:
     Example
     ----------
 
-    > with publish_ready_to_disconnected_state(unit, experiment, "self_test"): # publishes "ready" to mqtt
+    > with managed_lifecycle(unit, experiment, "self_test"): # publishes "ready" to mqtt
     >    do_work()
     >
     > # on close of block, a "disconnected" is fired to MQTT, regardless of how that end is achieved (error, return statement, etc.)
 
 
-    If the program is required to know if it's killed, publish_ready_to_disconnected_state contains an event (see pump.py code)
+    If the program is required to know if it's killed, managed_lifecycle contains an event (see pump.py code)
 
-    > with publish_ready_to_disconnected_state(unit, experiment, "self_test") as state:
+    > with managed_lifecycle(unit, experiment, "self_test") as state:
     >    do_work()
     >
     >    state.block_until_disconnected()
@@ -131,12 +134,18 @@ class publish_ready_to_disconnected_state:
         mqtt_client: Optional[Client] = None,
         exit_on_mqtt_disconnect: bool = False,
         mqtt_client_kwargs: Optional[dict] = None,
+        ignore_is_active_state=False,  # hack and kinda gross
+        source="app",
     ) -> None:
+        if not ignore_is_active_state and not whoami.is_active(unit):
+            raise NotActiveWorkerError(f"{unit} is not active.")
+
         self.unit = unit
         self.experiment = experiment
         self.name = name
         self.state = "init"
         self.exit_event = Event()
+        self._source = source
 
         last_will = {
             "topic": f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
@@ -170,7 +179,7 @@ class publish_ready_to_disconnected_state:
     def _on_disconnect(self, *args):
         self._exit()
 
-    def __enter__(self) -> publish_ready_to_disconnected_state:
+    def __enter__(self) -> managed_lifecycle:
         try:
             # this only works on the main thread.
             append_signal_handler(signal.SIGTERM, self._exit)
@@ -186,8 +195,18 @@ class publish_ready_to_disconnected_state:
             retain=True,
         )
 
-        with local_intermittent_storage("pio_jobs_running") as cache:
-            cache[self.name] = os.getpid()
+        with local_intermittent_storage("pio_job_metadata") as cache:
+            key = (self.unit, self.experiment, self.name)
+            cache[key] = {
+                "started_at": current_utc_timestamp(),
+                "is_running": "1",
+                "source": self._source,
+                "experiment": self.experiment,
+                "unit": self.unit,
+                "leader_hostname": "",  # TODO,
+                "pid": getpid(),
+                "ended_at": "",
+            }
 
         return self
 
@@ -203,7 +222,7 @@ class publish_ready_to_disconnected_state:
             self.mqtt_client.loop_stop()
             self.mqtt_client.disconnect()
 
-        with local_intermittent_storage("pio_jobs_running") as cache:
+        with local_intermittent_storage("pio_job_metadata") as cache:
             cache.pop(self.name)
         return
 
@@ -312,9 +331,10 @@ def is_pio_job_running(target_jobs):
         target_jobs = [target_jobs]
 
     results = []
-    with local_intermittent_storage("pio_jobs_running") as cache:
+    with local_intermittent_storage("pio_job_metadata") as cache:
+        jobs_running = [j for (u, e, j) in cache.iterkeys() if cache[(u, e, j)]["is_running"] == "1"]
         for job in target_jobs:
-            if job not in cache:
+            if job not in jobs_running:
                 results.append(False)
             else:
                 results.append(True)

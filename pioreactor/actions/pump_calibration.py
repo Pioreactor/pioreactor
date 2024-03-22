@@ -32,7 +32,7 @@ from pioreactor.logging import create_logger
 from pioreactor.mureq import patch
 from pioreactor.mureq import put
 from pioreactor.utils import local_persistant_storage
-from pioreactor.utils import publish_ready_to_disconnected_state
+from pioreactor.utils import managed_lifecycle
 from pioreactor.utils.math_helpers import correlation
 from pioreactor.utils.math_helpers import simple_linear_regression_with_forced_nil_intercept
 from pioreactor.utils.timing import current_utc_datestamp
@@ -441,7 +441,7 @@ def pump_calibration(min_duration: float, max_duration: float, json_file: str | 
     logger = create_logger("pump_calibration", unit=unit, experiment=experiment)
     logger.info("Starting pump calibration.")
 
-    with publish_ready_to_disconnected_state(unit, experiment, "pump_calibration"):
+    with managed_lifecycle(unit, experiment, "pump_calibration"):
         clear()
         if json_file is None:
             introduction()

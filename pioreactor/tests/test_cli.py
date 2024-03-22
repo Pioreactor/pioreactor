@@ -96,7 +96,7 @@ def test_pio_kill_cleans_up_automations_correctly() -> None:
     with start_dosing_control("silent"):
         pause()
 
-        with local_intermittent_storage("pio_jobs_running") as cache:
+        with local_intermittent_storage("pio_jobs_metadata") as cache:
             assert "dosing_automation" in cache
 
         pause()
