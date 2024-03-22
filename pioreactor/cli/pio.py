@@ -170,8 +170,8 @@ def blink() -> None:
 
 
 @pio.command(name="kill", short_help="kill job(s)")
-@click.option("--job", multiple=True, type=click.String)
-@click.option("--experiment", multiple=True, type=click.String)
+@click.option("--job", multiple=True, type=click.STRING)
+@click.option("--experiment", multiple=True, type=click.STRING)
 @click.option("--all-jobs", is_flag=True, help="kill all Pioreactor jobs running")
 def kill(job: tuple[str, ...], experiment: tuple[str, ...], all_jobs: bool) -> None:
     """

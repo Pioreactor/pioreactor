@@ -93,11 +93,13 @@ def test_pios_update_settings() -> None:
 
 
 def test_pio_kill_cleans_up_automations_correctly() -> None:
-    with start_dosing_control("silent"):
+    exp = "test_pio_kill_cleans_up_automations_correctly"
+    unit = "testing_unit"
+    with start_dosing_control("silent", unit=unit, experiment=exp):
         pause()
 
-        with local_intermittent_storage("pio_jobs_metadata") as cache:
-            assert "dosing_automation" in cache
+        with local_intermittent_storage("pio_job_metadata") as cache:
+            assert (unit, exp, "dosing_automation") in cache
 
         pause()
         pause()
@@ -112,5 +114,5 @@ def test_pio_kill_cleans_up_automations_correctly() -> None:
         pause()
         pause()
 
-        with local_intermittent_storage("pio_jobs_running") as cache:
-            assert "dosing_automation" not in cache
+        with local_intermittent_storage("pio_job_metadata") as cache:
+            assert (unit, exp, "dosing_automation") not in cache
