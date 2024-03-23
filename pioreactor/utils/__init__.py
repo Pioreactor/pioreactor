@@ -488,7 +488,7 @@ class JobManager:
     LONG_RUNNING_JOBS = ("monitor", "mqtt_to_db_streaming", "watchdog")
 
     def __init__(self):
-        self.db_path = f"{tempfile.gettempdir()}/pio_jobs.db"
+        self.db_path = f"{tempfile.gettempdir()}/pio_jobs_metadata.db"
         self.conn = sqlite3.connect(self.db_path)
         self.cursor = self.conn.cursor()
         self._create_table()
@@ -537,9 +537,9 @@ class JobManager:
 
     def kill_jobs(self, all_jobs: bool = False, **query):
         # ex: kill_jobs(experiment="testing_exp") should return end all jobs with experiment='testing_exp'
-        # Construct the WHERE clause based on the query parameters
 
         if not all_jobs:
+            # Construct the WHERE clause based on the query parameters
             where_clause = " AND ".join([f"{key} = :{key}" for key in query.keys() if query[key] is not None])
 
             # Construct the SELECT query
@@ -564,6 +564,7 @@ class JobManager:
         if name in self.PUMPING_JOBS:
             self._kill_pumping_job(job)
         elif name == "led_intensity":
+            # led_intensity doesn't register with the JobManager, probably should somehow.
             pass
         elif name in self.AUTOMATION_JOBS:
             # don't kill them, the parent will.
@@ -574,11 +575,12 @@ class JobManager:
     def _kill_pumping_job(self, pump_job):
         name, _ = pump_job
         with create_client() as client:
-            client.publish(
+            msg = client.publish(
                 f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{whoami.UNIVERSAL_EXPERIMENT}/{name}/$state/set",
                 "disconnected",
                 qos=QOS.AT_LEAST_ONCE,
             )
+            msg.wait_for_publish(timeout=3)
 
     def __enter__(self) -> JobManager:
         return self

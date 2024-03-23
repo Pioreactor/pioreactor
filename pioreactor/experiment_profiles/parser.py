@@ -9,7 +9,7 @@ from msgspec.json import decode
 from .sly import Lexer
 from .sly import Parser
 from pioreactor.pubsub import subscribe
-from pioreactor.whoami import _get_assigned_experiment_name  # get the non-cached version
+from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import is_active
 
 
@@ -163,11 +163,12 @@ class ProfileParser(Parser):
         unit, job, setting_keys = p.UNIT_JOB_SETTING.split(":")
         setting, *keys = setting_keys.split(".")
 
-        experiment = _get_assigned_experiment_name(unit)
+        experiment = get_assigned_experiment_name(unit)
 
         if not is_active(unit):
             raise NotActiveWorkerError(f"Worker {unit} is not active.")
 
+        print(f"pioreactor/{unit}/{experiment}/{job}/{setting}")
         result = subscribe(f"pioreactor/{unit}/{experiment}/{job}/{setting}", timeout=3)
         if result:
             # error handling here

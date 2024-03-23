@@ -59,7 +59,7 @@ def test_simple_float_comparison():
 def test_mqtt_fetches():
     # complex
 
-    experiment = "test_mqtt_fetches"
+    experiment = "_testing_experiment"
 
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od1",
@@ -101,7 +101,7 @@ def test_mqtt_fetches():
 
 def test_mqtt_timeout():
     with pytest.raises(ValueError):
-        assert parse_profile_expression_to_bool(f"{unit}:test_job:does_not_exist or True", experiment="test")
+        assert parse_profile_expression_to_bool(f"{unit}:test_job:does_not_exist or True")
 
 
 def test_calculator():

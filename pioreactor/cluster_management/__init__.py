@@ -3,25 +3,15 @@ from __future__ import annotations
 
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
-from os import geteuid
-from shlex import quote
-from sys import exit
 from time import sleep
-from typing import Optional
 
 import click
 from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
 
-import pioreactor.utils.networking as networking
-from pioreactor import actions
-from pioreactor import background_jobs as jobs
 from pioreactor import config
-from pioreactor import exc
-from pioreactor import plugin_management
 from pioreactor import pubsub
 from pioreactor import whoami
-from pioreactor.config import leader_address
 from pioreactor.exc import BashScriptError
 from pioreactor.logging import create_logger
 from pioreactor.mureq import delete
@@ -29,31 +19,27 @@ from pioreactor.mureq import get
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
 from pioreactor.mureq import put
-from pioreactor.utils import local_intermittent_storage
-from pioreactor.utils import local_persistant_storage
-from pioreactor.utils.networking import add_local
-from pioreactor.utils.networking import is_using_local_access_point
+from pioreactor.utils import networking
 from pioreactor.utils.timing import catchtime
-from pioreactor.utils.timing import current_utc_timestamp
 
 
 def get_workers_in_inventory() -> tuple[str, ...]:
-    result = get(f"http://{leader_address}/api/workers")
+    result = get(f"http://{config.leader_address}/api/workers")
     return tuple(worker["pioreactor_unit"] for worker in result.json())
 
 
 def get_active_workers_in_inventory() -> tuple[str, ...]:
-    result = get(f"http://{leader_address}/api/workers")
+    result = get(f"http://{config.leader_address}/api/workers")
     return tuple(worker["pioreactor_unit"] for worker in result.json() if bool(worker["is_active"]))
 
 
 def get_workers_in_experiment(experiment: str) -> tuple[str, ...]:
-    result = get(f"http://{leader_address}/api/experiments/{experiment}/workers")
+    result = get(f"http://{config.leader_address}/api/experiments/{experiment}/workers")
     return tuple(worker["pioreactor_unit"] for worker in result.json())
 
 
 def get_active_workers_in_experiment(experiment: str) -> tuple[str, ...]:
-    result = get(f"http://{leader_address}/api/experiments/{experiment}/workers")
+    result = get(f"http://{config.leader_address}/api/experiments/{experiment}/workers")
     return tuple(worker["pioreactor_unit"] for worker in result.json() if bool(worker["is_active"]))
 
 
@@ -224,7 +210,7 @@ def cluster_status() -> None:
             ip = networking.get_ip()
         else:
             try:
-                ip = socket.gethostbyname(add_local(hostname))
+                ip = socket.gethostbyname(networking.add_local(hostname))
             except OSError:
                 ip = "unknown"
 
@@ -251,7 +237,7 @@ def cluster_status() -> None:
             app_version = "unknown"
 
         # is reachable?
-        reachable = networking.is_reachable(add_local(hostname))
+        reachable = networking.is_reachable(networking.add_local(hostname))
 
         # get experiment
         try:
@@ -296,4 +282,4 @@ def cluster_status() -> None:
         results = executor.map(display_data_for, workers)
 
     if not all(results):
-        exit(1)
+        raise click.Abort()

@@ -418,7 +418,7 @@ if am_I_leader():
             raise click.Abort()
 
     @pios.command("kill", short_help="kill a job(s) on workers")
-    @click.argument("job", nargs=-1)
+    @click.option("--job")
     @click.option(
         "--units",
         multiple=True,
@@ -427,8 +427,11 @@ if am_I_leader():
         help="specify a hostname, default is all active units",
     )
     @click.option("--all-jobs", is_flag=True, help="kill all worker jobs")
+    @click.option("--experiment", type=click.STRING, help="kill all worker jobs")
     @click.option("-y", is_flag=True, help="skip asking for confirmation")
-    def kill(job: str, units: tuple[str, ...], all_jobs: bool, y: bool) -> None:
+    def kill(
+        job: str | None, units: tuple[str, ...], all_jobs: bool, experiment: str | None, y: bool
+    ) -> None:
         """
         Send a SIGTERM signal to JOB. JOB can be any Pioreactor job name, like "stirring".
         Example:
@@ -458,7 +461,11 @@ if am_I_leader():
             if confirm != "Y":
                 raise click.Abort()
 
-        command = f"pio kill {' '.join(job)}"
+        command = (
+            "pio kill"
+            + (f"--experiment {experiment}" if experiment else "")
+            + (f"--job {job}" if job else "")
+        )
         command += "--all-jobs" if all_jobs else ""
 
         logger = create_logger("CLI", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)

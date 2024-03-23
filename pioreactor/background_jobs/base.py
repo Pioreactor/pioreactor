@@ -775,8 +775,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self._blocking_event.set()
 
     def _remove_from_cache(self) -> None:
-        with JobManager() as jm:
-            jm.set_not_running(self._jm_key)
+        if hasattr(self, "_jm_key"):
+            with JobManager() as jm:
+                jm.set_not_running(self._jm_key)
 
     def _disconnect_from_loggers(self) -> None:
         # clean up logger handlers

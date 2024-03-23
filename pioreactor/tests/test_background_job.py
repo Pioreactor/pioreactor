@@ -522,23 +522,6 @@ def test_disabled_dodging() -> None:
     jp.clean_up()
 
 
-def test_job_write_metadata_correctly() -> None:
-    experiment = "test_job_write_metadata_correctly"
-    unit = get_unit_name()
-
-    with BackgroundJob(unit=unit, experiment=experiment) as bj:
-        with local_intermittent_storage(f"job_metadata_{bj.job_name}") as cache:
-            assert cache["unit"] == unit
-            assert cache["experiment"] == experiment
-            assert cache["source"] == "app"
-            assert cache["is_running"] == "1"
-            assert cache["ended_at"] == ""
-
-    with local_intermittent_storage(f"job_metadata_{bj.job_name}") as cache:
-        assert cache["is_running"] == "0"
-        assert cache["ended_at"] != ""
-
-
 def test_that_job_will_republish_state_if_not_correct_in_broker() -> None:
     experiment = "test_that_job_will_republish_state_if_not_correct_in_broker"
     unit = get_unit_name()
