@@ -15,7 +15,7 @@ from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.types import MQTTMessage
-from pioreactor.utils import local_intermittent_storage
+from pioreactor.utils import is_pio_job_running
 from pioreactor.whoami import get_unit_name
 
 
@@ -157,9 +157,7 @@ def test_what_happens_when_an_error_occurs_in_init_but_we_catch_and_disconnect()
 
     pause()
     assert state[-1] == "disconnected"
-
-    with local_intermittent_storage("job_metadata_testjob") as cache:
-        assert cache["is_running"] == "0"
+    assert not is_pio_job_running("testjob")
 
 
 def test_state_transition_callbacks() -> None:

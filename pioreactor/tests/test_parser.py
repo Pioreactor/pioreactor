@@ -118,7 +118,7 @@ def test_calculator():
 
 
 def test_mqtt_fetches_with_calculations():
-    experiment = "test_mqtt_fetches_with_calculations"
+    experiment = "_testing_experiment"
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od1",
         encode(structs.ODReading(timestamp="2021-01-01", angle="90", od=1.2, channel="2")),

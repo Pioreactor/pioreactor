@@ -13,6 +13,7 @@ from pioreactor.cli.pio import pio
 from pioreactor.cli.pios import pios
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import subscribe_and_callback
+from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_intermittent_storage
 
 
@@ -98,8 +99,8 @@ def test_pio_kill_cleans_up_automations_correctly() -> None:
     with start_dosing_control("silent", unit=unit, experiment=exp):
         pause()
 
-        with local_intermittent_storage("pio_job_metadata") as cache:
-            assert (unit, exp, "dosing_automation") in cache
+        assert is_pio_job_running("dosing_automation")
+        assert is_pio_job_running("dosing_control")
 
         pause()
         pause()
@@ -114,5 +115,5 @@ def test_pio_kill_cleans_up_automations_correctly() -> None:
         pause()
         pause()
 
-        with local_intermittent_storage("pio_job_metadata") as cache:
-            assert (unit, exp, "dosing_automation") not in cache
+        assert not is_pio_job_running("dosing_automation")
+        assert not is_pio_job_running("dosing_control")
