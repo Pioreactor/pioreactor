@@ -328,13 +328,10 @@ def is_pio_job_running(target_jobs):
         target_jobs = [target_jobs]
 
     results = []
-    with local_intermittent_storage("pio_job_metadata") as cache:
-        jobs_running = [j for (u, e, j) in cache.iterkeys() if cache[(u, e, j)]["is_running"] == "1"]
+
+    with JobManager() as jm:
         for job in target_jobs:
-            if job not in jobs_running:
-                results.append(False)
-            else:
-                results.append(True)
+            results.append(jm.is_job_running(job))
 
     if len(target_jobs) == 1:
         return results[0]
@@ -534,6 +531,11 @@ class JobManager:
         self.cursor.execute(update_query, (job_metadata_key,))
         self.conn.commit()
         return
+
+    def is_job_running(self, job_name: str) -> bool:
+        select_query = """SELECT pid FROM pio_job_metadata WHERE name=(?) and is_running=1"""
+        self.cursor.execute(select_query, (job_name,))
+        return len(self.cursor.fetchall()) > 0
 
     def kill_jobs(self, all_jobs: bool = False, **query):
         # ex: kill_jobs(experiment="testing_exp") should return end all jobs with experiment='testing_exp'
