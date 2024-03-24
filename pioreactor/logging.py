@@ -63,6 +63,12 @@ class CustomLogger(logging.LoggerAdapter):
     def notice(self, msg, *args, **kwargs):
         self.log(NOTICE, msg, *args, **kwargs)
 
+    def clean_up(self):
+        handlers = self.logger.handlers[:]
+        for handler in handlers:
+            self.logger.removeHandler(handler)
+            handler.close()
+
 
 class CustomisedJSONFormatter(JSONFormatter):
     def json_record(self, message: str, extra: dict, record: logging.LogRecord) -> dict:

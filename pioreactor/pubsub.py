@@ -10,6 +10,7 @@ from typing import Any
 from typing import Callable
 from typing import Optional
 
+from msgspec.json import decode as loads
 from paho.mqtt.client import Client as PahoClient
 
 from pioreactor.config import config
@@ -338,14 +339,13 @@ class collect_all_logs_of_level:
         # create a bucket for the logs
         self.bucket: list[dict] = []
         # subscribe to the logs
+        print(str(PIOREACTOR / self.unit / self.experiment / "logs" / "app"))
         self.client: Client = subscribe_and_callback(
             self._collect_logs_into_bucket,
             str(PIOREACTOR / self.unit / self.experiment / "logs" / "app"),
         )
 
     def _collect_logs_into_bucket(self, message):
-        from json import loads
-
         # load the message
         log = loads(message.payload)
         # if the log level matches, add it to the bucket

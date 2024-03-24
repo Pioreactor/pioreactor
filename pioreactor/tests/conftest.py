@@ -46,23 +46,25 @@ def run_around_tests(request):
     yield
 
 
+@pytest.fixture()
+def active_workers_in_cluster():
+    return ["unit1", "unit2"]
+
+
 @pytest.fixture(autouse=True)
-def mock_external_leader_webserver_apis(mocker):
+def mock_external_leader_webserver_apis(mocker, active_workers_in_cluster):
     # used mostly in pioreactor.config.py
     def mock_get_response(url):
         if url.endswith("/api/workers"):
             mm = MagicMock()
             mm.json.return_value = [
-                {"pioreactor_unit": "unit1", "is_active": 1},
-                {"pioreactor_unit": "unit2", "is_active": 1},
-                {"pioreactor_unit": "unit3", "is_active": 0},
-            ]
+                {"pioreactor_unit": unit, "is_active": 1} for unit in active_workers_in_cluster
+            ] + [{"pioreactor_unit": "notactiveworker", "is_active": 0}]
             return mm
         elif re.search("/api/experiments/.*/workers", url):
             mm = MagicMock()
             mm.json.return_value = [
-                {"pioreactor_unit": "unit1", "is_active": 1},
-                {"pioreactor_unit": "unit2", "is_active": 1},
+                {"pioreactor_unit": unit, "is_active": 1} for unit in active_workers_in_cluster
             ]
             return mm
         elif re.search("/api/workers/.*/experiment", url):

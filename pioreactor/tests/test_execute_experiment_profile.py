@@ -121,7 +121,7 @@ def test_execute_experiment_profile_hack_for_led_intensity(mock__load_experiment
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
-def test_execute_experiment_log_actions(mock__load_experiment_profile) -> None:
+def test_execute_experiment_log_actions(mock__load_experiment_profile, active_workers_in_cluster) -> None:
     experiment = "test_execute_experiment_log_actions"
 
     action1 = Log(hours_elapsed=0 / 60 / 60, options=_LogOptions(message="test {unit}"))
@@ -153,7 +153,7 @@ def test_execute_experiment_log_actions(mock__load_experiment_profile) -> None:
     ) as debug_bucket:
         execute_experiment_profile("profile.yaml", experiment)
         assert [log["message"] for log in notice_bucket[1:-1]] == [
-            f"test {unit}" for unit in ["unit1", "unit2"]
+            f"test {unit}" for unit in active_workers_in_cluster
         ]
         assert [log["message"] for log in info_bucket] == [
             "test job2 on unit1",
@@ -478,10 +478,13 @@ def test_repeat_block(mock__load_experiment_profile) -> None:
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
-def test_execute_experiment_profile_expression_in_common(mock__load_experiment_profile) -> None:
-    unit = "unit1"
+def test_execute_experiment_profile_expression_in_common(
+    mock__load_experiment_profile, active_workers_in_cluster
+) -> None:
     job_name = "jobbing"
-    publish(f"pioreactor/{unit}/_testing_experiment/{job_name}/target", 10, retain=True)
+
+    for worker in active_workers_in_cluster:
+        publish(f"pioreactor/{worker}/_testing_experiment/{job_name}/target", 10, retain=True)
 
     action = Start(
         hours_elapsed=0, options={"target": "${{::jobbing:target + 1}}"}, if_="::jobbing:target > 0"
@@ -507,13 +510,13 @@ def test_execute_experiment_profile_expression_in_common(mock__load_experiment_p
 
     subscribe_and_callback(
         collection_actions,
-        [f"pioreactor/{unit}/_testing_experiment/run/jobbing"],
+        [f"pioreactor/{worker}/_testing_experiment/run/jobbing" for worker in active_workers_in_cluster],
         allow_retained=False,
     )
 
     execute_experiment_profile("profile.yaml", "_testing_experiment")
 
-    assert actions == ['{"options":{"target":11.0},"args":[]}']
+    assert actions == ['{"options":{"target":11.0},"args":[]}'] * len(active_workers_in_cluster)
 
 
 def test_profiles_in_github_repo() -> None:

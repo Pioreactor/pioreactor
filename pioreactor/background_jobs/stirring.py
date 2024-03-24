@@ -436,7 +436,7 @@ class Stirrer(BackgroundJob):
 
         sleep_time = 0.2
         poll_time = 2  # usually 4, but we don't need high accuracy here,
-        self.logger.debug(f"Stirring is blocking until RPM is near {self.target_rpm}.")
+        self.logger.debug(f"{self.job_name} is blocking until RPM is near {self.target_rpm}.")
 
         self.rpm_check_repeated_thread.pause()
 

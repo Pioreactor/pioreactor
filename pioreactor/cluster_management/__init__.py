@@ -115,7 +115,7 @@ def remove_worker(hostname: str) -> None:
         r = delete(f"http://{config.leader_address}/api/workers/{hostname}")
         r.raise_for_status()
     except HTTPErrorStatus:
-        click.echo(f"Worker {hostname} present to be removed. Check hostname.")
+        click.echo(f"Worker {hostname} not present to be removed. Check hostname.")
         click.Abort()
     except HTTPException:
         click.echo("Not able to connect to leader's backend.")

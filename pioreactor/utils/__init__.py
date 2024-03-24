@@ -128,6 +128,8 @@ class managed_lifecycle:
     >    # or state.exit_event.is_set() or state.exit_event.wait(...) are other options.
     >
 
+    For now, it's possible to run multiple jobs with the same name using this tool.
+
     """
 
     def __init__(

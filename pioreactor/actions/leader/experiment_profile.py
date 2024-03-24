@@ -616,7 +616,7 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
                         ),
                     )
 
-        logger.debug("Starting execution actions.")
+        logger.debug("Starting execution of actions.")
 
         try:
             # try / finally to handle keyboard interrupts
@@ -646,6 +646,7 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
 
                 else:
                     logger.notice(f"Finished executing profile {profile.experiment_profile_name}.")  # type: ignore
+            logger.clean_up()
 
 
 @click.group(name="experiment_profile")

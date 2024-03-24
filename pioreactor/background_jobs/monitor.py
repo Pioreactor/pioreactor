@@ -643,24 +643,26 @@ class Monitor(LongRunningBackgroundJob):
         job_name = msg.topic.split("/")[-1]
         payload = loads(msg.payload) if msg.payload else {"options": {}, "args": []}
 
-        # if "options" not in payload:
-        #    self.logger.debug("`options` key missing from payload. You should provide an empty dictionary.")
-
         options = payload.get("options", {})
-
-        # if "args" not in payload:
-        #    self.logger.debug("`args` key missing from payload. You should provide an empty list.")
 
         args = payload.get("args", [])
 
         # this is a performance hack and should be changed later...
         if job_name == "led_intensity":
+            # TODO: this needs to check if active / assigned
+            # the below would work, but is very slow for a callback
+            # putting it in led_intensity makes everything else slow (ex: od_reading)
+            # if not whoami.is_active(self.unit):
+            #    return
+
+            experiment = whoami._get_assigned_experiment_name(self.unit)
+
             from pioreactor.actions.led_intensity import led_intensity, ALL_LED_CHANNELS
 
             state = {ch: options.pop(ch) for ch in ALL_LED_CHANNELS if ch in options}
             options["pubsub_client"] = self.pub_client
             options["unit"] = self.unit
-            options["experiment"] = whoami._get_assigned_experiment_name(self.unit)  # techdebt
+            options["experiment"] = experiment  # techdebt
             Thread(
                 target=utils.boolean_retry,
                 args=(led_intensity, (state,), options),
@@ -674,12 +676,17 @@ class Monitor(LongRunningBackgroundJob):
             "circulate_media",
             "circulate_alt_media",
         }:
+            # is_active is checked in the lifecycle block
+
+            # if not assigned, this next line raises an exception
+            experiment = whoami._get_assigned_experiment_name(self.unit)
+
             from pioreactor.actions import pump as pump_actions
 
             pump_action = getattr(pump_actions, job_name)
 
             options["unit"] = self.unit
-            options["experiment"] = whoami._get_assigned_experiment_name(self.unit)  # techdebt
+            options["experiment"] = experiment  # techdebt
             options["config"] = get_config()  # techdebt
             Thread(target=pump_action, kwargs=options, daemon=True).start()
             self.logger.debug(f"Running `{job_name}` from monitor job.")
