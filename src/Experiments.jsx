@@ -224,7 +224,7 @@ function ExperimentsContainer(props) {
         <div className={classes.headerMenu}>
           <Typography variant="h5" component="h2">
             <Box fontWeight="fontWeightBold">
-              Past Experiments
+              Past experiments
             </Box>
           </Typography>
           <div className={classes.headerButtons}>

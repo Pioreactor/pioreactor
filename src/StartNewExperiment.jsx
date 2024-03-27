@@ -10,6 +10,7 @@ import {Typography} from '@mui/material';
 import Button from "@mui/material/Button";
 import TextField from '@mui/material/TextField';
 import Autocomplete, { createFilterOptions } from '@mui/material/Autocomplete';
+import {useNavigate } from 'react-router-dom';
 import SaveIcon from '@mui/icons-material/Save';
 
 //import CleaningScript from "./components/CleaningScript"
@@ -202,7 +203,7 @@ function ExperimentSummaryForm(props) {
 
 
   function killExistingJobs(){
-     fetch('/api/stop_all', {method: "POST"})
+     fetch('/api/workers/stop', {method: "POST"})
   }
 
   function onSubmit(e) {
@@ -341,14 +342,24 @@ function ExperimentSummaryForm(props) {
 
 
 
-
-
 function StartNewExperimentContainer(props) {
   const classes = useStyles();
   const [activeStep, setActiveStep] = React.useState(0);
   const [skipped, setSkipped] = React.useState(new Set());
-  const countActiveUnits = props.config['cluster.inventory'] ? Object.entries(props.config['cluster.inventory']).filter((v) => v[1] === "1").map((v) => v[0]).length : 0
+  const [countActiveUnits, setCountActiveUnits] = React.useState(0)
+  const navigate = useNavigate();
 
+
+  React.useEffect(() => {
+    fetch("/api/workers")
+      .then(response => {
+        return response.json();
+      })
+      .then(workers => {
+        setCountActiveUnits(workers.length)
+      })
+
+  }, [])
 
   const getStepContent = (index) => {
     return steps[index].content
@@ -359,7 +370,7 @@ function StartNewExperimentContainer(props) {
 
   const handleNext = () => {
     if (activeStep === steps.length - 1){
-      window.location.href = "/overview"; // change to location
+      navigate('/overview') // change to location
     } else {
 
       let newSkipped = skipped;

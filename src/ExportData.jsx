@@ -440,7 +440,7 @@ function ExportDataContainer() {
         <div className={classes.headerMenu}>
           <Typography variant="h5" component="h2">
             <Box fontWeight="fontWeightBold">
-              Export Experiment Data
+              Export data
             </Box>
           </Typography>
           <div className={classes.headerButtons}>

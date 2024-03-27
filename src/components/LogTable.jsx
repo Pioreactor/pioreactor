@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useMQTT } from '../providers/MQTTContext'; // Import the useMQTT hook
 import clsx from 'clsx';
 import moment from 'moment';
-import { withStyles } from '@mui/styles';
+import { makeStyles } from '@mui/styles';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
@@ -16,7 +16,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 
 
-const useStyles = theme => ({
+const useStyles = makeStyles((theme) => ({
   tightCell: {
     padding: "6px 6px 6px 10px",
     fontSize: 13,
@@ -43,7 +43,7 @@ const useStyles = theme => ({
   nowrap: {
     whiteSpace: "nowrap",
   }
-});
+}));
 
 const levelMappingToOrdinal = {
   NOTSET: 0,
@@ -58,12 +58,12 @@ const levelMappingToOrdinal = {
 
 function LogTable(props) {
   const [listOfLogs, setListOfLogs] = useState([]);
-  const { classes } = props;
+  const classes = useStyles();
   const {client, subscribeToTopic } = useMQTT(); // Use the useMQTT hook
 
   useEffect(() => {
     const getData = async () => {
-      const response = await fetch("/api/logs/recent?" + new URLSearchParams({
+      const response = await fetch(`/api/experiments/${props.experiment}/logs?` + new URLSearchParams({
         min_level: props.config.logging.ui_log_level
       }));
       const logs = await response.json();
@@ -160,4 +160,4 @@ function LogTable(props) {
 }
 
 
-export default withStyles(useStyles)(LogTable);
+export default LogTable;

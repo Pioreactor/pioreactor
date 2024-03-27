@@ -122,28 +122,6 @@ class EditableDescription extends React.Component {
 };
 
 
-const ButtonNewExperiment = () => {
-  const classes = useStyles();
-  const confirm = useConfirm();
-
-  const handleClick = () => {
-    confirm({
-      description: 'Starting a new experiment will stop data collection for the current experiment. Do you wish to proceed?',
-      title: "Start a new experiment?",
-      confirmationText: "Confirm",
-      confirmationButtonProps: {color: "primary", to: "/start-new-experiment", component: Link},
-      cancellationButtonProps: {color: "secondary"},
-    })
-  };
-
-  return (
-    <React.Fragment>
-      <Button style={{textTransform: 'none', float: "right"}} color="primary" onClick={handleClick}>
-        <AddIcon fontSize="15" classes={{root: classes.textIcon}}/> New experiment
-      </Button>
-    </React.Fragment>
-  );
-}
 
 const ButtonEndExperiment = () =>{
   const classes = useStyles();
@@ -158,7 +136,7 @@ const ButtonEndExperiment = () =>{
       cancellationButtonProps: {color: "secondary"},
 
       }).then(() =>
-        fetch("/api/stop_all", {method: "POST"})
+        fetch("/api/workers/stop", {method: "POST"})
     )
   };
 
@@ -187,7 +165,6 @@ function ExperimentSummary(props){
             <Box fontWeight="fontWeightBold">{experiment}</Box>
           </Typography>
           <div className={classes.headerButtons}>
-            <ButtonNewExperiment/>
             <ButtonEndExperiment/>
           </div>
         </div>

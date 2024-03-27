@@ -32,16 +32,27 @@ function MediaCard(props) {
     subscribeToTopic(`pioreactor/+/${props.experiment}/dosing_automation/alt_media_throughput`, onMessage)
     subscribeToTopic(`pioreactor/+/${props.experiment}/dosing_automation/media_throughput`, onMessage)
 
+    fetchWorkers()
 
-    setActiveUnits(
-      Object.entries(config['cluster.inventory'])
-        .filter((v) => v[1] === '1')
-        .map((v) => v[0])
-    );
   }, [config, props.experiment, client]);
 
+
+  const fetchWorkers = async () => {
+    try {
+      const response = await fetch(`/api/experiments/${props.experiment}/workers`);
+      if (response.ok) {
+        const data = await response.json();
+        setActiveUnits(data.filter(worker => worker.is_active === 1).map(worker => worker.pioreactor_unit));
+      } else {
+        console.error('Failed to fetch workers:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Error fetching workers:', error);
+    }
+  };
+
   async function getRecentRates() {
-    const response = await fetch(`/api/media_rates/current`);
+    const response = await fetch(`/api/experiments/${props.experiment}/media_rates`);
     const data = await response.json();
     setRates(data);
   }

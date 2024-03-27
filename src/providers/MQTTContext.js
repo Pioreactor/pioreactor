@@ -77,7 +77,7 @@ export const MQTTProvider = ({name, config, children }) => {
       });
 
       mqttClient.on('connect', () => {
-        console.log(`Connected to ${name} MQTT broker`);
+        console.log(`Connected to MQTT broker for ${name}.`);
       });
 
       mqttClient.on('message', (topic, message, packet) => {
@@ -86,13 +86,12 @@ export const MQTTProvider = ({name, config, children }) => {
       });
 
       mqttClient.on('error', (error) => {
-        console.log(`MQTT Connection Error: ${error}`);
-        setError(`MQTT Connection Error: ${error}`);
+        console.log(`MQTT ${name} connection Error: ${error}`);
+        setError(`MQTT connection Error: ${error}`);
       });
 
       mqttClient.on('close', () => {
-        console.warn('MQTT Client connection closed');
-        setError('MQTT Client connection closed');
+        console.warn(`MQTT ${name} client connection closed`);
       });
 
 

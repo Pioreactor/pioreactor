@@ -17,12 +17,12 @@ import EditConfig from "./EditConfig";
 import Updates from "./Updates";
 import Plugins from "./Plugins";
 import Profiles from "./Profiles";
+import Inventory from "./Inventory";
 //import Analysis from "./Analysis";
 import Experiments from "./Experiments";
 import SideNavAndHeader from "./components/SideNavAndHeader";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ConfirmProvider } from 'material-ui-confirm';
-import { ProSidebarProvider } from "react-pro-sidebar";
 import {getConfig} from "./utilities"
 import { MQTTProvider } from './providers/MQTTContext';
 import { ExperimentProvider } from './providers/ExperimentContext';
@@ -69,13 +69,11 @@ function App() {
       <StyledEngineProvider injectFirst>
         <ThemeProvider theme={theme}>
           <Router>
-            <ProSidebarProvider>
             <ScrollToTop/>
             <ConfirmProvider>
               <CssBaseline />
               <MainSite />
             </ConfirmProvider>
-            </ProSidebarProvider>
           </Router>
         </ThemeProvider>
       </StyledEngineProvider>
@@ -93,11 +91,11 @@ function MainSite() {
   return (
     <div style={{display: 'flex'}}>
       <ErrorBoundary>
+        <ExperimentProvider>
         <SideNavAndHeader />
         <main style={{flexGrow: 1, paddingTop: theme.spacing(9), paddingLeft: theme.spacing(4), paddingRight: theme.spacing(4)}}>
           <div className="pageContainer">
             <MQTTProvider name="global" config={config}>
-              <ExperimentProvider>
                 <Routes>
                   <Route path="/export-data" element={<ExportData title="Pioreactor ~ Export data"/>}/>
                   <Route path="/start-new-experiment" element={<StartNewExperiment title="Pioreactor ~ Start new experiment" />}/>
@@ -110,14 +108,15 @@ function MainSite() {
                   <Route path="/config" element={<EditConfig title="Pioreactor ~ Configuration"/>}/>
                   <Route path="/pioreactors" element={ <Pioreactors title="Pioreactor ~ Pioreactors"/>}/>
                   <Route path="/updates" element={<Updates title="Pioreactor ~ Updates"/>}/>
+                  <Route path="/inventory" element={<Inventory title="Pioreactor ~ Inventory"/>}/>
                   <Route path="/" element={<ExperimentOverview title="Pioreactor ~ Overview"/>}/>
                 </Routes>
                 <ErrorSnackbar config={config} />
                 <TactileButtonNotification config={config}  />
-              </ExperimentProvider>
             </MQTTProvider>
           </div>
         </main>
+        </ExperimentProvider>
       </ErrorBoundary>
     </div>
 )}

@@ -12,6 +12,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import {getRelabelMap} from "../utilities"
 import CheckIcon from '@mui/icons-material/Check';
 import { useMQTT } from '../providers/MQTTContext';
+import { useExperiment } from '../providers/ExperimentContext';
 
 
 const useStyles = makeStyles((theme) => ({
@@ -66,6 +67,7 @@ function AssignLabels(props){
   const [labels, setLabels] = useState({})
   const [relabelMap, setRelabelMap] = useState({})
   const {client } = useMQTT();
+  const {experiment} = useExperiment()
   const [confirmed, setConfirmed] = useState(false)
   const activeUnits = props.config['cluster.inventory'] ? Object.entries(props.config['cluster.inventory']).filter((v) => v[1] === "1").map((v) => v[0]) : []
 
@@ -77,7 +79,7 @@ function AssignLabels(props){
 
   const onSubmit = () => {
     Object.entries(labels).map(unit_label => (
-      fetch('/api/unit_labels/current',{
+      fetch(`/api/experiments/${experiment}/unit_labels`,{
             method: "PUT",
             body: JSON.stringify({label: unit_label[1], unit: unit_label[0]}),
             headers: {

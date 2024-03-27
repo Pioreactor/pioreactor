@@ -6,22 +6,39 @@ export const useExperiment = () => useContext(ExperimentContext);
 
 export const ExperimentProvider = ({ children }) => {
   const [experimentMetadata, setExperimentMetadata] = useState({});
+  const [allExperiments, setAllExperiments] = useState([]);
 
   useEffect(() => {
     // Fetch the latest experiment metadata from the backend
-    fetch("/api/experiments/latest")
+    const maybeExperimentMetadata = JSON.parse(window.sessionStorage.getItem("experimentMetadata"))
+
+    if (maybeExperimentMetadata){
+      setExperimentMetadata(maybeExperimentMetadata)
+    }
+    else {
+      fetch("/api/experiments/latest")
+        .then((response) => response.json())
+        .then((data) => {
+          setExperimentMetadata(data);
+          window.sessionStorage.setItem("experimentMetadata", JSON.stringify(data));
+        });
+    }
+
+    // Fetch all experiment metadata from the backend
+    fetch("/api/experiments")
       .then((response) => response.json())
       .then((data) => {
-        setExperimentMetadata(data);
+        setAllExperiments(data);
       });
   }, []);
 
   const updateExperiment = (newExperiment) => {
     setExperimentMetadata(newExperiment);
+    window.sessionStorage.setItem("experimentMetadata", JSON.stringify(newExperiment))
   };
 
   return (
-    <ExperimentContext.Provider value={{ experimentMetadata, updateExperiment }}>
+    <ExperimentContext.Provider value={{ experimentMetadata, updateExperiment, allExperiments }}>
       {children}
     </ExperimentContext.Provider>
   );

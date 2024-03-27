@@ -13,6 +13,11 @@ import {Typography} from '@mui/material';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import Checkbox from '@mui/material/Checkbox';
+import FormControl from '@mui/material/FormControl';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import FormGroup from '@mui/material/FormGroup';
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -44,7 +49,8 @@ import Switch from '@mui/material/Switch';
 import { useConfirm } from 'material-ui-confirm';
 import {getConfig, getRelabelMap, runPioreactorJob} from "./utilities"
 import Alert from '@mui/material/Alert';
-
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import { useNavigate } from 'react-router'
 
 import ChangeAutomationsDialog from "./components/ChangeAutomationsDialog"
 import ActionDosingForm from "./components/ActionDosingForm"
@@ -192,7 +198,10 @@ const useStyles = makeStyles((theme) => ({
     fontSize: "0.90rem"
   },
   dataTableQuestion: {textAlign: "right", minWidth: "120px", color: ""},
-  dataTableResponse: {}
+  dataTableResponse: {},
+  assignmentList: {
+    margin: "auto"
+  }
 }));
 
 
@@ -282,8 +291,8 @@ function UnitSettingDisplay(props) {
       return <div style={{ color: disconnectedGrey, fontSize: "13px"}}> {props.default} </div>;
     } else {
       const ledIntensities = JSON.parse(value)
-        // the | {} is here to protect against the UI loading from a broken config.
-      const LEDMap = props.config['leds']
+        // the | {} is here to protect against the UI loading from a missing config.
+      const LEDMap = props.config['leds'] | {}
       const renamedA = (LEDMap['A']) ? (LEDMap['A'].replace("_", " ")) : null
       const renamedB = (LEDMap['B']) ? (LEDMap['B'].replace("_", " ")) : null
       const renamedC = (LEDMap['C']) ? (LEDMap['C'].replace("_", " ")) : null
@@ -388,7 +397,7 @@ function ButtonStopProcess() {
       cancellationButtonProps: {color: "secondary"},
 
       }).then(() =>
-        fetch("/api/stop_all", {method: "POST"})
+        fetch("/api/workers/stop", {method: "POST"})
     )
   };
 
@@ -400,19 +409,61 @@ function ButtonStopProcess() {
 }
 
 
-function AddNewPioreactor(props){
+
+function AssignPioreactors({experiment}) {
   const classes = useStyles();
+  const [workers, setWorkers] = React.useState([])
+  const [assigned, setAssigned] = React.useState({})
+  const [initialAssigned, setInitialAssigned] = React.useState({})
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
+  const navigate = useNavigate()
 
-  const [isError, setIsError] = useState(false)
-  const [errorMsg, setErrorMsg] = useState("")
+  useEffect(() => {
+    fetch("/api/workers/assignments")
+     .then((data) => data.json())
+     .then((json) => {
+        setWorkers(json);
+        const assignments = json.reduce((map, item) => {
+          map[item.pioreactor_unit] = item.experiment === experiment;
+          return map;
+        }, {})
+        setAssigned(assignments)
+        setInitialAssigned(assignments)
+      })
+  }, [experiment])
 
-  const [isSuccess, setIsSuccess] = useState(false)
-  const [successMsg, setSuccessMsg] = useState("")
 
-  const [isRunning, setIsRunning] = useState(false)
-  const [expectedPathMsg, setExpectedPathMsg] = useState("")
+  function compareObjects(o1, o2) {
+      const differences = {};
+      for (const key in o1) {
+          if (o1[key] !== o2[key]) {
+              differences[key] = { current: o1[key], initial: o2[key] };
+          }
+      }
+      return differences;
+  }
+
+  const updateAssignments = () => {
+    const delta = compareObjects(assigned, initialAssigned)
+    for (const worker in delta){
+      if (delta[worker].current && !delta[worker].intial){
+        fetch(`/api/experiments/${experiment}/workers`, {
+          method: "PUT",
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({pioreactor_unit: worker})
+        })
+      } else {
+        fetch(`/api/experiments/${experiment}/workers/${worker}`, {
+          method: "DELETE",
+        })
+      }
+    }
+    setOpen(false)
+    navigate(0);
+  }
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -422,51 +473,26 @@ function AddNewPioreactor(props){
     setOpen(false);
   };
 
-  const handleNameChange = evt => {
-    setName(evt.target.value)
-  }
-
-
-  const onSubmit = (event) =>{
-    event.preventDefault()
-    if (!name) {
-      setIsError(true)
-      setErrorMsg("Provide the hostname for the new Pioreactor worker")
-      return
-    }
-    setIsError(false)
-    setIsSuccess(false)
-    setIsRunning(true)
-    setExpectedPathMsg("Setting up new Pioreactor...")
-    fetch('/api/setup_worker_pioreactor', {
-        method: "POST",
-        body: JSON.stringify({newPioreactorName: name}),
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-    })
-    .then(response => {
-        setIsRunning(false)
-        setExpectedPathMsg("")
-        if(!response.ok){
-          setIsError(true)
-          response.json().then(data => setErrorMsg(`Unable to complete installation. The following error occurred: ${data.msg}`))
-        } else {
-          setIsSuccess(true)
-          setSuccessMsg(`Success! Rebooting ${name} now. Refresh to see ${name} in your cluster.`)
-        }
-    })
-  }
+  const handleChange = (event) => {
+    setAssigned({
+      ...assigned,
+      [event.target.name]: event.target.checked,
+    });
+  };
 
   return (
     <React.Fragment>
-    <Button onClick={handleClickOpen} style={{textTransform: 'none', float: "right", marginRight: "0px"}} color="primary">
-      <AddIcon fontSize="15" classes={{root: classes.textIcon}}/> Add new Pioreactor
+    <Button style={{textTransform: 'none', float: "right" }} onClick={handleClickOpen}>
+      <AddCircleOutlineIcon fontSize="15" classes={{root: classes.textIcon}}/> Assigned Pioreactors
     </Button>
-    <Dialog open={open} onClose={handleClose} aria-labelledby="form-dialog-title">
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      fullWidth={false}
+      maxWidth={"xs"}
+      aria-labelledby="form-dialog-title">
       <DialogTitle>
-        Add a Pioreactor worker to your current cluster
+        Assign Pioreactors
         <IconButton
           aria-label="close"
           onClick={handleClose}
@@ -481,60 +507,44 @@ function AddNewPioreactor(props){
         </IconButton>
       </DialogTitle>
       <DialogContent>
-        <p>Follow the instructions at <a rel="noopener noreferrer" target="_blank" href="https://docs.pioreactor.com/user-guide/software-set-up#adding-additional-workers-to-your-cluster">set up your new Pioreactor's Raspberry Pi</a>.</p>
+        <p> You can assign and unassign Pioreactors to the current experiment below. </p>
 
-        <p>After
+        <FormControl className={classes.assignmentList} component="fieldset" variant="standard">
+          <FormGroup>
 
-        <ol>
-         <li> worker image installation is complete and,</li>
-         <li> the new Pioreactor worker is powered on, </li>
-        </ol>
+            {workers.map((worker) => {
+              const unit = worker.pioreactor_unit
+              const exp = worker.experiment
+              const disabled = (exp !== null) && (exp !== experiment)
+              var label = unit
+              if (disabled) {
+                label = label + ` (Assigned to ${exp})`
+              }
 
-        provide the hostname you used when installing the Pioreactor image onto the Raspberry Pi.
-        Your existing Pioreactor will automatically connect the new Pioreactor to the cluster. When finished, the new Pioreactor will show up on this page (after a refresh).</p>
-        <div>
-          <TextField
-            size="small"
-            id="new-pioreactor-name"
-            label="Hostname"
-            variant="outlined"
-            className={classes.textFieldWide}
-            onChange={handleNameChange}
-            value={name}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <PioreactorIcon style={{fontSize: "1.1em"}}/>
-                </InputAdornment>
-              ),
-              endAdornment: <InputAdornment position="end">.local</InputAdornment>,
+              return (
+                <FormControlLabel
+                  control={
+                    <Checkbox disabled={disabled} onChange={handleChange} checked={!disabled && assigned[unit]} name={unit} />
+                  }
+                  label={label}
+                />
+                )
+              })
             }
-          }
-          />
-        </div>
 
-        <div style={{minHeight: "60px", alignItems: "center", display: "flex"}}>
-          {isError   ? <p><CloseIcon className={clsx(classes.textIcon, classes.lostRed)}/>{errorMsg}</p>           : <React.Fragment/>}
-          {isRunning ? <p>{expectedPathMsg}</p>                                                                    : <React.Fragment/>}
-          {isSuccess ? <p><CheckIcon className={clsx(classes.textIcon, classes.readyGreen)}/>{successMsg}</p>      : <React.Fragment/>}
-        </div>
-
-        <LoadingButton
-          variant="contained"
-          color="primary"
-          style={{marginTop: "10px"}}
-          onClick={onSubmit}
-          type="submit"
-          loading={isRunning}
-          endIcon={<AddIcon />}
-        >
-          Add Pioreactor
-        </LoadingButton>
-
+          </FormGroup>
+        </FormControl>
       </DialogContent>
+      <DialogActions>
+        <Button variant="contained" onClick={updateAssignments} disabled={Object.keys(compareObjects(assigned, initialAssigned)).length == 0}>
+          Update {Object.keys(compareObjects(assigned, initialAssigned)).length}
+        </Button>
+      </DialogActions>
     </Dialog>
     </React.Fragment>
-  );}
+  );
+}
+
 
 
 
@@ -549,8 +559,7 @@ function PioreactorHeader(props) {
           </Box>
         </Typography>
         <div className={classes.headerButtons}>
-          <ButtonStopProcess/>
-          <AddNewPioreactor config={props.config}/>
+          <AssignPioreactors experiment={props.experiment}/>
           <SettingsActionsDialogAll config={props.config} experiment={props.experiment}/>
         </div>
       </div>
@@ -1031,7 +1040,7 @@ function SettingsActionsDialog(props) {
       const relabeledTo = value
       setSnackbarMessage(`Updating to ${relabeledTo}`)
       setSnackbarOpen(true)
-      fetch('/api/unit_labels/current',{
+      fetch(`/api/experiments/${props.experiment}/unit_labels`,{
           method: "PUT",
           body: JSON.stringify({label: relabeledTo, unit: props.unit}),
           headers: {
@@ -1140,7 +1149,7 @@ function SettingsActionsDialog(props) {
         return(<div key={"patient_buttons_empty" + job}></div>)
     }
    }
-  const LEDMap = props.config['leds']
+  const LEDMap = props.config['leds'] | {}
   const buttons = Object.fromEntries(Object.entries(props.jobs).map( ([job_key, job], i) => [job_key, createUserButtonsBasedOnState(job.state, job_key)]))
   const versionInfo = JSON.parse(props.jobs.monitor.publishedSettings.versions.value || "{}")
   const voltageInfo = JSON.parse(props.jobs.monitor.publishedSettings.voltage_on_pwm_rail.value || "{}")
@@ -2410,10 +2419,10 @@ function ActiveUnits(props){
     <div style={{textAlign: "center", marginBottom: '50px', marginTop: "50px"}}>
       <Typography component='div' variant='body2'>
         <Box fontWeight="fontWeightRegular">
-          No active Pioreactors. Do you need to update `cluster.inventory` section in the <a href="/config">configuration</a>?
+          No active Pioreactors assigned to experiment.
         </Box>
         <Box fontWeight="fontWeightRegular">
-          Or, <a href="https://docs.pioreactor.com/user-guide/create-cluster">read our documentation</a> about managing inventory.
+          <a href="https://docs.pioreactor.com/user-guide/create-cluster">Read our documentation</a> about managing inventory.
         </Box>
       </Typography>
     </div>
@@ -2624,7 +2633,7 @@ function PioreactorCard(props){
       return "Waiting for information..."
     }
     else {
-      return "Online and ready"
+      return "Online"
     }
   }
 
@@ -2644,7 +2653,7 @@ function PioreactorCard(props){
   }
 
   const indicatorDotColor = getIndicatorDotColor(jobs.monitor.state)
-  const indicatorDotShadow = 0
+  const indicatorDotShadow = 2
   const indicatorLabel = getInicatorLabel(jobs.monitor.state, isUnitActive)
 
   return (
@@ -2807,18 +2816,38 @@ function InactiveUnits(props){
 )}
 
 function Pioreactors({title}) {
-  const {experimentMetadata} = useExperiment()
+  const { experimentMetadata } = useExperiment();
+  const [workers, setWorkers] = useState([]);
   const [config, setConfig] = useState({})
 
   useEffect(() => {
     document.title = title;
-
     getConfig(setConfig)
-  }, [title])
+  }, [title]);
 
-  const entries = (a) => Object.entries(a)
-  const activeUnits = config['cluster.inventory'] ? entries(config['cluster.inventory']).filter((v) => v[1] === "1").map((v) => v[0]) : []
-  const inactiveUnits = config['cluster.inventory'] ? entries(config['cluster.inventory']).filter((v) => v[1] === "0").map((v) => v[0]) : []
+  useEffect(() => {
+    if (experimentMetadata.experiment) {
+      fetchWorkers();
+    }
+  }, [experimentMetadata.experiment]);
+
+
+  const fetchWorkers = async () => {
+    try {
+      const response = await fetch(`/api/experiments/${experimentMetadata.experiment}/workers`);
+      if (response.ok) {
+        const data = await response.json();
+        setWorkers(data);
+      } else {
+        console.error('Failed to fetch workers:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Error fetching workers:', error);
+    }
+  };
+
+  const activeUnits = workers.filter(worker => worker.is_active === 1).map(worker => worker.pioreactor_unit);
+  const inactiveUnits = workers.filter(worker => worker.is_active === 0).map(worker => worker.pioreactor_unit);
 
   return (
     <MQTTProvider name="pioreactor" config={config}>

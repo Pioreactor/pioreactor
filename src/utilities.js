@@ -46,7 +46,7 @@ export function getConfig(setCallback) {
 }
 
 export function getRelabelMap(setCallback, experiment="current") {
-  fetch(`/api/unit_labels/${experiment}`)
+  fetch(`/api/experiments/${experiment}/unit_labels`)
       .then((response) => {
         return response.json();
       })
@@ -58,7 +58,7 @@ export function getRelabelMap(setCallback, experiment="current") {
 
 
 export function runPioreactorJob(unit, job, args = [], options = {}, callback) {
-    fetch(`/api/run/${unit}/${job}`, {
+    fetch(`/api/workers/${unit}/jobs/${job}/run`, {
       method: "PATCH",
       body: JSON.stringify({ args: args, options: options }),
       headers: {

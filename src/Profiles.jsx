@@ -21,7 +21,7 @@ import CodeIcon from '@mui/icons-material/Code';
 import {runPioreactorJob} from "./utilities"
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import SelectButton from "./components/SelectButton";
 import DeleteIcon from '@mui/icons-material/Delete';
 import ViewTimelineOutlinedIcon from '@mui/icons-material/ViewTimelineOutlined';
@@ -72,6 +72,8 @@ function ExperimentProfilesContent(props) {
   const classes = useStyles();
   const config = props.config
   const confirm = useConfirm();
+  const navigate = useNavigate()
+
 
   const {experimentMetadata} = useExperiment()
   const [experimentProfilesAvailable, setExperimentProfilesAvailable] = React.useState([])
@@ -139,24 +141,22 @@ function ExperimentProfilesContent(props) {
   }
 
   const deleteProfile = () => {
-      confirm({
-        title: `Are you sure you wish to delete this profile?`,
-        description: "This action is permanent.",
-        confirmationText: "Delete",
-        confirmationButtonProps: {color: "primary"},
-        cancellationButtonProps: {color: "secondary"}, //style: {textTransform: 'none'}
-        }).then(() => {
-          fetch(`/api/contrib/experiment_profiles/${selectedExperimentProfile.split('/').pop()}`, {
-                method: "DELETE",
-            }).then(res => {
-                if (res.ok) {
-                  window.location.reload();
-                }
-            })
-        }
-      )
-
-
+    confirm({
+      title: `Are you sure you wish to delete this profile?`,
+      description: "This action is permanent.",
+      confirmationText: "Delete",
+      confirmationButtonProps: {color: "primary"},
+      cancellationButtonProps: {color: "secondary"}, //style: {textTransform: 'none'}
+      }).then(() => {
+        fetch(`/api/contrib/experiment_profiles/${selectedExperimentProfile.split('/').pop()}`, {
+              method: "DELETE",
+          }).then(res => {
+              if (res.ok) {
+                navigate(0);
+              }
+          })
+      }
+    )
   }
 
   const getSourceAndView = (e) => {
