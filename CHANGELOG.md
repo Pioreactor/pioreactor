@@ -3,11 +3,11 @@
  - Adding the ethernet (wired) mac address to the system tab.
  - fix for not being able to access `http://pioreactor.local` reliably.
  - `[cluster.inventory]` is deprecated and unused. Use the UI to handle inventory.
- - new module `pioreactor.cluster_management`
+ - new Python module: `pioreactor.cluster_management`
  - `pio cluster-status` is now `pio workers status`
  - `pio add-pioreactor <name>` is now `pio workers add <name>`
  - by default, for new installs, the local-access-point SSID is now `pioreactor_<hostname>`.
- -
+ - Major overhaul to how experiments are presented in the UI.
 
 ### 24.3.10
 
