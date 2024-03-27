@@ -49,6 +49,7 @@ import Switch from '@mui/material/Switch';
 import { useConfirm } from 'material-ui-confirm';
 import {getConfig, getRelabelMap, runPioreactorJob} from "./utilities"
 import Alert from '@mui/material/Alert';
+import LibraryAddCheckOutlinedIcon from '@mui/icons-material/LibraryAddCheckOutlined';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import { useNavigate } from 'react-router'
 
@@ -483,7 +484,7 @@ function AssignPioreactors({experiment}) {
   return (
     <React.Fragment>
     <Button style={{textTransform: 'none', float: "right" }} onClick={handleClickOpen}>
-      <AddCircleOutlineIcon fontSize="15" classes={{root: classes.textIcon}}/> Assigned Pioreactors
+      <LibraryAddCheckOutlinedIcon fontSize="15" classes={{root: classes.textIcon}}/> Assign Pioreactors
     </Button>
     <Dialog
       open={open}
