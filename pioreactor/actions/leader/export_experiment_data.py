@@ -63,7 +63,7 @@ def export_experiment_data(
     import csv
 
     if not output.endswith(".zip"):
-        print("output should end with .zip")
+        click.echo("output should end with .zip")
         raise click.Abort()
 
     logger = create_logger("export_experiment_data")

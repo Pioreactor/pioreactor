@@ -6,7 +6,8 @@
  - new module `pioreactor.cluster_management`
  - `pio cluster-status` is now `pio workers status`
  - `pio add-pioreactor <name>` is now `pio workers add <name>`
- - by default for new installs, the local-access-point SSID is now `pioreactor_<hostname>`.
+ - by default, for new installs, the local-access-point SSID is now `pioreactor_<hostname>`.
+ -
 
 ### 24.3.10
 

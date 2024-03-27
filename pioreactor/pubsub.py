@@ -339,7 +339,7 @@ class collect_all_logs_of_level:
         # create a bucket for the logs
         self.bucket: list[dict] = []
         # subscribe to the logs
-        print(str(PIOREACTOR / self.unit / self.experiment / "logs" / "app"))
+
         self.client: Client = subscribe_and_callback(
             self._collect_logs_into_bucket,
             str(PIOREACTOR / self.unit / self.experiment / "logs" / "app"),

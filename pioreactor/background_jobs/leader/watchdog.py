@@ -49,8 +49,15 @@ class WatchDog(LongRunningBackgroundJob):
 
         unit = state_message.topic.split("/")[1]
 
+        # don't check workers that aren't part of the cluster
+        current_workers = get_workers_in_inventory()
+
         # ignore if leader is "lost"
-        if (state_message.payload.decode() == self.LOST) and (unit != self.unit):
+        if (
+            (state_message.payload.decode() == self.LOST)
+            and (unit != self.unit)
+            and (unit in current_workers)
+        ):
             # TODO: this song-and-dance works for monitor, why not extend it to other jobs...
 
             self.logger.warning(f"{unit} seems to be lost. Trying to re-establish connection...")

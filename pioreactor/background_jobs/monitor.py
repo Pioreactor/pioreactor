@@ -193,7 +193,7 @@ class Monitor(LongRunningBackgroundJob):
         else:
             ipv4 = get_ip()
             while ipv4 == "127.0.0.1" or ipv4 is None:
-                # no wifi connection? Sound the alarm.
+                # no connection? Sound the alarm.
                 self.logger.warning("Unable to connect to network...")
                 self.flicker_led_with_error_code(error_codes.NO_NETWORK_CONNECTION)
                 sleep(1)

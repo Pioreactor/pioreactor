@@ -94,11 +94,7 @@ class SoftwarePWMOutputDevice:
         lgpio.tx_pwm(self._handle, self.pin, self.frequency, self.dc)
 
     def off(self) -> None:
-        try:
-            self.dc = 0.0
-        except lgpio.error:
-            # see issue #435
-            pass
+        self.dc = 0.0
 
     @property
     def dc(self) -> pt.FloatBetween0and100:
