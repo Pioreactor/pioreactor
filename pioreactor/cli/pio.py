@@ -582,6 +582,14 @@ pio.add_command(plugin_management.click_list_plugins)
 run.add_command(jobs.monitor.click_monitor)
 
 
+try:
+    # this can fail if the server isn't online yet
+    # TODO: kinda sucks we are doing an HTTP request each time pio is invoked...
+    am_worker = whoami.am_I_active_worker()
+except HTTPException:
+    am_worker = True
+
+
 if whoami.am_I_active_worker():
     run.add_command(jobs.growth_rate_calculating.click_growth_rate_calculating)
     run.add_command(jobs.stirring.click_stirring)

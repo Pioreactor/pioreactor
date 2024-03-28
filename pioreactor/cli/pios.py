@@ -450,6 +450,7 @@ if am_I_leader():
 
 
         """
+        from shlex import join
         from sh import ssh  # type: ignore
         from sh import ErrorReturnCode_255  # type: ignore
         from sh import ErrorReturnCode_1  # type: ignore
@@ -461,12 +462,15 @@ if am_I_leader():
             if confirm != "Y":
                 raise click.Abort()
 
-        command = (
-            "pio kill"
-            + (f"--experiment {experiment}" if experiment else "")
-            + (f"--job {job}" if job else "")
-        )
-        command += "--all-jobs" if all_jobs else ""
+        command_pieces = ["pio", "kill"]
+        if experiment:
+            command_pieces.extend(["--experiment", experiment])
+        if job:
+            command_pieces.extend(["--job", job])
+        if all_jobs:
+            command_pieces.append("--all-jobs")
+
+        command = join(command_pieces)
 
         logger = create_logger("CLI", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
