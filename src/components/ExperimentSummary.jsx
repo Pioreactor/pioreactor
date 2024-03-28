@@ -15,6 +15,7 @@ import ClearIcon from '@mui/icons-material/Clear';
 import AddIcon from '@mui/icons-material/Add';
 import { useConfirm } from 'material-ui-confirm';
 import { Link } from 'react-router-dom';
+import ManageExperimentMenu from "./ManageExperimentMenu";
 
 
 
@@ -123,33 +124,6 @@ class EditableDescription extends React.Component {
 
 
 
-const ButtonEndExperiment = () =>{
-  const classes = useStyles();
-  const confirm = useConfirm();
-
-  const handleClick = () => {
-    confirm({
-      description: 'This will stop all activities (stirring, dosing, etc.) in all Pioreactor units. Do you wish to end the experiment?',
-      title: "End experiment?",
-      confirmationText: "Confirm",
-      confirmationButtonProps: {color: "primary"},
-      cancellationButtonProps: {color: "secondary"},
-
-      }).then(() =>
-        fetch("/api/workers/stop", {method: "POST"})
-    )
-  };
-
-  return (
-    <React.Fragment>
-      <Button style={{textTransform: 'none', float: "right"}} color="primary" onClick={handleClick}>
-        <ClearIcon fontSize="15" classes={{root: classes.textIcon}}/> End experiment
-      </Button>
-    </React.Fragment>
-  );
-}
-
-
 function ExperimentSummary(props){
   const classes = useStyles();
   const experiment = props.experimentMetadata.experiment
@@ -165,7 +139,7 @@ function ExperimentSummary(props){
             <Box fontWeight="fontWeightBold">{experiment}</Box>
           </Typography>
           <div className={classes.headerButtons}>
-            <ButtonEndExperiment/>
+            <ManageExperimentMenu experiment={experiment}/>
           </div>
         </div>
 

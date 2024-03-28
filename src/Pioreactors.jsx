@@ -24,10 +24,13 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Snackbar from '@mui/material/Snackbar';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
+import FormLabel from '@mui/material/FormLabel';
 import InputAdornment from '@mui/material/InputAdornment';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import Button from "@mui/material/Button";
+import MenuItem from "@mui/material/MenuItem";
+import Menu from "@mui/material/Menu";
 import LoadingButton from '@mui/lab/LoadingButton';
 import AddIcon from '@mui/icons-material/Add';
 import ClearIcon from '@mui/icons-material/Clear';
@@ -51,7 +54,8 @@ import {getConfig, getRelabelMap, runPioreactorJob} from "./utilities"
 import Alert from '@mui/material/Alert';
 import LibraryAddCheckOutlinedIcon from '@mui/icons-material/LibraryAddCheckOutlined';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import { useNavigate } from 'react-router'
+
+import { useNavigate } from 'react-router-dom'
 
 import ChangeAutomationsDialog from "./components/ChangeAutomationsDialog"
 import ActionDosingForm from "./components/ActionDosingForm"
@@ -60,6 +64,7 @@ import ActionCirculatingForm from "./components/ActionCirculatingForm"
 import ActionLEDForm from "./components/ActionLEDForm"
 import PioreactorIcon from "./components/PioreactorIcon"
 import UnderlineSpan from "./components/UnderlineSpan";
+import ManageExperimentMenu from "./components/ManageExperimentMenu";
 import { MQTTProvider, useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 
@@ -385,20 +390,20 @@ function UnitSettingDisplay(props) {
 
 
 
-function ButtonStopProcess() {
+function ButtonStopProcess({experiment}) {
   const classes = useStyles();
   const confirm = useConfirm();
 
   const handleClick = () => {
     confirm({
-      description: 'This will immediately stop all activities (stirring, dosing, etc.) in all Pioreactor units. Do you wish to continue?',
+      description: 'This will immediately stop all running activities in assigned Pioreactor units. Do you wish to continue?',
       title: "Stop all activities?",
       confirmationText: "Confirm",
       confirmationButtonProps: {color: "primary"},
       cancellationButtonProps: {color: "secondary"},
 
       }).then(() =>
-        fetch("/api/workers/stop", {method: "POST"})
+        fetch(`/api/experiments/${experiment}/workers/stop`, {method: "POST"})
     )
   };
 
@@ -511,6 +516,7 @@ function AssignPioreactors({experiment}) {
         <p> You can assign and unassign Pioreactors to the current experiment below. </p>
 
         <FormControl className={classes.assignmentList} component="fieldset" variant="standard">
+          <FormLabel component="legend">Pioreactors</FormLabel>
           <FormGroup>
 
             {workers.map((worker) => {
@@ -549,7 +555,7 @@ function AssignPioreactors({experiment}) {
 
 
 
-function PioreactorHeader(props) {
+function PioreactorHeader({experiment}) {
   const classes = useStyles()
   return (
     <div>
@@ -560,15 +566,17 @@ function PioreactorHeader(props) {
           </Box>
         </Typography>
         <div className={classes.headerButtons}>
-          <AssignPioreactors experiment={props.experiment}/>
-          <SettingsActionsDialogAll config={props.config} experiment={props.experiment}/>
+          <ButtonStopProcess experiment={experiment}/>
+          <AssignPioreactors experiment={experiment}/>
+          <SettingsActionsDialogAll experiment={experiment}/>
+          <Divider orientation="vertical" flexItem variant="middle"/>
+          <ManageExperimentMenu experiment={experiment}/>
         </div>
       </div>
       <Divider/>
     </div>
   )
 }
-
 
 
 function PatientButton(props) {
@@ -1027,7 +1035,6 @@ function SettingsActionsDialog(props) {
   function stopPioreactorJob(job){
     return function() {
       setPioreactorJobAttr(`${job}/$state`, "disconnected")
-      //fetch("/api/stop/" + job + "/" + props.unit, {method: "PATCH"}).then(res => {})
     }
   }
 
@@ -1822,7 +1829,7 @@ function SettingsActionsDialog(props) {
 }
 
 
-function SettingsActionsDialogAll({config, experiment}) {
+function SettingsActionsDialogAll({experiment}) {
 
   const classes = useStyles();
   const unit = "$broadcast"
@@ -2077,7 +2084,6 @@ function SettingsActionsDialogAll({config, experiment}) {
               open={openChangeTemperatureDialog}
               onFinished={() => setOpenChangeTemperatureDialog(false)}
               unit={unit}
-              config={config}
               experiment={experiment}
               isJobRunning={false}
               automationType="temperature"
@@ -2110,7 +2116,6 @@ function SettingsActionsDialogAll({config, experiment}) {
               open={openChangeDosingDialog}
               onFinished={() => setOpenChangeDosingDialog(false)}
               unit={unit}
-              config={config}
               experiment={experiment}
               isJobRunning={false}
               no_skip_first_run={false}
@@ -2141,7 +2146,6 @@ function SettingsActionsDialogAll({config, experiment}) {
               open={openChangeLEDDialog}
               onFinished={() => setOpenChangeLEDDialog(false)}
               unit={unit}
-              config={config}
               experiment={experiment}
               isJobRunning={false}
               no_skip_first_run={false}
@@ -2410,7 +2414,7 @@ function ActiveUnits(props){
   const [relabelMap, setRelabelMap] = useState({})
 
   useEffect(() => {
-    getRelabelMap(setRelabelMap)
+    getRelabelMap(setRelabelMap, props.experiment)
   }, [])
 
   const cards = props.units.map(unit =>
@@ -2423,7 +2427,7 @@ function ActiveUnits(props){
           No active Pioreactors assigned to experiment.
         </Box>
         <Box fontWeight="fontWeightRegular">
-          <a href="https://docs.pioreactor.com/user-guide/create-cluster">Read our documentation</a> about managing inventory.
+          <a href="https://docs.pioreactor.com/user-guide/create-cluster">Learn more</a> about assigning inventory.
         </Box>
       </Typography>
     </div>
@@ -2854,7 +2858,7 @@ function Pioreactors({title}) {
     <MQTTProvider name="pioreactor" config={config}>
       <Grid container spacing={2} >
         <Grid item md={12} xs={12}>
-          <PioreactorHeader config={config} experiment={experimentMetadata.experiment}/>
+          <PioreactorHeader experiment={experimentMetadata.experiment}/>
           <ActiveUnits experiment={experimentMetadata.experiment} config={config} units={activeUnits} />
           { (inactiveUnits.length > 0) &&
           <InactiveUnits experiment={experimentMetadata.experiment} config={config} units={inactiveUnits}/>

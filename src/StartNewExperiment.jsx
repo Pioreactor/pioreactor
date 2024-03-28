@@ -390,9 +390,6 @@ function StartNewExperimentContainer(props) {
     {title: 'Experiment summary', content: <ExperimentSummaryForm config={props.config} handleNext={handleNext}/>, optional: false},
   ]
 
-  if (countActiveUnits > 1){
-    steps.push({title: 'Assign labels', content: <AssignLabels config={props.config} handleNext={handleNext} />, optional: true})
-  }
 
   return (
     <Card className={classes.root}>

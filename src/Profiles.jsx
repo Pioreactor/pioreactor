@@ -29,6 +29,7 @@ import PlayDisabledIcon from '@mui/icons-material/PlayDisabled';
 import { useConfirm } from 'material-ui-confirm';
 import { MQTTProvider, useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
+import ManageExperimentMenu from "./components/ManageExperimentMenu";
 
 
 const useStyles = makeStyles((theme) => ({
@@ -68,14 +69,11 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 
-function ExperimentProfilesContent(props) {
+function ExperimentProfilesContent({experiment, config, setRunningProfileName}) {
   const classes = useStyles();
-  const config = props.config
   const confirm = useConfirm();
   const navigate = useNavigate()
 
-
-  const {experimentMetadata} = useExperiment()
   const [experimentProfilesAvailable, setExperimentProfilesAvailable] = React.useState([])
   const [selectedExperimentProfile, setSelectedExperimentProfile] = React.useState('')
   const [confirmed, setConfirmed] = React.useState(false)
@@ -83,7 +81,6 @@ function ExperimentProfilesContent(props) {
   const [source, setSource] = React.useState("Loading...")
   const [dryRun, setDryRun] = React.useState(false)
   const [isProfileActive, setIsProfileActive] = React.useState(false)
-  const [runningProfileName, setRunningProfileName] = React.useState(null);
   const {client, subscribeToTopic } = useMQTT();
 
 
@@ -102,13 +99,11 @@ function ExperimentProfilesContent(props) {
 
 
   React.useEffect(() => {
-    if (experimentMetadata.length === 0){
-      return
+    if (experiment){
+      subscribeToTopic(`pioreactor/${config['cluster.topology']?.leader_hostname}/${experiment}/experiment_profile/+`, onMessage)
     }
 
-    subscribeToTopic(`pioreactor/${config['cluster.topology']?.leader_hostname}/${experimentMetadata.experiment}/experiment_profile/+`, onMessage)
-
-  },[experimentMetadata, client])
+  },[experiment, client])
 
 
   const onMessage = (topic, message, packet) => {
@@ -123,14 +118,13 @@ function ExperimentProfilesContent(props) {
     }
     else if(setting === "experiment_profile_name") {
       setRunningProfileName(payload === "" ? null : payload)
-      props.setRunningProfileName(payload === "" ? null : payload)
     }
   }
 
-  const onSubmit = () => runPioreactorJob(config['cluster.topology']?.leader_hostname, 'experiment_profile', ['execute', selectedExperimentProfile, experimentMetadata.experiment], dryRun ? {'dry-run': null} : {}, () => setConfirmed(true))
+  const onSubmit = () => runPioreactorJob(config['cluster.topology']?.leader_hostname, 'experiment_profile', ['execute', selectedExperimentProfile, experiment], dryRun ? {'dry-run': null} : {}, () => setConfirmed(true))
 
   const onStop = () => {
-    const topic = `pioreactor/${config['cluster.topology']?.leader_hostname}/${experimentMetadata.experiment}/experiment_profile/$state/set`
+    const topic = `pioreactor/${config['cluster.topology']?.leader_hostname}/${experiment}/experiment_profile/$state/set`
     client.publish(topic, "disconnected")
     setIsProfileActive(false)
   }
@@ -281,6 +275,7 @@ function ExperimentProfilesContent(props) {
 function ProfilesContainer(props){
   const classes = useStyles();
   const [runningProfileName, setRunningProfileName] = React.useState(null)
+  const {experimentMetadata} = useExperiment()
 
   return(
     <React.Fragment>
@@ -295,6 +290,8 @@ function ProfilesContainer(props){
             <Button to={`/create-experiment-profile`} component={Link} style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="primary">
               <AddIcon fontSize="15" classes={{root: classes.textIcon}}/> Create new profle
             </Button>
+            <Divider orientation="vertical" flexItem variant="middle"/>
+            <ManageExperimentMenu experiment={experimentMetadata.experiment}/>
           </div>
         </div>
         <Divider/>
@@ -315,7 +312,7 @@ function ProfilesContainer(props){
       </div>
       <Card className={classes.root}>
         <CardContent className={classes.cardContent}>
-          <ExperimentProfilesContent config={props.config} setRunningProfileName={setRunningProfileName}/>
+          <ExperimentProfilesContent experiment={experimentMetadata.experiment} config={props.config} setRunningProfileName={setRunningProfileName}/>
           <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/experiment-profiles" target="_blank" rel="noopener noreferrer">experiment profiles</a>.</p>
         </CardContent>
       </Card>

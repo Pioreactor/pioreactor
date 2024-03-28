@@ -151,7 +151,7 @@ function Overview(props) {
     document.title = props.title;
 
     getConfig(setConfig)
-    getRelabelMap(setRelabelMap)
+    getRelabelMap(setRelabelMap, experimentMetadata.experiment)
 
   }, [props.title])
 

@@ -35,7 +35,7 @@ import CheckIcon from '@mui/icons-material/Check';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import RemoveCircleOutlineRoundedIcon from '@mui/icons-material/RemoveCircleOutlineRounded';
 import { useConfirm } from 'material-ui-confirm';
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router-dom'
 
 
 
