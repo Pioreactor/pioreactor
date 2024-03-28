@@ -7,6 +7,15 @@ const MQTTContext = createContext();
 
 export const useMQTT = () => useContext(MQTTContext);
 
+
+const clearTrie = (node) => {
+  node.handlers = []; // Clear handlers at the current node
+
+  for (const key in node.children) {
+    clearTrie(node.children[key]); // Recursively clear children
+  }
+};
+
 const TrieNode = function() {
   this.children = {};
   this.handlers = []; // array to store multiple handlers
@@ -62,7 +71,7 @@ const findHandlersInTrie = (root, topic) => {
   return handlers;
 };
 
-export const MQTTProvider = ({name, config, children }) => {
+export const MQTTProvider = ({name, config, children, experiment}) => {
   const [client, setClient] = useState(null);
   const topicTrie = useRef(new TrieNode());
   const [error, setError] = useState(null);
@@ -86,8 +95,11 @@ export const MQTTProvider = ({name, config, children }) => {
       });
 
       mqttClient.on('error', (error) => {
-        console.log(`MQTT ${name} connection Error: ${error}`);
-        setError(`MQTT connection Error: ${error}`);
+        if (error.message === 'client disconnecting'){
+          return
+        }
+        console.log(`MQTT ${name} connection error: ${error}`);
+        setError(`MQTT connection error: ${error}`);
       });
 
       mqttClient.on('close', () => {
@@ -99,9 +111,10 @@ export const MQTTProvider = ({name, config, children }) => {
 
       return () => {
         mqttClient.end();
+        clearTrie(topicTrie.current);
       };
     }
-  }, [config, name]);
+  }, [config, name, experiment]);
 
   const subscribeToTopic = (topic, messageHandler) => {
     addHandlerToTrie(topicTrie.current, topic, messageHandler);

@@ -530,6 +530,7 @@ function AssignPioreactors({experiment}) {
 
               return (
                 <FormControlLabel
+                  key={unit}
                   control={
                     <Checkbox disabled={disabled} onChange={handleChange} checked={!disabled && assigned[unit]} name={unit} />
                   }
@@ -1841,7 +1842,7 @@ function SettingsActionsDialogAll({experiment}) {
   const [openChangeTemperatureDialog, setOpenChangeTemperatureDialog] = useState(false);
   const [openChangeDosingDialog, setOpenChangeDosingDialog] = useState(false);
   const [openChangeLEDDialog, setOpenChangeLEDDialog] = useState(false);
-  const {client } = useMQTT();
+  const {client} = useMQTT();
 
   useEffect(() => {
     function fetchContribBackgroundJobs() {
@@ -2855,7 +2856,7 @@ function Pioreactors({title}) {
   const inactiveUnits = workers.filter(worker => worker.is_active === 0).map(worker => worker.pioreactor_unit);
 
   return (
-    <MQTTProvider name="pioreactor" config={config}>
+    <MQTTProvider name="pioreactor" config={config} experiment={experimentMetadata.experiment}>
       <Grid container spacing={2} >
         <Grid item md={12} xs={12}>
           <PioreactorHeader experiment={experimentMetadata.experiment}/>
