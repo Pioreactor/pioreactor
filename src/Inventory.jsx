@@ -17,11 +17,8 @@ import Divider from '@mui/material/Divider';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import FormControl from '@mui/material/FormControl';
 import Button from '@mui/material/Button';
-import { CardActionArea } from '@mui/material';
 import PioreactorIcon from "./components/PioreactorIcon"
 import Switch from '@mui/material/Switch';
-import ToggleButton from '@mui/material/ToggleButton';
-import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import FlareIcon from '@mui/icons-material/Flare';
@@ -39,7 +36,6 @@ import { useNavigate } from 'react-router-dom'
 
 
 
-const readyGreen = "#4caf50"
 const disconnectedGrey = "grey"
 const lostRed = "#DE3618"
 const inactiveGrey = "#99999b"
@@ -185,7 +181,7 @@ function Header(props) {
           </Box>
         </Typography>
         <div className={classes.headerButtons}>
-          <AddNewPioreactor config={props.config}/>
+          <AddNewPioreactor/>
         </div>
       </div>
        <Divider className={classes.divider} />
@@ -339,7 +335,7 @@ function WorkerCard(props) {
   const worker = props.worker
   const unit = worker.pioreactor_unit
   const config = props.config
-  const isLeader = (config['cluster.topology']?.leader_hostname == unit)
+  const isLeader = (config['cluster.topology']?.leader_hostname === unit)
   const [activeStatus, setActiveStatus] = React.useState(worker.is_active ? "active" : "inactive")
   const [experimentAssigned, setExperimentAssigned] = React.useState(null)
   const {client, subscribeToTopic} = useMQTT();
@@ -366,6 +362,8 @@ function WorkerCard(props) {
         break;
       case "eth_mac_address":
         setETHAddress(message.toString());
+        break;
+      default:
         break;
     }
   }
@@ -409,11 +407,13 @@ function WorkerCard(props) {
 
 
   React.useEffect(() => {
-    subscribeToTopic(`pioreactor/${unit}/$experiment/monitor/+`, onMonitorData);
+    if (unit && client) {
+      subscribeToTopic(`pioreactor/${unit}/$experiment/monitor/+`, onMonitorData);
 
-    fetch(`/api/workers/${unit}/experiment`)
-       .then((response) => { return response.json() })
-       .then((json) => setExperimentAssigned(json['experiment']))
+      fetch(`/api/workers/${unit}/experiment`)
+         .then((response) => { return response.json() })
+         .then((json) => setExperimentAssigned(json['experiment']))
+    }
   }, [unit, client])
 
   const handleStatusChange = (event) => {
@@ -651,10 +651,10 @@ function Inventory({title}) {
 
   useEffect(() => {
     document.title = title;
-    getConfig(setConfig)
   }, [title]);
 
   useEffect(() => {
+    getConfig(setConfig)
     fetchWorkers();
   }, []);
 

@@ -151,9 +151,14 @@ function Overview(props) {
     document.title = props.title;
 
     getConfig(setConfig)
-    getRelabelMap(setRelabelMap, experimentMetadata.experiment)
 
   }, [props.title])
+
+  useEffect(() => {
+    if (experimentMetadata){
+        getRelabelMap(setRelabelMap, experimentMetadata.experiment)
+      }
+  }, [experimentMetadata])
 
   useEffect(() => {
     // Check if the 'ui.overview.settings' and 'time_display_mode' exist in the config
@@ -194,7 +199,7 @@ function Overview(props) {
 
           {( config['ui.overview.cards'] && (config['ui.overview.cards']['dosings'] === "1")) &&
             <Grid item xs={12} >
-              <MediaCard experiment={experimentMetadata.experiment} config={config} relabelMap={relabelMap}/>
+              <MediaCard experiment={experimentMetadata.experiment} relabelMap={relabelMap}/>
             </Grid>
           }
 

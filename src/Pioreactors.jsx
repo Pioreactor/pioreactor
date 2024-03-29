@@ -29,10 +29,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import Button from "@mui/material/Button";
-import MenuItem from "@mui/material/MenuItem";
-import Menu from "@mui/material/Menu";
 import LoadingButton from '@mui/lab/LoadingButton';
-import AddIcon from '@mui/icons-material/Add';
 import ClearIcon from '@mui/icons-material/Clear';
 import CloseIcon from '@mui/icons-material/Close';
 import CheckIcon from '@mui/icons-material/Check';
@@ -53,7 +50,6 @@ import { useConfirm } from 'material-ui-confirm';
 import {getConfig, getRelabelMap, runPioreactorJob} from "./utilities"
 import Alert from '@mui/material/Alert';
 import LibraryAddCheckOutlinedIcon from '@mui/icons-material/LibraryAddCheckOutlined';
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 
 import { useNavigate } from 'react-router-dom'
 
@@ -544,7 +540,7 @@ function AssignPioreactors({experiment}) {
         </FormControl>
       </DialogContent>
       <DialogActions>
-        <Button variant="contained" onClick={updateAssignments} disabled={Object.keys(compareObjects(assigned, initialAssigned)).length == 0}>
+        <Button variant="contained" onClick={updateAssignments} disabled={Object.keys(compareObjects(assigned, initialAssigned)).length === 0}>
           Update {Object.keys(compareObjects(assigned, initialAssigned)).length}
         </Button>
       </DialogActions>
@@ -584,8 +580,7 @@ function PatientButton(props) {
   const classes = useStyles()
   const [buttonText, setButtonText] = useState(props.buttonText)
 
-  useEffect(
-    () => {
+  useEffect(() => {
       setButtonText(props.buttonText)
     }
   , [props.buttonText])
@@ -1269,8 +1264,7 @@ function SettingsActionsDialog(props) {
                 <span style={{color:stateDisplay[temperatureControlJob.state].color}}>{stateDisplay[temperatureControlJob.state].display}</span>
               </Typography>
             </div>
-            <Typography variant="caption" display="block" gutterBottom color="textSecondary">
-            </Typography>
+
             <div key={temperatureControlJob.metadata.key}>
               {(temperatureControlJob.state === "ready") || (temperatureControlJob.state === "sleeping") || (temperatureControlJob.state === "init")
               ?<React.Fragment>
@@ -1282,7 +1276,7 @@ function SettingsActionsDialog(props) {
                </React.Fragment>
               :<React.Fragment>
                 <Typography variant="body2" component="p" gutterBottom>
-                  <div dangerouslySetInnerHTML={{__html: temperatureControlJob.metadata.description}}/>
+                  <span dangerouslySetInnerHTML={{__html: temperatureControlJob.metadata.description}}/>
                 </Typography>
 
                 <Button
@@ -1342,8 +1336,6 @@ function SettingsActionsDialog(props) {
                 <span style={{color:stateDisplay[dosingControlJob.state].color}}>{stateDisplay[dosingControlJob.state].display}</span>
               </Typography>
             </div>
-            <Typography variant="caption" display="block" gutterBottom color="textSecondary">
-            </Typography>
             <div key={dosingControlJob.metadata.key}>
               {(dosingControlJob.state === "ready") || (dosingControlJob.state === "sleeping") || (temperatureControlJob.state === "init")
               ?<React.Fragment>
@@ -1355,7 +1347,7 @@ function SettingsActionsDialog(props) {
                </React.Fragment>
               :<React.Fragment>
                 <Typography variant="body2" component="p" gutterBottom>
-                  <div dangerouslySetInnerHTML={{__html: dosingControlJob.metadata.description}}/>
+                  <span dangerouslySetInnerHTML={{__html: dosingControlJob.metadata.description}}/>
                 </Typography>
 
                 <Button
@@ -1415,8 +1407,7 @@ function SettingsActionsDialog(props) {
                 <span style={{color:stateDisplay[ledControlJob.state].color}}>{stateDisplay[ledControlJob.state].display}</span>
               </Typography>
             </div>
-            <Typography variant="caption" display="block" gutterBottom color="textSecondary">
-            </Typography>
+
             <div key={ledControlJob.metadata.key}>
               {(ledControlJob.state === "ready") || (ledControlJob.state === "sleeping") || (temperatureControlJob.state === "init")
               ?<React.Fragment>
@@ -1428,7 +1419,7 @@ function SettingsActionsDialog(props) {
                </React.Fragment>
               :<React.Fragment>
                 <Typography variant="body2" component="p" gutterBottom>
-                  <div dangerouslySetInnerHTML={{__html: ledControlJob.metadata.description}}/>
+                  <span dangerouslySetInnerHTML={{__html: ledControlJob.metadata.description}}/>
                 </Typography>
 
                 <Button
@@ -2056,7 +2047,7 @@ function SettingsActionsDialogAll({experiment}) {
                 {job.metadata.display_name}
               </Typography>
               <Typography variant="body2" component="p" gutterBottom>
-                <div dangerouslySetInnerHTML={{__html: job.metadata.description}}/>
+                <span dangerouslySetInnerHTML={{__html: job.metadata.description}}/>
               </Typography>
 
               {buttons[job_key]}
@@ -2075,7 +2066,7 @@ function SettingsActionsDialogAll({experiment}) {
             </div>
             <div>
               <Typography variant="body2" component="p" gutterBottom>
-                <div dangerouslySetInnerHTML={{__html: temperatureControlJob.metadata.description}}/>
+                <span dangerouslySetInnerHTML={{__html: temperatureControlJob.metadata.description}}/>
               </Typography>
 
               {buttons['temperature_control']}
@@ -2106,7 +2097,7 @@ function SettingsActionsDialogAll({experiment}) {
             </div>
             <div>
               <Typography variant="body2" component="p" gutterBottom>
-                <div dangerouslySetInnerHTML={{__html: dosingControlJob.metadata.description}}/>
+                <span dangerouslySetInnerHTML={{__html: dosingControlJob.metadata.description}}/>
               </Typography>
 
               {buttons['dosing_control']}
@@ -2136,7 +2127,7 @@ function SettingsActionsDialogAll({experiment}) {
             </div>
             <div>
               <Typography variant="body2" component="p" gutterBottom>
-                <div dangerouslySetInnerHTML={{__html: ledControlJob.metadata.description}}/>
+                <span dangerouslySetInnerHTML={{__html: ledControlJob.metadata.description}}/>
               </Typography>
 
               {buttons['led_control']}
@@ -2390,7 +2381,7 @@ function SettingSwitchField(props){
       if (props.value !== value) {
         setValue(props.value|| false);
       }
-    }, [props]);
+    }, [props.value]); //TODO: this use to be [props]
 
     const onChange = (e) => {
       setValue(e.target.checked)
@@ -2575,6 +2566,10 @@ function PioreactorCard(props){
     }
 
     if (!experiment){
+      return
+    }
+
+    if (!client){
       return
     }
 

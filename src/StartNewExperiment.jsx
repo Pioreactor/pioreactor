@@ -14,11 +14,10 @@ import {useNavigate } from 'react-router-dom';
 import SaveIcon from '@mui/icons-material/Save';
 
 //import CleaningScript from "./components/CleaningScript"
-import AssignLabels from "./components/AssignLabels"
+// import AssignLabels from "./components/AssignLabels"
 //import RunFromExperimentProfile from "./components/RunFromExperimentProfile"
 //import StartSensors from "./components/StartSensors"
 //import StartCalculations from "./components/StartCalculations"
-import {getConfig} from "./utilities"
 import { useExperiment } from './providers/ExperimentContext';
 
 
@@ -219,7 +218,7 @@ function ExperimentSummaryForm(props) {
       return
     }
 
-    const experimentMetadata = {experiment : expName.trim(), created_at: timestamp.toISOString(), description: description, mediaUsed: mediaUsed, organismUsed: organismUsed}
+    const experimentMetadata = {experiment: expName.trim(), created_at: timestamp.toISOString(), description: description, mediaUsed: mediaUsed, organismUsed: organismUsed, delta_hours: 0}
 
     fetch('/api/experiments', {
         method: "POST",
@@ -232,7 +231,7 @@ function ExperimentSummaryForm(props) {
         if (res.ok){
           setHelperText(" ")
           setFormError(false);
-          updateExperiment(experimentMetadata)
+          updateExperiment(experimentMetadata, true)
           killExistingJobs()
           props.handleNext()
         }
@@ -346,20 +345,8 @@ function StartNewExperimentContainer(props) {
   const classes = useStyles();
   const [activeStep, setActiveStep] = React.useState(0);
   const [skipped, setSkipped] = React.useState(new Set());
-  const [countActiveUnits, setCountActiveUnits] = React.useState(0)
   const navigate = useNavigate();
 
-
-  React.useEffect(() => {
-    fetch("/api/workers")
-      .then(response => {
-        return response.json();
-      })
-      .then(workers => {
-        setCountActiveUnits(workers.length)
-      })
-
-  }, [])
 
   const getStepContent = (index) => {
     return steps[index].content
@@ -387,7 +374,7 @@ function StartNewExperimentContainer(props) {
 
 
   const steps = [
-    {title: 'Experiment summary', content: <ExperimentSummaryForm config={props.config} handleNext={handleNext}/>, optional: false},
+    {title: 'Experiment summary', content: <ExperimentSummaryForm  handleNext={handleNext}/>, optional: false},
   ]
 
 
@@ -419,11 +406,7 @@ function StartNewExperimentContainer(props) {
 
 
 function StartNewExperiment(props) {
-  const [config, setConfig] = React.useState({})
 
-  React.useEffect(() => {
-    getConfig(setConfig)
-  }, [])
 
   React.useEffect(() => {
     document.title = props.title;
@@ -431,7 +414,7 @@ function StartNewExperiment(props) {
   return (
       <Grid container spacing={2} >
         <Grid item xs={12} md={12}>
-          <StartNewExperimentContainer config={config}/>
+          <StartNewExperimentContainer />
         </Grid>
       </Grid>
   )

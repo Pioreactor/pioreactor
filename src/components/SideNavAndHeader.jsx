@@ -12,7 +12,6 @@ import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import UpdateIcon from '@mui/icons-material/Update';
 import Toolbar from '@mui/material/Toolbar';
 import FormControl from '@mui/material/FormControl';
-import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import {AppBar, Typography, Button} from '@mui/material';
 import PioreactorIcon from './PioreactorIcon';
@@ -22,15 +21,12 @@ import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import InsertChartOutlinedIcon from '@mui/icons-material/InsertChartOutlined';
 import ViewTimelineOutlinedIcon from '@mui/icons-material/ViewTimelineOutlined';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Sidebar, Menu, MenuItem, sidebarClasses} from "react-pro-sidebar";
-import LanOutlinedIcon from '@mui/icons-material/LanOutlined';
+import { Sidebar, Menu, MenuItem} from "react-pro-sidebar";
 import { useExperiment } from '../providers/ExperimentContext';
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-
 
 const drawerWidth = 230;
 
@@ -69,7 +65,7 @@ const useStyles = makeStyles((theme) => ({
     marginBottom: "15px",
   },
   menuPaper: {
-    maxHeight: 250
+    maxHeight: 400
   },
   textIcon: {
     verticalAlign: "middle",
@@ -147,7 +143,7 @@ export default function SideNavAndHeader() {
     }
 
     if (e.target.value){
-      updateExperiment({ 'experiment': e.target.value });
+      updateExperiment(allExperiments.find(obj => obj.experiment === e.target.value));
     }
   }
 
@@ -155,8 +151,6 @@ export default function SideNavAndHeader() {
     <Sidebar rootStyles={{height: "100%"}} width="230px" backgroundColor="white">
       <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
         <div  style={{ flex: 1}}>
-
-
 
           <Menu
               style={{minWidth: "230px", width: "230px", height: "100%"}}

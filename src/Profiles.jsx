@@ -99,8 +99,8 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName}) 
 
 
   React.useEffect(() => {
-    if (experiment){
-      subscribeToTopic(`pioreactor/${config['cluster.topology']?.leader_hostname}/${experiment}/experiment_profile/+`, onMessage)
+    if (experiment && client){
+      subscribeToTopic(`pioreactor/+/${experiment}/experiment_profile/+`, onMessage)
     }
 
   },[experiment, client])

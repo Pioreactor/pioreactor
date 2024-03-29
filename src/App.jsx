@@ -111,8 +111,8 @@ function MainSite() {
                   <Route path="/inventory" element={<Inventory title="Pioreactor ~ Inventory"/>}/>
                   <Route path="/" element={<ExperimentOverview title="Pioreactor ~ Overview"/>}/>
                 </Routes>
-                <ErrorSnackbar config={config} />
-                <TactileButtonNotification config={config}  />
+                <ErrorSnackbar />
+                <TactileButtonNotification />
             </MQTTProvider>
           </div>
         </main>

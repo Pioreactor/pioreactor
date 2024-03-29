@@ -74,11 +74,20 @@ function LogTable(props) {
     };
 
     getData();
+  }, [props.experiment, props.config]);
 
-    subscribeToTopic(`pioreactor/+/${props.experiment}/logs/+`, onMessage);
-    subscribeToTopic(`pioreactor/+/$experiment/logs/+`, onMessage);
 
-  }, [props.experiment, props.config, client]);
+  useEffect(() => {
+    if (client){
+      subscribeToTopic(`pioreactor/+/$experiment/logs/+`, onMessage);
+    }
+  }, [client])
+
+  useEffect(() => {
+    if (props.experiment && client) {
+      subscribeToTopic(`pioreactor/+/${props.experiment}/logs/+`, onMessage);
+    }
+  }, [props.experiment, client]);
 
   const relabelUnit = (unit) => {
     return (props.relabelMap && props.relabelMap[unit]) ? `${props.relabelMap[unit]} / ${unit}` : unit;

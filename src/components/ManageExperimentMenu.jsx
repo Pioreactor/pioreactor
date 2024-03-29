@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from "react";
+import React from "react";
 
 import MenuItem from "@mui/material/MenuItem";
 import Menu from "@mui/material/Menu";
@@ -50,8 +50,14 @@ export default function ManageExperimentMenu({experiment}){
       cancellationButtonProps: {color: "secondary"},
 
       }).then(() =>
-        fetch(`/api/experiments/${experiment}`, {method: "DELETE"})
-    ).then(() => updateExperiment(allExperiments.at(1)))
+
+        fetch(`/api/experiments/${experiment}`, {method: "DELETE"}).then((res) => {
+          if (res.ok){
+            allExperiments.shift();
+            updateExperiment(allExperiments.at(0));
+          }
+        })
+    )
   };
 
   return (

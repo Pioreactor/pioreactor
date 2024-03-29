@@ -11,7 +11,6 @@ function TactileButtonNotification(props) {
   const [renamedUnit, setRenamedUnit] = React.useState("")
   const [open, setOpen] = React.useState(false)
   const [relabelMap, setRelabelMap] = React.useState({})
-  const config = props.config
   const {client, subscribeToTopic } = useMQTT();
 
   React.useEffect(() => {
@@ -19,13 +18,10 @@ function TactileButtonNotification(props) {
   }, [])
 
   React.useEffect(() => {
-    if (!config['cluster.topology']){
-      return //TODO: is this needed?
+    if (client && relabelMap) {
+      subscribeToTopic("pioreactor/+/$experiment/monitor/button_down", onMessage)
     }
-
-    subscribeToTopic("pioreactor/+/$experiment/monitor/button_down", onMessage)
-
-  },[config, relabelMap, client])
+  },[client])
 
   const onMessage = (topic, msg, packet) => {
     if (msg.toString() === "True"){

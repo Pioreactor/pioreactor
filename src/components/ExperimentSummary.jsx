@@ -8,10 +8,8 @@ import Box from '@mui/material/Box';
 import OutlinedInput from '@mui/material/OutlinedInput';
 import InputLabel from '@mui/material/InputLabel';
 import Divider from '@mui/material/Divider';
-import Button from '@mui/material/Button';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import TimelapseIcon from '@mui/icons-material/Timelapse';
-import ClearIcon from '@mui/icons-material/Clear';
 import AddIcon from '@mui/icons-material/Add';
 import { useConfirm } from 'material-ui-confirm';
 import { Link } from 'react-router-dom';
@@ -130,7 +128,6 @@ function ExperimentSummary(props){
   const startedAt = props.experimentMetadata.created_at
   const desc = props.experimentMetadata.description
   const deltaHours = props.experimentMetadata.delta_hours
-
   return(
     <React.Fragment>
       <div>

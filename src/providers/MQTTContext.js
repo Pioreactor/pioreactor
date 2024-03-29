@@ -18,7 +18,7 @@ const clearTrie = (node) => {
 
 const TrieNode = function() {
   this.children = {};
-  this.handlers = []; // array to store multiple handlers
+  this.handlers = []; // array to store multiple handlers. TODO: ignore this.
 };
 
 const addHandlerToTrie = (root, topic, handler) => {
@@ -32,7 +32,9 @@ const addHandlerToTrie = (root, topic, handler) => {
     node = node.children[level];
   }
 
+  node.handlers = [] // TODO: ignore the array, I couldn't figure out a way to clear it during navigation and not fill up with duplicates.
   node.handlers.push(handler); // Add the handler to the array
+
 };
 
 const findHandlersInTrie = (root, topic) => {
@@ -129,7 +131,7 @@ export const MQTTProvider = ({name, config, children, experiment}) => {
     <MQTTContext.Provider value={{ client, subscribeToTopic }}>
       {children}
       <Snackbar anchorOrigin={{vertical: "bottom", horizontal: "right"}} style={{maxWidth: "500px"}} open={!!error} autoHideDuration={6000} onClose={handleCloseSnackbar}>
-        <Alert variant="standard" onClose={handleCloseSnackbar} severity="error" variant="filled">
+        <Alert onClose={handleCloseSnackbar} severity="error" variant="filled">
           Failed to connect to MQTT. Is configuration for mqtt.broker_address correct? Currently set to {config?.mqtt?.broker_address}
         </Alert>
       </Snackbar>

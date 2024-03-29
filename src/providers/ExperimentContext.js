@@ -32,11 +32,15 @@ export const ExperimentProvider = ({ children }) => {
       });
   }, []);
 
-  const updateExperiment = (newExperiment) => {
+  const updateExperiment = (newExperiment, put=false) => {
     setExperimentMetadata(newExperiment);
     if (newExperiment){
       window.sessionStorage.setItem("experimentMetadata", JSON.stringify(newExperiment))
     }
+    if (put){
+      setAllExperiments((prevExperiment) => [newExperiment, ...prevExperiment])
+    }
+
   };
 
   return (

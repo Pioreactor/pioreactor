@@ -15,31 +15,35 @@ import PioreactorIcon from "./PioreactorIcon"
 import { useMQTT } from '../providers/MQTTContext';
 
 
-function MediaCard(props) {
+function MediaCard({experiment, relabelMap}) {
   const [mediaThroughputPerUnit, setMediaThroughputPerUnit] = useState({});
   const [altMediaThroughputPerUnit, setAltMediaThroughputPerUnit] = useState({});
   const [mediaThroughput, setMediaThroughput] = useState(0);
   const [altMediaThroughput, setAltMediaThroughput] = useState(0);
   const [rates, setRates] = useState({ all: { mediaRate: 0, altMediaRate: 0 } });
   const [activeUnits, setActiveUnits] = useState([]);
-  const config = props.config
   const {client, subscribeToTopic } = useMQTT();
 
 
   useEffect(() => {
-    getRecentRates();
+    if (experiment && client) {
+      subscribeToTopic(`pioreactor/+/${experiment}/dosing_automation/alt_media_throughput`, onMessage)
+      subscribeToTopic(`pioreactor/+/${experiment}/dosing_automation/media_throughput`, onMessage)
+    }
 
-    subscribeToTopic(`pioreactor/+/${props.experiment}/dosing_automation/alt_media_throughput`, onMessage)
-    subscribeToTopic(`pioreactor/+/${props.experiment}/dosing_automation/media_throughput`, onMessage)
+  }, [experiment, client]);
 
-    fetchWorkers()
-
-  }, [config, props.experiment, client]);
+  useEffect(() => {
+    if (experiment) {
+      getRecentRates();
+      fetchWorkers();
+    }
+  }, [experiment]);
 
 
   const fetchWorkers = async () => {
     try {
-      const response = await fetch(`/api/experiments/${props.experiment}/workers`);
+      const response = await fetch(`/api/experiments/${experiment}/workers`);
       if (response.ok) {
         const data = await response.json();
         setActiveUnits(data.filter(worker => worker.is_active === 1).map(worker => worker.pioreactor_unit));
@@ -52,7 +56,7 @@ function MediaCard(props) {
   };
 
   async function getRecentRates() {
-    const response = await fetch(`/api/experiments/${props.experiment}/media_rates`);
+    const response = await fetch(`/api/experiments/${experiment}/media_rates`);
     const data = await response.json();
     setRates(data);
   }
@@ -94,7 +98,7 @@ function MediaCard(props) {
   }
 
   function relabelUnit(unit) {
-    return props.relabelMap && props.relabelMap[unit] ? `${props.relabelMap[unit]} / ${unit}` : unit;
+    return relabelMap && relabelMap[unit] ? `${relabelMap[unit]} / ${unit}` : unit;
   }
 
   return (

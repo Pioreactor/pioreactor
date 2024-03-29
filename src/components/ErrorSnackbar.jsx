@@ -15,21 +15,16 @@ function ErrorSnackbar(props) {
   const [relabelMap, setRelabelMap] = React.useState({})
   const {client, subscribeToTopic } = useMQTT();
 
-  const config = props.config
-
-
   React.useEffect(() => {
     getRelabelMap(setRelabelMap)
   }, [])
 
   React.useEffect(() => {
-    if (!config.mqtt){
-      return
+    if (client){
+      subscribeToTopic("pioreactor/+/+/logs/+", onMessage)
     }
 
-    subscribeToTopic("pioreactor/+/+/logs/+", onMessage)
-
-  },[config, client])
+  },[client])
 
   const onMessage = (topic, message, packet) => {
       const payload = JSON.parse(message.toString())
