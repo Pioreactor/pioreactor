@@ -2459,6 +2459,7 @@ function FlashLEDButton(props){
       }
       catch (e){
         console.log(e)
+
         setTimeout(() => {sendMessage()}, 1000)
       }
     }

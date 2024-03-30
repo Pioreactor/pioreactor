@@ -18,8 +18,7 @@ export default function ManageExperimentMenu({experiment}){
   const open = Boolean(anchorEl);
   const confirm = useConfirm();
   const navigate = useNavigate();
-  const {updateExperiment, allExperiments} = useExperiment()
-
+  const {updateExperiment, allExperiments, setAllExperiments} = useExperiment()
 
   const handleClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -50,11 +49,10 @@ export default function ManageExperimentMenu({experiment}){
       cancellationButtonProps: {color: "secondary"},
 
       }).then(() =>
-
         fetch(`/api/experiments/${experiment}`, {method: "DELETE"}).then((res) => {
           if (res.ok){
-            allExperiments.shift();
-            updateExperiment(allExperiments.at(0));
+            updateExperiment(allExperiments.find((em) => em.experiment !== experiment));
+            setAllExperiments(allExperiments.filter((em) => em.experiment !== experiment));
           }
         })
     )
@@ -86,7 +84,7 @@ export default function ManageExperimentMenu({experiment}){
           </ListItemIcon>
           <ListItemText>End experiment</ListItemText>
         </MenuItem>
-        <MenuItem onClick={handleDeleteExperiment}>
+        <MenuItem disabled={allExperiments.length <= 1} onClick={handleDeleteExperiment}>
           <ListItemIcon>
             <DeleteOutlinedIcon fontSize="small" />
           </ListItemIcon>

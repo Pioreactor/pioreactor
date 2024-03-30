@@ -124,9 +124,18 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName}) 
   const onSubmit = () => runPioreactorJob(config['cluster.topology']?.leader_hostname, 'experiment_profile', ['execute', selectedExperimentProfile, experiment], dryRun ? {'dry-run': null} : {}, () => setConfirmed(true))
 
   const onStop = () => {
-    const topic = `pioreactor/${config['cluster.topology']?.leader_hostname}/${experiment}/experiment_profile/$state/set`
-    client.publish(topic, "disconnected")
-    setIsProfileActive(false)
+    confirm({
+      description: 'Stopping this profile early will stop executing new actions end all actions started by it.',
+      title: `Stop profile?`,
+      confirmationText: "Confirm",
+      confirmationButtonProps: {color: "primary"},
+      cancellationButtonProps: {color: "secondary"},
+    }).then(() => {
+      const topic = `pioreactor/${config['cluster.topology']?.leader_hostname}/${experiment}/experiment_profile/$state/set`
+      client.publish(topic, "disconnected")
+      setIsProfileActive(false)
+    })
+
   }
 
   const onSelectExperimentProfileChange = (e) => {
@@ -265,7 +274,7 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName}) 
             endIcon={ <CloseIcon /> }
             disabled={!isProfileActive}
           >
-            Stop
+            Stop early
          </Button>
         </div>
       </Grid>

@@ -24,6 +24,9 @@ export const ExperimentProvider = ({ children }) => {
         });
     }
 
+  }, []);
+
+  useEffect(() => {
     // Fetch all experiment metadata from the backend
     fetch("/api/experiments")
       .then((response) => response.json())
@@ -44,7 +47,7 @@ export const ExperimentProvider = ({ children }) => {
   };
 
   return (
-    <ExperimentContext.Provider value={{ experimentMetadata, updateExperiment, allExperiments }}>
+    <ExperimentContext.Provider value={{ experimentMetadata, updateExperiment, allExperiments, setAllExperiments}}>
       {children}
     </ExperimentContext.Provider>
   );

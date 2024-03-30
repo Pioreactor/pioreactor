@@ -257,7 +257,7 @@ function AddNewPioreactor(props){
     </Button>
     <Dialog open={open} onClose={handleClose} aria-labelledby="form-dialog-title">
       <DialogTitle>
-        Add a Pioreactor worker to your current cluster
+        Add new Pioreactor worker to your cluster
         <IconButton
           aria-label="close"
           onClick={handleClose}
@@ -507,14 +507,6 @@ function WorkerCard(props) {
               <code className={classes.code}>{versions.app || "-"}</code>
             </td>
           </tr>
-          <tr>
-            <td className={classes.dataTableQuestion}>
-                Raspberry Pi
-            </td>
-            <td className={classes.dataTableResponse}>
-              <code className={classes.code}>{versions.rpi_machine || "-"}</code>
-            </td>
-          </tr>
           </tbody>
         </table>
         <Divider style={{margin: "5px 0px"}}/>
@@ -615,7 +607,7 @@ function Remove({unit, isLeader}) {
 
   const removeWorker = () => {
     confirm({
-      description: 'Removing this Pioreactor will unassign it from all experiments, and halt all activity running.',
+      description: 'Removing this Pioreactor will unassign it from any experiments, halt all activity running, and remove it from your inventory.',
       title: `Remove ${unit} from inventory?`,
       confirmationText: "Confirm",
       confirmationButtonProps: {color: "primary"},
@@ -636,7 +628,7 @@ function InventoryDisplay(props){
   return (
     <Grid container spacing={2}>
       {props.workers.map(worker =>
-        <Grid key={worker.pioreactor_unit} item md={4} xs={12} sm={12}>
+        <Grid key={worker.pioreactor_unit} item md={6} xs={12} sm={12}>
           <WorkerCard worker={worker} config={props.config}/>
         </Grid>
       )}

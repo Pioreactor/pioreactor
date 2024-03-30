@@ -196,7 +196,7 @@ export default function SideNavAndHeader() {
                       },
                     }}
                   >
-                      <MenuItemMUI value={null} component={Link} to="/start-new-experiment">
+                      <MenuItemMUI  value={null} component={Link} to="/start-new-experiment">
                         <AddCircleOutlineIcon fontSize="15" classes={{root: classes.textIcon}}/> New experiment
                       </MenuItemMUI>
                     <Divider/>
