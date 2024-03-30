@@ -92,8 +92,14 @@ def _get_assigned_experiment_name(unit_name: str) -> str:
     return NO_EXPERIMENT
 
 
+@cache
 def is_active(unit_name: str) -> bool:
     from pioreactor.config import leader_address
+
+    if os.environ.get("ACTIVE") == "1":
+        return True
+    elif os.environ.get("ACTIVE") == "0":
+        return False
 
     if is_testing_env():
         return True
@@ -109,8 +115,6 @@ def is_active(unit_name: str) -> bool:
         else:
             raise e
     except mureq.HTTPException as e:
-        raise e
-    except Exception as e:
         raise e
 
 
@@ -150,14 +154,8 @@ def am_I_leader() -> bool:
     return get_unit_name() == leader_hostname
 
 
-@cache
 def am_I_active_worker() -> bool:
-    if is_testing_env():
-        return True
-
-    from pioreactor.cluster_management import get_active_workers_in_inventory
-
-    return get_unit_name() in get_active_workers_in_inventory()
+    return is_active(get_unit_name())
 
 
 @cache
@@ -182,13 +180,6 @@ def check_firstboot_successful() -> bool:
 
 
 if is_testing_env():
-    # mock out gpiozero's pins
-    # from gpiozero import Device
-    # from gpiozero.pins.mock import MockFactory
-    # from gpiozero.pins.mock import MockPWMPin
-
-    # Device.pin_factory = MockFactory(pin_class=MockPWMPin)
-
     # allow Blinka to think we are an Rpi:
     # https://github.com/adafruit/Adafruit_Python_PlatformDetect/blob/75f69806222fbaf8535130ed2eacd07b06b1a298/adafruit_platformdetect/board.py
     os.environ["BLINKA_FORCECHIP"] = "BCM2XXX"  # RaspberryPi

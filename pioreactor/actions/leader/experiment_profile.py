@@ -19,6 +19,7 @@ from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
 from pioreactor.mureq import put
 from pioreactor.pubsub import publish
+from pioreactor.utils import JobManager
 from pioreactor.utils import managed_lifecycle
 from pioreactor.whoami import get_unit_name
 
@@ -320,7 +321,13 @@ def start_job(
             else:
                 publish(
                     f"pioreactor/{unit}/{experiment}/run/{job_name}",
-                    encode({"options": evaluate_options(options, unit), "args": args}),
+                    encode(
+                        {
+                            "options": evaluate_options(options, unit)
+                            | {"_job_source": "experiment_profile"},
+                            "args": args,
+                        }
+                    ),
                 )
         else:
             logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
@@ -637,7 +644,20 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
 
             if state.exit_event.is_set():
                 # ended early
+
+                # stop all jobs started?
+                if profile.halt_on_early_stop:
+                    with JobManager() as jm:
+                        count_jobs_to_kill = jm.count_jobs(
+                            experiment=experiment, job_source="experiment_profile"
+                        )
+                        logger.info(
+                            f"Exiting profile early will halt {count_jobs_to_kill} jobs started by the profile."
+                        )
+                        jm.kill_jobs(experiment=experiment, job_source="experiment_profile")
+
                 logger.notice(f"Exiting profile {profile.experiment_profile_name} early: {len(s.queue)} actions not started.")  # type: ignore
+
             else:
                 if dry_run:
                     logger.notice(  # type: ignore
@@ -646,6 +666,7 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
 
                 else:
                     logger.notice(f"Finished executing profile {profile.experiment_profile_name}.")  # type: ignore
+
             logger.clean_up()
 
 

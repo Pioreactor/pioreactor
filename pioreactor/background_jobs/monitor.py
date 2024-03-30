@@ -706,6 +706,7 @@ class Monitor(LongRunningBackgroundJob):
         job_name: str, args: list[str], options: dict[str, Any]
     ) -> str:
         core_command = ["pio", "run", job_name]
+        env = [f'JOB_SOURCE={options.pop("_job_source", "user")}']
 
         list_of_options: list[str] = []
         for option, value in options.items():
@@ -716,7 +717,7 @@ class Monitor(LongRunningBackgroundJob):
 
         # shell-escaped to protect against injection vulnerabilities, see join docs
         # we don't escape the suffix.
-        return f"nohup {join(core_command + args + list_of_options)} >/dev/null 2>&1 &"
+        return join(env + ["nohup"] + core_command + args + list_of_options) + " >/dev/null 2>&1 &"
 
     def flicker_error_code_from_mqtt(self, message: MQTTMessage) -> None:
         if self.led_in_use:

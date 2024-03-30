@@ -142,6 +142,7 @@ class managed_lifecycle:
         mqtt_client_kwargs: Optional[dict] = None,
         ignore_is_active_state=False,  # hack and kinda gross
         source="app",
+        job_source="user",
     ) -> None:
         if not ignore_is_active_state and not whoami.is_active(unit):
             raise NotActiveWorkerError(f"{unit} is not active.")
@@ -152,6 +153,9 @@ class managed_lifecycle:
         self.state = "init"
         self.exit_event = Event()
         self._source = source
+        self._job_source = os.environ.get(
+            "JOB_SOURCE", default=job_source
+        )  # ex: could be JOB_SOURCE=experiment_profile, or JOB_SOURCE=external_provider
 
         last_will = {
             "topic": f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
@@ -203,7 +207,7 @@ class managed_lifecycle:
 
         with JobManager() as jm:
             self._jm_key = jm.register_and_set_running(
-                self.unit, self.experiment, self.name, self._source, getpid(), ""
+                self.unit, self.experiment, self.name, self._job_source, getpid(), ""
             )
 
         return self
@@ -486,20 +490,20 @@ class JobManager:
     )
     LONG_RUNNING_JOBS = ("monitor", "mqtt_to_db_streaming", "watchdog")
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.db_path = f"{tempfile.gettempdir()}/pio_jobs_metadata.db"
         self.conn = sqlite3.connect(self.db_path)
         self.cursor = self.conn.cursor()
         self._create_table()
 
-    def _create_table(self):
+    def _create_table(self) -> None:
         create_table_query = """
             CREATE TABLE IF NOT EXISTS pio_job_metadata (
             id           INTEGER PRIMARY KEY AUTOINCREMENT,
             unit         TEXT NOT NULL,
             experiment   TEXT NOT NULL,
             name         TEXT NOT NULL,
-            source       TEXT NOT NULL,
+            job_source   TEXT NOT NULL,
             started_at   TEXT NOT NULL,
             is_running   INTEGER NOT NULL,
             leader       TEXT NOT NULL,
@@ -511,24 +515,25 @@ class JobManager:
         self.conn.commit()
 
     def register_and_set_running(
-        self, unit: str, experiment: str, name: str, source: str, pid: int, leader: str
+        self, unit: str, experiment: str, name: str, job_source: str, pid: int, leader: str
     ) -> JobMetadataKey:
-        insert_query = "INSERT INTO pio_job_metadata (started_at, is_running, source, experiment, unit, name, leader, pid, ended_at) VALUES (STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW'), 1, :source, :experiment, :unit, :name, :leader, :pid, NULL);"
+        insert_query = "INSERT INTO pio_job_metadata (started_at, is_running, job_source, experiment, unit, name, leader, pid, ended_at) VALUES (STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW'), 1, :job_source, :experiment, :unit, :name, :leader, :pid, NULL);"
         self.cursor.execute(
             insert_query,
             {
                 "unit": unit,
                 "experiment": experiment,
-                "source": source,
+                "job_source": job_source,
                 "pid": pid,
                 "leader": leader,
                 "name": name,
             },
         )
         self.conn.commit()
+        assert isinstance(self.cursor.lastrowid, int)
         return self.cursor.lastrowid
 
-    def set_not_running(self, job_metadata_key: JobMetadataKey):
+    def set_not_running(self, job_metadata_key: JobMetadataKey) -> None:
         update_query = "UPDATE pio_job_metadata SET is_running=0, ended_at=STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW') WHERE id=(?)"
         self.cursor.execute(update_query, (job_metadata_key,))
         self.conn.commit()
@@ -539,7 +544,27 @@ class JobManager:
         self.cursor.execute(select_query, (job_name,))
         return len(self.cursor.fetchall()) > 0
 
-    def kill_jobs(self, all_jobs: bool = False, **query):
+    def count_jobs(self, all_jobs: bool = False, **query) -> int:
+        if not all_jobs:
+            # Construct the WHERE clause based on the query parameters
+            where_clause = " AND ".join([f"{key} = :{key}" for key in query.keys() if query[key] is not None])
+
+            # Construct the SELECT query
+            select_query = f"SELECT name, pid FROM pio_job_metadata WHERE {where_clause} AND is_running=1;"
+
+            # Execute the query and fetch the results
+            self.cursor.execute(select_query, query)
+
+        else:
+            # Construct the SELECT query
+            select_query = f"SELECT name, pid FROM pio_job_metadata WHERE is_running=1 AND name NOT IN {self.LONG_RUNNING_JOBS}"
+
+            # Execute the query and fetch the results
+            self.cursor.execute(select_query)
+
+        return len(self.cursor.fetchall())
+
+    def kill_jobs(self, all_jobs: bool = False, **query) -> None:
         # ex: kill_jobs(experiment="testing_exp") should return end all jobs with experiment='testing_exp'
 
         if not all_jobs:
@@ -563,7 +588,7 @@ class JobManager:
         for job in jobs:
             self._kill_job(job)
 
-    def _kill_job(self, job):
+    def _kill_job(self, job: tuple[str, int]):
         name, pid = job
         if name in self.PUMPING_JOBS:
             self._kill_pumping_job(job)
@@ -576,7 +601,7 @@ class JobManager:
         else:
             safe_kill(pid)
 
-    def _kill_pumping_job(self, pump_job):
+    def _kill_pumping_job(self, pump_job: tuple[str, int]):
         name, _ = pump_job
         with create_client() as client:
             msg = client.publish(

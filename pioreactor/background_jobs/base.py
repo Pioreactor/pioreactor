@@ -6,6 +6,7 @@ import signal
 import threading
 import typing as t
 from copy import copy
+from os import environ
 from os import getpid
 from time import sleep
 from time import time
@@ -263,6 +264,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.experiment = experiment
         self.unit = unit
         self._source = source
+        self._job_source = environ.get(
+            "JOB_SOURCE", default="user"
+        )  # ex: could be JOB_SOURCE=experiment_profile, or JOB_SOURCE=external_provider
 
         # why do we need two clients? Paho lib can't publish a message in a callback,
         # but this is critical to our usecase: listen for events, and fire a response (ex: state change)
@@ -337,7 +341,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         with JobManager() as jm:
             self._jm_key = jm.register_and_set_running(
-                self.unit, self.experiment, self.job_name, self._source, getpid(), leader_hostname
+                self.unit, self.experiment, self.job_name, self._job_source, getpid(), leader_hostname
             )
 
         self.set_state(self.READY)
@@ -971,7 +975,9 @@ class BackgroundJob(_BackgroundJob):
 
     def __init__(self, unit: str, experiment: str) -> None:
         if not is_active(unit):
-            raise NotActiveWorkerError(f"{unit} is not active.")
+            raise NotActiveWorkerError(
+                f"{unit} is not active. Make active in leader, or set ACTIVE=1 in the environment: ACTIVE=1 pio run ... "
+            )
         super().__init__(unit, experiment, source="app")
 
 

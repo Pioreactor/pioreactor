@@ -234,6 +234,7 @@ def _pump_action(
     manually: bool = False,
     mqtt_client: Optional[Client] = None,
     logger: Optional[CustomLogger] = None,
+    job_source: Optional[str] = None,
 ) -> pt.mL:
     """
     Returns the mL cycled. However,
@@ -271,6 +272,7 @@ def _pump_action(
         mqtt_client=mqtt_client,
         exit_on_mqtt_disconnect=True,
         mqtt_client_kwargs={"keepalive": 10},
+        job_source=job_source,
     ) as state:
         mqtt_client = state.mqtt_client
 
