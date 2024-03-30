@@ -460,7 +460,7 @@ class Monitor(LongRunningBackgroundJob):
         self.logger.notice(f"{self.unit} is online and ready.")  # type: ignore
 
         # we can delay this check until ready.
-        self.check_state_of_jobs_on_machine()
+        # self.check_state_of_jobs_on_machine()
 
     def on_disconnected(self) -> None:
         self.led_off()
@@ -706,7 +706,7 @@ class Monitor(LongRunningBackgroundJob):
         job_name: str, args: list[str], options: dict[str, Any]
     ) -> str:
         core_command = ["pio", "run", job_name]
-        env = [f'JOB_SOURCE={options.pop("_job_source", "user")}']
+        env = [f'JOB_SOURCE={options.pop("job_source", "user")}']
 
         list_of_options: list[str] = []
         for option, value in options.items():

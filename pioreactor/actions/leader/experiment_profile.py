@@ -323,8 +323,7 @@ def start_job(
                     f"pioreactor/{unit}/{experiment}/run/{job_name}",
                     encode(
                         {
-                            "options": evaluate_options(options, unit)
-                            | {"_job_source": "experiment_profile"},
+                            "options": evaluate_options(options, unit) | {"job_source": "experiment_profile"},
                             "args": args,
                         }
                     ),
@@ -650,7 +649,7 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
                     count_jobs_to_kill = jm.count_jobs(experiment=experiment, job_source="experiment_profile")
                     jm.kill_jobs(experiment=experiment, job_source="experiment_profile")
 
-                logger.notice(f"Exiting profile {profile.experiment_profile_name} early: {len(s.queue)} actions not started, {count_jobs_to_kill} halted.")  # type: ignore
+                logger.notice(f"Stopping profile {profile.experiment_profile_name} early: {len(s.queue)} actions not started, {count_jobs_to_kill} actions stopped.")  # type: ignore
 
             else:
                 if dry_run:

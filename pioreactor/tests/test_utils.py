@@ -10,6 +10,8 @@ import pytest
 from pioreactor.background_jobs.stirring import start_stirring
 from pioreactor.utils import callable_stack
 from pioreactor.utils import is_pio_job_running
+from pioreactor.utils import JobManager
+from pioreactor.utils import JobMetadataKey
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import managed_lifecycle
 from pioreactor.whoami import get_unit_name
@@ -161,3 +163,69 @@ def test_callable_stack_multiple_append_and_call(functions, expected_output) -> 
     with StringIO() as output, redirect_stdout(output):
         my_stack("Alice")
         assert output.getvalue() == expected_output
+
+
+@pytest.fixture
+def job_manager():
+    with JobManager() as jm:
+        yield jm
+
+
+def test_create_table(job_manager):
+    assert (
+        job_manager.conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='pio_job_metadata'"
+        ).fetchone()
+        is not None
+    )
+
+
+def test_register_and_set_running(job_manager):
+    job_key = job_manager.register_and_set_running(
+        "test_unit", "test_experiment", "test_name", "test_source", 12345, "test_leader"
+    )
+    assert isinstance(job_key, JobMetadataKey)
+    job = job_manager.conn.execute(
+        "SELECT unit, experiment, name, job_source, pid, leader, is_running FROM pio_job_metadata WHERE id=?",
+        (job_key,),
+    ).fetchone()
+    assert job is not None
+    assert job[0] == "test_unit"
+    assert job[1] == "test_experiment"
+    assert job[2] == "test_name"
+    assert job[3] == "test_source"
+    assert job[4] == 12345
+    assert job[5] == "test_leader"
+    assert job[6] == 1
+    job_manager.set_not_running(job_key)
+
+
+def test_set_not_running(job_manager):
+    job_key = job_manager.register_and_set_running(
+        "test_unit", "test_experiment", "test_name", "test_source", 12345, "test_leader"
+    )
+    job_manager.set_not_running(job_key)
+    job = job_manager.conn.execute(
+        "SELECT is_running FROM pio_job_metadata WHERE id=?", (job_key,)
+    ).fetchone()
+    assert job is not None
+    assert job[0] == 0
+
+
+def test_is_job_running(job_manager):
+    job_key = job_manager.register_and_set_running(
+        "test_unit", "test_experiment", "test_name", "test_source", 12345, "test_leader"
+    )
+    assert job_manager.is_job_running("test_name") is True
+    job_manager.set_not_running(job_key)
+    assert job_manager.is_job_running("test_name") is False
+
+
+def test_count_jobs(job_manager):
+    job_key = job_manager.register_and_set_running(
+        "test_unit", "test_experiment", "test_name", "test_source", 12345, "test_leader"
+    )
+    assert job_manager.count_jobs(experiment="test_experiment") == 1
+    assert job_manager.count_jobs(experiment="nonexistent_experiment") == 0
+    assert job_manager.count_jobs(all_jobs=True) >= 1
+    job_manager.set_not_running(job_key)
