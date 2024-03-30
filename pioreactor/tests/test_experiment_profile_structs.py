@@ -299,27 +299,6 @@ pioreactors:
     assert decode(file, type=structs.Profile) is not None
 
 
-def test_stop_on_exit() -> None:
-    file = """
-experiment_profile_name: minimal
-
-stop_on_exit: True
-"""
-    assert decode(file, type=structs.Profile) is not None
-
-    file = """
-experiment_profile_name: minimal
-
-stop_on_exit: False
-"""
-    assert decode(file, type=structs.Profile) is not None
-
-    file = """
-experiment_profile_name: minimal
-"""
-    assert decode(file, type=structs.Profile) is not None
-
-
 def test_profiles_in_github_repo() -> None:
     from pioreactor.mureq import get
 

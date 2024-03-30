@@ -663,6 +663,7 @@ class Monitor(LongRunningBackgroundJob):
             options["pubsub_client"] = self.pub_client
             options["unit"] = self.unit
             options["experiment"] = experiment  # techdebt
+            options.pop("job_source", "")  # techdebt, led_intensity doesn't use job_source
             Thread(
                 target=utils.boolean_retry,
                 args=(led_intensity, (state,), options),

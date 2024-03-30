@@ -153,7 +153,7 @@ class managed_lifecycle:
         self.state = "init"
         self.exit_event = Event()
         self._source = source
-        self._job_source = job_source or os.environ.get("JOB_SOURCE", "user")
+        self._job_source = job_source or os.environ.get("JOB_SOURCE") or "user"
 
         last_will = {
             "topic": f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",

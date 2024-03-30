@@ -107,15 +107,15 @@ def test_execute_experiment_profile_hack_for_led_intensity(mock__load_experiment
     assert actions == [
         (
             f"pioreactor/unit1/{experiment}/run/led_intensity",
-            '{"options":{"A":50},"args":[]}',
+            '{"options":{"A":50,"job_source":"experiment_profile"},"args":[]}',
         ),
         (
             f"pioreactor/unit1/{experiment}/run/led_intensity",
-            '{"options":{"A":40,"B":22.5},"args":[]}',
+            '{"options":{"A":40,"B":22.5,"job_source":"experiment_profile"},"args":[]}',
         ),
         (
             f"pioreactor/unit1/{experiment}/run/led_intensity",
-            '{"options":{"A":0,"B":0,"C":0,"D":0},"args":[]}',
+            '{"options":{"A":0,"B":0,"C":0,"D":0,"job_source":"experiment_profile"},"args":[]}',
         ),
     ]
 
@@ -405,7 +405,9 @@ def test_execute_experiment_profile_expression(mock__load_experiment_profile) ->
 
     execute_experiment_profile("profile.yaml", experiment)
 
-    assert actions == ['{"options":{"target":11.0,"dont_eval":"1.0 + 1.0"},"args":[]}']
+    assert actions == [
+        '{"options":{"target":11.0,"dont_eval":"1.0 + 1.0","job_source":"experiment_profile"},"args":[]}'
+    ]
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
@@ -516,7 +518,9 @@ def test_execute_experiment_profile_expression_in_common(
 
     execute_experiment_profile("profile.yaml", "_testing_experiment")
 
-    assert actions == ['{"options":{"target":11.0},"args":[]}'] * len(active_workers_in_cluster)
+    assert actions == ['{"options":{"target":11.0,"job_source":"experiment_profile"},"args":[]}'] * len(
+        active_workers_in_cluster
+    )
 
 
 def test_profiles_in_github_repo() -> None:
