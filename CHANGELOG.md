@@ -8,6 +8,7 @@
  - `pio add-pioreactor <name>` is now `pio workers add <name>`
  - by default, for new installs, the local-access-point SSID is now `pioreactor_<hostname>`.
  - Major overhaul to how experiments are presented in the UI.
+ - When a experiment profile ends early, it now will halt any jobs that it started. This is a change from how they worked previously, but this new behaviour is less of a surprise to users.
 
 ### 24.3.10
 

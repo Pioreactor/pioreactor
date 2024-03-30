@@ -113,7 +113,6 @@ class CommonBlock(Struct, forbid_unknown_fields=True):
 
 class Profile(Struct, forbid_unknown_fields=True):
     experiment_profile_name: str
-    halt_on_early_stop: t.Optional[bool] = True
     metadata: Metadata = field(default_factory=Metadata)
     plugins: list[Plugin] = []
     common: CommonBlock = field(
