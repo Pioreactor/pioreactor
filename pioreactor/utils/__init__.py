@@ -581,7 +581,7 @@ class JobManager:
             # don't kill them, the parent will.
             pass
         else:
-            safe_kill(pid)
+            safe_kill(pid)  # TODO: we should accumulate PIDs to kill, and run `kill <pid1> <pid2> ... `
 
     def _kill_pumping_job(self, pump_job: tuple[str, int]):
         name, _ = pump_job
