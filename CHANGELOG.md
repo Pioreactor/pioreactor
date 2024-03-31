@@ -1,14 +1,35 @@
 ### Upcoming
+
+#### Highlights
+
+ - The Pioreactor leader can now support multiple experiments! If you have more than one Pioreactor, this change allow you to run multiple experiments simultaneously, assign Pioreactors to different experiments, and control all experiments concurrently. No more multi-leader set ups - all you need is a single leader and multiple workers!
+ - Ability to delete experiments from the UI.
+ - Better control over your cluster, using the Inventory page in the UI.
+ - Ship with network configuration of local-link connections: plug in an ethernet from your Pioreactor to your computer, and after invoking `sudo nmcli c PioreactorLocalLink up`, you should be able to visit `http://pioreactor.local` in your browser.
+
+ #### Enhancements
  - replace the `ip` file that is written to on startup with a new `network_info` file that contains the hostname, IPv4 address, and MAC addresses.
  - Adding the ethernet (wired) mac address to the system tab.
- - fix for not being able to access `http://pioreactor.local` reliably.
- - `[cluster.inventory]` is deprecated and unused. Use the UI to handle inventory.
- - new Python module: `pioreactor.cluster_management`
- - `pio cluster-status` is now `pio workers status`
- - `pio add-pioreactor <name>` is now `pio workers add <name>`
+ - new Python module for controlling workers: `pioreactor.cluster_management`
  - by default, for new installs, the local-access-point SSID is now `pioreactor_<hostname>`.
- - Major overhaul to how experiments are presented in the UI.
+ - UI performance improvements
+ - New database tables to handle workers (`workers`) and experiments assignments (`experiment_assignments`).
+ - New `pio workers` CLI to mange your inventory. Try `pio workers --help` to see all the commands available.
+ - Better error messages when a self-test fails.
+ - `pio kill` has new options to kill specific actions. Ex: `pio kill --experiment eee`, `pio kill --job_source experiment_profile`
+
+
+#### Breaking changes
  - When a experiment profile ends early, it now will halt any jobs that it started. This is a change from how they worked previously, but this new behaviour is less of a surprise to users.
+ - `pio add-pioreactor <name>` is now `pio workers add <name>`
+ - `pio cluster-status` is now `pio workers status`
+ - `[cluster.inventory]` is deprecated and unused. Use the UI to handle inventory.
+ - `publish_ready_to_disconnected_state` changed names to `managed_lifecycle`
+
+#### Bug fixes
+ - fix for not being able to access `http://pioreactor.local` reliably.
+ - fix for multiple exporting datasets when selecting "All experiments"
+
 
 ### 24.3.10
 

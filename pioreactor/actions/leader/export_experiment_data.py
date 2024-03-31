@@ -56,7 +56,6 @@ def export_experiment_data(
 ) -> None:
     """
     Set an experiment, else it defaults to the entire table.
-
     """
     import sqlite3
     import zipfile
@@ -122,7 +121,6 @@ def export_experiment_data(
                 else:
                     query = f"SELECT {timestamp_to_localtimestamp_clause} * from {table} ORDER BY :order_by"
                     cursor.execute(query, {"order_by": order_by})
-                    experiment = "all_experiments"
 
                 headers = [_[0] for _ in cursor.description]
                 iloc_pioreactor_unit = headers.index("pioreactor_unit")
@@ -133,7 +131,7 @@ def export_experiment_data(
                     for row in cursor:
                         unit = row[iloc_pioreactor_unit]
                         if unit not in unit_to_writer_map:
-                            filename = f"{experiment}-{table}-{unit}-{time}.csv"
+                            filename = f"{experiment or 'exp'}-{table}-{unit}-{time}.csv"
                             filenames.append(filename)
                             path_to_file = os.path.join(os.path.dirname(output), filename)
                             unit_to_writer_map[unit] = csv.writer(
