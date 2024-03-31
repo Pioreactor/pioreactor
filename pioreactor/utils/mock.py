@@ -160,7 +160,8 @@ class MockCallback:
 
 
 class MockHandle:
-    pass
+    def __and__(self, other):
+        return 1
 
 
 class MockRpmCalculator:

@@ -419,54 +419,17 @@ class Monitor(LongRunningBackgroundJob):
                 if (current_utc_datetime() - latest_backup_at).days > 30:
                     self.logger.warning("Database hasn't been backed up in over 30 days.")
 
-    def check_state_of_jobs_on_machine(self) -> None:
-        """
-        This compares jobs that are current running on the machine, vs
-        what MQTT says. In the case of a restart on leader, MQTT can get out
-        of sync. We only need to run this check on startup.
-
-        See answer here: https://iot.stackexchange.com/questions/5784/does-mosquito-broker-persist-lwt-messages-to-disk-so-they-may-be-recovered-betw
-        """
-        latest_exp = whoami._get_assigned_experiment_name(self.unit)
-
-        def check_against_processes_running(msg: MQTTMessage) -> None:
-            job = msg.topic.split("/")[3]
-            if (msg.payload.decode() in (self.READY, self.INIT, self.SLEEPING)) and (
-                not utils.is_pio_job_running(job)
-            ):
-                self.publish(
-                    f"pioreactor/{self.unit}/{latest_exp}/{job}/$state",
-                    self.LOST,
-                    retain=True,
-                )
-                self.logger.debug(f"Manually changing {job} state in MQTT.")
-
-        self.subscribe_and_callback(
-            check_against_processes_running,
-            f"pioreactor/{self.unit}/{latest_exp}/+/$state",
-        )
-
-        # let the above code run...
-        sleep(2.5)
-
-        # unsubscribe
-        self.sub_client.message_callback_remove(f"pioreactor/{self.unit}/{latest_exp}/+/$state")
-        self.sub_client.unsubscribe(f"pioreactor/{self.unit}/{latest_exp}/+/$state")
-
-        return
-
     def on_ready(self) -> None:
         self.flicker_led_response_okay()
         self.logger.notice(f"{self.unit} is online and ready.")  # type: ignore
 
         # we can delay this check until ready.
-        # self.check_state_of_jobs_on_machine()
 
     def on_disconnected(self) -> None:
         self.led_off()
         with suppress(AttributeError):
-            lgpio.gpiochip_close(self._handle)
             self._button_callback.cancel()
+            lgpio.gpiochip_close(self._handle)
 
         set_gpio_availability(BUTTON_PIN, True)
         set_gpio_availability(LED_PIN, True)

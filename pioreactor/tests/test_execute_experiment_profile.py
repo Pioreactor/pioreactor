@@ -368,7 +368,7 @@ def test_execute_experiment_profile_simple_if(mock__load_experiment_profile) -> 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_profile_expression(mock__load_experiment_profile) -> None:
-    experiment = "test_execute_experiment_profile_expression"
+    experiment = "_testing_experiment"
     unit = "unit1"
     job_name = "jobbing"
     publish(f"pioreactor/{unit}/{experiment}/{job_name}/target", 10, retain=True)

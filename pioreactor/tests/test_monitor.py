@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import time
 
+import pytest
+
 from pioreactor.background_jobs.monitor import Monitor
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
@@ -18,6 +20,7 @@ def pause(n=1):
     time.sleep(n * 0.5)
 
 
+@pytest.mark.xfail()
 def test_check_job_states_in_monitor() -> None:
     unit = get_unit_name()
     exp = UNIVERSAL_EXPERIMENT
