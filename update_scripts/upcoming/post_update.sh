@@ -24,7 +24,7 @@ if [ "$HOSTNAME.local" = "$LEADER_ADDRESS" ]; then
 
         # Iterate over each unit and insert it into the database
         while IFS= read -r unit; do
-          sqlite3 $DB_FILE "INSERT INTO workers (pioreactor_unit, added_at, is_active) VALUES ('$unit', STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW'), 1);"
+          sqlite3 $DB_FILE "INSERT OR IGNORE INTO workers (pioreactor_unit, added_at, is_active) VALUES ('$unit', STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW'), 1);"
         done <<< "$units"
 
         # 2. we assign the workers to the current experiment
