@@ -58,7 +58,7 @@ def _get_assigned_experiment_name(unit_name: str) -> str:
             result = mureq.get(f"http://{leader_address}/api/workers/{unit_name}/experiment")
             result.raise_for_status()
             data = result.json()
-            return data.experiment
+            return data["experiment"]
         except mureq.HTTPErrorStatus as e:
             if e.status_code == 401:
                 # auth error, something is wrong
