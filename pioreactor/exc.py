@@ -48,3 +48,9 @@ class BashScriptError(Exception):
     """
     Some external bash script failed
     """
+
+
+class RoleError(Exception):
+    """
+    Leader vs worker?
+    """

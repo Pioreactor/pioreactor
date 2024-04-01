@@ -151,13 +151,16 @@ def blink() -> None:
 @pio.command(name="kill", short_help="kill job(s)")
 @click.option("--name", type=click.STRING)
 @click.option("--experiment", type=click.STRING)
+@click.option("--job-source", type=click.STRING)
 @click.option("--all-jobs", is_flag=True, help="kill all Pioreactor jobs running")
-def kill(name: str | None, experiment: str | None, all_jobs: bool) -> None:
+def kill(name: str | None, experiment: str | None, job_source: str | None, all_jobs: bool) -> None:
     """
     stop job(s).
     """
     with JobManager() as jm:
-        jm.kill_jobs(all_jobs=all_jobs, name=name, experiment=experiment)
+        count = jm.count_jobs(all_jobs=all_jobs, name=name, experiment=experiment, job_source=job_source)
+        jm.kill_jobs(all_jobs=all_jobs, name=name, experiment=experiment, job_source=job_source)
+    click.echo(f"Killed {count} job(s).")
 
 
 @pio.group(short_help="run a job")

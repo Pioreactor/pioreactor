@@ -6,6 +6,7 @@ import signal
 import sqlite3
 import tempfile
 import time
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from functools import wraps
 from os import getpid
@@ -24,10 +25,12 @@ from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.exc import NotActiveWorkerError
+from pioreactor.exc import RoleError
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import QOS
 from pioreactor.pubsub import subscribe_and_callback
+from pioreactor.utils.networking import add_local
 from pioreactor.utils.timing import current_utc_timestamp
 
 
@@ -622,4 +625,55 @@ class JobManager:
 
     def __exit__(self, *args) -> None:
         self.conn.close()
+        return
+
+
+class ClusterJobManager:
+    def __init__(self, units: tuple[str, ...]) -> None:
+        if not whoami.am_I_leader():
+            raise RoleError("Must be leader to use this. Maybe you want JobManager?")
+
+        self.units = units
+
+    def kill_jobs(
+        self,
+        all_jobs: bool = False,
+        experiment: str | None = None,
+        name: str | None = None,
+        job_source: str | None = None,
+    ) -> bool:
+        from shlex import join
+        from sh import ssh  # type: ignore
+        from sh import ErrorReturnCode_255  # type: ignore
+        from sh import ErrorReturnCode_1  # type: ignore
+
+        command_pieces = ["pio", "kill"]
+        if experiment:
+            command_pieces.extend(["--experiment", experiment])
+        if name:
+            command_pieces.extend(["--name", name])
+        if job_source:
+            command_pieces.extend(["--job-source", job_source])
+        if all_jobs:
+            command_pieces.append("--all-jobs")
+
+        command = join(command_pieces)
+
+        def _thread_function(unit: str) -> bool:
+            try:
+                ssh(add_local(unit), command)
+                return True
+
+            except (ErrorReturnCode_255, ErrorReturnCode_1):
+                return False
+
+        with ThreadPoolExecutor(max_workers=len(self.units)) as executor:
+            results = executor.map(_thread_function, self.units)
+
+        return all(results)
+
+    def __enter__(self) -> ClusterJobManager:
+        return self
+
+    def __exit__(self, *args) -> None:
         return

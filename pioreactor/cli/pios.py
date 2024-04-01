@@ -14,6 +14,7 @@ from pioreactor.cluster_management import get_workers_in_inventory
 from pioreactor.config import config
 from pioreactor.config import get_leader_hostname
 from pioreactor.logging import create_logger
+from pioreactor.utils import ClusterJobManager
 from pioreactor.utils.networking import add_local
 from pioreactor.utils.networking import cp_file_across_cluster
 from pioreactor.utils.timing import current_utc_timestamp
@@ -427,10 +428,18 @@ if am_I_leader():
         help="specify a hostname, default is all active units",
     )
     @click.option("--all-jobs", is_flag=True, help="kill all worker jobs")
-    @click.option("--experiment", type=click.STRING, help="kill all worker jobs")
+    @click.option("--experiment", type=click.STRING)
+    @click.option("--job-source", type=click.STRING)
+    @click.option("--name", type=click.STRING)
     @click.option("-y", is_flag=True, help="skip asking for confirmation")
     def kill(
-        job: str | None, units: tuple[str, ...], all_jobs: bool, experiment: str | None, y: bool
+        job: str | None,
+        units: tuple[str, ...],
+        all_jobs: bool,
+        experiment: str | None,
+        job_source: str | None,
+        name: str | None,
+        y: bool,
     ) -> None:
         """
         Send a SIGTERM signal to JOB. JOB can be any Pioreactor job name, like "stirring".
@@ -450,52 +459,10 @@ if am_I_leader():
 
 
         """
-        from shlex import join
-        from sh import ssh  # type: ignore
-        from sh import ErrorReturnCode_255  # type: ignore
-        from sh import ErrorReturnCode_1  # type: ignore
-
-        if not y:
-            confirm = input(
-                f"Confirm killing {str(job) if (not all_jobs) else 'all jobs'} on {units}? Y/n: "
-            ).strip()
-            if confirm != "Y":
-                raise click.Abort()
-
-        command_pieces = ["pio", "kill"]
-        if experiment:
-            command_pieces.extend(["--experiment", experiment])
-        if job:
-            command_pieces.extend(["--job", job])
-        if all_jobs:
-            command_pieces.append("--all-jobs")
-
-        command = join(command_pieces)
-
-        logger = create_logger("CLI", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
-
-        def _thread_function(unit: str):
-            logger.debug(f"Executing `{command}` on {unit}.")
-            try:
-                ssh(add_local(unit), command)
-                return True
-
-            except ErrorReturnCode_255 as e:
-                logger.debug(e, exc_info=True)
-                logger.error(f"Unable to connect to unit {unit}. {e.stderr.decode()}")
-                return False
-            except ErrorReturnCode_1 as e:
-                logger.error(f"Error occurred: {e}. See logs for more.")
-                logger.debug(e, exc_info=True)
-                logger.debug(e.stderr, exc_info=True)
-                return False
-
         units = universal_identifier_to_all_active_workers(units)
-        with ThreadPoolExecutor(max_workers=len(units)) as executor:
-            results = executor.map(_thread_function, units)
-
-        if not all(results):
-            raise click.Abort()
+        with ClusterJobManager(units) as cm:
+            if not cm.kill_jobs(all_jobs=all_jobs, experiment=experiment, job_source=job_source, name=name):
+                raise click.Abort()
 
     @pios.command(
         name="run",
