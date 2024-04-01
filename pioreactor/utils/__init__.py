@@ -496,12 +496,16 @@ class MQTTKill:
 
     def kill(self):
         with create_client() as client:
-            for name in self.list_of_job_names:
-                client.publish(
+            for i, name in enumerate(self.list_of_job_names):
+                msg = client.publish(
                     f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{whoami.UNIVERSAL_EXPERIMENT}/{name}/$state/set",
                     "disconnected",
                     qos=QOS.AT_LEAST_ONCE,
                 )
+
+                if (i + 1) == len(self.list_of_job_names):
+                    # list one
+                    msg.wait_for_publish(2)
 
 
 class JobManager:
