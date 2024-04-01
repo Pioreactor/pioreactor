@@ -115,13 +115,9 @@ class Monitor(LongRunningBackgroundJob):
 
         self.logger.debug(f"Pioreactor software version: {self.versions['app']}")
         self.logger.debug(f"Raspberry Pi: {self.versions['rpi_machine']}")
-
-        if whoami.am_I_active_worker():
-            self.logger.debug(f"Pioreactor HAT version: {self.versions['hat']}")
-
-            self.logger.debug(f"Pioreactor firmware version: {self.versions['firmware']}")
-
-            self.logger.debug(f"Pioreactor HAT serial number: {self.versions['hat_serial']}")
+        self.logger.debug(f"Pioreactor HAT version: {self.versions['hat']}")
+        self.logger.debug(f"Pioreactor firmware version: {self.versions['firmware']}")
+        self.logger.debug(f"Pioreactor HAT serial number: {self.versions['hat_serial']}")
 
         self.button_down = False
         # set up GPIO for accessing the button and changing the LED
@@ -201,11 +197,17 @@ class Monitor(LongRunningBackgroundJob):
 
             self.ipv4 = ipv4
 
-            with open("/sys/class/net/wlan0/address", "r") as f:
-                self.wlan_mac_address = f.read().strip()
+            try:
+                with open("/sys/class/net/wlan0/address", "r") as f:
+                    self.wlan_mac_address = f.read().strip()
+            except FileNotFoundError:
+                self.wlan_mac_address = "NA"
 
-            with open("/sys/class/net/eth0/address", "r") as f:
-                self.eth_mac_address = f.read().strip()
+            try:
+                with open("/sys/class/net/eth0/address", "r") as f:
+                    self.eth_mac_address = f.read().strip()
+            except FileNotFoundError:
+                self.eth_mac_address = "NA"
 
         self.logger.debug(f"IPv4 address: {self.ipv4}")
         self.logger.debug(f"WLAN MAC address: {self.wlan_mac_address}")
