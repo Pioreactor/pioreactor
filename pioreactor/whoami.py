@@ -108,7 +108,7 @@ def is_active(unit_name: str) -> bool:
         result = mureq.get(f"http://{leader_address}/api/workers/{unit_name}")
         result.raise_for_status()
         data = result.json()
-        return bool(data.is_active)
+        return bool(data["is_active"])
     except mureq.HTTPErrorStatus as e:
         if e.status_code == 404:
             raise NoWorkerFoundError("Worker is not present in leader's inventory")

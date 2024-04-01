@@ -21,6 +21,7 @@ from pioreactor.mureq import put
 from pioreactor.pubsub import publish
 from pioreactor.utils import JobManager
 from pioreactor.utils import managed_lifecycle
+from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 
 bool_expression = str | bool
@@ -241,6 +242,10 @@ def repeat(
     schedule: scheduler,
 ):
     def _callable() -> None:
+        # first check if the Pioreactor is still part of the experiment.
+        if get_assigned_experiment_name(unit) != experiment:
+            return
+
         if ((if_ is None) or evaluate_bool_expression(if_, unit)) and (
             ((while_ is None) or evaluate_bool_expression(while_, unit))
         ):
@@ -295,6 +300,9 @@ def log(
     logger: CustomLogger,
 ) -> Callable[..., None]:
     def _callable() -> None:
+        # first check if the Pioreactor is still part of the experiment.
+        if get_assigned_experiment_name(unit) != experiment:
+            return
         if (if_ is None) or evaluate_bool_expression(if_, unit):
             level = options.level.lower()
             getattr(logger, level)(options.message.format(unit=unit, job=job_name, experiment=experiment))
@@ -315,6 +323,10 @@ def start_job(
     logger: CustomLogger,
 ) -> Callable[..., None]:
     def _callable() -> None:
+        # first check if the Pioreactor is still part of the experiment.
+        if get_assigned_experiment_name(unit) != experiment:
+            return
+
         if (if_ is None) or evaluate_bool_expression(if_, unit):
             if dry_run:
                 logger.info(f"Dry-run: Starting {job_name} on {unit} with options {options} and args {args}.")
@@ -343,6 +355,10 @@ def pause_job(
     logger: CustomLogger,
 ) -> Callable[..., None]:
     def _callable() -> None:
+        # first check if the Pioreactor is still part of the experiment.
+        if get_assigned_experiment_name(unit) != experiment:
+            return
+
         if (if_ is None) or evaluate_bool_expression(if_, unit):
             if dry_run:
                 logger.info(f"Dry-run: Pausing {job_name} on {unit}.")
@@ -363,6 +379,9 @@ def resume_job(
     logger: CustomLogger,
 ) -> Callable[..., None]:
     def _callable() -> None:
+        # first check if the Pioreactor is still part of the experiment.
+        if get_assigned_experiment_name(unit) != experiment:
+            return
         if (if_ is None) or evaluate_bool_expression(if_, unit):
             if dry_run:
                 logger.info(f"Dry-run: Resuming {job_name} on {unit}.")
@@ -383,6 +402,9 @@ def stop_job(
     logger: CustomLogger,
 ) -> Callable[..., None]:
     def _callable() -> None:
+        # first check if the Pioreactor is still part of the experiment.
+        if get_assigned_experiment_name(unit) != experiment:
+            return
         if (if_ is None) or evaluate_bool_expression(if_, unit):
             if dry_run:
                 logger.info(f"Dry-run: Stopping {job_name} on {unit}.")
@@ -404,6 +426,9 @@ def update_job(
     logger: CustomLogger,
 ) -> Callable[..., None]:
     def _callable() -> None:
+        # first check if the Pioreactor is still part of the experiment.
+        if get_assigned_experiment_name(unit) != experiment:
+            return
         if (if_ is None) or evaluate_bool_expression(if_, unit):
             if dry_run:
                 for setting, value in options.items():
