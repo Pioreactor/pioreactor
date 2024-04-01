@@ -13,13 +13,14 @@ from msgspec.json import encode
 from msgspec.yaml import decode
 
 from pioreactor.cluster_management import get_active_workers_in_experiment
+from pioreactor.cluster_management import get_workers_in_inventory
 from pioreactor.config import leader_address
 from pioreactor.experiment_profiles import profile_struct as struct
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
 from pioreactor.mureq import put
 from pioreactor.pubsub import publish
-from pioreactor.utils import JobManager
+from pioreactor.utils import ClusterJobManager
 from pioreactor.utils import managed_lifecycle
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
@@ -670,7 +671,8 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
                 # ended early
 
                 # stop all jobs started?
-                with JobManager() as jm:
+                all_workers = get_workers_in_inventory()
+                with ClusterJobManager(all_workers) as jm:
                     jm.kill_jobs(experiment=experiment, job_source="experiment_profile")
 
                 logger.notice(f"Stopping profile {profile.experiment_profile_name} early: {len(s.queue)} actions not started, and running actions stopped.")  # type: ignore

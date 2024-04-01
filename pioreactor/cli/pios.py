@@ -459,7 +459,14 @@ if am_I_leader():
 
 
         """
+
         units = universal_identifier_to_all_active_workers(units)
+
+        if not y:
+            confirm = input(f"Confirm killing jobs on {units}? Y/n: ").strip()
+            if confirm != "Y":
+                raise click.Abort()
+
         with ClusterJobManager(units) as cm:
             if not cm.kill_jobs(all_jobs=all_jobs, experiment=experiment, job_source=job_source, name=name):
                 raise click.Abort()
