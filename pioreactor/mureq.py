@@ -34,7 +34,7 @@ DEFAULT_UA = "Python/Pioreactor"
 JSON_HEADERS = {"Content-Type": "application/json"}
 
 
-def basic_auth(username: str, password: str):
+def basic_auth(username: str, password: str) -> str:
     # get(..., headers={ 'Authorization' : f'Basic {basic_auth(username, password)}'})
     token = b64encode(f"{username}:{password}".encode("utf-8")).decode("ascii")
     return token
@@ -232,7 +232,7 @@ class Response:
         if not self.ok:
             raise HTTPErrorStatus(self.status_code)
 
-    def json(self):
+    def json(self) -> dict:
         """Attempts to deserialize the response body as UTF-8 encoded JSON."""
         return loads(self.body)
 

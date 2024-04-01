@@ -605,7 +605,17 @@ class Monitor(LongRunningBackgroundJob):
         # we use a thread below since we want to exit this callback without blocking it.
         # a blocked callback can disconnect from MQTT broker, prevent other callbacks, etc.
 
-        job_name = msg.topic.split("/")[-1]
+        topic_parts = msg.topic.split("/")
+
+        job_name = topic_parts[-1]
+        experiment = topic_parts[2]
+
+        if (experiment != whoami.UNIVERSAL_EXPERIMENT) and (
+            experiment != whoami._get_assigned_experiment_name(self.unit)
+        ):
+            # make sure I'm assigned to the correct experiment
+            return
+
         payload = loads(msg.payload) if msg.payload else {"options": {}, "args": []}
 
         options = payload.get("options", {})
@@ -619,8 +629,6 @@ class Monitor(LongRunningBackgroundJob):
             # putting it in led_intensity makes everything else slow (ex: od_reading)
             # if not whoami.is_active(self.unit):
             #    return
-
-            experiment = whoami._get_assigned_experiment_name(self.unit)
 
             from pioreactor.actions.led_intensity import led_intensity, ALL_LED_CHANNELS
 
@@ -643,9 +651,6 @@ class Monitor(LongRunningBackgroundJob):
             "circulate_alt_media",
         }:
             # is_active is checked in the lifecycle block
-
-            # if not assigned, this next line raises an exception
-            experiment = whoami._get_assigned_experiment_name(self.unit)
 
             from pioreactor.actions import pump as pump_actions
 
