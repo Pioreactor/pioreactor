@@ -16,15 +16,16 @@
  - New database tables to handle workers (`workers`) and experiments assignments (`experiment_assignments`).
  - New `pio workers` CLI to mange your inventory. Try `pio workers --help` to see all the commands available.
  - Better error messages when a self-test fails.
- - `pio kill` has new options to kill specific actions. Ex: `pio kill --experiment eee`, `pio kill --job_source experiment_profile`
+ - `pio kill` has new options to kill specific actions. Ex: `pio kill --experiment this-exp`, `pio kill --job_source experiment_profile`
 
 
 #### Breaking changes
  - When a experiment profile ends early, it now will halt any jobs that it started. This is a change from how they worked previously, but this new behaviour is less of a surprise to users.
  - `pio add-pioreactor <name>` is now `pio workers add <name>`
  - `pio cluster-status` is now `pio workers status`
- - `[cluster.inventory]` is deprecated and unused. Use the UI to handle inventory.
  - `publish_ready_to_disconnected_state` changed names to `managed_lifecycle`
+ - `config.inventory` in the config.ini is no longer used. All that data is now handled in the database on the leader, and managed in the UI or CLI.
+ - `pio kill <job_name>` is removed, use `pio kill --name <job_name>`.
 
 #### Bug fixes
  - fix for not being able to access `http://pioreactor.local` reliably.

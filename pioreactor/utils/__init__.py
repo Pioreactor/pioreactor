@@ -476,13 +476,40 @@ def safe_kill(*args: int) -> None:
         pass
 
 
+class ShellKill:
+    def __init__(self):
+        self.list_of_pids = []
+
+    def append(self, pid):
+        self.list_of_pids.append(pid)
+
+    def kill(self):
+        safe_kill(*self.list_of_pids)
+
+
+class MQTTKill:
+    def __init__(self):
+        self.list_of_job_names = []
+
+    def append(self, name):
+        self.list_of_job_names.append(name)
+
+    def kill(self):
+        with create_client() as client:
+            for name in self.list_of_job_names:
+                client.publish(
+                    f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{whoami.UNIVERSAL_EXPERIMENT}/{name}/$state/set",
+                    "disconnected",
+                    qos=QOS.AT_LEAST_ONCE,
+                )
+
+
 class JobManager:
     AUTOMATION_JOBS = ("temperature_automation", "dosing_automation", "led_automation")
     PUMPING_JOBS = (
         "add_media",
         "remove_waste",
         "add_alt_media",
-        "led_intensity",
         "circulate_media",
         "circulate_alt_media",
     )
@@ -542,14 +569,6 @@ class JobManager:
         self.cursor.execute(select_query, (job_name,))
         return len(self.cursor.fetchall()) > 0
 
-    def count_jobs(self, all_jobs: bool = False, **query) -> int:
-        return len(self._get_jobs(all_jobs, **query))
-
-    def kill_jobs(self, all_jobs: bool = False, **query) -> None:
-        # ex: kill_jobs(experiment="testing_exp") should return end all jobs with experiment='testing_exp'
-        for job in self._get_jobs(all_jobs, **query):
-            self._kill_job(job)
-
     def _get_jobs(self, all_jobs: bool = False, **query) -> list[tuple[str, int]]:
         if not all_jobs:
             # Construct the WHERE clause based on the query parameters
@@ -570,28 +589,29 @@ class JobManager:
 
         return self.cursor.fetchall()
 
-    def _kill_job(self, job: tuple[str, int]):
-        name, pid = job
-        if name in self.PUMPING_JOBS:
-            self._kill_pumping_job(job)
-        elif name == "led_intensity":
-            # led_intensity doesn't register with the JobManager, probably should somehow.
-            pass
-        elif name in self.AUTOMATION_JOBS:
-            # don't kill them, the parent will.
-            pass
-        else:
-            safe_kill(pid)  # TODO: we should accumulate PIDs to kill, and run `kill <pid1> <pid2> ... `
+    def count_jobs(self, all_jobs: bool = False, **query) -> int:
+        return len(self._get_jobs(all_jobs, **query))
 
-    def _kill_pumping_job(self, pump_job: tuple[str, int]):
-        name, _ = pump_job
-        with create_client() as client:
-            msg = client.publish(
-                f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{whoami.UNIVERSAL_EXPERIMENT}/{name}/$state/set",
-                "disconnected",
-                qos=QOS.AT_LEAST_ONCE,
-            )
-            msg.wait_for_publish(timeout=3)
+    def kill_jobs(self, all_jobs: bool = False, **query) -> None:
+        # ex: kill_jobs(experiment="testing_exp") should return end all jobs with experiment='testing_exp'
+
+        mqtt_kill = MQTTKill()
+        shell_kill = ShellKill()
+
+        for job, pid in self._get_jobs(all_jobs, **query):
+            if job in self.PUMPING_JOBS:
+                mqtt_kill.append(job)
+            elif job == "led_intensity":
+                # led_intensity doesn't register with the JobManager, probably should somehow.
+                pass
+            elif job in self.AUTOMATION_JOBS:
+                # don't kill them, the parent will.
+                pass
+            else:
+                shell_kill.append(pid)
+
+        mqtt_kill.kill()
+        shell_kill.kill()
 
     def __enter__(self) -> JobManager:
         return self
