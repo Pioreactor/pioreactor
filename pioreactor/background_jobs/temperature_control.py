@@ -282,7 +282,9 @@ class TemperatureController(BackgroundJob):
             # since we are changing automations inside a controller, we know that the latest temperature reading is recent, so we can
             # pass it on to the new automation.
             # this is most useful when temp-control is initialized with only_record_temperature, and then quickly switched over to thermostat.
-            self.automation_job._set_latest_temperature(self.temperature)
+            if hasattr(self, "temperature"):
+                # sometimes self doesn't have temperature, see conditional near self.seconds_since_last_active_heating()
+                self.automation_job._set_latest_temperature(self.temperature)
 
         except KeyError:
             self.logger.debug(

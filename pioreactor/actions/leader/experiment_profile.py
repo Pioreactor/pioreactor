@@ -675,7 +675,7 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
                 with ClusterJobManager(all_workers) as jm:
                     jm.kill_jobs(experiment=experiment, job_source="experiment_profile")
 
-                logger.notice(f"Stopping profile {profile.experiment_profile_name} early: {len(s.queue)} actions not started, and running actions stopped.")  # type: ignore
+                logger.notice(f"Stopping profile {profile.experiment_profile_name} early: {len(s.queue)} actions not started, and stopping all actions that started.")  # type: ignore
 
             else:
                 if dry_run:

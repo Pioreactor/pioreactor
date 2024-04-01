@@ -434,7 +434,8 @@ def _prepare_request(
     if is_unix and unix_socket is None:
         unix_socket = urllib.parse.unquote(parsed_url.netloc)
 
-    path = parsed_url.path
+    path = urllib.parse.quote(parsed_url.path)
+
     if parsed_url.query:
         if enc_params:
             path = f"{path}?{parsed_url.query}&{enc_params}"
