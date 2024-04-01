@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from contextlib import redirect_stdout
 from io import StringIO
+from time import sleep
 
 import pytest
 
 from pioreactor.background_jobs.stirring import start_stirring
+from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.utils import callable_stack
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import JobManager
@@ -229,3 +231,35 @@ def test_count_jobs(job_manager):
     assert job_manager.count_jobs(experiment="nonexistent_experiment") == 0
     assert job_manager.count_jobs(all_jobs=True) >= 1
     job_manager.set_not_running(job_key)
+
+
+def test_kill_pumping(job_manager):
+    job_key1 = job_manager.register_and_set_running(
+        "testing_unit", "test_experiment", "add_media", "user", 12345, "test_leader"
+    )
+
+    job_key2 = job_manager.register_and_set_running(
+        "testing_unit", "test_experiment", "not_pumping", "user", 12345, "test_leader"
+    )
+
+    collection = []
+
+    def collect(msg):
+        collection.append(msg.payload.decode())
+
+    subscribe_and_callback(collect, "pioreactor/testing_unit/+/add_media/$state/set")
+
+    job_manager.kill_jobs(name="add_media")
+
+    sleep(0.5)
+
+    assert len(collection) == 1
+    assert collection[0] == "disconnected"
+
+    job_manager.kill_jobs(name="not_pumping")
+
+    sleep(0.5)
+    assert len(collection) == 1
+
+    job_manager.set_not_running(job_key1)
+    job_manager.set_not_running(job_key2)

@@ -498,7 +498,7 @@ class MQTTKill:
         with create_client() as client:
             for i, name in enumerate(self.list_of_job_names):
                 msg = client.publish(
-                    f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{whoami.UNIVERSAL_EXPERIMENT}/{name}/$state/set",
+                    f"pioreactor/{whoami.get_unit_name()}/{whoami.UNIVERSAL_EXPERIMENT}/{name}/$state/set",
                     "disconnected",
                     qos=QOS.AT_LEAST_ONCE,
                 )
