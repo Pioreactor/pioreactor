@@ -83,7 +83,7 @@ def test_pios_update_settings() -> None:
     )
 
     runner = CliRunner()
-    runner.invoke(pios, ["update-settings", job_name, f"--{published_setting_name}", "1"])
+    runner.invoke(pios, ["update-settings", job_name, f"--{published_setting_name}", "1", "-y"])
     pause()
     pause()
     pause()
