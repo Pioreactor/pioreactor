@@ -8,12 +8,12 @@ export LC_ALL=C
 
 
 PIO_DIR=/home/pioreactor/.pioreactor
-
 # Get the hostname
 HOSTNAME=$(hostname)
 
 # Get the leader address
 LEADER_ADDRESS=$(crudini --get $PIO_DIR/config.ini cluster.topology leader_address)
+DB_FILE=$(crudini --get $PIO_DIR/config.ini storage database)
 
 if [ "$HOSTNAME.local" = "$LEADER_ADDRESS" ]; then
 
