@@ -2,38 +2,31 @@ import React from "react";
 import Alert from '@mui/material/Alert';
 import Snackbar from '@mui/material/Snackbar';
 import AlertTitle from '@mui/material/AlertTitle';
-import {getRelabelMap} from "../utilities"
 import { useMQTT } from '../providers/MQTTContext';
+import { useExperiment } from '../providers/ExperimentContext';
 
 function ErrorSnackbar(props) {
   const [open, setOpen] = React.useState(false)
-  const [renamedUnit, setRenamedUnit] = React.useState("")
   const [unit, setUnit] = React.useState("")
   const [msg, setMsg] = React.useState("")
   const [level, setLevel] = React.useState("error")
   const [task, setTask] = React.useState("")
   const [relabelMap, setRelabelMap] = React.useState({})
   const {client, subscribeToTopic } = useMQTT();
+  const { experimentMetadata } = useExperiment();
 
   React.useEffect(() => {
-    getRelabelMap(setRelabelMap)
-  }, [])
-
-  React.useEffect(() => {
-    if (client){
-      subscribeToTopic("pioreactor/+/+/logs/+", onMessage)
+    if (client && experimentMetadata.experiment){
+      subscribeToTopic(`pioreactor/+/${experimentMetadata.experiment}/logs/+`, onMessage)
+      subscribeToTopic(`pioreactor/+/$experiment/logs/+`, onMessage)
     }
 
-  },[client])
+  },[client, experimentMetadata])
 
   const onMessage = (topic, message, packet) => {
       const payload = JSON.parse(message.toString())
       if ((payload.level === "ERROR" || payload.level === "WARNING" || payload.level === "NOTICE") && (!topic.toString().endsWith("/ui"))){
         const unit = topic.toString().split("/")[1]
-        try {
-          setRenamedUnit(relabelMap[unit])
-        }
-        catch {}
         setMsg(payload.message)
         setTask(payload.task)
         setLevel(payload.level === "NOTICE" ? "SUCCESS" : payload.level)
@@ -61,7 +54,7 @@ function ErrorSnackbar(props) {
       onClose={handleClose}
     >
     <Alert variant="standard" severity={level.toLowerCase()} onClose={handleClose}>
-      <AlertTitle style={{fontSize: 15}}>{task} encountered a{level==="ERROR" ? 'n' : ''} {level.toLowerCase()} in {unit + (renamedUnit ? " / " + renamedUnit : "")}</AlertTitle>
+      <AlertTitle style={{fontSize: 15}}>{task} encountered a{level==="ERROR" ? 'n' : ''} {level.toLowerCase()} in {unit}</AlertTitle>
       <span style={{whiteSpace: 'pre-wrap'}}>{msg}</span>
     </Alert>
     </Snackbar>

@@ -110,7 +110,7 @@ function ChangeAutomationsDialog(props) {
 
   const startJob = (event) => {
     event.preventDefault()
-    runPioreactorJob(props.unit, `${automationType}_control`, [], {"automation_name": automationName, ...removeEmpty(algoSettings)})
+    runPioreactorJob(props.unit, props.experiment, `${automationType}_control`, [], {"automation_name": automationName, ...removeEmpty(algoSettings)})
     setOpenSnackbar(true);
     handleClose()
   }
@@ -147,7 +147,7 @@ function ChangeAutomationsDialog(props) {
         <Typography className={classes.suptitle}>
           <PioreactorIcon style={{verticalAlign: "middle", fontSize: "1.2em"}}/>
             {(props.unit === "$broadcast")
-              ? <b>All active Pioreactors</b>
+              ? <b>All active and assigned Pioreactors</b>
               :((props.title || props.label)
                   ? ` ${props.label} / ${props.unit}`
                   : `${props.unit}`

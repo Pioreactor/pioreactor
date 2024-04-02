@@ -37,11 +37,24 @@ export const ExperimentProvider = ({ children }) => {
 
   const updateExperiment = (newExperiment, put=false) => {
     setExperimentMetadata(newExperiment);
+
+
     if (newExperiment){
       window.sessionStorage.setItem("experimentMetadata", JSON.stringify(newExperiment))
     }
     if (put){
+      // PUT
       setAllExperiments((prevExperiment) => [newExperiment, ...prevExperiment])
+    } else {
+      // PATCH
+      {
+        setAllExperiments((prevExperiments) => {
+          const updatedExperiments = [...prevExperiments];
+          const index = updatedExperiments.findIndex(exp => exp.experiment === newExperiment.experiment);
+          updatedExperiments[index] = newExperiment;
+          return updatedExperiments;
+        });
+      }
     }
 
   };

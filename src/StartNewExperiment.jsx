@@ -212,9 +212,9 @@ function ExperimentSummaryForm(props) {
       setHelperText("Can't be blank.")
       return
     }
-    else if (expName.includes("#") || expName.includes("+") || expName.includes("/")) {
+    else if (expName.includes("#") || expName.includes("+") || expName.includes("/")|| expName.includes("\\")) {
       setFormError(true)
-      setHelperText("Can't use #, / or + characters in experiment name.")
+      setHelperText("Can't use #,\\, / or + characters in experiment name.")
       return
     }
 

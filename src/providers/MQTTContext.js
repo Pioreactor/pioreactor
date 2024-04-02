@@ -32,9 +32,28 @@ const addHandlerToTrie = (root, topic, handler) => {
     node = node.children[level];
   }
 
-  node.handlers = [] // TODO: ignore the array, I couldn't figure out a way to clear it during navigation and not fill up with duplicates.
+  // if ( node.handlers.length == 1){
+  //   console.warn(`topic ${topic} has multiple handlers`)
+  // }
+  node.handlers = [] // TODO: ignore the existing array, I couldn't figure out a way to clear it during navigation and not fill up with duplicates.
+                     // what I need to do: turn the array into an object, keyed by the components name / usecase. then just overwrite per component.
+                     // this requires adding a "name" to each use of subscribeToTopic.
   node.handlers.push(handler); // Add the handler to the array
 
+};
+
+const removeHandlersFromTrie = (root, topic) => {
+  let node = root;
+  const levels = topic.split('/');
+
+  for (const level of levels) {
+    if (!node.children[level]) {
+      return; // Topic not found
+    }
+    node = node.children[level];
+  }
+
+  node.handlers = []; // Remove all handlers
 };
 
 const findHandlersInTrie = (root, topic) => {
@@ -120,7 +139,12 @@ export const MQTTProvider = ({name, config, children, experiment}) => {
 
   const subscribeToTopic = (topic, messageHandler) => {
     addHandlerToTrie(topicTrie.current, topic, messageHandler);
-    client?.subscribe(topic);
+    client.subscribe(topic);
+  };
+
+  const unsubscribeFromTopic = (topic) => {
+    removeHandlersFromTrie(topicTrie.current, topic);
+    client?.unsubscribe(topic);
   };
 
   const handleCloseSnackbar = () => {
@@ -128,7 +152,7 @@ export const MQTTProvider = ({name, config, children, experiment}) => {
   };
 
   return (
-    <MQTTContext.Provider value={{ client, subscribeToTopic }}>
+    <MQTTContext.Provider value={{ client, subscribeToTopic, unsubscribeFromTopic }}>
       {children}
       <Snackbar anchorOrigin={{vertical: "bottom", horizontal: "right"}} style={{maxWidth: "500px"}} open={!!error} autoHideDuration={6000} onClose={handleCloseSnackbar}>
         <Alert onClose={handleCloseSnackbar} severity="error" variant="filled">

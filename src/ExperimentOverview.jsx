@@ -85,7 +85,7 @@ const TimeWindowSwitch = (props) => {
 function Charts(props) {
   const [charts, setCharts] = useState({})
   const config = props.config
-  const { client, subscribeToTopic } = useMQTT();
+  const { client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
 
 
   useEffect(() => {
@@ -130,6 +130,7 @@ function Charts(props) {
                   byDuration={props.timeScale === "hours"}
                   client={client}
                   subscribeToTopic={subscribeToTopic}
+                  unsubscribeFromTopic={unsubscribeFromTopic}
                 />
               </Card>
             </Grid>
@@ -141,7 +142,7 @@ function Charts(props) {
 
 function Overview(props) {
 
-  const {experimentMetadata} = useExperiment()
+  const {experimentMetadata, updateExperiment} = useExperiment()
   const [config, setConfig] = useState({})
   const [timeScale, setTimeScale] = useState(null)
   const [timeWindow, setTimeWindow] = useState(null)
@@ -155,9 +156,9 @@ function Overview(props) {
   }, [props.title])
 
   useEffect(() => {
-    if (experimentMetadata){
+    if (experimentMetadata.experiment){
         getRelabelMap(setRelabelMap, experimentMetadata.experiment)
-      }
+    }
   }, [experimentMetadata])
 
   useEffect(() => {
@@ -176,7 +177,7 @@ function Overview(props) {
     <Fragment>
       <Grid container spacing={2} justifyContent="space-between">
         <Grid item xs={12} md={12}>
-          <ExperimentSummary experimentMetadata={experimentMetadata}/>
+          <ExperimentSummary experimentMetadata={experimentMetadata} updateExperiment={updateExperiment}/>
         </Grid>
 
 

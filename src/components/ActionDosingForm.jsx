@@ -60,7 +60,7 @@ export default function ActionPumpForm(props) {
         msg = actionToAct[props.action] + " continuously"
       }
 
-      runPioreactorJob(props.unit, props.action, [], params)
+      runPioreactorJob(props.unit, props.experiment, props.action, [], params)
       setSnackbarMsg(msg)
       setOpenSnackbar(true);
     }

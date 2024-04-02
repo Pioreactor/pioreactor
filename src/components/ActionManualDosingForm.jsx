@@ -49,7 +49,7 @@ export default function ActionPumpForm(props) {
 
       var msg = `Recorded ${actionToAct[manualAction]} of ${mL} mL at ${moment().format('h:mm:ss a')}.`
       var params = { ml: parseFloat(mL), source_of_event: "manually", manually: true};
-      runPioreactorJob(props.unit, manualAction, [], params)
+      runPioreactorJob(props.unit, props.experiment, manualAction, [], params)
       setSnackbarMsg(msg)
       setOpenSnackbar(true);
       setML(EMPTYSTATE)

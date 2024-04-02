@@ -44,7 +44,7 @@ export default function ActionLEDForm(props) {
       setOpenSnackbar(true)
 
       const params = {[props.channel]: parseFloat(intensity), source_of_event: "UI"}
-      runPioreactorJob(props.unit, "led_intensity", [], params)
+      runPioreactorJob(props.unit, props.experiment, "led_intensity", [], params)
     } else if (intensity === EMPTYSTATE) {
       setErrorForm(false)
     } else {

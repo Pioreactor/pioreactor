@@ -92,10 +92,10 @@ function MainSite() {
     <div style={{display: 'flex'}}>
       <ErrorBoundary>
         <ExperimentProvider>
-        <SideNavAndHeader />
-        <main style={{flexGrow: 1, paddingTop: theme.spacing(9), paddingLeft: theme.spacing(4), paddingRight: theme.spacing(4)}}>
-          <div className="pageContainer">
-            <MQTTProvider name="global" config={config}>
+          <SideNavAndHeader />
+          <main style={{flexGrow: 1, paddingTop: theme.spacing(9), paddingLeft: theme.spacing(4), paddingRight: theme.spacing(4)}}>
+            <div className="pageContainer">
+              <MQTTProvider name="global" config={config}>
                 <Routes>
                   <Route path="/export-data" element={<ExportData title="Pioreactor ~ Export data"/>}/>
                   <Route path="/start-new-experiment" element={<StartNewExperiment title="Pioreactor ~ Start new experiment" />}/>
@@ -113,9 +113,9 @@ function MainSite() {
                 </Routes>
                 <ErrorSnackbar />
                 <TactileButtonNotification />
-            </MQTTProvider>
-          </div>
-        </main>
+              </MQTTProvider>
+            </div>
+          </main>
         </ExperimentProvider>
       </ErrorBoundary>
     </div>

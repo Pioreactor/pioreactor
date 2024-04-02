@@ -48,18 +48,18 @@ const useStyles = makeStyles((theme) => ({
 
 class EditableDescription extends React.Component {
   constructor(props) {
-    super(props)
+    super(props);
     this.contentEditable = React.createRef();
     this.state = {
-      desc: "",
+      desc: this.props.experimentMetadata.description,
       recentChange: false,
-      savingLoopActive: false
+      savingLoopActive: false,
     };
-  };
+  }
 
   componentDidUpdate(prevProps) {
-    if (this.props.description !== prevProps.description) {
-      this.setState({desc: this.props.description})
+    if (this.props.experimentMetadata !== prevProps.experimentMetadata) {
+      this.setState({ desc: this.props.experimentMetadata.description });
     }
   }
 
@@ -68,7 +68,7 @@ class EditableDescription extends React.Component {
       this.setState({recentChange: false})
       setTimeout(this.saveToDatabaseOrSkip, 150)
     } else {
-      fetch(`/api/experiments/${this.props.experiment}`, {
+      fetch(`/api/experiments/${this.props.experimentMetadata.experiment}`, {
           method: "PATCH",
           body: JSON.stringify({description: this.state.desc}),
           headers: {
@@ -76,8 +76,12 @@ class EditableDescription extends React.Component {
             'Content-Type': 'application/json'
           }
         }).then(res => {
-          if (res.status !== 200){
+          if (res.ok){
+            this.props.updateExperiment({ ...this.props.experimentMetadata, description: this.state.desc });
+          }
+          else {
             console.log("Didn't save successfully.")
+
           }
         })
         this.setState({savingLoopActive: false})
@@ -122,12 +126,12 @@ class EditableDescription extends React.Component {
 
 
 
-function ExperimentSummary(props){
+function ExperimentSummary({experimentMetadata, updateExperiment}){
   const classes = useStyles();
-  const experiment = props.experimentMetadata.experiment
-  const startedAt = props.experimentMetadata.created_at
-  const desc = props.experimentMetadata.description
-  const deltaHours = props.experimentMetadata.delta_hours
+  const experiment = experimentMetadata.experiment
+  const startedAt = experimentMetadata.created_at
+  const desc = experimentMetadata.description
+  const deltaHours = experimentMetadata.delta_hours
   return(
     <React.Fragment>
       <div>
@@ -168,7 +172,7 @@ function ExperimentSummary(props){
       </div>
       <Card className={classes.root}>
         <CardContent className={classes.cardContent}>
-          <EditableDescription experiment={experiment} description={desc} />
+          <EditableDescription experimentMetadata={experimentMetadata} updateExperiment={updateExperiment} />
         </CardContent>
       </Card>
     </React.Fragment>

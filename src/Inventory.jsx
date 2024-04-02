@@ -614,7 +614,11 @@ function Remove({unit, isLeader}) {
       cancellationButtonProps: {color: "secondary"},
     }).then(() => {
       fetch(`/api/workers/${unit}`, {method: "DELETE"})
-      navigate(0)
+      .then((response) => {
+        if (response.ok){
+           navigate(0)
+        }
+      })
     }).catch(() => {});
   };
 

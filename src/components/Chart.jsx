@@ -56,6 +56,14 @@ function getColorFromName(name){
   }
 }
 
+function toArray(thing){
+   if (Array.isArray(thing)){
+      return thing
+  } else {
+    return [thing]
+  }
+}
+
 
 class Chart extends React.Component {
   constructor(props) {
@@ -68,11 +76,7 @@ class Chart extends React.Component {
       fetched: false,
     };
 
-    if (Array.isArray(this.props.topic)){
-      this.topics = this.props.topic
-    } else {
-      this.topics = [this.props.topic]
-    }
+    this.topics = toArray(this.props.topic)
     this.onMessage = this.onMessage.bind(this);
     this.selectLegendData = this.selectLegendData.bind(this);
     this.selectVictoryLines = this.selectVictoryLines.bind(this);
@@ -83,21 +87,15 @@ class Chart extends React.Component {
   componentDidUpdate(prevProps) {
     if (prevProps.experiment !== this.props.experiment) {
       this.getHistoricalDataFromServer()
+      if (this.props.isLiveChart && this.props.client){
+          toArray(prevProps.topic).forEach(topic => {
+            this.props.unsubscribeFromTopic(`pioreactor/+/${prevProps.experiment}/${topic}`)
+          });
 
-      // this was removed when we migrated to mqtt.js - why was it ever here?
-      //if (this.props.isLiveChart){
-      //  try{
-      //    this.topics.forEach(topic => {
-      //      this.client.unsubscribe(`pioreactor/+/${this.props.experiment}/${topic}`);
-      //    });
-      //    this.topics.forEach(topic => {
-      //      this.client.subscribe(`pioreactor/+/${this.props.experiment}/${topic}`);
-      //    });
-      //  }
-      //  catch (error){
-      //    // not important.
-      //  }
-      //}
+          this.topics.forEach(topic => {
+            this.props.subscribeToTopic(`pioreactor/+/${this.props.experiment}/${topic}`, this.onMessage)
+          });
+      }
     }
 
     if (this.props.byDuration !== prevProps.byDuration){
@@ -108,7 +106,7 @@ class Chart extends React.Component {
       this.getHistoricalDataFromServer()
     }
 
-    if (this.props.isLiveChart && this.props.client && this.props.client !== prevProps.client) {
+    if (this.props.isLiveChart && this.props.client){
       this.topics.forEach(topic => {
         this.props.subscribeToTopic(`pioreactor/+/${this.props.experiment}/${topic}`, this.onMessage)
       });

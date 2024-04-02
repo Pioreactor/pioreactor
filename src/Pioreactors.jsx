@@ -445,27 +445,33 @@ function AssignPioreactors({experiment}) {
       return differences;
   }
 
-  const updateAssignments = () => {
-    const delta = compareObjects(assigned, initialAssigned)
-    for (const worker in delta){
-      if (delta[worker].current && !delta[worker].intial){
-        fetch(`/api/experiments/${experiment}/workers`, {
-          method: "PUT",
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({pioreactor_unit: worker})
-        })
-      } else {
-        fetch(`/api/experiments/${experiment}/workers/${worker}`, {
-          method: "DELETE",
-        })
-      }
+const updateAssignments = async () => {
+  const delta = compareObjects(assigned, initialAssigned);
+  const promises = [];
+
+  for (const worker in delta) {
+    if (delta[worker].current && !delta[worker].initial) {
+      const promise = fetch(`/api/experiments/${experiment}/workers`, {
+        method: "PUT",
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ pioreactor_unit: worker })
+      });
+      promises.push(promise);
+    } else {
+      const promise = fetch(`/api/experiments/${experiment}/workers/${worker}`, {
+        method: "DELETE",
+      });
+      promises.push(promise);
     }
-    setOpen(false)
-    navigate(0);
   }
+
+  await Promise.all(promises);
+  setOpen(false);
+  navigate(0);
+};
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -646,7 +652,7 @@ function CalibrateDialog(props) {
                <PatientButton
                 color="primary"
                 variant="contained"
-                onClick={() => runPioreactorJob(props.unit, job)}
+                onClick={() => runPioreactorJob(props.unit, '$experiment', job)}
                 buttonText="Start"
                 disabled={always_disable}
                />
@@ -708,7 +714,7 @@ function CalibrateDialog(props) {
             <div style={{display: "flex"}}>
               {blankODButton}
               <div>
-                <Button size="small" className={classes.patientButton} color="secondary" disabled={(props.odBlankReading === null) || (isGrowRateJobRunning)} onClick={() => runPioreactorJob(props.unit, "od_blank", ['delete']) }> Clear </Button>
+                <Button size="small" className={classes.patientButton} color="secondary" disabled={(props.odBlankReading === null) || (isGrowRateJobRunning)} onClick={() => runPioreactorJob(props.unit, '$experiment', "od_blank", ['delete']) }> Clear </Button>
               </div>
             </div>
             <Divider className={classes.divider} />
@@ -817,7 +823,7 @@ function SelfTestDialog(props) {
                <PatientButton
                 color="primary"
                 variant="contained"
-                onClick={() => runPioreactorJob(props.unit, job)}
+                onClick={() => runPioreactorJob(props.unit, '$experiment', job)}
                 buttonText="Start"
                />
               </div>)
@@ -1082,7 +1088,7 @@ function SettingsActionsDialog(props) {
                   <PatientButton
                     color="primary"
                     variant="contained"
-                    onClick={() => runPioreactorJob(props.unit, job)}
+                    onClick={() => runPioreactorJob(props.unit, props.experiment, job)}
                     buttonText="Start"
                   />
         </div>)
@@ -1091,7 +1097,7 @@ function SettingsActionsDialog(props) {
                  <PatientButton
                   color="primary"
                   variant="contained"
-                  onClick={() => runPioreactorJob(props.unit, job)}
+                  onClick={() => runPioreactorJob(props.unit, props.experiment, job)}
                   buttonText="Start"
                  />
                 <PatientButton
@@ -1542,7 +1548,7 @@ function SettingsActionsDialog(props) {
             Safely cycle media in and out of your Pioreactor for a set duration (seconds) by running the media and waste pump simultaneously.
           </Typography>
 
-          <ActionCirculatingForm action="circulate_media" unit={props.unit} job={props.jobs.circulate_media} />
+          <ActionCirculatingForm action="circulate_media" unit={props.unit} experiment={props.experiment} job={props.jobs.circulate_media} />
 
           <Divider classes={{root: classes.divider}} />
 
@@ -1553,7 +1559,7 @@ function SettingsActionsDialog(props) {
             Safely cycle alternative media in and out of your Pioreactor for a set duration (seconds) by running the alt-media and waste pump simultaneously.
           </Typography>
 
-          <ActionCirculatingForm action="circulate_alt_media" unit={props.unit} job={props.jobs.circulate_alt_media} />
+          <ActionCirculatingForm action="circulate_alt_media" unit={props.unit} experiment={props.experiment} job={props.jobs.circulate_alt_media} />
 
           <Divider classes={{root: classes.divider}} />
 
@@ -1568,7 +1574,7 @@ function SettingsActionsDialog(props) {
           <Typography variant="body2" component="p">
             Specify how you’d like to add media:
           </Typography>
-          <ActionDosingForm action="add_media" unit={props.unit} job={props.jobs.add_media} />
+          <ActionDosingForm action="add_media" unit={props.unit} experiment={props.experiment} job={props.jobs.add_media} />
           <Divider classes={{root: classes.divider}} />
           <Typography  gutterBottom>
             Remove waste
@@ -1579,7 +1585,7 @@ function SettingsActionsDialog(props) {
           <Typography variant="body2" component="p">
             Specify how you’d like to remove waste:
           </Typography>
-          <ActionDosingForm action="remove_waste" unit={props.unit} job={props.jobs.remove_waste} />
+          <ActionDosingForm action="remove_waste" unit={props.unit} experiment={props.experiment} job={props.jobs.remove_waste} />
           <Divider className={classes.divider} />
           <Typography gutterBottom>
             Add alternative media
@@ -1590,7 +1596,7 @@ function SettingsActionsDialog(props) {
           <Typography variant="body2" component="p">
             Specify how you’d like to add alt-media:
           </Typography>
-          <ActionDosingForm action="add_alt_media" unit={props.unit} job={props.jobs.add_alt_media} />
+          <ActionDosingForm action="add_alt_media" unit={props.unit} experiment={props.experiment} job={props.jobs.add_alt_media} />
           <Divider className={classes.divider} />
           <Typography gutterBottom>
             Manual adjustments
@@ -1598,7 +1604,7 @@ function SettingsActionsDialog(props) {
           <Typography variant="body2" component="p" gutterBottom>
             Record adjustments before manually adding or removing from the vial. This is recorded in the database and will ensure accurate metrics.
           </Typography>
-          <ActionManualDosingForm unit={props.unit}/>
+          <ActionManualDosingForm unit={props.unit} experiment={props.experiment}/>
 
 
         </TabPanel>
@@ -1610,7 +1616,7 @@ function SettingsActionsDialog(props) {
           <Typography className={clsx(classes.suptitle)} color="textSecondary">
             {(LEDMap['A']) ? "Channel A" : ""}
           </Typography>
-          <ActionLEDForm channel="A" unit={props.unit} />
+          <ActionLEDForm experiment={props.experiment} channel="A" unit={props.unit} />
           <Divider className={classes.divider} />
 
           <Typography style={{textTransform: "capitalize"}}>
@@ -1619,7 +1625,7 @@ function SettingsActionsDialog(props) {
           <Typography className={clsx(classes.suptitle)} color="textSecondary">
             {(LEDMap['B']) ? "Channel B" : ""}
           </Typography>
-          <ActionLEDForm channel="B" unit={props.unit} />
+          <ActionLEDForm experiment={props.experiment} channel="B" unit={props.unit} />
           <Divider className={classes.divider} />
 
           <Typography style={{textTransform: "capitalize"}}>
@@ -1629,7 +1635,7 @@ function SettingsActionsDialog(props) {
             {(LEDMap['C']) ? "Channel C" : ""}
           </Typography>
 
-          <ActionLEDForm channel="C" unit={props.unit} />
+          <ActionLEDForm experiment={props.experiment} channel="C" unit={props.unit} />
           <Divider className={classes.divider} />
 
           <Typography style={{textTransform: "capitalize"}}>
@@ -1638,7 +1644,7 @@ function SettingsActionsDialog(props) {
           <Typography className={clsx(classes.suptitle)} color="textSecondary">
             {(LEDMap['D']) ? "Channel D" : ""}
           </Typography>
-          <ActionLEDForm channel="D" unit={props.unit} />
+          <ActionLEDForm experiment={props.experiment} channel="D" unit={props.unit} />
           <Divider className={classes.divider} />
         </TabPanel>
         <TabPanel value={tabValue} index={4}>
@@ -1822,7 +1828,6 @@ function SettingsActionsDialog(props) {
 
 
 function SettingsActionsDialogAll({experiment}) {
-
   const classes = useStyles();
   const unit = "$broadcast"
   const [open, setOpen] = useState(false);
@@ -1890,7 +1895,7 @@ function SettingsActionsDialogAll({experiment}) {
           "disconnected":  "Stopping",
           "ready":  "Resuming",
         }
-        setSnackbarMessage(`${verbs[state]} ${job.metadata.display_name.toLowerCase()} on all active Pioreactors`)
+        setSnackbarMessage(`${verbs[state]} ${job.metadata.display_name.toLowerCase()} on all active & assigned Pioreactors`)
         setSnackbarOpen(true)
       }
     };
@@ -1931,7 +1936,7 @@ function SettingsActionsDialogAll({experiment}) {
 
     const handleRunPioreactorJobResponse = (response) => {
       if (response.ok) {
-        setSnackbarMessage(`Starting ${job.metadata.display_name.toLowerCase()} on all active Pioreactors`)
+        setSnackbarMessage(`Starting ${job.metadata.display_name.toLowerCase()} on all active & assigned Pioreactors`)
         setSnackbarOpen(true)
         return;
       }
@@ -1947,7 +1952,7 @@ function SettingsActionsDialogAll({experiment}) {
       startAction = () => setOpenChangeLEDDialog(true)
     }
     else {
-      startAction = () => runPioreactorJob(unit, job.metadata.key, [], {}, handleRunPioreactorJobResponse)
+      startAction = () => runPioreactorJob(unit, experiment, job.metadata.key, [], {}, handleRunPioreactorJobResponse)
     }
 
 
@@ -1997,7 +2002,7 @@ function SettingsActionsDialogAll({experiment}) {
   return (
     <React.Fragment>
     <Button style={{textTransform: 'none', float: "right" }} onClick={handleClickOpen} color="primary">
-      <SettingsIcon fontSize="15" classes={{root: classes.textIcon}}/> Manage all Pioreactors
+      <SettingsIcon fontSize="15" classes={{root: classes.textIcon}}/> Manage Pioreactors
     </Button>
     <Dialog  maxWidth={isLargeScreen ? "sm" : "md"} fullWidth={true}  open={open} onClose={handleClose} aria-labelledby="form-dialog-title"  PaperProps={{
       sx: {
@@ -2006,7 +2011,7 @@ function SettingsActionsDialogAll({experiment}) {
     }}>
       <DialogTitle style={{backgroundImage: "linear-gradient(to bottom left, rgba(83, 49, 202, 0.4), rgba(0,0,0,0))"}}>
         <Typography className={classes.suptitle}>
-          <b>All active Pioreactors</b>
+          <b>All active & assigned Pioreactors</b>
         </Typography>
         <IconButton
           aria-label="close"
@@ -2267,25 +2272,25 @@ function SettingsActionsDialogAll({experiment}) {
           <Typography style={{textTransform: "capitalize"}}>
             Channel A
           </Typography>
-          <ActionLEDForm channel="A" unit={unit} />
+          <ActionLEDForm experiment={experiment} channel="A" unit={unit} />
           <Divider className={classes.divider} />
 
           <Typography style={{textTransform: "capitalize"}}>
             Channel B
           </Typography>
-          <ActionLEDForm channel="B" unit={unit} />
+          <ActionLEDForm experiment={experiment} channel="B" unit={unit} />
           <Divider className={classes.divider} />
 
           <Typography style={{textTransform: "capitalize"}}>
             Channel C
           </Typography>
-          <ActionLEDForm channel="C" unit={unit} />
+          <ActionLEDForm experiment={experiment} channel="C" unit={unit} />
 
           <Divider className={classes.divider} />
           <Typography style={{textTransform: "capitalize"}}>
             Channel D
           </Typography>
-          <ActionLEDForm channel="D" unit={unit} />
+          <ActionLEDForm experiment={experiment} channel="D" unit={unit} />
 
           <Divider className={classes.divider} />
         </TabPanel>
