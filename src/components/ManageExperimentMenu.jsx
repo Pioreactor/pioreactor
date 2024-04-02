@@ -37,6 +37,7 @@ export default function ManageExperimentMenu({experiment}){
 
       }).then(() =>
         fetch(`/api/experiments/${experiment}/workers`, {method: "DELETE"})
+        // DELETEing will also stop all activity.
     ).then(() => navigate(0))
   };
 

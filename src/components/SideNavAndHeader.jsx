@@ -183,7 +183,6 @@ export default function SideNavAndHeader() {
                     label="Experiment"
                     onChange={handleExperimentChange}
                     MenuProps={{ classes: { paper: classes.menuPaper } }}
-                    labelstyle={{ color: '#ff0000' }}
                     sx={{
                       '&:before': {
                           borderColor: 'rgba(0, 0, 0, 0);',

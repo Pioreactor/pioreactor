@@ -281,10 +281,9 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName}) 
   );
 }
 
-function ProfilesContainer(props){
+function ProfilesContainer({experiment, config}){
   const classes = useStyles();
   const [runningProfileName, setRunningProfileName] = React.useState(null)
-  const {experimentMetadata} = useExperiment()
 
   return(
     <React.Fragment>
@@ -300,7 +299,7 @@ function ProfilesContainer(props){
               <AddIcon fontSize="15" classes={{root: classes.textIcon}}/> Create new profle
             </Button>
             <Divider orientation="vertical" flexItem variant="middle"/>
-            <ManageExperimentMenu experiment={experimentMetadata.experiment}/>
+            <ManageExperimentMenu experiment={experiment}/>
           </div>
         </div>
         <Divider/>
@@ -321,7 +320,7 @@ function ProfilesContainer(props){
       </div>
       <Card className={classes.root}>
         <CardContent className={classes.cardContent}>
-          <ExperimentProfilesContent experiment={experimentMetadata.experiment} config={props.config} setRunningProfileName={setRunningProfileName}/>
+          <ExperimentProfilesContent experiment={experiment} config={config} setRunningProfileName={setRunningProfileName}/>
           <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/experiment-profiles" target="_blank" rel="noopener noreferrer">experiment profiles</a>.</p>
         </CardContent>
       </Card>
@@ -331,6 +330,8 @@ function ProfilesContainer(props){
 
 function Profiles(props) {
     const [config, setConfig] = React.useState({})
+    const {experimentMetadata} = useExperiment()
+
 
     React.useEffect(() => {
       getConfig(setConfig)
@@ -340,10 +341,10 @@ function Profiles(props) {
       document.title = props.title;
     }, [props.title]);
     return (
-      <MQTTProvider name="profiles" config={config}>
+      <MQTTProvider name="profiles" config={config} experiment={experimentMetadata.experiment}>
         <Grid container spacing={2} >
           <Grid item md={12} xs={12}>
-            <ProfilesContainer config={config}/>
+            <ProfilesContainer experiment={experimentMetadata.experiment} config={config}/>
           </Grid>
         </Grid>
       </MQTTProvider>

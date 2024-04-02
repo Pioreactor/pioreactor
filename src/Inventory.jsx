@@ -511,11 +511,15 @@ function WorkerCard(props) {
         </table>
         <Divider style={{margin: "5px 0px"}}/>
       </CardContent>
-      <CardActions style={{display: "flex", justifyContent: "right"}}>
+      <CardActions style={{display: "flex", justifyContent: "space-between"}}>
+        <div>
         <Blink unit={unit} client={client}/>
-        <Unassign unit={unit} experimentAssigned={experimentAssigned} setExperimentAssigned={setExperimentAssigned} />
-        <Reboot unit={unit} />
-        <Remove unit={unit} isLeader={isLeader}/>
+          </div>
+        <div>
+          <Unassign unit={unit} experimentAssigned={experimentAssigned} setExperimentAssigned={setExperimentAssigned} />
+          <Reboot unit={unit} />
+          <Remove unit={unit} isLeader={isLeader}/>
+          </div>
       </CardActions>
     </Card>
 )}
@@ -578,19 +582,13 @@ function Reboot({unit, isLeader}) {
 function Unassign({unit, experimentAssigned, setExperimentAssigned}) {
   const classes = useStyles()
 
-  const confirm = useConfirm();
-
   const unassignWorker = () => {
-    confirm({
-      description: 'Unassigning this Pioreactor will halt all activity.',
-      title: `Unassign ${unit} from ${experimentAssigned}?`,
-      confirmationText: "Confirm",
-      confirmationButtonProps: {color: "primary"},
-      cancellationButtonProps: {color: "secondary"},
-    }).then(() => {
-      fetch(`/api/experiments/${experimentAssigned}/workers/${unit}`, {method: "DELETE"})
-      setExperimentAssigned(null)
-    }).catch(() => {});
+    fetch(`/api/experiments/${experimentAssigned}/workers/${unit}`, {method: "DELETE"})
+    .then((res) => {
+      if (res.ok){
+        setExperimentAssigned(null)
+      }
+    })
   };
 
   return (
