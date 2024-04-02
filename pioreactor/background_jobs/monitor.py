@@ -21,7 +21,8 @@ from pioreactor import whoami
 from pioreactor.background_jobs.base import LongRunningBackgroundJob
 from pioreactor.config import config
 from pioreactor.config import get_config
-from pioreactor.config import mqtt_address
+from pioreactor.config import get_mqtt_address
+from pioreactor.exc import NotAssignedAnExperimentError
 from pioreactor.hardware import GPIOCHIP
 from pioreactor.hardware import is_HAT_present
 from pioreactor.hardware import PCB_BUTTON_PIN as BUTTON_PIN
@@ -404,7 +405,7 @@ class Monitor(LongRunningBackgroundJob):
 
             self.logger.warning(
                 f"""Not able to connect MQTT clients to leader.
-1. Is the {mqtt_address=}, in config.ini correct?
+1. Is the mqtt_adress={get_mqtt_address()}, in config.ini correct?
 2. Is the Pioreactor leader online and responsive?
 """
             )  # remember, this doesn't get published to leader...
@@ -604,17 +605,23 @@ class Monitor(LongRunningBackgroundJob):
 
         # we use a thread below since we want to exit this callback without blocking it.
         # a blocked callback can disconnect from MQTT broker, prevent other callbacks, etc.
+        # TODO: we should this entire code into a thread...
 
         topic_parts = msg.topic.split("/")
 
         job_name = topic_parts[-1]
         experiment = topic_parts[2]
 
-        if (experiment != whoami.UNIVERSAL_EXPERIMENT) and (
-            experiment != whoami._get_assigned_experiment_name(self.unit)
-        ):
+        if experiment != whoami.UNIVERSAL_EXPERIMENT:
+            # we put this into two if statements to minimize chances we have to fetch data.
+            try:
+                assigned_experiment = whoami._get_assigned_experiment_name(self.unit)
+            except NotAssignedAnExperimentError:
+                assigned_experiment = whoami.NO_EXPERIMENT
+
             # make sure I'm assigned to the correct experiment
-            return
+            if experiment != assigned_experiment:
+                return
 
         payload = loads(msg.payload) if msg.payload else {"options": {}, "args": []}
 

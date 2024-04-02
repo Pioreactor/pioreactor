@@ -547,12 +547,18 @@ class DosingAutomationJob(AutomationJob):
             self._latest_settings_ended_at = None
 
     def _set_growth_rate(self, message: pt.MQTTMessage) -> None:
+        if not message.payload:
+            return
+
         self.previous_growth_rate = self._latest_growth_rate
         payload = decode(message.payload, type=structs.GrowthRate)
         self._latest_growth_rate = payload.growth_rate
         self.latest_growth_rate_at = payload.timestamp
 
     def _set_normalized_od(self, message: pt.MQTTMessage) -> None:
+        if not message.payload:
+            return
+
         self.previous_normalized_od = self._latest_normalized_od
         payload = decode(message.payload, type=structs.ODFiltered)
         self._latest_normalized_od = payload.od_filtered

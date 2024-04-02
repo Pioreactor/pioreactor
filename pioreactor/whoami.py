@@ -28,9 +28,7 @@ def get_testing_experiment_name() -> str:
 
 @cache
 def get_latest_experiment_name() -> str:
-    warnings.warn(
-        "Use whoami.get_assigned_experiment_name function instead", DeprecationWarning, stacklevel=2
-    )
+    warnings.warn("Use whoami.get_assigned_experiment_name(unit) instead", DeprecationWarning, stacklevel=2)
     return get_assigned_experiment_name(get_unit_name())
 
 

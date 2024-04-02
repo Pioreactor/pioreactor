@@ -937,7 +937,7 @@ class ODReader(BackgroundJob):
             ).start()
 
         self.logger.debug(
-            f"Starting od_reading with PD channels {channel_angle_map}, with IR LED intensity {self.ir_led_intensity}% from channel {self.ir_channel}."
+            f"Starting od_reading with PD channels {channel_angle_map}, with IR LED intensity {self.ir_led_intensity}% from channel {self.ir_channel}, every {self.interval} seconds"
         )
 
     def _determine_best_ir_led_intensity(

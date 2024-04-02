@@ -13,7 +13,6 @@ from msgspec.json import encode
 from msgspec.yaml import decode
 
 from pioreactor.cluster_management import get_active_workers_in_experiment
-from pioreactor.cluster_management import get_workers_in_inventory
 from pioreactor.config import leader_address
 from pioreactor.experiment_profiles import profile_struct as struct
 from pioreactor.logging import create_logger
@@ -661,21 +660,16 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
                 else:
                     break
         finally:
-            state.mqtt_client.publish(
-                f"pioreactor/{unit}/{experiment}/{action_name}/experiment_profile_name",
-                None,
-                retain=True,
-            )
-
             if state.exit_event.is_set():
                 # ended early
 
-                # stop all jobs started?
-                all_workers = get_workers_in_inventory()
-                with ClusterJobManager(all_workers) as jm:
+                # stop all jobs started
+                # we can use active workers in experiment, since if a worker leaves an experiment or goes inactive, it's jobs are stopped
+                workers = get_active_workers_in_experiment(experiment)
+                with ClusterJobManager(workers) as jm:
                     jm.kill_jobs(experiment=experiment, job_source="experiment_profile")
 
-                logger.notice(f"Stopping profile {profile.experiment_profile_name} early: {len(s.queue)} actions not started, and stopping all actions that started.")  # type: ignore
+                logger.notice(f"Stopping profile {profile.experiment_profile_name} early: {len(s.queue)} actions not started, and stopping all started actions.")  # type: ignore
 
             else:
                 if dry_run:
@@ -685,6 +679,12 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
 
                 else:
                     logger.notice(f"Finished executing profile {profile.experiment_profile_name}.")  # type: ignore
+
+            state.mqtt_client.publish(
+                f"pioreactor/{unit}/{experiment}/{action_name}/experiment_profile_name",
+                None,
+                retain=True,
+            )
 
             logger.clean_up()
 
