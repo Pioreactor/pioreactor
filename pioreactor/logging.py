@@ -8,6 +8,7 @@ from typing import Optional
 from json_log_formatter import JSONFormatter  # type: ignore
 
 from pioreactor.config import config
+from pioreactor.exc import NotAssignedAnExperimentError
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import publish_to_pioreactor_cloud
@@ -163,7 +164,10 @@ def create_logger(
     if experiment is None:
         # this fails if we aren't able to connect to leader, hence the to_mqtt check
         if to_mqtt:
-            experiment = get_assigned_experiment_name(unit)
+            try:
+                experiment = get_assigned_experiment_name(unit)
+            except NotAssignedAnExperimentError:
+                experiment = UNIVERSAL_EXPERIMENT
         else:
             experiment = UNIVERSAL_EXPERIMENT
 
