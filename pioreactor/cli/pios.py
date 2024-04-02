@@ -14,6 +14,7 @@ from pioreactor.cluster_management import get_workers_in_inventory
 from pioreactor.config import config
 from pioreactor.config import get_leader_hostname
 from pioreactor.logging import create_logger
+from pioreactor.pubsub import create_client
 from pioreactor.utils import ClusterJobManager
 from pioreactor.utils.networking import add_local
 from pioreactor.utils.networking import cp_file_across_cluster
@@ -469,7 +470,7 @@ if am_I_leader():
 
         with ClusterJobManager(units) as cm:
             if not cm.kill_jobs(all_jobs=all_jobs, experiment=experiment, job_source=job_source, name=name):
-                raise click.Abort()
+                raise click.Abort("Could not be completed. Check connections to workers?")
 
     @pios.command(
         name="run",
@@ -673,8 +674,9 @@ if am_I_leader():
         type=click.STRING,
         help="specify a hostname, default is all active units",
     )
+    @click.option("-y", is_flag=True, help="Skip asking for confirmation.")
     @click.pass_context
-    def update_settings(ctx, job: str, units: tuple[str, ...]) -> None:
+    def update_settings(ctx, job: str, units: tuple[str, ...], y: bool) -> None:
         """
 
         Examples
@@ -686,26 +688,20 @@ if am_I_leader():
 
         extra_args = {ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)}
 
-        if "unit" in extra_args:
-            click.echo("Did you mean to use 'units' instead of 'unit'? Exiting.", err=True)
-            raise click.Abort()
-
         assert len(extra_args) > 0
 
-        from pioreactor.pubsub import publish
-
-        def _thread_function(unit: str) -> bool:
-            experiment = get_assigned_experiment_name(unit)
-            for setting, value in extra_args.items():
-                publish(f"pioreactor/{unit}/{experiment}/{job}/{setting}/set", value)
-            return True
+        if not y:
+            confirm = input(f"Confirm updating {job}'s {extra_args} on {units}? Y/n: ").strip()
+            if confirm != "Y":
+                raise click.Abort()
 
         units = universal_identifier_to_all_active_workers(units)
-        with ThreadPoolExecutor(max_workers=len(units)) as executor:
-            results = executor.map(_thread_function, units)
 
-        if not all(results):
-            raise click.Abort()
+        with create_client() as client:
+            for unit in units:
+                experiment = get_assigned_experiment_name(unit)
+                for setting, value in extra_args.items():
+                    client.publish(f"pioreactor/{unit}/{experiment}/{job}/{setting}/set", value)
 
 
 if __name__ == "__main__":

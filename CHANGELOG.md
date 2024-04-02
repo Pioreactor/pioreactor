@@ -2,7 +2,7 @@
 
 #### Highlights
 
- - The Pioreactor leader can now support multiple experiments! If you have more than one Pioreactor, this change allow you to run multiple experiments simultaneously, assign Pioreactors to different experiments, and control all experiments concurrently. No more multi-leader set ups - all you need is a single leader and multiple workers!
+ - The Pioreactor leader can now support multiple experiments! If you have more than one Pioreactor, this change allows you to run multiple experiments simultaneously, assign Pioreactors to different experiments, and manage all experiments concurrently. No more multi-leader set ups - all you need is a single leader and multiple workers!
  - Ability to delete experiments from the UI.
  - Better control over your cluster, using the Inventory page in the UI.
  - Ship with network configuration of local-link connections: plug in an ethernet from your Pioreactor to your computer, and after invoking `sudo nmcli c PioreactorLocalLink up`, you should be able to visit `http://pioreactor.local` in your browser.
