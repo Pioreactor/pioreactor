@@ -585,7 +585,7 @@ class JobManager:
 
             # Construct the SELECT query
             select_query = f"""
-            SELECT
+                SELECT
                     name, pid
                 FROM pio_job_metadata
                 WHERE is_running=1

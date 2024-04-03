@@ -8,7 +8,7 @@
  - Ship with network configuration of local-link connections: plug in an ethernet from your Pioreactor to your computer, and after invoking `sudo nmcli c PioreactorLocalLink up`, you should be able to visit `http://pioreactor.local` in your browser.
 
  #### Enhancements
- - replace the `ip` file that is written to on startup with a new `network_info` file that contains the hostname, IPv4 address, and MAC addresses.
+ - replace the `ip` file that is written to on startup with a new `network_info.txt` file that contains the hostname, IPv4 address, and MAC addresses.
  - Adding the ethernet (wired) mac address to the system tab.
  - new Python module for controlling workers: `pioreactor.cluster_management`
  - by default, for new installs, the local-access-point SSID is now `pioreactor_<hostname>`.
@@ -30,6 +30,9 @@
 #### Bug fixes
  - fix for not being able to access `http://pioreactor.local` reliably.
  - fix for multiple exporting datasets when selecting "All experiments"
+
+#### Known bugs
+ - removing a Pioreactor leader from an experiment will stop any experiment profiles running that are associated to that experiment.
 
 
 ### 24.3.10

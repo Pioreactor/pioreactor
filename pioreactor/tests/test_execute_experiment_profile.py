@@ -36,7 +36,7 @@ def test_hours_to_seconds() -> None:
 def test_execute_experiment_profile_order(
     mock__load_experiment_profile,
 ) -> None:
-    experiment = "test_execute_experiment_profile_order"
+    experiment = "_testing_experiment"
 
     action1 = Start(hours_elapsed=0 / 60 / 60)
     action2 = Start(hours_elapsed=2 / 60 / 60)
@@ -76,7 +76,7 @@ def test_execute_experiment_profile_order(
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_profile_hack_for_led_intensity(mock__load_experiment_profile) -> None:
-    experiment = "test_execute_experiment_profile_hack_for_led_intensity"
+    experiment = "_testing_experiment"
     action1 = Start(hours_elapsed=0 / 60 / 60, options={"A": 50})
     action2 = Update(hours_elapsed=1 / 60 / 60, options={"A": 40, "B": 22.5})
     action3 = Stop(hours_elapsed=2 / 60 / 60)
@@ -122,7 +122,7 @@ def test_execute_experiment_profile_hack_for_led_intensity(mock__load_experiment
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_log_actions(mock__load_experiment_profile, active_workers_in_cluster) -> None:
-    experiment = "test_execute_experiment_log_actions"
+    experiment = "_testing_experiment"
 
     action1 = Log(hours_elapsed=0 / 60 / 60, options=_LogOptions(message="test {unit}"))
     action2 = Log(
@@ -165,7 +165,7 @@ def test_execute_experiment_log_actions(mock__load_experiment_profile, active_wo
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_start_and_stop_controller(mock__load_experiment_profile) -> None:
-    experiment = "test_execute_experiment_start_and_stop_controller"
+    experiment = "_testing_experiment"
     action1 = Start(hours_elapsed=0 / 60 / 60, options={"automation_name": "silent"})
     action2 = Stop(
         hours_elapsed=1 / 60 / 60,
@@ -186,7 +186,7 @@ def test_execute_experiment_start_and_stop_controller(mock__load_experiment_prof
 def test_execute_experiment_update_automations_not_controllers(
     mock__load_experiment_profile,
 ) -> None:
-    experiment = "test_execute_experiment_update_automations_not_controllers"
+    experiment = "_testing_experiment"
     action1 = Start(
         hours_elapsed=0 / 60 / 60,
         options={"automation_name": "thermostat", "target_temperature": 25},
@@ -207,7 +207,7 @@ def test_execute_experiment_update_automations_not_controllers(
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_update_automation(mock__load_experiment_profile) -> None:
-    experiment = "test_execute_experiment_update_automation"
+    experiment = "_testing_experiment"
     action1 = Start(
         hours_elapsed=0 / 60 / 60,
         options={"automation_name": "thermostat", "target_temperature": 25},
@@ -234,7 +234,7 @@ def test_execute_experiment_update_automation(mock__load_experiment_profile) -> 
 def test_execute_experiment_start_controller_and_stop_automation_fails(
     mock__load_experiment_profile,
 ) -> None:
-    experiment = "test_execute_experiment_start_controller_and_stop_automation_fails"
+    experiment = "_testing_experiment"
     action1 = Start(hours_elapsed=0 / 60 / 60, options={"automation_name": "silent"})
     action2 = Stop(
         hours_elapsed=1 / 60 / 60,
@@ -261,7 +261,7 @@ def test_execute_experiment_start_controller_and_stop_automation_fails(
 def test_execute_experiment_start_automation_fails(
     mock__load_experiment_profile,
 ) -> None:
-    experiment = "test_execute_experiment_start_automation_fails"
+    experiment = "_testing_experiment"
     action = Start(hours_elapsed=0 / 60 / 60, options={"target_temperature": 20})
 
     profile = Profile(
@@ -287,7 +287,7 @@ def test_label_fires_a_relabel_to_leader_endpoint():
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_profile_simple_if2(mock__load_experiment_profile) -> None:
-    experiment = "test_execute_experiment_profile_simple_if2"
+    experiment = "_testing_experiment"
     action_true = Start(hours_elapsed=0, if_="${{1 == 1}}")
 
     profile = Profile(
@@ -325,7 +325,7 @@ def test_execute_experiment_profile_simple_if2(mock__load_experiment_profile) ->
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_profile_simple_if(mock__load_experiment_profile) -> None:
-    experiment = "test_execute_experiment_profile_simple_if"
+    experiment = "_testing_experiment"
     action_true = Start(hours_elapsed=0, if_="1 == 1")
     action_false = Start(hours_elapsed=0, if_="False")
     action_true_conditional = Start(hours_elapsed=1 / 60 / 60, if_="(1 >= 0) and (0 <= 1)")
@@ -412,7 +412,7 @@ def test_execute_experiment_profile_expression(mock__load_experiment_profile) ->
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_wrong_syntax_in_if_statement(mock__load_experiment_profile) -> None:
-    experiment = "test_wrong_syntax_in_if_statement"
+    experiment = "_testing_experiment"
     action = Start(hours_elapsed=0, if_="1 % 1 and ")
 
     profile = Profile(
@@ -436,7 +436,7 @@ def test_wrong_syntax_in_if_statement(mock__load_experiment_profile) -> None:
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_repeat_block(mock__load_experiment_profile) -> None:
-    experiment = "test_repeat_block"
+    experiment = "_testing_experiment"
     repeat_num = 6
     repeat_every_hours = 0.001
     start = Start(hours_elapsed=0)
