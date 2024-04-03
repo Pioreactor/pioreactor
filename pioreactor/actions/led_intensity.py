@@ -6,7 +6,6 @@ from contextlib import nullcontext
 from os import getpid
 from typing import Any
 from typing import Iterator
-from typing import Optional
 
 import click
 from msgspec.json import encode
@@ -96,11 +95,11 @@ def _update_current_state(
 
 def led_intensity(
     desired_state: dict[LedChannel, LedIntensityValue],
-    unit: Optional[str] = None,
-    experiment: Optional[str] = None,
+    unit: str | None = None,
+    experiment: str | None = None,
     verbose: bool = True,
-    source_of_event: Optional[str] = None,
-    pubsub_client: Optional[Client] = None,
+    source_of_event: str | None = None,
+    pubsub_client: Client | None = None,
 ) -> bool:
     """
     Change the intensity of the LED channels A,B,C, or D to an value between 0 and 100.
@@ -247,11 +246,11 @@ def led_intensity(
 )
 @click.option("--no-log", is_flag=True, help="Add to log")
 def click_led_intensity(
-    a: Optional[LedIntensityValue] = None,
-    b: Optional[LedIntensityValue] = None,
-    c: Optional[LedIntensityValue] = None,
-    d: Optional[LedIntensityValue] = None,
-    source_of_event: Optional[str] = None,
+    a: LedIntensityValue | None = None,
+    b: LedIntensityValue | None = None,
+    c: LedIntensityValue | None = None,
+    d: LedIntensityValue | None = None,
+    source_of_event: str | None = None,
     no_log: bool = False,
 ) -> bool:
     """

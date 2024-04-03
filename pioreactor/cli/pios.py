@@ -1,6 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-CLI for running the commands on workers
+CLI for running the commands on workers, or otherwise interacting with the workers.
+
+general API:
+
+ - All `pios` commands should have a -y to confirm the execution. (there are exceptions for no good reason)
+
+
 """
 from __future__ import annotations
 
@@ -32,7 +38,7 @@ def pios() -> None:
     """
     Command each of the worker Pioreactors with the `pios` command.
 
-    See full documentation here: https://docs.pioreactor.com/user_guide/Advanced/Command%20line%20interface#leader-only-commands-to-control-workers
+    See full documentation here: https://docs.pioreactor.com/user-guide/cli#leader-only-commands-to-control-workers
 
     Report errors or feedback here: https://github.com/Pioreactor/pioreactor/issues
     """

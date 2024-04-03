@@ -15,7 +15,6 @@ from typing import Any
 from typing import Callable
 from typing import cast
 from typing import Generator
-from typing import Optional
 from typing import overload
 from typing import Sequence
 
@@ -140,9 +139,9 @@ class managed_lifecycle:
         unit: str,
         experiment: str,
         name: str,
-        mqtt_client: Optional[Client] = None,
+        mqtt_client: Client | None = None,
         exit_on_mqtt_disconnect: bool = False,
-        mqtt_client_kwargs: Optional[dict] = None,
+        mqtt_client_kwargs: dict | None = None,
         ignore_is_active_state=False,  # hack and kinda gross
         source: str = "app",
         job_source: str | None = None,
@@ -350,8 +349,11 @@ def get_cpu_temperature() -> float:
     if whoami.is_testing_env():
         return 22.0
 
-    with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
-        cpu_temperature_celcius = int(f.read().strip()) / 1000.0
+    try:
+        with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
+            cpu_temperature_celcius = int(f.read().strip()) / 1000.0
+    except FileNotFoundError:
+        return -999
     return cpu_temperature_celcius
 
 

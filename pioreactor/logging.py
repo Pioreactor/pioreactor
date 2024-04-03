@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import logging
 from logging import handlers
-from typing import Optional
 
 from json_log_formatter import JSONFormatter  # type: ignore
 
@@ -132,11 +131,11 @@ class MQTTHandler(logging.Handler):
 
 def create_logger(
     name: str,
-    unit: Optional[str] = None,
-    experiment: Optional[str] = None,
+    unit: str | None = None,
+    experiment: str | None = None,
     source: str = "app",
     to_mqtt: bool = True,
-    pub_client: Optional[Client] = None,
+    pub_client: Client | None = None,
 ) -> CustomLogger:
     """
 

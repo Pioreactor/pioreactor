@@ -22,7 +22,6 @@ from http.client import HTTPMessage
 from http.client import HTTPResponse
 from http.client import HTTPSConnection
 from typing import Generator
-from typing import Optional
 
 from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
@@ -72,7 +71,7 @@ def get(url, **kwargs) -> Response:
     return request("GET", url=url, **kwargs)
 
 
-def post(url, body: Optional[bytes] = None, **kwargs) -> Response:
+def post(url, body: bytes | None = None, **kwargs) -> Response:
     """post performs an HTTP POST request."""
     return request("POST", url=url, body=body, **kwargs)
 
@@ -82,12 +81,12 @@ def head(url, **kwargs) -> Response:
     return request("HEAD", url=url, **kwargs)
 
 
-def put(url, body: Optional[bytes] = None, **kwargs) -> Response:
+def put(url, body: bytes | None = None, **kwargs) -> Response:
     """put performs an HTTP PUT request."""
     return request("PUT", url=url, body=body, **kwargs)
 
 
-def patch(url, body: Optional[bytes] = None, **kwargs) -> Response:
+def patch(url, body: bytes | None = None, **kwargs) -> Response:
     """patch performs an HTTP PATCH request."""
     return request("PATCH", url=url, body=body, **kwargs)
 

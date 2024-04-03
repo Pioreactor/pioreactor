@@ -202,13 +202,13 @@ class Monitor(LongRunningBackgroundJob):
                 with open("/sys/class/net/wlan0/address", "r") as f:
                     self.wlan_mac_address = f.read().strip()
             except FileNotFoundError:
-                self.wlan_mac_address = "NA"
+                self.wlan_mac_address = "Not available"
 
             try:
                 with open("/sys/class/net/eth0/address", "r") as f:
                     self.eth_mac_address = f.read().strip()
             except FileNotFoundError:
-                self.eth_mac_address = "NA"
+                self.eth_mac_address = "Not available"
 
         self.logger.debug(f"IPv4 address: {self.ipv4}")
         self.logger.debug(f"WLAN MAC address: {self.wlan_mac_address}")
