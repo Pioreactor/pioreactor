@@ -584,7 +584,14 @@ class JobManager:
             where_clause = " AND ".join([f"{key} = :{key}" for key in query.keys() if query[key] is not None])
 
             # Construct the SELECT query
-            select_query = f"SELECT name, pid FROM pio_job_metadata WHERE {where_clause} AND is_running=1;"
+            select_query = f"""
+            SELECT
+                    name, pid
+                FROM pio_job_metadata
+                WHERE is_running=1
+                AND name NOT IN {self.LONG_RUNNING_JOBS}
+                AND {where_clause};
+            """
 
             # Execute the query and fetch the results
             self.cursor.execute(select_query, query)

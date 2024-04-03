@@ -34,15 +34,11 @@ else
 fi
 
 # Write the information to a file in key-value format
-echo "HOSTNAME=$(hostname)" >> /boot/firmware/network_info
-echo "IP=$IP" > /boot/firmware/network_info
-echo "WLAN_MAC=$WLAN_MAC" >> /boot/firmware/network_info
-echo "ETH_MAC=$ETH_MAC" >> /boot/firmware/network_info
+echo "HOSTNAME=$(hostname)" >> /boot/firmware/network_info.txt
+echo "IP=$IP" > /boot/firmware/network_info.txt
+echo "WLAN_MAC=$WLAN_MAC" >> /boot/firmware/network_info.txt
+echo "ETH_MAC=$ETH_MAC" >> /boot/firmware/network_info.txt
 
-# Check if the IP variable is empty and log an error if necessary
-if [ -z "$IP" ]; then
-    echo "Error: No IP address found." >> /boot/firmware/network_info
-fi
 EOF
 )
 
@@ -54,29 +50,38 @@ sudo chmod +x /usr/local/bin/write_ip.sh
 
 
 
-
-
 #### LEADER only!
 
-#### Fix issue with `pio log` commands in systemd services failing
+PIO_DIR=/home/pioreactor/.pioreactor
+# Get the hostname
+HOSTNAME=$(hostname)
 
-# List of systemd files
-systemd_files=("/lib/systemd/system/avahi_aliases.service" "/lib/systemd/system/load_rp2040.service")
+# Get the leader address
+LEADER_ADDRESS=$(crudini --get $PIO_DIR/config.ini cluster.topology leader_address)
 
-# Loop through each file and add 'User=pioreactor' and 'EnvironmentFile=/etc/environment' under '[Service]' if they don't already exist
-for file in "${systemd_files[@]}"; do
-    sudo crudini --ini-options=nospace --set "$file" Service User pioreactor \
-                                  --set "$file" Service EnvironmentFile "/etc/environment"
-done
-
-sudo systemctl daemon-reload
-
-sudo systemctl restart avahi_aliases.service
-sudo systemctl restart load_rp2040.service
+if [ "$HOSTNAME.local" = "$LEADER_ADDRESS" ]; then
 
 
+    #### Fix issue with `pio log` commands in systemd services failing
 
-### update add_new_pioreactor_worker_from_leader to use pio workers discover
+    # List of systemd files
+    systemd_files=("/lib/systemd/system/avahi_aliases.service" "/lib/systemd/system/load_rp2040.service")
 
-FILE_PATH="/usr/local/bin/add_new_pioreactor_worker_from_leader.sh"
-sudo sed -i 's/pio discover-workers/pio workers discover/g' "$FILE_PATH"
+    # Loop through each file and add 'User=pioreactor' and 'EnvironmentFile=/etc/environment' under '[Service]' if they don't already exist
+    for file in "${systemd_files[@]}"; do
+        sudo crudini --ini-options=nospace --set "$file" Service User pioreactor \
+                                      --set "$file" Service EnvironmentFile "/etc/environment"
+    done
+
+    sudo systemctl daemon-reload
+
+    sudo systemctl restart avahi_aliases.service
+    sudo systemctl restart load_rp2040.service
+
+
+
+    ### update add_new_pioreactor_worker_from_leader to use pio workers discover
+
+    FILE_PATH="/usr/local/bin/add_new_pioreactor_worker_from_leader.sh"
+    sudo sed -i 's/pio discover-workers/pio workers discover/g' "$FILE_PATH"
+fi
