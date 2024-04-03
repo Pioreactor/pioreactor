@@ -11,7 +11,6 @@ from typing import Callable
 from typing import Optional
 
 import click
-import lgpio
 from msgspec.json import decode as loads
 
 from pioreactor import error_codes
@@ -160,6 +159,8 @@ class Monitor(LongRunningBackgroundJob):
         cls._post_button.append(function)
 
     def _setup_GPIO(self) -> None:
+        import lgpio
+
         set_gpio_availability(BUTTON_PIN, False)
         set_gpio_availability(LED_PIN, False)
 
@@ -429,6 +430,8 @@ class Monitor(LongRunningBackgroundJob):
         # we can delay this check until ready.
 
     def on_disconnected(self) -> None:
+        import lgpio
+
         self.led_off()
         with suppress(AttributeError):
             self._button_callback.cancel()
@@ -438,10 +441,14 @@ class Monitor(LongRunningBackgroundJob):
         set_gpio_availability(LED_PIN, True)
 
     def led_on(self) -> None:
+        import lgpio
+
         if not whoami.is_testing_env():
             lgpio.gpio_write(self._handle, LED_PIN, 1)
 
     def led_off(self) -> None:
+        import lgpio
+
         if not whoami.is_testing_env():
             lgpio.gpio_write(self._handle, LED_PIN, 0)
 

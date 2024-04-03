@@ -486,7 +486,10 @@ def update_app(
                 commands_and_priority.extend(
                     [
                         (f"wget -O /tmp/update.sql {url}", 5),
-                        (f'sudo sqlite3 {config.config["storage"]["database"]} < /tmp/update.sql', 6),
+                        (
+                            f'sudo sqlite3 {config.config["storage"]["database"]} < /tmp/update.sql || :',
+                            6,
+                        ),  # or True at the end, since this may run on workers, that's okay.
                     ]
                 )
             elif asset_name == "post_update.sh":

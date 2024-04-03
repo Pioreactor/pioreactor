@@ -9,8 +9,6 @@ from typing import Any
 from typing import Iterator
 from typing import Optional
 
-import lgpio
-
 from pioreactor import types as pt
 from pioreactor.exc import PWMError
 from pioreactor.hardware import GPIOCHIP
@@ -81,6 +79,8 @@ class SoftwarePWMOutputDevice:
     _started = False
 
     def __init__(self, pin: GpioPin, frequency: float = 100) -> None:
+        import lgpio
+
         self.pin = pin
         self.frequency = frequency
         self._handle = lgpio.gpiochip_open(GPIOCHIP)
@@ -89,6 +89,8 @@ class SoftwarePWMOutputDevice:
         lgpio.tx_pwm(self._handle, self.pin, self.frequency, 0)
 
     def start(self, initial_dc: pt.FloatBetween0and100) -> None:
+        import lgpio
+
         self._started = True
         self.dc = initial_dc
         lgpio.tx_pwm(self._handle, self.pin, self.frequency, self.dc)
@@ -102,6 +104,8 @@ class SoftwarePWMOutputDevice:
 
     @dc.setter
     def dc(self, dc: pt.FloatBetween0and100) -> None:
+        import lgpio
+
         dc = clamp(0.0, dc, 100.0)
         self._dc = dc
         if self._started:
@@ -115,6 +119,8 @@ class SoftwarePWMOutputDevice:
             raise ValueError("must call .start() first!")
 
     def close(self):
+        import lgpio
+
         lgpio.gpiochip_close(self._handle)
 
 

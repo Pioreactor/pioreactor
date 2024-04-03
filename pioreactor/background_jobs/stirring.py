@@ -10,7 +10,6 @@ from typing import Callable
 from typing import Optional
 
 import click
-import lgpio
 
 import pioreactor.types as pt
 from pioreactor import error_codes
@@ -56,6 +55,8 @@ class RpmCalculator:
         pass
 
     def setup(self) -> None:
+        import lgpio
+
         # we delay the setup so that when all other checks are done (like in stirring's uniqueness), we can start to
         # use the GPIO for this.
         set_gpio_availability(hardware.HALL_SENSOR_PIN, False)
@@ -79,6 +80,8 @@ class RpmCalculator:
         self._edge_callback.cancel()
 
     def turn_on_collection(self) -> None:
+        import lgpio
+
         self.collecting = True
 
         if not is_testing_env():
@@ -87,6 +90,8 @@ class RpmCalculator:
             )
 
     def clean_up(self) -> None:
+        import lgpio
+
         with suppress(AttributeError):
             self._edge_callback.cancel()
             lgpio.gpiochip_close(self._handle)
