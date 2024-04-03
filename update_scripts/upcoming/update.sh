@@ -47,10 +47,10 @@ EOF
 )
 
 # Write the new script content to the file
-echo "$NEW_SCRIPT" > /usr/local/bin/write_ip.sh
+sudo echo "$NEW_SCRIPT" > /usr/local/bin/write_ip.sh
 
 # Make the new script executable
-chmod +x /usr/local/bin/write_ip.sh
+sudo chmod +x /usr/local/bin/write_ip.sh
 
 
 

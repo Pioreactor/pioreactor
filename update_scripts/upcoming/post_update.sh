@@ -31,6 +31,5 @@ if [ "$HOSTNAME.local" = "$LEADER_ADDRESS" ]; then
         sqlite3 $DB_FILE "INSERT INTO experiment_worker_assignments (pioreactor_unit, experiment, assigned_at) SELECT pioreactor_unit, experiment, added_at FROM workers JOIN latest_experiment;"
     else
         echo "No units defined in cluster.inventory"
-        # Handle the case where no units are defined, if necessary
     fi
 fi
