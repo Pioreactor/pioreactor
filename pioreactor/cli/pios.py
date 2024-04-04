@@ -20,7 +20,6 @@ from pioreactor.cluster_management import get_workers_in_inventory
 from pioreactor.config import config
 from pioreactor.config import get_leader_hostname
 from pioreactor.logging import create_logger
-from pioreactor.pubsub import create_client
 from pioreactor.utils import ClusterJobManager
 from pioreactor.utils.networking import add_local
 from pioreactor.utils.networking import cp_file_across_cluster
@@ -691,6 +690,7 @@ if am_I_leader():
         > pios update-settings dosing_control --automation '{"type": "dosing", "automation_name": "silent", "args": {}}
 
         """
+        from pioreactor.pubsub import create_client
 
         extra_args = {ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)}
 
