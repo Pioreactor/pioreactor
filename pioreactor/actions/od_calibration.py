@@ -90,6 +90,11 @@ def get_name_from_user() -> str:
 
 
 def get_metadata_from_user() -> tuple[pt.OD600, pt.OD600, pt.mL, pt.PdAngle, pt.PdChannel]:
+    if config["od_config"]["ir_led_intensity"] == "auto":
+        raise ValueError(
+            "Can't use auto with OD calibrations. Change ir_led_intensity in your config.ini to a numeric value (50 is good default)."
+        )
+
     initial_od600 = prompt(
         green("Provide the OD600 measurement of your initial, high density, culture"),
         type=click.FloatRange(min=0.01, clamp=False),
