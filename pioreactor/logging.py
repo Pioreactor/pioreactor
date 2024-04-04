@@ -3,19 +3,18 @@ from __future__ import annotations
 
 import logging
 from logging import handlers
+from typing import TYPE_CHECKING
 
 from json_log_formatter import JSONFormatter  # type: ignore
 
 from pioreactor.config import config
 from pioreactor.exc import NotAssignedAnExperimentError
-from pioreactor.pubsub import Client
-from pioreactor.pubsub import create_client
-from pioreactor.pubsub import publish_to_pioreactor_cloud
-from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
+if TYPE_CHECKING:
+    from pioreactor.pubsub import Client
 
 logging.raiseExceptions = False
 
@@ -72,6 +71,8 @@ class CustomLogger(logging.LoggerAdapter):
 
 class CustomisedJSONFormatter(JSONFormatter):
     def json_record(self, message: str, extra: dict, record: logging.LogRecord) -> dict:
+        from pioreactor.utils.timing import current_utc_timestamp
+
         extra["message"] = message
         extra["level"] = record.levelname
         extra["task"] = record.name
@@ -114,12 +115,6 @@ class MQTTHandler(logging.Handler):
         mqtt_msg = self.client.publish(
             self.topic, payload, qos=self.qos, retain=self.retain, **self.mqtt_kwargs
         )
-
-        if (record.levelno == logging.ERROR) and config.getboolean(
-            "data_sharing_with_pioreactor", "send_errors_to_Pioreactor", fallback=False
-        ):
-            publish_to_pioreactor_cloud("reported_errors", data_str=payload)
-
         # if Python exits too quickly, the last msg might never make it to the broker.
         mqtt_msg.wait_for_publish(timeout=2)
 
@@ -149,6 +144,7 @@ def create_logger(
         connect and log to MQTT
     """
     import colorlog
+    from pioreactor.pubsub import create_client
 
     logger = logging.getLogger(name)
 

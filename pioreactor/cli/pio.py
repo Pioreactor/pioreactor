@@ -21,7 +21,6 @@ import pioreactor
 from pioreactor import config
 from pioreactor import exc
 from pioreactor import plugin_management
-from pioreactor import pubsub
 from pioreactor import whoami
 from pioreactor.cli.lazy_group import LazyGroup
 from pioreactor.logging import create_logger
@@ -34,7 +33,11 @@ from pioreactor.utils.networking import is_using_local_access_point
 from pioreactor.utils.timing import current_utc_timestamp
 
 
-@click.group(cls=LazyGroup, lazy_subcommands={"run": "pioreactor.cli.run.run"}, invoke_without_command=True)
+@click.group(
+    cls=LazyGroup,
+    lazy_subcommands={"run": "pioreactor.cli.run.run", "workers": "pioreactor.cli.workers.workers"},
+    invoke_without_command=True,
+)
 @click.pass_context
 def pio(ctx) -> None:
     """
@@ -141,7 +144,9 @@ def blink() -> None:
     """
     monitor job is required to be running.
     """
-    pubsub.publish(
+    from pioreactor.pubsub import publish
+
+    publish(
         f"pioreactor/{whoami.get_unit_name()}/{whoami.UNIVERSAL_EXPERIMENT}/monitor/flicker_led_response_okay",
         1,
     )
@@ -274,6 +279,8 @@ def update_settings(ctx, job: str) -> None:
     > pio update-settings dosing_control --automation '{"type": "dosing", "automation_name": "silent", "args": {}}
 
     """
+    from pioreactor.pubsub import publish
+
     unit = whoami.get_unit_name()
     exp = whoami.get_assigned_experiment_name(unit)
 
@@ -283,7 +290,7 @@ def update_settings(ctx, job: str) -> None:
 
     for setting, value in extra_args.items():
         setting = setting.replace("-", "_")
-        pubsub.publish(f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value, qos=pubsub.QOS.EXACTLY_ONCE)
+        publish(f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value)
 
 
 @pio.group()
@@ -522,7 +529,9 @@ def update_app(
 
     logger.notice(f"Updated {whoami.get_unit_name()} to version {version_installed}.")  # type: ignore
     # everything work? Let's publish to MQTT. This is a terrible hack, as monitor should do this.
-    pubsub.publish(
+    from pioreactor.pubsub import publish
+
+    publish(
         f"pioreactor/{whoami.get_unit_name()}/{whoami.UNIVERSAL_EXPERIMENT}/monitor/versions/set",
         dumps({"app": version_installed, "timestamp": current_utc_timestamp()}),
     )
@@ -585,25 +594,6 @@ pio.add_command(plugin_management.click_uninstall_plugin)
 pio.add_command(plugin_management.click_list_plugins)
 
 if whoami.am_I_leader():
-    from pioreactor.cluster_management import add_worker
-    from pioreactor.cluster_management import remove_worker
-    from pioreactor.cluster_management import assign_worker_to_experiment
-    from pioreactor.cluster_management import unassign_worker_from_experiment
-    from pioreactor.cluster_management import update_active
-    from pioreactor.cluster_management import discover_workers
-    from pioreactor.cluster_management import cluster_status
-
-    @pio.group(short_help="manage workers")
-    def workers():
-        pass
-
-    workers.add_command(add_worker)
-    workers.add_command(remove_worker)
-    workers.add_command(assign_worker_to_experiment)
-    workers.add_command(unassign_worker_from_experiment)
-    workers.add_command(update_active)
-    workers.add_command(discover_workers)
-    workers.add_command(cluster_status)
 
     @pio.command(short_help="access the db CLI")
     def db() -> None:

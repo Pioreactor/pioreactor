@@ -17,6 +17,7 @@ from typing import cast
 from typing import Generator
 from typing import overload
 from typing import Sequence
+from typing import TYPE_CHECKING
 
 from diskcache import Cache  # type: ignore
 
@@ -25,13 +26,11 @@ from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.exc import NotActiveWorkerError
 from pioreactor.exc import RoleError
-from pioreactor.pubsub import Client
-from pioreactor.pubsub import create_client
-from pioreactor.pubsub import QOS
-from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.utils.networking import add_local
 from pioreactor.utils.timing import current_utc_timestamp
 
+if TYPE_CHECKING:
+    from pioreactor.pubsub import Client
 
 JobMetadataKey = int
 
@@ -146,6 +145,8 @@ class managed_lifecycle:
         source: str = "app",
         job_source: str | None = None,
     ) -> None:
+        from pioreactor.pubsub import create_client
+
         if not ignore_is_active_state and not whoami.is_active(unit):
             raise NotActiveWorkerError(f"{unit} is not active.")
 
@@ -160,7 +161,7 @@ class managed_lifecycle:
         last_will = {
             "topic": f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
             "payload": b"lost",
-            "qos": QOS.EXACTLY_ONCE,
+            "qos": 2,
             "retain": True,
         }
 
@@ -201,7 +202,7 @@ class managed_lifecycle:
         self.mqtt_client.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
             self.state,
-            qos=QOS.AT_LEAST_ONCE,
+            qos=1,
             retain=True,
         )
 
@@ -217,7 +218,7 @@ class managed_lifecycle:
         self.mqtt_client.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
             b"disconnected",
-            qos=QOS.AT_LEAST_ONCE,
+            qos=1,
             retain=True,
         )
         if not self._externally_provided_client:
@@ -234,6 +235,8 @@ class managed_lifecycle:
             self._exit()
 
     def start_passive_listeners(self) -> None:
+        from pioreactor.pubsub import subscribe_and_callback
+
         subscribe_and_callback(
             self.exit_from_mqtt,
             [
@@ -500,12 +503,14 @@ class MQTTKill:
         self.list_of_job_names.append(name)
 
     def kill(self):
+        from pioreactor.pubsub import create_client
+
         with create_client() as client:
             for i, name in enumerate(self.list_of_job_names):
                 msg = client.publish(
                     f"pioreactor/{whoami.get_unit_name()}/{whoami.UNIVERSAL_EXPERIMENT}/{name}/$state/set",
                     "disconnected",
-                    qos=QOS.AT_LEAST_ONCE,
+                    qos=1,
                 )
 
                 if (i + 1) == len(self.list_of_job_names):

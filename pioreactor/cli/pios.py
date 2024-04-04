@@ -707,6 +707,7 @@ if am_I_leader():
             for unit in units:
                 experiment = get_assigned_experiment_name(unit)
                 for setting, value in extra_args.items():
+                    setting = setting.replace("-", "_")
                     client.publish(f"pioreactor/{unit}/{experiment}/{job}/{setting}/set", value)
 
 
