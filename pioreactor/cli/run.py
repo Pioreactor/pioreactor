@@ -11,7 +11,7 @@ from pioreactor.whoami import am_I_leader
 
 
 @click.group(short_help="run a job")
-def run(source) -> None:
+def run() -> None:
     pass
 
 
