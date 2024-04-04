@@ -11,7 +11,6 @@ general API:
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
-from typing import Optional
 
 import click
 
@@ -27,7 +26,6 @@ from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import am_I_leader
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
-from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
@@ -41,7 +39,7 @@ def pios() -> None:
 
     Report errors or feedback here: https://github.com/Pioreactor/pioreactor/issues
     """
-    if not am_I_leader() and not is_testing_env():
+    if not am_I_leader():
         click.echo("workers cannot run `pios` commands. Try `pio` instead.", err=True)
         raise click.Abort()
 
@@ -225,10 +223,10 @@ if am_I_leader():
     @click.option("-y", is_flag=True, help="Skip asking for confirmation.")
     def update(
         units: tuple[str, ...],
-        branch: Optional[str],
-        repo: Optional[str],
-        version: Optional[str],
-        source: Optional[str],
+        branch: str | None,
+        repo: str | None,
+        version: str | None,
+        source: str | None,
         y: bool,
     ) -> None:
         """
@@ -238,8 +236,6 @@ if am_I_leader():
         from sh import ErrorReturnCode_255  # type: ignore
         from sh import ErrorReturnCode_1
         from shlex import join
-
-        # type: ignore
 
         logger = create_logger("update", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
         if version is not None:
