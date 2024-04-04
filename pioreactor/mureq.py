@@ -13,9 +13,7 @@ import contextlib
 import io
 import os.path
 import socket
-import ssl
 import urllib.parse
-from base64 import b64encode
 from http.client import HTTPConnection
 from http.client import HTTPException
 from http.client import HTTPMessage
@@ -34,6 +32,8 @@ JSON_HEADERS = {"Content-Type": "application/json"}
 
 
 def basic_auth(username: str, password: str) -> str:
+    from base64 import b64encode
+
     # get(..., headers={ 'Authorization' : f'Basic {basic_auth(username, password)}'})
     token = b64encode(f"{username}:{password}".encode("utf-8")).decode("ascii")
     return token
@@ -410,6 +410,8 @@ def _prepare_request(
     verify=True,
     ssl_context=None,
 ):
+    import ssl
+
     """Parses the URL, returns the path and the right HTTPConnection subclass."""
     parsed_url = urllib.parse.urlparse(url)
 
