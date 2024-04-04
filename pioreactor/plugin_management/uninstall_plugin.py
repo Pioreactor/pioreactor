@@ -44,7 +44,7 @@ def uninstall_plugin(name_of_plugin: str) -> None:
     return
 
 
-@click.command(name="uninstall-plugin", short_help="uninstall an existing plugin")
+@click.command(name="uninstall", short_help="uninstall an existing plugin")
 @click.argument("name-of-plugin")
 def click_uninstall_plugin(name_of_plugin: str) -> None:
     uninstall_plugin(name_of_plugin)

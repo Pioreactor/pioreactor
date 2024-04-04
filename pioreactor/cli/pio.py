@@ -7,7 +7,6 @@ cmd line interface for running individual pioreactor units (including leader)
 """
 from __future__ import annotations
 
-import subprocess
 from os import geteuid
 from shlex import quote
 from time import sleep
@@ -20,7 +19,6 @@ from msgspec.json import encode as dumps
 import pioreactor
 from pioreactor import config
 from pioreactor import exc
-from pioreactor import plugin_management
 from pioreactor import whoami
 from pioreactor.cli.lazy_group import LazyGroup
 from pioreactor.logging import create_logger
@@ -35,7 +33,11 @@ from pioreactor.utils.timing import current_utc_timestamp
 
 @click.group(
     cls=LazyGroup,
-    lazy_subcommands={"run": "pioreactor.cli.run.run", "workers": "pioreactor.cli.workers.workers"},
+    lazy_subcommands={
+        "run": "pioreactor.cli.run.run",
+        "workers": "pioreactor.cli.workers.workers",
+        "plugins": "pioreactor.cli.plugins.plugins",
+    },
     invoke_without_command=True,
 )
 @click.pass_context
@@ -384,6 +386,8 @@ def update_app(
     """
     Update the Pioreactor core software
     """
+    import subprocess
+
     logger = create_logger("update-app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT)
 
     commands_and_priority: list[tuple[str, float]] = []
@@ -545,6 +549,8 @@ def update_firmware(version: Optional[str]) -> None:
 
     # TODO: this needs accept a --source arg
     """
+    import subprocess
+
     logger = create_logger("update-app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT)
     commands_and_priority: list[tuple[str, int]] = []
 
@@ -589,10 +595,6 @@ def update_firmware(version: Optional[str]) -> None:
     logger.notice(f"Updated Pioreactor firmware to version {version_installed}.")  # type: ignore
 
 
-pio.add_command(plugin_management.click_install_plugin)
-pio.add_command(plugin_management.click_uninstall_plugin)
-pio.add_command(plugin_management.click_list_plugins)
-
 if whoami.am_I_leader():
 
     @pio.command(short_help="access the db CLI")
@@ -625,6 +627,8 @@ if whoami.am_I_leader():
         Source, if provided, should be a .tar.gz with a top-level dir like pioreactorui-{version}/
         This is what is provided from Github releases.
         """
+        import subprocess
+
         logger = create_logger(
             "update-ui", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
         )
