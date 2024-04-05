@@ -1,3 +1,17 @@
+### Upcoming
+
+#### Enhancements
+ - Faster app start-up performance, which should translate to faster response times.
+
+#### Breaking changes
+ - `pio install-plugin` is now `pio plugin install`. Likewise for `uninstall`.
+ - `pios install-plugin` is now `pios plugin install`. Likewise for `uninstall`.
+
+#### Bug fixes
+ - fixed Log table in the UI not showing all entries
+ - fixed HAT button response in the UI.
+
+
 ### 24.4.3
 
 #### Highlights
