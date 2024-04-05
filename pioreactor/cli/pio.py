@@ -163,6 +163,8 @@ def kill(name: str | None, experiment: str | None, job_source: str | None, all_j
     """
     stop job(s).
     """
+    if not (name or experiment or job_source or all_jobs):
+        raise click.Abort("Provide an option to kill.")
     with JobManager() as jm:
         count = jm.count_jobs(all_jobs=all_jobs, name=name, experiment=experiment, job_source=job_source)
         jm.kill_jobs(all_jobs=all_jobs, name=name, experiment=experiment, job_source=job_source)

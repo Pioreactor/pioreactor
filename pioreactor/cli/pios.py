@@ -279,7 +279,11 @@ if am_I_leader():
         if not all(results):
             raise click.Abort()
 
-    @pios.command("install-plugin", short_help="install a plugin on workers")
+    @pios.group()
+    def plugins():
+        pass
+
+    @plugins.command("install", short_help="install a plugin on workers")
     @click.argument("plugin")
     @click.option(
         "--units",
@@ -288,17 +292,25 @@ if am_I_leader():
         type=click.STRING,
         help="specify a Pioreactor name, default is all active units",
     )
-    def install_plugin(plugin: str, units: tuple[str, ...]) -> None:
+    @click.option("-y", is_flag=True, help="skip asking for confirmation")
+    def install_plugin(plugin: str, units: tuple[str, ...], y: bool) -> None:
         """
         Installs a plugin to worker and leader
         """
         from sh import ssh  # type: ignore
         from sh import ErrorReturnCode_255  # type: ignore
         from sh import ErrorReturnCode_1  # type: ignore
+        from shlex import quote
 
         logger = create_logger("install_plugin", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
-        command = f"pio install-plugin {plugin}"
+        command = f"pio plugins install {quote(plugin)}"
+        units = add_leader(universal_identifier_to_all_workers(units))
+
+        if not y:
+            confirm = input(f"Confirm installing {quote(plugin)} on {units}? Y/n: ").strip()
+            if confirm != "Y":
+                raise click.Abort()
 
         def _thread_function(unit: str):
             logger.debug(f"Executing `{command}` on {unit}...")
@@ -314,14 +326,13 @@ if am_I_leader():
                 logger.debug(e.stderr, exc_info=True)
                 return False
 
-        units = add_leader(universal_identifier_to_all_workers(units))
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
             results = executor.map(_thread_function, units)
 
         if not all(results):
             raise click.Abort()
 
-    @pios.command("uninstall-plugin", short_help="uninstall a plugin on workers")
+    @plugins.command("uninstall", short_help="uninstall a plugin on workers")
     @click.argument("plugin")
     @click.option(
         "--units",
@@ -330,7 +341,8 @@ if am_I_leader():
         type=click.STRING,
         help="specify a Pioreactor name, default is all active units",
     )
-    def uninstall_plugin(plugin: str, units: tuple[str, ...]) -> None:
+    @click.option("-y", is_flag=True, help="skip asking for confirmation")
+    def uninstall_plugin(plugin: str, units: tuple[str, ...], y: bool) -> None:
         """
         Uninstalls a plugin from worker and leader
         """
@@ -338,10 +350,17 @@ if am_I_leader():
         from sh import ssh  # type: ignore
         from sh import ErrorReturnCode_255  # type: ignore
         from sh import ErrorReturnCode_1  # type: ignore
+        from shlex import quote
 
         logger = create_logger("uninstall_plugin", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
-        command = f"pio uninstall-plugin {plugin}"
+        command = f"pio plugin uninstall {quote(plugin)}"
+        units = add_leader(universal_identifier_to_all_workers(units))
+
+        if not y:
+            confirm = input(f"Confirm uninstalling {quote(plugin)} on {units}? Y/n: ").strip()
+            if confirm != "Y":
+                raise click.Abort()
 
         def _thread_function(unit: str):
             logger.debug(f"Executing `{command}` on {unit}...")
@@ -357,7 +376,6 @@ if am_I_leader():
                 logger.debug(e.stderr, exc_info=True)
                 return False
 
-        units = add_leader(universal_identifier_to_all_workers(units))
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
             results = executor.map(_thread_function, units)
 
