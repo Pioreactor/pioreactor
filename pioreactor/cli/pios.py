@@ -11,7 +11,6 @@ general API:
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
-from typing import Optional
 
 import click
 
@@ -20,7 +19,6 @@ from pioreactor.cluster_management import get_workers_in_inventory
 from pioreactor.config import config
 from pioreactor.config import get_leader_hostname
 from pioreactor.logging import create_logger
-from pioreactor.pubsub import create_client
 from pioreactor.utils import ClusterJobManager
 from pioreactor.utils.networking import add_local
 from pioreactor.utils.networking import cp_file_across_cluster
@@ -28,7 +26,6 @@ from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import am_I_leader
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
-from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
@@ -42,7 +39,7 @@ def pios() -> None:
 
     Report errors or feedback here: https://github.com/Pioreactor/pioreactor/issues
     """
-    if not am_I_leader() and not is_testing_env():
+    if not am_I_leader():
         click.echo("workers cannot run `pios` commands. Try `pio` instead.", err=True)
         raise click.Abort()
 
@@ -226,10 +223,10 @@ if am_I_leader():
     @click.option("-y", is_flag=True, help="Skip asking for confirmation.")
     def update(
         units: tuple[str, ...],
-        branch: Optional[str],
-        repo: Optional[str],
-        version: Optional[str],
-        source: Optional[str],
+        branch: str | None,
+        repo: str | None,
+        version: str | None,
+        source: str | None,
         y: bool,
     ) -> None:
         """
@@ -239,8 +236,6 @@ if am_I_leader():
         from sh import ErrorReturnCode_255  # type: ignore
         from sh import ErrorReturnCode_1
         from shlex import join
-
-        # type: ignore
 
         logger = create_logger("update", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
         if version is not None:
@@ -284,7 +279,11 @@ if am_I_leader():
         if not all(results):
             raise click.Abort()
 
-    @pios.command("install-plugin", short_help="install a plugin on workers")
+    @pios.group()
+    def plugins():
+        pass
+
+    @plugins.command("install", short_help="install a plugin on workers")
     @click.argument("plugin")
     @click.option(
         "--units",
@@ -293,17 +292,25 @@ if am_I_leader():
         type=click.STRING,
         help="specify a Pioreactor name, default is all active units",
     )
-    def install_plugin(plugin: str, units: tuple[str, ...]) -> None:
+    @click.option("-y", is_flag=True, help="skip asking for confirmation")
+    def install_plugin(plugin: str, units: tuple[str, ...], y: bool) -> None:
         """
         Installs a plugin to worker and leader
         """
         from sh import ssh  # type: ignore
         from sh import ErrorReturnCode_255  # type: ignore
         from sh import ErrorReturnCode_1  # type: ignore
+        from shlex import quote
 
         logger = create_logger("install_plugin", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
-        command = f"pio install-plugin {plugin}"
+        command = f"pio plugins install {quote(plugin)}"
+        units = add_leader(universal_identifier_to_all_workers(units))
+
+        if not y:
+            confirm = input(f"Confirm installing {quote(plugin)} on {units}? Y/n: ").strip()
+            if confirm != "Y":
+                raise click.Abort()
 
         def _thread_function(unit: str):
             logger.debug(f"Executing `{command}` on {unit}...")
@@ -319,14 +326,13 @@ if am_I_leader():
                 logger.debug(e.stderr, exc_info=True)
                 return False
 
-        units = add_leader(universal_identifier_to_all_workers(units))
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
             results = executor.map(_thread_function, units)
 
         if not all(results):
             raise click.Abort()
 
-    @pios.command("uninstall-plugin", short_help="uninstall a plugin on workers")
+    @plugins.command("uninstall", short_help="uninstall a plugin on workers")
     @click.argument("plugin")
     @click.option(
         "--units",
@@ -335,7 +341,8 @@ if am_I_leader():
         type=click.STRING,
         help="specify a Pioreactor name, default is all active units",
     )
-    def uninstall_plugin(plugin: str, units: tuple[str, ...]) -> None:
+    @click.option("-y", is_flag=True, help="skip asking for confirmation")
+    def uninstall_plugin(plugin: str, units: tuple[str, ...], y: bool) -> None:
         """
         Uninstalls a plugin from worker and leader
         """
@@ -343,10 +350,17 @@ if am_I_leader():
         from sh import ssh  # type: ignore
         from sh import ErrorReturnCode_255  # type: ignore
         from sh import ErrorReturnCode_1  # type: ignore
+        from shlex import quote
 
         logger = create_logger("uninstall_plugin", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
-        command = f"pio uninstall-plugin {plugin}"
+        command = f"pio plugin uninstall {quote(plugin)}"
+        units = add_leader(universal_identifier_to_all_workers(units))
+
+        if not y:
+            confirm = input(f"Confirm uninstalling {quote(plugin)} on {units}? Y/n: ").strip()
+            if confirm != "Y":
+                raise click.Abort()
 
         def _thread_function(unit: str):
             logger.debug(f"Executing `{command}` on {unit}...")
@@ -362,7 +376,6 @@ if am_I_leader():
                 logger.debug(e.stderr, exc_info=True)
                 return False
 
-        units = add_leader(universal_identifier_to_all_workers(units))
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
             results = executor.map(_thread_function, units)
 
@@ -691,6 +704,7 @@ if am_I_leader():
         > pios update-settings dosing_control --automation '{"type": "dosing", "automation_name": "silent", "args": {}}
 
         """
+        from pioreactor.pubsub import create_client
 
         extra_args = {ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)}
 
@@ -707,6 +721,7 @@ if am_I_leader():
             for unit in units:
                 experiment = get_assigned_experiment_name(unit)
                 for setting, value in extra_args.items():
+                    setting = setting.replace("-", "_")
                     client.publish(f"pioreactor/{unit}/{experiment}/{job}/{setting}/set", value)
 
 

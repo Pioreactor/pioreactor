@@ -33,7 +33,7 @@ def install_plugin(name_of_plugin: str, source: str | None = None) -> None:
         raise BashScriptError(f"Failed to install plugin {name_of_plugin}. See logs.")
 
 
-@click.command(name="install-plugin", short_help="install a plugin")
+@click.command(name="install", short_help="install a plugin")
 @click.argument("name-of-plugin")
 @click.option(
     "--source",

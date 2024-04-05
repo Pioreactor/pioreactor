@@ -7,7 +7,6 @@ cmd line interface for running individual pioreactor units (including leader)
 """
 from __future__ import annotations
 
-import subprocess
 from os import geteuid
 from shlex import quote
 from time import sleep
@@ -18,13 +17,10 @@ from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
 
 import pioreactor
-from pioreactor import actions
-from pioreactor import background_jobs as jobs
 from pioreactor import config
 from pioreactor import exc
-from pioreactor import plugin_management
-from pioreactor import pubsub
 from pioreactor import whoami
+from pioreactor.cli.lazy_group import LazyGroup
 from pioreactor.logging import create_logger
 from pioreactor.mureq import get
 from pioreactor.mureq import HTTPException
@@ -35,7 +31,15 @@ from pioreactor.utils.networking import is_using_local_access_point
 from pioreactor.utils.timing import current_utc_timestamp
 
 
-@click.group(invoke_without_command=True)
+@click.group(
+    cls=LazyGroup,
+    lazy_subcommands={
+        "run": "pioreactor.cli.run.run",
+        "workers": "pioreactor.cli.workers.workers",
+        "plugins": "pioreactor.cli.plugins.plugins",
+    },
+    invoke_without_command=True,
+)
 @click.pass_context
 def pio(ctx) -> None:
     """
@@ -142,7 +146,9 @@ def blink() -> None:
     """
     monitor job is required to be running.
     """
-    pubsub.publish(
+    from pioreactor.pubsub import publish
+
+    publish(
         f"pioreactor/{whoami.get_unit_name()}/{whoami.UNIVERSAL_EXPERIMENT}/monitor/flicker_led_response_okay",
         1,
     )
@@ -157,16 +163,12 @@ def kill(name: str | None, experiment: str | None, job_source: str | None, all_j
     """
     stop job(s).
     """
+    if not (name or experiment or job_source or all_jobs):
+        raise click.Abort("Provide an option to kill.")
     with JobManager() as jm:
         count = jm.count_jobs(all_jobs=all_jobs, name=name, experiment=experiment, job_source=job_source)
         jm.kill_jobs(all_jobs=all_jobs, name=name, experiment=experiment, job_source=job_source)
     click.echo(f"Killed {count} job(s).")
-
-
-@pio.group(short_help="run a job")
-@click.option("--source", "-s", default="user", help="source of command")
-def run(source) -> None:
-    pass
 
 
 @pio.command(name="version", short_help="print the Pioreactor software version")
@@ -281,6 +283,8 @@ def update_settings(ctx, job: str) -> None:
     > pio update-settings dosing_control --automation '{"type": "dosing", "automation_name": "silent", "args": {}}
 
     """
+    from pioreactor.pubsub import publish
+
     unit = whoami.get_unit_name()
     exp = whoami.get_assigned_experiment_name(unit)
 
@@ -290,7 +294,7 @@ def update_settings(ctx, job: str) -> None:
 
     for setting, value in extra_args.items():
         setting = setting.replace("-", "_")
-        pubsub.publish(f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value, qos=pubsub.QOS.EXACTLY_ONCE)
+        publish(f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value)
 
 
 @pio.group()
@@ -384,6 +388,8 @@ def update_app(
     """
     Update the Pioreactor core software
     """
+    import subprocess
+
     logger = create_logger("update-app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT)
 
     commands_and_priority: list[tuple[str, float]] = []
@@ -529,7 +535,9 @@ def update_app(
 
     logger.notice(f"Updated {whoami.get_unit_name()} to version {version_installed}.")  # type: ignore
     # everything work? Let's publish to MQTT. This is a terrible hack, as monitor should do this.
-    pubsub.publish(
+    from pioreactor.pubsub import publish
+
+    publish(
         f"pioreactor/{whoami.get_unit_name()}/{whoami.UNIVERSAL_EXPERIMENT}/monitor/versions/set",
         dumps({"app": version_installed, "timestamp": current_utc_timestamp()}),
     )
@@ -543,6 +551,8 @@ def update_firmware(version: Optional[str]) -> None:
 
     # TODO: this needs accept a --source arg
     """
+    import subprocess
+
     logger = create_logger("update-app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT)
     commands_and_priority: list[tuple[str, int]] = []
 
@@ -587,64 +597,7 @@ def update_firmware(version: Optional[str]) -> None:
     logger.notice(f"Updated Pioreactor firmware to version {version_installed}.")  # type: ignore
 
 
-pio.add_command(plugin_management.click_install_plugin)
-pio.add_command(plugin_management.click_uninstall_plugin)
-pio.add_command(plugin_management.click_list_plugins)
-
-# this runs on both leader and workers
-run.add_command(jobs.monitor.click_monitor)
-
-
-run.add_command(jobs.growth_rate_calculating.click_growth_rate_calculating)
-run.add_command(jobs.stirring.click_stirring)
-run.add_command(jobs.od_reading.click_od_reading)
-run.add_command(jobs.dosing_control.click_dosing_control)
-run.add_command(jobs.led_control.click_led_control)
-run.add_command(jobs.temperature_control.click_temperature_control)
-
-run.add_command(actions.led_intensity.click_led_intensity)
-run.add_command(actions.pump.click_add_alt_media)
-run.add_command(actions.pump.click_add_media)
-run.add_command(actions.pump.click_remove_waste)
-run.add_command(actions.od_blank.click_od_blank)
-run.add_command(actions.self_test.click_self_test)
-run.add_command(actions.stirring_calibration.click_stirring_calibration)
-run.add_command(actions.pump_calibration.click_pump_calibration)
-run.add_command(actions.od_calibration.click_od_calibration)
-
-# TODO: this only adds to `pio run` - what if users want to add a high level command? Examples?
-for plugin in pioreactor.plugin_management.get_plugins().values():
-    for possible_entry_point in dir(plugin.module):
-        if possible_entry_point.startswith("click_"):
-            run.add_command(getattr(plugin.module, possible_entry_point))
-
-
 if whoami.am_I_leader():
-    from pioreactor.cluster_management import add_worker
-    from pioreactor.cluster_management import remove_worker
-    from pioreactor.cluster_management import assign_worker_to_experiment
-    from pioreactor.cluster_management import unassign_worker_from_experiment
-    from pioreactor.cluster_management import update_active
-    from pioreactor.cluster_management import discover_workers
-    from pioreactor.cluster_management import cluster_status
-
-    run.add_command(jobs.mqtt_to_db_streaming.click_mqtt_to_db_streaming)
-    run.add_command(jobs.watchdog.click_watchdog)
-    run.add_command(actions.export_experiment_data.click_export_experiment_data)
-    run.add_command(actions.backup_database.click_backup_database)
-    run.add_command(actions.experiment_profile.click_experiment_profile)
-
-    @pio.group(short_help="manage workers")
-    def workers():
-        pass
-
-    workers.add_command(add_worker)
-    workers.add_command(remove_worker)
-    workers.add_command(assign_worker_to_experiment)
-    workers.add_command(unassign_worker_from_experiment)
-    workers.add_command(update_active)
-    workers.add_command(discover_workers)
-    workers.add_command(cluster_status)
 
     @pio.command(short_help="access the db CLI")
     def db() -> None:
@@ -676,6 +629,8 @@ if whoami.am_I_leader():
         Source, if provided, should be a .tar.gz with a top-level dir like pioreactorui-{version}/
         This is what is provided from Github releases.
         """
+        import subprocess
+
         logger = create_logger(
             "update-ui", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
         )
