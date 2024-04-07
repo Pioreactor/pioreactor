@@ -12,7 +12,7 @@
 
 #### Bug fixes
  - fixed Log table in the UI not showing all entries.
- - fixed HAT button response in the UI.
+ - fixed HAT but``` a ton response in the UI.
 
 ### 24.4.3
 
