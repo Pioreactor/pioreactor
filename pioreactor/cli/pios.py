@@ -4,8 +4,7 @@ CLI for running the commands on workers, or otherwise interacting with the worke
 
 general API:
 
- - All `pios` commands should have a -y to confirm the execution. (there are exceptions for no good reason)
-
+ - All `pios` commands should have a -y to confirm the execution.
 
 """
 from __future__ import annotations
@@ -405,7 +404,8 @@ if am_I_leader():
         is_flag=True,
         help="don't save to db",
     )
-    def sync_configs(units: tuple[str, ...], shared: bool, specific: bool, skip_save: bool) -> None:
+    @click.option("-y", is_flag=True, help="(does nothing currently)")
+    def sync_configs(units: tuple[str, ...], shared: bool, specific: bool, skip_save: bool, y: bool) -> None:
         """
         Deploys the shared config.ini and worker specific config.inis to the workers.
 

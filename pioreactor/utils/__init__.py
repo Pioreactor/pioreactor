@@ -514,7 +514,7 @@ class MQTTKill:
                 )
 
                 if (i + 1) == len(self.list_of_job_names):
-                    # list one
+                    # last one
                     msg.wait_for_publish(2)
 
 
