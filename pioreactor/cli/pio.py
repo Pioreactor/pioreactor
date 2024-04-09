@@ -410,23 +410,20 @@ def update_app(
                     (f"rm -rf {tmp_release_folder}", -3),
                     (f"unzip {source} -d {tmp_release_folder}", -2),
                     (f"unzip {tmp_release_folder}/wheels_{version_installed}.zip -d {tmp_release_folder}/wheels", 0),
-                    (f"mv {tmp_release_folder}/pioreactorui_*.tar.gz {tmp_dir}/pioreactorui_archive || :", 0.5),  # move ui folder to be accessed by a `pio update ui`
-                    (f"[[ -f {tmp_release_folder}/pre_update.sh ]] && sudo bash {tmp_release_folder}/pre_update.sh || :", 1),
+                    (f"[[ -f {tmp_release_folder}/pre_update.sh ]] && sudo bash {tmp_release_folder}/pre_update.sh", 1),
                     (f"sudo pip install --no-index --find-links={tmp_release_folder}/wheels/ {tmp_release_folder}/pioreactor-{version_installed}-py3-none-any.whl", 2),
-                    (f"[[ -f {tmp_release_folder}/update.sh ]] && sudo bash {tmp_release_folder}/update.sh || :", 3),
-                    (f"[[ -f {tmp_release_folder}/post_update.sh ]] && sudo bash {tmp_release_folder}/post_update.sh || :", 5),
+                    (f"[[ -f {tmp_release_folder}/update.sh ]] && sudo bash {tmp_release_folder}/update.sh", 3),
+                    (f"[[ -f {tmp_release_folder}/post_update.sh ]] && sudo bash {tmp_release_folder}/post_update.sh", 5),
                     (f"rm -rf {tmp_release_folder}", 6),
                 ]
             )
-            # fmt: on
 
             if whoami.am_I_leader():
-                commands_and_priority.append(
-                    (
-                        f'sudo sqlite3 {config.config["storage"]["database"]} < {tmp_release_folder}/update.sql || :',
-                        4,
-                    )
-                )
+                commands_and_priority.extend([
+                    (f"mv {tmp_release_folder}/pioreactorui_*.tar.gz {tmp_dir}/pioreactorui_archive", 0.5),  # move ui folder to be accessed by a `pio update ui`
+                    (f'sudo sqlite3 {config.config["storage"]["database"]} < {tmp_release_folder}/update.sql', 4)
+                ])
+            # fmt: on
 
         elif source.endswith(".whl"):
             # provided a whl
