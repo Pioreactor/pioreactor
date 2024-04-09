@@ -50,7 +50,7 @@ def test_plugin_is_available_to_run() -> None:
 
 def test_list_plugins() -> None:
     runner = CliRunner()
-    result = runner.invoke(pio, ["list-plugins"])
+    result = runner.invoke(pio, ["plugins", "list"])
     assert "example_plugin==0.0.1" in result.output
 
 

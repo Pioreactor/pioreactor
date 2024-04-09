@@ -29,8 +29,9 @@ from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 
-@click.group()
-def pios() -> None:
+@click.group(invoke_without_command=True)
+@click.pass_context
+def pios(ctx) -> None:
     """
     Command each of the worker Pioreactors with the `pios` command.
 
@@ -38,6 +39,11 @@ def pios() -> None:
 
     Report errors or feedback here: https://github.com/Pioreactor/pioreactor/issues
     """
+
+    if ctx.invoked_subcommand is None:
+        click.echo(ctx.get_help())
+
+    # this is run even if workers run `pios plugins etc.`
     if not am_I_leader():
         click.echo("workers cannot run `pios` commands. Try `pio` instead.", err=True)
         raise click.Abort()

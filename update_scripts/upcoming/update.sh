@@ -7,6 +7,7 @@ set -e
 
 export LC_ALL=C
 
+
 PIO_DIR=/home/pioreactor/.pioreactor
 # Get the hostname
 HOSTNAME=$(hostname)
@@ -18,6 +19,7 @@ if [ "$HOSTNAME.local" = "$LEADER_ADDRESS" ]; then
 
 
     for file in $PIO_DIR/config_*.ini; do
+        crudini --set "$file" pioreactor bioreactor pioreactor_20ml
         crudini --set "$file" pioreactor version 1.0
     done
      crudini --set $PIO_DIR/config.ini pioreactor

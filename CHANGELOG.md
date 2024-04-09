@@ -7,12 +7,13 @@
  - Adding `[pioreactor]` section to config.inis
 
 #### Breaking changes
- - `pio install-plugin` is now `pio plugin install`. Likewise for `uninstall`.
- - `pios install-plugin` is now `pios plugin install`. Likewise for `uninstall`.
+ - `pio install-plugin` is now `pio plugins install`. Likewise for `uninstall`.
+ - `pio list-plugins` is now `pio plugins list`.
+ - `pios install-plugin` is now `pios plugins install`. Likewise for `uninstall`.
 
 #### Bug fixes
  - fixed Log table in the UI not showing all entries.
- - fixed HAT but``` a ton response in the UI.
+ - fixed HAT button response in the UI.
 
 ### 24.4.3
 
