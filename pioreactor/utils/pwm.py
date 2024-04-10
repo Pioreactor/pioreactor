@@ -178,8 +178,8 @@ class PWM:
         pubsub_client: Optional[Client] = None,
         logger: Optional[CustomLogger] = None,
     ) -> None:
-        self.unit = unit or get_unit_name()
-        self.experiment = experiment or get_assigned_experiment_name(unit)
+        self.unit: str = unit or get_unit_name()
+        self.experiment: str = experiment or get_assigned_experiment_name(unit)
 
         if pubsub_client is None:
             self._external_client = False

@@ -113,6 +113,10 @@ jobs:
             echo "$line"
             wget "$line"
           done < ../assets.txt
+          [ -f pre_update.sh ] || touch pre_update.sh
+          [ -f update.sh ] || touch update.sh
+          [ -f post_update.sh ] || touch post_update.sh
+          [ -f update.sql ] || touch update.sql
       - name: Zip the assets
         run: |
           cd release_assets

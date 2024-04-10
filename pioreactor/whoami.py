@@ -63,7 +63,7 @@ def _get_assigned_experiment_name(unit_name: str) -> str:
                 exit_reason = "auth"
                 break
             elif e.status_code == 404:
-                raise NotAssignedAnExperimentError("Worker is not assigned to an experiment")
+                raise NotAssignedAnExperimentError(f"Worker {unit_name} is not assigned to an experiment")
         except mureq.HTTPException:
             exit_reason = "connection_refused"
         except Exception:
@@ -85,8 +85,6 @@ def _get_assigned_experiment_name(unit_name: str) -> str:
         logger.warning(
             f"Not able to access experiments in UI. Check http://{leader_address} is online and check network."
         )
-    elif exit_reason == "unassigned":
-        logger.warning(f"Worker {unit_name} not found or not assigned to any experiment.")
     return NO_EXPERIMENT
 
 
@@ -109,7 +107,7 @@ def is_active(unit_name: str) -> bool:
         return bool(data["is_active"])
     except mureq.HTTPErrorStatus as e:
         if e.status_code == 404:
-            raise NoWorkerFoundError("Worker is not present in leader's inventory")
+            raise NoWorkerFoundError(f"Worker {unit_name} is not present in leader's inventory")
         else:
             raise e
     except mureq.HTTPException as e:

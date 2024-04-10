@@ -403,28 +403,28 @@ def update_app(
             # provided a release archive
             version_installed = re.search(r"release_(.*).zip$", source).groups()[0]  # type: ignore
             tmp_dir = tempfile.gettempdir()
-            tmp_release_folder = f"{tmp_dir}/release_{version_installed}"
+            tmp_rlse_dir = f"{tmp_dir}/release_{version_installed}"
             # fmt: off
             commands_and_priority.extend(
                 [
-                    (f"rm -rf {tmp_release_folder}", -3),
-                    (f"unzip {source} -d {tmp_release_folder}", -2),
-                    (f"unzip {tmp_release_folder}/wheels_{version_installed}.zip -d {tmp_release_folder}/wheels", 0),
-                    (f"[ -f {tmp_release_folder}/pre_update.sh ] && sudo bash {tmp_release_folder}/pre_update.sh || :", 1),
-                    (f"sudo pip install --no-index --find-links={tmp_release_folder}/wheels/ {tmp_release_folder}/pioreactor-{version_installed}-py3-none-any.whl", 2),
-                    (f"[ -f {tmp_release_folder}/update.sh ] && sudo bash {tmp_release_folder}/update.sh || :", 3),
-                    (f"[ -f {tmp_release_folder}/post_update.sh ] && sudo bash {tmp_release_folder}/post_update.sh || :", 5),
-                    (f"rm -rf {tmp_release_folder}", 6),
+                    (f"rm -rf {tmp_rlse_dir}", -99),
+                    (f"unzip {source} -d {tmp_rlse_dir}", 0),
+                    (f"unzip {tmp_rlse_dir}/wheels_{version_installed}.zip -d {tmp_rlse_dir}/wheels", 1),
+                    (f"sudo bash {tmp_rlse_dir}/pre_update.sh", 2),
+                    (f"sudo pip install --no-index --find-links={tmp_rlse_dir}/wheels/ {tmp_rlse_dir}/pioreactor-{version_installed}-py3-none-any.whl", 3),
+                    (f"sudo bash {tmp_rlse_dir}/update.sh", 4),
+                    (f"sudo bash {tmp_rlse_dir}/post_update.sh", 20),
+                    (f"rm -rf {tmp_rlse_dir}", 99),
                 ]
             )
 
             if whoami.am_I_leader():
                 commands_and_priority.extend([
-                    (f"mv {tmp_release_folder}/pioreactorui_*.tar.gz {tmp_dir}/pioreactorui_archive", 0.5),  # move ui folder to be accessed by a `pio update ui`
-                    (f'[ -f {tmp_release_folder}/update.sql ] && sudo sqlite3 {config.config["storage"]["database"]} < {tmp_release_folder}/update.sql || :', 4)
+                    (f"mv {tmp_rlse_dir}/pioreactorui_*.tar.gz {tmp_dir}/pioreactorui_archive", 20),  # move ui folder to be accessed by a `pio update ui`
+                    (f'sudo sqlite3 {config.config["storage"]["database"]} < {tmp_rlse_dir}/update.sql', 10)
                 ])
-            # fmt: on
 
+            # fmt: on
         elif source.endswith(".whl"):
             # provided a whl
             version_installed = source
