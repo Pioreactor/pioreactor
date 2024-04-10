@@ -420,7 +420,7 @@ def update_app(
 
             if whoami.am_I_leader():
                 commands_and_priority.extend([
-                    (f"mv {tmp_rlse_dir}/pioreactorui_*.tar.gz {tmp_dir}/pioreactorui_archive", 20),  # move ui folder to be accessed by a `pio update ui`
+                    (f"mv {tmp_rlse_dir}/pioreactorui_*.tar.gz {tmp_dir}/pioreactorui_archive", 98),  # move ui folder to be accessed by a `pio update ui`
                     (f'sudo sqlite3 {config.config["storage"]["database"]} < {tmp_rlse_dir}/update.sql', 10)
                 ])
 
