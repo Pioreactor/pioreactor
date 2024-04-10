@@ -178,12 +178,21 @@ class PWM:
         pubsub_client: Optional[Client] = None,
         logger: Optional[CustomLogger] = None,
     ) -> None:
+<<<<<<< Updated upstream
         self.unit: str = unit or get_unit_name()
         self.experiment: str = experiment or get_assigned_experiment_name(unit)
+=======
+        self.unit = unit or get_unit_name()
+<<<<<<< Updated upstream
+        self.experiment = experiment or get_latest_experiment_name()
+=======
+        self.experiment = experiment or get_assigned_experiment_name(self.unit)
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
 
         if pubsub_client is None:
             self._external_client = False
-            self.pubsub_client = create_client(client_id=f"pwm-{unit}-{experiment}-{pin}")
+            self.pubsub_client = create_client(client_id=f"pwm-{self.unit}-{experiment}-{pin}")
         else:
             self._external_client = True
             self.pubsub_client = pubsub_client
