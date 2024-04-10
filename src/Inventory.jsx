@@ -507,14 +507,22 @@ function WorkerCard(props) {
               <code className={classes.code}>{versions.app || "-"}</code>
             </td>
           </tr>
+          <tr>
+            <td className={classes.dataTableQuestion}>
+                Raspberry Pi
+            </td>
+            <td className={classes.dataTableResponse}>
+              <code className={classes.code}>{versions.rpi_machine || "-"}</code>
+            </td>
+          </tr>
           </tbody>
         </table>
         <Divider style={{margin: "5px 0px"}}/>
       </CardContent>
       <CardActions style={{display: "flex", justifyContent: "space-between"}}>
         <div>
-        <Blink unit={unit} client={client}/>
-          </div>
+          <Blink unit={unit} client={client}/>
+        </div>
         <div>
           <Unassign unit={unit} experimentAssigned={experimentAssigned} setExperimentAssigned={setExperimentAssigned} />
           <Reboot unit={unit} />

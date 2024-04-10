@@ -19,7 +19,7 @@ function TactileButtonNotification(props) {
 
   const onMessage = (topic, msg, packet) => {
     if (msg.toString() === "True"){
-      var unit = msg.topic.split("/")[1]
+      var unit = topic.toString().split("/")[1]
       setUnit(unit)
       setOpen(true)
     }

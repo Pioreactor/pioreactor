@@ -47,14 +47,12 @@ export const ExperimentProvider = ({ children }) => {
       setAllExperiments((prevExperiment) => [newExperiment, ...prevExperiment])
     } else {
       // PATCH
-      {
-        setAllExperiments((prevExperiments) => {
-          const updatedExperiments = [...prevExperiments];
-          const index = updatedExperiments.findIndex(exp => exp.experiment === newExperiment.experiment);
-          updatedExperiments[index] = newExperiment;
-          return updatedExperiments;
-        });
-      }
+      setAllExperiments((prevExperiments) => {
+        const updatedExperiments = [...prevExperiments];
+        const index = updatedExperiments.findIndex(exp => exp.experiment === newExperiment.experiment);
+        updatedExperiments[index] = newExperiment;
+        return updatedExperiments;
+      });
     }
 
   };

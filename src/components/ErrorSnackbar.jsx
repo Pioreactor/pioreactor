@@ -11,7 +11,6 @@ function ErrorSnackbar(props) {
   const [msg, setMsg] = React.useState("")
   const [level, setLevel] = React.useState("error")
   const [task, setTask] = React.useState("")
-  const [relabelMap, setRelabelMap] = React.useState({})
   const {client, subscribeToTopic } = useMQTT();
   const { experimentMetadata } = useExperiment();
 

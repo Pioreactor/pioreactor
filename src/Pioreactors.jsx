@@ -392,7 +392,7 @@ function ButtonStopProcess({experiment}) {
 
   const handleClick = () => {
     confirm({
-      description: 'This will immediately stop all running activities in assigned Pioreactor units. Do you wish to continue?',
+      description: 'This will immediately stop all running activities in assigned Pioreactor units, and any experiment profiles running for this experiment. Do you wish to continue?',
       title: "Stop all activities?",
       confirmationText: "Confirm",
       confirmationButtonProps: {color: "primary"},
@@ -2407,15 +2407,17 @@ function SettingSwitchField(props){
 
 
 
-function ActiveUnits(props){
+function ActiveUnits({experiment, config, units}){
   const [relabelMap, setRelabelMap] = useState({})
 
   useEffect(() => {
-    getRelabelMap(setRelabelMap, props.experiment)
-  }, [])
+    if (experiment){
+      getRelabelMap(setRelabelMap, experiment)
+    }
+  }, [experiment])
 
-  const cards = props.units.map(unit =>
-      <PioreactorCard isUnitActive={true} key={unit} unit={unit} config={props.config} experiment={props.experiment} label={relabelMap[unit]}/>
+  const cards = units.map(unit =>
+      <PioreactorCard isUnitActive={true} key={unit} unit={unit} config={config} experiment={experiment} label={relabelMap[unit]}/>
   )
   var emptyState = (
     <div style={{textAlign: "center", marginBottom: '50px', marginTop: "50px"}}>
@@ -2443,7 +2445,7 @@ function ActiveUnits(props){
       </div>
     </div>
 
-    {(props.units.length === 0) && (props.experiment) ? emptyState : cards }
+    {(units.length === 0) && (experiment) ? emptyState : cards }
 
   </React.Fragment>
 )}
@@ -2694,7 +2696,7 @@ function PioreactorCard(props){
                 />
               </div>
               <div>
-                <FlashLEDButton client={client} disabled={!isUnitActive} config={config} unit={unit}/>
+                <FlashLEDButton client={client} disabled={!isUnitActive} unit={unit}/>
               </div>
               <div>
                 <CalibrateDialog

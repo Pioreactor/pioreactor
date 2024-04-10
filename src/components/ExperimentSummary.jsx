@@ -10,9 +10,6 @@ import InputLabel from '@mui/material/InputLabel';
 import Divider from '@mui/material/Divider';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import TimelapseIcon from '@mui/icons-material/Timelapse';
-import AddIcon from '@mui/icons-material/Add';
-import { useConfirm } from 'material-ui-confirm';
-import { Link } from 'react-router-dom';
 import ManageExperimentMenu from "./ManageExperimentMenu";
 
 
@@ -130,7 +127,6 @@ function ExperimentSummary({experimentMetadata, updateExperiment}){
   const classes = useStyles();
   const experiment = experimentMetadata.experiment
   const startedAt = experimentMetadata.created_at
-  const desc = experimentMetadata.description
   const deltaHours = experimentMetadata.delta_hours
   return(
     <React.Fragment>

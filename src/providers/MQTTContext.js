@@ -131,8 +131,8 @@ export const MQTTProvider = ({name, config, children, experiment}) => {
       setClient(mqttClient);
 
       return () => {
-        mqttClient.end();
         clearTrie(topicTrie.current);
+        mqttClient.end();
       };
     }
   }, [config, name, experiment]);
