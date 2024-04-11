@@ -196,6 +196,7 @@ def plot_data(
     plt.title(title)
     plt.xlabel("OD600")
     plt.ylabel("OD Reading (Raw)")
+
     plt.plot_size(105, 22)
 
     if interpolation_curve:
@@ -203,6 +204,9 @@ def plot_data(
         plt.plot_size(145, 26)
 
     plt.xlim(x_min, x_max)
+    plt.yfrequency(6)
+    plt.xfrequency(6)
+
     plt.show()
 
 

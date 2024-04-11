@@ -5,6 +5,7 @@
  - Log when workers change experiment assignments.
  - Log when workers change active status.
  - Adding `[pioreactor]` section to config.inis
+ - improvements to calibration charts
 
 #### Breaking changes
  - `pio install-plugin` is now `pio plugins install`. Likewise for `uninstall`.

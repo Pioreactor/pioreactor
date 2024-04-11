@@ -13,16 +13,15 @@ PIO_DIR=/home/pioreactor/.pioreactor
 HOSTNAME=$(hostname)
 
 # Get the leader address
-LEADER_ADDRESS=$(crudini --get $PIO_DIR/config.ini cluster.topology leader_address)
+LEADER_HOSTNAME=$(crudini --get $PIO_DIR/config.ini cluster.topology leader_hostname)
 
-if [ "$HOSTNAME.local" = "$LEADER_ADDRESS" ]; then
-
+if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
 
     for file in $PIO_DIR/config_*.ini; do
-        crudini --set "$file" pioreactor bioreactor pioreactor_20ml
-        crudini --set "$file" pioreactor version 1.0
+        crudini --set "$file" pioreactor bioreactor pioreactor_20ml \
+                --set "$file" pioreactor version 1.0
     done
      crudini --set $PIO_DIR/config.ini pioreactor
 
-    pios sync-configs
+    sudo -u pioreactor pios sync-configs
 fi

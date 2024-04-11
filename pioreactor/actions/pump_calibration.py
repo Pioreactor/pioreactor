@@ -259,6 +259,9 @@ def plot_data(x, y, title, x_min=None, x_max=None, interpolation_curve=None, hig
     plt.xlabel("Duration")
     plt.ylabel("Volume")
     plt.xlim(x_min, x_max)
+    plt.yfrequency(6)
+    plt.xfrequency(6)
+
     plt.show()
 
 
