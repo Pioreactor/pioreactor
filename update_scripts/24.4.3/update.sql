@@ -17,6 +17,5 @@ CREATE TABLE IF NOT EXISTS workers (
 );
 
 
-
 ALTER TABLE experiment_profile_runs
 ADD COLUMN experiment TEXT;
