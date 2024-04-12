@@ -81,7 +81,7 @@ function UploadArchiveAndConfirm(props) {
       setErrorMsg(null)
     }
     else {
-      setErrorMsg("Not a valid release zip file. It should be a zip file, starting with `release_`.")
+      setErrorMsg("Not a valid release archive file. It should be a zip file, starting with `release_` and ending in `<version>.zip`. ")
     }
   };
 

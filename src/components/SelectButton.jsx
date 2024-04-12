@@ -84,6 +84,7 @@ const SelectButton = React.forwardRef((
         size='small'
         onClick={() => setOpen(true)}
         disabled={props.disabled}
+        role="button"
       >
         <ArrowDropDownIcon />
       </Button>

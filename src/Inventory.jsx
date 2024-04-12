@@ -36,7 +36,7 @@ import { useNavigate } from 'react-router-dom'
 
 
 
-const disconnectedGrey = "grey"
+const disconnectedGrey = "#585858"
 const lostRed = "#DE3618"
 const inactiveGrey = "#99999b"
 

@@ -66,7 +66,7 @@ import { useExperiment } from './providers/ExperimentContext';
 
 
 const readyGreen = "#4caf50"
-const disconnectedGrey = "grey"
+const disconnectedGrey = "#585858"
 const lostRed = "#DE3618"
 
 const useStyles = makeStyles((theme) => ({
@@ -2666,7 +2666,7 @@ function PioreactorCard(props){
   const indicatorLabel = getInicatorLabel(jobs.monitor.state, isUnitActive)
 
   return (
-    <Card className={classes.pioreactorCard} id={unit}>
+    <Card className={classes.pioreactorCard} id={unit} aria-disabled={!isUnitActive}>
       <CardContent className={classes.cardContent}>
         <div className={"fixme"}>
           <Typography className={clsx(classes.suptitle)} color="textSecondary">
