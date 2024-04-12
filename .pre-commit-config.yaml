@@ -56,3 +56,10 @@ repos:
     rev: v0.10.0.1
     hooks:
     -   id: shellcheck
+
+
+-   repo: https://github.com/sqlfluff/sqlfluff
+    rev: stable_version
+    hooks:
+      - id: sqlfluff-lint
+        args: [--dialect, "sqlite"]
