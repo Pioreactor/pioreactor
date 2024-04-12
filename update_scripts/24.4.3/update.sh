@@ -57,9 +57,9 @@ PIO_DIR=/home/pioreactor/.pioreactor
 HOSTNAME=$(hostname)
 
 # Get the leader address
-LEADER_ADDRESS=$(crudini --get $PIO_DIR/config.ini cluster.topology leader_address)
+LEADER_HOSTNAME=$(crudini --get $PIO_DIR/config.ini cluster.topology leader_hostname)
 
-if [ "$HOSTNAME.local" = "$LEADER_ADDRESS" ]; then
+if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
 
 
     #### Fix issue with `pio log` commands in systemd services failing

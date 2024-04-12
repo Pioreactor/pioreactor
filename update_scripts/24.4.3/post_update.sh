@@ -12,10 +12,10 @@ PIO_DIR=/home/pioreactor/.pioreactor
 HOSTNAME=$(hostname)
 
 # Get the leader address
-LEADER_ADDRESS=$(crudini --get $PIO_DIR/config.ini cluster.topology leader_address)
+LEADER_HOSTNAME=$(crudini --get $PIO_DIR/config.ini cluster.topology leader_hostname)
 DB_FILE=$(crudini --get $PIO_DIR/config.ini storage database)
 
-if [ "$HOSTNAME.local" = "$LEADER_ADDRESS" ]; then
+if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
 
     # we've added the new database tables, let's populate them.
     # 1. we add workers from the config to workers

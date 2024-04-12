@@ -11,6 +11,7 @@ repos:
     -   id: trailing-whitespace
     -   id: check-added-large-files
 
+
 -   repo: https://github.com/ambv/black
     rev: 23.3.0
     hooks:
@@ -49,3 +50,9 @@ repos:
         args:
           - --add-import
           - from __future__ import annotations
+
+
+-   repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+    -   id: shellcheck

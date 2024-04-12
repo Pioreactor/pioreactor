@@ -151,7 +151,7 @@ if am_I_leader():
         units = remove_leader(universal_identifier_to_all_workers(units))
 
         def _thread_function(unit: str) -> bool:
-            logger.debug(f"Moving {filepath} to {unit}:{filepath}...")
+            logger.debug(f"Copying {filepath} to {unit}:{filepath}...")
             try:
                 cp_file_across_cluster(unit, filepath, filepath, timeout=30)
                 return True
