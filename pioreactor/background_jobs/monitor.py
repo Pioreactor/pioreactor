@@ -111,6 +111,8 @@ class Monitor(LongRunningBackgroundJob):
             "hat_serial": version.serial_number,
             "rpi_machine": version.rpi_version_info,
             "timestamp": current_utc_timestamp(),
+            "pioreactor_version": ".".join(whoami.get_pioreactor_version()),
+            "pioreactor_bioreactor": whoami.get_pioreactor_model(),
         }
 
         self.logger.debug(f"Pioreactor software version: {self.versions['app']}")
@@ -118,6 +120,9 @@ class Monitor(LongRunningBackgroundJob):
         self.logger.debug(f"Pioreactor HAT version: {self.versions['hat']}")
         self.logger.debug(f"Pioreactor firmware version: {self.versions['firmware']}")
         self.logger.debug(f"Pioreactor HAT serial number: {self.versions['hat_serial']}")
+        self.logger.debug(
+            f"Pioreactor: {self.versions['pioreactor_bioreactor']} v{self.versions['pioreactor_version']}"
+        )
 
         self.button_down = False
         # set up GPIO for accessing the button and changing the LED
@@ -421,7 +426,9 @@ class Monitor(LongRunningBackgroundJob):
                 latest_backup_at = to_datetime(cache["latest_backup_timestamp"])
 
                 if (current_utc_datetime() - latest_backup_at).days > 30:
-                    self.logger.warning("Database hasn't been backed up in over 30 days.")
+                    self.logger.warning(
+                        "Database hasn't been backed up in over 30 days. Try running `pio run backup_database` between experiments."
+                    )
 
     def on_ready(self) -> None:
         self.flicker_led_response_okay()

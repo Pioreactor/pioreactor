@@ -161,6 +161,20 @@ def get_hashed_serial_number() -> str:
     return md5(serial_number.encode()).hexdigest()
 
 
+@cache
+def get_pioreactor_version() -> tuple[str, str]:
+    from pioreactor.config import config
+
+    return tuple(config.get("pioreactor", "version").split("."))  # type: ignore
+
+
+@cache
+def get_pioreactor_model() -> tuple[str, str]:
+    from pioreactor.config import config
+
+    return config.get("pioreactor", "bioreactor")
+
+
 def get_image_git_hash() -> str:
     try:
         with open("/home/pioreactor/.pioreactor/.image_info") as f:

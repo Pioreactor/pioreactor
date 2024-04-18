@@ -45,7 +45,9 @@ def get_active_workers_in_experiment(experiment: str) -> tuple[str, ...]:
 @click.command(name="add", short_help="add a pioreactor worker")
 @click.argument("hostname")
 @click.option("--password", "-p", default="raspberry")
-def add_worker(hostname: str, password: str) -> None:
+@click.option("--version", "-v", default="1.1")
+@click.option("--model", "-m", default="pioreactor_20ml")
+def add_worker(hostname: str, password: str, version: str, model: str) -> None:
     """
     Add a new pioreactor worker to the cluster. The pioreactor should already have the worker image installed and is turned on.
     """
@@ -61,6 +63,8 @@ def add_worker(hostname: str, password: str) -> None:
 
     hostname = hostname.removesuffix(".local")
     hostname_dot_local = hostname + ".local"
+
+    assert model == "pioreactor_20ml"
 
     # check to make sure <hostname>.local is on network
     checks, max_checks = 0, 15
@@ -82,7 +86,14 @@ def add_worker(hostname: str, password: str) -> None:
                         raise click.Abort()
 
         res = subprocess.run(
-            ["bash", "/usr/local/bin/add_new_pioreactor_worker_from_leader.sh", hostname, password],
+            [
+                "bash",
+                "/usr/local/bin/add_new_pioreactor_worker_from_leader.sh",
+                hostname,
+                password,
+                version,
+                model,
+            ],
             capture_output=True,
             text=True,
         )

@@ -66,11 +66,16 @@ class TemperatureController(BackgroundJob):
 
     """
 
-    MAX_TEMP_TO_REDUCE_HEATING = (
-        63.0  # ~PLA glass transition temp, and I've gone safely above this an it's not a problem.
-    )
-    MAX_TEMP_TO_DISABLE_HEATING = 65.0  # probably okay, but can't stay here for too long
-    MAX_TEMP_TO_SHUTDOWN = 66.0
+    if whoami.get_pioreactor_version() == ("1", "0"):
+        # made from PLA
+        MAX_TEMP_TO_REDUCE_HEATING = 63.0
+        MAX_TEMP_TO_DISABLE_HEATING = 65.0  # probably okay, but can't stay here for too long
+        MAX_TEMP_TO_SHUTDOWN = 66.0
+    elif whoami.get_pioreactor_version() >= ("1", "1"):
+        # made from PC-CF
+        MAX_TEMP_TO_REDUCE_HEATING = 78.0
+        MAX_TEMP_TO_DISABLE_HEATING = 80.0
+        MAX_TEMP_TO_SHUTDOWN = 85.0  # risk damaging PCB components
 
     INFERENCE_SAMPLES_EVERY_T_SECONDS: float = 5.0
     INFERENCE_N_SAMPLES: int = 29
