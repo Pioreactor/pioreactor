@@ -172,7 +172,7 @@ def get_pioreactor_version() -> tuple[str, str]:
 def get_pioreactor_model() -> tuple[str, str]:
     from pioreactor.config import config
 
-    return config.get("pioreactor", "bioreactor")
+    return config.get("pioreactor", "model")
 
 
 def get_image_git_hash() -> str:

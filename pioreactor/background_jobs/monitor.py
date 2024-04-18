@@ -112,7 +112,7 @@ class Monitor(LongRunningBackgroundJob):
             "rpi_machine": version.rpi_version_info,
             "timestamp": current_utc_timestamp(),
             "pioreactor_version": ".".join(whoami.get_pioreactor_version()),
-            "pioreactor_bioreactor": whoami.get_pioreactor_model(),
+            "pioreactor_model": whoami.get_pioreactor_model(),
         }
 
         self.logger.debug(f"Pioreactor software version: {self.versions['app']}")
@@ -121,7 +121,7 @@ class Monitor(LongRunningBackgroundJob):
         self.logger.debug(f"Pioreactor firmware version: {self.versions['firmware']}")
         self.logger.debug(f"Pioreactor HAT serial number: {self.versions['hat_serial']}")
         self.logger.debug(
-            f"Pioreactor: {self.versions['pioreactor_bioreactor']} v{self.versions['pioreactor_version']}"
+            f"Pioreactor: {self.versions['pioreactor_model']} v{self.versions['pioreactor_version']}"
         )
 
         self.button_down = False
