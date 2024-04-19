@@ -311,8 +311,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
             # (hence the _cleanup bit, don't use set_state)
             # but we still raise the error afterwards.
             self._check_published_settings(self.published_settings)
-            self._publish_properties_to_broker(self.published_settings)
-            self._publish_settings_to_broker(self.published_settings)
+            self._publish_properties_string_to_broker(self.published_settings)
+            self._publish_settings_metadata_to_broker(self.published_settings)
 
         except ValueError as e:
             self.logger.debug(e, exc_info=True)
@@ -540,8 +540,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self._check_published_settings(new_setting_pair)
         # we need create a new dict (versus just a key update), since published_settings is a class level prop, and editing this would have effects for other BackgroundJob classes.
         self.published_settings = self.published_settings | new_setting_pair
-        self._publish_properties_to_broker(self.published_settings)
-        self._publish_settings_to_broker(new_setting_pair)
+        self._publish_properties_string_to_broker(self.published_settings)
+        self._publish_settings_metadata_to_broker(new_setting_pair)
 
     ########### Private #############
 
@@ -585,9 +585,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # to overwrite potential last-will losts...
         # also reconnect to our old topics.
         def reconnect_protocol(client: Client, userdata, flags, rc: int, properties=None):
-            self.logger.info("Reconnected to the MQTT broker on leader.")  # type: ignore
-            self._publish_properties_to_broker(self.published_settings)
-            self._publish_settings_to_broker(self.published_settings)
+            self.logger.info("Reconnected to the MQTT broker on leader.")
+            self._publish_properties_string_to_broker(self.published_settings)
+            self._publish_settings_metadata_to_broker(self.published_settings)
+            self._publish_defined_settings_to_broker(self.published_settings)
             self._start_general_passive_listeners()
             self.start_passive_listeners()
 
@@ -805,7 +806,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         self._clean = True
 
-    def _publish_properties_to_broker(self, published_settings: dict[str, pt.PublishableSetting]) -> None:
+    def _publish_properties_string_to_broker(
+        self, published_settings: dict[str, pt.PublishableSetting]
+    ) -> None:
+        # publishes a comma seperated list of settings available to $properties. ex: state,rpm,duty_cycle
         # this follows some of the Homie convention: https://homieiot.github.io/specification/
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$properties",
@@ -814,7 +818,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
             retain=True,
         )
 
-    def _publish_settings_to_broker(self, published_settings: dict[str, pt.PublishableSetting]) -> None:
+    def _publish_settings_metadata_to_broker(
+        self, published_settings: dict[str, pt.PublishableSetting]
+    ) -> None:
         # this follows some of the Homie convention: https://homieiot.github.io/specification/
         for setting, props in published_settings.items():
             self.publish(
@@ -836,6 +842,13 @@ class _BackgroundJob(metaclass=PostInitCaller):
                     qos=QOS.AT_LEAST_ONCE,
                     retain=True,
                 )
+
+    def _publish_defined_settings_to_broker(
+        self, published_settings: dict[str, pt.PublishableSetting]
+    ) -> None:
+        for name in published_settings.keys():
+            if hasattr(self, name):
+                self._publish_attr(name)
 
     def _log_state(self, state: pt.JobState) -> None:
         if state == self.READY or state == self.DISCONNECTED:
