@@ -1,3 +1,10 @@
+### Upcoming
+ - initial support for Pioreactor 20ml v1.1
+ - some further support for tracking the model and version of the Pioreactor you are using.
+ - When using `turbidostat`, there is now a small moving average filter on the raw OD readings. This will prevent the turbidostat from firing when a OD outlier occurs.
+ - MQTT data is no long persisted between leader power-cycles. This was the cause of a lot of bad UI state issues where users couldn't interact with the Pioreactor after a power-cycle. We originally persisted the data since we previously used MQTT as more like a database, but our engineering style has moved away from that idea, and we now only use MQTT for "ephemeral" data. Taking out the persistent MQTT data forces this change, and should lead to better engineering later.
+ - UI cleanup
+
 ### 24.4.11
 
 #### Enhancements
