@@ -835,9 +835,9 @@ class ODReader(BackgroundJob):
     ods: structs.ODReadings
 
     if whoami.get_pioreactor_version() == ("1", "0"):
-        TARGET_REF_VOLTAGE = 0.1
+        TARGET_REF_VOLTAGE = 0.10
     elif whoami.get_pioreactor_version() == ("1", "1"):
-        TARGET_REF_VOLTAGE = 0.1  # TODO
+        TARGET_REF_VOLTAGE = 0.30  # larger hole
 
     def __init__(
         self,

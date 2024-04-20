@@ -1,9 +1,15 @@
 ### Upcoming
  - initial support for Pioreactor 20ml v1.1
- - some further support for tracking the model and version of the Pioreactor you are using.
- - When using `turbidostat`, there is now a small moving average filter on the raw OD readings. This will prevent the turbidostat from firing when a OD outlier occurs.
+ - some further support for tracking the model and version of the Pioreactor you are using. Users can change the version in the config file. For example:
+  ```
+  [pioreactor]
+  model=pioreactor_20ml
+  version=1.1
+  ```
+  If you have a mixed cluster (some 1.0, some 1.1), then you should put this configuration in the _unit specific_ config files.
+ - When using `turbidostat`, there is now a small moving average filter on the raw OD readings. This will prevent the turbidostat from firing when an OD outlier occurs.
  - MQTT data is no long persisted between leader power-cycles. This was the cause of a lot of bad UI state issues where users couldn't interact with the Pioreactor after a power-cycle. We originally persisted the data since we previously used MQTT as more like a database, but our engineering style has moved away from that idea, and we now only use MQTT for "ephemeral" data. Taking out the persistent MQTT data forces this change, and should lead to better engineering later.
- - UI cleanup
+ - when using the hotspot, the leader is now the source-of-truth for the cluster's clocks. For example, when a worker boots up, it will ask the leader what the time is, and will periodically ask again.
 
 ### 24.4.11
 

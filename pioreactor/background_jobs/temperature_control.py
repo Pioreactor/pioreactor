@@ -191,7 +191,7 @@ class TemperatureController(BackgroundJob):
         """
 
         if not self.pwm.is_locked():
-            return self._update_heater(clamp(0.0, new_duty_cycle, 100.0))
+            return self._update_heater(new_duty_cycle)
         else:
             return False
 
@@ -433,8 +433,13 @@ class TemperatureController(BackgroundJob):
         self.logger.debug(f"{features=}")
 
         try:
+            if whoami.get_pioreactor_version == ("1", "0"):
+                inferred_temperature = self.approximate_temperature_1_0(features)
+            else:
+                inferred_temperature = self.approximate_temperature_1_1(features)
+
             self.temperature = Temperature(
-                temperature=round(self.approximate_temperature(features), 2),
+                temperature=round(inferred_temperature, 2),
                 timestamp=current_utc_datetime(),
             )
 
@@ -442,7 +447,7 @@ class TemperatureController(BackgroundJob):
             self.logger.debug(e, exc_info=True)
             self.logger.error(e)
 
-    def approximate_temperature(self, features: dict[str, Any]) -> float:
+    def approximate_temperature_1_0(self, features: dict[str, Any]) -> float:
         """
         models
 
@@ -516,6 +521,121 @@ class TemperatureController(BackgroundJob):
             self.logger.debug(f"x={x}")
             self.logger.debug(f"y={y}")
             raise ValueError()
+
+        if (B**2 + 4 * A) < 0:
+            # something when wrong in the data collection - the data doesn't look enough like a sum of two expos
+            self.logger.error("Error in temperature inference.")
+            self.logger.debug(f"Error in temperature inference: {(B ** 2 + 4 * A)=} < 0")
+            self.logger.debug(f"x={x}")
+            self.logger.debug(f"y={y}")
+            raise ValueError()
+
+        p = 0.5 * (
+            B + np.sqrt(B**2 + 4 * A)
+        )  # usually p ~= -0.0000 to -0.0100, but is a function of the temperature (Recall it describes the heat loss to ambient)
+        q = 0.5 * (
+            B - np.sqrt(B**2 + 4 * A)
+        )  # usually q ~= -0.130 to -0.160, but is a not really a function of the temperature. Oddly enough, it looks periodic with freq ~1hr...
+
+        # second regression
+        M2 = np.array(
+            [
+                [exp(2 * p * x).sum(), exp((p + q) * x).sum()],
+                [exp((q + p) * x).sum(), exp(2 * q * x).sum()],
+            ]
+        )
+        Y2 = np.array([(y * exp(p * x)).sum(), (y * exp(q * x)).sum()])
+        try:
+            b, c = np.linalg.solve(M2, Y2)
+        except np.linalg.LinAlgError:
+            self.logger.error("Error in temperature inference.")
+            self.logger.debug("Error in temperature inference's second regression.", exc_info=True)
+            self.logger.debug(f"x={x}")
+            self.logger.debug(f"y={y}")
+            raise ValueError()
+
+        alpha, beta = b, p
+
+        # this weighting is from evaluating the "average" temp over the period: 1/n int_0^n R + a*exp(b*s) ds
+        # cast from numpy float to python float
+        return float(room_temp + alpha * exp(beta * n))
+        # return float(room_temp + alpha * (exp(beta * n) - 1)/(beta * n))
+
+    def approximate_temperature_1_1(self, features: dict[str, Any]) -> float:
+        """
+        models
+
+            temp = b * exp(p * t) + c * exp(q * t) + room_temp
+
+        Reference
+        -------------
+        https://www.scribd.com/doc/14674814/Regressions-et-equations-integrales
+        page 71 - 72
+
+
+        Extensions
+        --------------
+
+        1. It's possible that we can determine if the vial is in the sleeve by examining the heat loss coefficient.
+        2. We have prior information about what p, q are => we have prior information about A, B. We use this.
+           From the equations, B = p + q, A = -p * q, so weak prior in B ~ Normal(-0.143, ...), A = Normal(-0.00042, ....)
+        3. Room temp has a moderate impact on inference: ~0.30C over a wide range of values
+        """
+
+        if features["previous_heater_dc"] == 0:
+            return features["time_series_of_temp"][-1]
+
+        import numpy as np
+        from numpy import exp
+
+        times_series = features["time_series_of_temp"]
+        room_temp = features["room_temp"]
+        n = len(times_series)
+        y = np.array(times_series) - room_temp
+        x = np.arange(n)  # scaled by factor of 1/10 seconds
+
+        # first regression
+        S = np.zeros(n)
+        SS = np.zeros(n)
+        for i in range(1, n):
+            S[i] = S[i - 1] + 0.5 * (y[i - 1] + y[i]) * (x[i] - x[i - 1])
+            SS[i] = SS[i - 1] + 0.5 * (S[i - 1] + S[i]) * (x[i] - x[i - 1])
+
+        # priors chosen based on historical data, penalty values pretty arbitrary, note: B = p + q, A = -p * q
+        A_penalizer, A_prior = 10.0, -0.0012
+        B_penalizer, B_prior = 5.0, -0.325
+
+        M1 = np.array(
+            [
+                [
+                    (SS**2).sum() + A_penalizer,
+                    (SS * S).sum(),
+                    (SS * x).sum(),
+                    (SS).sum(),
+                ],
+                [(SS * S).sum(), (S**2).sum() + B_penalizer, (S * x).sum(), (S).sum()],
+                [(SS * x).sum(), (S * x).sum(), (x**2).sum(), (x).sum()],
+                [(SS).sum(), (S).sum(), (x).sum(), n],
+            ]
+        )
+        Y1 = np.array(
+            [
+                (y * SS).sum() + A_penalizer * A_prior,
+                (y * S).sum() + B_penalizer * B_prior,
+                (y * x).sum(),
+                y.sum(),
+            ]
+        )
+
+        try:
+            A, B, _, _ = np.linalg.solve(M1, Y1)
+        except np.linalg.LinAlgError:
+            self.logger.error("Error in temperature inference.")
+            self.logger.debug("Error in temperature inference", exc_info=True)
+            self.logger.debug(f"x={x}")
+            self.logger.debug(f"y={y}")
+            raise ValueError()
+        self.logger.debug(f"{A=}, {B=}")
 
         if (B**2 + 4 * A) < 0:
             # something when wrong in the data collection - the data doesn't look enough like a sum of two expos

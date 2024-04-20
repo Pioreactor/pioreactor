@@ -82,7 +82,13 @@ class Monitor(LongRunningBackgroundJob):
 
     """
 
-    MAX_TEMP_TO_SHUTDOWN = 66.0
+    if whoami.get_pioreactor_version() == ("1", "0"):
+        # made from PLA
+        MAX_TEMP_TO_SHUTDOWN = 66.0
+    elif whoami.get_pioreactor_version() >= ("1", "1"):
+        # made from PC-CF
+        MAX_TEMP_TO_SHUTDOWN = 85.0  # risk damaging PCB components
+
     job_name = "monitor"
     published_settings = {
         "computer_statistics": {"datatype": "json", "settable": False},
@@ -256,9 +262,9 @@ class Monitor(LongRunningBackgroundJob):
 
         for file in [
             storage_path / "pioreactor.sqlite",
-            # shm and wal sometimes aren't present at when monitor starts
-            storage_path / "pioreactor.sqlite-shm",
-            storage_path / "pioreactor.sqlite-wal",
+            # shm and wal sometimes aren't present at when monitor starts - removed too many false positives
+            # storage_path / "pioreactor.sqlite-shm",
+            # storage_path / "pioreactor.sqlite-wal",
         ]:
             if file.exists() and (file.owner() != "pioreactor" or file.group() != "www-data"):
                 self.logger.warning(
