@@ -78,7 +78,7 @@ class WatchDog(LongRunningBackgroundJob):
                 f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/monitor/$state/set", self.READY
             )
             ###
-            time.sleep(20)
+            time.sleep(10)
 
             if self.state != self.READY:
                 # when the entire Rpi shuts down, ex via sudo reboot, monitor can publish a lost. This code will halt the shutdown.

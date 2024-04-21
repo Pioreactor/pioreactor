@@ -21,6 +21,7 @@ from pioreactor.mureq import put
 from pioreactor.pubsub import publish
 from pioreactor.utils import ClusterJobManager
 from pioreactor.utils import managed_lifecycle
+from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 
@@ -589,6 +590,11 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
             profile.experiment_profile_name,
             retain=True,
         )
+        state.mqtt_client.publish(
+            f"pioreactor/{unit}/{experiment}/{action_name}/start_time_utc",
+            current_utc_timestamp(),
+            retain=True,
+        )
 
         if dry_run:
             logger.notice(  # type: ignore
@@ -682,6 +688,11 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
 
             state.mqtt_client.publish(
                 f"pioreactor/{unit}/{experiment}/{action_name}/experiment_profile_name",
+                None,
+                retain=True,
+            )
+            state.mqtt_client.publish(
+                f"pioreactor/{unit}/{experiment}/{action_name}/start_time_utc",
                 None,
                 retain=True,
             )
