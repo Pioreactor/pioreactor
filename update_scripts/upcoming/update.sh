@@ -56,11 +56,12 @@ LEADER_ADDRESS=$(crudini --get $PIO_DIR/config.ini cluster.topology leader_addre
 if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
     if ! grep -q 'allow all' /etc/chrony/chrony.conf; then
         echo "allow all" | sudo tee -a /etc/chrony/chrony.conf
+        echo "local stratum 10" | sudo tee -a /etc/chrony/chrony.conf
         sudo systemctl restart chronyd
     fi
 else
-    if ! grep -q "server $LEADER_ADDRESS iburst" /etc/chrony/chrony.conf; then
-        echo "server $LEADER_ADDRESS iburst" | sudo tee -a /etc/chrony/chrony.conf
+    if ! grep -q "server $LEADER_ADDRESS iburst prefer" /etc/chrony/chrony.conf; then
+        echo "server $LEADER_ADDRESS iburst prefer" | sudo tee -a /etc/chrony/chrony.conf
         sudo systemctl restart chronyd
         sudo chronyc -a makestep
     fi

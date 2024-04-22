@@ -117,7 +117,7 @@ def logs(n: int) -> None:
     "-l",
     "--level",
     default="debug",
-    type=click.Choice(["debug", "info", "notice", "warning", "critical"], case_sensitive=False),
+    type=click.Choice(["debug", "info", "notice", "warning", "error", "critical"], case_sensitive=False),
 )
 @click.option(
     "-n",

@@ -71,15 +71,17 @@ class TemperatureController(BackgroundJob):
         MAX_TEMP_TO_REDUCE_HEATING = 63.0
         MAX_TEMP_TO_DISABLE_HEATING = 65.0  # probably okay, but can't stay here for too long
         MAX_TEMP_TO_SHUTDOWN = 66.0
+        INFERENCE_N_SAMPLES: int = 29
+        INFERENCE_EVERY_N_SECONDS: float = 225.0
     elif whoami.get_pioreactor_version() >= ("1", "1"):
         # made from PC-CF
         MAX_TEMP_TO_REDUCE_HEATING = 78.0
         MAX_TEMP_TO_DISABLE_HEATING = 80.0
         MAX_TEMP_TO_SHUTDOWN = 85.0  # risk damaging PCB components
+        INFERENCE_N_SAMPLES = 20
+        INFERENCE_EVERY_N_SECONDS = 200.0
 
     INFERENCE_SAMPLES_EVERY_T_SECONDS: float = 5.0
-    INFERENCE_N_SAMPLES: int = 29
-    INFERENCE_EVERY_N_SECONDS: float = 225.0
     inference_total_time: float = INFERENCE_SAMPLES_EVERY_T_SECONDS * INFERENCE_N_SAMPLES
     assert INFERENCE_EVERY_N_SECONDS > inference_total_time
     # PWM is on for (INFERENCE_EVERY_N_SECONDS - inference_total_time) seconds
@@ -438,11 +440,10 @@ class TemperatureController(BackgroundJob):
         try:
             if whoami.get_pioreactor_version() == ("1", "0"):
                 inferred_temperature = self.approximate_temperature_1_0(features)
-            else:
+            elif whoami.get_pioreactor_version() >= ("1", "1"):
                 inferred_temperature = self.approximate_temperature_2_0(features)
 
-            self.logger.debug(f"{self.approximate_temperature_1_0(features)=}")
-            self.logger.debug(f"{self.approximate_temperature_2_0(features)=}")
+            self.logger.debug(f"{inferred_temperature=}")
 
             self.temperature = Temperature(
                 temperature=round(inferred_temperature, 2),
@@ -573,39 +574,33 @@ class TemperatureController(BackgroundJob):
         """
         self.logger.debug("Using approximate_temperature_2_0")
 
+        if features["previous_heater_dc"] == 0:
+            return features["time_series_of_temp"][-1]
+
         coefs = [
-            -0.75558326,
-            -0.50048682,
-            0.14906945,
-            0.18511959,
-            0.19043673,
-            0.50341928,
-            0.4039598,
-            0.13838841,
-            0.19681151,
-            0.21722922,
-            0.47583931,
-            0.48288754,
-            -0.08657041,
-            0.39911609,
-            0.29742916,
-            0.22375188,
-            0.42217934,
-            0.06507541,
-            0.09602983,
-            -0.00418959,
-            -0.03418659,
-            -0.21572916,
-            -0.18965321,
-            -0.15388478,
-            -0.20068288,
-            -0.16799934,
-            -0.4250132,
-            -0.0660912,
-            -0.61928719,
+            -1.20570441,
+            -0.73000213,
+            0.16885773,
+            0.37523674,
+            0.57125561,
+            0.88444344,
+            0.61408207,
+            0.6493832,
+            0.70346993,
+            0.41469265,
+            0.44613916,
+            0.89019012,
+            0.11702457,
+            -0.16086309,
+            0.08234514,
+            -0.31814311,
+            -0.34117901,
+            -0.34014192,
+            -0.67961644,
+            -1.12412739,
         ]
 
-        intercept = -0.7416482399699404
+        intercept = -0.5165702209106087
 
         def dot_product(vec1, vec2):
             if len(vec1) != len(vec2):
