@@ -79,6 +79,7 @@ class Turbidostat(DosingAutomationJob):
         assert self.target_od is not None
         smoothed_od = self.ema_od.update(self.latest_od["2"])
         if smoothed_od >= self.target_od:
+            self.ema_od.clear()  # clear the ema so that we don't cause a second dosing to occur right after.
             latest_od_before_dosing = smoothed_od
             target_od_before_dosing = self.target_od
             results = self.execute_io_action(media_ml=self.volume, waste_ml=self.volume)

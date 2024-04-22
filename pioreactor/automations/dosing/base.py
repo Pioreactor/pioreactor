@@ -204,12 +204,11 @@ class DosingAutomationJob(AutomationJob):
     media_throughput: float  # amount of media that has been expelled
     alt_media_throughput: float  # amount of alt-media that has been expelled
     vial_volume: float  # amount in the vial
-    MAX_VIAL_VOLUME_TO_WARN: float = config.getfloat(
-        "dosing_automation.config", "max_volume_to_warn", fallback=17.0
-    )
     MAX_VIAL_VOLUME_TO_STOP: float = config.getfloat(
         "dosing_automation.config", "max_volume_to_stop", fallback=18.0
     )
+    MAX_VIAL_VOLUME_TO_WARN: float = 0.9 * MAX_VIAL_VOLUME_TO_STOP
+
     MAX_SUBDOSE = config.getfloat(
         "dosing_automation.config", "max_subdose", fallback=1.0
     )  # arbitrary, but should be some value that the pump is well calibrated for.

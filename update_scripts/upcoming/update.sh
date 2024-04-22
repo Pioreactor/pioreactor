@@ -51,15 +51,16 @@ fi
 
 # install chrony.deb, provided locally in the release archive
 sudo dpkg -i ./chrony_4.3-2+deb12u1_armhf.deb
+LEADER_ADDRESS=$(crudini --get $PIO_DIR/config.ini cluster.topology leader_address)
 
 if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
-    if ! grep -q 'allow 10.42.0.1/24' /etc/chrony/chrony.conf; then
-        echo "allow 10.42.0.1/24" | sudo tee -a /etc/chrony/chrony.conf
+    if ! grep -q 'allow all' /etc/chrony/chrony.conf; then
+        echo "allow all" | sudo tee -a /etc/chrony/chrony.conf
         sudo systemctl restart chronyd
     fi
 else
-    if ! grep -q 'server 10.42.0.1 iburst' /etc/chrony/chrony.conf; then
-        echo "server 10.42.0.1 iburst" | sudo tee -a /etc/chrony/chrony.conf
+    if ! grep -q "server $LEADER_ADDRESS iburst" /etc/chrony/chrony.conf; then
+        echo "server $LEADER_ADDRESS iburst" | sudo tee -a /etc/chrony/chrony.conf
         sudo systemctl restart chronyd
         sudo chronyc -a makestep
     fi

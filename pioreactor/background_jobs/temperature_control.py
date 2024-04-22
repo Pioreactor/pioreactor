@@ -356,15 +356,17 @@ class TemperatureController(BackgroundJob):
 
     def on_disconnected(self) -> None:
         with suppress(AttributeError):
+            self._update_heater(0)
+
+        with suppress(AttributeError):
             self.read_external_temperature_timer.cancel()
             self.publish_temperature_timer.cancel()
 
         with suppress(AttributeError):
-            self._update_heater(0)
-            self.pwm.clean_up()
+            self.automation_job.clean_up()
 
         with suppress(AttributeError):
-            self.automation_job.clean_up()
+            self.turn_off_heater()
 
     def setup_pwm(self) -> PWM:
         hertz = 8  # technically this doesn't need to be high: it could even be 1hz. However, we want to smooth it's
@@ -434,7 +436,13 @@ class TemperatureController(BackgroundJob):
         self.logger.debug(f"{features=}")
 
         try:
-            inferred_temperature = self.approximate_temperature_1_0(features)
+            if whoami.get_pioreactor_version() == ("1", "0"):
+                inferred_temperature = self.approximate_temperature_1_0(features)
+            else:
+                inferred_temperature = self.approximate_temperature_2_0(features)
+
+            self.logger.debug(f"{self.approximate_temperature_1_0(features)=}")
+            self.logger.debug(f"{self.approximate_temperature_2_0(features)=}")
 
             self.temperature = Temperature(
                 temperature=round(inferred_temperature, 2),
@@ -558,6 +566,53 @@ class TemperatureController(BackgroundJob):
         # cast from numpy float to python float
         return float(room_temp + alpha * exp(beta * n))
         # return float(room_temp + alpha * (exp(beta * n) - 1)/(beta * n))
+
+    def approximate_temperature_2_0(self, features: dict[str, Any]) -> float:
+        """
+        This uses linear regression from historical data
+        """
+        self.logger.debug("Using approximate_temperature_2_0")
+
+        coefs = [
+            -0.75558326,
+            -0.50048682,
+            0.14906945,
+            0.18511959,
+            0.19043673,
+            0.50341928,
+            0.4039598,
+            0.13838841,
+            0.19681151,
+            0.21722922,
+            0.47583931,
+            0.48288754,
+            -0.08657041,
+            0.39911609,
+            0.29742916,
+            0.22375188,
+            0.42217934,
+            0.06507541,
+            0.09602983,
+            -0.00418959,
+            -0.03418659,
+            -0.21572916,
+            -0.18965321,
+            -0.15388478,
+            -0.20068288,
+            -0.16799934,
+            -0.4250132,
+            -0.0660912,
+            -0.61928719,
+        ]
+
+        intercept = -0.7416482399699404
+
+        def dot_product(vec1, vec2):
+            if len(vec1) != len(vec2):
+                raise ValueError(f"Vectors must be of the same length. Got {len(vec1)=}, {len(vec2)=}")
+            return sum(x * y for x, y in zip(vec1, vec2))
+
+        return dot_product(coefs, features["time_series_of_temp"]) + intercept
 
 
 def start_temperature_control(
