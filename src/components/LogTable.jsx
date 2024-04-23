@@ -79,13 +79,13 @@ function LogTable(props) {
 
   useEffect(() => {
     if (client){
-      subscribeToTopic(`pioreactor/+/$experiment/logs/+`, onMessage);
+      subscribeToTopic(`pioreactor/+/$experiment/logs/+`, onMessage, "LogTable");
     }
   }, [client])
 
   useEffect(() => {
     if (props.experiment && client) {
-      subscribeToTopic(`pioreactor/+/${props.experiment}/logs/+`, onMessage);
+      subscribeToTopic(`pioreactor/+/${props.experiment}/logs/+`, onMessage, "LogTable");
     }
   }, [props.experiment, client]);
 

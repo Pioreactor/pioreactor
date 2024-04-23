@@ -145,7 +145,7 @@ function ExperimentSummary({experimentMetadata, updateExperiment}){
           <Typography variant="subtitle2" style={{flexGrow: 1}}>
             <div style={{display:"inline"}}>
               <Box fontWeight="fontWeightBold" style={{display:"inline-block"}}>
-                <CalendarTodayIcon style={{ fontSize: 12, verticalAlign: "-1px" }}/> Experiment created:&nbsp;
+                <CalendarTodayIcon style={{ fontSize: 12, verticalAlign: "-1px" }}/> Experiment created at:&nbsp;
               </Box>
               <Box fontWeight="fontWeightRegular" style={{marginRight: "1%", display:"inline-block"}}>
                 {(startedAt !== "") &&

@@ -89,11 +89,11 @@ class Chart extends React.Component {
       this.getHistoricalDataFromServer()
       if (this.props.isLiveChart && this.props.client){
           toArray(prevProps.topic).forEach(topic => {
-            this.props.unsubscribeFromTopic(`pioreactor/+/${prevProps.experiment}/${topic}`)
+            this.props.unsubscribeFromTopic(`pioreactor/+/${prevProps.experiment}/${topic}`, "Chart")
           });
 
           this.topics.forEach(topic => {
-            this.props.subscribeToTopic(`pioreactor/+/${this.props.experiment}/${topic}`, this.onMessage)
+            this.props.subscribeToTopic(`pioreactor/+/${this.props.experiment}/${topic}`, this.onMessage, "Chart")
           });
       }
     }
@@ -108,7 +108,7 @@ class Chart extends React.Component {
 
     if (this.props.isLiveChart && this.props.client){
       this.topics.forEach(topic => {
-        this.props.subscribeToTopic(`pioreactor/+/${this.props.experiment}/${topic}`, this.onMessage)
+        this.props.subscribeToTopic(`pioreactor/+/${this.props.experiment}/${topic}`, this.onMessage, "Chart")
       });
     }
 
@@ -118,7 +118,7 @@ class Chart extends React.Component {
     this.getHistoricalDataFromServer()
     if (this.props.client && this.props.isLiveChart) {
       this.topics.forEach(topic => {
-        this.props.subscribeToTopic(`pioreactor/+/${this.props.experiment}/${topic}`, this.onMessage)
+        this.props.subscribeToTopic(`pioreactor/+/${this.props.experiment}/${topic}`, this.onMessage, "Chart")
       });
     }
   }

@@ -12,6 +12,8 @@ import TextField from '@mui/material/TextField';
 import Autocomplete, { createFilterOptions } from '@mui/material/Autocomplete';
 import {useNavigate } from 'react-router-dom';
 import SaveIcon from '@mui/icons-material/Save';
+import LoadingButton from '@mui/lab/LoadingButton';
+
 
 //import CleaningScript from "./components/CleaningScript"
 // import AssignLabels from "./components/AssignLabels"
@@ -149,6 +151,7 @@ function ExperimentSummaryForm(props) {
   const [historicalMediaUsed, setHistoricalMediaUsed] = React.useState([]);
   const [historicalOrganismUsed, setHistoricalOrganismUsed] = React.useState([]);
   const [historicalExperiments, setHistoricalExperiments] = React.useState({});
+  const [loading, setLoading] = React.useState(false);
 
   React.useEffect(() => {
     function getHistoricalExperiments() {
@@ -207,6 +210,8 @@ function ExperimentSummaryForm(props) {
 
   function onSubmit(e) {
     e.preventDefault();
+    setLoading(true)
+
     if (expName === ""){
       setFormError(true)
       setHelperText("Can't be blank.")
@@ -243,6 +248,7 @@ function ExperimentSummaryForm(props) {
           setFormError(true);
           setHelperText("Sever error. See UI logs.")
         }
+        setLoading(false)
       }
      )
   }
@@ -322,15 +328,19 @@ function ExperimentSummaryForm(props) {
           <Grid item xs={12} md={8}>
             <div style={{display: "flex", justifyContent: "flex-end"}}>
               <Button style={{marginRight: "10px", textTransform: "none"}} size="small" color="primary" onClick={populateFields}>Populate with previous experiment</Button>
-              <Button
-                variant="contained"
+              <LoadingButton
                 color="primary"
+                variant="contained"
                 onClick={onSubmit}
                 endIcon={<SaveIcon />}
+                style={{textTransform: 'none'}}
                 disabled={(expName==="") || formError}
+                loading={loading}
+                loadingPosition="end"
+                endIcon={<SaveIcon />}
               >
                 Save
-              </Button>
+              </LoadingButton>
             </div>
           </Grid>
         </Grid>

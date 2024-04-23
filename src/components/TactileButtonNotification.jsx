@@ -13,7 +13,7 @@ function TactileButtonNotification(props) {
 
   React.useEffect(() => {
     if (client) {
-      subscribeToTopic("pioreactor/+/$experiment/monitor/button_down", onMessage)
+      subscribeToTopic("pioreactor/+/$experiment/monitor/button_down", onMessage, "TactileButtonNotification")
     }
   },[client])
 

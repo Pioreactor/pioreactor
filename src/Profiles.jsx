@@ -1,4 +1,5 @@
 import React from "react";
+import moment from "moment";
 
 import FormControl from '@mui/material/FormControl';
 import Grid from "@mui/material/Grid";
@@ -14,6 +15,7 @@ import {getConfig} from "./utilities"
 import FormLabel from '@mui/material/FormLabel';
 import MenuItem from '@mui/material/MenuItem';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import DisplayProfile from "./components/DisplayProfile"
 import DisplaySourceCode from "./components/DisplaySourceCode"
 import CloseIcon from '@mui/icons-material/Close';
@@ -69,7 +71,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 
-function ExperimentProfilesContent({experiment, config, setRunningProfileName}) {
+function ExperimentProfilesContent({experiment, config, setRunningProfileName, setStartTime, runningProfileName}) {
   const classes = useStyles();
   const confirm = useConfirm();
   const navigate = useNavigate()
@@ -100,7 +102,7 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName}) 
 
   React.useEffect(() => {
     if (experiment && client){
-      subscribeToTopic(`pioreactor/+/${experiment}/experiment_profile/+`, onMessage)
+      subscribeToTopic(`pioreactor/+/${experiment}/experiment_profile/+`, onMessage, "ExperimentProfilesContent")
     }
 
   },[experiment, client])
@@ -119,9 +121,12 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName}) 
     else if(setting === "experiment_profile_name") {
       setRunningProfileName(payload === "" ? null : payload)
     }
+    else if(setting === "start_time_utc") {
+      setStartTime(payload === "" ? null : payload)
+    }
   }
 
-  const onSubmit = () => runPioreactorJob(config['cluster.topology']?.leader_hostname, '$experiment' , 'experiment_profile', ['execute', selectedExperimentProfile, experiment], dryRun ? {'dry-run': null} : {}, () => setConfirmed(true))
+  const onSubmit = () => runPioreactorJob(config['cluster.topology']?.leader_hostname, '$experiment' , 'experiment_profile', ['execute', selectedExperimentProfile, experiment], (dryRun ? {'dry-run': null} : {}), () => setConfirmed(true))
 
   const onStop = () => {
     confirm({
@@ -212,7 +217,7 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName}) 
               style={{textTransform: "none"}}
               to={`/edit-experiment-profile?profile=${selectedExperimentProfile.split("/").pop()}`}
               component={Link}
-              disabled={isProfileActive || selectedExperimentProfile === ''}
+              disabled={ selectedExperimentProfile === ''}
             >
               <EditIcon fontSize="15" classes={{root: classes.textIcon}} /> Edit
             </Button>
@@ -258,6 +263,7 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName}) 
               value={dryRun ? "execute_dry_run" : "execute"}
               onClick={onSubmit}
               endIcon={dryRun ? <PlayDisabledIcon />  : <PlayArrowIcon />}
+              style={{}}
               disabled={confirmed || (isProfileActive)}
               onChange={({target: { value } }) =>
                 setDryRun(value === "execute_dry_run")
@@ -269,7 +275,7 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName}) 
           <Button
             variant="text"
             color="secondary"
-            style={{marginLeft: "20px"}}
+            style={{marginLeft: "20px",textTransform: 'none'}}
             onClick={onStop}
             endIcon={ <CloseIcon /> }
             disabled={!isProfileActive}
@@ -284,6 +290,7 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName}) 
 function ProfilesContainer({experiment, config}){
   const classes = useStyles();
   const [runningProfileName, setRunningProfileName] = React.useState(null)
+  const [startTime, setStartTime] = React.useState(null)
 
   return(
     <React.Fragment>
@@ -310,7 +317,14 @@ function ProfilesContainer({experiment, config}){
                 <ViewTimelineOutlinedIcon style={{ fontSize: 12, verticalAlign: "-1px" }}/> Profile running:&nbsp;
               </Box>
               <Box fontWeight="fontWeightRegular" style={{marginRight: "1%", display:"inline-block"}}>
-                {runningProfileName ?? "None"}
+                {runningProfileName || "None"}
+              </Box>
+
+              <Box fontWeight="fontWeightBold" style={{display:"inline-block"}}>
+                <CalendarTodayIcon style={{ fontSize: 12, verticalAlign: "-1px" }}/> Profile started at:&nbsp;
+              </Box>
+              <Box fontWeight="fontWeightRegular" style={{marginRight: "1%", display:"inline-block"}}>
+                {(startTime && moment(startTime).format("dddd, MMMM D, h:mm a")) || "-"}
               </Box>
             </div>
 
@@ -320,7 +334,7 @@ function ProfilesContainer({experiment, config}){
       </div>
       <Card className={classes.root}>
         <CardContent className={classes.cardContent}>
-          <ExperimentProfilesContent experiment={experiment} config={config} setRunningProfileName={setRunningProfileName}/>
+          <ExperimentProfilesContent experiment={experiment} config={config} setStartTime={setStartTime} setRunningProfileName={setRunningProfileName} runningProfileName={runningProfileName}/>
           <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/experiment-profiles" target="_blank" rel="noopener noreferrer">experiment profiles</a>.</p>
         </CardContent>
       </Card>
@@ -331,7 +345,6 @@ function ProfilesContainer({experiment, config}){
 function Profiles(props) {
     const [config, setConfig] = React.useState({})
     const {experimentMetadata} = useExperiment()
-
 
     React.useEffect(() => {
       getConfig(setConfig)

@@ -341,7 +341,7 @@ export default function SideNavAndHeader() {
               <div>
                 { lap &&
                   <Button color="inherit" style={{textTransform: "none"}}  component={Link}  to={{pathname: "/inventory"}}>
-                    <div aria-label="LAP online" className="indicator-dot" style={{boxShadow: "0 0 2px #1AFF1A, inset 0 0 12px  #1AFF1A"}}/> LAP online
+                    <div aria-label="LAP online" className="indicator-dot" style={{boxShadow: "0 0 2px #2FBB39, inset 0 0 12px  #2FBB39"}}/> LAP online
                   </Button>
                 }
                 <Button component={Link} target="_blank" rel="noopener noreferrer" to={{pathname: "https://forums.pioreactor.com"}} color="inherit" style={{textTransform: "none"}}>

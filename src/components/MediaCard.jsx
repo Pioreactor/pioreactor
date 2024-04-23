@@ -27,8 +27,8 @@ function MediaCard({experiment, relabelMap}) {
 
   useEffect(() => {
     if (experiment && client) {
-      subscribeToTopic(`pioreactor/+/${experiment}/dosing_automation/alt_media_throughput`, onMessage)
-      subscribeToTopic(`pioreactor/+/${experiment}/dosing_automation/media_throughput`, onMessage)
+      subscribeToTopic(`pioreactor/+/${experiment}/dosing_automation/alt_media_throughput`, onMessage, "MediaCard")
+      subscribeToTopic(`pioreactor/+/${experiment}/dosing_automation/media_throughput`, onMessage, "MediaCard")
     }
 
   }, [experiment, client]);
@@ -113,10 +113,10 @@ function MediaCard({experiment, relabelMap}) {
               <TableRow>
                 <TableCell style={{ padding: '6px 0px' }}></TableCell>
                 <TableCell style={{ padding: '6px 0px' }} align="right">
-                  Media
+                  Media used
                 </TableCell>
                 <TableCell style={{ padding: '6px 0px' }} align="right">
-                  Alt. Media
+                  Alt. Media used
                 </TableCell>
               </TableRow>
             </TableHead>

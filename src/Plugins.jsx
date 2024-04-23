@@ -58,7 +58,7 @@ const useStyles = makeStyles((theme) => ({
   },
   textFieldWide: {
     marginTop: "15px",
-    width: "320px",
+    width: "300px",
   },
   headerMenu: {
     display: "flex",
@@ -139,6 +139,7 @@ function InstallByNameDialog(props){
         </IconButton>
       </DialogTitle>
       <DialogContent>
+        <p>Note: this requires access to the internet to download the plugin.</p>
         <div>
           <TextField
             size="small"
@@ -151,16 +152,18 @@ function InstallByNameDialog(props){
           />
         </div>
 
-        <Button
-          variant="contained"
-          color="primary"
-          style={{marginTop: "20px"}}
-          onClick={onSubmit}
-          type="submit"
-          endIcon={<GetAppIcon />}
-        >
-          Install
-        </Button>
+        <div style={{display: "flex", justifyContent: "flex-end"}}>
+          <Button
+            variant="contained"
+            color="primary"
+            style={{marginTop: "20px", textTransform: 'none'}}
+            onClick={onSubmit}
+            type="submit"
+            endIcon={<GetAppIcon />}
+          >
+            Install
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
     <Snackbar
@@ -280,6 +283,7 @@ function ListSuggestedPlugins({alreadyInstalledPluginsNames}){
                 size="small"
                 aria-label="install"
                 color="primary"
+                style={{textTransform: 'none'}}
                 endIcon={<GetAppIcon />}
                 className={classes.primaryActionButton}
               >
@@ -291,6 +295,7 @@ function ListSuggestedPlugins({alreadyInstalledPluginsNames}){
                 rel="noopener noreferrer"
                 to={plugin.homepage}
                 variant="text"
+                style={{textTransform: 'none'}}
                 size="small"
                 color="primary"
                 aria-label="view homepage"
@@ -381,6 +386,7 @@ function ListInstalledPlugins({installedPlugins}){
                   size="small"
                   color="primary"
                   aria-label="delete"
+                  style={{textTransform: 'none'}}
                   endIcon={<DeleteIcon />}
                   className={classes.primaryActionButton}
                 >
@@ -399,6 +405,7 @@ function ListInstalledPlugins({installedPlugins}){
                     disabled={!plugin.homepage || (plugin.homepage === "Unknown")}
                     endIcon={<OpenInNewIcon />}
                     className={classes.secondaryActionButton}
+                    style={{textTransform: 'none'}}
                   >
                     View
                   </Button>
@@ -413,6 +420,7 @@ function ListInstalledPlugins({installedPlugins}){
                     size="small"
                     color="primary"
                     aria-label="view homepage"
+                    style={{textTransform: 'none'}}
                     endIcon={<OpenInNewIcon />}
                     className={classes.secondaryActionButton}
                   >

@@ -453,6 +453,7 @@ function ExportDataContainer() {
                 onClick={onSubmit}
                 endIcon={<FileDownloadIcon />}
                 disabled={count() === 0}
+                style={{textTransform: 'none'}}
               >
                 Export { count() > 0 ?  count() : ""}
             </LoadingButton>

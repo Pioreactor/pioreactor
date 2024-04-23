@@ -164,7 +164,7 @@ class EditExperimentProfilesContent extends React.Component {
             <Button
               variant="contained"
               color="primary"
-              style={{marginLeft: "20px"}}
+              style={{marginLeft: "20px", textTransform: 'none'}}
               onClick={this.saveCurrentCode}
               endIcon={ <SaveIcon /> }
               disabled={!this.state.isChanged}

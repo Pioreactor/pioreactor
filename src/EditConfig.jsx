@@ -219,7 +219,7 @@ class EditableCodeDiv extends React.Component {
         <div style={{display: "flex", justifyContent: "space-between"}}>
           <div>
             <LoadingButton
-              style={{margin: "5px 12px 5px 12px"}}
+              style={{margin: "5px 12px 5px 12px", textTransform: 'none'}}
               color="primary"
               variant="contained"
               onClick={this.saveCurrentCode}

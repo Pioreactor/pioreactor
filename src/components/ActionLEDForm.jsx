@@ -105,7 +105,7 @@ export default function ActionLEDForm(props) {
           color="primary"
           onClick={onSubmit}
           disabled={(!validInput(intensity) || isSubmitted)}
-          style={{marginLeft: "7px"}}
+          style={{marginLeft: "7px", textTransform: "none"}}
         >
           Update
         </Button>

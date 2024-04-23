@@ -9,6 +9,9 @@ import Grid from '@mui/material/Grid';
 import Card from '@mui/material/Card';
 import CardActions from '@mui/material/CardActions';
 import CardContent from '@mui/material/CardContent';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
+import InputLabel from '@mui/material/InputLabel';
 import Typography from '@mui/material/Typography';
 import { MQTTProvider, useMQTT } from './providers/MQTTContext';
 import {getConfig} from "./utilities"
@@ -39,9 +42,16 @@ import { useNavigate } from 'react-router-dom'
 const disconnectedGrey = "#585858"
 const lostRed = "#DE3618"
 const inactiveGrey = "#99999b"
+const readyGreen = "#3f8451"
 
 
 const useStyles = makeStyles((theme) => ({
+  lostRed: {
+    color: lostRed
+  },
+  readyGreen: {
+    color: readyGreen
+  },
   textIcon: {
     verticalAlign: "middle",
     margin: "0px 3px"
@@ -88,7 +98,12 @@ const useStyles = makeStyles((theme) => ({
   },
   textFieldWide: {
     marginTop: "15px",
-    maxWidth: "220px",
+    maxWidth: "195px",
+  },
+  selectField: {
+    marginTop: "15px",
+    marginLeft: "10px",
+    minWidth: "195px"
   },
   textFieldCompact: {
     marginTop: "15px",
@@ -195,6 +210,8 @@ function AddNewPioreactor(props){
   const classes = useStyles();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
+  const [model, setModel] = useState("pioreactor_20ml");
+  const [version, setVersion] = useState("");
 
   const [isError, setIsError] = useState(false)
   const [errorMsg, setErrorMsg] = useState("")
@@ -216,6 +233,9 @@ function AddNewPioreactor(props){
   const handleNameChange = evt => {
     setName(evt.target.value)
   }
+  const handleVersionChange = evt => {
+    setVersion(evt.target.value)
+  }
 
 
   const onSubmit = (event) =>{
@@ -225,13 +245,18 @@ function AddNewPioreactor(props){
       setErrorMsg("Provide the hostname for the new Pioreactor worker")
       return
     }
+    else if (!version) {
+      setIsError(true)
+      setErrorMsg("Provide the model for the new Pioreactor worker. You can change the model later, too.")
+      return
+    }
     setIsError(false)
     setIsSuccess(false)
     setIsRunning(true)
-    setExpectedPathMsg("Setting up new Pioreactor...")
+    setExpectedPathMsg("Setting up your new Pioreactor...")
     fetch('/api/setup_worker_pioreactor', {
         method: "POST",
-        body: JSON.stringify({newPioreactorName: name}),
+        body: JSON.stringify({name: name, model: model, version: version}),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
@@ -242,7 +267,7 @@ function AddNewPioreactor(props){
         setExpectedPathMsg("")
         if(!response.ok){
           setIsError(true)
-          response.json().then(data => setErrorMsg(`Unable to complete installation. The following error occurred: ${data.msg}`))
+          response.json().then(data => setErrorMsg(`Unable to complete connection. The following error occurred: ${data.msg}`))
         } else {
           setIsSuccess(true)
           setSuccessMsg(`Success! Rebooting ${name} now. Refresh to see ${name} in your cluster.`)
@@ -272,19 +297,21 @@ function AddNewPioreactor(props){
         </IconButton>
       </DialogTitle>
       <DialogContent>
-        <p>Follow the instructions at <a rel="noopener noreferrer" target="_blank" href="https://docs.pioreactor.com/user-guide/software-set-up#adding-additional-workers-to-your-cluster">set up your new Pioreactor's Raspberry Pi</a>.</p>
+        <p>Follow the instructions at <a rel="noopener noreferrer" target="_blank" href="https://docs.pioreactor.com/user-guide/software-set-up#adding-additional-workers-to-your-cluster">set up your new Pioreactor's worker software</a>.</p>
 
         <p>After
 
         <ol>
          <li> worker image installation is complete and,</li>
-         <li> the new Pioreactor worker is powered on, </li>
+         <li> the new worker is powered on and, </li>
+         <li> the new worker is displaying a blue light, </li>
         </ol>
 
-        provide the hostname you used when installing the Pioreactor image onto the Raspberry Pi.
-        Your existing Pioreactor will automatically connect the new Pioreactor to the cluster. When finished, the new Pioreactor will show up on this page (after a refresh).</p>
+        provide the hostname you used when installing the Pioreactor image onto the Raspberry Pi, and the Pioreactor model (this can be changed later).</p>
+        <p>Your existing leader will automatically connect the new Pioreactor to the cluster. When finished, the new Pioreactor will show up on this page (after a refresh).</p>
         <div>
           <TextField
+            required
             size="small"
             id="new-pioreactor-name"
             label="Hostname"
@@ -293,15 +320,22 @@ function AddNewPioreactor(props){
             onChange={handleNameChange}
             value={name}
             InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <PioreactorIcon style={{fontSize: "1.1em"}}/>
-                </InputAdornment>
-              ),
               endAdornment: <InputAdornment position="end">.local</InputAdornment>,
             }
           }
           />
+        <FormControl required className={classes.selectField} variant="outlined" size="small">
+          <InputLabel >Pioreactor model</InputLabel>
+          <Select
+            value={version}
+            onChange={handleVersionChange}
+            label="Pioreactor model"
+          >
+            <MenuItem value={"1.1"}>20ml, version 1.1</MenuItem>
+            <MenuItem value={"1.0"}>20ml, version 1.0</MenuItem>
+          </Select>
+        </FormControl>
+
         </div>
 
         <div style={{minHeight: "60px", alignItems: "center", display: "flex"}}>
@@ -310,17 +344,20 @@ function AddNewPioreactor(props){
           {isSuccess ? <p><CheckIcon className={clsx(classes.textIcon, classes.readyGreen)}/>{successMsg}</p>      : <React.Fragment/>}
         </div>
 
-        <LoadingButton
-          variant="contained"
-          color="primary"
-          style={{marginTop: "10px"}}
-          onClick={onSubmit}
-          type="submit"
-          loading={isRunning}
-          endIcon={<AddIcon />}
-        >
-          Add Pioreactor
-        </LoadingButton>
+        <div style={{display: "flex", justifyContent: "flex-end"}}>
+          <LoadingButton
+            variant="contained"
+            color="primary"
+            style={{marginTop: "10px", textTransform: 'none'}}
+            onClick={onSubmit}
+            type="submit"
+            loading={isRunning}
+            endIcon={ <PioreactorIcon /> }
+
+          >
+            Add Pioreactor
+          </LoadingButton>
+        </div>
 
       </DialogContent>
     </Dialog>
@@ -352,7 +389,11 @@ function WorkerCard(props) {
         setState(message.toString());
         break;
       case "versions":
-        setVersions(JSON.parse(message.toString()));
+        if (message.toString()){
+          setVersions(JSON.parse(message.toString()));
+        } else {
+          setVersions({})
+        }
         break;
       case "ipv4":
         setIpv4(message.toString());
@@ -379,7 +420,7 @@ function WorkerCard(props) {
       return "#ececec"
     }
     else {
-      return "#1AFF1A"
+      return "#2FBB39"
     }
   }
 
@@ -408,7 +449,7 @@ function WorkerCard(props) {
 
   React.useEffect(() => {
     if (unit && client) {
-      subscribeToTopic(`pioreactor/${unit}/$experiment/monitor/+`, onMonitorData);
+      subscribeToTopic(`pioreactor/${unit}/$experiment/monitor/+`, onMonitorData, "WorkerCard");
 
       fetch(`/api/workers/${unit}/experiment`)
          .then((response) => { return response.json() })
@@ -428,6 +469,21 @@ function WorkerCard(props) {
       }
     })
   };
+
+
+  var pioreactorString
+
+  if (state !== "ready"){
+    pioreactorString = "-"
+  } else {
+    if (versions.pioreactor_model) {
+      pioreactorString = `Pioreactor ${(versions.pioreactor_model || "-").substring(11)}, v${versions.pioreactor_version || "-"}`
+    }
+    else {
+      // ready and not available.
+      pioreactorString = "Missing! Fix in the configuration file."
+    }
+  }
 
   return (
     <Card sx={{ minWidth: 275 }}>
@@ -468,13 +524,21 @@ function WorkerCard(props) {
         </div>
 
         <Typography variant="subtitle2" color={activeStatus === "active" ? "text.secondary" : inactiveGrey}  >
-          {experimentAssigned ? <>Assigned to {experimentAssigned}</> : "Unassigned"}
+          {experimentAssigned ? <>Assigned to <i>{experimentAssigned}</i></> : "Unassigned"}
         </Typography>
 
         <Divider style={{margin: "5px 0px"}}/>
 
         <table className={classes.dataTable}>
           <tbody style={{color: activeStatus === "active" ? "inherit" : inactiveGrey}}>
+          <tr>
+            <td className={classes.dataTableQuestion}>
+                Model
+            </td>
+            <td className={classes.dataTableResponse}>
+              <code className={classes.code}>{pioreactorString}</code>
+            </td>
+          </tr>
           <tr>
             <td className={classes.dataTableQuestion}>
                 IPv4
@@ -681,6 +745,9 @@ function Inventory({title}) {
         <Grid item md={12} xs={12}>
           <Header />
           <InventoryDisplay workers={workers} config={config} />
+          <Grid item xs={12}>
+            <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/create-cluster" target="_blank" rel="noopener noreferrer">inventory and cluster management</a>.</p>
+          </Grid>
         </Grid>
       </Grid>
     </MQTTProvider>

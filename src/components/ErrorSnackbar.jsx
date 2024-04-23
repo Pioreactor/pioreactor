@@ -16,8 +16,8 @@ function ErrorSnackbar(props) {
 
   React.useEffect(() => {
     if (client && experimentMetadata.experiment){
-      subscribeToTopic(`pioreactor/+/${experimentMetadata.experiment}/logs/+`, onMessage)
-      subscribeToTopic(`pioreactor/+/$experiment/logs/+`, onMessage)
+      subscribeToTopic(`pioreactor/+/${experimentMetadata.experiment}/logs/+`, onMessage, "ErrorSnackbar")
+      subscribeToTopic(`pioreactor/+/$experiment/logs/+`, onMessage, "ErrorSnackbar")
     }
 
   },[client, experimentMetadata])

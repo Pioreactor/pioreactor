@@ -31,6 +31,7 @@ const TimeFormatSwitch = (props) => {
   ) => {
     setState(newAlignment);
     props.setTimeScale(newAlignment);
+    localStorage.setItem('timeScale', newAlignment);
   };
 
   return (
@@ -64,8 +65,8 @@ const TimeWindowSwitch = (props) => {
   ) => {
     setState(newAlignment);
     props.setTimeWindow(newAlignment);
+    localStorage.setItem('timeWindow', newAlignment.toString());
   };
-
   return (
     <ToggleButtonGroup
       color="primary"
@@ -144,9 +145,13 @@ function Overview(props) {
 
   const {experimentMetadata, updateExperiment} = useExperiment()
   const [config, setConfig] = useState({})
-  const [timeScale, setTimeScale] = useState(null)
-  const [timeWindow, setTimeWindow] = useState(null)
   const [relabelMap, setRelabelMap] = useState({})
+
+  const initialTimeScale = localStorage.getItem('timeScale') || config['ui.overview.settings']?.['time_display_mode'] || 'hours';
+  const initialTimeWindow = parseInt(localStorage.getItem('timeWindow')) || 10000000;
+  const [timeScale, setTimeScale] = useState(initialTimeScale);
+  const [timeWindow, setTimeWindow] = useState(initialTimeWindow);
+
 
   useEffect(() => {
     document.title = props.title;
@@ -160,18 +165,6 @@ function Overview(props) {
         getRelabelMap(setRelabelMap, experimentMetadata.experiment)
     }
   }, [experimentMetadata])
-
-  useEffect(() => {
-    // Check if the 'ui.overview.settings' and 'time_display_mode' exist in the config
-    const timeDisplayMode = config['ui.overview.settings']?.['time_display_mode'];
-    if (timeDisplayMode !== undefined) {
-      // Set 'isByDuration' based on whether 'time_display_mode' is 'hours'
-      setTimeScale(timeDisplayMode);
-    } else {
-      // Optionally, set a default value or take other actions if 'time_display_mode' is not available
-      setTimeScale("hours");
-    }
-  }, [config]);
 
   return (
     <Fragment>
@@ -189,7 +182,7 @@ function Overview(props) {
 
           <Grid item xs={6} md={6}>
             <Stack direction="row" justifyContent="start">
-              <TimeWindowSwitch setTimeWindow={setTimeWindow} initTimeWindow={10000000}/>
+              <TimeWindowSwitch setTimeWindow={setTimeWindow} initTimeWindow={timeWindow}/>
             </Stack>
           </Grid>
           <Grid item xs={6} md={6}>
