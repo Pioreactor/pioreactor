@@ -12,7 +12,7 @@
  - The leader is now the source-of-truth for the cluster's clocks. For example, when a worker boots up, it will ask the leader what the time is, and will periodically continue asking. If the leader has access to the internet, it will pull the correct time (and periodically continue asking). If the leader doesn't have access, it will use the default time on the Pi. This solves the problem of workers getting out of sync, especially in a local-access-point network.
    ![https://i.imgur.com/vt5gxyy.png]
  - config `max_volume_to_warn` was removed, it's now hardcoded as 90% of `max_volume_to_stop`
-
+ - For v1.1: New temperature algorithm makes reaching the `thermostat` setpoint quicker, and can reach higher temperatures, using the magic of✨statistics✨. A v1.0 will come out soon.
 
 
 ### 24.4.11

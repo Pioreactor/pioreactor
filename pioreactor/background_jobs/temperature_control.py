@@ -66,6 +66,8 @@ class TemperatureController(BackgroundJob):
 
     """
 
+    INFERENCE_SAMPLES_EVERY_T_SECONDS: float = 5.0
+
     if whoami.get_pioreactor_version() == ("1", "0"):
         # made from PLA
         MAX_TEMP_TO_REDUCE_HEATING = 63.0
@@ -73,16 +75,16 @@ class TemperatureController(BackgroundJob):
         MAX_TEMP_TO_SHUTDOWN = 66.0
         INFERENCE_N_SAMPLES: int = 29
         INFERENCE_EVERY_N_SECONDS: float = 225.0
+
     elif whoami.get_pioreactor_version() >= ("1", "1"):
         # made from PC-CF
         MAX_TEMP_TO_REDUCE_HEATING = 78.0
         MAX_TEMP_TO_DISABLE_HEATING = 80.0
         MAX_TEMP_TO_SHUTDOWN = 85.0  # risk damaging PCB components
-        INFERENCE_N_SAMPLES = 20
+        INFERENCE_N_SAMPLES = 21
         INFERENCE_EVERY_N_SECONDS = 200.0
 
-    INFERENCE_SAMPLES_EVERY_T_SECONDS: float = 5.0
-    inference_total_time: float = INFERENCE_SAMPLES_EVERY_T_SECONDS * INFERENCE_N_SAMPLES
+    inference_total_time = INFERENCE_SAMPLES_EVERY_T_SECONDS * INFERENCE_N_SAMPLES
     assert INFERENCE_EVERY_N_SECONDS > inference_total_time
     # PWM is on for (INFERENCE_EVERY_N_SECONDS - inference_total_time) seconds
     # the ratio of time a PWM is on is equal to (INFERENCE_EVERY_N_SECONDS - inference_total_time) / INFERENCE_EVERY_N_SECONDS

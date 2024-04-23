@@ -7,6 +7,7 @@ from pioreactor.config import config
 from pioreactor.utils import clamp
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils.streaming_calculations import PID
+from pioreactor.whoami import get_pioreactor_version
 
 
 class Thermostat(TemperatureAutomationJob):
@@ -14,7 +15,11 @@ class Thermostat(TemperatureAutomationJob):
     Uses a PID controller to change the DC% to match a target temperature.
     """
 
-    MAX_TARGET_TEMP = 50
+    if get_pioreactor_version() == ("1", "0"):
+        MAX_TARGET_TEMP = 50
+    else:
+        MAX_TARGET_TEMP = 70
+
     automation_name = "thermostat"
     published_settings = {"target_temperature": {"datatype": "float", "unit": "℃", "settable": True}}
 
