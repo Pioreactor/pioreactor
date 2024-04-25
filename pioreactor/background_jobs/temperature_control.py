@@ -579,33 +579,43 @@ class TemperatureController(BackgroundJob):
         if features["previous_heater_dc"] == 0:
             return features["time_series_of_temp"][-1]
 
+        X = features["time_series_of_temp"]
+
+        # normalize to ~1.0, as we do this in training.
+        X = [x / 35.0 for x in X]
+        # add in two non-linear features
+        X.append(X[0] ** 2)
+        X.append(X[0] ** 0.5)
+
         coefs = [
-            0.80478339,
-            -1.6473979,
-            -1.80898258,
-            -1.58026959,
-            -0.60172353,
-            1.83338444,
-            0.85264687,
-            0.97453368,
-            1.18350632,
-            1.76150433,
-            1.26967269,
-            1.65504633,
-            1.07057761,
-            1.22678238,
-            0.5810306,
-            0.36917852,
-            -0.05200594,
-            -1.46340642,
-            -1.07319616,
-            -2.1054707,
-            -2.25319949,
+            16.06171397,
+            -49.98490775,
+            -32.6883527,
+            -39.83012568,
+            -11.7480035,
+            58.46434168,
+            23.98522824,
+            38.9910142,
+            39.3590598,
+            48.44080876,
+            46.8426457,
+            47.80109809,
+            32.32132161,
+            34.03619291,
+            21.41988449,
+            -0.54175595,
+            -0.99966871,
+            -48.86140936,
+            -38.05734051,
+            -62.04530461,
+            -68.9172001,
+            -2.76140453,
+            -26.78526534,
         ]
 
-        intercept = -0.16315588313079132
+        intercept = 10.210503740575096
 
-        def dot_product(vec1, vec2):
+        def dot_product(vec1: list, vec2: list) -> float:
             if len(vec1) != len(vec2):
                 raise ValueError(f"Vectors must be of the same length. Got {len(vec1)=}, {len(vec2)=}")
             return sum(x * y for x, y in zip(vec1, vec2))
