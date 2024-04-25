@@ -620,7 +620,7 @@ class TemperatureController(BackgroundJob):
                 raise ValueError(f"Vectors must be of the same length. Got {len(vec1)=}, {len(vec2)=}")
             return sum(x * y for x, y in zip(vec1, vec2))
 
-        return dot_product(coefs, features["time_series_of_temp"]) + intercept
+        return dot_product(coefs, X) + intercept
 
 
 def start_temperature_control(
