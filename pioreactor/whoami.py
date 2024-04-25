@@ -11,6 +11,7 @@ from pioreactor import mureq
 from pioreactor.exc import NotAssignedAnExperimentError
 from pioreactor.exc import NoWorkerFoundError
 from pioreactor.version import serial_number
+from pioreactor.version import version_text_to_tuple
 
 
 UNIVERSAL_IDENTIFIER = "$broadcast"
@@ -162,10 +163,13 @@ def get_hashed_serial_number() -> str:
 
 
 @cache
-def get_pioreactor_version() -> tuple[str, str]:
+def get_pioreactor_version() -> tuple[int, int]:
+    if os.environ.get("PIO_VERSION"):
+        return version_text_to_tuple(os.environ["PIO_VERSION"])
+
     from pioreactor.config import config
 
-    return tuple(config.get("pioreactor", "version").split("."))  # type: ignore
+    return version_text_to_tuple(config.get("pioreactor", "version"))  # type: ignore
 
 
 @cache

@@ -81,6 +81,10 @@ def tuple_to_text(t: tuple) -> str:
     return ".".join(map(str, t))
 
 
+def version_text_to_tuple(s: str) -> tuple[int, int]:
+    return tuple((safe_int(_) for _ in s.split(".")))  # type: ignore
+
+
 def safe_int(s):
     try:
         return int(s)
@@ -89,6 +93,6 @@ def safe_int(s):
 
 
 hardware_version_info = get_hardware_version()
-software_version_info = tuple(safe_int(c) for c in __version__.split("."))
+software_version_info = version_text_to_tuple(__version__)
 serial_number = get_serial_number()
 rpi_version_info = get_rpi_machine()

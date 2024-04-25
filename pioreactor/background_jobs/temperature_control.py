@@ -68,7 +68,7 @@ class TemperatureController(BackgroundJob):
 
     INFERENCE_SAMPLES_EVERY_T_SECONDS: float = 5.0
 
-    if whoami.get_pioreactor_version() == ("1", "0"):
+    if whoami.get_pioreactor_version() == (1, 0):
         # made from PLA
         MAX_TEMP_TO_REDUCE_HEATING = 63.0
         MAX_TEMP_TO_DISABLE_HEATING = 65.0  # probably okay, but can't stay here for too long
@@ -76,7 +76,7 @@ class TemperatureController(BackgroundJob):
         INFERENCE_N_SAMPLES: int = 29
         INFERENCE_EVERY_N_SECONDS: float = 225.0
 
-    elif whoami.get_pioreactor_version() >= ("1", "1"):
+    elif whoami.get_pioreactor_version() >= (1, 1):
         # made from PC-CF
         MAX_TEMP_TO_REDUCE_HEATING = 78.0
         MAX_TEMP_TO_DISABLE_HEATING = 80.0
@@ -440,9 +440,9 @@ class TemperatureController(BackgroundJob):
         self.logger.debug(f"{features=}")
 
         try:
-            if whoami.get_pioreactor_version() == ("1", "0"):
+            if whoami.get_pioreactor_version() == (0, 0):
                 inferred_temperature = self.approximate_temperature_1_0(features)
-            elif whoami.get_pioreactor_version() >= ("1", "1"):
+            elif whoami.get_pioreactor_version() >= (1, 1):
                 inferred_temperature = self.approximate_temperature_2_0(features)
 
             self.logger.debug(f"{inferred_temperature=}")

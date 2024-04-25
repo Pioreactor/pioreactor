@@ -82,10 +82,10 @@ class Monitor(LongRunningBackgroundJob):
 
     """
 
-    if whoami.get_pioreactor_version() == ("1", "0"):
+    if whoami.get_pioreactor_version() == (1, 0):
         # made from PLA
         MAX_TEMP_TO_SHUTDOWN = 66.0
-    elif whoami.get_pioreactor_version() >= ("1", "1"):
+    elif whoami.get_pioreactor_version() >= (1, 1):
         # made from PC-CF
         MAX_TEMP_TO_SHUTDOWN = 85.0  # risk damaging PCB components
 
@@ -117,7 +117,7 @@ class Monitor(LongRunningBackgroundJob):
             "hat_serial": version.serial_number,
             "rpi_machine": version.rpi_version_info,
             "timestamp": current_utc_timestamp(),
-            "pioreactor_version": ".".join(whoami.get_pioreactor_version()),
+            "pioreactor_version": version.tuple_to_text(whoami.get_pioreactor_version()),
             "pioreactor_model": whoami.get_pioreactor_model(),
         }
 

@@ -15,7 +15,7 @@ class Thermostat(TemperatureAutomationJob):
     Uses a PID controller to change the DC% to match a target temperature.
     """
 
-    if get_pioreactor_version() == ("1", "0"):
+    if get_pioreactor_version() == (1, 0):
         MAX_TARGET_TEMP = 50
     else:
         MAX_TARGET_TEMP = 70
