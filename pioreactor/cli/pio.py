@@ -29,15 +29,23 @@ from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.networking import is_using_local_access_point
 from pioreactor.utils.timing import current_utc_timestamp
+from pioreactor.whoami import am_I_leader
+
+if am_I_leader():
+    lazy_subcommands = {
+        "run": "pioreactor.cli.run.run",
+        "workers": "pioreactor.cli.workers.workers",
+        "plugins": "pioreactor.cli.plugins.plugins",
+    }
+else:
+    lazy_subcommands = {
+        "run": "pioreactor.cli.run.run",
+    }
 
 
 @click.group(
     cls=LazyGroup,
-    lazy_subcommands={
-        "run": "pioreactor.cli.run.run",
-        "workers": "pioreactor.cli.workers.workers",
-        "plugins": "pioreactor.cli.plugins.plugins",
-    },
+    lazy_subcommands=lazy_subcommands,
     invoke_without_command=True,
 )
 @click.pass_context

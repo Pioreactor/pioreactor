@@ -151,7 +151,7 @@ class GrowthRate(Struct):
 
 
 class ODFiltered(Struct):
-    od_filtered: t.Annotated[float, Meta(ge=0)]
+    od_filtered: float
     timestamp: t.Annotated[datetime, Meta(tz=True)]
 
 

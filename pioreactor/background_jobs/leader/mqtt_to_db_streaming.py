@@ -114,7 +114,7 @@ class MqttToDBStreamer(LongRunningBackgroundJob):
             try:
                 new_rows = parser(message.topic, message.payload)
             except Exception as e:
-                self.logger.error(f"Encountered error in saving to DB: {e}. See logs.")
+                self.logger.warning(f"Encountered error in saving to DB: {e}. See logs.")
                 self.logger.debug(
                     f"Error in {parser.__name__}. Payload that caused error: `{message.payload.decode()}`",
                     exc_info=True,
@@ -136,7 +136,7 @@ class MqttToDBStreamer(LongRunningBackgroundJob):
                 try:
                     self.sqliteworker.execute(SQL, new_row)  # type: ignore
                 except Exception as e:
-                    self.logger.error(e)
+                    self.logger.warning(e)
                     self.logger.debug(f"SQL that caused error: `{SQL}`")
                     return
                 self._inserts_in_last_60s += 1

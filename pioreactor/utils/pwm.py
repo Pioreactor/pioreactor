@@ -111,8 +111,8 @@ class SoftwarePWMOutputDevice:
         if self._started:
             try:
                 lgpio.tx_pwm(self._handle, self.pin, self.frequency, self.dc)
-            except lgpio.error:
-                # see issue #435
+            except lgpio.error as e:
+                print(e)
                 pass
 
         else:
@@ -122,6 +122,7 @@ class SoftwarePWMOutputDevice:
         import lgpio
 
         lgpio.gpiochip_close(self._handle)
+        lgpio.gpio_free(self._handle, self.pin)
 
 
 class PWM:

@@ -1,5 +1,8 @@
 ### Upcoming
- - initial support for Pioreactor 20ml v1.1
+
+#### Highlights
+
+ - initial support for Pioreactor 20ml v1.1! This is our latest iteration of Pioreactor. Even though it's a minor release, there's lots of positive about it. We encourage you to check out the upgrade kit here.
  - some further support for tracking the model and version of the Pioreactor you are using. Users can change the version in the config file. For example:
   ```
   [pioreactor]
@@ -7,13 +10,29 @@
   version=1.1
   ```
   If you have a mixed cluster (some 1.0, some 1.1), then you should put this configuration in the _unit specific_ config files.
+ - For v1.1: New temperature algorithm makes reaching the `thermostat` setpoint quicker, and can reach higher temperatures, using the magic of✨statistics✨. A v1.0 will come out soon.
+
+ #### Enhancements
+
  - When using `turbidostat`, there is now a small moving average filter on the raw OD readings. This will prevent the turbidostat from firing when an OD outlier occurs.
  - MQTT data is no long persisted between leader power-cycles. This was the cause of a lot of bad UI state issues where users couldn't interact with the Pioreactor after a power-cycle. We originally persisted the data since we previously used MQTT as more like a database, but our engineering style has moved away from that idea, and we now only use MQTT for "ephemeral" data. Taking out the persistent MQTT data forces this change, and should lead to better engineering later.
  - The leader is now the source-of-truth for the cluster's clocks. For example, when a worker boots up, it will ask the leader what the time is, and will periodically continue asking. If the leader has access to the internet, it will pull the correct time (and periodically continue asking). If the leader doesn't have access, it will use the default time on the Pi. This solves the problem of workers getting out of sync, especially in a local-access-point network.
    ![https://i.imgur.com/vt5gxyy.png]
- - config `max_volume_to_warn` was removed, it's now hardcoded as 90% of `max_volume_to_stop`
- - For v1.1: New temperature algorithm makes reaching the `thermostat` setpoint quicker, and can reach higher temperatures, using the magic of✨statistics✨. A v1.0 will come out soon.
+ - Lots of UI improvements, including accessibility improvements and loading improvements
+ - Previously, we would "kick" stirring by forcing the DC% to 100% for a moment, and then increasing the running DC% slightly. Going forward, we'll actually try the following: _DC% to 0%_, then _DC% to 100%_, and then a slight increase in the DC%. Why?
+    - If the mixing fan has stalled, setting the DC% to 0% does nothing, since the fan is already stopped.
+    - If the mixing fan is running, but the stir bar isn't in sync, this step will align the stir bar and fan again.
+    - If the mixing fan is running _too fast_, but the sensor isn't reading it, this allows for a small pause.
+ - The recommend way to upgrade Pioreactors and clusters is now using _release archives_. We have more control over the upgrade process this way. However, users are still welcome use the command line, `pio update`, which is what we use in house :)
 
+#### Breaking changes
+
+ - config `max_volume_to_warn` was removed, it's now hardcoded as 90% of `max_volume_to_stop`
+
+#### Bug fixes
+
+ - Fix `pio ...` commands that displayed the CLI options not working on workers.
+ - Potential fix for heater continuing to be on after it was turned off.
 
 ### 24.4.11
 
