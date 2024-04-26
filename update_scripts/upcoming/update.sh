@@ -50,7 +50,7 @@ fi
 
 
 # install chrony.deb, provided locally in the release archive
-sudo dpkg -i ./chrony_4.3-2+deb12u1_armhf.deb
+sudo dpkg -i ./chrony_4.3-2+deb12u1_armhf.deb || sudo apt-get install -y chrony
 LEADER_ADDRESS=$(crudini --get $PIO_DIR/config.ini cluster.topology leader_address)
 
 if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then

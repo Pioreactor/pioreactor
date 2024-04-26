@@ -445,8 +445,6 @@ class TemperatureController(BackgroundJob):
             elif whoami.get_pioreactor_version() >= (1, 1):
                 inferred_temperature = self.approximate_temperature_2_0(features)
 
-            self.logger.debug(f"{inferred_temperature=}")
-
             self.temperature = Temperature(
                 temperature=round(inferred_temperature, 2),
                 timestamp=current_utc_datetime(),
@@ -456,7 +454,8 @@ class TemperatureController(BackgroundJob):
             self.logger.debug(e, exc_info=True)
             self.logger.error(e)
 
-    def approximate_temperature_1_0(self, features: dict[str, Any]) -> float:
+    @staticmethod
+    def approximate_temperature_1_0(features: dict[str, Any]) -> float:
         """
         models
 
@@ -497,8 +496,8 @@ class TemperatureController(BackgroundJob):
             SS[i] = SS[i - 1] + 0.5 * (S[i - 1] + S[i]) * (x[i] - x[i - 1])
 
         # priors chosen based on historical data, penalty values pretty arbitrary, note: B = p + q, A = -p * q
-        A_penalizer, A_prior = 50.0, -0.0015
-        B_penalizer, B_prior = 25.0, -0.30
+        A_penalizer, A_prior = 100.0, -0.0012
+        B_penalizer, B_prior = 50.0, -0.325
 
         M1 = np.array(
             [
@@ -525,19 +524,11 @@ class TemperatureController(BackgroundJob):
         try:
             A, B, _, _ = np.linalg.solve(M1, Y1)
         except np.linalg.LinAlgError:
-            self.logger.error("Error in temperature inference.")
-            self.logger.debug("Error in temperature inference", exc_info=True)
-            self.logger.debug(f"x={x}")
-            self.logger.debug(f"y={y}")
-            raise ValueError()
+            raise ValueError(f"Error in temperature inference. {x=}, {y=}")
 
         if (B**2 + 4 * A) < 0:
             # something when wrong in the data collection - the data doesn't look enough like a sum of two expos
-            self.logger.error("Error in temperature inference.")
-            self.logger.debug(f"Error in temperature inference: {(B ** 2 + 4 * A)=} < 0")
-            self.logger.debug(f"x={x}")
-            self.logger.debug(f"y={y}")
-            raise ValueError()
+            raise ValueError(f"Error in temperature inference. {x=}, {y=}")
 
         p = 0.5 * (
             B + np.sqrt(B**2 + 4 * A)
@@ -557,11 +548,7 @@ class TemperatureController(BackgroundJob):
         try:
             b, c = np.linalg.solve(M2, Y2)
         except np.linalg.LinAlgError:
-            self.logger.error("Error in temperature inference.")
-            self.logger.debug("Error in temperature inference's second regression.", exc_info=True)
-            self.logger.debug(f"x={x}")
-            self.logger.debug(f"y={y}")
-            raise ValueError()
+            raise ValueError(f"Error in temperature inference. {x=}, {y=}")
 
         alpha, beta = b, p
 
@@ -570,12 +557,11 @@ class TemperatureController(BackgroundJob):
         return float(room_temp + alpha * exp(beta * n))
         # return float(room_temp + alpha * (exp(beta * n) - 1)/(beta * n))
 
-    def approximate_temperature_2_0(self, features: dict[str, Any]) -> float:
+    @staticmethod
+    def approximate_temperature_2_0(features: dict[str, Any]) -> float:
         """
         This uses linear regression from historical data
         """
-        self.logger.debug("Using approximate_temperature_2_0")
-
         if features["previous_heater_dc"] == 0:
             return features["time_series_of_temp"][-1]
 
