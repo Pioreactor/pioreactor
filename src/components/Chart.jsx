@@ -269,9 +269,9 @@ class Chart extends React.Component {
     return x
   }
 
-  breakString(string){
-    if (string.length > 12){
-      return string.slice(0, 5) + "..." + string.slice(string.length-2, string.length)
+  breakString = (n) => (string) => {
+    if (string.length > n){
+      return string.slice(0, n-5) + "..." + string.slice(string.length-2, string.length)
     }
     return string
   }
@@ -281,14 +281,12 @@ class Chart extends React.Component {
       return name
     }
 
-    if (name.match(/(.*)-([12])/g)){
-      const results = name.match(/(.*)-([12])/);
-      const index = results[1];
-      const sensor = results[2];
-      return this.breakString(this.props.relabelMap[index] || index) + "-ch" + sensor
-    }
-    else {
-      return this.breakString(this.props.relabelMap[name] || name)
+    const regexResults = name.match(/(.*)-([12])/);
+    if (regexResults) {
+      const [_, mainPart, sensor] = regexResults;
+      return `${this.breakString(12)(this.props.relabelMap[mainPart] || mainPart)}-ch${sensor}`;
+    } else {
+      return this.breakString(12)(this.props.relabelMap[name] || name);
     }
   }
 
@@ -309,8 +307,26 @@ ${this.relabelAndFormatSeries(d.datum.childName)}: ${Math.round(this.yTransforma
   }
 
 
+  relabelAndFormatSeriesForLegend(name){
+    if (!this.props.relabelMap){
+      return name
+    }
+
+    const nElements = Object.keys(this.props.relabelMap).length;
+    let truncateString = this.breakString( Math.floor(100 / nElements) )
+
+    const regexResults = name.match(/(.*)-([12])/);
+    if (regexResults) {
+      const [_, mainPart, sensor] = regexResults;
+      return `${truncateString(this.props.relabelMap[mainPart] || mainPart)}-ch${sensor}`;
+    } else {
+      return truncateString(this.props.relabelMap[name] || name);
+    }
+  }
+
+
   selectLegendData(name){
-    var reformattedName = this.relabelAndFormatSeries(name)
+    var reformattedName = this.relabelAndFormatSeriesForLegend(name)
     if (!this.state.seriesMap) {
       return {}
     }

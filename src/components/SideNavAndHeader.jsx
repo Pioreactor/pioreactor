@@ -225,7 +225,9 @@ export default function SideNavAndHeader() {
                 </MenuItem>
 
                 <MenuItem
-                  icon={<ViewTimelineOutlinedIcon/> }
+                  icon={
+                        <ViewTimelineOutlinedIcon/>
+                    }
                   component={<Link to="/experiment-profiles" className="link" />}
                   active={isSelected("/experiment-profiles")}
                   >

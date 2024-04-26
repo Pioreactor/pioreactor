@@ -20,8 +20,9 @@ import DisplayProfile from "./components/DisplayProfile"
 import DisplaySourceCode from "./components/DisplaySourceCode"
 import CloseIcon from '@mui/icons-material/Close';
 import CodeIcon from '@mui/icons-material/Code';
-import {runPioreactorJob} from "./utilities"
 import AddIcon from '@mui/icons-material/Add';
+import Badge from '@mui/material/Badge';
+
 import EditIcon from '@mui/icons-material/Edit';
 import { Link, useNavigate } from 'react-router-dom';
 import SelectButton from "./components/SelectButton";
@@ -32,6 +33,7 @@ import { useConfirm } from 'material-ui-confirm';
 import { MQTTProvider, useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 import ManageExperimentMenu from "./components/ManageExperimentMenu";
+import {runPioreactorJob} from "./utilities"
 
 
 const useStyles = makeStyles((theme) => ({
@@ -119,7 +121,14 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName, s
       setConfirmed(false)
     }
     else if(setting === "experiment_profile_name") {
-      setRunningProfileName(payload === "" ? null : payload)
+      if (payload === ""){
+        setRunningProfileName(null)
+      }
+      else {
+        setRunningProfileName(payload)
+        const filename = Object.keys(experimentProfilesAvailable).find(k => experimentProfilesAvailable[k].experiment_profile_name === payload);
+        setSelectedExperimentProfile(filename)
+      }
     }
     else if(setting === "start_time_utc") {
       setStartTime(payload === "" ? null : payload)
@@ -314,7 +323,8 @@ function ProfilesContainer({experiment, config}){
           <Typography variant="subtitle2" style={{flexGrow: 1}}>
             <div style={{display:"inline"}}>
               <Box fontWeight="fontWeightBold" style={{display:"inline-block"}}>
-                <ViewTimelineOutlinedIcon style={{ fontSize: 12, verticalAlign: "-1px" }}/> Profile running:&nbsp;
+                  <ViewTimelineOutlinedIcon style={{ fontSize: 12, verticalAlign: "-1px" }}/>
+                 Profile running:&nbsp;
               </Box>
               <Box fontWeight="fontWeightRegular" style={{marginRight: "1%", display:"inline-block"}}>
                 {runningProfileName || "None"}

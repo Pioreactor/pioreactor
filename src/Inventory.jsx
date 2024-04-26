@@ -34,6 +34,7 @@ import LoadingButton from '@mui/lab/LoadingButton';
 import CheckIcon from '@mui/icons-material/Check';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import RemoveCircleOutlineRoundedIcon from '@mui/icons-material/RemoveCircleOutlineRounded';
+import CircularProgress from '@mui/material/CircularProgress';
 import { useConfirm } from 'material-ui-confirm';
 import { useNavigate } from 'react-router-dom'
 
@@ -504,7 +505,7 @@ function WorkerCard(props) {
             </Typography>
             <Tooltip title={indicatorLabel} placement="left">
               <div>
-                <div aria-label={indicatorLabel} className="indicator-dot" style={{boxShadow: `0 0 ${indicatorDotShadow}px ${indicatorDotColor}, inset 0 0 12px  ${indicatorDotColor}`}}/>
+                <div className="indicator-dot" style={{boxShadow: `0 0 ${indicatorDotShadow}px ${indicatorDotColor}, inset 0 0 12px  ${indicatorDotColor}`}}/>
               </div>
             </Tooltip>
           </div>
@@ -698,13 +699,17 @@ function Remove({unit, isLeader}) {
     </Button>
 )}
 
-function InventoryDisplay(props){
+function InventoryDisplay({isLoading, workers, config}){
   return (
     <Grid container spacing={2}>
-      {props.workers.map(worker =>
-        <Grid key={worker.pioreactor_unit} item md={6} xs={12} sm={12}>
-          <WorkerCard worker={worker} config={props.config}/>
-        </Grid>
+      {isLoading ? <div style={{textAlign: "center", margin: 'auto', marginTop: "50px"}}><CircularProgress /> </div>: (
+        <>
+          {workers.map(worker =>
+          <Grid key={worker.pioreactor_unit} item md={6} xs={12} sm={12}>
+            <WorkerCard worker={worker} config={config}/>
+          </Grid>
+          )}
+        </>
       )}
     </Grid>
 )}
@@ -714,6 +719,7 @@ function InventoryDisplay(props){
 function Inventory({title}) {
   const [workers, setWorkers] = useState([]);
   const [config, setConfig] = useState({})
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     document.title = title;
@@ -726,6 +732,7 @@ function Inventory({title}) {
 
 
   const fetchWorkers = async () => {
+    setIsLoading(true)
     try {
       const response = await fetch(`/api/workers`);
       if (response.ok) {
@@ -736,6 +743,8 @@ function Inventory({title}) {
       }
     } catch (error) {
       console.error('Error fetching workers:', error);
+    } finally {
+      setIsLoading(false)
     }
   };
 
@@ -744,7 +753,7 @@ function Inventory({title}) {
       <Grid container spacing={2} >
         <Grid item md={12} xs={12}>
           <Header />
-          <InventoryDisplay workers={workers} config={config} />
+          <InventoryDisplay isLoading={isLoading} workers={workers} config={config} />
           <Grid item xs={12}>
             <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/create-cluster" target="_blank" rel="noopener noreferrer">inventory and cluster management</a>.</p>
           </Grid>

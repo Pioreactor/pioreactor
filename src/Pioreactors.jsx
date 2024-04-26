@@ -129,7 +129,7 @@ const useStyles = makeStyles((theme) => ({
   },
   textFieldCompact: {
     marginTop: "15px",
-    width: "125px",
+    width: "140px",
   },
   slider: {
     width: "70%",
@@ -2024,7 +2024,7 @@ function SettingsActionsDialogAll({experiment}) {
     }}>
       <DialogTitle style={{backgroundImage: "linear-gradient(to bottom left, rgba(83, 49, 202, 0.4), rgba(0,0,0,0))"}}>
         <Typography className={classes.suptitle}>
-          <b>All active & assigned Pioreactors</b>
+          <b>All assigned & active Pioreactors</b>
         </Typography>
         <IconButton
           aria-label="close"
@@ -2463,6 +2463,7 @@ function SettingNumericField(props) {
   return (
     <div style={{ display: "flex" }}>
       <TextField
+        type="number"
         size="small"
         autoComplete="off"
         disabled={props.disabled}
@@ -2771,7 +2772,7 @@ function PioreactorCard(props){
               </Typography>
               <Tooltip title={indicatorLabel} placement="right">
                 <div>
-                  <div aria-label={indicatorLabel} className="indicator-dot" style={{boxShadow: `0 0 ${indicatorDotShadow}px ${indicatorDotColor}, inset 0 0 12px  ${indicatorDotColor}`}}/>
+                  <div className="indicator-dot" style={{boxShadow: `0 0 ${indicatorDotShadow}px ${indicatorDotColor}, inset 0 0 12px  ${indicatorDotColor}`}}/>
                 </div>
               </Tooltip>
             </div>
