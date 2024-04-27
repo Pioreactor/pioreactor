@@ -126,12 +126,14 @@ class TemperatureController(BackgroundJob):
         self.read_external_temperature_timer = RepeatedTimer(
             53,
             self.read_external_temperature,
+            job_name=self.job_name,
             run_immediately=False,
         ).start()
 
         self.publish_temperature_timer = RepeatedTimer(
             int(self.INFERENCE_EVERY_N_SECONDS),
             self.infer_temperature,
+            job_name=self.job_name,
             run_after=self.INFERENCE_EVERY_N_SECONDS
             - self.inference_total_time,  # This gives an automation a "full" PWM cycle to be on before an inference starts.
             run_immediately=True,

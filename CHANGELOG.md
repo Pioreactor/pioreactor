@@ -24,7 +24,7 @@
     - If the mixing fan is running, but the stir bar isn't in sync, this step will align the stir bar and fan again.
     - If the mixing fan is running _too fast_, but the sensor isn't reading it, this allows for a small pause.
  - The recommend way to upgrade Pioreactors and clusters is now using _release archives_. We have more control over the upgrade process this way. However, users are still welcome use the command line, `pio update`, which is what we use in house.
- - Chart legend's in the UI now display the entire name of the worker, if there is enough room.
+ - A chart legend's in the UI now displays the entire name of the worker, if there is enough room.
  - Temporary Pioreactor labels, set in the UI, are now unique across an experiment.
 
 #### Breaking changes

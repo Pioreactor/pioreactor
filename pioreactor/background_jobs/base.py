@@ -1153,6 +1153,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
         self.sneak_in_timer = RepeatedTimer(
             ads_interval,
             sneak_in,
+            job_name=self.job_name,
             args=(ads_interval, post_delay, pre_delay),
             run_immediately=False,
         )

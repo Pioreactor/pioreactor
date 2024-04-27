@@ -4,19 +4,11 @@ from __future__ import annotations
 import pytest
 
 from pioreactor.background_jobs import temperature_control
-from pioreactor.whoami import get_unit_name
 
 
 class TestTemperatureApproximation_1_0:
     def setup_class(self):
-        self.unit = get_unit_name()
-        self.experiment = "TestTemperatureApproximation_1_0"
-        self.t = temperature_control.TemperatureController(
-            automation_name="only_record_temperature", unit=self.unit, experiment=self.experiment
-        )
-
-    def teardown_class(self):
-        self.t.clean_up()
+        self.t = temperature_control.TemperatureController
 
     def test_temperature_approximation_if_less_than_hardcoded_room_temp(self) -> None:
         features = {

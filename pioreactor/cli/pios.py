@@ -704,8 +704,8 @@ if am_I_leader():
     def update_settings(ctx, job: str, units: tuple[str, ...], y: bool) -> None:
         """
 
-        Examples
-        ---------
+        Examples:
+
         > pios update-settings stirring --target_rpm 500 --units worker1
         > pios update-settings dosing_control --automation '{"type": "dosing", "automation_name": "silent", "args": {}}
 

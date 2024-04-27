@@ -837,7 +837,7 @@ class ODReader(BackgroundJob):
     if whoami.get_pioreactor_version() == (1, 0):
         TARGET_REF_VOLTAGE = 0.10
     elif whoami.get_pioreactor_version() == (1, 1):
-        TARGET_REF_VOLTAGE = 0.30  # larger hole
+        TARGET_REF_VOLTAGE = 0.03  # TODO: tweak?
 
     def __init__(
         self,
@@ -955,9 +955,9 @@ class ODReader(BackgroundJob):
             # this could create poor lower sensitivity, so we bump up the IR LED slightly.
             # 1.5 and 0.1 are arbitrary!
             if culture_on_signal / blank_on_signal < 1.5:
-                sparse_signal_factor = 0.1
+                sparse_signal_factor = 1.1
             else:
-                sparse_signal_factor = 0.0
+                sparse_signal_factor = 1.0
 
         if len(on_reading) == 0:
             # no op, didn't specify a REF, so we can't do much.
@@ -970,11 +970,9 @@ class ODReader(BackgroundJob):
             return clamp(
                 20.0,
                 round(
-                    self.TARGET_REF_VOLTAGE
-                    * (self.ir_led_intensity / signal_voltage)
-                    * (1 + sparse_signal_factor),
-                    2,
-                ),
+                    self.TARGET_REF_VOLTAGE * (self.ir_led_intensity / signal_voltage) * sparse_signal_factor,
+                    0,
+                ),  # round for a nice number to display in the UI
                 80.0,
             )  # more than 80% is a bad idea for IR LED
 
