@@ -612,19 +612,19 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
             logger.error(e)
             raise e
 
-        s = scheduler()
+        sched = scheduler()
 
         # process common
         for job_name, job in profile.common.jobs.items():
             for action in job.actions:
-                s.enter(
+                sched.enter(
                     delay=hours_to_seconds(action.hours_elapsed),
                     priority=get_simple_priority(action),
                     action=common_wrapped_execute_action(
                         experiment,
                         job_name,
                         logger,
-                        s,
+                        sched,
                         action,
                         dry_run,
                     ),
@@ -639,7 +639,7 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
 
             for job_name, job in pioreactor_specific_block.jobs.items():
                 for action in job.actions:
-                    s.enter(
+                    sched.enter(
                         delay=hours_to_seconds(action.hours_elapsed),
                         priority=get_simple_priority(action),
                         action=wrapped_execute_action(
@@ -647,7 +647,7 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
                             experiment,
                             job_name,
                             logger,
-                            s,
+                            sched,
                             action,
                             dry_run,
                         ),
@@ -660,22 +660,21 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
 
             # the below is so the schedule can be canceled by setting the event.
             while not state.exit_event.wait(timeout=0):
-                next_event_in = s.run(blocking=False)
+                next_event_in = sched.run(blocking=False)
                 if next_event_in is not None:
-                    time.sleep(min(0.5, next_event_in))
+                    time.sleep(min(0.25, next_event_in))
                 else:
                     break
         finally:
             if state.exit_event.is_set():
                 # ended early
 
+                logger.notice(f"Stopping profile {profile.experiment_profile_name} early: {len(sched.queue)} actions not started, and stopping all started actions.")  # type: ignore
                 # stop all jobs started
                 # we can use active workers in experiment, since if a worker leaves an experiment or goes inactive, it's jobs are stopped
                 workers = get_active_workers_in_experiment(experiment)
                 with ClusterJobManager(workers) as jm:
                     jm.kill_jobs(experiment=experiment, job_source="experiment_profile")
-
-                logger.notice(f"Stopping profile {profile.experiment_profile_name} early: {len(s.queue)} actions not started, and stopping all started actions.")  # type: ignore
 
             else:
                 if dry_run:
