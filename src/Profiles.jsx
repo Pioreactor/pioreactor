@@ -264,6 +264,9 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName, s
           {selectedExperimentProfile !== "" && viewSource &&
             <DisplaySourceCode sourceCode={source}/>
           }
+          {selectedExperimentProfile == "" &&
+            <DisplaySourceCode sourceCode={"Loading..."}/>
+          }
         </Grid>
         <div style={{display: "flex", justifyContent: "flex-end", marginLeft: "20px"}}>
             <SelectButton

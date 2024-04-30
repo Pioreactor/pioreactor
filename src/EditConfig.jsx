@@ -142,7 +142,7 @@ class EditableCodeDiv extends React.Component {
 
   onSelectionChange = (e) => {
     const filename = e.target.value
-    this.setState({filename: filename})
+    this.setState({filename: filename, code: "Loading..."})
     this.getConfig(filename)
     this.getHistoricalConfigFiles(filename)
   }
