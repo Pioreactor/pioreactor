@@ -389,9 +389,7 @@ class GrowthRateCalculator(BackgroundJob):
         if any(v <= 0.0 for v in scaled_signals.values()):
             self.logger.debug(f"od_normalization_factors: {self.od_normalization_factors}")
             self.logger.debug(f"od_blank: {dict(self.od_blank)}")
-            raise ValueError(
-                f"Negative normalized value(s) observed: {scaled_signals}. Did your blank have inoculant in it?"
-            )
+            raise ValueError(f"Negative normalized value(s) observed: {scaled_signals}.")
 
         return scaled_signals
 

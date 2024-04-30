@@ -442,7 +442,7 @@ class TemperatureController(BackgroundJob):
         self.logger.debug(f"{features=}")
 
         try:
-            if whoami.get_pioreactor_version() == (0, 0):
+            if whoami.get_pioreactor_version() == (1, 0):
                 inferred_temperature = self.approximate_temperature_1_0(features)
             elif whoami.get_pioreactor_version() >= (1, 1):
                 inferred_temperature = self.approximate_temperature_2_0(features)

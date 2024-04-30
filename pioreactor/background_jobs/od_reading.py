@@ -699,7 +699,9 @@ class CachedCalibrationTransformer(CalibrationTransformer):
                         raise exc.CalibrationError(msg)
                     else:
                         models[channel] = self._hydrate_model(calibration_data)
-                        self.logger.debug(f"Using calibration `{name}` for channel {channel}")
+                        self.logger.debug(
+                            f"Using calibration `{name}` for channel {channel}, {calibration_data.curve_type=}, {calibration_data.curve_data_=}"
+                        )
 
                     # confirm that PD channel is the same as when calibration was performed
                     if calibration_data.pd_channel != channel:
@@ -836,8 +838,8 @@ class ODReader(BackgroundJob):
 
     if whoami.get_pioreactor_version() == (1, 0):
         TARGET_REF_VOLTAGE = 0.10
-    elif whoami.get_pioreactor_version() == (1, 1):
-        TARGET_REF_VOLTAGE = 0.03  # TODO: tweak?
+    elif whoami.get_pioreactor_version() >= (1, 1):
+        TARGET_REF_VOLTAGE = 0.03
 
     def __init__(
         self,

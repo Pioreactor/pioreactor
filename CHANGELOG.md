@@ -10,7 +10,7 @@
   version=1.1
   ```
   If you have a mixed cluster (some 1.0, some 1.1), then you should put this configuration in the _unit specific_ config files.
- - For v1.1: New temperature inference algorithm makes reaching the `thermostat` setpoint quicker, and the Pioreactor can reach higher temperatures (our internal testing could easily reach up to 45C in a cool room). This algorithm uses the magic of ✨statistics✨. We may update the best PID values in the future, but the default ones work okay for now. A Pioreactor v1.0 update for this algorithm should come out soon, too.
+ - For v1.1: New temperature inference algorithm makes reaching the `thermostat` setpoint quicker, and the Pioreactor can reach higher temperatures (our internal testing could easily reach up to 45C in a cool room). This algorithm uses the magic of ✨statistics✨. We may update the themostat PID values in the future, but the default ones work okay for now. A Pioreactor v1.0 update for this algorithm should come out soon, too.
 
  #### Enhancements
 
