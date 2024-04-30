@@ -1345,7 +1345,7 @@ function SettingsActionsDialog(props) {
               color="primary"
               disabled={!temperatureControlJobRunning}
             >
-              Replace temperature automation
+              Replace running temperature automation
             </Button>
 
             <ChangeAutomationsDialog
@@ -1414,7 +1414,7 @@ function SettingsActionsDialog(props) {
               color="primary"
               disabled={!dosingControlJobRunning}
             >
-              Replace dosing automation
+              Replace running dosing automation
             </Button>
 
             <ChangeAutomationsDialog
@@ -1485,7 +1485,7 @@ function SettingsActionsDialog(props) {
               color="primary"
               disabled={!ledControlJobRunning}
             >
-              Replace LED automation
+              Replace running LED automation
             </Button>
 
             <ChangeAutomationsDialog
@@ -2516,7 +2516,7 @@ function ActiveUnits({experiment, config, units, isLoading}){
         </Box>
         <AssignPioreactors experiment={experiment}/>
         <Box fontWeight="fontWeightRegular">
-          Or, learn more <a href="https://docs.pioreactor.com/user-guide/create-cluster" target="_blank" rel="noopener noreferrer">assigning inventory</a>.
+          or, learn more about <a href="https://docs.pioreactor.com/user-guide/create-cluster" target="_blank" rel="noopener noreferrer">assigning inventory</a>.
         </Box>
       </Typography>
       </>

@@ -29,9 +29,11 @@ const TimeFormatSwitch = (props) => {
     event,
     newAlignment,
   ) => {
-    setState(newAlignment);
-    props.setTimeScale(newAlignment);
-    localStorage.setItem('timeScale', newAlignment);
+    if (newAlignment !== null) {
+      setState(newAlignment);
+      props.setTimeScale(newAlignment);
+      localStorage.setItem('timeScale', newAlignment);
+    }
   };
 
   return (
@@ -63,9 +65,11 @@ const TimeWindowSwitch = (props) => {
     event,
     newAlignment,
   ) => {
-    setState(newAlignment);
-    props.setTimeWindow(newAlignment);
-    localStorage.setItem('timeWindow', newAlignment.toString());
+    if (newAlignment !== null) {
+      setState(newAlignment);
+      props.setTimeWindow(newAlignment);
+      localStorage.setItem('timeWindow', newAlignment.toString());
+    }
   };
   return (
     <ToggleButtonGroup

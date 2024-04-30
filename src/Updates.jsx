@@ -153,10 +153,11 @@ function UploadArchiveAndConfirm(props) {
         <DialogContent>
           <DialogContentText id="alert-dialog-description">
             {props.description}
-            <span>Learn more about <a href="https://docs.pioreactor.com/user-guide/updating-software#method-2-update-using-a-zip-file-and-the-ui" target="_blank" rel="noopener noreferrer" >updating from a zip file</a>.</span>
+            <p>You can update the Pioreactor software from our pre-built zip files. First download the <code>release_*.zip</code> file from our <a href="https://github.com/Pioreactor/pioreactor/releases" target="_blank" rel="noopener noreferrer" >Releases page</a>, and then upload the file.</p>
+            <p>Learn more about <a href="https://docs.pioreactor.com/user-guide/updating-software#method-2-update-using-a-zip-file-and-the-ui" target="_blank" rel="noopener noreferrer">updating from a zip file</a>.</p>
+            <p>To avoid possible data interruptions, we suggest updating between running experiments.</p>
             <br/>
-            <br/>
-            <Button component="label" style={{textTransform: 'none'}}>Choose zip file <VisuallyHiddenInput onChange={handleFileChange} accept=".zip" type="file" /></Button>
+            <Button component="label" style={{textTransform: 'none'}}>Upload zip file <VisuallyHiddenInput onChange={handleFileChange} accept=".zip" type="file" /></Button>
             {selectedFile == null ? "" : selectedFile.name}
             <div style={{minHeight: "30px", alignItems: "center", display: "flex"}}>
               {errorMsg   ? <p><CloseIcon className={clsx(classes.textIcon, classes.lostRed)}/>{errorMsg}</p>           : <React.Fragment/>}
@@ -256,7 +257,7 @@ function UpdateSoftwareConfirmDialog(props) {
       return "This requires an internet connection. To avoid possible data interruptions, we suggest updating between running experiments."
     }
     else if (installOption === "archive"){
-      return "You can update the Pioreactor software from our pre-built zip files. Choose the file below. To avoid possible data interruptions, we suggest updating between running experiments."
+      return ""
 
     }
   }

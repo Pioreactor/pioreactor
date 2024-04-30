@@ -127,7 +127,7 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName, s
       else {
         setRunningProfileName(payload)
         const filename = Object.keys(experimentProfilesAvailable).find(k => experimentProfilesAvailable[k].experiment_profile_name === payload);
-        setSelectedExperimentProfile(filename)
+        setSelectedExperimentProfile(filename || "")
       }
     }
     else if(setting === "start_time_utc") {
@@ -224,7 +224,7 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName, s
               color="primary"
               aria-label="edit source code"
               style={{textTransform: "none"}}
-              to={`/edit-experiment-profile?profile=${selectedExperimentProfile.split("/").pop()}`}
+              to={`/edit-experiment-profile?profile=${(selectedExperimentProfile || "").split("/").pop()}`}
               component={Link}
               disabled={ selectedExperimentProfile === ''}
             >

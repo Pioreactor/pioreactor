@@ -50,7 +50,7 @@ const useStyles = makeStyles((theme) => ({
   thinTextField:{
     marginTop: theme.spacing(2),
     marginBottom: theme.spacing(0),
-    width: "100%"
+    width: "60%"
   },
   formControl: {
     margin: theme.spacing(3),
@@ -204,10 +204,6 @@ function ExperimentSummaryForm(props) {
   }
 
 
-  function killExistingJobs(){
-     fetch('/api/workers/stop', {method: "POST"})
-  }
-
   function onSubmit(e) {
     e.preventDefault();
     setLoading(true)
@@ -237,7 +233,6 @@ function ExperimentSummaryForm(props) {
           setHelperText(" ")
           setFormError(false);
           updateExperiment(experimentMetadata, true)
-          killExistingJobs()
           props.handleNext()
         }
         else if (res.status === 409) {
@@ -261,9 +256,9 @@ function ExperimentSummaryForm(props) {
       setFormError(true);
       setHelperText("Experiment name already used. Please choose another.")
     }
-    else if (experimentNameProposed.includes("#") || experimentNameProposed.includes("+") || experimentNameProposed.includes("/")) {
+    else if (experimentNameProposed.includes("#") || experimentNameProposed.includes("+") || experimentNameProposed.includes("/") || experimentNameProposed.includes("\\")) {
       setFormError(true)
-      setHelperText("Can't use #, / or + characters in experiment name.")
+      setHelperText("Can't use #, \\, / or + characters in experiment name.")
     }
     else {
       setHelperText(" ")
