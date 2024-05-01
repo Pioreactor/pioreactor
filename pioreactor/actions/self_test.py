@@ -166,7 +166,7 @@ def test_all_positive_correlations_between_pds_and_leds(
 
             # record from ADC, we'll average them
             avg_reading = average_over_pd_channel_to_voltages(
-                adc_reader.take_reading(), adc_reader.take_reading()
+                adc_reader.take_reading(), adc_reader.take_reading(), adc_reader.take_reading()
             )
 
             # Add to accumulating list
