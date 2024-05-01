@@ -83,7 +83,7 @@ def test_REF_is_in_correct_position(client: Client, logger: CustomLogger, unit: 
         experiment=experiment,
         use_calibration=False,
     ) as od_stream:
-        st.block_until_rpm_is_close_to_target(abs_tolerance=150, timeout=15)
+        st.block_until_rpm_is_close_to_target(abs_tolerance=150, timeout=10)
 
         for i, reading in enumerate(od_stream, start=1):
             signal1.append(reading.ods["1"].od)
@@ -426,7 +426,7 @@ class BatchTestRunner:
                 res = True
             except Exception as e:
                 logger.debug(e, exc_info=True)
-                logger.warning(f"{test_name.replace('_', ' ')}: {e}")
+                logger.warning(f" in {test_name.replace('_', ' ')}: {e}")
 
             logger.debug(f"{test_name}: {'✅' if res else '❌'}")
 

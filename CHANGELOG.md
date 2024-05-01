@@ -19,7 +19,8 @@
  - The leader is now the source-of-truth for the cluster's clocks. For example, when a worker boots up, it will ask the leader what the time is, and will periodically continue asking. If the leader has access to the internet, it will pull the correct time (and periodically continue asking). If the leader doesn't have access to the internet, it will use the default time on the Pi. This solves the problem of workers' clocks getting out of sync when powered down, especially in a local-access-point network.
    ![https://i.imgur.com/vt5gxyy.png]
  - Lots of small UI improvements, including accessibility, empty-state, and loading improvements.
- - Previously, we would "kick" stirring by forcing the DC% to 100% for a moment, and then increasing the running DC% slightly. Going forward, we'll actually try the following when the sensor fails to read a signal: _DC% to 0%_, then _DC% to 100%_, and then a slight increase in the DC%. Why?
+ - Previously, we would "kick" stirring by forcing the DC% to 100% for a moment, and then increasing the running DC% slightly. Going forward, we'll actually try the following when the
+ sensor fails to read a signal: _DC% to 0%_, then _DC% to 100%_, and then a slight increase in the DC%. Why?
     - If the mixing fan has stalled, setting the DC% to 0% does nothing, since the fan is already stopped.
     - If the mixing fan is running, but the stir bar isn't in sync, this step will align the stir bar and fan again.
     - If the mixing fan is running _too fast_, but the sensor isn't reading it, this allows for a small pause.

@@ -408,10 +408,12 @@ class Monitor(LongRunningBackgroundJob):
         while (not self.pub_client.is_connected()) or (not self.sub_client.is_connected()):
             try:
                 error_code_pc = self.pub_client.reconnect()
+                self.logger.debug(f"{error_code_pc=}")
             except Exception:
                 pass
             try:
                 error_code_sc = self.sub_client.reconnect()
+                self.logger.debug(f"{error_code_sc=}")
             except Exception:
                 pass
 

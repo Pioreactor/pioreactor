@@ -122,7 +122,6 @@ class SoftwarePWMOutputDevice:
         import lgpio
 
         lgpio.gpiochip_close(self._handle)
-        lgpio.gpio_free(self._handle, self.pin)
 
 
 class PWM:
