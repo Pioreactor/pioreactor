@@ -184,6 +184,7 @@ def test_all_positive_correlations_between_pds_and_leds(
             measured_correlation = round(correlation(INTENSITIES, varying_intensity_results[pd_channel]), 2)
             results[(led_channel, pd_channel)] = measured_correlation
             logger.debug(f"Corr({led_channel}, {pd_channel}) = {measured_correlation}")
+            logger.debug(zip(INTENSITIES, varying_intensity_results[pd_channel]))
 
         # set back to 0
         led_intensity(
