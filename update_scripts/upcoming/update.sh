@@ -23,7 +23,7 @@ if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
         crudini --ini-options=nospace --del "$file" pioreactor bioreactor 2>/dev/null || true
 
     done
-    sudo -u pioreactor pios sync-configs
+    sudo -u pioreactor pios sync-configs || :
 
     # update add_new_pioreactor_worker_from_leader.sh, make sure the new version is local to this dir.
     cp ./add_new_pioreactor_worker_from_leader.sh /usr/local/bin/add_new_pioreactor_worker_from_leader.sh
