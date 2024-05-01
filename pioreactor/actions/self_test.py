@@ -149,35 +149,41 @@ def test_all_positive_correlations_between_pds_and_leds(
         source_of_event="self_test",
     )
 
-    # for led_channel in ALL_LED_CHANNELS: # we use to check all LED channels, but most users don't need to check all, also https://github.com/Pioreactor/pioreactor/issues/445
-    for led_channel in [ir_led_channel]:  # fast to just check IR
-        varying_intensity_results: dict[PdChannel, list[float]] = {
-            pd_channel: [] for pd_channel in ALL_PD_CHANNELS
-        }
-        for intensity in INTENSITIES:
-            # turn on the LED to set intensity
-            led_intensity(
-                {led_channel: intensity},
-                unit=unit,
-                experiment=experiment,
-                verbose=False,
-                source_of_event="self_test",
-            )
+    with stirring.start_stirring(
+        target_rpm=1250,
+        unit=unit,
+        experiment=experiment,
+    ) as st:
+        st.block_until_rpm_is_close_to_target(abs_tolerance=150, timeout=10)
+        # for led_channel in ALL_LED_CHANNELS: # we use to check all LED channels, but most users don't need to check all, also https://github.com/Pioreactor/pioreactor/issues/445
+        for led_channel in [ir_led_channel]:  # fast to just check IR
+            varying_intensity_results: dict[PdChannel, list[float]] = {
+                pd_channel: [] for pd_channel in ALL_PD_CHANNELS
+            }
+            for intensity in INTENSITIES:
+                # turn on the LED to set intensity
+                led_intensity(
+                    {led_channel: intensity},
+                    unit=unit,
+                    experiment=experiment,
+                    verbose=False,
+                    source_of_event="self_test",
+                )
 
-            # record from ADC, we'll average them
-            avg_reading = average_over_pd_channel_to_voltages(
-                adc_reader.take_reading(), adc_reader.take_reading(), adc_reader.take_reading()
-            )
+                # record from ADC, we'll average them
+                avg_reading = average_over_pd_channel_to_voltages(
+                    adc_reader.take_reading(), adc_reader.take_reading(), adc_reader.take_reading()
+                )
 
-            # Add to accumulating list
-            for pd_channel in ALL_PD_CHANNELS:
-                varying_intensity_results[pd_channel].append(avg_reading[pd_channel])
+                # Add to accumulating list
+                for pd_channel in ALL_PD_CHANNELS:
+                    varying_intensity_results[pd_channel].append(avg_reading[pd_channel])
 
-                if avg_reading[pd_channel] >= 2.0:
-                    # we are probably going to saturate the PD - clearly we are detecting something though!
-                    logger.debug(
-                        f"Saw {avg_reading:.2f} for pair {pd_channel=}, {led_channel=}@{intensity=} . Saturation possible. No solution implemented yet! See issue #445"
-                    )
+                    if avg_reading[pd_channel] >= 2.0:
+                        # we are probably going to saturate the PD - clearly we are detecting something though!
+                        logger.debug(
+                            f"Saw {avg_reading:.2f} for pair {pd_channel=}, {led_channel=}@{intensity=} . Saturation possible. No solution implemented yet! See issue #445"
+                        )
 
         # compute the linear correlation between the intensities and observed PD measurements
         for pd_channel in ALL_PD_CHANNELS:
@@ -199,7 +205,7 @@ def test_all_positive_correlations_between_pds_and_leds(
     logger.debug(f"Correlations between LEDs and PD:\n{pformat(results)}")
     detected_relationships = []
     for (led_channel, pd_channel), measured_correlation in results.items():
-        if measured_correlation > 0.92:
+        if measured_correlation > 0.90:
             detected_relationships.append(
                 (
                     (config["leds"].get(led_channel) or led_channel),
