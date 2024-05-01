@@ -429,7 +429,7 @@ if am_I_leader():
                 sync_config_files(unit, shared, specific)
                 return True
             except Exception as e:
-                logger.error(f"Error syncing configs to {unit}.")
+                logger.warning(f"Encountered error syncing configs to {unit}.")
                 logger.debug(e, exc_info=True)
                 return False
 

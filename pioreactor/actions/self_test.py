@@ -129,7 +129,7 @@ def test_all_positive_correlations_between_pds_and_leds(
     # the problem is that if an LED is directly across from a PD, a high intensity will quickly
     # saturate it and fail the test. So we try low intensities first, and if we exceed some threshold
     # we exit before moving to the high intensities.
-    INTENSITIES = [20, 23, 26, 53, 44, 38, 35, 29, 47, 50, 32, 41]
+    INTENSITIES = [26, 53, 44, 38, 35, 29, 47, 50, 32, 41, 56, 59]
 
     results: dict[tuple[LedChannel, PdChannel], float] = {}
 
