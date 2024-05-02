@@ -156,7 +156,7 @@ if am_I_leader():
                 cp_file_across_cluster(unit, filepath, filepath, timeout=30)
                 return True
             except Exception as e:
-                logger.error(f"Error occurred: {e}. See logs for more.")
+                logger.error(f"Error occurred copying to {unit}. See logs for more.")
                 logger.debug(f"Error occurred: {e}.", exc_info=True)
                 return False
 
@@ -203,7 +203,8 @@ if am_I_leader():
                 logger.debug(e, exc_info=True)
                 return False
             except ErrorReturnCode_1 as e:
-                logger.error(f"Error occurred: {e}. See logs for more.")
+                logger.error(f"Error occurred rm-ing from {unit}. See logs for more.")
+                logger.debug(e, exc_info=True)
                 return False
 
         for unit in units:
@@ -274,7 +275,7 @@ if am_I_leader():
                 logger.debug(e, exc_info=True)
                 return False
             except ErrorReturnCode_1 as e:
-                logger.error(f"Error occurred: {e}. See logs for more.")
+                logger.error(f"Error occurred updating {unit}. See logs for more.")
                 logger.debug(e.stderr, exc_info=True)
                 return False
 
@@ -327,7 +328,7 @@ if am_I_leader():
                 logger.debug(e, exc_info=True)
                 return False
             except ErrorReturnCode_1 as e:
-                logger.error(f"Error occurred: {e}. See logs for more.")
+                logger.error(f"Error occurred installing plugin on {unit}. See logs for more.")
                 logger.debug(e.stderr, exc_info=True)
                 return False
 
@@ -377,7 +378,7 @@ if am_I_leader():
                 logger.debug(e, exc_info=True)
                 return False
             except ErrorReturnCode_1 as e:
-                logger.error(f"Error occurred: {e}. See logs for more.")
+                logger.error(f"Error occurred uninstalling plugin on {unit}. See logs for more.")
                 logger.debug(e.stderr, exc_info=True)
                 return False
 
@@ -564,7 +565,7 @@ if am_I_leader():
                 return False
             except ErrorReturnCode_1 as e:
                 logger = create_logger("CLI", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
-                logger.error(f"Error occurred: {e}. See logs for more.")
+                logger.error(f"Error occurred running job on {unit}. See logs for more.")
                 logger.debug(e.stderr, exc_info=True)
                 return False
 
@@ -615,7 +616,7 @@ if am_I_leader():
                 logger.error(f"Unable to connect to unit {unit}. {e.stderr.decode()}")
                 return False
             except ErrorReturnCode_1 as e:
-                logger.error(f"Error occurred: {e}. See logs for more.")
+                logger.error(f"Error occurred shutting down {unit}. See logs for more.")
                 logger.debug(e.stderr, exc_info=True)
                 return False
 
@@ -671,7 +672,7 @@ if am_I_leader():
                 logger.error(f"Unable to connect to unit {unit}. {e.stderr.decode()}")
                 return False
             except ErrorReturnCode_1 as e:
-                logger.error(f"Error occurred: {e}. See logs for more.")
+                logger.error(f"Error occurred rebooting {unit}. See logs for more.")
                 logger.debug(e.stderr, exc_info=True)
                 return False
 

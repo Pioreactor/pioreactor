@@ -4,12 +4,12 @@
 
  - initial support for Pioreactor 20ml v1.1! This is our latest iteration of Pioreactor. Even though it's a minor 0.x release, there's lots of positives about it. We encourage you to check out the upgrade kit [here](https://pioreactor.com/collections/upgrade-kits/products/pioreactor-20ml-v1-1-upgrade-kit).
  - some further support for tracking the model and version of the Pioreactor you are using. Users can change the version in the config file. For example:
-  ```
-  [pioreactor]
-  model=pioreactor_20ml
-  version=1.1
-  ```
-  If you have a mixed cluster (some 1.0, some 1.1), then you should put this configuration in the _unit specific_ config files.
+   ```
+   [pioreactor]
+   model=pioreactor_20ml
+   version=1.1
+   ```
+   If you have a mixed cluster (some 1.0, some 1.1), then you should put this configuration in the _unit specific_ config files.
  - For v1.1: New temperature inference algorithm makes reaching the `thermostat` setpoint quicker, and the Pioreactor can reach higher temperatures (our internal testing could easily reach up to 45C in a cool room). This algorithm uses the magic of ✨statistics✨. We may update the themostat PID values in the future, but the default ones work okay for now. A Pioreactor v1.0 update for this algorithm should come out soon, too.
 
  #### Enhancements
@@ -17,7 +17,9 @@
  - When using `turbidostat`, there is now a small moving average filter on the raw OD readings. This will prevent the turbidostat from firing when an OD outlier occurs.
  - MQTT data is no long persisted between leader power-cycles. This was the cause of a lot of bad UI state issues where users couldn't interact with the Pioreactor via the UI after a power-cycle (intentional or not). We originally persisted the data since we previously used MQTT as more like a database, but our engineering style has moved away from that idea, and we now only use MQTT for "ephemeral" data. Taking out the persistent MQTT data forces this style change. Users shouldn't notice anything different.
  - The leader is now the source-of-truth for the cluster's clocks. For example, when a worker boots up, it will ask the leader what the time is, and will periodically continue asking. If the leader has access to the internet, it will pull the correct time (and periodically continue asking). If the leader doesn't have access to the internet, it will use the default time on the Pi. This solves the problem of workers' clocks getting out of sync when powered down, especially in a local-access-point network.
-   ![https://i.imgur.com/vt5gxyy.png]
+
+   ![](https://i.imgur.com/vt5gxyy.png)
+
  - Lots of small UI improvements, including accessibility, empty-state, and loading improvements.
  - Previously, we would "kick" stirring by forcing the DC% to 100% for a moment, and then increasing the running DC% slightly. Going forward, we'll actually try the following when the
  sensor fails to read a signal: _DC% to 0%_, then _DC% to 100%_, and then a slight increase in the DC%. Why?

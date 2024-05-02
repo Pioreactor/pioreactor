@@ -9,7 +9,7 @@ exec(compile(open("pioreactor/version.py").read(), "pioreactor/version.py", "exe
 
 CORE_REQUIREMENTS = [
     "click==8.1.7",
-    "paho-mqtt==1.6.1",
+    "paho-mqtt==2.1.0",
     "psutil==5.9.5",
     "sh==2.0.6",
     "JSON-log-formatter==0.5.1",

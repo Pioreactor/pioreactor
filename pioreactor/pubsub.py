@@ -12,6 +12,7 @@ from typing import Optional
 
 from msgspec.json import decode as loads
 from paho.mqtt.client import Client as PahoClient
+from paho.mqtt.enums import CallbackAPIVersion
 
 from pioreactor.config import config
 from pioreactor.config import mqtt_address
@@ -99,9 +100,9 @@ def create_client(
             logger.error(f"Connection failed with error code {rc=}: {connack_string(rc)}")
 
     client = Client(
-        client_id=add_hash_suffix(client_id)
-        if client_id
-        else "",  # Note: if empty string, paho or mosquitto will autogenerate a good client id.
+        callback_api_version=CallbackAPIVersion.VERSION2,
+        # Note: if empty string, paho or mosquitto will autogenerate a good client id.
+        client_id=add_hash_suffix(client_id) if client_id else "",
         clean_session=clean_session,
         userdata=userdata,
     )
@@ -197,7 +198,7 @@ def subscribe(
 
     lock: Optional[threading.Lock]
 
-    def on_connect(client: Client, userdata, flags, rc) -> None:
+    def on_connect(client: Client, userdata, flags, reason_code, properties) -> None:
         client.subscribe(userdata["topics"])
         return
 

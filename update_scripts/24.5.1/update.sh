@@ -26,7 +26,8 @@ if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
     sudo -u pioreactor pios sync-configs || :
 
     # update add_new_pioreactor_worker_from_leader.sh, make sure the new version is local to this dir.
-    cp ./add_new_pioreactor_worker_from_leader.sh /usr/local/bin/add_new_pioreactor_worker_from_leader.sh
+    SCRIPT_DIR=$(dirname "$0")
+    cp "$SCRIPT_DIR/add_new_pioreactor_worker_from_leader.sh" /usr/local/bin/add_new_pioreactor_worker_from_leader.sh || wget -O /usr/local/bin/add_new_pioreactor_worker_from_leader.sh https://raw.githubusercontent.com/Pioreactor/CustoPiZer/34d632f/workspace/scripts/files/bash/add_new_pioreactor_worker_from_leader.sh
 
 
 

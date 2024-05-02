@@ -592,8 +592,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self._start_general_passive_listeners()
             self.start_passive_listeners()
 
-        def on_disconnect(client, userdata, rc: int) -> None:
-            self._on_mqtt_disconnect(client, rc)
+        def on_disconnect(client, userdata, flags, reason_code, properties) -> None:
+            self._on_mqtt_disconnect(client, reason_code)
 
         # we give the last_will to this sub client because when it reconnects, it
         # will republish state.
@@ -625,20 +625,21 @@ class _BackgroundJob(metaclass=PostInitCaller):
         client.on_disconnect = on_disconnect
         return client
 
-    def _on_mqtt_disconnect(self, client, rc: int) -> None:
-        from paho.mqtt import client as mqtt  # type: ignore
+    def _on_mqtt_disconnect(self, client: Client, reason_code: int) -> None:
+        from paho.mqtt.enums import MQTTErrorCode as mqtt
+        from paho.mqtt.client import error_string
 
-        if rc == mqtt.MQTT_ERR_SUCCESS:
+        if reason_code == mqtt.MQTT_ERR_SUCCESS:
             # MQTT_ERR_SUCCESS means that the client disconnected using disconnect()
             self.logger.debug("Disconnected successfully from MQTT.")
 
         # we won't exit, but the client object will try to reconnect
         # Error codes are below, but don't always align
         # https://github.com/eclipse/paho.mqtt.python/blob/42f0b13001cb39aee97c2b60a3b4807314dfcb4d/src/paho/mqtt/client.py#L147
-        elif rc == mqtt.MQTT_ERR_KEEPALIVE:
+        elif reason_code == mqtt.MQTT_ERR_KEEPALIVE:
             self.logger.warning("Lost contact with MQTT server. Is the leader Pioreactor still online?")
         else:
-            self.logger.debug(f"Disconnected from MQTT with {rc=}: {mqtt.error_string(rc)}")
+            self.logger.debug(f"Disconnected from MQTT with {reason_code=}: {error_string(reason_code)}")
         return
 
     def _publish_attr(self, attr: str) -> None:
