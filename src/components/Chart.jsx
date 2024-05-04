@@ -392,9 +392,9 @@ ${this.relabelAndFormatSeries(d.datum.childName)}: ${Math.round(this.yTransforma
           style={{ parent: { maxWidth: "700px"}}}
           title={this.props.title}
           domainPadding={10}
-          padding={{ left: 70, right: 50, bottom: 80, top: 50 }}
+          padding={{ left: 70, right: 50, bottom: 60 + 20 * Math.floor(this.state.names.length / 4), top: 50 }}
           events={this.state.legendEvents}
-          height={315}
+          height={295 + 20 * Math.floor(this.state.names.length / 4)}
           width={600}
           scale={{x: this.props.byDuration ? 'linear' : "time"}}
           theme={VictoryTheme.material}
@@ -436,7 +436,7 @@ ${this.relabelAndFormatSeries(d.datum.childName)}: ${Math.round(this.yTransforma
                 fontFamily: "inherit",
               },
             }}
-            offsetY={80}
+            offsetY={60 + 20 * Math.floor(this.state.names.length / 4)}
             label={this.props.byDuration ? "Hours" : "Time"}
             orientation="bottom"
             fixLabelOverlap={true}
