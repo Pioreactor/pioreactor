@@ -485,24 +485,30 @@ def safe_kill(*args: int) -> None:
 
 
 class ShellKill:
-    def __init__(self):
-        self.list_of_pids = []
+    def __init__(self) -> None:
+        self.list_of_pids: list[int] = []
 
-    def append(self, pid):
+    def append(self, pid: int) -> None:
         self.list_of_pids.append(pid)
 
-    def kill(self):
+    def kill(self) -> None:
+        if len(self.list_of_pids) == 0:
+            return
+
         safe_kill(*self.list_of_pids)
 
 
 class MQTTKill:
-    def __init__(self):
-        self.list_of_job_names = []
+    def __init__(self) -> None:
+        self.list_of_job_names: list[str] = []
 
-    def append(self, name):
+    def append(self, name: str) -> None:
         self.list_of_job_names.append(name)
 
-    def kill(self):
+    def kill(self) -> None:
+        if len(self.list_of_job_names) == 0:
+            return
+
         from pioreactor.pubsub import create_client
 
         with create_client() as client:
