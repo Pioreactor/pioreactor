@@ -38,7 +38,8 @@ export default function ManageExperimentMenu({experiment}){
       }).then(() =>
         fetch(`/api/experiments/${experiment}/workers`, {method: "DELETE"})
         // DELETEing will also stop all activity.
-    ).then(() => navigate(0))
+    ).then(() => navigate(0)).catch(() => {});
+
   };
 
   const handleDeleteExperiment = () => {
@@ -56,7 +57,7 @@ export default function ManageExperimentMenu({experiment}){
             setAllExperiments(allExperiments.filter((em) => em.experiment !== experiment));
           }
         })
-    )
+      ).catch(() => {})
   };
 
   return (

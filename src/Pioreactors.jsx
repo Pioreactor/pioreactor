@@ -33,8 +33,6 @@ import LoadingButton from '@mui/lab/LoadingButton';
 import ClearIcon from '@mui/icons-material/Clear';
 import CloseIcon from '@mui/icons-material/Close';
 import CheckIcon from '@mui/icons-material/Check';
-import RestartAltIcon from '@mui/icons-material/RestartAlt';
-import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
 import FlareIcon from '@mui/icons-material/Flare';
 import SettingsIcon from '@mui/icons-material/Settings';
 import TuneIcon from '@mui/icons-material/Tune';
@@ -172,7 +170,7 @@ const useStyles = makeStyles((theme) => ({
   headerMenu: {
     display: "flex",
     justifyContent: "space-between",
-    marginBottom: "5px",
+    marginBottom: "8px",
     [theme.breakpoints.down('lg')]:{
       flexFlow: "nowrap",
       flexDirection: "column",
@@ -403,7 +401,8 @@ function ButtonStopProcess({experiment}) {
 
       }).then(() =>
         fetch(`/api/experiments/${experiment}/workers/stop`, {method: "POST"})
-    )
+    ).catch(() => {});
+
   };
 
   return (
@@ -569,23 +568,23 @@ const updateAssignments = async () => {
 function PioreactorHeader({experiment}) {
   const classes = useStyles()
   return (
-    <div>
-      <div className={classes.headerMenu}>
+    <Box>
+      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
         <Typography variant="h5" component="h1">
           <Box fontWeight="fontWeightBold">
             Pioreactors
           </Box>
         </Typography>
-        <div className={classes.headerButtons}>
+        <Box className={classes.headerButtons}>
           <ButtonStopProcess experiment={experiment}/>
           <AssignPioreactors experiment={experiment}/>
           <SettingsActionsDialogAll experiment={experiment}/>
           <Divider orientation="vertical" flexItem variant="middle"/>
           <ManageExperimentMenu experiment={experiment}/>
-        </div>
-      </div>
-      <Divider/>
-    </div>
+        </Box>
+      </Box>
+      <Divider sx={{marginTop: "0px", marginBottom: "15px"}} />
+    </Box>
   )
 }
 

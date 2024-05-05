@@ -1,9 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { useMQTT } from '../providers/MQTTContext'; // Import the useMQTT hook
-import clsx from 'clsx';
 import moment from 'moment';
-import { makeStyles } from '@mui/styles';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
@@ -14,35 +11,15 @@ import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
+import { styled } from '@mui/material/styles';
 
-
-const useStyles = makeStyles((theme) => ({
-  tightCell: {
-    padding: "6px 6px 6px 10px",
-    fontSize: 13,
-  },
-  smallText: {
-    fontSize: 12,
-  },
-  headerCell: {
-    backgroundColor: "white",
-    padding: "8px 6px 6px 6px",
-  },
-  tightRight: {
-    textAlign: "right"
-  },
-  errorLog: {
-    backgroundColor: "#ff7961"
-  },
-  warningLog: {
-    backgroundColor: "#FFEA8A"
-  },
-  noticeLog: {
-    backgroundColor: "#addcaf"
-  },
-  nowrap: {
-    whiteSpace: "nowrap",
-  }
+const StyledTableCell = styled(TableCell)(({ theme, level }) => ({
+  padding: "6px 6px 6px 10px",
+  fontSize: 13,
+  backgroundColor: level === "ERROR" ? "#ff7961" :
+                    level === "WARNING" ? "#FFEA8A" :
+                    level === "NOTICE" ? "#addcaf" : "white",
+  whiteSpace: "nowrap"
 }));
 
 const levelMappingToOrdinal = {
@@ -55,10 +32,8 @@ const levelMappingToOrdinal = {
   CRITICAL: 5
 }
 
-
 function LogTable(props) {
   const [listOfLogs, setListOfLogs] = useState([]);
-  const classes = useStyles();
   const {client, subscribeToTopic } = useMQTT(); // Use the useMQTT hook
 
   useEffect(() => {
@@ -76,35 +51,17 @@ function LogTable(props) {
     getData();
   }, [props.experiment, props.config]);
 
-
   useEffect(() => {
     if (client){
       subscribeToTopic(`pioreactor/+/$experiment/logs/+`, onMessage, "LogTable");
     }
-  }, [client])
+  }, [client]);
 
   useEffect(() => {
     if (props.experiment && client) {
       subscribeToTopic(`pioreactor/+/${props.experiment}/logs/+`, onMessage, "LogTable");
     }
   }, [props.experiment, client]);
-
-  const relabelUnit = (unit) => {
-    return (props.relabelMap && props.relabelMap[unit]) ? `${props.relabelMap[unit]} / ${unit}` : unit;
-  };
-
-  const timestampCell = (timestamp) => {
-    const ts = moment.utc(timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]');
-    const localTs = ts.local();
-
-    if (props.byDuration) {
-      const deltaHours = Math.round(ts.diff(props.experimentStartTime, 'hours', true) * 1e2) / 1e2;
-      return <span title={localTs.format('YYYY-MM-DD HH:mm:ss.SS')}>{deltaHours} h</span>;
-    } else {
-      return <span title={localTs.format('YYYY-MM-DD HH:mm:ss.SS')}>{localTs.format('HH:mm:ss')}</span>;
-    }
-  };
-
 
   const onMessage = (topic, message, packet) => {
     const unit = topic.toString().split("/")[1];
@@ -120,9 +77,7 @@ function LogTable(props) {
         pioreactor_unit: unit,
         message: String(payload.message),
         task: payload.task,
-        is_error: (payload.level === "ERROR"),
-        is_warning: (payload.level === "WARNING"),
-        is_notice: (payload.level === "NOTICE"),
+        level: payload.level.toUpperCase(),
         key: Math.random()
       },
       ...currentLogs.slice(0, 49)
@@ -133,33 +88,29 @@ function LogTable(props) {
     <Card>
       <CardContent>
         <Typography variant="h6" component="h2">
-          <Box fontWeight="fontWeightRegular">
-            Recent event logs
-          </Box>
+          Recent event logs
         </Typography>
-        <TableContainer style={{ height: "660px", width: "100%", overflowY: "scroll"}}>
+        <TableContainer sx={{ height: "660px", width: "100%", overflowY: "auto"}}>
           <Table stickyHeader size="small" aria-label="log table">
-             <TableHead>
+            <TableHead>
               <TableRow>
-                <TableCell className={clsx(classes.headerCell)}>Time</TableCell>
-                <TableCell className={clsx(classes.headerCell)}>Pioreactor</TableCell>
-                <TableCell className={clsx(classes.headerCell)}>Source</TableCell>
-                <TableCell className={clsx(classes.headerCell)}>Message</TableCell>
+                <StyledTableCell>Time</StyledTableCell>
+                <StyledTableCell>Pioreactor</StyledTableCell>
+                <StyledTableCell>Source</StyledTableCell>
+                <StyledTableCell>Message</StyledTableCell>
               </TableRow>
             </TableHead>
-
             <TableBody>
               {listOfLogs.map(log => (
                 <TableRow key={log.key}>
-                  <TableCell className={clsx(classes.nowrap, classes.tightCell, classes.smallText, {[classes.noticeLog]: log.is_notice, [classes.errorLog]: log.is_error, [classes.warningLog]: log.is_warning})}>
-                    {timestampCell(log.timestamp)}
-                  </TableCell>
-                  <TableCell className={clsx(classes.tightCell, classes.smallText, {[classes.noticeLog]: log.is_notice, [classes.errorLog]: log.is_error, [classes.warningLog]: log.is_warning})}> {relabelUnit(log.pioreactor_unit)}</TableCell>
-                  <TableCell className={clsx(classes.tightCell, classes.smallText, {[classes.noticeLog]: log.is_notice, [classes.errorLog]: log.is_error, [classes.warningLog]: log.is_warning})}>{log.task.replace(/_/g, ' ')}</TableCell>
-                  <TableCell className={clsx(classes.tightCell, classes.smallText, {[classes.noticeLog]: log.is_notice, [classes.errorLog]: log.is_error, [classes.warningLog]: log.is_warning})}>{log.message}</TableCell>
+                  <StyledTableCell level={log.level}>
+                    {moment.utc(log.timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]').local().format('HH:mm:ss')}
+                  </StyledTableCell>
+                  <StyledTableCell level={log.level}>{log.pioreactor_unit}</StyledTableCell>
+                  <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
+                  <StyledTableCell level={log.level}>{log.message}</StyledTableCell>
                 </TableRow>
-                ))
-              }
+              ))}
             </TableBody>
           </Table>
         </TableContainer>
@@ -167,6 +118,5 @@ function LogTable(props) {
     </Card>
   );
 }
-
 
 export default LogTable;

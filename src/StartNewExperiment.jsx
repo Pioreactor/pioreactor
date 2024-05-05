@@ -2,9 +2,9 @@ import React from "react";
 import moment from "moment";
 
 import Grid from '@mui/material/Grid';
-import { makeStyles } from '@mui/styles';
 import FormGroup from '@mui/material/FormGroup';
 import Card from '@mui/material/Card';
+import Box from '@mui/material/Box';
 import CardContent from '@mui/material/Card';
 import {Typography} from '@mui/material';
 import Button from "@mui/material/Button";
@@ -23,45 +23,10 @@ import LoadingButton from '@mui/lab/LoadingButton';
 import { useExperiment } from './providers/ExperimentContext';
 
 
-const useStyles = makeStyles((theme) => ({
-  root: {
-    marginTop: "15px"
-  },
-  cardContent: {
-    padding: "10px"
-  },
-  skipButton: {
-    marginRight: theme.spacing(1),
-    float: "right",
-  },
-  instructions: {
-    marginTop: theme.spacing(2),
-    marginBottom: theme.spacing(4),
-    marginLeft: "auto",
-    marginRight: "auto",
-    width: "60%"
-  },
-  textField:{
-    marginTop: theme.spacing(0),
-    marginBottom: theme.spacing(2),
-    width: "100%"
-
-  },
-  thinTextField:{
-    marginTop: theme.spacing(2),
-    marginBottom: theme.spacing(0),
-    width: "60%"
-  },
-  formControl: {
-    margin: theme.spacing(3),
-  },
-}));
-
 
 const filter = createFilterOptions();
 
 function FreeSoloCreateOption(props) {
-  const classes = useStyles();
   const [value, setValue] = React.useState({key: props.value});
   const options = props.options
   const updateParentCallback = props.updateParentCallback
@@ -73,7 +38,7 @@ function FreeSoloCreateOption(props) {
   return (
     <Autocomplete
       value={value}
-      className={classes.textField}
+      sx={{mt: 0, mb: 2, width: "100%"}}
       onChange={(event, newValue) => {
         if (typeof newValue === 'string') {
           setValue({
@@ -127,7 +92,6 @@ function FreeSoloCreateOption(props) {
         return ""
       }}
       renderOption={(props, option) => <li {...props}>{option.key}</li>}
-      sx={{ width: 300 }}
       freeSolo
       renderInput={(params) => (
         <TextField {...params} label={props.label} />
@@ -139,7 +103,6 @@ function FreeSoloCreateOption(props) {
 
 
 function ExperimentSummaryForm(props) {
-  const classes = useStyles();
   const { updateExperiment } = useExperiment();
   const timestamp = moment.utc()
   const [formError, setFormError] = React.useState(false);
@@ -272,7 +235,7 @@ function ExperimentSummaryForm(props) {
   }
 
   return (
-    <div className={classes.root}>
+    <Box sx={{mt: "15px"}}>
       <FormGroup>
         <Grid container spacing={1}>
           <Grid item xs={12} md={8}>
@@ -282,7 +245,7 @@ function ExperimentSummaryForm(props) {
               label="Experiment name"
               value={expName}
               required
-              className={classes.thinTextField}
+              sx={{mt: 0, mb: 0, width: "60%"}}
               onChange={onExpNameChange}
               helperText={helperText}
               />
@@ -296,7 +259,7 @@ function ExperimentSummaryForm(props) {
               placeholder="Add a description. This description can be changed later."
               multiline
               value={description}
-              className={classes.textField}
+              sx={{mt: 0, mb: 2, width: "100%"}}
               onChange={onDescChange}
               fullWidth={true}
             />
@@ -321,7 +284,7 @@ function ExperimentSummaryForm(props) {
 
           <Grid item xs={12} md={4}/>
           <Grid item xs={12} md={8}>
-            <div style={{display: "flex", justifyContent: "flex-end"}}>
+            <Box style={{display: "flex", justifyContent: "flex-end"}}>
               <Button style={{marginRight: "10px", textTransform: "none"}} size="small" color="primary" onClick={populateFields}>Populate with previous experiment</Button>
               <LoadingButton
                 color="primary"
@@ -336,18 +299,17 @@ function ExperimentSummaryForm(props) {
               >
                 Save
               </LoadingButton>
-            </div>
+            </Box>
           </Grid>
         </Grid>
       </FormGroup>
-    </div>
+    </Box>
   );
 }
 
 
 
 function StartNewExperimentContainer(props) {
-  const classes = useStyles();
   const [activeStep, setActiveStep] = React.useState(0);
   const [skipped, setSkipped] = React.useState(new Set());
   const navigate = useNavigate();
@@ -384,25 +346,25 @@ function StartNewExperimentContainer(props) {
 
 
   return (
-    <Card className={classes.root}>
-      <CardContent className={classes.cardContent}>
+    <Card sx={{mt: "15px"}}>
+      <CardContent sx={{p: 1}}>
         <Typography variant="h5" component="h1">
           Start a new experiment
         </Typography>
-        <div>
-          <div>
-            <div className={classes.instructions}>{getStepContent(activeStep)}</div>
-            <div>
+        <Box>
+          <Box>
+            <Box sx={{mt: 2, mb: 4, ml: "auto", mr: "auto", width: "70%"}}>{getStepContent(activeStep)}</Box>
+            <Box>
             {(activeStep !== 0) && (
-              <div>
-                <Button color="inherit" onClick={handleNext} sx={{ mr: 1 }} className={classes.skipButton}>
+              <Box>
+                <Button color="inherit" onClick={handleNext} sx={{ mr: 1, float: "right" }}>
                   Skip / Next
                 </Button>
-              </div>
+              </Box>
               )}
-            </div>
-          </div>
-        </div>
+            </Box>
+          </Box>
+        </Box>
       </CardContent>
     </Card>
   )

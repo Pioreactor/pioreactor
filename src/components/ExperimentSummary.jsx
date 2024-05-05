@@ -1,7 +1,6 @@
 import React from 'react'
 import moment from "moment";
 import Card from '@mui/material/Card';
-import {makeStyles} from '@mui/styles';
 import CardContent from '@mui/material/Card';
 import {Typography} from '@mui/material';
 import Box from '@mui/material/Box';
@@ -11,35 +10,6 @@ import Divider from '@mui/material/Divider';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import TimelapseIcon from '@mui/icons-material/Timelapse';
 import ManageExperimentMenu from "./ManageExperimentMenu";
-
-
-
-const useStyles = makeStyles((theme) => ({
-  title: {
-    fontSize: 14,
-  },
-  cardContent: {
-    padding: "10px"
-  },
-  pos: {
-    marginBottom: 0,
-  },
-  textIcon: {
-    fontSize: 15,
-    verticalAlign: "middle",
-    margin: "0px 3px"
-  },
-  headerMenu: {
-    display: "flex",
-    justifyContent: "space-between",
-    marginBottom: "5px",
-    [theme.breakpoints.down('lg')]:{
-      flexFlow: "nowrap",
-      flexDirection: "column",
-    }
-  },
-  headerButtons: {display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}
-}));
 
 
 
@@ -124,50 +94,49 @@ class EditableDescription extends React.Component {
 
 
 function ExperimentSummary({experimentMetadata, updateExperiment}){
-  const classes = useStyles();
   const experiment = experimentMetadata.experiment
   const startedAt = experimentMetadata.created_at
   const deltaHours = experimentMetadata.delta_hours
   return(
     <React.Fragment>
-      <div>
-        <div className={classes.headerMenu}>
+      <Box>
+        <Box sx={{display: "flex", justifyContent: "space-between", mb: 1}}>
           <Typography variant="h5" component="h1">
             <Box fontWeight="fontWeightBold">{experiment}</Box>
           </Typography>
-          <div className={classes.headerButtons}>
+          <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
             <ManageExperimentMenu experiment={experiment}/>
-          </div>
-        </div>
+          </Box>
+        </Box>
 
         <Divider/>
-        <div style={{margin: "10px 2px 10px 2px", display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
-          <Typography variant="subtitle2" style={{flexGrow: 1}}>
-            <div style={{display:"inline"}}>
-              <Box fontWeight="fontWeightBold" style={{display:"inline-block"}}>
-                <CalendarTodayIcon style={{ fontSize: 12, verticalAlign: "-1px" }}/> Experiment created at:&nbsp;
+        <Box sx={{m: "10px 2px 10px 2px", display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
+          <Typography variant="subtitle2" sx={{flexGrow: 1}}>
+            <Box sx={{display:"inline"}}>
+              <Box fontWeight="fontWeightBold" sx={{display:"inline-block"}}>
+                <CalendarTodayIcon sx={{ fontSize: 12, verticalAlign: "-1px" }}/> Experiment created at:&nbsp;
               </Box>
-              <Box fontWeight="fontWeightRegular" style={{marginRight: "1%", display:"inline-block"}}>
+              <Box fontWeight="fontWeightRegular" sx={{mr: "1%", display:"inline-block"}}>
                 {(startedAt !== "") &&
                 <span title={moment(startedAt).format("YYYY-MM-DD HH:mm:ss")}>{moment(startedAt).format("dddd, MMMM D, h:mm a")}</span>
                 }
               </Box>
-            </div>
+            </Box>
 
-            <div style={{display:"inline"}}>
-              <Box fontWeight="fontWeightBold" style={{display:"inline-block"}}>
-                <TimelapseIcon style={{ fontSize: 12, verticalAlign: "-1px"  }}/>Hours elapsed:&nbsp;
+            <Box sx={{display:"inline"}}>
+              <Box fontWeight="fontWeightBold" sx={{display:"inline-block"}}>
+                <TimelapseIcon sx={{ fontSize: 12, verticalAlign: "-1px"  }}/>Hours elapsed:&nbsp;
               </Box>
-              <Box fontWeight="fontWeightRegular" style={{marginRight: "1%", display:"inline-block"}}>
+              <Box fontWeight="fontWeightRegular" sx={{mr: "1%", display:"inline-block"}}>
                {deltaHours}h
               </Box>
-            </div>
+            </Box>
 
           </Typography>
-        </div>
-      </div>
-      <Card className={classes.root}>
-        <CardContent className={classes.cardContent}>
+        </Box>
+      </Box>
+      <Card >
+        <CardContent sx={{p: 1}}>
           <EditableDescription experimentMetadata={experimentMetadata} updateExperiment={updateExperiment} />
         </CardContent>
       </Card>

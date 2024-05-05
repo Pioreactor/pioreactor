@@ -2,7 +2,6 @@ import { Hashicon } from "@emeraldpay/hashicon-react";
 import React from "react";
 
 import Grid from '@mui/material/Grid';
-import { makeStyles } from '@mui/styles';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/Card';
 import Button from '@mui/material/Button';
@@ -28,53 +27,10 @@ import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 
 
-const useStyles = makeStyles((theme) => ({
-  root: {
-    marginTop: "15px"
-  },
-  title: {
-    fontSize: 14,
-  },
-  cardContent: {
-    padding: "25px",
-  },
-  pos: {
-    marginBottom: 0,
-  },
-  pluginList:{
-    width: "92%",
-    margin: "auto",
-    marginBottom: "15px"
-  },
-  primaryActionButton:{
-    marginLeft: "5px"
-  },
-  secondaryActionButton:{
-    marginLeft: "15px"
-  },
-  textField: {
-    marginTop: "15px",
-    maxWidth: "180px",
-  },
-  textFieldWide: {
-    marginTop: "15px",
-    width: "300px",
-  },
-  headerMenu: {
-    display: "flex",
-    justifyContent: "space-between",
-    marginBottom: "5px",
-    [theme.breakpoints.down('lg')]:{
-      flexFlow: "nowrap",
-      flexDirection: "column",
-    }
-  },
-}));
 
 
 function InstallByNameDialog(props){
 
-  const classes = useStyles();
 
   const [open, setOpen] = React.useState(false);
   const [text, setText] = React.useState("");
@@ -120,7 +76,7 @@ function InstallByNameDialog(props){
     <React.Fragment>
 
     <Button style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="primary" onClick={handleClickOpen}>
-      <GetAppIcon fontSize="15" classes={{root: classes.textIcon}}/> Install plugin by name
+      <GetAppIcon fontSize="15"/> Install plugin by name
     </Button>
     <Dialog open={open} onClose={handleClose} aria-labelledby="form-dialog-title">
       <DialogTitle>
@@ -146,7 +102,7 @@ function InstallByNameDialog(props){
             id="plugin-name"
             label="Plugin name"
             variant="outlined"
-            className={classes.textFieldWide}
+            sx={{mt: "15px", maxWidth: "180px"}}
             onChange={handleTextChange}
             value={text}
           />
@@ -180,20 +136,19 @@ function InstallByNameDialog(props){
 
 
 function PageHeader(props) {
-  const classes = useStyles();
   return (
-    <div>
-      <div className={classes.headerMenu}>
+    <Box>
+      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
         <Typography variant="h5" component="h2">
           <Box fontWeight="fontWeightBold">
             Plugins
           </Box>
         </Typography>
-        <div className={classes.headerButtons}>
+        <Box >
           <InstallByNameDialog />
-        </div>
-      </div>
-    </div>
+        </Box>
+      </Box>
+    </Box>
   )
 }
 
@@ -201,7 +156,6 @@ function PageHeader(props) {
 
 function ListSuggestedPlugins({alreadyInstalledPluginsNames}){
 
-  const classes = useStyles();
   const [availablePlugins, setSuggestedPlugins] = React.useState([])
   const [snackbarOpen, setSnackbarOpen] = React.useState(false)
   const [snackbarMsg, setSnackbarMsg] = React.useState("")
@@ -244,81 +198,81 @@ function ListSuggestedPlugins({alreadyInstalledPluginsNames}){
 
   return (
     <React.Fragment>
-    <div className={classes.pluginList}>
-     <List dense={true}>
-        {availablePlugins
-            .filter(plugin => (!alreadyInstalledPluginsNames.includes(plugin.name)))
-            .map(plugin =>
-          <ListItem key={plugin.name}>
-            <ListItemAvatar>
-              <Avatar variant="square" style={{backgroundColor:"#FFFFFF"}}>
-                <Hashicon value={plugin.name} size={40} />
-              </Avatar>
-            </ListItemAvatar>
-            <ListItemText
-              primary={plugin.name}
-              primaryTypographyProps={{style: {fontSize: '0.95rem'}}}
-              secondary={
-               <>
-                <Typography
-                  sx={{ display: 'block', fontStyle: "italic"}}
-                  component="span"
-                  variant="body2"
-                  color="text.primary"
+      <Box sx={{m: "auto", mb: "15px", width: "92%"}}>
+       <List dense={true}>
+          {availablePlugins
+              .filter(plugin => (!alreadyInstalledPluginsNames.includes(plugin.name)))
+              .map(plugin =>
+            <ListItem key={plugin.name}>
+              <ListItemAvatar>
+                <Avatar variant="square" style={{backgroundColor:"#FFFFFF"}}>
+                  <Hashicon value={plugin.name} size={40} />
+                </Avatar>
+              </ListItemAvatar>
+              <ListItemText
+                primary={plugin.name}
+                primaryTypographyProps={{style: {fontSize: '0.95rem'}}}
+                secondary={
+                 <>
+                  <Typography
+                    sx={{ display: 'block', fontStyle: "italic"}}
+                    component="span"
+                    variant="body2"
+                    color="text.primary"
+                  >
+                    {plugin.author}
+                  </Typography>
+                  <span>
+                   {plugin.description}
+                  </span>
+                 </>
+                }
+                style={{maxWidth: "525px"}}
+              />
+              <ListItemSecondaryAction sx={{display: {xs: 'contents', md: 'block'}}}>
+
+                <Button
+                  onClick={installPlugin(plugin.name)}
+                  variant="contained"
+                  size="small"
+                  aria-label="install"
+                  color="primary"
+                  style={{textTransform: 'none'}}
+                  endIcon={<GetAppIcon />}
+                  sx={{ml: "5px"}}
                 >
-                  {plugin.author}
-                </Typography>
-                <span>
-                 {plugin.description}
-                </span>
-               </>
-              }
-              style={{maxWidth: "525px"}}
-            />
-            <ListItemSecondaryAction sx={{display: {xs: 'contents', md: 'block'}}}>
+                  Install
+                </Button>
+                <Button
+                  component={Link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  to={plugin.homepage}
+                  variant="text"
+                  style={{textTransform: 'none'}}
+                  size="small"
+                  color="primary"
+                  aria-label="view homepage"
+                  disabled={!plugin.homepage || (plugin.homepage === "Unknown")}
+                  endIcon={<OpenInNewIcon />}
+                  sx={{ml: "15px"}}
+                >
+                  View
+                </Button>
+                </ListItemSecondaryAction>
 
-              <Button
-                onClick={installPlugin(plugin.name)}
-                variant="contained"
-                size="small"
-                aria-label="install"
-                color="primary"
-                style={{textTransform: 'none'}}
-                endIcon={<GetAppIcon />}
-                className={classes.primaryActionButton}
-              >
-                Install
-              </Button>
-              <Button
-                component={Link}
-                target="_blank"
-                rel="noopener noreferrer"
-                to={plugin.homepage}
-                variant="text"
-                style={{textTransform: 'none'}}
-                size="small"
-                color="primary"
-                aria-label="view homepage"
-                disabled={!plugin.homepage || (plugin.homepage === "Unknown")}
-                endIcon={<OpenInNewIcon />}
-                className={classes.secondaryActionButton}
-              >
-                View
-              </Button>
-              </ListItemSecondaryAction>
-
-          </ListItem>,
-        )}
-      </List>
-    </div>
-    <Snackbar
-      anchorOrigin={{vertical: "bottom", horizontal: "center"}}
-      open={snackbarOpen}
-      onClose={handleSnackbarClose}
-      message={snackbarMsg}
-      autoHideDuration={10000}
-      key="snackbar-available"
-    />
+            </ListItem>,
+          )}
+        </List>
+      </Box>
+      <Snackbar
+        anchorOrigin={{vertical: "bottom", horizontal: "center"}}
+        open={snackbarOpen}
+        onClose={handleSnackbarClose}
+        message={snackbarMsg}
+        autoHideDuration={10000}
+        key="snackbar-available"
+      />
     </React.Fragment>
   )
 }
@@ -328,7 +282,6 @@ function ListSuggestedPlugins({alreadyInstalledPluginsNames}){
 function ListInstalledPlugins({installedPlugins}){
   const [snackbarOpen, setSnackbarOpen] = React.useState(false)
   const [snackbarMsg, setSnackbarMsg] = React.useState("")
-  const classes = useStyles();
 
   const handleSnackbarClose = (e, reason) => {
     if (reason === 'clickaway') {
@@ -352,7 +305,7 @@ function ListInstalledPlugins({installedPlugins}){
   if (installedPlugins.length > 0) {
     return (
       <React.Fragment>
-      <div className={classes.pluginList}>
+      <Box sx={{m: "auto", mb: "15px", width: "92%"}}>
        <List dense={true}>
           {installedPlugins.map(plugin =>
             <ListItem key={plugin.name}>
@@ -388,7 +341,7 @@ function ListInstalledPlugins({installedPlugins}){
                   aria-label="delete"
                   style={{textTransform: 'none'}}
                   endIcon={<DeleteIcon />}
-                  className={classes.primaryActionButton}
+                  sx={{ml: "5px"}}
                 >
                   Uninstall
                 </Button>
@@ -404,8 +357,7 @@ function ListInstalledPlugins({installedPlugins}){
                     aria-label="view homepage"
                     disabled={!plugin.homepage || (plugin.homepage === "Unknown")}
                     endIcon={<OpenInNewIcon />}
-                    className={classes.secondaryActionButton}
-                    style={{textTransform: 'none'}}
+                    sx={{ml: "15px", textTransform: 'none'}}
                   >
                     View
                   </Button>
@@ -422,7 +374,7 @@ function ListInstalledPlugins({installedPlugins}){
                     aria-label="view homepage"
                     style={{textTransform: 'none'}}
                     endIcon={<OpenInNewIcon />}
-                    className={classes.secondaryActionButton}
+                    sx={{ml: "15px", textTransform: 'none'}}
                   >
                     View
                   </Button>
@@ -431,7 +383,7 @@ function ListInstalledPlugins({installedPlugins}){
             </ListItem>,
           )}
         </List>
-      </div>
+      </Box>
       <Snackbar
         anchorOrigin={{vertical: "bottom", horizontal: "center"}}
         open={snackbarOpen}
@@ -457,7 +409,6 @@ function ListInstalledPlugins({installedPlugins}){
 
 
 function PluginContainer(){
-  const classes = useStyles();
 
   const [installedPlugins, setInstalledPlugins] = React.useState([])
   const [isFetchComplete, setIsFetchComplete] = React.useState(false)
@@ -479,8 +430,8 @@ function PluginContainer(){
 
   return(
     <React.Fragment>
-      <Card className={classes.root}>
-        <CardContent className={classes.cardContent}>
+      <Card>
+        <CardContent sx={{p: "25px"}}>
           <p> Discover, install, and manage Pioreactor plugins created by the community. These plugins can provide new functionalities for your Pioreactor (additional hardware may be necessary), or new automations to control dosing, temperature and LED tasks.</p>
 
          <Typography variant="h6" component="h3">

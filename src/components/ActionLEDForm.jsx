@@ -2,27 +2,20 @@ import React, {useState} from 'react'
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import Snackbar from "@mui/material/Snackbar";
-import { makeStyles } from "@mui/styles";
 import InputAdornment from '@mui/material/InputAdornment';
 import {runPioreactorJob} from "../utilities"
 
 
-const useStyles = makeStyles({
-  actionTextField: {
+const actionTextField = {
     padding: "0px 0px 0px 0px",
     width: "150px",
-  },
-  actionForm: {
-    padding: "10px 0px 0px 0px",
-  }
-});
+}
 
 
 
 export default function ActionLEDForm(props) {
   const EMPTYSTATE = "";
   const re = /^[0-9.]+$/;
-  const classes = useStyles();
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [intensity, setIntensity] = useState(EMPTYSTATE);
   const [errorForm, setErrorForm] = useState(false);
@@ -82,7 +75,7 @@ export default function ActionLEDForm(props) {
   }
 
   return (
-    <form id={props.action} className={classes.actionForm}>
+    <form id={props.action} style={{padding: "10px 0px 0px 0px"}}>
       <div style={{display: "flex"}}>
         <TextField
           size="small"
@@ -98,7 +91,7 @@ export default function ActionLEDForm(props) {
           InputProps={{
             endAdornment: <InputAdornment position="end">%</InputAdornment>,
           }}
-          className={classes.actionTextField}
+          sx={actionTextField}
         />
         <Button
           size="small"

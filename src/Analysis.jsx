@@ -9,7 +9,6 @@ import Grid from "@mui/material/Grid";
 import Button from "@mui/material/Button";
 import Chart from "./components/Chart";
 import PioreactorIcon from './components/PioreactorIcon';
-import { makeStyles } from '@mui/styles';
 import Select from '@mui/material/Select';
 import {Typography} from '@mui/material';
 import Box from '@mui/material/Box';
@@ -19,31 +18,8 @@ import CardContent from '@mui/material/Card';
 import {getConfig} from "./utilities"
 
 
-const useStyles = makeStyles((theme) => ({
-  root: {
-    marginTop: "15px"
-  },
-  formControl: {
-    margin: theme.spacing(2),
-  },
-  title: {
-    fontSize: 14,
-  },
-  cardContent: {
-    padding: "10px"
-  },
-  pos: {
-    marginBottom: 0,
-  },
-  caption: {
-    marginLeft: "30px",
-    maxWidth: "650px"
-  }
-}));
-
 
 function ExperimentSelection(props) {
-  const classes = useStyles();
 
   const [experiments, setExperiments] = React.useState([{experiment: "<All experiments>"}])
 
@@ -71,7 +47,7 @@ function ExperimentSelection(props) {
 
   return (
     <div style={{maxWidth: "450px", margin: "10px"}}>
-      <FormControl fullWidth component="fieldset" className={classes.formControl}>
+      <FormControl fullWidth component="fieldset" sx={{m: 2}}>
         <FormLabel component="legend">Choose experiment to display</FormLabel>
         <Select
           native
@@ -133,8 +109,8 @@ function AnalysisContainer(props) {
           </Typography>
         </div>
       </div>
-      <Card className={classes.root}>
-        <CardContent className={classes.cardContent}>
+      <Card sx={{marginTop: "15px"}}>
+        <CardContent sx={{padding: "10px"}}>
           <Grid container spacing={2} justifyContent="space-between">
             <Grid item xs={12}>
               <ExperimentSelection

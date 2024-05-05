@@ -2,7 +2,6 @@ import React, {useState} from 'react'
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import Snackbar from "@mui/material/Snackbar";
-import { makeStyles } from "@mui/styles";
 import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
 import FormControlLabel from '@mui/material/FormControlLabel';
@@ -11,16 +10,10 @@ import InputAdornment from '@mui/material/InputAdornment';
 import {runPioreactorJob} from "../utilities"
 
 
-const useStyles = makeStyles({
-  actionTextField: {
+const actionTextField = {
     padding: "0px 10px 0px 0px",
     width: "140px",
-  },
-  actionForm: {
-    padding: "10px 0px 0px 0px",
-  }
-});
-
+}
 
 const actionToAct = {
   "remove_waste": "Removing waste",
@@ -31,7 +24,6 @@ const actionToAct = {
 
 export default function ActionPumpForm(props) {
   const EMPTYSTATE = "";
-  const classes = useStyles();
   const [mL, setML] = useState(EMPTYSTATE);
   const [duration, setDuration] = useState(EMPTYSTATE);
   const [openSnackbar, setOpenSnackbar] = useState(false);
@@ -114,7 +106,7 @@ export default function ActionPumpForm(props) {
     }
   }
   return (
-    <div id={props.action} className={classes.actionForm}>
+    <div id={props.action} style={{padding: "10px 0px 0px 0px"}}>
       <FormControl>
         <RadioGroup
           aria-labelledby="how to dose"
@@ -134,7 +126,7 @@ export default function ActionPumpForm(props) {
               variant="outlined"
               onChange={handleMLChange}
               disabled={dosingMethod !== 'volume'}
-              className={classes.actionTextField}
+              sx={actionTextField}
               InputProps={{
                 endAdornment: <InputAdornment position="end">mL</InputAdornment>,
               }}
@@ -152,7 +144,7 @@ export default function ActionPumpForm(props) {
               variant="outlined"
               disabled={dosingMethod !== 'duration'}
               onChange={handleDurationChange}
-              className={classes.actionTextField}
+              sx={actionTextField}
               InputProps={{
                 endAdornment: <InputAdornment position="end">s</InputAdornment>,
               }}

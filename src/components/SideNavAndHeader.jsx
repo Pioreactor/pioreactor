@@ -1,6 +1,5 @@
-import clsx from 'clsx';
 import React from 'react';
-import { makeStyles } from '@mui/styles';
+import { styled } from '@mui/material/styles';
 import Drawer from '@mui/material/Drawer';
 import Badge from '@mui/material/Badge';
 import Divider from '@mui/material/Divider';
@@ -30,53 +29,16 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 
 const drawerWidth = 230;
 
-const useStyles = makeStyles((theme) => ({
-  root: {
-    display: 'flex',
-  },
-  drawer: {
-    [theme.breakpoints.up('sm')]: {
-      width: drawerWidth,
-      flexShrink: 0,
-    },
-  },
-  menuButton: {
-    marginRight: theme.spacing(2),
-  },
-  drawerPaper: {
+const DrawerStyled = styled(Drawer)(({ theme }) => ({
+  width: drawerWidth,
+  flexShrink: 0,
+  [theme.breakpoints.up('sm')]: {
     width: drawerWidth,
-  },
-  flexGrow: {
-    flexGrow: 1,
-  },
-  expSelect: {
-    //margin: "0px 0px 10px 65px"
-  },
-  appBarRoot: {
-    [theme.breakpoints.up('sm')]: {
-      zIndex: theme.zIndex.drawer + 1
-    }
-  },
-  listItemIcon: {
-    minWidth: "40px"
-  },
-  divider: {
-    marginTop: "15px",
-    marginBottom: "15px",
-  },
-  menuPaper: {
-    maxHeight: 400
-  },
-  textIcon: {
-    verticalAlign: "middle",
-    margin: "0px 3px"
   },
 }));
 
 
-
 export default function SideNavAndHeader() {
-  const classes = useStyles();
   const location = useLocation()
 
   const [mobileOpen, setMobileOpen] = React.useState(false);
@@ -177,12 +139,12 @@ export default function SideNavAndHeader() {
               <MenuItem
                 icon={<ScienceOutlinedIcon/>}
               >
-                <FormControl variant="standard" fullWidth className={clsx(classes.expSelect)}>
+                <FormControl variant="standard" fullWidth>
                   <Select
                     value={experimentMetadata.experiment || ""}
                     label="Experiment"
                     onChange={handleExperimentChange}
-                    MenuProps={{ classes: { paper: classes.menuPaper } }}
+                    MenuProps={{ classes: { paper: {maxHeight: 400} } }}
                     sx={{
                       '&:before': {
                           borderColor: 'rgba(0, 0, 0, 0);',
@@ -196,7 +158,7 @@ export default function SideNavAndHeader() {
                     }}
                   >
                       <MenuItemMUI  value={null} component={Link} to="/start-new-experiment">
-                        <AddCircleOutlineIcon fontSize="15" classes={{root: classes.textIcon}}/> New experiment
+                        <AddCircleOutlineIcon fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> New experiment
                       </MenuItemMUI>
                     <Divider/>
                     {allExperiments.map((e) => {
@@ -234,7 +196,7 @@ export default function SideNavAndHeader() {
                   Profiles
                 </MenuItem>
 
-            <Divider className={classes.divider} />
+            <Divider sx={{marginTop: "15px", marginBottom: "15px"}} />
           </Menu>
         </div>
         <div>
@@ -318,8 +280,7 @@ export default function SideNavAndHeader() {
   );
   return (
     <React.Fragment>
-      <div className={classes.appBarRoot}>
-        <AppBar position="fixed" >
+        <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
           <Toolbar variant="dense">
 
               <IconButton
@@ -327,14 +288,14 @@ export default function SideNavAndHeader() {
                 aria-label="open drawer"
                 edge="start"
                 onClick={handleDrawerToggle}
-                classes={{root: classes.menuButton}}
-                sx={{ display: { xs: 'block', sm: 'none' } }}
+                sx={{root: {marginRight: (theme) => theme.spacing(2)}}}
+                sx={{ mr: 2, display: { xs: 'block', sm: 'none' } }}
                 size="large">
                 <MenuIcon />
               </IconButton>
 
-              <Typography variant="h6" className={clsx(classes.flexGrow)}>
-                <Link color="inherit" underline="none" to="/">
+              <Typography variant="h6"  sx={{ flexGrow: 1 }}>
+                <Link color="inherit" underline="none" to="/" >
                   <img alt="pioreactor logo" src="/white_colour.png" style={{width: "120px", height: "29px"}}/> <
                 /Link>
               </Typography>
@@ -346,43 +307,35 @@ export default function SideNavAndHeader() {
                     <div aria-label="LAP online" className="indicator-dot" style={{boxShadow: "0 0 2px #2FBB39, inset 0 0 12px  #2FBB39"}}/> LAP online
                   </Button>
                 }
-                <Button component={Link} target="_blank" rel="noopener noreferrer" to={{pathname: "https://forums.pioreactor.com"}} color="inherit" style={{textTransform: "none"}}>
+                <Button  target="_blank" rel="noopener noreferrer" href="https://forums.pioreactor.com" color="inherit" style={{textTransform: "none"}}>
                   <ChatOutlinedIcon style={{ fontSize: 18, verticalAlign: "middle", marginRight: 3 }}/>Forum
                 </Button>
-                <Button component={Link} target="_blank" rel="noopener noreferrer" to={{pathname: "https://docs.pioreactor.com"}} color="inherit" style={{textTransform: "none"}}>
+                <Button target="_blank" rel="noopener noreferrer" href="https://docs.pioreactor.com" color="inherit" style={{textTransform: "none"}}>
                   <HelpOutlineIcon style={{ fontSize: 18, verticalAlign: "middle", marginRight: 3 }}/>Help
                 </Button>
               </div>
           </Toolbar>
         </AppBar>
-      </div>
-      <Drawer
+      <DrawerStyled
         variant="temporary"
         anchor="left"
         open={mobileOpen}
         onClose={handleDrawerToggle}
-        classes={{
-          paper: classes.drawerPaper,
-        }}
         ModalProps={{
           keepMounted: true, // Better open performance on mobile.
         }}
         sx={{ display: { xs: 'block', sm: 'none' } }}
       >
         {list()}
-      </Drawer>
-      <Drawer
-        classes={{
-          paper: classes.drawerPaper,
-        }}
+      </DrawerStyled>
+      <DrawerStyled
         variant="permanent"
         open
-        className={classes.drawer}
         sx={{ display: { xs: 'none', sm: 'block' } }}
       >
         <Toolbar />
         {list()}
-      </Drawer>
+      </DrawerStyled>
     </React.Fragment>
   );
 }

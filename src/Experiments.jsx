@@ -8,7 +8,6 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import Grid from "@mui/material/Grid";
 import Button from "@mui/material/Button";
 import Chart from "./components/Chart";
-import { makeStyles } from '@mui/styles';
 import Select from '@mui/material/Select';
 import {Typography} from '@mui/material';
 import Box from '@mui/material/Box';
@@ -26,45 +25,9 @@ import { Link } from 'react-router-dom';
 
 
 
-const useStyles = makeStyles((theme) => ({
-  root: {
-    marginTop: "15px"
-  },
-  formControl: {
-    margin: theme.spacing(2),
-  },
-  title: {
-    fontSize: 14,
-  },
-  cardContent: {
-    padding: "10px"
-  },
-  pos: {
-    marginBottom: 0,
-  },
-  caption: {
-    marginLeft: "30px",
-    maxWidth: "650px"
-  },
-  headerMenu: {
-    display: "flex",
-    justifyContent: "space-between",
-    marginBottom: "5px",
-    [theme.breakpoints.down('lg')]:{
-      flexFlow: "nowrap",
-      flexDirection: "column",
-    }
-  },
-  headerButtons: {display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"},
-  textIcon: {
-    verticalAlign: "middle",
-    margin: "0px 3px"
-  },
-}));
 
 
 function ExperimentSelection(props) {
-  const classes = useStyles();
   const [experiments, setExperiments] = React.useState([])
   const selectedExperient = experiments.find(o => o.experiment === props.experimentSelection);
 
@@ -92,7 +55,7 @@ function ExperimentSelection(props) {
 
   return (
     <div style={{maxWidth: "450px", margin: "10px"}}>
-      <FormControl fullWidth component="fieldset" className={classes.formControl}>
+      <FormControl fullWidth component="fieldset" sx={{m: 2}}>
         <FormLabel component="legend">Experiment</FormLabel>
         <Select
           labelId="expSelect"
@@ -123,7 +86,6 @@ function ExperimentSelection(props) {
 
 
 function ChartSelection(props) {
-  const classes = useStyles();
 
   const [charts, setCharts] = React.useState({})
 
@@ -146,7 +108,7 @@ function ChartSelection(props) {
 
   return (
     <div style={{maxWidth: "450px", margin: "10px"}}>
-      <FormControl fullWidth component="fieldset" className={classes.formControl}>
+      <FormControl fullWidth component="fieldset" sx={{m:2}}>
         <FormLabel component="legend">Charts</FormLabel>
         <FormGroup>
           {Object.entries(charts)
@@ -168,7 +130,6 @@ function ChartSelection(props) {
 
 
 function ExperimentsContainer(props) {
-  const classes = useStyles();
 
   const [experimentSelection, setExperimentSelection] = React.useState("")
   const [chartSelection, setChartSelection] = React.useState({})
@@ -220,22 +181,24 @@ function ExperimentsContainer(props) {
 
   return (
     <React.Fragment>
-      <div>
-        <div className={classes.headerMenu}>
+
+      <Box>
+        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
           <Typography variant="h5" component="h2">
             <Box fontWeight="fontWeightBold">
               Past experiments
             </Box>
           </Typography>
-          <div className={classes.headerButtons}>
+          <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
             <Button to={`/export-data?experiment=${experimentSelection}&experiments=1${additionalQueryString}`} component={Link} style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="primary">
-              <GetAppIcon fontSize="15" classes={{root: classes.textIcon}}/> Export experiment data
+              <GetAppIcon fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Export experiment data
             </Button>
-          </div>
-        </div>
-      </div>
-      <Card className={classes.root}>
-        <CardContent className={classes.cardContent}>
+          </Box>
+        </Box>
+      </Box>
+
+      <Card>
+        <CardContent sx={{p: 1}}>
           <Grid container spacing={2} justifyContent="space-between">
             <Grid item xs={6}>
               <ExperimentSelection

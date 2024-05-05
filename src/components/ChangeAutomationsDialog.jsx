@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from "react";
 
-import { makeStyles } from "@mui/styles";
-
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import Dialog from '@mui/material/Dialog';
@@ -20,30 +18,9 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import {runPioreactorJob} from "../utilities"
 
-import { Link } from 'react-router-dom';
-
 import PioreactorIcon from "./PioreactorIcon"
 import AutomationForm from "./AutomationForm"
 import { useMQTT } from '../providers/MQTTContext';
-
-
-const useStyles = makeStyles((theme) => ({
-  formControl: {
-    marginTop: theme.spacing(2)
-  },
-  unitTitle: {
-    fontSize: 17,
-    color: "rgba(0, 0, 0, 0.87)",
-  },
-  unitTitleDialog :{
-    fontSize: 20,
-    color: "rgba(0, 0, 0, 0.87)",
-  },
-  suptitle: {
-    fontSize: "13px",
-    color: "rgba(0, 0, 0, 0.60)",
-  },
-}));
 
 
 const defaultAutomations = {
@@ -54,7 +31,6 @@ const defaultAutomations = {
 
 
 function ChangeAutomationsDialog(props) {
-  const classes = useStyles();
   const automationType = props.automationType
   const automationTypeForDisplay = (automationType === "led") ? "LED" : automationType
   const [automationName, setAutomationName] = useState(defaultAutomations[automationType])
@@ -144,7 +120,7 @@ function ChangeAutomationsDialog(props) {
     <React.Fragment>
     <Dialog open={props.open} onClose={handleClose} aria-labelledby="form-dialog-title" PaperProps={{style: {height: "100%"}}}>
       <DialogTitle>
-        <Typography className={classes.suptitle}>
+        <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)"}}>
           <PioreactorIcon style={{verticalAlign: "middle", fontSize: "1.2em"}}/>
             {(props.unit === "$broadcast")
               ? <b>All active and assigned Pioreactors</b>
@@ -154,7 +130,7 @@ function ChangeAutomationsDialog(props) {
               )
             }
         </Typography>
-        <Typography className={classes.unitTitleDialog}>
+        <Typography sx={{fontSize: 20, color: "rgba(0, 0, 0, 0.87)"}}>
           Select {automationTypeForDisplay} automation
         </Typography>
         <IconButton
@@ -176,7 +152,7 @@ function ChangeAutomationsDialog(props) {
         </Typography>
 
         <form>
-          <FormControl component="fieldset" className={classes.formControl}>
+          <FormControl component="fieldset" sx={{mt: 2}}>
           <FormLabel component="legend">Automation</FormLabel>
             <Select
               variant="standard"
@@ -200,7 +176,7 @@ function ChangeAutomationsDialog(props) {
                   label="Skip first run"
                   style={{marginRight: "3px"}}
                 />
-                <IconButton component={Link} target="_blank" rel="noopener noreferrer" to={{pathname: "https://docs.pioreactor.com/user-guide/intro-to-automations#skip-first-run"}} >
+                <IconButton target="_blank" rel="noopener noreferrer" href="https://docs.pioreactor.com/user-guide/intro-to-automations#skip-first-run">
                   <HelpOutlineIcon style={{ fontSize: 17, verticalAlign: "middle", marginLeft: "0px" }}/>
                 </IconButton>
               </div>

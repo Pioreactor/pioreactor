@@ -2,22 +2,17 @@ import React, {useState} from 'react'
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import Snackbar from "@mui/material/Snackbar";
-import { makeStyles } from "@mui/styles";
+import { styled } from '@mui/material/styles';
 import LoadingButton from '@mui/lab/LoadingButton';
 import FormControl from '@mui/material/FormControl';
 import InputAdornment from '@mui/material/InputAdornment';
 import {runPioreactorJob} from "../utilities"
 
 
-const useStyles = makeStyles({
-  actionTextField: {
-    padding: "0px 10px 0px 0px",
-    width: "140px",
-  },
-  actionForm: {
-    padding: "10px 0px 0px 0px",
-  }
-});
+const StyledTextField = {
+  padding: "0px 10px 0px 0px",
+  width: "140px",
+}
 
 
 const actionToAct = {
@@ -28,7 +23,6 @@ const actionToAct = {
 
 export default function ActionCirculatingForm(props) {
   const EMPTYSTATE = "";
-  const classes = useStyles();
   const [duration, setDuration] = useState(EMPTYSTATE);
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMsg, setSnackbarMsg] = useState("");
@@ -84,7 +78,7 @@ export default function ActionCirculatingForm(props) {
     }
   }
   return (
-    <div id={props.action} className={classes.actionForm}>
+    <div id={props.action} style={{padding: "10px 0px 0px 0px"}}>
       <FormControl>
         <div style={{marginBottom: "10px", maxWidth: "260px", display: "flex", justifyContent: "space-between"}}>
           <TextField
@@ -93,11 +87,11 @@ export default function ActionCirculatingForm(props) {
             value={duration}
             error={formErrorDuration || textfieldError}
             size="small"
+            sx={StyledTextField}
             id={props.action + "_duration"}
             variant="outlined"
             disabled={false}
             onChange={handleDurationChange}
-            className={classes.actionTextField}
             InputProps={{
               endAdornment: <InputAdornment position="end">s</InputAdornment>,
             }}
@@ -116,7 +110,7 @@ export default function ActionCirculatingForm(props) {
           size="small"
           color="primary"
           onClick={onSubmit}
-          style={{marginRight: '3px'}}
+          sx={{marginRight: '3px'}}
         >
           Start
         </LoadingButton>

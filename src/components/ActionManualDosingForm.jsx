@@ -2,7 +2,6 @@ import React, {useState} from 'react'
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import Snackbar from "@mui/material/Snackbar";
-import { makeStyles } from "@mui/styles";
 import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
 import FormControlLabel from '@mui/material/FormControlLabel';
@@ -13,15 +12,10 @@ import {runPioreactorJob} from "../utilities"
 import moment from 'moment';
 
 
-const useStyles = makeStyles({
-  actionTextField: {
+const actionTextField = {
     padding: "0px 10px 0px 0px",
     width: "140px",
-  },
-  actionForm: {
-    padding: "10px 0px 0px 0px",
-  }
-});
+}
 
 
 const actionToAct = {
@@ -33,7 +27,6 @@ const actionToAct = {
 
 export default function ActionPumpForm(props) {
   const EMPTYSTATE = "";
-  const classes = useStyles();
   const [mL, setML] = useState(EMPTYSTATE);
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMsg, setSnackbarMsg] = useState("");
@@ -85,7 +78,7 @@ export default function ActionPumpForm(props) {
   }
 
   return (
-    <div id={props.action} className={classes.actionForm}>
+    <div id={props.action} style={{padding: "10px 0px 0px 0px"}}>
       <FormControl>
         <RadioGroup
           aria-labelledby="what action"
@@ -104,7 +97,7 @@ export default function ActionPumpForm(props) {
               variant="outlined"
               onChange={handleMLChange}
               disabled={manualAction !== 'add_media'}
-              className={classes.actionTextField}
+              sx={actionTextField}
               InputProps={{
                 endAdornment: <InputAdornment position="end">mL</InputAdornment>,
               }}
@@ -121,7 +114,7 @@ export default function ActionPumpForm(props) {
               variant="outlined"
               onChange={handleMLChange}
               disabled={manualAction !== 'add_alt_media'}
-              className={classes.actionTextField}
+              sx={actionTextField}
               InputProps={{
                 endAdornment: <InputAdornment position="end">mL</InputAdornment>,
               }}
@@ -138,7 +131,7 @@ export default function ActionPumpForm(props) {
               variant="outlined"
               onChange={handleMLChange}
               disabled={manualAction !== 'remove_waste'}
-              className={classes.actionTextField}
+              sx={actionTextField}
               InputProps={{
                 endAdornment: <InputAdornment position="end">mL</InputAdornment>,
               }}

@@ -1,11 +1,8 @@
-import clsx from 'clsx';
-
 import React from "react";
 import MarkdownView from 'react-showdown';
 import LoadingButton from '@mui/lab/LoadingButton';
 
 import Grid from '@mui/material/Grid';
-import { makeStyles } from '@mui/styles';
 import { styled } from '@mui/material/styles';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/Card';
@@ -45,29 +42,8 @@ const VisuallyHiddenInput = styled('input')({
 
 const lostRed = "#DE3618"
 
-const useStyles = makeStyles((theme) => ({
-  lostRed: {
-    color: lostRed
-  },
-  title: {
-    fontSize: 14,
-  },
-  cardContent: {
-    padding: "10px"
-  },
-  pos: {
-    marginBottom: 0,
-  },
-  textIcon: {
-    fontSize: 15,
-    verticalAlign: "middle",
-    margin: "0px 3px"
-  },
-}));
-
 
 function UploadArchiveAndConfirm(props) {
-  const classes = useStyles()
   const [selectedFile, setSelectedFile] = React.useState(null);
   const [errorMsg, setErrorMsg] = React.useState(null);
   const [isUploading, setIsUploading] = React.useState(false);
@@ -160,7 +136,7 @@ function UploadArchiveAndConfirm(props) {
             <Button component="label" style={{textTransform: 'none'}}>Upload zip file <VisuallyHiddenInput onChange={handleFileChange} accept=".zip" type="file" /></Button>
             {selectedFile == null ? "" : selectedFile.name}
             <div style={{minHeight: "30px", alignItems: "center", display: "flex"}}>
-              {errorMsg   ? <p><CloseIcon className={clsx(classes.textIcon, classes.lostRed)}/>{errorMsg}</p>           : <React.Fragment/>}
+              {errorMsg   ? <p><CloseIcon sx={{color: lostRed, fontSize: 15, verticalAlign: "middle", margin: "0px 3px"}}/>{errorMsg}</p>           : <React.Fragment/>}
             </div>
           </DialogContentText>
         </DialogContent>
@@ -221,7 +197,8 @@ function UpdateSoftwareConfirmDialog(props) {
           updateVersion();
           setUpdating(true)
         }
-      )
+      ).catch(() => {});
+
     }
   };
 
@@ -299,7 +276,6 @@ function UpdateSoftwareConfirmDialog(props) {
 
 
 function PageHeader(props) {
-  const classes = useStyles();
   const [version, setVersion] = React.useState("")
   const [uiVersion, setUIVersion] = React.useState("")
   const [latestVersion, setLatestVersion] = React.useState("")
@@ -345,24 +321,24 @@ function PageHeader(props) {
   }, [])
 
   return (
-    <div>
-      <div style={{display: "flex", justifyContent: "space-between", marginBottom: "5px"}}>
+    <Box>
+      <Box sx={{display: "flex", justifyContent: "space-between", marginBottom: "5px"}}>
         <Typography variant="h5" component="h1">
           <Box fontWeight="fontWeightBold">
             Updates
           </Box>
         </Typography>
-        <div>
-          <div style={{float: "right", marginRight: "0px", marginLeft: "10px"}}>
+        <Box>
+          <Box sx={{float: "right", marginRight: "0px", marginLeft: "10px"}}>
             <UpdateSoftwareConfirmDialog />
-          </div>
+          </Box>
           <Link color="inherit" underline="none" href={`https://github.com/Pioreactor/pioreactor/releases/tag/${latestVersion}`} target="_blank" rel="noopener noreferrer">
-            <Button style={{textTransform: 'none', float: "right", marginRight: "0px"}} color="primary">
-              <OpenInNewIcon fontSize="15" classes={{root: classes.textIcon}}/> View latest release
+            <Button sx={{textTransform: 'none', float: "right", marginRight: "0px"}} color="primary">
+              <OpenInNewIcon fontSize="15" sx={{fontSize: 15, verticalAlign: "middle", margin: "0px 3px"}}/> View latest release
             </Button>
           </Link>
-        </div>
-      </div>
+        </Box>
+      </Box>
       <Divider/>
       <Typography variant="subtitle2">
 
@@ -382,14 +358,13 @@ function PageHeader(props) {
         </Box>
 
       </Typography>
-    </div>
+    </Box>
   )
 }
 
 
 
 function ChangelogContainer(){
-  const classes = useStyles();
 
   const [changelog, setChangelog] = React.useState("")
 
@@ -417,8 +392,8 @@ Could not retrieve latest Changelog. Perhaps not connected to the internet.
 
   return(
     <React.Fragment>
-      <Card className={classes.root}>
-        <CardContent className={classes.cardContent}>
+      <Card>
+        <CardContent sx={{p: 1}}>
         <Typography variant="h6" component="h6">
             Change log
         </Typography>

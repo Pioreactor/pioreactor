@@ -1,7 +1,6 @@
 import React from "react";
 
 import Grid from '@mui/material/Grid';
-import { makeStyles } from '@mui/styles';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/Card';
 import FormControl from '@mui/material/FormControl';
@@ -17,21 +16,6 @@ import SaveIcon from '@mui/icons-material/Save';
 import { CodeFlaskReact } from "react-codeflask"
 import moment from "moment";
 import DeleteIcon from '@mui/icons-material/Delete';
-
-const useStyles = makeStyles((theme) => ({
-  root: {
-    marginTop: "15px",
-  },
-  title: {
-    fontSize: 14,
-  },
-  cardContent: {
-    padding: "10px"
-  },
-  pos: {
-    marginBottom: 0,
-  },
-}));
 
 class EditableCodeDiv extends React.Component {
   constructor(props) {
@@ -258,21 +242,21 @@ class EditableCodeDiv extends React.Component {
 
 
 function EditConfigContainer(){
-  const classes = useStyles();
-
   return(
     <React.Fragment>
-      <div>
-        <div>
+
+      <Box>
+        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
           <Typography variant="h5" component="h2">
             <Box fontWeight="fontWeightBold">
               Configuration
             </Box>
           </Typography>
-        </div>
-      </div>
-      <Card className={classes.root}>
-        <CardContent className={classes.cardContent}>
+        </Box>
+      </Box>
+
+      <Card >
+        <CardContent sx={{p: 1}}>
           <EditableCodeDiv/>
 
           <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about Pioreactor  <a href="https://docs.pioreactor.com/user-guide/configuration" target="_blank" rel="noopener noreferrer">configuration</a>.</p>

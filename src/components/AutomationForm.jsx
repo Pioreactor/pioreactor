@@ -1,21 +1,9 @@
 import React, {useEffect } from "react";
-import { makeStyles } from "@mui/styles";
 import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
 
-const useStyles = makeStyles((theme) => ({
-  textFieldCompact: {
-    marginTop: theme.spacing(3),
-    marginRight: theme.spacing(2),
-    marginBottom: theme.spacing(0),
-    width: "18ch",
-  }
-}));
-
-
 
 function AutomationForm(props){
-  const classes = useStyles();
   const defaults = Object.assign({}, ...props.fields.map(field => ({[field.key]: field.default})))
   useEffect(() => {
     props.updateParent(defaults)
@@ -45,7 +33,12 @@ function AutomationForm(props){
             variant="outlined"
             onChange={onSettingsChange}
             onKeyPress={(e) => {e.key === 'Enter' && e.preventDefault();}}
-            className={classes.textFieldCompact}
+            sx={{
+              mt: 3,  // theme.spacing(3)
+              mr: 2,  // theme.spacing(2)
+              mb: 0,  // theme.spacing(0)
+              width: "18ch"
+            }}
           />
         case 'string':
         default:
@@ -63,7 +56,12 @@ function AutomationForm(props){
             variant="outlined"
             onChange={onSettingsChange}
             onKeyPress={(e) => {e.key === 'Enter' && e.preventDefault();}}
-            className={classes.textFieldCompact}
+            sx={{
+              mt: 3,  // theme.spacing(3)
+              mr: 2,  // theme.spacing(2)
+              mb: 0,  // theme.spacing(0)
+              width: "18ch"
+            }}
           />
       }
     }
@@ -71,8 +69,8 @@ function AutomationForm(props){
 
   return (
     <div>
-        <p style={{whiteSpace: "pre-line"}}> {props.description} </p>
-        {listOfDisplayFields}
+      <p style={{whiteSpace: "pre-line"}}> {props.description} </p>
+      {listOfDisplayFields}
     </div>
 )}
 

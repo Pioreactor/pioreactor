@@ -4,7 +4,6 @@ import moment from "moment";
 import FormControl from '@mui/material/FormControl';
 import Grid from "@mui/material/Grid";
 import Button from "@mui/material/Button";
-import { makeStyles } from '@mui/styles';
 import Select from '@mui/material/Select';
 import {Typography} from '@mui/material';
 import Box from '@mui/material/Box';
@@ -36,45 +35,8 @@ import ManageExperimentMenu from "./components/ManageExperimentMenu";
 import {runPioreactorJob} from "./utilities"
 
 
-const useStyles = makeStyles((theme) => ({
-  root: {
-    marginTop: "15px"
-  },
-  formControl: {
-    margin: theme.spacing(2),
-  },
-  title: {
-    fontSize: 14,
-  },
-  cardContent: {
-    padding: "10px"
-  },
-  pos: {
-    marginBottom: 0,
-  },
-  caption: {
-    marginLeft: "30px",
-    maxWidth: "650px"
-  },
-  headerMenu: {
-    display: "flex",
-    justifyContent: "space-between",
-    marginBottom: "5px",
-    [theme.breakpoints.down('lg')]:{
-      flexFlow: "nowrap",
-      flexDirection: "column",
-    }
-  },
-  headerButtons: {display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"},
-  textIcon: {
-    verticalAlign: "middle",
-    margin: "0px 3px"
-  },
-}));
-
 
 function ExperimentProfilesContent({experiment, config, setRunningProfileName, setStartTime, runningProfileName}) {
-  const classes = useStyles();
   const confirm = useConfirm();
   const navigate = useNavigate()
 
@@ -148,7 +110,8 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName, s
       const topic = `pioreactor/${config['cluster.topology']?.leader_hostname}/${experiment}/experiment_profile/$state/set`
       client.publish(topic, "disconnected")
       setIsProfileActive(false)
-    })
+    }).catch(() => {});
+
 
   }
 
@@ -173,7 +136,8 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName, s
               }
           })
       }
-    )
+    ).catch(() => {});
+
   }
 
   const getSourceAndView = (e) => {
@@ -228,7 +192,7 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName, s
               component={Link}
               disabled={ selectedExperimentProfile === ''}
             >
-              <EditIcon fontSize="15" classes={{root: classes.textIcon}} /> Edit
+              <EditIcon fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Edit
             </Button>
             <Button
               variant="text"
@@ -239,7 +203,7 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName, s
               onClick={getSourceAndView}
               style={{textTransform: "none"}}
             >
-              <CodeIcon fontSize="15" classes={{root: classes.textIcon}} /> {viewSource ? "View description": "View source"}
+              <CodeIcon fontSize="15" sx={{verticalAlign: "middle", margin:"0px 3px"}} /> {viewSource ? "View description": "View source"}
             </Button>
             <Button
               variant="text"
@@ -251,7 +215,7 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName, s
               disabled={selectedExperimentProfile === ''}
 
             >
-              <DeleteIcon fontSize="15" classes={{root: classes.textIcon}} /> Delete
+              <DeleteIcon fontSize="15" sx={{verticalAlign: "middle", margin:"0px 3px"}} /> Delete
             </Button>
           </Grid>
 
@@ -300,53 +264,52 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName, s
 }
 
 function ProfilesContainer({experiment, config}){
-  const classes = useStyles();
   const [runningProfileName, setRunningProfileName] = React.useState(null)
   const [startTime, setStartTime] = React.useState(null)
 
   return(
     <React.Fragment>
-      <div>
-        <div className={classes.headerMenu}>
+      <Box>
+        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
           <Typography variant="h5" component="h2">
             <Box fontWeight="fontWeightBold">
               Experiment Profiles
             </Box>
           </Typography>
-          <div className={classes.headerButtons}>
+          <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
             <Button to={`/create-experiment-profile`} component={Link} style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="primary">
-              <AddIcon fontSize="15" classes={{root: classes.textIcon}}/> Create new profle
+              <AddIcon fontSize="15" sx={{verticalAlign: "middle", margin:"0px 3px"}}/> Create new profle
             </Button>
             <Divider orientation="vertical" flexItem variant="middle"/>
             <ManageExperimentMenu experiment={experiment}/>
-          </div>
-        </div>
+          </Box>
+        </Box>
         <Divider/>
-        <div style={{margin: "10px 2px 10px 2px", display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
-          <Typography variant="subtitle2" style={{flexGrow: 1}}>
-            <div style={{display:"inline"}}>
-              <Box fontWeight="fontWeightBold" style={{display:"inline-block"}}>
-                  <ViewTimelineOutlinedIcon style={{ fontSize: 12, verticalAlign: "-1px" }}/>
+        <Box sx={{margin: "10px 2px 10px 2px", display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
+          <Typography variant="subtitle2" sx={{flexGrow: 1}}>
+            <Box sx={{display:"inline"}}>
+              <Box fontWeight="fontWeightBold" sx={{display:"inline-block"}}>
+                  <ViewTimelineOutlinedIcon sx={{ fontSize: 12, verticalAlign: "-1px" }}/>
                  Profile running:&nbsp;
               </Box>
-              <Box fontWeight="fontWeightRegular" style={{marginRight: "1%", display:"inline-block"}}>
+              <Box fontWeight="fontWeightRegular" sx={{mr: "1%", display:"inline-block"}}>
                 {runningProfileName || "None"}
               </Box>
 
-              <Box fontWeight="fontWeightBold" style={{display:"inline-block"}}>
-                <CalendarTodayIcon style={{ fontSize: 12, verticalAlign: "-1px" }}/> Profile started at:&nbsp;
+              <Box fontWeight="fontWeightBold" sx={{display:"inline-block"}}>
+                <CalendarTodayIcon sx={{ fontSize: 12, verticalAlign: "-1px" }}/> Profile started at:&nbsp;
               </Box>
-              <Box fontWeight="fontWeightRegular" style={{marginRight: "1%", display:"inline-block"}}>
+              <Box fontWeight="fontWeightRegular" sx={{mr: "1%", display:"inline-block"}}>
                 {(startTime && moment(startTime).format("dddd, MMMM D, h:mm a")) || "-"}
               </Box>
-            </div>
+            </Box>
 
           </Typography>
-        </div>
+        </Box>
 
-      </div>
-      <Card className={classes.root}>
-        <CardContent className={classes.cardContent}>
+      </Box>
+      <Card sx={{mt: "15px"}}>
+        <CardContent sx={{p: 1}}>
           <ExperimentProfilesContent experiment={experiment} config={config} setStartTime={setStartTime} setRunningProfileName={setRunningProfileName} runningProfileName={runningProfileName}/>
           <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/experiment-profiles" target="_blank" rel="noopener noreferrer">experiment profiles</a>.</p>
         </CardContent>

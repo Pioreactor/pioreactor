@@ -1,14 +1,12 @@
 import React from "react";
-import { makeStyles } from '@mui/styles';
 import Typography from '@mui/material/Typography';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
+import { styled } from '@mui/material/styles';
 
-const useStyles = makeStyles((theme) => ({
-  cardContent: {
-    padding: "10px"
-  },
-  DisplayProfileCard: {
+
+
+const DisplayProfileCard = {
     maxHeight: "350px",
     overflow: "auto",
     backgroundColor: "rgb(250,250,250)",
@@ -19,22 +17,25 @@ const useStyles = makeStyles((theme) => ({
     border: "1px solid #ccc",
     borderRadius: "0px",
     boxShadow: "none"
-  },
-  highlightedSetting: {
+}
+
+const highlightedSetting = {
     backgroundColor: "#f3deff3b",
     color: "#872298",
-  },
-  highlightedTarget: {
+  }
+
+const highlightedTarget = {
     backgroundColor: "#f3deff3b",
     color: "#872298",
-  },
-  highlightedIf: {
+  }
+
+const highlightedIf = {
     backgroundColor: "#f3deff3b",
     color: "#872298",
-  },
-  highlightedActionType: {},
-  highlightedMessage: {fontStyle: "italic"},
-}));
+  }
+
+const highlightedActionType = {}
+const highlightedMessage = {fontStyle: "italic"}
 
 function processBracketedExpression(value) {
     const pattern = /\${{(.*?)}}/;
@@ -77,7 +78,6 @@ const after = (hoursElapsed) => {
 
 
 const ActionDetails = ({ action, jobName, index }) => {
-  const classes = useStyles();
 
   switch (action.type) {
     case 'start':
@@ -85,20 +85,20 @@ const ActionDetails = ({ action, jobName, index }) => {
       return (
         <>
           <Typography variant="body2" style={{ marginLeft: '4em' }}>
-            {index + 1}: <span className={classes.highlightedActionType}>{action.type}</span> {jobName} {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)}
+            {index + 1}: <span style={highlightedActionType}>{action.type}</span> {jobName} {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)}
           </Typography>
           {action.if && (
             <Typography variant="body2" style={{ marginLeft: '6em' }}>
-              only if <span className={classes.highlightedIf}>{processBracketedExpression(action.if)}</span>
+              only if <span style={highlightedIf}>{processBracketedExpression(action.if)}</span>
             </Typography>
           )}
           {Object.keys(action.options || {}).map((option, idx) => {
             const optionValue = action.options[option];
             return (
               <Typography key={`option-${idx}`} variant="body2" style={{ marginLeft: '6em' }}>
-                — set <span className={classes.highlightedTarget}>{option}</span>
+                — set <span style={highlightedTarget}>{option}</span>
                 {optionValue !== null ? (
-                  <> to <span className={classes.highlightedSetting}>{processBracketedExpression(optionValue)}</span></>
+                  <> to <span style={highlightedSetting}>{processBracketedExpression(optionValue)}</span></>
                 ) : null}
               </Typography>
             );
@@ -109,14 +109,14 @@ const ActionDetails = ({ action, jobName, index }) => {
       return (
         <>
           <Typography variant="body2" style={{ marginLeft: '4em' }}>
-            {index + 1}: <span className={classes.highlightedActionType}>log</span> {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)} the message:
+            {index + 1}: <span style={highlightedActionType}>log</span> {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)} the message:
           </Typography>
             <Typography variant="body2" style={{ marginLeft: '6em' }}>
-             "<span className={classes.highlightedMessage}>{action.options['message']}</span>"
+             "<span style={highlightedMessage}>{action.options['message']}</span>"
             </Typography>
           {action.if && (
             <Typography variant="body2" style={{ marginLeft: '6em' }}>
-              only if <span className={classes.highlightedIf}>{processBracketedExpression(action.if)}</span>
+              only if <span style={highlightedIf}>{processBracketedExpression(action.if)}</span>
             </Typography>
           )}
         </>
@@ -127,11 +127,11 @@ const ActionDetails = ({ action, jobName, index }) => {
       return (
         <>
           <Typography variant="body2" style={{ marginLeft: '4em' }}>
-            {index + 1}: <span className={classes.highlightedActionType}>{action.type}</span> {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)}
+            {index + 1}: <span style={highlightedActionType}>{action.type}</span> {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)}
           </Typography>
           {action.if && (
             <Typography variant="body2" style={{ marginLeft: '6em' }}>
-              only if <span className={classes.highlightedIf}>{processBracketedExpression(action.if)}</span>
+              only if <span style={highlightedIf}>{processBracketedExpression(action.if)}</span>
             </Typography>
           )}
         </>
@@ -140,16 +140,16 @@ const ActionDetails = ({ action, jobName, index }) => {
       return (
         <>
           <Typography variant="body2" style={{ marginLeft: '4em' }}>
-            {index + 1}: {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)}, <span className={classes.highlightedActionType}>repeat</span> the following every {humanReadableDuration(action.repeat_every_hours)},
+            {index + 1}: {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)}, <span style={highlightedActionType}>repeat</span> the following every {humanReadableDuration(action.repeat_every_hours)},
           </Typography>
           {action.if && (
             <Typography variant="body2" style={{ marginLeft: '6em' }}>
-              only if <span className={classes.highlightedIf}>{processBracketedExpression(action.if)}</span>
+              only if <span style={highlightedIf}>{processBracketedExpression(action.if)}</span>
             </Typography>
           )}
           {action.while && (
             <Typography variant="body2" style={{ marginLeft: '6em' }}>
-              while <span className={classes.highlightedIf}>{processBracketedExpression(action.while)}</span> {action.max_hours ? "or" : ""}
+              while <span style={highlightedIf}>{processBracketedExpression(action.while)}</span> {action.max_hours ? "or" : ""}
             </Typography>
           )}
           {action.max_hours && (
@@ -171,10 +171,9 @@ const ActionDetails = ({ action, jobName, index }) => {
 
 
 const DisplayProfile = ({ data }) => {
-  const classes = useStyles();
   return (
-    <Card className={classes.DisplayProfileCard}>
-      <CardContent className={classes.cardContent}>
+    <Card sx={DisplayProfileCard}>
+      <CardContent sx={{padding: "10px"}}>
         <Typography variant="h6">
           {data.experiment_profile_name}
         </Typography>
@@ -231,7 +230,7 @@ const DisplayProfile = ({ data }) => {
                 </Typography>
                 <Typography  variant="body2" style={{ marginLeft: '2em' }}>
                 {data.pioreactors[pioreactor].label ?
-                   <> Relabel to <span class={classes.highlightedTarget}>{data.pioreactors[pioreactor].label}</span> </> : <></>
+                   <> Relabel to <span style={highlightedTarget}>{data.pioreactors[pioreactor].label}</span> </> : <></>
                 }
                 </Typography>
                   {Object.keys(data.pioreactors[pioreactor].jobs).map(job => (

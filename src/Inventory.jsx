@@ -1,7 +1,4 @@
-import clsx from 'clsx';
-
 import React, {useState, useEffect} from "react";
-import { makeStyles } from '@mui/styles';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -45,170 +42,29 @@ const lostRed = "#DE3618"
 const inactiveGrey = "#99999b"
 const readyGreen = "#3f8451"
 
-
-const useStyles = makeStyles((theme) => ({
-  lostRed: {
-    color: lostRed
-  },
-  readyGreen: {
-    color: readyGreen
-  },
-  textIcon: {
-    verticalAlign: "middle",
-    margin: "0px 3px"
-  },
-  pioreactorCard: {
-    marginTop: "0px",
-    marginBottom: "20px",
-  },
-  cardContent: {
-    padding: "10px 20px 20px 20px"
-  },
-  code: {
-    backgroundColor: "rgba(0, 0, 0, 0.07)",
-    padding: "1px 4px"
-  },
-  unitTitle: {
-    fontSize: 20,
-    color: "rgba(0, 0, 0, 0.87)",
-    fontWeight: 500,
-  },
-  suptitle: {
-    fontSize: "13px",
-    color: "rgba(0, 0, 0, 0.60)",
-  },
-  disabledText: {
-    color: "rgba(0, 0, 0, 0.38)",
-  },
-  textbox:{
-    width: "130px",
-    marginTop: "10px"
-  },
-  textboxLabel:{
-    width: "100px",
-    marginTop: "10px",
-    marginRight: "5px"
-  },
-  footnote: {
-    marginBottom: 0,
-    fontSize: 12,
-  },
-  textField: {
-    marginTop: "15px",
-    maxWidth: "180px",
-  },
-  textFieldWide: {
-    marginTop: "15px",
-    maxWidth: "195px",
-  },
-  selectField: {
-    marginTop: "15px",
-    marginLeft: "10px",
-    minWidth: "195px"
-  },
-  textFieldCompact: {
-    marginTop: "15px",
-    width: "120px",
-  },
-  slider: {
-    width: "70%",
-    margin: "40px auto 0px auto",
-  },
-  divider: {
-    marginTop: 15,
-    marginBottom: 10,
-  },
-  jobButton: {
-    paddingRight: "15px",
-    paddingLeft: "15px"
-  },
-  unitSettingsSubtext:{
-    fontSize: "11px",
-    wordBreak: "break-word"
-  },
-  unitSettingsSubtextEmpty:{
-    minHeight: "15px"
-  },
-  ledBlock:{
-    width: "55px",
-    display: "inline-block"
-  },
-  rowOfUnitSettingDisplay:{
-    display: "flex",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "flex-start",
-    alignItems: "stretch",
-    alignContent: "stretch",
-  },
-  testingListItemIcon: {
-    minWidth: "30px"
-  },
-  testingListItem : {
-    paddingTop: "0px",
-    paddingBottom: "0px",
-  },
-  headerMenu: {
-    display: "flex",
-    justifyContent: "space-between",
-    marginBottom: "5px",
-    [theme.breakpoints.down('lg')]:{
-      flexFlow: "nowrap",
-      flexDirection: "column",
-    }
-  },
-  cardHeaderSettings:{
-    display: "flex",
-    justifyContent: "space-between",
-    [theme.breakpoints.down('md')]:{
-      flexFlow: "nowrap",
-      flexDirection: "column",
-    }
-  },
-  cardHeaderButtons: {
-    display: "flex",
-    justifyContent: "flex-end",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    [theme.breakpoints.down('md')]: {
-      justifyContent: "space-between",
-    }
-  },
-  headerButtons: {display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"},
-  dataTable: {
-    borderCollapse: "separate",
-    borderSpacing: "5px",
-    fontSize: "0.90rem"
-  },
-  dataTableQuestion: {textAlign: "left", minWidth: "120px", color: ""},
-  dataTableResponse: {}
-}));
-
-
+const textIcon = {verticalAlign: "middle", margin: "0px 3px"}
 
 function Header(props) {
-  const classes = useStyles()
   return (
-    <div>
-      <div className={classes.headerMenu}>
+    <Box>
+      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
         <Typography variant="h5" component="h1">
           <Box fontWeight="fontWeightBold">
             Inventory
           </Box>
         </Typography>
-        <div className={classes.headerButtons}>
+        <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
           <AddNewPioreactor/>
-        </div>
-      </div>
-       <Divider className={classes.divider} />
-    </div>
+        </Box>
+      </Box>
+       <Divider sx={{marginTop: "0px", marginBottom: "15px"}} />
+    </Box>
   )
 }
 
 
 
 function AddNewPioreactor(props){
-  const classes = useStyles();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [model, setModel] = useState("pioreactor_20ml");
@@ -279,7 +135,7 @@ function AddNewPioreactor(props){
   return (
     <React.Fragment>
     <Button onClick={handleClickOpen} style={{textTransform: 'none', float: "right", marginRight: "0px"}} color="primary">
-      <AddIcon fontSize="15" classes={{root: classes.textIcon}}/> Add new Pioreactor
+      <AddIcon fontSize="15" sx={textIcon}/> Add new Pioreactor
     </Button>
     <Dialog open={open} onClose={handleClose} aria-labelledby="form-dialog-title">
       <DialogTitle>
@@ -317,7 +173,7 @@ function AddNewPioreactor(props){
             id="new-pioreactor-name"
             label="Hostname"
             variant="outlined"
-            className={classes.textFieldWide}
+            sx={{mt: "15px", maxWidth: "195px"}}
             onChange={handleNameChange}
             value={name}
             InputProps={{
@@ -325,7 +181,7 @@ function AddNewPioreactor(props){
             }
           }
           />
-        <FormControl required className={classes.selectField} variant="outlined" size="small">
+        <FormControl required sx={{mt: "15px", ml: "10px", minWidth: "195px"}} variant="outlined" size="small">
           <InputLabel >Pioreactor model</InputLabel>
           <Select
             value={version}
@@ -339,17 +195,17 @@ function AddNewPioreactor(props){
 
         </div>
 
-        <div style={{minHeight: "60px", alignItems: "center", display: "flex"}}>
-          {isError   ? <p><CloseIcon className={clsx(classes.textIcon, classes.lostRed)}/>{errorMsg}</p>           : <React.Fragment/>}
+        <Box sx={{minHeight: "60px", alignItems: "center", display: "flex"}}>
+          {isError   ? <p><CloseIcon sx={{verticalAlign: "middle", margin: "0px 3px", color: lostRed}}/>{errorMsg}</p>           : <React.Fragment/>}
           {isRunning ? <p>{expectedPathMsg}</p>                                                                    : <React.Fragment/>}
-          {isSuccess ? <p><CheckIcon className={clsx(classes.textIcon, classes.readyGreen)}/>{successMsg}</p>      : <React.Fragment/>}
-        </div>
+          {isSuccess ? <p><CheckIcon sx={{verticalAlign: "middle", margin: "0px 3px", color: readyGreen}}/>{successMsg}</p>      : <React.Fragment/>}
+        </Box>
 
-        <div style={{display: "flex", justifyContent: "flex-end"}}>
+        <Box sx={{display: "flex", justifyContent: "flex-end"}}>
           <LoadingButton
             variant="contained"
             color="primary"
-            style={{marginTop: "10px", textTransform: 'none'}}
+            sx={{marginTop: "10px", textTransform: 'none'}}
             onClick={onSubmit}
             type="submit"
             loading={isRunning}
@@ -358,7 +214,7 @@ function AddNewPioreactor(props){
           >
             Add Pioreactor
           </LoadingButton>
-        </div>
+        </Box>
 
       </DialogContent>
     </Dialog>
@@ -368,7 +224,6 @@ function AddNewPioreactor(props){
 
 
 function WorkerCard(props) {
-  const classes = useStyles()
 
   const worker = props.worker
   const unit = worker.pioreactor_unit
@@ -528,78 +383,77 @@ function WorkerCard(props) {
           {experimentAssigned ? <>Assigned to <i>{experimentAssigned}</i></> : "Unassigned"}
         </Typography>
 
-        <Divider style={{margin: "5px 0px"}}/>
+        <Divider sx={{margin: "5px 0px"}}/>
 
-        <table className={classes.dataTable}>
+        <table style={{borderCollapse: "separate", borderSpacing: "5px", fontSize: "0.90rem"}}>
           <tbody style={{color: activeStatus === "active" ? "inherit" : inactiveGrey}}>
           <tr>
-            <td className={classes.dataTableQuestion}>
+            <td style={{textAlign: "left", minWidth: "120px", color: ""}}>
                 Model
             </td>
-            <td className={classes.dataTableResponse}>
-              <code className={classes.code}>{pioreactorString}</code>
+            <td >
+              <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{pioreactorString}</code>
             </td>
           </tr>
           <tr>
-            <td className={classes.dataTableQuestion}>
+            <td style={{textAlign: "left", minWidth: "120px", color: ""}}>
                 IPv4
             </td>
             <td>
-              <code className={classes.code}>{ipv4 || "-"}</code>
+              <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{ipv4 || "-"}</code>
             </td>
           </tr>
           <tr>
-            <td className={classes.dataTableQuestion}>
+            <td style={{textAlign: "left", minWidth: "120px", color: ""}}>
                 WLAN MAC
             </td>
             <td>
-              <code className={classes.code}>{WLANaddress || "-"}</code>
+              <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{WLANaddress || "-"}</code>
             </td>
           </tr>
           <tr>
-            <td className={classes.dataTableQuestion}>
+            <td style={{textAlign: "left", minWidth: "120px", color: ""}}>
                 Ethernet MAC
             </td>
             <td>
-              <code className={classes.code}>{ETHAddress || "-"}</code>
+              <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{ETHAddress || "-"}</code>
             </td>
           </tr>
           <tr>
-            <td className={classes.dataTableQuestion}>
+            <td style={{textAlign: "left", minWidth: "120px", color: ""}}>
                 Software version
             </td>
-            <td className={classes.dataTableResponse}>
-              <code className={classes.code}>{versions.app || "-"}</code>
+            <td >
+              <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{versions.app || "-"}</code>
             </td>
           </tr>
           <tr>
-            <td className={classes.dataTableQuestion}>
+            <td style={{textAlign: "left", minWidth: "120px", color: ""}}>
                 Raspberry Pi
             </td>
-            <td className={classes.dataTableResponse}>
-              <code className={classes.code}>{versions.rpi_machine || "-"}</code>
+            <td >
+              <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{versions.rpi_machine || "-"}</code>
             </td>
           </tr>
           </tbody>
         </table>
-        <Divider style={{margin: "5px 0px"}}/>
+        <Divider sx={{margin: "5px 0px"}}/>
       </CardContent>
-      <CardActions style={{display: "flex", justifyContent: "space-between"}}>
-        <div>
+      <CardActions sx={{display: "flex", justifyContent: "space-between"}}>
+        <Box>
           <Blink unit={unit} client={client}/>
-        </div>
-        <div>
+        </Box>
+        <Box>
           <Unassign unit={unit} experimentAssigned={experimentAssigned} setExperimentAssigned={setExperimentAssigned} />
           <Reboot unit={unit} />
           <Remove unit={unit} isLeader={isLeader}/>
-          </div>
+        </Box>
       </CardActions>
     </Card>
 )}
 
 
 function Blink({unit, client}){
-  const classes = useStyles();
 
   const [flashing, setFlashing] = useState(false)
 
@@ -622,14 +476,13 @@ function Blink({unit, client}){
   }
 
   return (
-    <Button style={{textTransform: 'none'}} className={clsx({blinkled: flashing})}  onClick={onClick} color="primary">
-      <FlareIcon color="primary" fontSize="15" classes={{root: classes.textIcon}}/> Identify
+    <Button style={{textTransform: 'none'}} className={flashing ? 'blinkled' : ''}  onClick={onClick} color="primary">
+      <FlareIcon color="primary" fontSize="15" sx={textIcon}/> Identify
     </Button>
 )}
 
 
 function Reboot({unit, isLeader}) {
-  const classes = useStyles()
 
   const confirm = useConfirm();
 
@@ -647,13 +500,12 @@ function Reboot({unit, isLeader}) {
 
   return (
       <Button style={{textTransform: "none"}} size="small" onClick={rebootWorker}>
-        <RestartAltIcon fontSize="small" classes={{root: classes.textIcon}} />Reboot
+        <RestartAltIcon fontSize="small" sx={textIcon} />Reboot
       </Button>
 )}
 
 
 function Unassign({unit, experimentAssigned, setExperimentAssigned}) {
-  const classes = useStyles()
 
   const unassignWorker = () => {
     fetch(`/api/experiments/${experimentAssigned}/workers/${unit}`, {method: "DELETE"})
@@ -666,13 +518,12 @@ function Unassign({unit, experimentAssigned, setExperimentAssigned}) {
 
   return (
       <Button disabled={!experimentAssigned} style={{textTransform: "none"}} size="small" onClick={unassignWorker}>
-        <RemoveCircleOutlineRoundedIcon fontSize="small" classes={{root: classes.textIcon}} />Unassign
+        <RemoveCircleOutlineRoundedIcon fontSize="small" sx={textIcon} />Unassign
       </Button>
 )}
 
 
 function Remove({unit, isLeader}) {
-  const classes = useStyles()
   const navigate = useNavigate()
   const confirm = useConfirm();
 
@@ -695,7 +546,7 @@ function Remove({unit, isLeader}) {
 
   return (
     <Button style={{textTransform: "none"}} disabled={isLeader} size="small" onClick={removeWorker}>
-       <DeleteIcon fontSize="small" classes={{root: classes.textIcon}}/> Remove
+       <DeleteIcon fontSize="small" sx={textIcon}/> Remove
     </Button>
 )}
 

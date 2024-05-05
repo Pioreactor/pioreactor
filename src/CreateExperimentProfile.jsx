@@ -3,7 +3,6 @@ import React from "react";
 import FormControl from '@mui/material/FormControl';
 import Grid from "@mui/material/Grid";
 import Button from "@mui/material/Button";
-import { makeStyles } from '@mui/styles';
 import {Typography} from '@mui/material';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -15,42 +14,6 @@ import InputAdornment from '@mui/material/InputAdornment';
 import { Link } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import Snackbar from '@mui/material/Snackbar';
-
-const useStyles = makeStyles((theme) => ({
-  root: {
-    marginTop: "15px"
-  },
-  formControl: {
-    margin: theme.spacing(2),
-  },
-  title: {
-    fontSize: 14,
-  },
-  cardContent: {
-    padding: "10px"
-  },
-  pos: {
-    marginBottom: 0,
-  },
-  caption: {
-    marginLeft: "30px",
-    maxWidth: "650px"
-  },
-  headerMenu: {
-    display: "flex",
-    justifyContent: "space-between",
-    marginBottom: "5px",
-    [theme.breakpoints.down('lg')]:{
-      flexFlow: "nowrap",
-      flexDirection: "column",
-    }
-  },
-  headerButtons: {display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"},
-  textIcon: {
-    verticalAlign: "middle",
-    margin: "0px 3px"
-  },
-}));
 
 
 class EditExperimentProfilesContent extends React.Component {
@@ -188,26 +151,18 @@ metadata:
 
 
 function ProfilesContainer(props){
-  const classes = useStyles();
-
   return(
     <React.Fragment>
-      <div>
-        <div className={classes.headerMenu}>
-          <Typography variant="h5" component="h2">
-            <Box fontWeight="fontWeightBold">
-              Create Experiment Profile
-            </Box>
-          </Typography>
-          <div className={classes.headerButtons}>
-            <Button to={`/experiment-profiles`} component={Link} style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="primary">
-              <ArrowBackIcon fontSize="15" classes={{root: classes.textIcon}}/> Back
-            </Button>
-          </div>
-        </div>
-      </div>
-      <Card className={classes.root}>
-        <CardContent className={classes.cardContent}>
+      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+        <Typography variant="h5" component="h2" sx={{ fontWeight: "bold" }}>
+          Create Experiment Profile
+        </Typography>
+        <Button to={`/experiment-profiles`} component={Link} sx={{ textTransform: 'none' }}>
+          <ArrowBackIcon sx={{ verticalAlign: "middle", mr: 0.5 }} fontSize="small"/> Back
+        </Button>
+      </Box>
+      <Card sx={{marginTop: "15px"}}>
+        <CardContent sx={{padding: "10px"}}>
           <EditExperimentProfilesContent />
           <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about creating <a href="https://docs.pioreactor.com/user-guide/create-edit-experiment-profiles" target="_blank" rel="noopener noreferrer">experiment profile schemas</a>.</p>
         </CardContent>

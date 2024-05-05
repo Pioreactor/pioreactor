@@ -109,7 +109,7 @@ function Charts(props) {
         .map(([chart_key, chart]) =>
           <Fragment key={`grid-chart-${chart_key}`}>
             <Grid item xs={12} >
-              <Card style={{ maxHeight: "100%"}}>
+              <Card sx={{ maxHeight: "100%"}}>
                 <Chart
                   key={`chart-${chart_key}`}
                   chartKey={chart_key}
