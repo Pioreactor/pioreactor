@@ -135,7 +135,7 @@ def create_client(
         except (socket.gaierror, OSError):
             if retries == max_connection_attempts:
                 break
-            sleep(retries * 2)
+            sleep(retries)
         else:
             if not skip_loop:
                 client.loop_start()

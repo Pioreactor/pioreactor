@@ -615,9 +615,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         # the client connects async, but we want it to be connected before adding
         # our reconnect callback
-        for _ in range(200):
+        for _ in range(2000):
             if not client.is_connected():
-                sleep(0.01)
+                sleep(0.001)
             else:
                 break
 
@@ -1190,3 +1190,8 @@ class BackgroundJobWithDodgingContrib(BackgroundJobWithDodging):
 
     def __init__(self, unit: str, experiment: str, plugin_name: str) -> None:
         super().__init__(unit=unit, experiment=experiment, source=plugin_name)
+
+
+if __name__ == "__main__":
+    # for testing
+    bj = _BackgroundJob("test", "test", "app")

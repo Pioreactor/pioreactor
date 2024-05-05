@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 from logging import handlers
+from time import sleep
 from typing import TYPE_CHECKING
 
 from json_log_formatter import JSONFormatter  # type: ignore
@@ -109,8 +110,13 @@ class MQTTHandler(logging.Handler):
     def emit(self, record) -> None:
         payload = self.format(record)
 
-        if not self.client.is_connected():
-            return
+        attempts = 0
+        max_attempts = 3
+        while not self.client.is_connected() and attempts < max_attempts:
+            sleep(0.1)
+            attempts += 1
+            if attempts == max_attempts:
+                return
 
         mqtt_msg = self.client.publish(
             self.topic, payload, qos=self.qos, retain=self.retain, **self.mqtt_kwargs
