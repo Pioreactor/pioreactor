@@ -52,7 +52,7 @@ function ExperimentSelection(props) {
     props.handleChange(e.target.value)
   }
   return (
-    <Box style={{maxWidth: "450px", margin: "10px"}}>
+    <Box sx={{maxWidth: "450px", m: 1}}>
       <FormControl fullWidth component="fieldset" >
         <FormLabel component="legend">Experiment</FormLabel>
         <Select
@@ -76,7 +76,7 @@ function ExperimentSelection(props) {
 const CheckboxesGroup = (props) => {
 
   return (
-    <Box sx={{mt: "15px", m: "10px"}}>
+    <Box sx={{mt: "15px", m: 1}}>
       <FormControl component="fieldset" >
         <FormLabel component="legend">Available datasets</FormLabel>
         <FormGroup>

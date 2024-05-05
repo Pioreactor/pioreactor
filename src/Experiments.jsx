@@ -54,8 +54,8 @@ function ExperimentSelection(props) {
   })
 
   return (
-    <div style={{maxWidth: "450px", margin: "10px"}}>
-      <FormControl fullWidth component="fieldset" sx={{m: 2}}>
+    <Box sx={{maxWidth: "450px", m: 1}}>
+      <FormControl fullWidth component="fieldset" sx={{my: 1}}>
         <FormLabel component="legend">Experiment</FormLabel>
         <Select
           labelId="expSelect"
@@ -66,7 +66,7 @@ function ExperimentSelection(props) {
         {experimentOptions}
         </Select>
       </FormControl>
-      <Box sx={{ p: 2, pt: 0 }}>
+      <Box sx={{my: 1}}>
         <Typography sx={{ fontSize: 16 }} color="text.secondary" gutterBottom>
           Experiment created
         </Typography>
@@ -80,7 +80,7 @@ function ExperimentSelection(props) {
           {selectedExperient?.description}
         </Typography>
       </Box>
-    </div>
+    </Box>
   )
 }
 

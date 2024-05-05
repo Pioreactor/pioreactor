@@ -1,12 +1,11 @@
-import clsx from 'clsx';
 import moment from 'moment';
 
 import React, {useState, useEffect} from "react";
 
 import Grid from '@mui/material/Grid';
 import { useMediaQuery } from "@mui/material";
+import { styled } from '@mui/material/styles';
 
-import { makeStyles } from '@mui/styles';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/Card';
 import {Typography} from '@mui/material';
@@ -68,143 +67,33 @@ import { useExperiment } from './providers/ExperimentContext';
 const readyGreen = "#3f8451"
 const disconnectedGrey = "#585858"
 const lostRed = "#DE3618"
+const disabledColor = "rgba(0, 0, 0, 0.38)"
 
 
-const useStyles = makeStyles((theme) => ({
-  lostRed: {
-    color: lostRed
-  },
-  readyGreen: {
-    color: readyGreen
-  },
-  textIcon: {
-    verticalAlign: "middle",
-    margin: "0px 3px"
-  },
-  pioreactorCard: {
-    marginTop: "0px",
-    marginBottom: "20px",
-  },
-  cardContent: {
-    padding: "10px 20px 20px 20px"
-  },
-  code: {
-    backgroundColor: "rgba(0, 0, 0, 0.07)",
-    padding: "1px 4px"
-  },
-  unitTitle: {
-    fontSize: 20,
-    color: "rgba(0, 0, 0, 0.87)",
-    fontWeight: 500,
-  },
-  suptitle: {
-    fontSize: "13px",
-    color: "rgba(0, 0, 0, 0.60)",
-  },
-  disabledText: {
-    color: "rgba(0, 0, 0, 0.38)",
-  },
-  textbox:{
-    width: "130px",
-    marginTop: "10px"
-  },
-  textboxLabel:{
-    width: "100px",
-    marginTop: "10px",
-    marginRight: "5px"
-  },
-  footnote: {
-    marginBottom: 0,
-    fontSize: 12,
-  },
-  textField: {
-    marginTop: "15px",
-    maxWidth: "180px",
-  },
-  textFieldWide: {
-    marginTop: "15px",
-    maxWidth: "220px",
-  },
-  textFieldCompact: {
-    marginTop: "15px",
-    width: "140px",
-  },
-  slider: {
-    width: "70%",
-    margin: "40px auto 0px auto",
-  },
-  divider: {
-    marginTop: 15,
-    marginBottom: 10,
-  },
-  jobButton: {
-    paddingRight: "15px",
-    paddingLeft: "15px"
-  },
-  unitSettingsSubtext:{
-    fontSize: "11px",
-    wordBreak: "break-word"
-  },
-  unitSettingsSubtextEmpty:{
-    minHeight: "15px"
-  },
-  ledBlock:{
-    width: "55px",
-    display: "inline-block"
-  },
-  rowOfUnitSettingDisplay:{
+
+
+const StylizedCode = styled('code')(({ theme }) => ({
+  backgroundColor: "rgba(0, 0, 0, 0.07)",
+  padding: "1px 4px"
+}));
+
+const DisplaySettingsTable = styled('span')(({ theme }) => ({
+  width: "55px",
+  display: "inline-block"
+}));
+
+const ManageDivider = styled(Divider)(({ theme }) => ({
+  marginTop: theme.spacing(2), // equivalent to 16px if the default spacing unit is 8px
+  marginBottom: theme.spacing(1.25) // equivalent to 10px
+}));
+
+const RowOfUnitSettingDisplayBox  = styled(Box)(({ theme }) => ({
     display: "flex",
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "flex-start",
     alignItems: "stretch",
     alignContent: "stretch",
-  },
-  testingListItemIcon: {
-    minWidth: "30px"
-  },
-  testingListItem : {
-    paddingTop: "0px",
-    paddingBottom: "0px",
-  },
-  headerMenu: {
-    display: "flex",
-    justifyContent: "space-between",
-    marginBottom: "8px",
-    [theme.breakpoints.down('lg')]:{
-      flexFlow: "nowrap",
-      flexDirection: "column",
-    }
-  },
-  cardHeaderSettings:{
-    display: "flex",
-    justifyContent: "space-between",
-    [theme.breakpoints.down('md')]:{
-      flexFlow: "nowrap",
-      flexDirection: "column",
-    }
-  },
-  cardHeaderButtons: {
-    display: "flex",
-    justifyContent: "flex-end",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    [theme.breakpoints.down('md')]: {
-      justifyContent: "space-between",
-    }
-  },
-  headerButtons: {display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"},
-  patientButton: {width: "70px", marginTop: "5px", height: "31px", marginRight: '3px'},
-  dataTable: {
-    borderCollapse: "separate",
-    borderSpacing: "5px",
-    fontSize: "0.90rem"
-  },
-  dataTableQuestion: {textAlign: "right", minWidth: "120px", color: ""},
-  dataTableResponse: {},
-  assignmentList: {
-    margin: "auto"
-  }
 }));
 
 
@@ -228,19 +117,17 @@ function TabPanel(props) {
 }
 
 function UnitSettingDisplaySubtext(props){
-  const classes = useStyles();
 
   if (props.subtext){
-    return <div className={classes.unitSettingsSubtext}><code>{props.subtext}</code></div>
+    return <Box sx={{fontSize: "11px", wordBreak: "break-word"}}><code>{props.subtext}</code></Box>
   }
   else{
-    return <div className={classes.unitSettingsSubtextEmpty}></div>
+    return <Box sx={{minHeight: "15px"}}></Box>
   };
 }
 
 
 function UnitSettingDisplay(props) {
-  const classes = useStyles();
   const stateDisplay = {
     "init":          {display: "Starting", color: readyGreen},
     "ready":         {display: "On", color: readyGreen},
@@ -278,14 +165,14 @@ function UnitSettingDisplay(props) {
 
   if (props.isStateSetting) {
     if (!props.isUnitActive) {
-      return <div className={clsx({[classes.disabledText]: !props.isUnitActive})}> {stateDisplay[value].display} </div>;
+      return <Box sx={{ color: disabledColor }}> {stateDisplay[value].display} </Box>;
     } else {
       var displaySettings = stateDisplay[value]
       return (
         <React.Fragment>
-          <div style={{ color: displaySettings.color, fontWeight: 500}}>
+          <Box sx={{ color: displaySettings.color, fontWeight: 500}}>
             {displaySettings.display}
-          </div>
+          </Box>
           <UnitSettingDisplaySubtext subtext={props.subtext}/>
         </React.Fragment>
     )}
@@ -305,20 +192,20 @@ function UnitSettingDisplay(props) {
         <React.Fragment>
           <div style={{fontSize: "13px"}}>
             <div>
-              <span className={classes.ledBlock}>
+              <DisplaySettingsTable>
                 <UnderlineSpan title={renamedA ? renamedA : null}>A</UnderlineSpan>: {prettyPrint(ledIntensities["A"])}%
-              </span>
-              <span className={classes.ledBlock}>
+              </DisplaySettingsTable>
+              <DisplaySettingsTable>
                 <UnderlineSpan title={renamedB ? renamedB : null}>B</UnderlineSpan>: {prettyPrint(ledIntensities["B"])}%
-              </span>
+              </DisplaySettingsTable>
             </div>
             <div>
-              <span className={classes.ledBlock}>
+              <DisplaySettingsTable>
                 <UnderlineSpan title={renamedC ? renamedC : null}>C</UnderlineSpan>: {prettyPrint(ledIntensities["C"])}%
-              </span>
-              <span className={classes.ledBlock}>
+              </DisplaySettingsTable>
+              <DisplaySettingsTable>
                 <UnderlineSpan title={renamedD ? renamedD : null}>D</UnderlineSpan>: {prettyPrint(ledIntensities["D"])}%
-              </span>
+              </DisplaySettingsTable>
             </div>
           </div>
           <UnitSettingDisplaySubtext subtext={props.subtext}/>
@@ -343,20 +230,20 @@ function UnitSettingDisplay(props) {
         <React.Fragment>
           <div style={{fontSize: "13px"}}>
             <div>
-              <span className={classes.ledBlock}>
+              <DisplaySettingsTable>
                 <UnderlineSpan title={renamed1 ? renamed1 : null}>1</UnderlineSpan>: {prettyPrint(pwmDcs[PWM_TO_PIN[1]] || 0)}%
-              </span>
-              <span className={classes.ledBlock}>
+              </DisplaySettingsTable>
+              <DisplaySettingsTable>
                <UnderlineSpan title={renamed2 ? renamed2 : null}>2</UnderlineSpan>: {prettyPrint(pwmDcs[PWM_TO_PIN[2]] || 0)}%
-              </span>
+              </DisplaySettingsTable>
             </div>
             <div>
-              <span className={classes.ledBlock}>
+              <DisplaySettingsTable>
                 <UnderlineSpan title={renamed3 ? renamed3 : null}>3</UnderlineSpan>: {prettyPrint(pwmDcs[PWM_TO_PIN[3]] || 0)}%
-              </span>
-              <span className={classes.ledBlock}>
+              </DisplaySettingsTable>
+              <DisplaySettingsTable>
                 <UnderlineSpan title={renamed4 ? renamed4 : null}>4</UnderlineSpan>: {prettyPrint(pwmDcs[PWM_TO_PIN[4]] || 0)}%
-              </span>
+              </DisplaySettingsTable>
             </div>
           </div>
           <UnitSettingDisplaySubtext subtext={props.subtext}/>
@@ -388,7 +275,6 @@ function UnitSettingDisplay(props) {
 
 
 function ButtonStopProcess({experiment}) {
-  const classes = useStyles();
   const confirm = useConfirm();
 
   const handleClick = () => {
@@ -407,7 +293,7 @@ function ButtonStopProcess({experiment}) {
 
   return (
     <Button style={{textTransform: 'none', float: "right" }} color="secondary" onClick={handleClick}>
-      <ClearIcon fontSize="15" classes={{root: classes.textIcon}}/> Stop all activity
+      <ClearIcon fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Stop all activity
     </Button>
   );
 }
@@ -415,7 +301,6 @@ function ButtonStopProcess({experiment}) {
 
 
 function AssignPioreactors({experiment}) {
-  const classes = useStyles();
   const [workers, setWorkers] = React.useState([])
   const [assigned, setAssigned] = React.useState({})
   const [initialAssigned, setInitialAssigned] = React.useState({})
@@ -493,7 +378,7 @@ const updateAssignments = async () => {
   return (
     <React.Fragment>
     <Button style={{textTransform: 'none', }} onClick={handleClickOpen}>
-      <LibraryAddCheckOutlinedIcon fontSize="15" classes={{root: classes.textIcon}}/> Assign Pioreactors
+      <LibraryAddCheckOutlinedIcon fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Assign Pioreactors
     </Button>
     <Dialog
       open={open}
@@ -519,7 +404,7 @@ const updateAssignments = async () => {
       <DialogContent>
         <p> Below, assign and unassign Pioreactors to your experiment <i>{experiment}</i>. </p>
 
-        <FormControl className={classes.assignmentList} component="fieldset" variant="standard">
+        <FormControl sx={{m: "auto"}} component="fieldset" variant="standard">
           <FormLabel component="legend">Pioreactors</FormLabel>
           <FormGroup>
 
@@ -566,7 +451,6 @@ const updateAssignments = async () => {
 
 
 function PioreactorHeader({experiment}) {
-  const classes = useStyles()
   return (
     <Box>
       <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
@@ -575,7 +459,7 @@ function PioreactorHeader({experiment}) {
             Pioreactors
           </Box>
         </Typography>
-        <Box className={classes.headerButtons}>
+        <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
           <ButtonStopProcess experiment={experiment}/>
           <AssignPioreactors experiment={experiment}/>
           <SettingsActionsDialogAll experiment={experiment}/>
@@ -590,7 +474,6 @@ function PioreactorHeader({experiment}) {
 
 
 function PatientButton(props) {
-  const classes = useStyles()
   const [buttonText, setButtonText] = useState(props.buttonText)
 
   useEffect(() => {
@@ -607,7 +490,7 @@ function PatientButton(props) {
   return (
     <Button
       disableElevation
-      className={classes.patientButton}
+      sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}}
       color={props.color}
       variant={props.variant}
       disabled={props.disabled}
@@ -621,7 +504,6 @@ function PatientButton(props) {
 
 
 function CalibrateDialog(props) {
-  const classes = useStyles();
   const [open, setOpen] = useState(false);
   const [tabValue, setTabValue] = useState(0);
 
@@ -674,11 +556,11 @@ function CalibrateDialog(props) {
   return (
     <React.Fragment>
       <Button style={{textTransform: 'none', float: "right" }} color="primary" disabled={props.disabled} onClick={handleClickOpen}>
-        <TuneIcon color={props.disabled ? "disabled" : "primary"} fontSize="15" classes={{root: classes.textIcon}}/> Calibrate
+        <TuneIcon color={props.disabled ? "disabled" : "primary"} fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Calibrate
       </Button>
       <Dialog open={open} onClose={handleClose} aria-labelledby="form-dialog-title">
         <DialogTitle>
-          <Typography className={classes.suptitle}>
+          <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}}>
             <PioreactorIcon style={{verticalAlign: "middle", fontSize: "1.2em"}}/> {(props.label) ? `${props.label} / ${props.unit}` : `${props.unit}`}
           </Typography>
           <Tabs
@@ -721,10 +603,10 @@ function CalibrateDialog(props) {
             <div style={{display: "flex"}}>
               {blankODButton}
               <div>
-                <Button size="small" className={classes.patientButton} color="secondary" disabled={(props.odBlankReading === null) || (isGrowRateJobRunning)} onClick={() => runPioreactorJob(props.unit, '$experiment', "od_blank", ['delete']) }> Clear </Button>
+                <Button size="small" sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}} color="secondary" disabled={(props.odBlankReading === null) || (isGrowRateJobRunning)} onClick={() => runPioreactorJob(props.unit, '$experiment', "od_blank", ['delete']) }> Clear </Button>
               </div>
             </div>
-            <Divider className={classes.divider} />
+            <ManageDivider/>
 
           </TabPanel>
           <TabPanel value={tabValue} index={1}>
@@ -742,7 +624,7 @@ function CalibrateDialog(props) {
 
             {stirringCalibrationButton}
 
-            <Divider className={classes.divider} />
+            <ManageDivider/>
 
           </TabPanel>
           <TabPanel value={tabValue} index={2}>
@@ -755,7 +637,7 @@ function CalibrateDialog(props) {
             <Typography variant="body2" component="p" gutterBottom>
             See instructions <a target="_blank" rel="noopener noreferrer" href="https://docs.pioreactor.com/user-guide/hardware-calibrations#pump-calibration">here</a>.
             </Typography>
-            <Divider className={classes.divider} />
+            <ManageDivider/>
 
           </TabPanel>
 
@@ -769,7 +651,7 @@ function CalibrateDialog(props) {
             <Typography variant="body2" component="p" gutterBottom>
             See instructions <a target="_blank" rel="noopener noreferrer" href="https://docs.pioreactor.com/user-guide/calibrate-od600">here</a>.
             </Typography>
-            <Divider className={classes.divider} />
+            <ManageDivider/>
           </TabPanel>
         </DialogContent>
       </Dialog>
@@ -780,7 +662,6 @@ function CalibrateDialog(props) {
 
 
 function SelfTestDialog(props) {
-  const classes = useStyles();
   const [open, setOpen] = useState(false);
 
   const handleClickOpen = () => {
@@ -797,10 +678,10 @@ function SelfTestDialog(props) {
       return <IndeterminateCheckBoxIcon />
     }
     else if (props.selfTestTests.publishedSettings[key].value === true){
-      return <CheckIcon className={classes.readyGreen}/>
+      return <CheckIcon sx={{color: readyGreen}}/>
     }
     else if (props.selfTestTests.publishedSettings[key].value === false){
-      return <CloseIcon className={classes.lostRed}/>
+      return <CloseIcon sx={{color: lostRed}}/>
     }
     else if (state === "ready") {
       return <CircularProgress size={20} />
@@ -843,10 +724,10 @@ function SelfTestDialog(props) {
 
   function Icon(){
     if (props.selfTestTests == null){
-      return <IndeterminateCheckBoxOutlinedIcon color={colorOfIcon()} fontSize="15" classes={{root: classes.textIcon}}/>
+      return <IndeterminateCheckBoxOutlinedIcon color={colorOfIcon()} fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/>
     }
     else {
-      return props.selfTestTests.publishedSettings["all_tests_passed"].value ? <CheckBoxOutlinedIcon color={colorOfIcon()} fontSize="15" classes={{root: classes.textIcon}}/> : <IndeterminateCheckBoxOutlinedIcon color={colorOfIcon()} fontSize="15" classes={{root: classes.textIcon}}/>
+      return props.selfTestTests.publishedSettings["all_tests_passed"].value ? <CheckBoxOutlinedIcon color={colorOfIcon()} fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> : <IndeterminateCheckBoxOutlinedIcon color={colorOfIcon()} fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/>
     }
   }
 
@@ -859,7 +740,7 @@ function SelfTestDialog(props) {
       </Button>
       <Dialog open={open} onClose={handleClose}>
         <DialogTitle>
-          <Typography className={classes.suptitle} gutterBottom>
+          <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}} gutterBottom>
             <PioreactorIcon style={{verticalAlign: "middle", fontSize: "1.2em"}}/> {props.label ? `${props.label} / ${props.unit}` : `${props.unit}`}
           </Typography>
            Self test
@@ -885,7 +766,7 @@ function SelfTestDialog(props) {
           </Typography>
 
             {selfTestButton}
-            <Divider className={classes.divider} />
+            <ManageDivider/>
 
             <List component="nav"
               subheader={
@@ -894,14 +775,14 @@ function SelfTestDialog(props) {
                 </ListSubheader>
               }
             >
-              <ListItem className={classes.testingListItem}>
-                <ListItemIcon className={classes.testingListItemIcon}>
+              <ListItem sx={{pt: 0, pb: 0}}>
+                <ListItemIcon sx={{minWidth: "30px"}}>
                   {displayIcon("test_pioreactor_HAT_present", props.selfTestState)}
                 </ListItemIcon>
                 <ListItemText primary="Pioreactor HAT is detected" />
               </ListItem>
-              <ListItem className={classes.testingListItem}>
-                <ListItemIcon className={classes.testingListItemIcon}>
+              <ListItem sx={{pt: 0, pb: 0}}>
+                <ListItemIcon sx={{minWidth: "30px"}}>
                   {displayIcon("test_all_positive_correlations_between_pds_and_leds", props.selfTestState)}
                 </ListItemIcon>
                 <ListItemText primary="Photodiodes are responsive to IR LED" secondary={
@@ -911,29 +792,29 @@ function SelfTestDialog(props) {
                     }/>
               </ListItem>
 
-              <ListItem className={classes.testingListItem}>
-                <ListItemIcon className={classes.testingListItemIcon}>
+              <ListItem sx={{pt: 0, pb: 0}}>
+                <ListItemIcon sx={{minWidth: "30px"}}>
                   {displayIcon("test_ambient_light_interference", props.selfTestState)}
                 </ListItemIcon>
                 <ListItemText primary="No ambient IR light detected" />
               </ListItem>
 
-              <ListItem className={classes.testingListItem}>
-                <ListItemIcon className={classes.testingListItemIcon}>
+              <ListItem sx={{pt: 0, pb: 0}}>
+                <ListItemIcon sx={{minWidth: "30px"}}>
                   {displayIcon("test_REF_is_lower_than_0_dot_256_volts", props.selfTestState)}
                 </ListItemIcon>
                 <ListItemText primary="Reference photodiode is correct magnitude" />
               </ListItem>
 
-              <ListItem className={classes.testingListItem}>
-                <ListItemIcon className={classes.testingListItemIcon}>
+              <ListItem sx={{pt: 0, pb: 0}}>
+                <ListItemIcon sx={{minWidth: "30px"}}>
                   {displayIcon("test_REF_is_in_correct_position", props.selfTestState)}
                 </ListItemIcon>
                 <ListItemText primary="Reference photodiode is in correct position" />
               </ListItem>
 
-              <ListItem className={classes.testingListItem}>
-                <ListItemIcon className={classes.testingListItemIcon}>
+              <ListItem sx={{pt: 0, pb: 0}}>
+                <ListItemIcon sx={{minWidth: "30px"}}>
                   {displayIcon("test_PD_is_near_0_volts_for_blank", props.selfTestState)}
                 </ListItemIcon>
                 <ListItemText primary="Photodiode measures near zero signal for clear water" />
@@ -948,15 +829,15 @@ function SelfTestDialog(props) {
                 </ListSubheader>
               }
             >
-              <ListItem className={classes.testingListItem}>
-                <ListItemIcon className={classes.testingListItemIcon}>
+              <ListItem sx={{pt: 0, pb: 0}}>
+                <ListItemIcon sx={{minWidth: "30px"}}>
                   {displayIcon("test_detect_heating_pcb", props.selfTestState)}
                 </ListItemIcon>
                 <ListItemText primary="Heating PCB is detected" />
               </ListItem>
 
-              <ListItem className={classes.testingListItem}>
-                <ListItemIcon className={classes.testingListItemIcon}>
+              <ListItem sx={{pt: 0, pb: 0}}>
+                <ListItemIcon sx={{minWidth: "30px"}}>
                   {displayIcon("test_positive_correlation_between_temperature_and_heating", props.selfTestState)}
                 </ListItemIcon>
                 <ListItemText primary="Heating is responsive" />
@@ -971,15 +852,15 @@ function SelfTestDialog(props) {
                 </ListSubheader>
               }
             >
-              <ListItem className={classes.testingListItem}>
-                <ListItemIcon className={classes.testingListItemIcon}>
+              <ListItem sx={{pt: 0, pb: 0}}>
+                <ListItemIcon sx={{minWidth: "30px"}}>
                   {displayIcon("test_positive_correlation_between_rpm_and_stirring", props.selfTestState)}
                 </ListItemIcon>
                 <ListItemText primary="Stirring RPM is responsive" />
               </ListItem>
 
-              <ListItem className={classes.testingListItem}>
-                <ListItemIcon className={classes.testingListItemIcon}>
+              <ListItem sx={{pt: 0, pb: 0}}>
+                <ListItemIcon sx={{minWidth: "30px"}}>
                   {displayIcon("test_aux_power_is_not_too_high", props.selfTestState)}
                 </ListItemIcon>
                 <ListItemText primary="AUX power supply is appropriate value" />
@@ -988,7 +869,7 @@ function SelfTestDialog(props) {
 
             </List>
 
-          <Divider className={classes.divider} />
+          <ManageDivider/>
           <Typography variant="body2" component="p" gutterBottom>
             Learn more about self tests and <a rel="noopener noreferrer" target="_blank" href="https://docs.pioreactor.com/user-guide/running-self-test#explanation-of-each-test">what to do if a test fails.</a>
           </Typography>
@@ -1004,7 +885,6 @@ function SelfTestDialog(props) {
 
 
 function SettingsActionsDialog(props) {
-  const classes = useStyles();
   const [open, setOpen] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
@@ -1220,7 +1100,7 @@ function SettingsActionsDialog(props) {
   return (
     <div>
     <Button style={{textTransform: 'none', float: "right" }} disabled={props.disabled} onClick={handleClickOpen} color="primary">
-      <SettingsIcon color={props.disabled ? "disabled" : "primary"} fontSize="15" classes={{root: classes.textIcon}}/> Manage
+      <SettingsIcon color={props.disabled ? "disabled" : "primary"} fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Manage
     </Button>
     <Dialog maxWidth={isLargeScreen ? "sm" : "md"} fullWidth={true} open={open} onClose={handleClose} PaperProps={{
       sx: {
@@ -1228,7 +1108,7 @@ function SettingsActionsDialog(props) {
       }
     }}>
       <DialogTitle>
-        <Typography className={classes.suptitle}>
+        <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}}>
           <PioreactorIcon style={{verticalAlign: "middle", fontSize: "1.2em"}}/>
           <span> {props.label ? `${props.label} / ${props.unit}` : `${props.unit}`} </span>
         </Typography>
@@ -1285,7 +1165,7 @@ function SettingsActionsDialog(props) {
 
               {buttons[job_key]}
 
-              <Divider className={classes.divider} />
+              <ManageDivider/>
             </div>
           )}
 
@@ -1306,7 +1186,7 @@ function SettingsActionsDialog(props) {
               {(temperatureControlJob.state === "ready") || (temperatureControlJob.state === "sleeping") || (temperatureControlJob.state === "init")
               ?<React.Fragment>
                 <Typography variant="body2" component="p" gutterBottom>
-                Currently running temperature automation <code className={classes.code}>{temperatureControlJob.publishedSettings.automation_name.value}</code>.
+                Currently running temperature automation <StylizedCode>{temperatureControlJob.publishedSettings.automation_name.value}</StylizedCode>.
                 </Typography>
                 {buttons[temperatureControlJob.metadata.key]}
                </React.Fragment>
@@ -1316,7 +1196,7 @@ function SettingsActionsDialog(props) {
                 </Typography>
 
                 <Button
-                  className={classes.patientButton}
+                  sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}}
                   size="small"
                   color="primary"
                   variant="contained"
@@ -1325,7 +1205,7 @@ function SettingsActionsDialog(props) {
                   Start
                 </Button>
                 <Button
-                  className={classes.patientButton}
+                  sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}}
                   size="small"
                   color="primary"
                   disabled={true}
@@ -1360,7 +1240,7 @@ function SettingsActionsDialog(props) {
           </React.Fragment>
           }
 
-          <Divider className={classes.divider} />
+          <ManageDivider/>
 
           {dosingControlJob &&
           <React.Fragment>
@@ -1386,7 +1266,7 @@ function SettingsActionsDialog(props) {
                 </Typography>
 
                 <Button
-                  className={classes.patientButton}
+                  sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}}
                   size="small"
                   color="primary"
                   variant="contained"
@@ -1395,7 +1275,7 @@ function SettingsActionsDialog(props) {
                   Start
                 </Button>
                 <Button
-                  className={classes.patientButton}
+                  sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}}
                   size="small"
                   color="primary"
                   disabled={true}
@@ -1429,7 +1309,7 @@ function SettingsActionsDialog(props) {
           </React.Fragment>
           }
 
-          <Divider className={classes.divider} />
+          <ManageDivider/>
 
 
           {ledControlJob &&
@@ -1457,7 +1337,7 @@ function SettingsActionsDialog(props) {
                 </Typography>
 
                 <Button
-                  className={classes.patientButton}
+                  sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}}
                   size="small"
                   color="primary"
                   variant="contained"
@@ -1466,7 +1346,7 @@ function SettingsActionsDialog(props) {
                   Start
                 </Button>
                 <Button
-                  className={classes.patientButton}
+                  sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}}
                   size="small"
                   color="primary"
                   disabled={true}
@@ -1500,7 +1380,7 @@ function SettingsActionsDialog(props) {
           </React.Fragment>
           }
 
-          <Divider className={classes.divider} />
+          <ManageDivider/>
 
 
         </TabPanel>
@@ -1521,7 +1401,7 @@ function SettingsActionsDialog(props) {
             id={'relabeller' + props.unit}
             disabled={false}
           />
-          <Divider className={classes.divider} />
+          <ManageDivider/>
 
           {Object.values(props.jobs)
             .filter(job => job.metadata.display)
@@ -1541,7 +1421,7 @@ function SettingsActionsDialog(props) {
 
                           {renderSettingComponent(setting, job_key, setting_key, state)}
 
-                          <Divider className={classes.divider} />
+                          <ManageDivider/>
                         </React.Fragment>
           )))}
         </TabPanel>
@@ -1556,7 +1436,7 @@ function SettingsActionsDialog(props) {
 
           <ActionCirculatingForm action="circulate_media" unit={props.unit} experiment={props.experiment} job={props.jobs.circulate_media} />
 
-          <Divider classes={{root: classes.divider}} />
+          <ManageDivider/>
 
           <Typography  gutterBottom>
             Cycle alternative media
@@ -1567,7 +1447,7 @@ function SettingsActionsDialog(props) {
 
           <ActionCirculatingForm action="circulate_alt_media" unit={props.unit} experiment={props.experiment} job={props.jobs.circulate_alt_media} />
 
-          <Divider classes={{root: classes.divider}} />
+          <ManageDivider/>
 
           <Alert severity="warning" style={{marginBottom: '10px', marginTop: '10px'}}>It's easy to overflow your vial. Make sure you don't add too much media.</Alert>
 
@@ -1581,7 +1461,7 @@ function SettingsActionsDialog(props) {
             Specify how you’d like to add media:
           </Typography>
           <ActionDosingForm action="add_media" unit={props.unit} experiment={props.experiment} job={props.jobs.add_media} />
-          <Divider classes={{root: classes.divider}} />
+          <ManageDivider/>
           <Typography  gutterBottom>
             Remove waste
           </Typography>
@@ -1592,7 +1472,7 @@ function SettingsActionsDialog(props) {
             Specify how you’d like to remove waste:
           </Typography>
           <ActionDosingForm action="remove_waste" unit={props.unit} experiment={props.experiment} job={props.jobs.remove_waste} />
-          <Divider className={classes.divider} />
+          <ManageDivider/>
           <Typography gutterBottom>
             Add alternative media
           </Typography>
@@ -1603,7 +1483,7 @@ function SettingsActionsDialog(props) {
             Specify how you’d like to add alt-media:
           </Typography>
           <ActionDosingForm action="add_alt_media" unit={props.unit} experiment={props.experiment} job={props.jobs.add_alt_media} />
-          <Divider className={classes.divider} />
+          <ManageDivider/>
           <Typography gutterBottom>
             Manual adjustments
           </Typography>
@@ -1619,39 +1499,39 @@ function SettingsActionsDialog(props) {
           <Typography style={{textTransform: "capitalize"}}>
             {(LEDMap['A']) ? (LEDMap['A'].replace("_", " ").replace("led", "LED")) : "Channel A" }
           </Typography>
-          <Typography className={clsx(classes.suptitle)} color="textSecondary">
+          <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}} color="textSecondary">
             {(LEDMap['A']) ? "Channel A" : ""}
           </Typography>
           <ActionLEDForm experiment={props.experiment} channel="A" unit={props.unit} />
-          <Divider className={classes.divider} />
+          <ManageDivider/>
 
           <Typography style={{textTransform: "capitalize"}}>
             {(LEDMap['B']) ? (LEDMap['B'].replace("_", " ").replace("led", "LED")) : "Channel B" }
           </Typography>
-          <Typography className={clsx(classes.suptitle)} color="textSecondary">
+          <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}} color="textSecondary">
             {(LEDMap['B']) ? "Channel B" : ""}
           </Typography>
           <ActionLEDForm experiment={props.experiment} channel="B" unit={props.unit} />
-          <Divider className={classes.divider} />
+          <ManageDivider/>
 
           <Typography style={{textTransform: "capitalize"}}>
             {(LEDMap['C']) ? (LEDMap['C'].replace("_", " ").replace("led", "LED")) : "Channel C" }
           </Typography>
-          <Typography className={clsx(classes.suptitle)} color="textSecondary">
+          <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}} color="textSecondary">
             {(LEDMap['C']) ? "Channel C" : ""}
           </Typography>
 
           <ActionLEDForm experiment={props.experiment} channel="C" unit={props.unit} />
-          <Divider className={classes.divider} />
+          <ManageDivider/>
 
           <Typography style={{textTransform: "capitalize"}}>
             {(LEDMap['D']) ? (LEDMap['D'].replace("_", " ").replace("led", "LED")) : "Channel D" }
           </Typography>
-          <Typography className={clsx(classes.suptitle)} color="textSecondary">
+          <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}} color="textSecondary">
             {(LEDMap['D']) ? "Channel D" : ""}
           </Typography>
           <ActionLEDForm experiment={props.experiment} channel="D" unit={props.unit} />
-          <Divider className={classes.divider} />
+          <ManageDivider/>
         </TabPanel>
         <TabPanel value={tabValue} index={4}>
 
@@ -1663,120 +1543,120 @@ function SettingsActionsDialog(props) {
               Learn about how to <a target="_blank" rel="noopener noreferrer" href="https://docs.pioreactor.com/user-guide/accessing-raspberry-pi">access the Pioreactor's Raspberry Pi</a>.
             </Typography>
 
-            <table className={classes.dataTable}>
+            <table style={{borderCollapse: "separate", borderSpacing: "5px", fontSize: "0.90rem"}}>
               <tr>
-                <td className={classes.dataTableQuestion}>
+                <td style={{textAlign: "right", minWidth: "120px", color: ""}}>
                     IPv4
                 </td>
                 <td>
-                  <code className={classes.code}>{ipInfo || "-"}</code>
+                  <StylizedCode>{ipInfo || "-"}</StylizedCode>
                 </td>
               </tr>
               <tr>
-                <td className={classes.dataTableQuestion}>
+                <td style={{textAlign: "right", minWidth: "120px", color: ""}}>
                     Hostname
                 </td>
                 <td>
-                  <code className={classes.code}>{props.unit}.local</code>
+                  <StylizedCode>{props.unit}.local</StylizedCode>
                 </td>
               </tr>
               <tr>
-                <td className={classes.dataTableQuestion}>
+                <td style={{textAlign: "right", minWidth: "120px", color: ""}}>
                     WLAN MAC
                 </td>
                 <td>
-                  <code className={classes.code}>{macInfoWlan || "-"}</code>
+                  <StylizedCode>{macInfoWlan || "-"}</StylizedCode>
                 </td>
               </tr>
               <tr>
-                <td className={classes.dataTableQuestion}>
+                <td style={{textAlign: "right", minWidth: "120px", color: ""}}>
                     Ethernet MAC
                 </td>
                 <td>
-                  <code className={classes.code}>{macInfoEth || "-"}</code>
+                  <StylizedCode>{macInfoEth || "-"}</StylizedCode>
                 </td>
               </tr>
             </table>
 
 
-          <Divider className={classes.divider} />
+          <ManageDivider/>
 
           <Typography  gutterBottom>
             Version information
           </Typography>
 
 
-            <table className={classes.dataTable}>
+            <table style={{borderCollapse: "separate", borderSpacing: "5px", fontSize: "0.90rem"}}>
               <tr>
-                <td className={classes.dataTableQuestion}>
+                <td style={{textAlign: "right", minWidth: "120px", color: ""}}>
                     Pioreactor model
                 </td>
-                <td className={classes.dataTableResponse}>
-                  <code className={classes.code}>{("Pioreactor " + versionInfo.pioreactor_model?.substring(11) + ", v" + versionInfo.pioreactor_version) || "-"}</code>
+                <td >
+                  <StylizedCode>{("Pioreactor " + versionInfo.pioreactor_model?.substring(11) + ", v" + versionInfo.pioreactor_version) || "-"}</StylizedCode>
                 </td>
               </tr>
               <tr>
-                <td className={classes.dataTableQuestion}>
+                <td style={{textAlign: "right", minWidth: "120px", color: ""}}>
                     Software version
                 </td>
-                <td className={classes.dataTableResponse}>
-                  <code className={classes.code}>{versionInfo.app || "-"}</code>
+                <td >
+                  <StylizedCode>{versionInfo.app || "-"}</StylizedCode>
                 </td>
               </tr>
               <tr>
-                <td className={classes.dataTableQuestion}>
+                <td style={{textAlign: "right", minWidth: "120px", color: ""}}>
                     Raspberry Pi
                 </td>
-                <td className={classes.dataTableResponse}>
-                  <code className={classes.code}>{versionInfo.rpi_machine || "-"}</code>
+                <td >
+                  <StylizedCode>{versionInfo.rpi_machine || "-"}</StylizedCode>
                 </td>
               </tr>
               <tr>
-                <td className={classes.dataTableQuestion}>
+                <td style={{textAlign: "right", minWidth: "120px", color: ""}}>
                     HAT version
                 </td>
-                <td className={classes.dataTableResponse}>
-                  <code className={classes.code}>{versionInfo.hat || "-"}</code>
+                <td >
+                  <StylizedCode>{versionInfo.hat || "-"}</StylizedCode>
                 </td>
               </tr>
               <tr>
-                <td className={classes.dataTableQuestion}>
+                <td style={{textAlign: "right", minWidth: "120px", color: ""}}>
                     HAT serial number
                 </td>
-                <td className={classes.dataTableResponse}>
-                  <code className={classes.code}>{versionInfo.hat_serial || "-"}</code>
+                <td >
+                  <StylizedCode>{versionInfo.hat_serial || "-"}</StylizedCode>
                 </td>
               </tr>
             </table>
 
 
-          <Divider className={classes.divider} />
+          <ManageDivider/>
 
           <Typography  gutterBottom>
             Voltage on PWM rail
           </Typography>
 
-            <table className={classes.dataTable}>
+            <table style={{borderCollapse: "separate", borderSpacing: "5px", fontSize: "0.90rem"}}>
               <tr>
-                <td className={classes.dataTableQuestion}>
+                <td style={{textAlign: "right", minWidth: "120px", color: ""}}>
                     Voltage
                 </td>
-                <td className={classes.dataTableResponse}>
-                  <code className={classes.code}>{voltageInfo.voltage ? `${voltageInfo.voltage} V` : "-" }</code>
+                <td >
+                  <StylizedCode>{voltageInfo.voltage ? `${voltageInfo.voltage} V` : "-" }</StylizedCode>
                 </td>
               </tr>
               <tr>
-                <td className={classes.dataTableQuestion}>
+                <td style={{textAlign: "right", minWidth: "120px", color: ""}}>
                     Last updated at
                 </td>
-                <td className={classes.dataTableResponse}>
-                  <code className={classes.code}>{voltageInfo.timestamp ? moment.utc(voltageInfo.timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]').local().format('MMMM Do, h:mm a') : "-"}</code>
+                <td >
+                  <StylizedCode>{voltageInfo.timestamp ? moment.utc(voltageInfo.timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]').local().format('MMMM Do, h:mm a') : "-"}</StylizedCode>
                 </td>
               </tr>
             </table>
 
 
-          <Divider className={classes.divider} />
+          <ManageDivider/>
 
           <Typography  gutterBottom>
             Reboot
@@ -1797,7 +1677,7 @@ function SettingsActionsDialog(props) {
             Reboot RPi
           </LoadingButton>
 
-          <Divider className={classes.divider} />
+          <ManageDivider/>
 
           <Typography  gutterBottom>
             Shut down
@@ -1817,7 +1697,7 @@ function SettingsActionsDialog(props) {
             Shut down
           </LoadingButton>
 
-          <Divider className={classes.divider} />
+          <ManageDivider/>
 
 
 
@@ -1840,7 +1720,6 @@ function SettingsActionsDialog(props) {
 
 
 function SettingsActionsDialogAll({experiment}) {
-  const classes = useStyles();
   const unit = "$broadcast"
   const [open, setOpen] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -1970,7 +1849,7 @@ function SettingsActionsDialogAll({experiment}) {
 
     return (<div key={job.metadata.key}>
         <Button
-          className={classes.jobButton}
+          sx={{pr: 2, pl: 2}}
           disableElevation
           color="primary"
           onClick={startAction}
@@ -1978,7 +1857,7 @@ function SettingsActionsDialogAll({experiment}) {
           Start
         </Button>
         <Button
-          className={classes.jobButton}
+          sx={{pr: 2, pl: 2}}
           disableElevation
           color="primary"
           onClick={setPioreactorJobState(job, "sleeping")}
@@ -1986,7 +1865,7 @@ function SettingsActionsDialogAll({experiment}) {
           Pause
         </Button>
         <Button
-          className={classes.jobButton}
+          sx={{pr: 2, pl: 2}}
           disableElevation
           color="primary"
           onClick={setPioreactorJobState(job, "ready")}
@@ -1994,7 +1873,7 @@ function SettingsActionsDialogAll({experiment}) {
           Resume
         </Button>
         <Button
-          className={classes.jobButton}
+          sx={{pr: 2, pl: 2}}
           disableElevation
           color="secondary"
           onClick={setPioreactorJobState(job, "disconnected")}
@@ -2014,7 +1893,7 @@ function SettingsActionsDialogAll({experiment}) {
   return (
     <React.Fragment>
     <Button style={{textTransform: 'none', float: "right" }} onClick={handleClickOpen} color="primary">
-      <SettingsIcon fontSize="15" classes={{root: classes.textIcon}}/> Manage Pioreactors
+      <SettingsIcon fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Manage Pioreactors
     </Button>
     <Dialog  maxWidth={isLargeScreen ? "sm" : "md"} fullWidth={true}  open={open} onClose={handleClose} aria-labelledby="form-dialog-title"  PaperProps={{
       sx: {
@@ -2022,7 +1901,7 @@ function SettingsActionsDialogAll({experiment}) {
       }
     }}>
       <DialogTitle style={{backgroundImage: "linear-gradient(to bottom left, rgba(83, 49, 202, 0.4), rgba(0,0,0,0))"}}>
-        <Typography className={classes.suptitle}>
+        <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}}>
           <b>All assigned & active Pioreactors</b>
         </Typography>
         <IconButton
@@ -2069,7 +1948,7 @@ function SettingsActionsDialogAll({experiment}) {
 
               {buttons[job_key]}
 
-              <Divider classes={{root: classes.divider}} />
+              <ManageDivider/>
             </div>
           )}
 
@@ -2101,7 +1980,7 @@ function SettingsActionsDialogAll({experiment}) {
           </React.Fragment>
           }
 
-          <Divider className={classes.divider} />
+          <ManageDivider/>
 
 
 
@@ -2132,7 +2011,7 @@ function SettingsActionsDialogAll({experiment}) {
           </React.Fragment>
           }
 
-          <Divider className={classes.divider} />
+          <ManageDivider/>
 
 
           {ledControlJob &&
@@ -2162,7 +2041,7 @@ function SettingsActionsDialogAll({experiment}) {
           </React.Fragment>
           }
 
-          <Divider className={classes.divider} />
+          <ManageDivider/>
 
         </TabPanel>
 
@@ -2205,7 +2084,7 @@ function SettingsActionsDialogAll({experiment}) {
                     disabled={false}
                   />
                   )}
-                <Divider classes={{root: classes.divider}} />
+                <ManageDivider/>
               </React.Fragment>
 
           )))}
@@ -2221,7 +2100,7 @@ function SettingsActionsDialogAll({experiment}) {
 
           <ActionCirculatingForm action="circulate_media" unit={unit} />
 
-          <Divider classes={{root: classes.divider}} />
+          <ManageDivider/>
 
           <Typography  gutterBottom>
             Cycle alternative media
@@ -2232,7 +2111,7 @@ function SettingsActionsDialogAll({experiment}) {
 
           <ActionCirculatingForm action="circulate_alt_media" unit={unit} />
 
-          <Divider classes={{root: classes.divider}} />
+          <ManageDivider/>
 
           <Alert severity="warning" style={{marginBottom: '10px', marginTop: '10px'}}>It's easy to overflow your vial. Make sure you don't add too much media.</Alert>
 
@@ -2246,7 +2125,7 @@ function SettingsActionsDialogAll({experiment}) {
             Specify how you’d like to add media:
           </Typography>
           <ActionDosingForm action="add_media" unit={unit} />
-          <Divider className={classes.divider} />
+          <ManageDivider/>
           <Typography  gutterBottom>
             Remove waste
           </Typography>
@@ -2257,7 +2136,7 @@ function SettingsActionsDialogAll({experiment}) {
             Specify how you’d like to remove media:
           </Typography>
           <ActionDosingForm action="remove_waste" unit={unit} />
-          <Divider className={classes.divider} />
+          <ManageDivider/>
           <Typography gutterBottom>
             Add alternative media
           </Typography>
@@ -2269,7 +2148,7 @@ function SettingsActionsDialogAll({experiment}) {
             Specify how you’d like to add alt-media:
           </Typography>
           <ActionDosingForm action="add_alt_media" unit={unit} />
-          <Divider className={classes.divider} />
+          <ManageDivider/>
           <Typography gutterBottom>
             Manual adjustments
           </Typography>
@@ -2285,26 +2164,26 @@ function SettingsActionsDialogAll({experiment}) {
             Channel A
           </Typography>
           <ActionLEDForm experiment={experiment} channel="A" unit={unit} />
-          <Divider className={classes.divider} />
+          <ManageDivider/>
 
           <Typography style={{textTransform: "capitalize"}}>
             Channel B
           </Typography>
           <ActionLEDForm experiment={experiment} channel="B" unit={unit} />
-          <Divider className={classes.divider} />
+          <ManageDivider/>
 
           <Typography style={{textTransform: "capitalize"}}>
             Channel C
           </Typography>
           <ActionLEDForm experiment={experiment} channel="C" unit={unit} />
 
-          <Divider className={classes.divider} />
+          <ManageDivider/>
           <Typography style={{textTransform: "capitalize"}}>
             Channel D
           </Typography>
           <ActionLEDForm experiment={experiment} channel="D" unit={unit} />
 
-          <Divider className={classes.divider} />
+          <ManageDivider/>
         </TabPanel>
 
 
@@ -2325,7 +2204,7 @@ function SettingsActionsDialogAll({experiment}) {
 
 
 function SettingTextField(props){
-    const classes = useStyles();
+
 
     const [value, setValue] = useState(props.value || "")
     const [activeSubmit, setActiveSumbit] = useState(false)
@@ -2374,7 +2253,7 @@ function SettingTextField(props){
           variant="outlined"
           onChange={onChange}
           onKeyPress={onKeyPress}
-          className={classes.textField}
+          sx={{mt: 2, maxWidth: "180px",}}
         />
         <Button
           size="small"
@@ -2418,7 +2297,6 @@ function SettingSwitchField(props){
 
 
 function SettingNumericField(props) {
-  const classes = useStyles();
 
   const [value, setValue] = useState(props.value || "");
   const [error, setError] = useState(false);
@@ -2476,7 +2354,7 @@ function SettingNumericField(props) {
         variant="outlined"
         onChange={onChange}
         onKeyPress={onKeyPress}
-        className={classes.textFieldCompact}
+        sx={{mt: 2, maxWidth: "140px"}}
       />
       <Button
         size="small"
@@ -2543,7 +2421,6 @@ function ActiveUnits({experiment, config, units, isLoading}){
 
 
 function FlashLEDButton(props){
-  const classes = useStyles();
 
   const [flashing, setFlashing] = useState(false)
 
@@ -2567,15 +2444,14 @@ function FlashLEDButton(props){
   }
 
   return (
-    <Button style={{textTransform: 'none', float: "right"}} className={clsx({blinkled: flashing})} disabled={props.disabled} onClick={onClick} color="primary">
-      <FlareIcon color={props.disabled ? "disabled" : "primary"} fontSize="15" classes={{root: classes.textIcon}}/> <span > Identify </span>
+    <Button style={{textTransform: 'none', float: "right"}} className={flashing ? 'blinkled' : ''}  disabled={props.disabled} onClick={onClick} color="primary">
+      <FlareIcon color={props.disabled ? "disabled" : "primary"} fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> <span > Identify </span>
     </Button>
 )}
 
 
 
 function PioreactorCard(props){
-  const classes = useStyles();
   const unit = props.unit
   const isUnitActive = props.isUnitActive
   const experiment = props.experiment
@@ -2757,16 +2633,29 @@ function PioreactorCard(props){
   const indicatorLabel = getInicatorLabel(jobs.monitor.state, isUnitActive)
 
   return (
-    <Card className={classes.pioreactorCard} id={unit} aria-disabled={!isUnitActive}>
-      <CardContent className={classes.cardContent}>
-        <div className={"fixme"}>
-          <Typography className={clsx(classes.suptitle)} color="textSecondary">
+    <Card sx={{mt: 0, mb: 3}} id={unit} aria-disabled={!isUnitActive}>
+      <CardContent sx={{p: "10px 20px 20px 20px"}}>
+        <Box className={"fixme"}>
+          <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}} color="textSecondary">
             {(label) ? unit : ""}
           </Typography>
-          <div className={classes.cardHeaderSettings}>
+          <Box sx={(theme) => ({
+            display: "flex",
+            justifyContent: "space-between",
+            [theme.breakpoints.down('md')]:{
+              flexFlow: "nowrap",
+              flexDirection: "column",
+            }
+          })}>
             <div style={{display: "flex", justifyContent: "left"}}>
-              <Typography className={clsx(classes.unitTitle, {[classes.disabledText]: !isUnitActive})} gutterBottom>
-                <PioreactorIcon color={isUnitActive ? "inherit" : "disabled"} style={{verticalAlign: "middle", marginRight: "3px"}} sx={{ display: {xs: 'none', sm: 'none', md: 'inline' } }}/>
+              <Typography sx={{
+                  fontSize: 20,
+                  color: "rgba(0, 0, 0, 0.87)",
+                  fontWeight: 500,
+                  ...(isUnitActive ? {} : { color: disabledColor }),
+                }}
+                gutterBottom>
+                <PioreactorIcon color={isUnitActive ? "inherit" : "disabled"} sx={{verticalAlign: "middle", marginRight: "3px", display: {xs: 'none', sm: 'none', md: 'inline' } }}/>
                 {(label ) ? label : unit }
               </Typography>
               <Tooltip title={indicatorLabel} placement="right">
@@ -2775,7 +2664,15 @@ function PioreactorCard(props){
                 </div>
               </Tooltip>
             </div>
-            <div className={classes.cardHeaderButtons}>
+            <Box sx={(theme) => ({
+              display: "flex",
+              justifyContent: "flex-end",
+              flexDirection: "row",
+              flexWrap: "wrap",
+              [theme.breakpoints.down('md')]: {
+                justifyContent: "space-between",
+            }})}
+            >
               <div>
                 <SelfTestDialog
                   client={client}
@@ -2812,31 +2709,29 @@ function PioreactorCard(props){
                 jobs={jobs}
                 setLabel={setLabel}
               />
-            </div>
-          </div>
-        </div>
+            </Box>
+          </Box>
+        </Box>
 
 
-      <div style={{
+      <Box sx={{
           display: "flex",
-          margin: "15px 20px 20px 0px",
+          m: "15px 20px 20px 0px",
           flexDirection: "row",
         }}>
-        <div className={classes.textboxLabel}>
+        <Box sx={{width: "100px", mt: "10px", mr: "5px"}}>
           <Typography variant="body2">
-            <Box fontWeight="fontWeightBold" className={clsx({[classes.disabledText]: !isUnitActive})}>
+            <Box fontWeight="fontWeightBold" sx={{ color: !props.isUnitActive ? disabledColor : 'inherit' }}>
               Activities:
             </Box>
           </Typography>
-        </div>
-        <div
-         className={classes.rowOfUnitSettingDisplay}
-        >
+        </Box>
+        <RowOfUnitSettingDisplayBox>
           {Object.values(jobs)
               .filter(job => job.metadata.display)
               .map(job => (
-            <div className={classes.textbox} key={job.metadata.key}>
-              <Typography variant="body2" style={{fontSize: "0.84rem"}} className={clsx({[classes.disabledText]: !isUnitActive})}>
+            <Box sx={{width: "130px", mt: "10px"}} key={job.metadata.key}>
+              <Typography variant="body2" style={{fontSize: "0.84rem"}} sx={{ color: !props.isUnitActive ? disabledColor : 'inherit' }}>
                 {job.metadata.display_name}
               </Typography>
               <UnitSettingDisplay
@@ -2846,27 +2741,27 @@ function PioreactorCard(props){
                 subtext={job.metadata.subtext ? job.publishedSettings[job.metadata.subtext].value : null}
                 isStateSetting
               />
-            </div>
+            </Box>
          ))}
 
-        </div>
-      </div>
+        </RowOfUnitSettingDisplayBox>
+      </Box>
 
       <Divider/>
 
-      <div style={{
+      <Box style={{
           display: "flex",
-          margin: "15px 20px 20px 0px",
+          m: "15px 20px 20px 0px",
           flexDirection: "row",
         }}>
-        <div className={classes.textboxLabel}>
+        <Box sx={{width: "100px", mt: "10px", mr: "5px"}}>
           <Typography variant="body2">
-            <Box fontWeight="fontWeightBold" className={clsx({[classes.disabledText]: !isUnitActive})}>
+            <Box fontWeight="fontWeightBold" sx={{ color: !props.isUnitActive ? disabledColor : 'inherit' }}>
               Settings:
             </Box>
           </Typography>
-        </div>
-        <div className={classes.rowOfUnitSettingDisplay}>
+        </Box>
+        <RowOfUnitSettingDisplayBox>
           {Object.values(jobs)
             //.filter(job => (job.state !== "disconnected") || (job.metadata.key === "leds"))
             .map(job => [job.state, job.metadata.key, job.publishedSettings])
@@ -2874,8 +2769,8 @@ function PioreactorCard(props){
               Object.entries(settings)
                 .filter(([setting_key, setting], _) => setting.display)
                 .map(([setting_key, setting], _) =>
-                  <div className={classes.textbox} key={job_key + setting_key}>
-                    <Typography variant="body2" style={{fontSize: "0.84rem"}} className={clsx({[classes.disabledText]: !isUnitActive})}>
+                  <Box sx={{width: "130px", mt: "10px"}} key={job_key + setting_key}>
+                    <Typography variant="body2" style={{fontSize: "0.84rem"}} sx={{ color: !props.isUnitActive ? disabledColor : 'inherit' }}>
                       {setting.label}
                     </Typography>
                     <UnitSettingDisplay
@@ -2888,10 +2783,10 @@ function PioreactorCard(props){
                       isPWMDc={setting.label === "PWM intensity"}
                       config={config}
                     />
-                  </div>
+                  </Box>
             )))}
-        </div>
-      </div>
+        </RowOfUnitSettingDisplayBox>
+      </Box>
 
 
       </CardContent>

@@ -431,7 +431,7 @@ function PluginContainer(){
   return(
     <React.Fragment>
       <Card>
-        <CardContent sx={{p: "25px"}}>
+        <CardContent sx={{p: 2}}>
           <p> Discover, install, and manage Pioreactor plugins created by the community. These plugins can provide new functionalities for your Pioreactor (additional hardware may be necessary), or new automations to control dosing, temperature and LED tasks.</p>
 
          <Typography variant="h6" component="h3">
