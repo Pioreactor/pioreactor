@@ -80,7 +80,7 @@ if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
 
 
 
-    ### update add_new_pioreactor_worker_from_leader to use pio workers discover
+    ### update add_new_pioreactor_worker_from_leader to use `pio workers discover``
 
     FILE_PATH="/usr/local/bin/add_new_pioreactor_worker_from_leader.sh"
     sudo sed -i 's/pio discover-workers/pio workers discover/g' "$FILE_PATH"

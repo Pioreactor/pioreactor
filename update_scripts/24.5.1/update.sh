@@ -1,7 +1,5 @@
 #!/bin/bash
 
-# this runs at startup on every boot.
-
 set -xeu
 
 

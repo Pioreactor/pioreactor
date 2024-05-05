@@ -1,3 +1,7 @@
+### Upcoming
+ - Chart legend's will support more than 8 Pioreactors.
+ - UI performance improvements.
+
 ### 24.5.1
 
 #### Highlights
