@@ -5,7 +5,6 @@ set -xeu
 
 export LC_ALL=C
 
-
 # Lower bound version
 min_version="24.4.11"
 
