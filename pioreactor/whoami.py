@@ -40,7 +40,6 @@ def get_assigned_experiment_name(unit_name: str) -> str:
 
 def _get_assigned_experiment_name(unit_name: str) -> str:
     from pioreactor.logging import create_logger
-    from pioreactor import mureq
 
     if os.environ.get("EXPERIMENT") is not None:
         return os.environ["EXPERIMENT"]

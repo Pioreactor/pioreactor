@@ -338,13 +338,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
         P.ready()
         C.on_ready()
         """
+        self.set_state(self.READY)
 
         with JobManager() as jm:
             self._jm_key = jm.register_and_set_running(
                 self.unit, self.experiment, self.job_name, self._job_source, getpid(), leader_hostname
             )
-
-        self.set_state(self.READY)
 
     def start_passive_listeners(self) -> None:
         # overwrite this to in subclasses to subscribe to topics in MQTT

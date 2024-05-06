@@ -1,6 +1,12 @@
 ### Upcoming
  - Chart legend's will support more than 8 Pioreactors.
  - UI performance improvements.
+   - Upgraded to React 18
+   - Removed unused dependencies
+ - App performance improvements
+   - Upgrade paho-mqtt to 2.0
+   - faster `pio kill`
+   - faster startup from UI
 
 ### 24.5.1
 

@@ -692,7 +692,9 @@ class Monitor(LongRunningBackgroundJob):
             self.logger.debug(f"Running `{job_name}` from monitor job.")
 
         else:
-            command = self._job_options_and_args_to_shell_command(job_name, args, options)
+            command = self._job_options_and_args_to_shell_command(
+                job_name, assigned_experiment, args, options
+            )
             Thread(
                 target=subprocess.run,
                 args=(command,),
@@ -703,10 +705,13 @@ class Monitor(LongRunningBackgroundJob):
 
     @staticmethod
     def _job_options_and_args_to_shell_command(
-        job_name: str, args: list[str], options: dict[str, Any]
+        job_name: str, experiment: str, args: list[str], options: dict[str, Any]
     ) -> str:
         core_command = ["pio", "run", job_name]
-        env = [f'JOB_SOURCE={options.pop("job_source", "user")}']
+
+        # job source could be experiment_profile, but defaults to user
+        # we actually can skip another API request by reusing the assigned experiment above...
+        env = [f'JOB_SOURCE={options.pop("job_source", "user")}', f"EXPERIMENT='{experiment}'"]
 
         list_of_options: list[str] = []
         for option, value in options.items():
