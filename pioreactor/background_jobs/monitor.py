@@ -723,7 +723,7 @@ class Monitor(LongRunningBackgroundJob):
 
         # shell-escaped to protect against injection vulnerabilities, see join docs
         # we don't escape the suffix.
-        return env + join(["nohup"] + core_command + args + list_of_options) + " >/dev/null 2>&1 &"
+        return env + " " + join(["nohup"] + core_command + args + list_of_options) + " >/dev/null 2>&1 &"
 
     def flicker_error_code_from_mqtt(self, message: MQTTMessage) -> None:
         if self.led_in_use:
