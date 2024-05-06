@@ -4,6 +4,7 @@ from __future__ import annotations
 import subprocess
 from contextlib import suppress
 from shlex import join  # https://docs.python.org/3/library/shlex.html#shlex.quote
+from shlex import quote  # https://docs.python.org/3/library/shlex.html#shlex.quote
 from threading import Thread
 from time import sleep
 from typing import Any
@@ -711,7 +712,7 @@ class Monitor(LongRunningBackgroundJob):
 
         # job source could be experiment_profile, but defaults to user
         # we actually can skip another API request by reusing the assigned experiment above...
-        env = [f'JOB_SOURCE={options.pop("job_source", "user")}', f"EXPERIMENT='{experiment}'"]
+        env = f'JOB_SOURCE={quote(options.pop("job_source", "user"))} EXPERIMENT={quote(experiment)}'
 
         list_of_options: list[str] = []
         for option, value in options.items():
@@ -722,7 +723,7 @@ class Monitor(LongRunningBackgroundJob):
 
         # shell-escaped to protect against injection vulnerabilities, see join docs
         # we don't escape the suffix.
-        return join(env + ["nohup"] + core_command + args + list_of_options) + " >/dev/null 2>&1 &"
+        return env + join(["nohup"] + core_command + args + list_of_options) + " >/dev/null 2>&1 &"
 
     def flicker_error_code_from_mqtt(self, message: MQTTMessage) -> None:
         if self.led_in_use:
