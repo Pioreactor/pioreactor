@@ -30,12 +30,17 @@ function ExperimentSelection(props) {
   const [experiments, setExperiments] = React.useState([{experiment: "<All experiments>"}])
 
   React.useEffect(() => {
+    let ignore = false;
+
     async function getData() {
        await fetch("/api/experiments")
       .then((response) => {
         return response.json();
       })
       .then((data) => {
+        if (ignore){
+          return
+        }
         setExperiments(prevState => [ ...data, ...prevState])
         if (props.experimentSelection === "") {
           props.handleChange(data[0].experiment)
@@ -46,6 +51,9 @@ function ExperimentSelection(props) {
       });
     }
     getData()
+    return () => {
+      ignore = true;
+    };
   }, [])
 
   const handleExperimentSelectionChange = (e) => {

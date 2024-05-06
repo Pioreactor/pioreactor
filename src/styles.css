@@ -45,3 +45,7 @@ u {
   box-shadow: 0 0 8px #ea4c89, inset 0 0 12px #ea4c89;
   margin: 13px 8px;
 }
+
+.readonlyEditor textarea {
+  outline: 0;
+}

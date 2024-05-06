@@ -282,14 +282,12 @@ export default function SideNavAndHeader() {
     <React.Fragment>
         <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
           <Toolbar variant="dense">
-
               <IconButton
                 color="inherit"
                 aria-label="open drawer"
                 edge="start"
                 onClick={handleDrawerToggle}
-                sx={{root: {marginRight: (theme) => theme.spacing(2)}}}
-                sx={{ mr: 2, display: { xs: 'block', sm: 'none' } }}
+                sx={{mr: 2, display: { xs: 'block', sm: 'none' }, root: {marginRight: (theme) => theme.spacing(2)}}}
                 size="large">
                 <MenuIcon />
               </IconButton>
@@ -326,6 +324,7 @@ export default function SideNavAndHeader() {
         }}
         sx={{ display: { xs: 'block', sm: 'none' } }}
       >
+        <div style={{minHeight: "0px"}}/>
         {list()}
       </DrawerStyled>
       <DrawerStyled

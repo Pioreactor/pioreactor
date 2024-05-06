@@ -2,6 +2,10 @@ import React from "react";
 import { styled } from '@mui/material/styles';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
+import Editor from 'react-simple-code-editor';
+import { highlight, languages } from 'prismjs';
+import 'prismjs/components/prism-yaml'; // You can add more languages or change it
+
 
 const StyledCard = styled(Card)(({ theme }) => ({
   maxHeight: "350px",
@@ -17,7 +21,6 @@ const StyledCard = styled(Card)(({ theme }) => ({
 }));
 
 const StyledCardContent = styled(CardContent)(({ theme }) => ({
-  padding: "10px",
 }));
 
 
@@ -26,9 +29,21 @@ const DisplaySourceCode = ({ sourceCode }) => {
   return (
     <StyledCard>
       <StyledCardContent>
-        <pre style={{whiteSpace: "pre-wrap"}}>
-          {sourceCode}
-        </pre>
+        <Editor
+          placeholder="Loading..."
+          value={sourceCode}
+          onValueChange={(code) => code}
+          highlight={(code) => highlight(code, languages.yaml)}
+          padding={0}
+          className={'readonlyEditor'}
+          readOnly={"readonly"}
+          style={{
+            fontSize: "14px",
+            fontFamily: 'monospace',
+            borderRadius: "3px",
+            outline: 0,
+          }}
+        />
       </StyledCardContent>
     </StyledCard>
   );

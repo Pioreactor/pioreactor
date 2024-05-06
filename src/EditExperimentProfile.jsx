@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState, useEffect } from 'react';
+
 
 import FormControl from '@mui/material/FormControl';
 import Grid from "@mui/material/Grid";
@@ -8,148 +9,157 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/Card';
 import SaveIcon from '@mui/icons-material/Save';
-import { CodeFlaskReact } from "react-codeflask"
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
 import { Link } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import Snackbar from '@mui/material/Snackbar';
 import { useSearchParams } from "react-router-dom";
+import Editor from 'react-simple-code-editor';
+import { highlight, languages } from 'prismjs';
+import 'prismjs/components/prism-yaml'; // You can add more languages or change it
 
 
-class EditExperimentProfilesContent extends React.Component {
-  DEFAULT_CODE = 'loading...'
-  DEFAULT_FILENAME = ""
+const EditExperimentProfilesContent = ({ code: initialCode, filename: initialFilename }) => {
+  const DEFAULT_CODE = 'loading...';
+  const DEFAULT_FILENAME = "";
 
-  constructor(props) {
-    super(props);
-    this.state = {
-      code: props.code || this.DEFAULT_CODE,
-      filename: props.filename || this.DEFAULT_FILENAME,
-      filenameEditable: props.filename !== null,
-      openSnackbar: false,
-      isChanged: false,
-      snackbarMsg: "",
+  const [code, setCode] = useState(initialCode || DEFAULT_CODE);
+  const [filename, setFilename] = useState(initialFilename || DEFAULT_FILENAME);
+  const [filenameEditable, setFilenameEditable] = useState(initialFilename !== null);
+  const [openSnackbar, setOpenSnackbar] = useState(false);
+  const [isChanged, setIsChanged] = useState(false);
+  const [snackbarMsg, setSnackbarMsg] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [isError, setIsError] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  useEffect(() => {
+    if (initialCode !== code) {
+      setCode(initialCode);
     }
-    this.saveCurrentCode = this.saveCurrentCode.bind(this);
-  }
+  }, [initialCode]);
 
-  getCodeFlaskRef = (codeFlask) => {
-    this.codeFlask = codeFlask
-  }
-
-  onTextChange = (code) => {
-    this.setState({code: code, isChanged: true})
-  }
-
-  onFilenameChange = (e) => {
-    this.setState({filename: e.target.value})
-  }
-
-  handleSnackbarClose = () => {
-    this.setState({openSnackbar: false});
+  const onTextChange = newCode => {
+    setCode(newCode);
+    setIsChanged(true);
   };
 
-  componentDidUpdate(prevProps) {
-    if(prevProps.code !== this.props.code) {
-      this.setState({code: this.props.code});
-    }
-  }
+  const onFilenameChange = e => {
+    setFilename(e.target.value);
+  };
 
-  saveCurrentCode() {
-    if (this.state.filename === "") {
-      this.setState({isError: true, errorMsg: "Filename can't be blank"})
-      return
+  const handleSnackbarClose = () => {
+    setOpenSnackbar(false);
+  };
+
+  const saveCurrentCode = () => {
+    if (filename === "") {
+      setIsError(true);
+      setErrorMsg("Filename can't be blank");
+      return;
     }
 
-    this.setState({saving: true, isError: false, isChanged: false})
-    fetch("/api/contrib/experiment_profiles",{
-        method: "POST",
-        body: JSON.stringify({body :this.state.code, filename: this.state.filename + '.yaml'}),
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      })
-    .then(res => {
-      if (res.ok) {
-        this.setState({saving: false})
-        this.setState({openSnackbar: true});
-        this.setState({snackbarMsg: `Experiment profile ${this.state.filename}.yaml saved.`});
-      } else {
-        res.json().then(parsedJson =>
-          this.setState({errorMsg: parsedJson['msg'], isError: true, saving: false})
-        )
+    setSaving(true);
+    setIsError(false);
+    setIsChanged(false);
+    fetch("/api/contrib/experiment_profiles", {
+      method: "POST",
+      body: JSON.stringify({ body: code, filename: filename + '.yaml' }),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
       }
     })
-  }
+      .then(res => {
+        if (res.ok) {
+          setSaving(false);
+          setOpenSnackbar(true);
+          setSnackbarMsg(`Experiment profile ${filename}.yaml saved.`);
+        } else {
+          res.json().then(parsedJson => {
+            setErrorMsg(parsedJson['msg']);
+            setIsError(true);
+            setSaving(false);
+          });
+        }
+      });
+  };
 
-
-  render() {
-    return (
-      <>
+  return (
+    <>
       <Grid container spacing={1}>
         <Grid item xs={6}>
-          <div style={{width: "100%", margin: "10px", display: "flex", justifyContent:"space-between"}}>
+          <div style={{ width: "100%", margin: "10px", display: "flex", justifyContent: "space-between" }}>
             <FormControl>
-            <TextField
-              label="Filename"
-              onChange={this.onFilenameChange}
-              value={this.state.filename}
-              disabled={this.state.filenameEditable}
-              styles={{width: "200px"}}
-              InputProps={{
-                endAdornment: <InputAdornment position="end">.yaml</InputAdornment>,
-              }
-            }
-
-            />
+              <TextField
+                label="Filename"
+                onChange={onFilenameChange}
+                value={filename}
+                disabled={filenameEditable}
+                style={{ width: "200px" }}
+                InputProps={{
+                  endAdornment: <InputAdornment position="end">.yaml</InputAdornment>,
+                }}
+              />
             </FormControl>
           </div>
         </Grid>
-        <Grid item xs={3} />
-        <Grid container xs={3} direction="column" alignItems="flex-end">
-          <Grid item xs={12} />
-        </Grid>
-
         <Grid item xs={12}>
-            <div style={{letterSpacing: "0em", margin: "10px auto 10px auto", position: "relative", width: "98%", height: "280px", border: "1px solid #ccc"}}>
-              <CodeFlaskReact
-                code={this.state.code}
-                onChange={this.onTextChange}
-                editorRef={this.getCodeFlaskRef}
-                language={"yaml"}
-              />
-            </div>
+          <div style={{
+            tabSize: "4ch",
+            margin: "1.67em 0",
+            border: "1px solid #ccc",
+            margin: "10px auto 10px auto",
+            position: "relative",
+            width: "98%",
+            height: "330px",
+            overflow: "auto",
+            flex: 1
+          }}>
+            <Editor
+              placeholder={DEFAULT_CODE}
+              value={code}
+              onValueChange={onTextChange}
+              highlight={code => highlight(code, languages.yaml)}
+              padding={10}
+              style={{
+                fontSize: "14px",
+                fontFamily: 'monospace',
+                backgroundColor: "hsla(0, 0%, 100%, .5)",
+                borderRadius: "3px",
+                minHeight: "100%"
+              }}
+            />
+          </div>
         </Grid>
-        <div style={{display: "flex", justifyContent: "space-between"}}>
+        <div style={{ display: "flex", justifyContent: "space-between" }}>
           <div>
             <Button
               variant="contained"
               color="primary"
-              style={{marginLeft: "20px", textTransform: 'none'}}
-              onClick={this.saveCurrentCode}
-              endIcon={ <SaveIcon /> }
-              disabled={!this.state.isChanged}
+              style={{ marginLeft: "20px", textTransform: 'none' }}
+              onClick={saveCurrentCode}
+              endIcon={<SaveIcon />}
+              disabled={!isChanged}
             >
               Save
-           </Button>
-           <p style={{marginLeft: "20px"}}>{this.state.isError ? <Box color="error.main">{this.state.errorMsg}</Box>: ""}</p>
+            </Button>
+            <p style={{ marginLeft: "20px" }}>{isError ? <Box color="error.main">{errorMsg}</Box> : ""}</p>
           </div>
         </div>
       </Grid>
       <Snackbar
-        anchorOrigin={{vertical: "bottom", horizontal: "center"}}
-        open={this.state.openSnackbar}
-        onClose={this.handleSnackbarClose}
-        message={this.state.snackbarMsg}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        open={openSnackbar}
+        onClose={handleSnackbarClose}
+        message={snackbarMsg}
         autoHideDuration={4000}
         key={"edit-profile-snackbar"}
       />
-      </>
-    );
-  }
-}
+    </>
+  );
+};
 
 
 function ProfilesContainer(props){

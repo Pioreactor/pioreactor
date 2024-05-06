@@ -1,4 +1,4 @@
-import React from "react";
+import React, {useEffect, useState} from "react";
 
 import Grid from '@mui/material/Grid';
 import Card from '@mui/material/Card';
@@ -13,232 +13,239 @@ import {Typography} from '@mui/material';
 import Snackbar from '@mui/material/Snackbar';
 import Select from '@mui/material/Select';
 import SaveIcon from '@mui/icons-material/Save';
-import { CodeFlaskReact } from "react-codeflask"
+import Editor from 'react-simple-code-editor';
+import { highlight, languages } from 'prismjs';
+import 'prismjs/components/prism-ini';
+
 import moment from "moment";
 import DeleteIcon from '@mui/icons-material/Delete';
 
-class EditableCodeDiv extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      code: "Loading...",
-      openSnackbar: false,
-      filename: "config.ini",
-      snackbarMsg: "",
-      saving: false,
-      historicalConfigs: [{filename: "config.ini", data: "", timestamp: "2000-01-01"}],
-      timestamp_ix: 0,
-      errorMsg: "",
-      isError: false,
-      hasChangedSinceSave: true,
-      availableConfigs: [
-        {name: "shared config.ini", filename: "config.ini"},
-      ]
-    };
-    this.saveCurrentCode = this.saveCurrentCode.bind(this);
-    this.deleteConfig = this.deleteConfig.bind(this);
-  }
 
-  getConfig(filename) {
+function EditableCodeDiv(props) {
+  const [state, setState] = useState({
+    code: "Loading...",
+    openSnackbar: false,
+    filename: "config.ini",
+    snackbarMsg: "",
+    saving: false,
+    historicalConfigs: [{ filename: "config.ini", data: "", timestamp: "2000-01-01" }],
+    timestamp_ix: 0,
+    errorMsg: "",
+    isError: false,
+    hasChangedSinceSave: true,
+    availableConfigs: [{ name: "shared config.ini", filename: "config.ini" }]
+  });
+
+  const getConfig = (filename) => {
     fetch(`/api/configs/${filename}`)
-      .then(response => {
-        return response.text();
-      })
-      .then(text => {
-        this.setState({code: text});
-      })
-  }
-
-  getListOfConfigFiles() {
-    fetch("/api/configs")
-      .then(response => {
-        return response.json();
-      })
-      .then(json => {
-        this.setState(prevState => ({
-          availableConfigs: [...prevState.availableConfigs, ...json.filter(e => (e !== 'config.ini')).map(e => ({name: e, filename: e}))]
-        }));
-      })
-  }
-
-  getHistoricalConfigFiles(filename) {
-    fetch("/api/historical_configs/" + filename)
-      .then(response => {
-        return response.json();
-      })
-      .then(listOfHistoricalConfigs => {
-        this.setState({
-          historicalConfigs: listOfHistoricalConfigs,
-          timestamp_ix: 0
-        });
-      })
-  }
-
-  saveCurrentCode() {
-    this.setState({saving: true, isError: false})
-    fetch(`/api/configs/${this.state.filename}`,{
-        method: "PATCH",
-        body: JSON.stringify({code :this.state.code, filename: this.state.filename}),
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      })
-    .then(res => {
-      if (res.ok) {
-        this.setState({snackbarMsg: this.state.filename + " saved and synced.", hasChangedSinceSave: false, saving: false})
-        this.setState({openSnackbar: true});
-      } else {
-        res.json().then(parsedJson =>
-          this.setState({errorMsg: parsedJson['msg'], isError: true, hasChangedSinceSave: true, saving: false})
-        )
-      }
-    })
-  }
-
-  deleteConfig(){
-    fetch(`/api/configs/${this.state.filename}`,{
-        method: "DELETE",
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      })
-    .then(res => {
-      if (res.ok) {
-        this.setState({snackbarMsg: this.state.filename + " deleted."})
-      } else {
-        this.setState({snackbarMsg: "Hm. Something when wrong deleting..."})
-      }
-      this.setState({openSnackbar: true});
-      setTimeout(function () {
-        window.location.reload();
-      }, 750);
-    })
-  }
-
-  componentDidMount() {
-    this.getConfig(this.state.filename)
-    this.getListOfConfigFiles()
-    this.getHistoricalConfigFiles(this.state.filename)
-    this.setState({timestamp: this.state.historicalConfigs[0].timestamp})
-  }
-
-  onSelectionChange = (e) => {
-    const filename = e.target.value
-    this.setState({filename: filename, code: "Loading..."})
-    this.getConfig(filename)
-    this.getHistoricalConfigFiles(filename)
-  }
-
-  onSelectionHistoricalChange = (e) => {
-    const timestamp = e.target.value
-    const ix = this.state.historicalConfigs.findIndex((c) => c.timestamp === timestamp)
-    const configBlob = this.state.historicalConfigs[ix]
-    this.setState({code: configBlob.data, timestamp_ix: ix})
-  }
-
-  getCodeFlaskRef = (codeFlask) => {
-    this.codeFlask = codeFlask
-  }
-
-  onTextChange = (code) => {
-    this.setState({code: code, hasChangedSinceSave: true})
-  }
-
-  handleSnackbarClose = () => {
-    this.setState({openSnackbar: false});
+      .then(response => response.text())
+      .then(text => setState(prev => ({ ...prev, code: text })));
   };
 
-  render() {
-    return (
-      <React.Fragment>
-        <div style={{width: "100%", margin: "10px", display: "flex", justifyContent:"space-between"}}>
-          <FormControl>
-            <div>
-              <FormLabel component="legend">Config file</FormLabel>
-              <Select
-                labelId="configSelect"
-                variant="standard"
-                value={this.state.filename}
-                onChange={this.onSelectionChange}
-              >
-                {this.state.availableConfigs.map((v) => {
-                  return <MenuItem key={v.filename} value={v.filename}>{v.name}</MenuItem>
-                  }
-                )}
-              </Select>
-            </div>
-          </FormControl>
-          {this.state.historicalConfigs.length > 0 ? (
-          <FormControl style={{marginRight: "20px"}}>
+
+  const getHistoricalConfigFiles = (filename) => {
+    fetch(`/api/historical_configs/${filename}`)
+      .then(response => response.json())
+      .then(listOfHistoricalConfigs => setState(prev => ({
+        ...prev,
+        historicalConfigs: listOfHistoricalConfigs,
+        timestamp_ix: 0
+      })));
+  };
+
+  const saveCurrentCode = () => {
+    setState(prev => ({ ...prev, saving: true, isError: false }));
+    fetch(`/api/configs/${state.filename}`, {
+      method: "PATCH",
+      body: JSON.stringify({ code: state.code, filename: state.filename }),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    })
+    .then(res => {
+      if (res.ok) {
+        setState(prev => ({ ...prev, snackbarMsg: `${state.filename} saved and synced.`, hasChangedSinceSave: false, saving: false, openSnackbar: true }));
+      } else {
+        res.json().then(parsedJson =>
+          setState(prev => ({ ...prev, errorMsg: parsedJson['msg'], isError: true, hasChangedSinceSave: true, saving: false }))
+        )
+      }
+    });
+  };
+
+  const deleteConfig = () => {
+    fetch(`/api/configs/${state.filename}`, {
+      method: "DELETE",
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    })
+    .then(res => {
+      if (res.ok) {
+        setState(prev => ({ ...prev, snackbarMsg: `${state.filename} deleted.` }));
+      } else {
+        setState(prev => ({ ...prev, snackbarMsg: "Hm. Something when wrong deleting..." }));
+      }
+      setState(prev => ({ ...prev, openSnackbar: true }));
+      setTimeout(() => {
+        window.location.reload();
+      }, 750);
+    });
+  };
+
+  useEffect(() => {
+    getConfig(state.filename);
+    getHistoricalConfigFiles(state.filename);
+  }, []);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function getConfigs() {
+      fetch("/api/configs")
+      .then(response => response.json())
+      .then(json => {
+        if (ignore){
+          return
+        }
+        setState(prev => ({
+        ...prev,
+        availableConfigs: [...prev.availableConfigs, ...json.filter(e => e !== 'config.ini').map(e => ({ name: e, filename: e }))]
+        }))
+      });
+    }
+
+    getConfigs()
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  const onSelectionChange = (e) => {
+    const filename = e.target.value;
+    setState(prev => ({ ...prev, filename: filename, code: "Loading..." }));
+    getConfig(filename);
+    getHistoricalConfigFiles(filename);
+  };
+
+  const onSelectionHistoricalChange = (e) => {
+    const timestamp = e.target.value;
+    const ix = state.historicalConfigs.findIndex((c) => c.timestamp === timestamp);
+    const configBlob = state.historicalConfigs[ix];
+    setState(prev => ({ ...prev, code: configBlob.data, timestamp_ix: ix }));
+  };
+
+  const onTextChange = (code) => {
+    setState(prev => ({ ...prev, code: code, hasChangedSinceSave: true }));
+  };
+
+  const handleSnackbarClose = () => {
+    setState(prev => ({ ...prev, openSnackbar: false }));
+  };
+
+  return (
+    <React.Fragment>
+      <div style={{ width: "100%", margin: "10px", display: "flex", justifyContent: "space-between" }}>
+        <FormControl>
+          <div>
+            <FormLabel component="legend">Config file</FormLabel>
+            <Select
+              labelId="configSelect"
+              variant="standard"
+              value={state.filename}
+              onChange={onSelectionChange}
+            >
+              {state.availableConfigs.map((v) => (
+                <MenuItem key={v.filename} value={v.filename}>{v.name}</MenuItem>
+              ))}
+            </Select>
+          </div>
+        </FormControl>
+        {state.historicalConfigs.length > 0 ? (
+          <FormControl style={{ marginRight: "20px" }}>
             <div>
               <FormLabel component="legend">Versions</FormLabel>
               <Select
                 labelId="historicalConfigSelect"
                 variant="standard"
-                value={this.state.historicalConfigs.length > 0 ? this.state.historicalConfigs[this.state.timestamp_ix].timestamp : ""}
+                value={state.historicalConfigs.length > 0 ? state.historicalConfigs[state.timestamp_ix].timestamp : ""}
                 displayEmpty={true}
-                onChange={this.onSelectionHistoricalChange}
+                onChange={onSelectionHistoricalChange}
               >
-                {this.state.historicalConfigs.map((v, i) => {
-                  return <MenuItem key={v.timestamp} value={v.timestamp}>{i === 0 ? "Current" : moment(v.timestamp).format("MMM DD [at] hh:mm a") }</MenuItem>
-                  }
-                )}
+                {state.historicalConfigs.map((v, i) => (
+                  <MenuItem key={v.timestamp} value={v.timestamp}>{i === 0 ? "Current" : moment(v.timestamp).format("MMM DD [at] hh:mm a")}</MenuItem>
+                ))}
               </Select>
             </div>
           </FormControl>
         ) : <div></div>}
 
-        </div>
+      </div>
 
-        <div style={{letterSpacing: "0em", margin: "10px auto 10px auto", position: "relative", width: "98%", height: "280px", border: "1px solid #ccc"}}>
-          <CodeFlaskReact
-            code={this.state.code}
-            onChange={this.onTextChange}
-            editorRef={this.getCodeFlaskRef}
-            language={"html"}
+        <div style={{
+            tabSize: "4ch",
+            border: "1px solid #ccc",
+            margin: "10px auto 10px auto",
+            position: "relative",
+            width: "98%",
+            height: "280px",
+            overflow: "auto",
+            flex: 1
+        }}>
+          <Editor
+            placeholder={state.code}
+            value={state.code}
+            onValueChange={onTextChange}
+            highlight={(code) => highlight(code, languages.ini)}
+            padding={10}
+            style={{
+              fontSize: "14px",
+              fontFamily: 'monospace',
+              backgroundColor: "hsla(0, 0%, 100%, .5)",
+              borderRadius: "3px",
+              minHeight: "100%"
+            }}
           />
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <div>
+          <LoadingButton
+            style={{ margin: "5px 12px 5px 12px", textTransform: 'none' }}
+            color="primary"
+            variant="contained"
+            onClick={saveCurrentCode}
+            disabled={!state.hasChangedSinceSave}
+            loading={state.saving}
+            loadingPosition="end"
+            endIcon={<SaveIcon />}
+          >
+            {state.timestamp_ix === 0 ? "Save" : "Revert"}
+          </LoadingButton>
+          <p style={{ marginLeft: 12 }}>{state.isError ? <Box color="error.main">{state.errorMsg}</Box> : ""}</p>
         </div>
-        <div style={{display: "flex", justifyContent: "space-between"}}>
-          <div>
-            <LoadingButton
-              style={{margin: "5px 12px 5px 12px", textTransform: 'none'}}
-              color="primary"
-              variant="contained"
-              onClick={this.saveCurrentCode}
-              disabled={!this.state.hasChangedSinceSave}
-              loading={this.state.saving}
-              loadingPosition="end"
-              endIcon={<SaveIcon />}
-              >
-              {this.state.timestamp_ix === 0 ? "Save" : "Revert"}
-            </LoadingButton>
-            <p style={{marginLeft: 12}}>{this.state.isError ? <Box color="error.main">{this.state.errorMsg}</Box>: ""}</p>
-          </div>
-          <Button
-            style={{margin: "5px 10px 5px 10px", textTransform: "none"}}
-            color="secondary"
-            onClick={this.deleteConfig}
-            disabled={(this.state.filename === "config.ini")}
-            >
-            <DeleteIcon fontSize="15" /> Delete config file
-          </Button>
-        </div>
-        <Snackbar
-          anchorOrigin={{vertical: "bottom", horizontal: "center"}}
-          open={this.state.openSnackbar}
-          onClose={this.handleSnackbarClose}
-          message={this.state.snackbarMsg}
-          autoHideDuration={2000}
-          key={"edit-config-snackbar"}
-        />
-      </React.Fragment>
-    )
-  }
+        <Button
+          style={{ margin: "5px 10px 5px 10px", textTransform: "none" }}
+          color="secondary"
+          onClick={deleteConfig}
+          disabled={(state.filename === "config.ini")}
+        >
+          <DeleteIcon fontSize="15" /> Delete config file
+        </Button>
+      </div>
+      <Snackbar
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        open={state.openSnackbar}
+        onClose={handleSnackbarClose}
+        message={state.snackbarMsg}
+        autoHideDuration={2000}
+        key={"edit-config-snackbar"}
+      />
+    </React.Fragment>
+  );
 }
-
-
 
 
 function EditConfigContainer(){

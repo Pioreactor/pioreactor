@@ -88,7 +88,7 @@ function LogTable(props) {
     <Card>
       <CardContent>
         <Typography variant="h6" component="h2">
-          Recent event logs
+          <Box fontWeight="fontWeightRegular">Recent event logs</Box>
         </Typography>
         <TableContainer sx={{ height: "660px", width: "100%", overflowY: "auto"}}>
           <Table stickyHeader size="small" aria-label="log table">
