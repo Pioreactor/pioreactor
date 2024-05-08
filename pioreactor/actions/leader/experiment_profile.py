@@ -678,12 +678,12 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
 
             else:
                 if dry_run:
-                    logger.notice(  # type: ignore
+                    logger.info(  # type: ignore
                         f"Finished executing DRY-RUN of profile {profile.experiment_profile_name}."
                     )
 
                 else:
-                    logger.notice(f"Finished executing profile {profile.experiment_profile_name}.")  # type: ignore
+                    logger.info(f"Finished executing profile {profile.experiment_profile_name}.")  # type: ignore
 
             state.mqtt_client.publish(
                 f"pioreactor/{unit}/{experiment}/{action_name}/experiment_profile_name",
@@ -711,7 +711,7 @@ def click_experiment_profile():
 @click.argument("filename", type=click.Path())
 @click.argument("experiment", type=str)
 @click.option("--dry-run", is_flag=True, help="Don't actually execute, just print to screen")
-def click_execute_experiment_profile(filename: str, experiment, dry_run: bool) -> None:
+def click_execute_experiment_profile(filename: str, experiment: str, dry_run: bool) -> None:
     """
     (leader only) Run an experiment profile.
     """

@@ -187,7 +187,7 @@ class ProfileParser(Parser):
             return convert_string(value)
 
         else:
-            raise ValueError(f"{p.UNIT_JOB_SETTING} does not exist for experiment {experiment}")
+            raise ValueError(f"{p.UNIT_JOB_SETTING} does not exist for experiment `{experiment}`")
 
 
 def parse_profile_expression_to_bool(profile_string: str) -> bool:

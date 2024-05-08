@@ -3,10 +3,13 @@
  - UI performance improvements.
    - Upgraded to React 18
    - Removed unused dependencies
+ - UI's code sections use syntax-highlighting and other nicer features for editing yaml and ini files.
  - App performance improvements
    - Upgrade paho-mqtt to 2.0
    - faster `pio kill`
-   - faster startup from UI
+   - faster job start from UI
+ - fix `pio plugins` on workers
+
 
 ### 24.5.1
 

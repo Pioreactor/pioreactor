@@ -381,7 +381,7 @@ class Monitor(LongRunningBackgroundJob):
                 from TMP1075 import TMP1075  # type: ignore
             except ImportError:
                 # leader-only is a worker?
-                self.logger.warning(
+                self.logger.debug(
                     f"{self.unit} doesn't have TMP1075 software installed, but is acting as a worker."
                 )
                 return
@@ -390,7 +390,7 @@ class Monitor(LongRunningBackgroundJob):
             tmp_driver = TMP1075(address=TEMP)
         except ValueError:
             # No PCB detected using i2c - fine to exit.
-            self.logger.warning("Heater PCB is not detected.")
+            self.logger.debug("Heater PCB is not detected.")
             return
 
         observed_tmp = tmp_driver.get_temperature()
@@ -645,6 +645,8 @@ class Monitor(LongRunningBackgroundJob):
             # make sure I'm assigned to the correct experiment
             if experiment != assigned_experiment:
                 return
+        else:
+            assigned_experiment = whoami.UNIVERSAL_EXPERIMENT
 
         payload = loads(msg.payload) if msg.payload else {"options": {}, "args": []}
 
