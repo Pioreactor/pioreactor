@@ -112,9 +112,15 @@ def test_calculator():
     assert parse_profile_expression("-1.5 * 2.0") == -3.0
     assert parse_profile_expression("-1.5 * -2.0") == 3.0
     assert parse_profile_expression("-1.5 / -2.0") == 0.75
+    assert 0 <= parse_profile_expression("random()") <= 1.0
+    assert 25 <= parse_profile_expression("25 + (25 * random())") <= 50
 
     with pytest.raises(ZeroDivisionError):
         assert parse_profile_expression("-1.5 / 0") == 0.75
+
+
+def test_unit_function():
+    assert parse_profile_expression(f"unit() == {unit}")
 
 
 def test_mqtt_fetches_with_calculations():

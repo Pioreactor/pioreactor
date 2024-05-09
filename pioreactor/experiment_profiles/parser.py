@@ -3,6 +3,9 @@
 # flake8: noqa
 from __future__ import annotations
 
+import math
+from random import random
+
 from msgspec import DecodeError
 from msgspec.json import decode
 
@@ -10,6 +13,7 @@ from .sly import Lexer
 from .sly import Parser
 from pioreactor.pubsub import subscribe
 from pioreactor.whoami import get_assigned_experiment_name
+from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_active
 
 
@@ -34,6 +38,7 @@ class ProfileLexer(Lexer):
     # != is the same as not
     tokens = {
         NAME,
+        FUNCTION,
         AND,
         OR,
         NOT,
@@ -53,6 +58,8 @@ class ProfileLexer(Lexer):
 
     # Tokens
     UNIT_JOB_SETTING = r"([a-zA-Z_\$][a-zA-Z0-9_]*:){2,}([a-zA-Z_\$][a-zA-Z0-9_]*\.)*[a-zA-Z_\$][a-zA-Z0-9_]*"
+
+    FUNCTION = r"[a-zA-Z_$][a-zA-Z0-9_]*\(\)"
 
     NAME = r"[a-zA-Z_$][a-zA-Z0-9_]*"
     NAME["and"] = AND
@@ -141,11 +148,18 @@ class ProfileParser(Parser):
     def expr(self, p):
         return not p.expr
 
+    @_("FUNCTION")
+    def expr(self, p):
+        if p.FUNCTION == "random()":
+            return random()
+        elif p.FUNCTION == "unit()":
+            return get_unit_name()
+
     @_("NAME")
     def expr(self, p):
-        if p.NAME == "True":
+        if p.NAME.lower() == "true":
             return True
-        elif p.NAME == "False":
+        elif p.NAME.lower() == "false":
             return False
         else:
             return p.NAME
