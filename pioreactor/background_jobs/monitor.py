@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import subprocess
 from contextlib import suppress
-from shlex import join  # https://docs.python.org/3/library/shlex.html#shlex.quote
-from shlex import quote  # https://docs.python.org/3/library/shlex.html#shlex.quote
+from shlex import join
+from shlex import quote
 from threading import Thread
 from time import sleep
 from typing import Any
