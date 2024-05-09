@@ -646,7 +646,7 @@ class Monitor(LongRunningBackgroundJob):
             if experiment != assigned_experiment:
                 return
         else:
-            assigned_experiment = whoami.UNIVERSAL_EXPERIMENT
+            assigned_experiment = None
 
         payload = loads(msg.payload) if msg.payload else {"options": {}, "args": []}
 
@@ -708,13 +708,15 @@ class Monitor(LongRunningBackgroundJob):
 
     @staticmethod
     def _job_options_and_args_to_shell_command(
-        job_name: str, experiment: str, args: list[str], options: dict[str, Any]
+        job_name: str, experiment: Optional[str], args: list[str], options: dict[str, Any]
     ) -> str:
         core_command = ["pio", "run", job_name]
 
         # job source could be experiment_profile, but defaults to user
         # we actually can skip another API request by reusing the assigned experiment above...
-        env = f'JOB_SOURCE={quote(options.pop("job_source", "user"))} EXPERIMENT={quote(experiment)}'
+        env = f'JOB_SOURCE={quote(options.pop("job_source", "user"))}'
+        if experiment:
+            env += f" EXPERIMENT={quote(experiment)}"
 
         list_of_options: list[str] = []
         for option, value in options.items():

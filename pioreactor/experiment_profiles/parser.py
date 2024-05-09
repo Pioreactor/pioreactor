@@ -13,7 +13,6 @@ from .sly import Lexer
 from .sly import Parser
 from pioreactor.pubsub import subscribe
 from pioreactor.whoami import get_assigned_experiment_name
-from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_active
 
 
@@ -47,6 +46,7 @@ class ProfileLexer(Lexer):
         MINUS,
         TIMES,
         DIVIDE,
+        EXPONENT,
         LESS_THAN,
         GREATER_THAN,
         LESS_THAN_OR_EQUAL,
@@ -67,6 +67,7 @@ class ProfileLexer(Lexer):
     NAME["not"] = NOT
 
     # Arithmetic Operators
+    EXPONENT = r"\*\*"  # Regular expression for exponentiation
     PLUS = r"\+"
     MINUS = r"-"
     TIMES = r"\*"
@@ -95,6 +96,7 @@ class ProfileParser(Parser):
         ("right", UMINUS),
         ("left", PLUS, MINUS),
         ("left", TIMES, DIVIDE),
+        ("right", EXPONENT),
     )
 
     @_("expr AND expr", "expr OR expr")
@@ -110,6 +112,10 @@ class ProfileParser(Parser):
             return p.expr
         elif p[0] == "-":
             return -p.expr
+
+    @_("expr EXPONENT expr")  # Add rule for exponentiation
+    def expr(self, p):
+        return p.expr0**p.expr1
 
     @_("expr PLUS expr", "expr MINUS expr", "expr TIMES expr", "expr DIVIDE expr")
     def expr(self, p):
@@ -152,8 +158,6 @@ class ProfileParser(Parser):
     def expr(self, p):
         if p.FUNCTION == "random()":
             return random()
-        elif p.FUNCTION == "unit()":
-            return get_unit_name()
 
     @_("NAME")
     def expr(self, p):

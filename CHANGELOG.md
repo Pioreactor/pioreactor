@@ -1,7 +1,9 @@
 ### Upcoming
 
 #### Enhancements
- - Chart legend's will support more than 8 Pioreactors.
+ - UI chart legend's will support more than 8 Pioreactors.
+ - UI chart colors are consistent across charts in the Overview.
+ - reduce the number of pop-ups in the UI, so they'll be less distractions.
  - UI performance improvements.
    - Upgraded to React 18
    - Removed unused dependencies
@@ -10,11 +12,12 @@
    - Upgrade paho-mqtt to 2.0
    - faster `pio kill`
    - faster job start from UI
- - reduce the number of pop-ups in the UI, so they'll be less distractions.
  - more humane error messages.
- - Pioreactor's chart colors are consistent across charts in the Overview.
- - added `random()` to profile expressions. This returns a number between 0 and 1.
- - added `unit()` to profile expressions. This returns the pioreactor unit name. Useful for `if` statements in the common block.
+ - updated temperature inference model
+ - added exponentiation `**` to profile expressions. Ex: `${{ pio1:growth_rate_calculating:growth_rate.growth_rate ** 0.5 }}`
+ - added `random()` to profile expressions. This returns a number between 0 and 1. Ex: `${{ 25 + 25 * random() }} `
+
+
 
 #### Bug fixes
  - fix `pio plugins` on workers
