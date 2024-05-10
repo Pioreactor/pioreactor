@@ -1051,10 +1051,18 @@ class BackgroundJobWithDodging(_BackgroundJob):
         super().__init__(*args, source=source, **kwargs)  # type: ignore
 
         self.add_to_published_settings("enable_dodging_od", {"datatype": "boolean", "settable": True})
-        self.set_enable_dodging_od(bool(self.get_from_config("enable_dodging_od", fallback=True)))
+        self.set_enable_dodging_od(self.get_from_config("enable_dodging_od", cast=bool))
 
-    def get_from_config(self, key, **get_kwargs):
-        return config.get(f"{self.job_name}.config", key, **get_kwargs)
+    def get_from_config(self, key: str, cast=None, **get_kwargs):
+        section = f"{self.job_name}.config"
+        if cast == float:
+            return config.getfloat(section, key, **get_kwargs)
+        elif cast == bool:
+            return config.getboolean(section, key, **get_kwargs)
+        elif cast == int:
+            return config.getint(section, key, **get_kwargs)
+        else:
+            return config.get(section, key, **get_kwargs)
 
     def action_to_do_before_od_reading(self) -> None:
         raise NotImplementedError()
@@ -1108,8 +1116,8 @@ class BackgroundJobWithDodging(_BackgroundJob):
         except AttributeError:
             pass
 
-        post_delay = float(self.get_from_config("post_delay_duration", fallback=1.0))
-        pre_delay = float(self.get_from_config("pre_delay_duration", fallback=1.5))
+        post_delay = self.get_from_config("post_delay_duration", cast=float, fallback=1.0)
+        pre_delay = self.get_from_config("pre_delay_duration", cast=float, fallback=1.5)
 
         if post_delay <= 0.25:
             self.logger.warning("For optimal OD readings, keep `post_delay_duration` more than 0.25 seconds.")
