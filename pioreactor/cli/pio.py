@@ -31,17 +31,14 @@ from pioreactor.utils.networking import is_using_local_access_point
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import am_I_leader
 
+lazy_subcommands = {
+    "run": "pioreactor.cli.run.run",
+    "plugins": "pioreactor.cli.plugins.plugins",
+}
+
 if am_I_leader():
-    lazy_subcommands = {
-        "workers": "pioreactor.cli.workers.workers",
-        "run": "pioreactor.cli.run.run",
-        "plugins": "pioreactor.cli.plugins.plugins",
-    }
-else:
-    lazy_subcommands = {
-        "run": "pioreactor.cli.run.run",
-        "plugins": "pioreactor.cli.plugins.plugins",
-    }
+    # add in ability to control workers
+    lazy_subcommands["workers"] = "pioreactor.cli.workers.workers"
 
 
 @click.group(
@@ -175,9 +172,8 @@ def kill(name: str | None, experiment: str | None, job_source: str | None, all_j
     if not (name or experiment or job_source or all_jobs):
         raise click.Abort("Provide an option to kill.")
     with JobManager() as jm:
-        count = jm.count_jobs(all_jobs=all_jobs, name=name, experiment=experiment, job_source=job_source)
-        jm.kill_jobs(all_jobs=all_jobs, name=name, experiment=experiment, job_source=job_source)
-    click.echo(f"Killed {count} job(s).")
+        count = jm.kill_jobs(all_jobs=all_jobs, name=name, experiment=experiment, job_source=job_source)
+    click.echo(f"Killed {count} job{'s' if count > 1 else ''}.")
 
 
 @pio.command(name="version", short_help="print the Pioreactor software version")

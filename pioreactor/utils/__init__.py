@@ -334,7 +334,7 @@ def is_pio_job_running(target_jobs):
     > # [True, False]
     """
     if isinstance(target_jobs, str):
-        target_jobs = [target_jobs]
+        target_jobs = (target_jobs,)
 
     results = []
 
@@ -619,15 +619,17 @@ class JobManager:
     def count_jobs(self, all_jobs: bool = False, **query) -> int:
         return len(self._get_jobs(all_jobs, **query))
 
-    def kill_jobs(self, all_jobs: bool = False, **query) -> None:
+    def kill_jobs(self, all_jobs: bool = False, **query) -> int:
         # ex: kill_jobs(experiment="testing_exp") should return end all jobs with experiment='testing_exp'
 
         mqtt_kill = MQTTKill()
         shell_kill = ShellKill()
+        count = 0
 
         for job, pid in self._get_jobs(all_jobs, **query):
             if job in self.PUMPING_JOBS:
                 mqtt_kill.append(job)
+                count += 1
             elif job == "led_intensity":
                 # led_intensity doesn't register with the JobManager, probably should somehow.
                 pass
@@ -636,9 +638,12 @@ class JobManager:
                 pass
             else:
                 shell_kill.append(pid)
+                count += 1
 
         mqtt_kill.kill()
         shell_kill.kill()
+
+        return count
 
     def __enter__(self) -> JobManager:
         return self

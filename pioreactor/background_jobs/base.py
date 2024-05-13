@@ -1079,8 +1079,10 @@ class BackgroundJobWithDodging(_BackgroundJob):
     def set_enable_dodging_od(self, value: bool) -> None:
         self.enable_dodging_od = value
         if self.enable_dodging_od:
+            self.logger.info("Will attempt to stop during OD readings.")
             self._listen_for_od_reading()
         else:
+            self.logger.info("Running continuously through OD readings.")
             if hasattr(self, "sneak_in_timer"):
                 self.sneak_in_timer.cancel()
             try:

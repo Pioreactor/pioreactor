@@ -129,7 +129,7 @@ def test_all_positive_correlations_between_pds_and_leds(
     # the problem is that if an LED is directly across from a PD, a high intensity will quickly
     # saturate it and fail the test. So we try low intensities first, and if we exceed some threshold
     # we exit before moving to the high intensities.
-    INTENSITIES = [32, 35, 53, 44, 38, 47, 50, 41, 56, 59, 62, 65]
+    INTENSITIES = (32, 35, 53, 44, 38, 47, 50, 41, 56, 59, 62, 65)
 
     results: dict[tuple[LedChannel, PdChannel], float] = {}
 
@@ -458,20 +458,20 @@ def click_self_test(k: Optional[str]) -> int:
     experiment = get_assigned_experiment_name(unit)
     logger = create_logger("self_test", unit=unit, experiment=experiment)
 
-    A_TESTS = [
+    A_TESTS = (
         test_pioreactor_HAT_present,
         test_detect_heating_pcb,
         test_positive_correlation_between_temperature_and_heating,
         test_aux_power_is_not_too_high,
-    ]
-    B_TESTS = [
+    )
+    B_TESTS = (
         test_all_positive_correlations_between_pds_and_leds,
         test_ambient_light_interference,
         test_REF_is_lower_than_0_dot_256_volts,
         test_REF_is_in_correct_position,
         test_PD_is_near_0_volts_for_blank,
         test_positive_correlation_between_rpm_and_stirring,
-    ]
+    )
 
     with managed_lifecycle(unit, testing_experiment, "self_test") as state:
         client = state.mqtt_client

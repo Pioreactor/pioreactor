@@ -3,7 +3,7 @@
 #### Enhancements
  - UI chart legend's will support more than 8 Pioreactors.
  - UI chart colors are consistent across charts in the Overview.
- - reduce the number of pop-ups in the UI, so they'll be less distractions.
+ - reduce the severity of some messages, so there will be less pop-ups in the UI.
  - UI performance improvements.
    - Upgraded to React 18
    - Removed unused dependencies
@@ -13,14 +13,17 @@
    - faster `pio kill`
    - faster job start from UI
  - more humane error messages.
- - updated temperature inference model
+ - updated temperature inference model.
  - added exponentiation `**` to profile expressions. Ex: `${{ pio1:growth_rate_calculating:growth_rate.growth_rate ** 0.5 }}`
  - added `random()` to profile expressions. This returns a number between 0 and 1. Ex: `${{ 25 + 25 * random() }} `
 
 
-
 #### Bug fixes
- - fix `pio plugins` on workers
+ - fix `pio plugins` not working on workers.
+ - fix `enable_dodging_od=0` for background jobs that can dodge OD.
+ - fix jobs not cleaning up correctly if too many jobs try to end at the same time.
+ - fix `pio kill` not returning the correct count of jobs being killed.
+ - fix older Pioreactor HATs, with the ADS1115 chip, not have the method `from_voltage_to_raw_precise`.
 
 
 ### 24.5.1

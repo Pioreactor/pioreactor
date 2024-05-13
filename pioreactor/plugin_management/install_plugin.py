@@ -14,12 +14,12 @@ from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 def install_plugin(name_of_plugin: str, source: str | None = None) -> None:
     logger = create_logger("install_plugin", experiment=UNIVERSAL_EXPERIMENT)
     logger.debug(f"Installing plugin {name_of_plugin}.")
-    command = [
+    command = (
         "bash",
         "/usr/local/bin/install_pioreactor_plugin.sh",
         quote(name_of_plugin),
         source or "",
-    ]
+    )
     logger.debug(" ".join(command))
 
     result = subprocess.run(command, capture_output=True)

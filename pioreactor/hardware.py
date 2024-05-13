@@ -144,7 +144,7 @@ def voltage_in_aux(precision: float = 0.1) -> float:
 
     slope = 0.134  # from schematic
 
-    adc = ADC_class()
+    adc = ADC_class()  # type: ignore
     return round_to_precision(
         adc.from_raw_to_voltage(adc.read_from_channel(ADC_CHANNEL_FUNCS["aux"])) / slope,
         p=precision,

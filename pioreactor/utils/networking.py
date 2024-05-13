@@ -65,7 +65,7 @@ def get_ip() -> Optional[str]:
     # returns ipv4
     from psutil import net_if_addrs
 
-    interfaces = ["wlan0", "eth0"]
+    interfaces = ("wlan0", "eth0")
 
     for iface in interfaces:
         try:

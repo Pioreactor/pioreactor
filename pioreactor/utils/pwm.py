@@ -250,7 +250,11 @@ class PWM:
             for k in cache:
                 if k == self.pin:
                     continue
-                current_values[k] = cache[k]
+                # we use get here because if two processes are updating the cache, and one of them deletes from the cache,
+                # this will raise a keyerror when we try to retrieve it.
+                value = cache.get(k, 0)
+                if value != 0:
+                    current_values[k] = value
 
         self.pubsub_client.publish(
             f"pioreactor/{self.unit}/{self.experiment}/pwms/dc", dumps(current_values), retain=True

@@ -85,22 +85,36 @@ def test_run_job_with_monitor() -> None:
 def test_job_options_and_args_to_shell_command() -> None:
     m = Monitor
     assert (
-        m._job_options_and_args_to_shell_command("stirring", [], {"target_rpm": 400})
-        == "JOB_SOURCE=user nohup pio run stirring --target-rpm 400 >/dev/null 2>&1 &"
+        m._job_options_and_args_to_shell_command("stirring", "Exp001", [], {"target_rpm": 400})
+        == "JOB_SOURCE=user EXPERIMENT=Exp001 nohup pio run stirring --target-rpm 400 >/dev/null 2>&1 &"
     )
     assert (
-        m._job_options_and_args_to_shell_command("stirring", [], {"ignore_rpm": None})
-        == "JOB_SOURCE=user nohup pio run stirring --ignore-rpm >/dev/null 2>&1 &"
+        m._job_options_and_args_to_shell_command("stirring", "Exp001", [], {"ignore_rpm": None})
+        == "JOB_SOURCE=user EXPERIMENT=Exp001 nohup pio run stirring --ignore-rpm >/dev/null 2>&1 &"
     )
     assert (
-        m._job_options_and_args_to_shell_command("stirring", [], {})
-        == "JOB_SOURCE=user nohup pio run stirring >/dev/null 2>&1 &"
+        m._job_options_and_args_to_shell_command("stirring", "Exp001", [], {})
+        == "JOB_SOURCE=user EXPERIMENT=Exp001 nohup pio run stirring >/dev/null 2>&1 &"
     )
     assert (
-        m._job_options_and_args_to_shell_command("od_calibration", ["list"], {})
-        == "JOB_SOURCE=user nohup pio run od_calibration list >/dev/null 2>&1 &"
+        m._job_options_and_args_to_shell_command("od_calibration", "Exp001", ["list"], {})
+        == "JOB_SOURCE=user EXPERIMENT=Exp001 nohup pio run od_calibration list >/dev/null 2>&1 &"
     )
     assert (
-        m._job_options_and_args_to_shell_command("stirring", [], {"job_source": "experiment_profile"})
+        m._job_options_and_args_to_shell_command(
+            "stirring", "Exp001", [], {"job_source": "experiment_profile"}
+        )
+        == "JOB_SOURCE=experiment_profile EXPERIMENT=Exp001 nohup pio run stirring >/dev/null 2>&1 &"
+    )
+
+    assert (
+        m._job_options_and_args_to_shell_command("stirring", None, [], {"job_source": "experiment_profile"})
         == "JOB_SOURCE=experiment_profile nohup pio run stirring >/dev/null 2>&1 &"
+    )
+
+    assert (
+        m._job_options_and_args_to_shell_command(
+            "stirring", "white space", [], {"job_source": "experiment_profile"}
+        )
+        == "JOB_SOURCE=experiment_profile EXPERIMENT='white space' nohup pio run stirring >/dev/null 2>&1 &"
     )

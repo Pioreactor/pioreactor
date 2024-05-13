@@ -36,6 +36,7 @@ from pioreactor import exc
 from pioreactor import hardware
 from pioreactor import whoami
 from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.config import config
 from pioreactor.structs import Temperature
 from pioreactor.structs import TemperatureAutomation
 from pioreactor.utils import clamp
@@ -45,6 +46,7 @@ from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.utils.timing import to_datetime
+from pioreactor.version import rpi_version_info
 
 
 class TemperatureController(BackgroundJob):
@@ -406,11 +408,22 @@ class TemperatureController(BackgroundJob):
             previous_heater_dc = self.heater_duty_cycle
 
             features: dict[str, Any] = {}
+
+            # add how much heat/energy we just applied
             features["previous_heater_dc"] = previous_heater_dc
 
             # figure out a better way to estimate this... luckily inference is not too sensitive to this parameter.
             # users can override this function with something more accurate later.
             features["room_temp"] = self._get_room_temperature()
+
+            # B models have a hotter ambient env. TODO: what about As?
+            features["is_rpi_zero"] = rpi_version_info.startswith("Raspberry Pi Zero")
+
+            # the amount of liquid in the vial is a factor!
+            features["volume"] = 0.5 * (
+                config.getfloat("bioreactor", "initial_volume_ml")
+                + config.getfloat("bioreactor", "max_volume_ml")
+            )
 
             # turn off active heating, and start recording decay
             self._update_heater(0)
