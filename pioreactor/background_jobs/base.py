@@ -1054,7 +1054,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
         super().__init__(*args, source=source, **kwargs)  # type: ignore
 
         self.add_to_published_settings("enable_dodging_od", {"datatype": "boolean", "settable": True})
-        self.set_enable_dodging_od(self.get_from_config("enable_dodging_od", cast=bool))
+        self.set_enable_dodging_od(self.get_from_config("enable_dodging_od", cast=bool, fallback="True"))
 
     def get_from_config(self, key: str, cast=None, **get_kwargs):
         section = f"{self.job_name}.config"

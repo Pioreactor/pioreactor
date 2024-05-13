@@ -432,7 +432,8 @@ def test_dodging() -> None:
             assert len(bucket) > 4, bucket
 
     st.clean_up()
-    ODReader._post_read.clear()
+    ODReader._post_read = []
+    ODReader._pre_read = []
 
 
 def test_dodging_when_od_reading_stops_first() -> None:
