@@ -173,7 +173,7 @@ def kill(name: str | None, experiment: str | None, job_source: str | None, all_j
         raise click.Abort("Provide an option to kill.")
     with JobManager() as jm:
         count = jm.kill_jobs(all_jobs=all_jobs, name=name, experiment=experiment, job_source=job_source)
-    click.echo(f"Killed {count} job{'s' if count > 1 else ''}.")
+    click.echo(f"Killed {count} job{'s' if count == 1 else ''}.")
 
 
 @pio.command(name="version", short_help="print the Pioreactor software version")

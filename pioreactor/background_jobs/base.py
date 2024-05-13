@@ -1168,6 +1168,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
             run_immediately=False,
         )
 
+        # TODO: shouldn't I just use run_after in `RepeatedTimer` instead of this?
         time_to_next_ads_reading = ads_interval - ((time() - ads_start_time) % ads_interval)
 
         sleep(time_to_next_ads_reading + (post_delay + self.OD_READING_DURATION))

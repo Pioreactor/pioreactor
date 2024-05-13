@@ -15,7 +15,7 @@
  - more humane error messages.
  - updated temperature inference model.
  - added exponentiation `**` to profile expressions. Ex: `${{ pio1:growth_rate_calculating:growth_rate.growth_rate ** 0.5 }}`
- - added `random()` to profile expressions. This returns a number between 0 and 1. Ex: `${{ 25 + 25 * random() }} `
+ - added `random()` to profile expressions. This returns a number between 0 and 1. Ex: `${{ 25 + 25 * random() }}`
 
 
 #### Bug fixes

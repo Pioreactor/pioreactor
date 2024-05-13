@@ -479,7 +479,7 @@ def safe_kill(*args: int) -> None:
     from sh import kill  # type: ignore
 
     try:
-        kill(*args)
+        kill("-2", *args)
     except Exception:
         pass
 
@@ -631,7 +631,7 @@ class JobManager:
                 mqtt_kill.append(job)
                 count += 1
             elif job == "led_intensity":
-                # led_intensity doesn't register with the JobManager, probably should somehow.
+                # led_intensity doesn't register with the JobManager, probably should somehow. #502
                 pass
             elif job in self.AUTOMATION_JOBS:
                 # don't kill them, the parent will.
