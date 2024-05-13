@@ -5,11 +5,11 @@
  - UI chart colors are consistent across charts in the Overview.
  - reduce the severity of some messages, so there will be less pop-ups in the UI.
  - UI performance improvements.
-   - Upgraded to React 18
+   - Upgraded to React 18.3.1
    - Removed unused dependencies
  - UI's code sections use syntax-highlighting and other nicer features for editing yaml and ini files.
  - App performance improvements
-   - Upgrade paho-mqtt to 2.0
+   - Upgrade paho-mqtt to 2.1
    - faster `pio kill`
    - faster job start from UI
  - more humane error messages.
@@ -21,10 +21,10 @@
 #### Bug fixes
  - fix `pio plugins` not working on workers.
  - fix `enable_dodging_od=0` for background jobs that can dodge OD.
- - fix jobs not cleaning up correctly if too many jobs try to end at the same time.
+ - fix PWM jobs not cleaning up correctly if too many jobs try to end at the same time.
  - fix `pio kill` not returning the correct count of jobs being killed.
  - fix older Pioreactor HATs, with the ADS1115 chip, not have the method `from_voltage_to_raw_precise`.
-
+ - fix "Manage all" not sending the correct dosing command to workers.
 
 ### 24.5.1
 

@@ -256,7 +256,7 @@ def _pump_action(
     try:
         pin = _get_pin(pump_type, config)
     except NoOptionError:
-        logger.error(f"Add `{pump_type}` to `PWM` section to config_{unit}.ini.")
+        logger.error(f"Config entry not found. Add `{pump_type}` to `PWM` section to config_{unit}.ini.")
         return 0.0
 
     if calibration is None:
