@@ -7,7 +7,7 @@ import ExperimentSummary from "./components/ExperimentSummary";
 import Chart from "./components/Chart";
 import MediaCard from "./components/MediaCard";
 import { Link } from 'react-router-dom';
-import {getConfig, getRelabelMap} from "./utilities"
+import {getConfig, getRelabelMap, colors, DefaultDict} from "./utilities"
 import Card from "@mui/material/Card";
 import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
 import ToggleButton from "@mui/material/ToggleButton";
@@ -15,6 +15,17 @@ import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Stack from "@mui/material/Stack";
 import { useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
+
+
+function mapUnitsToColors(units, colors) {
+    const result = {};
+    units.forEach((unit, index) => {
+        if (index < colors.length) {
+            result[unit.pioreactor_unit] = colors[index];
+        }
+    });
+    return result;
+}
 
 
 const TimeFormatSwitch = (props) => {
@@ -92,7 +103,6 @@ function Charts(props) {
   const config = props.config
   const { client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
 
-
   useEffect(() => {
     fetch('/api/contrib/charts')
       .then((response) => response.json())
@@ -136,6 +146,7 @@ function Charts(props) {
                   client={client}
                   subscribeToTopic={subscribeToTopic}
                   unsubscribeFromTopic={unsubscribeFromTopic}
+                  unitsColorMap={props.unitsColorMap}
                 />
               </Card>
             </Grid>
@@ -155,18 +166,34 @@ function Overview(props) {
   const initialTimeWindow = parseInt(localStorage.getItem('timeWindow')) || 10000000;
   const [timeScale, setTimeScale] = useState(initialTimeScale);
   const [timeWindow, setTimeWindow] = useState(initialTimeWindow);
+  const [units, setUnits] = useState([])
+  const unitsColorMap = new DefaultDict(colors)
 
 
   useEffect(() => {
     document.title = props.title;
-
     getConfig(setConfig)
-
   }, [props.title])
 
   useEffect(() => {
+    async function fetchWorkers(experiment) {
+      try {
+        const response = await fetch(`/api/experiments/${experiment}/workers`);
+        if (response.ok) {
+          const units = await response.json();
+          setUnits(units);
+        } else {
+          console.error('Failed to fetch workers:', response.statusText);
+        }
+      } catch (error) {
+        console.error('Error fetching workers:', error);
+      }
+    };
+
+
     if (experimentMetadata.experiment){
         getRelabelMap(setRelabelMap, experimentMetadata.experiment)
+        fetchWorkers(experimentMetadata.experiment)
     }
   }, [experimentMetadata])
 
@@ -179,7 +206,7 @@ function Overview(props) {
 
 
         <Grid item xs={12} md={7} container spacing={2} justifyContent="flex-start" style={{height: "100%"}}>
-          <Charts config={config} timeScale={timeScale} timeWindow={timeWindow} experimentMetadata={experimentMetadata} relabelMap={relabelMap}/>
+          <Charts unitsColorMap={unitsColorMap} config={config} timeScale={timeScale} timeWindow={timeWindow} experimentMetadata={experimentMetadata} relabelMap={relabelMap}/>
         </Grid>
 
         <Grid item xs={12} md={5} container spacing={1} justifyContent="flex-end" style={{height: "100%"}}>
@@ -197,7 +224,7 @@ function Overview(props) {
 
           {( config['ui.overview.cards'] && (config['ui.overview.cards']['dosings'] === "1")) &&
             <Grid item xs={12} >
-              <MediaCard experiment={experimentMetadata.experiment} relabelMap={relabelMap}/>
+              <MediaCard activeUnits={units.filter(unit => unit.is_active === 1).map(unit => unit.pioreactor_unit)} experiment={experimentMetadata.experiment} relabelMap={relabelMap}/>
             </Grid>
           }
 

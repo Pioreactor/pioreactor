@@ -204,8 +204,7 @@ const DisplayProfile = ({ data }) => {
         )}
 
 
-
-        {Object.keys(data.common).length > 0 &&
+        {Object.keys(data.common.jobs).length > 0 &&
          <>
           <Typography variant="subtitle2">
               All Pioreactor(s) do:

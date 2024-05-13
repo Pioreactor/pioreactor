@@ -123,7 +123,7 @@ export const MQTTProvider = ({ name, config, children, experiment }) => {
 
       return () => {
         clearTrie(topicTrie.current);
-        mqttClient.end();
+        mqttClient.end(true);
       };
     }
   }, [config, name, experiment]);

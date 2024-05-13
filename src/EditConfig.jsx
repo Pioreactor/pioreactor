@@ -191,7 +191,8 @@ function EditableCodeDiv(props) {
             margin: "10px auto 10px auto",
             position: "relative",
             width: "98%",
-            height: "280px",
+            height: "320px",
+            maxHeight: "320px",
             overflow: "auto",
             flex: 1
         }}>

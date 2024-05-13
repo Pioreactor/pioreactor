@@ -89,7 +89,6 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName, s
       else {
         setRunningProfileName(payload)
         const filename = Object.keys(experimentProfilesAvailable).find(k => experimentProfilesAvailable[k].experiment_profile_name === payload);
-        setSelectedExperimentProfile(filename || "")
       }
     }
     else if(setting === "start_time_utc") {
@@ -97,7 +96,10 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName, s
     }
   }
 
-  const onSubmit = () => runPioreactorJob(config['cluster.topology']?.leader_hostname, '$experiment' , 'experiment_profile', ['execute', selectedExperimentProfile, experiment], (dryRun ? {'dry-run': null} : {}), () => setConfirmed(true))
+  const onSubmit = () => {
+    setConfirmed(true)
+    runPioreactorJob(config['cluster.topology']?.leader_hostname, '$experiment' , 'experiment_profile', ['execute', selectedExperimentProfile, experiment], (dryRun ? {'dry-run': null} : {}))
+  }
 
   const onStop = () => {
     confirm({
@@ -227,9 +229,6 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName, s
           }
           {selectedExperimentProfile !== "" && viewSource &&
             <DisplaySourceCode sourceCode={source}/>
-          }
-          {selectedExperimentProfile == "" &&
-            <DisplaySourceCode sourceCode={"Loading..."}/>
           }
         </Grid>
         <div style={{display: "flex", justifyContent: "flex-end", marginLeft: "20px"}}>

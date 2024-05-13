@@ -2124,7 +2124,7 @@ function SettingsActionsDialogAll({experiment}) {
           <Typography variant="body2" component="p">
             Specify how you’d like to add media:
           </Typography>
-          <ActionDosingForm action="add_media" unit={unit} />
+          <ActionDosingForm experiment={experiment} action="add_media" unit={unit} />
           <ManageDivider/>
           <Typography  gutterBottom>
             Remove waste
@@ -2135,7 +2135,7 @@ function SettingsActionsDialogAll({experiment}) {
           <Typography variant="body2" component="p">
             Specify how you’d like to remove media:
           </Typography>
-          <ActionDosingForm action="remove_waste" unit={unit} />
+          <ActionDosingForm  experiment={experiment} action="remove_waste" unit={unit} />
           <ManageDivider/>
           <Typography gutterBottom>
             Add alternative media
@@ -2147,7 +2147,7 @@ function SettingsActionsDialogAll({experiment}) {
           <Typography variant="body2" component="p">
             Specify how you’d like to add alt-media:
           </Typography>
-          <ActionDosingForm action="add_alt_media" unit={unit} />
+          <ActionDosingForm  experiment={experiment} action="add_alt_media" unit={unit} />
           <ManageDivider/>
           <Typography gutterBottom>
             Manual adjustments
@@ -2155,7 +2155,7 @@ function SettingsActionsDialogAll({experiment}) {
           <Typography variant="body2" component="p" gutterBottom>
             Record adjustments before manually adding or removing from the vial. This is recorded in the database and will ensure accurate metrics.
           </Typography>
-          <ActionManualDosingForm unit={unit}/>
+          <ActionManualDosingForm experiment={experiment}  unit={unit}/>
 
         </TabPanel>
 

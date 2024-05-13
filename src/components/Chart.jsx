@@ -13,48 +13,9 @@ import {
 } from "victory";
 import moment from "moment";
 
-const colors = [
-  {primary: "#0077BB", "1": "#0077BB", "2": "#0077BB"},
-  {primary: "#009988", "1": "#009988", "2": "#009988"},
-  {primary: "#CC3311", "1": "#CC3311", "2": "#CC3311"},
-  {primary: "#33BBEE", "1": "#33BBEE", "2": "#33BBEE"},
-  {primary: "#EE7733", "1": "#EE7733", "2": "#EE7733"},
-  {primary: "#EE3377", "1": "#EE3377", "2": "#EE3377"},
-  {primary: "#BBBBBB", "1": "#BBBBBB", "2": "#BBBBBB"},
-  {primary: "#a6cee3", "1": "#a6cee3", "2": "#a6cee3"},
-  {primary: "#1f78b4", "1": "#1f78b4", "2": "#1f78b4"},
-  {primary: "#b2df8a", "1": "#b2df8a", "2": "#b2df8a"},
-  {primary: "#33a02c", "1": "#33a02c", "2": "#33a02c"},
-  {primary: "#fb9a99", "1": "#fb9a99", "2": "#fb9a99"},
-  {primary: "#e31a1c", "1": "#e31a1c", "2": "#e31a1c"},
-  {primary: "#fdbf6f", "1": "#fdbf6f", "2": "#fdbf6f"},
-  {primary: "#ff7f00", "1": "#ff7f00", "2": "#ff7f00"},
-  {primary: "#cab2d6", "1": "#cab2d6", "2": "#cab2d6"},
-  {primary: "#6a3d9a", "1": "#6a3d9a", "2": "#6a3d9a"},
-  {primary: "#ffff99", "1": "#ffff99", "2": "#ffff99"},
-  {primary: "#b15928", "1": "#b15928", "2": "#b15928"},
-];
 
-const colorMaps = {}
 const sensorRe = /(.*)-[12]/;
 
-function getColorFromName(name){
-  if (name in colorMaps){
-    return colorMaps[name]
-  }
-
-  if (sensorRe.test(name)){
-    let primaryName = name.match(sensorRe)[1]
-    return getColorFromName(primaryName)
-  }
-  else{
-    var newPallete = colors.shift()
-    colorMaps[name] = newPallete.primary
-    colorMaps[name + "-1"] = newPallete["1"]
-    colorMaps[name + "-2"] = newPallete["2"]
-    return getColorFromName(name)
-  }
-}
 
 function toArray(thing){
    if (Array.isArray(thing)){
@@ -80,6 +41,7 @@ class Chart extends React.Component {
     this.onMessage = this.onMessage.bind(this);
     this.selectLegendData = this.selectLegendData.bind(this);
     this.selectVictoryLines = this.selectVictoryLines.bind(this);
+    this.createLegendEvents = this.createLegendEvents.bind(this);
     this.yTransformation = this.props.yTransformation || ((y) => y)
     this.VictoryVoronoiContainer = (this.props.allowZoom  || false) ? createContainer("zoom", "voronoi") : createContainer("voronoi");
   }
@@ -153,14 +115,15 @@ class Chart extends React.Component {
             initialSeriesMap[v] = {
               data: (data["data"][i]).map(item => ({y: item.y, x: transformX(item.x) })),
               name: v,
-              color: getColorFromName(v),
+              color: this.getUnitColor(v),
             };
           }
         }
         let names = Object.keys(initialSeriesMap);
+        const events = this.createLegendEvents()
         this.setState({
           seriesMap: initialSeriesMap,
-          legendEvents: this.createLegendEvents(),
+          legendEvents: events,
           names: names,
           fetched: true
         });
@@ -173,10 +136,19 @@ class Chart extends React.Component {
 
   }
 
-  deleteAndReturnSet(set, value){
-    set.delete(value)
-    return set
+  getUnitColor(name){
+    if (sensorRe.test(name)){
+      let primaryName = name.match(sensorRe)[1]
+      return this.getUnitColor(primaryName)
+    } else {
+      if (this.props.unitsColorMap){
+        return this.props.unitsColorMap[name]
+      } else {
+        return
+      }
+    }
   }
+
 
   createLegendEvents() {
     return [{
@@ -193,12 +165,16 @@ class Chart extends React.Component {
                 if (!this.state.hiddenSeries.has(props.datum.name)) {
                   // Was not already hidden => add to set
                   this.setState((prevState) => ({
-                    hiddenSeries: prevState.hiddenSeries.add(props.datum.name)
+                    hiddenSeries: new Set(prevState.hiddenSeries).add(props.datum.name)
                   }));
                 } else {
                   // remove from set
                   this.setState((prevState) => ({
-                    hiddenSeries: this.deleteAndReturnSet(prevState.hiddenSeries, props.datum.name)
+                    hiddenSeries: (() => {
+                      const newSet = new Set(prevState.hiddenSeries);
+                      newSet.delete(props.datum.name);
+                      return newSet;
+                      })()
                   }));
                 }
                 return null;
@@ -243,7 +219,7 @@ class Chart extends React.Component {
         const newSeriesMap = {...this.state.seriesMap, [key]:  {
           data: [{x: x_value, y: y_value}],
           name: key,
-          color: getColorFromName(key)
+          color: this.getUnitColor(key)
         }}
 
         this.setState({ seriesMap: newSeriesMap })

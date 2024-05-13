@@ -13,14 +13,16 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import { styled } from '@mui/material/styles';
 
-const StyledTableCell = styled(TableCell)(({ theme, level }) => ({
-  padding: "6px 6px 6px 10px",
-  fontSize: 13,
-  backgroundColor: level === "ERROR" ? "#ff7961" :
-                    level === "WARNING" ? "#FFEA8A" :
-                    level === "NOTICE" ? "#addcaf" : "white",
-  whiteSpace: "nowrap"
-}));
+const StyledTableCell = styled(TableCell)(({ theme, level }) => {
+  return {
+    padding: "6px 6px 6px 10px",
+    fontSize: 13,
+    backgroundColor: level === "ERROR" ? "#ff7961" :
+                      level === "WARNING" ? "#FFEA8A" :
+                      level === "NOTICE" ? "#addcaf" : "white",
+    whiteSpace: "normal"
+  };
+});
 
 const levelMappingToOrdinal = {
   NOTSET: 0,
@@ -63,6 +65,22 @@ function LogTable(props) {
     }
   }, [props.experiment, client]);
 
+  const relabelUnit = (unit) => {
+    return (props.relabelMap && props.relabelMap[unit]) ? `${props.relabelMap[unit]} / ${unit}` : unit;
+  };
+
+  const timestampCell = (timestamp) => {
+    const ts = moment.utc(timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]');
+    const localTs = ts.local();
+
+    if (props.byDuration) {
+      const deltaHours = Math.round(ts.diff(props.experimentStartTime, 'hours', true) * 1e2) / 1e2;
+      return <span title={localTs.format('YYYY-MM-DD HH:mm:ss.SS')}>{deltaHours} h</span>;
+    } else {
+      return <span title={localTs.format('YYYY-MM-DD HH:mm:ss.SS')}>{localTs.format('HH:mm:ss')}</span>;
+    }
+  };
+
   const onMessage = (topic, message, packet) => {
     const unit = topic.toString().split("/")[1];
     const payload = JSON.parse(message.toString());
@@ -104,9 +122,9 @@ function LogTable(props) {
               {listOfLogs.map(log => (
                 <TableRow key={log.key}>
                   <StyledTableCell level={log.level}>
-                    {moment.utc(log.timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]').local().format('HH:mm:ss')}
+                    {timestampCell(log.timestamp)}
                   </StyledTableCell>
-                  <StyledTableCell level={log.level}>{log.pioreactor_unit}</StyledTableCell>
+                  <StyledTableCell level={log.level}>{relabelUnit(log.pioreactor_unit)}</StyledTableCell>
                   <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
                   <StyledTableCell level={log.level}>{log.message}</StyledTableCell>
                 </TableRow>

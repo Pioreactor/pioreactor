@@ -15,14 +15,13 @@ import MenuItem from '@mui/material/MenuItem';
 import Checkbox from '@mui/material/Checkbox';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/Card';
-import {getConfig, getRelabelMap} from "./utilities"
+import {getConfig, getRelabelMap, colors, DefaultDict} from "./utilities"
 import GetAppIcon from '@mui/icons-material/GetApp';
 import { Link } from 'react-router-dom';
 
 // TODO:
 // figure out how to display lots of data from long-running experiments without breaking the thing,
 //
-
 
 
 
@@ -135,6 +134,7 @@ function ExperimentsContainer(props) {
   const [chartSelection, setChartSelection] = React.useState({})
   const [config, setConfig] = React.useState({})
   const [relabelMap, setRelabelMap] = React.useState({})
+  const unitsColorMap = new DefaultDict(colors)
 
 
   React.useEffect(() => {
@@ -241,6 +241,7 @@ function ExperimentsContainer(props) {
                         allowZoom={true}
                         isLiveChart={false}
                         byDuration={false}
+                        unitsColorMap={unitsColorMap}
                       />
                     </Grid>
                   </React.Fragment>

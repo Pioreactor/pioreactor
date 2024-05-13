@@ -71,3 +71,52 @@ export function runPioreactorJob(unit, experiment, job, args = [], options = {},
       }
     });
 }
+
+
+
+export class DefaultDict {
+  constructor(colors) {
+    this.colors = colors;
+    this.index = 0;
+    this.data = {};
+    return new Proxy(this, {
+      get: (target, property) => {
+        if (property in target.data) {
+          return target.data[property];
+        } else {
+          const color = target.colors[target.index];
+          target.index = (target.index + 1) % target.colors.length;
+          target.data[property] = color;
+          return color;
+        }
+      }
+    });
+  }
+}
+
+
+export const colors = [
+  "#0077BB",
+  "#009988",
+  "#CC3311",
+  "#33BBEE",
+  "#EE7733",
+  "#EE3377",
+  "#BBBBBB",
+  "#a6cee3",
+  "#1f78b4",
+  "#b2df8a",
+  "#33a02c",
+  "#fb9a99",
+  "#e31a1c",
+  "#fdbf6f",
+  "#ff7f00",
+  "#cab2d6",
+  "#6a3d9a",
+  "#ffff99",
+  "#b15928",
+  "#9ACD32",
+  "#40E0D0",
+  "#4682B4",
+  "#D473D4"
+];

@@ -15,15 +15,13 @@ import PioreactorIcon from "./PioreactorIcon"
 import { useMQTT } from '../providers/MQTTContext';
 
 
-function MediaCard({experiment, relabelMap}) {
+function MediaCard({experiment, relabelMap, activeUnits}) {
   const [mediaThroughputPerUnit, setMediaThroughputPerUnit] = useState({});
   const [altMediaThroughputPerUnit, setAltMediaThroughputPerUnit] = useState({});
   const [mediaThroughput, setMediaThroughput] = useState(0);
   const [altMediaThroughput, setAltMediaThroughput] = useState(0);
   const [rates, setRates] = useState({ all: { mediaRate: 0, altMediaRate: 0 } });
-  const [activeUnits, setActiveUnits] = useState([]);
   const {client, subscribeToTopic } = useMQTT();
-
 
   useEffect(() => {
     if (experiment && client) {
@@ -34,32 +32,18 @@ function MediaCard({experiment, relabelMap}) {
   }, [experiment, client]);
 
   useEffect(() => {
+    async function getRecentRates() {
+      const response = await fetch(`/api/experiments/${experiment}/media_rates`);
+      const data = await response.json();
+      setRates(data);
+    }
+
     if (experiment) {
       getRecentRates();
-      fetchWorkers();
     }
   }, [experiment]);
 
 
-  const fetchWorkers = async () => {
-    try {
-      const response = await fetch(`/api/experiments/${experiment}/workers`);
-      if (response.ok) {
-        const data = await response.json();
-        setActiveUnits(data.filter(worker => worker.is_active === 1).map(worker => worker.pioreactor_unit));
-      } else {
-        console.error('Failed to fetch workers:', response.statusText);
-      }
-    } catch (error) {
-      console.error('Error fetching workers:', error);
-    }
-  };
-
-  async function getRecentRates() {
-    const response = await fetch(`/api/experiments/${experiment}/media_rates`);
-    const data = await response.json();
-    setRates(data);
-  }
 
 
   function addOrUpdate(hash, object, value) {
@@ -111,7 +95,7 @@ function MediaCard({experiment, relabelMap}) {
           <Table size="small" aria-label="media throughput">
             <TableHead>
               <TableRow>
-                <TableCell style={{ padding: '6px 0px' }}></TableCell>
+                <TableCell style={{ padding: '6px 0px' }}>Unit</TableCell>
                 <TableCell style={{ padding: '6px 0px' }} align="right">
                   Media used
                 </TableCell>
@@ -123,7 +107,7 @@ function MediaCard({experiment, relabelMap}) {
             <TableBody>
               <TableRow key="all">
                 <TableCell style={{ padding: '6px 0px' }} component="th" scope="row">
-                  All Pioreactors
+                  <i>All Pioreactors</i>
                 </TableCell>
                 <TableCell align="right" style={{ fontSize: 13, padding: '6px 0px' }}>
                   {(mediaThroughput || 0).toFixed(1)}mL (~{rates.all.mediaRate.toFixed(1)}mL/h)
@@ -136,7 +120,7 @@ function MediaCard({experiment, relabelMap}) {
               {activeUnits.map((unit) => (
                 <TableRow key={unit}>
                   <TableCell style={{ padding: '6px 0px' }} component="th" scope="row">
-                    <PioreactorIcon style={{ fontSize: 14, verticalAlign: 'middle' }} color="inherit" />
+                    <PioreactorIcon style={{ fontSize: 14, verticalAlign: 'middle' }} />
                     {relabelUnit(unit)}
                   </TableCell>
                   <TableCell align="right" style={{ fontSize: 13, padding: '6px 0px' }}>
