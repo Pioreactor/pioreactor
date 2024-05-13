@@ -168,7 +168,7 @@ def get_pioreactor_version() -> tuple[int, int]:
 
     from pioreactor.config import config
 
-    return version_text_to_tuple(config.get("pioreactor", "version", fallback="0.0"))  # type: ignore
+    return version_text_to_tuple(config.get("pioreactor", "version", fallback="1.0"))  # type: ignore
 
 
 @cache
