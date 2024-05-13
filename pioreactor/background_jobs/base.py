@@ -338,12 +338,15 @@ class _BackgroundJob(metaclass=PostInitCaller):
         P.ready()
         C.on_ready()
         """
-        self.set_state(self.READY)
 
         with JobManager() as jm:
             self._jm_key = jm.register_and_set_running(
                 self.unit, self.experiment, self.job_name, self._job_source, getpid(), leader_hostname
             )
+
+        # setting READY should happen after we write to the job manager, since a job might do a long-running
+        # task in on_ready, which delays writing to the db, which means `pio kill` might not see it.
+        self.set_state(self.READY)
 
     def start_passive_listeners(self) -> None:
         # overwrite this to in subclasses to subscribe to topics in MQTT
