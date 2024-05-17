@@ -91,7 +91,7 @@ def _get_assigned_experiment_name(unit_name: str) -> str:
 
 @cache
 def is_active(unit_name: str) -> bool:
-    from pioreactor.config import leader_address
+    from pioreactor.pubsub import get_from_leader
 
     if os.environ.get("ACTIVE") == "1":
         return True
@@ -102,7 +102,7 @@ def is_active(unit_name: str) -> bool:
         return True
 
     try:
-        result = mureq.get(f"http://{leader_address}/api/workers/{unit_name}")
+        result = get_from_leader(f"/api/workers/{unit_name}")
         result.raise_for_status()
         data = result.json()
         return bool(data["is_active"])
