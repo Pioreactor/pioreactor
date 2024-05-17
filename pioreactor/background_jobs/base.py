@@ -674,9 +674,13 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.clean_up()
 
             if (reason == signal.SIGTERM) or (reason == getattr(signal, "SIGHUP", None)):
+                # wait for threads to clean up
+                sleep(1)
+
                 import sys
 
                 sys.exit()
+            return
 
         # signals only work in main thread - and if we set state via MQTT,
         # this would run in a thread - so just skip.
@@ -1203,8 +1207,3 @@ class BackgroundJobWithDodgingContrib(BackgroundJobWithDodging):
 
     def __init__(self, unit: str, experiment: str, plugin_name: str) -> None:
         super().__init__(unit=unit, experiment=experiment, source=plugin_name)
-
-
-if __name__ == "__main__":
-    # for testing
-    bj = _BackgroundJob("test", "test", "app")

@@ -479,7 +479,7 @@ def safe_kill(*args: int) -> None:
     from sh import kill  # type: ignore
 
     try:
-        kill("-2", *args)
+        kill(*args)
     except Exception:
         pass
 
@@ -600,14 +600,13 @@ class JobManager:
                     name, pid
                 FROM pio_job_metadata
                 WHERE is_running=1
-                AND name NOT IN {self.LONG_RUNNING_JOBS}
                 AND {where_clause};
             """
 
             # Execute the query and fetch the results
             self.cursor.execute(select_query, query)
 
-        else:
+        elif all_jobs:
             # Construct the SELECT query
             select_query = f"SELECT name, pid FROM pio_job_metadata WHERE is_running=1 AND name NOT IN {self.LONG_RUNNING_JOBS}"
 
@@ -615,9 +614,6 @@ class JobManager:
             self.cursor.execute(select_query)
 
         return self.cursor.fetchall()
-
-    def count_jobs(self, all_jobs: bool = False, **query) -> int:
-        return len(self._get_jobs(all_jobs, **query))
 
     def kill_jobs(self, all_jobs: bool = False, **query) -> int:
         # ex: kill_jobs(experiment="testing_exp") should return end all jobs with experiment='testing_exp'

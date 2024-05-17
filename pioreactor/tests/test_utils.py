@@ -214,6 +214,15 @@ def test_set_not_running(job_manager):
     assert job[0] == 0
 
 
+def test_can_kill_monitor_if_request(job_manager):
+    job_key = job_manager.register_and_set_running(
+        "test_unit", "test_experiment", "monitor", "test_source", 12345, "test_leader"
+    )
+    assert job_manager.kill_jobs(name="monitor") == 1
+    # clean up
+    job_manager.set_not_running(job_key)
+
+
 def test_is_job_running(job_manager):
     job_key = job_manager.register_and_set_running(
         "test_unit", "test_experiment", "test_name", "test_source", 12345, "test_leader"
@@ -221,16 +230,6 @@ def test_is_job_running(job_manager):
     assert job_manager.is_job_running("test_name") is True
     job_manager.set_not_running(job_key)
     assert job_manager.is_job_running("test_name") is False
-
-
-def test_count_jobs(job_manager):
-    job_key = job_manager.register_and_set_running(
-        "test_unit", "test_experiment", "test_name", "test_source", 12345, "test_leader"
-    )
-    assert job_manager.count_jobs(experiment="test_experiment") == 1
-    assert job_manager.count_jobs(experiment="nonexistent_experiment") == 0
-    assert job_manager.count_jobs(all_jobs=True) >= 1
-    job_manager.set_not_running(job_key)
 
 
 def test_kill_pumping(job_manager):
@@ -249,14 +248,14 @@ def test_kill_pumping(job_manager):
 
     subscribe_and_callback(collect, "pioreactor/testing_unit/+/add_media/$state/set")
 
-    job_manager.kill_jobs(name="add_media")
+    assert job_manager.kill_jobs(name="add_media") == 1
 
     sleep(0.5)
 
     assert len(collection) == 1
     assert collection[0] == "disconnected"
 
-    job_manager.kill_jobs(name="not_pumping")
+    assert job_manager.kill_jobs(name="not_pumping") == 1
 
     sleep(0.5)
     assert len(collection) == 1

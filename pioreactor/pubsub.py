@@ -10,11 +10,14 @@ from typing import Any
 from typing import Callable
 from typing import Optional
 
+from msgspec import Struct
 from msgspec.json import decode as loads
 from paho.mqtt.client import Client as PahoClient
 from paho.mqtt.enums import CallbackAPIVersion
 
+from pioreactor import mureq
 from pioreactor.config import config
+from pioreactor.config import leader_address
 from pioreactor.config import mqtt_address
 from pioreactor.types import MQTTMessage
 
@@ -135,7 +138,7 @@ def create_client(
         except (socket.gaierror, OSError):
             if retries == max_connection_attempts:
                 break
-            sleep(retries)
+            sleep(2 * retries)
         else:
             if not skip_loop:
                 client.loop_start()
@@ -361,3 +364,52 @@ class collect_all_logs_of_level:
         self.client.loop_stop()
         # disconnect from the broker
         self.client.disconnect()
+
+
+def get_from_leader(endpoint: str, **kwargs) -> mureq.Response:
+    assert endpoint.startswith("/api/") or endpoint.startswith("api/")
+
+    port = config.getint("ui", "port", fallback=80)
+    proto = config.get("ui", "proto", fallback="http")
+    endpoint = endpoint.removeprefix("/")
+    return mureq.get(f"{proto}://{leader_address}:{port}/{endpoint}", **kwargs)
+
+
+def put_into_leader(
+    endpoint: str, body: bytes | None = None, json: dict | Struct | None = None, **kwargs
+) -> mureq.Response:
+    assert endpoint.startswith("/api/") or endpoint.startswith("api/")
+
+    port = config.getint("ui", "port", fallback=80)
+    proto = config.get("ui", "proto", fallback="http")
+    endpoint = endpoint.removeprefix("/")
+    return mureq.put(f"{proto}://{leader_address}:{port}/{endpoint}", body=body, json=json, **kwargs)
+
+
+def patch_into_leader(
+    endpoint: str, body: bytes | None = None, json: dict | Struct | None = None, **kwargs
+) -> mureq.Response:
+    assert endpoint.startswith("/api/") or endpoint.startswith("api/")
+
+    port = config.getint("ui", "port", fallback=80)
+    proto = config.get("ui", "proto", fallback="http")
+    endpoint = endpoint.removeprefix("/")
+    return mureq.patch(f"{proto}://{leader_address}:{port}/{endpoint}", body=body, json=json, **kwargs)
+
+
+def post_into_leader(
+    endpoint: str, body: bytes | None = None, json: dict | Struct | None = None, **kwargs
+) -> mureq.Response:
+    assert endpoint.startswith("/api/") or endpoint.startswith("api/")
+    port = config.getint("ui", "port", fallback=80)
+    proto = config.get("ui", "proto", fallback="http")
+    endpoint = endpoint.removeprefix("/")
+    return mureq.post(f"{proto}://{leader_address}:{port}/{endpoint}", body=body, json=json, **kwargs)
+
+
+def delete_from_leader(endpoint: str, **kwargs) -> mureq.Response:
+    assert endpoint.startswith("/api/") or endpoint.startswith("api/")
+    port = config.getint("ui", "port", fallback=80)
+    proto = config.get("ui", "proto", fallback="http")
+    endpoint = endpoint.removeprefix("/")
+    return mureq.delete(f"{proto}://{leader_address}:{port}/{endpoint}", **kwargs)

@@ -108,7 +108,11 @@ def discover_workers_on_network(terminate: bool = False) -> Generator[str, None,
 
         def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
             info = zc.get_service_info(type_, name)
-            self.hostnames.put(info.server.removesuffix(".local."))  # type: ignore
+            try:
+                self.hostnames.put(info.server.removesuffix(".local."))  # type: ignore
+            except AttributeError:
+                # sometimes, we've seen info.server not exist, often when there is a problem with mdns reflections / duplications
+                pass
 
         def remove_service(self, *args, **kwargs):
             pass

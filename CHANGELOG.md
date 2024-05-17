@@ -1,3 +1,12 @@
+### Upcoming
+
+#### Bug fixes
+ - fix `pios plugins uninstall`
+ - fix leader not correctly being identified in `pio workers status`
+ - For RPi Zero (first gen), sometimes the load_rp2040 script was failing. A new script will retry a few times. This only applies to new images.
+ - fix `pio workers update-active`
+
+
 ### 24.5.13
 
 #### Enhancements

@@ -24,6 +24,7 @@ from pioreactor.cli.lazy_group import LazyGroup
 from pioreactor.logging import create_logger
 from pioreactor.mureq import get
 from pioreactor.mureq import HTTPException
+from pioreactor.pubsub import get_from_leader
 from pioreactor.utils import JobManager
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistant_storage
@@ -173,7 +174,7 @@ def kill(name: str | None, experiment: str | None, job_source: str | None, all_j
         raise click.Abort("Provide an option to kill.")
     with JobManager() as jm:
         count = jm.kill_jobs(all_jobs=all_jobs, name=name, experiment=experiment, job_source=job_source)
-    click.echo(f"Killed {count} job{'s' if count == 1 else ''}.")
+    click.echo(f"Killed {count} job{'s' if count != 1 else ''}.")
 
 
 @pio.command(name="version", short_help="print the Pioreactor software version")
@@ -199,7 +200,7 @@ def version(verbose: bool) -> None:
         click.echo(f"Image version:          {whoami.get_image_git_hash()}")
         if whoami.am_I_leader():
             try:
-                result = get("http://127.0.0.1/api/versions/ui")
+                result = get_from_leader("api/versions/ui")
                 result.raise_for_status()
                 ui_version = result.body.decode()
             except Exception:

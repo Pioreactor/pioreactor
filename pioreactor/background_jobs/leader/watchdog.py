@@ -28,6 +28,7 @@ class WatchDog(LongRunningBackgroundJob):
         threading.Thread(target=self.announce_new_workers, daemon=True).start()
 
     def announce_new_workers(self) -> None:
+        time.sleep(10)  # wait for the web server to be available
         for worker in discover_workers_on_network():
             # not in current cluster, and not leader
             if (worker not in get_workers_in_inventory()) and (worker != get_leader_hostname()):
@@ -35,11 +36,11 @@ class WatchDog(LongRunningBackgroundJob):
                 # a new worker doesn't have the leader_address, so it won't connect to the leaders MQTT.
                 result = subscribe(
                     f"pioreactor/{worker}/{UNIVERSAL_EXPERIMENT}/monitor/$state",
-                    timeout=5,
+                    timeout=3,
                     name=self.job_name,
                     retries=1,
                 )
-                if result is None:
+                if result is None or result.payload.decode() == self.LOST:
                     self.logger.notice(  # type: ignore
                         f"Pioreactor worker, {worker}, is available to be added to your cluster."
                     )

@@ -28,7 +28,7 @@ from pioreactor.hardware import is_HAT_present
 from pioreactor.hardware import PCB_BUTTON_PIN as BUTTON_PIN
 from pioreactor.hardware import PCB_LED_PIN as LED_PIN
 from pioreactor.hardware import TEMP
-from pioreactor.mureq import get
+from pioreactor.pubsub import get_from_leader
 from pioreactor.pubsub import QOS
 from pioreactor.structs import Voltage
 from pioreactor.types import MQTTMessage
@@ -353,7 +353,7 @@ class Monitor(LongRunningBackgroundJob):
         retries = 5
         while attempt < retries:
             attempt += 1
-            res = get("http://localhost/api/experiments/latest")
+            res = get_from_leader("/api/experiments/latest")
             if res.ok:
                 break
             sleep(1.0)
@@ -424,7 +424,6 @@ class Monitor(LongRunningBackgroundJob):
 2. Is the Pioreactor leader online and responsive?
 """
             )  # remember, this doesn't get published to leader...
-            self.logger.debug(f"{error_code_pc=}, {error_code_sc=}")
 
             # self.set_state(self.LOST)
             self.flicker_led_with_error_code(error_codes.MQTT_CLIENT_NOT_CONNECTED_TO_LEADER)

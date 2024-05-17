@@ -13,12 +13,11 @@ from msgspec.json import encode
 from msgspec.yaml import decode
 
 from pioreactor.cluster_management import get_active_workers_in_experiment
-from pioreactor.config import leader_address
 from pioreactor.experiment_profiles import profile_struct as struct
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
-from pioreactor.mureq import put
 from pioreactor.pubsub import publish
+from pioreactor.pubsub import put_into_leader
 from pioreactor.utils import ClusterJobManager
 from pioreactor.utils import managed_lifecycle
 from pioreactor.utils.timing import current_utc_timestamp
@@ -524,10 +523,8 @@ def load_and_verify_profile(profile_filename: str) -> struct.Profile:
 def push_labels_to_ui(experiment, labels_map: dict[str, str]) -> None:
     try:
         for unit_name, label in labels_map.items():
-            put(
-                f"http://{leader_address}/api/experiments/{experiment}/unit_labels",
-                encode({"unit": unit_name, "label": label}),
-                headers={"Content-Type": "application/json"},
+            put_into_leader(
+                f"/api/experiments/{experiment}/unit_labels", json={"unit": unit_name, "label": label}
             )
     except Exception:
         pass

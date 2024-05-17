@@ -29,8 +29,8 @@ from pioreactor.config import config
 from pioreactor.config import leader_address
 from pioreactor.hardware import voltage_in_aux
 from pioreactor.logging import create_logger
-from pioreactor.mureq import patch
-from pioreactor.mureq import put
+from pioreactor.pubsub import patch_into_leader
+from pioreactor.pubsub import put_into_leader
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import managed_lifecycle
 from pioreactor.utils.math_helpers import correlation
@@ -410,11 +410,7 @@ def publish_to_leader(name: str) -> bool:
         )
 
     try:
-        res = put(
-            f"http://{leader_address}/api/calibrations",
-            encode(calibration_result),
-            headers={"Content-Type": "application/json"},
-        )
+        res = put_into_leader("/api/calibrations", json=calibration_result)
         res.raise_for_status()
     except Exception:
         success = False
@@ -583,8 +579,8 @@ def change_current(name: str) -> bool:
             current_calibrations[pump_type_from_new_calibration] = encode(new_calibration)
 
         try:
-            res = patch(
-                f"http://{leader_address}/api/calibrations/{get_unit_name()}/{new_calibration.type}/{new_calibration.name}",
+            res = patch_into_leader(
+                f"/api/calibrations/{get_unit_name()}/{new_calibration.type}/{new_calibration.name}",
                 json={"current": 1},
             )
             res.raise_for_status()

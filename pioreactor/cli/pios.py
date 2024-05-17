@@ -360,7 +360,7 @@ if am_I_leader():
 
         logger = create_logger("uninstall_plugin", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
-        command = f"pio plugin uninstall {quote(plugin)}"
+        command = f"pio plugins uninstall {quote(plugin)}"
         units = add_leader(universal_identifier_to_all_workers(units))
 
         if not y:

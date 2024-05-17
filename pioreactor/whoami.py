@@ -10,6 +10,7 @@ from functools import cache
 from pioreactor import mureq
 from pioreactor.exc import NotAssignedAnExperimentError
 from pioreactor.exc import NoWorkerFoundError
+from pioreactor.pubsub import get_from_leader
 from pioreactor.version import serial_number
 from pioreactor.version import version_text_to_tuple
 
@@ -53,7 +54,7 @@ def _get_assigned_experiment_name(unit_name: str) -> str:
 
     for attempt in range(retries):
         try:
-            result = mureq.get(f"http://{leader_address}/api/workers/{unit_name}/experiment")
+            result = get_from_leader(f"/api/workers/{unit_name}/experiment")
             result.raise_for_status()
             data = result.json()
             return data["experiment"]

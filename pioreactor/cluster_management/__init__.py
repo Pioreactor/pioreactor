@@ -11,34 +11,35 @@ from msgspec.json import encode as dumps
 
 from pioreactor import whoami
 from pioreactor.config import leader_address
+from pioreactor.config import leader_hostname
 from pioreactor.exc import BashScriptError
 from pioreactor.logging import create_logger
-from pioreactor.mureq import delete
-from pioreactor.mureq import get
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
-from pioreactor.mureq import put
+from pioreactor.pubsub import delete_from_leader
+from pioreactor.pubsub import get_from_leader
+from pioreactor.pubsub import put_into_leader
 from pioreactor.utils import networking
 from pioreactor.utils.timing import catchtime
 
 
 def get_workers_in_inventory() -> tuple[str, ...]:
-    result = get(f"http://{leader_address}/api/workers")
+    result = get_from_leader("/api/workers")
     return tuple(worker["pioreactor_unit"] for worker in result.json())
 
 
 def get_active_workers_in_inventory() -> tuple[str, ...]:
-    result = get(f"http://{leader_address}/api/workers")
+    result = get_from_leader("/api/workers")
     return tuple(worker["pioreactor_unit"] for worker in result.json() if bool(worker["is_active"]))
 
 
 def get_workers_in_experiment(experiment: str) -> tuple[str, ...]:
-    result = get(f"http://{leader_address}/api/experiments/{experiment}/workers")
+    result = get_from_leader(f"/api/experiments/{experiment}/workers")
     return tuple(worker["pioreactor_unit"] for worker in result.json())
 
 
 def get_active_workers_in_experiment(experiment: str) -> tuple[str, ...]:
-    result = get(f"http://{leader_address}/api/experiments/{experiment}/workers")
+    result = get_from_leader(f"/api/experiments/{experiment}/workers")
     return tuple(worker["pioreactor_unit"] for worker in result.json() if bool(worker["is_active"]))
 
 
@@ -102,10 +103,9 @@ def add_worker(hostname: str, password: str, version: str, model: str) -> None:
             raise BashScriptError(res.stderr)
 
     try:
-        result = put(
-            f"http://{leader_address}/api/workers",
-            dumps({"pioreactor_unit": hostname}),
-            headers={"Content-Type": "application/json"},
+        result = put_into_leader(
+            "/api/workers",
+            json={"pioreactor_unit": hostname},
         )
         result.raise_for_status()
     except HTTPErrorStatus:
@@ -122,7 +122,7 @@ def add_worker(hostname: str, password: str, version: str, model: str) -> None:
 @click.argument("hostname")
 def remove_worker(hostname: str) -> None:
     try:
-        r = delete(f"http://{leader_address}/api/workers/{hostname}")
+        r = delete_from_leader(f"/api/workers/{hostname}")
         r.raise_for_status()
     except HTTPErrorStatus:
         click.echo(f"Worker {hostname} not present to be removed. Check hostname.")
@@ -139,8 +139,8 @@ def remove_worker(hostname: str) -> None:
 @click.argument("experiment")
 def assign_worker_to_experiment(hostname: str, experiment: str) -> None:
     try:
-        r = put(
-            f"http://{leader_address}/api/experiments/{experiment}/workers",
+        r = put_into_leader(
+            f"/api/experiments/{experiment}/workers",
             json={"pioreactor_unit": hostname},
         )
         r.raise_for_status()
@@ -159,8 +159,8 @@ def assign_worker_to_experiment(hostname: str, experiment: str) -> None:
 @click.argument("experiment")
 def unassign_worker_from_experiment(hostname: str, experiment: str) -> None:
     try:
-        r = delete(
-            f"http://{leader_address}/api/experiments/{experiment}/workers/{hostname}",
+        r = delete_from_leader(
+            f"/api/experiments/{experiment}/workers/{hostname}",
         )
         r.raise_for_status()
     except HTTPErrorStatus:
@@ -178,8 +178,8 @@ def unassign_worker_from_experiment(hostname: str, experiment: str) -> None:
 @click.argument("active", type=int)
 def update_active(hostname: str, active: int) -> None:
     try:
-        r = delete(
-            f"http://{leader_address}/api//workers/{hostname}/is_active",
+        r = put_into_leader(
+            f"/api/workers/{hostname}/is_active",
             json={"is_active": active},
         )
         r.raise_for_status()
@@ -252,7 +252,7 @@ def cluster_status() -> None:
 
         # get experiment
         try:
-            result = get(f"http://{leader_address}/api/workers/{hostname}/experiment")
+            result = get_from_leader(f"/api/workers/{hostname}/experiment")
             experiment = result.json()["experiment"]
         except Exception:
             experiment = ""
@@ -267,7 +267,7 @@ def cluster_status() -> None:
         statef = click.style(f"{state:15s}", fg="green" if state in ("ready", "init") else "red")
         ipf = f"{ip if (ip is not None) else 'unknown':20s}"
 
-        is_leaderf = f"{('Y' if hostname==leader_address else 'N'):15s}"
+        is_leaderf = f"{('Y' if hostname==leader_hostname else 'N'):15s}"
         hostnamef = f"{hostname:20s}"
         reachablef = f"{(click.style('Y', fg='green') if reachable else click.style('N', fg='red')):23s}"
         versionf = f"{version:15s}"
@@ -279,7 +279,7 @@ def cluster_status() -> None:
         )
         return reachable & (state == "ready")
 
-    workers = get(f"http://{leader_address}/api/workers").json()
+    workers = get_from_leader("/api/workers").json()
     n_workers = len(workers)
 
     click.secho(

@@ -27,8 +27,8 @@ from pioreactor.background_jobs.stirring import start_stirring as stirring
 from pioreactor.background_jobs.stirring import Stirrer
 from pioreactor.config import config
 from pioreactor.config import leader_address
-from pioreactor.mureq import patch
-from pioreactor.mureq import put
+from pioreactor.pubsub import patch_into_leader
+from pioreactor.pubsub import put_into_leader
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import managed_lifecycle
@@ -640,11 +640,7 @@ def publish_to_leader(name: str) -> bool:
         )
 
     try:
-        res = put(
-            f"http://{leader_address}/api/calibrations",
-            encode(calibration_result),
-            headers={"Content-Type": "application/json"},
-        )
+        res = put_into_leader("/api/calibrations", json=calibration_result)
         if not res.ok:
             success = False
     except Exception as e:
@@ -676,8 +672,8 @@ def change_current(name: str) -> None:
             current_calibrations[angle] = encode(new_calibration)
 
         try:
-            res = patch(
-                f"http://{leader_address}/api/calibrations/{get_unit_name()}/{new_calibration.type}/{new_calibration.name}",
+            res = patch_into_leader(
+                f"/api/calibrations/{get_unit_name()}/{new_calibration.type}/{new_calibration.name}",
                 json={"current": 1},
             )
             if not res.ok:
