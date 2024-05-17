@@ -22,26 +22,6 @@ from pioreactor.config import mqtt_address
 from pioreactor.types import MQTTMessage
 
 
-class MQTT_TOPIC:
-    def __init__(self, init: str):
-        self.body = init
-
-    def __truediv__(self, other: str | MQTT_TOPIC) -> MQTT_TOPIC:
-        return MQTT_TOPIC(self.body + "/" + str(other))
-
-    def __str__(self) -> str:
-        return self.body
-
-    def __repr__(self) -> str:
-        return str(self)
-
-    def __iter__(self):
-        return iter(str(self))
-
-
-PIOREACTOR = MQTT_TOPIC("pioreactor")
-
-
 def add_hash_suffix(s: str) -> str:
     """Adds random 4-character hash to the end of a string.
 
@@ -346,7 +326,7 @@ class collect_all_logs_of_level:
 
         self.client: Client = subscribe_and_callback(
             self._collect_logs_into_bucket,
-            str(PIOREACTOR / self.unit / self.experiment / "logs" / "app"),
+            f"pioreactor/{self.unit}/{self.experiment}/logs/app",
         )
 
     def _collect_logs_into_bucket(self, message):
