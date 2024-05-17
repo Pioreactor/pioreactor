@@ -22,7 +22,6 @@ from pioreactor.exc import NotActiveWorkerError
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
-from pioreactor.pubsub import MQTT_TOPIC
 from pioreactor.pubsub import QOS
 from pioreactor.pubsub import subscribe
 from pioreactor.utils import append_signal_handlers
@@ -427,7 +426,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def subscribe_and_callback(
         self,
         callback: t.Callable[[pt.MQTTMessage], None],
-        subscriptions: list[str | MQTT_TOPIC] | str | MQTT_TOPIC,
+        subscriptions: list[str] | str,
         allow_retained: bool = True,
         qos: int = QOS.EXACTLY_ONCE,
     ) -> None:
