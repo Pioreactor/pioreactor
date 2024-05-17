@@ -10,7 +10,6 @@ from functools import cache
 from pioreactor import mureq
 from pioreactor.exc import NotAssignedAnExperimentError
 from pioreactor.exc import NoWorkerFoundError
-from pioreactor.pubsub import get_from_leader
 from pioreactor.version import serial_number
 from pioreactor.version import version_text_to_tuple
 
@@ -40,6 +39,7 @@ def get_assigned_experiment_name(unit_name: str) -> str:
 
 
 def _get_assigned_experiment_name(unit_name: str) -> str:
+    from pioreactor.pubsub import get_from_leader
     from pioreactor.logging import create_logger
 
     if os.environ.get("EXPERIMENT") is not None:

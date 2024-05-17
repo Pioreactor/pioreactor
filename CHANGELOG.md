@@ -5,7 +5,12 @@
  - fix leader not correctly being identified in `pio workers status`
  - For RPi Zero (first gen), sometimes the load_rp2040 script was failing. A new script will retry a few times. This only applies to new images.
  - fix `pio workers update-active`
-
+ - adding support for changing the port and protocol of the Pioreactor UI webserver in the software. Add the following to your config.ini:
+    ```
+    [ui]
+    port=80
+    proto=http
+    ```
 
 ### 24.5.13
 

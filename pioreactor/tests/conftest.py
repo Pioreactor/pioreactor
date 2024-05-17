@@ -54,26 +54,28 @@ def active_workers_in_cluster():
 @pytest.fixture(autouse=True)
 def mock_external_leader_webserver_apis(mocker, active_workers_in_cluster):
     # used mostly in pioreactor.config.py
-    def mock_get_response(url):
-        if url.endswith("/api/workers"):
+    def mock_get_response(endpoint):
+        if endpoint.endswith("/api/workers"):
             mm = MagicMock()
             mm.json.return_value = [
                 {"pioreactor_unit": unit, "is_active": 1} for unit in active_workers_in_cluster
             ] + [{"pioreactor_unit": "notactiveworker", "is_active": 0}]
             return mm
-        elif re.search("/api/experiments/.*/workers", url):
+        elif re.search("/api/experiments/.*/workers", endpoint):
             mm = MagicMock()
             mm.json.return_value = [
                 {"pioreactor_unit": unit, "is_active": 1} for unit in active_workers_in_cluster
             ]
             return mm
-        elif re.search("/api/workers/.*/experiment", url):
+        elif re.search("/api/workers/.*/experiment", endpoint):
             mm = MagicMock()
             mm.json.return_value = {"experiment": "_testing_experiment"}
             return mm
         else:
-            raise ValueError(f"{url} not mocked")
+            raise ValueError(f"{endpoint} not mocked")
 
-    mock_get = mocker.patch("pioreactor.cluster_management.get", autospec=True, side_effect=mock_get_response)
+    mock_get = mocker.patch(
+        "pioreactor.cluster_management.get_from_leader", autospec=True, side_effect=mock_get_response
+    )
 
     return mock_get
