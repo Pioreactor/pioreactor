@@ -378,7 +378,7 @@ class Stirrer(BackgroundJob):
 
         return self.measured_rpm
 
-    def poll_and_update_dc(self, poll_for_seconds: Optional[float]) -> None:
+    def poll_and_update_dc(self, poll_for_seconds: Optional[float] = None) -> None:
         if self.rpm_calculator is None or self.target_rpm is None:
             return
 
