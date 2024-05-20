@@ -474,7 +474,7 @@ def click_self_test(k: Optional[str]) -> int:
         test_positive_correlation_between_rpm_and_stirring,
     )
 
-    with managed_lifecycle(unit, testing_experiment, "self_test") as state:
+    with managed_lifecycle(unit, experiment, "self_test") as state:
         client = state.mqtt_client
         if any(
             is_pio_job_running(

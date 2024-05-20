@@ -300,7 +300,9 @@ class Stirrer(BackgroundJob):
                 self.rpm_calculator.clean_up()
 
     def start_stirring(self) -> None:
-        self.logger.debug(f"Starting stirring with {self.target_rpm} RPM.")
+        self.logger.debug(
+            f"Starting stirring with {'no' if self.target_rpm is None  else  self.target_rpm} RPM."
+        )
         self.pwm.start(100)  # get momentum to start
         sleep(0.35)
         self.set_duty_cycle(self.duty_cycle)
