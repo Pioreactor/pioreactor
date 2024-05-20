@@ -214,7 +214,7 @@ def test_all_positive_correlations_between_pds_and_leds(
             )
 
     client.publish(
-        f"pioreactor/{unit}/{get_assigned_experiment_name()}/self_test/correlations_between_pds_and_leds",
+        f"pioreactor/{unit}/{get_assigned_experiment_name(unit)}/self_test/correlations_between_pds_and_leds",
         dumps(detected_relationships),
         retain=True,
     )
@@ -228,7 +228,7 @@ def test_all_positive_correlations_between_pds_and_leds(
             pd_channels_to_test.append(channel)
 
     for ir_pd_channel in pd_channels_to_test:
-        assert results[(ir_led_channel, ir_pd_channel)] > 0.9, f"missing {ir_led_channel} ⇝ {ir_pd_channel}"
+        assert results[(ir_led_channel, ir_pd_channel)] > 0.90, f"missing {ir_led_channel} ⇝ {ir_pd_channel}"
 
 
 def test_ambient_light_interference(client: Client, logger: CustomLogger, unit: str, experiment: str) -> None:
