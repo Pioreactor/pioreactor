@@ -616,9 +616,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         # the client connects async, but we want it to be connected before adding
         # our reconnect callback
-        for _ in range(2000):
+        for _ in range(200):
             if not client.is_connected():
-                sleep(0.001)
+                sleep(0.01)
             else:
                 break
 

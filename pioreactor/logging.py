@@ -111,9 +111,9 @@ class MQTTHandler(logging.Handler):
         payload = self.format(record)
 
         attempts = 0
-        max_attempts = 3
+        max_attempts = 10
         while not self.client.is_connected() and attempts < max_attempts:
-            sleep(0.1)
+            sleep(0.01)
             attempts += 1
             if attempts == max_attempts:
                 return
