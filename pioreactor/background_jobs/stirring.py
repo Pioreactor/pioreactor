@@ -315,7 +315,7 @@ class Stirrer(BackgroundJob):
         self.set_duty_cycle(0)
         sleep(0.30)
         self.set_duty_cycle(100)
-        sleep(0.30)
+        sleep(0.5)
         self.set_duty_cycle(
             min(1.01 * _existing_duty_cycle, 60)
         )  # DC should never need to be above 60 - simply not realistic. We want to avoid the death spiral to 100%.
