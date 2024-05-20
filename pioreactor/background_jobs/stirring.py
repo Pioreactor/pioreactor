@@ -302,9 +302,8 @@ class Stirrer(BackgroundJob):
     def start_stirring(self) -> None:
         self.logger.debug(f"Starting stirring with {self.target_rpm} RPM.")
         self.pwm.start(100)  # get momentum to start
-        sleep(0.30)
+        sleep(0.35)
         self.set_duty_cycle(self.duty_cycle)
-        sleep(0.50)
         if self.rpm_calculator is not None:
             self.rpm_check_repeated_thread.start()  # .start is idempotent
 
@@ -314,10 +313,10 @@ class Stirrer(BackgroundJob):
         self.set_duty_cycle(0)
         sleep(0.30)
         self.set_duty_cycle(100)
-        sleep(0.15)
+        sleep(0.30)
         self.set_duty_cycle(
-            min(1.01 * _existing_duty_cycle, 50)
-        )  # DC should never need to be above 50 - simply not realistic. We want to avoid the death spiral to 100%.
+            min(1.01 * _existing_duty_cycle, 60)
+        )  # DC should never need to be above 60 - simply not realistic. We want to avoid the death spiral to 100%.
 
     def kick_stirring_but_avoid_od_reading(self) -> None:
         """
@@ -366,7 +365,7 @@ class Stirrer(BackgroundJob):
 
         if recent_rpm == 0 and self.state == self.READY:  # and not is_testing_env():
             self.logger.warning(
-                "Stirring RPM is 0 - attempting to restart it automatically. It may be a temporary stall, target RPM may be too low, or not reading sensor correctly."
+                "Stirring RPM is 0 - attempting to restart it automatically. It may be a temporary stall, target RPM may be too low, power not applied to fan, or not reading sensor correctly."
             )
             self.blink_error_code(error_codes.STIRRING_FAILED)
 
@@ -379,14 +378,16 @@ class Stirrer(BackgroundJob):
 
         return self.measured_rpm
 
-    def poll_and_update_dc(self, poll_for_seconds: Optional[float] = None) -> None:
+    def poll_and_update_dc(self, poll_for_seconds: Optional[float]) -> None:
+        if self.rpm_calculator is None or self.target_rpm is None:
+            return
+
         if poll_for_seconds is None:
-            if self.target_rpm is None:
-                poll_for_seconds = 4.0  # this never runs? If target_rpm is None, what are we polling for?
-            else:
-                target_n_data_points = 12
-                rps = self.target_rpm / 60.0
-                poll_for_seconds = target_n_data_points / rps
+            target_n_data_points = 12
+            rps = self.target_rpm / 60.0
+            poll_for_seconds = target_n_data_points / rps
+        else:
+            poll_for_seconds = 4.0
 
         self.poll(poll_for_seconds)
 
@@ -438,12 +439,12 @@ class Stirrer(BackgroundJob):
 
         """
 
-        if self.rpm_calculator is None:  # or is_testing_env():
+        if self.rpm_calculator is None or self.target_rpm is None:  # or is_testing_env():
             # can't block if we aren't recording the RPM
             return False
 
         sleep_time = 0.2
-        poll_time = 2  # usually 4, but we don't need high accuracy here,
+        poll_time = 2.0  # usually 4, but we don't need high accuracy here,
         self.logger.debug(f"{self.job_name} is blocking until RPM is near {self.target_rpm}.")
 
         self.rpm_check_repeated_thread.pause()

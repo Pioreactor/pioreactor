@@ -1,16 +1,22 @@
 ### Upcoming
 
-#### Bug fixes
- - fix `pios plugins uninstall`
- - fix leader not correctly being identified in `pio workers status`
- - For RPi Zero (first gen), sometimes the load_rp2040 script was failing. A new script will retry a few times. This only applies to new images.
- - fix `pio workers update-active`
+#### Enhancements
+ - Significant performance increase by using `force_turbo=1` in the Raspberry Pi. Expect a noticeable improvement in interacting with the Pioreactor. This pushes the Pi to always run "hot" (but we aren't overclocking). This does slightly increase the Pi's internal temperature, so be wary about putting the Pioreactor in very hot environment. _This settings requires a reboot to take affect._
  - adding support for changing the port and protocol of the Pioreactor UI webserver in the software. Add the following to your config.ini:
     ```
     [ui]
     port=80
     proto=http
     ```
+   This doesn't _set_ the port and proto, that involves changing settings in the lighttpd configuration.
+
+#### Bug fixes
+ - fix `pios plugins uninstall`
+ - fix leader not correctly being identified in `pio workers status`
+ - For RPi Zero W (first gen), sometimes the load_rp2040 script was failing. A new script will retry a few times. This only applies to new images.
+ - fix `pio workers update-active` using the wrong HTTP verb.
+ - When the local access point would start on a fresh boot, the SSID would start as `pioreactor`, and then change to `pioreactor-<leader-name>` after the next reboot. Now, this will now always be `pioreactor-<leader-name>`.
+ - Fix using ethernet cable to connect Pioreactor to a router: a new simple ethernet nmconnection has been added, and has higher connection priority than the PioreactorLocalLink nmconnection.
 
 ### 24.5.13
 

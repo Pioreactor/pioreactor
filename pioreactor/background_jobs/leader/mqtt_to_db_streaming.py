@@ -48,6 +48,9 @@ class TopicToParserToTable(Struct):
     parser: Callable[[str, pt.MQTTMessagePayload], Optional[dict | list[dict]]]
     table: str
 
+    def __repr__(self):
+        return f"TopicToParserToTable(topic='{self.topic}', table='{self.table}', parser=...)"
+
 
 class TopicToCallback(Struct):
     topic: str | list[str]

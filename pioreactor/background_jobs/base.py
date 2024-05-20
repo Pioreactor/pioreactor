@@ -418,6 +418,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
         This will convert the payload to a json blob if MQTT does not allow its original type.
         """
 
+        # don't publish if it's some internal testing exp, like self_test
+        if self.experiment.startswith("_testing_"):
+            return
+
         if not isinstance(payload, (str, bytearray, bytes, int, float)) and (payload is not None):
             payload = dumps(payload)
 
@@ -919,7 +923,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         state_in_broker = message.payload.decode()
         if state_in_broker == self.LOST and state_in_broker != self.state:
-            self.logger.debug(f"Wrong state {state_in_broker} in broker - fixing by publishing {self.state}")
+            self.logger.debug(f"Wrong state {state_in_broker} in broker - fixing by publishing {self.state}.")
+            sleep(5)
             self._publish_attr("state")
 
     def _clear_mqtt_cache(self) -> None:

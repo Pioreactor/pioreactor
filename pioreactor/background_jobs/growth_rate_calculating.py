@@ -558,10 +558,6 @@ def click_growth_rate_calculating(ctx, ignore_cache):
     Start calculating growth rate
     """
     if ctx.invoked_subcommand is None:
-        import os
-
-        os.nice(1)
-
         unit = whoami.get_unit_name()
         experiment = whoami.get_assigned_experiment_name(unit)
 

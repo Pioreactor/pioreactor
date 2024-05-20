@@ -143,9 +143,6 @@ def click_led_control(ctx, automation_name, duration, skip_first_run):
     """
     Start an LED automation
     """
-    import os
-
-    os.nice(1)
 
     lc = start_led_control(
         automation_name=automation_name,

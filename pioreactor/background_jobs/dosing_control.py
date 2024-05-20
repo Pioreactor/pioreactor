@@ -186,10 +186,6 @@ def click_dosing_control(
     """
     Start a dosing automation
     """
-    import os
-
-    os.nice(1)
-
     dc = start_dosing_control(
         automation_name=automation_name,
         duration=duration,

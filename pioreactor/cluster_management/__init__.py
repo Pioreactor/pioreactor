@@ -82,7 +82,7 @@ def add_worker(hostname: str, password: str, version: str, model: str) -> None:
                     click.echo(f"`{hostname}` not found on network - checking again.")
                     if checks >= max_checks:
                         logger.error(
-                            f"`{hostname}` not found on network after {round(elapsed())} seconds. Check that you provided the right i) WiFi credentials to the network, ii) the hostname is correct, the iii) worker is turned on."
+                            f"`{hostname}` not found on network after {round(elapsed())} seconds. Check that you provided the right i) the name is correct, ii) worker is powered on, iii) any WiFi credentials to the network are correct."
                         )
                         raise click.Abort()
 

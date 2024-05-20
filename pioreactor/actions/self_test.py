@@ -182,7 +182,7 @@ def test_all_positive_correlations_between_pds_and_leds(
                     if avg_reading[pd_channel] >= 2.0:
                         # we are probably going to saturate the PD - clearly we are detecting something though!
                         logger.debug(
-                            f"Saw {avg_reading:.2f} for pair {pd_channel=}, {led_channel=}@{intensity=} . Saturation possible. No solution implemented yet! See issue #445"
+                            f"Saw {avg_reading[pd_channel]:.2f} for pair pd_channel={pd_channel}, led_channel={led_channel}@intensity={intensity}. Saturation possible. No solution implemented yet! See issue #445"
                         )
 
         # compute the linear correlation between the intensities and observed PD measurements
@@ -214,7 +214,7 @@ def test_all_positive_correlations_between_pds_and_leds(
             )
 
     client.publish(
-        f"pioreactor/{unit}/{experiment}/self_test/correlations_between_pds_and_leds",
+        f"pioreactor/{unit}/{get_assigned_experiment_name()}/self_test/correlations_between_pds_and_leds",
         dumps(detected_relationships),
         retain=True,
     )
@@ -289,7 +289,7 @@ def test_REF_is_lower_than_0_dot_256_volts(
 
         assert (
             0.05 < mean(samples) < 0.256
-        ), f"Recorded {mean(samples)} in REF, should ideally be between 0.05 and 0.256. Current IR LED: {ir_intensity}%."
+        ), f"Recorded {mean(samples):0.3f} in REF, should ideally be between 0.05 and 0.256. Current IR LED: {ir_intensity}%."
 
         # also check for stability: the std. of the reference should be quite low:
         assert variance(samples) < 1e-2, f"Too much noise in REF channel, observed {variance(samples)}."
@@ -409,10 +409,11 @@ def test_positive_correlation_between_rpm_and_stirring(
 
 
 class BatchTestRunner:
-    def __init__(self, tests_to_run: list[Callable], *test_func_args) -> None:
+    def __init__(self, tests_to_run: list[Callable], *test_func_args, experiment: str) -> None:
         self.count_tested = 0
         self.count_passed = 0
         self.tests_to_run = tests_to_run
+        self.experiment = experiment
         self._thread = Thread(target=self._run, args=test_func_args)  # don't make me daemon: 295
 
     def start(self):
@@ -423,13 +424,13 @@ class BatchTestRunner:
         self._thread.join()
         return SummableDict({"count_tested": self.count_tested, "count_passed": self.count_passed})
 
-    def _run(self, client, logger: CustomLogger, unit: str, experiment_name: str) -> None:
+    def _run(self, client, logger: CustomLogger, unit: str, testing_experiment: str) -> None:
         for test in self.tests_to_run:
             res = False
             test_name = test.__name__
 
             try:
-                test(client, logger, unit, experiment_name)
+                test(client, logger, unit, testing_experiment)
                 res = True
             except Exception as e:
                 logger.debug(e, exc_info=True)
@@ -441,7 +442,7 @@ class BatchTestRunner:
             self.count_passed += int(res)
 
             client.publish(
-                f"pioreactor/{unit}/{experiment_name}/self_test/{test_name}",
+                f"pioreactor/{unit}/{self.experiment}/self_test/{test_name}",
                 int(res),
                 retain=True,
             )
@@ -500,22 +501,26 @@ def click_self_test(k: Optional[str]) -> int:
         # and clear the mqtt cache first
         for f in functions_to_test:
             client.publish(
-                f"pioreactor/{unit}/{testing_experiment}/self_test/{f.__name__}",
+                f"pioreactor/{unit}/{experiment}/self_test/{f.__name__}",
                 None,
                 retain=True,
             )
 
         # some tests can be run in parallel.
         test_args = (client, logger, unit, testing_experiment)
-        RunnerA = BatchTestRunner([f for f in A_TESTS if f in functions_to_test], *test_args).start()
-        RunnerB = BatchTestRunner([f for f in B_TESTS if f in functions_to_test], *test_args).start()
+        RunnerA = BatchTestRunner(
+            [f for f in A_TESTS if f in functions_to_test], *test_args, experiment=experiment
+        ).start()
+        RunnerB = BatchTestRunner(
+            [f for f in B_TESTS if f in functions_to_test], *test_args, experiment=experiment
+        ).start()
 
         results = RunnerA.collect() + RunnerB.collect()
         count_tested, count_passed = results["count_tested"], results["count_passed"]
         count_failures = int(count_tested - count_passed)
 
         client.publish(
-            f"pioreactor/{unit}/{testing_experiment}/self_test/all_tests_passed",
+            f"pioreactor/{unit}/{experiment}/self_test/all_tests_passed",
             int(count_failures == 0),
             retain=True,
         )
