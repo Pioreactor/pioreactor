@@ -24,6 +24,17 @@ const StyledTableCell = styled(TableCell)(({ theme, level }) => {
   };
 });
 
+const StyledTimeTableCell = styled(TableCell)(({ theme, level }) => {
+  return {
+    padding: "6px 6px 6px 10px",
+    fontSize: 13,
+    backgroundColor: level === "ERROR" ? "#ff7961" :
+                      level === "WARNING" ? "#FFEA8A" :
+                      level === "NOTICE" ? "#addcaf" : "white",
+    whiteSpace: "pre"
+  };
+});
+
 const levelMappingToOrdinal = {
   NOTSET: 0,
   DEBUG: 1,
@@ -121,9 +132,9 @@ function LogTable(props) {
             <TableBody>
               {listOfLogs.map(log => (
                 <TableRow key={log.key}>
-                  <StyledTableCell level={log.level}>
+                  <StyledTimeTableCell level={log.level}>
                     {timestampCell(log.timestamp)}
-                  </StyledTableCell>
+                  </StyledTimeTableCell>
                   <StyledTableCell level={log.level}>{relabelUnit(log.pioreactor_unit)}</StyledTableCell>
                   <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
                   <StyledTableCell level={log.level}>{log.message}</StyledTableCell>

@@ -19,20 +19,18 @@ const DisplayProfileCard = {
     boxShadow: "none"
 }
 
-const highlightedSetting = {
-    backgroundColor: "#f3deff3b",
+const highlight = {
+    backgroundColor: "#f3deff41",
     color: "#872298",
+    padding: "1px 3px",
+    display: "inline block"
   }
 
-const highlightedTarget = {
-    backgroundColor: "#f3deff3b",
-    color: "#872298",
-  }
+const highlightedSetting = highlight
 
-const highlightedIf = {
-    backgroundColor: "#f3deff3b",
-    color: "#872298",
-  }
+const highlightedTarget = highlight
+
+const highlightedIf = highlight
 
 const highlightedActionType = {}
 const highlightedMessage = {fontStyle: "italic"}

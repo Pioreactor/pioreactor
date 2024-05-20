@@ -64,7 +64,7 @@ import { MQTTProvider, useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 
 
-const readyGreen = "#3f8451"
+const readyGreen = "#176114"
 const disconnectedGrey = "#585858"
 const lostRed = "#DE3618"
 const disabledColor = "rgba(0, 0, 0, 0.38)"
@@ -119,7 +119,7 @@ function TabPanel(props) {
 function UnitSettingDisplaySubtext(props){
 
   if (props.subtext){
-    return <Box sx={{fontSize: "11px", wordBreak: "break-word"}}><code>{props.subtext}</code></Box>
+    return <Box sx={{fontSize: "11px", wordBreak: "break-word", padding: "5px 0px"}}><code>{props.subtext}</code></Box>
   }
   else{
     return <Box sx={{minHeight: "15px"}}></Box>
@@ -129,12 +129,12 @@ function UnitSettingDisplaySubtext(props){
 
 function UnitSettingDisplay(props) {
   const stateDisplay = {
-    "init":          {display: "Starting", color: readyGreen},
-    "ready":         {display: "On", color: readyGreen},
-    "sleeping":      {display: "Paused", color: disconnectedGrey},
-    "disconnected":  {display: "Off", color: disconnectedGrey},
-    "lost":          {display: "Lost", color: lostRed},
-    "NA":            {display: "Not available", color: disconnectedGrey},
+    "init":          {display: "Starting", color: readyGreen, backgroundColor: "#DDFFDC"},
+    "ready":         {display: "On", color: readyGreen, backgroundColor: "#DDFFDC"},
+    "sleeping":      {display: "Paused", color: disconnectedGrey, backgroundColor: null},
+    "disconnected":  {display: "Off", color: disconnectedGrey, backgroundColor: null},
+    "lost":          {display: "Lost", color: lostRed, backgroundColor: null},
+    "NA":            {display: "Not available", color: disconnectedGrey, backgroundColor: null},
   }
   const value = props.value === null ?  ""  : props.value
 
@@ -170,7 +170,7 @@ function UnitSettingDisplay(props) {
       var displaySettings = stateDisplay[value]
       return (
         <React.Fragment>
-          <Box sx={{ color: displaySettings.color, fontWeight: 500}}>
+          <Box sx={{ color: displaySettings.color, fontWeight: 500, padding: "1px 5px", display: "inline-block", backgroundColor: displaySettings.backgroundColor}}>
             {displaySettings.display}
           </Box>
           <UnitSettingDisplaySubtext subtext={props.subtext}/>
@@ -1079,12 +1079,12 @@ function SettingsActionsDialog(props) {
   const macInfoEth = props.jobs.monitor.publishedSettings.eth_mac_address.value
 
   const stateDisplay = {
-    "init":          {display: "Starting", color: readyGreen},
-    "ready":         {display: "On", color: readyGreen},
-    "sleeping":      {display: "Paused", color: disconnectedGrey},
-    "disconnected":  {display: "Off", color: disconnectedGrey},
-    "lost":          {display: "Lost", color: lostRed},
-    "NA":            {display: "Not available", color: disconnectedGrey},
+    "init":          {display: "Starting", color: readyGreen, backgroundColor: "#DDFFDC"},
+    "ready":         {display: "On", color: readyGreen, backgroundColor: "#DDFFDC"},
+    "sleeping":      {display: "Paused", color: disconnectedGrey, backgroundColor: null},
+    "disconnected":  {display: "Off", color: disconnectedGrey, backgroundColor: null},
+    "lost":          {display: "Lost", color: lostRed, backgroundColor: null},
+    "NA":            {display: "Not available", color: disconnectedGrey, backgroundColor: null},
   }
 
   const isLargeScreen = useMediaQuery(theme => theme.breakpoints.down('xl'));
@@ -1152,8 +1152,8 @@ function SettingsActionsDialog(props) {
                 <Typography display="block">
                   {job.metadata.display_name}
                 </Typography>
-                <Typography display="block" gutterBottom>
-                  <span style={{color: stateDisplay[job.state].color}}>{stateDisplay[job.state].display}</span>
+                <Typography display="block" gutterBottom sx={{color: stateDisplay[job.state].color, padding: "1px 5px", backgroundColor: stateDisplay[job.state].backgroundColor, display: "inline-block", fontWeight: 500}}>
+                  {stateDisplay[job.state].display}
                 </Typography>
               </div>
               <Typography variant="caption" display="block" gutterBottom color="textSecondary">
@@ -2502,7 +2502,7 @@ function PioreactorCard(props){
         .then((listOfJobs) => {
           var jobs_ = {}
           for (const job of listOfJobs){
-            var metaData_ = {state: "disconnected", publishedSettings: {}, metadata: {display_name: job.display_name, subtext: job.subtext, display: job.display, description: job.description, key: job.job_name, source: job.source, is_testing: job.is_testing}}
+            var metaData_ = {state: "disconnected", publishedSettings: {}, metadata: {display_name: job.display_name, subtext: job.subtext, display: job.display, description: job.description, key: job.job_name, source: job.source}}
             for(var i = 0; i < job["published_settings"].length; ++i){
               var field = job["published_settings"][i]
               metaData_.publishedSettings[field.key] = {value: field.default || null, label: field.label, type: field.type, unit: field.unit || null, display: field.display, description: field.description}
@@ -2551,15 +2551,12 @@ function PioreactorCard(props){
     subscribeToTopic(`pioreactor/${unit}/$experiment/monitor/$state`, onMessage, "PioreactorCard");
     for (const job of Object.keys(jobs)) {
 
-      // for some jobs (self_test), we use a different experiment name to not clutter datasets,
-      const experimentName = jobs[job].metadata.is_testing ? "_testing_" + experiment : experiment
-
-      subscribeToTopic(`pioreactor/${unit}/${experimentName}/${job}/$state`, onMessage, "PioreactorCard");
+      subscribeToTopic(`pioreactor/${unit}/${experiment}/${job}/$state`, onMessage, "PioreactorCard");
       for (const setting of Object.keys(jobs[job].publishedSettings)){
           var topic = [
             "pioreactor",
             unit,
-            (job === "monitor" ? "$experiment" : experimentName),
+            (job === "monitor" ? "$experiment" : experiment),
             (setting === "automation_name") ? job : job.replace("_control", "_automation"), // this is for, ex, automation_name
             setting
           ].join("/")
