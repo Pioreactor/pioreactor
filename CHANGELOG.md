@@ -11,6 +11,7 @@
    This doesn't _set_ the port and proto, that involves changing settings in the lighttpd configuration.
 
 #### Bug fixes
+ - more sane defaults for OD reading for v1.1 when using `auto`.
  - fix `pios plugins uninstall`
  - fix leader not correctly being identified in `pio workers status`
  - For RPi Zero W (first gen), sometimes the load_rp2040 script was failing. A new script will retry a few times. This only applies to new images.

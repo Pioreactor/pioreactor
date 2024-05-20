@@ -418,10 +418,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         This will convert the payload to a json blob if MQTT does not allow its original type.
         """
 
-        # don't publish if it's some internal testing exp, like self_test
-        if self.experiment.startswith("_testing_"):
-            return
-
         if not isinstance(payload, (str, bytearray, bytes, int, float)) and (payload is not None):
             payload = dumps(payload)
 

@@ -256,10 +256,9 @@ class PWM:
                 if value != 0:
                     current_values[k] = value
 
-        if not self.experiment.startswith("_testing_"):
-            self.pubsub_client.publish(
-                f"pioreactor/{self.unit}/{self.experiment}/pwms/dc", dumps(current_values), retain=True
-            )
+        self.pubsub_client.publish(
+            f"pioreactor/{self.unit}/{self.experiment}/pwms/dc", dumps(current_values), retain=True
+        )
 
     def start(self, duty_cycle: pt.FloatBetween0and100) -> None:
         if not (0.0 <= duty_cycle <= 100.0):

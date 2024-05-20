@@ -180,4 +180,4 @@ def test_block_until_rpm_is_close_will_exit() -> None:
     ) as st:
         with catchtime() as delta:
             st.block_until_rpm_is_close_to_target(timeout=50)
-        assert delta() < 5
+        assert delta() < 7

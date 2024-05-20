@@ -185,13 +185,12 @@ def led_intensity(
 
         new_state, old_state = _update_current_state(desired_state)
 
-        if not experiment.startswith("_testing_"):
-            mqtt_publish(
-                f"pioreactor/{unit}/{experiment}/leds/intensity",
-                encode(new_state),
-                qos=QOS.AT_MOST_ONCE,
-                retain=True,
-            )
+        mqtt_publish(
+            f"pioreactor/{unit}/{experiment}/leds/intensity",
+            encode(new_state),
+            qos=QOS.AT_MOST_ONCE,
+            retain=True,
+        )
 
         if verbose:
             timestamp_of_change = current_utc_datetime()
@@ -204,13 +203,12 @@ def led_intensity(
                     timestamp=timestamp_of_change,
                 )
 
-                if not experiment.startswith("_testing_"):
-                    mqtt_publish(
-                        f"pioreactor/{unit}/{experiment}/led_change_events",
-                        encode(event),
-                        qos=QOS.AT_MOST_ONCE,
-                        retain=False,
-                    )
+                mqtt_publish(
+                    f"pioreactor/{unit}/{experiment}/led_change_events",
+                    encode(event),
+                    qos=QOS.AT_MOST_ONCE,
+                    retain=False,
+                )
 
                 logger.info(
                     f"Updated LED {channel} from {getattr(old_state, channel):0.3g}% to {getattr(new_state, channel):0.3g}%."

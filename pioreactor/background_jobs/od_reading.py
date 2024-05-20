@@ -834,7 +834,7 @@ class ODReader(BackgroundJob):
     if whoami.get_pioreactor_version() == (1, 0):
         TARGET_REF_VOLTAGE = 0.10
     elif whoami.get_pioreactor_version() >= (1, 1):
-        TARGET_REF_VOLTAGE = 0.50
+        TARGET_REF_VOLTAGE = 0.05
 
     def __init__(
         self,
