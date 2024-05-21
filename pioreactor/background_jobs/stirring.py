@@ -220,7 +220,6 @@ class Stirrer(BackgroundJob):
 
         if self.rpm_calculator is not None:
             self.logger.debug("Operating with RPM feedback loop.")
-            self.rpm_calculator.setup()
         else:
             self.logger.debug("Operating without RPM feedback loop.")
 
@@ -484,8 +483,10 @@ def start_stirring(
 
     if use_rpm and not is_testing_env():
         rpm_calculator = RpmFromFrequency()
+        rpm_calculator.setup()
     elif use_rpm and is_testing_env():
         rpm_calculator = MockRpmCalculator()  # type: ignore
+        rpm_calculator.setup()
     else:
         rpm_calculator = None
 
