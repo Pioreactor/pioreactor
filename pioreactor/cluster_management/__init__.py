@@ -175,7 +175,7 @@ def unassign_worker_from_experiment(hostname: str, experiment: str) -> None:
 
 @click.command(name="update-active", short_help="change active of worker")
 @click.argument("hostname")
-@click.argument("active", type=int)
+@click.argument("active", type=click.IntRange(0, 1))
 def update_active(hostname: str, active: int) -> None:
     try:
         r = put_into_leader(
