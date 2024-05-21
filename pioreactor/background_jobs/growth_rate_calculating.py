@@ -40,6 +40,7 @@ from collections import defaultdict
 from datetime import datetime
 from json import dumps
 from json import loads
+from time import sleep
 from typing import Generator
 
 import click
@@ -243,6 +244,8 @@ class GrowthRateCalculator(BackgroundJob):
     def _compute_and_cache_od_statistics(
         self,
     ) -> tuple[dict[pt.PdChannel, float], dict[pt.PdChannel, float]]:
+        # why sleep? Users sometimes spam jobs, and if stirring and gr start closely there can be a race to secure HALL_SENSOR. This gives stirring priority.
+        sleep(5)
         means, variances = od_statistics(
             self._yield_od_readings_from_mqtt(),
             action_name="od_normalization",

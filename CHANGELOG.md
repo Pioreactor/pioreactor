@@ -18,6 +18,7 @@
  - fix `pio workers update-active` using the wrong HTTP verb.
  - When the local access point would start on a fresh boot, the SSID would start as `pioreactor`, and then change to `pioreactor-<leader-name>` after the next reboot. Now, this will now always be `pioreactor-<leader-name>`.
  - Fix using ethernet cable to connect Pioreactor to a router: a new simple ethernet nmconnection has been added, and has higher connection priority than the PioreactorLocalLink nmconnection.
+ - Fix race conditions between stirring and growth-rate.
 
 ### 24.5.13
 

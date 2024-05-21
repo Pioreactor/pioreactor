@@ -136,7 +136,7 @@ def test_all_positive_correlations_between_pds_and_leds(
     adc_reader = ADCReader(
         channels=ALL_PD_CHANNELS, dynamic_gain=False, fake_data=is_testing_env(), penalizer=0.0
     )
-    adc_reader.setup_adc()
+    adc_reader.tune_adc()
 
     ir_led_channel = cast(LedChannel, config["leds_reverse"][IR_keyword])
 
@@ -240,7 +240,7 @@ def test_ambient_light_interference(client: Client, logger: CustomLogger, unit: 
         fake_data=is_testing_env(),
     )
 
-    adc_reader.setup_adc()
+    adc_reader.tune_adc()
     led_intensity(
         {channel: 0 for channel in ALL_LED_CHANNELS},
         unit=unit,
@@ -273,7 +273,7 @@ def test_REF_is_lower_than_0_dot_256_volts(
     adc_reader = ADCReader(
         channels=[reference_channel], dynamic_gain=False, fake_data=is_testing_env(), penalizer=0.0
     )
-    adc_reader.setup_adc()
+    adc_reader.tune_adc()
 
     with change_leds_intensities_temporarily(
         {ir_channel: ir_intensity},

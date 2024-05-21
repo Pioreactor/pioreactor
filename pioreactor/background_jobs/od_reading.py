@@ -145,7 +145,7 @@ class ADCReader(LoggerMixin):
     from pioreactor.background_jobs.od_reading import ADCReader
 
     adc = ADCReader(["1", "2"], fake_data=False)
-    adc.setup_adc()
+    adc.tune_adc()
 
     while True:
         print(adc.take_reading())
@@ -179,7 +179,7 @@ class ADCReader(LoggerMixin):
         else:
             self.most_appropriate_AC_hz = None
 
-    def setup_adc(self) -> PdChannelToVoltage:
+    def tune_adc(self) -> PdChannelToVoltage:
         """
         This configures the ADC for reading, performs an initial read, and sets variables based on that reading.
 
@@ -425,7 +425,7 @@ class ADCReader(LoggerMixin):
 
         """
         if not self._setup_complete:
-            raise ValueError("Must call setup_adc() first.")
+            raise ValueError("Must call tune_adc() first.")
 
         max_signal = -1.0
         oversampling_count = self.oversampling_count
@@ -906,7 +906,7 @@ class ODReader(BackgroundJob):
                 self.start_ir_led()
                 sleep(0.10)
 
-                on_reading = self.adc_reader.setup_adc()  # determine best gain, max-signal, etc.
+                on_reading = self.adc_reader.tune_adc()  # determine best gain, max-signal, etc.
 
                 # IR led is off so we can set blanks
                 self.stop_ir_led()
