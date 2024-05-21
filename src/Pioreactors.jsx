@@ -70,6 +70,31 @@ const lostRed = "#DE3618"
 const disabledColor = "rgba(0, 0, 0, 0.38)"
 
 
+const stateDisplay = {
+  "init":          {display: "Starting", color: readyGreen, backgroundColor: "#DDFFDC"},
+  "ready":         {display: "On", color: readyGreen, backgroundColor: "#DDFFDC"},
+  "sleeping":      {display: "Paused", color: disconnectedGrey, backgroundColor: null},
+  "disconnected":  {display: "Off", color: disconnectedGrey, backgroundColor: null},
+  "lost":          {display: "Lost", color: lostRed, backgroundColor: null},
+  "NA":            {display: "Not available", color: disconnectedGrey, backgroundColor: null},
+}
+
+
+function StateTypography({ state }) {
+  const style = {
+    color: stateDisplay[state].color,
+    padding: "1px 5px",
+    backgroundColor: stateDisplay[state].backgroundColor,
+    display: "inline-block",
+    fontWeight: 500
+  };
+
+  return (
+    <Typography display="block" gutterBottom sx={style}>
+      {stateDisplay[state].display}
+    </Typography>
+  );
+}
 
 
 const StylizedCode = styled('code')(({ theme }) => ({
@@ -128,14 +153,7 @@ function UnitSettingDisplaySubtext(props){
 
 
 function UnitSettingDisplay(props) {
-  const stateDisplay = {
-    "init":          {display: "Starting", color: readyGreen, backgroundColor: "#DDFFDC"},
-    "ready":         {display: "On", color: readyGreen, backgroundColor: "#DDFFDC"},
-    "sleeping":      {display: "Paused", color: disconnectedGrey, backgroundColor: null},
-    "disconnected":  {display: "Off", color: disconnectedGrey, backgroundColor: null},
-    "lost":          {display: "Lost", color: lostRed, backgroundColor: null},
-    "NA":            {display: "Not available", color: disconnectedGrey, backgroundColor: null},
-  }
+
   const value = props.value === null ?  ""  : props.value
 
   function prettyPrint(x){
@@ -167,12 +185,9 @@ function UnitSettingDisplay(props) {
     if (!props.isUnitActive) {
       return <Box sx={{ color: disabledColor }}> {stateDisplay[value].display} </Box>;
     } else {
-      var displaySettings = stateDisplay[value]
       return (
         <React.Fragment>
-          <Box sx={{ color: displaySettings.color, fontWeight: 500, padding: "1px 5px", display: "inline-block", backgroundColor: displaySettings.backgroundColor}}>
-            {displaySettings.display}
-          </Box>
+          <StateTypography state={value}/>
           <UnitSettingDisplaySubtext subtext={props.subtext}/>
         </React.Fragment>
     )}
@@ -1078,15 +1093,6 @@ function SettingsActionsDialog(props) {
   const macInfoWlan = props.jobs.monitor.publishedSettings.wlan_mac_address.value
   const macInfoEth = props.jobs.monitor.publishedSettings.eth_mac_address.value
 
-  const stateDisplay = {
-    "init":          {display: "Starting", color: readyGreen, backgroundColor: "#DDFFDC"},
-    "ready":         {display: "On", color: readyGreen, backgroundColor: "#DDFFDC"},
-    "sleeping":      {display: "Paused", color: disconnectedGrey, backgroundColor: null},
-    "disconnected":  {display: "Off", color: disconnectedGrey, backgroundColor: null},
-    "lost":          {display: "Lost", color: lostRed, backgroundColor: null},
-    "NA":            {display: "Not available", color: disconnectedGrey, backgroundColor: null},
-  }
-
   const isLargeScreen = useMediaQuery(theme => theme.breakpoints.down('xl'));
   var dosingControlJob = props.jobs.dosing_control
   var dosingControlJobRunning = ["ready", "sleeping", "init"].includes(dosingControlJob?.state)
@@ -1152,9 +1158,7 @@ function SettingsActionsDialog(props) {
                 <Typography display="block">
                   {job.metadata.display_name}
                 </Typography>
-                <Typography display="block" gutterBottom sx={{color: stateDisplay[job.state].color, padding: "1px 5px", backgroundColor: stateDisplay[job.state].backgroundColor, display: "inline-block", fontWeight: 500}}>
-                  {stateDisplay[job.state].display}
-                </Typography>
+                <StateTypography state={job.state}/>
               </div>
               <Typography variant="caption" display="block" gutterBottom color="textSecondary">
                 {job.metadata.source !== "app" ? `Installed by ${job.metadata.source || "unknown"}` : ""}
@@ -1177,9 +1181,7 @@ function SettingsActionsDialog(props) {
               <Typography display="block">
                 Temperature automation
               </Typography>
-              <Typography display="block" gutterBottom>
-                <span style={{color:stateDisplay[temperatureControlJob.state].color}}>{stateDisplay[temperatureControlJob.state].display}</span>
-              </Typography>
+              <StateTypography state={temperatureControlJob.state}/>
             </div>
 
             <div key={temperatureControlJob.metadata.key}>
@@ -1248,9 +1250,7 @@ function SettingsActionsDialog(props) {
               <Typography display="block">
                 Dosing automation
               </Typography>
-              <Typography display="block" gutterBottom>
-                <span style={{color:stateDisplay[dosingControlJob.state].color}}>{stateDisplay[dosingControlJob.state].display}</span>
-              </Typography>
+              <StateTypography state={dosingControlJob.state}/>
             </div>
             <div key={dosingControlJob.metadata.key}>
               {(dosingControlJob.state === "ready") || (dosingControlJob.state === "sleeping") || (temperatureControlJob.state === "init")
@@ -1318,9 +1318,7 @@ function SettingsActionsDialog(props) {
               <Typography display="block">
                 LED automation
               </Typography>
-              <Typography display="block" gutterBottom>
-                <span style={{color:stateDisplay[ledControlJob.state].color}}>{stateDisplay[ledControlJob.state].display}</span>
-              </Typography>
+              <StateTypography state={ledControlJob.state}/>
             </div>
 
             <div key={ledControlJob.metadata.key}>
