@@ -1,4 +1,4 @@
-### Upcoming
+### 24.5.22
 
 #### Enhancements
  - Significant performance increase by using `force_turbo=1` in the Raspberry Pi. Expect a noticeable improvement in interacting with the Pioreactor. This pushes the Pi to always run "hot" (but we aren't overclocking). This does slightly increase the Pi's internal temperature, so be wary about putting the Pioreactor in very hot environment. _This settings requires a reboot to take affect._
