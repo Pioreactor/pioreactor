@@ -32,7 +32,11 @@ def test_stirring_runs() -> None:
 def test_change_target_rpm_mid_cycle() -> None:
     original_rpm = 500
     exp = "test_change_target_rpm_mid_cycle"
-    with Stirrer(original_rpm, unit, exp, rpm_calculator=RpmCalculator()) as st:
+
+    rpm_calculator = RpmCalculator()
+    rpm_calculator.setup()
+
+    with Stirrer(original_rpm, unit, exp, rpm_calculator=rpm_calculator) as st:
         assert st.target_rpm == original_rpm
         pause()
 
@@ -74,8 +78,9 @@ def test_publish_target_rpm() -> None:
     publish(f"pioreactor/{unit}/{exp}/stirring/target_rpm", None, retain=True)
     pause()
     target_rpm = 500
-
-    with Stirrer(target_rpm, unit, exp, rpm_calculator=RpmCalculator()) as st:
+    rpm_calculator = RpmCalculator()
+    rpm_calculator.setup()
+    with Stirrer(target_rpm, unit, exp, rpm_calculator=rpm_calculator) as st:
         assert st.target_rpm == target_rpm
 
         pause()
@@ -91,8 +96,9 @@ def test_publish_measured_rpm() -> None:
     pause()
 
     target_rpm = 500
-
-    with Stirrer(target_rpm, unit, exp, rpm_calculator=RpmFromFrequency()) as st:
+    rpm_calculator = RpmFromFrequency()
+    rpm_calculator.setup()
+    with Stirrer(target_rpm, unit, exp, rpm_calculator=rpm_calculator) as st:
         st.start_stirring()
         assert st.target_rpm == target_rpm
 
@@ -138,7 +144,9 @@ def test_stirring_with_lookup_linear_v1() -> None:
         cache["linear_v1"] = json.dumps({"rpm_coef": 0.1, "intercept": 20})
 
     target_rpm = 500
-    with Stirrer(target_rpm, unit, exp, rpm_calculator=FakeRpmCalculator()) as st:  # type: ignore
+    rpm_calculator = FakeRpmCalculator()
+    rpm_calculator.setup()
+    with Stirrer(target_rpm, unit, exp, rpm_calculator=rpm_calculator) as st:  # type: ignore
         st.start_stirring()
 
         current_dc = st.duty_cycle
@@ -153,11 +161,12 @@ def test_stirring_with_lookup_linear_v1() -> None:
 def test_stirring_will_try_to_restart_and_dodge_od_reading() -> None:
     # TODO make this an actual test
     exp = "test_stirring_will_try_to_restart_and_dodge_od_reading"
-
+    rpm_calculator = RpmCalculator()
+    rpm_calculator.setup()
     with start_od_reading(
         "90", interval=5.0, unit=unit, experiment=exp, fake_data=True, use_calibration=False
     ):
-        with Stirrer(500, unit, exp, rpm_calculator=RpmCalculator()) as st:  # type: ignore
+        with Stirrer(500, unit, exp, rpm_calculator=rpm_calculator) as st:  # type: ignore
             st.start_stirring()
 
             pause(20)
@@ -165,8 +174,10 @@ def test_stirring_will_try_to_restart_and_dodge_od_reading() -> None:
 
 def test_block_until_rpm_is_close_to_target_will_timeout() -> None:
     exp = "test_block_until_rpm_is_close_to_target_will_timeout"
+    rpm_calculator = MockRpmCalculator()
+    rpm_calculator.setup()
     with Stirrer(
-        2 * MockRpmCalculator.ALWAYS_RETURN_RPM, unit, exp, rpm_calculator=MockRpmCalculator()  # type: ignore
+        2 * MockRpmCalculator.ALWAYS_RETURN_RPM, unit, exp, rpm_calculator=rpm_calculator  # type: ignore
     ) as st:
         with catchtime() as delta:
             st.block_until_rpm_is_close_to_target(timeout=10)
@@ -175,8 +186,10 @@ def test_block_until_rpm_is_close_to_target_will_timeout() -> None:
 
 def test_block_until_rpm_is_close_will_exit() -> None:
     exp = "test_block_until_rpm_is_close_to_target_will_timeout"
+    rpm_calculator = MockRpmCalculator()
+    rpm_calculator.setup()
     with Stirrer(
-        MockRpmCalculator.ALWAYS_RETURN_RPM, unit, exp, rpm_calculator=MockRpmCalculator()  # type: ignore
+        MockRpmCalculator.ALWAYS_RETURN_RPM, unit, exp, rpm_calculator=rpm_calculator  # type: ignore
     ) as st:
         with catchtime() as delta:
             st.block_until_rpm_is_close_to_target(timeout=50)

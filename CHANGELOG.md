@@ -16,9 +16,13 @@
  - fix leader not correctly being identified in `pio workers status`
  - For RPi Zero W (first gen), sometimes the load_rp2040 script was failing. A new script will retry a few times. This only applies to new images.
  - fix `pio workers update-active` using the wrong HTTP verb.
- - When the local access point would start on a fresh boot, the SSID would start as `pioreactor`, and then change to `pioreactor-<leader-name>` after the next reboot. Now, this will now always be `pioreactor-<leader-name>`.
  - Fix using ethernet cable to connect Pioreactor to a router: a new simple ethernet nmconnection has been added, and has higher connection priority than the PioreactorLocalLink nmconnection.
- - Fix race conditions between stirring and growth-rate.
+ - Fix race conditions occurring between stirring and growth-rate when they were started too quickly.
+
+#### Known issues
+
+ - When the local access point would start on a fresh boot, the SSID would start as `pioreactor`, and then change to `pioreactor-<leader-name>` after the next reboot.
+
 
 ### 24.5.13
 

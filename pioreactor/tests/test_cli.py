@@ -93,6 +93,7 @@ def test_pios_update_settings() -> None:
     assert len(bucket) >= 1
 
 
+@pytest.mark.xfail(reason="the `pio kill` will kill the pid, which is this pytest process!")
 def test_pio_kill_cleans_up_automations_correctly() -> None:
     exp = "test_pio_kill_cleans_up_automations_correctly"
     unit = "testing_unit"
@@ -102,14 +103,10 @@ def test_pio_kill_cleans_up_automations_correctly() -> None:
         assert is_pio_job_running("dosing_automation")
         assert is_pio_job_running("dosing_control")
 
-        pause()
-        pause()
-        pause()
-        pause()
-
         runner = CliRunner()
-        result = runner.invoke(pio, ["kill", "--all-jobs"])
+        result = runner.invoke(pio, ["kill", "--name", "dosing_control"])
 
+        pause()
         assert result.exit_code == 0
         pause()
         pause()

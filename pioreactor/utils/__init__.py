@@ -491,11 +491,13 @@ class ShellKill:
     def append(self, pid: int) -> None:
         self.list_of_pids.append(pid)
 
-    def kill(self) -> None:
+    def kill_jobs(self) -> int:
         if len(self.list_of_pids) == 0:
-            return
+            return 0
 
         safe_kill(*self.list_of_pids)
+
+        return len(self.list_of_pids)
 
 
 class MQTTKill:
@@ -505,14 +507,16 @@ class MQTTKill:
     def append(self, name: str) -> None:
         self.list_of_job_names.append(name)
 
-    def kill(self) -> None:
+    def kill_jobs(self) -> int:
+        count = 0
         if len(self.list_of_job_names) == 0:
-            return
+            return count
 
         from pioreactor.pubsub import create_client
 
         with create_client() as client:
             for i, name in enumerate(self.list_of_job_names):
+                count += 1
                 msg = client.publish(
                     f"pioreactor/{whoami.get_unit_name()}/{whoami.UNIVERSAL_EXPERIMENT}/{name}/$state/set",
                     "disconnected",
@@ -522,6 +526,8 @@ class MQTTKill:
                 if (i + 1) == len(self.list_of_job_names):
                     # last one
                     msg.wait_for_publish(2)
+
+        return count
 
 
 class JobManager:
@@ -625,7 +631,6 @@ class JobManager:
         for job, pid in self._get_jobs(all_jobs, **query):
             if job in self.PUMPING_JOBS:
                 mqtt_kill.append(job)
-                count += 1
             elif job == "led_intensity":
                 # led_intensity doesn't register with the JobManager, probably should somehow. #502
                 pass
@@ -634,10 +639,8 @@ class JobManager:
                 pass
             else:
                 shell_kill.append(pid)
-                count += 1
-
-        mqtt_kill.kill()
-        shell_kill.kill()
+        count += mqtt_kill.kill_jobs()
+        count += shell_kill.kill_jobs()
 
         return count
 

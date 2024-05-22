@@ -117,15 +117,23 @@ jobs:
           [ -f update.sh ] || touch update.sh
           [ -f post_update.sh ] || touch post_update.sh
           [ -f update.sql ] || touch update.sql
-      - name: Zip the assets
+      - name: Zip the assets and produce hash
         run: |
           cd release_assets
           zip -r ../release_${{ github.event.release.tag_name }}.zip .
+          sha256sum ../release_${{ github.event.release.tag_name }}.zip > ../release_${{ github.event.release.tag_name }}.zip.sha256
       - name: Upload zipped assets
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: release_${{ github.event.release.tag_name }}.zip
+          tag: ${{ github.event.release.tag_name }}
+          overwrite: true
+      - name: Upload hash
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: release_${{ github.event.release.tag_name }}.zip.sha256
           tag: ${{ github.event.release.tag_name }}
           overwrite: true
 

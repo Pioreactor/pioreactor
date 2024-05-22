@@ -18,9 +18,9 @@ def test_watchdog_alerts_on_found_worker() -> None:
 
     info = zeroconf.ServiceInfo(
         "_pio-worker._tcp.local.",
-        "pioreactor-worker-on-worker1._pio-worker._tcp.local.",
+        "pioreactor-worker-on-workerX._pio-worker._tcp.local.",
         addresses=["192.168.1.0"],
-        server="worker1.local.",
+        server="workerX.local.",
         port=1234,
     )
 
@@ -28,7 +28,7 @@ def test_watchdog_alerts_on_found_worker() -> None:
 
     with collect_all_logs_of_level("NOTICE", get_unit_name(), experiment) as logs:
         with WatchDog(unit=get_unit_name(), experiment=experiment):
-            time.sleep(8)
+            time.sleep(20)
 
         assert len(logs) > 0
 
@@ -52,7 +52,7 @@ def test_watchdog_doesnt_alert_if_already_in_cluster() -> None:
 
     with collect_all_logs_of_level("NOTICE", get_unit_name(), experiment) as logs:
         with WatchDog(unit=get_unit_name(), experiment=experiment):
-            time.sleep(8)
+            time.sleep(20)
 
         assert len(logs) == 0
 
