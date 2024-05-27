@@ -103,14 +103,17 @@ def add_worker(hostname: str, password: str, version: str, model: str) -> None:
             raise BashScriptError(res.stderr)
 
     try:
-        result = put_into_leader(
+        r = put_into_leader(
             "/api/workers",
             json={"pioreactor_unit": hostname},
         )
-        result.raise_for_status()
+        r.raise_for_status()
     except HTTPErrorStatus:
-        logger.error("Did not add Pioreactor to backend")
-        raise HTTPException("Did not add Pioreactor to backend")
+        if r.status_code >= 500:
+            click.echo("Server error. Could not complete.")
+        else:
+            logger.error("Did not add worker to backend")
+        raise HTTPException("Did not add worker to backend")
     except HTTPException:
         logger.error("Could not connect to leader's webserver")
         raise HTTPException("Could not connect to leader's webserver")
@@ -125,7 +128,10 @@ def remove_worker(hostname: str) -> None:
         r = delete_from_leader(f"/api/workers/{hostname}")
         r.raise_for_status()
     except HTTPErrorStatus:
-        click.echo(f"Worker {hostname} not present to be removed. Check hostname.")
+        if r.status_code >= 500:
+            click.echo("Server error. Could not complete.")
+        else:
+            click.echo(f"Worker {hostname} not present to be removed. Check hostname.")
         click.Abort()
     except HTTPException:
         click.echo("Not able to connect to leader's backend.")
@@ -145,7 +151,10 @@ def assign_worker_to_experiment(hostname: str, experiment: str) -> None:
         )
         r.raise_for_status()
     except HTTPErrorStatus:
-        click.echo("Not valid data. Check hostname or experiment.")
+        if r.status_code >= 500:
+            click.echo("Server error. Could not complete.")
+        else:
+            click.echo("Not valid data. Check hostname or experiment.")
         click.Abort()
     except HTTPException:
         click.echo("Not able to connect to leader's backend.")

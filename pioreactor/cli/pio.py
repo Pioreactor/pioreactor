@@ -396,7 +396,7 @@ def update_app(
     """
     import subprocess
 
-    logger = create_logger("update-app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT)
+    logger = create_logger("update_app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT)
 
     commands_and_priority: list[tuple[str, float]] = []
 
@@ -556,7 +556,9 @@ def update_firmware(version: Optional[str]) -> None:
     """
     import subprocess
 
-    logger = create_logger("update-app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT)
+    logger = create_logger(
+        "update_firmware", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
+    )
     commands_and_priority: list[tuple[str, int]] = []
 
     if version is None:
@@ -635,7 +637,7 @@ if whoami.am_I_leader():
         import subprocess
 
         logger = create_logger(
-            "update-ui", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
+            "update_ui", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
         )
         commands = []
 

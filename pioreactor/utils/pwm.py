@@ -32,7 +32,7 @@ else:
     try:
         from rpi_hardware_pwm import HardwarePWM  # type: ignore
     except ImportError:
-        pass
+        from pioreactor.utils.mock import MockHardwarePWM as HardwarePWM
 
 
 class HardwarePWMOutputDevice(HardwarePWM):

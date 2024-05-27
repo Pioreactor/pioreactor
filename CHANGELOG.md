@@ -1,3 +1,12 @@
+### Upcoming
+
+ - Fix for Pioreactors page when _no workers are added to the cluster_.
+ - Fix for UI labels when trying to remove multiple labels from Pioreactors.
+ - Added groupings on the Experiment dropdown to organize "Active" and "Inactive" experiments. An active experiment has >= 1 Pioreactor assigned to it.
+ - UI now supports changing the MQTT broker. This configuration lives in the config.ini, under `[mqtt]`.
+ -
+
+
 ### 24.5.22
 
 #### Enhancements

@@ -122,7 +122,7 @@ def discover_workers_on_network(terminate: bool = False) -> Generator[str, None,
 
         def __next__(self) -> str:
             try:
-                return self.hostnames.get(timeout=2 if terminate else None)
+                return self.hostnames.get(timeout=3 if terminate else None)
             except Empty:
                 raise StopIteration
 

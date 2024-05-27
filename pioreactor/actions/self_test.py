@@ -300,18 +300,21 @@ def test_PD_is_near_0_volts_for_blank(
 ) -> None:
     assert is_HAT_present()
     reference_channel = cast(PdChannel, config["od_config.photodiode_channel_reverse"][REF_keyword])
-    signal_channel = cast(PdChannel, "2" if reference_channel == "1" else "1")
-    assert config.get("od_config.photodiode_channel", signal_channel, fallback=None) in [
-        "90",
-        "45",
-        "135",
-    ]
+
+    if reference_channel == "1":
+        signal_channel = cast(PdChannel, "2")
+    else:
+        signal_channel = cast(PdChannel, "1")
+
+    angle = config.get("od_config.photodiode_channel", signal_channel, fallback=None)
+
+    assert angle in ["90", "45", "135"]
 
     signals = []
 
     with start_od_reading(
-        od_angle_channel1=config.get("od_config.photodiode_channel", "1", fallback=None),
-        od_angle_channel2=config.get("od_config.photodiode_channel", "2", fallback=None),
+        od_angle_channel1=angle if signal_channel == "1" else None,  # don't use REF
+        od_angle_channel2=angle if signal_channel == "2" else None,  # don't use REF
         interval=1.15,
         unit=unit,
         fake_data=is_testing_env(),
