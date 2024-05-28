@@ -16,8 +16,8 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
   const canvasRef = useRef(null);
   const stirBarFrame = useRef(0)
   const [rpm, setRpm] = useState(null);
-  const [temperature, setTemperature] = useState(35.6);
-  const [nOD, setNOD] = useState(2.4);
+  const [temperature, setTemperature] = useState(null);
+  const [nOD, setNOD] = useState(null);
   const [leds, setLeds] = useState({A: 0, B: 0, C: 0, D: 0});
   const [pumps, setPumps] = useState(new Set([]));
   const [volume, setVolume] = useState(config?.bioreactor?.initial_volume_ml || 14);

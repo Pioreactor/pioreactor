@@ -2114,7 +2114,7 @@ function PioreactorCard(props){
   const indicatorLabel = getInicatorLabel(jobs.monitor.state, isUnitActive)
 
   return (
-    <Card sx={{mt: 0, mb: 3}} id={unit} aria-disabled={!isUnitActive}>
+    <Card sx={{mt: 3, mb: 3}} id={unit} aria-disabled={!isUnitActive}>
       <CardContent sx={{p: "10px 20px 20px 20px"}}>
         <Box className={"fixme"}>
           <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}} color="textSecondary">
