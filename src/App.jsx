@@ -10,6 +10,7 @@ import ErrorSnackbar from "./components/ErrorSnackbar";
 import ExperimentOverview from "./ExperimentOverview";
 import ExportData from "./ExportData";
 import Pioreactors from "./Pioreactors";
+import Pioreactor from "./Pioreactor";
 import StartNewExperiment from "./StartNewExperiment";
 import CreateExperimentProfile from "./CreateExperimentProfile";
 import EditExperimentProfile from "./EditExperimentProfile";
@@ -107,6 +108,7 @@ function MainSite() {
                   <Route path="/edit-experiment-profile" element={<EditExperimentProfile title="Pioreactor ~ Edit experiment profile"/>}/>
                   <Route path="/config" element={<EditConfig title="Pioreactor ~ Configuration"/>}/>
                   <Route path="/pioreactors" element={ <Pioreactors title="Pioreactor ~ Pioreactors"/>}/>
+                  <Route path="/pioreactors/:unit" element={ <Pioreactor title="Pioreactor ~ Pioreactor"/>}/>
                   <Route path="/updates" element={<Updates title="Pioreactor ~ Updates"/>}/>
                   <Route path="/inventory" element={<Inventory title="Pioreactor ~ Inventory"/>}/>
                   <Route path="/" element={<ExperimentOverview title="Pioreactor ~ Overview"/>}/>

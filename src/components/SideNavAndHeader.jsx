@@ -12,6 +12,7 @@ import UpdateIcon from '@mui/icons-material/Update';
 import Toolbar from '@mui/material/Toolbar';
 import FormControl from '@mui/material/FormControl';
 import Select from '@mui/material/Select';
+import ListSubheader from '@mui/material/ListSubheader';
 import {AppBar, Typography, Button} from '@mui/material';
 import PioreactorIcon from './PioreactorIcon';
 import PioreactorsIcon from './PioreactorsIcon';
@@ -22,7 +23,7 @@ import InsertChartOutlinedIcon from '@mui/icons-material/InsertChartOutlined';
 import ViewTimelineOutlinedIcon from '@mui/icons-material/ViewTimelineOutlined';
 import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Sidebar, Menu, MenuItem} from "react-pro-sidebar";
+import { Sidebar, Menu, MenuItem, SubMenu} from "react-pro-sidebar";
 import { useExperiment } from '../providers/ExperimentContext';
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
@@ -45,6 +46,7 @@ export default function SideNavAndHeader() {
   const [version, setVersion] = React.useState(null)
   const [lap, setLAP] = React.useState(false)
   const [latestVersion, setLatestVersion] = React.useState(null)
+  const [activeExperiments, setActiveExperiments] = React.useState(new Set([]))
   const {experimentMetadata, updateExperiment, allExperiments} = useExperiment()
   const navigate = useNavigate();
 
@@ -82,11 +84,21 @@ export default function SideNavAndHeader() {
         });
       }
 
+    async function getActiveExperiments() {
+         await fetch("/api/experiments/assignment_count")
+        .then((response) => {
+          return response.json();
+        })
+        .then((data) => {
+          setActiveExperiments(new Set(data.map(item => item.experiment)))
+        })
+      }
+
       getCurrentApp()
       getLatestVersion()
       getLAP()
+      getActiveExperiments()
   }, [])
-
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -161,7 +173,14 @@ export default function SideNavAndHeader() {
                         <AddCircleOutlineIcon fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> New experiment
                       </MenuItemMUI>
                     <Divider/>
-                    {allExperiments.map((e) => {
+                    <ListSubheader>Active</ListSubheader>
+                    {allExperiments.filter(e => activeExperiments.has(e.experiment)).map((e) => {
+                        return <MenuItemMUI key={e.experiment} value={e.experiment}>{e.experiment}</MenuItemMUI>
+                      })
+                     }
+                    <Divider/>
+                    <ListSubheader>Inactive</ListSubheader>
+                    {allExperiments.filter(e => !activeExperiments.has(e.experiment)).map((e) => {
                         return <MenuItemMUI key={e.experiment} value={e.experiment}>{e.experiment}</MenuItemMUI>
                       })
                      }
@@ -178,13 +197,14 @@ export default function SideNavAndHeader() {
                   Overview
                 </MenuItem>
 
-                <MenuItem
+                <SubMenu
                   icon={<PioreactorIcon viewBox="-3 0 24 24"/>}
                   component={<Link to="/pioreactors" className="link" />}
                   active={isSelected("/pioreactors")}
+                  label="Pioreactors"
                   >
-                  Pioreactors
-                </MenuItem>
+
+                </SubMenu>
 
                 <MenuItem
                   icon={
@@ -301,7 +321,7 @@ export default function SideNavAndHeader() {
 
               <div>
                 { lap &&
-                  <Button color="inherit" style={{textTransform: "none"}}  component={Link}  to={{pathname: "/inventory"}}>
+                  <Button color="inherit" sx={{textTransform: "none"}}  component={Link}  to={{pathname: "/inventory"}}>
                     <div aria-label="LAP online" className="indicator-dot" style={{boxShadow: "0 0 2px #2FBB39, inset 0 0 12px  #2FBB39"}}/> LAP online
                   </Button>
                 }

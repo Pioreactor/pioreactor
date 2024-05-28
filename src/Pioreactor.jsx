@@ -31,10 +31,12 @@ import Button from "@mui/material/Button";
 import LoadingButton from '@mui/lab/LoadingButton';
 import ClearIcon from '@mui/icons-material/Clear';
 import CloseIcon from '@mui/icons-material/Close';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CheckIcon from '@mui/icons-material/Check';
 import FlareIcon from '@mui/icons-material/Flare';
 import SettingsIcon from '@mui/icons-material/Settings';
 import TuneIcon from '@mui/icons-material/Tune';
+import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import CheckBoxOutlinedIcon from '@mui/icons-material/CheckBoxOutlined';
 import IndeterminateCheckBoxIcon from '@mui/icons-material/IndeterminateCheckBox';
 import ListItemIcon from '@mui/material/ListItemIcon';
@@ -49,8 +51,7 @@ import { useConfirm } from 'material-ui-confirm';
 import {getConfig, getRelabelMap, runPioreactorJob} from "./utilities"
 import Alert from '@mui/material/Alert';
 import LibraryAddCheckOutlinedIcon from '@mui/icons-material/LibraryAddCheckOutlined';
-
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useParams  } from 'react-router-dom'
 
 import ChangeAutomationsDialog from "./components/ChangeAutomationsDialog"
 import ActionDosingForm from "./components/ActionDosingForm"
@@ -59,7 +60,8 @@ import ActionCirculatingForm from "./components/ActionCirculatingForm"
 import ActionLEDForm from "./components/ActionLEDForm"
 import PioreactorIcon from "./components/PioreactorIcon"
 import UnderlineSpan from "./components/UnderlineSpan";
-import ManageExperimentMenu from "./components/ManageExperimentMenu";
+import ManagePioreactorMenu from "./components/ManagePioreactorMenu";
+import BioreactorDiagram from "./components/Bioreactor";
 import { MQTTProvider, useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 
@@ -86,8 +88,7 @@ function StateTypography({ state }) {
     padding: "1px 5px",
     backgroundColor: stateDisplay[state].backgroundColor,
     display: "inline-block",
-    fontWeight: 500,
-    marginBottom: "1px"
+    fontWeight: 500
   };
 
   return (
@@ -145,7 +146,7 @@ function TabPanel(props) {
 function UnitSettingDisplaySubtext(props){
 
   if (props.subtext){
-    return <Box sx={{fontSize: "11px", wordBreak: "break-word", padding: "0px 0px"}}><code>{props.subtext}</code></Box>
+    return <Box sx={{fontSize: "11px", wordBreak: "break-word", padding: "5px 0px"}}><code>{props.subtext}</code></Box>
   }
   else{
     return <Box sx={{minHeight: "15px"}}></Box>
@@ -290,19 +291,19 @@ function UnitSettingDisplay(props) {
 
 
 
-function ButtonStopProcess({experiment}) {
+function ButtonStopProcess({experiment, unit}) {
   const confirm = useConfirm();
 
   const handleClick = () => {
     confirm({
-      description: 'This will immediately stop all running activities in assigned Pioreactor units, and any experiment profiles running for this experiment. Do you wish to continue?',
+      description: 'This will immediately stop all running activities. Do you wish to continue?',
       title: "Stop all activities?",
       confirmationText: "Confirm",
       confirmationButtonProps: {color: "primary"},
       cancellationButtonProps: {color: "secondary"},
 
       }).then(() =>
-        fetch(`/api/experiments/${experiment}/workers/stop`, {method: "POST"})
+        fetch(`/api/experiments/${experiment}/workers/${unit}/stop`, {method: "POST"})
     ).catch(() => {});
 
   };
@@ -466,24 +467,24 @@ const updateAssignments = async () => {
 
 
 
-function PioreactorHeader({experiment}) {
+function PioreactorHeader({unit, experiment}) {
   return (
     <Box>
       <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
         <Typography variant="h5" component="h1">
-          <Box fontWeight="fontWeightBold">
-            Pioreactors
-          </Box>
+        <Box sx={{display:"inline"}}>
+          <Button to={`/pioreactors`} component={Link} sx={{ textTransform: 'none' }}>
+            <ArrowBackIcon sx={{ verticalAlign: "middle", mr: 0.5 }} fontSize="small"/> Back to all Pioreactors
+          </Button>
+        </Box>
         </Typography>
         <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
-          <ButtonStopProcess experiment={experiment}/>
-          <AssignPioreactors experiment={experiment}/>
-          <SettingsActionsDialogAll experiment={experiment}/>
-          <Divider orientation="vertical" flexItem variant="middle"/>
-          <ManageExperimentMenu experiment={experiment}/>
+          <ButtonStopProcess experiment={experiment} unit={unit}/>
+          {/* <Divider orientation="vertical" flexItem variant="middle"/> */}
+          {/* <ManagePioreactorMenu experiment={experiment} unit={unit}/> */}
         </Box>
       </Box>
-      <Divider sx={{marginTop: "0px", marginBottom: "15px"}} />
+     <Divider />
     </Box>
   )
 }
@@ -1718,490 +1719,6 @@ function SettingsActionsDialog(props) {
 }
 
 
-function SettingsActionsDialogAll({experiment}) {
-  const unit = "$broadcast"
-  const [open, setOpen] = useState(false);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState("");
-  const [tabValue, setTabValue] = useState(0);
-  const [jobs, setJobs] = useState({});
-  const [openChangeTemperatureDialog, setOpenChangeTemperatureDialog] = useState(false);
-  const [openChangeDosingDialog, setOpenChangeDosingDialog] = useState(false);
-  const [openChangeLEDDialog, setOpenChangeLEDDialog] = useState(false);
-  const {client} = useMQTT();
-
-  useEffect(() => {
-    function fetchContribBackgroundJobs() {
-      fetch("/api/contrib/jobs")
-        .then((response) => {
-            if (response.ok) {
-              return response.json();
-            } else {
-              throw new Error('Something went wrong');
-            }
-          })
-        .then((listOfJobs) => {
-          var jobs_ = {}
-          for (const job of listOfJobs){
-            var metaData_ = {publishedSettings: {}, metadata: {display_name: job.display_name, display: job.display, description: job.description, key: job.job_name, source:job.source}}
-            for(var i = 0; i < job["published_settings"].length; ++i){
-              var field = job["published_settings"][i]
-              metaData_.publishedSettings[field.key] = {value: field.default || null, label: field.label, type: field.type, unit: field.unit || null, display: field.display, description: field.description}
-            }
-            jobs_[job.job_name] = metaData_
-          }
-          setJobs((prev) => ({...prev, ...jobs_}))
-        })
-        .catch((error) => {})
-    }
-    fetchContribBackgroundJobs();
-  }, [])
-
-
-  const handleTabChange = (event, newValue) => {
-    setTabValue(newValue);
-  };
-
-  function setPioreactorJobState(job, state) {
-    return function sendMessage() {
-      const topic = [
-        "pioreactor",
-        unit,
-        experiment,
-        job.metadata.key,
-        "$state",
-        "set",
-      ].join("/");
-      try{
-        client.publish(topic, String(state), {qos: 1});
-      }
-      catch (e){
-        console.log(e)
-        setTimeout(() => {sendMessage()}, 750)
-      }
-      finally {
-        const verbs = {
-          "sleeping":  "Pausing",
-          "disconnected":  "Stopping",
-          "ready":  "Resuming",
-        }
-        setSnackbarMessage(`${verbs[state]} ${job.metadata.display_name.toLowerCase()} on all active & assigned Pioreactors`)
-        setSnackbarOpen(true)
-      }
-    };
-  }
-
-
-  function setPioreactorJobAttr(job_attr, value) {
-    const topic = [
-      "pioreactor",
-      unit,
-      experiment,
-      job_attr,
-      "set",
-    ].join("/");
-    client.publish(topic, String(value), {qos: 1});
-    setSnackbarOpen(true)
-  }
-
-  const handleClickOpen = () => {
-    setOpen(true);
-  };
-
-  const handleClose = () => {
-    setOpen(false);
-    setTimeout(()=> setTabValue(0), 200) // we put a timeout here so the switching tabs doesn't occur during the close transition.
-
-  };
-
-  const handleSnackbarClose = (e, reason) => {
-    if (reason === 'clickaway') {
-      return;
-    }
-    setSnackbarOpen(false)
-  }
-
-
-  function createUserButtonsBasedOnState(job){
-
-    const handleRunPioreactorJobResponse = (response) => {
-      if (response.ok) {
-        setSnackbarMessage(`Starting ${job.metadata.display_name.toLowerCase()} on all active & assigned Pioreactors`)
-        setSnackbarOpen(true)
-        return;
-      }
-    };
-
-    if (job.metadata.key === "temperature_control"){
-      var startAction = () => setOpenChangeTemperatureDialog(true)
-    }
-    else if (job.metadata.key === "dosing_control"){
-      startAction = () => setOpenChangeDosingDialog(true)
-    }
-    else if (job.metadata.key === "led_control"){
-      startAction = () => setOpenChangeLEDDialog(true)
-    }
-    else {
-      startAction = () => runPioreactorJob(unit, experiment, job.metadata.key, [], {}, handleRunPioreactorJobResponse)
-    }
-
-
-    return (<div key={job.metadata.key}>
-        <Button
-          sx={{pr: 2, pl: 2}}
-          disableElevation
-          color="primary"
-          onClick={startAction}
-        >
-          Start
-        </Button>
-        <Button
-          sx={{pr: 2, pl: 2}}
-          disableElevation
-          color="primary"
-          onClick={setPioreactorJobState(job, "sleeping")}
-        >
-          Pause
-        </Button>
-        <Button
-          sx={{pr: 2, pl: 2}}
-          disableElevation
-          color="primary"
-          onClick={setPioreactorJobState(job, "ready")}
-        >
-          Resume
-        </Button>
-        <Button
-          sx={{pr: 2, pl: 2}}
-          disableElevation
-          color="secondary"
-          onClick={setPioreactorJobState(job, "disconnected")}
-        >
-          Stop
-        </Button>
-      </div>
-  )}
-
-
-  const buttons = Object.fromEntries(Object.entries(jobs).map( ([job_key, job], i) => [job_key, createUserButtonsBasedOnState(job)]))
-  const isLargeScreen = useMediaQuery(theme => theme.breakpoints.down('xl'));
-  var dosingControlJob = jobs.dosing_control
-  var ledControlJob = jobs.led_control
-  var temperatureControlJob = jobs.temperature_control
-
-  return (
-    <React.Fragment>
-    <Button style={{textTransform: 'none', float: "right" }} onClick={handleClickOpen} color="primary">
-      <SettingsIcon fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Manage Pioreactors
-    </Button>
-    <Dialog  maxWidth={isLargeScreen ? "sm" : "md"} fullWidth={true}  open={open} onClose={handleClose} aria-labelledby="form-dialog-title"  PaperProps={{
-      sx: {
-        height: "calc(100% - 64px)"
-      }
-    }}>
-      <DialogTitle style={{backgroundImage: "linear-gradient(to bottom left, rgba(83, 49, 202, 0.4), rgba(0,0,0,0))"}}>
-        <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}}>
-          <b>All assigned & active Pioreactors</b>
-        </Typography>
-        <IconButton
-          aria-label="close"
-          onClick={handleClose}
-          sx={{
-            position: 'absolute',
-            right: 8,
-            top: 8,
-            color: (theme) => theme.palette.grey[600],
-          }}
-          size="large">
-          <CloseIcon />
-        </IconButton>
-      <Tabs
-        value={tabValue}
-        onChange={handleTabChange}
-        indicatorColor="primary"
-        textColor="primary"
-        variant="scrollable"
-        scrollButtons
-        allowScrollButtonsMobile
-      >
-        <Tab label="Activities"/>
-        <Tab label="Settings"/>
-        <Tab label="Dosing"/>
-        <Tab label="LEDs"/>
-      </Tabs>
-      </DialogTitle>
-      <DialogContent>
-
-        <TabPanel value={tabValue} index={0}>
-          {Object.entries(jobs)
-            .filter(([job_key, job]) => job.metadata.display)
-            .filter(([job_key, job]) => !['dosing_control', 'led_control', 'temperature_control'].includes(job_key))
-            .map(([job_key, job]) =>
-            <div key={job_key}>
-              <Typography gutterBottom>
-                {job.metadata.display_name}
-              </Typography>
-              <Typography variant="body2" component="p" gutterBottom>
-                <span dangerouslySetInnerHTML={{__html: job.metadata.description}}/>
-              </Typography>
-
-              {buttons[job_key]}
-
-              <ManageDivider/>
-            </div>
-          )}
-
-
-          {temperatureControlJob &&
-          <React.Fragment>
-            <div style={{justifyContent: "space-between", display: "flex"}}>
-              <Typography display="block">
-                Temperature automation
-              </Typography>
-            </div>
-            <div>
-              <Typography variant="body2" component="p" gutterBottom>
-                <span dangerouslySetInnerHTML={{__html: temperatureControlJob.metadata.description}}/>
-              </Typography>
-
-              {buttons['temperature_control']}
-            </div>
-
-            <ChangeAutomationsDialog
-              open={openChangeTemperatureDialog}
-              onFinished={() => setOpenChangeTemperatureDialog(false)}
-              unit={unit}
-              experiment={experiment}
-              isJobRunning={false}
-              automationType="temperature"
-              no_skip_first_run={true}
-            />
-          </React.Fragment>
-          }
-
-          <ManageDivider/>
-
-
-
-          {dosingControlJob &&
-          <React.Fragment>
-            <div style={{justifyContent: "space-between", display: "flex"}}>
-              <Typography display="block">
-                Dosing automation
-              </Typography>
-            </div>
-            <div>
-              <Typography variant="body2" component="p" gutterBottom>
-                <span dangerouslySetInnerHTML={{__html: dosingControlJob.metadata.description}}/>
-              </Typography>
-
-              {buttons['dosing_control']}
-            </div>
-
-            <ChangeAutomationsDialog
-              automationType="dosing"
-              open={openChangeDosingDialog}
-              onFinished={() => setOpenChangeDosingDialog(false)}
-              unit={unit}
-              experiment={experiment}
-              isJobRunning={false}
-              no_skip_first_run={false}
-            />
-          </React.Fragment>
-          }
-
-          <ManageDivider/>
-
-
-          {ledControlJob &&
-          <React.Fragment>
-            <div style={{justifyContent: "space-between", display: "flex"}}>
-              <Typography display="block">
-                LED automation
-              </Typography>
-            </div>
-            <div>
-              <Typography variant="body2" component="p" gutterBottom>
-                <span dangerouslySetInnerHTML={{__html: ledControlJob.metadata.description}}/>
-              </Typography>
-
-              {buttons['led_control']}
-            </div>
-
-            <ChangeAutomationsDialog
-              automationType="led"
-              open={openChangeLEDDialog}
-              onFinished={() => setOpenChangeLEDDialog(false)}
-              unit={unit}
-              experiment={experiment}
-              isJobRunning={false}
-              no_skip_first_run={false}
-            />
-          </React.Fragment>
-          }
-
-          <ManageDivider/>
-
-        </TabPanel>
-
-        <TabPanel value={tabValue} index={1}>
-          {Object.values(jobs)
-            .filter(job => job.metadata.display)
-            .map(job => [job.state, job.metadata.key, job.publishedSettings])
-            .map(([state, job_key, settings], index) => (
-              Object.entries(settings)
-                .filter(([setting_key, setting],_) => setting.display)
-                .map(([setting_key, setting],_) =>
-              <React.Fragment key={job_key + setting_key}>
-                <Typography  gutterBottom>
-                  {setting.label}
-                </Typography>
-                <Typography variant="body2" component="p">
-                  {setting.description}
-                </Typography>
-
-                  {(setting.type === "boolean") && (
-                    <SettingSwitchField
-                      onUpdate={setPioreactorJobAttr}
-                      setSnackbarMessage={setSnackbarMessage}
-                      setSnackbarOpen={setSnackbarOpen}
-                      value={setting.value}
-                      units={setting.unit}
-                      id={`${job_key.replace("_control", "_automation")}/${setting_key}`}
-                      disabled={false}
-                    />
-                  )}
-
-                  {(setting.type !== "boolean") && (
-                  <SettingTextField
-                    onUpdate={setPioreactorJobAttr}
-                    setSnackbarMessage={setSnackbarMessage}
-                    setSnackbarOpen={setSnackbarOpen}
-                    value={setting.value}
-                    units={setting.unit}
-                    id={`${job_key.replace("_control", "_automation")}/${setting_key}`}
-                    disabled={false}
-                  />
-                  )}
-                <ManageDivider/>
-              </React.Fragment>
-
-          )))}
-
-        </TabPanel>
-        <TabPanel value={tabValue} index={2}>
-          <Typography  gutterBottom>
-            Cycle Media
-          </Typography>
-          <Typography variant="body2" component="p">
-            Safely cycle media in and out of your Pioreactor for a set duration (seconds).
-          </Typography>
-
-          <ActionCirculatingForm action="circulate_media" unit={unit} />
-
-          <ManageDivider/>
-
-          <Typography  gutterBottom>
-            Cycle alternative media
-          </Typography>
-          <Typography variant="body2" component="p">
-            Safely cycle alternative media in and out of your Pioreactor for a set duration (seconds).
-          </Typography>
-
-          <ActionCirculatingForm action="circulate_alt_media" unit={unit} />
-
-          <ManageDivider/>
-
-          <Alert severity="warning" style={{marginBottom: '10px', marginTop: '10px'}}>It's easy to overflow your vial. Make sure you don't add too much media.</Alert>
-
-          <Typography  gutterBottom>
-            Add media
-          </Typography>
-          <Typography variant="body2" component="p" gutterBottom>
-            Run the media pumps for a set duration (seconds), moving a set volume (mL), or continuously add until stopped.
-          </Typography>
-          <Typography variant="body2" component="p">
-            Specify how you’d like to add media:
-          </Typography>
-          <ActionDosingForm experiment={experiment} action="add_media" unit={unit} />
-          <ManageDivider/>
-          <Typography  gutterBottom>
-            Remove waste
-          </Typography>
-          <Typography variant="body2" component="p" gutterBottom>
-            Run the waste pumps for a set duration (seconds), moving a set volume (mL), or continuously add until stopped.
-          </Typography>
-          <Typography variant="body2" component="p">
-            Specify how you’d like to remove media:
-          </Typography>
-          <ActionDosingForm  experiment={experiment} action="remove_waste" unit={unit} />
-          <ManageDivider/>
-          <Typography gutterBottom>
-            Add alternative media
-          </Typography>
-          <Typography variant="body2" component="p" gutterBottom>
-            Run the alternative media pumps for a set duration (seconds), moving a set
-            volume (mL), or continuously add until stopped.
-          </Typography>
-          <Typography variant="body2" component="p">
-            Specify how you’d like to add alt-media:
-          </Typography>
-          <ActionDosingForm  experiment={experiment} action="add_alt_media" unit={unit} />
-          <ManageDivider/>
-          <Typography gutterBottom>
-            Manual adjustments
-          </Typography>
-          <Typography variant="body2" component="p" gutterBottom>
-            Record adjustments before manually adding or removing from the vial. This is recorded in the database and will ensure accurate metrics.
-          </Typography>
-          <ActionManualDosingForm experiment={experiment}  unit={unit}/>
-
-        </TabPanel>
-
-        <TabPanel value={tabValue} index={3}>
-          <Typography style={{textTransform: "capitalize"}}>
-            Channel A
-          </Typography>
-          <ActionLEDForm experiment={experiment} channel="A" unit={unit} />
-          <ManageDivider/>
-
-          <Typography style={{textTransform: "capitalize"}}>
-            Channel B
-          </Typography>
-          <ActionLEDForm experiment={experiment} channel="B" unit={unit} />
-          <ManageDivider/>
-
-          <Typography style={{textTransform: "capitalize"}}>
-            Channel C
-          </Typography>
-          <ActionLEDForm experiment={experiment} channel="C" unit={unit} />
-
-          <ManageDivider/>
-          <Typography style={{textTransform: "capitalize"}}>
-            Channel D
-          </Typography>
-          <ActionLEDForm experiment={experiment} channel="D" unit={unit} />
-
-          <ManageDivider/>
-        </TabPanel>
-
-
-      </DialogContent>
-    </Dialog>
-    <Snackbar
-      anchorOrigin={{vertical: "bottom", horizontal: "center"}}
-      open={snackbarOpen}
-      onClose={handleSnackbarClose}
-      message={snackbarMessage}
-      autoHideDuration={7000}
-      resumeHideDuration={2000}
-      key={"snackbar" + unit + "settings"}
-    />
-    </React.Fragment>
-  );
-}
-
-
 function SettingTextField(props){
 
 
@@ -2370,7 +1887,7 @@ function SettingNumericField(props) {
 
 
 
-function ActiveUnits({experiment, config, units, isLoading}){
+function ActiveUnit({unit, experiment, config, isLoading}){
   const [relabelMap, setRelabelMap] = useState({})
 
   useEffect(() => {
@@ -2379,42 +1896,11 @@ function ActiveUnits({experiment, config, units, isLoading}){
     }
   }, [experiment])
 
-  const renderCards = () => units.map(unit =>
-      <PioreactorCard isUnitActive={true} key={unit} unit={unit} config={config} experiment={experiment} label={relabelMap[unit]}/>
-  )
-  const renderEmptyState = () => (
-    <div style={{textAlign: "center", marginBottom: '50px', marginTop: "50px"}}>
-      {isLoading ? <CircularProgress /> : (
-      <>
-      <Typography component='div' variant='body2'>
-        <Box fontWeight="fontWeightRegular">
-          No active Pioreactors assigned to experiment.
-        </Box>
-        <AssignPioreactors experiment={experiment}/>
-        <Box fontWeight="fontWeightRegular">
-          or, learn more about <a href="https://docs.pioreactor.com/user-guide/create-cluster" target="_blank" rel="noopener noreferrer">assigning inventory</a>.
-        </Box>
-      </Typography>
-      </>
-      )}
-    </div>
-  )
-
   return (
     <React.Fragment>
-      <div style={{display: "flex", justifyContent: "space-between", marginBottom: "10px", marginTop: "15px"}}>
-        <Typography variant="h5" component="h2">
-          <Box fontWeight="fontWeightRegular">
-            Active Pioreactors
-          </Box>
-        </Typography>
-        <div >
-
-        </div>
+      <div>
+         <PioreactorCard isUnitActive={true} unit={unit} config={config} experiment={experiment} label={relabelMap[unit]}/>
       </div>
-
-      {(units.length === 0 ? renderEmptyState() : renderCards())}
-
     </React.Fragment>
 )}
 
@@ -2447,7 +1933,6 @@ function FlashLEDButton(props){
       <FlareIcon color={props.disabled ? "disabled" : "primary"} fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> <span > Identify </span>
     </Button>
 )}
-
 
 
 function PioreactorCard(props){
@@ -2644,12 +2129,20 @@ function PioreactorCard(props){
             }
           })}>
             <div style={{display: "flex", justifyContent: "left"}}>
-              <Button component={Link} to={`/pioreactors/${unit}`} sx={{textTransform: "none", fontSize: 20, fontWeight: 500, ...(isUnitActive ? {} : { color: disabledColor }),}}>
+              <Typography sx={{
+                  fontSize: 20,
+                  color: "rgba(0, 0, 0, 0.87)",
+                  fontWeight: 500,
+                  ...(isUnitActive ? {} : { color: disabledColor }),
+                }}
+                gutterBottom>
                 <PioreactorIcon color={isUnitActive ? "inherit" : "disabled"} sx={{verticalAlign: "middle", marginRight: "3px", display: {xs: 'none', sm: 'none', md: 'inline' } }}/>
                 {(label ) ? label : unit }
-              </Button>
+              </Typography>
               <Tooltip title={indicatorLabel} placement="right">
-                <div className="indicator-dot-beside-button" style={{boxShadow: `0 0 ${indicatorDotShadow}px ${indicatorDotColor}, inset 0 0 12px  ${indicatorDotColor}`}}/>
+                <div>
+                  <div className="indicator-dot" style={{boxShadow: `0 0 ${indicatorDotShadow}px ${indicatorDotColor}, inset 0 0 12px  ${indicatorDotColor}`}}/>
+                </div>
               </Tooltip>
             </div>
             <Box sx={(theme) => ({
@@ -2782,74 +2275,35 @@ function PioreactorCard(props){
 )}
 
 
-function InactiveUnits(props){
-  return (
-  <React.Fragment>
-    <div style={{display: "flex", justifyContent: "space-between", marginBottom: "10px", marginTop: "15px"}}>
-      <Typography variant="h5" component="h2">
-        <Box fontWeight="fontWeightRegular">
-          Inactive Pioreactors
-        </Box>
-      </Typography>
-    </div>
-    {props.units.map(unit =>
-      <PioreactorCard isUnitActive={false} key={unit} unit={unit} config={props.config} experiment={props.experiment}/>
-  )}
-    </React.Fragment>
-)}
 
-function Pioreactors({title}) {
+function Pioreactor({title}) {
   const { experimentMetadata } = useExperiment();
-  const [workers, setWorkers] = useState([]);
   const [config, setConfig] = useState({})
   const [isLoading, setIsLoading] = useState(true);
+  const {unit} = useParams();
 
   useEffect(() => {
     document.title = title;
     getConfig(setConfig)
   }, [title]);
 
-  useEffect(() => {
-    if (experimentMetadata.experiment) {
-      fetchWorkers();
-    }
-  }, [experimentMetadata.experiment]);
-
-
-  const fetchWorkers = async () => {
-    setIsLoading(true)
-    try {
-      const response = await fetch(`/api/experiments/${experimentMetadata.experiment}/workers`);
-      if (response.ok) {
-        const data = await response.json();
-        setWorkers(data);
-      } else {
-        console.error('Failed to fetch workers:', response.statusText);
-      }
-    } catch (error) {
-      console.error('Error fetching workers:', error);
-    } finally {
-      setIsLoading(false)
-    }
-  };
-
-  const activeUnits = workers.filter(worker => worker.is_active === 1).map(worker => worker.pioreactor_unit);
-  const inactiveUnits = workers.filter(worker => worker.is_active === 0).map(worker => worker.pioreactor_unit);
 
   return (
-    <MQTTProvider name="pioreactor" config={config} experiment={experimentMetadata.experiment}>
+    <MQTTProvider name={unit} config={config} experiment={experimentMetadata.experiment}>
       <Grid container spacing={2} >
         <Grid item md={12} xs={12}>
-          <PioreactorHeader experiment={experimentMetadata.experiment}/>
-          <ActiveUnits isLoading={isLoading} experiment={experimentMetadata.experiment} config={config} units={activeUnits} />
-          { (inactiveUnits.length > 0) &&
-          <InactiveUnits experiment={experimentMetadata.experiment} config={config} units={inactiveUnits}/>
-          }
+          <PioreactorHeader unit={unit} experiment={experimentMetadata.experiment}/>
+        </Grid>
+        <Grid item md={8} xs={12}>
+          <ActiveUnit unit={unit} isLoading={isLoading} experiment={experimentMetadata.experiment} config={config}/>
+        </Grid>
+        <Grid item md={4} xs={4}>
+          <BioreactorDiagram  experiment={experimentMetadata.experiment} unit={unit} config={config}/>
         </Grid>
       </Grid>
     </MQTTProvider>
   )
 }
 
-export default Pioreactors;
+export default Pioreactor;
 

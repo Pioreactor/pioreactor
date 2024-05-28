@@ -288,8 +288,7 @@ function ProfilesContainer({experiment, config}){
           <Typography variant="subtitle2" sx={{flexGrow: 1}}>
             <Box sx={{display:"inline"}}>
               <Box fontWeight="fontWeightBold" sx={{display:"inline-block"}}>
-                  <ViewTimelineOutlinedIcon sx={{ fontSize: 12, verticalAlign: "-1px" }}/>
-                 Profile running:&nbsp;
+                <ViewTimelineOutlinedIcon sx={{ fontSize: 12, verticalAlign: "-1px" }}/> Profile running:&nbsp;
               </Box>
               <Box fontWeight="fontWeightRegular" sx={{mr: "1%", display:"inline-block"}}>
                 {runningProfileName || "None"}

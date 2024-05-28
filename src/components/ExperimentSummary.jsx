@@ -125,7 +125,7 @@ function ExperimentSummary({experimentMetadata, updateExperiment}){
 
             <Box sx={{display:"inline"}}>
               <Box fontWeight="fontWeightBold" sx={{display:"inline-block"}}>
-                <TimelapseIcon sx={{ fontSize: 12, verticalAlign: "-1px"  }}/>Hours elapsed:&nbsp;
+                <TimelapseIcon sx={{ fontSize: 12, verticalAlign: "-1px"  }}/> Hours elapsed:&nbsp;
               </Box>
               <Box fontWeight="fontWeightRegular" sx={{mr: "1%", display:"inline-block"}}>
                {deltaHours}h
