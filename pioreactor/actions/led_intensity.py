@@ -25,11 +25,12 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
 ALL_LED_CHANNELS: list[LedChannel] = ["A", "B", "C", "D"]
+LEDsToIntensityMapping = dict[LedChannel, LedIntensityValue]
 
 
 @contextmanager
 def change_leds_intensities_temporarily(
-    desired_state: dict[LedChannel, LedIntensityValue],
+    desired_state: LEDsToIntensityMapping,
     **kwargs: Any,
 ) -> Iterator[None]:
     """
@@ -69,32 +70,32 @@ def is_led_channel_locked(channel: LedChannel) -> bool:
 
 
 def _update_current_state(
-    state: dict[LedChannel, LedIntensityValue],
-) -> tuple[structs.LEDsIntensity, structs.LEDsIntensity]:
+    state: LEDsToIntensityMapping,
+) -> tuple[LEDsToIntensityMapping, LEDsToIntensityMapping]:
     """
     TODO: Eventually I should try to modify the UI to not even need this `state` variable,
     """
 
     with local_intermittent_storage("leds") as led_cache:
         # rehydrate old cache
-        old_state = structs.LEDsIntensity(
-            **{str(channel): led_cache.get(str(channel), 0.0) for channel in ALL_LED_CHANNELS}
-        )
+        old_state: LEDsToIntensityMapping = {
+            channel: led_cache.get(str(channel), 0.0) for channel in ALL_LED_CHANNELS
+        }
 
         # update cache
         with led_cache.transact():
             for channel, intensity in state.items():
                 led_cache[channel] = intensity
 
-        new_state = structs.LEDsIntensity(
-            **{str(channel): led_cache.get(str(channel), 0.0) for channel in ALL_LED_CHANNELS}
-        )
+        new_state: LEDsToIntensityMapping = {
+            channel: led_cache.get(str(channel), 0.0) for channel in ALL_LED_CHANNELS
+        }
 
         return new_state, old_state
 
 
 def led_intensity(
-    desired_state: dict[LedChannel, LedIntensityValue],
+    desired_state: LEDsToIntensityMapping,
     unit: str | None = None,
     experiment: str | None = None,
     verbose: bool = True,
@@ -244,7 +245,7 @@ def led_intensity(
     type=str,
     help="whom is calling this function (for logging purposes)",
 )
-@click.option("--no-log", is_flag=True, help="Add to log")
+@click.option("--no-log", is_flag=True, help="skip logging")
 def click_led_intensity(
     a: LedIntensityValue | None = None,
     b: LedIntensityValue | None = None,
@@ -259,7 +260,7 @@ def click_led_intensity(
     unit = get_unit_name()
     experiment = get_assigned_experiment_name(unit)
 
-    state: dict[LedChannel, LedIntensityValue] = {}
+    state: LEDsToIntensityMapping = {}
     if a is not None:
         state["A"] = a
     if b is not None:

@@ -62,7 +62,7 @@ def test_REF_is_in_correct_position(client: Client, logger: CustomLogger, unit: 
     # this _also_ uses stirring to increase the variance in the non-REF.
     # The idea is to trigger stirring on and off and the REF should not see a change in signal / variance, but the other PD should.
 
-    assert is_HAT_present()
+    assert is_HAT_present(), "Hat is not detected."
 
     reference_channel = cast(PdChannel, config["od_config.photodiode_channel_reverse"][REF_keyword])
     signal_channel = "2" if reference_channel == "1" else "1"
@@ -119,7 +119,7 @@ def test_all_positive_correlations_between_pds_and_leds(
     """
     from pprint import pformat
 
-    assert is_HAT_present()
+    assert is_HAT_present(), "HAT is not detected."
     # better to err on the side of MORE samples than less - it's only a few extra seconds...
     # we randomize to reduce effects of temperature
     # upper bound shouldn't be too high, as it could saturate the ADC, and lower bound shouldn't be too low, else we don't detect anything.
@@ -233,7 +233,7 @@ def test_all_positive_correlations_between_pds_and_leds(
 
 def test_ambient_light_interference(client: Client, logger: CustomLogger, unit: str, experiment: str) -> None:
     # test ambient light IR interference. With all LEDs off, and the Pioreactor not in a sunny room, we should see near 0 light.
-    assert is_HAT_present()
+    assert is_HAT_present(), "HAT is not detected."
     adc_reader = ADCReader(
         channels=ALL_PD_CHANNELS,
         dynamic_gain=False,
@@ -298,7 +298,7 @@ def test_REF_is_lower_than_0_dot_256_volts(
 def test_PD_is_near_0_volts_for_blank(
     client: Client, logger: CustomLogger, unit: str, experiment: str
 ) -> None:
-    assert is_HAT_present()
+    assert is_HAT_present(), "HAT is not detected."
     reference_channel = cast(PdChannel, config["od_config.photodiode_channel_reverse"][REF_keyword])
 
     if reference_channel == "1":
@@ -308,7 +308,7 @@ def test_PD_is_near_0_volts_for_blank(
 
     angle = config.get("od_config.photodiode_channel", signal_channel, fallback=None)
 
-    assert angle in ["90", "45", "135"]
+    assert angle in ["90", "45", "135"], f"Angle {angle} not valid for this test."
 
     signals = []
 
@@ -340,7 +340,7 @@ def test_detect_heating_pcb(client: Client, logger: CustomLogger, unit: str, exp
 def test_positive_correlation_between_temperature_and_heating(
     client, logger: CustomLogger, unit: str, experiment: str
 ) -> None:
-    assert is_heating_pcb_present()
+    assert is_heating_pcb_present(), "Heater PCB is not connected, or i2c is not working."
 
     with TemperatureController(unit, experiment, "only_record_temperature") as tc:
         measured_pcb_temps = []
@@ -360,16 +360,16 @@ def test_positive_correlation_between_temperature_and_heating(
 
 
 def test_aux_power_is_not_too_high(client: Client, logger: CustomLogger, unit: str, experiment: str) -> None:
-    assert is_HAT_present()
-    assert voltage_in_aux() <= 18.0
+    assert is_HAT_present(), "HAT was not detected."
+    assert voltage_in_aux() <= 18.0, f"Voltage measured {voltage_in_aux()} > 18.0V"
 
 
 def test_positive_correlation_between_rpm_and_stirring(
     client, logger: CustomLogger, unit: str, experiment: str
 ) -> None:
-    assert is_HAT_present()
-    assert is_heating_pcb_present()
-    assert voltage_in_aux() <= 18.0
+    assert is_HAT_present(), "HAT was not detected."
+    assert is_heating_pcb_present(), "Heating PCB was not detected."
+    assert voltage_in_aux() <= 18.0, f"Voltage measured {voltage_in_aux()} > 18.0V"
 
     with local_persistant_storage("stirring_calibration") as cache:
         if "linear_v1" in cache:
@@ -408,7 +408,7 @@ def test_positive_correlation_between_rpm_and_stirring(
         measured_correlation = round(correlation(dcs, measured_rpms), 2)
         logger.debug(f"Correlation between stirring RPM and duty cycle: {measured_correlation}")
         logger.debug(f"{dcs=}, {measured_rpms=}")
-        assert measured_correlation > 0.9, (dcs, measured_rpms)
+        assert measured_correlation > 0.9, f"RPM correlation not high enough: {(dcs, measured_rpms)}"
 
 
 class BatchTestRunner:
@@ -437,7 +437,7 @@ class BatchTestRunner:
                 res = True
             except Exception as e:
                 logger.debug(e, exc_info=True)
-                logger.warning(f" in {test_name.replace('_', ' ')}: {e}")
+                logger.warning(f"{test_name.replace('_', ' ')}: {e}")
 
             logger.debug(f"{test_name}: {'✅' if res else '❌'}")
 

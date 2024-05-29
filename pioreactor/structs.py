@@ -122,13 +122,6 @@ class LEDChangeEvent(Struct):
     timestamp: t.Annotated[datetime, Meta(tz=True)]
 
 
-class LEDsIntensity(Struct):
-    A: pt.LedIntensityValue = 0.0
-    B: pt.LedIntensityValue = 0.0
-    C: pt.LedIntensityValue = 0.0
-    D: pt.LedIntensityValue = 0.0
-
-
 class DosingEvent(Struct):
     """
     Output of a pump action

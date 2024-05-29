@@ -4,7 +4,7 @@
  - Fix for UI labels when trying to remove multiple labels from Pioreactors.
  - Added groupings on the Experiment dropdown to organize "Active" and "Inactive" experiments. An active experiment has >= 1 Pioreactor assigned to it.
  - UI now supports changing the MQTT broker. This configuration lives in the config.ini, under `[mqtt]`.
- -
+ - New log topic that partitions by the level. This should make subscribers to the log topic slimmer (like the UI, who would have to accept and filter _all_ messages). Should result in a performance increase.
 
 
 ### 24.5.22

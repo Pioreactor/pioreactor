@@ -401,7 +401,7 @@ def add_default_source_to_sinks() -> list[TopicToParserToTable]:
                 parse_alt_media_fraction,
                 "alt_media_fractions",
             ),
-            TopicToParserToTable("pioreactor/+/+/logs/+", parse_logs, "logs"),
+            TopicToParserToTable("pioreactor/+/+/logs/#", parse_logs, "logs"),
             TopicToParserToTable(
                 "pioreactor/+/+/dosing_automation/dosing_automation_settings",
                 parse_automation_settings,

@@ -38,9 +38,7 @@ def trimmed_mean(x: Sequence) -> float:
     return mean(x)
 
 
-def simple_linear_regression(
-    x: Sequence, y: Sequence
-) -> tuple[tuple[float, float], tuple[float, float]]:
+def simple_linear_regression(x: Sequence, y: Sequence) -> tuple[tuple[float, float], tuple[float, float]]:
     from statistics import linear_regression
 
     n = len(x)
@@ -71,7 +69,7 @@ def simple_linear_regression_with_forced_nil_intercept(
     from statistics import linear_regression
 
     n = len(x)
-    assert n > 2, "not enough data points for linear regression"
+    assert n >= 2, "not enough data points for linear regression"
     assert n == len(y), "Array sizes are not equal."
 
     # Compute the regression using statistics.linear_regression

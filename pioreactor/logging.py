@@ -119,7 +119,11 @@ class MQTTHandler(logging.Handler):
                 return
 
         mqtt_msg = self.client.publish(
-            self.topic, payload, qos=self.qos, retain=self.retain, **self.mqtt_kwargs
+            f"{self.topic}/{record.levelname.lower()}",
+            payload,
+            qos=self.qos,
+            retain=self.retain,
+            **self.mqtt_kwargs,
         )
         # if Python exits too quickly, the last msg might never make it to the broker.
         mqtt_msg.wait_for_publish(timeout=2)

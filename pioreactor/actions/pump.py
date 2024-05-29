@@ -306,7 +306,7 @@ def _pump_action(
                     ml = DEFAULT_PWM_CALIBRATION.duration_to_ml(duration)  # naive
                 logger.info(_to_human_readable_action(None, duration, pump_type))
             elif continuously:
-                duration = 10.0
+                duration = 2.5
                 try:
                     ml = pump.duration_to_ml(duration)  # can be wrong if calibration is not defined
                 except exc.CalibrationError:
