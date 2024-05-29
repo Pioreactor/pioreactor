@@ -295,7 +295,6 @@ function ExperimentSummaryForm(props) {
                 disabled={(expName==="") || formError}
                 loading={loading}
                 loadingPosition="end"
-                endIcon={<SaveIcon />}
               >
                 Save
               </LoadingButton>

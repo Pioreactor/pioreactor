@@ -49,6 +49,7 @@ import { useConfirm } from 'material-ui-confirm';
 import {getConfig, getRelabelMap, runPioreactorJob} from "./utilities"
 import Alert from '@mui/material/Alert';
 import LibraryAddCheckOutlinedIcon from '@mui/icons-material/LibraryAddCheckOutlined';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 
 import { useNavigate, Link } from 'react-router-dom'
 
@@ -145,7 +146,7 @@ function TabPanel(props) {
 function UnitSettingDisplaySubtext(props){
 
   if (props.subtext){
-    return <Box sx={{fontSize: "11px", wordBreak: "break-word", padding: "0px 0px"}}><code>{props.subtext}</code></Box>
+    return <Box sx={{fontSize: "11px", wordBreak: "break-word", padding: "5px 0px"}}><code>{props.subtext.replace("_", " ")}</code></Box>
   }
   else{
     return <Box sx={{minHeight: "15px"}}></Box>
@@ -316,6 +317,21 @@ function ButtonStopProcess({experiment}) {
 
 
 
+
+const CustomFormControlLabel = ({ label, sublabel, ...props }) => (
+  <FormControlLabel
+    control={props.control}
+    label={
+      <div>
+        <Typography variant="body1">{label}</Typography>
+        {sublabel && <Typography variant="body2" color={disabledColor}>{sublabel}</Typography>}
+      </div>
+    }
+    {...props}
+  />
+);
+
+
 function AssignPioreactors({experiment}) {
   const [workers, setWorkers] = React.useState([])
   const [assigned, setAssigned] = React.useState({})
@@ -400,7 +416,6 @@ const updateAssignments = async () => {
       open={open}
       onClose={handleClose}
       fullWidth={false}
-      maxWidth={"xs"}
       aria-labelledby="form-dialog-title">
       <DialogTitle>
         Assign Pioreactors
@@ -422,7 +437,13 @@ const updateAssignments = async () => {
 
         <FormControl sx={{m: "auto"}} component="fieldset" variant="standard">
           <FormLabel component="legend">Pioreactors</FormLabel>
-          <FormGroup>
+          <FormGroup
+            sx={ workers.length > 8 ? {
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              columnGap: '30px'
+            } : {}}
+          >
 
             {workers.map((worker) => {
               const unit = worker.pioreactor_unit
@@ -430,16 +451,17 @@ const updateAssignments = async () => {
               const disabled = (exp !== null) && (exp !== experiment)
               var label = unit
               if (disabled) {
-                label = label + ` (Assigned to ${exp})`
+                var sublabel = `(assigned to ${exp})`
               }
 
               return (
-                <FormControlLabel
+                <CustomFormControlLabel
                   key={unit}
                   control={
                     <Checkbox disabled={disabled} onChange={handleChange} checked={!disabled && assigned[unit]} name={unit} />
                   }
                   label={label}
+                  sublabel={sublabel}
                 />
                 )
               })
@@ -2644,13 +2666,22 @@ function PioreactorCard(props){
             }
           })}>
             <div style={{display: "flex", justifyContent: "left"}}>
-              <Button component={Link} to={`/pioreactors/${unit}`} sx={{textTransform: "none", fontSize: 20, fontWeight: 500, ...(isUnitActive ? {} : { color: disabledColor }),}}>
-                <PioreactorIcon color={isUnitActive ? "inherit" : "disabled"} sx={{verticalAlign: "middle", marginRight: "3px", display: {xs: 'none', sm: 'none', md: 'inline' } }}/>
-                {(label ) ? label : unit }
-              </Button>
               <Tooltip title={indicatorLabel} placement="right">
                 <div className="indicator-dot-beside-button" style={{boxShadow: `0 0 ${indicatorDotShadow}px ${indicatorDotColor}, inset 0 0 12px  ${indicatorDotColor}`}}/>
               </Tooltip>
+              <Typography sx={{
+                  fontSize: 20,
+                  color: "rgba(0, 0, 0, 0.87)",
+                  fontWeight: 500,
+                  ...(isUnitActive ? {} : { color: disabledColor }),
+                }}
+                gutterBottom>
+                <PioreactorIcon color={isUnitActive ? "inherit" : "disabled"} sx={{verticalAlign: "middle", marginRight: "3px", display: {xs: 'none', sm: 'none', md: 'inline' } }}/>
+                {(label ) ? label : unit }
+              </Typography>
+              <Button component={Link} to={`/pioreactors/${unit}`} sx={{padding: "0px 8px", marginBottom: "7px", ml: 1, textTransform: "none", ...(isUnitActive ? {} : { color: disabledColor }),}}>
+                Show overview <ArrowForwardIcon sx={{ verticalAlign: "middle", ml: 0.5 }} fontSize="small"/>
+              </Button>
             </div>
             <Box sx={(theme) => ({
               display: "flex",

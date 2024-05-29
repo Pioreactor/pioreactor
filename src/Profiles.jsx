@@ -20,7 +20,6 @@ import DisplaySourceCode from "./components/DisplaySourceCode"
 import CloseIcon from '@mui/icons-material/Close';
 import CodeIcon from '@mui/icons-material/Code';
 import AddIcon from '@mui/icons-material/Add';
-import Badge from '@mui/material/Badge';
 
 import EditIcon from '@mui/icons-material/Edit';
 import { Link, useNavigate } from 'react-router-dom';
@@ -88,7 +87,6 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName, s
       }
       else {
         setRunningProfileName(payload)
-        const filename = Object.keys(experimentProfilesAvailable).find(k => experimentProfilesAvailable[k].experiment_profile_name === payload);
       }
     }
     else if(setting === "start_time_utc") {

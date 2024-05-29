@@ -23,14 +23,13 @@ import 'prismjs/components/prism-yaml'; // You can add more languages or change 
 const EditExperimentProfilesContent = ({ code: initialCode, filename: initialFilename }) => {
   const DEFAULT_CODE = 'loading...';
   const DEFAULT_FILENAME = "";
+  const filenameEditable = initialFilename !== null
 
   const [code, setCode] = useState(initialCode || DEFAULT_CODE);
   const [filename, setFilename] = useState(initialFilename || DEFAULT_FILENAME);
-  const [filenameEditable, setFilenameEditable] = useState(initialFilename !== null);
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [isChanged, setIsChanged] = useState(false);
   const [snackbarMsg, setSnackbarMsg] = useState("");
-  const [saving, setSaving] = useState(false);
   const [isError, setIsError] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -60,7 +59,6 @@ const EditExperimentProfilesContent = ({ code: initialCode, filename: initialFil
       return;
     }
 
-    setSaving(true);
     setIsError(false);
     setIsChanged(false);
     fetch("/api/contrib/experiment_profiles", {
@@ -73,14 +71,12 @@ const EditExperimentProfilesContent = ({ code: initialCode, filename: initialFil
     })
       .then(res => {
         if (res.ok) {
-          setSaving(false);
           setOpenSnackbar(true);
           setSnackbarMsg(`Experiment profile ${filename}.yaml saved.`);
         } else {
           res.json().then(parsedJson => {
             setErrorMsg(parsedJson['msg']);
             setIsError(true);
-            setSaving(false);
           });
         }
       });
@@ -108,7 +104,6 @@ const EditExperimentProfilesContent = ({ code: initialCode, filename: initialFil
         <Grid item xs={12}>
           <div style={{
             tabSize: "4ch",
-            margin: "1.67em 0",
             border: "1px solid #ccc",
             margin: "10px auto 10px auto",
             position: "relative",

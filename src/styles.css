@@ -51,7 +51,7 @@ u {
   height:8px;
   border-radius:5px;
   box-shadow: 0 0 8px #ea4c89, inset 0 0 12px #ea4c89;
-  margin: auto 8px;
+  margin: auto 10px auto 0px;
 }
 
 .readonlyEditor textarea {

@@ -12,18 +12,12 @@ import {Typography} from '@mui/material';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
-import Checkbox from '@mui/material/Checkbox';
-import FormControl from '@mui/material/FormControl';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import FormGroup from '@mui/material/FormGroup';
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
 import CircularProgress from '@mui/material/CircularProgress';
 import Snackbar from '@mui/material/Snackbar';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
-import FormLabel from '@mui/material/FormLabel';
 import InputAdornment from '@mui/material/InputAdornment';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
@@ -36,7 +30,6 @@ import CheckIcon from '@mui/icons-material/Check';
 import FlareIcon from '@mui/icons-material/Flare';
 import SettingsIcon from '@mui/icons-material/Settings';
 import TuneIcon from '@mui/icons-material/Tune';
-import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import CheckBoxOutlinedIcon from '@mui/icons-material/CheckBoxOutlined';
 import IndeterminateCheckBoxIcon from '@mui/icons-material/IndeterminateCheckBox';
 import ListItemIcon from '@mui/material/ListItemIcon';
@@ -50,8 +43,7 @@ import Switch from '@mui/material/Switch';
 import { useConfirm } from 'material-ui-confirm';
 import {getConfig, getRelabelMap, runPioreactorJob} from "./utilities"
 import Alert from '@mui/material/Alert';
-import LibraryAddCheckOutlinedIcon from '@mui/icons-material/LibraryAddCheckOutlined';
-import { useNavigate, Link, useParams  } from 'react-router-dom'
+import {Link, useParams  } from 'react-router-dom'
 
 import ChangeAutomationsDialog from "./components/ChangeAutomationsDialog"
 import ActionDosingForm from "./components/ActionDosingForm"
@@ -60,7 +52,6 @@ import ActionCirculatingForm from "./components/ActionCirculatingForm"
 import ActionLEDForm from "./components/ActionLEDForm"
 import PioreactorIcon from "./components/PioreactorIcon"
 import UnderlineSpan from "./components/UnderlineSpan";
-import ManagePioreactorMenu from "./components/ManagePioreactorMenu";
 import BioreactorDiagram from "./components/Bioreactor";
 import { MQTTProvider, useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
@@ -146,7 +137,7 @@ function TabPanel(props) {
 function UnitSettingDisplaySubtext(props){
 
   if (props.subtext){
-    return <Box sx={{fontSize: "11px", wordBreak: "break-word", padding: "5px 0px"}}><code>{props.subtext}</code></Box>
+    return <Box sx={{fontSize: "11px", wordBreak: "break-word", padding: "5px 0px"}}><code>{props.subtext.replace("_", " ")}</code></Box>
   }
   else{
     return <Box sx={{minHeight: "15px"}}></Box>
@@ -315,154 +306,6 @@ function ButtonStopProcess({experiment, unit}) {
   );
 }
 
-
-
-function AssignPioreactors({experiment}) {
-  const [workers, setWorkers] = React.useState([])
-  const [assigned, setAssigned] = React.useState({})
-  const [initialAssigned, setInitialAssigned] = React.useState({})
-  const [open, setOpen] = useState(false);
-  const navigate = useNavigate()
-
-  useEffect(() => {
-    fetch("/api/workers/assignments")
-     .then((data) => data.json())
-     .then((json) => {
-        setWorkers(json);
-        const assignments = json.reduce((map, item) => {
-          map[item.pioreactor_unit] = item.experiment === experiment;
-          return map;
-        }, {})
-        setAssigned(assignments)
-        setInitialAssigned(assignments)
-      })
-  }, [experiment])
-
-
-  function compareObjects(o1, o2) {
-      const differences = {};
-      for (const key in o1) {
-          if (o1[key] !== o2[key]) {
-              differences[key] = { current: o1[key], initial: o2[key] };
-          }
-      }
-      return differences;
-  }
-
-const updateAssignments = async () => {
-  const delta = compareObjects(assigned, initialAssigned);
-  const promises = [];
-
-  for (const worker in delta) {
-    if (delta[worker].current && !delta[worker].initial) {
-      const promise = fetch(`/api/experiments/${experiment}/workers`, {
-        method: "PUT",
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ pioreactor_unit: worker })
-      });
-      promises.push(promise);
-    } else {
-      const promise = fetch(`/api/experiments/${experiment}/workers/${worker}`, {
-        method: "DELETE",
-      });
-      promises.push(promise);
-    }
-  }
-
-  await Promise.all(promises);
-  setOpen(false);
-  navigate(0);
-};
-
-  const handleClickOpen = () => {
-    setOpen(true);
-  };
-
-  const handleClose = () => {
-    setOpen(false);
-  };
-
-  const handleChange = (event) => {
-    setAssigned({
-      ...assigned,
-      [event.target.name]: event.target.checked,
-    });
-  };
-
-  return (
-    <React.Fragment>
-    <Button style={{textTransform: 'none', }} onClick={handleClickOpen}>
-      <LibraryAddCheckOutlinedIcon fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Assign Pioreactors
-    </Button>
-    <Dialog
-      open={open}
-      onClose={handleClose}
-      fullWidth={false}
-      maxWidth={"xs"}
-      aria-labelledby="form-dialog-title">
-      <DialogTitle>
-        Assign Pioreactors
-        <IconButton
-          aria-label="close"
-          onClick={handleClose}
-          sx={{
-            position: 'absolute',
-            right: 8,
-            top: 8,
-            color: (theme) => theme.palette.grey[500],
-          }}
-          size="large">
-          <CloseIcon />
-        </IconButton>
-      </DialogTitle>
-      <DialogContent>
-        <p> Below, assign and unassign Pioreactors to your experiment <i>{experiment}</i>. </p>
-
-        <FormControl sx={{m: "auto"}} component="fieldset" variant="standard">
-          <FormLabel component="legend">Pioreactors</FormLabel>
-          <FormGroup>
-
-            {workers.map((worker) => {
-              const unit = worker.pioreactor_unit
-              const exp = worker.experiment
-              const disabled = (exp !== null) && (exp !== experiment)
-              var label = unit
-              if (disabled) {
-                label = label + ` (Assigned to ${exp})`
-              }
-
-              return (
-                <FormControlLabel
-                  key={unit}
-                  control={
-                    <Checkbox disabled={disabled} onChange={handleChange} checked={!disabled && assigned[unit]} name={unit} />
-                  }
-                  label={label}
-                />
-                )
-              })
-            }
-
-          </FormGroup>
-        </FormControl>
-      </DialogContent>
-      <DialogActions>
-        <Button
-          variant="contained"
-          onClick={updateAssignments}
-          disabled={Object.keys(compareObjects(assigned, initialAssigned)).length === 0}
-          style={{textTransform: 'none'}}
-        >
-          Update {Object.keys(compareObjects(assigned, initialAssigned)).length}
-        </Button>
-      </DialogActions>
-    </Dialog>
-    </React.Fragment>
-  );
-}
 
 
 
@@ -1887,7 +1730,7 @@ function SettingNumericField(props) {
 
 
 
-function ActiveUnit({unit, experiment, config, isLoading}){
+function ActiveUnit({unit, experiment, config}){
   const [relabelMap, setRelabelMap] = useState({})
 
   useEffect(() => {
@@ -2052,19 +1895,20 @@ function PioreactorCard(props){
 
   const onMessage = (topic, message, packet) => {
     var [job, setting] = topic.toString().split('/').slice(-2)
+    var payload;
     if (setting === "$state"){
-      var payload = message.toString()
+      payload = message.toString()
       setJobs((prev) => ({...prev, [job]: {...prev[job], state: payload}}))
     } else if (job.endsWith("_automation")) {
       // needed because settings are attached to _automations, not _control
       job = job.replace("_automation", "_control")
-      var payload = parseToType(message.toString(), jobs[job].publishedSettings[setting].type)
+      payload = parseToType(message.toString(), jobs[job].publishedSettings[setting].type)
       setJobs((prev) => ({...prev, [job]: {...prev[job], publishedSettings:
           {...prev[job].publishedSettings,
             [setting]:
               {...prev[job].publishedSettings[setting], value: payload }}}}))
     } else {
-      var payload = parseToType(message.toString(), jobs[job].publishedSettings[setting].type)
+      payload = parseToType(message.toString(), jobs[job].publishedSettings[setting].type)
       setJobs(prev => {
         const updatedJob = { ...prev[job] };
         const updatedSetting = { ...updatedJob.publishedSettings[setting], value: payload };
@@ -2279,7 +2123,6 @@ function PioreactorCard(props){
 function Pioreactor({title}) {
   const { experimentMetadata } = useExperiment();
   const [config, setConfig] = useState({})
-  const [isLoading, setIsLoading] = useState(true);
   const {unit} = useParams();
 
   useEffect(() => {
@@ -2295,7 +2138,7 @@ function Pioreactor({title}) {
           <PioreactorHeader unit={unit} experiment={experimentMetadata.experiment}/>
         </Grid>
         <Grid item md={8} xs={12}>
-          <ActiveUnit unit={unit} isLoading={isLoading} experiment={experimentMetadata.experiment} config={config}/>
+          <ActiveUnit unit={unit} experiment={experimentMetadata.experiment} config={config}/>
         </Grid>
         <Grid item md={4} xs={4}>
           <BioreactorDiagram  experiment={experimentMetadata.experiment} unit={unit} config={config}/>

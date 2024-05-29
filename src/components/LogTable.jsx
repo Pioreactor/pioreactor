@@ -35,24 +35,24 @@ const StyledTimeTableCell = styled(TableCell)(({ theme, level }) => {
   };
 });
 
-const levelMappingToOrdinal = {
-  NOTSET: 0,
-  DEBUG: 1,
-  INFO: 2,
-  NOTICE: 2.5,
-  WARNING: 3,
-  ERROR: 4,
-  CRITICAL: 5
-}
+const LEVELS = [
+  "NOTSET",
+  "DEBUG",
+  "INFO",
+  "NOTICE",
+  "WARNING",
+  "ERROR",
+  "CRITICAL"
+]
 
-function LogTable(props) {
+function LogTable({byDuration, experimentStartTime, experiment, config, relabelMap}) {
   const [listOfLogs, setListOfLogs] = useState([]);
-  const {client, subscribeToTopic } = useMQTT(); // Use the useMQTT hook
+  const {client, subscribeToTopic } = useMQTT();
 
   useEffect(() => {
     const getData = async () => {
-      const response = await fetch(`/api/experiments/${props.experiment}/logs?` + new URLSearchParams({
-        min_level: props.config.logging.ui_log_level
+      const response = await fetch(`/api/experiments/${experiment}/logs?` + new URLSearchParams({
+        min_level: config.logging.ui_log_level
       }));
       const logs = await response.json();
       setListOfLogs(logs.map((log, index) => ({
@@ -62,30 +62,47 @@ function LogTable(props) {
     };
 
     getData();
-  }, [props.experiment, props.config]);
+  }, [experiment, config]);
 
   useEffect(() => {
-    if (client){
-      subscribeToTopic(`pioreactor/+/$experiment/logs/+`, onMessage, "LogTable");
+    if (client && (Object.keys(config).length)){
+
+      // what level does the user request?
+      const levelRequested = config.logging.ui_log_level.toUpperCase()|| "INFO"
+      const ix = LEVELS.indexOf(levelRequested)
+
+      for (const level of LEVELS.slice(ix)){
+        subscribeToTopic(`pioreactor/+/$experiment/logs/+/${level.toLowerCase()}`, onMessage, "LogTable");
+      }
+
     }
   }, [client]);
 
   useEffect(() => {
-    if (props.experiment && client) {
-      subscribeToTopic(`pioreactor/+/${props.experiment}/logs/+`, onMessage, "LogTable");
+    if (experiment && client && (Object.keys(config).length)){
+
+      // what level does the user request?
+      const levelRequested = config.logging.ui_log_level.toUpperCase() || "INFO"
+      const ix = LEVELS.indexOf(levelRequested)
+
+      for (const level of LEVELS.slice(ix)){
+        console.log(`pioreactor/+/${experiment}/logs/+/${level.toLowerCase()}`)
+        subscribeToTopic(`pioreactor/+/${experiment}/logs/+/${level.toLowerCase()}`, onMessage, "LogTable");
+      }
+
     }
-  }, [props.experiment, client]);
+  }, [client, experiment, config]);
 
   const relabelUnit = (unit) => {
-    return (props.relabelMap && props.relabelMap[unit]) ? `${props.relabelMap[unit]} / ${unit}` : unit;
+    return (relabelMap && relabelMap[unit]) ? `${relabelMap[unit]} / ${unit}` : unit;
   };
 
   const timestampCell = (timestamp) => {
     const ts = moment.utc(timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]');
     const localTs = ts.local();
 
-    if (props.byDuration) {
-      const deltaHours = Math.round(ts.diff(props.experimentStartTime, 'hours', true) * 1e2) / 1e2;
+    if (byDuration) {
+      const deltaHours = Math.round(ts.diff(experimentStartTime, 'hours', true) * 1e2) / 1e2;
       return <span title={localTs.format('YYYY-MM-DD HH:mm:ss.SS')}>{deltaHours} h</span>;
     } else {
       return <span title={localTs.format('YYYY-MM-DD HH:mm:ss.SS')}>{localTs.format('HH:mm:ss')}</span>;
@@ -96,9 +113,6 @@ function LogTable(props) {
     const unit = topic.toString().split("/")[1];
     const payload = JSON.parse(message.toString());
 
-    if (levelMappingToOrdinal[payload.level.toUpperCase()] < levelMappingToOrdinal[props.config.logging.ui_log_level.toUpperCase()]) {
-      return;
-    }
 
     setListOfLogs(currentLogs => [
       {

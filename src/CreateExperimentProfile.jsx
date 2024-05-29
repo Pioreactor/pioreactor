@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import {useEffect, useState, Fragment } from 'react';
 
 import FormControl from '@mui/material/FormControl';
 import Grid from "@mui/material/Grid";
@@ -32,7 +32,6 @@ metadata:
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMsg, setSnackbarMsg] = useState("");
   const [isChanged, setIsChanged] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [isError, setIsError] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -57,7 +56,6 @@ metadata:
       return;
     }
 
-    setSaving(true);
     setIsError(false);
     setIsChanged(false);
     fetch("/api/contrib/experiment_profiles", {
@@ -70,14 +68,12 @@ metadata:
     })
       .then(res => {
         if (res.ok) {
-          setSaving(false);
           setOpenSnackbar(true);
           setSnackbarMsg(`Experiment profile ${filename}.yaml saved.`);
         } else {
           res.json().then(parsedJson => {
             setErrorMsg(parsedJson['msg']);
             setIsError(true);
-            setSaving(false);
             setIsChanged(true);
           });
         }
@@ -160,7 +156,7 @@ metadata:
 
 function ProfilesContainer(props){
   return(
-    <React.Fragment>
+    <>
       <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
         <Typography variant="h5" component="h2" sx={{ fontWeight: "bold" }}>
           Create Experiment Profile
@@ -175,13 +171,13 @@ function ProfilesContainer(props){
           <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about creating <a href="https://docs.pioreactor.com/user-guide/create-edit-experiment-profiles" target="_blank" rel="noopener noreferrer">experiment profile schemas</a>.</p>
         </CardContent>
       </Card>
-    </React.Fragment>
+    </>
 )}
 
 
 function CreateNewProfile(props) {
 
-    React.useEffect(() => {
+    useEffect(() => {
       document.title = props.title;
     }, [props.title]);
     return (

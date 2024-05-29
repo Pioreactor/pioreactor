@@ -17,17 +17,6 @@ import { useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 
 
-function mapUnitsToColors(units, colors) {
-    const result = {};
-    units.forEach((unit, index) => {
-        if (index < colors.length) {
-            result[unit.pioreactor_unit] = colors[index];
-        }
-    });
-    return result;
-}
-
-
 const TimeFormatSwitch = (props) => {
   const [state, setState] = useState(props.initTimeScale);
 

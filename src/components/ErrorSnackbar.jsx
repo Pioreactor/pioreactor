@@ -16,15 +16,19 @@ function ErrorSnackbar(props) {
 
   React.useEffect(() => {
     if (client && experimentMetadata.experiment){
-      subscribeToTopic(`pioreactor/+/${experimentMetadata.experiment}/logs/+`, onMessage, "ErrorSnackbar")
-      subscribeToTopic(`pioreactor/+/$experiment/logs/+`, onMessage, "ErrorSnackbar")
+      subscribeToTopic(`pioreactor/+/${experimentMetadata.experiment}/logs/app/error`,   onMessage, "ErrorSnackbar")
+      subscribeToTopic(`pioreactor/+/${experimentMetadata.experiment}/logs/app/warning`, onMessage, "ErrorSnackbar")
+      subscribeToTopic(`pioreactor/+/${experimentMetadata.experiment}/logs/app/notice`,  onMessage, "ErrorSnackbar")
+      subscribeToTopic(`pioreactor/+/$experiment/logs/app/error`,                        onMessage, "ErrorSnackbar")
+      subscribeToTopic(`pioreactor/+/$experiment/logs/app/warning`,                      onMessage, "ErrorSnackbar")
+      subscribeToTopic(`pioreactor/+/$experiment/logs/app/notice`,                       onMessage, "ErrorSnackbar")
     }
 
   },[client, experimentMetadata])
 
   const onMessage = (topic, message, packet) => {
-      const payload = JSON.parse(message.toString())
-      if ((payload.level === "ERROR" || payload.level === "WARNING" || payload.level === "NOTICE") && (!topic.toString().endsWith("/ui"))){
+      if (!topic.toString().endsWith("/ui")){
+        const payload = JSON.parse(message.toString())
         const unit = topic.toString().split("/")[1]
         setMsg(payload.message)
         setTask(payload.task)

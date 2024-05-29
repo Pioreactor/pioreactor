@@ -33,7 +33,7 @@ import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import RemoveCircleOutlineRoundedIcon from '@mui/icons-material/RemoveCircleOutlineRounded';
 import CircularProgress from '@mui/material/CircularProgress';
 import { useConfirm } from 'material-ui-confirm';
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 
 
 
@@ -67,7 +67,7 @@ function Header(props) {
 function AddNewPioreactor(props){
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [model, setModel] = useState("pioreactor_20ml");
+  const [model, setModel] = useState("pioreactor_20ml"); // setModel isn't used yet
   const [version, setVersion] = useState("");
 
   const [isError, setIsError] = useState(false)
@@ -354,7 +354,13 @@ function WorkerCard(props) {
         <div style={{display: "flex", justifyContent: "space-between"}}>
 
           <div style={{display: "flex", justifyContent: "left"}}>
-            <Typography color={activeStatus === "active" ? "inherit" : inactiveGrey} variant="h5" component="div">
+            <Typography sx={{
+                fontSize: 20,
+                color: "rgba(0, 0, 0, 0.87)",
+                fontWeight: 500,
+                ...(activeStatus === "active" ? {} : { color: inactiveGrey }),
+              }}
+              gutterBottom>
               <PioreactorIcon  style={{verticalAlign: "middle", marginRight: "3px"}} sx={{ display: {xs: 'none', sm: 'none', md: 'inline' } }}/>
               {unit}
             </Typography>
