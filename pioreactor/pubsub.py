@@ -295,14 +295,14 @@ def subscribe_and_callback(
     return client
 
 
-def prune_retained_messages(topics_to_prune: str = "#"):
+def prune_retained_messages(topics_to_prune: str = "#") -> None:
     topics = []
 
     def on_message(message):
         topics.append(message.topic)
 
-    client = subscribe_and_callback(on_message, topics_to_prune, timeout=1)
-
+    client = subscribe_and_callback(on_message, topics_to_prune)
+    sleep(1)
     for topic in topics.copy():
         publish(topic, None, retain=True)
 

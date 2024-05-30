@@ -116,9 +116,7 @@ class TemperatureAutomationJob(AutomationJob):
             # this should really only happen on the initialization.
             self.logger.debug("Waiting for OD and growth rate data to arrive")
             if not all(is_pio_job_running(["od_reading", "growth_rate_calculating"])):
-                raise exc.JobRequiredError(
-                    "`od_reading` and `growth_rate_calculating` should be Ready."
-                )
+                raise exc.JobRequiredError("`od_reading` and `growth_rate_calculating` should be Ready.")
 
         # check most stale time
         if (current_utc_datetime() - self.most_stale_time).seconds > 5 * 60:
@@ -135,9 +133,7 @@ class TemperatureAutomationJob(AutomationJob):
             # this should really only happen on the initialization.
             self.logger.debug("Waiting for OD and growth rate data to arrive")
             if not all(is_pio_job_running(["od_reading", "growth_rate_calculating"])):
-                raise exc.JobRequiredError(
-                    "`od_reading` and `growth_rate_calculating` should be running."
-                )
+                raise exc.JobRequiredError("`od_reading` and `growth_rate_calculating` should be running.")
 
         # check most stale time
         if (current_utc_datetime() - self.most_stale_time).seconds > 5 * 60:
@@ -164,6 +160,9 @@ class TemperatureAutomationJob(AutomationJob):
             )
 
     def _set_growth_rate(self, message: pt.MQTTMessage) -> None:
+        if not message.payload:
+            return
+
         self.previous_growth_rate = self._latest_growth_rate
         payload = decode(message.payload, type=structs.GrowthRate)
         self._latest_growth_rate = payload.growth_rate
