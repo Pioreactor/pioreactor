@@ -37,6 +37,7 @@ from pioreactor.hardware import voltage_in_aux
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
 from pioreactor.pubsub import Client
+from pioreactor.pubsub import prune_retained_messages
 from pioreactor.types import LedChannel
 from pioreactor.types import PdChannel
 from pioreactor.utils import is_pio_job_running
@@ -534,5 +535,8 @@ def click_self_test(k: Optional[str]) -> int:
             logger.info("All tests passed ✅")
         elif count_failures > 0:
             logger.info(f"{count_failures} failed test{'s' if count_failures > 1 else ''} ❌")
+
+        # clear my retained messages
+        prune_retained_messages(f"pioreactor/{unit}/{testing_experiment}/#")
 
         return int(count_failures > 0)
