@@ -276,6 +276,10 @@ def test_REF_is_lower_than_0_dot_256_volts(
     )
     adc_reader.tune_adc()
 
+    blank_reading = adc_reader.take_reading()
+    adc_reader.set_offsets(blank_reading)  # set dark offset
+    adc_reader.clear_batched_readings()
+
     with change_leds_intensities_temporarily(
         {ir_channel: ir_intensity},
         unit=unit,

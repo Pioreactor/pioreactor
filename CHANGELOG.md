@@ -1,10 +1,18 @@
 ### Upcoming
 
- - Fix for Pioreactors page when _no workers are added to the cluster_.
- - Fix for UI labels when trying to remove multiple labels from Pioreactors.
+#### Highlights
+ - New /pioreactor/<name> page in the UI for a detailed view of an individual Pioreactor, including a realtime visualization of the Pioreactor!
+
+#### Enhancements
+ - UI now supports external MQTT broker. This configuration lives in the same place as the exiting MQTT settings: in the config.ini, under `[mqtt]`.
  - Added groupings on the Experiment dropdown to organize "Active" and "Inactive" experiments. An active experiment has >= 1 Pioreactor assigned to it.
- - UI now supports changing the MQTT broker. This configuration lives in the config.ini, under `[mqtt]`.
- - New log topic that partitions by the level. This should make subscribers to the log topic slimmer (like the UI, who would have to accept and filter _all_ messages). Should result in a performance increase.
+
+#### Breaking changes
+ - New log topic that partitions by the level. This should make subscribers to the log topic slimmer (like the UI, who previosly would have to accept _all_ messages and filter to what they needed). Should result in a performance increase.
+
+#### Bug fixes
+ - Fix for Pioreactors page when _no workers are added to the cluster_.
+ - Fix for UI labels when trying to remove labels from Pioreactors.
 
 
 ### 24.5.22
