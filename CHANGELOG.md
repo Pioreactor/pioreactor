@@ -1,4 +1,4 @@
-### Upcoming
+### 24.5.31
 
 #### Highlights
  - New /pioreactor/`worker-name` page in the UI for a detailed view of an individual Pioreactor, including a realtime visualization of the Pioreactor!
