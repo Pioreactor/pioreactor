@@ -15,6 +15,7 @@ import DialogContent from '@mui/material/DialogContent';
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
 import CircularProgress from '@mui/material/CircularProgress';
+import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import Snackbar from '@mui/material/Snackbar';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
@@ -23,6 +24,7 @@ import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import Button from "@mui/material/Button";
 import LoadingButton from '@mui/lab/LoadingButton';
+import ToggleOnIcon from '@mui/icons-material/ToggleOn';
 import ClearIcon from '@mui/icons-material/Clear';
 import CloseIcon from '@mui/icons-material/Close';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -73,9 +75,9 @@ const stateDisplay = {
 }
 
 
-function StateTypography({ state }) {
+function StateTypography({ state, isDisabled=false }) {
   const style = {
-    color: stateDisplay[state].color,
+    color: isDisabled ? disabledColor : stateDisplay[state].color,
     padding: "1px 5px",
     backgroundColor: stateDisplay[state].backgroundColor,
     display: "inline-block",
@@ -175,15 +177,12 @@ function UnitSettingDisplay(props) {
   }
 
   if (props.isStateSetting) {
-    if (!props.isUnitActive) {
-      return <Box sx={{ color: disabledColor }}> {stateDisplay[value].display} </Box>;
-    } else {
       return (
         <React.Fragment>
-          <StateTypography state={value}/>
+          <StateTypography state={value} isDisabled={!props.isUnitActive}/>
           <UnitSettingDisplaySubtext subtext={props.subtext}/>
         </React.Fragment>
-    )}
+    )
   } else if (props.isLEDIntensity) {
     if (!props.isUnitActive || value === "—" || value === "") {
       return <div style={{ color: disconnectedGrey, fontSize: "13px"}}> {props.default} </div>;
@@ -310,7 +309,7 @@ function ButtonStopProcess({experiment, unit}) {
 
 
 
-function PioreactorHeader({unit, experiment}) {
+function PioreactorHeader({unit, assignedExperiment, isActive}) {
   return (
     <Box>
       <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
@@ -322,12 +321,36 @@ function PioreactorHeader({unit, experiment}) {
         </Box>
         </Typography>
         <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
-          <ButtonStopProcess experiment={experiment} unit={unit}/>
+          <ButtonStopProcess experiment={assignedExperiment} unit={unit}/>
           {/* <Divider orientation="vertical" flexItem variant="middle"/> */}
           {/* <ManagePioreactorMenu experiment={experiment} unit={unit}/> */}
         </Box>
       </Box>
      <Divider />
+
+        <Box sx={{m: "10px 2px 0px 2px", display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
+          <Typography variant="subtitle2" sx={{flexGrow: 1}}>
+            <Box sx={{display:"inline"}}>
+              <Box fontWeight="fontWeightBold" sx={{display:"inline-block"}}>
+                <ScienceOutlinedIcon sx={{ fontSize: 14, verticalAlign: "-2px" }}/> Experiment assigned:&nbsp;
+              </Box>
+              <Box fontWeight="fontWeightRegular" sx={{mr: "1%", display:"inline-block"}}>
+                {assignedExperiment}
+              </Box>
+            </Box>
+            <Box sx={{display:"inline"}}>
+              <Box fontWeight="fontWeightBold" sx={{display:"inline-block"}}>
+                <ToggleOnIcon sx={{ fontSize: 14, verticalAlign: "-2px" }}/> Availability:&nbsp;
+              </Box>
+              <Box fontWeight="fontWeightRegular" sx={{mr: "1%", display:"inline-block"}}>
+                {isActive ? "Active" : "Inactive"}
+              </Box>
+            </Box>
+
+          </Typography>
+        </Box>
+
+
     </Box>
   )
 }
@@ -1274,7 +1297,7 @@ function SettingsActionsDialog(props) {
             Cycle Media
           </Typography>
           <Typography variant="body2" component="p">
-            Safely cycle media in and out of your Pioreactor for a set duration (seconds) by running the media and waste pump simultaneously.
+            Safely cycle media in and out of your Pioreactor for a set duration (seconds) by running the media periodically and waste pump continuously.
           </Typography>
 
           <ActionCirculatingForm action="circulate_media" unit={props.unit} experiment={props.experiment} job={props.jobs.circulate_media} />
@@ -1285,7 +1308,7 @@ function SettingsActionsDialog(props) {
             Cycle alternative media
           </Typography>
           <Typography variant="body2" component="p">
-            Safely cycle alternative media in and out of your Pioreactor for a set duration (seconds) by running the alt-media and waste pump simultaneously.
+            Safely cycle alternative media in and out of your Pioreactor for a set duration (seconds) by running the alt-media periodically and waste pump continuously.
           </Typography>
 
           <ActionCirculatingForm action="circulate_alt_media" unit={props.unit} experiment={props.experiment} job={props.jobs.circulate_alt_media} />
@@ -1514,7 +1537,6 @@ function SettingsActionsDialog(props) {
             variant="text"
             color="primary"
             style={{marginTop: "15px", textTransform: 'none'}}
-            disabled={props.jobs.monitor.state !== "ready"}
             onClick={rebootRaspberryPi()}
           >
             Reboot RPi
@@ -1534,7 +1556,6 @@ function SettingsActionsDialog(props) {
             variant="text"
             color="primary"
             style={{marginTop: "15px", textTransform: 'none'}}
-            disabled={props.jobs.monitor.state !== "ready"}
             onClick={shutDownRaspberryPi()}
           >
             Shut down
@@ -1730,10 +1751,11 @@ function SettingNumericField(props) {
 
 
 
-function ActiveUnit({unit, experiment, config}){
+function UnitCard({unit, experiment, config, isAssignedToExperiment, isActive}){
   const [relabelMap, setRelabelMap] = useState({})
 
   useEffect(() => {
+
     if (experiment){
       getRelabelMap(setRelabelMap, experiment)
     }
@@ -1742,7 +1764,7 @@ function ActiveUnit({unit, experiment, config}){
   return (
     <React.Fragment>
       <div>
-         <PioreactorCard isUnitActive={true} unit={unit} config={config} experiment={experiment} label={relabelMap[unit]}/>
+         <PioreactorCard isUnitActive={isAssignedToExperiment && isActive} unit={unit} config={config} experiment={experiment} label={relabelMap[unit]}/>
       </div>
     </React.Fragment>
 )}
@@ -1958,7 +1980,7 @@ function PioreactorCard(props){
   const indicatorLabel = getInicatorLabel(jobs.monitor.state, isUnitActive)
 
   return (
-    <Card sx={{mt: 3, mb: 3}} id={unit} aria-disabled={!isUnitActive}>
+    <Card  id={unit} aria-disabled={!isUnitActive}>
       <CardContent sx={{p: "10px 20px 20px 20px"}}>
         <Box className={"fixme"}>
           <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}} color="textSecondary">
@@ -2124,23 +2146,43 @@ function Pioreactor({title}) {
   const { experimentMetadata } = useExperiment();
   const [config, setConfig] = useState({})
   const {unit} = useParams();
+  const [assignedExperiment, setAssignedExperiment] = useState(null)
+  const [isActive, setIsActive] = useState(true)
+
 
   useEffect(() => {
     document.title = title;
     getConfig(setConfig)
   }, [title]);
 
+  useEffect(() => {
+
+    function getWorkerAssignment() {
+      fetch(`/api/workers/${unit}/experiment`)
+      .then((data) => data.json())
+      .then((json) => {
+        setAssignedExperiment(json['experiment'])
+        console.log(json)
+        setIsActive(json['is_active'])
+      })
+    }
+
+    if (experimentMetadata){
+      getWorkerAssignment()
+    }
+  }, [experimentMetadata])
+
 
   return (
     <MQTTProvider name={unit} config={config} experiment={experimentMetadata.experiment}>
       <Grid container spacing={2} >
         <Grid item md={12} xs={12}>
-          <PioreactorHeader unit={unit} experiment={experimentMetadata.experiment}/>
+          <PioreactorHeader unit={unit} assignedExperiment={assignedExperiment} isActive={isActive}/>
         </Grid>
-        <Grid item md={8} xs={12}>
-          <ActiveUnit unit={unit} experiment={experimentMetadata.experiment} config={config}/>
+        <Grid item lg={8} md={12} xs={12}>
+          <UnitCard isActive={isActive} isAssignedToExperiment={experimentMetadata.experiment === assignedExperiment} unit={unit} experiment={experimentMetadata.experiment} config={config}/>
         </Grid>
-        <Grid item md={4} xs={4}>
+        <Grid item lg={4} md={12} xs={12}>
           <BioreactorDiagram  experiment={experimentMetadata.experiment} unit={unit} config={config}/>
         </Grid>
       </Grid>

@@ -15,13 +15,14 @@ function ErrorSnackbar(props) {
   const { experimentMetadata } = useExperiment();
 
   React.useEffect(() => {
-    if (client && experimentMetadata.experiment){
-      subscribeToTopic(`pioreactor/+/${experimentMetadata.experiment}/logs/app/error`,   onMessage, "ErrorSnackbar")
-      subscribeToTopic(`pioreactor/+/${experimentMetadata.experiment}/logs/app/warning`, onMessage, "ErrorSnackbar")
-      subscribeToTopic(`pioreactor/+/${experimentMetadata.experiment}/logs/app/notice`,  onMessage, "ErrorSnackbar")
-      subscribeToTopic(`pioreactor/+/$experiment/logs/app/error`,                        onMessage, "ErrorSnackbar")
-      subscribeToTopic(`pioreactor/+/$experiment/logs/app/warning`,                      onMessage, "ErrorSnackbar")
-      subscribeToTopic(`pioreactor/+/$experiment/logs/app/notice`,                       onMessage, "ErrorSnackbar")
+    if (client && experimentMetadata){
+      subscribeToTopic([`pioreactor/+/${experimentMetadata.experiment}/logs/app/error`,
+                        `pioreactor/+/${experimentMetadata.experiment}/logs/app/warning`,
+                        `pioreactor/+/${experimentMetadata.experiment}/logs/app/notice`,
+                        `pioreactor/+/$experiment/logs/app/error`,
+                        `pioreactor/+/$experiment/logs/app/warning`,
+                        `pioreactor/+/$experiment/logs/app/notice`],
+                      onMessage, "ErrorSnackbar")
     }
 
   },[client, experimentMetadata])

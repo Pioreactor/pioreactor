@@ -188,33 +188,32 @@ export default function SideNavAndHeader() {
                 </FormControl>
               </MenuItem>
 
+              <MenuItem
+                icon={<DashboardOutlinedIcon/>}
+                component={<Link to="/overview" className="link" />}
+                active={(isSelected("/") || isSelected("/overview"))}
+                >
+                Overview
+              </MenuItem>
 
-                <MenuItem
-                  icon={<DashboardOutlinedIcon/>}
-                  component={<Link to="/overview" className="link" />}
-                  active={(isSelected("/") || isSelected("/overview"))}
-                  >
-                  Overview
-                </MenuItem>
+              <SubMenu
+                icon={<PioreactorIcon viewBox="-3 0 24 24"/>}
+                component={<Link to="/pioreactors" className="link" />}
+                active={isSelected("/pioreactors")}
+                label="Pioreactors"
+                >
 
-                <SubMenu
-                  icon={<PioreactorIcon viewBox="-3 0 24 24"/>}
-                  component={<Link to="/pioreactors" className="link" />}
-                  active={isSelected("/pioreactors")}
-                  label="Pioreactors"
-                  >
+              </SubMenu>
 
-                </SubMenu>
-
-                <MenuItem
-                  icon={
-                        <ViewTimelineOutlinedIcon/>
-                    }
-                  component={<Link to="/experiment-profiles" className="link" />}
-                  active={isSelected("/experiment-profiles")}
-                  >
-                  Profiles
-                </MenuItem>
+              <MenuItem
+                icon={
+                      <ViewTimelineOutlinedIcon/>
+                  }
+                component={<Link to="/experiment-profiles" className="link" />}
+                active={isSelected("/experiment-profiles")}
+                >
+                Profiles
+              </MenuItem>
 
             <Divider sx={{marginTop: "15px", marginBottom: "15px"}} />
           </Menu>
@@ -307,7 +306,7 @@ export default function SideNavAndHeader() {
                 aria-label="open drawer"
                 edge="start"
                 onClick={handleDrawerToggle}
-                sx={{mr: 2, display: { xs: 'block', sm: 'none' }, root: {marginRight: (theme) => theme.spacing(2)}}}
+                sx={{mr: 2, display: { md: 'none', sm: 'block', xs: "block" }, root: {marginRight: (theme) => theme.spacing(2)}}}
                 size="large">
                 <MenuIcon />
               </IconButton>
@@ -342,15 +341,15 @@ export default function SideNavAndHeader() {
         ModalProps={{
           keepMounted: true, // Better open performance on mobile.
         }}
-        sx={{ display: { xs: 'block', sm: 'none' } }}
+        sx={{ display: { xs: 'block', sm: 'block' , md: "none"} }}
       >
-        <div style={{minHeight: "0px"}}/>
+        <div style={{minHeight: "60px"}}/>
         {list()}
       </DrawerStyled>
       <DrawerStyled
         variant="permanent"
         open
-        sx={{ display: { xs: 'none', sm: 'block' } }}
+        sx={{ display: { xs: 'none', sm: 'none', md: "block" } }}
       >
         <Toolbar />
         {list()}

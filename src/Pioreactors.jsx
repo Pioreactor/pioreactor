@@ -81,14 +81,14 @@ const stateDisplay = {
 }
 
 
-function StateTypography({ state }) {
+
+function StateTypography({ state, isDisabled=false }) {
   const style = {
-    color: stateDisplay[state].color,
+    color: isDisabled ? disabledColor : stateDisplay[state].color,
     padding: "1px 5px",
     backgroundColor: stateDisplay[state].backgroundColor,
     display: "inline-block",
-    fontWeight: 500,
-    marginBottom: "1px"
+    fontWeight: 500
   };
 
   return (
@@ -97,6 +97,7 @@ function StateTypography({ state }) {
     </Typography>
   );
 }
+
 
 
 const StylizedCode = styled('code')(({ theme }) => ({
@@ -184,15 +185,12 @@ function UnitSettingDisplay(props) {
   }
 
   if (props.isStateSetting) {
-    if (!props.isUnitActive) {
-      return <Box sx={{ color: disabledColor }}> {stateDisplay[value].display} </Box>;
-    } else {
       return (
         <React.Fragment>
-          <StateTypography state={value}/>
+          <StateTypography state={value} isDisabled={!props.isUnitActive}/>
           <UnitSettingDisplaySubtext subtext={props.subtext}/>
         </React.Fragment>
-    )}
+    )
   } else if (props.isLEDIntensity) {
     if (!props.isUnitActive || value === "—" || value === "") {
       return <div style={{ color: disconnectedGrey, fontSize: "13px"}}> {props.default} </div>;
@@ -440,7 +438,7 @@ const updateAssignments = async () => {
           <FormGroup
             sx={ workers.length > 8 ? {
               display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
+              gridTemplateColumns: '1fr 1fr 1fr',
               columnGap: '30px'
             } : {}}
           >
@@ -1452,7 +1450,7 @@ function SettingsActionsDialog(props) {
             Cycle Media
           </Typography>
           <Typography variant="body2" component="p">
-            Safely cycle media in and out of your Pioreactor for a set duration (seconds) by running the media and waste pump simultaneously.
+            Safely cycle media in and out of your Pioreactor for a set duration (seconds) by running the media periodically and waste pump continuously.
           </Typography>
 
           <ActionCirculatingForm action="circulate_media" unit={props.unit} experiment={props.experiment} job={props.jobs.circulate_media} />
@@ -1463,7 +1461,7 @@ function SettingsActionsDialog(props) {
             Cycle alternative media
           </Typography>
           <Typography variant="body2" component="p">
-            Safely cycle alternative media in and out of your Pioreactor for a set duration (seconds) by running the alt-media and waste pump simultaneously.
+            Safely cycle alternative media in and out of your Pioreactor for a set duration (seconds) by running the alt-media periodically and waste pump continuously.
           </Typography>
 
           <ActionCirculatingForm action="circulate_alt_media" unit={props.unit} experiment={props.experiment} job={props.jobs.circulate_alt_media} />
@@ -1692,7 +1690,6 @@ function SettingsActionsDialog(props) {
             variant="text"
             color="primary"
             style={{marginTop: "15px", textTransform: 'none'}}
-            disabled={props.jobs.monitor.state !== "ready"}
             onClick={rebootRaspberryPi()}
           >
             Reboot RPi
@@ -1712,7 +1709,6 @@ function SettingsActionsDialog(props) {
             variant="text"
             color="primary"
             style={{marginTop: "15px", textTransform: 'none'}}
-            disabled={props.jobs.monitor.state !== "ready"}
             onClick={shutDownRaspberryPi()}
           >
             Shut down
@@ -2116,7 +2112,7 @@ function SettingsActionsDialogAll({experiment}) {
             Cycle Media
           </Typography>
           <Typography variant="body2" component="p">
-            Safely cycle media in and out of your Pioreactor for a set duration (seconds).
+            Safely cycle media in and out of your Pioreactor for a set duration (seconds) by running the media pump periodically and waste pump continuously.
           </Typography>
 
           <ActionCirculatingForm action="circulate_media" unit={unit} />
@@ -2127,7 +2123,7 @@ function SettingsActionsDialogAll({experiment}) {
             Cycle alternative media
           </Typography>
           <Typography variant="body2" component="p">
-            Safely cycle alternative media in and out of your Pioreactor for a set duration (seconds).
+            Safely cycle alternative media in and out of your Pioreactor for a set duration (seconds)  by running the alt-media pump periodically and waste pump continuously.
           </Typography>
 
           <ActionCirculatingForm action="circulate_alt_media" unit={unit} />
@@ -2410,7 +2406,7 @@ function ActiveUnits({experiment, config, units, isLoading}){
       <>
       <Typography component='div' variant='body2'>
         <Box fontWeight="fontWeightRegular">
-          No active Pioreactors assigned to experiment.
+          No active Pioreactors assigned to this experiment.
         </Box>
         <AssignPioreactors experiment={experiment}/>
         <Box fontWeight="fontWeightRegular">
@@ -2665,7 +2661,7 @@ function PioreactorCard(props){
               flexDirection: "column",
             }
           })}>
-            <div style={{display: "flex", justifyContent: "left"}}>
+            <div style={{display: "flex", justifyContent: "left", marginTop: "3px"}}>
               <Tooltip title={indicatorLabel} placement="right">
                 <div className="indicator-dot-beside-button" style={{boxShadow: `0 0 ${indicatorDotShadow}px ${indicatorDotColor}, inset 0 0 12px  ${indicatorDotColor}`}}/>
               </Tooltip>
@@ -2679,8 +2675,8 @@ function PioreactorCard(props){
                 <PioreactorIcon color={isUnitActive ? "inherit" : "disabled"} sx={{verticalAlign: "middle", marginRight: "3px", display: {xs: 'none', sm: 'none', md: 'inline' } }}/>
                 {(label ) ? label : unit }
               </Typography>
-              <Button component={Link} to={`/pioreactors/${unit}`} sx={{padding: "0px 8px", marginBottom: "7px", ml: 1, textTransform: "none", ...(isUnitActive ? {} : { color: disabledColor }),}}>
-                Show overview <ArrowForwardIcon sx={{ verticalAlign: "middle", ml: 0.5 }} fontSize="small"/>
+              <Button disabled={!isUnitActive} component={Link} to={`/pioreactors/${unit}`} sx={{padding: "0px 8px", marginBottom: "7px", ml: 1, textTransform: "none", ...(isUnitActive ? {} : { color: disabledColor }),}}>
+                View details <ArrowForwardIcon sx={{ verticalAlign: "middle", ml: 0.5 }} fontSize="small"/>
               </Button>
             </div>
             <Box sx={(theme) => ({

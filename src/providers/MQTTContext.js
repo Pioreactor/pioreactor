@@ -20,18 +20,26 @@ const TrieNode = function() {
   this.handlers = {}; // Using an object to store handlers by key
 };
 
-const addHandlerToTrie = (root, topic, handler, key) => {
-  let node = root;
-  const levels = topic.split('/');
-
-  for (const level of levels) {
-    if (!node.children[level]) {
-      node.children[level] = new TrieNode();
-    }
-    node = node.children[level];
+const addHandlerToTrie = (root, topics, handler, key) => {
+  // Convert a single string topic to an array
+  if (!Array.isArray(topics)) {
+    topics = [topics];
   }
 
-  node.handlers[key] = handler; // Store handler with the unique key
+  // Process each topic in the array
+  topics.forEach(topic => {
+    let node = root;
+    const levels = topic.split('/');
+
+    for (const level of levels) {
+      if (!node.children[level]) {
+        node.children[level] = new TrieNode();
+      }
+      node = node.children[level];
+    }
+
+    node.handlers[key] = handler; // Store handler with the unique key
+  });
 };
 
 const removeHandlersFromTrie = (root, topic, key) => {
@@ -128,10 +136,10 @@ export const MQTTProvider = ({ name, config, children, experiment }) => {
     }
   }, [config, name, experiment]);
 
-  const subscribeToTopic = (topic, messageHandler, key) => {
+  const subscribeToTopic = (topic_or_topics, messageHandler, key) => {
     // use the `key`` to provide unique handlers per topic (else it's overwritten)
-    addHandlerToTrie(topicTrie.current, topic, messageHandler, key);
-    client.subscribe(topic);
+    addHandlerToTrie(topicTrie.current, topic_or_topics, messageHandler, key);
+    client.subscribe(topic_or_topics);
   };
 
   const unsubscribeFromTopic = (topic, key) => {

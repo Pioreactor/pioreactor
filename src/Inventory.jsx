@@ -375,7 +375,7 @@ function WorkerCard(props) {
           <FormControl component="fieldset">
             <FormControlLabel
               checked={activeStatus === "active"}
-              control={<Switch color="primary" onChange={handleStatusChange} />}
+              control={<Switch color="primary" onChange={handleStatusChange}  size="small" />}
               label={activeStatus ==="active" ? "Active" : "Inactive"}
               labelPlacement="start"
             />

@@ -25,8 +25,9 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
 
   useEffect(() => {
     if (experiment && client) {
-      subscribeToTopic(`pioreactor/+/${experiment}/dosing_automation/alt_media_throughput`, onMessage, "MediaCard")
-      subscribeToTopic(`pioreactor/+/${experiment}/dosing_automation/media_throughput`, onMessage, "MediaCard")
+      subscribeToTopic(
+          [`pioreactor/+/${experiment}/dosing_automation/alt_media_throughput`, `pioreactor/+/${experiment}/dosing_automation/media_throughput`],
+          onMessage, "MediaCard")
     }
 
   }, [experiment, client]);

@@ -71,9 +71,7 @@ function LogTable({byDuration, experimentStartTime, experiment, config, relabelM
       const levelRequested = config.logging.ui_log_level.toUpperCase()|| "INFO"
       const ix = LEVELS.indexOf(levelRequested)
 
-      for (const level of LEVELS.slice(ix)){
-        subscribeToTopic(`pioreactor/+/$experiment/logs/+/${level.toLowerCase()}`, onMessage, "LogTable");
-      }
+      subscribeToTopic(LEVELS.slice(ix).map(level => `pioreactor/+/$experiment/logs/+/${level.toLowerCase()}`), onMessage, "LogTable");
 
     }
   }, [client]);
@@ -85,10 +83,8 @@ function LogTable({byDuration, experimentStartTime, experiment, config, relabelM
       const levelRequested = config.logging.ui_log_level.toUpperCase() || "INFO"
       const ix = LEVELS.indexOf(levelRequested)
 
-      for (const level of LEVELS.slice(ix)){
-        console.log(`pioreactor/+/${experiment}/logs/+/${level.toLowerCase()}`)
-        subscribeToTopic(`pioreactor/+/${experiment}/logs/+/${level.toLowerCase()}`, onMessage, "LogTable");
-      }
+      subscribeToTopic(LEVELS.slice(ix).map(level => `pioreactor/+/${experiment}/logs/+/${level.toLowerCase()}`), onMessage, "LogTable");
+
 
     }
   }, [client, experiment, config]);

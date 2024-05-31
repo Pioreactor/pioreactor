@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { useMQTT } from '../providers/MQTTContext';
 
 const canvasDim = {
-  height: 600,
+  height: 540,
   width: 400
 }
 
@@ -18,13 +18,13 @@ const bioreactor = {
   width: 200,
   height: 400,
   x: (canvasDim.width - 200) / 2,
-  y: (canvasDim.height - 400) / 2 - 30,
+  y: (canvasDim.height - 400) / 2 - 20,
   cornerRadius: 20,
   stirBar: {
     maxWidth: 70,
     height: 10,
     x: (canvasDim.width - 70) / 2,
-    y: (canvasDim.height - 20) / 2 + 150,
+    y: (canvasDim.height - 10) / 2 + 160,
     radius: 5
   },
 };
@@ -60,14 +60,25 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
 
 
   function onMessage(topic, message, packet) {
+
     const topicString = topic.toString()
     const messageString = message.toString()
 
-    if (topicString.endsWith("pwms/dc")) {
-      const dcs = JSON.parse(messageString) // {17: 10.3, 12: 34.3}
 
-      const pumps = new Set([])
-      var rpm = null
+    if (topicString.endsWith("pwms/dc")) {
+      // reset these, unless otherwise set later.
+      var pumps_ = new Set([])
+      var rpm_ = null
+      var heat_ = false
+
+      if (messageString === ""){
+        setPumps(pumps_)
+        setRpm(rpm_)
+        setHeat(heat_)
+        return
+      }
+
+      const dcs = JSON.parse(messageString) // {17: 10.3, 12: 34.3}
 
       for (const pin of  Object.keys(dcs)) {
         const pwmOutput = PIN_TO_PWM[pin]
@@ -76,23 +87,27 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
 
         switch (load){
           case "stirring":
-            rpm = 500
+            rpm_ = 500
             break
           case "media":
-            pumps.add('media')
+            pumps_.add('media')
             break
           case "alt_media":
-            pumps.add('alt-media')
+            pumps_.add('alt-media')
             break
           case "waste":
-            pumps.add('waste')
+            pumps_.add('waste')
+            break
+          case "heating":
+            heat_ = true
             break
           default:
             break
         }
       }
-      setPumps(pumps)
-      setRpm(rpm)
+      setPumps(pumps_)
+      setRpm(rpm_)
+      setHeat(heat_)
 
     } else if (topicString.endsWith("temperature_control/temperature")){
       if (messageString === "") {
@@ -112,12 +127,12 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
       } else {
         setVolume(parseFloat(messageString))
       }
-    } else if (topicString.endsWith("temperature_control/automation_name")){
-      if (messageString === "") {
-        setHeat(false)
-      } else {
-        setHeat(messageString!=="only_record_temperature")
-      }
+    //} else if (topicString.endsWith("temperature_control/automation_name")){
+      // if (messageString === "") {
+      //   setHeat(false)
+      // } else {
+      //   setHeat(messageString!=="only_record_temperature")
+      // }
     } else if (topicString.endsWith("leds/intensity")){
       if (messageString === "") {
         setLeds({A: 0, B: 0, C: 0, D: 0})
@@ -129,12 +144,18 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
 
   useEffect(() => {
     if (client && experiment){
-      subscribeToTopic(`pioreactor/${unit}/${experiment}/temperature_control/temperature`, onMessage, "BioreactorDiagram");
-      subscribeToTopic(`pioreactor/${unit}/${experiment}/growth_rate_calculating/od_filtered`, onMessage, "BioreactorDiagram");
-      subscribeToTopic(`pioreactor/${unit}/${experiment}/leds/intensity`, onMessage, "BioreactorDiagram");
-      subscribeToTopic(`pioreactor/${unit}/${experiment}/dosing_automation/vial_volume`, onMessage, "BioreactorDiagram");
-      subscribeToTopic(`pioreactor/${unit}/${experiment}/temperature_control/automation_name`, onMessage, "BioreactorDiagram");
-      subscribeToTopic(`pioreactor/${unit}/${experiment}/pwms/dc`, onMessage, "BioreactorDiagram");
+      subscribeToTopic([`pioreactor/${unit}/${experiment}/temperature_control/temperature`,
+        `pioreactor/${unit}/${experiment}/growth_rate_calculating/od_filtered`,
+        `pioreactor/${unit}/${experiment}/leds/intensity`,
+        `pioreactor/${unit}/${experiment}/dosing_automation/vial_volume`,
+        `pioreactor/${unit}/${experiment}/pwms/dc`,
+        `pioreactor/${unit}/_testing_${experiment}/temperature_control/temperature`,
+        `pioreactor/${unit}/_testing_${experiment}/growth_rate_calculating/od_filtered`,
+        `pioreactor/${unit}/_testing_${experiment}/leds/intensity`,
+        `pioreactor/${unit}/_testing_${experiment}/dosing_automation/vial_volume`,
+        `pioreactor/${unit}/_testing_${experiment}/pwms/dc`,
+      ], onMessage, "BioreactorDiagram")
+
     }
   }, [client, experiment])
 
@@ -146,14 +167,14 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
     const bottomOfWasteTube = bioreactor.height - (config?.bioreactor?.max_volume_ml || 14) / 20 * 350 + 20
 
     const ledsRects = [
-      { text: 'B', x: 50,  y: 370, width: 40, height: 30, radius: 5 },
-      { text: 'D', x: 310, y: 370, width: 40, height: 30, radius: 5 },
-      { text: 'A', x: 50,  y: 320, width: 40, height: 30, radius: 5 },
-      { text: 'C', x: 310, y: 320, width: 40, height: 30, radius: 5 },
+      { text: 'B', x: 50,  y: 350, width: 40, height: 30, radius: 5 },
+      { text: 'D', x: 310, y: 350, width: 40, height: 30, radius: 5 },
+      { text: 'A', x: 50,  y: 300, width: 40, height: 30, radius: 5 },
+      { text: 'C', x: 310, y: 300, width: 40, height: 30, radius: 5 },
     ]
 
     const heaterRec = [
-      { text: 'heat', x: 100,  y: 477, width: 200, height: 20, radius: 3 },
+      { text: 'heat', x: 100,  y: 457, width: 200, height: 20, radius: 3 },
     ]
 
     const pumpsRects = [
@@ -163,7 +184,7 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
     ];
 
     const warningRects = [
-      { text: '⚠ liquid level above may not be an accurate\nreflection of the vial - observe carefully.', x: 50, y: 520, width: 300, height: 45, radius: 5 },
+      { text: '⚠ liquid volume above may not be an accurate\nreflection of the vial volume - observe carefully.', x: 50, y: 520, width: 300, height: 45, radius: 5 },
     ]
 
     var dynamicRects = []
@@ -173,8 +194,13 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
     if (nOD){
       dynamicRects.push({ text: `nOD: ${roundTo1(nOD)}`, x: 210, y: 260, width: 80, height: 30, radius: 5 })
     }
+    if (volume){
+      dynamicRects.push({ text: `${roundTo1(volume)} mL`, x: 110, y: bioreactor.y + bioreactor.height - liquidLevel - 40, width: 90, height: 30, radius: 5 })
+    }
 
     function drawRoundedRect(x, y, width, height, radius, fillStyle, strokeStyle) {
+
+
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(x + radius, y);
@@ -191,6 +217,8 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
       ctx.fill();
       ctx.strokeStyle = strokeStyle;
       ctx.stroke();
+
+
     }
 
     function pseudoRandom(x, y) {
@@ -200,14 +228,14 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
 
     function drawTurbidLiquid(x, y, width, height, radius, turbidity) {
       // Draw the liquid with rounded corners
-      drawRoundedRect(x, y, width, height, radius, '#F5DEB3', '#000');
+      drawRoundedRect(x, y, width, height, radius, '#E1DDFF', '#000');
 
       if (!turbidity){
         return
       }
 
       // Draw wavy lines to simulate turbidity
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+      ctx.strokeStyle = '#4D3AC340';
       ctx.lineWidth = 1;
       const waveHeight = 5;
       const waveSpacing = 150 / binFloat(turbidity, 0.1);
@@ -224,18 +252,18 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
     function drawOutline() {
       ctx.lineWidth = 8;
       ctx.beginPath();
-      ctx.moveTo(70,                   60  - 30); //top left
-      ctx.lineTo(70,                   320 - 30);
-      ctx.lineTo(20,                   320 - 30);
-      ctx.lineTo(20,                   455 - 30);
-      ctx.lineTo(55,                   455 - 30);
-      ctx.lineTo(55,                   540 - 30);
-      ctx.lineTo(canvasDim.width - 55, 540 - 30);
-      ctx.lineTo(canvasDim.width - 55, 455 - 30);
-      ctx.lineTo(canvasDim.width - 20, 455 - 30);
-      ctx.lineTo(canvasDim.width - 20, 320 - 30);
-      ctx.lineTo(canvasDim.width - 70, 320 - 30);
-      ctx.lineTo(canvasDim.width - 70, 60  - 30);
+      ctx.moveTo(70,                   60  - 50); //top left
+      ctx.lineTo(70,                   320 - 50);
+      ctx.lineTo(20,                   320 - 50);
+      ctx.lineTo(20,                   455 - 50);
+      ctx.lineTo(55,                   455 - 50);
+      ctx.lineTo(55,                   540 - 50);
+      ctx.lineTo(canvasDim.width - 55, 540 - 50);
+      ctx.lineTo(canvasDim.width - 55, 455 - 50);
+      ctx.lineTo(canvasDim.width - 20, 455 - 50);
+      ctx.lineTo(canvasDim.width - 20, 320 - 50);
+      ctx.lineTo(canvasDim.width - 70, 320 - 50);
+      ctx.lineTo(canvasDim.width - 70, 60  - 50);
       ctx.closePath();
       ctx.fillStyle = 'rgb(0,0,0,0.01)'
       ctx.fill();
@@ -297,7 +325,7 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
       ctx.textBaseline = 'middle';
 
       labelsArray.forEach(label => {
-        drawRoundedRect(label.x, label.y, label.width, label.height, label.radius, heat ? "#ff9601" : '#fff', '#000');
+        drawRoundedRect(label.x, label.y, label.width, label.height, label.radius, heat ? "#D8A0A2" : '#fff', '#000');
         ctx.stroke();
         ctx.fillStyle = '#000';
         ctx.fillText(label.text, label.x + label.width / 2, label.y + label.height / 2);
@@ -312,7 +340,7 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
       ctx.textBaseline = 'middle';
 
       pumpsArray.forEach(label => {
-        drawRoundedRect(label.x, label.y, label.width, label.height, label.radius, (pumps.has(label.text)) ? '#FFEC8A' : '#fff', '#000');
+        drawRoundedRect(label.x, label.y, label.width, label.height, label.radius, (pumps.has(label.text)) ? '#EABC74' : '#fff', '#000');
         ctx.stroke();
         ctx.save();
         ctx.translate(label.x + label.width / 2, label.y + label.height / 2);
@@ -331,7 +359,7 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
       ctx.textBaseline = 'middle';
 
       ledsRects.forEach(label => {
-        drawRoundedRect(label.x, label.y, label.width, label.height, label.radius, (leds[label.text] > 0) ? '#FFEC8A' : '#fff', '#000');
+        drawRoundedRect(label.x, label.y, label.width, label.height, label.radius, (leds[label.text] > 0) ? `rgba(234, 188, 116, ${leds[label.text]/100 + 0.2})` : '#fff', '#000');
         ctx.stroke();
         ctx.fillStyle = '#000';
         ctx.fillText(label.text, label.x + label.width / 2, label.y + label.height / 2);
@@ -344,7 +372,7 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
       drawOutline()
 
       // Draw bioreactor body
-      drawRoundedRect(bioreactor.x, bioreactor.y, bioreactor.width, bioreactor.height, bioreactor.cornerRadius, '#f8f8f8', '#000');
+      drawRoundedRect(bioreactor.x, bioreactor.y, bioreactor.width, bioreactor.height, bioreactor.cornerRadius, 'rgb(244,244,244)', '#000');
 
       // Draw liquid level with turbidity
       drawTurbidLiquid(bioreactor.x, bioreactor.y + bioreactor.height - liquidLevel, bioreactor.width, liquidLevel, bioreactor.cornerRadius, nOD);
@@ -382,7 +410,7 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
 
   return (
     <div>
-      <canvas ref={canvasRef} width={canvasDim.width} height={canvasDim.height} />
+      <canvas style={{display: "block", margin: "0 auto 0 auto"}} ref={canvasRef} width={canvasDim.width} height={canvasDim.height} />
     </div>
   )}
 
