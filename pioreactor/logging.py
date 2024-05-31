@@ -217,7 +217,7 @@ def create_logger(
         assert pub_client is not None
 
         # create MQTT handlers for logs table
-        topic = f"pioreactor/{unit}/{experiment}/logs/{source}"
+        topic = f"pioreactor/{unit}/{experiment}/logs/{source}"  # NOTE: we append the log-level, ex: /debug
         mqtt_to_db_handler = MQTTHandler(topic, pub_client)
         mqtt_to_db_handler.setLevel(logging.DEBUG)
         mqtt_to_db_handler.setFormatter(CustomisedJSONFormatter())

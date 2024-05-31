@@ -1,7 +1,7 @@
 ### Upcoming
 
 #### Highlights
- - New /pioreactor/<name> page in the UI for a detailed view of an individual Pioreactor, including a realtime visualization of the Pioreactor!
+ - New /pioreactor/`worker-name` page in the UI for a detailed view of an individual Pioreactor, including a realtime visualization of the Pioreactor!
 
 #### Enhancements
  - UI now supports external MQTT broker. This configuration lives in the same place as the exiting MQTT settings: in the config.ini, under `[mqtt]`.
