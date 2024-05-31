@@ -848,6 +848,14 @@ class ODReader(BackgroundJob):
     ) -> None:
         super(ODReader, self).__init__(unit=unit, experiment=experiment)
 
+        if len(channel_angle_map) == 0:
+            self.logger.error(
+                "Need to supply a signal channel. Check `[od_config.photodiode_channel]` in your config."
+            )
+            raise ValueError(
+                "Need to supply a signal channel. Check `[od_config.photodiode_channel]` in your config."
+            )
+
         self.adc_reader = adc_reader
         self.channel_angle_map = channel_angle_map
         self.interval = interval
@@ -1219,8 +1227,11 @@ def start_od_reading(
     then the correct syntax is `start_od_reading("REF", "90").
 
     """
-    if interval is not None:
-        assert interval > 0, "interval must be positive."
+    if interval is not None and interval <= 0:
+        raise ValueError("interval must be positive.")
+
+    if od_angle_channel2 is None and od_angle_channel1 is None:
+        raise ValueError("Atleast one of od_angle_channel2 or od_angle_channel1 should be populated")
 
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_assigned_experiment_name(unit)

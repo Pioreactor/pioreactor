@@ -18,6 +18,7 @@ from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.config import config
 from pioreactor.logging import create_logger
+from pioreactor.pubsub import prune_retained_messages
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import managed_lifecycle
@@ -209,6 +210,7 @@ def od_blank(
             )
 
             logger.info("Finished reading blank OD.")
+            prune_retained_messages(f"pioreactor/{unit}/{testing_experiment}/#")
 
     return means
 

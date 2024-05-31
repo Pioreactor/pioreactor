@@ -976,6 +976,22 @@ def test_auto_ir_led_intensity() -> None:
     config["od_config"]["ir_led_intensity"] = existing_intensity
 
 
+def test_at_least_one_channel() -> None:
+    experiment = "test_at_least_one_channel"
+
+    with pytest.raises(ValueError):
+        with start_od_reading(None, None, interval=None, fake_data=True, experiment=experiment):
+            pass
+
+
+def test_at_least_one_signal_channel() -> None:
+    experiment = "test_at_least_one_signal_channel"
+
+    with pytest.raises(ValueError):
+        with start_od_reading("REF", None, interval=None, fake_data=True, experiment=experiment):
+            pass
+
+
 def test_CachedCalibrationTransformer_with_real_calibration():
     calibration = structs.OD90Calibration(
         angle="90",

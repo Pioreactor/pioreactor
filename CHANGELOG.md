@@ -5,7 +5,7 @@
 
 #### Enhancements
  - UI now supports external MQTT broker. This configuration lives in the same place as the exiting MQTT settings: in the config.ini, under `[mqtt]`.
- - Added groupings on the Experiment dropdown to organize "Active" and "Inactive" experiments. An active experiment has >= 1 Pioreactor assigned to it.
+ - Added groupings on the Experiment drop down to organize "Active" and "Inactive" experiments. An active experiment has >= 1 Pioreactor assigned to it.
 
 #### Breaking changes
  - New log topic that partitions by the level. This should make subscribers to the log topic slimmer (like the UI, who previosly would have to accept _all_ messages and filter to what they needed). Should result in a performance increase.
@@ -13,6 +13,7 @@
 #### Bug fixes
  - Fix for Pioreactors page when _no workers are added to the cluster_.
  - Fix for UI labels when trying to remove labels from Pioreactors.
+ - Improvements to REF self-tests.
 
 
 ### 24.5.22
