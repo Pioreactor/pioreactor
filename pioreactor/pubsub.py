@@ -326,7 +326,7 @@ class collect_all_logs_of_level:
 
         self.client: Client = subscribe_and_callback(
             self._collect_logs_into_bucket,
-            f"pioreactor/{self.unit}/{self.experiment}/logs/app",
+            f"pioreactor/{self.unit}/{self.experiment}/logs/app/{self.log_level.lower()}",
         )
 
     def _collect_logs_into_bucket(self, message):
