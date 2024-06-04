@@ -15,6 +15,7 @@ from threading import Thread
 from time import sleep
 from typing import Callable
 from typing import cast
+from typing import Iterator
 from typing import Optional
 
 import click
@@ -134,14 +135,9 @@ def test_all_positive_correlations_between_pds_and_leds(
 
     results: dict[tuple[LedChannel, PdChannel], float] = {}
 
-    adc_reader = ADCReader(
-        channels=ALL_PD_CHANNELS, dynamic_gain=False, fake_data=is_testing_env(), penalizer=0.0
-    )
-    adc_reader.tune_adc()
-
     ir_led_channel = cast(LedChannel, config["leds_reverse"][IR_keyword])
 
-    # set all to 0, but use original experiment name, since we indeed are setting them to 0.
+    # set all to 0,
     led_intensity(
         {channel: 0 for channel in ALL_LED_CHANNELS},
         unit=unit,
@@ -149,6 +145,13 @@ def test_all_positive_correlations_between_pds_and_leds(
         verbose=False,
         source_of_event="self_test",
     )
+
+    adc_reader = ADCReader(
+        channels=ALL_PD_CHANNELS, dynamic_gain=False, fake_data=is_testing_env(), penalizer=0.0
+    )
+    adc_reader.add_logger(logger)
+    adc_reader.tune_adc()
+    # TODO: should we remove blank? Technically correlation is invariant to location.
 
     with stirring.start_stirring(
         target_rpm=1250,
@@ -229,7 +232,9 @@ def test_all_positive_correlations_between_pds_and_leds(
             pd_channels_to_test.append(channel)
 
     for ir_pd_channel in pd_channels_to_test:
-        assert results[(ir_led_channel, ir_pd_channel)] > 0.90, f"missing {ir_led_channel} ⇝ {ir_pd_channel}"
+        assert (
+            results[(ir_led_channel, ir_pd_channel)] >= 0.90
+        ), f"missing {ir_led_channel} ⇝ {ir_pd_channel}, correlation: {results[(ir_led_channel, ir_pd_channel)]:0.2f}"
 
 
 def test_ambient_light_interference(client: Client, logger: CustomLogger, unit: str, experiment: str) -> None:
@@ -241,6 +246,7 @@ def test_ambient_light_interference(client: Client, logger: CustomLogger, unit: 
         fake_data=is_testing_env(),
     )
 
+    adc_reader.add_logger(logger)
     adc_reader.tune_adc()
     led_intensity(
         {channel: 0 for channel in ALL_LED_CHANNELS},
@@ -274,11 +280,19 @@ def test_REF_is_lower_than_0_dot_256_volts(
     adc_reader = ADCReader(
         channels=[reference_channel], dynamic_gain=False, fake_data=is_testing_env(), penalizer=0.0
     )
+    adc_reader.add_logger(logger)
     adc_reader.tune_adc()
 
-    blank_reading = adc_reader.take_reading()
-    adc_reader.set_offsets(blank_reading)  # set dark offset
-    adc_reader.clear_batched_readings()
+    with change_leds_intensities_temporarily(
+        {"A": 0, "B": 0, "C": 0, "D": 0},
+        unit=unit,
+        source_of_event="self_test",
+        experiment=experiment,
+        verbose=False,
+    ):
+        blank_reading = adc_reader.take_reading()
+        adc_reader.set_offsets(blank_reading)  # set dark offset
+        adc_reader.clear_batched_readings()
 
     with change_leds_intensities_temporarily(
         {ir_channel: ir_intensity},
@@ -347,9 +361,10 @@ def test_positive_correlation_between_temperature_and_heating(
 ) -> None:
     assert is_heating_pcb_present(), "Heater PCB is not connected, or i2c is not working."
 
+    measured_pcb_temps = []
+    dcs = list(range(0, 22, 3))
+
     with TemperatureController(unit, experiment, "only_record_temperature") as tc:
-        measured_pcb_temps = []
-        dcs = list(range(0, 22, 3))
         logger.debug("Varying heating.")
         for dc in dcs:
             tc._update_heater(dc)
@@ -455,10 +470,25 @@ class BatchTestRunner:
                 retain=True,
             )
 
+            with local_persistant_storage("self_test_results") as c:
+                c[(self.experiment, test_name)] = int(res)
+
+
+def get_failed_test_names(experiment: str) -> Iterator[str]:
+    with local_persistant_storage("self_test_results") as c:
+        for name in get_all_test_names():
+            if c.get((experiment, name)) == 0:
+                yield name
+
+
+def get_all_test_names() -> Iterator[str]:
+    return (name for name in vars(sys.modules[__name__]).keys() if name.startswith("test_"))
+
 
 @click.command(name="self_test")
 @click.option("-k", help="see pytest's -k argument", type=str)
-def click_self_test(k: Optional[str]) -> int:
+@click.option("--retry-failed", is_flag=True, help="retry only previous failed tests", type=str)
+def click_self_test(k: Optional[str], retry_failed: bool) -> int:
     """
     Test the input/output in the Pioreactor
     """
@@ -498,11 +528,16 @@ def click_self_test(k: Optional[str]) -> int:
         client.publish(f"pioreactor/{unit}/{experiment}/monitor/flicker_led_response_okay", 1)
 
         # automagically finds the test_ functions.
-        functions_to_test = {
-            f
-            for (name, f) in vars(sys.modules[__name__]).items()
-            if name.startswith("test_") and (k in name if k else True)
-        }
+        tests_to_run: Iterator[str]
+        if retry_failed:
+            tests_to_run = get_failed_test_names(experiment)
+        else:
+            tests_to_run = get_all_test_names()
+
+        if k:
+            tests_to_run = (name for name in tests_to_run if k in name)
+
+        functions_to_test = {vars(sys.modules[__name__])[name] for name in tuple(tests_to_run)}
 
         logger.info(f"Starting self-test. Running {len(functions_to_test)} tests.")
 

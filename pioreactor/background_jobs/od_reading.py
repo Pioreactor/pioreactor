@@ -408,7 +408,9 @@ class ADCReader(LoggerMixin):
         self.batched_readings = {}
 
     @staticmethod
-    def _remove_offset_from_signal(signals: list[pt.AnalogValue], offset: float) -> list[float]:
+    def _remove_offset_from_signal(
+        signals: list[pt.AnalogValue], offset: pt.AnalogValue
+    ) -> list[pt.AnalogValue]:
         return [x - offset for x in signals]
 
     def take_reading(self) -> PdChannelToVoltage:
@@ -603,7 +605,7 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
         self.led_output_ema = ExponentialMovingAverage(config.getfloat("od_config", "pd_reference_ema"))
         self.led_output_emstd = ExponentialMovingStd(alpha=0.95, ema_alpha=0.8)
         self.channel = channel
-        self.logger.debug(f"Using PD channel {channel} as IR LED reference.")
+        # self.logger.debug(f"Using PD channel {channel} as IR LED reference.")
 
     def update(self, ir_output_reading: pt.Voltage) -> None:
         # check if funky things are happening by std. banding
@@ -663,22 +665,18 @@ class NullCalibrationTransformer(CalibrationTransformer):
         super().__init__()
         self.logger.debug("Not using any calibration.")
 
+    def hydate_models_from_disk(self, channel_angle_map: dict[pt.PdChannel, pt.PdAngle]):
+        self.models: dict[pt.PdChannel, Callable] = {}
+        return
+
 
 class CachedCalibrationTransformer(CalibrationTransformer):
-    def __init__(self, channel_angle_map: dict[pt.PdChannel, pt.PdAngle]) -> None:
+    def __init__(self) -> None:
         super().__init__()
         self.has_logged_warning = False
-        try:
-            self.models = self.get_models_from_disk(channel_angle_map)
-        except Exception as e:
-            self.logger.debug(e, exc_info=True)
-            self.logger.error("Unable to load calibration models", exc_info=True)
-            raise e
 
-    def get_models_from_disk(
-        self, channel_angle_map: dict[pt.PdChannel, pt.PdAngle]
-    ) -> dict[pt.PdChannel, Callable]:
-        models: dict[pt.PdChannel, Callable] = {}
+    def hydate_models_from_disk(self, channel_angle_map: dict[pt.PdChannel, pt.PdAngle]):
+        self.models: dict[pt.PdChannel, Callable] = {}
 
         with local_persistant_storage("current_od_calibration") as c:
             for channel, angle in channel_angle_map.items():
@@ -698,7 +696,7 @@ class CachedCalibrationTransformer(CalibrationTransformer):
                         self.logger.error(msg)
                         raise exc.CalibrationError(msg)
 
-                    models[channel] = self._hydrate_model(calibration_data)
+                    self.models[channel] = self._hydrate_model(calibration_data)
                     self.logger.info(f"Using OD calibration `{name}` for channel {channel}.")
                     self.logger.debug(
                         f"Using OD calibration `{name}` for channel {channel}, {calibration_data.curve_type=}, {calibration_data.curve_data_=}"
@@ -708,7 +706,6 @@ class CachedCalibrationTransformer(CalibrationTransformer):
                     self.logger.debug(
                         f"No calibration available for channel {channel}, angle {angle}, skipping."
                     )
-        return models
 
     def _hydrate_model(self, calibration_data: structs.ODCalibration) -> Callable[[float], float]:
         if calibration_data.curve_type == "poly":
@@ -785,13 +782,9 @@ class ODReader(BackgroundJob):
         seconds between readings. If None or 0, then don't periodically read.
     adc_reader: ADCReader
     ir_led_reference_tracker: IrLedReferenceTracker
-
-    Attributes
-    ------------
-    adc_reader: ADCReader
-    ir_led_reference_tracker: ir_led_reference_tracker
-    ods:
-        represents the most recent readings (post transformations)
+    calibration_transformer:
+    unit:
+    experie
 
 
     Examples
@@ -834,7 +827,7 @@ class ODReader(BackgroundJob):
     if whoami.get_pioreactor_version() == (1, 0):
         TARGET_REF_VOLTAGE = 0.10
     elif whoami.get_pioreactor_version() >= (1, 1):
-        TARGET_REF_VOLTAGE = 0.05
+        TARGET_REF_VOLTAGE = 0.06
 
     def __init__(
         self,
@@ -857,8 +850,6 @@ class ODReader(BackgroundJob):
             )
 
         self.adc_reader = adc_reader
-        self.channel_angle_map = channel_angle_map
-        self.interval = interval
 
         if ir_led_reference_tracker is None:
             self.ir_led_reference_tracker = NullIrLedReferenceTracker()
@@ -870,6 +861,14 @@ class ODReader(BackgroundJob):
         else:
             self.calibration_transformer = calibration_transformer  # type: ignore
 
+        self.adc_reader.add_logger(self.logger)
+        self.calibration_transformer.add_logger(self.logger)
+        self.ir_led_reference_tracker.add_logger(self.logger)
+
+        self.calibration_transformer.hydate_models_from_disk(channel_angle_map)
+
+        self.channel_angle_map = channel_angle_map
+        self.interval = interval
         self.first_od_obs_time: Optional[float] = None
         self._set_for_iterating = threading.Event()
 
@@ -1251,7 +1250,7 @@ def start_od_reading(
 
     # use an OD calibration?
     if use_calibration:
-        calibration_transformer = CachedCalibrationTransformer(channel_angle_map)
+        calibration_transformer = CachedCalibrationTransformer()
     else:
         calibration_transformer = NullCalibrationTransformer()  # type: ignore
 

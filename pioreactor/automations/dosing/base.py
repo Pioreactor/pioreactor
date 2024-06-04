@@ -207,7 +207,7 @@ class DosingAutomationJob(AutomationJob):
     MAX_VIAL_VOLUME_TO_STOP: float = config.getfloat(
         "dosing_automation.config", "max_volume_to_stop", fallback=18.0
     )
-    MAX_VIAL_VOLUME_TO_WARN: float = 0.9 * MAX_VIAL_VOLUME_TO_STOP
+    MAX_VIAL_VOLUME_TO_WARN: float = 0.95 * MAX_VIAL_VOLUME_TO_STOP
 
     MAX_SUBDOSE = config.getfloat(
         "dosing_automation.config", "max_subdose", fallback=1.0

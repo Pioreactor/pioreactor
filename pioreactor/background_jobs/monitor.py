@@ -691,7 +691,6 @@ class Monitor(LongRunningBackgroundJob):
             options["experiment"] = experiment  # techdebt
             options["config"] = get_config()  # techdebt
             Thread(target=pump_action, kwargs=options, daemon=True).start()
-            self.logger.debug(f"Running `{job_name}` from monitor job.")
 
         else:
             command = self._job_options_and_args_to_shell_command(

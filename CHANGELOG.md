@@ -1,14 +1,22 @@
+### Upcoming
+
+ - More data on the Pioreactor-specific page
+ - Changed the web backend API endpoints for time-series, logs, shutdown, reboot, and plugins. See docs for updated rules.
+ - Added a "retry failed tests" to the UI
+ - `pio run self_test` has a new flag `--retry-failed` to only retry tests that failed in the previous run (if any).
+ - performance improvements
+
 ### 24.5.31
 
 #### Highlights
  - New /pioreactor/`worker-name` page in the UI for a detailed view of an individual Pioreactor, including a realtime visualization of the Pioreactor!
 
 #### Enhancements
- - UI now supports external MQTT broker. This configuration lives in the same place as the exiting MQTT settings: in the config.ini, under `[mqtt]`.
+ - UI backend now supports external MQTT broker. This configuration lives in the same place as the existing MQTT settings: in the config.ini, under `[mqtt]`.
  - Added groupings on the Experiment drop down to organize "Active" and "Inactive" experiments. An active experiment has >= 1 Pioreactor assigned to it.
 
 #### Breaking changes
- - New log topic that partitions by the level. This should make subscribers to the log topic slimmer (like the UI, who previosly would have to accept _all_ messages and filter to what they needed). Should result in a performance increase.
+ - New log topic that partitions by the level. This should make subscribers to the log topic slimmer (like the UI, who previously would have to accept _all_ messages and filter to what they needed). Should result in a performance increase.
 
 #### Bug fixes
  - Fix for Pioreactors page when _no workers are added to the cluster_.
