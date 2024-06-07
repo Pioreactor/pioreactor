@@ -72,8 +72,8 @@ setup(
     """,
     python_requires=">=3.11",
     extras_require={
-        "leader": LEADER_REQUIREMENTS,
         "worker": WORKER_REQUIREMENTS,
         "leader_worker": LEADER_REQUIREMENTS + WORKER_REQUIREMENTS,
+        "leader": LEADER_REQUIREMENTS + WORKER_REQUIREMENTS,
     },
 )

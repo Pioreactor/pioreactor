@@ -666,6 +666,9 @@ class ClusterJobManager:
         name: str | None = None,
         job_source: str | None = None,
     ) -> bool:
+        if len(self.units) == 0 or whoami.is_testing_env():
+            return True
+
         from shlex import join
         from sh import ssh  # type: ignore
         from sh import ErrorReturnCode_255  # type: ignore
@@ -690,9 +693,6 @@ class ClusterJobManager:
 
             except (ErrorReturnCode_255, ErrorReturnCode_1):
                 return False
-
-        if whoami.is_testing_env():
-            return True
 
         with ThreadPoolExecutor(max_workers=len(self.units)) as executor:
             results = executor.map(_thread_function, self.units)

@@ -66,7 +66,7 @@ def test_REF_is_in_correct_position(client: Client, logger: CustomLogger, unit: 
 
     assert is_HAT_present(), "Hat is not detected."
 
-    reference_channel = cast(PdChannel, config["od_config.photodiode_channel_reverse"][REF_keyword])
+    reference_channel = cast(PdChannel, config.get("od_config.photodiode_channel_reverse", REF_keyword))
     signal_channel = "2" if reference_channel == "1" else "1"
 
     signal1 = []
@@ -149,7 +149,7 @@ def test_all_positive_correlations_between_pds_and_leds(
     adc_reader = ADCReader(
         channels=ALL_PD_CHANNELS, dynamic_gain=False, fake_data=is_testing_env(), penalizer=0.0
     )
-    adc_reader.add_logger(logger)
+    adc_reader.add_external_logger(logger)
     adc_reader.tune_adc()
     # TODO: should we remove blank? Technically correlation is invariant to location.
 
@@ -246,7 +246,7 @@ def test_ambient_light_interference(client: Client, logger: CustomLogger, unit: 
         fake_data=is_testing_env(),
     )
 
-    adc_reader.add_logger(logger)
+    adc_reader.add_external_logger(logger)
     adc_reader.tune_adc()
     led_intensity(
         {channel: 0 for channel in ALL_LED_CHANNELS},
@@ -269,7 +269,7 @@ def test_ambient_light_interference(client: Client, logger: CustomLogger, unit: 
 def test_REF_is_lower_than_0_dot_256_volts(
     client: Client, logger: CustomLogger, unit: str, experiment: str
 ) -> None:
-    reference_channel = cast(PdChannel, config["od_config.photodiode_channel_reverse"][REF_keyword])
+    reference_channel = cast(PdChannel, config.get("od_config.photodiode_channel_reverse", REF_keyword))
     ir_channel = cast(LedChannel, config["leds_reverse"][IR_keyword])
     config_ir_intensity = config.get("od_config", "ir_led_intensity")
     if config_ir_intensity == "auto":
@@ -280,7 +280,7 @@ def test_REF_is_lower_than_0_dot_256_volts(
     adc_reader = ADCReader(
         channels=[reference_channel], dynamic_gain=False, fake_data=is_testing_env(), penalizer=0.0
     )
-    adc_reader.add_logger(logger)
+    adc_reader.add_external_logger(logger)
     adc_reader.tune_adc()
 
     with change_leds_intensities_temporarily(
@@ -318,7 +318,7 @@ def test_PD_is_near_0_volts_for_blank(
     client: Client, logger: CustomLogger, unit: str, experiment: str
 ) -> None:
     assert is_HAT_present(), "HAT is not detected."
-    reference_channel = cast(PdChannel, config["od_config.photodiode_channel_reverse"][REF_keyword])
+    reference_channel = cast(PdChannel, config.get("od_config.photodiode_channel_reverse", REF_keyword))
 
     if reference_channel == "1":
         signal_channel = cast(PdChannel, "2")
@@ -362,7 +362,7 @@ def test_positive_correlation_between_temperature_and_heating(
     assert is_heating_pcb_present(), "Heater PCB is not connected, or i2c is not working."
 
     measured_pcb_temps = []
-    dcs = list(range(0, 22, 3))
+    dcs = list(range(0, 30, 3))
 
     with TemperatureController(unit, experiment, "only_record_temperature") as tc:
         logger.debug("Varying heating.")

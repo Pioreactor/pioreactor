@@ -1,10 +1,20 @@
 ### Upcoming
 
- - More data on the Pioreactor-specific page
- - Changed the web backend API endpoints for time-series, logs, shutdown, reboot, and plugins. See docs for updated rules.
+#### Enhancements
+ - More improvements on the Pioreactor-specific page
  - Added a "retry failed tests" to the UI
  - `pio run self_test` has a new flag `--retry-failed` to only retry tests that failed in the previous run (if any).
  - performance improvements
+ - better clean up when a worker is removed from a cluster.
+ - reduce the mosquitto logs to reduce writes to disk and speed up connections.
+ - **This only applies to new installed images, and not updates.** Updated to the latest RPI image, 2024-03-15, -> linux kernel update to 6.6. Recent versions of linux have improved support for usb wifi devices.
+ - **This only applies to new installed images, and not updates.** leader-only images will install worker Python libraries.
+
+#### Breaking changes
+ - Changed the web backend API endpoints for time-series, logs, shutdown, reboot, and plugins. See docs for updated rules.
+
+#### Bug fixes
+ - fix "undo" when editing the config.ini and experiment profiles.
 
 ### 24.5.31
 

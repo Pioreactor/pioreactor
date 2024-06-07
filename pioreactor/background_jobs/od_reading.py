@@ -644,7 +644,6 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
 class NullIrLedReferenceTracker(IrLedReferenceTracker):
     def __init__(self) -> None:
         super().__init__()
-        self.logger.debug("Not using any IR LED reference.")
 
     def pop_reference_reading(self, batched_readings: PdChannelToVoltage) -> pt.Voltage:
         return 1.0
@@ -663,7 +662,6 @@ class CalibrationTransformer(LoggerMixin):
 class NullCalibrationTransformer(CalibrationTransformer):
     def __init__(self) -> None:
         super().__init__()
-        self.logger.debug("Not using any calibration.")
 
     def hydate_models_from_disk(self, channel_angle_map: dict[pt.PdChannel, pt.PdAngle]):
         self.models: dict[pt.PdChannel, Callable] = {}
@@ -852,18 +850,20 @@ class ODReader(BackgroundJob):
         self.adc_reader = adc_reader
 
         if ir_led_reference_tracker is None:
+            self.logger.debug("Not tracking IR intensity.")
             self.ir_led_reference_tracker = NullIrLedReferenceTracker()
         else:
             self.ir_led_reference_tracker = ir_led_reference_tracker  # type: ignore
 
         if calibration_transformer is None:
+            self.logger.debug("Not using any calibration.")
             self.calibration_transformer = NullCalibrationTransformer()
         else:
             self.calibration_transformer = calibration_transformer  # type: ignore
 
-        self.adc_reader.add_logger(self.logger)
-        self.calibration_transformer.add_logger(self.logger)
-        self.ir_led_reference_tracker.add_logger(self.logger)
+        self.adc_reader.add_external_logger(self.logger)
+        self.calibration_transformer.add_external_logger(self.logger)
+        self.ir_led_reference_tracker.add_external_logger(self.logger)
 
         self.calibration_transformer.hydate_models_from_disk(channel_angle_map)
 
@@ -957,7 +957,7 @@ class ODReader(BackgroundJob):
 
             # if the blank signal is too close to the culture signal, its possible the culture is very sparse
             # this could create poor lower sensitivity, so we bump up the IR LED slightly.
-            # 1.5 and 0.1 are arbitrary!
+            # 1.5 and 1.1 are arbitrary!
             if culture_on_signal / blank_on_signal < 1.5:
                 sparse_signal_factor = 1.1
             else:
@@ -972,7 +972,7 @@ class ODReader(BackgroundJob):
             # only element of the dict is our REF signal
             _, signal_voltage = on_reading.popitem()
             return clamp(
-                20.0,
+                40.0,
                 round(
                     self.TARGET_REF_VOLTAGE * (self.ir_led_intensity / signal_voltage) * sparse_signal_factor,
                     0,

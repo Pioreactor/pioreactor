@@ -389,8 +389,6 @@ class GrowthRateCalculator(BackgroundJob):
         }
 
         if any(v <= 0.0 for v in scaled_signals.values()):
-            self.logger.debug(f"od_normalization_factors: {self.od_normalization_factors}")
-            self.logger.debug(f"od_blank: {dict(self.od_blank)}")
             raise ValueError(f"Negative normalized value(s) observed: {scaled_signals}.")
 
         return scaled_signals
@@ -420,8 +418,7 @@ class GrowthRateCalculator(BackgroundJob):
                 self.kalman_filter_outputs,
             ) = self._update_state_from_observation(od_readings)
         except Exception as e:
-            self.logger.debug(e, exc_info=True)
-            self.logger.warning(f"Updating Kalman Filter failed with {e}")
+            self.logger.debug(f"Updating Kalman Filter failed with {e}", exc_info=True)
             # just return the previous data
             return self.growth_rate, self.od_filtered, self.kalman_filter_outputs
 

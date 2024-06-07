@@ -417,7 +417,6 @@ def update_app(
                     (f"unzip {source} -d {tmp_rlse_dir}", 0),
                     (f"unzip {tmp_rlse_dir}/wheels_{version_installed}.zip -d {tmp_rlse_dir}/wheels", 1),
                     (f"sudo bash {tmp_rlse_dir}/pre_update.sh", 2),
-                    (f"sudo pip install --no-index --find-links={tmp_rlse_dir}/wheels/ {tmp_rlse_dir}/pioreactor-{version_installed}-py3-none-any.whl", 3),
                     (f"sudo bash {tmp_rlse_dir}/update.sh", 4),
                     (f"sudo bash {tmp_rlse_dir}/post_update.sh", 20),
                     (f"rm -rf {tmp_rlse_dir}", 99),
@@ -426,8 +425,13 @@ def update_app(
 
             if whoami.am_I_leader():
                 commands_and_priority.extend([
+                    (f"sudo pip install --no-index --find-links={tmp_rlse_dir}/wheels/ {tmp_rlse_dir}/pioreactor-{version_installed}-py3-none-any.whl[leader,worker]", 3),
                     (f'sudo sqlite3 {config.config["storage"]["database"]} < {tmp_rlse_dir}/update.sql', 10),
                     (f"mv {tmp_rlse_dir}/pioreactorui_*.tar.gz {tmp_dir}/pioreactorui_archive", 98),  # move ui folder to be accessed by a `pio update ui`
+                ])
+            else:
+                commands_and_priority.extend([
+                    (f"sudo pip install --no-index --find-links={tmp_rlse_dir}/wheels/ {tmp_rlse_dir}/pioreactor-{version_installed}-py3-none-any.whl[worker]", 3),
                 ])
 
             # fmt: on
