@@ -40,3 +40,6 @@ def test_trimmed_mean() -> None:
     assert trimmed_mean([2, 2, 2, 10]) == 2.0
     assert trimmed_mean([-10, 0, 1, 10]) == 0.5
     assert trimmed_mean([-1, -10, 0, 1]) == -0.5
+
+    assert trimmed_mean([-100, -50, 1, 2, 3, 50, 10], cut_off_n=2) == 2
+    assert trimmed_mean([100, -50, -1, 0, 1, -50, 10], cut_off_n=2) == 0

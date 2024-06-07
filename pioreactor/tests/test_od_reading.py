@@ -971,7 +971,7 @@ def test_auto_ir_led_intensity() -> None:
     experiment = "test_auto_ir_led_intensity"
 
     with start_od_reading("REF", "90", interval=None, fake_data=True, experiment=experiment) as od:
-        assert od.ir_led_intensity == 20.0
+        assert abs(od.ir_led_intensity - 49.998474) < 0.001
 
     config["od_config"]["ir_led_intensity"] = existing_intensity
 
@@ -1100,6 +1100,7 @@ def test_CachedCalibrationTransformer_with_real_calibration():
     with local_persistant_storage("current_od_calibration") as cc:
         cc[calibration.angle] = encode(calibration)
 
-    cal_transformer = CachedCalibrationTransformer({"2": "90"})
+    cal_transformer = CachedCalibrationTransformer()
+    cal_transformer.hydate_models_from_disk({"2": "90"})
 
     assert abs(cal_transformer({"2": 0.096})["2"] - 0.06) < 0.01

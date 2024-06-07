@@ -104,7 +104,6 @@ from pioreactor.config import config
 from pioreactor.hardware import ADC_CHANNEL_FUNCS
 from pioreactor.pubsub import publish
 from pioreactor.utils import argextrema
-from pioreactor.utils import clamp
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import timing
@@ -822,11 +821,6 @@ class ODReader(BackgroundJob):
     od2: structs.ODReading
     ods: structs.ODReadings
 
-    if whoami.get_pioreactor_version() == (1, 0):
-        TARGET_REF_VOLTAGE = 0.10
-    elif whoami.get_pioreactor_version() >= (1, 1):
-        TARGET_REF_VOLTAGE = 0.06
-
     def __init__(
         self,
         channel_angle_map: dict[pt.PdChannel, pt.PdAngle],
@@ -951,34 +945,34 @@ class ODReader(BackgroundJob):
     def _determine_best_ir_led_intensity(
         self, on_reading: PdChannelToVoltage, blank_reading: PdChannelToVoltage
     ) -> float:
-        for pd_channel in self.channel_angle_map:
-            culture_on_signal = on_reading.pop(pd_channel)
-            blank_on_signal = blank_reading.pop(pd_channel)
+        """
+        What do we want for a good value?
 
-            # if the blank signal is too close to the culture signal, its possible the culture is very sparse
-            # this could create poor lower sensitivity, so we bump up the IR LED slightly.
-            # 1.5 and 1.1 are arbitrary!
-            if culture_on_signal / blank_on_signal < 1.5:
-                sparse_signal_factor = 1.1
-            else:
-                sparse_signal_factor = 1.0
+         - [REF] is less than 0.256
+         - [90] gets lots of light, but less than 3.0
+         - IR intensity is less than 90%, maybe even 80%
+         - [90] is "far away" from it's blank signal (TODO: how do we quantify this?)
 
-        if len(on_reading) == 0:
-            # no op, didn't specify a REF, so we can't do much.
+        """
+
+        if len(self.channel_angle_map) != 1:
+            # no REF
             return self.ir_led_intensity
-        elif len(on_reading) > 1:
-            raise ValueError("Too many REFs?")
-        else:
-            # only element of the dict is our REF signal
-            _, signal_voltage = on_reading.popitem()
-            return clamp(
-                40.0,
-                round(
-                    self.TARGET_REF_VOLTAGE * (self.ir_led_intensity / signal_voltage) * sparse_signal_factor,
-                    0,
-                ),  # round for a nice number to display in the UI
-                80.0,
-            )  # more than 80% is a bad idea for IR LED
+
+        pd_channel = list(self.channel_angle_map.keys())[0]
+
+        culture_on_signal = on_reading.pop(pd_channel)
+
+        _, REF_on_signal = on_reading.popitem()
+        _, REF_blank_signal = blank_reading.popitem()
+
+        ir_intensity_argmax_REF_can_be = self.ir_led_intensity / REF_on_signal * 0.250
+
+        ir_intensity_argmax_ANGLE_can_be = self.ir_led_intensity / culture_on_signal * 3.0
+
+        ir_intensity_max = 85
+
+        return min(ir_intensity_max, ir_intensity_argmax_ANGLE_can_be, ir_intensity_argmax_REF_can_be)
 
     def _prepare_post_callbacks(self) -> list[Callable]:
         callbacks: list[Callable] = []
