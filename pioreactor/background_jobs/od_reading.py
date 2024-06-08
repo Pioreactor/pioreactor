@@ -872,7 +872,7 @@ class ODReader(BackgroundJob):
         self.ir_led_intensity: pt.LedIntensityValue
         if config_ir_led_intensity == "auto":
             determine_best_ir_led_intensity = True
-            self.ir_led_intensity = 50.0  # start here, and we'll optimize later.
+            self.ir_led_intensity = 70.0  # start here, and we'll optimize later.
         else:
             determine_best_ir_led_intensity = False
             self.ir_led_intensity = float(config_ir_led_intensity)
@@ -922,8 +922,8 @@ class ODReader(BackgroundJob):
                 # clear the history in adc_reader, so that we don't blank readings in later inference.
                 self.adc_reader.clear_batched_readings()
 
-                if determine_best_ir_led_intensity:
-                    self.ir_led_intensity = self._determine_best_ir_led_intensity(on_reading, blank_reading)
+        if determine_best_ir_led_intensity:
+            self.ir_led_intensity = self._determine_best_ir_led_intensity(on_reading, blank_reading)
 
         if (self.interval is not None) and self.interval > 0:
             if self.interval <= 1.0:
@@ -949,28 +949,33 @@ class ODReader(BackgroundJob):
         What do we want for a good value?
 
          - [REF] is less than 0.256
-         - [90] gets lots of light, but less than 3.0
+         - [90] gets lots of light, but less than 3.0, even at a full culture
          - IR intensity is less than 90%, maybe even 80%
          - [90] is "far away" from it's blank signal (TODO: how do we quantify this?)
 
         """
 
         if len(self.channel_angle_map) != 1:
-            # no REF
-            return self.ir_led_intensity
+            # multiple signals?
+            return 70.0
 
         pd_channel = list(self.channel_angle_map.keys())[0]
 
         culture_on_signal = on_reading.pop(pd_channel)
 
+        if len(on_reading) == 0:
+            # no REF
+            return 70.0
+
         _, REF_on_signal = on_reading.popitem()
-        _, REF_blank_signal = blank_reading.popitem()
 
-        ir_intensity_argmax_REF_can_be = self.ir_led_intensity / REF_on_signal * 0.250
+        ir_intensity_argmax_REF_can_be = self.ir_led_intensity / REF_on_signal * 0.240
 
-        ir_intensity_argmax_ANGLE_can_be = self.ir_led_intensity / culture_on_signal * 3.0
+        ir_intensity_argmax_ANGLE_can_be = (
+            self.ir_led_intensity / culture_on_signal * 3.0
+        ) / 200  # divide by 200 since the culture is unlikely to 200x.
 
-        ir_intensity_max = 85
+        ir_intensity_max = 85.0
 
         return min(ir_intensity_max, ir_intensity_argmax_ANGLE_can_be, ir_intensity_argmax_REF_can_be)
 

@@ -176,6 +176,7 @@ class TemperatureAutomationJob(AutomationJob):
         return
 
     def _set_latest_temperature(self, temperature_struct: structs.Temperature) -> None:
+        # TODO: we want to avoid a flurry of temperature data coming in, i.e. after a network reconnect.
         self.previous_temperature = self.latest_temperature
         self.latest_temperature = temperature_struct.temperature
         self.latest_temperature_at = temperature_struct.timestamp
@@ -186,6 +187,8 @@ class TemperatureAutomationJob(AutomationJob):
         return
 
     def _set_OD(self, message: pt.MQTTMessage) -> None:
+        if not message.payload:
+            return
         self.previous_normalized_od = self._latest_normalized_od
         payload = decode(message.payload, type=structs.ODFiltered)
         self._latest_normalized_od = payload.od_filtered
