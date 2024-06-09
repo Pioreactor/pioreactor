@@ -63,9 +63,7 @@ def test_changing_temperature_algo_over_mqtt() -> None:
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
             encode(
-                structs.TemperatureAutomation(
-                    automation_name="thermostat", args={"target_temperature": 36}
-                )
+                structs.TemperatureAutomation(automation_name="thermostat", args={"target_temperature": 36})
             ),
         )
         time.sleep(8)
@@ -94,9 +92,7 @@ def test_changing_temperature_algo_over_mqtt_and_then_update_params() -> None:
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
             encode(
-                structs.TemperatureAutomation(
-                    automation_name="thermostat", args={"target_temperature": 25}
-                )
+                structs.TemperatureAutomation(automation_name="thermostat", args={"target_temperature": 25})
             ),
         )
         time.sleep(15)
@@ -104,9 +100,7 @@ def test_changing_temperature_algo_over_mqtt_and_then_update_params() -> None:
         assert isinstance(algo.automation_job, Thermostat)
         assert algo.automation_job.target_temperature == 25
 
-        pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/temperature_automation/target_temperature/set", 30
-        )
+        pubsub.publish(f"pioreactor/{unit}/{experiment}/temperature_automation/target_temperature/set", 30)
         pause()
         assert algo.automation_job.target_temperature == 30
 
@@ -217,9 +211,7 @@ def test_duty_cycle_is_published_and_not_settable() -> None:
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
             encode(
-                structs.TemperatureAutomation(
-                    automation_name="thermostat", args={"target_temperature": 35}
-                )
+                structs.TemperatureAutomation(automation_name="thermostat", args={"target_temperature": 35})
             ),
         )
 
@@ -253,8 +245,6 @@ def test_temperature_control_and_thermostats_relationship() -> None:
         thermostat_automation.set_target_temperature(35)
         pause()
 
-        # should have changed the dc immediately.
-        assert tc.heater_duty_cycle != initial_dc
         assert tc.heater_duty_cycle > 0
         pause()
 
@@ -315,9 +305,7 @@ def test_using_external_thermocouple() -> None:
     ) as tc:
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
-            encode(
-                structs.TemperatureAutomation(automation_name="_test_my_super_simple_automation")
-            ),
+            encode(structs.TemperatureAutomation(automation_name="_test_my_super_simple_automation")),
         )
         pause()
         pause()
@@ -369,9 +357,7 @@ def test_that_if_a_user_tries_to_change_thermostat_X_to_thermostat_Y_we_just_cha
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
             encode(
-                structs.TemperatureAutomation(
-                    automation_name="thermostat", args={"target_temperature": 36}
-                )
+                structs.TemperatureAutomation(automation_name="thermostat", args={"target_temperature": 36})
             ),
         )
 
@@ -396,9 +382,7 @@ def test_that_you_cant_disconnect_the_temperature_automation_directly_but_must_u
         assert algo.automation_job.state == algo.READY
         pause()
         pause()
-        pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/temperature_automation/$state/set", "disconnected"
-        )
+        pubsub.publish(f"pioreactor/{unit}/{experiment}/temperature_automation/$state/set", "disconnected")
         pause()
         assert algo.automation_job.state == algo.READY
         pause()

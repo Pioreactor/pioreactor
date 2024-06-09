@@ -7,8 +7,10 @@
  - `pio run self_test` has a new flag `--retry-failed` to only retry tests that failed in the previous run (if any).
  - better clean up when a worker is removed from a cluster.
  - reduce the mosquitto logs to reduce writes to disk and speed up connections.
+ - Use lexicographical ordering for all displays of workers in the UI
  - **This only applies to new installed images, and not updates.** Updated to the latest RPI image, 2024-03-15, -> linux kernel update to 6.6. Recent versions of linux have improved support for usb wifi devices.
  - **This only applies to new installed images, and not updates.** leader-only images will install worker Python libraries.
+ - **This only applies to new installed images, and not updates.** all experiment data will be deleted when the experiment is deleted.
  - performance improvements
 
 #### Breaking changes
@@ -16,7 +18,10 @@
 
 #### Bug fixes
  - fix performing an "undo" when editing the config.ini and experiment profiles.
- - fix bug when change target temperature mid cycle causing the inferred temperature to drop.
+ - fix bug when change target temperature mid cycle causing the inferred temperature to change significantly.
+ - if a worker disconnected from the network, messages are queued in memory until the network reconnects. This has two problems. The first is that there is a finite amount of memory, and we don't want to OOM. The second is that when the worker(s) reconnect, there is a flurry of messages. For some jobs that use messages as events, this can cause multiple triggers in quick succession. We've added some logic that helps avoid these situations:
+    1. we max the queue of unsent messages to 100 (arbitrary)
+    2. in important jobs, like temperature automations, it will only respond to "recent" messages and not old messages.
 
 ### 24.5.31
 

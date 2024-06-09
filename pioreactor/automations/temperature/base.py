@@ -168,18 +168,23 @@ class TemperatureAutomationJob(AutomationJob):
         self._latest_growth_rate = payload.growth_rate
         self.latest_growth_rate_at = payload.timestamp
 
-    def _set_temperature(self, message: pt.MQTTMessage) -> None:
+    def _set_temperature_from_mqtt(self, message: pt.MQTTMessage) -> None:
         if not message.payload:
             return
 
-        self._set_latest_temperature(decode(message.payload, type=structs.Temperature))
-        return
+        temperature = decode(message.payload, type=structs.Temperature)
+        return self._set_latest_temperature(temperature)
 
-    def _set_latest_temperature(self, temperature_struct: structs.Temperature) -> None:
-        # TODO: we want to avoid a flurry of temperature data coming in, i.e. after a network reconnect.
+    def _set_latest_temperature(self, temperature: structs.Temperature) -> None:
+        # we want to avoid a flurry of temperature data coming in, i.e. after a network reconnect.
+        # naive solution: only allow temp data from within 5m
+        if (current_utc_datetime() - temperature.timestamp).total_seconds() >= 5 * 60:
+            self.logger.debug(f"Temperature data too old to execute on: {temperature}")
+            return
+
         self.previous_temperature = self.latest_temperature
-        self.latest_temperature = temperature_struct.temperature
-        self.latest_temperature_at = temperature_struct.timestamp
+        self.latest_temperature = temperature.temperature
+        self.latest_temperature_at = temperature.timestamp
 
         if self.state == self.READY or self.state == self.INIT:
             self.latest_event = self.execute()
@@ -224,7 +229,7 @@ class TemperatureAutomationJob(AutomationJob):
         )
 
         self.subscribe_and_callback(
-            self._set_temperature,
+            self._set_temperature_from_mqtt,
             f"pioreactor/{self.unit}/{self.experiment}/temperature_control/temperature",
             allow_retained=False,  # only use fresh data from Temp Control.
         )
