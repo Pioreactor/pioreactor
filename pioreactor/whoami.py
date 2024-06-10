@@ -50,7 +50,7 @@ def _get_assigned_experiment_name(unit_name: str) -> str:
     from pioreactor.config import leader_address
 
     retries = 6
-    exit_reason = ""
+    exit_reason = None
 
     for attempt in range(retries):
         try:

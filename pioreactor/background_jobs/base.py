@@ -86,11 +86,12 @@ def format_with_optional_units(value: pt.PublishableSettingDataType, units: t.Op
 
 
 class LoggerMixin:
-    _logger_name: t.Optional[str] = None
-    _logger = None
-
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+        self._logger = None
+
+    def add_external_logger(self, logger):
+        self._logger = logger
 
     @property
     def logger(self):

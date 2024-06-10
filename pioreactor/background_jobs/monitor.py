@@ -225,7 +225,7 @@ class Monitor(LongRunningBackgroundJob):
 
         self.logger.debug(f"IPv4 address: {self.ipv4}")
         self.logger.debug(f"WLAN MAC address: {self.wlan_mac_address}")
-        self.logger.debug(f"Ethernet MAC address: {self.wlan_mac_address}")
+        self.logger.debug(f"Ethernet MAC address: {self.eth_mac_address}")
 
     def self_checks(self) -> None:
         # check active network connection
@@ -240,9 +240,9 @@ class Monitor(LongRunningBackgroundJob):
         if whoami.am_I_leader():
             self.check_for_last_backup()
             sleep(0 if whoami.is_testing_env() else 5)  # wait for other processes to catch up
-            self.check_for_required_jobs_running()
-            self.check_for_webserver()
             self.check_for_correct_permissions()
+            self.check_for_webserver()
+            self.check_for_required_jobs_running()
 
         if whoami.am_I_active_worker():
             self.check_for_HAT()
@@ -364,7 +364,9 @@ class Monitor(LongRunningBackgroundJob):
 
     def check_for_required_jobs_running(self) -> None:
         if not all(utils.is_pio_job_running(["watchdog", "mqtt_to_db_streaming"])):
-            self.logger.debug("watchdog and mqtt_to_db_streaming should be running on leader. Double check.")
+            self.logger.warning(
+                "watchdog and mqtt_to_db_streaming should be running on leader. Double check."
+            )
 
     def check_for_HAT(self) -> None:
         if not is_HAT_present():
@@ -691,7 +693,6 @@ class Monitor(LongRunningBackgroundJob):
             options["experiment"] = experiment  # techdebt
             options["config"] = get_config()  # techdebt
             Thread(target=pump_action, kwargs=options, daemon=True).start()
-            self.logger.debug(f"Running `{job_name}` from monitor job.")
 
         else:
             command = self._job_options_and_args_to_shell_command(

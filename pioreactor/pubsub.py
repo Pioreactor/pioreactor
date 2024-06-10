@@ -93,6 +93,10 @@ def create_client(
         config.get("mqtt", "username", fallback="pioreactor"),
         config.get("mqtt", "password", fallback="raspberry"),
     )
+    # set a finite queue for QOS>0 messages, so that if we lose connection, we don't store an unlimited number of messages. When the network comes back on, we don't want
+    # a storm of messages (it also causes problems when multiple triggers are sent to execute methods.)
+    client.max_queued_messages_set(100)
+
     if tls:
         import ssl
 

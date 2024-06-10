@@ -29,10 +29,7 @@ if is_testing_env():
     from pioreactor.utils.mock import MockPWMOutputDevice
     from pioreactor.utils.mock import MockHardwarePWM as HardwarePWM
 else:
-    try:
-        from rpi_hardware_pwm import HardwarePWM  # type: ignore
-    except ImportError:
-        from pioreactor.utils.mock import MockHardwarePWM as HardwarePWM
+    from rpi_hardware_pwm import HardwarePWM  # type: ignore
 
 
 class HardwarePWMOutputDevice(HardwarePWM):
