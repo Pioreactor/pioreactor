@@ -120,3 +120,7 @@ export const colors = [
   "#4682B4",
   "#D473D4"
 ];
+
+export const ERROR_COLOR = "#ff7961"
+export const WARNING_COLOR = "#FFEA8A"
+export const NOTICE_COLOR = "#addcaf"

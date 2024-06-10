@@ -47,14 +47,14 @@ const LEVELS = [
   "CRITICAL"
 ]
 
-function LogTable({byDuration, experimentStartTime, experiment, config, relabelMap}) {
+function LogTableByUnit({experiment, unit}) {
   const [listOfLogs, setListOfLogs] = useState([]);
   const {client, subscribeToTopic } = useMQTT();
 
   useEffect(() => {
     const getData = async () => {
-      const response = await fetch(`/api/experiments/${experiment}/logs?` + new URLSearchParams({
-        min_level: config.logging.ui_log_level
+      const response = await fetch(`/api/experiments/${experiment}/units/${unit}/logs?` + new URLSearchParams({
+        min_level: 'info'
       }));
       const logs = await response.json();
       setListOfLogs(logs.map((log, index) => ({
@@ -62,50 +62,40 @@ function LogTable({byDuration, experimentStartTime, experiment, config, relabelM
         key: index
       })));
     };
-    if (experiment && Object.keys(config).length){
+
+    if (experiment){
       getData();
     }
-  }, [experiment, config]);
+  }, [experiment]);
 
   useEffect(() => {
-    if (client && (Object.keys(config).length)){
+    if (client){
 
-      // what level does the user request?
-      const levelRequested = config.logging.ui_log_level.toUpperCase()|| "INFO"
+      const levelRequested = "INFO"
       const ix = LEVELS.indexOf(levelRequested)
 
-      subscribeToTopic(LEVELS.slice(ix).map(level => `pioreactor/+/$experiment/logs/+/${level.toLowerCase()}`), onMessage, "LogTable");
+      subscribeToTopic(LEVELS.slice(ix).map(level => `pioreactor/${unit}/$experiment/logs/+/${level.toLowerCase()}`), onMessage, "LogTableByUnit");
 
     }
-  }, [client, config]);
+  }, [client]);
 
   useEffect(() => {
-    if (experiment && client && (Object.keys(config).length)){
+    if (experiment && client){
 
-      // what level does the user request?
-      const levelRequested = config.logging.ui_log_level.toUpperCase() || "INFO"
+      const levelRequested = "INFO"
       const ix = LEVELS.indexOf(levelRequested)
 
-      subscribeToTopic(LEVELS.slice(ix).map(level => `pioreactor/+/${experiment}/logs/+/${level.toLowerCase()}`), onMessage, "LogTable");
+      subscribeToTopic(LEVELS.slice(ix).map(level => `pioreactor/${unit}/${experiment}/logs/+/${level.toLowerCase()}`), onMessage, "LogTableByUnit");
 
 
     }
-  }, [client, experiment, config]);
+  }, [client, experiment]);
 
-  const relabelUnit = (unit) => {
-    return (relabelMap && relabelMap[unit]) ? `${relabelMap[unit]} / ${unit}` : unit;
-  };
 
   const timestampCell = (timestamp) => {
     const ts = moment.utc(timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]');
     const localTs = ts.local();
-
-    if (byDuration) {
-      const deltaHours = Math.round(ts.diff(experimentStartTime, 'hours', true) * 1e2) / 1e2;
-      return <span title={localTs.format('YYYY-MM-DD HH:mm:ss.SS')}>{deltaHours} h</span>;
-    } else {
-      return <span title={localTs.format('YYYY-MM-DD HH:mm:ss.SS')}>{localTs.format('HH:mm:ss')}</span>;
-    }
+    return <span title={localTs.format('YYYY-MM-DD HH:mm:ss.SS')}>{localTs.format('HH:mm:ss')}</span>;
   };
 
   const onMessage = (topic, message, packet) => {
@@ -130,14 +120,13 @@ function LogTable({byDuration, experimentStartTime, experiment, config, relabelM
     <Card>
       <CardContent>
         <Typography variant="h6" component="h2">
-          <Box fontWeight="fontWeightRegular">Recent event logs</Box>
+          <Box fontWeight="fontWeightRegular">Recent logs for {unit}</Box>
         </Typography>
         <TableContainer sx={{ height: "660px", width: "100%", overflowY: "auto"}}>
           <Table stickyHeader size="small" aria-label="log table">
             <TableHead>
               <TableRow>
                 <StyledTableCell>Time</StyledTableCell>
-                <StyledTableCell>Pioreactor</StyledTableCell>
                 <StyledTableCell>Source</StyledTableCell>
                 <StyledTableCell>Message</StyledTableCell>
               </TableRow>
@@ -148,7 +137,6 @@ function LogTable({byDuration, experimentStartTime, experiment, config, relabelM
                   <StyledTimeTableCell level={log.level}>
                     {timestampCell(log.timestamp)}
                   </StyledTimeTableCell>
-                  <StyledTableCell level={log.level}>{relabelUnit(log.pioreactor_unit)}</StyledTableCell>
                   <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
                   <StyledTableCell level={log.level}>{log.message}</StyledTableCell>
                 </TableRow>
@@ -161,4 +149,4 @@ function LogTable({byDuration, experimentStartTime, experiment, config, relabelM
   );
 }
 
-export default LogTable;
+export default LogTableByUnit;

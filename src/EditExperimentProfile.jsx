@@ -25,7 +25,7 @@ const EditExperimentProfilesContent = ({ code: initialCode, filename: initialFil
   const DEFAULT_FILENAME = "";
   const filenameEditable = initialFilename !== null
 
-  const [code, setCode] = useState(initialCode || DEFAULT_CODE);
+  const [code, setCode] = useState(initialCode || "");
   const [filename, setFilename] = useState(initialFilename || DEFAULT_FILENAME);
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [isChanged, setIsChanged] = useState(false);
@@ -112,6 +112,7 @@ const EditExperimentProfilesContent = ({ code: initialCode, filename: initialFil
             overflow: "auto",
             flex: 1
           }}>
+          {(code !== "") &&
             <Editor
               placeholder={DEFAULT_CODE}
               value={code}
@@ -126,6 +127,7 @@ const EditExperimentProfilesContent = ({ code: initialCode, filename: initialFil
                 minHeight: "100%"
               }}
             />
+          }
           </div>
         </Grid>
         <div style={{ display: "flex", justifyContent: "space-between" }}>

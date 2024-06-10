@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { useMQTT } from '../providers/MQTTContext';
 
 const canvasDim = {
-  height: 540,
+  height: 510,
   width: 400
 }
 
@@ -50,6 +50,10 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
   const [pumps, setPumps] = useState(new Set([]));
   const [heat, setHeat] = useState(false);
   const [volume, setVolume] = useState(14);
+  var startTime, now, then, elapsed;
+  const fps = 45;
+  const fpsInterval = 1000 / fps;
+
 
   useEffect(() => {
     if (Object.keys(config).length){
@@ -87,7 +91,8 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
 
         switch (load){
           case "stirring":
-            rpm_ = 500
+            const rpm_estimate = parseFloat(dcs[pin]) * 26.66666667
+            rpm_ = Math.max(Math.min(100, rpm_estimate), 600)//
             break
           case "media":
             pumps_.add('media')
@@ -174,7 +179,7 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
     ]
 
     const heaterRec = [
-      { text: 'heat', x: 100,  y: 457, width: 200, height: 20, radius: 3 },
+      { text: 'heat', x: 100,  y: 450, width: 200, height: 20, radius: 3 },
     ]
 
     const pumpsRects = [
@@ -184,7 +189,7 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
     ];
 
     const warningRects = [
-      { text: '⚠ liquid volume above may not be an accurate\nreflection of the vial volume - observe carefully.', x: 50, y: 520, width: 300, height: 45, radius: 5 },
+      { text: '⚠ liquid volume above may not be an accurate\nreflection of the vial volume - observe carefully.', x: 40, y: 450, width: 320, height: 50, radius: 5 },
     ]
 
     var dynamicRects = []
@@ -252,18 +257,18 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
     function drawOutline() {
       ctx.lineWidth = 8;
       ctx.beginPath();
-      ctx.moveTo(70,                   60  - 50); //top left
+      ctx.moveTo(70,                   55  - 50); //top left
       ctx.lineTo(70,                   320 - 50);
       ctx.lineTo(20,                   320 - 50);
       ctx.lineTo(20,                   455 - 50);
       ctx.lineTo(55,                   455 - 50);
-      ctx.lineTo(55,                   540 - 50);
-      ctx.lineTo(canvasDim.width - 55, 540 - 50);
+      ctx.lineTo(55,                   canvasDim.height - 30);
+      ctx.lineTo(canvasDim.width - 55, canvasDim.height - 30);
       ctx.lineTo(canvasDim.width - 55, 455 - 50);
       ctx.lineTo(canvasDim.width - 20, 455 - 50);
       ctx.lineTo(canvasDim.width - 20, 320 - 50);
       ctx.lineTo(canvasDim.width - 70, 320 - 50);
-      ctx.lineTo(canvasDim.width - 70, 60  - 50);
+      ctx.lineTo(canvasDim.width - 70, 55  - 50);
       ctx.closePath();
       ctx.fillStyle = 'rgb(0,0,0,0.01)'
       ctx.fill();
@@ -306,7 +311,7 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
       ctx.textBaseline = 'middle';
 
       labelsArray.forEach(label => {
-        drawRoundedRect(label.x, label.y, label.width, label.height, label.radius, 'rgb(255, 244, 229)', 'rgb(255, 244, 229)');
+        drawRoundedRect(label.x, label.y, label.width, label.height, label.radius, 'rgb(255, 244, 229)', 'rgb(102, 60, 0)');
         ctx.stroke();
         ctx.fillStyle = 'rgb(102, 60, 0)';
         if (label.text.length > 60){
@@ -378,7 +383,7 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
       drawTurbidLiquid(bioreactor.x, bioreactor.y + bioreactor.height - liquidLevel, bioreactor.width, liquidLevel, bioreactor.cornerRadius, nOD);
 
       // Draw stir bar
-      const angle = (2 * Math.PI / (200 * 60 / (rpm/2) ) ) * stirBarFrame.current;
+      const angle = (2 * Math.PI / (200 * fps / (rpm) ) ) * stirBarFrame.current;
       const width = bioreactor.stirBar.maxWidth * Math.abs(Math.cos(angle)) + 10;
       drawRoundedRect(bioreactor.stirBar.x + (bioreactor.stirBar.maxWidth - width) / 2, bioreactor.stirBar.y, width, bioreactor.stirBar.height, bioreactor.stirBar.radius, '#fff', '#000');
 
@@ -393,15 +398,38 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
     }
 
     function update() {
-      stirBarFrame.current = (stirBarFrame.current + 1)  % Math.round(200 * 60/ (rpm/2) );
 
-      drawBioreactor();
+      // request another frame
+
       animationFrameId = window.requestAnimationFrame(update);
+
+      // calc elapsed time since last loop
+
+      now = window.performance.now()
+      elapsed = now - then;
+
+      // if enough time has elapsed, draw the next frame
+      if (elapsed > fpsInterval) {
+
+          // Get ready for next frame by setting then=now, but also adjust for your
+          // specified fpsInterval not being a multiple of RAF's interval (16.7ms)
+          then = now - (elapsed % fpsInterval);
+
+          stirBarFrame.current = (stirBarFrame.current + 1)  % Math.round(200 * fps / (rpm) );
+
+          drawBioreactor();
+
+      }
+
+
     }
 
-    // Start the animation
-    update();
-
+    function startAnimating() {
+      then = window.performance.now()
+      startTime = then;
+      update();
+    }
+    startAnimating()
     // Cleanup on component unmount
     return () => {
         window.cancelAnimationFrame(animationFrameId);

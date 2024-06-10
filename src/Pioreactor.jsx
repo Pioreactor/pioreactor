@@ -43,7 +43,7 @@ import ListSubheader from '@mui/material/ListSubheader';
 import IndeterminateCheckBoxOutlinedIcon from '@mui/icons-material/IndeterminateCheckBoxOutlined';
 import Switch from '@mui/material/Switch';
 import { useConfirm } from 'material-ui-confirm';
-import {getConfig, getRelabelMap, runPioreactorJob} from "./utilities"
+import {getConfig, getRelabelMap, runPioreactorJob, colors} from "./utilities"
 import Alert from '@mui/material/Alert';
 import {Link, useParams  } from 'react-router-dom'
 
@@ -55,6 +55,8 @@ import ActionLEDForm from "./components/ActionLEDForm"
 import PioreactorIcon from "./components/PioreactorIcon"
 import UnderlineSpan from "./components/UnderlineSpan";
 import BioreactorDiagram from "./components/Bioreactor";
+import Chart from "./components/Chart";
+import LogTableByUnit from "./components/LogTableByUnit";
 import { MQTTProvider, useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 
@@ -575,31 +577,32 @@ function SelfTestDialog(props) {
   }
 
 
-  function createUserButtonsBasedOnState(jobState, job){
+  function createUserButtonsBasedOnState(jobState){
 
     switch (jobState){
       case "init":
       case "ready":
       case "sleeping":
-       return (<div key={"ready_" + job}>
+       return (<Box  sx={{display: "inline-block"}}>
                <PatientButton
                 color="primary"
                 variant="contained"
                 disabled={true}
                 buttonText="Running"
                />
-              </div>)
+              </Box>)
       default:
-       return (<div key={"disconnected_" + job}>
+       return (<Box  sx={{display: "inline-block"}}>
                <PatientButton
                 color="primary"
                 variant="contained"
-                onClick={() => runPioreactorJob(props.unit, '$experiment', job)}
+                onClick={() => runPioreactorJob(props.unit, '$experiment', "self_test")}
                 buttonText="Start"
                />
-              </div>)
+              </Box>)
     }
   }
+
 
   function colorOfIcon(){
     return props.disabled ? "disabled" : "primary"
@@ -648,7 +651,23 @@ function SelfTestDialog(props) {
             Add a closed vial with water and stirbar into the Pioreactor.
           </Typography>
 
-            {selfTestButton}
+            <Box>
+
+              {selfTestButton}
+
+              <Box sx={{display: "inline-block"}}>
+               <Button
+                sx={{mt: "5px", height: "31px", ml: '3px', textTransform: "None"}}
+                color="primary"
+                variant="text"
+                disabled={!(props.selfTestTests?.publishedSettings.all_tests_passed.value === false) || ["init", "ready"].includes(props.selfTestState)}
+                onClick={() => runPioreactorJob(props.unit, '$experiment', "self_test", [], {"retry-failed": null})}
+               >
+               Retry failed tests
+               </Button>
+              </Box>
+            </Box>
+
             <ManageDivider/>
 
             <List component="nav"
@@ -793,14 +812,14 @@ function SettingsActionsDialog(props) {
   function rebootRaspberryPi(){
     return function() {
       setRebooting(true)
-      fetch("/api/reboot/" + props.unit, {method: "POST"})
+      fetch(`/api/units/${props.unit}/reboot`, {method: "POST"})
     }
   }
 
   function shutDownRaspberryPi(){
     return function() {
       setShuttingDown(true)
-      fetch("/api/shutdown/" + props.unit, {method: "POST"})
+      fetch(`/api/units/${props.unit}/shutdown`, {method: "POST"})
     }
   }
 
@@ -2142,6 +2161,67 @@ function PioreactorCard(props){
 
 
 
+function Charts(props) {
+  const [charts, setCharts] = useState({})
+  const config = props.config
+  const { client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
+
+  useEffect(() => {
+    fetch('/api/contrib/charts')
+      .then((response) => response.json())
+      .then((data) => {
+        setCharts(data.reduce((map, obj) => ((map[obj.chart_key] = obj), map), {}));
+      });
+  }, []);
+
+
+  return (
+    <React.Fragment>
+      {Object.entries(charts)
+        .filter(([chart_key, _]) => config['ui.overview.charts'] && (config['ui.overview.charts'][chart_key] === "1"))
+        .map(([chart_key, chart]) =>
+          <React.Fragment key={`grid-chart-${chart_key}`}>
+            <Grid item xs={12}>
+              <Card sx={{ maxHeight: "100%"}}>
+                <Chart
+                  unit={props.unit}
+                  key={`chart-${chart_key}`}
+                  chartKey={chart_key}
+                  config={config}
+                  dataSource={chart.data_source}
+                  title={chart.title}
+                  topic={chart.mqtt_topic}
+                  payloadKey={chart.payload_key}
+                  yAxisLabel={chart.y_axis_label}
+                  experiment={props.experimentMetadata.experiment}
+                  deltaHours={props.experimentMetadata.delta_hours}
+                  experimentStartTime={props.experimentMetadata.created_at}
+                  downSample={chart.down_sample}
+                  interpolation={chart.interpolation || "stepAfter"}
+                  yAxisDomain={chart.y_axis_domain ? chart.y_axis_domain : null}
+                  lookback={props.timeWindow ? props.timeWindow : (chart.lookback ? eval(chart.lookback) : 10000)}
+                  fixedDecimals={chart.fixed_decimals}
+                  relabelMap={props.relabelMap}
+                  yTransformation={eval(chart.y_transformation || "(y) => y")}
+                  dataSourceColumn={chart.data_source_column}
+                  isPartitionedBySensor={chart_key === "raw_optical_density"}
+                  isLiveChart={true}
+                  byDuration={props.timeScale === "hours"}
+                  client={client}
+                  subscribeToTopic={subscribeToTopic}
+                  unsubscribeFromTopic={unsubscribeFromTopic}
+                  unitsColorMap={props.unitsColorMap}
+                />
+              </Card>
+            </Grid>
+          </React.Fragment>
+     )}
+    </React.Fragment>
+)}
+
+
+
+
 function Pioreactor({title}) {
   const { experimentMetadata } = useExperiment();
   const [config, setConfig] = useState({})
@@ -2162,7 +2242,6 @@ function Pioreactor({title}) {
       .then((data) => data.json())
       .then((json) => {
         setAssignedExperiment(json['experiment'])
-        console.log(json)
         setIsActive(json['is_active'])
       })
     }
@@ -2175,7 +2254,7 @@ function Pioreactor({title}) {
 
   return (
     <MQTTProvider name={unit} config={config} experiment={experimentMetadata.experiment}>
-      <Grid container spacing={2} >
+      <Grid container rowSpacing={1} columnSpacing={2} justifyContent="space-between">
         <Grid item md={12} xs={12}>
           <PioreactorHeader unit={unit} assignedExperiment={assignedExperiment} isActive={isActive}/>
         </Grid>
@@ -2184,6 +2263,15 @@ function Pioreactor({title}) {
         </Grid>
         <Grid item lg={4} md={12} xs={12}>
           <BioreactorDiagram  experiment={experimentMetadata.experiment} unit={unit} config={config}/>
+        </Grid>
+
+        <Grid item xs={12} md={7} container spacing={2} justifyContent="flex-start" style={{height: "100%"}}>
+          <Charts unit={unit} unitsColorMap={{[unit]: colors[0]}} config={config} timeScale={"clock_time"} timeWindow={10000000} experimentMetadata={experimentMetadata}/>
+        </Grid>
+        <Grid item xs={12} md={5} container spacing={1} justifyContent="flex-end" style={{height: "100%"}}>
+          <Grid item xs={12}>
+            <LogTableByUnit experiment={experimentMetadata.experiment} unit={unit}/>
+          </Grid>
         </Grid>
       </Grid>
     </MQTTProvider>

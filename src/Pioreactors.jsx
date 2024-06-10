@@ -697,6 +697,7 @@ function CalibrateDialog(props) {
 
 
 
+
 function SelfTestDialog(props) {
   const [open, setOpen] = useState(false);
 
@@ -728,31 +729,32 @@ function SelfTestDialog(props) {
   }
 
 
-  function createUserButtonsBasedOnState(jobState, job){
+  function createUserButtonsBasedOnState(jobState){
 
     switch (jobState){
       case "init":
       case "ready":
       case "sleeping":
-       return (<div key={"ready_" + job}>
+       return (<Box  sx={{display: "inline-block"}}>
                <PatientButton
                 color="primary"
                 variant="contained"
                 disabled={true}
                 buttonText="Running"
                />
-              </div>)
+              </Box>)
       default:
-       return (<div key={"disconnected_" + job}>
+       return (<Box  sx={{display: "inline-block"}}>
                <PatientButton
                 color="primary"
                 variant="contained"
-                onClick={() => runPioreactorJob(props.unit, '$experiment', job)}
+                onClick={() => runPioreactorJob(props.unit, '$experiment', "self_test")}
                 buttonText="Start"
                />
-              </div>)
+              </Box>)
     }
   }
+
 
   function colorOfIcon(){
     return props.disabled ? "disabled" : "primary"
@@ -801,7 +803,23 @@ function SelfTestDialog(props) {
             Add a closed vial with water and stirbar into the Pioreactor.
           </Typography>
 
-            {selfTestButton}
+            <Box>
+
+              {selfTestButton}
+
+              <Box sx={{display: "inline-block"}}>
+               <Button
+                sx={{mt: "5px", height: "31px", ml: '3px', textTransform: "None"}}
+                color="primary"
+                variant="text"
+                disabled={!(props.selfTestTests?.publishedSettings.all_tests_passed.value === false) || ["init", "ready"].includes(props.selfTestState)}
+                onClick={() => runPioreactorJob(props.unit, '$experiment', "self_test", [], {"retry-failed": null})}
+               >
+               Retry failed tests
+               </Button>
+              </Box>
+            </Box>
+
             <ManageDivider/>
 
             <List component="nav"
@@ -919,7 +937,6 @@ function SelfTestDialog(props) {
 
 
 
-
 function SettingsActionsDialog(props) {
   const [open, setOpen] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -946,14 +963,14 @@ function SettingsActionsDialog(props) {
   function rebootRaspberryPi(){
     return function() {
       setRebooting(true)
-      fetch("/api/reboot/" + props.unit, {method: "POST"})
+      fetch(`/api/units/${props.unit}/reboot`, {method: "POST"})
     }
   }
 
   function shutDownRaspberryPi(){
     return function() {
       setShuttingDown(true)
-      fetch("/api/shutdown/" + props.unit, {method: "POST"})
+      fetch(`/api/units/${props.unit}/shutdown`, {method: "POST"})
     }
   }
 

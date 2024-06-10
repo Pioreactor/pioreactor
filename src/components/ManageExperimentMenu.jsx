@@ -44,7 +44,7 @@ export default function ManageExperimentMenu({experiment}){
 
   const handleDeleteExperiment = () => {
     confirm({
-      description: 'This will stop assigned Pioreactors, unassign Pioreactors from this experiment, and delete experiment data. Do you wish to continue?',
+      description: 'This will stop Pioreactor activity, unassign Pioreactors, and permanently delete experiment data. Do you wish to continue?',
       title: "End experiment?",
       confirmationText: "Confirm",
       confirmationButtonProps: {color: "primary"},

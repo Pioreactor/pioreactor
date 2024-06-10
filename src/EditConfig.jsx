@@ -18,12 +18,11 @@ import { highlight, languages } from 'prismjs';
 import 'prismjs/components/prism-ini';
 
 import moment from "moment";
-import DeleteIcon from '@mui/icons-material/Delete';
 
 
 function EditableCodeDiv(props) {
   const [state, setState] = useState({
-    code: "Loading...",
+    code: "",
     openSnackbar: false,
     filename: "config.ini",
     snackbarMsg: "",
@@ -71,27 +70,6 @@ function EditableCodeDiv(props) {
           setState(prev => ({ ...prev, errorMsg: parsedJson['msg'], isError: true, hasChangedSinceSave: true, saving: false }))
         )
       }
-    });
-  };
-
-  const deleteConfig = () => {
-    fetch(`/api/configs/${state.filename}`, {
-      method: "DELETE",
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      }
-    })
-    .then(res => {
-      if (res.ok) {
-        setState(prev => ({ ...prev, snackbarMsg: `${state.filename} deleted.` }));
-      } else {
-        setState(prev => ({ ...prev, snackbarMsg: "Hm. Something when wrong deleting..." }));
-      }
-      setState(prev => ({ ...prev, openSnackbar: true }));
-      setTimeout(() => {
-        window.location.reload();
-      }, 750);
     });
   };
 
@@ -196,20 +174,22 @@ function EditableCodeDiv(props) {
             overflow: "auto",
             flex: 1
         }}>
-          <Editor
-            placeholder={state.code}
-            value={state.code}
-            onValueChange={onTextChange}
-            highlight={(code) => highlight(code, languages.ini)}
-            padding={10}
-            style={{
-              fontSize: "14px",
-              fontFamily: 'monospace',
-              backgroundColor: "hsla(0, 0%, 100%, .5)",
-              borderRadius: "3px",
-              minHeight: "100%"
-            }}
-          />
+          {(state.code !== "") &&
+              <Editor
+                placeholder="Loading"
+                value={state.code}
+                onValueChange={onTextChange}
+                highlight={(code) => highlight(code, languages.ini)}
+                padding={10}
+                style={{
+                  fontSize: "14px",
+                  fontFamily: 'monospace',
+                  backgroundColor: "hsla(0, 0%, 100%, .5)",
+                  borderRadius: "3px",
+                  minHeight: "100%"
+                }}
+              />
+            }
       </div>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         <div>
@@ -227,14 +207,6 @@ function EditableCodeDiv(props) {
           </LoadingButton>
           <p style={{ marginLeft: 12 }}>{state.isError ? <Box color="error.main">{state.errorMsg}</Box> : ""}</p>
         </div>
-        <Button
-          style={{ margin: "5px 10px 5px 10px", textTransform: "none" }}
-          color="secondary"
-          onClick={deleteConfig}
-          disabled={(state.filename === "config.ini")}
-        >
-          <DeleteIcon fontSize="15" /> Delete config file
-        </Button>
       </div>
       <Snackbar
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}

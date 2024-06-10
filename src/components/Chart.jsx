@@ -90,7 +90,7 @@ class Chart extends React.Component {
     if (!this.props.experiment){
       return
     }
-    const tweak = 0.60 // increase to filter more
+    const tweak = 0.65 // increase to filter more
     const queryParams = new URLSearchParams({
         filter_mod_N: this.props.downSample ? Math.max(Math.floor(tweak * Math.min(this.props.deltaHours, this.props.lookback)), 1) : 1,
         lookback: this.props.lookback
@@ -104,18 +104,28 @@ class Chart extends React.Component {
       transformX = (x) => moment.utc(x, 'YYYY-MM-DDTHH:mm:ss.SSSSS').local()
     }
 
-    await fetch(`/api/time_series/${this.props.dataSource}/${this.props.experiment}${this.props.dataSourceColumn ? "/" + this.props.dataSourceColumn : ""}?${queryParams}`)
+    await fetch(`/api/experiments/${this.props.experiment}/time_series/${this.props.dataSource}${this.props.dataSourceColumn ? "/" + this.props.dataSourceColumn : ""}?${queryParams}`)
       .then((response) => {
         return response.json();
       })
       .then((data) => {
         let initialSeriesMap = {};
-        for (const [i, v] of data["series"].entries()) {
+        for (const [i, unit] of data["series"].entries()) {
+
+          if (this.props.unit){
+            if (this.props.isPartitionedBySensor && ((unit !== this.props.unit + "-2") && (unit !== this.props.unit + "-1"))){
+              continue
+            }
+            else if (!this.props.isPartitionedBySensor && unit !== this.props.unit){
+              continue
+            }
+          }
+
           if (data["data"][i].length > 0) {
-            initialSeriesMap[v] = {
+            initialSeriesMap[unit] = {
               data: (data["data"][i]).map(item => ({y: item.y, x: transformX(item.x) })),
-              name: v,
-              color: this.getUnitColor(v),
+              name: unit,
+              color: this.getUnitColor(unit),
             };
           }
         }
@@ -210,25 +220,34 @@ class Chart extends React.Component {
     var local_timestamp = timestamp.local()
     const x_value = this.props.byDuration ? duration : local_timestamp
 
-    var key = this.props.isPartitionedBySensor
+    var unit = this.props.isPartitionedBySensor
       ? topic.split("/")[1] + "-" + (topic.split("/")[4]).replace('od', '')
       : topic.split("/")[1];
 
+    if (this.props.unit){
+      if (this.props.isPartitionedBySensor && ((unit !== this.props.unit + "-2") && (unit !== this.props.unit + "-1"))){
+        return
+      }
+      else if (!this.props.isPartitionedBySensor && unit !== this.props.unit){
+        return
+      }
+    }
+
     try {
-      if (!(key in this.state.seriesMap)){
-        const newSeriesMap = {...this.state.seriesMap, [key]:  {
+      if (!(unit in this.state.seriesMap)){
+        const newSeriesMap = {...this.state.seriesMap, [unit]:  {
           data: [{x: x_value, y: y_value}],
-          name: key,
-          color: this.getUnitColor(key)
+          name: unit,
+          color: this.getUnitColor(unit)
         }}
 
         this.setState({ seriesMap: newSeriesMap })
         this.setState({
-          names: [...this.state.names, key]
+          names: [...this.state.names, unit]
         })
       } else {
         // .push seems like bad state management, and maybe a hit to performance...
-        this.state.seriesMap[key].data.push({
+        this.state.seriesMap[unit].data.push({
           x: x_value,
           y: y_value,
         });

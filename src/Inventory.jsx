@@ -111,7 +111,7 @@ function AddNewPioreactor(props){
     setIsSuccess(false)
     setIsRunning(true)
     setExpectedPathMsg("Setting up your new Pioreactor...")
-    fetch('/api/setup_worker_pioreactor', {
+    fetch('/api/workers/setup', {
         method: "POST",
         body: JSON.stringify({name: name, model: model, version: version}),
         headers: {
@@ -154,9 +154,9 @@ function AddNewPioreactor(props){
         </IconButton>
       </DialogTitle>
       <DialogContent>
-        <p>Follow the instructions at <a rel="noopener noreferrer" target="_blank" href="https://docs.pioreactor.com/user-guide/software-set-up#adding-additional-workers-to-your-cluster">set up your new Pioreactor's worker software</a>.</p>
+        <p>First, follow the instructions <a rel="noopener noreferrer" target="_blank" href="https://docs.pioreactor.com/user-guide/software-set-up#adding-additional-workers-to-your-cluster">here</a> to set up your new Pioreactor's worker software.</p>
 
-        <p>After
+        <p>After,
 
         <ol>
          <li> worker image installation is complete and,</li>
@@ -165,7 +165,7 @@ function AddNewPioreactor(props){
         </ol>
 
         provide the hostname you used when installing the Pioreactor image onto the Raspberry Pi, and the Pioreactor model (this can be changed later).</p>
-        <p>Your existing leader will automatically connect the new Pioreactor to the cluster. When finished, the new Pioreactor will show up on this page (after a refresh).</p>
+        <p>Your existing leader will automatically connect the new Pioreactor to the cluster. When finished, the new Pioreactor will show up on this page after a refresh.</p>
         <div>
           <TextField
             required
@@ -500,7 +500,7 @@ function Reboot({unit, isLeader}) {
       confirmationButtonProps: {color: "primary"},
       cancellationButtonProps: {color: "secondary"},
     }).then(() => {
-      fetch(`/api/reboot/${unit}`, {method: "POST"})
+      fetch(`/api/units/${unit}/reboot`, {method: "POST"})
     }).catch(() => {});
   };
 
