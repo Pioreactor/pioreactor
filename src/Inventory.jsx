@@ -346,7 +346,7 @@ function WorkerCard(props) {
       <CardContent>
 
         <div style={{display: "flex", justifyContent: "space-between"}}>
-          <Typography sx={{ fontSize: 14 }} style={{paddingTop: "10px"}} color={activeStatus === "active" ? "text.secondary" : inactiveGrey} gutterBottom>
+          <Typography sx={{ fontSize: 14 }} color={activeStatus === "active" ? "text.secondary" : inactiveGrey} gutterBottom>
             {isLeader ? "Leader / Worker" : "Worker"}
           </Typography>
         </div>

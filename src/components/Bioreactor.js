@@ -50,7 +50,7 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
   const [pumps, setPumps] = useState(new Set([]));
   const [heat, setHeat] = useState(false);
   const [volume, setVolume] = useState(14);
-  var startTime, now, then, elapsed;
+  var  now, then, elapsed;
   const fps = 45;
   const fpsInterval = 1000 / fps;
 
@@ -426,7 +426,6 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
 
     function startAnimating() {
       then = window.performance.now()
-      startTime = then;
       update();
     }
     startAnimating()

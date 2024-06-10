@@ -66,7 +66,7 @@ function LogTableByUnit({experiment, unit}) {
     if (experiment){
       getData();
     }
-  }, [experiment]);
+  }, [experiment, unit]);
 
   useEffect(() => {
     if (client){
@@ -77,7 +77,7 @@ function LogTableByUnit({experiment, unit}) {
       subscribeToTopic(LEVELS.slice(ix).map(level => `pioreactor/${unit}/$experiment/logs/+/${level.toLowerCase()}`), onMessage, "LogTableByUnit");
 
     }
-  }, [client]);
+  }, [client, unit]);
 
   useEffect(() => {
     if (experiment && client){
