@@ -1,4 +1,4 @@
-### Upcoming
+### 24.6.10
 
 #### Enhancements
  - we changed the "auto" algorithm for picking a good ir_led_intensity. We now try to maximize the intensity, up to some constraints around saturating ADCs, LED longevity, and signal. In general, we expect a higher IR intensity, but this will help with noise and detecting lower signals.
