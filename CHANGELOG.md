@@ -18,7 +18,7 @@
 
 #### Bug fixes
  - fix performing an "undo" when editing the config.ini and experiment profiles.
- - fix bug when change target temperature mid cycle causing the inferred temperature to change significantly.
+ - fix **Pioreactor v1.1** bug when change target temperature mid cycle causing the inferred temperature to change significantly.
  - if a worker disconnected from the network, messages are queued in memory until the network reconnects. This has two problems. The first is that there is a finite amount of memory, and we don't want to OOM. The second is that when the worker(s) reconnect, there is a flurry of messages. For some jobs that use messages as events, this can cause multiple triggers in quick succession. We've added some logic that helps avoid these situations:
     1. we max the queue of unsent messages to 100 (arbitrary)
     2. in important jobs, like temperature automations, it will only respond to "recent" messages and not old messages.
