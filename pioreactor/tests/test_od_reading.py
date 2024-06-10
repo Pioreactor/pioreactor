@@ -569,6 +569,40 @@ def test_interval_is_empty() -> None:
         assert not hasattr(od, "record_from_adc_timer")
 
 
+def test_determine_best_ir_led_intensity_values() -> None:
+    _determine_best_ir_led_intensity = ODReader._determine_best_ir_led_intensity
+
+    assert (
+        _determine_best_ir_led_intensity(
+            {"2": "90"},
+            50,
+            {"1": 0.05, "2": 0.02},  # on
+            {"1": 0.001, "2": 0.001},  # blank
+        )
+        == 85.0
+    )
+
+    assert (
+        _determine_best_ir_led_intensity(
+            {"2": "90"},
+            50,
+            {"1": 0.2, "2": 0.02},  # on
+            {"1": 0.001, "2": 0.001},  # blank
+        )
+        == 60.0
+    )
+
+    assert (
+        _determine_best_ir_led_intensity(
+            {"2": "90"},
+            50,
+            {"1": 0.2, "2": 0.5},  # on
+            {"1": 0.001, "2": 0.001},  # blank
+        )
+        == 6.0
+    )
+
+
 def test_calibration_not_requested() -> None:
     with start_od_reading("90", "REF", interval=None, fake_data=True, use_calibration=False) as od:
         assert isinstance(od.calibration_transformer, NullCalibrationTransformer)

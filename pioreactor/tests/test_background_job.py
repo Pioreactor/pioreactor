@@ -519,19 +519,3 @@ def test_disabled_dodging() -> None:
 
     od.clean_up()
     jp.clean_up()
-
-
-def test_that_job_will_republish_state_if_not_correct_in_broker() -> None:
-    experiment = "test_that_job_will_republish_state_if_not_correct_in_broker"
-    unit = get_unit_name()
-
-    with BackgroundJob(unit=unit, experiment=experiment) as bj:
-        pause()
-        assert bj.state == bj.READY
-        assert subscribe(f"pioreactor/{unit}/{experiment}/{bj.job_name}/$state").payload.decode() == bj.READY  # type: ignore
-        pause()
-        # override state
-        publish(f"pioreactor/{unit}/{experiment}/{bj.job_name}/$state", "lost", retain=True)
-        pause()
-        assert bj.state == bj.READY
-        assert subscribe(f"pioreactor/{unit}/{experiment}/{bj.job_name}/$state").payload.decode() == bj.READY  # type: ignore

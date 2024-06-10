@@ -923,7 +923,9 @@ class ODReader(BackgroundJob):
                 self.adc_reader.clear_batched_readings()
 
         if determine_best_ir_led_intensity:
-            self.ir_led_intensity = self._determine_best_ir_led_intensity(on_reading, blank_reading)
+            self.ir_led_intensity = self._determine_best_ir_led_intensity(
+                self.channel_angle_map, self.ir_led_intensity, on_reading, blank_reading
+            )
 
         if (self.interval is not None) and self.interval > 0:
             if self.interval <= 1.0:
@@ -942,8 +944,12 @@ class ODReader(BackgroundJob):
             f"Starting od_reading with PD channels {channel_angle_map}, with IR LED intensity {self.ir_led_intensity}% from channel {self.ir_channel}, every {self.interval} seconds"
         )
 
+    @staticmethod
     def _determine_best_ir_led_intensity(
-        self, on_reading: PdChannelToVoltage, blank_reading: PdChannelToVoltage
+        channel_angle_map: dict[pt.PdChannel, pt.PdAngle],
+        initial_ir_intensity: float,
+        on_reading: PdChannelToVoltage,
+        blank_reading: PdChannelToVoltage,
     ) -> float:
         """
         What do we want for a good value?
@@ -955,11 +961,11 @@ class ODReader(BackgroundJob):
 
         """
 
-        if len(self.channel_angle_map) != 1:
+        if len(channel_angle_map) != 1:
             # multiple signals?
             return 70.0
 
-        pd_channel = list(self.channel_angle_map.keys())[0]
+        pd_channel = list(channel_angle_map.keys())[0]
 
         culture_on_signal = on_reading.pop(pd_channel)
 
@@ -969,14 +975,13 @@ class ODReader(BackgroundJob):
 
         _, REF_on_signal = on_reading.popitem()
 
-        ir_intensity_argmax_REF_can_be = self.ir_led_intensity / REF_on_signal * 0.240
+        ir_intensity_argmax_REF_can_be = initial_ir_intensity / REF_on_signal * 0.240
 
         ir_intensity_argmax_ANGLE_can_be = (
-            self.ir_led_intensity / culture_on_signal * 3.0
-        ) / 200  # divide by 200 since the culture is unlikely to 200x.
+            initial_ir_intensity / culture_on_signal * 3.0
+        ) / 50  # divide by N since the culture is unlikely to Nx.
 
         ir_intensity_max = 85.0
-
         return min(ir_intensity_max, ir_intensity_argmax_ANGLE_can_be, ir_intensity_argmax_REF_can_be)
 
     def _prepare_post_callbacks(self) -> list[Callable]:
