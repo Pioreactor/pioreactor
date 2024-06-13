@@ -4,11 +4,13 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
+from msgspec.json import encode
 from msgspec.yaml import decode
 
 from pioreactor.actions.leader.experiment_profile import _verify_experiment_profile
 from pioreactor.actions.leader.experiment_profile import execute_experiment_profile
 from pioreactor.actions.leader.experiment_profile import hours_to_seconds
+from pioreactor.background_jobs.stirring import start_stirring
 from pioreactor.experiment_profiles.profile_struct import _LogOptions
 from pioreactor.experiment_profiles.profile_struct import CommonBlock
 from pioreactor.experiment_profiles.profile_struct import Job
@@ -20,9 +22,12 @@ from pioreactor.experiment_profiles.profile_struct import Repeat
 from pioreactor.experiment_profiles.profile_struct import Start
 from pioreactor.experiment_profiles.profile_struct import Stop
 from pioreactor.experiment_profiles.profile_struct import Update
+from pioreactor.experiment_profiles.profile_struct import When
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe_and_callback
+from pioreactor.structs import ODReading
+from pioreactor.utils.timing import current_utc_datetime
 
 
 # First test the hours_to_seconds function
@@ -522,6 +527,157 @@ def test_execute_experiment_profile_expression_in_common(
     assert actions == ['{"options":{"target":11.0,"job_source":"experiment_profile"},"args":[]}'] * len(
         active_workers_in_cluster
     )
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_profile_when_action(mock__load_experiment_profile) -> None:
+    experiment = "_testing_experiment"
+    action = When(
+        hours_elapsed=0.0005,
+        condition="${{unit1:od_reading:od1.od > 2.0}}",
+        actions=[
+            Start(hours_elapsed=0, options={"target_rpm": 500}),
+            Update(hours_elapsed=0.001, options={"target_rpm": 600}),
+        ],
+    )
+
+    profile = Profile(
+        experiment_profile_name="test_when_action_profile",
+        plugins=[],
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(
+                jobs={"stirring": Job(actions=[action])},
+            )
+        },
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    actions = []
+
+    def collect_actions(msg):
+        actions.append(msg.topic)
+
+    subscribe_and_callback(
+        collect_actions,
+        [f"pioreactor/unit1/{experiment}/#"],
+        allow_retained=False,
+    )
+
+    # Simulate OD value
+    publish(
+        f"pioreactor/unit1/{experiment}/od_reading/od1",
+        encode(ODReading(od=2.5, angle="90", timestamp=current_utc_datetime(), channel="1")),
+        retain=True,
+    )
+
+    execute_experiment_profile("profile.yaml", experiment)
+
+    assert actions == [
+        f"pioreactor/unit1/{experiment}/od_reading/od1",
+        f"pioreactor/unit1/{experiment}/run/stirring",
+        f"pioreactor/unit1/{experiment}/stirring/target_rpm/set",
+    ]
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_profile_when_action_with_if(mock__load_experiment_profile) -> None:
+    experiment = "_testing_experiment"
+    action = When(
+        hours_elapsed=0.0005,
+        if_="1 == 1",
+        condition="${{unit1:od_reading:od1.od > 2.0}}",
+        actions=[
+            Start(hours_elapsed=0, options={"target_rpm": 500}),
+            Update(hours_elapsed=0.001, options={"target_rpm": 600}),
+        ],
+    )
+
+    profile = Profile(
+        experiment_profile_name="test_when_action_with_if_profile",
+        plugins=[],
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(
+                jobs={"stirring": Job(actions=[action])},
+            )
+        },
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    actions = []
+
+    def collect_actions(msg):
+        actions.append(msg.topic)
+
+    subscribe_and_callback(
+        collect_actions,
+        [f"pioreactor/unit1/{experiment}/#"],
+        allow_retained=False,
+    )
+
+    # Simulate OD value
+    publish(
+        f"pioreactor/unit1/{experiment}/od_reading/od1",
+        encode(ODReading(od=2.5, angle="90", timestamp=current_utc_datetime(), channel="1")),
+        retain=True,
+    )
+
+    execute_experiment_profile("profile.yaml", experiment)
+
+    assert actions == [
+        f"pioreactor/unit1/{experiment}/od_reading/od1",
+        f"pioreactor/unit1/{experiment}/run/stirring",
+        f"pioreactor/unit1/{experiment}/stirring/target_rpm/set",
+    ]
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_profile_when_action_condition_eventually_met(
+    mock__load_experiment_profile,
+) -> None:
+    experiment = "_testing_experiment"
+
+    when = When(
+        hours_elapsed=0.00,
+        condition="${{unit1:stirring:target_rpm > 800}}",
+        actions=[
+            Update(hours_elapsed=0, options={"target_rpm": 200}),
+        ],
+    )
+    update = Update(hours_elapsed=0.002, options={"target_rpm": 1000})
+
+    profile = Profile(
+        experiment_profile_name="test_when_action_condition_not_met_profile",
+        plugins=[],
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(
+                jobs={"stirring": Job(actions=[when, update])},
+            )
+        },
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    actions = []
+
+    def collect_actions(msg):
+        if msg.payload:
+            actions.append(float(msg.payload.decode()))
+
+    subscribe_and_callback(
+        collect_actions,
+        [f"pioreactor/unit1/{experiment}/stirring/target_rpm"],
+        allow_retained=False,
+    )
+
+    with start_stirring(target_rpm=500, unit="unit1", experiment=experiment, use_rpm=True):
+        execute_experiment_profile("profile.yaml", experiment)
+
+    assert actions == [500, 1000, 200]
 
 
 def test_profiles_in_github_repo() -> None:

@@ -68,19 +68,24 @@ class Resume(_Action):
     pass
 
 
+class When(_Action):
+    condition: str = ""
+    actions: list[Action] = []
+
+
 class Repeat(_Action):
     repeat_every_hours: float = 1.0
     while_: t.Optional[str | bool] = field(name="while", default=None)
     max_hours: t.Optional[float] = None
-    actions: list[ActionWithoutRepeat] = []
+    actions: list[BasicAction] = []
     _completed_loops: int = 0
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}({self.hours_elapsed=:.5f}, {self.repeat_every_hours=}, {self.max_hours=}, {self.while_=})"
 
 
-Action = t.Union[Log, Start, Pause, Stop, Update, Resume, Repeat]
-ActionWithoutRepeat = t.Union[Log, Start, Pause, Stop, Update, Resume]
+BasicAction = Log | Start | Pause | Stop | Update | Resume
+Action = BasicAction | Repeat | When
 
 #######
 
