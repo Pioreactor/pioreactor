@@ -680,6 +680,58 @@ def test_execute_experiment_profile_when_action_condition_eventually_met(
     assert actions == [500, 1000, 200]
 
 
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_profile_when_action_nested(
+    mock__load_experiment_profile,
+) -> None:
+    experiment = "_testing_experiment"
+
+    when_inner = When(
+        hours_elapsed=0.0001,
+        condition="${{unit1:stirring:target_rpm <= 200}}",
+        actions=[
+            Update(hours_elapsed=0, options={"target_rpm": 400}),
+        ],
+    )
+
+    when_outer = When(
+        hours_elapsed=0.0,
+        condition="${{unit1:stirring:target_rpm > 800}}",
+        actions=[Update(hours_elapsed=0, options={"target_rpm": 200}), when_inner],
+    )
+    update = Update(hours_elapsed=0.001, options={"target_rpm": 1000})
+
+    profile = Profile(
+        experiment_profile_name="test_when_action_condition_not_met_profile",
+        plugins=[],
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(
+                jobs={"stirring": Job(actions=[when_outer, update])},
+            )
+        },
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    actions = []
+
+    def collect_actions(msg):
+        if msg.payload:
+            actions.append(float(msg.payload.decode()))
+
+    subscribe_and_callback(
+        collect_actions,
+        [f"pioreactor/unit1/{experiment}/stirring/target_rpm"],
+        allow_retained=False,
+    )
+
+    with start_stirring(target_rpm=500, unit="unit1", experiment=experiment, use_rpm=True):
+        execute_experiment_profile("profile.yaml", experiment)
+
+    assert actions == [500, 1000, 200, 400]
+
+
 def test_profiles_in_github_repo() -> None:
     from pioreactor.mureq import get
 

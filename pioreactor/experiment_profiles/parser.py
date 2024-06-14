@@ -11,6 +11,7 @@ from msgspec.json import decode
 
 from .sly import Lexer
 from .sly import Parser
+from pioreactor.exc import MQTTValueError
 from pioreactor.pubsub import subscribe
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import is_active
@@ -205,7 +206,7 @@ class ProfileParser(Parser):
             return convert_string(value)
 
         else:
-            raise ValueError(f"{p.UNIT_JOB_SETTING} does not exist for experiment `{experiment}`")
+            raise MQTTValueError(f"{p.UNIT_JOB_SETTING} does not exist for experiment `{experiment}`")
 
 
 def parse_profile_expression_to_bool(profile_string: str) -> bool:

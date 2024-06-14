@@ -13,6 +13,7 @@ from msgspec.json import encode
 from msgspec.yaml import decode
 
 from pioreactor.cluster_management import get_active_workers_in_experiment
+from pioreactor.exc import MQTTValueError
 from pioreactor.experiment_profiles import profile_struct as struct
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
@@ -28,13 +29,12 @@ from pioreactor.whoami import is_testing_env
 bool_expression = str | bool
 
 
-def wrap_in_try_except(func, logger: CustomLogger, silent=False) -> Callable:
+def wrap_in_try_except(func, logger: CustomLogger) -> Callable:
     def inner_function(*args, **kwargs) -> None:
         try:
             func(*args, **kwargs)
         except Exception as e:
-            if not silent:
-                logger.warning(f"Error in action: {e}")
+            logger.warning(f"Error in action: {e}")
 
     return inner_function
 
@@ -268,7 +268,12 @@ def when(
             return
 
         if (if_ is None) or evaluate_bool_expression(if_, unit):
-            if evaluate_bool_expression(condition, unit):
+            try:
+                condition_met = evaluate_bool_expression(condition, unit)
+            except MQTTValueError:
+                condition_met = False
+
+            if condition_met:
                 for action in actions:
                     schedule.enter(
                         delay=hours_to_seconds(action.hours_elapsed),
@@ -280,7 +285,7 @@ def when(
 
             else:
                 schedule.enter(
-                    delay=10,  # check every 10 seconds??
+                    delay=10,  # check every 10 seconds - arbitrary
                     priority=get_simple_priority(when_action),
                     action=wrapped_execute_action(
                         unit, experiment, job_name, logger, schedule, client, when_action, dry_run
@@ -290,7 +295,7 @@ def when(
         else:
             logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
 
-    return wrap_in_try_except(_callable, logger, silent=False)
+    return wrap_in_try_except(_callable, logger)
 
 
 def repeat(

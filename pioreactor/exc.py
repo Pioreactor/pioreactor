@@ -54,3 +54,9 @@ class RoleError(Exception):
     """
     Leader vs worker?
     """
+
+
+class MQTTValueError(Exception):
+    """
+    Data from MQTT is not expected / correct
+    """

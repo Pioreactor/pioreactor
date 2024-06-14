@@ -1,3 +1,8 @@
+### Upcoming
+ - new `when` action type in experiment profiles that will execute an action (or list of actions) when some expression is true.
+ - New config `turbidostat.config` that can be used to modify some internal turbidostat settings.
+
+
 ### 24.6.10
 
 #### Enhancements
