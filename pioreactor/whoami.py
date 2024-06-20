@@ -27,13 +27,11 @@ def get_testing_experiment_name() -> str:
         return f"_testing_{NO_EXPERIMENT}"
 
 
-@cache
 def get_latest_experiment_name() -> str:
     warnings.warn("Use whoami.get_assigned_experiment_name(unit) instead", DeprecationWarning, stacklevel=2)
     return get_assigned_experiment_name(get_unit_name())
 
 
-@cache
 def get_assigned_experiment_name(unit_name: str) -> str:
     return _get_assigned_experiment_name(unit_name)
 
@@ -89,7 +87,6 @@ def _get_assigned_experiment_name(unit_name: str) -> str:
     return NO_EXPERIMENT
 
 
-@cache
 def is_active(unit_name: str) -> bool:
     from pioreactor.pubsub import get_from_leader
 

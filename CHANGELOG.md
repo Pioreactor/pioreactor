@@ -1,6 +1,12 @@
 ### Upcoming
+
+#### Enhancements
  - new `when` action type in experiment profiles that will execute an action (or list of actions) when some expression is true.
  - New config `turbidostat.config` that can be used to modify some internal turbidostat settings.
+
+#### Bug fixes
+ - Fix UI code editor from being stuck when all the text was removed.
+ - Experiment profiles won't be overwritten if supplying the same filename as an existing profile.
 
 
 ### 24.6.10

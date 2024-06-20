@@ -57,7 +57,7 @@ from pioreactor.whoami import is_testing_env
 
 
 def test_pioreactor_HAT_present(client: Client, logger: CustomLogger, unit: str, experiment: str) -> None:
-    assert is_HAT_present(), "HAT is not connected, or i2c is not working."
+    assert is_HAT_present(), "HAT is not connected"
 
 
 def test_REF_is_in_correct_position(client: Client, logger: CustomLogger, unit: str, experiment: str) -> None:

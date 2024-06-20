@@ -746,7 +746,9 @@ def test_profiles_in_github_repo() -> None:
     response.raise_for_status()  # Will raise an HTTPError if the HTTP request returned an unsuccessful status code
 
     # Check for YAML files
-    yaml_files = [file for file in response.json() if file["name"].endswith(".yaml")]
+    yaml_files = [
+        file for file in response.json() if (file["name"].endswith(".yaml") or file["name"].endswith(".yml"))
+    ]
 
     # Print the list of YAML files
     for file in yaml_files:
