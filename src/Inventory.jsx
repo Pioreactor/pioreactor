@@ -307,11 +307,22 @@ function WorkerCard(props) {
     if (unit && client) {
       subscribeToTopic(`pioreactor/${unit}/$experiment/monitor/+`, onMonitorData, "WorkerCard");
 
-      fetch(`/api/workers/${unit}/experiment`)
-         .then((response) => { return response.json() })
-         .then((json) => setExperimentAssigned(json['experiment']))
+      const fetchExperiment = async () => {
+        try {
+          const response = await fetch(`/api/workers/${unit}/experiment`);
+          if (!response.ok) {
+            throw new Error(`No experiment found.`);
+          }
+          const json = await response.json();
+          setExperimentAssigned(json['experiment']);
+        } catch (error) {
+          return
+        }
+      };
+
+      fetchExperiment();
     }
-  }, [unit, client])
+  }, [unit, client]);
 
   const handleStatusChange = (event) => {
 
@@ -364,7 +375,7 @@ function WorkerCard(props) {
               <PioreactorIcon  style={{verticalAlign: "middle", marginRight: "3px"}} sx={{ display: {xs: 'none', sm: 'none', md: 'inline' } }}/>
               {unit}
             </Typography>
-            <Tooltip title={indicatorLabel} placement="left">
+            <Tooltip title={indicatorLabel} placement="right">
               <div>
                 <div className="indicator-dot" style={{boxShadow: `0 0 ${indicatorDotShadow}px ${indicatorDotColor}, inset 0 0 12px  ${indicatorDotColor}`}}/>
               </div>
@@ -535,7 +546,7 @@ function Remove({unit, isLeader}) {
 
   const removeWorker = () => {
     confirm({
-      description: 'Removing this Pioreactor will unassign it from any experiments, halt all activity running, and remove it from your inventory.',
+      description: 'Removing this Pioreactor will unassign it from any experiments, halt all activity running, and remove it from your inventory. No experiment data is removed, however.',
       title: `Remove ${unit} from inventory?`,
       confirmationText: "Confirm",
       confirmationButtonProps: {color: "primary"},

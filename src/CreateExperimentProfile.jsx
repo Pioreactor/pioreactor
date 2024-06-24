@@ -1,4 +1,5 @@
 import {useEffect, useState, Fragment } from 'react';
+import yaml from "js-yaml";
 
 import FormControl from '@mui/material/FormControl';
 import Grid from "@mui/material/Grid";
@@ -16,19 +17,34 @@ import Snackbar from '@mui/material/Snackbar';
 import Editor from 'react-simple-code-editor';
 import { highlight, languages } from 'prismjs';
 import 'prismjs/components/prism-yaml'; // You can add more languages or change it
+import {DisplayProfile} from "./components/DisplayProfile"
+
+function addQuotesToBrackets(input) {
+    return input.replace(/(\${0}){{(.*?)}}/g, (match, p1, p2, offset, string) => {
+        if (string[offset - 1] !== '$') {
+            return `"{{${p2}}}"`;
+        }
+        return match;
+    });
+}
+
+function convertYamlToJson(yamlString){
+  return yaml.load(addQuotesToBrackets(yamlString))
+}
 
 
-const EditExperimentProfilesContent = ({ code: initialCode, filename: initialFilename }) => {
+const EditExperimentProfilesContent = () => {
   const DEFAULT_CODE = `experiment_profile_name:
 
 metadata:
-  description:
   author:
+  description:
 `;
   const DEFAULT_FILENAME = "";
 
-  const [code, setCode] = useState(initialCode || DEFAULT_CODE);
-  const [filename, setFilename] = useState(initialFilename || DEFAULT_FILENAME);
+  const [code, setCode] = useState(DEFAULT_CODE);
+  const [filename, setFilename] = useState(DEFAULT_FILENAME);
+  const [parsedCode, setParsedCode] = useState(convertYamlToJson(DEFAULT_CODE));
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMsg, setSnackbarMsg] = useState("");
   const [isChanged, setIsChanged] = useState(false);
@@ -38,6 +54,13 @@ metadata:
   const onTextChange = newCode => {
     setCode(newCode);
     setIsChanged(true);
+    try {
+      setParsedCode(convertYamlToJson(newCode))
+    } catch (error) {
+      if (error.name === "YAMLException") {
+        // do nothing?
+      }
+    }
   };
 
   const onFilenameChange = e => {
@@ -80,10 +103,15 @@ metadata:
       });
   };
 
+  const displayedProfile = () => {
+    return <DisplayProfile data={parsedCode} />;
+  };
+
+
   return (
     <>
       <Grid container spacing={1}>
-        <Grid item xs={6}>
+        <Grid item xs={12}>
           <div style={{ width: "100%", margin: "10px", display: "flex", justifyContent: "space-between" }}>
             <FormControl>
               <TextField
@@ -91,7 +119,7 @@ metadata:
                 onChange={onFilenameChange}
                 required
                 value={filename}
-                style={{ width: "200px" }}
+                style={{ width: "250px" }}
                 InputProps={{
                   endAdornment: <InputAdornment position="end">.yaml</InputAdornment>,
                 }}
@@ -99,19 +127,18 @@ metadata:
             </FormControl>
           </div>
         </Grid>
-        <Grid item xs={12}>
+        <Grid item xs={6}>
           <div style={{
             tabSize: "4ch",
             border: "1px solid #ccc",
             margin: "10px auto 10px auto",
             position: "relative",
             width: "98%",
-            height: "330px",
+            height: "350px",
             overflow: "auto",
             flex: 1
           }}>
             <Editor
-              placeholder="Loading..."
               value={code}
               onValueChange={onTextChange}
               highlight={code => highlight(code, languages.yaml)}
@@ -126,21 +153,29 @@ metadata:
             />
           </div>
         </Grid>
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <div>
-            <Button
-              variant="contained"
-              color="primary"
-              style={{ marginLeft: "20px", textTransform: 'none' }}
-              onClick={saveCurrentCode}
-              endIcon={<SaveIcon />}
-              disabled={!isChanged}
-            >
-              Save
-            </Button>
-            <p style={{ marginLeft: "20px" }}>{isError ? <Box color="error.main">{errorMsg}</Box> : ""}</p>
+
+        <Grid item xs={6}>
+          {code && displayedProfile()}
+        </Grid>
+
+        <Grid item xs={12}>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <div>
+              <Button
+                variant="contained"
+                color="primary"
+                style={{ marginLeft: "20px", textTransform: 'none' }}
+                onClick={saveCurrentCode}
+                endIcon={<SaveIcon />}
+                disabled={!isChanged}
+              >
+                Save
+              </Button>
+              <p style={{ marginLeft: "20px" }}>{isError ? <Box color="error.main">{errorMsg}</Box> : ""}</p>
+            </div>
           </div>
-        </div>
+        </Grid>
+
       </Grid>
       <Snackbar
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}

@@ -21,7 +21,7 @@ import moment from "moment";
 
 function EditableCodeDiv(props) {
   const [state, setState] = useState({
-    code: "",
+    code: null,
     openSnackbar: false,
     filename: "config.ini",
     snackbarMsg: "",
@@ -173,9 +173,8 @@ function EditableCodeDiv(props) {
             overflow: "auto",
             flex: 1
         }}>
-          {(state.code !== "") &&
+          {(state.code !== null) &&
               <Editor
-                placeholder="Loading"
                 value={state.code}
                 onValueChange={onTextChange}
                 highlight={(code) => highlight(code, languages.ini)}

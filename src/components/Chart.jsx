@@ -208,13 +208,21 @@ class Chart extends React.Component {
       return
     }
 
-    if (this.props.payloadKey){
-      var payload = JSON.parse(message.toString())
-      var timestamp = moment.utc(payload.timestamp)
-      var y_value = parseFloat(payload[this.props.payloadKey])
-    } else {
-      y_value = parseFloat(message.toString())
-      timestamp = moment.utc()
+    try {
+        if (this.props.payloadKey) {
+            var payload = JSON.parse(message.toString());
+            if (!payload.hasOwnProperty(this.props.payloadKey)) {
+                throw new Error(`Payload key '${this.props.payloadKey}' not found in the message.`);
+            }
+            var timestamp = moment.utc(payload.timestamp);
+            var y_value = parseFloat(payload[this.props.payloadKey]);
+        } else {
+            var y_value = parseFloat(message.toString());
+            var timestamp = moment.utc();
+        }
+    } catch (error) {
+        // Exit or handle the error appropriately
+        return;
     }
     var duration = Math.round(timestamp.diff(moment.utc(this.props.experimentStartTime), 'hours', true) * 1e3)/1e3
     var local_timestamp = timestamp.local()

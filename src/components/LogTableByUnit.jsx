@@ -53,7 +53,7 @@ function LogTableByUnit({experiment, unit}) {
 
   useEffect(() => {
     const getData = async () => {
-      const response = await fetch(`/api/experiments/${experiment}/units/${unit}/logs?` + new URLSearchParams({
+      const response = await fetch(`/api/workers/${unit}/experiments/${experiment}/logs?` + new URLSearchParams({
         min_level: 'info'
       }));
       const logs = await response.json();

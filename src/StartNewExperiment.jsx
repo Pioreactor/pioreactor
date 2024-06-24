@@ -245,7 +245,7 @@ function ExperimentSummaryForm(props) {
               label="Experiment name"
               value={expName}
               required
-              sx={{mt: 0, mb: 0, width: "60%"}}
+              sx={{mt: 0, mb: 0, width: "50%"}}
               onChange={onExpNameChange}
               helperText={helperText}
               />

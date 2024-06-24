@@ -329,66 +329,65 @@ const CustomFormControlLabel = ({ label, sublabel, ...props }) => (
   />
 );
 
-
-function AssignPioreactors({experiment}) {
-  const [workers, setWorkers] = React.useState([])
-  const [assigned, setAssigned] = React.useState({})
-  const [initialAssigned, setInitialAssigned] = React.useState({})
-  const [open, setOpen] = useState(false);
-  const navigate = useNavigate()
+function AssignPioreactors({ experiment }) {
+  const [workers, setWorkers] = React.useState([]);
+  const [assigned, setAssigned] = React.useState({});
+  const [initialAssigned, setInitialAssigned] = React.useState({});
+  const [selectAll, setSelectAll] = React.useState(false);
+  const [open, setOpen] = React.useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetch("/api/workers/assignments")
-     .then((data) => data.json())
-     .then((json) => {
+      .then((data) => data.json())
+      .then((json) => {
         setWorkers(json);
         const assignments = json.reduce((map, item) => {
           map[item.pioreactor_unit] = item.experiment === experiment;
           return map;
-        }, {})
-        setAssigned(assignments)
-        setInitialAssigned(assignments)
-      })
-  }, [experiment])
-
+        }, {});
+        setAssigned(assignments);
+        setInitialAssigned(assignments);
+      });
+  }, [experiment]);
 
   function compareObjects(o1, o2) {
-      const differences = {};
-      for (const key in o1) {
-          if (o1[key] !== o2[key]) {
-              differences[key] = { current: o1[key], initial: o2[key] };
-          }
+    const differences = {};
+    for (const key in o1) {
+      if (o1[key] !== o2[key]) {
+        differences[key] = { current: o1[key], initial: o2[key] };
       }
-      return differences;
-  }
-
-const updateAssignments = async () => {
-  const delta = compareObjects(assigned, initialAssigned);
-  const promises = [];
-
-  for (const worker in delta) {
-    if (delta[worker].current && !delta[worker].initial) {
-      const promise = fetch(`/api/experiments/${experiment}/workers`, {
-        method: "PUT",
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ pioreactor_unit: worker })
-      });
-      promises.push(promise);
-    } else {
-      const promise = fetch(`/api/experiments/${experiment}/workers/${worker}`, {
-        method: "DELETE",
-      });
-      promises.push(promise);
     }
+    return differences;
   }
 
-  await Promise.all(promises);
-  setOpen(false);
-  navigate(0);
-};
+  const updateAssignments = async () => {
+    const delta = compareObjects(assigned, initialAssigned);
+    const promises = [];
+
+    for (const worker in delta) {
+      if (delta[worker].current && !delta[worker].initial) {
+        const promise = fetch(`/api/experiments/${experiment}/workers`, {
+          method: "PUT",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ pioreactor_unit: worker }),
+        });
+        promises.push(promise);
+      } else {
+        const promise = fetch(`/api/experiments/${experiment}/workers/${worker}`, {
+          method: "DELETE",
+        });
+        promises.push(promise);
+      }
+    }
+
+    await Promise.all(promises);
+    setOpen(false);
+    navigate(0);
+  };
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -405,86 +404,133 @@ const updateAssignments = async () => {
     });
   };
 
+  const handleSelectAllChange = (event) => {
+    const newValue = event.target.checked;
+    const newAssigned = { ...assigned };
+
+    workers.forEach((worker) => {
+      if (!worker.experiment || worker.experiment === experiment) {
+        newAssigned[worker.pioreactor_unit] = newValue;
+      }
+    });
+
+    setAssigned(newAssigned);
+    setSelectAll(newValue);
+  };
+
+  useEffect(() => {
+    const allSelected = workers.every(
+      (worker) => (worker.experiment && worker.experiment !== experiment) || assigned[worker.pioreactor_unit]
+    );
+    const noneSelected = workers.every(
+      (worker) => (worker.experiment && worker.experiment !== experiment) || !assigned[worker.pioreactor_unit]
+    );
+    setSelectAll(allSelected ? true : noneSelected ? false : null);
+  }, [assigned, workers, experiment]);
+
   return (
     <React.Fragment>
-    <Button style={{textTransform: 'none', }} onClick={handleClickOpen}>
-      <LibraryAddCheckOutlinedIcon fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Assign Pioreactors
-    </Button>
-    <Dialog
-      open={open}
-      onClose={handleClose}
-      fullWidth={false}
-      aria-labelledby="form-dialog-title">
-      <DialogTitle>
+      <Button style={{ textTransform: "none" }} onClick={handleClickOpen}>
+        <LibraryAddCheckOutlinedIcon
+          fontSize="15"
+          sx={{ verticalAlign: "middle", margin: "0px 3px" }}
+        />
         Assign Pioreactors
-        <IconButton
-          aria-label="close"
-          onClick={handleClose}
-          sx={{
-            position: 'absolute',
-            right: 8,
-            top: 8,
-            color: (theme) => theme.palette.grey[500],
-          }}
-          size="large">
-          <CloseIcon />
-        </IconButton>
-      </DialogTitle>
-      <DialogContent>
-        <p> Below, assign and unassign Pioreactors to your experiment <i>{experiment}</i>. </p>
-
-        <FormControl sx={{m: "auto"}} component="fieldset" variant="standard">
-          <FormLabel component="legend">Pioreactors</FormLabel>
-          <FormGroup
-            sx={ workers.length > 8 ? {
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr 1fr',
-              columnGap: '30px'
-            } : {}}
+      </Button>
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        fullWidth={false}
+        aria-labelledby="form-dialog-title"
+      >
+        <DialogTitle>
+          Assign Pioreactors
+          <IconButton
+            aria-label="close"
+            onClick={handleClose}
+            sx={{
+              position: "absolute",
+              right: 8,
+              top: 8,
+              color: (theme) => theme.palette.grey[500],
+            }}
+            size="large"
           >
-
-            {workers.map((worker) => {
-              const unit = worker.pioreactor_unit
-              const exp = worker.experiment
-              const disabled = (exp !== null) && (exp !== experiment)
-              var label = unit
-              if (disabled) {
-                var sublabel = `(assigned to ${exp})`
-              }
-
-              return (
-                <CustomFormControlLabel
-                  key={unit}
-                  control={
-                    <Checkbox disabled={disabled} onChange={handleChange} checked={!disabled && assigned[unit]} name={unit} />
-                  }
-                  label={label}
-                  sublabel={sublabel}
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          <p>
+            {" "}
+            Below, assign and unassign Pioreactors to your experiment{" "}
+            <i>{experiment}</i>.{" "}
+          </p>
+          <FormControl sx={{ m: "auto" }} component="fieldset" variant="standard">
+            <FormLabel component="legend">Pioreactors</FormLabel>
+            {workers.length > 1 &&
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={selectAll || false}
+                  indeterminate={selectAll === null}
+                  onChange={handleSelectAllChange}
                 />
-                )
-              })
+              }
+              label={<span><i>Select all</i></span>}
+              sx={{mb: 1}}
+            />
             }
+            <FormGroup
+              sx={
+                workers.length > 8
+                  ? {
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr 1fr",
+                      columnGap: "30px",
+                    }
+                  : {}
+              }
+            >
+              {workers.map((worker) => {
+                const unit = worker.pioreactor_unit;
+                const exp = worker.experiment;
+                const disabled = exp !== null && exp !== experiment;
+                const label = unit;
+                const sublabel = disabled ? `(assigned to ${exp})` : null;
 
-          </FormGroup>
-        </FormControl>
-      </DialogContent>
-      <DialogActions>
-        <Button
-          variant="contained"
-          onClick={updateAssignments}
-          disabled={Object.keys(compareObjects(assigned, initialAssigned)).length === 0}
-          style={{textTransform: 'none'}}
-        >
-          Update {Object.keys(compareObjects(assigned, initialAssigned)).length}
-        </Button>
-      </DialogActions>
-    </Dialog>
+                return (
+                  <CustomFormControlLabel
+                    key={unit}
+                    control={
+                      <Checkbox
+                        disabled={disabled}
+                        onChange={handleChange}
+                        checked={!disabled && assigned[unit]}
+                        name={unit}
+                      />
+                    }
+                    label={label}
+                    sublabel={sublabel}
+                  />
+                );
+              })}
+            </FormGroup>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            variant="contained"
+            onClick={updateAssignments}
+            disabled={Object.keys(compareObjects(assigned, initialAssigned)).length === 0}
+            style={{ textTransform: "none" }}
+          >
+            Update {Object.keys(compareObjects(assigned, initialAssigned)).length}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </React.Fragment>
   );
 }
-
-
-
 
 function PioreactorHeader({experiment}) {
   return (
@@ -1424,7 +1470,7 @@ function SettingsActionsDialog(props) {
 
         <TabPanel value={tabValue} index={1}>
           <Typography  gutterBottom>
-            Assign label to Pioreactor
+            Assign temporary label to Pioreactor
           </Typography>
           <Typography variant="body2" component="p">
             Assign a temporary label to this Pioreactor for this experiment. The new label will display in graph legends, and throughout the interface.
@@ -2418,7 +2464,7 @@ function ActiveUnits({experiment, config, units, isLoading}){
       <PioreactorCard isUnitActive={true} key={unit} unit={unit} config={config} experiment={experiment} label={relabelMap[unit]}/>
   )
   const renderEmptyState = () => (
-    <div style={{textAlign: "center", marginBottom: '50px', marginTop: "50px"}}>
+    <Box sx={{textAlign: "center", mb: '50px', mt: "50px"}}>
       {isLoading ? <CircularProgress /> : (
       <>
       <Typography component='div' variant='body2'>
@@ -2432,7 +2478,7 @@ function ActiveUnits({experiment, config, units, isLoading}){
       </Typography>
       </>
       )}
-    </div>
+    </Box>
   )
 
   return (
@@ -2679,7 +2725,7 @@ function PioreactorCard(props){
             }
           })}>
             <div style={{display: "flex", justifyContent: "left", marginTop: "3px"}}>
-              <Tooltip title={indicatorLabel} placement="right">
+              <Tooltip title={indicatorLabel} placement="left">
                 <div className="indicator-dot-beside-button" style={{boxShadow: `0 0 ${indicatorDotShadow}px ${indicatorDotColor}, inset 0 0 12px  ${indicatorDotColor}`}}/>
               </Tooltip>
               <Typography sx={{
@@ -2752,7 +2798,7 @@ function PioreactorCard(props){
           flexDirection: "row",
         }}>
         <Box sx={{width: "100px", mt: "10px", mr: "5px"}}>
-          <Typography variant="body2">
+          <Typography variant="body2" component={'span'}>
             <Box fontWeight="fontWeightBold" sx={{ color: !props.isUnitActive ? disabledColor : 'inherit' }}>
               Activities:
             </Box>
@@ -2787,7 +2833,7 @@ function PioreactorCard(props){
           flexDirection: "row",
         }}>
         <Box sx={{width: "100px", mt: "10px", mr: "5px"}}>
-          <Typography variant="body2">
+          <Typography variant="body2" component={'span'}>
             <Box fontWeight="fontWeightBold" sx={{ color: !props.isUnitActive ? disabledColor : 'inherit' }}>
               Settings:
             </Box>

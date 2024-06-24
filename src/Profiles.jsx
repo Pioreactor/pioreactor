@@ -15,7 +15,7 @@ import FormLabel from '@mui/material/FormLabel';
 import MenuItem from '@mui/material/MenuItem';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
-import DisplayProfile from "./components/DisplayProfile"
+import {DisplayProfile} from "./components/DisplayProfile"
 import DisplaySourceCode from "./components/DisplaySourceCode"
 import CloseIcon from '@mui/icons-material/Close';
 import CodeIcon from '@mui/icons-material/Code';
@@ -203,7 +203,7 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName, s
               onClick={getSourceAndView}
               style={{textTransform: "none"}}
             >
-              <CodeIcon fontSize="15" sx={{verticalAlign: "middle", margin:"0px 3px"}} /> {viewSource ? "View description": "View source"}
+              <CodeIcon fontSize="15" sx={{verticalAlign: "middle", margin:"0px 3px"}} /> {viewSource ? "View preview": "View source"}
             </Button>
             <Button
               variant="text"

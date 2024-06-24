@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import yaml from "js-yaml";
 
 
 import FormControl from '@mui/material/FormControl';
@@ -18,15 +19,24 @@ import { useSearchParams } from "react-router-dom";
 import Editor from 'react-simple-code-editor';
 import { highlight, languages } from 'prismjs';
 import 'prismjs/components/prism-yaml'; // You can add more languages or change it
+import {DisplayProfile} from "./components/DisplayProfile"
 
+function addQuotesToBrackets(input) {
+    return input.replace(/(\${0}){{(.*?)}}/g, (match, p1, p2, offset, string) => {
+        if (string[offset - 1] !== '$') {
+            return `"{{${p2}}}"`;
+        }
+        return match;
+    });
+}
 
-const EditExperimentProfilesContent = ({ code: initialCode, filename: initialFilename }) => {
-  const DEFAULT_CODE = 'loading...';
-  const DEFAULT_FILENAME = "";
-  const filenameEditable = initialFilename !== null
+function convertYamlToJson(yamlString){
+  return yaml.load(addQuotesToBrackets(yamlString))
+}
 
-  const [code, setCode] = useState(initialCode || "");
-  const [filename, setFilename] = useState(initialFilename || DEFAULT_FILENAME);
+const EditExperimentProfilesContent = ({ initialCode, filename }) => {
+  const [code, setCode] = useState(initialCode);
+  const [parsedCode, setParsedCode] = useState(convertYamlToJson(initialCode));
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [isChanged, setIsChanged] = useState(false);
   const [snackbarMsg, setSnackbarMsg] = useState("");
@@ -36,17 +46,22 @@ const EditExperimentProfilesContent = ({ code: initialCode, filename: initialFil
   useEffect(() => {
     if (initialCode !== code) {
       setCode(initialCode);
+      setParsedCode(convertYamlToJson(initialCode));
     }
   }, [initialCode]);
 
   const onTextChange = newCode => {
     setCode(newCode);
     setIsChanged(true);
+    try {
+      setParsedCode(convertYamlToJson(newCode))
+    } catch (error) {
+      if (error.name === "YAMLException") {
+        // do nothing?
+      }
+    }
   };
 
-  const onFilenameChange = e => {
-    setFilename(e.target.value);
-  };
 
   const handleSnackbarClose = () => {
     setOpenSnackbar(false);
@@ -62,7 +77,7 @@ const EditExperimentProfilesContent = ({ code: initialCode, filename: initialFil
     setIsError(false);
     setIsChanged(false);
     fetch("/api/contrib/experiment_profiles", {
-      method: "POST",
+      method: "PATCH",
       body: JSON.stringify({ body: code, filename: filename + '.yaml' }),
       headers: {
         'Accept': 'application/json',
@@ -82,39 +97,39 @@ const EditExperimentProfilesContent = ({ code: initialCode, filename: initialFil
       });
   };
 
+  const displayedProfile = () => {
+    return <DisplayProfile data={parsedCode} />;
+  };
+
+
   return (
     <>
       <Grid container spacing={1}>
-        <Grid item xs={6}>
+
+        <Grid item xs={12}>
           <div style={{ width: "100%", margin: "10px", display: "flex", justifyContent: "space-between" }}>
-            <FormControl>
-              <TextField
-                label="Filename"
-                onChange={onFilenameChange}
-                value={filename}
-                disabled={filenameEditable}
-                style={{ width: "200px" }}
-                InputProps={{
-                  endAdornment: <InputAdornment position="end">.yaml</InputAdornment>,
-                }}
-              />
-            </FormControl>
+            <TextField
+              label="Filename"
+              value={filename + '.yaml'}
+              disabled={true}
+              style={{ width: "250px" }}
+            />
           </div>
         </Grid>
-        <Grid item xs={12}>
+
+        <Grid item xs={6}>
           <div style={{
             tabSize: "4ch",
             border: "1px solid #ccc",
             margin: "10px auto 10px auto",
             position: "relative",
             width: "98%",
-            height: "330px",
+            height: "350px",
             overflow: "auto",
             flex: 1
           }}>
-          {(code !== "") &&
+          {(code !== null) && (code !== "") &&
             <Editor
-              placeholder={DEFAULT_CODE}
               value={code}
               onValueChange={onTextChange}
               highlight={code => highlight(code, languages.yaml)}
@@ -130,21 +145,29 @@ const EditExperimentProfilesContent = ({ code: initialCode, filename: initialFil
           }
           </div>
         </Grid>
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <div>
-            <Button
-              variant="contained"
-              color="primary"
-              style={{ marginLeft: "20px", textTransform: 'none' }}
-              onClick={saveCurrentCode}
-              endIcon={<SaveIcon />}
-              disabled={!isChanged}
-            >
-              Save
-            </Button>
-            <p style={{ marginLeft: "20px" }}>{isError ? <Box color="error.main">{errorMsg}</Box> : ""}</p>
+
+        <Grid item xs={6}>
+          {code && displayedProfile()}
+        </Grid>
+
+        <Grid item xs={12}>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <div>
+              <Button
+                variant="contained"
+                color="primary"
+                style={{ marginLeft: "20px", textTransform: 'none' }}
+                onClick={saveCurrentCode}
+                endIcon={<SaveIcon />}
+                disabled={!isChanged}
+              >
+                Save
+              </Button>
+              <p style={{ marginLeft: "20px" }}>{isError ? <Box color="error.main">{errorMsg}</Box> : ""}</p>
+            </div>
           </div>
-        </div>
+        </Grid>
+
       </Grid>
       <Snackbar
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
@@ -188,7 +211,7 @@ function ProfilesContainer(props){
       </Box>
       <Card sx={{marginTop: "15px"}}>
         <CardContent sx={{padding: "10px"}}>
-          <EditExperimentProfilesContent code={source} filename={filename.split(".")[0]}/>
+          <EditExperimentProfilesContent initialCode={source} filename={filename.split(".")[0]}/>
           <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about editing <a href="https://docs.pioreactor.com/user-guide/create-edit-experiment-profiles" target="_blank" rel="noopener noreferrer">experiment profile schemas</a>.</p>
         </CardContent>
       </Card>

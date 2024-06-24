@@ -28,6 +28,7 @@ import { useExperiment } from '../providers/ExperimentContext';
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 
+
 const drawerWidth = 230;
 
 const DrawerStyled = styled(Drawer)(({ theme }) => ({
@@ -146,12 +147,12 @@ export default function SideNavAndHeader() {
                 }
               }}
             >
-
-
               <MenuItem
                 icon={<ScienceOutlinedIcon/>}
               >
-                <FormControl variant="standard" fullWidth>
+                <FormControl
+                    variant="standard"
+                    fullWidth>
                   <Select
                     value={experimentMetadata.experiment || ""}
                     label="Experiment"
@@ -159,10 +160,10 @@ export default function SideNavAndHeader() {
                     MenuProps={{ classes: { paper: {maxHeight: 400} } }}
                     sx={{
                       '&:before': {
-                          borderColor: 'rgba(0, 0, 0, 0);',
+                        borderColor: 'rgba(0, 0, 0, 0);',
                       },
                       '&:after': {
-                          borderColor: 'rgba(0, 0, 0, 0);',
+                        borderColor: 'rgba(0, 0, 0, 0);',
                       },
                         '&:not(.Mui-disabled):hover::before': {
                           borderColor: 'rgba(0, 0, 0, 0);',

@@ -1,12 +1,12 @@
 import React from "react";
 import Typography from '@mui/material/Typography';
 import Card from '@mui/material/Card';
+import Box from '@mui/material/Box';
 import CardContent from '@mui/material/CardContent';
-
-
+import UnderlineSpan from "./UnderlineSpan";
 
 const DisplayProfileCard = {
-    maxHeight: "350px",
+    height: "350px",
     overflow: "auto",
     backgroundColor: "rgb(250,250,250)",
     letterSpacing: "0em",
@@ -34,38 +34,77 @@ const highlightedIf = highlight
 const highlightedActionType = {}
 const highlightedMessage = {fontStyle: "italic"}
 
+function isNumeric(v) {
+  if (typeof v != "string") return !Number.isNaN(v)
+  return !isNaN(v) && // use type coercion to parse the _entirety_ of the string (`parseFloat` alone does not do this)...
+         !isNaN(parseFloat(v)) // ...and ensure strings of whitespace fail
+}
+
 function processBracketedExpression(value) {
     const pattern = /\${{(.*?)}}/;
-    const match = pattern.exec(String(value));
+    var match = pattern.exec(String(value));
 
     if (match) {
         return match[1]; // Return the content inside the brackets
-    } else {
-        return value; // Return the original value if no brackets are found
     }
+    const almostPattern = /{{(.*?)}}/;
+    match = almostPattern.exec(String(value));
+    if (match) {
+        return "MISSING $ INFRONT"; // Return the content inside the brackets
+    }
+    return String(value); // Return the original value if no brackets are found
 }
 
-const humanReadableDuration = (hoursElapsed) => {
-  if (hoursElapsed === 0){
-    return `immediately`
+const humanReadableDuration = (duration, missingMsg='missing hours_elapsed') => {
+  if (duration === undefined || duration === null){
+    return <UnderlineSpan title={missingMsg}>after ???</UnderlineSpan>
   }
-  else if (hoursElapsed < 1./60){
-    return `${Math.round(hoursElapsed * 60 * 60 * 10) / 10} seconds`
+  else if (!isNumeric(duration)){
+    return <UnderlineSpan title={missingMsg}>after ???</UnderlineSpan>
   }
-  else if (hoursElapsed < 1){
-    return `${Math.round(hoursElapsed * 60 * 10) / 10} minutes`
+  else if (duration < 0){
+    return <UnderlineSpan title={missingMsg}>after ???</UnderlineSpan>
   }
-  else if (hoursElapsed === 1){
-    return `${hoursElapsed} hour`
+  else if (duration === 0){
+    return "immediately"
+  }
+  else if (duration < 1./60){
+    const seconds = Math.round(duration * 60 * 60 * 10) / 10
+    return `${seconds} ${seconds === 1 ? 'second' : 'seconds'}`
+  }
+  else if (duration < 1){
+    const minutes = Math.round(duration * 60 * 10) / 10
+    return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`
+  }
+  else if (duration === 1){
+    return `${duration} hour`
   }
   else {
-    return `${hoursElapsed} hours`
+    return `${duration} hours`
   }
-
 }
 
-const after = (hoursElapsed) => {
-  if ((hoursElapsed) > 0) {
+const humanReadableDurationPre = (duration, missingMsg) => {
+  if (duration === undefined || duration === null){
+    return <UnderlineSpan title={missingMsg}>after ???</UnderlineSpan>
+  }
+  else if (!isNumeric(duration)){
+    return <UnderlineSpan title={missingMsg}>after ???</UnderlineSpan>
+  }
+  else if (duration < 0){
+    return <UnderlineSpan title={missingMsg}>after ???</UnderlineSpan>
+  }
+  else if (duration === 0){
+    return `starting immediately`
+  }
+  else {
+    return humanReadableDuration(duration, missingMsg)
+  }
+}
+
+
+const after = (duration) => {
+  if ((duration) > 0) {
     return "after"
   }
   else{
@@ -75,22 +114,30 @@ const after = (hoursElapsed) => {
 
 
 const ActionDetails = ({ action, jobName, index }) => {
+  var if_;
+  if (action?.if) {
+    if_ = <>
+            if <span style={highlightedIf}>{processBracketedExpression(action.if)}</span>,
+          </>
+  } else {
+    if_ = <></>
+  }
 
-  switch (action.type) {
+  switch (action?.type) {
     case 'start':
     case 'update':
+      const validOptions = (action?.options && (typeof action.options === 'object' && !Array.isArray(action.options)))
       return (
         <>
           <Typography variant="body2" style={{ marginLeft: '4em' }}>
-            {index + 1}: <span style={highlightedActionType}>{action.type}</span> {jobName} {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)}
+            {index + 1}: {if_} <span style={highlightedActionType}>{action.type}</span> <span  style={{ fontWeight: 500 }}>{jobName}</span> {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)}
           </Typography>
-          {action.if && (
-            <Typography variant="body2" style={{ marginLeft: '6em' }}>
-              only if <span style={highlightedIf}>{processBracketedExpression(action.if)}</span>
-            </Typography>
-          )}
-          {Object.keys(action.options || {}).map((option, idx) => {
+          {validOptions  && Object.keys(action.options).map((option, idx) => {
             const optionValue = action.options[option];
+            if (typeof optionValue === 'object'){
+              // intermediate state when typing
+              return <></>
+            }
             return (
               <Typography key={`option-${idx}`} variant="body2" style={{ marginLeft: '6em' }}>
                 — set <span style={highlightedTarget}>{option}</span>
@@ -100,22 +147,22 @@ const ActionDetails = ({ action, jobName, index }) => {
               </Typography>
             );
           })}
+          {action?.type === 'update' && (!validOptions) &&
+            <Typography variant="body2" style={{ marginLeft: '6em' }}>
+              <UnderlineSpan title="missing options"> options? </UnderlineSpan>
+            </Typography>
+          }
         </>
       );
     case 'log':
       return (
         <>
           <Typography variant="body2" style={{ marginLeft: '4em' }}>
-            {index + 1}: <span style={highlightedActionType}>log</span> {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)} the message:
+            {index + 1}: {if_} <span style={highlightedActionType}>log</span> {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)} the message:
           </Typography>
             <Typography variant="body2" style={{ marginLeft: '6em' }}>
              "<span style={highlightedMessage}>{action.options['message']}</span>"
             </Typography>
-          {action.if && (
-            <Typography variant="body2" style={{ marginLeft: '6em' }}>
-              only if <span style={highlightedIf}>{processBracketedExpression(action.if)}</span>
-            </Typography>
-          )}
         </>
       );
     case 'stop':
@@ -124,26 +171,29 @@ const ActionDetails = ({ action, jobName, index }) => {
       return (
         <>
           <Typography variant="body2" style={{ marginLeft: '4em' }}>
-            {index + 1}: <span style={highlightedActionType}>{action.type}</span> {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)}
+            {index + 1}: {if_} <span style={highlightedActionType}>{action.type}</span> {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)}
           </Typography>
-          {action.if && (
-            <Typography variant="body2" style={{ marginLeft: '6em' }}>
-              only if <span style={highlightedIf}>{processBracketedExpression(action.if)}</span>
-            </Typography>
-          )}
+        </>
+      );
+    case 'when':
+      return (
+        <>
+          <Typography variant="body2" style={{ marginLeft: '4em' }}>
+            {index + 1}: {if_} {after(action.hours_elapsed)} {humanReadableDurationPre(action.hours_elapsed, 'missing hours_elapsed')}, the first time <span style={highlightedActionType}>when</span> <span style={highlightedIf}>{processBracketedExpression(action.condition)}</span>, run:
+          </Typography>
+          <div style={{ marginLeft: '2em' }}>
+          {Array.isArray(action.actions) && action.actions.sort((a, b) => a?.hours_elapsed - b?.hours_elapsed).map((action, index) => (
+            <ActionDetails key={index} action={action} jobName={jobName} index={index} />
+          ))}
+          </div>
         </>
       );
     case 'repeat':
       return (
         <>
           <Typography variant="body2" style={{ marginLeft: '4em' }}>
-            {index + 1}: {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)}, <span style={highlightedActionType}>repeat</span> the following every {humanReadableDuration(action.repeat_every_hours)},
+            {index + 1}: {if_} {after(action.hours_elapsed)} {humanReadableDurationPre(action.hours_elapsed, 'missing hours_elapsed')}, <span style={highlightedActionType}>repeat</span> the following every {humanReadableDuration(action.repeat_every_hours, 'missing repeat_every_hours')},
           </Typography>
-          {action.if && (
-            <Typography variant="body2" style={{ marginLeft: '6em' }}>
-              only if <span style={highlightedIf}>{processBracketedExpression(action.if)}</span>
-            </Typography>
-          )}
           {action.while && (
             <Typography variant="body2" style={{ marginLeft: '6em' }}>
               while <span style={highlightedIf}>{processBracketedExpression(action.while)}</span> {action.max_hours ? "or" : ""}
@@ -151,103 +201,152 @@ const ActionDetails = ({ action, jobName, index }) => {
           )}
           {action.max_hours && (
             <Typography variant="body2" style={{ marginLeft: '6em' }}>
-              until {humanReadableDuration(action.max_hours)} have passed
+              until {humanReadableDuration(action.max_hours, 'max_hours')} have passed
             </Typography>
           )}
           <div style={{ marginLeft: '2em' }}>
-          {action.actions.map((action, idx) => (
-            <ActionDetails action={action} jobName={jobName} index={idx} />
+          {Array.isArray(action.actions) && action.actions.sort((a, b) => a?.hours_elapsed - b?.hours_elapsed).map((action, index) => (
+            <ActionDetails key={index} action={action} jobName={jobName} index={index} />
           ))}
           </div>
         </>
       );
     default:
-      return null;
+      return <>
+        <Typography variant="body2" style={{ marginLeft: '4em' }}>
+        {index + 1}: {if_} <UnderlineSpan title="type required: one of {start, stop, pause, resume, log, repeat, when}">???</UnderlineSpan>
+        </Typography>
+      </>;
   }
 };
 
 
-const DisplayProfile = ({ data }) => {
+const DescriptionSection = ({ description }) => (
+  <>
+    {description && (
+      <>
+        <Typography variant="body2">
+          <b>Description:</b> {description}
+        </Typography>
+        <br />
+      </>
+    )}
+  </>
+);
+
+const PluginsSection = ({ plugins }) => (
+  <>
+    {plugins && plugins.length > 0 && (
+      <>
+        <Typography variant="body2">
+          <b>Plugins required:</b>
+        </Typography>
+        {plugins.map(plugin => (
+          <Typography key={plugin.name} variant="body2" style={{ marginLeft: '2em' }}>
+            {plugin.name} {plugin.version}
+          </Typography>
+        ))}
+        <br />
+      </>
+    )}
+  </>
+);
+
+const JobActions = ({ jobActions, jobName }) => {
+  return (<>
+    {Array.isArray(jobActions) && jobActions &&
+      jobActions.sort((a, b) => a?.hours_elapsed - b?.hours_elapsed).map((action, index) => (
+        <ActionDetails key={`${jobName}-action-${index}`} action={action} jobName={jobName} index={index} />
+      ))}
+    {jobActions === undefined  &&
+      <Typography sx={{ marginLeft: '4em' }} variant="body2">
+        <UnderlineSpan title="missing actions"> actions? </UnderlineSpan>
+      </Typography>
+    }
+  </>)
+};
+
+const JobSection = ({ jobs }) => {
+  return (<>
+    {jobs && (typeof jobs === 'object') && Object.keys(jobs).length > 0 && (
+      <>
+        {Object.keys(jobs).map(job => (
+          <React.Fragment key={job}>
+            <Typography variant="subtitle2" style={{ marginLeft: '2em' }}>
+              {job}:
+            </Typography>
+            <JobActions jobActions={jobs[job]?.actions} jobName={job} />
+          </React.Fragment>
+        ))}
+        <br />
+      </>
+    )}
+    {jobs === undefined  &&
+      <Typography sx={{ marginLeft: '2em' }} variant="subtitle2">
+        <UnderlineSpan title="missing jobs"> jobs? </UnderlineSpan>
+      </Typography>
+    }
+  </>)
+};
+
+const PioreactorSection = ({ pioreactors }) => (
+  <>
+    {pioreactors && (typeof pioreactors === 'object') &&
+      Object.keys(pioreactors).length > 0 &&
+      Object.keys(pioreactors).map(pioreactor => (
+        <React.Fragment key={pioreactor}>
+          <Typography variant="subtitle2">Pioreactor {pioreactor} does:</Typography>
+          <Typography variant="body2" style={{ marginLeft: '2em' }}>
+            {pioreactors[pioreactor]?.label ? (
+              <>Relabel to <span style={highlightedTarget}>{pioreactors[pioreactor].label}</span></>
+            ) : (
+              <></>
+            )}
+          </Typography>
+          <JobSection jobs={pioreactors[pioreactor]?.jobs} />
+          <br />
+        </React.Fragment>
+      ))}
+  </>
+);
+
+export const DisplayProfile = ({ data }) => {
   return (
     <Card sx={DisplayProfileCard}>
-      <CardContent sx={{padding: "10px"}}>
-        <Typography variant="h6">
-          {data.experiment_profile_name}
-        </Typography>
+      <CardContent sx={{ padding: '10px' }}>
+        <Box>
+          <Typography variant="subtitle2">preview:</Typography>
+        </Box>
+          <Typography variant="h6">{data.experiment_profile_name || <UnderlineSpan title="missing experiment_profile_name">???</UnderlineSpan>}</Typography>
         <Typography sx={{ mb: 1.5 }} variant="subtitle1" color="text.secondary" gutterBottom>
-          Created by {data.metadata.author}
+          Created by {data.metadata.author || <UnderlineSpan title="missing author">???</UnderlineSpan>}
         </Typography>
-        {data.metadata.description &&
-          <>
-            <Typography variant="body2">
-                <b>Description:</b> {data.metadata.description}
-            </Typography>
-            <br/>
+        <DescriptionSection description={data.metadata.description} />
+        <PluginsSection plugins={data.plugins} />
+
+        {data?.common &&  <>
+          <Typography variant="subtitle2">All Pioreactor(s) do:</Typography>
+          <JobSection jobs={data?.common?.jobs} />
           </>
         }
-
-        {data.plugins && data.plugins.length > 0 && (
-          <>
-          <Typography variant="body2">
-              <b>Plugins required:</b>
-          </Typography>
-          {(data.plugins).map(plugin => (
-              <Typography key={plugin.name} variant="body2" style={{ marginLeft: '2em' }}>
-                  {plugin.name} {plugin.version}
-              </Typography>
-          ))}
-          <br/>
-          </>
-        )}
-
-
-        {Object.keys(data.common.jobs).length > 0 &&
-         <>
-          <Typography variant="subtitle2">
-              All Pioreactor(s) do:
-          </Typography>
-          {data.common && Object.keys(data.common.jobs).map(job => (
-              <React.Fragment key={job}>
-                <Typography  variant="subtitle2" style={{ marginLeft: '2em' }}>
-                    {job}:
-                </Typography>
-                {data.common.jobs[job].actions.sort((a, b) => a.hours_elapsed > b.hours_elapsed).map((action, index) => (
-                      <ActionDetails key={`common-action-${index}`} action={action} jobName={job} index={index} />
-                ))}
-              </React.Fragment>
-          ))}
-          <br/>
-          </>
-        }
-        {Object.keys(data.pioreactors).length > 0 && Object.keys(data.pioreactors).map(pioreactor => (
-            <React.Fragment key={pioreactor}>
-                <Typography variant="subtitle2">
-                  Pioreactor {pioreactor} does:
-                </Typography>
-                <Typography  variant="body2" style={{ marginLeft: '2em' }}>
-                {data.pioreactors[pioreactor].label ?
-                   <> Relabel to <span style={highlightedTarget}>{data.pioreactors[pioreactor].label}</span> </> : <></>
-                }
-                </Typography>
-                  {Object.keys(data.pioreactors[pioreactor].jobs).map(job => (
-                    <React.Fragment key={`${pioreactor}-${job}`}>
-                      <Typography key={`${pioreactor}-${job}`}  variant="subtitle2" style={{ marginLeft: '2em' }}>
-                          {job}:
-                      </Typography>
-                        {data.pioreactors[pioreactor].jobs[job].actions.sort((a, b) => a.hours_elapsed - b.hours_elapsed).map((action, index) => (
-                          <ActionDetails key={`${pioreactor}-action-${index}`} action={action} jobName={job} index={index} />
-                        ))}
-                      </React.Fragment>
-                  ))}
-              <br/>
-            </React.Fragment>
-        ))}
+        <PioreactorSection pioreactors={data.pioreactors} />
       </CardContent>
     </Card>
   );
 };
 
 
+export const DisplayProfileError = ({ error }) => {
+  return (
+    <Card sx={DisplayProfileCard}>
+      <CardContent sx={{padding: "10px"}}>
+       <Typography variant="body2">
+        <pre>{error}</pre>
+       </Typography>
+      </CardContent>
+    </Card>
+  );
+};
 
-export default DisplayProfile;
+
 

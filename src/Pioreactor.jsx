@@ -295,7 +295,7 @@ function ButtonStopProcess({experiment, unit}) {
       cancellationButtonProps: {color: "secondary"},
 
       }).then(() =>
-        fetch(`/api/experiments/${experiment}/workers/${unit}/stop`, {method: "POST"})
+        fetch(`/api/workers/${unit}/experiments/${experiment}/stop`, {method: "POST"})
     ).catch(() => {});
 
   };
@@ -1273,7 +1273,7 @@ function SettingsActionsDialog(props) {
 
         <TabPanel value={tabValue} index={1}>
           <Typography  gutterBottom>
-            Assign label to Pioreactor
+            Assign temporary label to Pioreactor
           </Typography>
           <Typography variant="body2" component="p">
             Assign a temporary label to this Pioreactor for this experiment. The new label will display in graph legends, and throughout the interface.
@@ -2228,6 +2228,7 @@ function Pioreactor({title}) {
   const {unit} = useParams();
   const [assignedExperiment, setAssignedExperiment] = useState(null)
   const [isActive, setIsActive] = useState(true)
+  const [error, setError] = useState(null)
 
 
   useEffect(() => {
@@ -2236,14 +2237,24 @@ function Pioreactor({title}) {
   }, [title]);
 
   useEffect(() => {
-
     function getWorkerAssignment() {
       fetch(`/api/workers/${unit}/experiment`)
-      .then((data) => data.json())
-      .then((json) => {
+        .then((response) => {
+          if (!response.ok) {
+            return response.json().then((errorData) => {
+              console.log(errorData)
+              throw new Error(errorData.error);
+            });
+          }
+          return response.json();
+        })
+        .then((json) => {
         setAssignedExperiment(json['experiment'])
         setIsActive(json['is_active'])
       })
+      .catch((error) => {
+        setError(error.message);
+      });
     }
 
     if (experimentMetadata){
@@ -2252,30 +2263,45 @@ function Pioreactor({title}) {
   }, [experimentMetadata])
 
 
-  return (
-    <MQTTProvider name={unit} config={config} experiment={experimentMetadata.experiment}>
-      <Grid container rowSpacing={1} columnSpacing={2} justifyContent="space-between">
-        <Grid item md={12} xs={12}>
-          <PioreactorHeader unit={unit} assignedExperiment={assignedExperiment} isActive={isActive}/>
-        </Grid>
-        <Grid item lg={8} md={12} xs={12}>
-          <UnitCard isActive={isActive} isAssignedToExperiment={experimentMetadata.experiment === assignedExperiment} unit={unit} experiment={experimentMetadata.experiment} config={config}/>
-        </Grid>
-        <Grid item lg={4} md={12} xs={12}>
-          <BioreactorDiagram  experiment={experimentMetadata.experiment} unit={unit} config={config}/>
-        </Grid>
+  if (error) {
+    return (
+      <Box sx={{textAlign: "center", mb: '50px', mt: "50px"}}>
+        <Typography component='div' variant='body2'>
+           {error}
+        </Typography>
+      </Box>
+  )}
+  else {
+    return (
+      <MQTTProvider name={unit} config={config} experiment={experimentMetadata.experiment}>
+        <Grid container rowSpacing={1} columnSpacing={2} justifyContent="space-between">
+          <Grid item md={12} xs={12}>
+            <PioreactorHeader unit={unit} assignedExperiment={assignedExperiment} isActive={isActive}/>
+            {experimentMetadata.experiment && assignedExperiment && experimentMetadata.experiment !== assignedExperiment &&
+            <Box>
+              <Alert severity="info" style={{marginBottom: '10px', marginTop: '10px'}}>This worker is part of different experiment, <i>{assignedExperiment}</i>. Switch to the experiment <i>{assignedExperiment}</i> to control this worker.</Alert>
+            </Box>
+          }
+          </Grid>
+          <Grid item lg={8} md={12} xs={12}>
+            <UnitCard isActive={isActive} isAssignedToExperiment={experimentMetadata.experiment === assignedExperiment} unit={unit} experiment={experimentMetadata.experiment} config={config}/>
+          </Grid>
+          <Grid item lg={4} md={12} xs={12}>
+            <BioreactorDiagram  experiment={experimentMetadata.experiment} unit={unit} config={config}/>
+          </Grid>
 
-        <Grid item xs={12} md={7} container spacing={2} justifyContent="flex-start" style={{height: "100%"}}>
-          <Charts unit={unit} unitsColorMap={{[unit]: colors[0]}} config={config} timeScale={"clock_time"} timeWindow={10000000} experimentMetadata={experimentMetadata}/>
-        </Grid>
-        <Grid item xs={12} md={5} container spacing={1} justifyContent="flex-end" style={{height: "100%"}}>
-          <Grid item xs={12}>
-            <LogTableByUnit experiment={experimentMetadata.experiment} unit={unit}/>
+          <Grid item xs={12} md={7} container spacing={2} justifyContent="flex-start" style={{height: "100%"}}>
+            <Charts unit={unit} unitsColorMap={{[unit]: colors[0]}} config={config} timeScale={"clock_time"} timeWindow={10000000} experimentMetadata={experimentMetadata}/>
+          </Grid>
+          <Grid item xs={12} md={5} container spacing={1} justifyContent="flex-end" style={{height: "100%"}}>
+            <Grid item xs={12}>
+              <LogTableByUnit experiment={experimentMetadata.experiment} unit={unit}/>
+            </Grid>
           </Grid>
         </Grid>
-      </Grid>
-    </MQTTProvider>
-  )
+      </MQTTProvider>
+    )
+  }
 }
 
 export default Pioreactor;
