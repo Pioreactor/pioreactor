@@ -1,18 +1,26 @@
 ### Upcoming
 
+#### Highlights
+ - A new live preview in the UI's experiment profile editor. This preview tool is useful for getting immediate feedback when writing a profile. We'll keep on adding to this to improve the edit-profile workflow - please send us feedback!
+ - new `when` action type in experiment profiles that will execute an action (or list of actions) when some expression is true. For example, start a chemostat when a threshold OD is first achieved, log a message when event is triggered, or monitor a bioreactor parameter and execute an action if it goes out of bounds.
+
 #### Enhancements
- - new `when` action type in experiment profiles that will execute an action (or list of actions) when some expression is true.
  - New config `turbidostat.config` that can be used to modify some internal turbidostat settings.
+ - Better user interaction on the Pioreactors page when the assigned experiment and "viewing" experiment are different.
+ - Select / Deselect all Pioreactors to an experiment faster.
+
+#### Breaking changes
+ - significant web backend API changes! See list of rules in docs.
 
 #### Bug fixes
- - Fix UI code editor from being stuck when all the text was removed.
- - Experiment profiles won't be overwritten if supplying the same filename as an existing profile.
+ - Fix UI code editor from being unresponsive when all the text was removed.
+ - Experiment profiles won't be overwritten if providing the same filename as an existing profile.
 
 
 ### 24.6.10
 
 #### Enhancements
- - we changed the "auto" algorithm for picking a good ir_led_intensity. We now try to maximize the intensity, up to some constraints around saturating ADCs, LED longevity, and signal. In general, we expect a higher IR intensity, but this will help with noise and detecting lower signals.
+ - we changed the "auto" algorithm for picking a good `ir_led_intensity`. We now try to maximize the intensity, up to some constraints around saturating ADCs, LED longevity, and signal. In general, we expect a higher IR intensity, but this will help with noise and detecting lower signals.
  - More improvements on the Pioreactor-specific page: added charts and a logs table.
  - Added a "retry failed tests" to the UI's self-test dialog.
  - `pio run self_test` has a new flag `--retry-failed` to only retry tests that failed in the previous run (if any).

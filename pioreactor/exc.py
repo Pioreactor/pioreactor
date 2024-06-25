@@ -56,7 +56,7 @@ class RoleError(Exception):
     """
 
 
-class MQTTValueError(Exception):
+class MQTTValueError(ValueError):
     """
     Data from MQTT is not expected / correct
     """

@@ -551,6 +551,7 @@ class Monitor(LongRunningBackgroundJob):
         else:
             # TODO: add documentation
             self.logger.warning(f"CPU temperature at {cpu_temperature_celcius} ℃.")
+            self.flicker_led_with_error_code(error_codes.PCB_TEMPERATURE_TOO_HIGH)
 
         self.computer_statistics = {
             "disk_usage_percent": disk_usage_percent,

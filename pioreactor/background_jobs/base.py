@@ -333,7 +333,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         P.__init__() # check for duplicate job
         C.__init__() # risk of job failing here
-        P.__post__init__()  # write metadata to disk
+        P.__post__init__()  # THIS FUNCTION
         P.on_init_to_ready()  # default noop - can be overwritten in sub.
         P.ready()
         C.on_ready()

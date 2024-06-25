@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import random
 import time
 from collections import defaultdict
 from pathlib import Path
@@ -272,7 +273,6 @@ def when(
                 condition_met = evaluate_bool_expression(condition, unit)
             except MQTTValueError:
                 condition_met = False
-
             if condition_met:
                 for action in actions:
                     schedule.enter(
@@ -285,7 +285,8 @@ def when(
 
             else:
                 schedule.enter(
-                    delay=10,  # check every 10 seconds - arbitrary
+                    # adding a random element eventually smooth out these checks, so that there's not a thundering herd to check, and allows other actions to execute inbetween.
+                    delay=15 + 10 * random.random(),
                     priority=get_simple_priority(when_action),
                     action=wrapped_execute_action(
                         unit, experiment, job_name, logger, schedule, client, when_action, dry_run

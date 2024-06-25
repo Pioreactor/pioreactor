@@ -536,6 +536,7 @@ def test_execute_experiment_profile_when_action(mock__load_experiment_profile) -
         hours_elapsed=0.0005,
         condition="${{unit1:od_reading:od1.od > 2.0}}",
         actions=[
+            Log(hours_elapsed=0, options=_LogOptions(message="OD exceeded threshold")),
             Start(hours_elapsed=0, options={"target_rpm": 500}),
             Update(hours_elapsed=0.001, options={"target_rpm": 600}),
         ],
