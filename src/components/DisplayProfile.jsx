@@ -14,7 +14,7 @@ const DisplayProfileCard = {
     position: "relative",
     width: "98%",
     border: "1px solid #ccc",
-    borderRadius: "0px",
+    borderRadius: "4px",
     boxShadow: "none"
 }
 
@@ -55,7 +55,7 @@ function processBracketedExpression(value) {
     return String(value); // Return the original value if no brackets are found
 }
 
-const humanReadableDuration = (duration, missingMsg='missing hours_elapsed') => {
+const humanReadableDuration = (duration, missingMsg='missing `hours_elapsed` field') => {
   if (duration === undefined || duration === null){
     return <UnderlineSpan title={missingMsg}>after ???</UnderlineSpan>
   }
@@ -149,7 +149,7 @@ const ActionDetails = ({ action, jobName, index }) => {
           })}
           {action?.type === 'update' && (!validOptions) &&
             <Typography variant="body2" style={{ marginLeft: '6em' }}>
-              <UnderlineSpan title="missing options"> options? </UnderlineSpan>
+              <UnderlineSpan title="missing `options` field"> options? </UnderlineSpan>
             </Typography>
           }
         </>
@@ -161,7 +161,7 @@ const ActionDetails = ({ action, jobName, index }) => {
             {index + 1}: {if_} <span style={highlightedActionType}>log</span> {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)} the message:
           </Typography>
             <Typography variant="body2" style={{ marginLeft: '6em' }}>
-             "<span style={highlightedMessage}>{action.options['message']}</span>"
+             "<span style={highlightedMessage}>{action.options?.message}</span>"
             </Typography>
         </>
       );
@@ -179,7 +179,7 @@ const ActionDetails = ({ action, jobName, index }) => {
       return (
         <>
           <Typography variant="body2" style={{ marginLeft: '4em' }}>
-            {index + 1}: {if_} {after(action.hours_elapsed)} {humanReadableDurationPre(action.hours_elapsed, 'missing hours_elapsed')}, the first time <span style={highlightedActionType}>when</span> <span style={highlightedIf}>{processBracketedExpression(action.condition)}</span>, run:
+            {index + 1}: {if_} {after(action.hours_elapsed)} {humanReadableDurationPre(action.hours_elapsed, 'missing `hours_elapsed` field')}, the first time <span style={highlightedActionType}>when</span> <span style={highlightedIf}>{processBracketedExpression(action.condition)}</span>, run:
           </Typography>
           <div style={{ marginLeft: '2em' }}>
           {Array.isArray(action.actions) && action.actions.sort((a, b) => a?.hours_elapsed - b?.hours_elapsed).map((action, index) => (
@@ -192,7 +192,7 @@ const ActionDetails = ({ action, jobName, index }) => {
       return (
         <>
           <Typography variant="body2" style={{ marginLeft: '4em' }}>
-            {index + 1}: {if_} {after(action.hours_elapsed)} {humanReadableDurationPre(action.hours_elapsed, 'missing hours_elapsed')}, <span style={highlightedActionType}>repeat</span> the following every {humanReadableDuration(action.repeat_every_hours, 'missing repeat_every_hours')},
+            {index + 1}: {if_} {after(action.hours_elapsed)} {humanReadableDurationPre(action.hours_elapsed, 'missing `hours_elapsed` field')}, <span style={highlightedActionType}>repeat</span> the following every {humanReadableDuration(action.repeat_every_hours, 'missing `repeat_every_hours` field')},
           </Typography>
           {action.while && (
             <Typography variant="body2" style={{ marginLeft: '6em' }}>
@@ -258,9 +258,14 @@ const JobActions = ({ jobActions, jobName }) => {
       jobActions.sort((a, b) => a?.hours_elapsed - b?.hours_elapsed).map((action, index) => (
         <ActionDetails key={`${jobName}-action-${index}`} action={action} jobName={jobName} index={index} />
       ))}
+    {!Array.isArray(jobActions) && jobActions &&
+      <Typography sx={{ marginLeft: '4em' }} variant="body2">
+        <UnderlineSpan title="missing `actions` as a list, prepend with `-`"> actions? </UnderlineSpan>
+      </Typography>
+    }
     {jobActions === undefined  &&
       <Typography sx={{ marginLeft: '4em' }} variant="body2">
-        <UnderlineSpan title="missing actions"> actions? </UnderlineSpan>
+        <UnderlineSpan title="missing `actions` block"> actions? </UnderlineSpan>
       </Typography>
     }
   </>)
@@ -283,7 +288,7 @@ const JobSection = ({ jobs }) => {
     )}
     {jobs === undefined  &&
       <Typography sx={{ marginLeft: '2em' }} variant="subtitle2">
-        <UnderlineSpan title="missing jobs"> jobs? </UnderlineSpan>
+        <UnderlineSpan title="missing `jobs` block"> jobs? </UnderlineSpan>
       </Typography>
     }
   </>)
@@ -317,14 +322,14 @@ export const DisplayProfile = ({ data }) => {
         <Box>
           <Typography variant="subtitle2">preview:</Typography>
         </Box>
-          <Typography variant="h6">{data.experiment_profile_name || <UnderlineSpan title="missing experiment_profile_name">???</UnderlineSpan>}</Typography>
+          <Typography variant="h6">{data.experiment_profile_name || <UnderlineSpan title="missing `experiment_profile_name`">???</UnderlineSpan>}</Typography>
         <Typography sx={{ mb: 1.5 }} variant="subtitle1" color="text.secondary" gutterBottom>
-          Created by {data.metadata.author || <UnderlineSpan title="missing author">???</UnderlineSpan>}
+          Created by {data.metadata.author || <UnderlineSpan title="missing `author`">???</UnderlineSpan>}
         </Typography>
         <DescriptionSection description={data.metadata.description} />
         <PluginsSection plugins={data.plugins} />
 
-        {data?.common &&  <>
+        {data?.common?.jobs && (Object.keys(data?.common?.jobs).length > 0) && <>
           <Typography variant="subtitle2">All Pioreactor(s) do:</Typography>
           <JobSection jobs={data?.common?.jobs} />
           </>

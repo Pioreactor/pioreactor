@@ -104,7 +104,7 @@ const EditExperimentProfilesContent = ({ initialCode, filename }) => {
 
   return (
     <>
-      <Grid container spacing={1}>
+      <Grid container spacing={0}>
 
         <Grid item xs={12}>
           <div style={{ width: "100%", margin: "10px", display: "flex", justifyContent: "space-between" }}>
@@ -126,6 +126,7 @@ const EditExperimentProfilesContent = ({ initialCode, filename }) => {
             width: "98%",
             height: "350px",
             overflow: "auto",
+            borderRadius: "4px",
             flex: 1
           }}>
           {(code !== null) && (code !== "") &&
@@ -138,7 +139,7 @@ const EditExperimentProfilesContent = ({ initialCode, filename }) => {
                 fontSize: "14px",
                 fontFamily: 'monospace',
                 backgroundColor: "hsla(0, 0%, 100%, .5)",
-                borderRadius: "3px",
+                borderRadius: "4px",
                 minHeight: "100%"
               }}
             />

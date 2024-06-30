@@ -110,7 +110,7 @@ metadata:
 
   return (
     <>
-      <Grid container spacing={1}>
+      <Grid container spacing={0}>
         <Grid item xs={12}>
           <div style={{ width: "100%", margin: "10px", display: "flex", justifyContent: "space-between" }}>
             <FormControl>
@@ -136,6 +136,7 @@ metadata:
             width: "98%",
             height: "350px",
             overflow: "auto",
+            borderRadius: "4px",
             flex: 1
           }}>
             <Editor

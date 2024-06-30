@@ -171,7 +171,7 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName, s
               >
                 {Object.keys(experimentProfilesAvailable).map((file) => {
                   const profile = experimentProfilesAvailable[file]
-                  return <MenuItem key={file} value={file}>{profile.experiment_profile_name} (from {file.split('/').pop()})</MenuItem>
+                  return <MenuItem key={file} value={file}>{profile.experiment_profile_name}</MenuItem>
                   }
                 )}
               </Select>

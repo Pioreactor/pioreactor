@@ -846,7 +846,7 @@ function SelfTestDialog(props) {
             Perform a check of the heating & temperature sensor, LEDs & photodiodes, and stirring.
           </Typography>
           <Typography variant="body2" component="p" gutterBottom>
-            Add a closed vial with water and stirbar into the Pioreactor.
+            Add a closed vial, half-filled with water and stirbar into the Pioreactor.
           </Typography>
 
             <Box>
