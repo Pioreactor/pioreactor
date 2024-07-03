@@ -161,6 +161,7 @@ if am_I_leader():
                 return False
 
         for unit in units:
+            # TODO: why don't we pool this? It was here at one point, now removed (probably for good reason/)
             _thread_function(unit)
 
     @pios.command("rm", short_help="rm a file across the cluster")
