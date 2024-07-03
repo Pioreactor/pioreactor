@@ -1,4 +1,4 @@
-### Upcoming
+### 24.7.3
 
 #### Enhancements
  - A new live preview in the UI's experiment profile editor. This preview tool is useful for getting immediate feedback when writing a profile. We'll keep on adding to this to improve the edit-profile workflow - please send us feedback!
