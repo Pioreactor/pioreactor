@@ -56,7 +56,7 @@ def strip_expression_brackets(value: str) -> str:
     return match.group(1)
 
 
-def evaluate_options(options: dict, unit: str) -> dict:
+def evaluate_options(options: dict, env: dict) -> dict:
     """
     Users can provide options like {'target_rpm': '${{ bioreactor_A:stirring:target_rpm + 10 }}'}, and the latter
     should be evaluated
@@ -67,15 +67,13 @@ def evaluate_options(options: dict, unit: str) -> dict:
     for key, value in options.items():
         if is_bracketed_expression(value):
             expression = strip_expression_brackets(value)
-            # replace :: placeholder with unit
-            expression = expression.replace("::", f"{unit}:", 1)
-            options_expressed[key] = parse_profile_expression(expression)
+            options_expressed[key] = parse_profile_expression(expression, env=env)
         else:
             options_expressed[key] = value
     return options_expressed
 
 
-def evaluate_bool_expression(bool_expression: bool_expression, unit: str) -> bool:
+def evaluate_bool_expression(bool_expression: bool_expression, env: dict) -> bool:
     from pioreactor.experiment_profiles.parser import parse_profile_expression_to_bool
 
     if isinstance(bool_expression, bool):
@@ -84,11 +82,8 @@ def evaluate_bool_expression(bool_expression: bool_expression, unit: str) -> boo
     if is_bracketed_expression(bool_expression):
         bool_expression = strip_expression_brackets(bool_expression)
 
-    # replace :: placeholder with unit
-    bool_expression = bool_expression.replace("::", f"{unit}:", 1)
-
     # bool_expression is a str
-    return parse_profile_expression_to_bool(bool_expression)
+    return parse_profile_expression_to_bool(bool_expression, env=env)
 
 
 def check_syntax_of_bool_expression(bool_expression: bool_expression) -> bool:
@@ -169,24 +164,26 @@ def wrapped_execute_action(
     if job_name == "led_intensity":
         action = _led_intensity_hack(action)
 
+    env = {"unit": unit, "experiment": experiment, "job_name": job_name}
+
     match action:
         case struct.Start(_, if_, options, args):
-            return start_job(unit, experiment, client, job_name, options, args, dry_run, if_, logger)
+            return start_job(unit, experiment, client, job_name, options, args, dry_run, if_, env, logger)
 
         case struct.Pause(_, if_):
-            return pause_job(unit, experiment, client, job_name, dry_run, if_, logger)
+            return pause_job(unit, experiment, client, job_name, dry_run, if_, env, logger)
 
         case struct.Resume(_, if_):
-            return resume_job(unit, experiment, client, job_name, dry_run, if_, logger)
+            return resume_job(unit, experiment, client, job_name, dry_run, if_, env, logger)
 
         case struct.Stop(_, if_):
-            return stop_job(unit, experiment, client, job_name, dry_run, if_, logger)
+            return stop_job(unit, experiment, client, job_name, dry_run, if_, env, logger)
 
         case struct.Update(_, if_, options):
-            return update_job(unit, experiment, client, job_name, options, dry_run, if_, logger)
+            return update_job(unit, experiment, client, job_name, options, dry_run, if_, env, logger)
 
         case struct.Log(_, options, if_):
-            return log(unit, experiment, client, job_name, options, dry_run, if_, logger)
+            return log(unit, experiment, client, job_name, options, dry_run, if_, env, logger)
 
         case struct.Repeat(_, if_, repeat_every_hours, while_, max_hours, actions):
             return repeat(
@@ -196,6 +193,7 @@ def wrapped_execute_action(
                 job_name,
                 dry_run,
                 if_,
+                env,
                 logger,
                 action,
                 while_,
@@ -213,6 +211,7 @@ def wrapped_execute_action(
                 job_name,
                 dry_run,
                 if_,
+                env,
                 condition,
                 logger,
                 action,
@@ -257,6 +256,7 @@ def when(
     job_name: str,
     dry_run: bool,
     if_: Optional[bool_expression],
+    env: dict,
     condition: bool_expression,
     logger: CustomLogger,
     when_action: struct.When,
@@ -268,9 +268,9 @@ def when(
         if (get_assigned_experiment_name(unit) != experiment) and not is_testing_env():
             return
 
-        if (if_ is None) or evaluate_bool_expression(if_, unit):
+        if (if_ is None) or evaluate_bool_expression(if_, env):
             try:
-                condition_met = evaluate_bool_expression(condition, unit)
+                condition_met = evaluate_bool_expression(condition, env)
             except MQTTValueError:
                 condition_met = False
             if condition_met:
@@ -306,6 +306,7 @@ def repeat(
     job_name: str,
     dry_run: bool,
     if_: Optional[bool_expression],
+    env: dict,
     logger: CustomLogger,
     repeat_action: struct.Repeat,
     while_: Optional[bool_expression],
@@ -319,8 +320,8 @@ def repeat(
         if get_assigned_experiment_name(unit) != experiment:
             return
 
-        if ((if_ is None) or evaluate_bool_expression(if_, unit)) and (
-            ((while_ is None) or evaluate_bool_expression(while_, unit))
+        if ((if_ is None) or evaluate_bool_expression(if_, env)) and (
+            ((while_ is None) or evaluate_bool_expression(while_, env))
         ):
             for action in actions:
                 if action.hours_elapsed > repeat_every_hours:
@@ -371,13 +372,14 @@ def log(
     options: struct._LogOptions,
     dry_run: bool,
     if_: Optional[str | bool],
+    env: dict,
     logger: CustomLogger,
 ) -> Callable[..., None]:
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             return
-        if (if_ is None) or evaluate_bool_expression(if_, unit):
+        if (if_ is None) or evaluate_bool_expression(if_, env):
             level = options.level.lower()
             getattr(logger, level)(options.message.format(unit=unit, job=job_name, experiment=experiment))
         else:
@@ -395,6 +397,7 @@ def start_job(
     args: list,
     dry_run: bool,
     if_: Optional[str | bool],
+    env: dict,
     logger: CustomLogger,
 ) -> Callable[..., None]:
     def _callable() -> None:
@@ -402,7 +405,7 @@ def start_job(
         if get_assigned_experiment_name(unit) != experiment:
             return
 
-        if (if_ is None) or evaluate_bool_expression(if_, unit):
+        if (if_ is None) or evaluate_bool_expression(if_, env):
             if dry_run:
                 logger.info(f"Dry-run: Starting {job_name} on {unit} with options {options} and args {args}.")
             else:
@@ -410,7 +413,7 @@ def start_job(
                     f"pioreactor/{unit}/{experiment}/run/{job_name}",
                     encode(
                         {
-                            "options": evaluate_options(options, unit) | {"job_source": "experiment_profile"},
+                            "options": evaluate_options(options, env) | {"job_source": "experiment_profile"},
                             "args": args,
                         }
                     ),
@@ -428,6 +431,7 @@ def pause_job(
     job_name: str,
     dry_run: bool,
     if_: Optional[str | bool],
+    env: dict,
     logger: CustomLogger,
 ) -> Callable[..., None]:
     def _callable() -> None:
@@ -435,7 +439,7 @@ def pause_job(
         if get_assigned_experiment_name(unit) != experiment:
             return
 
-        if (if_ is None) or evaluate_bool_expression(if_, unit):
+        if (if_ is None) or evaluate_bool_expression(if_, env):
             if dry_run:
                 logger.info(f"Dry-run: Pausing {job_name} on {unit}.")
             else:
@@ -453,13 +457,14 @@ def resume_job(
     job_name: str,
     dry_run: bool,
     if_: Optional[str | bool],
+    env: dict,
     logger: CustomLogger,
 ) -> Callable[..., None]:
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             return
-        if (if_ is None) or evaluate_bool_expression(if_, unit):
+        if (if_ is None) or evaluate_bool_expression(if_, env):
             if dry_run:
                 logger.info(f"Dry-run: Resuming {job_name} on {unit}.")
             else:
@@ -477,13 +482,14 @@ def stop_job(
     job_name: str,
     dry_run: bool,
     if_: Optional[str | bool],
+    env: dict,
     logger: CustomLogger,
 ) -> Callable[..., None]:
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             return
-        if (if_ is None) or evaluate_bool_expression(if_, unit):
+        if (if_ is None) or evaluate_bool_expression(if_, env):
             if dry_run:
                 logger.info(f"Dry-run: Stopping {job_name} on {unit}.")
             else:
@@ -502,19 +508,20 @@ def update_job(
     options: dict,
     dry_run: bool,
     if_: Optional[str | bool],
+    env: dict,
     logger: CustomLogger,
 ) -> Callable[..., None]:
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             return
-        if (if_ is None) or evaluate_bool_expression(if_, unit):
+        if (if_ is None) or evaluate_bool_expression(if_, env):
             if dry_run:
                 for setting, value in options.items():
                     logger.info(f"Dry-run: Updating {setting} to {value} in {job_name} on {unit}.")
 
             else:
-                for setting, value in evaluate_options(options, unit).items():
+                for setting, value in evaluate_options(options, env).items():
                     client.publish(f"pioreactor/{unit}/{experiment}/{job_name}/{setting}/set", value)
         else:
             logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")

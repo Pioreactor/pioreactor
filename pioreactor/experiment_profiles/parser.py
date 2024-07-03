@@ -54,11 +54,13 @@ class ProfileLexer(Lexer):
         GREATER_THAN_OR_EQUAL,
         NUMBER,
         UNIT_JOB_SETTING,
+        COMMON_JOB_SETTING,
     }
     ignore = " \t"
 
     # Tokens
     UNIT_JOB_SETTING = r"([a-zA-Z_\$][a-zA-Z0-9_]*:){2,}([a-zA-Z_\$][a-zA-Z0-9_]*\.)*[a-zA-Z_\$][a-zA-Z0-9_]*"
+    COMMON_JOB_SETTING = r"::([a-zA-Z_\$][a-zA-Z0-9_]*:)([a-zA-Z_\$][a-zA-Z0-9_]*\.)*[a-zA-Z_\$][a-zA-Z0-9_]*"
 
     FUNCTION = r"[a-zA-Z_$][a-zA-Z0-9_]*\(\)"
 
@@ -88,6 +90,22 @@ class ProfileLexer(Lexer):
 
 
 class ProfileParser(Parser):
+
+    """
+    you can pass in an variable env that can dynamically populate data, ex:
+
+    `unit()`
+
+    will be replaced by env['unit']
+
+    """
+
+    def __init__(self, env=None):
+        if env:
+            self.ENV = env
+        else:
+            self.ENV = dict()
+
     tokens = ProfileLexer.tokens
 
     precedence = (
@@ -159,6 +177,14 @@ class ProfileParser(Parser):
     def expr(self, p):
         if p.FUNCTION == "random()":
             return random()
+        elif p.FUNCTION == "unit()":
+            return self.ENV["unit"]
+
+        elif p.FUNCTION == "experiment()":
+            return self.ENV["experiment"]
+
+        elif p.FUNCTION == "job_name()":
+            return self.ENV["job_name"]
 
     @_("NAME")
     def expr(self, p):
@@ -177,9 +203,14 @@ class ProfileParser(Parser):
     def expr(self, p):
         return float(p.NUMBER)
 
-    @_("UNIT_JOB_SETTING")
+    @_("UNIT_JOB_SETTING", "COMMON_JOB_SETTING")
     def expr(self, p) -> bool | float | str:
-        unit, job, setting_keys = p.UNIT_JOB_SETTING.split(":")
+        if hasattr(p, "COMMON_JOB_SETTING"):
+            data_string = p.COMMON_JOB_SETTING.replace("::", self.ENV["unit"] + ":")
+        else:
+            data_string = p.UNIT_JOB_SETTING
+
+        unit, job, setting_keys = data_string.split(":")
         setting, *keys = setting_keys.split(".")
 
         experiment = get_assigned_experiment_name(unit)
@@ -209,8 +240,8 @@ class ProfileParser(Parser):
             raise MQTTValueError(f"{p.UNIT_JOB_SETTING} does not exist for experiment `{experiment}`")
 
 
-def parse_profile_expression_to_bool(profile_string: str) -> bool:
-    result = parse_profile_expression(profile_string)
+def parse_profile_expression_to_bool(profile_string: str, env=None) -> bool:
+    result = parse_profile_expression(profile_string, env=env)
     if result is None:
         # syntax error or something funky.
         raise SyntaxError(profile_string)
@@ -218,9 +249,9 @@ def parse_profile_expression_to_bool(profile_string: str) -> bool:
         return bool(result)
 
 
-def parse_profile_expression(profile_string: str):
+def parse_profile_expression(profile_string: str, env=None):
     lexer = ProfileLexer()
-    parser = ProfileParser()
+    parser = ProfileParser(env)
     r = parser.parse(lexer.tokenize(profile_string))
     return r
 

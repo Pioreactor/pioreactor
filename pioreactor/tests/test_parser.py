@@ -101,6 +101,23 @@ def test_mqtt_fetches():
     assert parse_profile_expression_to_bool(f"{unit}:test_job:bool_false or {unit}:test_job:bool_true")
 
 
+def test_mqtt_fetches_with_env():
+    experiment = "_testing_experiment"
+
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_reading/od1",
+        encode(structs.ODReading(timestamp="2021-01-01", angle="90", od=1.2, channel="2")),
+        retain=True,
+    )
+
+    assert parse_profile_expression_to_bool("::od_reading:od1.od > 1.0", env={"unit": unit})
+    assert parse_profile_expression_to_bool("::od_reading:od1.od < 2.0", env={"unit": unit})
+    assert not parse_profile_expression_to_bool("::od_reading:od1.od > 2.0", env={"unit": unit})
+
+    with pytest.raises(KeyError):
+        assert not parse_profile_expression_to_bool("::od_reading:od1.od > 2.0")
+
+
 def test_mqtt_timeout():
     with pytest.raises(ValueError):
         assert parse_profile_expression_to_bool(f"{unit}:test_job:does_not_exist or True")
@@ -123,6 +140,18 @@ def test_calculator():
 
     with pytest.raises(ZeroDivisionError):
         assert parse_profile_expression("-1.5 / 0") == 0.75
+
+
+def test_env():
+    parse_profile_expression("unit()", env={"unit": "test"}) == "test"
+    assert parse_profile_expression("unit() == test", env={"unit": "test"})
+
+    assert not parse_profile_expression("unit() == test", env={"unit": "not_test"})
+
+    parse_profile_expression("experiment()", env={"experiment": "exp001"}) == "exp001"
+
+    with pytest.raises(KeyError):
+        parse_profile_expression("unit()")
 
 
 def test_mqtt_fetches_with_calculations():

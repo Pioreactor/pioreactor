@@ -330,6 +330,67 @@ def test_execute_experiment_profile_simple_if2(mock__load_experiment_profile) ->
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_profile_with_unit_function(mock__load_experiment_profile) -> None:
+    experiment = "_testing_experiment"
+    action_true = Start(hours_elapsed=0, if_="${{ unit() == unit1 }}")
+
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        plugins=[],
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(
+                jobs={
+                    "jobbing": Job(actions=[action_true]),
+                }
+            ),
+        },
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    actions = []
+
+    def collection_actions(msg):
+        actions.append(msg.topic)
+
+    subscribe_and_callback(
+        collection_actions,
+        [f"pioreactor/unit1/{experiment}/#"],
+        allow_retained=False,
+    )
+
+    execute_experiment_profile("profile.yaml", experiment)
+
+    assert actions == [
+        f"pioreactor/unit1/{experiment}/run/jobbing",
+    ]
+
+    action_true = Start(hours_elapsed=0, if_="${{ unit() == unit2 }}")
+
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        plugins=[],
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(
+                jobs={
+                    "jobbing": Job(actions=[action_true]),
+                }
+            ),
+        },
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    actions = []
+
+    execute_experiment_profile("profile.yaml", experiment)
+
+    assert actions == []
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_profile_simple_if(mock__load_experiment_profile) -> None:
     experiment = "_testing_experiment"
     action_true = Start(hours_elapsed=0, if_="1 == 1")

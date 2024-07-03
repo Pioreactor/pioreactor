@@ -582,11 +582,25 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def _create_sub_client(self) -> Client:
         # see note above as to why we split pub and sub.
 
+        # we give the last_will to this sub client because when it reconnects, it
+        # will republish state.
+        last_will = {
+            "topic": f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$state",
+            "payload": self.LOST,
+            "qos": QOS.EXACTLY_ONCE,
+            "retain": True,
+        }
+
         # the client will try to automatically reconnect if something bad happens
         # when we reconnect to the broker, we want to republish our state
-        # to overwrite potential last-will losts...
-        # also reconnect to our old topics.
-        def reconnect_protocol(client: Client, userdata, flags, rc: int, properties=None):
+        # also reconnect to our old topics (see reconnect_protocol)
+        # before we connect, we also want to set a new last_will (in case the existing one
+        # was exhausted), so we reset the last will in the pre_connect callback.
+        def set_last_will(client: Client, userdata) -> None:
+            # we can only set last wills _before_ connecting, so we put this here.
+            client.will_set(**last_will)
+
+        def reconnect_protocol(client: Client, userdata, flags, rc: int, properties=None) -> None:
             self.logger.info("Reconnected to the MQTT broker on leader.")
             self._publish_properties_string_to_broker(self.published_settings)
             self._publish_settings_metadata_to_broker(self.published_settings)
@@ -596,15 +610,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         def on_disconnect(client, userdata, flags, reason_code, properties) -> None:
             self._on_mqtt_disconnect(client, reason_code)
-
-        # we give the last_will to this sub client because when it reconnects, it
-        # will republish state.
-        last_will = {
-            "topic": f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$state",
-            "payload": self.LOST,
-            "qos": QOS.EXACTLY_ONCE,
-            "retain": True,
-        }
 
         client = create_client(
             client_id=f"{self.job_name}-sub-{self.unit}-{self.experiment}",
@@ -623,6 +628,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
             else:
                 break
 
+        # these all are assigned _after_ connection is made:
+        client.on_pre_connect = set_last_will
         client.on_connect = reconnect_protocol
         client.on_disconnect = on_disconnect
         return client
