@@ -185,6 +185,8 @@ class ProfileParser(Parser):
 
         elif p.FUNCTION == "job_name()":
             return self.ENV["job_name"]
+        else:
+            raise ValueError(f"{p.FUNCTION} is not a valid function in profile expressions.")
 
     @_("NAME")
     def expr(self, p):

@@ -151,7 +151,7 @@ def test_env():
     parse_profile_expression("experiment()", env={"experiment": "exp001"}) == "exp001"
 
     with pytest.raises(KeyError):
-        parse_profile_expression("unit()")
+        parse_profile_expression("unit()", env={})
 
 
 def test_mqtt_fetches_with_calculations():

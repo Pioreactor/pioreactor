@@ -3,7 +3,6 @@
 #### Highlights
  - A new live preview in the UI's experiment profile editor. This preview tool is useful for getting immediate feedback when writing a profile. We'll keep on adding to this to improve the edit-profile workflow - please send us feedback!
  - new `when` action type in experiment profiles that will execute an action (or list of actions) when some expression is true. For example, start a chemostat when a threshold OD is first achieved, log a message when event is triggered, or monitor a bioreactor parameter and execute an action if it goes out of bounds.
- - Added `unit()` function to experiment profiles expressions that returns the unit name the expression is evaluated for. Ex: `if: ${{ unit() == worker01 }}`.
 
 #### Enhancements
  - New config `turbidostat.config` that can be used to modify some internal turbidostat settings:
@@ -15,6 +14,9 @@
 
  - Better user interaction on the Pioreactors page when the assigned experiment and "viewing" experiment are different.
  - Select / Deselect all Pioreactors to assign to an experiment faster.
+ - Added `unit()` function to experiment profiles expressions that returns the unit name the expression is evaluated for. Ex: `if: ${{ unit() == worker01 }}`.
+ - Added `job_name()` function to experiment profiles expressions that returns the job_name the expression is evaluated for. Ex: `if: ${{ job_name() == stirring }}`.
+ - Added `experiment()` function to experiment profiles expressions that returns the experiment the expression is evaluated for. Ex: `if: ${{ experiment() == exp001 }}`.
 
 #### Breaking changes
  - significant web backend API changes! See list of rules in docs.
