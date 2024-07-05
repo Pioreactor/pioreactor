@@ -130,12 +130,23 @@ def test_execute_experiment_profile_hack_for_led_intensity(mock__load_experiment
 def test_execute_experiment_log_actions(mock__load_experiment_profile, active_workers_in_cluster) -> None:
     experiment = "_testing_experiment"
 
-    action1 = Log(hours_elapsed=0 / 60 / 60, options=_LogOptions(message="test {unit}"))
+    action1 = Log(hours_elapsed=0 / 60 / 60, options=_LogOptions(message=r"test ${{unit()}}"))
     action2 = Log(
-        hours_elapsed=2 / 60 / 60, options=_LogOptions(message="test {job} on {unit}", level="INFO")
+        hours_elapsed=2 / 60 / 60,
+        options=_LogOptions(message=r"test ${{job_name()}} on ${{unit()}}", level="INFO"),
     )
     action3 = Log(
-        hours_elapsed=4 / 60 / 60, options=_LogOptions(message="test experiment={experiment}", level="DEBUG")
+        hours_elapsed=4 / 60 / 60,
+        options=_LogOptions(message=r"test experiment=${{experiment()}}", level="DEBUG"),
+    )
+
+    unit = "unit1"
+    job_name = "job2"
+    publish(f"pioreactor/{unit}/{experiment}/{job_name}/target", 10.5, retain=True)
+
+    action4 = Log(
+        hours_elapsed=4 / 60 / 60,
+        options=_LogOptions(message=r"dynamic data looks like ${{unit1:job2:target}}", level="DEBUG"),
     )
 
     profile = Profile(
@@ -143,7 +154,9 @@ def test_execute_experiment_log_actions(mock__load_experiment_profile, active_wo
         plugins=[],
         common=CommonBlock(jobs={"job1": Job(actions=[action1])}),
         pioreactors={
-            "unit1": PioreactorSpecificBlock(jobs={"job2": Job(actions=[action2, action3])}, label="label1")
+            "unit1": PioreactorSpecificBlock(
+                jobs={"job2": Job(actions=[action2, action3, action4])}, label="label1"
+            )
         },
         metadata=Metadata(author="test_author"),
     )
@@ -158,14 +171,15 @@ def test_execute_experiment_log_actions(mock__load_experiment_profile, active_wo
         "DEBUG", "testing_unit", experiment
     ) as debug_bucket:
         execute_experiment_profile("profile.yaml", experiment)
-        assert [log["message"] for log in notice_bucket[1:-1]] == [
+        assert [log["message"] for log in notice_bucket[1:]] == [
             f"test {unit}" for unit in active_workers_in_cluster
         ]
-        assert [log["message"] for log in info_bucket] == [
+        assert [log["message"] for log in info_bucket[:1]] == [
             "test job2 on unit1",
         ]
-        assert [log["message"] for log in debug_bucket[1:]] == [
+        assert [log["message"] for log in debug_bucket[1:3]] == [
             f"test experiment={experiment}",
+            "dynamic data looks like 10.5",
         ]
 
 
@@ -591,7 +605,7 @@ def test_execute_experiment_profile_expression_in_common(
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
-def test_execute_experiment_profile_when_action(mock__load_experiment_profile) -> None:
+def test_execute_experiment_profile_when_action_simple(mock__load_experiment_profile) -> None:
     experiment = "_testing_experiment"
     action = When(
         hours_elapsed=0.0005,

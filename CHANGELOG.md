@@ -1,3 +1,9 @@
+### Upcoming
+
+ - improvements to the real-time profile editor
+ - `hours_elapsed()` is a function in profile expressions
+ - `log` in experiment profiles now uses expressions.
+
 ### 24.7.3
 
 #### Enhancements

@@ -4,6 +4,7 @@ from __future__ import annotations
 import random
 import time
 from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
 from sched import scheduler
 from typing import Callable
@@ -28,6 +29,16 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
 bool_expression = str | bool
+
+
+class CustomScheduler(scheduler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.start_time = datetime.now()
+
+    def get_elapsed_hours(self) -> float:
+        elapsed_time = datetime.now() - self.start_time
+        return elapsed_time.total_seconds() / 3600
 
 
 def wrap_in_try_except(func, logger: CustomLogger) -> Callable:
@@ -71,6 +82,21 @@ def evaluate_options(options: dict, env: dict) -> dict:
         else:
             options_expressed[key] = value
     return options_expressed
+
+
+def evaluate_log_message(message: str, env: dict) -> str:
+    import re
+    from pioreactor.experiment_profiles.parser import parse_profile_expression
+
+    pattern = r"\${{(.*?)}}"
+
+    matches = re.findall(pattern, message)
+
+    modified_matches = [parse_profile_expression(match, env) for match in matches]
+
+    # Replace each ${{...}} in the original string with the modified match
+    result_string = re.sub(pattern, lambda m: str(modified_matches.pop(0)), message)
+    return result_string
 
 
 def evaluate_bool_expression(bool_expression: bool_expression, env: dict) -> bool:
@@ -168,22 +194,26 @@ def wrapped_execute_action(
 
     match action:
         case struct.Start(_, if_, options, args):
-            return start_job(unit, experiment, client, job_name, options, args, dry_run, if_, env, logger)
+            return start_job(
+                unit, experiment, client, job_name, options, args, dry_run, if_, env, logger, schedule
+            )
 
         case struct.Pause(_, if_):
-            return pause_job(unit, experiment, client, job_name, dry_run, if_, env, logger)
+            return pause_job(unit, experiment, client, job_name, dry_run, if_, env, logger, schedule)
 
         case struct.Resume(_, if_):
-            return resume_job(unit, experiment, client, job_name, dry_run, if_, env, logger)
+            return resume_job(unit, experiment, client, job_name, dry_run, if_, env, logger, schedule)
 
         case struct.Stop(_, if_):
-            return stop_job(unit, experiment, client, job_name, dry_run, if_, env, logger)
+            return stop_job(unit, experiment, client, job_name, dry_run, if_, env, logger, schedule)
 
         case struct.Update(_, if_, options):
-            return update_job(unit, experiment, client, job_name, options, dry_run, if_, env, logger)
+            return update_job(
+                unit, experiment, client, job_name, options, dry_run, if_, env, logger, schedule
+            )
 
         case struct.Log(_, options, if_):
-            return log(unit, experiment, client, job_name, options, dry_run, if_, env, logger)
+            return log(unit, experiment, client, job_name, options, dry_run, if_, env, logger, schedule)
 
         case struct.Repeat(_, if_, repeat_every_hours, while_, max_hours, actions):
             return repeat(
@@ -268,6 +298,8 @@ def when(
         if (get_assigned_experiment_name(unit) != experiment) and not is_testing_env():
             return
 
+        env["hours_elapsed"] = schedule.get_elapsed_hours()
+
         if (if_ is None) or evaluate_bool_expression(if_, env):
             try:
                 condition_met = evaluate_bool_expression(condition, env)
@@ -319,6 +351,8 @@ def repeat(
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             return
+
+        env["hours_elapsed"] = schedule.get_elapsed_hours()
 
         if ((if_ is None) or evaluate_bool_expression(if_, env)) and (
             ((while_ is None) or evaluate_bool_expression(while_, env))
@@ -374,14 +408,18 @@ def log(
     if_: Optional[str | bool],
     env: dict,
     logger: CustomLogger,
+    schedule: scheduler,
 ) -> Callable[..., None]:
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             return
+
+        env["hours_elapsed"] = schedule.get_elapsed_hours()
+
         if (if_ is None) or evaluate_bool_expression(if_, env):
             level = options.level.lower()
-            getattr(logger, level)(options.message.format(unit=unit, job=job_name, experiment=experiment))
+            getattr(logger, level)(evaluate_log_message(options.message, env))
         else:
             logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
 
@@ -399,11 +437,13 @@ def start_job(
     if_: Optional[str | bool],
     env: dict,
     logger: CustomLogger,
+    schedule: scheduler,
 ) -> Callable[..., None]:
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             return
+        env["hours_elapsed"] = schedule.get_elapsed_hours()
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
             if dry_run:
@@ -433,11 +473,14 @@ def pause_job(
     if_: Optional[str | bool],
     env: dict,
     logger: CustomLogger,
+    schedule: scheduler,
 ) -> Callable[..., None]:
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             return
+
+        env["hours_elapsed"] = schedule.get_elapsed_hours()
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
             if dry_run:
@@ -459,11 +502,15 @@ def resume_job(
     if_: Optional[str | bool],
     env: dict,
     logger: CustomLogger,
+    schedule: scheduler,
 ) -> Callable[..., None]:
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             return
+
+        env["hours_elapsed"] = schedule.get_elapsed_hours()
+
         if (if_ is None) or evaluate_bool_expression(if_, env):
             if dry_run:
                 logger.info(f"Dry-run: Resuming {job_name} on {unit}.")
@@ -484,6 +531,7 @@ def stop_job(
     if_: Optional[str | bool],
     env: dict,
     logger: CustomLogger,
+    schedule: scheduler,
 ) -> Callable[..., None]:
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
@@ -510,11 +558,15 @@ def update_job(
     if_: Optional[str | bool],
     env: dict,
     logger: CustomLogger,
+    schedule: scheduler,
 ) -> Callable[..., None]:
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             return
+
+        env["hours_elapsed"] = schedule.get_elapsed_hours()
+
         if (if_ is None) or evaluate_bool_expression(if_, env):
             if dry_run:
                 for setting, value in options.items():
@@ -695,7 +747,7 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
             logger.error(e)
             raise e
 
-        sched = scheduler()
+        sched = CustomScheduler()
 
         # process common
         for job_name, job in profile.common.jobs.items():

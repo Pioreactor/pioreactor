@@ -17,7 +17,7 @@ from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import is_active
 
 
-def convert_string(input_str: str) -> bool | float | str:
+def convert_string(input_str: str) -> int | bool | float | str:
     # Try to convert to float
     try:
         return float(input_str)
@@ -179,10 +179,10 @@ class ProfileParser(Parser):
             return random()
         elif p.FUNCTION == "unit()":
             return self.ENV["unit"]
-
+        elif p.FUNCTION == "hours_elapsed()":
+            return self.ENV["hours_elapsed"]
         elif p.FUNCTION == "experiment()":
             return self.ENV["experiment"]
-
         elif p.FUNCTION == "job_name()":
             return self.ENV["job_name"]
         else:
@@ -221,6 +221,7 @@ class ProfileParser(Parser):
             raise NotActiveWorkerError(f"Worker {unit} is not active.")
 
         result = subscribe(f"pioreactor/{unit}/{experiment}/{job}/{setting}", timeout=1)
+
         if result:
             # error handling here
             try:

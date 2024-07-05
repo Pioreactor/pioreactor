@@ -666,7 +666,7 @@ class Monitor(LongRunningBackgroundJob):
 
             from pioreactor.actions.led_intensity import led_intensity, ALL_LED_CHANNELS
 
-            state = {ch: options.pop(ch) for ch in ALL_LED_CHANNELS if ch in options}
+            state = {ch: float(options.pop(ch)) for ch in ALL_LED_CHANNELS if ch in options}
             options["pubsub_client"] = self.pub_client
             options["unit"] = self.unit
             options["experiment"] = experiment  # techdebt
