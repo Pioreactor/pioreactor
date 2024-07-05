@@ -39,7 +39,7 @@ LEADER_REQUIREMENTS = [
 
 
 WORKER_REQUIREMENTS = [
-    "numpy==1.24.2",
+    "Adafruit-Blinka==8.43.0",
     "adafruit-circuitpython-ads1x15==2.2.23",
     "adafruit-circuitpython-busdevice==5.2.9",
     "adafruit-circuitpython-connectionmanager==3.1.1",
