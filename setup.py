@@ -36,7 +36,7 @@ LEADER_REQUIREMENTS = ["zeroconf==0.115.2"] + UI_REQUIREMENTS
 
 
 WORKER_REQUIREMENTS = [
-    "numpy==1.24.2",
+    "Adafruit-Blinka==8.43.0",
     "adafruit-circuitpython-ads1x15==2.2.23",
     "DAC43608==0.2.7",
     "TMP1075==0.2.1",
