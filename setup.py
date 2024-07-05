@@ -16,32 +16,46 @@ CORE_REQUIREMENTS = [
     "colorlog==6.7.0",
     "msgspec==0.18.5",
     "diskcache==5.6.3",
-    "wheel==0.41.2",
     "crudini==0.9.5",
+    "iniparse==0.5",
+    "six==1.16.0",
     # "lgpio; platform_machine!='armv7l' and platform_machine!='armv6l'", # primarily available with base image, or via apt-get install python3-lgpio
 ]
 
 
-UI_REQUIREMENTS = [
-    # pyyaml is installed elsewhere
-    "flask==3.0.2",
+LEADER_REQUIREMENTS = [
+    "blinker==1.8.2",
+    "Flask==3.0.2",
     "flup6==1.1.1",
-    "python-dotenv==1.0.1",
     "huey==2.5.0",
-    "werkzeug==3.0.3",
+    "ifaddr==0.2.0",
+    "itsdangerous==2.2.0",
+    "Jinja2==3.1.4",
+    "MarkupSafe==2.1.5",
+    "python-dotenv==1.0.1",
+    "Werkzeug==3.0.3",
+    "zeroconf==0.115.2",
 ]
-
-
-LEADER_REQUIREMENTS = ["zeroconf==0.115.2"] + UI_REQUIREMENTS
 
 
 WORKER_REQUIREMENTS = [
     "numpy==1.24.2",
     "adafruit-circuitpython-ads1x15==2.2.23",
+    "adafruit-circuitpython-busdevice==5.2.9",
+    "adafruit-circuitpython-connectionmanager==3.1.1",
+    "adafruit-circuitpython-requests==4.1.3",
+    "adafruit-circuitpython-typing==1.10.3",
+    "Adafruit-PlatformDetect==3.71.0",
+    "Adafruit-PureIO==1.1.11",
     "DAC43608==0.2.7",
-    "TMP1075==0.2.1",
-    "rpi-hardware-pwm==0.2.1",
     "plotext==5.2.8",
+    "pyftdi==0.55.4",
+    "pyserial==3.5",
+    "pyusb==1.2.1",
+    "rpi_hardware_pwm==0.2.1",
+    "TMP1075==0.2.1",
+    "typing_extensions==4.12.2",
+    "wheel==0.41.2",
 ]
 
 
