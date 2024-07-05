@@ -1,3 +1,7 @@
+### 24.7.5
+
+Hotfix release for 24.7.3. This pins numpy to be less than 2.0 🫤
+
 ### 24.7.3
 
 #### Enhancements
