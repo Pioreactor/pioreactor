@@ -1,6 +1,6 @@
 ### 24.7.5 & 24.7.6 & 24.7.7
 
-Hotfix release for 24.7.3. This pins numpy to be less than 2.0 🫤
+Hotfix release for 24.7.3. This pins blinka to a specific version which does not install numpy.
 
 ### 24.7.3
 
