@@ -142,13 +142,22 @@ def test_calculator():
         assert parse_profile_expression("-1.5 / 0") == 0.75
 
 
-def test_env():
+def test_env_and_functions():
     parse_profile_expression("unit()", env={"unit": "test"}) == "test"
     assert parse_profile_expression("unit() == test", env={"unit": "test"})
 
     assert not parse_profile_expression("unit() == test", env={"unit": "not_test"})
 
     parse_profile_expression("experiment()", env={"experiment": "exp001"}) == "exp001"
+
+    publish(
+        "pioreactor/unit1/_testing_experiment/stirring/target_rpm",
+        100,
+        retain=True,
+    )
+    parse_profile_expression(
+        "unit():job_name():target_rpm", env={"unit": "unit1", "job_name": "stirring"}
+    ) == 100
 
     with pytest.raises(KeyError):
         parse_profile_expression("unit()", env={})

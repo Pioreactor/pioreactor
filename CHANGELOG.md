@@ -1,10 +1,10 @@
 <<<<<<< HEAD
 ### Upcoming
 
- - improvements to the real-time profile editor
- - `hours_elapsed()` is a function in profile expressions
- - `log` in experiment profiles now uses expressions.
-
+ - improvements to the real-time profile editor,
+ - `hours_elapsed()` is a function in profile expressions.
+ - Breaking change: `log` in experiment profiles now uses expressions.
+ - Updated Raspberry Pi OS image to 2024-07-04.
 
 ### 24.7.5 & 24.7.6
 =======

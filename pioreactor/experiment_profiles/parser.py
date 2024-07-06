@@ -38,7 +38,6 @@ class ProfileLexer(Lexer):
     # != is the same as not
     tokens = {
         NAME,
-        FUNCTION,
         AND,
         OR,
         NOT,
@@ -55,11 +54,14 @@ class ProfileLexer(Lexer):
         NUMBER,
         UNIT_JOB_SETTING,
         COMMON_JOB_SETTING,
+        FUNCTION,
     }
     ignore = " \t"
 
     # Tokens
-    UNIT_JOB_SETTING = r"([a-zA-Z_\$][a-zA-Z0-9_]*:){2,}([a-zA-Z_\$][a-zA-Z0-9_]*\.)*[a-zA-Z_\$][a-zA-Z0-9_]*"
+    UNIT_JOB_SETTING = (
+        r"([a-zA-Z_\$][a-zA-Z0-9_]*(\(\))?:){2,}([a-zA-Z_\$][a-zA-Z0-9_]*\.)*[a-zA-Z_\$][a-zA-Z0-9_]*"
+    )
     COMMON_JOB_SETTING = r"::([a-zA-Z_\$][a-zA-Z0-9_]*:)([a-zA-Z_\$][a-zA-Z0-9_]*\.)*[a-zA-Z_\$][a-zA-Z0-9_]*"
 
     FUNCTION = r"[a-zA-Z_$][a-zA-Z0-9_]*\(\)"
@@ -214,6 +216,13 @@ class ProfileParser(Parser):
 
         unit, job, setting_keys = data_string.split(":")
         setting, *keys = setting_keys.split(".")
+
+        # HACK
+        if unit == "unit()":
+            # technically, common mqtt expressions can use ::job:attr, or unit():job:attr - they are equivilant.
+            unit = self.ENV["unit"]
+        if job == "job_name()":
+            job = self.ENV["job_name"]
 
         experiment = get_assigned_experiment_name(unit)
 
