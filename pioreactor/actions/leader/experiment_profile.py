@@ -4,7 +4,6 @@ from __future__ import annotations
 import random
 import time
 from collections import defaultdict
-from datetime import datetime
 from pathlib import Path
 from sched import scheduler
 from typing import Callable
@@ -23,22 +22,13 @@ from pioreactor.pubsub import Client
 from pioreactor.pubsub import put_into_leader
 from pioreactor.utils import ClusterJobManager
 from pioreactor.utils import managed_lifecycle
+from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
 bool_expression = str | bool
-
-
-class CustomScheduler(scheduler):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.start_time = datetime.now()
-
-    def get_elapsed_hours(self) -> float:
-        elapsed_time = datetime.now() - self.start_time
-        return elapsed_time.total_seconds() / 3600
 
 
 def wrap_in_try_except(func, logger: CustomLogger) -> Callable:
@@ -182,6 +172,7 @@ def wrapped_execute_action(
     job_name: str,
     logger: CustomLogger,
     schedule: scheduler,
+    elapsed_seconds_func: Callable[[], float],
     client: Client,
     action: struct.Action,
     dry_run: bool = False,
@@ -195,25 +186,43 @@ def wrapped_execute_action(
     match action:
         case struct.Start(_, if_, options, args):
             return start_job(
-                unit, experiment, client, job_name, options, args, dry_run, if_, env, logger, schedule
+                unit,
+                experiment,
+                client,
+                job_name,
+                options,
+                args,
+                dry_run,
+                if_,
+                env,
+                logger,
+                elapsed_seconds_func,
             )
 
         case struct.Pause(_, if_):
-            return pause_job(unit, experiment, client, job_name, dry_run, if_, env, logger, schedule)
+            return pause_job(
+                unit, experiment, client, job_name, dry_run, if_, env, logger, elapsed_seconds_func
+            )
 
         case struct.Resume(_, if_):
-            return resume_job(unit, experiment, client, job_name, dry_run, if_, env, logger, schedule)
+            return resume_job(
+                unit, experiment, client, job_name, dry_run, if_, env, logger, elapsed_seconds_func
+            )
 
         case struct.Stop(_, if_):
-            return stop_job(unit, experiment, client, job_name, dry_run, if_, env, logger, schedule)
+            return stop_job(
+                unit, experiment, client, job_name, dry_run, if_, env, logger, elapsed_seconds_func
+            )
 
         case struct.Update(_, if_, options):
             return update_job(
-                unit, experiment, client, job_name, options, dry_run, if_, env, logger, schedule
+                unit, experiment, client, job_name, options, dry_run, if_, env, logger, elapsed_seconds_func
             )
 
         case struct.Log(_, options, if_):
-            return log(unit, experiment, client, job_name, options, dry_run, if_, env, logger, schedule)
+            return log(
+                unit, experiment, client, job_name, options, dry_run, if_, env, logger, elapsed_seconds_func
+            )
 
         case struct.Repeat(_, if_, repeat_every_hours, while_, max_hours, actions):
             return repeat(
@@ -231,6 +240,7 @@ def wrapped_execute_action(
                 max_hours,
                 actions,
                 schedule,
+                elapsed_seconds_func,
             )
 
         case struct.When(_, if_, condition, actions):
@@ -247,6 +257,7 @@ def wrapped_execute_action(
                 action,
                 actions,
                 schedule,
+                elapsed_seconds_func,
             )
 
         case _:
@@ -266,6 +277,7 @@ def common_wrapped_execute_action(
     job_name: str,
     logger: CustomLogger,
     schedule: scheduler,
+    elapsed_seconds_func: Callable[[], float],
     client: Client,
     action: struct.Action,
     dry_run: bool = False,
@@ -273,7 +285,9 @@ def common_wrapped_execute_action(
     actions_to_execute = []
     for worker in get_active_workers_in_experiment(experiment):
         actions_to_execute.append(
-            wrapped_execute_action(worker, experiment, job_name, logger, schedule, client, action, dry_run)
+            wrapped_execute_action(
+                worker, experiment, job_name, logger, schedule, elapsed_seconds_func, client, action, dry_run
+            )
         )
 
     return chain_functions(*actions_to_execute)
@@ -292,13 +306,14 @@ def when(
     when_action: struct.When,
     actions: list[struct.Action],
     schedule: scheduler,
+    elapsed_seconds_func: Callable[[], float],
 ) -> Callable[..., None]:
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
         if (get_assigned_experiment_name(unit) != experiment) and not is_testing_env():
             return
 
-        env["hours_elapsed"] = schedule.get_elapsed_hours()
+        env["hours_elapsed"] = seconds_to_hours(elapsed_seconds_func())
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
             try:
@@ -311,7 +326,15 @@ def when(
                         delay=hours_to_seconds(action.hours_elapsed),
                         priority=get_simple_priority(action),
                         action=wrapped_execute_action(
-                            unit, experiment, job_name, logger, schedule, client, action, dry_run
+                            unit,
+                            experiment,
+                            job_name,
+                            logger,
+                            schedule,
+                            elapsed_seconds_func,
+                            client,
+                            action,
+                            dry_run,
                         ),
                     )
 
@@ -321,7 +344,15 @@ def when(
                     delay=15 + 10 * random.random(),
                     priority=get_simple_priority(when_action),
                     action=wrapped_execute_action(
-                        unit, experiment, job_name, logger, schedule, client, when_action, dry_run
+                        unit,
+                        experiment,
+                        job_name,
+                        logger,
+                        schedule,
+                        elapsed_seconds_func,
+                        client,
+                        when_action,
+                        dry_run,
                     ),
                 )
 
@@ -346,13 +377,14 @@ def repeat(
     max_hours: Optional[float],
     actions: list[struct.BasicAction],
     schedule: scheduler,
+    elapsed_seconds_func: Callable[[], float],
 ) -> Callable[..., None]:
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             return
 
-        env["hours_elapsed"] = schedule.get_elapsed_hours()
+        env["hours_elapsed"] = seconds_to_hours(elapsed_seconds_func())
 
         if ((if_ is None) or evaluate_bool_expression(if_, env)) and (
             ((while_ is None) or evaluate_bool_expression(while_, env))
@@ -369,7 +401,15 @@ def repeat(
                     delay=hours_to_seconds(action.hours_elapsed),
                     priority=get_simple_priority(action),
                     action=wrapped_execute_action(
-                        unit, experiment, job_name, logger, schedule, client, action, dry_run
+                        unit,
+                        experiment,
+                        job_name,
+                        logger,
+                        schedule,
+                        elapsed_seconds_func,
+                        client,
+                        action,
+                        dry_run,
                     ),
                 )
 
@@ -384,7 +424,15 @@ def repeat(
                     delay=hours_to_seconds(repeat_every_hours),
                     priority=get_simple_priority(repeat_action),
                     action=wrapped_execute_action(
-                        unit, experiment, job_name, logger, schedule, client, repeat_action, dry_run
+                        unit,
+                        experiment,
+                        job_name,
+                        logger,
+                        schedule,
+                        elapsed_seconds_func,
+                        client,
+                        repeat_action,
+                        dry_run,
                     ),
                 )
             else:
@@ -408,14 +456,14 @@ def log(
     if_: Optional[str | bool],
     env: dict,
     logger: CustomLogger,
-    schedule: scheduler,
+    elapsed_seconds_func,
 ) -> Callable[..., None]:
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             return
 
-        env["hours_elapsed"] = schedule.get_elapsed_hours()
+        env["hours_elapsed"] = seconds_to_hours(elapsed_seconds_func())
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
             level = options.level.lower()
@@ -437,13 +485,13 @@ def start_job(
     if_: Optional[str | bool],
     env: dict,
     logger: CustomLogger,
-    schedule: scheduler,
+    elapsed_seconds_func: Callable[[], float],
 ) -> Callable[..., None]:
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             return
-        env["hours_elapsed"] = schedule.get_elapsed_hours()
+        env["hours_elapsed"] = seconds_to_hours(elapsed_seconds_func())
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
             if dry_run:
@@ -473,14 +521,14 @@ def pause_job(
     if_: Optional[str | bool],
     env: dict,
     logger: CustomLogger,
-    schedule: scheduler,
+    elapsed_seconds_func: Callable[[], float],
 ) -> Callable[..., None]:
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             return
 
-        env["hours_elapsed"] = schedule.get_elapsed_hours()
+        env["hours_elapsed"] = seconds_to_hours(elapsed_seconds_func())
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
             if dry_run:
@@ -502,14 +550,14 @@ def resume_job(
     if_: Optional[str | bool],
     env: dict,
     logger: CustomLogger,
-    schedule: scheduler,
+    elapsed_seconds_func: Callable[[], float],
 ) -> Callable[..., None]:
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             return
 
-        env["hours_elapsed"] = schedule.get_elapsed_hours()
+        env["hours_elapsed"] = seconds_to_hours(elapsed_seconds_func())
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
             if dry_run:
@@ -531,12 +579,15 @@ def stop_job(
     if_: Optional[str | bool],
     env: dict,
     logger: CustomLogger,
-    schedule: scheduler,
+    elapsed_seconds_func: Callable[[], float],
 ) -> Callable[..., None]:
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             return
+
+        env["hours_elapsed"] = seconds_to_hours(elapsed_seconds_func())
+
         if (if_ is None) or evaluate_bool_expression(if_, env):
             if dry_run:
                 logger.info(f"Dry-run: Stopping {job_name} on {unit}.")
@@ -558,14 +609,14 @@ def update_job(
     if_: Optional[str | bool],
     env: dict,
     logger: CustomLogger,
-    schedule: scheduler,
+    elapsed_seconds_func: Callable[[], float],
 ) -> Callable[..., None]:
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             return
 
-        env["hours_elapsed"] = schedule.get_elapsed_hours()
+        env["hours_elapsed"] = seconds_to_hours(elapsed_seconds_func())
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
             if dry_run:
@@ -583,6 +634,10 @@ def update_job(
 
 def hours_to_seconds(hours: float) -> float:
     return hours * 60 * 60
+
+
+def seconds_to_hours(seconds: float) -> float:
+    return seconds / 60.0 / 60.0
 
 
 def _verify_experiment_profile(profile: struct.Profile) -> bool:
@@ -747,48 +802,51 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
             logger.error(e)
             raise e
 
-        sched = CustomScheduler()
+        sched = scheduler()
 
-        # process common
-        for job_name, job in profile.common.jobs.items():
-            for action in job.actions:
-                sched.enter(
-                    delay=hours_to_seconds(action.hours_elapsed),
-                    priority=get_simple_priority(action),
-                    action=common_wrapped_execute_action(
-                        experiment,
-                        job_name,
-                        logger,
-                        sched,
-                        state.mqtt_client,
-                        action,
-                        dry_run,
-                    ),
-                )
-
-        # process specific pioreactors
-        for unit_ in profile.pioreactors:
-            pioreactor_specific_block = profile.pioreactors[unit_]
-            if pioreactor_specific_block.label is not None:
-                label = pioreactor_specific_block.label
-                push_labels_to_ui(experiment, {unit_: label})
-
-            for job_name, job in pioreactor_specific_block.jobs.items():
+        with catchtime() as elapsed_seconds_func:
+            # process common
+            for job_name, job in profile.common.jobs.items():
                 for action in job.actions:
                     sched.enter(
                         delay=hours_to_seconds(action.hours_elapsed),
                         priority=get_simple_priority(action),
-                        action=wrapped_execute_action(
-                            unit_,
+                        action=common_wrapped_execute_action(
                             experiment,
                             job_name,
                             logger,
                             sched,
+                            elapsed_seconds_func,
                             state.mqtt_client,
                             action,
                             dry_run,
                         ),
                     )
+
+            # process specific pioreactors
+            for unit_ in profile.pioreactors:
+                pioreactor_specific_block = profile.pioreactors[unit_]
+                if pioreactor_specific_block.label is not None:
+                    label = pioreactor_specific_block.label
+                    push_labels_to_ui(experiment, {unit_: label})
+
+                for job_name, job in pioreactor_specific_block.jobs.items():
+                    for action in job.actions:
+                        sched.enter(
+                            delay=hours_to_seconds(action.hours_elapsed),
+                            priority=get_simple_priority(action),
+                            action=wrapped_execute_action(
+                                unit_,
+                                experiment,
+                                job_name,
+                                logger,
+                                sched,
+                                elapsed_seconds_func,
+                                state.mqtt_client,
+                                action,
+                                dry_run,
+                            ),
+                        )
 
         logger.debug("Starting execution of actions.")
 

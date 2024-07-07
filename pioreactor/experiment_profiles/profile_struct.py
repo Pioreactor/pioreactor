@@ -92,7 +92,7 @@ Action = BasicAction | Repeat | When
 
 class Job(Struct, forbid_unknown_fields=True):
     actions: list[Action]
-    description: Optional[str] = None
+    description: t.Optional[str] = None
     # metadata?
     # calibration_settings?
     # config_options?
