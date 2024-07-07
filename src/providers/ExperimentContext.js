@@ -9,18 +9,19 @@ export const ExperimentProvider = ({ children }) => {
   const [allExperiments, setAllExperiments] = useState([]);
 
   useEffect(() => {
-    // Fetch the latest experiment metadata from the backend
-    const maybeExperimentMetadata = JSON.parse(window.sessionStorage.getItem("experimentMetadata"))
+    // defer to disk
+    const maybeExperimentMetadata = JSON.parse(window.localStorage.getItem("experimentMetadata"))
 
     if (maybeExperimentMetadata){
       setExperimentMetadata(maybeExperimentMetadata)
     }
+    // Fetch the latest experiment metadata from the backend
     else {
       fetch("/api/experiments/latest")
         .then((response) => response.json())
         .then((data) => {
           setExperimentMetadata(data);
-          window.sessionStorage.setItem("experimentMetadata", JSON.stringify(data));
+          window.localStorage.setItem("experimentMetadata", JSON.stringify(data));
         });
     }
 
@@ -40,7 +41,7 @@ export const ExperimentProvider = ({ children }) => {
 
 
     if (newExperiment){
-      window.sessionStorage.setItem("experimentMetadata", JSON.stringify(newExperiment))
+      window.localStorage.setItem("experimentMetadata", JSON.stringify(newExperiment))
     }
     if (put){
       // PUT

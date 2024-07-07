@@ -112,7 +112,7 @@ const EditExperimentProfilesContent = ({ initialCode, filename }) => {
               label="Filename"
               value={filename + '.yaml'}
               disabled={true}
-              style={{ width: "250px" }}
+              style={{ width: "350px" }}
             />
           </div>
         </Grid>
@@ -129,21 +129,19 @@ const EditExperimentProfilesContent = ({ initialCode, filename }) => {
             borderRadius: "4px",
             flex: 1
           }}>
-          {(code !== null) && (code !== "") &&
-            <Editor
-              value={code}
-              onValueChange={onTextChange}
-              highlight={code => highlight(code, languages.yaml)}
-              padding={10}
-              style={{
-                fontSize: "14px",
-                fontFamily: 'monospace',
-                backgroundColor: "hsla(0, 0%, 100%, .5)",
-                borderRadius: "4px",
-                minHeight: "100%"
-              }}
-            />
-          }
+          <Editor
+            value={code}
+            onValueChange={onTextChange}
+            highlight={code => highlight(code, languages.yaml)}
+            padding={10}
+            style={{
+              fontSize: "14px",
+              fontFamily: 'monospace',
+              backgroundColor: "hsla(0, 0%, 100%, .5)",
+              borderRadius: "4px",
+              minHeight: "100%"
+            }}
+          />
           </div>
         </Grid>
 
@@ -157,7 +155,7 @@ const EditExperimentProfilesContent = ({ initialCode, filename }) => {
               <Button
                 variant="contained"
                 color="primary"
-                style={{ marginLeft: "20px", textTransform: 'none' }}
+                style={{ marginLeft: "5px", textTransform: 'none' }}
                 onClick={saveCurrentCode}
                 endIcon={<SaveIcon />}
                 disabled={!isChanged}

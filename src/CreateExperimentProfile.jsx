@@ -139,19 +139,19 @@ metadata:
             borderRadius: "4px",
             flex: 1
           }}>
-            <Editor
-              value={code}
-              onValueChange={onTextChange}
-              highlight={code => highlight(code, languages.yaml)}
-              padding={10}
-              style={{
-                fontSize: "14px",
-                fontFamily: 'monospace',
-                backgroundColor: "hsla(0, 0%, 100%, .5)",
-                borderRadius: "3px",
-                minHeight: "100%"
-              }}
-            />
+          <Editor
+            value={code}
+            onValueChange={onTextChange}
+            highlight={code => highlight(code, languages.yaml)}
+            padding={10}
+            style={{
+              fontSize: "14px",
+              fontFamily: 'monospace',
+              backgroundColor: "hsla(0, 0%, 100%, .5)",
+              borderRadius: "3px",
+              minHeight: "100%"
+            }}
+          />
           </div>
         </Grid>
 
@@ -165,7 +165,7 @@ metadata:
               <Button
                 variant="contained"
                 color="primary"
-                style={{ marginLeft: "20px", textTransform: 'none' }}
+                style={{ marginLeft: "5px", textTransform: 'none' }}
                 onClick={saveCurrentCode}
                 endIcon={<SaveIcon />}
                 disabled={!isChanged}
