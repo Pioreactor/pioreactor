@@ -92,10 +92,11 @@ Action = BasicAction | Repeat | When
 
 class Job(Struct, forbid_unknown_fields=True):
     actions: list[Action]
-    # description?
+    description: Optional[str] = None
     # metadata?
     # calibration_settings?
     # config_options?
+    # logging?
 
 
 PioreactorUnitName = str

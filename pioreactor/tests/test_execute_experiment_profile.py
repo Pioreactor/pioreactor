@@ -605,6 +605,50 @@ def test_execute_experiment_profile_expression_in_common(
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_profile_expression_in_common_also_works_with_unit_function(
+    mock__load_experiment_profile, active_workers_in_cluster
+) -> None:
+    job_name = "jobbing"
+
+    for worker in active_workers_in_cluster:
+        publish(f"pioreactor/{worker}/_testing_experiment/{job_name}/target", 10, retain=True)
+
+    action = Start(
+        hours_elapsed=0, options={"target": "${{unit():jobbing:target + 1}}"}, if_="unit():jobbing:target > 0"
+    )
+
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        plugins=[],
+        common=CommonBlock(
+            jobs={
+                job_name: Job(actions=[action]),
+            }
+        ),
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    actions = []
+
+    def collection_actions(msg):
+        actions.append(msg.payload.decode())
+
+    subscribe_and_callback(
+        collection_actions,
+        [f"pioreactor/{worker}/_testing_experiment/run/jobbing" for worker in active_workers_in_cluster],
+        allow_retained=False,
+    )
+
+    execute_experiment_profile("profile.yaml", "_testing_experiment")
+
+    assert actions == ['{"options":{"target":11.0,"job_source":"experiment_profile"},"args":[]}'] * len(
+        active_workers_in_cluster
+    )
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_profile_when_action_simple(mock__load_experiment_profile) -> None:
     experiment = "_testing_experiment"
     action = When(
