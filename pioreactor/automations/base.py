@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Optional
 
 from pioreactor.automations import events
-from pioreactor.background_jobs.subjobs import BackgroundSubJob
+from pioreactor.background_jobs.base import BackgroundJob
 
 
 DISALLOWED_AUTOMATION_NAMES = {
@@ -12,7 +12,7 @@ DISALLOWED_AUTOMATION_NAMES = {
 }
 
 
-class AutomationJob(BackgroundSubJob):
+class AutomationJob(BackgroundJob):
     automation_name = "automation_job"
 
     def __init__(self, unit: str, experiment: str) -> None:

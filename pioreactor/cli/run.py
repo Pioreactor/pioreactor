@@ -5,8 +5,16 @@ from __future__ import annotations
 import click
 
 from pioreactor import actions
-from pioreactor import background_jobs as jobs
 from pioreactor import plugin_management
+from pioreactor.background_jobs.dosing_control import click_dosing_control
+from pioreactor.background_jobs.growth_rate_calculating import click_growth_rate_calculating
+from pioreactor.background_jobs.leader.mqtt_to_db_streaming import click_mqtt_to_db_streaming
+from pioreactor.background_jobs.leader.watchdog import click_watchdog
+from pioreactor.background_jobs.led_automation import click_led_automation
+from pioreactor.background_jobs.monitor import click_monitor
+from pioreactor.background_jobs.od_reading import click_od_reading
+from pioreactor.background_jobs.stirring import click_stirring
+from pioreactor.background_jobs.temperature_control import click_temperature_control
 from pioreactor.whoami import am_I_leader
 
 
@@ -16,15 +24,16 @@ def run() -> None:
 
 
 # this runs on both leader and workers
-run.add_command(jobs.monitor.click_monitor)
+run.add_command(click_monitor)
 
 
-run.add_command(jobs.growth_rate_calculating.click_growth_rate_calculating)
-run.add_command(jobs.stirring.click_stirring)
-run.add_command(jobs.od_reading.click_od_reading)
-run.add_command(jobs.dosing_control.click_dosing_control)
-run.add_command(jobs.led_control.click_led_control)
-run.add_command(jobs.temperature_control.click_temperature_control)
+run.add_command(click_growth_rate_calculating)
+run.add_command(click_stirring)
+run.add_command(click_od_reading)
+run.add_command(click_dosing_control)
+run.add_command(click_led_automation)
+run.add_command(click_temperature_control)
+
 
 run.add_command(actions.led_intensity.click_led_intensity)
 run.add_command(actions.pump.click_add_alt_media)
@@ -43,8 +52,8 @@ for plugin in plugin_management.get_plugins().values():
             run.add_command(getattr(plugin.module, possible_entry_point))
 
 if am_I_leader():
-    run.add_command(jobs.mqtt_to_db_streaming.click_mqtt_to_db_streaming)
-    run.add_command(jobs.watchdog.click_watchdog)
+    run.add_command(click_mqtt_to_db_streaming)
+    run.add_command(click_watchdog)
     run.add_command(actions.export_experiment_data.click_export_experiment_data)
     run.add_command(actions.backup_database.click_backup_database)
     run.add_command(actions.experiment_profile.click_experiment_profile)

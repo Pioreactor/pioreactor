@@ -10,9 +10,8 @@ from pioreactor import pubsub
 from pioreactor import structs
 from pioreactor.actions.led_intensity import lock_leds_temporarily
 from pioreactor.automations import events
-from pioreactor.automations.led.base import LEDAutomationJob
+from pioreactor.automations.led import Silent
 from pioreactor.automations.led.light_dark_cycle import LightDarkCycle
-from pioreactor.background_jobs.led_control import LEDController
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
@@ -27,9 +26,7 @@ def pause(n=1) -> None:
 
 def test_silent() -> None:
     experiment = "test_silent"
-    with LEDController(
-        automation_name="silent", duration=60, unit=unit, experiment=experiment
-    ) as ld:
+    with Silent(duration=60, unit=unit, experiment=experiment) as ld:
         pause()
         pause()
         pause()
@@ -43,50 +40,11 @@ def test_silent() -> None:
         )
         pause()
         pause()
-        r = pubsub.subscribe(
-            f"pioreactor/{unit}/{experiment}/led_control/automation_name", timeout=1
-        )
+        r = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/led_automation/automation_name", timeout=1)
         assert r is not None
         assert r.payload.decode() == "silent"
-        assert ld.automation_job.latest_normalized_od == 1.0
-        assert ld.automation_job.latest_growth_rate == 0.01
-
-
-def test_changing_automation_over_mqtt() -> None:
-    experiment = "test_changing_automation_over_mqtt"
-    original_duration = 60
-    with LEDController(
-        automation_name="silent", duration=original_duration, unit=unit, experiment=experiment
-    ) as ld:
-        assert ld.automation_name == "silent"
-        assert ld.automation_job.duration == original_duration
-        pause()
-        pause()
-        r = pubsub.subscribe(
-            f"pioreactor/{unit}/{experiment}/led_control/automation_name", timeout=1
-        )
-        assert r is not None
-        assert r.payload.decode() == "silent"
-        pause()
-        pause()
-        pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/led_control/automation/set",
-            encode(
-                structs.LEDAutomation(
-                    automation_name="silent",
-                    args={"duration": 20},
-                )
-            ),
-        )
-        pause()
-        pause()
-        pause()
-        pause()
-        pause()
-        pause()
-        pause()
-        assert ld.automation_name == "silent"
-        assert ld.automation_job.duration == 20
+        assert ld.latest_normalized_od == 1.0
+        assert ld.latest_growth_rate == 0.01
 
 
 def test_we_respect_any_locks_on_leds_we_want_to_modify() -> None:
@@ -95,7 +53,7 @@ def test_we_respect_any_locks_on_leds_we_want_to_modify() -> None:
         for c in cache.iterkeys():
             cache.pop(c)
 
-    with LEDAutomationJob(duration=1, unit=unit, experiment=experiment) as ld:
+    with Silent(duration=1, unit=unit, experiment=experiment) as ld:
         pause()
         pause()
 
@@ -111,8 +69,7 @@ def test_we_respect_any_locks_on_leds_we_want_to_modify() -> None:
 def test_light_dark_cycle_starts_on() -> None:
     experiment = "test_light_dark_cycle_starts_on"
     unit = get_unit_name()
-    with LEDController(
-        automation_name="light_dark_cycle",
+    with LightDarkCycle(
         duration=60,
         light_intensity=50,
         light_duration_minutes=60 * 16,
@@ -122,7 +79,7 @@ def test_light_dark_cycle_starts_on() -> None:
     ) as lc:
         pause(12)
 
-        assert lc.automation_job.light_active
+        assert lc.light_active
         with local_intermittent_storage("leds") as c:
             assert c["D"] == 50
             assert c["C"] == 50
@@ -131,8 +88,7 @@ def test_light_dark_cycle_starts_on() -> None:
 def test_light_dark_cycle_turns_off_after_N_cycles() -> None:
     experiment = "test_light_dark_cycle_turns_off_after_N_cycles"
     unit = get_unit_name()
-    with LEDController(
-        automation_name="light_dark_cycle",
+    with LightDarkCycle(
         duration=0.01,
         light_intensity=50,
         light_duration_minutes=60 * 16,
@@ -140,14 +96,14 @@ def test_light_dark_cycle_turns_off_after_N_cycles() -> None:
         unit=unit,
         experiment=experiment,
     ) as lc:
-        while lc.automation_job.minutes_online < 0:
+        while lc.minutes_online < 0:
             pass
 
         pause()
-        lc.automation_job.minutes_online = 16 * 60 + 58
+        lc.minutes_online = 16 * 60 + 58
         pause()
 
-        assert not lc.automation_job.light_active
+        assert not lc.light_active
         with local_intermittent_storage("leds") as c:
             assert c["D"] == 0.0
             assert c["C"] == 0.0
@@ -156,8 +112,7 @@ def test_light_dark_cycle_turns_off_after_N_cycles() -> None:
 def test_dark_duration_hour_to_zero() -> None:
     experiment = "test_dark_duration_hour_to_zero"
     unit = get_unit_name()
-    with LEDController(
-        automation_name="light_dark_cycle",
+    with LightDarkCycle(
         duration=0.005,
         light_intensity=50,
         light_duration_minutes=60 * 16,
@@ -165,18 +120,18 @@ def test_dark_duration_hour_to_zero() -> None:
         unit=unit,
         experiment=experiment,
     ) as lc:
-        while lc.automation_job.minutes_online < 0:
+        while lc.minutes_online < 0:
             pass
 
         pause()
-        lc.automation_job.minutes_online = 15 * 60 + 58
+        lc.minutes_online = 15 * 60 + 58
         pause()
 
-        assert not lc.automation_job.light_active
+        assert not lc.light_active
         pause()
-        lc.automation_job.set_dark_duration_minutes(0 * 60)
+        lc.set_dark_duration_minutes(0 * 60)
         pause()
-        assert lc.automation_job.light_active
+        assert lc.light_active
 
         with local_intermittent_storage("leds") as c:
             assert c["D"] == 50.0
@@ -186,8 +141,7 @@ def test_dark_duration_hour_to_zero() -> None:
 def test_light_duration_hour_to_zero() -> None:
     experiment = "test_light_duration_hour_to_zero"
     unit = get_unit_name()
-    with LEDController(
-        automation_name="light_dark_cycle",
+    with LightDarkCycle(
         duration=0.01,
         light_intensity=50,
         light_duration_minutes=60 * 16,
@@ -196,18 +150,17 @@ def test_light_duration_hour_to_zero() -> None:
         experiment=experiment,
     ) as lc:
         pause(22)
-        assert lc.automation_job.light_active
+        assert lc.light_active
 
-        lc.automation_job.set_light_duration_minutes(60 * 0)
+        lc.set_light_duration_minutes(60 * 0)
 
-        assert not lc.automation_job.light_active
+        assert not lc.light_active
 
 
 def test_add_dark_duration_minutes() -> None:
     experiment = "test_add_dark_duration_minutes * 60"
     unit = get_unit_name()
-    with LEDController(
-        automation_name="light_dark_cycle",
+    with LightDarkCycle(
         duration=0.01,
         light_intensity=50,
         light_duration_minutes=60 * 16,
@@ -215,18 +168,18 @@ def test_add_dark_duration_minutes() -> None:
         unit=unit,
         experiment=experiment,
     ) as lc:
-        while lc.automation_job.minutes_online < 0:
+        while lc.minutes_online < 0:
             pass
 
         pause()
-        lc.automation_job.minutes_online = 15 * 60 + 59
+        lc.minutes_online = 15 * 60 + 59
         pause()
 
-        assert not lc.automation_job.light_active
+        assert not lc.light_active
 
-        lc.automation_job.set_dark_duration_minutes(10 * 60)
+        lc.set_dark_duration_minutes(10 * 60)
 
-        assert not lc.automation_job.light_active
+        assert not lc.light_active
 
         with local_intermittent_storage("leds") as c:
             assert c["D"] == 0.0
@@ -236,8 +189,7 @@ def test_add_dark_duration_minutes() -> None:
 def test_remove_dark_duration_minutes() -> None:
     experiment = "test_remove_dark_duration_minutes * 60"
     unit = get_unit_name()
-    with LEDController(
-        automation_name="light_dark_cycle",
+    with LightDarkCycle(
         duration=0.005,
         light_intensity=50,
         light_duration_minutes=60 * 16,
@@ -245,22 +197,22 @@ def test_remove_dark_duration_minutes() -> None:
         unit=unit,
         experiment=experiment,
     ) as lc:
-        while lc.automation_job.minutes_online < 0:
+        while lc.minutes_online < 0:
             pass
 
         pause()
-        lc.automation_job.minutes_online = 15 * 60 + 58
+        lc.minutes_online = 15 * 60 + 58
         pause()
 
         pause()
-        lc.automation_job.minutes_online = 20 * 60 + 58
+        lc.minutes_online = 20 * 60 + 58
         pause()
 
-        assert not lc.automation_job.light_active
+        assert not lc.light_active
 
-        lc.automation_job.set_dark_duration_minutes(3 * 60)
+        lc.set_dark_duration_minutes(3 * 60)
 
-        assert lc.automation_job.light_active
+        assert lc.light_active
 
         with local_intermittent_storage("leds") as c:
             assert c["D"] == 50.0
@@ -270,29 +222,28 @@ def test_remove_dark_duration_minutes() -> None:
 def test_fractional_hours() -> None:
     experiment = "test_fractional_hours"
     unit = get_unit_name()
-    with LEDController(
-        automation_name="light_dark_cycle",
+    with LightDarkCycle(
         duration=0.005,
         light_intensity=50,
-        light_duration_minutes=60 * 0.9,
-        dark_duration_minutes=0.1 * 60,
+        light_duration_minutes=60 * 0.9,  # type: ignore
+        dark_duration_minutes=0.1 * 60,  # type: ignore
         unit=unit,
         experiment=experiment,
     ) as lc:
-        while lc.automation_job.minutes_online < 0:
+        while lc.minutes_online < 0:
             pass
 
-        while lc.automation_job.minutes_online < 10:
+        while lc.minutes_online < 10:
             pass
-        assert lc.automation_job.light_active
+        assert lc.light_active
 
-        while lc.automation_job.minutes_online < 55:
+        while lc.minutes_online < 55:
             pass
-        assert not lc.automation_job.light_active
+        assert not lc.light_active
 
-        while lc.automation_job.minutes_online < 62:
+        while lc.minutes_online < 62:
             pass
-        assert lc.automation_job.light_active
+        assert lc.light_active
 
 
 @pytest.fixture

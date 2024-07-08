@@ -7,7 +7,7 @@ from yaml import Loader  # type: ignore
 
 from pioreactor.automations import *  # noqa: F403, F401
 from pioreactor.background_jobs.dosing_control import DosingController
-from pioreactor.background_jobs.led_control import LEDController
+from pioreactor.background_jobs.led_automation import available_led_automations
 from pioreactor.background_jobs.temperature_control import TemperatureController
 from pioreactor.mureq import get
 
@@ -19,7 +19,7 @@ def get_specific_yaml(path):
 
 def test_automations_and_their_yamls_have_the_same_data():
     try:
-        for automation_name, klass in LEDController.available_automations.items():
+        for automation_name, klass in available_led_automations.items():
             if automation_name.startswith("_test"):
                 continue
 
