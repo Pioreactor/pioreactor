@@ -152,6 +152,23 @@ def am_I_active_worker() -> bool:
     return is_active(get_unit_name())
 
 
+def am_I_a_worker() -> bool:
+    from pioreactor.pubsub import get_from_leader
+
+    if is_testing_env():
+        return True
+
+    try:
+        result = get_from_leader(f"/api/workers/{get_unit_name()}")
+        result.raise_for_status()
+        return True
+    except mureq.HTTPErrorStatus as e:
+        if e.status_code == 404:
+            return False
+        else:
+            raise e
+
+
 @cache
 def get_hashed_serial_number() -> str:
     from hashlib import md5

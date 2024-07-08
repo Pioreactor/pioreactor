@@ -244,7 +244,7 @@ class Monitor(LongRunningBackgroundJob):
             self.check_for_webserver()
             self.check_for_required_jobs_running()
 
-        if whoami.am_I_active_worker():
+        if whoami.am_I_a_worker():
             self.check_for_HAT()
             # check the PCB temperature
             self.check_heater_pcb_temperature()
