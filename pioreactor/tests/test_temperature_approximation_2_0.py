@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from pioreactor.background_jobs import temperature_control
+from pioreactor.background_jobs.temperature_automation import TemperatureAutomationJob
 
 
 class TestTemperatureApproximation_2_0:
     def setup_class(self):
-        self.t = temperature_control.TemperatureController
+        self.t = TemperatureAutomationJob
 
     def test_temperature_approximation_if_constant(self) -> None:
         # TODO: we should add some constants like this to the dataset.

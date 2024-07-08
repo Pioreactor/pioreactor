@@ -1000,7 +1000,7 @@ def test_strings_are_okay_for_chemostat() -> None:
     experiment = "test_strings_are_okay_for_chemostat"
 
     with start_dosing_automation("chemostat", "20", False, unit, experiment, volume="0.7") as chemostat:
-        assert chemostat.vial_volume == 0.7
+        assert chemostat.volume == 0.7
         pause(n=35)
         assert chemostat.media_throughput == 0.7
 
@@ -1229,7 +1229,7 @@ def test_vial_volume_calculator() -> None:
     assert current_volume == 5
 
 
-def test_alt_media_calcualtor_from_0_volume() -> None:
+def test_alt_media_calculator_from_0_volume() -> None:
     # let's start from 0, and start adding.
     ac = AltMediaFractionCalculator
     vc = VialVolumeCalculator

@@ -30,7 +30,7 @@ from pioreactor.background_jobs.od_reading import average_over_pd_channel_to_vol
 from pioreactor.background_jobs.od_reading import IR_keyword
 from pioreactor.background_jobs.od_reading import REF_keyword
 from pioreactor.background_jobs.od_reading import start_od_reading
-from pioreactor.background_jobs.temperature_control import TemperatureController
+from pioreactor.background_jobs.temperature_automation import TemperatureAutomationJob
 from pioreactor.config import config
 from pioreactor.hardware import is_HAT_present
 from pioreactor.hardware import is_heating_pcb_present

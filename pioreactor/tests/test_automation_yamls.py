@@ -8,7 +8,7 @@ from yaml import Loader  # type: ignore
 from pioreactor.automations import *  # noqa: F403, F401
 from pioreactor.background_jobs.dosing_automation import available_dosing_automations
 from pioreactor.background_jobs.led_automation import available_led_automations
-from pioreactor.background_jobs.temperature_control import TemperatureController
+from pioreactor.background_jobs.temperature_automation import available_temperature_automations
 from pioreactor.mureq import get
 
 
@@ -49,7 +49,7 @@ def test_automations_and_their_yamls_have_the_same_data():
             for setting in klass.published_settings:
                 assert any([f["key"] == setting for f in data["fields"]])
 
-        for automation_name, klass in TemperatureController.available_automations.items():
+        for automation_name, klass in available_temperature_automations.items():
             if automation_name.startswith("_test"):
                 continue
 

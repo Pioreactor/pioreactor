@@ -1,46 +1,30 @@
 # -*- coding: utf-8 -*-
-"""
-Continuously monitor the bioreactor's temperature and take action. This is the core of the temperature automation.
-
-
-The temperature is determined using a temperature sensor outside the vial, on the base PCB. This means there is some
-difference between the recorded PCB temperature, and the liquid temperature.
-
-The same PCB is used for heating the vial - so how do we remove the effect of PCB heating from temperature. The general
-algorithm is below, housed in TemperatureController
-
-    1. Turn on heating, the amount controlled by the TemperatureController.heater_duty_cycle.
-    2. Every N minutes, we trigger a sequence:
-        1. Turn off heating completely (a lock is introduced so other jobs can't change this)
-        2. Every M seconds, record the temperature on the PCB.
-        3. Use the series of PCB temperatures to infer the temperature of vial.
-
-
-To change the automation over MQTT,
-
-topic: `pioreactor/<unit>/<experiment>/temperture_control/automation/set`
-message: a json object with required keyword arguments, see structs.TemperatureAutomation
-
-"""
 from __future__ import annotations
 
 from contextlib import suppress
+from datetime import datetime
 from time import sleep
 from typing import Any
+from typing import cast
 from typing import Optional
 
 import click
+from msgspec.json import decode
+from msgspec.json import encode
 
 from pioreactor import error_codes
 from pioreactor import exc
 from pioreactor import hardware
-from pioreactor import whoami
-from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor import structs
+from pioreactor import types as pt
+from pioreactor.automations.base import AutomationJob
 from pioreactor.config import config
+from pioreactor.pubsub import QOS
 from pioreactor.structs import Temperature
-from pioreactor.structs import TemperatureAutomation
 from pioreactor.utils import clamp
+from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_intermittent_storage
+from pioreactor.utils import whoami
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import current_utc_timestamp
@@ -49,22 +33,15 @@ from pioreactor.utils.timing import to_datetime
 from pioreactor.version import rpi_version_info
 
 
-class TemperatureController(BackgroundJob):
+class TemperatureAutomationJob(AutomationJob):
     """
+    This is the super class that Temperature automations inherit from.
+    The `execute` function, which is what subclasses will define, is updated every time a new temperature is recorded to MQTT.
+    Temperatures are updated every 10 minutes.
 
-    This job publishes to
+    To change setting over MQTT:
 
-        pioreactor/<unit>/<experiment>/temperature_control/temperature
-
-    the following:
-
-        {
-            "temperature": <float>,
-            "timestamp": <ISO 8601 timestamp>
-        }
-
-    Parameters
-    ------------
+    `pioreactor/<unit>/<experiment>/temperature_automation/<setting>/set` value
 
     """
 
@@ -91,25 +68,37 @@ class TemperatureController(BackgroundJob):
     # PWM is on for (INFERENCE_EVERY_N_SECONDS - inference_total_time) seconds
     # the ratio of time a PWM is on is equal to (INFERENCE_EVERY_N_SECONDS - inference_total_time) / INFERENCE_EVERY_N_SECONDS
 
-    job_name = "temperature_control"
+    _latest_growth_rate: Optional[float] = None
+    _latest_normalized_od: Optional[float] = None
+    previous_normalized_od: Optional[float] = None
+    previous_growth_rate: Optional[float] = None
 
-    available_automations = {}  # type: ignore
+    latest_temperature = None
+    previous_temperature = None
 
-    published_settings = {
-        "automation": {"datatype": "Automation", "settable": True},
-        "automation_name": {"datatype": "string", "settable": False},
-        "temperature": {"datatype": "Temperature", "settable": False, "unit": "℃"},
-        "heater_duty_cycle": {"datatype": "float", "settable": False, "unit": "%"},
-    }
+    _latest_settings_ended_at = None
+    automation_name = "temperature_automation_base"  # is overwritten in subclasses
+    job_name = "temperature_automation"
+    published_settings: dict[str, pt.PublishableSetting] = dict()
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+
+        # this registers all subclasses of TemperatureAutomationJob
+        if (
+            hasattr(cls, "automation_name")
+            and getattr(cls, "automation_name") != "temperature_automation_base"
+        ):
+            available_temperature_automations[cls.automation_name] = cls
 
     def __init__(
         self,
         unit: str,
         experiment: str,
-        automation_name: str,
         **kwargs,
     ) -> None:
-        super().__init__(unit=unit, experiment=experiment)
+        super(TemperatureAutomationJob, self).__init__(unit, experiment)
+        self._publish_attr("automation_name")
 
         if not hardware.is_heating_pcb_present():
             self.logger.error("Heating PCB must be attached to Pioreactor HAT")
@@ -125,6 +114,7 @@ class TemperatureController(BackgroundJob):
         self.pwm = self.setup_pwm()
 
         self.heating_pcb_tmp_driver = TMP1075(address=hardware.TEMP)
+
         self.read_external_temperature_timer = RepeatedTimer(
             53,
             self.read_external_temperature,
@@ -141,39 +131,17 @@ class TemperatureController(BackgroundJob):
             run_immediately=True,
         ).start()
 
-        try:
-            automation_class = self.available_automations[automation_name]
-        except KeyError:
-            self.logger.error(
-                f"Unable to find automation {automation_name}. Available automations are {list(self.available_automations.keys())}"
-            )
-            self.clean_up()
-            raise KeyError(
-                f"Unable to find automation {automation_name}. Available automations are {list(self.available_automations.keys())}"
-            )
-
-        self.automation = TemperatureAutomation(automation_name=automation_name, args=kwargs)
-        self.logger.info(f"Starting {self.automation}.")
-        try:
-            self.automation_job = automation_class(
-                unit=self.unit,
-                experiment=self.experiment,
-                temperature_control_parent=self,
-                **kwargs,
-            )
-        except Exception as e:
-            self.logger.error(e)
-            self.logger.debug(e, exc_info=True)
-            self.clean_up()
-            raise e
-        self.automation_name = self.automation.automation_name
-
         if whoami.is_testing_env() or self.seconds_since_last_active_heating() >= 10:
             # if we turn off heating and turn on again, without some sort of time to cool, the first temperature looks wonky
             self.temperature = Temperature(
                 temperature=self.read_external_temperature(),
                 timestamp=current_utc_datetime(),
             )
+
+        self.latest_normalized_od_at: datetime = current_utc_datetime()
+        self.latest_growth_rate_at: datetime = current_utc_datetime()
+        self.latest_temperture_at: datetime = current_utc_datetime()
+        self._latest_settings_started_at = current_utc_datetime()
 
     @staticmethod
     def seconds_since_last_active_heating() -> float:
@@ -216,6 +184,52 @@ class TemperatureController(BackgroundJob):
     def read_external_temperature(self) -> float:
         return self._check_if_exceeds_max_temp(self._read_external_temperature())
 
+    def is_heater_pwm_locked(self) -> bool:
+        """
+        Check if the heater PWM channels is locked
+        """
+        return self.pwm.is_locked()
+
+    @property
+    def most_stale_time(self) -> datetime:
+        return min(self.latest_normalized_od_at, self.latest_growth_rate_at)
+
+    @property
+    def latest_growth_rate(self) -> float:
+        # check if None
+        if self._latest_growth_rate is None:
+            # this should really only happen on the initialization.
+            self.logger.debug("Waiting for OD and growth rate data to arrive")
+            if not all(is_pio_job_running(["od_reading", "growth_rate_calculating"])):
+                raise exc.JobRequiredError("`od_reading` and `growth_rate_calculating` should be Ready.")
+
+        # check most stale time
+        if (current_utc_datetime() - self.most_stale_time).seconds > 5 * 60:
+            raise exc.JobRequiredError(
+                "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
+            )
+
+        return cast(float, self._latest_growth_rate)
+
+    @property
+    def latest_normalized_od(self) -> float:
+        # check if None
+        if self._latest_normalized_od is None:
+            # this should really only happen on the initialization.
+            self.logger.debug("Waiting for OD and growth rate data to arrive")
+            if not all(is_pio_job_running(["od_reading", "growth_rate_calculating"])):
+                raise exc.JobRequiredError("`od_reading` and `growth_rate_calculating` should be running.")
+
+        # check most stale time
+        if (current_utc_datetime() - self.most_stale_time).seconds > 5 * 60:
+            raise exc.JobRequiredError(
+                "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
+            )
+
+        return cast(float, self._latest_normalized_od)
+
+    ########## Private & internal methods
+
     def _read_external_temperature(self) -> float:
         """
         Read the current temperature from our sensor, in Celsius
@@ -240,77 +254,12 @@ class TemperatureController(BackgroundJob):
             # todo: still needed? last observed on  July 18, 2022
             self.logger.error("Temp sensor failure. Switching off. See issue #308")
             self._update_heater(0.0)
-            self.set_automation(TemperatureAutomation(automation_name="only_record_temperature"))
 
         with local_intermittent_storage("temperature_and_heating") as cache:
             cache["heating_pcb_temperature"] = averaged_temp
             cache["heating_pcb_temperature_at"] = current_utc_timestamp()
 
         return averaged_temp
-
-    ##### internal and private methods ########
-
-    def set_automation(self, algo_metadata: TemperatureAutomation) -> None:
-        # TODO: this needs a better rollback. Ex: in except, something like
-        # self.automation_job.set_state("init")
-        # self.automation_job.set_state("ready")
-        # OR should just bail...
-
-        assert isinstance(algo_metadata, TemperatureAutomation)
-
-        # users sometimes take the "wrong path" and create a _new_ Thermostat with target_temperature=X
-        # instead of just changing the target_temperature in their current Thermostat. We check for this condition,
-        # and do the "right" thing for them.
-        if (algo_metadata.automation_name == "thermostat") and (
-            self.automation.automation_name == "thermostat"
-        ):
-            # just update the setting, and return
-            self.logger.debug(
-                "Bypassing changing automations, and just updating the setting on the existing Thermostat automation."
-            )
-            self.automation_job.set_target_temperature(float(algo_metadata.args["target_temperature"]))
-            self.automation = algo_metadata
-            return
-
-        try:
-            self.automation_job.clean_up()
-        except AttributeError:
-            # sometimes the user will change the job too fast before the dosing job is created, let's protect against that.
-            sleep(1)
-            self.set_automation(algo_metadata)
-
-        # reset heater back to 0.
-        self._update_heater(0)
-
-        try:
-            self.logger.info(f"Starting {algo_metadata}.")
-            self.automation_job = self.available_automations[algo_metadata.automation_name](
-                unit=self.unit,
-                experiment=self.experiment,
-                temperature_control_parent=self,
-                **algo_metadata.args,
-            )
-            self.automation = algo_metadata
-            self.automation_name = algo_metadata.automation_name
-
-            # since we are changing automations inside a controller, we know that the latest temperature reading is recent, so we can
-            # pass it on to the new automation.
-            # this is most useful when temp-control is initialized with only_record_temperature, and then quickly switched over to thermostat.
-            if hasattr(self, "temperature"):
-                # sometimes self doesn't have temperature, see conditional near self.seconds_since_last_active_heating()
-                self.automation_job._set_latest_temperature(self.temperature)
-
-        except KeyError:
-            self.logger.debug(
-                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.available_automations.keys())}. Note: You need to restart this job to have access to newly-added automations.",
-                exc_info=True,
-            )
-            self.logger.warning(
-                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.available_automations.keys())}. Note: You need to restart this job to have access to newly-added automations."
-            )
-        except Exception as e:
-            self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)
-            self.logger.warning(f"Change failed because of {str(e)}")
 
     def _update_heater(self, new_duty_cycle: float) -> bool:
         self.heater_duty_cycle = clamp(0.0, round(float(new_duty_cycle), 2), 100.0)
@@ -339,13 +288,10 @@ class TemperatureController(BackgroundJob):
             self.blink_error_code(error_codes.PCB_TEMPERATURE_TOO_HIGH)
 
             self.logger.warning(
-                f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_DISABLE_HEATING}℃ - currently {temp}℃. This is beyond our recommendations. The heating PWM channel will be forced to 0 and the automation turned to only_record_temperature. Take caution when touching the heating surface and wetware."
+                f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_DISABLE_HEATING}℃ - currently {temp}℃. This is beyond our recommendations. The heating PWM channel will be forced to 0. Take caution when touching the heating surface and wetware."
             )
 
             self._update_heater(0)
-
-            if self.automation_name != "only_record_temperature":
-                self.set_automation(TemperatureAutomation(automation_name="only_record_temperature"))
 
         elif temp > self.MAX_TEMP_TO_REDUCE_HEATING:
             self.logger.debug(
@@ -356,12 +302,6 @@ class TemperatureController(BackgroundJob):
 
         return temp
 
-    def on_sleeping(self) -> None:
-        self.automation_job.set_state(self.SLEEPING)
-
-    def on_sleeping_to_ready(self) -> None:
-        self.automation_job.set_state(self.READY)
-
     def on_disconnected(self) -> None:
         with suppress(AttributeError):
             self._update_heater(0)
@@ -371,10 +311,10 @@ class TemperatureController(BackgroundJob):
             self.publish_temperature_timer.cancel()
 
         with suppress(AttributeError):
-            self.automation_job.clean_up()
-
-        with suppress(AttributeError):
             self.turn_off_heater()
+
+        self._latest_settings_ended_at = current_utc_datetime()
+        self._send_details_to_mqtt()
 
     def setup_pwm(self) -> PWM:
         hertz = 16  # technically this doesn't need to be high: it could even be 1hz. However, we want to smooth it's
@@ -625,45 +565,145 @@ class TemperatureController(BackgroundJob):
 
         return dot_product(coefs, X) + intercept
 
+    def __setattr__(self, name, value) -> None:
+        super(TemperatureAutomationJob, self).__setattr__(name, value)
+        if name in self.published_settings and name not in ("state", "latest_event"):
+            self._latest_settings_ended_at = current_utc_datetime()
+            self._send_details_to_mqtt()
+            self._latest_settings_started_at, self._latest_settings_ended_at = (
+                current_utc_datetime(),
+                None,
+            )
 
-def start_temperature_control(
+    def _set_growth_rate(self, message: pt.MQTTMessage) -> None:
+        if not message.payload:
+            return
+
+        self.previous_growth_rate = self._latest_growth_rate
+        payload = decode(message.payload, type=structs.GrowthRate)
+        self._latest_growth_rate = payload.growth_rate
+        self.latest_growth_rate_at = payload.timestamp
+
+    def _set_temperature_from_mqtt(self, message: pt.MQTTMessage) -> None:
+        if not message.payload:
+            return
+
+        temperature = decode(message.payload, type=structs.Temperature)
+        return self._set_latest_temperature(temperature)
+
+    def _set_latest_temperature(self, temperature: structs.Temperature) -> None:
+        # we want to avoid a flurry of temperature data coming in, i.e. after a network reconnect.
+        # naive solution: only allow temp data from within 5m
+        if (current_utc_datetime() - temperature.timestamp).total_seconds() >= 5 * 60:
+            self.logger.debug(f"Temperature data too old to execute on: {temperature}")
+            return
+
+        self.previous_temperature = self.latest_temperature
+        self.latest_temperature = temperature.temperature
+        self.latest_temperature_at = temperature.timestamp
+
+        if self.state == self.READY or self.state == self.INIT:
+            self.latest_event = self.execute()
+
+        return
+
+    def _set_OD(self, message: pt.MQTTMessage) -> None:
+        if not message.payload:
+            return
+        self.previous_normalized_od = self._latest_normalized_od
+        payload = decode(message.payload, type=structs.ODFiltered)
+        self._latest_normalized_od = payload.od_filtered
+        self.latest_normalized_od_at = payload.timestamp
+
+    def _send_details_to_mqtt(self) -> None:
+        self.publish(
+            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/temperature_automation_settings",
+            encode(
+                structs.AutomationSettings(
+                    pioreactor_unit=self.unit,
+                    experiment=self.experiment,
+                    started_at=self._latest_settings_started_at,
+                    ended_at=self._latest_settings_ended_at,
+                    automation_name=self.automation_name,
+                    settings=encode(
+                        {
+                            attr: getattr(self, attr, None)
+                            for attr in self.published_settings
+                            if attr not in ("state", "latest_event")
+                        }
+                    ),
+                )
+            ),
+            qos=QOS.EXACTLY_ONCE,
+        )
+
+    def start_passive_listeners(self) -> None:
+        self.subscribe_and_callback(
+            self._set_growth_rate,
+            f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/growth_rate",
+            allow_retained=False,
+        )
+
+        self.subscribe_and_callback(
+            self._set_temperature_from_mqtt,
+            f"pioreactor/{self.unit}/{self.experiment}/temperature_control/temperature",
+            allow_retained=False,  # only use fresh data from Temp Control.
+        )
+
+        self.subscribe_and_callback(
+            self._set_OD,
+            f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/od_filtered",
+            allow_retained=False,
+        )
+
+
+class TemperatureAutomationJobContrib(TemperatureAutomationJob):
+    automation_name: str
+
+
+def start_temperature_automation(
     automation_name: str,
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
     **kwargs,
-) -> TemperatureController:
+) -> TemperatureAutomationJob:
+    # TODO: find the automation class from automation_name, set it to klass
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_assigned_experiment_name(unit)
-    return TemperatureController(
+    klass = available_temperature_automations[automation_name]
+
+    if "skip_first_run" in kwargs:
+        del kwargs["skip_first_run"]
+
+    return klass(
         unit=unit,
         experiment=experiment,
         automation_name=automation_name,
-        **kwargs,
+         **kwargs,
     )
 
 
+available_temperature_automations: dict[str, TemperatureAutomationJob] = {}
+
+
 @click.command(
-    name="temperature_control",
+    name="temperature_automation",
     context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
 )
 @click.option(
     "--automation-name",
-    help="set the automation of the system",
+    help="set the automation of the system: silent, etc.",
     show_default=True,
     required=True,
 )
 @click.pass_context
-def click_temperature_control(ctx, automation_name: str) -> None:
+def click_temperature_automation(ctx, automation_name):
     """
-    Start a temperature automation.
+    Start an Temperature automation
     """
-
-    kwargs = {ctx.args[i][2:].replace("-", "_"): ctx.args[i + 1] for i in range(0, len(ctx.args), 2)}
-    if "skip_first_run" in kwargs:
-        del kwargs["skip_first_run"]
-
-    tc = start_temperature_control(
+    la = start_temperature_automation(
         automation_name=automation_name,
-        **kwargs,
+        **{ctx.args[i][2:].replace("-", "_"): ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},
     )
-    tc.block_until_disconnected()
+
+    la.block_until_disconnected()

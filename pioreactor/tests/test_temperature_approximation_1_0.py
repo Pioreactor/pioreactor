@@ -3,12 +3,12 @@ from __future__ import annotations
 
 import pytest
 
-from pioreactor.background_jobs import temperature_control
+from pioreactor.background_jobs import temperature_automation
 
 
 class TestTemperatureApproximation_1_0:
     def setup_class(self):
-        self.t = temperature_control.TemperatureController
+        self.t = temperature_automation.TemperatureAutomationJob
 
     def test_temperature_approximation_if_less_than_hardcoded_room_temp(self) -> None:
         features = {
