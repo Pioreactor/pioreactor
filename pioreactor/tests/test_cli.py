@@ -8,7 +8,7 @@ import pytest
 from click.testing import CliRunner
 
 from pioreactor import whoami
-from pioreactor.background_jobs.dosing_control import start_dosing_control
+from pioreactor.background_jobs.dosing_automation import start_dosing_automation
 from pioreactor.cli.pio import pio
 from pioreactor.cli.pios import pios
 from pioreactor.pubsub import collect_all_logs_of_level
@@ -97,7 +97,7 @@ def test_pios_update_settings() -> None:
 def test_pio_kill_cleans_up_automations_correctly() -> None:
     exp = "test_pio_kill_cleans_up_automations_correctly"
     unit = "testing_unit"
-    with start_dosing_control("silent", unit=unit, experiment=exp):
+    with start_dosing_automation("silent", unit=unit, experiment=exp):
         pause()
 
         assert is_pio_job_running("dosing_automation")

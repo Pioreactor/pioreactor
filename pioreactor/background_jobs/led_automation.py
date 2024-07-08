@@ -79,6 +79,7 @@ class LEDAutomationJob(AutomationJob):
         **kwargs,
     ) -> None:
         super(LEDAutomationJob, self).__init__(unit, experiment)
+        self._publish_attr("automation_name")
 
         self.skip_first_run = skip_first_run
         self._latest_settings_started_at: datetime = current_utc_datetime()
@@ -86,7 +87,6 @@ class LEDAutomationJob(AutomationJob):
         self.latest_growth_rate_at: datetime = current_utc_datetime()
         self.edited_channels: set[pt.LedChannel] = set()
 
-        self._publish_attr("automation_name")
         self.set_duration(duration)
 
     def set_duration(self, duration: float) -> None:
@@ -320,8 +320,8 @@ class LEDAutomationJobContrib(LEDAutomationJob):
 
 def start_led_automation(
     automation_name: str,
-    duration: Optional[float] = None,
-    skip_first_run=False,
+    duration: Optional[float | str] = None,
+    skip_first_run: bool = False,
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
     **kwargs,

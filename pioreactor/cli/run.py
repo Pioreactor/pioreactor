@@ -6,7 +6,7 @@ import click
 
 from pioreactor import actions
 from pioreactor import plugin_management
-from pioreactor.background_jobs.dosing_control import click_dosing_control
+from pioreactor.background_jobs.dosing_automation import click_dosing_automation
 from pioreactor.background_jobs.growth_rate_calculating import click_growth_rate_calculating
 from pioreactor.background_jobs.leader.mqtt_to_db_streaming import click_mqtt_to_db_streaming
 from pioreactor.background_jobs.leader.watchdog import click_watchdog
@@ -30,7 +30,7 @@ run.add_command(click_monitor)
 run.add_command(click_growth_rate_calculating)
 run.add_command(click_stirring)
 run.add_command(click_od_reading)
-run.add_command(click_dosing_control)
+run.add_command(click_dosing_automation)
 run.add_command(click_led_automation)
 run.add_command(click_temperature_control)
 
