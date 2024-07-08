@@ -5,8 +5,11 @@
  - `unit()` can be used in mqtt fetch expressions. Example: `unit():stirring:target_rpm` is identical to `::stirring:target_rpm`. The latter can be seen as a shortened version of the former.
  - Breaking change: `log` in experiment profiles now uses expressions instead of python formatting. For example: `The unit {unit} is running {job} in experiment {experiment}` should be replaced by expressions in the string: `The unit ${{unit()}} is running ${{job_name()}} in the experiment ${{experiment}}`.
  - Updated Raspberry Pi OS image to 2024-07-04.
- - experiment profiles can have a `description` in the `job` field (i.e. beside `actions`.)
+ - experiment profiles can have a `description` in the `job` field (i.e. beside `actions`).
 
+ - remove the temperature_control, dosing_control, and led_control abstractions. These were introduced early in the Pioreactor as a way to quickly change automations, but they have been more of a wort than a win. While working on experiment profiles, it became more and more clear how poor this abstraction was. The removal of them has some consequences however, and some backward incompatibilities.
+    - update experiment profiles
+    - update high-temp plugins
 
 ### 24.7.5 & 24.7.6 & 24.7.7
 

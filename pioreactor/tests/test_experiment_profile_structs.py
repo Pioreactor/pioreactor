@@ -135,7 +135,7 @@ common:
           hours_elapsed: 0.0
           options:
             target_rpm: 400.0
-    temperature_control:
+    temperature_automation:
       actions:
         - type: start
           hours_elapsed: 0.0
@@ -188,7 +188,7 @@ common:
 pioreactors:
   bioreactor_A:
     jobs:
-      dosing_control:
+      dosing_automation:
         actions:
           - type: start
             hours_elapsed: 1.0
@@ -231,7 +231,7 @@ pioreactors:
   bioreactor_A:
     label: BR-001
     jobs:
-      dosing_control:
+      dosing_automation:
         actions:
           - type: start
             hours_elapsed: 1.0
