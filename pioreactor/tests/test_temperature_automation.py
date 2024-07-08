@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import threading
 import time
 
 from msgspec.json import encode
@@ -10,7 +9,6 @@ from pioreactor import pubsub
 from pioreactor import structs
 from pioreactor.automations.temperature import OnlyRecordTemperature
 from pioreactor.automations.temperature import Thermostat
-from pioreactor.background_jobs import temperature_automation
 from pioreactor.whoami import get_unit_name
 
 unit = get_unit_name()
@@ -23,9 +21,7 @@ def pause(n=1) -> None:
 
 def test_thermostat_automation() -> None:
     experiment = "test_thermostat_automation"
-    with Thermostat(
-        target_temperature=50, unit=unit, experiment=experiment
-    ) as automation_job:
+    with Thermostat(target_temperature=50, unit=unit, experiment=experiment) as automation_job:
         pause(2)
 
         # 55 is too high - clamps to MAX_TARGET_TEMP
@@ -48,9 +44,7 @@ def test_thermostat_automation() -> None:
 
 def test_heating_is_reduced_when_set_temp_is_exceeded() -> None:
     experiment = "test_heating_is_reduced_when_set_temp_is_exceeded"
-    with OnlyRecordTemperature(
-        unit=unit, experiment=experiment
-    ) as t:
+    with OnlyRecordTemperature(unit=unit, experiment=experiment) as t:
         setattr(
             t.heating_pcb_tmp_driver,
             "get_temperature",
@@ -69,9 +63,7 @@ def test_heating_is_reduced_when_set_temp_is_exceeded() -> None:
 
 def test_thermostat_doesnt_fail_when_initial_target_is_less_than_initial_temperature() -> None:
     experiment = "test_thermostat_doesnt_fail_when_initial_target_is_less_than_initial_temperature"
-    with Thermostat(
-        unit=unit, experiment=experiment, target_temperature=20
-    ) as t:
+    with Thermostat(unit=unit, experiment=experiment, target_temperature=20) as t:
         pause(3)
         assert t.state == "ready"
         assert t.heater_duty_cycle == 0
@@ -121,9 +113,7 @@ def test_child_cant_update_heater_when_locked() -> None:
 def test_setting_pid_control_after_startup_will_start_some_heating() -> None:
     # this test tries to replicate what a user does in the UI
     experiment = "test_setting_pid_control_after_startup_will_start_some_heating"
-    with Thermostat(
-        unit=unit, experiment=experiment, target_temperature=35
-    ) as t:
+    with Thermostat(unit=unit, experiment=experiment, target_temperature=35) as t:
         pause(3)
         assert t.state == "ready"
         assert t.heater_duty_cycle > 0
@@ -141,10 +131,7 @@ def test_duty_cycle_is_published_and_not_settable() -> None:
         f"pioreactor/{unit}/{experiment}/temperature_automation/heater_duty_cycle",
     )
 
-    with Thermostat(
-        unit=unit, experiment=experiment, target_temperature=40
-    ):
-
+    with Thermostat(unit=unit, experiment=experiment, target_temperature=40):
         # should produce an "Unable to set heater_duty_cycle"
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_automation/heater_duty_cycle/set",
@@ -165,9 +152,7 @@ def test_coprime() -> None:
         return bltin_gcd(a, b) == 1
 
     experiment = "test_coprime"
-    with Thermostat(
-        unit=unit, experiment=experiment, target_temperature=30
-    ) as tc:
+    with Thermostat(unit=unit, experiment=experiment, target_temperature=30) as tc:
         assert coprime2(
             tc.read_external_temperature_timer.interval,
             tc.publish_temperature_timer.interval,
@@ -191,7 +176,6 @@ def test_using_external_thermocouple() -> None:
         experiment=experiment,
         using_third_party_thermocouple=True,
     ) as tc:
-
         pause()
         pause()
         pause()
@@ -201,22 +185,22 @@ def test_using_external_thermocouple() -> None:
 
         # start publishing from our external temperature
         pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/temperature_control/temperature",
+            f"pioreactor/{unit}/{experiment}/temperature_automation/temperature",
             encode(structs.Temperature(temperature=38, timestamp=current_utc_datetime())),
         )
         pause()
         pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/temperature_control/temperature",
+            f"pioreactor/{unit}/{experiment}/temperature_automation/temperature",
             encode(structs.Temperature(temperature=39, timestamp=current_utc_datetime())),
         )
         pause()
         pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/temperature_control/temperature",
+            f"pioreactor/{unit}/{experiment}/temperature_automation/temperature",
             encode(structs.Temperature(temperature=40, timestamp=current_utc_datetime())),
         )
         pause()
         pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/temperature_control/temperature",
+            f"pioreactor/{unit}/{experiment}/temperature_automation/temperature",
             encode(structs.Temperature(temperature=41, timestamp=current_utc_datetime())),
         )
         pause()

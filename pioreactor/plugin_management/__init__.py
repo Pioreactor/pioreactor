@@ -22,8 +22,7 @@ Entry Points
 
    1. Plugins can use entry_points in the setup, pointing to "pioreactor.plugins"
    2. Automations are defined by a subclassing the respective XXXAutomationContrib. There is a hook in
-      this parent class that will add the subclass to XXXController, hence the Controller will know about
-      it and be able to run it (as the module is loaded in pioreactor.__init__.py)
+      this subclass that will add it to an array to be later discovered by `pio run ... `
    3. command-line additions, like background jobs, are found by searching the plugin's namespace for functions
       prepended with `click_`.
 
