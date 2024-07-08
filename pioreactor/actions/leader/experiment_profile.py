@@ -190,13 +190,13 @@ def wrapped_execute_action(
                 experiment,
                 client,
                 job_name,
-                options,
-                args,
                 dry_run,
                 if_,
                 env,
                 logger,
                 elapsed_seconds_func,
+                options,
+                args,
             )
 
         case struct.Pause(_, if_):
@@ -216,12 +216,21 @@ def wrapped_execute_action(
 
         case struct.Update(_, if_, options):
             return update_job(
-                unit, experiment, client, job_name, options, dry_run, if_, env, logger, elapsed_seconds_func
+                unit, experiment, client, job_name, dry_run, if_, env, logger, elapsed_seconds_func, options
             )
 
         case struct.Log(_, options, if_):
             return log(
-                unit, experiment, client, job_name, options, dry_run, if_, env, logger, elapsed_seconds_func
+                unit,
+                experiment,
+                client,
+                job_name,
+                dry_run,
+                if_,
+                env,
+                logger,
+                elapsed_seconds_func,
+                options,
             )
 
         case struct.Repeat(_, if_, repeat_every_hours, while_, max_hours, actions):
@@ -234,13 +243,13 @@ def wrapped_execute_action(
                 if_,
                 env,
                 logger,
+                elapsed_seconds_func,
                 action,
                 while_,
                 repeat_every_hours,
                 max_hours,
                 actions,
                 schedule,
-                elapsed_seconds_func,
             )
 
         case struct.When(_, if_, condition, actions):
@@ -252,12 +261,12 @@ def wrapped_execute_action(
                 dry_run,
                 if_,
                 env,
-                condition,
                 logger,
+                elapsed_seconds_func,
+                condition,
                 action,
                 actions,
                 schedule,
-                elapsed_seconds_func,
             )
 
         case _:
@@ -301,12 +310,12 @@ def when(
     dry_run: bool,
     if_: Optional[bool_expression],
     env: dict,
-    condition: bool_expression,
     logger: CustomLogger,
+    elapsed_seconds_func: Callable[[], float],
+    condition: bool_expression,
     when_action: struct.When,
     actions: list[struct.Action],
     schedule: scheduler,
-    elapsed_seconds_func: Callable[[], float],
 ) -> Callable[..., None]:
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
@@ -371,13 +380,13 @@ def repeat(
     if_: Optional[bool_expression],
     env: dict,
     logger: CustomLogger,
+    elapsed_seconds_func: Callable[[], float],
     repeat_action: struct.Repeat,
     while_: Optional[bool_expression],
     repeat_every_hours: float,
     max_hours: Optional[float],
     actions: list[struct.BasicAction],
     schedule: scheduler,
-    elapsed_seconds_func: Callable[[], float],
 ) -> Callable[..., None]:
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
@@ -451,12 +460,12 @@ def log(
     experiment: str,
     client: Client,
     job_name: str,
-    options: struct._LogOptions,
     dry_run: bool,
-    if_: Optional[str | bool],
+    if_: Optional[bool_expression],
     env: dict,
     logger: CustomLogger,
-    elapsed_seconds_func,
+    elapsed_seconds_func: Callable[[], float],
+    options: struct._LogOptions,
 ) -> Callable[..., None]:
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
@@ -479,13 +488,13 @@ def start_job(
     experiment: str,
     client: Client,
     job_name: str,
-    options: dict,
-    args: list,
     dry_run: bool,
-    if_: Optional[str | bool],
+    if_: Optional[bool_expression],
     env: dict,
     logger: CustomLogger,
     elapsed_seconds_func: Callable[[], float],
+    options: dict,
+    args: list,
 ) -> Callable[..., None]:
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
@@ -518,7 +527,7 @@ def pause_job(
     client: Client,
     job_name: str,
     dry_run: bool,
-    if_: Optional[str | bool],
+    if_: Optional[bool_expression],
     env: dict,
     logger: CustomLogger,
     elapsed_seconds_func: Callable[[], float],
@@ -547,7 +556,7 @@ def resume_job(
     client: Client,
     job_name: str,
     dry_run: bool,
-    if_: Optional[str | bool],
+    if_: Optional[bool_expression],
     env: dict,
     logger: CustomLogger,
     elapsed_seconds_func: Callable[[], float],
@@ -576,7 +585,7 @@ def stop_job(
     client: Client,
     job_name: str,
     dry_run: bool,
-    if_: Optional[str | bool],
+    if_: Optional[bool_expression],
     env: dict,
     logger: CustomLogger,
     elapsed_seconds_func: Callable[[], float],
@@ -604,12 +613,12 @@ def update_job(
     experiment: str,
     client: Client,
     job_name: str,
-    options: dict,
     dry_run: bool,
-    if_: Optional[str | bool],
+    if_: Optional[bool_expression],
     env: dict,
     logger: CustomLogger,
     elapsed_seconds_func: Callable[[], float],
+    options: dict,
 ) -> Callable[..., None]:
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.

@@ -5,6 +5,7 @@
  - `unit()` can be used in mqtt fetch expressions. Example: `unit():stirring:target_rpm` is identical to `::stirring:target_rpm`. The latter can be seen as a shortened version of the former.
  - Breaking change: `log` in experiment profiles now uses expressions instead of python formatting. For example: `The unit {unit} is running {job} in experiment {experiment}` should be replaced by expressions in the string: `The unit ${{unit()}} is running ${{job_name()}} in the experiment ${{experiment}}`.
  - Updated Raspberry Pi OS image to 2024-07-04.
+ - experiment profiles can have a `description` in the `job` field (i.e. beside `actions`.)
 
 
 ### 24.7.5 & 24.7.6 & 24.7.7
