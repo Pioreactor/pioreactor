@@ -11,6 +11,7 @@ from msgspec.yaml import decode
 from pioreactor.actions.leader.experiment_profile import _verify_experiment_profile
 from pioreactor.actions.leader.experiment_profile import execute_experiment_profile
 from pioreactor.actions.leader.experiment_profile import hours_to_seconds
+from pioreactor.actions.leader.experiment_profile import seconds_to_hours
 from pioreactor.background_jobs.stirring import start_stirring
 from pioreactor.experiment_profiles.profile_struct import _LogOptions
 from pioreactor.experiment_profiles.profile_struct import CommonBlock
@@ -31,11 +32,16 @@ from pioreactor.structs import ODReading
 from pioreactor.utils.timing import current_utc_datetime
 
 
-# First test the hours_to_seconds function
 def test_hours_to_seconds() -> None:
     assert hours_to_seconds(1) == 3600
     assert hours_to_seconds(0.5) == 1800
     assert hours_to_seconds(0) == 0
+
+
+def test_seconds_to_hours() -> None:
+    assert seconds_to_hours(3600.0) == 1
+    assert seconds_to_hours(3600) == 1
+    assert seconds_to_hours(0) == 0
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
