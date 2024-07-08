@@ -191,45 +191,20 @@ def test_execute_experiment_log_actions(mock__load_experiment_profile, active_wo
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
-def test_execute_experiment_start_and_stop_controller(mock__load_experiment_profile) -> None:
+def test_execute_experiment_start_and_stop_automations(mock__load_experiment_profile) -> None:
     experiment = "_testing_experiment"
     action1 = Start(hours_elapsed=0 / 60 / 60, options={"automation_name": "silent"})
-    action2 = Stop(
-        hours_elapsed=1 / 60 / 60,
-    )
+    action2 = Stop(hours_elapsed=1 / 60 / 60)
 
     profile = Profile(
         experiment_profile_name="test_profile",
-        common=CommonBlock(jobs={"temperature_control": Job(actions=[action1, action2])}),
+        common=CommonBlock(jobs={"temperature_automation": Job(actions=[action1, action2])}),
         metadata=Metadata(author="test_author"),
     )
 
     mock__load_experiment_profile.return_value = profile
 
     execute_experiment_profile("profile.yaml", experiment)
-
-
-@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
-def test_execute_experiment_update_automations_not_controllers(
-    mock__load_experiment_profile,
-) -> None:
-    experiment = "_testing_experiment"
-    action1 = Start(
-        hours_elapsed=0 / 60 / 60,
-        options={"automation_name": "thermostat", "target_temperature": 25},
-    )
-    action2 = Update(hours_elapsed=1 / 60 / 60, options={"target_temperature": 30})
-
-    profile = Profile(
-        experiment_profile_name="test_profile",
-        common=CommonBlock(jobs={"temperature_control": Job(actions=[action1, action2])}),
-        metadata=Metadata(author="test_author"),
-    )
-
-    mock__load_experiment_profile.return_value = profile
-
-    with pytest.raises(ValueError, match="Update"):
-        execute_experiment_profile("profile.yaml", experiment)
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
@@ -245,8 +220,7 @@ def test_execute_experiment_update_automation(mock__load_experiment_profile) -> 
         experiment_profile_name="test_profile",
         common=CommonBlock(
             jobs={
-                "temperature_control": Job(actions=[action1]),
-                "temperature_automation": Job(actions=[action2]),
+                "temperature_automation": Job(actions=[action1, action2]),
             }
         ),
         metadata=Metadata(author="test_author"),
@@ -255,33 +229,6 @@ def test_execute_experiment_update_automation(mock__load_experiment_profile) -> 
     mock__load_experiment_profile.return_value = profile
 
     execute_experiment_profile("profile.yaml", experiment)
-
-
-@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
-def test_execute_experiment_start_controller_and_stop_automation_fails(
-    mock__load_experiment_profile,
-) -> None:
-    experiment = "_testing_experiment"
-    action1 = Start(hours_elapsed=0 / 60 / 60, options={"automation_name": "silent"})
-    action2 = Stop(
-        hours_elapsed=1 / 60 / 60,
-    )
-
-    profile = Profile(
-        experiment_profile_name="test_profile",
-        common=CommonBlock(
-            jobs={
-                "temperature_control": Job(actions=[action1]),
-                "temperature_automation": Job(actions=[action2]),
-            }
-        ),
-        metadata=Metadata(author="test_author"),
-    )
-
-    mock__load_experiment_profile.return_value = profile
-
-    with pytest.raises(ValueError, match="stop"):
-        execute_experiment_profile("profile.yaml", experiment)
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")

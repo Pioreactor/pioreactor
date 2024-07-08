@@ -651,9 +651,7 @@ def seconds_to_hours(seconds: float) -> float:
 
 def _verify_experiment_profile(profile: struct.Profile) -> bool:
     # things to check for:
-    # 1. Don't "stop" or "start" any *_automations
-    # 2. Don't change generic settings on *_controllers, (Ex: changing target temp on temp_controller is wrong)
-    # 3. check syntax of if statements
+    # 1. check syntax of if statements
 
     actions_per_job = defaultdict(list)
 
@@ -667,35 +665,6 @@ def _verify_experiment_profile(profile: struct.Profile) -> bool:
             actions_per_job[job].append(action)
 
     # 1.
-    def check_for_not_stopping_automations(action: struct.Action) -> bool:
-        match action:
-            case struct.Stop(_):
-                raise ValueError(
-                    f"Don't use 'stop' for automations. To stop automations, use 'stop' for controllers: {action}"
-                )
-            case struct.Start(_):
-                raise ValueError(
-                    f"Don't use 'start' for automations. To start automations, use 'start' for controllers with `options`: {action}"
-                )
-            case _:
-                pass
-        return True
-
-    for automation_type in ["temperature_automation", "dosing_automation", "led_automation"]:
-        assert all(check_for_not_stopping_automations(act) for act in actions_per_job[automation_type])
-
-    # 2.
-    def check_for_settings_change_on_controllers(action: struct.Action) -> bool:
-        match action:
-            case struct.Update(_, _, options):
-                if "automation_name" not in options:
-                    raise ValueError(f"Update automations, not controllers, with settings: {action}.")
-        return True
-
-    for control_type in ["temperature_control", "dosing_control", "led_control"]:
-        assert all(check_for_settings_change_on_controllers(act) for act in actions_per_job[control_type])
-
-    # 3.
     for job in actions_per_job:
         for action in actions_per_job[job]:
             if action.if_ and not check_syntax_of_bool_expression(action.if_):
