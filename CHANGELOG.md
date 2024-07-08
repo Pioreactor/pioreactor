@@ -1,15 +1,23 @@
 ### Upcoming
 
+
+#### Enhancements
+
  - improvements to the UI's experiment profile preview. It's so pretty!
  - `hours_elapsed()` is a function in profile expressions, which returns the hours since the profile started.
  - `unit()` can be used in mqtt fetch expressions. Example: `unit():stirring:target_rpm` is identical to `::stirring:target_rpm`. The latter can be seen as a shortened version of the former.
- - Breaking change: `log` in experiment profiles now uses expressions instead of python formatting. For example: `The unit {unit} is running {job} in experiment {experiment}` should be replaced by expressions in the string: `The unit ${{unit()}} is running ${{job_name()}} in the experiment ${{experiment}}`.
- - Updated Raspberry Pi OS image to 2024-07-04.
  - experiment profiles can have a `description` in the `job` field (i.e. beside `actions`).
+ - Updated Raspberry Pi OS image to 2024-07-04.
 
- - remove the temperature_control, dosing_control, and led_control abstractions. These were introduced early in the Pioreactor as a way to quickly change automations, but they have been more of a wort than a win. While working on experiment profiles, it became more and more clear how poor this abstraction was. The removal of them has some consequences however, and some backward incompatibilities.
+#### Breaking changes
+
+ - `log` in experiment profiles now uses expressions instead of Python string formatting. For example: `The unit {unit} is running {job} in experiment {experiment}` should be replaced by expressions in the string: `The unit ${{unit()}} is running ${{job_name()}} in the experiment ${{experiment}}`.
+ - remove the temperature_control, dosing_control, and led_control abstractions. These were introduced early in the Pioreactor software as a way to quickly change automations, but they have been more of a wort than a win. While working on experiment profiles recently, it became more and more clear how poor this abstraction was. The removal of them has some consequences however, and some backward incompatibilities.
+
     - update experiment profiles
-    - update high-temp plugins
+    - update plugins
+
+   The benefits of removing this abstraction is much less code, less overhead, easier developer experience, and overall simplification. Later, we may create a new abstraction, but now we are back at a level 0 to build one.
 
 ### 24.7.5 & 24.7.6 & 24.7.7
 

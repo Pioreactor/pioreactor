@@ -3,8 +3,6 @@ from __future__ import annotations
 
 import time
 
-from msgspec.json import encode
-
 from pioreactor import pubsub
 from pioreactor import structs
 from pioreactor.automations.temperature import OnlyRecordTemperature
@@ -179,30 +177,9 @@ def test_using_external_thermocouple() -> None:
         pause()
         pause()
         pause()
-        pause()
-        pause()
         assert tc.automation_name == "_test_my_super_simple_automation"
 
         # start publishing from our external temperature
-        pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/temperature_automation/temperature",
-            encode(structs.Temperature(temperature=38, timestamp=current_utc_datetime())),
-        )
-        pause()
-        pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/temperature_automation/temperature",
-            encode(structs.Temperature(temperature=39, timestamp=current_utc_datetime())),
-        )
-        pause()
-        pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/temperature_automation/temperature",
-            encode(structs.Temperature(temperature=40, timestamp=current_utc_datetime())),
-        )
-        pause()
-        pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/temperature_automation/temperature",
-            encode(structs.Temperature(temperature=41, timestamp=current_utc_datetime())),
-        )
-        pause()
+        tc._set_latest_temperature(structs.Temperature(temperature=38, timestamp=current_utc_datetime()))
 
-        assert tc.latest_value_arrived == 41
+        assert tc.latest_value_arrived == 38

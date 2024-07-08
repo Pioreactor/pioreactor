@@ -329,7 +329,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
         """
         This function is called AFTER the subclass' __init__ finishes successfully
 
-        Typical sequence (doesn't represent not calling stack, but "blocks of code" run)
+        Typical sequence (doesn't represent calling stack, but "blocks of code" run)
+
+        C == calling class (usually a subclass)
+        P = BackgroundJob (this class)
 
         P.__init__() # check for duplicate job
         C.__init__() # risk of job failing here

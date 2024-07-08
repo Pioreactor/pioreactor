@@ -36,8 +36,8 @@ from pioreactor.version import rpi_version_info
 class TemperatureAutomationJob(AutomationJob):
     """
     This is the super class that Temperature automations inherit from.
-    The `execute` function, which is what subclasses will define, is updated every time a new temperature is recorded to MQTT.
-    Temperatures are updated every 10 minutes.
+    The `execute` function, which is what subclasses will define, is updated every time a new temperature is computed.
+    Temperatures are updated every `INFERENCE_EVERY_N_SECONDS` seconds.
 
     To change setting over MQTT:
 
@@ -144,6 +144,11 @@ class TemperatureAutomationJob(AutomationJob):
             run_immediately=True,
         ).start()
 
+        self.latest_normalized_od_at: datetime = current_utc_datetime()
+        self.latest_growth_rate_at: datetime = current_utc_datetime()
+        self.latest_temperture_at: datetime = current_utc_datetime()
+
+    def on_init_to_ready(self):
         if whoami.is_testing_env() or self.seconds_since_last_active_heating() >= 10:
             # if we turn off heating and turn on again, without some sort of time to cool, the first temperature looks wonky
             self.temperature = Temperature(
@@ -151,9 +156,7 @@ class TemperatureAutomationJob(AutomationJob):
                 timestamp=current_utc_datetime(),
             )
 
-        self.latest_normalized_od_at: datetime = current_utc_datetime()
-        self.latest_growth_rate_at: datetime = current_utc_datetime()
-        self.latest_temperture_at: datetime = current_utc_datetime()
+            self._set_latest_temperature(self.temperature)
 
     @staticmethod
     def seconds_since_last_active_heating() -> float:
