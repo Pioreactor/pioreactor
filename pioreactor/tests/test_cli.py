@@ -101,10 +101,9 @@ def test_pio_kill_cleans_up_automations_correctly() -> None:
         pause()
 
         assert is_pio_job_running("dosing_automation")
-        assert is_pio_job_running("dosing_control")
 
         runner = CliRunner()
-        result = runner.invoke(pio, ["kill", "--name", "dosing_control"])
+        result = runner.invoke(pio, ["kill", "--name", "dosing_automation"])
 
         pause()
         assert result.exit_code == 0
@@ -113,4 +112,3 @@ def test_pio_kill_cleans_up_automations_correctly() -> None:
         pause()
 
         assert not is_pio_job_running("dosing_automation")
-        assert not is_pio_job_running("dosing_control")

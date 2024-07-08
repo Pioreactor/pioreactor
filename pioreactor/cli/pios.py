@@ -478,7 +478,7 @@ if am_I_leader():
 
         multiple jobs accepted:
 
-        > pios kill stirring dosing_control
+        > pios kill stirring dosing_automation
 
 
         Kill all worker jobs (i.e. this excludes leader jobs like watchdog). Ignores `job` argument.
@@ -709,7 +709,6 @@ if am_I_leader():
         Examples:
 
         > pios update-settings stirring --target_rpm 500 --units worker1
-        > pios update-settings dosing_control --automation '{"type": "dosing", "automation_name": "silent", "args": {}}
 
         """
         from pioreactor.pubsub import create_client

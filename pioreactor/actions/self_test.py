@@ -23,6 +23,7 @@ import click
 from pioreactor.actions.led_intensity import ALL_LED_CHANNELS
 from pioreactor.actions.led_intensity import change_leds_intensities_temporarily
 from pioreactor.actions.led_intensity import led_intensity
+from pioreactor.automations.temperature.only_record_temperature import OnlyRecordTemperature
 from pioreactor.background_jobs import stirring
 from pioreactor.background_jobs.od_reading import ADCReader
 from pioreactor.background_jobs.od_reading import ALL_PD_CHANNELS
@@ -30,7 +31,6 @@ from pioreactor.background_jobs.od_reading import average_over_pd_channel_to_vol
 from pioreactor.background_jobs.od_reading import IR_keyword
 from pioreactor.background_jobs.od_reading import REF_keyword
 from pioreactor.background_jobs.od_reading import start_od_reading
-from pioreactor.background_jobs.temperature_automation import TemperatureAutomationJob
 from pioreactor.config import config
 from pioreactor.hardware import is_HAT_present
 from pioreactor.hardware import is_heating_pcb_present
@@ -364,7 +364,7 @@ def test_positive_correlation_between_temperature_and_heating(
     measured_pcb_temps = []
     dcs = list(range(0, 30, 3))
 
-    with TemperatureController(unit, experiment, "only_record_temperature") as tc:
+    with OnlyRecordTemperature(unit=unit, experiment=experiment) as tc:
         logger.debug("Varying heating.")
         for dc in dcs:
             tc._update_heater(dc)
@@ -516,7 +516,7 @@ def click_self_test(k: Optional[str], retry_failed: bool) -> int:
         client = state.mqtt_client
         if any(
             is_pio_job_running(
-                ["od_reading", "temperature_control", "stirring", "dosing_control", "led_control"]
+                ["od_reading", "temperature_automation", "stirring", "dosing_automation", "led_automation"]
             )
         ):
             logger.error(

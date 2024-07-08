@@ -14,7 +14,7 @@ from pioreactor.background_jobs.led_automation import click_led_automation
 from pioreactor.background_jobs.monitor import click_monitor
 from pioreactor.background_jobs.od_reading import click_od_reading
 from pioreactor.background_jobs.stirring import click_stirring
-from pioreactor.background_jobs.temperature_control import click_temperature_control
+from pioreactor.background_jobs.temperature_automation import click_temperature_automation
 from pioreactor.whoami import am_I_leader
 
 
@@ -32,7 +32,7 @@ run.add_command(click_stirring)
 run.add_command(click_od_reading)
 run.add_command(click_dosing_automation)
 run.add_command(click_led_automation)
-run.add_command(click_temperature_control)
+run.add_command(click_temperature_automation)
 
 
 run.add_command(actions.led_intensity.click_led_intensity)

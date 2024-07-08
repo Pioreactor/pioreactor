@@ -286,7 +286,6 @@ def update_settings(ctx, job: str) -> None:
 
     > pio update-settings stirring --target_rpm 500
     > pio update-settings stirring --target-rpm 500
-    > pio update-settings dosing_control --automation '{"type": "dosing", "automation_name": "silent", "args": {}}
 
     """
     from pioreactor.pubsub import publish

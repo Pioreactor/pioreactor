@@ -79,7 +79,11 @@ class TemperatureAutomationJob(AutomationJob):
     _latest_settings_ended_at = None
     automation_name = "temperature_automation_base"  # is overwritten in subclasses
     job_name = "temperature_automation"
-    published_settings: dict[str, pt.PublishableSetting] = dict()
+
+    published_settings: dict[str, pt.PublishableSetting] = {
+        "temperature": {"datatype": "Temperature", "settable": False, "unit": "℃"},
+        "heater_duty_cycle": {"datatype": "float", "settable": False, "unit": "%"},
+    }
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -98,6 +102,16 @@ class TemperatureAutomationJob(AutomationJob):
         **kwargs,
     ) -> None:
         super(TemperatureAutomationJob, self).__init__(unit, experiment)
+        self._latest_settings_started_at = current_utc_datetime()
+
+        self.add_to_published_settings(
+            "temperature", {"datatype": "Temperature", "settable": False, "unit": "℃"}
+        )
+
+        self.add_to_published_settings(
+            "heater_duty_cycle",
+            {"datatype": "float", "settable": False, "unit": "%"},
+        )
 
         if not hardware.is_heating_pcb_present():
             self.logger.error("Heating PCB must be attached to Pioreactor HAT")
@@ -140,7 +154,6 @@ class TemperatureAutomationJob(AutomationJob):
         self.latest_normalized_od_at: datetime = current_utc_datetime()
         self.latest_growth_rate_at: datetime = current_utc_datetime()
         self.latest_temperture_at: datetime = current_utc_datetime()
-        self._latest_settings_started_at = current_utc_datetime()
 
     @staticmethod
     def seconds_since_last_active_heating() -> float:
@@ -226,9 +239,6 @@ class TemperatureAutomationJob(AutomationJob):
             )
 
         return cast(float, self._latest_normalized_od)
-
-
-
 
     ########## Private & internal methods
 
@@ -406,6 +416,7 @@ class TemperatureAutomationJob(AutomationJob):
                 temperature=round(inferred_temperature, 2),
                 timestamp=current_utc_datetime(),
             )
+            self._set_latest_temperature(self.temperature)
 
         except Exception as e:
             self.logger.debug(e, exc_info=True)
@@ -569,7 +580,12 @@ class TemperatureAutomationJob(AutomationJob):
 
     def __setattr__(self, name, value) -> None:
         super(TemperatureAutomationJob, self).__setattr__(name, value)
-        if name in self.published_settings and name not in ("state", "latest_event"):
+        if name in self.published_settings and name not in (
+            "state",
+            "latest_event",
+            "heater_duty_cycle",
+            "temperature",
+        ):
             self._latest_settings_ended_at = current_utc_datetime()
             self._send_details_to_mqtt()
             self._latest_settings_started_at, self._latest_settings_ended_at = (
@@ -585,13 +601,6 @@ class TemperatureAutomationJob(AutomationJob):
         payload = decode(message.payload, type=structs.GrowthRate)
         self._latest_growth_rate = payload.growth_rate
         self.latest_growth_rate_at = payload.timestamp
-
-    def _set_temperature_from_mqtt(self, message: pt.MQTTMessage) -> None:
-        if not message.payload:
-            return
-
-        temperature = decode(message.payload, type=structs.Temperature)
-        return self._set_latest_temperature(temperature)
 
     def _set_latest_temperature(self, temperature: structs.Temperature) -> None:
         # we want to avoid a flurry of temperature data coming in, i.e. after a network reconnect.
@@ -631,7 +640,7 @@ class TemperatureAutomationJob(AutomationJob):
                         {
                             attr: getattr(self, attr, None)
                             for attr in self.published_settings
-                            if attr not in ("state", "latest_event")
+                            if attr not in ("state", "latest_event", "heater_duty_cycle", "temperature")
                         }
                     ),
                 )
@@ -644,12 +653,6 @@ class TemperatureAutomationJob(AutomationJob):
             self._set_growth_rate,
             f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/growth_rate",
             allow_retained=False,
-        )
-
-        self.subscribe_and_callback(
-            self._set_temperature_from_mqtt,
-            f"pioreactor/{self.unit}/{self.experiment}/temperature_control/temperature",
-            allow_retained=False,  # only use fresh data from Temp Control.
         )
 
         self.subscribe_and_callback(
@@ -681,11 +684,11 @@ def start_temperature_automation(
         unit=unit,
         experiment=experiment,
         automation_name=automation_name,
-         **kwargs,
+        **kwargs,
     )
 
 
-available_temperature_automations: dict[str, TemperatureAutomationJob] = {}
+available_temperature_automations: dict[str, type[TemperatureAutomationJob]] = {}
 
 
 @click.command(

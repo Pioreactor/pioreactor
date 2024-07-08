@@ -65,8 +65,7 @@ class LEDAutomationJob(AutomationJob):
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        # this registers all subclasses of LEDAutomation back to LEDController, so the subclass
-        # can be invoked in LEDController.
+        # this registers all subclasses of LEDAutomation
         if hasattr(cls, "automation_name") and getattr(cls, "automation_name") != "led_automation_base":
             available_led_automations[cls.automation_name] = cls
 
@@ -79,7 +78,6 @@ class LEDAutomationJob(AutomationJob):
         **kwargs,
     ) -> None:
         super(LEDAutomationJob, self).__init__(unit, experiment)
-        self._publish_attr("automation_name")
 
         self.skip_first_run = skip_first_run
         self._latest_settings_started_at: datetime = current_utc_datetime()
@@ -320,7 +318,7 @@ class LEDAutomationJobContrib(LEDAutomationJob):
 
 def start_led_automation(
     automation_name: str,
-    duration: Optional[float | str] = None,
+    duration: float,
     skip_first_run: bool = False,
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
@@ -341,7 +339,7 @@ def start_led_automation(
     )
 
 
-available_led_automations: dict[str, LEDAutomationJob] = {}
+available_led_automations: dict[str, type[LEDAutomationJob]] = {}
 
 
 @click.command(
@@ -368,7 +366,7 @@ def click_led_automation(ctx, automation_name, duration, skip_first_run):
 
     la = start_led_automation(
         automation_name=automation_name,
-        duration=duration,
+        duration=float(duration),
         skip_first_run=bool(skip_first_run),
         **{ctx.args[i][2:].replace("-", "_"): ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},
     )

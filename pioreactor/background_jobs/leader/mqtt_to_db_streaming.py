@@ -392,7 +392,7 @@ def add_default_source_to_sinks() -> list[TopicToParserToTable]:
                 "growth_rates",
             ),
             TopicToParserToTable(
-                "pioreactor/+/+/temperature_control/temperature",
+                "pioreactor/+/+/temperature_automation/temperature",
                 parse_temperature,
                 "temperature_readings",
             ),

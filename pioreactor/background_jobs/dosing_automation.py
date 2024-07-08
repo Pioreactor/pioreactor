@@ -234,7 +234,6 @@ class DosingAutomationJob(AutomationJob):
         **kwargs,
     ) -> None:
         super(DosingAutomationJob, self).__init__(unit, experiment)
-        self._publish_attr("automation_name")
 
         self.skip_first_run = skip_first_run
 
@@ -731,7 +730,7 @@ class DosingAutomationJobContrib(DosingAutomationJob):
 
 def start_dosing_automation(
     automation_name: str,
-    duration: Optional[float | str] = None,
+    duration: Optional[float] = None,
     skip_first_run: bool = False,
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
@@ -752,7 +751,7 @@ def start_dosing_automation(
     )
 
 
-available_dosing_automations: dict[str, DosingAutomationJob] = {}
+available_dosing_automations: dict[str, type[DosingAutomationJob]] = {}
 
 
 @click.command(
@@ -779,7 +778,7 @@ def click_dosing_automation(ctx, automation_name, duration, skip_first_run):
 
     la = start_dosing_automation(
         automation_name=automation_name,
-        duration=duration,
+        duration=float(duration),
         skip_first_run=bool(skip_first_run),
         **{ctx.args[i][2:].replace("-", "_"): ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},
     )

@@ -398,7 +398,7 @@ class Monitor(LongRunningBackgroundJob):
         observed_tmp = tmp_driver.get_temperature()
 
         if observed_tmp >= self.MAX_TEMP_TO_SHUTDOWN:
-            # something is wrong - temperature_control should have detected this, but didn't, so it must have failed / incorrectly cleaned up.
+            # something is wrong - temperature_automation should have detected this, but didn't, so it must have failed / incorrectly cleaned up.
             # we're going to just shutdown to be safe.
             self.logger.error(
                 f"Detected an extremely high temperature, {observed_tmp} ℃ on the heating PCB - shutting down for safety."
