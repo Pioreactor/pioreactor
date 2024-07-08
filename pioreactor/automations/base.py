@@ -22,12 +22,21 @@ class AutomationJob(BackgroundJob):
             raise NameError(f"{self.automation_name} is not allowed.")
 
         self.add_to_published_settings(
+            "automation_name",
+            {
+                "datatype": "string",
+                "settable": False,
+            }
+        )
+        self.add_to_published_settings(
             "latest_event",
             {
                 "datatype": "AutomationEvent",
                 "settable": False,
             },
         )
+        self._publish_attr("automation_name")
+
 
     def on_init_to_ready(self) -> None:
         self.start_passive_listeners()

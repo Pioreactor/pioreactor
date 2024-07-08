@@ -98,7 +98,6 @@ class TemperatureAutomationJob(AutomationJob):
         **kwargs,
     ) -> None:
         super(TemperatureAutomationJob, self).__init__(unit, experiment)
-        self._publish_attr("automation_name")
 
         if not hardware.is_heating_pcb_present():
             self.logger.error("Heating PCB must be attached to Pioreactor HAT")
@@ -227,6 +226,9 @@ class TemperatureAutomationJob(AutomationJob):
             )
 
         return cast(float, self._latest_normalized_od)
+
+
+
 
     ########## Private & internal methods
 

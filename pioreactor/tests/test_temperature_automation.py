@@ -138,7 +138,7 @@ def test_duty_cycle_is_published_and_not_settable() -> None:
 
     pubsub.subscribe_and_callback(
         collect,
-        f"pioreactor/{unit}/{experiment}/temperature_control/heater_duty_cycle",
+        f"pioreactor/{unit}/{experiment}/temperature_automation/heater_duty_cycle",
     )
 
     with Thermostat(
