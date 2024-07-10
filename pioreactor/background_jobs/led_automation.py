@@ -324,10 +324,14 @@ def start_led_automation(
     experiment: Optional[str] = None,
     **kwargs,
 ) -> LEDAutomationJob:
-    # TODO: find the automation class from automation_name, set it to klass
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_assigned_experiment_name(unit)
-    klass = available_led_automations[automation_name]
+    try:
+        klass = available_led_automations[automation_name]
+    except KeyError:
+        raise KeyError(
+            f"Unable to find {automation_name}. Available automations are {list(available_led_automations.keys())}"
+        )
 
     return klass(
         unit=unit,

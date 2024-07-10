@@ -25,7 +25,7 @@ CORE_REQUIREMENTS = [
 
 LEADER_REQUIREMENTS = [
     "blinker==1.8.2",
-    "Flask==3.0.2",
+    "flask==3.0.2",
     "flup6==1.1.1",
     "huey==2.5.0",
     "ifaddr==0.2.0",

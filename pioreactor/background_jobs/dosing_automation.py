@@ -736,7 +736,6 @@ def start_dosing_automation(
     experiment: Optional[str] = None,
     **kwargs,
 ) -> DosingAutomationJob:
-    # TODO: find the automation class from automation_name, set it to klass
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_assigned_experiment_name(unit)
     klass = available_dosing_automations[automation_name]

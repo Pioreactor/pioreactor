@@ -675,10 +675,14 @@ def start_temperature_automation(
     experiment: Optional[str] = None,
     **kwargs,
 ) -> TemperatureAutomationJob:
-    # TODO: find the automation class from automation_name, set it to klass
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_assigned_experiment_name(unit)
-    klass = available_temperature_automations[automation_name]
+    try:
+        klass = available_temperature_automations[automation_name]
+    except KeyError:
+        raise KeyError(
+            f"Unable to find {automation_name}. Available automations are {list( available_temperature_automations.keys())}"
+        )
 
     if "skip_first_run" in kwargs:
         del kwargs["skip_first_run"]
