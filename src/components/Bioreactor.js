@@ -114,7 +114,7 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
       setRpm(rpm_)
       setHeat(heat_)
 
-    } else if (topicString.endsWith("temperature_control/temperature")){
+    } else if (topicString.endsWith("temperature_automation/temperature")){
       if (messageString === "") {
         setTemperature(null)
       } else {
@@ -132,7 +132,7 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
       } else {
         setVolume(parseFloat(messageString))
       }
-    //} else if (topicString.endsWith("temperature_control/automation_name")){
+    //} else if (topicString.endsWith("temperature_automation/automation_name")){
       // if (messageString === "") {
       //   setHeat(false)
       // } else {
@@ -149,12 +149,12 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
 
   useEffect(() => {
     if (client && experiment){
-      subscribeToTopic([`pioreactor/${unit}/${experiment}/temperature_control/temperature`,
+      subscribeToTopic([`pioreactor/${unit}/${experiment}/temperature_automation/temperature`,
         `pioreactor/${unit}/${experiment}/growth_rate_calculating/od_filtered`,
         `pioreactor/${unit}/${experiment}/leds/intensity`,
         `pioreactor/${unit}/${experiment}/dosing_automation/vial_volume`,
         `pioreactor/${unit}/${experiment}/pwms/dc`,
-        `pioreactor/${unit}/_testing_${experiment}/temperature_control/temperature`,
+        `pioreactor/${unit}/_testing_${experiment}/temperature_automation/temperature`,
         `pioreactor/${unit}/_testing_${experiment}/growth_rate_calculating/od_filtered`,
         `pioreactor/${unit}/_testing_${experiment}/leds/intensity`,
         `pioreactor/${unit}/_testing_${experiment}/dosing_automation/vial_volume`,

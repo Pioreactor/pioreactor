@@ -9,6 +9,7 @@ import CardContent from '@mui/material/CardContent';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 import InputLabel from '@mui/material/InputLabel';
+import Chip from '@mui/material/Chip';
 import Typography from '@mui/material/Typography';
 import { MQTTProvider, useMQTT } from './providers/MQTTContext';
 import {getConfig} from "./utilities"
@@ -396,8 +397,8 @@ function WorkerCard(props) {
 
         </div>
 
-        <Typography variant="subtitle2" color={activeStatus === "active" ? "text.secondary" : inactiveGrey}  >
-          {experimentAssigned ? <>Assigned to <i>{experimentAssigned}</i></> : "Unassigned"}
+        <Typography variant="subtitle2" color={activeStatus === "active" ? "inherit" : inactiveGrey}  >
+          {experimentAssigned ? <>Assigned to <Chip size="small" label={experimentAssigned}/> </> : "Unassigned"}
         </Typography>
 
         <Divider sx={{margin: "5px 0px"}}/>

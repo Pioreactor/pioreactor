@@ -6,6 +6,7 @@ import Grid from '@mui/material/Grid';
 import { useMediaQuery } from "@mui/material";
 import { styled } from '@mui/material/styles';
 
+import Chip from '@mui/material/Chip';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/Card';
 import {Typography} from '@mui/material';
@@ -86,7 +87,8 @@ const stateDisplay = {
 function StateTypography({ state, isDisabled=false }) {
   const style = {
     color: isDisabled ? disabledColor : stateDisplay[state].color,
-    padding: "1px 5px",
+    padding: "1px 10px",
+    borderRadius: "16px",
     backgroundColor: stateDisplay[state].backgroundColor,
     display: "inline-block",
     fontWeight: 500
@@ -148,7 +150,7 @@ function TabPanel(props) {
 function UnitSettingDisplaySubtext(props){
 
   if (props.subtext){
-    return <Box sx={{fontSize: "11px", wordBreak: "break-word", padding: "5px 0px"}}><code>{props.subtext.replace("_", " ")}</code></Box>
+    return <Chip size="small" sx={{fontSize: "11px", wordBreak: "break-word", padding: "5px 0px"}} label={props.subtext.replaceAll("_", " ")} />
   }
   else{
     return <Box sx={{minHeight: "15px"}}></Box>
@@ -189,6 +191,7 @@ function UnitSettingDisplay(props) {
       return (
         <React.Fragment>
           <StateTypography state={value} isDisabled={!props.isUnitActive}/>
+          <br/>
           <UnitSettingDisplaySubtext subtext={props.subtext}/>
         </React.Fragment>
     )
@@ -277,10 +280,10 @@ function UnitSettingDisplay(props) {
     } else {
       return (
         <React.Fragment>
-          <div style={{ fontSize: "13px"}}>
-            {formatForDisplay(value) + " " +
+          <Chip size="small" style={{ fontSize: "13px"}}
+            label={formatForDisplay(value) + " " +
               (props.measurementUnit ? props.measurementUnit : "")}
-          </div>
+          />
           <UnitSettingDisplaySubtext subtext={props.subtext}/>
         </React.Fragment>
       );
@@ -915,7 +918,7 @@ function SettingsActionsDialog(props) {
       setSnackbarOpen: setSnackbarOpen,
       value: setting.value,
       units: setting.unit,
-      id: `${job_key.replace("_control", "_automation")}/${setting_key}`,
+      id: `${job_key}/${setting_key}`,
       disabled: state === "disconnected",
     };
 
@@ -939,14 +942,9 @@ function SettingsActionsDialog(props) {
   const macInfoEth = props.jobs.monitor.publishedSettings.eth_mac_address.value
 
   const isLargeScreen = useMediaQuery(theme => theme.breakpoints.down('xl'));
-  var dosingControlJob = props.jobs.dosing_control
-  var dosingControlJobRunning = ["ready", "sleeping", "init"].includes(dosingControlJob?.state)
-
-  var ledControlJob = props.jobs.led_control
-  var ledControlJobRunning = ["ready", "sleeping", "init"].includes(ledControlJob?.state)
-
-  var temperatureControlJob = props.jobs.temperature_control
-  var temperatureControlJobRunning = ["ready", "sleeping", "init"].includes(temperatureControlJob?.state)
+  const dosingControlJob = props.jobs.dosing_automation
+  const ledControlJob = props.jobs.led_automation
+  const temperatureControlJob = props.jobs.temperature_automation
 
   return (
     <div>
@@ -996,7 +994,7 @@ function SettingsActionsDialog(props) {
           {/* Unit Specific Activites */}
           {Object.entries(props.jobs)
             .filter(([job_key, job]) => job.metadata.display)
-            .filter(([job_key, job]) => !['dosing_control', 'led_control', 'temperature_control'].includes(job_key))
+            .filter(([job_key, job]) => !['dosing_automation', 'led_automation', 'temperature_automation'].includes(job_key)) // added later
             .map(([job_key, job]) =>
             <div key={job_key}>
               <div style={{justifyContent: "space-between", display: "flex"}}>
@@ -1033,7 +1031,7 @@ function SettingsActionsDialog(props) {
               {(temperatureControlJob.state === "ready") || (temperatureControlJob.state === "sleeping") || (temperatureControlJob.state === "init")
               ?<React.Fragment>
                 <Typography variant="body2" component="p" gutterBottom>
-                Currently running temperature automation <StylizedCode>{temperatureControlJob.publishedSettings.automation_name.value}</StylizedCode>.
+                Currently running temperature automation <Chip size="small" label={temperatureControlJob.publishedSettings.automation_name.value}/>
                 </Typography>
                 {buttons[temperatureControlJob.metadata.key]}
                </React.Fragment>
@@ -1064,23 +1062,12 @@ function SettingsActionsDialog(props) {
               }
             </div>
 
-            <Button
-              onClick={() => setOpenChangeTemperatureDialog(true)}
-              style={{marginTop: "10px", textTransform: "none"}}
-              size="small"
-              color="primary"
-              disabled={!temperatureControlJobRunning}
-            >
-              Replace running temperature automation
-            </Button>
-
             <ChangeAutomationsDialog
               open={openChangeTemperatureDialog}
               onFinished={() => setOpenChangeTemperatureDialog(false)}
               unit={props.unit}
               label={props.label}
               experiment={props.experiment}
-              isJobRunning={temperatureControlJobRunning}
               automationType="temperature"
               no_skip_first_run={true}
             />
@@ -1101,7 +1088,7 @@ function SettingsActionsDialog(props) {
               {(dosingControlJob.state === "ready") || (dosingControlJob.state === "sleeping") || (temperatureControlJob.state === "init")
               ?<React.Fragment>
                 <Typography variant="body2" component="p" gutterBottom>
-                Currently running dosing automation <code>{dosingControlJob.publishedSettings.automation_name.value}</code>.
+                Currently running dosing automation <Chip size="small" label={dosingControlJob.publishedSettings.automation_name.value}/>.
                 </Typography>
                 {buttons[dosingControlJob.metadata.key]}
                </React.Fragment>
@@ -1131,15 +1118,6 @@ function SettingsActionsDialog(props) {
               }
             </div>
 
-            <Button
-              onClick={() => setOpenChangeDosingDialog(true)}
-              style={{marginTop: "10px", textTransform: "none"}}
-              size="small"
-              color="primary"
-              disabled={!dosingControlJobRunning}
-            >
-              Replace running dosing automation
-            </Button>
 
             <ChangeAutomationsDialog
               automationType="dosing"
@@ -1148,7 +1126,6 @@ function SettingsActionsDialog(props) {
               unit={props.unit}
               label={props.label}
               experiment={props.experiment}
-              isJobRunning={dosingControlJobRunning}
               no_skip_first_run={false}
             />
           </React.Fragment>
@@ -1170,7 +1147,7 @@ function SettingsActionsDialog(props) {
               {(ledControlJob.state === "ready") || (ledControlJob.state === "sleeping") || (temperatureControlJob.state === "init")
               ?<React.Fragment>
                 <Typography variant="body2" component="p" gutterBottom>
-                Currently running LED automation <code>{ledControlJob.publishedSettings.automation_name.value}</code>.
+                Currently running LED automation <Chip size="small" label={ledControlJob.publishedSettings.automation_name.value}/>.
                 </Typography>
                 {buttons[ledControlJob.metadata.key]}
                </React.Fragment>
@@ -1200,16 +1177,6 @@ function SettingsActionsDialog(props) {
               }
             </div>
 
-            <Button
-              onClick={() => setOpenChangeLEDDialog(true)}
-              style={{marginTop: "10px", textTransform: "none"}}
-              size="small"
-              color="primary"
-              disabled={!ledControlJobRunning}
-            >
-              Replace running LED automation
-            </Button>
-
             <ChangeAutomationsDialog
               automationType="led"
               open={openChangeLEDDialog}
@@ -1217,7 +1184,6 @@ function SettingsActionsDialog(props) {
               unit={props.unit}
               label={props.label}
               experiment={props.experiment}
-              isJobRunning={ledControlJobRunning}
               no_skip_first_run={false}
             />
           </React.Fragment>
@@ -1674,13 +1640,13 @@ function SettingsActionsDialogAll({experiment}) {
       }
     };
 
-    if (job.metadata.key === "temperature_control"){
+    if (job.metadata.key === "temperature_automation"){
       var startAction = () => setOpenChangeTemperatureDialog(true)
     }
-    else if (job.metadata.key === "dosing_control"){
+    else if (job.metadata.key === "dosing_automation"){
       startAction = () => setOpenChangeDosingDialog(true)
     }
-    else if (job.metadata.key === "led_control"){
+    else if (job.metadata.key === "led_automation"){
       startAction = () => setOpenChangeLEDDialog(true)
     }
     else {
@@ -1727,9 +1693,9 @@ function SettingsActionsDialogAll({experiment}) {
 
   const buttons = Object.fromEntries(Object.entries(jobs).map( ([job_key, job], i) => [job_key, createUserButtonsBasedOnState(job)]))
   const isLargeScreen = useMediaQuery(theme => theme.breakpoints.down('xl'));
-  var dosingControlJob = jobs.dosing_control
-  var ledControlJob = jobs.led_control
-  var temperatureControlJob = jobs.temperature_control
+  var dosingControlJob = jobs.dosing_automation
+  var ledControlJob = jobs.led_automation
+  var temperatureControlJob = jobs.temperature_automation
 
   return (
     <React.Fragment>
@@ -1777,7 +1743,7 @@ function SettingsActionsDialogAll({experiment}) {
         <TabPanel value={tabValue} index={0}>
           {Object.entries(jobs)
             .filter(([job_key, job]) => job.metadata.display)
-            .filter(([job_key, job]) => !['dosing_control', 'led_control', 'temperature_control'].includes(job_key))
+            .filter(([job_key, job]) => !['dosing_automation', 'led_automation', 'temperature_automation'].includes(job_key))
             .map(([job_key, job]) =>
             <div key={job_key}>
               <Typography gutterBottom>
@@ -1806,7 +1772,7 @@ function SettingsActionsDialogAll({experiment}) {
                 <span dangerouslySetInnerHTML={{__html: temperatureControlJob.metadata.description}}/>
               </Typography>
 
-              {buttons['temperature_control']}
+              {buttons['temperature_automation']}
             </div>
 
             <ChangeAutomationsDialog
@@ -1814,7 +1780,6 @@ function SettingsActionsDialogAll({experiment}) {
               onFinished={() => setOpenChangeTemperatureDialog(false)}
               unit={unit}
               experiment={experiment}
-              isJobRunning={false}
               automationType="temperature"
               no_skip_first_run={true}
             />
@@ -1837,7 +1802,7 @@ function SettingsActionsDialogAll({experiment}) {
                 <span dangerouslySetInnerHTML={{__html: dosingControlJob.metadata.description}}/>
               </Typography>
 
-              {buttons['dosing_control']}
+              {buttons['dosing_automation']}
             </div>
 
             <ChangeAutomationsDialog
@@ -1846,7 +1811,6 @@ function SettingsActionsDialogAll({experiment}) {
               onFinished={() => setOpenChangeDosingDialog(false)}
               unit={unit}
               experiment={experiment}
-              isJobRunning={false}
               no_skip_first_run={false}
             />
           </React.Fragment>
@@ -1867,7 +1831,7 @@ function SettingsActionsDialogAll({experiment}) {
                 <span dangerouslySetInnerHTML={{__html: ledControlJob.metadata.description}}/>
               </Typography>
 
-              {buttons['led_control']}
+              {buttons['led_automation']}
             </div>
 
             <ChangeAutomationsDialog
@@ -1876,7 +1840,6 @@ function SettingsActionsDialogAll({experiment}) {
               onFinished={() => setOpenChangeLEDDialog(false)}
               unit={unit}
               experiment={experiment}
-              isJobRunning={false}
               no_skip_first_run={false}
             />
           </React.Fragment>
@@ -1909,7 +1872,7 @@ function SettingsActionsDialogAll({experiment}) {
                       setSnackbarOpen={setSnackbarOpen}
                       value={setting.value}
                       units={setting.unit}
-                      id={`${job_key.replace("_control", "_automation")}/${setting_key}`}
+                      id={`${job_key}/${setting_key}`}
                       disabled={false}
                     />
                   )}
@@ -1921,7 +1884,7 @@ function SettingsActionsDialogAll({experiment}) {
                     setSnackbarOpen={setSnackbarOpen}
                     value={setting.value}
                     units={setting.unit}
-                    id={`${job_key.replace("_control", "_automation")}/${setting_key}`}
+                    id={`${job_key}/${setting_key}`}
                     disabled={false}
                   />
                   )}
@@ -2398,7 +2361,7 @@ function PioreactorCard(props){
             "pioreactor",
             unit,
             (job === "monitor" ? "$experiment" : experiment),
-            (setting === "automation_name") ? job : job.replace("_control", "_automation"), // this is for, ex, automation_name
+            job,
             setting
           ].join("/")
           subscribeToTopic(topic, onMessage, "PioreactorCard");
@@ -2412,14 +2375,6 @@ function PioreactorCard(props){
     if (setting === "$state"){
       var payload = message.toString()
       setJobs((prev) => ({...prev, [job]: {...prev[job], state: payload}}))
-    } else if (job.endsWith("_automation")) {
-      // needed because settings are attached to _automations, not _control
-      job = job.replace("_automation", "_control")
-      var payload = parseToType(message.toString(), jobs[job].publishedSettings[setting].type)
-      setJobs((prev) => ({...prev, [job]: {...prev[job], publishedSettings:
-          {...prev[job].publishedSettings,
-            [setting]:
-              {...prev[job].publishedSettings[setting], value: payload }}}}))
     } else {
       var payload = parseToType(message.toString(), jobs[job].publishedSettings[setting].type)
       setJobs(prev => {

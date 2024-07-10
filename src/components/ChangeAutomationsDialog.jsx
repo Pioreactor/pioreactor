@@ -39,7 +39,6 @@ function ChangeAutomationsDialog(props) {
   })
   const [automations, setAutomations] = useState({})
   const [openSnackbar, setOpenSnackbar] = useState(false);
-  const {client } = useMQTT();
 
   useEffect(() => {
     function fetchAutomations() {
@@ -86,30 +85,9 @@ function ChangeAutomationsDialog(props) {
 
   const startJob = (event) => {
     event.preventDefault()
-    runPioreactorJob(props.unit, props.experiment, `${automationType}_control`, [], {"automation_name": automationName, ...removeEmpty(algoSettings)})
+    runPioreactorJob(props.unit, props.experiment, `${automationType}_automation`, [], {"automation_name": automationName, ...removeEmpty(algoSettings)})
     setOpenSnackbar(true);
     handleClose()
-  }
-
-  const changeAutomation = (event) => {
-    event.preventDefault()
-    const message =JSON.stringify({"automation_name": automationName, "type": automationType, "args": algoSettings})
-    const topic = [
-      "pioreactor",
-      props.unit,
-      props.experiment,
-      `${automationType}_control`,
-      "automation",
-      "set",
-    ].join("/");
-    try{
-      client.publish(topic, message, {qos: 2});
-      setOpenSnackbar(true);
-    }
-    catch (e){
-      console.log(e)
-    }
-    handleClose();
   }
 
   const handleSnackbarClose = () => {
@@ -190,7 +168,7 @@ function ChangeAutomationsDialog(props) {
           type="submit"
           variant="contained"
           color="primary"
-          onClick={props.isJobRunning ? changeAutomation :  startJob}
+          onClick={startJob}
         >
           Start
         </Button>
