@@ -148,11 +148,6 @@ class Sqlite3Worker(threading.Thread):
             # Check that the thread is done before returning.
             self.join()
 
-    @property
-    def queue_size(self) -> int:
-        """Return the queue size."""
-        return self._sql_queue.qsize()
-
     def _query_results(self, token: str):
         """Get the query results for a specific token.
 

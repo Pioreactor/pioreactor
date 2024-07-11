@@ -606,12 +606,7 @@ class TemperatureAutomationJob(AutomationJob):
         self.latest_growth_rate_at = payload.timestamp
 
     def _set_latest_temperature(self, temperature: structs.Temperature) -> None:
-        # we want to avoid a flurry of temperature data coming in, i.e. after a network reconnect.
-        # naive solution: only allow temp data from within 5m
-        if (current_utc_datetime() - temperature.timestamp).total_seconds() >= 5 * 60:
-            self.logger.debug(f"Temperature data too old to execute on: {temperature}")
-            return
-
+        # Note: this doesn't use MQTT data (previously it use to)
         self.previous_temperature = self.latest_temperature
         self.latest_temperature = temperature.temperature
         self.latest_temperature_at = temperature.timestamp

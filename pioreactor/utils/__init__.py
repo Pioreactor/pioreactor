@@ -502,20 +502,20 @@ class ShellKill:
 
 class MQTTKill:
     def __init__(self) -> None:
-        self.list_of_job_names: list[str] = []
+        self.job_names_to_kill: list[str] = []
 
     def append(self, name: str) -> None:
-        self.list_of_job_names.append(name)
+        self.job_names_to_kill.append(name)
 
     def kill_jobs(self) -> int:
         count = 0
-        if len(self.list_of_job_names) == 0:
+        if len(self.job_names_to_kill) == 0:
             return count
 
         from pioreactor.pubsub import create_client
 
         with create_client() as client:
-            for i, name in enumerate(self.list_of_job_names):
+            for i, name in enumerate(self.job_names_to_kill):
                 count += 1
                 msg = client.publish(
                     f"pioreactor/{whoami.get_unit_name()}/{whoami.UNIVERSAL_EXPERIMENT}/{name}/$state/set",
@@ -523,7 +523,7 @@ class MQTTKill:
                     qos=1,
                 )
 
-                if (i + 1) == len(self.list_of_job_names):
+                if (i + 1) == len(self.job_names_to_kill):
                     # last one
                     msg.wait_for_publish(2)
 
@@ -531,7 +531,6 @@ class MQTTKill:
 
 
 class JobManager:
-    AUTOMATION_JOBS = ("temperature_automation", "dosing_automation", "led_automation")
     PUMPING_JOBS = (
         "add_media",
         "remove_waste",
@@ -633,9 +632,6 @@ class JobManager:
                 mqtt_kill.append(job)
             elif job == "led_intensity":
                 # led_intensity doesn't register with the JobManager, probably should somehow. #502
-                pass
-            elif job in self.AUTOMATION_JOBS:
-                # don't kill them, the parent will.
                 pass
             else:
                 shell_kill.append(pid)

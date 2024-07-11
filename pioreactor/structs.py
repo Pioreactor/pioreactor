@@ -31,48 +31,6 @@ def subclass_union(cls: t.Type[T]) -> t.Type[T]:
     return t.Union[tuple(classes)]  # type: ignore
 
 
-class Automation(Struct):
-    """
-    Used to change an automation over MQTT.
-    """
-
-    automation_name: str
-    args: dict = {}
-
-    def __str__(self) -> str:
-        s = ""
-        s += f"{self.automation_name}"
-        s += "("
-        for i, (k, v) in enumerate(self.args.items()):
-            if k == "skip_first_run":
-                v = bool(int(v))
-            if i == 0:
-                s += f"{k}={v}"
-            else:
-                s += f", {k}={v}"
-
-        s += ")"
-        return s
-
-    def __repr__(self) -> str:
-        return str(self)
-
-
-class TemperatureAutomation(Automation, tag="temperature"):  # type: ignore
-    ...
-
-
-class DosingAutomation(Automation, tag="dosing"):  # type: ignore
-    ...
-
-
-class LEDAutomation(Automation, tag="led"):  # type: ignore
-    ...
-
-
-AnyAutomation = t.Union[LEDAutomation, TemperatureAutomation, DosingAutomation]
-
-
 class AutomationSettings(Struct):
     """
     Metadata produced when settings in an automation job change

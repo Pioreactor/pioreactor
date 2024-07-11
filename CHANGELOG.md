@@ -1,9 +1,9 @@
 ### Upcoming
 
-
 #### Enhancements
 
- - improvements to the UI's experiment profile preview. It's so pretty!
+ - UI chips everywhere!
+ - improvements to the UI's experiment profile preview.
  - `hours_elapsed()` is a function in profile expressions, which returns the hours since the profile started.
  - `unit()` can be used in mqtt fetch expressions. Example: `unit():stirring:target_rpm` is identical to `::stirring:target_rpm`. The latter can be seen as a shortened version of the former.
  - experiment profiles can have a `description` in the `job` field (i.e. beside `actions`).
