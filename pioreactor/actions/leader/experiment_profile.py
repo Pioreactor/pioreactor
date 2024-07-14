@@ -181,6 +181,13 @@ def wrapped_execute_action(
     if job_name == "led_intensity":
         action = _led_intensity_hack(action)
 
+    # TODO: remove in a future version.
+    if job_name in ["temperature_control", "led_control", "dosing_control"]:
+        logger.warning(
+            f'Found deprecated `{job_name}` in profile. Update this to `{job_name.replace("control", "automation")}` (or combine with existing `{job_name.replace("control", "automation")}`). See changelog.'
+        )
+        job_name = job_name.replace("control", "automation")
+
     env = {"unit": unit, "experiment": experiment, "job_name": job_name}
 
     match action:
