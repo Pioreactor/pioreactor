@@ -10,7 +10,6 @@ from typing import Optional
 
 import click
 from msgspec.json import decode
-from msgspec.json import encode
 
 from pioreactor import error_codes
 from pioreactor import exc
@@ -19,7 +18,6 @@ from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.automations.base import AutomationJob
 from pioreactor.config import config
-from pioreactor.pubsub import QOS
 from pioreactor.structs import Temperature
 from pioreactor.utils import clamp
 from pioreactor.utils import is_pio_job_running
@@ -76,7 +74,6 @@ class TemperatureAutomationJob(AutomationJob):
     latest_temperature = None
     previous_temperature = None
 
-    _latest_settings_ended_at = None
     automation_name = "temperature_automation_base"  # is overwritten in subclasses
     job_name = "temperature_automation"
 
@@ -102,7 +99,6 @@ class TemperatureAutomationJob(AutomationJob):
         **kwargs,
     ) -> None:
         super(TemperatureAutomationJob, self).__init__(unit, experiment)
-        self._latest_settings_started_at = current_utc_datetime()
 
         self.add_to_published_settings(
             "temperature", {"datatype": "Temperature", "settable": False, "unit": "℃"}
@@ -328,8 +324,12 @@ class TemperatureAutomationJob(AutomationJob):
         with suppress(AttributeError):
             self.turn_off_heater()
 
-        self._latest_settings_ended_at = current_utc_datetime()
-        self._send_details_to_mqtt()
+    def on_sleeping(self) -> None:
+        self.publish_temperature_timer.pause()
+        self._update_heater(0)
+
+    def on_sleeping_to_ready(self) -> None:
+        self.publish_temperature_timer.unpause()
 
     def setup_pwm(self) -> PWM:
         hertz = 16  # technically this doesn't need to be high: it could even be 1hz. However, we want to smooth it's
@@ -581,21 +581,6 @@ class TemperatureAutomationJob(AutomationJob):
 
         return dot_product(coefs, X) + intercept
 
-    def __setattr__(self, name, value) -> None:
-        super(TemperatureAutomationJob, self).__setattr__(name, value)
-        if name in self.published_settings and name not in (
-            "state",
-            "latest_event",
-            "heater_duty_cycle",
-            "temperature",
-        ):
-            self._latest_settings_ended_at = current_utc_datetime()
-            self._send_details_to_mqtt()
-            self._latest_settings_started_at, self._latest_settings_ended_at = (
-                current_utc_datetime(),
-                None,
-            )
-
     def _set_growth_rate(self, message: pt.MQTTMessage) -> None:
         if not message.payload:
             return
@@ -623,28 +608,6 @@ class TemperatureAutomationJob(AutomationJob):
         payload = decode(message.payload, type=structs.ODFiltered)
         self._latest_normalized_od = payload.od_filtered
         self.latest_normalized_od_at = payload.timestamp
-
-    def _send_details_to_mqtt(self) -> None:
-        self.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/temperature_automation_settings",
-            encode(
-                structs.AutomationSettings(
-                    pioreactor_unit=self.unit,
-                    experiment=self.experiment,
-                    started_at=self._latest_settings_started_at,
-                    ended_at=self._latest_settings_ended_at,
-                    automation_name=self.automation_name,
-                    settings=encode(
-                        {
-                            attr: getattr(self, attr, None)
-                            for attr in self.published_settings
-                            if attr not in ("state", "latest_event", "heater_duty_cycle", "temperature")
-                        }
-                    ),
-                )
-            ),
-            qos=QOS.EXACTLY_ONCE,
-        )
 
     def start_passive_listeners(self) -> None:
         self.subscribe_and_callback(

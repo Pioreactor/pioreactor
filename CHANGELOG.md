@@ -64,6 +64,7 @@
    The benefits of removing this abstraction is much less code, less overhead, easier developer experience, and overall simplification. Later, we may create a new abstraction, but now we are moving abstractions back the level 0.
 
  - `log` in experiment profiles now uses expressions instead of Python string formatting. For example: `The unit {unit} is running {job} in experiment {experiment}` should be replaced by expressions in the string: `The unit ${{unit()}} is running ${{job_name()}} in the experiment ${{experiment}}`. Note: `{job}` is not `${{job_name()}}`.
+ - This is also a bug fix, as this behaviour was not intended: when pausing temperature automations, the heater now turns off and stays off until unpaused.
 
 ### 24.7.5 & 24.7.6 & 24.7.7
 

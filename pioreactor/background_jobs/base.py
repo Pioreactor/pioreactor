@@ -601,7 +601,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # was exhausted), so we reset the last will in the pre_connect callback.
         def set_last_will(client: Client, userdata) -> None:
             # we can only set last wills _before_ connecting, so we put this here.
-            client.will_set(**last_will)
+            client.will_set(**last_will)  # type: ignore
 
         def reconnect_protocol(client: Client, userdata, flags, rc: int, properties=None) -> None:
             self.logger.info("Reconnected to the MQTT broker on leader.")

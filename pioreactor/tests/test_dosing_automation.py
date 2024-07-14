@@ -999,8 +999,8 @@ def test_strings_are_okay_for_chemostat() -> None:
     unit = get_unit_name()
     experiment = "test_strings_are_okay_for_chemostat"
 
-    with start_dosing_automation("chemostat", "20", False, unit, experiment, volume="0.7") as chemostat:
-        assert chemostat.volume == 0.7
+    with start_dosing_automation("chemostat", "20", False, unit, experiment, volume="0.7") as chemostat:  # type: ignore
+        assert chemostat.volume == 0.7  # type: ignore
         pause(n=35)
         assert chemostat.media_throughput == 0.7
 

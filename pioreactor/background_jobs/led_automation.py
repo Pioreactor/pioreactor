@@ -10,7 +10,6 @@ from typing import Optional
 
 import click
 from msgspec.json import decode
-from msgspec.json import encode
 
 from pioreactor import exc
 from pioreactor import structs
@@ -19,7 +18,6 @@ from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.automations import events
 from pioreactor.automations.base import AutomationJob
 from pioreactor.config import config
-from pioreactor.pubsub import QOS
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import whoami
 from pioreactor.utils.timing import current_utc_datetime
@@ -49,7 +47,6 @@ class LEDAutomationJob(AutomationJob):
 
     published_settings: dict[str, pt.PublishableSetting] = {
         "duration": {"datatype": "float", "settable": True},
-        "automation_name": {"datatype": "string", "settable": False},
     }
 
     _latest_growth_rate: Optional[float] = None
@@ -57,7 +54,6 @@ class LEDAutomationJob(AutomationJob):
     previous_normalized_od: Optional[float] = None
     previous_growth_rate: Optional[float] = None
 
-    _latest_settings_ended_at: Optional[datetime] = None
     _latest_run_at: Optional[datetime] = None
 
     latest_event: Optional[events.AutomationEvent] = None
@@ -80,7 +76,6 @@ class LEDAutomationJob(AutomationJob):
         super(LEDAutomationJob, self).__init__(unit, experiment)
 
         self.skip_first_run = skip_first_run
-        self._latest_settings_started_at: datetime = current_utc_datetime()
         self.latest_normalized_od_at: datetime = current_utc_datetime()
         self.latest_growth_rate_at: datetime = current_utc_datetime()
         self.edited_channels: set[pt.LedChannel] = set()
@@ -237,9 +232,6 @@ class LEDAutomationJob(AutomationJob):
     ########## Private & internal methods
 
     def on_disconnected(self) -> None:
-        self._latest_settings_ended_at = current_utc_datetime()
-        self._send_details_to_mqtt()
-
         with suppress(AttributeError):
             self.run_thread.join(
                 timeout=10
@@ -254,14 +246,6 @@ class LEDAutomationJob(AutomationJob):
             pubsub_client=self.pub_client,
             source_of_event=f"{self.job_name}:{self.automation_name}",
         )
-
-    def __setattr__(self, name, value) -> None:
-        super(LEDAutomationJob, self).__setattr__(name, value)
-        if name in self.published_settings and name not in ("state", "latest_event"):
-            self._latest_settings_ended_at = current_utc_datetime()
-            self._send_details_to_mqtt()
-            self._latest_settings_started_at = current_utc_datetime()
-            self._latest_settings_ended_at = None
 
     def _set_growth_rate(self, message: pt.MQTTMessage) -> None:
         if not message.payload:
@@ -278,28 +262,6 @@ class LEDAutomationJob(AutomationJob):
         payload = decode(message.payload, type=structs.ODFiltered)
         self._latest_normalized_od = payload.od_filtered
         self.latest_normalized_od_at = payload.timestamp
-
-    def _send_details_to_mqtt(self) -> None:
-        self.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/led_automation_settings",
-            encode(
-                structs.AutomationSettings(
-                    pioreactor_unit=self.unit,
-                    experiment=self.experiment,
-                    started_at=self._latest_settings_started_at,
-                    ended_at=self._latest_settings_ended_at,
-                    automation_name=self.automation_name,
-                    settings=encode(
-                        {
-                            attr: getattr(self, attr, None)
-                            for attr in self.published_settings
-                            if attr not in ("state", "latest_event")
-                        }
-                    ),
-                )
-            ),
-            qos=QOS.EXACTLY_ONCE,
-        )
 
     def start_passive_listeners(self) -> None:
         self.subscribe_and_callback(

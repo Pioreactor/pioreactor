@@ -221,7 +221,3 @@ class KalmanFilterOutput(Struct):
     state: t.Annotated[list[float], Meta(max_length=3)]
     covariance_matrix: list[list[float]]
     timestamp: t.Annotated[datetime, Meta(tz=True)]
-
-
-class ExperimentMetadata(Struct):
-    experiment: str

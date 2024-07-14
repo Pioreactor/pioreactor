@@ -6,13 +6,11 @@ from contextlib import suppress
 from datetime import datetime
 from functools import partial
 from threading import Thread
-from typing import Any
 from typing import cast
 from typing import Optional
 
 import click
 from msgspec.json import decode
-from msgspec.json import encode
 
 from pioreactor import exc
 from pioreactor import structs
@@ -23,7 +21,6 @@ from pioreactor.actions.pump import remove_waste
 from pioreactor.automations import events
 from pioreactor.automations.base import AutomationJob
 from pioreactor.config import config
-from pioreactor.pubsub import QOS
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import SummableDict
@@ -183,7 +180,6 @@ class DosingAutomationJob(AutomationJob):
     _latest_od: Optional[dict[pt.PdChannel, float]] = None
 
     latest_event: Optional[events.AutomationEvent] = None
-    _latest_settings_ended_at: Optional[datetime] = None
     _latest_run_at: Optional[datetime] = None
     run_thread: RepeatedTimer | Thread
     duration: float | None
@@ -237,7 +233,6 @@ class DosingAutomationJob(AutomationJob):
 
         self.skip_first_run = skip_first_run
 
-        self._latest_settings_started_at = current_utc_datetime()
         self.latest_normalized_od_at = current_utc_datetime()
         self.latest_growth_rate_at = current_utc_datetime()
         self.latest_od_at = current_utc_datetime()
@@ -335,9 +330,9 @@ class DosingAutomationJob(AutomationJob):
 
     def execute_io_action(
         self,
-        waste_ml: float = 0,
-        media_ml: float = 0,
-        alt_media_ml: float = 0,
+        waste_ml: float = 0.0,
+        media_ml: float = 0.0,
+        alt_media_ml: float = 0.0,
         **other_pumps_ml: float,
     ) -> SummableDict:
         """
@@ -521,30 +516,12 @@ class DosingAutomationJob(AutomationJob):
     ########## Private & internal methods
 
     def on_disconnected(self) -> None:
-        self._latest_settings_ended_at = current_utc_datetime()
-        self._send_details_to_mqtt()
-
         with suppress(AttributeError):
             self.run_thread.join(
                 timeout=10
             )  # thread has N seconds to end. If not, something is wrong, like a while loop in execute that isn't stopping.
             if self.run_thread.is_alive():
                 self.logger.debug("run_thread still alive!")
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        super(DosingAutomationJob, self).__setattr__(name, value)
-        if name in self.published_settings and name not in (
-            "state",
-            "alt_media_fraction",
-            "media_throughput",
-            "alt_media_throughput",
-            "latest_event",
-            "vial_volume",
-        ):
-            self._latest_settings_ended_at = current_utc_datetime()
-            self._send_details_to_mqtt()
-            self._latest_settings_started_at = current_utc_datetime()
-            self._latest_settings_ended_at = None
 
     def _set_growth_rate(self, message: pt.MQTTMessage) -> None:
         if not message.payload:
@@ -572,36 +549,6 @@ class DosingAutomationJob(AutomationJob):
         payload = decode(message.payload, type=structs.ODReadings)
         self._latest_od: dict[pt.PdChannel, float] = {c: payload.ods[c].od for c in payload.ods}
         self.latest_od_at = payload.timestamp
-
-    def _send_details_to_mqtt(self) -> None:
-        self.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/dosing_automation_settings",
-            encode(
-                structs.AutomationSettings(
-                    pioreactor_unit=self.unit,
-                    experiment=self.experiment,
-                    started_at=self._latest_settings_started_at,
-                    ended_at=self._latest_settings_ended_at,
-                    automation_name=self.automation_name,
-                    settings=encode(
-                        {
-                            attr: getattr(self, attr, None)
-                            for attr in self.published_settings
-                            if attr
-                            not in (
-                                "state",
-                                "alt_media_fraction",
-                                "media_throughput",
-                                "vial_volume",
-                                "alt_media_throughput",
-                                "latest_event",
-                            )
-                        }
-                    ),
-                )
-            ),
-            qos=QOS.EXACTLY_ONCE,
-        )
 
     def _update_dosing_metrics(self, message: pt.MQTTMessage) -> None:
         dosing_event = decode(message.payload, type=structs.DosingEvent)
@@ -684,7 +631,7 @@ class DosingAutomationJob(AutomationJob):
             "alt_media_throughput",
             {
                 "datatype": "float",
-                "settable": True,  # settable because in the future, the UI may "reset" these values to 0.
+                "settable": False,
                 "unit": "mL",
             },
         )
@@ -692,7 +639,7 @@ class DosingAutomationJob(AutomationJob):
             "media_throughput",
             {
                 "datatype": "float",
-                "settable": True,
+                "settable": False,
                 "unit": "mL",
             },
         )

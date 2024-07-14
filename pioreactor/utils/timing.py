@@ -189,6 +189,7 @@ class RepeatedTimer:
         return self
 
     def join(self, timeout: t.Optional[float] = None) -> None:
+        # alias for .cancel()
         self.cancel(timeout=timeout)
 
     def is_alive(self) -> bool:
