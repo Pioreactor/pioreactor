@@ -366,6 +366,7 @@ def _liquid_circulation(
     config=config,
     mqtt_client: Optional[Client] = None,
     logger: Optional[CustomLogger] = None,
+    source_of_event: Optional[str] = None,
     **kwargs,
 ) -> tuple[pt.mL, pt.mL]:
     """
@@ -438,6 +439,10 @@ def _liquid_circulation(
             mqtt_client=mqtt_client,
         ) as media_pump:
             logger.info("Running waste continuously.")
+
+            # assume they run it long enough such that the waste efflux position is reached.
+            _publish_pump_action("remove_waste", 20, unit, experiment, mqtt_client, source_of_event)
+
             with catchtime() as running_waste_duration:
                 waste_pump.continuously(block=False)
                 time.sleep(1)

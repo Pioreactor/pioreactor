@@ -13,7 +13,7 @@
  - remove the temperature_control, dosing_control, and led_control abstractions. These were introduced early in the Pioreactor software as a way to quickly change automations, but they have been more of a wort than a win. While working on the internals of experiment profiles recently, it became more and more clear how poor this abstraction was. The removal of them has some consequences and some backward incompatibilities, however
 
   - updating experiment profiles: experiment profiles that have a `*_control` job will need to be updated to use `*_automation`, _eventually_. For now, we are allowing `*_control` in profiles: in the backend, we are renaming `*_control` to `*_automations`, but a warning will be produced. Later, we'll remove this renaming and profiles will need to be completely updated. Example:
-    ```
+    ```yaml
     experiment_profile_name: start_temp_control
 
     metadata:
@@ -28,6 +28,8 @@
               options:
                 automation_name: thermostat
                 target_temperature: 30
+            - type: stop
+              hours_elapsed: 12
         temperature_automation:
           actions:
             - type: update
@@ -38,7 +40,7 @@
 
     becomes:
 
-    ```
+    ```yaml
     experiment_profile_name: start_temp_control
 
     metadata:
@@ -53,6 +55,8 @@
               options:
                 automation_name: thermostat
                 target_temperature: 30
+            - type: stop
+              hours_elapsed: 12
             - type: update
               hours_elapsed: 6
               options:
@@ -64,7 +68,12 @@
    The benefits of removing this abstraction is much less code, less overhead, easier developer experience, and overall simplification. Later, we may create a new abstraction, but now we are moving abstractions back the level 0.
 
  - `log` in experiment profiles now uses expressions instead of Python string formatting. For example: `The unit {unit} is running {job} in experiment {experiment}` should be replaced by expressions in the string: `The unit ${{unit()}} is running ${{job_name()}} in the experiment ${{experiment}}`. Note: `{job}` is not `${{job_name()}}`.
- - This is also a bug fix, as this behaviour was not intended: when pausing temperature automations, the heater now turns off and stays off until unpaused.
+
+
+#### Bug fixes
+
+ - This behaviour was not intended: when pausing temperature automations, the heater now turns off and stays off until unpaused.
+ - `cycle_media` and `cycle_alt_media` now publish dosing events, and will be recorded by dosing automations, and the db.
 
 ### 24.7.5 & 24.7.6 & 24.7.7
 
