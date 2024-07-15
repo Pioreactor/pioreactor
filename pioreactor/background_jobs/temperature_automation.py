@@ -29,6 +29,7 @@ from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.utils.timing import to_datetime
 from pioreactor.version import rpi_version_info
+from pioreactor.automations.temperature import *
 
 
 class TemperatureAutomationJob(AutomationJob):

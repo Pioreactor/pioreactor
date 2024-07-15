@@ -22,6 +22,7 @@ from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import whoami
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import RepeatedTimer
+from pioreactor.automations.led import *
 
 
 def brief_pause() -> float:
@@ -61,7 +62,7 @@ class LEDAutomationJob(AutomationJob):
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        # this registers all subclasses of LEDAutomation
+        # this registers all subclasses of LEDAutomationJob
         if hasattr(cls, "automation_name") and getattr(cls, "automation_name") != "led_automation_base":
             available_led_automations[cls.automation_name] = cls
 

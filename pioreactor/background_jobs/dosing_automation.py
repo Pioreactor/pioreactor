@@ -27,6 +27,7 @@ from pioreactor.utils import SummableDict
 from pioreactor.utils import whoami
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import RepeatedTimer
+from pioreactor.automations.dosing import *
 
 
 def close(x: float, y: float) -> bool:
@@ -685,7 +686,12 @@ def start_dosing_automation(
 ) -> DosingAutomationJob:
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_assigned_experiment_name(unit)
-    klass = available_dosing_automations[automation_name]
+    try:
+        klass = available_dosing_automations[automation_name]
+    except:
+        raise KeyError(
+            f"Unable to find {automation_name}. Available automations are {list( available_dosing_automations.keys())}"
+        )
 
     return klass(
         unit=unit,
