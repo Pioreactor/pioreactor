@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
-# run.py
 from __future__ import annotations
 
 import click
 
 from pioreactor import actions
 from pioreactor import plugin_management
+from pioreactor.automations.dosing import *  # noqa: F403, F401
+from pioreactor.automations.led import *  # noqa: F403, F401
+from pioreactor.automations.temperature import *  # noqa: F403, F401
 from pioreactor.background_jobs.dosing_automation import click_dosing_automation
 from pioreactor.background_jobs.growth_rate_calculating import click_growth_rate_calculating
 from pioreactor.background_jobs.leader.mqtt_to_db_streaming import click_mqtt_to_db_streaming
@@ -16,9 +18,8 @@ from pioreactor.background_jobs.od_reading import click_od_reading
 from pioreactor.background_jobs.stirring import click_stirring
 from pioreactor.background_jobs.temperature_automation import click_temperature_automation
 from pioreactor.whoami import am_I_leader
-from pioreactor.automations.dosing import *
-from pioreactor.automations.temperature import *
-from pioreactor.automations.led import *
+
+# required to "discover" automations
 
 
 @click.group(short_help="run a job")
