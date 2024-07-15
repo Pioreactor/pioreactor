@@ -21,5 +21,4 @@ if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
     # Use sed to remove lines containing 'log_type notice'
     sudo sed -i '/^log_type notice$/d' "$CONFIG_FILE"
 
-
 fi
