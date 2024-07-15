@@ -1,10 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useMQTT } from '../providers/MQTTContext';
 
-const canvasDim = {
-  height: 510,
-  width: 400
-}
 
 function roundTo1(x){
   return `${Math.round(x * 10) / 10}`
@@ -12,6 +8,11 @@ function roundTo1(x){
 
 function binFloat(value, binSize) {
     return Math.floor(value / binSize) * binSize;
+}
+
+const canvasDim = {
+  height: 510,
+  width: 400
 }
 
 const bioreactor = {
@@ -168,8 +169,8 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
     let animationFrameId;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    const liquidLevel = volume / 20 * 350 // max is 350px at 20ml, 0ml is 0px.
-    const bottomOfWasteTube = bioreactor.height - (config?.bioreactor?.max_volume_ml || 14) / 20 * 350 + 20
+    const liquidLevel = volume / 20 * bioreactor.height
+    const bottomOfWasteTube = bioreactor.height - (config?.bioreactor?.max_volume_ml || 14) / 20 *  bioreactor.height + 20
 
     const ledsRects = [
       { text: 'B', x: 50,  y: 350, width: 40, height: 30, radius: 5 },
@@ -200,7 +201,7 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
       dynamicRects.push({ text: `nOD: ${roundTo1(nOD)}`, x: 210, y: 260, width: 80, height: 30, radius: 5 })
     }
     if (volume){
-      dynamicRects.push({ text: `${roundTo1(volume)} mL`, x: 110, y: bioreactor.y + bioreactor.height - liquidLevel - 40, width: 90, height: 30, radius: 5 })
+      dynamicRects.push({ text: `${roundTo1(volume)} mL`, x: 110, y: Math.max(bioreactor.y + bioreactor.height - liquidLevel - 40, 40), width: 90, height: 30, radius: 5 })
     }
 
     function drawRoundedRect(x, y, width, height, radius, fillStyle, strokeStyle) {
@@ -380,7 +381,7 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
       drawRoundedRect(bioreactor.x, bioreactor.y, bioreactor.width, bioreactor.height, bioreactor.cornerRadius, 'rgb(244,244,244)', '#000');
 
       // Draw liquid level with turbidity
-      drawTurbidLiquid(bioreactor.x, bioreactor.y + bioreactor.height - liquidLevel, bioreactor.width, liquidLevel, bioreactor.cornerRadius, nOD);
+      drawTurbidLiquid(bioreactor.x, Math.max(bioreactor.y + bioreactor.height - liquidLevel, bioreactor.y), bioreactor.width, Math.min(liquidLevel,  bioreactor.height), bioreactor.cornerRadius, nOD);
 
       // Draw stir bar
       const angle = (2 * Math.PI / (200 * fps / (rpm) ) ) * stirBarFrame.current;

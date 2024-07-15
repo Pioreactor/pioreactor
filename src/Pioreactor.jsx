@@ -196,7 +196,7 @@ function UnitSettingDisplay(props) {
     } else {
       const ledIntensities = JSON.parse(value)
         // the | {} is here to protect against the UI loading from a missing config.
-      const LEDMap = props.config['leds'] | {}
+      const LEDMap = props.config['leds'] || {}
       const renamedA = (LEDMap['A']) ? (LEDMap['A'].replace("_", " ")) : null
       const renamedB = (LEDMap['B']) ? (LEDMap['B'].replace("_", " ")) : null
       const renamedC = (LEDMap['C']) ? (LEDMap['C'].replace("_", " ")) : null
@@ -740,7 +740,7 @@ function SettingsActionsDialog(props) {
   }
 
 
-  const LEDMap = props.config['leds'] | {}
+  const LEDMap = props.config['leds'] || {}
   const buttons = Object.fromEntries(Object.entries(props.jobs).map( ([job_key, job], i) => [job_key, createUserButtonsBasedOnState(job.state, job_key)]))
   const versionInfo = JSON.parse(props.jobs.monitor.publishedSettings.versions.value || "{}")
   const voltageInfo = JSON.parse(props.jobs.monitor.publishedSettings.voltage_on_pwm_rail.value || "{}")
@@ -895,7 +895,7 @@ function SettingsActionsDialog(props) {
               {(dosingControlJob.state === "ready") || (dosingControlJob.state === "sleeping") || (temperatureControlJob.state === "init")
               ?<React.Fragment>
                 <Typography variant="body2" component="p" gutterBottom>
-                Currently running dosing automation <Chip size="small" label={dosingControlJob.publishedSettings.automation_name.value}/>
+                Currently running dosing automation <Chip size="small" label={dosingControlJob.publishedSettings.automation_name.value}/>.
                 </Typography>
                 {buttons[dosingControlJob.metadata.key]}
                </React.Fragment>

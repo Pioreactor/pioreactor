@@ -87,7 +87,7 @@ const stateDisplay = {
 function StateTypography({ state, isDisabled=false }) {
   const style = {
     color: isDisabled ? disabledColor : stateDisplay[state].color,
-    padding: "1px 10px",
+    padding: "1px 9px",
     borderRadius: "16px",
     backgroundColor: stateDisplay[state].backgroundColor,
     display: "inline-block",
@@ -153,7 +153,7 @@ function UnitSettingDisplaySubtext(props){
     return <Chip size="small" sx={{fontSize: "11px", wordBreak: "break-word", padding: "5px 0px"}} label={props.subtext.replaceAll("_", " ")} />
   }
   else{
-    return <Box sx={{minHeight: "15px"}}></Box>
+    return <Box sx={{minHeight: "24px"}}></Box>
   };
 }
 
@@ -201,7 +201,7 @@ function UnitSettingDisplay(props) {
     } else {
       const ledIntensities = JSON.parse(value)
         // the | {} is here to protect against the UI loading from a missing config.
-      const LEDMap = props.config['leds'] | {}
+      const LEDMap = props.config['leds'] || {}
       const renamedA = (LEDMap['A']) ? (LEDMap['A'].replace("_", " ")) : null
       const renamedB = (LEDMap['B']) ? (LEDMap['B'].replace("_", " ")) : null
       const renamedC = (LEDMap['C']) ? (LEDMap['C'].replace("_", " ")) : null
@@ -933,7 +933,7 @@ function SettingsActionsDialog(props) {
   }
 
 
-  const LEDMap = props.config['leds'] | {}
+  const LEDMap = props.config['leds'] || {}
   const buttons = Object.fromEntries(Object.entries(props.jobs).map( ([job_key, job], i) => [job_key, createUserButtonsBasedOnState(job.state, job_key)]))
   const versionInfo = JSON.parse(props.jobs.monitor.publishedSettings.versions.value || "{}")
   const voltageInfo = JSON.parse(props.jobs.monitor.publishedSettings.voltage_on_pwm_rail.value || "{}")

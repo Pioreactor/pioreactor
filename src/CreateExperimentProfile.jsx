@@ -17,7 +17,7 @@ import Snackbar from '@mui/material/Snackbar';
 import Editor from 'react-simple-code-editor';
 import { highlight, languages } from 'prismjs';
 import 'prismjs/components/prism-yaml'; // You can add more languages or change it
-import {DisplayProfile} from "./components/DisplayProfile"
+import {DisplayProfile, DisplayProfileError} from "./components/DisplayProfile"
 
 function addQuotesToBrackets(input) {
     return input.replace(/(\${0}){{(.*?)}}/g, (match, p1, p2, offset, string) => {
@@ -29,9 +29,18 @@ function addQuotesToBrackets(input) {
 }
 
 function convertYamlToJson(yamlString){
-  return yaml.load(addQuotesToBrackets(yamlString))
+  try{
+    return yaml.load(addQuotesToBrackets(yamlString))
+  } catch (error) {
+    if (["duplicated mapping key"].includes(error.reason)) {
+      console.log(error)
+      return {error: error.message}
+    }
+    else {
+      throw error
+    }
+  }
 }
-
 
 const EditExperimentProfilesContent = () => {
   const DEFAULT_CODE = `experiment_profile_name:
@@ -55,11 +64,9 @@ metadata:
     setCode(newCode);
     setIsChanged(true);
     try {
-      setParsedCode(convertYamlToJson(newCode))
+      setParsedCode(convertYamlToJson(newCode));
     } catch (error) {
-      if (error.name === "YAMLException") {
-        // do nothing?
-      }
+      //pass
     }
   };
 
@@ -104,7 +111,11 @@ metadata:
   };
 
   const displayedProfile = () => {
-    return <DisplayProfile data={parsedCode} />;
+    if (parsedCode.error) {
+      return <DisplayProfileError error={parsedCode.error} />;
+    } else {
+      return <DisplayProfile data={parsedCode} />;
+    }
   };
 
 

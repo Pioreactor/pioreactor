@@ -19,7 +19,7 @@ import { useSearchParams } from "react-router-dom";
 import Editor from 'react-simple-code-editor';
 import { highlight, languages } from 'prismjs';
 import 'prismjs/components/prism-yaml'; // You can add more languages or change it
-import {DisplayProfile} from "./components/DisplayProfile"
+import {DisplayProfile, DisplayProfileError} from "./components/DisplayProfile"
 
 function addQuotesToBrackets(input) {
     return input.replace(/(\${0}){{(.*?)}}/g, (match, p1, p2, offset, string) => {
@@ -31,12 +31,23 @@ function addQuotesToBrackets(input) {
 }
 
 function convertYamlToJson(yamlString){
-  return yaml.load(addQuotesToBrackets(yamlString))
+  try{
+    return yaml.load(addQuotesToBrackets(yamlString))
+  } catch (error) {
+    if (["duplicated mapping key"].includes(error.reason)) {
+      console.log(error)
+      console.log(yamlString)
+      return {error: error.message}
+    }
+    else {
+      throw error
+    }
+  }
 }
 
 const EditExperimentProfilesContent = ({ initialCode, filename }) => {
-  const [code, setCode] = useState(initialCode);
-  const [parsedCode, setParsedCode] = useState(convertYamlToJson(initialCode));
+  const [code, setCode] = useState("");
+  const [parsedCode, setParsedCode] = useState({});
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [isChanged, setIsChanged] = useState(false);
   const [snackbarMsg, setSnackbarMsg] = useState("");
@@ -46,7 +57,11 @@ const EditExperimentProfilesContent = ({ initialCode, filename }) => {
   useEffect(() => {
     if (initialCode !== code) {
       setCode(initialCode);
-      setParsedCode(convertYamlToJson(initialCode));
+      try {
+        setParsedCode(convertYamlToJson(initialCode));
+      } catch (error) {
+        //pass
+      }
     }
   }, [initialCode]);
 
@@ -54,14 +69,11 @@ const EditExperimentProfilesContent = ({ initialCode, filename }) => {
     setCode(newCode);
     setIsChanged(true);
     try {
-      setParsedCode(convertYamlToJson(newCode))
+      setParsedCode(convertYamlToJson(newCode));
     } catch (error) {
-      if (error.name === "YAMLException") {
-        // do nothing?
-      }
+      //pass
     }
   };
-
 
   const handleSnackbarClose = () => {
     setOpenSnackbar(false);
@@ -98,9 +110,12 @@ const EditExperimentProfilesContent = ({ initialCode, filename }) => {
   };
 
   const displayedProfile = () => {
-    return <DisplayProfile data={parsedCode} />;
+    if (parsedCode.error) {
+      return <DisplayProfileError error={parsedCode.error} />;
+    } else {
+      return <DisplayProfile data={parsedCode} />;
+    }
   };
-
 
   return (
     <>
@@ -181,7 +196,7 @@ const EditExperimentProfilesContent = ({ initialCode, filename }) => {
 };
 
 
-function ProfilesContainer(props){
+function ProfilesContainer(){
   const [queryParams, setQueryParams] = useSearchParams();
   const [source, setSource] = React.useState('')
   const filename = queryParams.get("profile")
