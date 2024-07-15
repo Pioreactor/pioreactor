@@ -16,6 +16,9 @@ from pioreactor.background_jobs.od_reading import click_od_reading
 from pioreactor.background_jobs.stirring import click_stirring
 from pioreactor.background_jobs.temperature_automation import click_temperature_automation
 from pioreactor.whoami import am_I_leader
+from pioreactor.automations.dosing import *
+from pioreactor.automations.temperature import *
+from pioreactor.automations.led import *
 
 
 @click.group(short_help="run a job")

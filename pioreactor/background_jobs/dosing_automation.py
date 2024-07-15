@@ -27,7 +27,6 @@ from pioreactor.utils import SummableDict
 from pioreactor.utils import whoami
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import RepeatedTimer
-from pioreactor.automations.dosing import *
 
 
 def close(x: float, y: float) -> bool:

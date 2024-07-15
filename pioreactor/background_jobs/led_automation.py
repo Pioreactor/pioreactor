@@ -22,7 +22,6 @@ from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import whoami
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import RepeatedTimer
-from pioreactor.automations.led import *
 
 
 def brief_pause() -> float:
