@@ -7,6 +7,7 @@
  - `unit()` can be used in mqtt fetch expressions. Example: `unit():stirring:target_rpm` is identical to `::stirring:target_rpm`. The latter can be seen as a shortened version of the former.
  - experiment profiles can have a `description` in the `job` field (i.e. at the same level as `actions`).
  - Updated Raspberry Pi OS image to 2024-07-04.
+ - Vendoring the TMP1075 library, which also fixes the RPi5 error.
 
 #### Breaking changes
 

@@ -117,7 +117,7 @@ class TemperatureAutomationJob(AutomationJob):
         if whoami.is_testing_env():
             from pioreactor.utils.mock import MockTMP1075 as TMP1075
         else:
-            from TMP1075 import TMP1075  # type: ignore
+            from pioreactor.utils.temps import TMP1075  # type: ignore
 
         self.heater_duty_cycle = 0.0
         self.pwm = self.setup_pwm()

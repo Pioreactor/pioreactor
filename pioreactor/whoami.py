@@ -148,10 +148,6 @@ def am_I_leader() -> bool:
     return get_unit_name() == leader_hostname
 
 
-def am_I_active_worker() -> bool:
-    return is_active(get_unit_name())
-
-
 def am_I_a_worker() -> bool:
     from pioreactor.pubsub import get_from_leader
 

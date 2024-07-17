@@ -53,7 +53,6 @@ WORKER_REQUIREMENTS = [
     "pyserial==3.5",
     "pyusb==1.2.1",
     "rpi_hardware_pwm==0.2.1",
-    "TMP1075==0.2.1",
     "typing_extensions==4.12.2",
     "wheel==0.41.2",
 ]

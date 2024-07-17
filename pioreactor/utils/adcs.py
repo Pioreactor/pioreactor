@@ -2,7 +2,7 @@
 # adc abstraction
 from __future__ import annotations
 
-import busio  # type: ignore
+from busio import I2C  # type: ignore
 
 from pioreactor import exc
 from pioreactor import hardware
@@ -51,7 +51,6 @@ class ADS1115_ADC(_ADC):
         super().__init__()
 
         from adafruit_ads1x15.analog_in import AnalogIn  # type: ignore
-        from busio import I2C  # type: ignore
         from adafruit_ads1x15.ads1115 import ADS1115 as ADS  # type: ignore
 
         self.analog_in: dict[int, AnalogIn] = {}
@@ -94,7 +93,7 @@ class ADS1115_ADC(_ADC):
 class Pico_ADC(_ADC):
     def __init__(self) -> None:
         # set up i2c connection to hardware.ADC
-        self.i2c = busio.I2C(hardware.SCL, hardware.SDA)
+        self.i2c = I2C(hardware.SCL, hardware.SDA)
 
     def read_from_channel(self, channel: pt.AdcChannel) -> pt.AnalogValue:
         assert 0 <= channel <= 3

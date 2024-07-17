@@ -380,7 +380,7 @@ class Monitor(LongRunningBackgroundJob):
             from pioreactor.utils.mock import MockTMP1075 as TMP1075
         else:
             try:
-                from TMP1075 import TMP1075  # type: ignore
+                from pioreactor.utils.temps import TMP1075  # type: ignore
             except ImportError:
                 # leader-only is a worker?
                 self.logger.debug(
