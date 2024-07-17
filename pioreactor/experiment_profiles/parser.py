@@ -219,7 +219,7 @@ class ProfileParser(Parser):
 
         # HACK
         if unit == "unit()":
-            # technically, common mqtt expressions can use ::job:attr, or unit():job:attr - they are equivilant.
+            # technically, common mqtt expressions can use ::job:attr, or unit():job:attr - they are equivalent.
             unit = self.ENV["unit"]
         if job == "job_name()":
             job = self.ENV["job_name"]
@@ -249,7 +249,9 @@ class ProfileParser(Parser):
             return convert_string(value)
 
         else:
-            raise MQTTValueError(f"{data_string} does not exist for experiment `{experiment}`")
+            raise MQTTValueError(
+                f"{':'.join([unit, job, setting_keys])} does not exist for experiment `{experiment}`"
+            )
 
 
 def parse_profile_expression_to_bool(profile_string: str, env=None) -> bool:

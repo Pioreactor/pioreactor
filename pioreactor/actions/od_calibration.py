@@ -92,7 +92,7 @@ def get_name_from_user() -> str:
 def get_metadata_from_user() -> tuple[pt.OD600, pt.OD600, pt.mL, pt.PdAngle, pt.PdChannel]:
     if config["od_config"]["ir_led_intensity"] == "auto":
         raise ValueError(
-            "Can't use auto with OD calibrations. Change ir_led_intensity in your config.ini to a numeric value (50 is good default)."
+            "Can't use auto with OD calibrations. Change ir_led_intensity in your config.ini to a numeric value (70 is good default)."
         )
 
     initial_od600 = prompt(

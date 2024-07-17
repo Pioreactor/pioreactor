@@ -10,7 +10,7 @@ from pioreactor import pubsub
 from pioreactor import structs
 from pioreactor.actions.led_intensity import lock_leds_temporarily
 from pioreactor.automations import events
-from pioreactor.automations.led import Silent
+from pioreactor.automations.led import LEDSilent as Silent
 from pioreactor.automations.led.light_dark_cycle import LightDarkCycle
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.timing import current_utc_datetime
