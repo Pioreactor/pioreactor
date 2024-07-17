@@ -42,15 +42,15 @@ def is_hostname_on_network(hostname: str, timeout: float = 10.0) -> bool:
         return False
 
 
-def is_reachable(hostname: str) -> bool:
+def is_reachable(address: str) -> bool:
     """
-    Can we ping the computer at `hostname`?
+    Can we ping the computer at `address`?
     """
     # TODO: why not use sh.ping? Ex: ping("leader7.local", "-c1", "-W50")
     import subprocess
 
     std_out_from_ping = subprocess.Popen(
-        ["ping", "-c1", "-W50", hostname],
+        ["ping", "-c1", "-W50", address],
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
     ).stdout
@@ -62,22 +62,28 @@ def is_reachable(hostname: str) -> bool:
 
 
 def get_ip() -> Optional[str]:
-    # returns ipv4
+    # returns all ipv4s as comma-separated string
     from psutil import net_if_addrs
 
-    interfaces = ("wlan0", "eth0")
+    ipv4_addresses = []
 
-    for iface in interfaces:
+    interfaces = net_if_addrs()
+
+    for interface in interfaces:
+        if interface == "lo":
+            continue
+
         try:
-            ipv4_addresses = [
-                addr.address for addr in net_if_addrs()[iface] if addr.family == 2
-            ]  # AddressFamily.AF_INET == 2
-            if ipv4_addresses:
-                return ipv4_addresses[0]
+            ipv4_addresses.extend(
+                [addr.address for addr in interfaces[interface] if addr.family == 2]
+            )  # AddressFamily.AF_INET == 2
         except Exception:
             continue
 
-    return None
+    if ipv4_addresses:
+        return ",".join(ipv4_addresses)
+    else:
+        return None
 
 
 def discover_workers_on_network(terminate: bool = False) -> Generator[str, None, None]:
