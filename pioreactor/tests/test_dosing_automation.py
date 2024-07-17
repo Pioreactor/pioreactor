@@ -1175,7 +1175,7 @@ def test_vial_volume_calculator() -> None:
         source_of_event="test",
     )
     current_volume = vc.update(event, current_volume)
-    assert current_volume == 12
+    assert current_volume == 12.0
 
     # add 3ml alt_media
     event = DosingEvent(
