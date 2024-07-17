@@ -18,6 +18,7 @@ from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.automations import events
 from pioreactor.automations.base import AutomationJob
 from pioreactor.config import config
+from pioreactor.logging import create_logger
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import whoami
 from pioreactor.utils.timing import current_utc_datetime
@@ -295,15 +296,21 @@ def start_led_automation(
             f"Unable to find {automation_name}. Available automations are {list(available_led_automations.keys())}"
         )
 
-    return klass(
-        unit=unit,
-        experiment=experiment,
-        automation_name=automation_name,
-        skip_first_run=skip_first_run,
-        duration=duration,
-        **kwargs,
-    )
-
+    try:
+        return klass(
+            unit=unit,
+            experiment=experiment,
+            automation_name=automation_name,
+            skip_first_run=skip_first_run,
+            duration=duration,
+            **kwargs,
+        )
+    
+    except Exception as e:
+        logger = create_logger("led_automation") 
+        logger.error(f"Error: {e}")
+        logger.debug(e, exc_info=True)
+        raise e
 
 available_led_automations: dict[str, type[LEDAutomationJob]] = {}
 

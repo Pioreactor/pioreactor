@@ -18,6 +18,7 @@ from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.automations.base import AutomationJob
 from pioreactor.config import config
+from pioreactor.logging import create_logger
 from pioreactor.structs import Temperature
 from pioreactor.utils import clamp
 from pioreactor.utils import is_pio_job_running
@@ -645,12 +646,19 @@ def start_temperature_automation(
     if "skip_first_run" in kwargs:
         del kwargs["skip_first_run"]
 
-    return klass(
-        unit=unit,
-        experiment=experiment,
-        automation_name=automation_name,
-        **kwargs,
-    )
+    try:
+        return klass(
+            unit=unit,
+            experiment=experiment,
+            automation_name=automation_name,
+            **kwargs,
+        )
+    
+    except Exception as e:
+        logger = create_logger("temperature_automation") 
+        logger.error(f"Error: {e}")
+        logger.debug(e, exc_info=True)
+        raise e
 
 
 available_temperature_automations: dict[str, type[TemperatureAutomationJob]] = {}

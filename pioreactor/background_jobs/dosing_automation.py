@@ -21,6 +21,7 @@ from pioreactor.actions.pump import remove_waste
 from pioreactor.automations import events
 from pioreactor.automations.base import AutomationJob
 from pioreactor.config import config
+from pioreactor.logging import create_logger
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import SummableDict
@@ -691,15 +692,22 @@ def start_dosing_automation(
         raise KeyError(
             f"Unable to find {automation_name}. Available automations are {list( available_dosing_automations.keys())}"
         )
-
-    return klass(
-        unit=unit,
-        experiment=experiment,
-        automation_name=automation_name,
-        skip_first_run=skip_first_run,
-        duration=duration,
-        **kwargs,
-    )
+        
+    try:
+        return klass(
+            unit=unit,
+            experiment=experiment,
+            automation_name=automation_name,
+            skip_first_run=skip_first_run,
+            duration=duration,
+            **kwargs,
+        )
+        
+    except Exception as e:
+        logger = create_logger("dosing_automation") 
+        logger.error(f"Error: {e}")
+        logger.debug(e, exc_info=True)
+        raise e
 
 
 available_dosing_automations: dict[str, type[DosingAutomationJob]] = {}
