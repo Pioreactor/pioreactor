@@ -18,7 +18,7 @@ class TMP1075:
     CONFIG_REGISTER = bytearray([0x01])
 
     def __init__(self, address: int = 0x4F):
-        comm_port = (I2C(hardware.SCL, hardware.SDA),)
+        comm_port = I2C(hardware.SCL, hardware.SDA)
         self.i2c = I2CDevice(comm_port, address)
 
     def get_temperature(self) -> float:
