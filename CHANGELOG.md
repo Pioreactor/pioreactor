@@ -8,6 +8,7 @@
  - experiment profiles can have a `description` in the `job` field (i.e. at the same level as `actions`).
  - Updated Raspberry Pi OS image to 2024-07-04.
  - Vendoring the TMP1075 library, which also fixes the RPi5 error.
+ - In places where the ipv4 is displayed (Inventory page, System tab, pio workers status, etc), *all* ipv4 addresses are displayed.
 
 #### Breaking changes
 

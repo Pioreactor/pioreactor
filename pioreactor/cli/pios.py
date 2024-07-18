@@ -419,6 +419,8 @@ if am_I_leader():
 
         If neither `--shared` not `--specific` are specified, both are set to true.
         """
+        from sh import ErrorReturnCode_12  # type: ignore
+
         logger = create_logger("sync_configs", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
         units = universal_identifier_to_all_workers(units)
 
@@ -430,6 +432,10 @@ if am_I_leader():
             try:
                 sync_config_files(unit, shared, specific)
                 return True
+            except ErrorReturnCode_12 as e:
+                logger.warning(f"Could not resolve hostname {unit}. Name not known.")
+                logger.debug(e, exc_info=True)
+                return False
             except Exception as e:
                 logger.warning(f"Encountered error syncing configs to {unit}.")
                 logger.debug(e, exc_info=True)

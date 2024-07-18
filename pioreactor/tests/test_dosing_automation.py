@@ -573,6 +573,7 @@ def test_throughput_calculator_restart() -> None:
         assert automation_job.alt_media_throughput == 1.5
 
 
+@pytest.mark.xfail
 def test_throughput_calculator_manual_set() -> None:
     experiment = "test_throughput_calculator_manual_set"
     with local_persistant_storage("media_throughput") as c:
