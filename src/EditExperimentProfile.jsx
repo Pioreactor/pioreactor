@@ -82,7 +82,7 @@ const EditExperimentProfilesContent = ({ initialCode, filename }) => {
   const saveCurrentCode = () => {
     if (filename === "") {
       setIsError(true);
-      setErrorMsg("Filename can't be blank");
+      setErrorMsg("Filename can't be blank.");
       return;
     }
 
@@ -177,7 +177,7 @@ const EditExperimentProfilesContent = ({ initialCode, filename }) => {
               >
                 Save
               </Button>
-              <p style={{ marginLeft: "20px" }}>{isError ? <Box color="error.main">{errorMsg}</Box> : ""}</p>
+              <p style={{ marginLeft: "10px" }}>{isError ? <Box color="error.main">{errorMsg}</Box> : ""}</p>
             </div>
           </div>
         </Grid>

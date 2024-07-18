@@ -38,6 +38,7 @@ function ChangeAutomationsDialog(props) {
     skip_first_run: 0 //TODO: this should be not included if !props.no_skip_first_run
   })
   const [automations, setAutomations] = useState({})
+  const [isLoading, setIsLoading] = useState(true)
   const [openSnackbar, setOpenSnackbar] = useState(false);
 
   useEffect(() => {
@@ -51,6 +52,7 @@ function ChangeAutomationsDialog(props) {
             }
           })
         .then((listOfAuto) => {
+          setIsLoading(false)
           setAutomations(Object.assign({}, ...listOfAuto.map(auto => ({ [auto.automation_name]: auto}))))
         })
         .catch((error) => {})
@@ -129,7 +131,7 @@ function ChangeAutomationsDialog(props) {
           <span style={{textTransform: "capitalize"}}>{automationTypeForDisplay}</span> automations control the {automationTypeForDisplay} in the Pioreactor's vial. Learn more about <a target="_blank" rel="noopener noreferrer" href={"https://docs.pioreactor.com/user-guide/" + automationTypeForDisplay + "-automations"}>{automationTypeForDisplay} automations</a>.
         </Typography>
 
-        <form>
+        {!isLoading && <form>
           <FormControl component="fieldset" sx={{mt: 2}}>
           <FormLabel component="legend">Automation</FormLabel>
             <Select
@@ -161,7 +163,8 @@ function ChangeAutomationsDialog(props) {
             : <React.Fragment/> }
 
           </FormControl>
-        </form>
+        </form>}
+        {isLoading && <p>Loading...</p>}
       </DialogContent>
       <DialogActions>
         <Button

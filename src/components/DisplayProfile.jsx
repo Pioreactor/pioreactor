@@ -43,7 +43,12 @@ const highlightedTarget = highlight
 const highlightedIf = highlight
 
 const highlightedActionType = {}
-const highlightedMessage = {}
+const highlightedLogMessage = {
+  borderLeft:  "3px solid #1e1e1e1e",
+  padding: "6px",
+  paddingLeft: "10px",
+  backgroundColor: "#f0f0f0",
+}
 
 
 
@@ -291,7 +296,7 @@ const ActionDetails = ({ action, jobName, index }) => {
           </Typography>
             {action.options?.message &&
             <Typography variant="body2" sx={level3}>
-             "<span style={highlightedMessage}>{extractAndApply(action.options.message, processBracketedExpression)}</span>"
+              <span style={highlightedLogMessage}>"{extractAndApply(action.options.message, processBracketedExpression)}"</span>
             </Typography>
             }
         </>

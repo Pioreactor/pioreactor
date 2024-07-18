@@ -466,8 +466,8 @@ function AssignPioreactors({ experiment }) {
         <DialogContent>
           <p>
             {" "}
-            Below, assign and unassign Pioreactors to your experiment{" "}
-            <i>{experiment}</i>.{" "}
+            Below, assign and unassign Pioreactors to experiment{" "}
+            <Chip size="small" label={experiment}/>.{" "}
           </p>
           <FormControl sx={{ m: "auto" }} component="fieldset" variant="standard">
             <FormLabel component="legend">Pioreactors</FormLabel>
@@ -2458,14 +2458,12 @@ function PioreactorCard(props){
                 View details <ArrowForwardIcon sx={{ verticalAlign: "middle", ml: 0.5 }} fontSize="small"/>
               </Button>
             </div>
-            <Box sx={(theme) => ({
+            <Box sx={{
               display: "flex",
               justifyContent: "flex-end",
               flexDirection: "row",
               flexWrap: "wrap",
-              [theme.breakpoints.down('md')]: {
-                justifyContent: "space-between",
-            }})}
+              }}
             >
               <div>
                 <SelfTestDialog

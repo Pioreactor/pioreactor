@@ -5,7 +5,7 @@ import SvgIcon from '@mui/material/SvgIcon';
 
 function PioreactorsIcon(props) {
   return (
-   <SvgIcon {...props}> >
+   <SvgIcon {...props} viewBox="0 0 20" >
       <ellipse cx="14.7777" cy="10.1482" rx="1.44444" ry="1.44444"  stroke="currentColor" strokeWidth="1.8"/>
       <path d="M13 1H16L16.5 9L18 9.5L17 15.5L13 16V1Z" fill="white"/>
       <mask id="path-3-outside-1_73_564" maskUnits="userSpaceOnUse" x="4" y="0" width="15" height="17" fill="black">

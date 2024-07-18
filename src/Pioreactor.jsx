@@ -1753,14 +1753,12 @@ function PioreactorCard(props){
                 </div>
               </Tooltip>
             </div>
-            <Box sx={(theme) => ({
+            <Box sx={{
               display: "flex",
               justifyContent: "flex-end",
               flexDirection: "row",
               flexWrap: "wrap",
-              [theme.breakpoints.down('md')]: {
-                justifyContent: "space-between",
-            }})}
+            }}
             >
               <div>
                 <SelfTestDialog

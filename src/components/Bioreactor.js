@@ -201,7 +201,7 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
       dynamicRects.push({ text: `nOD: ${roundTo1(nOD)}`, x: 210, y: 260, width: 80, height: 30, radius: 5 })
     }
     if (volume){
-      dynamicRects.push({ text: `${roundTo1(volume)} mL`, x: 110, y: Math.max(bioreactor.y + bioreactor.height - liquidLevel - 40, 40), width: 90, height: 30, radius: 5 })
+      dynamicRects.push({ text: `${roundTo1(volume)} mL`, x: 110, y: Math.max(bioreactor.y + bioreactor.height - liquidLevel - 35, 40), width: 90, height: 30, radius: 5 })
     }
 
     function drawRoundedRect(x, y, width, height, radius, fillStyle, strokeStyle) {
