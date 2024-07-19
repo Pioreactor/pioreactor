@@ -287,6 +287,8 @@ def start_led_automation(
     experiment: Optional[str] = None,
     **kwargs,
 ) -> LEDAutomationJob:
+    from pioreactor.automations import led  # noqa: F401
+
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_assigned_experiment_name(unit)
     try:
@@ -305,12 +307,13 @@ def start_led_automation(
             duration=duration,
             **kwargs,
         )
-    
+
     except Exception as e:
-        logger = create_logger("led_automation") 
+        logger = create_logger("led_automation")
         logger.error(f"Error: {e}")
         logger.debug(e, exc_info=True)
         raise e
+
 
 available_led_automations: dict[str, type[LEDAutomationJob]] = {}
 

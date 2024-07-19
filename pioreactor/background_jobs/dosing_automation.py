@@ -684,15 +684,17 @@ def start_dosing_automation(
     experiment: Optional[str] = None,
     **kwargs,
 ) -> DosingAutomationJob:
+    from pioreactor.automations import dosing  # noqa: F401
+
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_assigned_experiment_name(unit)
     try:
         klass = available_dosing_automations[automation_name]
-    except:
+    except KeyError:
         raise KeyError(
             f"Unable to find {automation_name}. Available automations are {list( available_dosing_automations.keys())}"
         )
-        
+
     try:
         return klass(
             unit=unit,
@@ -702,9 +704,9 @@ def start_dosing_automation(
             duration=duration,
             **kwargs,
         )
-        
+
     except Exception as e:
-        logger = create_logger("dosing_automation") 
+        logger = create_logger("dosing_automation")
         logger.error(f"Error: {e}")
         logger.debug(e, exc_info=True)
         raise e

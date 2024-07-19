@@ -634,6 +634,8 @@ def start_temperature_automation(
     experiment: Optional[str] = None,
     **kwargs,
 ) -> TemperatureAutomationJob:
+    from pioreactor.automations import temperature  # noqa: F401
+
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_assigned_experiment_name(unit)
     try:
@@ -653,9 +655,9 @@ def start_temperature_automation(
             automation_name=automation_name,
             **kwargs,
         )
-    
+
     except Exception as e:
-        logger = create_logger("temperature_automation") 
+        logger = create_logger("temperature_automation")
         logger.error(f"Error: {e}")
         logger.debug(e, exc_info=True)
         raise e
