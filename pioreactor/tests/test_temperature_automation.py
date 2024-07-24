@@ -117,6 +117,20 @@ def test_setting_pid_control_after_startup_will_start_some_heating() -> None:
         assert t.heater_duty_cycle > 0
 
 
+def test_setting_heat_is_turned_off_when_paused() -> None:
+    # this test tries to replicate what a user does in the UI
+    experiment = "test_setting_pid_control_after_startup_will_start_some_heating"
+    with Thermostat(unit=unit, experiment=experiment, target_temperature=35) as t:
+        pause(2)
+        assert t.state == t.READY
+        assert t.heater_duty_cycle > 0
+
+        t.set_state(t.SLEEPING)
+
+        assert t.state == t.SLEEPING
+        assert t.heater_duty_cycle == 0
+
+
 def test_duty_cycle_is_published_and_not_settable() -> None:
     experiment = "test_duty_cycle_is_published_and_not_settable"
     dc_msgs = []

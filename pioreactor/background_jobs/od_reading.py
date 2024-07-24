@@ -981,7 +981,7 @@ class ODReader(BackgroundJob):
             initial_ir_intensity / culture_on_signal * 3.0
         ) / 50  # divide by N since the culture is unlikely to Nx.
 
-        ir_intensity_max = 85.0
+        ir_intensity_max = 80.0
         return min(ir_intensity_max, ir_intensity_argmax_ANGLE_can_be, ir_intensity_argmax_REF_can_be)
 
     def _prepare_post_callbacks(self) -> list[Callable]:

@@ -171,7 +171,7 @@ class LEDAutomationJob(AutomationJob):
             A float between 0-100, inclusive.
 
         """
-        attempts = 12
+        attempts = 6
         for _ in range(attempts):
             success = led_intensity(
                 {channel: intensity},
