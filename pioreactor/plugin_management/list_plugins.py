@@ -9,6 +9,8 @@ import click
 @click.command(name="list", short_help="list the installed plugins")
 @click.option("--json", is_flag=True, help="output as json")
 def click_list_plugins(json: bool) -> None:
+    # this is to initialize all the modules, to plugins don't fail when being loaded.
+    from pioreactor.cli import run  # noqa: F403, F401
     from pioreactor.plugin_management import get_plugins
 
     if not json:

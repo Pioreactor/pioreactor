@@ -26,13 +26,12 @@ class Thermostat(TemperatureAutomationJob):
     def __init__(self, target_temperature: float | str, **kwargs) -> None:
         super().__init__(**kwargs)
         assert target_temperature is not None, "target_temperature must be set"
-        self.target_temperature = float(target_temperature)
 
         self.pid = PID(
             Kp=config.getfloat("temperature_automation.thermostat", "Kp"),
             Ki=config.getfloat("temperature_automation.thermostat", "Ki"),
             Kd=config.getfloat("temperature_automation.thermostat", "Kd"),
-            setpoint=self.target_temperature,
+            setpoint=None,
             unit=self.unit,
             experiment=self.experiment,
             job_name=self.job_name,
@@ -40,8 +39,18 @@ class Thermostat(TemperatureAutomationJob):
             output_limits=(-25, 25),  # avoid whiplashing
         )
 
+        self.set_target_temperature(target_temperature)
+
         if not is_pio_job_running("stirring"):
             self.logger.warning("It's recommended to have stirring on when using the thermostat.")
+
+    def _clamp_target_temperature(self, target_temperature: float) -> float:
+        if target_temperature > self.MAX_TARGET_TEMP:
+            self.logger.warning(
+                f"Values over {self.MAX_TARGET_TEMP}℃ are not supported. Setting to {self.MAX_TARGET_TEMP}℃."
+            )
+
+        return clamp(0.0, target_temperature, self.MAX_TARGET_TEMP)
 
     def execute(self) -> UpdatedHeaterDC:
         while not hasattr(self, "pid"):
@@ -61,10 +70,12 @@ class Thermostat(TemperatureAutomationJob):
             data={
                 "current_dc": self.heater_duty_cycle,
                 "delta_dc": output,
+                "target_temperature": self.target_temperature,
+                "latest_temperature": self.latest_temperature,
             },
         )
 
-    def set_target_temperature(self, target_temperature: float) -> None:
+    def set_target_temperature(self, target_temperature: float | str) -> None:
         """
 
         Parameters
@@ -77,11 +88,5 @@ class Thermostat(TemperatureAutomationJob):
 
         """
         target_temperature = float(target_temperature)
-        if target_temperature > self.MAX_TARGET_TEMP:
-            self.logger.warning(
-                f"Values over {self.MAX_TARGET_TEMP}℃ are not supported. Setting to {self.MAX_TARGET_TEMP}℃."
-            )
-
-        target_temperature = clamp(0, target_temperature, self.MAX_TARGET_TEMP)
-        self.target_temperature = target_temperature
+        self.target_temperature = self._clamp_target_temperature(target_temperature)
         self.pid.set_setpoint(self.target_temperature)

@@ -428,7 +428,7 @@ class PID:
         Kp: float,
         Ki: float,
         Kd: float,
-        setpoint: float,
+        setpoint: float | None,
         output_limits: tuple[Optional[float], Optional[float]] = (None, None),
         sample_time: Optional[float] = None,
         unit: Optional[str] = None,
@@ -478,6 +478,7 @@ class PID:
         Updates the controller's internal state with the current error and time step,
         and returns the controller output.
         """
+        assert isinstance(self.setpoint, float)
 
         error = self.setpoint - input_
         # Update error sum with clamping for anti-windup

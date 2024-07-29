@@ -897,7 +897,7 @@ class TestTemperatureApproximation_1_0:
 
         assert 25.295 <= self.t.approximate_temperature_1_0(features) <= 25.430
 
-    def test_temperature_approximation19(self) -> None:
+    def test_temperature_approximation21(self) -> None:
         # this was real data from a user
 
         ts_of_temps = [
@@ -944,3 +944,43 @@ class TestTemperatureApproximation_1_0:
         }
 
         assert better_room_temp < self.t.approximate_temperature_1_0(features) <= 25
+
+    def test_temperature_approximation19(self) -> None:
+        # this was real data from a user
+        features = {
+            "previous_heater_dc": 1.3,
+            "room_temp": 22.0,
+            "time_series_of_temp": [
+                56.4375,
+                56.375,
+                56.3125,
+                56.302083333333336,
+                56.25,
+                56.25,
+                56.1875,
+                56.1875,
+                56.177083333333336,
+                56.135416666666664,
+                56.125,
+                56.125,
+                56.104166666666664,
+                56.083333333333336,
+                56.0625,
+                56.0625,
+                56.0625,
+                56.0625,
+                56.0625,
+                56.041666666666664,
+                56.052083333333336,
+                56.020833333333336,
+                56.0,
+                56.0,
+                56.0,
+                56.0,
+                56.0,
+                56.0,
+                56.0,
+            ],
+        }
+
+        assert 55.5 <= self.t.approximate_temperature_1_0(features) <= 56.5
