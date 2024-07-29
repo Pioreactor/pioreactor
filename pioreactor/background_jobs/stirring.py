@@ -380,15 +380,13 @@ class Stirrer(BackgroundJob):
         return self.measured_rpm
 
     def poll_and_update_dc(self, poll_for_seconds: Optional[float] = None) -> None:
-        if self.rpm_calculator is None or self.target_rpm is None:
+        if self.rpm_calculator is None or self.target_rpm is None or self.state != self.READY:
             return
 
         if poll_for_seconds is None:
             target_n_data_points = 12
             rps = self.target_rpm / 60.0
             poll_for_seconds = target_n_data_points / rps
-        else:
-            poll_for_seconds = 4.0
 
         self.poll(poll_for_seconds)
 
@@ -421,6 +419,10 @@ class Stirrer(BackgroundJob):
         self.set_duty_cycle(self.rpm_to_dc_lookup(self.target_rpm))
         self.pid.set_setpoint(self.target_rpm)
 
+    def sleep_if_ready(self, seconds):
+        if self.state == self.READY:
+            sleep(seconds)
+
     def block_until_rpm_is_close_to_target(
         self, abs_tolerance: float = 20, timeout: Optional[float] = 60
     ) -> bool:
@@ -445,23 +447,26 @@ class Stirrer(BackgroundJob):
             return False
 
         sleep_time = 0.2
-        poll_time = 2.0  # usually 4, but we don't need high accuracy here,
+        poll_time = 2  # usually 4, but we don't need high accuracy here,
         self.logger.debug(f"{self.job_name} is blocking until RPM is near {self.target_rpm}.")
 
         self.rpm_check_repeated_thread.pause()
 
         with catchtime() as time_waiting:
-            sleep(2)  # on init, the stirring is too fast from the initial "kick"
+            self.sleep_if_ready(2)  # on init, the stirring is too fast from the initial "kick"
             self.poll_and_update_dc(poll_time)
-
             assert isinstance(self.target_rpm, float)
             assert self._measured_rpm is not None
 
             while abs(self._measured_rpm - self.target_rpm) > abs_tolerance:
-                sleep(sleep_time)
+                self.sleep_if_ready(sleep_time)
+
                 self.poll_and_update_dc(poll_time)
 
-                if (timeout and time_waiting() > timeout) or (self.state != self.READY):
+                if self.state != self.READY:
+                    self.rpm_check_repeated_thread.unpause()
+                    return False
+                elif timeout and time_waiting() > timeout:
                     self.rpm_check_repeated_thread.unpause()
                     self.logger.debug(
                         f"Waited {time_waiting():.1f} seconds for RPM to match, breaking out early."

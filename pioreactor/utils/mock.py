@@ -135,9 +135,11 @@ class MockPWMOutputDevice:
         self.pin = pin
         self._dc = initial_dc
         self.frequency = frequency
+        self.open = True
 
     def start(self, initial_dc: pt.FloatBetween0and100):
-        pass
+        if not self.open:
+            raise IOError()
 
     def off(self):
         self.dc = 0.0
@@ -148,10 +150,13 @@ class MockPWMOutputDevice:
 
     @dc.setter
     def dc(self, dc: float) -> None:
-        self._dc = dc
+        if self.open:
+            self._dc = dc
+        else:
+            raise IOError()
 
     def close(self):
-        pass
+        self.open = False
 
 
 class MockCallback:

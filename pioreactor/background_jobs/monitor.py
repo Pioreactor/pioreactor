@@ -7,6 +7,7 @@ from shlex import join
 from shlex import quote
 from threading import Thread
 from time import sleep
+from time import time
 from typing import Any
 from typing import Callable
 from typing import Optional
@@ -32,6 +33,7 @@ from pioreactor.pubsub import get_from_leader
 from pioreactor.pubsub import QOS
 from pioreactor.structs import Voltage
 from pioreactor.types import MQTTMessage
+from pioreactor.types import MQTTMessagePayload
 from pioreactor.utils.gpio_helpers import set_gpio_availability
 from pioreactor.utils.networking import get_ip
 from pioreactor.utils.timing import current_utc_datetime
@@ -42,6 +44,30 @@ from pioreactor.utils.timing import to_datetime
 if whoami.is_testing_env():
     from pioreactor.utils.mock import MockCallback
     from pioreactor.utils.mock import MockHandle
+
+
+class TimedSet:
+    """
+    A quick lookup to see if a object was recently added or not (min_time duration).
+
+    Use `S.add(x)` and `x in S` semantics.
+
+    """
+
+    def __init__(self, min_time=1):
+        self.data = dict()
+        self.min_time = min_time
+
+    def __contains__(self, item):
+        now = time()
+        if item in self.data and (now - self.data[item]) < self.min_time:
+            return True
+        else:
+            return False
+
+    def add(self, item):
+        now = time()
+        self.data[item] = now
 
 
 class Monitor(LongRunningBackgroundJob):
@@ -104,6 +130,7 @@ class Monitor(LongRunningBackgroundJob):
     led_in_use: bool = False
     _pre_button: list[Callable] = []
     _post_button: list[Callable] = []
+    _processed_topics_and_payloads = TimedSet(min_time=0.5)
 
     def __init__(self, unit: str, experiment: str) -> None:
         super().__init__(unit=unit, experiment=experiment)
@@ -252,6 +279,9 @@ class Monitor(LongRunningBackgroundJob):
         if not whoami.am_I_leader():
             # check for MQTT connection to leader
             self.check_for_mqtt_connection_to_leader()
+
+        # clean up our queue so it doesn't grow without bound.
+        self._processed_topics_and_payloads.data = dict()
 
     def check_for_correct_permissions(self) -> None:
         if whoami.is_testing_env():
@@ -627,13 +657,23 @@ class Monitor(LongRunningBackgroundJob):
         > pio run job_name arg1 arg2 --option-A value1 --option-B value2 --flag
 
         """
+        topic = msg.topic
+        payload = msg.payload
 
+        # this dedups on topic to avoid a stampede of requests for the same task
+        if (topic, payload) in self._processed_topics_and_payloads:
+            return
+
+        self._processed_topics_and_payloads.add((topic, payload))
+
+        return self._run_job_on_machine(topic, payload)
+
+    def _run_job_on_machine(self, topic: str, raw_payload: MQTTMessagePayload) -> None:
         # we use a thread below since we want to exit this callback without blocking it.
         # a blocked callback can disconnect from MQTT broker, prevent other callbacks, etc.
         # TODO: we should this entire code into a thread...
 
-        topic_parts = msg.topic.split("/")
-
+        topic_parts = topic.split("/")
         job_name = topic_parts[-1]
         experiment = topic_parts[2]
 
@@ -650,10 +690,9 @@ class Monitor(LongRunningBackgroundJob):
         else:
             assigned_experiment = None
 
-        payload = loads(msg.payload) if msg.payload else {"options": {}, "args": []}
+        payload = loads(raw_payload) if raw_payload else {"options": {}, "args": []}
 
         options = payload.get("options", {})
-
         args = payload.get("args", [])
 
         # this is a performance hack and should be changed later...

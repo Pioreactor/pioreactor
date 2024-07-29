@@ -431,22 +431,25 @@ class ADCReader(LoggerMixin):
         max_signal = -1.0
         oversampling_count = self.oversampling_count
 
+        channels = self.channels
+        read_from_channel = self.adc.read_from_channel
+
         # we pre-allocate these arrays to make the for loop faster => more accurate
         aggregated_signals: dict[pt.PdChannel, list[pt.AnalogValue]] = {
-            channel: [0.0] * oversampling_count for channel in self.channels
+            channel: [0.0] * oversampling_count for channel in channels
         }
         timestamps: dict[pt.PdChannel, list[float]] = {
-            channel: [0.0] * oversampling_count for channel in self.channels
+            channel: [0.0] * oversampling_count for channel in channels
         }
 
         try:
             with catchtime() as time_since_start:
                 for counter in range(oversampling_count):
                     with catchtime() as time_sampling_took_to_run:
-                        for pd_channel in self.channels:
+                        for pd_channel in channels:
                             adc_channel = ADC_CHANNEL_FUNCS[pd_channel]
                             timestamps[pd_channel][counter] = time_since_start()
-                            aggregated_signals[pd_channel][counter] = self.adc.read_from_channel(adc_channel)
+                            aggregated_signals[pd_channel][counter] = read_from_channel(adc_channel)
 
                     sleep(
                         max(
