@@ -46,7 +46,7 @@ if whoami.is_testing_env():
     from pioreactor.utils.mock import MockHandle
 
 
-class TimedSet:
+class ExpiringMembershipSet:
     """
     A quick lookup to see if a object was recently added or not (min_time duration).
 
@@ -68,6 +68,9 @@ class TimedSet:
     def add(self, item):
         now = time()
         self.data[item] = now
+
+    def clear(self):
+        self.data = dict()
 
 
 class Monitor(LongRunningBackgroundJob):
@@ -130,7 +133,7 @@ class Monitor(LongRunningBackgroundJob):
     led_in_use: bool = False
     _pre_button: list[Callable] = []
     _post_button: list[Callable] = []
-    _processed_topics_and_payloads = TimedSet(min_time=0.5)
+    _processed_topics_and_payloads = ExpiringMembershipSet(min_time=0.5)
 
     def __init__(self, unit: str, experiment: str) -> None:
         super().__init__(unit=unit, experiment=experiment)
@@ -159,9 +162,9 @@ class Monitor(LongRunningBackgroundJob):
         )
 
         self.button_down = False
-        # set up GPIO for accessing the button and changing the LED
 
         try:
+            # set up GPIO for accessing the button and changing the LED
             # if these fail, don't kill the entire job - sucks for onboarding.
             self._setup_GPIO()
         except Exception as e:
@@ -281,7 +284,7 @@ class Monitor(LongRunningBackgroundJob):
             self.check_for_mqtt_connection_to_leader()
 
         # clean up our queue so it doesn't grow without bound.
-        self._processed_topics_and_payloads.data = dict()
+        self._processed_topics_and_payloads.clear()
 
     def check_for_correct_permissions(self) -> None:
         if whoami.is_testing_env():

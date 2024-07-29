@@ -106,6 +106,55 @@ def test_run_job_with_monitor_deduplicates() -> None:
         assert len([msg for msg in bucket if "pio run example_plugin" in msg["message"]]) == 1
 
 
+def test_run_job_with_monitor_deduplicates_but_not_if_args_are_different() -> None:
+    unit = get_unit_name()
+    exp = UNIVERSAL_EXPERIMENT
+    cl = create_client()
+
+    with collect_all_logs_of_level("DEBUG", unit, exp) as bucket:
+        with Monitor(unit=unit, experiment=exp):
+            pause()
+
+            cl.publish(
+                f"pioreactor/{unit}/{get_assigned_experiment_name(unit)}/run/example_plugin",
+                r'{"test": "t"}',
+            )
+            cl.publish(
+                f"pioreactor/{unit}/{get_assigned_experiment_name(unit)}/run/example_plugin",
+                r"",
+            )
+            pause()
+            pause()
+
+        assert len([msg for msg in bucket if "pio run example_plugin" in msg["message"]]) == 2
+
+
+def test_run_job_with_monitor_deduplicates_passes_if_pause() -> None:
+    unit = get_unit_name()
+    exp = UNIVERSAL_EXPERIMENT
+    cl = create_client()
+
+    with collect_all_logs_of_level("DEBUG", unit, exp) as bucket:
+        with Monitor(unit=unit, experiment=exp):
+            pause()
+
+            cl.publish(
+                f"pioreactor/{unit}/{get_assigned_experiment_name(unit)}/run/example_plugin",
+                b"",
+            )
+            pause()
+            pause()
+
+            cl.publish(
+                f"pioreactor/{unit}/{get_assigned_experiment_name(unit)}/run/example_plugin",
+                b"",
+            )
+            pause()
+            pause()
+
+        assert len([msg for msg in bucket if "pio run example_plugin" in msg["message"]]) == 2
+
+
 def test_job_options_and_args_to_shell_command() -> None:
     m = Monitor
     assert (
