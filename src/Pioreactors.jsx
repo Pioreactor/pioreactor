@@ -561,19 +561,28 @@ function PioreactorHeader({experiment}) {
 
 function PatientButton(props) {
   const [buttonText, setButtonText] = useState(props.buttonText)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
       setButtonText(props.buttonText)
     }
   , [props.buttonText])
 
-  const onClick = () => {
-      setButtonText(<CircularProgress color="inherit" size={21}/>)
-      props.onClick()
-      setTimeout(() => setButtonText(props.buttonText), 30000)
-  }
+  const onClick = async () => {
+    setError(null)
+    setButtonText(<CircularProgress color="inherit" size={21}/>);
+    try {
+      await props.onClick();
+      setTimeout(() => setButtonText(props.buttonText), 30000); // Reset to original text after a delay
+    } catch (error) {
+      setError(error.message)
+      setTimeout(() => setButtonText(props.buttonText), 10000); // Reset to original text after a delay
+    }
+  };
 
   return (
+    <>
+    {error && <p style={{color: lostRed}}>{error}</p>}
     <Button
       disableElevation
       sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}}
@@ -585,6 +594,7 @@ function PatientButton(props) {
     >
       {buttonText}
     </Button>
+    </>
   )
 }
 
@@ -1629,16 +1639,14 @@ function SettingsActionsDialogAll({experiment}) {
     setSnackbarOpen(false)
   }
 
+  const handleRunPioreactorJobResponse = (name) => {
+    setSnackbarMessage(`Starting ${name} on all active & assigned Pioreactors`)
+    setSnackbarOpen(true)
+    return;
+  };
 
   function createUserButtonsBasedOnState(job){
 
-    const handleRunPioreactorJobResponse = (response) => {
-      if (response.ok) {
-        setSnackbarMessage(`Starting ${job.metadata.display_name.toLowerCase()} on all active & assigned Pioreactors`)
-        setSnackbarOpen(true)
-        return;
-      }
-    };
 
     if (job.metadata.key === "temperature_automation"){
       var startAction = () => setOpenChangeTemperatureDialog(true)
@@ -1650,7 +1658,10 @@ function SettingsActionsDialogAll({experiment}) {
       startAction = () => setOpenChangeLEDDialog(true)
     }
     else {
-      startAction = () => runPioreactorJob(unit, experiment, job.metadata.key, [], {}, handleRunPioreactorJobResponse)
+      startAction = () => {
+        runPioreactorJob(unit, experiment, job.metadata.key, [], {})
+        handleRunPioreactorJobResponse(job.metadata.display_name.toLowerCase())
+      }
     }
 
 

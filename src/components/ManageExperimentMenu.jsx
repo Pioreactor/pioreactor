@@ -7,6 +7,7 @@ import ListItemText from "@mui/material/ListItemText";
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import PanToolOutlinedIcon from '@mui/icons-material/PanToolOutlined';
+import ListIcon from '@mui/icons-material/List';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import { useNavigate } from 'react-router-dom';
 import { useConfirm } from 'material-ui-confirm';
@@ -44,8 +45,8 @@ export default function ManageExperimentMenu({experiment}){
 
   const handleDeleteExperiment = () => {
     confirm({
-      description: 'This will stop Pioreactor activity, unassign Pioreactors, and permanently delete experiment data. Do you wish to continue?',
-      title: "End experiment?",
+      description: 'This will permanently delete experiment data, stop Pioreactor activity, and unassign Pioreactors. Do you wish to continue?',
+      title: "Delete experiment?",
       confirmationText: "Confirm",
       confirmationButtonProps: {color: "primary"},
       cancellationButtonProps: {color: "secondary"},
@@ -86,11 +87,11 @@ export default function ManageExperimentMenu({experiment}){
           </ListItemIcon>
           <ListItemText>End experiment</ListItemText>
         </MenuItem>
-        <MenuItem disabled={allExperiments.length <= 1} onClick={handleDeleteExperiment}>
+        <MenuItem color="secondary" disabled={allExperiments.length <= 1} onClick={handleDeleteExperiment}>
           <ListItemIcon>
-            <DeleteOutlinedIcon fontSize="small" />
+            <DeleteOutlinedIcon color="secondary"  fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Delete experiment</ListItemText>
+          <ListItemText primaryTypographyProps={{color: 'secondary.main'}} >Delete experiment</ListItemText>
         </MenuItem>
       </Menu>
     </div>

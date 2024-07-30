@@ -15,6 +15,8 @@ import { styled } from '@mui/material/styles';
 import {ERROR_COLOR, WARNING_COLOR, NOTICE_COLOR} from "../utilities"
 
 
+
+
 const StyledTableCell = styled(TableCell)(({ theme, level }) => {
   return {
     padding: "6px 6px 6px 10px",
@@ -23,6 +25,13 @@ const StyledTableCell = styled(TableCell)(({ theme, level }) => {
                       level === "WARNING" ? WARNING_COLOR :
                       level === "NOTICE" ? NOTICE_COLOR : "white",
     whiteSpace: "normal"
+  };
+});
+
+const StyledTableCellFiller = styled(TableCell)(({ theme, level }) => {
+  return {
+    padding: "15px 10px",
+    textAlign: "center"
   };
 });
 
@@ -96,8 +105,12 @@ function LogTable({byDuration, experimentStartTime, experiment, config, relabelM
     return (relabelMap && relabelMap[unit]) ? `${relabelMap[unit]} / ${unit}` : unit;
   };
 
-  const timestampCell = (timestamp) => {
-    const ts = moment.utc(timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]');
+  const toTimestampObject = (timestamp) => {
+    return moment.utc(timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]')
+  }
+
+  const timestampCell = (timestampStr) => {
+    const ts = toTimestampObject(timestampStr);
     const localTs = ts.local();
 
     if (byDuration) {
@@ -115,7 +128,7 @@ function LogTable({byDuration, experimentStartTime, experiment, config, relabelM
 
     setListOfLogs(currentLogs => [
       {
-        timestamp: moment.utc().format('YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]'),
+        timestampStr: moment.utc().format('YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]'),
         pioreactor_unit: unit,
         message: String(payload.message),
         task: payload.task,
@@ -143,15 +156,25 @@ function LogTable({byDuration, experimentStartTime, experiment, config, relabelM
               </TableRow>
             </TableHead>
             <TableBody>
-              {listOfLogs.map(log => (
+              {listOfLogs.map( (log, i) => (
+                <>
                 <TableRow key={log.key}>
                   <StyledTimeTableCell level={log.level}>
-                    {timestampCell(log.timestamp)}
+                    {timestampCell(log.timestampStr)}
                   </StyledTimeTableCell>
                   <StyledTableCell level={log.level}>{relabelUnit(log.pioreactor_unit)}</StyledTableCell>
                   <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
                   <StyledTableCell level={log.level}>{log.message}</StyledTableCell>
                 </TableRow>
+                {
+                  listOfLogs[i+1] && (toTimestampObject(log.timestampStr).diff(toTimestampObject(listOfLogs[i+1].timestampStr), 'hours') >= 0.01) && (
+                    <TableRow key={-log.key}>
+                      <StyledTableCellFiller colspan="4">{toTimestampObject(log.timestampStr).diff(toTimestampObject(listOfLogs[i+1].timestampStr), 'hours').toFixed(1)} hours later...</StyledTableCellFiller>
+                    </TableRow>
+                  )
+                }
+                </>
+
               ))}
             </TableBody>
           </Table>

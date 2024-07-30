@@ -57,8 +57,8 @@ export function getRelabelMap(setCallback, experiment="current") {
 
 
 
-export function runPioreactorJob(unit, experiment, job, args = [], options = {}, callback) {
-    fetch(`/api/workers/${unit}/experiments/${experiment}/jobs/${job}/run`, {
+export function runPioreactorJob(unit, experiment, job, args = [], options = {}) {
+    return fetch(`/api/workers/${unit}/experiments/${experiment}/jobs/${job}/run`, {
       method: "PATCH",
       body: JSON.stringify({ args: args, options: options }),
       headers: {
@@ -66,12 +66,17 @@ export function runPioreactorJob(unit, experiment, job, args = [], options = {},
         'Content-Type': 'application/json'
       },
     }).then(response => {
-      if (callback && typeof callback === 'function') {
-        callback(response);
+      if (response.ok) {
+        // If response status is in the range 200-299
+        return
+      } else {
+        throw new Error(`Error ${response.status}.`);
       }
+    }).catch(error => {
+      // Handle network errors or 4xx/5xx errors
+      throw error;
     });
 }
-
 
 
 export class DefaultDict {

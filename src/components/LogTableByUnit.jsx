@@ -26,6 +26,13 @@ const StyledTableCell = styled(TableCell)(({ theme, level }) => {
   };
 });
 
+const StyledTableCellFiller = styled(TableCell)(({ theme, level }) => {
+  return {
+    padding: "15px 10px",
+    textAlign: "center"
+  };
+});
+
 const StyledTimeTableCell = styled(TableCell)(({ theme, level }) => {
   return {
     padding: "6px 6px 6px 10px",
@@ -91,9 +98,12 @@ function LogTableByUnit({experiment, unit}) {
     }
   }, [client, experiment]);
 
+  const toTimestampObject = (timestamp) => {
+    return moment.utc(timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]')
+  }
 
-  const timestampCell = (timestamp) => {
-    const ts = moment.utc(timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]');
+  const timestampCell = (timestampStr) => {
+    const ts = toTimestampObject(timestampStr);
     const localTs = ts.local();
     return <span title={localTs.format('YYYY-MM-DD HH:mm:ss.SS')}>{localTs.format('HH:mm:ss')}</span>;
   };
@@ -132,7 +142,8 @@ function LogTableByUnit({experiment, unit}) {
               </TableRow>
             </TableHead>
             <TableBody>
-              {listOfLogs.map(log => (
+              {listOfLogs.map( (log, i) => (
+                <>
                 <TableRow key={log.key}>
                   <StyledTimeTableCell level={log.level}>
                     {timestampCell(log.timestamp)}
@@ -140,6 +151,15 @@ function LogTableByUnit({experiment, unit}) {
                   <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
                   <StyledTableCell level={log.level}>{log.message}</StyledTableCell>
                 </TableRow>
+                {
+                  listOfLogs[i+1] && (toTimestampObject(log.timestamp).diff(toTimestampObject(listOfLogs[i+1].timestamp), 'hours') >= 1) && (
+                    <TableRow key={-log.key}>
+                      <StyledTableCellFiller colspan="4">{toTimestampObject(log.timestamp).diff(toTimestampObject(listOfLogs[i+1].timestamp), 'hours').toFixed(1)} hours later...</StyledTableCellFiller>
+                    </TableRow>
+                  )
+                }
+                </>
+
               ))}
             </TableBody>
           </Table>

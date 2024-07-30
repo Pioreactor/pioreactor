@@ -365,19 +365,28 @@ function PioreactorHeader({unit, assignedExperiment, isActive}) {
 
 function PatientButton(props) {
   const [buttonText, setButtonText] = useState(props.buttonText)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
       setButtonText(props.buttonText)
     }
   , [props.buttonText])
 
-  const onClick = () => {
-      setButtonText(<CircularProgress color="inherit" size={21}/>)
-      props.onClick()
-      setTimeout(() => setButtonText(props.buttonText), 30000)
-  }
+  const onClick = async () => {
+    setError(null)
+    setButtonText(<CircularProgress color="inherit" size={21}/>);
+    try {
+      await props.onClick();
+      setTimeout(() => setButtonText(props.buttonText), 30000); // Reset to original text after a delay
+    } catch (error) {
+      setError(error.message)
+      setTimeout(() => setButtonText(props.buttonText), 10000); // Reset to original text after a delay
+    }
+  };
 
   return (
+    <>
+    {error && <p style={{color: lostRed}}>{error}</p>}
     <Button
       disableElevation
       sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}}
@@ -389,6 +398,7 @@ function PatientButton(props) {
     >
       {buttonText}
     </Button>
+    </>
   )
 }
 
@@ -2000,7 +2010,7 @@ function Pioreactor({title}) {
             <PioreactorHeader unit={unit} assignedExperiment={assignedExperiment} isActive={isActive}/>
             {experimentMetadata.experiment && assignedExperiment && experimentMetadata.experiment !== assignedExperiment &&
             <Box>
-              <Alert severity="info" style={{marginBottom: '10px', marginTop: '10px'}}>This worker is part of different experiment, <i>{assignedExperiment}</i>. Switch to the experiment <i>{assignedExperiment}</i> to control this worker.</Alert>
+              <Alert severity="info" style={{marginBottom: '10px', marginTop: '10px'}}>This worker is part of different experiment, <Chip size="small" label={assignedExperiment} />. Switch to the experiment <Chip size="small" label={assignedExperiment}/> to control this worker.</Alert>
             </Box>
           }
           </Grid>
