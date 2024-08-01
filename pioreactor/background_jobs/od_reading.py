@@ -173,8 +173,8 @@ class ADCReader(LoggerMixin):
         self.penalizer = penalizer
         self.oversampling_count = oversampling_count
 
-        if "local_ac_hz" in config["od_config"]:
-            self.most_appropriate_AC_hz: Optional[float] = config.getfloat("od_config", "local_ac_hz")
+        if "local_ac_hz" in config["od_reading.config"]:
+            self.most_appropriate_AC_hz: Optional[float] = config.getfloat("od_reading.config", "local_ac_hz")
         else:
             self.most_appropriate_AC_hz = None
 
@@ -604,7 +604,9 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
 
     def __init__(self, channel: pt.PdChannel) -> None:
         super().__init__()
-        self.led_output_ema = ExponentialMovingAverage(config.getfloat("od_config", "pd_reference_ema"))
+        self.led_output_ema = ExponentialMovingAverage(
+            config.getfloat("od_reading.config", "pd_reference_ema")
+        )
         self.led_output_emstd = ExponentialMovingStd(alpha=0.95, ema_alpha=0.8)
         self.channel = channel
         # self.logger.debug(f"Using PD channel {channel} as IR LED reference.")
@@ -684,10 +686,11 @@ class CachedCalibrationTransformer(CalibrationTransformer):
                     calibration_data = decode(c[angle], type=structs.AnyODCalibration)  # type: ignore
                     name = calibration_data.name
 
-                    if config.get("od_config", "ir_led_intensity") != "auto" and (
-                        calibration_data.ir_led_intensity != config.getfloat("od_config", "ir_led_intensity")
+                    if config.get("od_reading.config", "ir_led_intensity") != "auto" and (
+                        calibration_data.ir_led_intensity
+                        != config.getfloat("od_reading.config", "ir_led_intensity")
                     ):
-                        msg = f"The calibration `{name}` was calibrated with a different IR LED intensity ({calibration_data.ir_led_intensity} vs current: {config.getfloat('od_config', 'ir_led_intensity')}). Either re-calibrate, turn off calibration, or change the ir_led_intensity in the config.ini."
+                        msg = f"The calibration `{name}` was calibrated with a different IR LED intensity ({calibration_data.ir_led_intensity} vs current: {config.getfloat('od_reading.config', 'ir_led_intensity')}). Either re-calibrate, turn off calibration, or change the ir_led_intensity in the config.ini."
                         self.logger.error(msg)
                         raise exc.CalibrationError(msg)
                     # confirm that PD channel is the same as when calibration was performed
@@ -870,7 +873,7 @@ class ODReader(BackgroundJob):
         self._set_for_iterating = threading.Event()
 
         self.ir_channel: pt.LedChannel = self._get_ir_led_channel_from_configuration()
-        config_ir_led_intensity = config.get("od_config", "ir_led_intensity")
+        config_ir_led_intensity = config.get("od_reading.config", "ir_led_intensity")
 
         self.ir_led_intensity: pt.LedIntensityValue
         if config_ir_led_intensity == "auto":
@@ -1212,11 +1215,11 @@ def create_channel_angle_map(
 def start_od_reading(
     od_angle_channel1: Optional[pt.PdAngleOrREF] = None,
     od_angle_channel2: Optional[pt.PdAngleOrREF] = None,
-    interval: Optional[float] = 1 / config.getfloat("od_config", "samples_per_second"),
+    interval: Optional[float] = 1 / config.getfloat("od_reading.config", "samples_per_second"),
     fake_data: bool = False,
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
-    use_calibration: bool = config.getboolean("od_config", "use_calibration"),
+    use_calibration: bool = config.getboolean("od_reading.config", "use_calibration"),
 ) -> ODReader:
     """
     This function prepares ODReader and other necessary transformation objects. It's a higher level API than using ODReader.
@@ -1262,7 +1265,7 @@ def start_od_reading(
         calibration_transformer = NullCalibrationTransformer()  # type: ignore
 
     if interval is not None:
-        penalizer = config.getfloat("od_config", "smoothing_penalizer", fallback=700.0) / interval
+        penalizer = config.getfloat("od_reading.config", "smoothing_penalizer", fallback=700.0) / interval
     else:
         penalizer = 0.0
 

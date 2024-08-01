@@ -191,9 +191,7 @@ class Stirrer(BackgroundJob):
         "duty_cycle": {"datatype": "float", "settable": True, "unit": "%"},
     }
 
-    duty_cycle: float = config.getfloat(
-        "stirring", "initial_duty_cycle"
-    )  # only used if calibration isn't defined.
+    duty_cycle: float = 0
     _previous_duty_cycle: float = 0
     _measured_rpm: Optional[float] = None
 
@@ -203,7 +201,6 @@ class Stirrer(BackgroundJob):
         unit: str,
         experiment: str,
         rpm_calculator: Optional[RpmCalculator] = None,
-        hertz: float = config.getfloat("stirring", "pwm_hz"),
     ) -> None:
         super(Stirrer, self).__init__(unit=unit, experiment=experiment)
         self.rpm_calculator = rpm_calculator
@@ -231,7 +228,9 @@ class Stirrer(BackgroundJob):
             return
 
         pin: pt.GpioPin = hardware.PWM_TO_PIN[channel]
-        self.pwm = PWM(pin, hertz, unit=self.unit, experiment=self.experiment)
+        self.pwm = PWM(
+            pin, config.getfloat("stirring.config", "pwm_hz"), unit=self.unit, experiment=self.experiment
+        )
         self.pwm.lock()
 
         if target_rpm is not None and self.rpm_calculator is not None:
@@ -257,7 +256,7 @@ class Stirrer(BackgroundJob):
 
         # set up thread to periodically check the rpm
         self.rpm_check_repeated_thread = RepeatedTimer(
-            config.getfloat("stirring", "duration_between_updates_seconds", fallback=23.0),
+            config.getfloat("stirring.config", "duration_between_updates_seconds", fallback=23.0),
             self.poll_and_update_dc,
             job_name=self.job_name,
             run_immediately=True,
@@ -478,10 +477,10 @@ class Stirrer(BackgroundJob):
 
 
 def start_stirring(
-    target_rpm: float = config.getfloat("stirring", "target_rpm", fallback=400),
+    target_rpm: float = config.getfloat("stirring.config", "target_rpm", fallback=400),
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
-    use_rpm: bool = config.getboolean("stirring", "use_rpm", fallback="true"),
+    use_rpm: bool = config.getboolean("stirring.config", "use_rpm", fallback="true"),
 ) -> Stirrer:
     unit = unit or get_unit_name()
     experiment = experiment or get_assigned_experiment_name(unit)
@@ -508,12 +507,14 @@ def start_stirring(
 @click.command(name="stirring")
 @click.option(
     "--target-rpm",
-    default=config.getfloat("stirring", "target_rpm", fallback=400),
+    default=config.getfloat("stirring.config", "target_rpm", fallback=400),
     help="set the target RPM",
     show_default=True,
     type=click.FloatRange(0, 1500, clamp=True),
 )
-@click.option("--use-rpm/--ignore-rpm", default=config.getboolean("stirring", "use_rpm", fallback="true"))
+@click.option(
+    "--use-rpm/--ignore-rpm", default=config.getboolean("stirring.config", "use_rpm", fallback="true")
+)
 def click_stirring(target_rpm: float, use_rpm: bool) -> None:
     """
     Start the stirring of the Pioreactor.

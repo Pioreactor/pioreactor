@@ -77,15 +77,11 @@ class Thermostat(TemperatureAutomationJob):
 
     def set_target_temperature(self, target_temperature: float | str) -> None:
         """
-
         Parameters
         ------------
 
         target_temperature: float
             the new target temperature
-        update_dc_now: bool
-            if possible, update the DC% to approach the new target temperature
-
         """
         target_temperature = float(target_temperature)
         self.target_temperature = self._clamp_target_temperature(target_temperature)

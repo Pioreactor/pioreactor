@@ -973,11 +973,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         if is_pio_job_running(self.job_name) and not is_testing_env():
             self.logger.warning(f"{self.job_name} is already running. Skipping")
             raise RuntimeError(f"{self.job_name} is already running. Skipping")
-        # elif is_pio_job_running("self_test"):
-        #     # don't ever run anything while self_test runs.
-        #     self.logger.error("self_test is running.")
-        #     raise RuntimeError("self_test is running.")
-        ### this doesn't work because self_test invokes jobs, and we hit this line.
 
     def __setattr__(self, name: str, value: t.Any) -> None:
         super(_BackgroundJob, self).__setattr__(name, value)
@@ -1149,6 +1144,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
             if self.state != self.READY:
                 return
 
+            self.is_after_period = True
             self.action_to_do_after_od_reading()
             sleep(ads_interval - self.OD_READING_DURATION - (post_delay + pre_delay))
             self.is_after_period = False
@@ -1160,13 +1156,13 @@ class BackgroundJobWithDodging(_BackgroundJob):
         ads_start_time_msg = subscribe(
             f"pioreactor/{self.unit}/{self.experiment}/od_reading/first_od_obs_time"
         )
-        if ads_start_time_msg:
+        if ads_start_time_msg and ads_start_time_msg.payload:
             ads_start_time = float(ads_start_time_msg.payload)
         else:
             return
 
         ads_interval_msg = subscribe(f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval")
-        if ads_interval_msg:
+        if ads_interval_msg and ads_interval_msg.payload:
             ads_interval = float(ads_interval_msg.payload)
         else:
             return

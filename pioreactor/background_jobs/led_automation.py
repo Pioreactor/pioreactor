@@ -98,7 +98,7 @@ class LEDAutomationJob(AutomationJob):
             # set_duration is run in the __init__ (hence the job is INIT). So we wait 2 seconds for the __init__ to finish, and then run.
             # Later: in fact, we actually want this to run after an OD reading cycle so we have internal data, so it should wait a cycle of that.
             run_after = min(
-                1.0 / config.getfloat("od_config", "samples_per_second"), 10
+                1.0 / config.getfloat("od_reading.config", "samples_per_second"), 10
             )  # max so users aren't waiting forever to see lights come on...
 
         self.run_thread = RepeatedTimer(

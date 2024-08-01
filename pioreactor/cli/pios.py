@@ -121,7 +121,7 @@ if am_I_leader():
 
             except Exception as e:
                 click.echo(
-                    f"Did you forget to create a config_{unit}.ini to deploy to {unit}?",
+                    f"Error syncing config_{unit}.ini to {unit} - do they exist?",
                     err=True,
                 )
                 raise e

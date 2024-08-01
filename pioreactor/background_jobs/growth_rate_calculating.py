@@ -98,7 +98,7 @@ class GrowthRateCalculator(BackgroundJob):
         self.source_obs_from_mqtt = source_obs_from_mqtt
         self.ignore_cache = ignore_cache
         self.time_of_previous_observation: datetime | None = None
-        self.expected_dt = 1 / (60 * 60 * config.getfloat("od_config", "samples_per_second"))
+        self.expected_dt = 1 / (60 * 60 * config.getfloat("od_reading.config", "samples_per_second"))
 
     def on_ready(self) -> None:
         # this is here since the below is long running, and if kept in the init(), there is a large window where

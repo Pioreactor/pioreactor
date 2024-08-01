@@ -145,7 +145,7 @@ def test_dosing_events_land_in_db() -> None:
 
 def test_kalman_filter_entries() -> None:
     config["storage"]["database"] = "test.sqlite"
-    config["od_config"]["samples_per_second"] = "0.2"
+    config["od_reading.config"]["samples_per_second"] = "0.2"
     config["od_config.photodiode_channel"]["1"] = "135"
     config["od_config.photodiode_channel"]["2"] = "90"
 

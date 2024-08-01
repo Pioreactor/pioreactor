@@ -271,7 +271,7 @@ def test_REF_is_lower_than_0_dot_256_volts(
 ) -> None:
     reference_channel = cast(PdChannel, config.get("od_config.photodiode_channel_reverse", REF_keyword))
     ir_channel = cast(LedChannel, config["leds_reverse"][IR_keyword])
-    config_ir_intensity = config.get("od_config", "ir_led_intensity")
+    config_ir_intensity = config.get("od_reading.config", "ir_led_intensity")
     if config_ir_intensity == "auto":
         ir_intensity = 50.0  # this has been our historical default, and should generally work. Default now is "auto", which targets 0.225 V into REF
     else:
@@ -400,7 +400,7 @@ def test_positive_correlation_between_rpm_and_stirring(
             initial_dc = rpm_coef * 700 + intercept
 
         else:
-            initial_dc = config.getfloat("stirring", "initial_duty_cycle")
+            initial_dc = config.getfloat("stirring.config", "initial_duty_cycle")
 
     dcs = []
     measured_rpms = []

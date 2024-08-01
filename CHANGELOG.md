@@ -5,6 +5,10 @@
  - more resilience to "UI state" diverging from "bioreactor state".  Often, this occurred when two jobs stared almost immediately (often a networking issue), and the last job would halt since it couldn't get the required resources, however MQTT any data would be overwritten by the last job. Now, multiple places in the request pipeline will reduce duplication.
  - Improved stirring clean up when stopped in quick succession after starting.
 
+#### Breaking changes
+
+ - in config.ini, the section `od_config` is now `od_reading.config`, and `stirring` is `stirring.config`. When you update, a script will run to automatically update these names in your config.inis.
+
 ### 24.7.18
 
 #### Enhancements

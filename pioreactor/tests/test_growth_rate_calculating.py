@@ -432,7 +432,7 @@ class TestGrowthRateCalculating:
         experiment = "test_end_to_end"
 
         interval = 0.1
-        config["od_config"]["samples_per_second"] = "0.2"
+        config["od_reading.config"]["samples_per_second"] = "0.2"
 
         with start_od_reading(
             "REF",
@@ -455,7 +455,7 @@ class TestGrowthRateCalculating:
         unit = get_unit_name()
         experiment = "test_180_angle"
         samples_per_second = 0.2
-        config["od_config"]["samples_per_second"] = str(samples_per_second)
+        config["od_reading.config"]["samples_per_second"] = str(samples_per_second)
         config["od_config.photodiode_channel"]["1"] = "180"
         config["od_config.photodiode_channel"]["2"] = None  # type: ignore
 
@@ -506,7 +506,7 @@ class TestGrowthRateCalculating:
         unit = get_unit_name()
         experiment = "test_90_angle"
         samples_per_second = 0.2
-        config["od_config"]["samples_per_second"] = str(samples_per_second)
+        config["od_reading.config"]["samples_per_second"] = str(samples_per_second)
         config["od_config.photodiode_channel"]["1"] = "90"
         config["od_config.photodiode_channel"]["2"] = None  # type: ignore
 
@@ -787,7 +787,7 @@ class TestGrowthRateCalculating:
         unit = get_unit_name()
         experiment = "test_single_outlier_spike_gets_absorbed"
 
-        config["od_config"]["samples_per_second"] = "0.2"
+        config["od_reading.config"]["samples_per_second"] = "0.2"
 
         # clear mqtt
         publish(
@@ -885,7 +885,7 @@ class TestGrowthRateCalculating:
         unit = get_unit_name()
         experiment = "test_baseline_shift_gets_absorbed"
 
-        config["od_config"]["samples_per_second"] = "0.2"
+        config["od_reading.config"]["samples_per_second"] = "0.2"
 
         # clear mqtt
         publish(
@@ -950,7 +950,7 @@ class TestGrowthRateCalculating:
         unit = get_unit_name()
         experiment = "test_massive_outlier_spike_gets_absorbed"
 
-        config["od_config"]["samples_per_second"] = "0.2"
+        config["od_reading.config"]["samples_per_second"] = "0.2"
 
         # clear mqtt
         publish(

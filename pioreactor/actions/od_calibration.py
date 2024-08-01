@@ -90,7 +90,7 @@ def get_name_from_user() -> str:
 
 
 def get_metadata_from_user() -> tuple[pt.OD600, pt.OD600, pt.mL, pt.PdAngle, pt.PdChannel]:
-    if config["od_config"]["ir_led_intensity"] == "auto":
+    if config["od_reading.config"]["ir_led_intensity"] == "auto":
         raise ValueError(
             "Can't use auto with OD calibrations. Change ir_led_intensity in your config.ini to a numeric value (70 is good default)."
         )
@@ -166,7 +166,7 @@ def start_stirring():
     echo("Starting stirring and blocking until near target RPM.")
 
     st = stirring(
-        target_rpm=config.getfloat("stirring", "target_rpm"),
+        target_rpm=config.getfloat("stirring.config", "target_rpm"),
         unit=get_unit_name(),
         experiment=get_testing_experiment_name(),
     )
@@ -476,7 +476,7 @@ def save_results(
         curve_type=curve_type,
         voltages=voltages,
         od600s=od600s,
-        ir_led_intensity=float(config["od_config"]["ir_led_intensity"]),
+        ir_led_intensity=float(config["od_reading.config"]["ir_led_intensity"]),
         pd_channel=pd_channel,
     )
 
@@ -565,11 +565,11 @@ def od_calibration(data_file: str | None) -> None:
         echo()
         echo(f"Finished calibration of `{name}` ✅")
 
-        if not config.getboolean("od_config", "use_calibration", fallback=False):
+        if not config.getboolean("od_reading.config", "use_calibration", fallback=False):
             echo()
             echo(
                 bold(
-                    "Currently [od_config][use_calibration] is set to 0 in your config.ini. This should be set to 1 to use calibrations.",
+                    "Currently [od_reading.config][use_calibration] is set to 0 in your config.ini. This should be set to 1 to use calibrations.",
                 )
             )
         return

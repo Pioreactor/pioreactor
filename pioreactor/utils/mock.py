@@ -64,13 +64,13 @@ class Mock_ADC(_ADC):
             return self.from_voltage_to_raw(0.250 + random.normalvariate(0, sigma=0.001) / 2**10)
         else:
             self.gr = self.growth_rate(
-                self._counter / config.getfloat("od_config", "samples_per_second"), am_i_REF
+                self._counter / config.getfloat("od_reading.config", "samples_per_second"), am_i_REF
             )
             self.state *= np.exp(
                 self.gr
                 / 60
                 / 60
-                / config.getfloat("od_config", "samples_per_second")
+                / config.getfloat("od_reading.config", "samples_per_second")
                 / 32  # divide by N from oversampling_count
             )
             self._counter += 1.0 / 32  # divide by N from oversampling_count
@@ -170,7 +170,7 @@ class MockHandle:
 
 
 class MockRpmCalculator:
-    ALWAYS_RETURN_RPM = config.getfloat("stirring", "target_rpm")
+    ALWAYS_RETURN_RPM = config.getfloat("stirring.config", "target_rpm")
 
     def setup(self):
         pass

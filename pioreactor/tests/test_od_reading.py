@@ -795,7 +795,7 @@ def test_calibration_multi_modal() -> None:
 def test_calibration_errors_when_ir_led_differs() -> None:
     experiment = "test_calibration_errors_when_ir_led_differs"
 
-    config["od_config"]["ir_led_intensity"] = "90"
+    config["od_reading.config"]["ir_led_intensity"] = "90"
 
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = encode(
@@ -825,7 +825,7 @@ def test_calibration_errors_when_ir_led_differs() -> None:
     with local_persistant_storage("current_od_calibration") as c:
         del c["90"]
 
-    config["od_config"]["ir_led_intensity"] = "auto"
+    config["od_reading.config"]["ir_led_intensity"] = "auto"
 
 
 def test_calibration_errors_when_pd_channel_differs() -> None:
@@ -998,42 +998,42 @@ def test_calibration_data_from_user2() -> None:
 
 
 def test_auto_ir_led_intensit_REF_and_90() -> None:
-    existing_intensity = config["od_config"]["ir_led_intensity"]
+    existing_intensity = config["od_reading.config"]["ir_led_intensity"]
 
-    config["od_config"]["ir_led_intensity"] = "auto"
+    config["od_reading.config"]["ir_led_intensity"] = "auto"
 
     experiment = "test_auto_ir_led_intensity"
 
     with start_od_reading("REF", "90", interval=None, fake_data=True, experiment=experiment) as od:
         assert abs(od.ir_led_intensity - 67.19794921875) < 0.001
 
-    config["od_config"]["ir_led_intensity"] = existing_intensity
+    config["od_reading.config"]["ir_led_intensity"] = existing_intensity
 
 
 def test_auto_ir_led_intensity_90_only() -> None:
-    existing_intensity = config["od_config"]["ir_led_intensity"]
+    existing_intensity = config["od_reading.config"]["ir_led_intensity"]
 
-    config["od_config"]["ir_led_intensity"] = "auto"
+    config["od_reading.config"]["ir_led_intensity"] = "auto"
 
     experiment = "test_auto_ir_led_intensity"
 
     with start_od_reading(None, "90", interval=None, fake_data=True, experiment=experiment) as od:
         assert od.ir_led_intensity == 70.0
 
-    config["od_config"]["ir_led_intensity"] = existing_intensity
+    config["od_reading.config"]["ir_led_intensity"] = existing_intensity
 
 
 def test_auto_ir_led_intensity_90_and_90() -> None:
-    existing_intensity = config["od_config"]["ir_led_intensity"]
+    existing_intensity = config["od_reading.config"]["ir_led_intensity"]
 
-    config["od_config"]["ir_led_intensity"] = "auto"
+    config["od_reading.config"]["ir_led_intensity"] = "auto"
 
     experiment = "test_auto_ir_led_intensity"
 
     with start_od_reading("90", "90", interval=None, fake_data=True, experiment=experiment) as od:
         assert od.ir_led_intensity == 70.0
 
-    config["od_config"]["ir_led_intensity"] = existing_intensity
+    config["od_reading.config"]["ir_led_intensity"] = existing_intensity
 
 
 def test_at_least_one_channel() -> None:

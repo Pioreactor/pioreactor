@@ -139,7 +139,7 @@ def click_stirring_calibration(min_dc: int, max_dc: int) -> None:
 
     if max_dc is None and min_dc is None:
         # seed with initial_duty_cycle
-        config_initial_duty_cycle = config.getfloat("stirring", "initial_duty_cycle")
+        config_initial_duty_cycle = config.getfloat("stirring.config", "initial_duty_cycle")
         min_dc, max_dc = round(config_initial_duty_cycle * 0.75), round(config_initial_duty_cycle * 1.33)
     elif (max_dc is not None) and (min_dc is not None):
         assert min_dc < max_dc, "min_dc >= max_dc"
