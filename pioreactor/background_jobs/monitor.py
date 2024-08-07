@@ -231,13 +231,22 @@ class Monitor(LongRunningBackgroundJob):
             self.wlan_mac_address = "d8:3a:dd:61:01:59"
             self.eth_mac_address = "d8:3a:dd:61:01:60"
         else:
-            ipv4 = get_ip()
-            while ipv4 == "127.0.0.1" or ipv4 is None:
-                # no connection? Sound the alarm.
-                self.logger.warning("Unable to connect to network...")
-                self.flicker_led_with_error_code(error_codes.NO_NETWORK_CONNECTION)
-                sleep(1)
+
+            def did_find_network() -> bool:
                 ipv4 = get_ip()
+
+                if ipv4 == "127.0.0.1" or ipv4 is None:
+                    # no connection? Sound the alarm.
+                    self.logger.warning("Unable to find a network...")
+                    self.flicker_led_with_error_code(error_codes.NO_NETWORK_CONNECTION)
+                    return False
+                else:
+                    return True
+
+            if utils.boolean_retry(did_find_network, retries=3, sleep_for=2):
+                ipv4: str = ""
+            else:
+                ipv4 = get_ip() or ""
 
             self.ipv4 = ipv4
 

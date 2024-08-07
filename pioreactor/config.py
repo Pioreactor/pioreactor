@@ -41,7 +41,13 @@ class ConfigParserMod(configparser.ConfigParser):
         return reversed_section
 
     def _get_conv(self, section, option, conv, *, raw=False, vars=None, fallback=None, **kwargs):
-        return self._get(section, conv, option, raw=raw, vars=vars, fallback=fallback, **kwargs)
+        try:
+            return self._get(section, conv, option, raw=raw, vars=vars, fallback=fallback, **kwargs)
+        except TypeError as e:
+            from pioreactor.logging import create_logger
+
+            create_logger("read config").error(e)
+            raise e
 
     def getboolean(self, section: str, option: str, *args, **kwargs) -> bool:  # type: ignore
         try:

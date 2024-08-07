@@ -420,8 +420,8 @@ class SummableDict(dict):
 
 def boolean_retry(
     func: Callable[..., bool],
-    f_args: tuple,
-    f_kwargs: dict,
+    f_args: tuple = tuple(),
+    f_kwargs: dict = dict(),
     retries: int = 3,
     sleep_for: float = 0.25,
 ) -> bool:
