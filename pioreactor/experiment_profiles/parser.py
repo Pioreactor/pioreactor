@@ -196,6 +196,8 @@ class ProfileParser(Parser):
             return True
         elif p.NAME.lower() == "false":
             return False
+        elif p.NAME in self.ENV:
+            return self.ENV[p.NAME]
         else:
             return p.NAME
 

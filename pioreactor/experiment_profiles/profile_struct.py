@@ -125,3 +125,4 @@ class Profile(Struct, forbid_unknown_fields=True):
         default_factory=CommonBlock
     )  # later this might expand to include other fields
     pioreactors: dict[PioreactorUnitName, PioreactorSpecificBlock] = {}
+    inputs: dict[str, t.Any] = {}

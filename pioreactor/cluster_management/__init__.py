@@ -19,6 +19,7 @@ from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import delete_from_leader
 from pioreactor.pubsub import get_from_leader
 from pioreactor.pubsub import put_into_leader
+from pioreactor.pubsub import subscribe
 from pioreactor.utils import networking
 from pioreactor.utils.timing import catchtime
 
@@ -110,13 +111,13 @@ def add_worker(hostname: str, password: str, version: str, model: str) -> None:
         r.raise_for_status()
     except HTTPErrorStatus:
         if r.status_code >= 500:
-            click.echo("Server error. Could not complete.")
+            logger.error("Server error. Could not complete. See UI logs in /var/log/pioreactorui.log")
         else:
-            logger.error("Did not add worker to backend")
-        raise HTTPException("Did not add worker to backend")
+            logger.error(f"Did not add worker {hostname} to backend.")
+        raise HTTPException(f"Did not add worker {hostname} to backend.")
     except HTTPException:
-        logger.error("Could not connect to leader's webserver")
-        raise HTTPException("Could not connect to leader's webserver")
+        logger.error(f"Not able to connect to leader's backend at {leader_address}.")
+        raise HTTPException(f"Not able to connect to leader's backend at {leader_address}.")
 
     logger.notice(f"New pioreactor {hostname} successfully added to cluster.")  # type: ignore
 
@@ -129,12 +130,12 @@ def remove_worker(hostname: str) -> None:
         r.raise_for_status()
     except HTTPErrorStatus:
         if r.status_code >= 500:
-            click.echo("Server error. Could not complete.")
+            click.echo("Server error. Could not complete. See UI logs in /var/log/pioreactorui.log")
         else:
             click.echo(f"Worker {hostname} not present to be removed. Check hostname.")
         click.Abort()
     except HTTPException:
-        click.echo("Not able to connect to leader's backend.")
+        click.echo(f"Not able to connect to leader's backend at {leader_address}.")
         click.Abort()
     else:
         click.echo(f"Removed {hostname} from cluster.")  # this needs to shutdown the worker too???
@@ -222,7 +223,6 @@ def cluster_status() -> None:
     Note that this only looks at the current cluster as defined in config.ini.
     """
     import socket
-    from pioreactor import pubsub
 
     def get_metadata(hostname):
         # get ip
@@ -235,7 +235,7 @@ def cluster_status() -> None:
                 ip = "unknown"
 
         # get state
-        result = pubsub.subscribe(
+        result = subscribe(
             f"pioreactor/{hostname}/{whoami.UNIVERSAL_EXPERIMENT}/monitor/$state",
             timeout=1,
             name="CLI",
@@ -246,7 +246,7 @@ def cluster_status() -> None:
             state = "unknown"
 
         # get version
-        result = pubsub.subscribe(
+        result = subscribe(
             f"pioreactor/{hostname}/{whoami.UNIVERSAL_EXPERIMENT}/monitor/versions",
             timeout=1,
             name="CLI",

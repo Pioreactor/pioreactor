@@ -6,6 +6,7 @@ import time
 from collections import defaultdict
 from pathlib import Path
 from sched import scheduler
+from typing import Any
 from typing import Callable
 from typing import Optional
 
@@ -29,6 +30,7 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
 bool_expression = str | bool
+Env = dict[str, Any]
 
 
 def wrap_in_try_except(func, logger: CustomLogger) -> Callable:
@@ -169,6 +171,7 @@ def get_simple_priority(action: struct.Action):
 def wrapped_execute_action(
     unit: str,
     experiment: str,
+    global_env: Env,
     job_name: str,
     logger: CustomLogger,
     schedule: scheduler,
@@ -188,7 +191,7 @@ def wrapped_execute_action(
         )
         job_name = job_name.replace("control", "automation")
 
-    env = {"unit": unit, "experiment": experiment, "job_name": job_name}
+    env = global_env | {"unit": unit, "experiment": experiment, "job_name": job_name}
 
     match action:
         case struct.Start(_, if_, options, args):
@@ -291,6 +294,7 @@ def chain_functions(*funcs: Callable[[], None]) -> Callable[[], None]:
 def common_wrapped_execute_action(
     experiment: str,
     job_name: str,
+    global_env: Env,
     logger: CustomLogger,
     schedule: scheduler,
     elapsed_seconds_func: Callable[[], float],
@@ -302,7 +306,16 @@ def common_wrapped_execute_action(
     for worker in get_active_workers_in_experiment(experiment):
         actions_to_execute.append(
             wrapped_execute_action(
-                worker, experiment, job_name, logger, schedule, elapsed_seconds_func, client, action, dry_run
+                worker,
+                experiment,
+                global_env,
+                job_name,
+                logger,
+                schedule,
+                elapsed_seconds_func,
+                client,
+                action,
+                dry_run,
             )
         )
 
@@ -329,7 +342,7 @@ def when(
         if (get_assigned_experiment_name(unit) != experiment) and not is_testing_env():
             return
 
-        env["hours_elapsed"] = seconds_to_hours(elapsed_seconds_func())
+        env = env | {"hours_elapsed": seconds_to_hours(elapsed_seconds_func())}
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
             try:
@@ -344,6 +357,7 @@ def when(
                         action=wrapped_execute_action(
                             unit,
                             experiment,
+                            env,
                             job_name,
                             logger,
                             schedule,
@@ -362,6 +376,7 @@ def when(
                     action=wrapped_execute_action(
                         unit,
                         experiment,
+                        env,
                         job_name,
                         logger,
                         schedule,
@@ -400,7 +415,7 @@ def repeat(
         if get_assigned_experiment_name(unit) != experiment:
             return
 
-        env["hours_elapsed"] = seconds_to_hours(elapsed_seconds_func())
+        env = env | {"hours_elapsed": seconds_to_hours(elapsed_seconds_func())}
 
         if ((if_ is None) or evaluate_bool_expression(if_, env)) and (
             ((while_ is None) or evaluate_bool_expression(while_, env))
@@ -419,6 +434,7 @@ def repeat(
                     action=wrapped_execute_action(
                         unit,
                         experiment,
+                        env,
                         job_name,
                         logger,
                         schedule,
@@ -442,6 +458,7 @@ def repeat(
                     action=wrapped_execute_action(
                         unit,
                         experiment,
+                        env,
                         job_name,
                         logger,
                         schedule,
@@ -479,7 +496,7 @@ def log(
         if get_assigned_experiment_name(unit) != experiment:
             return
 
-        env["hours_elapsed"] = seconds_to_hours(elapsed_seconds_func())
+        env = env | {"hours_elapsed": seconds_to_hours(elapsed_seconds_func())}
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
             level = options.level.lower()
@@ -507,7 +524,7 @@ def start_job(
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             return
-        env["hours_elapsed"] = seconds_to_hours(elapsed_seconds_func())
+        env = env | {"hours_elapsed": seconds_to_hours(elapsed_seconds_func())}
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
             if dry_run:
@@ -544,7 +561,7 @@ def pause_job(
         if get_assigned_experiment_name(unit) != experiment:
             return
 
-        env["hours_elapsed"] = seconds_to_hours(elapsed_seconds_func())
+        env = env | {"hours_elapsed": seconds_to_hours(elapsed_seconds_func())}
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
             if dry_run:
@@ -573,7 +590,7 @@ def resume_job(
         if get_assigned_experiment_name(unit) != experiment:
             return
 
-        env["hours_elapsed"] = seconds_to_hours(elapsed_seconds_func())
+        env = env | {"hours_elapsed": seconds_to_hours(elapsed_seconds_func())}
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
             if dry_run:
@@ -602,7 +619,7 @@ def stop_job(
         if get_assigned_experiment_name(unit) != experiment:
             return
 
-        env["hours_elapsed"] = seconds_to_hours(elapsed_seconds_func())
+        env = env | {"hours_elapsed": seconds_to_hours(elapsed_seconds_func())}
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
             if dry_run:
@@ -632,7 +649,7 @@ def update_job(
         if get_assigned_experiment_name(unit) != experiment:
             return
 
-        env["hours_elapsed"] = seconds_to_hours(elapsed_seconds_func())
+        env = env | {"hours_elapsed": seconds_to_hours(elapsed_seconds_func())}
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
             if dry_run:
@@ -787,6 +804,8 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
             logger.error(e)
             raise e
 
+        global_env = profile.inputs
+
         sched = scheduler()
 
         with catchtime() as elapsed_seconds_func:
@@ -799,6 +818,7 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
                         action=common_wrapped_execute_action(
                             experiment,
                             job_name,
+                            global_env,
                             logger,
                             sched,
                             elapsed_seconds_func,
@@ -823,6 +843,7 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
                             action=wrapped_execute_action(
                                 unit_,
                                 experiment,
+                                global_env,
                                 job_name,
                                 logger,
                                 sched,

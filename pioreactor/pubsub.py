@@ -350,13 +350,16 @@ class collect_all_logs_of_level:
         self.client.disconnect()
 
 
-def get_from_leader(endpoint: str, **kwargs) -> mureq.Response:
-    assert endpoint.startswith("/api/") or endpoint.startswith("api/")
-
+def create_leader_webserver_path(endpoint):
     port = config.getint("ui", "port", fallback=80)
     proto = config.get("ui", "proto", fallback="http")
+    return f"{proto}://{leader_address}:{port}/{endpoint}"
+
+
+def get_from_leader(endpoint: str, **kwargs) -> mureq.Response:
+    assert endpoint.startswith("/api/") or endpoint.startswith("api/")
     endpoint = endpoint.removeprefix("/")
-    return mureq.get(f"{proto}://{leader_address}:{port}/{endpoint}", **kwargs)
+    return mureq.get(create_leader_webserver_path(endpoint), **kwargs)
 
 
 def put_into_leader(
@@ -364,10 +367,8 @@ def put_into_leader(
 ) -> mureq.Response:
     assert endpoint.startswith("/api/") or endpoint.startswith("api/")
 
-    port = config.getint("ui", "port", fallback=80)
-    proto = config.get("ui", "proto", fallback="http")
     endpoint = endpoint.removeprefix("/")
-    return mureq.put(f"{proto}://{leader_address}:{port}/{endpoint}", body=body, json=json, **kwargs)
+    return mureq.put(create_leader_webserver_path(endpoint), body=body, json=json, **kwargs)
 
 
 def patch_into_leader(
@@ -375,25 +376,19 @@ def patch_into_leader(
 ) -> mureq.Response:
     assert endpoint.startswith("/api/") or endpoint.startswith("api/")
 
-    port = config.getint("ui", "port", fallback=80)
-    proto = config.get("ui", "proto", fallback="http")
     endpoint = endpoint.removeprefix("/")
-    return mureq.patch(f"{proto}://{leader_address}:{port}/{endpoint}", body=body, json=json, **kwargs)
+    return mureq.patch(create_leader_webserver_path(endpoint), body=body, json=json, **kwargs)
 
 
 def post_into_leader(
     endpoint: str, body: bytes | None = None, json: dict | Struct | None = None, **kwargs
 ) -> mureq.Response:
     assert endpoint.startswith("/api/") or endpoint.startswith("api/")
-    port = config.getint("ui", "port", fallback=80)
-    proto = config.get("ui", "proto", fallback="http")
     endpoint = endpoint.removeprefix("/")
-    return mureq.post(f"{proto}://{leader_address}:{port}/{endpoint}", body=body, json=json, **kwargs)
+    return mureq.post(create_leader_webserver_path(endpoint), body=body, json=json, **kwargs)
 
 
 def delete_from_leader(endpoint: str, **kwargs) -> mureq.Response:
     assert endpoint.startswith("/api/") or endpoint.startswith("api/")
-    port = config.getint("ui", "port", fallback=80)
-    proto = config.get("ui", "proto", fallback="http")
     endpoint = endpoint.removeprefix("/")
-    return mureq.delete(f"{proto}://{leader_address}:{port}/{endpoint}", **kwargs)
+    return mureq.delete(create_leader_webserver_path(endpoint), **kwargs)

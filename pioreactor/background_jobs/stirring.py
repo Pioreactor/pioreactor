@@ -414,7 +414,7 @@ class Stirrer(BackgroundJob):
             # probably use_rpm=0 is in config.ini
             raise ValueError("Can't set target RPM when no RPM measurement is being made")
 
-        self.target_rpm = clamp(0.0, value, 5_000.0)
+        self.target_rpm = clamp(0.0, float(value), 5_000.0)
         self.set_duty_cycle(self.rpm_to_dc_lookup(self.target_rpm))
         self.pid.set_setpoint(self.target_rpm)
 

@@ -210,11 +210,16 @@ metadata:
   author: Alex Doe
   description: Very complex experiment with multiple jobs and bioreactors, different jobs on different bioreactors
 
+inputs:
+  dummy: 1
+  dummy_truth: 2
+
 common:
   jobs:
     stirring:
       actions:
         - type: start
+          if: ${{dummy > 0}}
           hours_elapsed: 0.0
           options:
             target_rpm: 200.0

@@ -559,33 +559,20 @@ class Monitor(LongRunningBackgroundJob):
             self.logger.debug("Power status okay.")
 
     def check_and_publish_self_statistics(self) -> None:
-        import psutil  # type: ignore
+        import os
 
-        disk_usage_percent = round(psutil.disk_usage("/").percent)
+        # Disk usage percentage
+        statvfs = os.statvfs("/")
+        total_disk_space = statvfs.f_frsize * statvfs.f_blocks
+        available_disk_space = statvfs.f_frsize * statvfs.f_bavail
+        disk_usage_percent = round((1 - available_disk_space / total_disk_space) * 100)
+
         if disk_usage_percent <= 80:
             self.logger.debug(f"Disk space at {disk_usage_percent}%.")
         else:
             # TODO: add documentation to clear disk space.
             self.logger.warning(f"Disk space at {disk_usage_percent}%.")
             self.flicker_led_with_error_code(error_codes.DISK_IS_ALMOST_FULL)
-
-        cpu_usage_percent = round(
-            (psutil.cpu_percent() + psutil.cpu_percent() + psutil.cpu_percent()) / 3
-        )  # this is a noisy process, and we average it over a small window.
-        if cpu_usage_percent <= 85:
-            self.logger.debug(f"CPU usage at {cpu_usage_percent}%.")
-        else:
-            # TODO: add documentation
-            self.logger.warning(f"CPU usage at {cpu_usage_percent}%.")
-
-        memory_usage_percent = 100 - round(
-            100 * psutil.virtual_memory().available / psutil.virtual_memory().total
-        )
-        if memory_usage_percent <= 75:
-            self.logger.debug(f"Memory usage at {memory_usage_percent}%.")
-        else:
-            # TODO: add documentation
-            self.logger.warning(f"Memory usage at {memory_usage_percent}%.")
 
         cpu_temperature_celcius = round(utils.get_cpu_temperature())
         if cpu_temperature_celcius <= 70:
@@ -597,8 +584,6 @@ class Monitor(LongRunningBackgroundJob):
 
         self.computer_statistics = {
             "disk_usage_percent": disk_usage_percent,
-            "cpu_usage_percent": cpu_usage_percent,
-            "memory_usage_percent": memory_usage_percent,
             "cpu_temperature_celcius": cpu_temperature_celcius,
             "timestamp": current_utc_timestamp(),
         }
@@ -724,8 +709,8 @@ class Monitor(LongRunningBackgroundJob):
             options.pop("job_source", "")  # techdebt, led_intensity doesn't use job_source
             Thread(
                 target=utils.boolean_retry,
-                args=(led_intensity, (state,), options),
-                kwargs={"sleep_for": 0.4, "retries": 5},
+                args=(led_intensity,),
+                kwargs={"sleep_for": 0.4, "retries": 5, "args": (state,), "kwargs": options},
             ).start()
 
         elif job_name in {

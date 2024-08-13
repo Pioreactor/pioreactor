@@ -163,6 +163,12 @@ def test_env_and_functions():
         parse_profile_expression("unit()", env={})
 
 
+def test_env():
+    assert parse_profile_expression("rpm + 5.0", env={"rpm": 100}) == 105.0
+    assert parse_profile_expression("rpm_start * other", env={"rpm_start": 10, "other": 6.6}) == 10 * 6.6
+    assert parse_profile_expression("b", env={"b": True})
+
+
 def test_mqtt_fetches_with_calculations():
     experiment = "_testing_experiment"
     publish(

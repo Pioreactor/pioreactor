@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 from typing import Generator
 from typing import Optional
 
@@ -47,7 +48,6 @@ def is_reachable(address: str) -> bool:
     Can we ping the computer at `address`?
     """
     # TODO: why not use sh.ping? Ex: ping("leader7.local", "-c1", "-W50")
-    import subprocess
 
     std_out_from_ping = subprocess.Popen(
         ["ping", "-c1", "-W50", address],
@@ -63,23 +63,8 @@ def is_reachable(address: str) -> bool:
 
 def get_ip() -> Optional[str]:
     # returns all ipv4s as comma-separated string
-    from psutil import net_if_addrs
-
-    ipv4_addresses = []
-
-    interfaces = net_if_addrs()
-
-    for interface in interfaces:
-        if interface == "lo":
-            continue
-
-        try:
-            ipv4_addresses.extend(
-                [addr.address for addr in interfaces[interface] if addr.family == 2]
-            )  # AddressFamily.AF_INET == 2
-        except Exception:
-            continue
-
+    result = subprocess.run(["hostname", "-I"], stdout=subprocess.PIPE, text=True)
+    ipv4_addresses = result.stdout.strip().split()
     if ipv4_addresses:
         return ",".join(ipv4_addresses)
     else:

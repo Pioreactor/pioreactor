@@ -420,17 +420,17 @@ class SummableDict(dict):
 
 def boolean_retry(
     func: Callable[..., bool],
-    f_args: tuple = tuple(),
-    f_kwargs: dict = dict(),
     retries: int = 3,
     sleep_for: float = 0.25,
+    args: tuple = (),
+    kwargs: dict = {},
 ) -> bool:
     """
     Retries a function upon encountering an False return until it succeeds or the maximum number of retries is exhausted.
 
     """
     for _ in range(retries):
-        res = func(*f_args, **f_kwargs)
+        res = func(*args, **kwargs)
         if res:
             return res
         time.sleep(sleep_for)
