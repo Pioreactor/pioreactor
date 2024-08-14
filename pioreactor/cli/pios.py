@@ -395,7 +395,7 @@ if am_I_leader():
         multiple=True,
         default=(UNIVERSAL_IDENTIFIER,),
         type=click.STRING,
-        help="specify a hostname, default is all active units",
+        help="specify a hostname, default is all units",
     )
     @click.option(
         "--shared",
@@ -405,7 +405,7 @@ if am_I_leader():
     @click.option(
         "--specific",
         is_flag=True,
-        help="sync the worker specific config.ini(s)",
+        help="sync the specific config.ini(s)",
     )
     @click.option(
         "--skip-save",
@@ -415,14 +415,14 @@ if am_I_leader():
     @click.option("-y", is_flag=True, help="(does nothing currently)")
     def sync_configs(units: tuple[str, ...], shared: bool, specific: bool, skip_save: bool, y: bool) -> None:
         """
-        Deploys the shared config.ini and worker specific config.inis to the workers.
+        Deploys the shared config.ini and specific config.inis to the pioreactor units.
 
         If neither `--shared` not `--specific` are specified, both are set to true.
         """
         from sh import ErrorReturnCode_12  # type: ignore
 
         logger = create_logger("sync_configs", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
-        units = universal_identifier_to_all_workers(units)
+        units = add_leader(universal_identifier_to_all_workers(units))
 
         if not shared and not specific:
             shared = specific = True

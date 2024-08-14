@@ -46,28 +46,39 @@ def test_change_leds_intensities_temporarily() -> None:
     unit = get_unit_name()
     exp = "test_change_leds_intensities_temporarily"
 
-    led_intensity({"A": 20, "B": 20}, unit=unit, experiment=exp)
+    original_settings: dict[LedChannel, float] = {"A": 20, "B": 20, "D": 1.0, "C": 0.0}
+    led_intensity(original_settings, unit=unit, experiment=exp)
 
     with change_leds_intensities_temporarily({"A": 10}, unit=unit, experiment=exp):
         with local_intermittent_storage("leds") as cache:
             assert float(cache["A"]) == 10
-            assert float(cache["B"]) == 20
+            assert float(cache["B"]) == original_settings["B"]
 
     with local_intermittent_storage("leds") as cache:
-        assert float(cache["A"]) == 20
-        assert float(cache["B"]) == 20
+        assert float(cache["A"]) == original_settings["A"]
+        assert float(cache["B"]) == original_settings["B"]
+        assert float(cache["C"]) == original_settings["C"]
+        assert float(cache["D"]) == original_settings["D"]
 
     with change_leds_intensities_temporarily({"A": 10, "C": 10, "D": 0}, unit=unit, experiment=exp):
         with local_intermittent_storage("leds") as cache:
             assert float(cache["A"]) == 10
-            assert float(cache["B"]) == 20
+            assert float(cache["B"]) == original_settings["B"]
             assert float(cache["C"]) == 10
             assert float(cache["D"]) == 0
 
     with local_intermittent_storage("leds") as cache:
-        assert float(cache["A"]) == 20
-        assert float(cache["C"]) == 0
-        assert float(cache["D"]) == 0
+        assert float(cache["A"]) == original_settings["A"]
+        assert float(cache["B"]) == original_settings["B"]
+        assert float(cache["C"]) == original_settings["C"]
+        assert float(cache["D"]) == original_settings["D"]
+
+    with change_leds_intensities_temporarily({}, unit=unit, experiment=exp):
+        with local_intermittent_storage("leds") as cache:
+            assert float(cache["A"]) == original_settings["A"]
+            assert float(cache["B"]) == original_settings["B"]
+            assert float(cache["C"]) == original_settings["C"]
+            assert float(cache["D"]) == original_settings["D"]
 
 
 def test_local_cache_is_updated() -> None:

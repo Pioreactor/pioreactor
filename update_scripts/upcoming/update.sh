@@ -8,8 +8,6 @@ export LC_ALL=C
 
 PIO_DIR=/home/pioreactor/.pioreactor
 
-# all pioreactors get a unit_config, include leader-only pioworekrs
-touch $PIO_DIR/unit_config.ini
 
 
 HOSTNAME=$(hostname)
@@ -18,6 +16,7 @@ HOSTNAME=$(hostname)
 LEADER_HOSTNAME=$(crudini --get $PIO_DIR/config.ini cluster.topology leader_hostname)
 
 if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
+    touch "$PIO_DIR/config_$HOSTNAME.ini" # create if it doesn't exist.
 
     # stirring -> stirring.config
     # Iterate over each ini file in the directory

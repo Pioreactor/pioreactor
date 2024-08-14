@@ -1,9 +1,39 @@
 ### Upcoming
 
+#### Enhancements
+
+ - introduce a new od_reading config,`turn_off_leds_during_reading`, which enables / disables turning off the other LEDS during an OD snapshot. By default, it is set to 1 (enables).
+ - leader-only Pioreactors also have a `config_hostname.local` file now.
+ - a new top-level section in experiment profiles, `inputs`, allows you to define variables that can be used in expressions. This is useful if you are copy the same constant over an over again, and want a quick way to change it once. Example:
+
+  ```
+  inputs:
+    growth_phase_temp: 37.0
+    stationary_phase_temp: 30.0
+    od_threshold: 1.6
+
+  common:
+    jobs:
+      temperature_automation:
+        actions:
+          ...
+          - type: update
+            hours_elapsed: 12.0
+            if: ${{ ::od_reading:od1.od < od_threshold }}
+            options:
+              target_temperature: ${{ stationary_phase_temp }}
+          - type: update
+            hours_elapsed: 12.0
+            if: ${{ ::od_reading:od1.od >= od_threshold }}
+            options:
+              target_temperature: ${{ growth_phase_temp }}
+
+  ```
+
 #### Bug fixes
 
  - more resilience to "UI state" diverging from "bioreactor state".  Often, this occurred when two jobs stared almost immediately (often a networking issue), and the last job would halt since it couldn't get the required resources, however any MQTT data would be overwritten by the last job. Now, multiple places in the request pipeline will reduce duplication and prevent two jobs from starting too close to each other.
- - Improved stirring clean up when stopped in quick succession after starting.
+ - improved stirring clean up when stopped in quick succession after starting.
  - if a network isn't found, the `monitor` job will not stall, but warn and continue.
 
 #### Breaking changes
