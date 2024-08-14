@@ -114,7 +114,6 @@ function processOptionalBracketedExpression(value, missingMessage="Missing expre
     const pattern = /\${{(.*?)}}/;
     var match = pattern.exec(String(value));
 
-    console.log( typeof value === 'object')
     if (match || almostExpressionSyntax(String(value)) || typeof value === 'object' ) {
       return processBracketedExpression(value)
     } else {
@@ -209,7 +208,7 @@ const humanReadableDurationPre = (duration, missingMsg) => {
     return <UnderlineSpan title={missingMsg}>after ??</UnderlineSpan>
   }
   else if (duration === 0){
-    return `starting immediately`
+    return `beginning immediately`
   }
   else {
     return humanReadableDuration(duration, missingMsg)
@@ -307,7 +306,7 @@ const ActionDetails = ({ action, jobName, index }) => {
       return (
         <>
           <Typography variant="body2" sx={level2}>
-            {index + 1}: {if_} <span style={highlightedActionType}>{action.type}</span> {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)}
+            {index + 1}: {if_} <span style={highlightedActionType}>{action.type}</span> <span style={{ fontWeight: 500 }}>{jobName}</span> {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)}
           </Typography>
         </>
       );
@@ -472,6 +471,24 @@ const AuthorSection = ({ author }) => (
   </>
 );
 
+const ParametersSection = ({ parameters }) => (
+  <>
+    {parameters && Object.keys(parameters).length > 0 && (
+      <>
+        <Typography  variant="subtitle2">
+          Inputs:
+        </Typography>
+        { (typeof parameters === 'object' )  && Object.entries(parameters).map(([key, value]) => (
+          <Typography key={key}  sx={level1} variant="body2" color="text.primary">
+            — assign {displayVariable(value)} to parameter {displayExpression(key)}
+          </Typography>
+        ))}
+        <br/>
+      </>
+    )}
+  </>
+);
+
 
 export const DisplayProfile = ({ data }) => {
   return (
@@ -485,6 +502,7 @@ export const DisplayProfile = ({ data }) => {
         <DescriptionSection description={data?.metadata?.description} />
         <br/>
         <PluginsSection plugins={data.plugins} />
+        <ParametersSection parameters={data.inputs} />
 
         {data?.common?.jobs && (Object.keys(data?.common?.jobs).length > 0) && <>
           <Typography variant="subtitle2">All Pioreactor(s) do the following:</Typography>

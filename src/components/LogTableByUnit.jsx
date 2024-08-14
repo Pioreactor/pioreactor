@@ -28,7 +28,8 @@ const StyledTableCell = styled(TableCell)(({ theme, level }) => {
 
 const StyledTableCellFiller = styled(TableCell)(({ theme, level }) => {
   return {
-    padding: "15px 10px",
+    paddingTop: "25px",
+    paddingBottom: "15px",
     textAlign: "center"
   };
 });
@@ -152,9 +153,9 @@ function LogTableByUnit({experiment, unit}) {
                   <StyledTableCell level={log.level}>{log.message}</StyledTableCell>
                 </TableRow>
                 {
-                  listOfLogs[i+1] && (toTimestampObject(log.timestamp).diff(toTimestampObject(listOfLogs[i+1].timestamp), 'hours') >= 1) && (
+                  listOfLogs[i+1] && (toTimestampObject(log.timestamp).diff(toTimestampObject(listOfLogs[i+1].timestamp), 'hours', true) >= 1) && (
                     <TableRow key={-log.key}>
-                      <StyledTableCellFiller colspan="4">{toTimestampObject(log.timestamp).diff(toTimestampObject(listOfLogs[i+1].timestamp), 'hours').toFixed(1)} hours later...</StyledTableCellFiller>
+                      <StyledTableCellFiller colspan="3">{toTimestampObject(log.timestamp).diff(toTimestampObject(listOfLogs[i+1].timestamp), 'hours')} hours earlier...</StyledTableCellFiller>
                     </TableRow>
                   )
                 }

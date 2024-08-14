@@ -333,7 +333,7 @@ const CustomFormControlLabel = ({ label, sublabel, ...props }) => (
   />
 );
 
-function AssignPioreactors({ experiment }) {
+function AssignPioreactors({ experiment, variant="text" }) {
   const [workers, setWorkers] = React.useState([]);
   const [assigned, setAssigned] = React.useState({});
   const [initialAssigned, setInitialAssigned] = React.useState({});
@@ -434,7 +434,7 @@ function AssignPioreactors({ experiment }) {
 
   return (
     <React.Fragment>
-      <Button style={{ textTransform: "none" }} onClick={handleClickOpen}>
+      <Button variant={variant} style={{ textTransform: "none" }} onClick={handleClickOpen}>
         <LibraryAddCheckOutlinedIcon
           fontSize="15"
           sx={{ verticalAlign: "middle", margin: "0px 3px" }}
@@ -466,7 +466,7 @@ function AssignPioreactors({ experiment }) {
         <DialogContent>
           <p>
             {" "}
-            Below, assign and unassign Pioreactors to experiment{" "}
+            Assign and unassign Pioreactors to experiment{" "}
             <Chip size="small" label={experiment}/>.{" "}
           </p>
           <FormControl sx={{ m: "auto" }} component="fieldset" variant="standard">
@@ -2199,17 +2199,16 @@ function ActiveUnits({experiment, config, units, isLoading}){
       <PioreactorCard isUnitActive={true} key={unit} unit={unit} config={config} experiment={experiment} label={relabelMap[unit]}/>
   )
   const renderEmptyState = () => (
-    <Box sx={{textAlign: "center", mb: '50px', mt: "50px"}}>
+    <Box sx={{textAlign: "center"}}>
       {isLoading ? <CircularProgress /> : (
       <>
+      <img alt="pioreactor logo" src="/pioreactor_cloud.webp" style={{width: "500px", opacity: 0.9, filter: "grayscale(30%)", marginLeft: "30px"}}/>
+      <Typography component='div' variant='h6' sx={{mb: 2}}>
+        No Pioreactors assigned to this experiment
+      </Typography>
+      <AssignPioreactors experiment={experiment} variant="contained"/>
       <Typography component='div' variant='body2'>
-        <Box fontWeight="fontWeightRegular">
-          No active Pioreactors assigned to this experiment.
-        </Box>
-        <AssignPioreactors experiment={experiment}/>
-        <Box fontWeight="fontWeightRegular">
-          or, learn more about <a href="https://docs.pioreactor.com/user-guide/create-cluster" target="_blank" rel="noopener noreferrer">assigning inventory</a>.
-        </Box>
+        <p>Learn more about <a href="https://docs.pioreactor.com/user-guide/create-cluster" target="_blank" rel="noopener noreferrer">assigning inventory</a>.</p>
       </Typography>
       </>
       )}

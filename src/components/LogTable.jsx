@@ -30,7 +30,8 @@ const StyledTableCell = styled(TableCell)(({ theme, level }) => {
 
 const StyledTableCellFiller = styled(TableCell)(({ theme, level }) => {
   return {
-    padding: "15px 10px",
+    paddingTop: "25px",
+    paddingBottom: "15px",
     textAlign: "center"
   };
 });
@@ -109,8 +110,8 @@ function LogTable({byDuration, experimentStartTime, experiment, config, relabelM
     return moment.utc(timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]')
   }
 
-  const timestampCell = (timestampStr) => {
-    const ts = toTimestampObject(timestampStr);
+  const timestampCell = (timestamp) => {
+    const ts = toTimestampObject(timestamp);
     const localTs = ts.local();
 
     if (byDuration) {
@@ -128,7 +129,7 @@ function LogTable({byDuration, experimentStartTime, experiment, config, relabelM
 
     setListOfLogs(currentLogs => [
       {
-        timestampStr: moment.utc().format('YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]'),
+        timestamp: moment.utc().format('YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]'),
         pioreactor_unit: unit,
         message: String(payload.message),
         task: payload.task,
@@ -160,16 +161,16 @@ function LogTable({byDuration, experimentStartTime, experiment, config, relabelM
                 <>
                 <TableRow key={log.key}>
                   <StyledTimeTableCell level={log.level}>
-                    {timestampCell(log.timestampStr)}
+                    {timestampCell(log.timestamp)}
                   </StyledTimeTableCell>
                   <StyledTableCell level={log.level}>{relabelUnit(log.pioreactor_unit)}</StyledTableCell>
                   <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
                   <StyledTableCell level={log.level}>{log.message}</StyledTableCell>
                 </TableRow>
                 {
-                  listOfLogs[i+1] && (toTimestampObject(log.timestampStr).diff(toTimestampObject(listOfLogs[i+1].timestampStr), 'hours') >= 0.01) && (
+                  listOfLogs[i+1] && (toTimestampObject(log.timestamp).diff(toTimestampObject(listOfLogs[i+1].timestamp), 'hours', true) >= 1) && (
                     <TableRow key={-log.key}>
-                      <StyledTableCellFiller colspan="4">{toTimestampObject(log.timestampStr).diff(toTimestampObject(listOfLogs[i+1].timestampStr), 'hours').toFixed(1)} hours later...</StyledTableCellFiller>
+                      <StyledTableCellFiller colspan="4">{toTimestampObject(log.timestamp).diff(toTimestampObject(listOfLogs[i+1].timestamp), 'hours')} hours earlier...</StyledTableCellFiller>
                     </TableRow>
                   )
                 }
