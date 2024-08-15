@@ -7,7 +7,6 @@ from queue import Empty
 from queue import Queue
 from threading import Thread
 from typing import Generator
-from typing import Optional
 
 
 def cp_file_across_cluster(unit: str, localpath: str, remotepath: str, timeout: int = 5) -> None:
@@ -64,14 +63,14 @@ def is_reachable(address: str) -> bool:
     return False
 
 
-def get_ip() -> Optional[str]:
+def get_ip() -> str:
     # returns all ipv4s as comma-separated string
     result = subprocess.run(["hostname", "-I"], stdout=subprocess.PIPE, text=True)
     ipv4_addresses = result.stdout.strip().split()
     if ipv4_addresses:
         return ",".join(ipv4_addresses)
     else:
-        return None
+        return ""
 
 
 def discover_workers_on_network(terminate: bool = False) -> Generator[str, None, None]:

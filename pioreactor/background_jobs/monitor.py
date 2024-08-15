@@ -235,7 +235,7 @@ class Monitor(LongRunningBackgroundJob):
             def did_find_network() -> bool:
                 ipv4 = get_ip()
 
-                if ipv4 == "127.0.0.1" or ipv4 is None:
+                if ipv4 == "127.0.0.1" or ipv4 == "":
                     # no connection? Sound the alarm.
                     self.logger.warning("Unable to find a network...")
                     self.flicker_led_with_error_code(error_codes.NO_NETWORK_CONNECTION)
@@ -243,12 +243,8 @@ class Monitor(LongRunningBackgroundJob):
                 else:
                     return True
 
-            if utils.boolean_retry(did_find_network, retries=3, sleep_for=2):
-                ipv4: str = get_ip() or ""
-            else:
-                ipv4 = ""
-
-            self.ipv4 = ipv4
+            utils.boolean_retry(did_find_network, retries=3, sleep_for=2)
+            self.ipv4 = get_ip()
 
             try:
                 with open("/sys/class/net/wlan0/address", "r") as f:

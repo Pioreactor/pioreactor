@@ -1018,7 +1018,7 @@ class ODReader(BackgroundJob):
 
     @property
     def ir_led_on_and_rest_off_state(self) -> dict[pt.LedChannel, pt.LedIntensityValue]:
-        if config.getboolean("od_reading.config", "turn_off_leds_during_reading", fallback=True):
+        if config.getboolean("od_reading.config", "turn_off_leds_during_reading", fallback="True"):
             return {
                 channel: (self.ir_led_intensity if channel == self.ir_channel else 0.0)
                 for channel in led_utils.ALL_LED_CHANNELS
