@@ -342,6 +342,7 @@ def when(
         if (get_assigned_experiment_name(unit) != experiment) and not is_testing_env():
             return
 
+        nonlocal env
         env = env | {"hours_elapsed": seconds_to_hours(elapsed_seconds_func())}
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
@@ -415,6 +416,7 @@ def repeat(
         if get_assigned_experiment_name(unit) != experiment:
             return
 
+        nonlocal env
         env = env | {"hours_elapsed": seconds_to_hours(elapsed_seconds_func())}
 
         if ((if_ is None) or evaluate_bool_expression(if_, env)) and (
@@ -496,6 +498,7 @@ def log(
         if get_assigned_experiment_name(unit) != experiment:
             return
 
+        nonlocal env
         env = env | {"hours_elapsed": seconds_to_hours(elapsed_seconds_func())}
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
@@ -524,6 +527,8 @@ def start_job(
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             return
+
+        nonlocal env
         env = env | {"hours_elapsed": seconds_to_hours(elapsed_seconds_func())}
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
@@ -561,6 +566,7 @@ def pause_job(
         if get_assigned_experiment_name(unit) != experiment:
             return
 
+        nonlocal env
         env = env | {"hours_elapsed": seconds_to_hours(elapsed_seconds_func())}
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
@@ -590,6 +596,7 @@ def resume_job(
         if get_assigned_experiment_name(unit) != experiment:
             return
 
+        nonlocal env
         env = env | {"hours_elapsed": seconds_to_hours(elapsed_seconds_func())}
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
@@ -619,6 +626,7 @@ def stop_job(
         if get_assigned_experiment_name(unit) != experiment:
             return
 
+        nonlocal env
         env = env | {"hours_elapsed": seconds_to_hours(elapsed_seconds_func())}
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
@@ -649,6 +657,7 @@ def update_job(
         if get_assigned_experiment_name(unit) != experiment:
             return
 
+        nonlocal env
         env = env | {"hours_elapsed": seconds_to_hours(elapsed_seconds_func())}
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
