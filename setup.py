@@ -33,7 +33,6 @@ LEADER_REQUIREMENTS = [
     "MarkupSafe==2.1.5",
     "python-dotenv==1.0.1",
     "Werkzeug==3.0.3",
-    "zeroconf==0.115.2",
 ]
 
 

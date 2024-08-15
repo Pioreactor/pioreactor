@@ -4,3 +4,4 @@ pytest-timeout
 pytest-random-order
 numpy
 pytest-mock
+zeroconf

@@ -244,9 +244,9 @@ class Monitor(LongRunningBackgroundJob):
                     return True
 
             if utils.boolean_retry(did_find_network, retries=3, sleep_for=2):
-                ipv4: str = ""
+                ipv4: str = get_ip() or ""
             else:
-                ipv4 = get_ip() or ""
+                ipv4 = ""
 
             self.ipv4 = ipv4
 

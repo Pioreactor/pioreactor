@@ -7,9 +7,9 @@ cmd line interface for running individual pioreactor units (including leader)
 """
 from __future__ import annotations
 
+import subprocess
 from os import geteuid
 from shlex import quote
-from time import sleep
 from typing import Optional
 
 import click
@@ -83,39 +83,20 @@ def pio(ctx) -> None:
 def logs(n: int) -> None:
     """
     Tail & stream the logs from this unit to the terminal. CTRL-C to exit.
-    TODO: this consumes a full CPU core!
     """
+    log_file = config.config.get("logging", "log_file", fallback="/var/log/pioreactor.log")
+    ui_log_file = (
+        config.config.get("logging", "ui_log_file", fallback="/var/log/pioreactorui.log")
+        if am_I_leader()
+        else ""
+    )
 
-    def file_len(filename) -> int:
-        count = 0
-        with open(filename) as f:
-            for _ in f:
-                count += 1
-        return count
-
-    def follow(filename, sleep_sec=0.2):
-        """Yield each line from a file as they are written.
-        `sleep_sec` is the time to sleep after empty reads."""
-
-        # count the number of lines
-        n_lines = file_len(filename)
-
-        with open(filename) as file:
-            line = ""
-            count = 1
-            while True:
-                tmp = file.readline()
-                count += 1
-                if tmp is not None:
-                    line += tmp
-                    if line.endswith("\n") and count > (n_lines - n):
-                        yield line
-                    line = ""
-                else:
-                    sleep(sleep_sec)
-
-    for line in follow(config.config["logging"]["log_file"]):
-        click.echo(line, nl=False)
+    with subprocess.Popen(
+        ["tail", "-fqn", str(n), log_file, ui_log_file], stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+    ) as process:
+        assert process.stdout is not None
+        for line in process.stdout:
+            print(line.decode("utf8").rstrip("\n"))
 
 
 @pio.command(name="log", short_help="logs a message from the CLI")
@@ -393,8 +374,6 @@ def update_app(
     """
     Update the Pioreactor core software
     """
-    import subprocess
-
     logger = create_logger("update_app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT)
 
     commands_and_priority: list[tuple[str, float]] = []
@@ -557,7 +536,6 @@ def update_firmware(version: Optional[str]) -> None:
 
     # TODO: this needs accept a --source arg
     """
-    import subprocess
 
     logger = create_logger(
         "update_firmware", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
@@ -616,9 +594,25 @@ if whoami.am_I_leader():
     @pio.command(short_help="tail MQTT")
     @click.option("--topic", "-t", default="pioreactor/#")
     def mqtt(topic: str) -> None:
-        import os
-
-        os.system(f"""mosquitto_sub -v -t '{topic}' -F "%19.19I  |  %t   %p" -u pioreactor -P raspberry""")
+        with subprocess.Popen(
+            [
+                "mosquitto_sub",
+                "-v",
+                "-t",
+                "#",
+                "-F",
+                "%19.19I  |  %t   %p",
+                "-u",
+                "pioreactor",
+                "-P",
+                "raspberry",
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        ) as process:
+            assert process.stdout is not None
+            for line in process.stdout:
+                print(line.decode("utf8").rstrip("\n"))
 
     @update.command(name="ui")
     @click.option("-b", "--branch", help="install from a branch on github")
@@ -637,8 +631,6 @@ if whoami.am_I_leader():
         Source, if provided, should be a .tar.gz with a top-level dir like pioreactorui-{version}/
         This is what is provided from Github releases.
         """
-        import subprocess
-
         logger = create_logger(
             "update_ui", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
         )

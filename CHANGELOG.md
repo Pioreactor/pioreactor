@@ -2,6 +2,7 @@
 
 #### Enhancements
 
+ - `pio logs` now includes the UI logs (if run on leader).
  - introduce a new od_reading config,`turn_off_leds_during_reading`, which enables / disables turning off the other LEDS during an OD snapshot. By default, it is set to 1 (enables).
  - leader-only Pioreactors also have a `config_hostname.local` file now.
  - a new top-level section in experiment profiles, `inputs`, allows you to define variables that can be used in expressions. This is useful if you are copy the same constant over an over again, and want a quick way to change it once. Example:
@@ -38,7 +39,7 @@
 
 #### Breaking changes
 
- - removed `psutil` package from new images. We replaced its functionality with built-in routines.
+ - removed `psutil` and `zeroconf` packages from new images. We replaced their functionality with built-in routines.
  - in config.ini, the section `od_config` renamed to `od_reading.config`, and `stirring` is `stirring.config`. When you update, a script will run to automatically update these names in your config.inis.
 
 ### 24.7.18
