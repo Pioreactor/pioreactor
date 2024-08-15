@@ -86,13 +86,17 @@ def logs(n: int) -> None:
     """
     log_file = config.config.get("logging", "log_file", fallback="/var/log/pioreactor.log")
     ui_log_file = (
-        config.config.get("logging", "ui_log_file", fallback="/var/log/pioreactorui.log")
+        config.config.get("logging", "ui_log_file", fallback="/var/log/pioreactor.log")
         if am_I_leader()
         else ""
     )
+    if log_file == ui_log_file:
+        log_files = [log_file]
+    else:
+        log_files = [log_file, ui_log_file]
 
     with subprocess.Popen(
-        ["tail", "-fqn", str(n), log_file, ui_log_file], stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+        ["tail", "-fqn", str(n)] + log_files, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
     ) as process:
         assert process.stdout is not None
         for line in process.stdout:

@@ -111,7 +111,7 @@ def add_worker(hostname: str, password: str, version: str, model: str) -> None:
         r.raise_for_status()
     except HTTPErrorStatus:
         if r.status_code >= 500:
-            logger.error("Server error. Could not complete. See UI logs in /var/log/pioreactorui.log")
+            logger.error("Server error. Could not complete. See UI logs")
         else:
             logger.error(f"Did not add worker {hostname} to backend.")
         raise HTTPException(f"Did not add worker {hostname} to backend.")
@@ -130,7 +130,7 @@ def remove_worker(hostname: str) -> None:
         r.raise_for_status()
     except HTTPErrorStatus:
         if r.status_code >= 500:
-            click.echo("Server error. Could not complete. See UI logs in /var/log/pioreactorui.log")
+            click.echo("Server error. Could not complete. See UI logs.")
         else:
             click.echo(f"Worker {hostname} not present to be removed. Check hostname.")
         click.Abort()
