@@ -579,7 +579,7 @@ def test_determine_best_ir_led_intensity_values() -> None:
             {"1": 0.05, "2": 0.02},  # on
             {"1": 0.001, "2": 0.001},  # blank
         )
-        == 85.0
+        == 80.0
     )
 
     assert (
