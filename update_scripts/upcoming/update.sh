@@ -88,4 +88,4 @@ fi
 # change the permissions in the log file, and logrotate file
 
 sudo chmod 666 /var/log/pioreactor.log
-sudo sed -i 's/create 0660 pioreactor pioreactor/create 0666 pioreactor pioreactor/' /var/log/pioreactor.log
+sudo sed -i 's/create 0660 pioreactor pioreactor/create 0666 pioreactor pioreactor/' /etc/logrotate.d/pioreactor
