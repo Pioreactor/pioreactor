@@ -18,6 +18,10 @@ LEADER_HOSTNAME=$(crudini --get $PIO_DIR/config.ini cluster.topology leader_host
 if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
     touch "$PIO_DIR/config_$HOSTNAME.ini" # create if it doesn't exist.
 
+    crudini --ini-options=nospace --set "$PIO_DIR/config_$HOSTNAME.ini" cluster.topology leader_address 127.0.0.1 \
+                                  --set "$PIO_DIR/config_$HOSTNAME.ini" mqtt broker_address 127.0.0.1
+
+
     # stirring -> stirring.config
     # Iterate over each ini file in the directory
     for ini_file in "$PIO_DIR"/config*.ini; do
@@ -79,3 +83,9 @@ if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
 
     sudo -u pioreactor pios sync-configs
 fi
+
+
+# change the permissions in the log file, and logrotate file
+
+sudo chmod 666 /var/log/pioreactor.log
+sudo sed -i 's/create 0660 pioreactor pioreactor/create 0666 pioreactor pioreactor/' /var/log/pioreactor.log

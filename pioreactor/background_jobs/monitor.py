@@ -230,33 +230,33 @@ class Monitor(LongRunningBackgroundJob):
             self.ipv4 = "127.0.0.1"
             self.wlan_mac_address = "d8:3a:dd:61:01:59"
             self.eth_mac_address = "d8:3a:dd:61:01:60"
-        else:
+            return
 
-            def did_find_network() -> bool:
-                ipv4 = get_ip()
+        def did_find_network() -> bool:
+            ipv4 = get_ip()
 
-                if ipv4 == "127.0.0.1" or ipv4 == "":
-                    # no connection? Sound the alarm.
-                    self.logger.warning("Unable to find a network...")
-                    self.flicker_led_with_error_code(error_codes.NO_NETWORK_CONNECTION)
-                    return False
-                else:
-                    return True
+            if ipv4 == "127.0.0.1" or ipv4 == "":
+                # no connection? Sound the alarm.
+                self.logger.warning("Unable to find a network...")
+                self.flicker_led_with_error_code(error_codes.NO_NETWORK_CONNECTION)
+                return False
+            else:
+                return True
 
-            utils.boolean_retry(did_find_network, retries=3, sleep_for=2)
-            self.ipv4 = get_ip()
+        utils.boolean_retry(did_find_network, retries=3, sleep_for=2)
+        self.ipv4 = get_ip()
 
-            try:
-                with open("/sys/class/net/wlan0/address", "r") as f:
-                    self.wlan_mac_address = f.read().strip()
-            except FileNotFoundError:
-                self.wlan_mac_address = "Not available"
+        try:
+            with open("/sys/class/net/wlan0/address", "r") as f:
+                self.wlan_mac_address = f.read().strip()
+        except FileNotFoundError:
+            self.wlan_mac_address = "Not available"
 
-            try:
-                with open("/sys/class/net/eth0/address", "r") as f:
-                    self.eth_mac_address = f.read().strip()
-            except FileNotFoundError:
-                self.eth_mac_address = "Not available"
+        try:
+            with open("/sys/class/net/eth0/address", "r") as f:
+                self.eth_mac_address = f.read().strip()
+        except FileNotFoundError:
+            self.eth_mac_address = "Not available"
 
         self.logger.debug(f"IPv4 address: {self.ipv4}")
         self.logger.debug(f"WLAN MAC address: {self.wlan_mac_address}")
@@ -265,9 +265,6 @@ class Monitor(LongRunningBackgroundJob):
     def self_checks(self) -> None:
         # check active network connection
         self.check_for_network()
-
-        # watch for undervoltage problems
-        self.check_for_power_problems()
 
         # report on CPU usage, memory, disk space
         self.check_and_publish_self_statistics()
@@ -280,6 +277,9 @@ class Monitor(LongRunningBackgroundJob):
             self.check_for_required_jobs_running()
 
         if whoami.am_I_a_worker():
+            # watch for undervoltage problems
+            self.check_for_power_problems()
+            # workers need a HAT
             self.check_for_HAT()
             # check the PCB temperature
             self.check_heater_pcb_temperature()
@@ -543,6 +543,10 @@ class Monitor(LongRunningBackgroundJob):
             return False, voltage_read
 
     def check_for_power_problems(self) -> None:
+        # don't bother checking if hat isn't present
+        if not is_HAT_present():
+            return
+
         is_rpi_having_power_probems, voltage = self.rpi_is_having_power_problems()
         self.logger.debug(f"PWM power supply at ~{voltage:.2f}V.")
         self.voltage_on_pwm_rail = Voltage(voltage=round(voltage, 2), timestamp=current_utc_datetime())

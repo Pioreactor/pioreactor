@@ -100,7 +100,7 @@ def logs(n: int) -> None:
     ) as process:
         assert process.stdout is not None
         for line in process.stdout:
-            print(line.decode("utf8").rstrip("\n"))
+            click.echo(line.decode("utf8").rstrip("\n"))
 
 
 @pio.command(name="log", short_help="logs a message from the CLI")
@@ -605,7 +605,7 @@ if whoami.am_I_leader():
                 "-t",
                 "#",
                 "-F",
-                "%19.19I  |  %t   %p",
+                "%19.19I||%t||%p",
                 "-u",
                 "pioreactor",
                 "-P",
@@ -616,7 +616,14 @@ if whoami.am_I_leader():
         ) as process:
             assert process.stdout is not None
             for line in process.stdout:
-                print(line.decode("utf8").rstrip("\n"))
+                timestamp, topic, value = line.decode("utf8").rstrip("\n").split("||")
+                click.echo(
+                    click.style(timestamp, fg="cyan")
+                    + " | "
+                    + click.style(topic, fg="bright_green")
+                    + " | "
+                    + click.style(value, fg="bright_yellow")
+                )
 
     @update.command(name="ui")
     @click.option("-b", "--branch", help="install from a branch on github")

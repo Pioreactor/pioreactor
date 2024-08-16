@@ -36,10 +36,12 @@
  - more resilience to "UI state" diverging from "bioreactor state".  Often, this occurred when two jobs stared almost immediately (often a networking issue), and the last job would halt since it couldn't get the required resources, however any MQTT data would be overwritten by the last job. Now, multiple places in the request pipeline will reduce duplication and prevent two jobs from starting too close to each other.
  - improved stirring clean up when stopped in quick succession after starting.
  - if a network isn't found, the `monitor` job will not stall, but warn and continue.
+ - fixed HAT warning for HAT-less leaders.
 
 #### Breaking changes
 
- - removed `psutil` and `zeroconf` packages from new images. We replaced their functionality with built-in routines.
+ - the web server now writes its logs to the same location as the app: `/var/log/pioreactor.log`. Those wishing to keep the old location can use a new configuration parameter `ui_log_file` to `[logging]` section and set it to `/var/log/pioreactorui.log`.
+ - removed `psutil` and `zeroconf` Python packages from new images. We replaced their functionality with built-in routines.
  - in config.ini, the section `od_config` renamed to `od_reading.config`, and `stirring` is `stirring.config`. When you update, a script will run to automatically update these names in your config.inis.
 
 ### 24.7.18
