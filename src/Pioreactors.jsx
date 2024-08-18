@@ -2202,7 +2202,7 @@ function ActiveUnits({experiment, config, units, isLoading}){
     <Box sx={{textAlign: "center"}}>
       {isLoading ? <CircularProgress /> : (
       <>
-      <img alt="pioreactor logo" src="/pioreactor_cloud.webp" style={{width: "500px", opacity: 0.9, filter: "grayscale(30%)", marginLeft: "30px"}}/>
+      <img alt="filler image for no pioreactor assigned" src="/pioreactor_cloud.webp" style={{width: "500px", opacity: 0.9, filter: "grayscale(50%)", marginLeft: "30px"}}/>
       <Typography component='div' variant='h6' sx={{mb: 2}}>
         No Pioreactors assigned to this experiment
       </Typography>

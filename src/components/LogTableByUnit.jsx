@@ -133,7 +133,7 @@ function LogTableByUnit({experiment, unit}) {
         <Typography variant="h6" component="h2">
           <Box fontWeight="fontWeightRegular">Recent logs for {unit}</Box>
         </Typography>
-        <TableContainer sx={{ height: "660px", width: "100%", overflowY: "auto"}}>
+        <TableContainer sx={{ height: "700px", width: "100%", overflowY: "auto"}}>
           <Table stickyHeader size="small" aria-label="log table">
             <TableHead>
               <TableRow>
