@@ -91,5 +91,5 @@ sudo sed -i 's/create 0660 pioreactor pioreactor/create 0666 pioreactor pioreact
 
 
 # update firmware to 0.3
-sudo cp "$SCRIPT_DIR"/main.elf /usr/local/bin/main.elf
+sudo cp "$SCRIPT_DIR"/main.elf /usr/local/bin/main.elf || sudo wget https://github.com/Pioreactor/pico-build/releases/download/0.3/main.elf -o /usr/local/bin/main.elf
 sudo systemctl restart load_rp2040.service || :

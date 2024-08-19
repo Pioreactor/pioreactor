@@ -7,7 +7,7 @@
  - leader-only Pioreactors also have a `config_<hostname>.local` file now.
  - a new top-level section in experiment profiles, `inputs`, allows you to define parameters that can be used in expressions. This is useful if you are copy the same constant over an over again, and want a quick way to change it once. Example:
 
-  ```
+  ```yaml
   inputs:
     growth_phase_temp: 37.0
     stationary_phase_temp: 30.0

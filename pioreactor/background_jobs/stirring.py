@@ -240,6 +240,8 @@ class Stirrer(BackgroundJob):
         else:
             self.target_rpm = None
 
+        # initialize DC with initial_duty_cycle, however we can update it with a lookup (if it exists)
+        self.duty_cycle = config.getfloat("stirring.config", "initial_duty_cycle")
         self.rpm_to_dc_lookup = self.initialize_rpm_to_dc_lookup()
         self.duty_cycle = self.rpm_to_dc_lookup(self.target_rpm)
 
