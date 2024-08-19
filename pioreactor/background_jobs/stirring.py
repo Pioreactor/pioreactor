@@ -296,8 +296,7 @@ class Stirrer(BackgroundJob):
         with suppress(AttributeError):
             self.rpm_check_repeated_thread.cancel()
         with suppress(AttributeError):
-            with self.duty_cycle_lock:
-                self.pwm.clean_up()
+            self.pwm.clean_up()
         with suppress(AttributeError):
             if self.rpm_calculator:
                 self.rpm_calculator.clean_up()
@@ -307,25 +306,23 @@ class Stirrer(BackgroundJob):
             f"Starting stirring with {'no' if self.target_rpm is None  else  self.target_rpm} RPM."
         )
 
-        with self.duty_cycle_lock:
-            self.pwm.start(100)  # get momentum to start
-            sleep(0.35)
-            self.set_duty_cycle(self.duty_cycle)
+        self.pwm.start(100)  # get momentum to start
+        sleep(0.35)
+        self.set_duty_cycle(self.duty_cycle)
 
         if self.rpm_calculator is not None:
             self.rpm_check_repeated_thread.start()  # .start is idempotent
 
     def kick_stirring(self) -> None:
-        with self.duty_cycle_lock:
-            self.logger.debug("Kicking stirring")
-            _existing_duty_cycle = self.duty_cycle
-            self.set_duty_cycle(0)
-            sleep(0.30)
-            self.set_duty_cycle(100)
-            sleep(0.5)
-            self.set_duty_cycle(
-                min(1.01 * _existing_duty_cycle, 60)
-            )  # DC should never need to be above 60 - simply not realistic. We want to avoid the death spiral to 100%.
+        self.logger.debug("Kicking stirring")
+        _existing_duty_cycle = self.duty_cycle
+        self.set_duty_cycle(0)
+        sleep(0.30)
+        self.set_duty_cycle(100)
+        sleep(0.5)
+        self.set_duty_cycle(
+            min(1.01 * _existing_duty_cycle, 60)
+        )  # DC should never need to be above 60 - simply not realistic. We want to avoid the death spiral to 100%.
 
     def kick_stirring_but_avoid_od_reading(self) -> None:
         """
@@ -406,19 +403,18 @@ class Stirrer(BackgroundJob):
 
     def on_ready_to_sleeping(self) -> None:
         self.rpm_check_repeated_thread.pause()
-        with self.duty_cycle_lock:
-            self.set_duty_cycle(0.0)
+        self.set_duty_cycle(0.0)
 
     def on_sleeping_to_ready(self) -> None:
         self.duty_cycle = self._previous_duty_cycle
         self.rpm_check_repeated_thread.unpause()
-        with self.duty_cycle_lock:
-            self.start_stirring()
+        self.start_stirring()
 
     def set_duty_cycle(self, value: float) -> None:
-        self._previous_duty_cycle = self.duty_cycle
-        self.duty_cycle = clamp(0.0, round(value, 5), 100.0)
-        self.pwm.change_duty_cycle(self.duty_cycle)
+        with self.duty_cycle_lock:
+            self._previous_duty_cycle = self.duty_cycle
+            self.duty_cycle = clamp(0.0, round(value, 5), 100.0)
+            self.pwm.change_duty_cycle(self.duty_cycle)
 
     def set_target_rpm(self, value: float) -> None:
         if self.rpm_calculator is None:

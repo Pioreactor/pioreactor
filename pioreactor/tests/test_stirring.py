@@ -26,6 +26,7 @@ def pause(n=1) -> None:
 
 def test_stirring_runs() -> None:
     st = start_stirring(target_rpm=500)
+    assert st.duty_cycle > 0
     st.clean_up()
 
 
