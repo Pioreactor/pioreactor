@@ -40,7 +40,7 @@
 
 #### Breaking changes
 
- - the RP2040 firmware is now on i2c channel 0x2C (previously 0x30). This is to solve an annoying `i2cdetect` issue were it would lock up.
+ - the RP2040 firmware is now on i2c channel 0x2C (previously 0x30). This is to solve an annoying `i2cdetect` issue where the i2c channel would lock up.
  - the web server now writes its logs to the same location as the app: `/var/log/pioreactor.log`. Those wishing to keep the old location can use a new configuration parameter `ui_log_file` to `[logging]` section and set it to `/var/log/pioreactorui.log`.
  - removed `psutil` and `zeroconf` Python packages from new images. We replaced their functionality with built-in routines.
  - in config.ini, the section `od_config` renamed to `od_reading.config`, and `stirring` is `stirring.config`. When you update, a script will run to automatically update these names in your config.inis.
