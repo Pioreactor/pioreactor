@@ -7,7 +7,7 @@ export LC_ALL=C
 
 
 PIO_DIR=/home/pioreactor/.pioreactor
-
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 
 HOSTNAME=$(hostname)
@@ -91,5 +91,5 @@ sudo sed -i 's/create 0660 pioreactor pioreactor/create 0666 pioreactor pioreact
 
 
 # update firmware to 0.3
-sudo mv ./main.elf /usr/local/bin/main.elf
+sudo cp "$SCRIPT_DIR"/main.elf /usr/local/bin/main.elf
 sudo systemctl restart load_rp2040.service || :

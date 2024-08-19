@@ -378,6 +378,8 @@ def update_app(
     """
     Update the Pioreactor core software
     """
+    import tempfile
+
     logger = create_logger("update_app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT)
 
     commands_and_priority: list[tuple[str, float]] = []
@@ -385,35 +387,34 @@ def update_app(
     if source is not None:
         source = quote(source)
         import re
-        import tempfile
 
         if re.search(r"release_\d{0,2}\.\d{0,2}\.\d{0,2}\w{0,6}\.zip$", source):
             # provided a release archive
             version_installed = re.search(r"release_(.*).zip$", source).groups()[0]  # type: ignore
             tmp_dir = tempfile.gettempdir()
-            tmp_rlse_dir = f"{tmp_dir}/release_{version_installed}"
+            tmp_rls_dir = f"{tmp_dir}/release_{version_installed}"
             # fmt: off
             commands_and_priority.extend(
                 [
-                    (f"rm -rf {tmp_rlse_dir}", -99),
-                    (f"unzip {source} -d {tmp_rlse_dir}", 0),
-                    (f"unzip {tmp_rlse_dir}/wheels_{version_installed}.zip -d {tmp_rlse_dir}/wheels", 1),
-                    (f"sudo bash {tmp_rlse_dir}/pre_update.sh", 2),
-                    (f"sudo bash {tmp_rlse_dir}/update.sh", 4),
-                    (f"sudo bash {tmp_rlse_dir}/post_update.sh", 20),
-                    (f"rm -rf {tmp_rlse_dir}", 99),
+                    (f"rm -rf {tmp_rls_dir}", -99),
+                    (f"unzip {source} -d {tmp_rls_dir}", 0),
+                    (f"unzip {tmp_rls_dir}/wheels_{version_installed}.zip -d {tmp_rls_dir}/wheels", 1),
+                    (f"sudo bash {tmp_rls_dir}/pre_update.sh", 2),
+                    (f"sudo bash {tmp_rls_dir}/update.sh", 4),
+                    (f"sudo bash {tmp_rls_dir}/post_update.sh", 20),
+                    (f"rm -rf {tmp_rls_dir}", 99),
                 ]
             )
 
             if whoami.am_I_leader():
                 commands_and_priority.extend([
-                    (f"sudo pip install --no-index --find-links={tmp_rlse_dir}/wheels/ {tmp_rlse_dir}/pioreactor-{version_installed}-py3-none-any.whl[leader,worker]", 3),
-                    (f'sudo sqlite3 {config.config["storage"]["database"]} < {tmp_rlse_dir}/update.sql', 10),
-                    (f"mv {tmp_rlse_dir}/pioreactorui_*.tar.gz {tmp_dir}/pioreactorui_archive", 98),  # move ui folder to be accessed by a `pio update ui`
+                    (f"sudo pip install --no-index --find-links={tmp_rls_dir}/wheels/ {tmp_rls_dir}/pioreactor-{version_installed}-py3-none-any.whl[leader,worker]", 3),
+                    (f'sudo sqlite3 {config.config["storage"]["database"]} < {tmp_rls_dir}/update.sql', 10),
+                    (f"mv {tmp_rls_dir}/pioreactorui_*.tar.gz {tmp_dir}/pioreactorui_archive", 98),  # move ui folder to be accessed by a `pio update ui`
                 ])
             else:
                 commands_and_priority.extend([
-                    (f"sudo pip install --no-index --find-links={tmp_rlse_dir}/wheels/ {tmp_rlse_dir}/pioreactor-{version_installed}-py3-none-any.whl[worker]", 3),
+                    (f"sudo pip install --no-index --find-links={tmp_rls_dir}/wheels/ {tmp_rls_dir}/pioreactor-{version_installed}-py3-none-any.whl[worker]", 3),
                 ])
 
             # fmt: on
@@ -449,27 +450,30 @@ def update_app(
         version_installed = release_metadata["tag_name"]
         found_whl = False
 
-        # nuke all existing assets in /tmp
-        # TODO: just make a new tempdir, put all files there, and then nuke that temp dir......
+        # nuke all existing assets in /tmp/
         # BETTER TODO: just download the release archive and run the script above.....
-        commands_and_priority.append(("rm -f /tmp/*update.sh /tmp/update.sql", -1))
+        tmp_dir = tempfile.gettempdir()
+        tmp_rls_dir = f"{tmp_dir}/release_{version_installed}"
+        commands_and_priority.append((f"rm -f {tmp_rls_dir}", -10))
+        commands_and_priority.append((f"mkdir {tmp_rls_dir}", -9))
 
         for asset in release_metadata["assets"]:
             # add the following files to the release. They should ideally be idempotent!
 
-            # pre_update.sh runs (if exists)
-            # `pip install pioreactor...whl` runs
-            # update.sh runs (if exists)
-            # update.sql to update sqlite schema runs (if exists)
-            # post_update.sh runs (if exists)
+            # 1. download any unique assets like scripts, .elf, etc.
+            # 2. pre_update.sh runs (if exists)
+            # 3. `pip install pioreactor...whl` runs
+            # 4. update.sh runs (if exists)
+            # 5. update.sql to update sqlite schema runs (if exists)
+            # 6. post_update.sh runs (if exists)
             url = asset["browser_download_url"]
             asset_name = asset["name"]
 
             if asset_name == "pre_update.sh":
                 commands_and_priority.extend(
                     [
-                        (f"wget -O /tmp/pre_update.sh {url}", 0),
-                        ("sudo bash /tmp/pre_update.sh", 1),
+                        (f"wget -O {tmp_rls_dir}/pre_update.sh {url}", 0),
+                        (f"sudo bash {tmp_rls_dir}/pre_update.sh", 1),
                     ]
                 )
             elif asset_name.startswith("pioreactor") and asset_name.endswith(".whl"):
@@ -481,16 +485,16 @@ def update_app(
             elif asset_name == "update.sh":
                 commands_and_priority.extend(
                     [
-                        (f"wget -O /tmp/update.sh {url}", 3),
-                        ("sudo bash /tmp/update.sh", 4),
+                        (f"wget -O {tmp_rls_dir}/update.sh {url}", 3),
+                        (f"sudo bash {tmp_rls_dir}/update.sh", 4),
                     ]
                 )
             elif asset_name == "update.sql" and whoami.am_I_leader():
                 commands_and_priority.extend(
                     [
-                        (f"wget -O /tmp/update.sql {url}", 5),
+                        (f"wget -O {tmp_rls_dir}/update.sql {url}", 5),
                         (
-                            f'sudo sqlite3 {config.config["storage"]["database"]} < /tmp/update.sql || :',
+                            f'sudo sqlite3 {config.config["storage"]["database"]} < {tmp_rls_dir}/update.sql || :',
                             6,
                         ),  # or True at the end, since this may run on workers, that's okay.
                     ]
@@ -498,10 +502,15 @@ def update_app(
             elif asset_name == "post_update.sh":
                 commands_and_priority.extend(
                     [
-                        (f"wget -O /tmp/post_update.sh {url}", 99),
-                        ("sudo bash /tmp/post_update.sh", 100),
+                        (f"wget -O {tmp_rls_dir}/post_update.sh {url}", 99),
+                        (f"sudo bash {tmp_rls_dir}/post_update.sh", 100),
                     ]
                 )
+            else:
+                # any misc files, add too (like main.elf, or scripts, etc.).
+                # download these first, so they can be used in update.sh...
+                commands_and_priority.append((f"wget -O {tmp_rls_dir}/{asset_name} {url}", -1))
+
         if not found_whl:
             raise FileNotFoundError(f"Could not find a whl file in the {repo=} {tag=} release.")
 
