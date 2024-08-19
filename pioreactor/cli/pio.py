@@ -454,7 +454,7 @@ def update_app(
         # BETTER TODO: just download the release archive and run the script above.....
         tmp_dir = tempfile.gettempdir()
         tmp_rls_dir = f"{tmp_dir}/release_{version_installed}"
-        commands_and_priority.append((f"rm -f {tmp_rls_dir}", -10))
+        commands_and_priority.append((f"rm -rf {tmp_rls_dir}", -10))
         commands_and_priority.append((f"mkdir {tmp_rls_dir}", -9))
 
         for asset in release_metadata["assets"]:
