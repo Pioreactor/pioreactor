@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 from contextlib import suppress
+from threading import Lock
 from time import perf_counter
 from time import sleep
 from time import time
@@ -232,6 +233,7 @@ class Stirrer(BackgroundJob):
             pin, config.getfloat("stirring.config", "pwm_hz"), unit=self.unit, experiment=self.experiment
         )
         self.pwm.lock()
+        self.duty_cycle_lock = Lock()
 
         if target_rpm is not None and self.rpm_calculator is not None:
             self.target_rpm: Optional[float] = float(target_rpm)
@@ -292,7 +294,8 @@ class Stirrer(BackgroundJob):
         with suppress(AttributeError):
             self.rpm_check_repeated_thread.cancel()
         with suppress(AttributeError):
-            self.pwm.clean_up()
+            with self.duty_cycle_lock:
+                self.pwm.clean_up()
         with suppress(AttributeError):
             if self.rpm_calculator:
                 self.rpm_calculator.clean_up()
@@ -301,22 +304,26 @@ class Stirrer(BackgroundJob):
         self.logger.debug(
             f"Starting stirring with {'no' if self.target_rpm is None  else  self.target_rpm} RPM."
         )
-        self.pwm.start(100)  # get momentum to start
-        sleep(0.35)
-        self.set_duty_cycle(self.duty_cycle)
+
+        with self.duty_cycle_lock:
+            self.pwm.start(100)  # get momentum to start
+            sleep(0.35)
+            self.set_duty_cycle(self.duty_cycle)
+
         if self.rpm_calculator is not None:
             self.rpm_check_repeated_thread.start()  # .start is idempotent
 
     def kick_stirring(self) -> None:
-        self.logger.debug("Kicking stirring")
-        _existing_duty_cycle = self.duty_cycle
-        self.set_duty_cycle(0)
-        sleep(0.30)
-        self.set_duty_cycle(100)
-        sleep(0.5)
-        self.set_duty_cycle(
-            min(1.01 * _existing_duty_cycle, 60)
-        )  # DC should never need to be above 60 - simply not realistic. We want to avoid the death spiral to 100%.
+        with self.duty_cycle_lock:
+            self.logger.debug("Kicking stirring")
+            _existing_duty_cycle = self.duty_cycle
+            self.set_duty_cycle(0)
+            sleep(0.30)
+            self.set_duty_cycle(100)
+            sleep(0.5)
+            self.set_duty_cycle(
+                min(1.01 * _existing_duty_cycle, 60)
+            )  # DC should never need to be above 60 - simply not realistic. We want to avoid the death spiral to 100%.
 
     def kick_stirring_but_avoid_od_reading(self) -> None:
         """
@@ -397,12 +404,14 @@ class Stirrer(BackgroundJob):
 
     def on_ready_to_sleeping(self) -> None:
         self.rpm_check_repeated_thread.pause()
-        self.set_duty_cycle(0.0)
+        with self.duty_cycle_lock:
+            self.set_duty_cycle(0.0)
 
     def on_sleeping_to_ready(self) -> None:
         self.duty_cycle = self._previous_duty_cycle
         self.rpm_check_repeated_thread.unpause()
-        self.start_stirring()
+        with self.duty_cycle_lock:
+            self.start_stirring()
 
     def set_duty_cycle(self, value: float) -> None:
         self._previous_duty_cycle = self.duty_cycle

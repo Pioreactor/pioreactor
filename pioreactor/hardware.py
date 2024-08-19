@@ -59,8 +59,8 @@ if hardware_version_info >= (1, 1):
 
 
 # I2C channels used
-ADC = 0x48 if (0, 0) < hardware_version_info <= (1, 0) else 0x30
-DAC = 0x49 if (0, 0) < hardware_version_info <= (1, 0) else 0x30
+ADC = 0x48 if (0, 0) < hardware_version_info <= (1, 0) else 0x2C
+DAC = 0x49 if (0, 0) < hardware_version_info <= (1, 0) else 0x2C
 TEMP = 0x4F
 
 
