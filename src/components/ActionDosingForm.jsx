@@ -163,13 +163,14 @@ export default function ActionPumpForm(props) {
           size="small"
           color="primary"
           onClick={onSubmit}
-          style={{marginRight: '3px'}}
+          style={{marginRight: '10px'}}
         >
           Start
         </Button>
         <Button
           size="small"
           color="secondary"
+          variant="contained"
           disabled={ (props?.job?.state !== "ready") && (props.unit !== "$broadcast")} // always allow for "stop" in the "Manage all" dialog
           onClick={stopPump}
         >

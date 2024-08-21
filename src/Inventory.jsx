@@ -18,7 +18,6 @@ import Divider from '@mui/material/Divider';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import FormControl from '@mui/material/FormControl';
 import Button from '@mui/material/Button';
-import PioreactorIcon from "./components/PioreactorIcon"
 import Switch from '@mui/material/Switch';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
@@ -34,8 +33,10 @@ import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import RemoveCircleOutlineRoundedIcon from '@mui/icons-material/RemoveCircleOutlineRounded';
 import CircularProgress from '@mui/material/CircularProgress';
 import { useConfirm } from 'material-ui-confirm';
-import { useNavigate } from 'react-router-dom'
-
+import { useNavigate } from 'react-router-dom';
+import UnderlineSpan from "./components/UnderlineSpan";
+import PioreactorIcon from "./components/PioreactorIcon";
+import WarningIcon from '@mui/icons-material/Warning';
 
 
 const disconnectedGrey = "#585858"
@@ -224,11 +225,9 @@ function AddNewPioreactor(props){
 
 
 
-function WorkerCard(props) {
+function WorkerCard({worker, config, leaderVersion}) {
 
-  const worker = props.worker
   const unit = worker.pioreactor_unit
-  const config = props.config
   const isLeader = (config['cluster.topology']?.leader_hostname === unit)
   const [activeStatus, setActiveStatus] = React.useState(worker.is_active ? "active" : "inactive")
   const [experimentAssigned, setExperimentAssigned] = React.useState(null)
@@ -339,19 +338,35 @@ function WorkerCard(props) {
   };
 
 
-  var pioreactorString
-
-  if (state !== "ready"){
-    pioreactorString = "-"
-  } else {
-    if (versions.pioreactor_model) {
-      pioreactorString = `Pioreactor ${(versions.pioreactor_model || "-").substring(11)}, v${versions.pioreactor_version || "-"}`
-    }
-    else {
-      // ready and not available.
-      pioreactorString = "Missing! Fix in the configuration file."
+  const pioreactorString = () => {
+    if (!(state === "ready" || state === "init")){
+      return "-"
+    } else {
+      if (versions.pioreactor_model) {
+        return `Pioreactor ${(versions.pioreactor_model || "-").substring(11)}, v${versions.pioreactor_version || "-"}`
+      }
+      else {
+        // ready and not available.
+        return  "Missing! Fix in the configuration file."
+      }
     }
   }
+
+  const softwareVersion = () => {
+    const { app: workerVersion } = versions;
+
+    if (!workerVersion) return "-";
+
+    if (leaderVersion && workerVersion !== leaderVersion) {
+      return (
+        <UnderlineSpan title={`Not aligned with leader's version, ${leaderVersion}`}>
+          {workerVersion} ❌
+        </UnderlineSpan>
+      );
+    }
+
+    return workerVersion;
+  };
 
   return (
     <Card sx={{ minWidth: 275 }}>
@@ -410,7 +425,7 @@ function WorkerCard(props) {
                 Model
             </td>
             <td >
-              <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{pioreactorString}</code>
+              <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{pioreactorString()}</code>
             </td>
           </tr>
           <tr>
@@ -442,7 +457,7 @@ function WorkerCard(props) {
                 Software version
             </td>
             <td >
-              <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{versions.app || "-"}</code>
+              <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{softwareVersion()}</code>
             </td>
           </tr>
           <tr>
@@ -569,13 +584,28 @@ function Remove({unit, isLeader}) {
 )}
 
 function InventoryDisplay({isLoading, workers, config}){
+  const [leaderVersion, setLeaderVersion] = React.useState(null)
+
+  React.useEffect(() => {
+    async function getLeaderVersion() {
+       await fetch("/api/versions/app")
+      .then((response) => {
+        return response.text();
+      })
+      .then((data) => {
+        setLeaderVersion(data)
+      });
+    }
+    getLeaderVersion()
+  }, [])
+
   return (
     <Grid container spacing={2}>
       {isLoading ? <div style={{textAlign: "center", margin: 'auto', marginTop: "50px"}}><CircularProgress /> </div>: (
         <>
           {workers.map(worker =>
           <Grid key={worker.pioreactor_unit} item md={6} xs={12} sm={12}>
-            <WorkerCard worker={worker} config={config}/>
+            <WorkerCard worker={worker} config={config} leaderVersion={leaderVersion}/>
           </Grid>
           )}
         </>

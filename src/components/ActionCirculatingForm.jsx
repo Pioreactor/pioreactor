@@ -109,13 +109,14 @@ export default function ActionCirculatingForm(props) {
           size="small"
           color="primary"
           onClick={onSubmit}
-          sx={{marginRight: '3px'}}
+          sx={{marginRight: '10px'}}
         >
           Start
         </LoadingButton>
         <Button
           size="small"
           color="secondary"
+          variant="contained"
           disabled={ (props?.job?.state !== "ready") && (props.unit !== "$broadcast")} // always allow for "stop" in the "Manage all" dialog
           onClick={stopPump}
         >

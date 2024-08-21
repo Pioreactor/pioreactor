@@ -129,12 +129,12 @@ function UploadArchiveAndConfirm(props) {
         <DialogContent>
           <DialogContentText id="alert-dialog-description">
             {props.description}
-            <p>You can update the Pioreactor software from our pre-built zip files. First download the <code>release_*.zip</code> file from our <a href="https://github.com/Pioreactor/pioreactor/releases" target="_blank" rel="noopener noreferrer" >Releases page</a>, and then upload the file.</p>
-            <p>Learn more about <a href="https://docs.pioreactor.com/user-guide/updating-software#method-2-update-using-a-zip-file-and-the-ui" target="_blank" rel="noopener noreferrer">updating from a zip file</a>.</p>
+            <p>You can update the Pioreactor software from our pre-built zip files. First download the <code>release_*.zip</code> file from our <a href="https://github.com/Pioreactor/pioreactor/releases?q=prerelease%3Afalse&expanded=true" target="_blank" rel="noopener noreferrer" >Releases page</a>, and then upload the file.</p>
             <p>To avoid possible data interruptions, we suggest updating between running experiments.</p>
+            <p>Learn more about <a href="https://docs.pioreactor.com/user-guide/updating-software#method-2-update-using-a-zip-file-and-the-ui" target="_blank" rel="noopener noreferrer">updating from a zip file</a>.</p>
             <br/>
             <Button component="label" style={{textTransform: 'none'}}>Upload zip file <VisuallyHiddenInput onChange={handleFileChange} accept=".zip" type="file" /></Button>
-            {selectedFile == null ? "" : selectedFile.name}
+            {selectedFile == null ? "" : `${selectedFile.name}  ✅`}
             <div style={{minHeight: "30px", alignItems: "center", display: "flex"}}>
               {errorMsg   ? <p><CloseIcon sx={{color: lostRed, fontSize: 15, verticalAlign: "middle", margin: "0px 3px"}}/>{errorMsg}</p>           : <React.Fragment/>}
             </div>
@@ -343,7 +343,7 @@ function PageHeader(props) {
       <Typography variant="subtitle2">
 
         <Box fontWeight="fontWeightBold" style={{margin: "10px 2px 10px 2px", display:"inline-block"}}>
-          <SystemUpdateAltIcon style={{ fontSize: 14, verticalAlign: "-1px" }}/> Version installed:
+          <SystemUpdateAltIcon style={{ fontSize: 14, verticalAlign: "-1px" }}/> Leader version installed:
         </Box>
         <Box fontWeight="fontWeightRegular" style={{marginRight: "20px", display:"inline-block"}}>
           <UnderlineSpan title={`App: ${version}, UI:  ${uiVersion}`}> {version} </UnderlineSpan>

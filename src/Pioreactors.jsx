@@ -802,7 +802,7 @@ function SettingsActionsDialog(props) {
 
   function setPioreactorJobAttr(job_attr, value) {
     const topic = `pioreactor/${props.unit}/${props.experiment}/${job_attr}/set`
-    props.client.publish(topic, String(value), {qos: 1});
+    props.client.publish(topic, String(value), {qos: 2});
   }
 
 
@@ -1618,7 +1618,7 @@ function SettingsActionsDialogAll({experiment}) {
       job_attr,
       "set",
     ].join("/");
-    client.publish(topic, String(value), {qos: 1});
+    client.publish(topic, String(value), {qos: 2});
     setSnackbarOpen(true)
   }
 
