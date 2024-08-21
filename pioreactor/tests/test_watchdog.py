@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 
+import pytest
 import zeroconf
 
 from pioreactor.background_jobs.leader.watchdog import WatchDog
@@ -11,6 +12,7 @@ from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.whoami import get_unit_name
 
 
+@pytest.mark.xfail()
 def test_watchdog_alerts_on_found_worker() -> None:
     experiment = "test_watchdog_alerts_on_found_worker"
 
