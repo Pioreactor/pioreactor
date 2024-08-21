@@ -18,8 +18,8 @@ LEADER_HOSTNAME=$(crudini --get $PIO_DIR/config.ini cluster.topology leader_host
 if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
     touch "$PIO_DIR/config_$HOSTNAME.ini" # create if it doesn't exist.
 
-    crudini --ini-options=nospace --set "$PIO_DIR/config_$HOSTNAME.ini" cluster.topology leader_address 127.0.0.1 \
-                                  --set "$PIO_DIR/config_$HOSTNAME.ini" mqtt broker_address 127.0.0.1
+    crudini --ini-options=nospace --set "$PIO_DIR/config_$HOSTNAME.ini" cluster.topology leader_address 127.0.0.1
+    crudini --ini-options=nospace --set "$PIO_DIR/config_$HOSTNAME.ini" mqtt broker_address 127.0.0.1
 
 
     # stirring -> stirring.config
@@ -93,3 +93,6 @@ sudo sed -i 's/create 0660 pioreactor pioreactor/create 0666 pioreactor pioreact
 # update firmware to 0.3
 sudo cp "$SCRIPT_DIR"/main.elf /usr/local/bin/main.elf || sudo wget https://github.com/Pioreactor/pico-build/releases/download/0.3/main.elf -O /usr/local/bin/main.elf
 sudo systemctl restart load_rp2040.service || :
+echo "Added new main.elf firmware."
+
+echo "Done!"
