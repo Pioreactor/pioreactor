@@ -149,7 +149,7 @@ class Monitor(LongRunningBackgroundJob):
             "rpi_machine": version.rpi_version_info,
             "timestamp": current_utc_timestamp(),
             "pioreactor_version": version.tuple_to_text(whoami.get_pioreactor_version()),
-            "pioreactor_model": whoami.get_pioreactor_model(),
+            "pioreactor_model": whoami.get_pioreactor_model() or None,
         }
 
         self.logger.debug(f"Pioreactor software version: {self.versions['app']}")

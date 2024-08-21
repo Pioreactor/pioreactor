@@ -183,14 +183,23 @@ def get_pioreactor_version() -> tuple[int, int]:
 
 
 @cache
-def get_pioreactor_model() -> str:
+def get_pioreactor_model() -> str | None:
     from pioreactor.config import config
 
-    return config.get("pioreactor", "model")
+    maybe_model = config.get("pioreactor", "model", fallback=None)
+    if maybe_model:
+        return maybe_model
+
+    else:
+        return None
 
 
 def get_pioreactor_model_and_version() -> str:
-    return f"{get_pioreactor_model()} v{'.'.join(map(str, get_pioreactor_version()))}"
+    maybe_model = get_pioreactor_model()
+    if maybe_model:
+        return f"{maybe_model} v{'.'.join(map(str, get_pioreactor_version()))}"
+    else:
+        return ""
 
 
 def get_image_git_hash() -> str:
