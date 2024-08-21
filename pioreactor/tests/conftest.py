@@ -6,6 +6,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from pioreactor.cli import run
+
 
 @pytest.fixture(autouse=True)
 def run_around_tests(request):
