@@ -212,6 +212,7 @@ if am_I_leader():
             _thread_function(unit)
 
     @pios.command("update", short_help="update PioreactorApp on workers")
+    @click.argument("target", default="app", help="app or ui")
     @click.option(
         "--units",
         multiple=True,
@@ -229,6 +230,7 @@ if am_I_leader():
     @click.option("--source", help="install from a source, whl or release archive")
     @click.option("-y", is_flag=True, help="Skip asking for confirmation.")
     def update(
+        target: str,
         units: tuple[str, ...],
         branch: str | None,
         repo: str | None,
@@ -246,13 +248,13 @@ if am_I_leader():
 
         logger = create_logger("update", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
         if version is not None:
-            commands = ["pio", "update", "app", "-v", version]
+            commands = ["pio", "update", target, "-v", version]
         elif branch is not None:
-            commands = ["pio", "update", "app", "-b", branch]
+            commands = ["pio", "update", target, "-b", branch]
         elif source is not None:
-            commands = ["pio", "update", "app", "--source", source]
+            commands = ["pio", "update", target, "--source", source]
         else:
-            commands = ["pio", "update", "app"]
+            commands = ["pio", "update", target]
 
         if repo is not None:
             commands.extend(["-r", repo])
