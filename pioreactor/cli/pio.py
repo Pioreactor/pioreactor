@@ -85,15 +85,12 @@ def logs(n: int) -> None:
     Tail & stream the logs from this unit to the terminal. CTRL-C to exit.
     """
     log_file = config.config.get("logging", "log_file", fallback="/var/log/pioreactor.log")
-    ui_log_file = (
-        config.config.get("logging", "ui_log_file", fallback="/var/log/pioreactor.log")
-        if am_I_leader()
-        else ""
-    )
-    if log_file == ui_log_file:
-        log_files = [log_file]
+    ui_log_file = config.config.get("logging", "ui_log_file", fallback="/var/log/pioreactor.log")
+
+    if am_I_leader():
+        log_files = list(set([log_file, ui_log_file]))  # deduping
     else:
-        log_files = [log_file, ui_log_file]
+        log_files = [log_file]
 
     with subprocess.Popen(
         ["tail", "-fqn", str(n)] + log_files, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
