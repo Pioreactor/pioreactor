@@ -775,7 +775,7 @@ function SettingsActionsDialog(props) {
 
   function setPioreactorJobState(job, state) {
     return function() {
-      setPioreactorJobAttr(`${job}/$state`, state)
+      setPioreactorJobAttr(job, "$state", state)
     };
   }
 
@@ -795,18 +795,23 @@ function SettingsActionsDialog(props) {
   }
 
   function stopPioreactorJob(job){
-    return function() {
-      setPioreactorJobAttr(`${job}/$state`, "disconnected")
-    }
+    return setPioreactorJobState(job, "disconnected")
   }
 
-  function setPioreactorJobAttr(job_attr, value) {
-    const topic = `pioreactor/${props.unit}/${props.experiment}/${job_attr}/set`
-    props.client.publish(topic, String(value), {qos: 2});
+  function setPioreactorJobAttr(job, setting, value) {
+
+    fetch(`/api/workers/${props.unit}/experiments/${props.experiment}/jobs/${job}/update`, {
+      method: "PATCH",
+      body: JSON.stringify({settings: {[setting]: value}}),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    })
   }
 
 
-  function updateRenameUnit(_, value) {
+  function updateRenameUnit(_, __, value) {
       const relabeledTo = value
       setSnackbarMessage(`Updating to ${relabeledTo}`)
       setSnackbarOpen(true)
@@ -928,7 +933,8 @@ function SettingsActionsDialog(props) {
       setSnackbarOpen: setSnackbarOpen,
       value: setting.value,
       units: setting.unit,
-      id: `${job_key}/${setting_key}`,
+      job: job_key,
+      setting: setting_key,
       disabled: state === "disconnected",
     };
 
@@ -1217,7 +1223,6 @@ function SettingsActionsDialog(props) {
             onUpdate={updateRenameUnit}
             setSnackbarMessage={setSnackbarMessage}
             setSnackbarOpen={setSnackbarOpen}
-            id={'relabeller' + props.unit}
             disabled={false}
           />
           <ManageDivider/>
@@ -1582,16 +1587,8 @@ function SettingsActionsDialogAll({experiment}) {
 
   function setPioreactorJobState(job, state) {
     return function sendMessage() {
-      const topic = [
-        "pioreactor",
-        unit,
-        experiment,
-        job.metadata.key,
-        "$state",
-        "set",
-      ].join("/");
       try{
-        client.publish(topic, String(state), {qos: 1});
+        setPioreactorJobAttr(job.metadata.key, "$state", state)
       }
       catch (e){
         console.log(e)
@@ -1610,15 +1607,16 @@ function SettingsActionsDialogAll({experiment}) {
   }
 
 
-  function setPioreactorJobAttr(job_attr, value) {
-    const topic = [
-      "pioreactor",
-      unit,
-      experiment,
-      job_attr,
-      "set",
-    ].join("/");
-    client.publish(topic, String(value), {qos: 2});
+
+  function setPioreactorJobAttr(job, setting, value) {
+    fetch(`/api/workers/${unit}/experiments/${experiment}/jobs/${job}/update`, {
+      method: "PATCH",
+      body: JSON.stringify({settings: {[setting]: value}}),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    })
     setSnackbarOpen(true)
   }
 
@@ -1700,6 +1698,30 @@ function SettingsActionsDialogAll({experiment}) {
         </Button>
       </div>
   )}
+
+
+  // Define a function to determine which component to render based on the type of setting
+  function renderSettingComponent(setting, job_key, setting_key, state) {
+    const commonProps = {
+      onUpdate: setPioreactorJobAttr,
+      setSnackbarMessage: setSnackbarMessage,
+      setSnackbarOpen: setSnackbarOpen,
+      value: setting.value,
+      units: setting.unit,
+      job: job_key,
+      setting: setting_key,
+      disabled: state === "disconnected",
+    };
+
+    switch (setting.type) {
+      case "boolean":
+        return <SettingSwitchField {...commonProps} />;
+      case "numeric":
+        return <SettingNumericField {...commonProps} />;
+      default:
+        return <SettingTextField {...commonProps} />;
+    }
+  }
 
 
   const buttons = Object.fromEntries(Object.entries(jobs).map( ([job_key, job], i) => [job_key, createUserButtonsBasedOnState(job)]))
@@ -1875,30 +1897,8 @@ function SettingsActionsDialogAll({experiment}) {
                 <Typography variant="body2" component="p">
                   {setting.description}
                 </Typography>
+                {renderSettingComponent(setting, job_key, setting_key, state)}
 
-                  {(setting.type === "boolean") && (
-                    <SettingSwitchField
-                      onUpdate={setPioreactorJobAttr}
-                      setSnackbarMessage={setSnackbarMessage}
-                      setSnackbarOpen={setSnackbarOpen}
-                      value={setting.value}
-                      units={setting.unit}
-                      id={`${job_key}/${setting_key}`}
-                      disabled={false}
-                    />
-                  )}
-
-                  {(setting.type !== "boolean") && (
-                  <SettingTextField
-                    onUpdate={setPioreactorJobAttr}
-                    setSnackbarMessage={setSnackbarMessage}
-                    setSnackbarOpen={setSnackbarOpen}
-                    value={setting.value}
-                    units={setting.unit}
-                    id={`${job_key}/${setting_key}`}
-                    disabled={false}
-                  />
-                  )}
                 <ManageDivider/>
               </React.Fragment>
 
@@ -2019,8 +2019,6 @@ function SettingsActionsDialogAll({experiment}) {
 
 
 function SettingTextField(props){
-
-
     const [value, setValue] = useState(props.value || "")
     const [activeSubmit, setActiveSumbit] = useState(false)
 
@@ -2043,7 +2041,7 @@ function SettingTextField(props){
     }
 
     const onSubmit = () => {
-        props.onUpdate(props.id, value);
+        props.onUpdate(props.job, props.setting, value);
         if (value !== "") {
           props.setSnackbarMessage(`Updating to ${value}${(!props.units) ? "" : (" "+props.units)}.`)
         } else {
@@ -2059,7 +2057,6 @@ function SettingTextField(props){
           size="small"
           autoComplete="off"
           disabled={props.disabled}
-          id={props.id}
           value={value}
           InputProps={{
             endAdornment: <InputAdornment position="end">{props.units}</InputAdornment>,
@@ -2095,7 +2092,7 @@ function SettingSwitchField(props){
 
     const onChange = (e) => {
       setValue(e.target.checked)
-      props.onUpdate(props.id,  e.target.checked ? 1 : 0);
+      props.onUpdate(props.job, props.setting,  e.target.checked ? 1 : 0);
       props.setSnackbarMessage(`Updating to ${e.target.checked ? "on" : "off"}.`)
       props.setSnackbarOpen(true)
     }
@@ -2144,7 +2141,7 @@ function SettingNumericField(props) {
 
   const onSubmit = () => {
     if (!error) {
-      props.onUpdate(props.id, value);
+      props.onUpdate(props.job, props.setting, value);
       const message = value !== "" ? `Updating to ${value}${props.units ? " " + props.units : ""}.` : "Updating.";
       props.setSnackbarMessage(message);
       props.setSnackbarOpen(true);

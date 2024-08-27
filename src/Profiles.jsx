@@ -48,6 +48,9 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName, s
   const [isProfileActive, setIsProfileActive] = React.useState(false)
   const {client, subscribeToTopic } = useMQTT();
 
+  const leaderHostname = config['cluster.topology']?.leader_hostname
+
+
 
   React.useEffect(() => {
     fetch("/api/contrib/experiment_profiles")
@@ -96,7 +99,7 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName, s
 
   const onSubmit = () => {
     setConfirmed(true)
-    runPioreactorJob(config['cluster.topology']?.leader_hostname, '$experiment' , 'experiment_profile', ['execute', selectedExperimentProfile, experiment], (dryRun ? {'dry-run': null} : {}))
+    runPioreactorJob(leaderHostname, '$experiment' , 'experiment_profile', ['execute', selectedExperimentProfile, experiment], (dryRun ? {'dry-run': null} : {}))
   }
 
   const onStop = () => {
@@ -107,8 +110,14 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName, s
       confirmationButtonProps: {color: "primary"},
       cancellationButtonProps: {color: "secondary"},
     }).then(() => {
-      const topic = `pioreactor/${config['cluster.topology']?.leader_hostname}/${experiment}/experiment_profile/$state/set`
-      client.publish(topic, "disconnected")
+      fetch(`/api/workers/${leaderHostname}/experiments/${experiment}/jobs/experiment_profile/update`, {
+        method: "PATCH",
+        body: JSON.stringify({settings: {'$state': 'disconnected'}}),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      })
       setIsProfileActive(false)
     }).catch(() => {});
 

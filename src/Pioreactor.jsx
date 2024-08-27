@@ -582,7 +582,7 @@ function SettingsActionsDialog(props) {
 
   function setPioreactorJobState(job, state) {
     return function() {
-      setPioreactorJobAttr(`${job}/$state`, state)
+      setPioreactorJobAttr(job, "$state", state)
     };
   }
 
@@ -602,18 +602,23 @@ function SettingsActionsDialog(props) {
   }
 
   function stopPioreactorJob(job){
-    return function() {
-      setPioreactorJobAttr(`${job}/$state`, "disconnected")
-    }
+    return setPioreactorJobState(job, "disconnected")
   }
 
-  function setPioreactorJobAttr(job_attr, value) {
-    const topic = `pioreactor/${props.unit}/${props.experiment}/${job_attr}/set`
-    props.client.publish(topic, String(value), {qos: 1});
+  function setPioreactorJobAttr(job, setting, value) {
+
+    fetch(`/api/workers/${props.unit}/experiments/${props.experiment}/jobs/${job}/update`, {
+      method: "PATCH",
+      body: JSON.stringify({settings: {[setting]: value}}),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    })
   }
 
 
-  function updateRenameUnit(_, value) {
+  function updateRenameUnit(_, __, value) {
       const relabeledTo = value
       setSnackbarMessage(`Updating to ${relabeledTo}`)
       setSnackbarOpen(true)
@@ -735,7 +740,8 @@ function SettingsActionsDialog(props) {
       setSnackbarOpen: setSnackbarOpen,
       value: setting.value,
       units: setting.unit,
-      id: `${job_key}/${setting_key}`,
+      job: job_key,
+      setting: setting_key,
       disabled: state === "disconnected",
     };
 
@@ -1024,7 +1030,6 @@ function SettingsActionsDialog(props) {
             onUpdate={updateRenameUnit}
             setSnackbarMessage={setSnackbarMessage}
             setSnackbarOpen={setSnackbarOpen}
-            id={'relabeller' + props.unit}
             disabled={false}
           />
           <ManageDivider/>
@@ -1345,7 +1350,6 @@ function SettingsActionsDialog(props) {
 
 function SettingTextField(props){
 
-
     const [value, setValue] = useState(props.value || "")
     const [activeSubmit, setActiveSumbit] = useState(false)
 
@@ -1368,7 +1372,7 @@ function SettingTextField(props){
     }
 
     const onSubmit = () => {
-        props.onUpdate(props.id, value);
+        props.onUpdate(props.job, props.setting, value);
         if (value !== "") {
           props.setSnackbarMessage(`Updating to ${value}${(!props.units) ? "" : (" "+props.units)}.`)
         } else {
@@ -1384,7 +1388,6 @@ function SettingTextField(props){
           size="small"
           autoComplete="off"
           disabled={props.disabled}
-          id={props.id}
           value={value}
           InputProps={{
             endAdornment: <InputAdornment position="end">{props.units}</InputAdornment>,
@@ -1420,7 +1423,7 @@ function SettingSwitchField(props){
 
     const onChange = (e) => {
       setValue(e.target.checked)
-      props.onUpdate(props.id,  e.target.checked ? 1 : 0);
+      props.onUpdate(props.job, props.setting,  e.target.checked ? 1 : 0);
       props.setSnackbarMessage(`Updating to ${e.target.checked ? "on" : "off"}.`)
       props.setSnackbarOpen(true)
     }
@@ -1430,7 +1433,6 @@ function SettingSwitchField(props){
         checked={value}
         disabled={props.disabled}
         onChange={onChange}
-        id={props.id}
       />
     )
 }
@@ -1469,7 +1471,7 @@ function SettingNumericField(props) {
 
   const onSubmit = () => {
     if (!error) {
-      props.onUpdate(props.id, value);
+      props.onUpdate(props.job, props.setting, value);
       const message = value !== "" ? `Updating to ${value}${props.units ? " " + props.units : ""}.` : "Updating.";
       props.setSnackbarMessage(message);
       props.setSnackbarOpen(true);
@@ -1484,7 +1486,6 @@ function SettingNumericField(props) {
         size="small"
         autoComplete="off"
         disabled={props.disabled}
-        id={props.id}
         value={value}
         error={error}
         InputProps={{
@@ -1732,7 +1733,7 @@ function PioreactorCard(props){
   const indicatorLabel = getInicatorLabel(jobs.monitor.state, isUnitActive)
 
   return (
-    <Card  id={unit} aria-disabled={!isUnitActive}>
+    <Card  aria-disabled={!isUnitActive}>
       <CardContent sx={{p: "10px 20px 20px 20px"}}>
         <Box className={"fixme"}>
           <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}} color="textSecondary">
