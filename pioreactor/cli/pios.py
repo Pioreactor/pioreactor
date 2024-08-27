@@ -212,7 +212,7 @@ if am_I_leader():
             _thread_function(unit)
 
     @pios.command("update", short_help="update PioreactorApp on workers")
-    @click.argument("target", default="app", help="app or ui")
+    @click.argument("target", default="app")
     @click.option(
         "--units",
         multiple=True,

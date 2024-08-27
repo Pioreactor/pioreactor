@@ -541,7 +541,7 @@ class JobManager:
     LONG_RUNNING_JOBS = ("monitor", "mqtt_to_db_streaming", "watchdog")
 
     def __init__(self) -> None:
-        self.db_path = f"{tempfile.gettempdir()}/pio_jobs_metadata.db"
+        self.db_path = f"{tempfile.gettempdir()}/local_intermittent_pioreactor_metadata.sqlite"
         self.conn = sqlite3.connect(self.db_path)
         self.cursor = self.conn.cursor()
         self._create_table()
