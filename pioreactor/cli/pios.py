@@ -185,30 +185,22 @@ if am_I_leader():
         logger = create_logger("rm", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
         units = remove_leader(universal_identifier_to_all_workers(units))
 
-        from sh import ssh  # type: ignore
-        from sh import ErrorReturnCode_255  # type: ignore
-        from sh import ErrorReturnCode_1
-        from shlex import join  # https://docs.python.org/3/library/shlex.html#shlex.quote
-
-        command = join(["rm", filepath])
-
         if not y:
-            confirm = input(f"Confirm running `{command}` on {units}? Y/n: ").strip()
+            confirm = input(f"Confirm deleting {filepath} on {units}? Y/n: ").strip()
             if confirm != "Y":
                 raise click.Abort()
 
         def _thread_function(unit: str) -> bool:
-            logger.debug(f"Removing {unit}:{filepath}...")
             try:
-                ssh(add_local(unit), command)
+                logger.debug(f"deleting {unit}:{filepath}...")
+                r = post_into(add_local(unit), "/unit_api/system/rm", json={"path": filepath})
+                r.raise_for_status()
                 return True
-            except ErrorReturnCode_255 as e:
-                logger.error(f"Unable to connect to unit {unit}. {e.stderr.decode()}")
-                logger.debug(e, exc_info=True)
+            except HTTPErrorStatus as e:
+                logger.error(f"Unable to remove file on {unit} due to web server error: {e}")
                 return False
-            except ErrorReturnCode_1 as e:
-                logger.error(f"Error occurred rm-ing from {unit}. See logs for more.")
-                logger.debug(e, exc_info=True)
+            except HTTPException as e:
+                logger.error(f"Unable to remove file on {unit} due to web server error: {e}.")
                 return False
 
         for unit in units:
@@ -314,14 +306,12 @@ if am_I_leader():
         """
         Installs a plugin to worker and leader
         """
-        from shlex import quote
-
         logger = create_logger("install_plugin", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
         units = add_leader(universal_identifier_to_all_workers(units))
 
         if not y:
-            confirm = input(f"Confirm installing {quote(plugin)} on {units}? Y/n: ").strip()
+            confirm = input(f"Confirm installing {plugin} on {units}? Y/n: ").strip()
             if confirm != "Y":
                 raise click.Abort()
 
@@ -362,15 +352,13 @@ if am_I_leader():
         Uninstalls a plugin from worker and leader
         """
 
-        from shlex import quote
-
         logger = create_logger("uninstall_plugin", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
         units = add_leader(universal_identifier_to_all_workers(units))
         commands = {"args": [plugin]}
 
         if not y:
-            confirm = input(f"Confirm uninstalling {quote(plugin)} on {units}? Y/n: ").strip()
+            confirm = input(f"Confirm uninstalling {plugin} on {units}? Y/n: ").strip()
             if confirm != "Y":
                 raise click.Abort()
 
@@ -613,7 +601,7 @@ if am_I_leader():
 
         def _thread_function(unit: str) -> bool:
             try:
-                post_into(add_local(unit), "/unit_api/shutdown", timeout=60)
+                post_into(add_local(unit), "/unit_api/system/shutdown", timeout=60)
                 return True
             except HTTPException as e:
                 click.echo(f"Unable to install plugin on {unit} due to web server error: {e}.")
@@ -655,7 +643,7 @@ if am_I_leader():
 
         def _thread_function(unit: str) -> bool:
             try:
-                post_into(add_local(unit), "/unit_api/reboot", timeout=60)
+                post_into(add_local(unit), "/unit_api/system/reboot", timeout=60)
                 return True
             except HTTPException as e:
                 click.echo(f"Unable to install plugin on {unit} due to web server error: {e}.")
