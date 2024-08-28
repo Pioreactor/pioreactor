@@ -665,6 +665,8 @@ class ClusterJobManager:
         if len(self.units) == 0 or whoami.is_testing_env():
             return True
 
+        # TODO: turn this into a web request
+
         from shlex import join
         from sh import ssh  # type: ignore
         from sh import ErrorReturnCode_255  # type: ignore

@@ -246,6 +246,7 @@ def cluster_status() -> None:
             state = "unknown"
 
         # get version
+        # TODO: change to ping webserver
         result = subscribe(
             f"pioreactor/{hostname}/{whoami.UNIVERSAL_EXPERIMENT}/monitor/versions",
             timeout=1,
@@ -256,7 +257,7 @@ def cluster_status() -> None:
         else:
             app_version = "unknown"
 
-        # is reachable?
+        # is reachable? # TODO: change to webserver
         reachable = networking.is_reachable(networking.add_local(hostname))
 
         # get experiment
@@ -292,7 +293,7 @@ def cluster_status() -> None:
     n_workers = len(workers)
 
     click.secho(
-        f"{'Unit / hostname':20s} {'Is leader?':15s} {'IP address':20s} {'State':15s} {'Active?':15s} {'Reachable?':14s} {'Version':15s} {'Experiment':15s}",
+        f"{'Name':20s} {'Is leader?':15s} {'IP address':20s} {'State':15s} {'Active?':15s} {'Reachable?':14s} {'Version':15s} {'Experiment':15s}",
         bold=True,
     )
     if n_workers == 0:

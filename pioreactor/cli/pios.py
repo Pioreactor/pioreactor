@@ -18,6 +18,8 @@ from pioreactor.cluster_management import get_workers_in_inventory
 from pioreactor.config import config
 from pioreactor.config import get_leader_hostname
 from pioreactor.logging import create_logger
+from pioreactor.mureq import HTTPErrorStatus
+from pioreactor.pubsub import post_into
 from pioreactor.utils import ClusterJobManager
 from pioreactor.utils.networking import add_local
 from pioreactor.utils.networking import cp_file_across_cluster
@@ -295,6 +297,11 @@ if am_I_leader():
     @plugins.command("install", short_help="install a plugin on workers")
     @click.argument("plugin")
     @click.option(
+        "--source",
+        type=str,
+        help="Install from a url, ex: https://github.com/user/repository/archive/branch.zip, or wheel file",
+    )
+    @click.option(
         "--units",
         multiple=True,
         default=(UNIVERSAL_IDENTIFIER,),
@@ -302,18 +309,14 @@ if am_I_leader():
         help="specify a Pioreactor name, default is all active units",
     )
     @click.option("-y", is_flag=True, help="skip asking for confirmation")
-    def install_plugin(plugin: str, units: tuple[str, ...], y: bool) -> None:
+    def install_plugin(plugin: str, source: str | None, units: tuple[str, ...], y: bool) -> None:
         """
         Installs a plugin to worker and leader
         """
-        from sh import ssh  # type: ignore
-        from sh import ErrorReturnCode_255  # type: ignore
-        from sh import ErrorReturnCode_1  # type: ignore
         from shlex import quote
 
         logger = create_logger("install_plugin", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
-        command = f"pio plugins install {quote(plugin)}"
         units = add_leader(universal_identifier_to_all_workers(units))
 
         if not y:
@@ -321,18 +324,17 @@ if am_I_leader():
             if confirm != "Y":
                 raise click.Abort()
 
-        def _thread_function(unit: str):
-            logger.debug(f"Executing `{command}` on {unit}...")
+        commands = {"args": [plugin], "options": dict()}
+        if source:
+            commands["options"] = {"source": source}
+
+        def _thread_function(unit: str) -> bool:
             try:
-                ssh(add_local(unit), command)
+                r = post_into(add_local(unit), "/unit_api/plugins/install", json=commands)
+                r.raise_for_status()
                 return True
-            except ErrorReturnCode_255 as e:
-                logger.error(f"Unable to connect to unit {unit}. {e.stderr.decode()}")
-                logger.debug(e, exc_info=True)
-                return False
-            except ErrorReturnCode_1 as e:
-                logger.error(f"Error occurred installing plugin on {unit}. See logs for more.")
-                logger.debug(e.stderr, exc_info=True)
+            except HTTPErrorStatus:
+                logger.error(f"Unable to install plugin on {unit} due to web server error.")
                 return False
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -356,33 +358,25 @@ if am_I_leader():
         Uninstalls a plugin from worker and leader
         """
 
-        from sh import ssh  # type: ignore
-        from sh import ErrorReturnCode_255  # type: ignore
-        from sh import ErrorReturnCode_1  # type: ignore
         from shlex import quote
 
         logger = create_logger("uninstall_plugin", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
-        command = f"pio plugins uninstall {quote(plugin)}"
         units = add_leader(universal_identifier_to_all_workers(units))
+        commands = {"args": [plugin]}
 
         if not y:
             confirm = input(f"Confirm uninstalling {quote(plugin)} on {units}? Y/n: ").strip()
             if confirm != "Y":
                 raise click.Abort()
 
-        def _thread_function(unit: str):
-            logger.debug(f"Executing `{command}` on {unit}...")
+        def _thread_function(unit: str) -> bool:
             try:
-                ssh(add_local(unit), command)
+                r = post_into(add_local(unit), "/unit_api/plugins/uninstall", json=commands)
+                r.raise_for_status()
                 return True
-            except ErrorReturnCode_255 as e:
-                logger.error(f"Unable to connect to unit {unit}. {e.stderr.decode()}")
-                logger.debug(e, exc_info=True)
-                return False
-            except ErrorReturnCode_1 as e:
-                logger.error(f"Error occurred uninstalling plugin on {unit}. See logs for more.")
-                logger.debug(e.stderr, exc_info=True)
+            except HTTPErrorStatus:
+                logger.error(f"Unable to uninstall plugin on {unit} due to web server error.")
                 return False
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:

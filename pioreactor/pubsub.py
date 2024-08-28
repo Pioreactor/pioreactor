@@ -350,6 +350,14 @@ class collect_all_logs_of_level:
         self.client.disconnect()
 
 
+def conform_and_validate_api_endpoint(endpoint: str) -> str:
+    endpoint = endpoint.removeprefix("/")
+    if endpoint.startswith("api/") or endpoint.startswith("unit_api/") or endpoint.startswith("cluster_api/"):
+        raise ValueError(f"{endpoint} is not a valid Pioreactor API.")
+
+    return endpoint
+
+
 def create_webserver_path(address: str, endpoint: str) -> str:
     # Most commonly, address can be an mdns name (test.local), or an IP address.
     port = config.getint("ui", "port", fallback=80)
@@ -358,8 +366,7 @@ def create_webserver_path(address: str, endpoint: str) -> str:
 
 
 def get_from(address: str, endpoint: str, **kwargs) -> mureq.Response:
-    assert endpoint.startswith("/api/") or endpoint.startswith("api/")
-    endpoint = endpoint.removeprefix("/")
+    endpoint = conform_and_validate_api_endpoint(endpoint)
     return mureq.get(create_webserver_path(address, endpoint), **kwargs)
 
 
@@ -370,9 +377,7 @@ def get_from_leader(endpoint: str, **kwargs) -> mureq.Response:
 def put_into(
     address: str, endpoint: str, body: bytes | None = None, json: dict | Struct | None = None, **kwargs
 ) -> mureq.Response:
-    assert endpoint.startswith("/api/") or endpoint.startswith("api/")
-
-    endpoint = endpoint.removeprefix("/")
+    endpoint = conform_and_validate_api_endpoint(endpoint)
     return mureq.put(create_webserver_path(address, endpoint), body=body, json=json, **kwargs)
 
 
@@ -385,9 +390,7 @@ def put_into_leader(
 def patch_into(
     address: str, endpoint: str, body: bytes | None = None, json: dict | Struct | None = None, **kwargs
 ) -> mureq.Response:
-    assert endpoint.startswith("/api/") or endpoint.startswith("api/")
-
-    endpoint = endpoint.removeprefix("/")
+    endpoint = conform_and_validate_api_endpoint(endpoint)
     return mureq.patch(create_webserver_path(address, endpoint), body=body, json=json, **kwargs)
 
 
@@ -400,8 +403,7 @@ def patch_into_leader(
 def post_into(
     address: str, endpoint: str, body: bytes | None = None, json: dict | Struct | None = None, **kwargs
 ) -> mureq.Response:
-    assert endpoint.startswith("/api/") or endpoint.startswith("api/")
-    endpoint = endpoint.removeprefix("/")
+    endpoint = conform_and_validate_api_endpoint(endpoint)
     return mureq.post(create_webserver_path(address, endpoint), body=body, json=json, **kwargs)
 
 
@@ -412,8 +414,7 @@ def post_into_leader(
 
 
 def delete_from(address: str, endpoint: str, **kwargs) -> mureq.Response:
-    assert endpoint.startswith("/api/") or endpoint.startswith("api/")
-    endpoint = endpoint.removeprefix("/")
+    endpoint = conform_and_validate_api_endpoint(endpoint)
     return mureq.delete(create_webserver_path(address, endpoint), **kwargs)
 
 
