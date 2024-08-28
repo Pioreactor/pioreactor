@@ -19,6 +19,7 @@ from pioreactor.config import config
 from pioreactor.config import get_leader_hostname
 from pioreactor.logging import create_logger
 from pioreactor.mureq import HTTPErrorStatus
+from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import post_into
 from pioreactor.utils import ClusterJobManager
 from pioreactor.utils.networking import add_local
@@ -333,8 +334,11 @@ if am_I_leader():
                 r = post_into(add_local(unit), "/unit_api/plugins/install", json=commands, timeout=60)
                 r.raise_for_status()
                 return True
-            except HTTPErrorStatus:
-                logger.error(f"Unable to install plugin on {unit} due to web server error.")
+            except HTTPErrorStatus as e:
+                logger.error(f"Unable to install plugin on {unit} due to web server error: {e}")
+                return False
+            except HTTPException as e:
+                logger.error(f"Unable to install plugin on {unit} due to web server error: {e}.")
                 return False
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -375,8 +379,11 @@ if am_I_leader():
                 r = post_into(add_local(unit), "/unit_api/plugins/uninstall", json=commands, timeout=60)
                 r.raise_for_status()
                 return True
-            except HTTPErrorStatus:
-                logger.error(f"Unable to uninstall plugin on {unit} due to web server error.")
+            except HTTPErrorStatus as e:
+                logger.error(f"Unable to install plugin on {unit} due to web server error: {e}")
+                return False
+            except HTTPException as e:
+                logger.error(f"Unable to install plugin on {unit} due to web server error: {e}.")
                 return False
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
