@@ -601,33 +601,22 @@ if am_I_leader():
         """
         Shutdown Pioreactor / Raspberry Pi
         """
-        from sh import ssh  # type: ignore
-        from sh import ErrorReturnCode_255  # type: ignore
-        from sh import ErrorReturnCode_1  # type: ignore
 
-        command = "sudo shutdown -h now"
         units = universal_identifier_to_all_workers(units)
         also_shutdown_leader = get_leader_hostname() in units
         units_san_leader = remove_leader(units)
 
         if not y:
-            confirm = input(f"Confirm running `{command}` on {units}? Y/n: ").strip()
+            confirm = input(f"Confirm shutting down on {units}? Y/n: ").strip()
             if confirm != "Y":
                 raise click.Abort()
 
         def _thread_function(unit: str) -> bool:
-            click.echo(f"Executing `{command}` on {unit}.")
             try:
-                ssh(add_local(unit), command)
+                post_into(add_local(unit), "/unit_api/shutdown", timeout=60)
                 return True
-            except ErrorReturnCode_255 as e:
-                logger = create_logger("CLI", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
-                logger.debug(e, exc_info=True)
-                logger.error(f"Unable to connect to unit {unit}. {e.stderr.decode()}")
-                return False
-            except ErrorReturnCode_1 as e:
-                logger.error(f"Error occurred shutting down {unit}. See logs for more.")
-                logger.debug(e.stderr, exc_info=True)
+            except HTTPException as e:
+                click.echo(f"Unable to install plugin on {unit} due to web server error: {e}.")
                 return False
 
         if len(units_san_leader) > 0:
@@ -637,9 +626,7 @@ if am_I_leader():
         # we delay shutdown leader (if asked), since it would prevent
         # executing the shutdown cmd on other workers
         if also_shutdown_leader:
-            import os
-
-            os.system(command)
+            post_into(add_local(get_leader_hostname()), "/unit_api/shutdown", timeout=60)
 
     @pios.command(
         name="reboot",
@@ -657,33 +644,21 @@ if am_I_leader():
         """
         Reboot Pioreactor / Raspberry Pi
         """
-        from sh import ssh  # type: ignore
-        from sh import ErrorReturnCode_255  # type: ignore
-        from sh import ErrorReturnCode_1  # type: ignore
-
-        command = "sudo reboot"
         units = universal_identifier_to_all_workers(units)
         also_reboot_leader = get_leader_hostname() in units
         units_san_leader = remove_leader(units)
 
         if not y:
-            confirm = input(f"Confirm running `{command}` on {units}? Y/n: ").strip()
+            confirm = input(f"Confirm rebooting on {units}? Y/n: ").strip()
             if confirm != "Y":
                 raise click.Abort()
 
         def _thread_function(unit: str) -> bool:
-            click.echo(f"Executing `{command}` on {unit}.")
             try:
-                ssh(add_local(unit), command)
+                post_into(add_local(unit), "/unit_api/reboot", timeout=60)
                 return True
-            except ErrorReturnCode_255 as e:
-                logger = create_logger("CLI", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
-                logger.debug(e, exc_info=True)
-                logger.error(f"Unable to connect to unit {unit}. {e.stderr.decode()}")
-                return False
-            except ErrorReturnCode_1 as e:
-                logger.error(f"Error occurred rebooting {unit}. See logs for more.")
-                logger.debug(e.stderr, exc_info=True)
+            except HTTPException as e:
+                click.echo(f"Unable to install plugin on {unit} due to web server error: {e}.")
                 return False
 
         if len(units_san_leader) > 0:
@@ -693,9 +668,7 @@ if am_I_leader():
         # we delay rebooting leader (if asked), since it would prevent
         # executing the reboot cmd on other workers
         if also_reboot_leader:
-            import os
-
-            os.system(command)
+            post_into(add_local(get_leader_hostname()), "/unit_api/reboot", timeout=60)
 
     @pios.command(
         name="update-settings",
