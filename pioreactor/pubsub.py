@@ -352,8 +352,10 @@ class collect_all_logs_of_level:
 
 def conform_and_validate_api_endpoint(endpoint: str) -> str:
     endpoint = endpoint.removeprefix("/")
-    if endpoint.startswith("api/") or endpoint.startswith("unit_api/") or endpoint.startswith("cluster_api/"):
-        raise ValueError(f"{endpoint} is not a valid Pioreactor API.")
+    if not (
+        endpoint.startswith("api/") or endpoint.startswith("unit_api/") or endpoint.startswith("cluster_api/")
+    ):
+        raise ValueError(f"/{endpoint} is not a valid Pioreactor API.")
 
     return endpoint
 
