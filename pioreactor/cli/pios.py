@@ -193,7 +193,7 @@ if am_I_leader():
         def _thread_function(unit: str) -> bool:
             try:
                 logger.debug(f"deleting {unit}:{filepath}...")
-                r = post_into(add_local(unit), "/unit_api/system/rm", json={"path": filepath})
+                r = post_into(add_local(unit), "/unit_api/system/rm", json={"filepath": filepath})
                 r.raise_for_status()
                 return True
             except HTTPErrorStatus as e:
