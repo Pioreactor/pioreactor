@@ -330,7 +330,7 @@ if am_I_leader():
 
         def _thread_function(unit: str) -> bool:
             try:
-                r = post_into(add_local(unit), "/unit_api/plugins/install", json=commands)
+                r = post_into(add_local(unit), "/unit_api/plugins/install", json=commands, timeout=60)
                 r.raise_for_status()
                 return True
             except HTTPErrorStatus:
@@ -372,7 +372,7 @@ if am_I_leader():
 
         def _thread_function(unit: str) -> bool:
             try:
-                r = post_into(add_local(unit), "/unit_api/plugins/uninstall", json=commands)
+                r = post_into(add_local(unit), "/unit_api/plugins/uninstall", json=commands, timeout=60)
                 r.raise_for_status()
                 return True
             except HTTPErrorStatus:
