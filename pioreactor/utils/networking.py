@@ -138,7 +138,6 @@ def add_local(hostname: str) -> str:
         return hostname
     except ValueError:
         pass
-
     if not hostname.endswith(".local"):
         return hostname + ".local"
     return hostname

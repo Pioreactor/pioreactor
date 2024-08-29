@@ -88,15 +88,19 @@ if am_I_leader():
 
         return {"args": args, "options": opts}
 
-    def universal_identifier_to_all_active_workers(units: tuple[str, ...]) -> tuple[str, ...]:
-        if units == (UNIVERSAL_IDENTIFIER,):
-            units = get_active_workers_in_inventory()
-        return units
+    def universal_identifier_to_all_active_workers(workers: tuple[str, ...]) -> tuple[str, ...]:
+        active_workers = get_active_workers_in_inventory()
+        if workers == (UNIVERSAL_IDENTIFIER,):
+            return active_workers
+        else:
+            return tuple(u for u in workers if u in active_workers)
 
-    def universal_identifier_to_all_workers(units: tuple[str, ...]) -> tuple[str, ...]:
-        if units == (UNIVERSAL_IDENTIFIER,):
-            units = get_workers_in_inventory()
-        return units
+    def universal_identifier_to_all_workers(workers: tuple[str, ...]) -> tuple[str, ...]:
+        all_workers = get_workers_in_inventory()
+        if workers == (UNIVERSAL_IDENTIFIER,):
+            return all_workers
+        else:
+            return tuple(u for u in workers if u in all_workers)
 
     def add_leader(units: tuple[str, ...]) -> tuple[str, ...]:
         leader = get_leader_hostname()
@@ -474,9 +478,7 @@ if am_I_leader():
 
     @pios.command(
         name="run",
-        context_settings=dict(
-            ignore_unknown_options=True, allow_extra_args=True, allow_interspersed_args=False
-        ),
+        context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
         short_help="run a job on workers",
     )
     @click.argument("job", type=click.STRING)
