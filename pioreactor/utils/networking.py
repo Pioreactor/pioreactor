@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import ipaddress
 import os
 import subprocess
 from queue import Empty
@@ -131,6 +132,13 @@ def discover_workers_on_network(terminate: bool = False) -> Generator[str, None,
 
 
 def add_local(hostname: str) -> str:
+    try:
+        # if it looks like an IPv4, don't continue
+        ipaddress.ip_address(hostname)
+        return hostname
+    except ValueError:
+        pass
+
     if not hostname.endswith(".local"):
         return hostname + ".local"
     return hostname

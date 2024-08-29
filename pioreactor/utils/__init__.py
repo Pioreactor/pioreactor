@@ -26,6 +26,9 @@ from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.exc import NotActiveWorkerError
 from pioreactor.exc import RoleError
+from pioreactor.pubsub import create_client
+from pioreactor.pubsub import post_into
+from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.utils.networking import add_local
 from pioreactor.utils.timing import current_utc_timestamp
 
@@ -145,8 +148,6 @@ class managed_lifecycle:
         source: str = "app",
         job_source: str | None = None,
     ) -> None:
-        from pioreactor.pubsub import create_client
-
         if not ignore_is_active_state and not whoami.is_active(unit):
             raise NotActiveWorkerError(f"{unit} is not active.")
 
@@ -235,8 +236,6 @@ class managed_lifecycle:
             self._exit()
 
     def start_passive_listeners(self) -> None:
-        from pioreactor.pubsub import subscribe_and_callback
-
         subscribe_and_callback(
             self.exit_from_mqtt,
             [
@@ -512,8 +511,6 @@ class MQTTKill:
         if len(self.job_names_to_kill) == 0:
             return count
 
-        from pioreactor.pubsub import create_client
-
         with create_client() as client:
             for i, name in enumerate(self.job_names_to_kill):
                 count += 1
@@ -665,31 +662,22 @@ class ClusterJobManager:
         if len(self.units) == 0 or whoami.is_testing_env():
             return True
 
-        # TODO: turn this into a web request
-
-        from shlex import join
-        from sh import ssh  # type: ignore
-        from sh import ErrorReturnCode_255  # type: ignore
-        from sh import ErrorReturnCode_1  # type: ignore
-
-        command_pieces = ["pio", "kill"]
         if experiment:
-            command_pieces.extend(["--experiment", experiment])
+            endpoint = f"/unit_api/jobs/stop/experiment/{experiment}"
         if name:
-            command_pieces.extend(["--name", name])
+            endpoint = f"/unit_api/jobs/stop/job_name/{name}"
         if job_source:
-            command_pieces.extend(["--job-source", job_source])
+            endpoint = f"/unit_api/jobs/stop/job_source/{job_source}"
         if all_jobs:
-            command_pieces.append("--all-jobs")
-
-        command = join(command_pieces)
+            endpoint = "/unit_api/jobs/stop/all"
 
         def _thread_function(unit: str) -> bool:
             try:
-                ssh(add_local(unit), command)
+                r = post_into(add_local(unit), endpoint)
+                r.raise_for_status()
                 return True
-
-            except (ErrorReturnCode_255, ErrorReturnCode_1):
+            except Exception as e:
+                print(e)
                 return False
 
         with ThreadPoolExecutor(max_workers=len(self.units)) as executor:
