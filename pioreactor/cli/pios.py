@@ -493,12 +493,12 @@ if am_I_leader():
         Will start stirring on all workers, after asking for confirmation.
         Each job has their own unique options:
 
-        > pios run stirring --duty-cycle 10
-        > pios run od_reading --od-angle-channel 135,0
+        > pios run stirring --target-rpm 100
+        > pios run od_reading
 
         To specify specific units, use the `--units` keyword multiple times, ex:
 
-        > pios run stirring --units pioreactor2 --units pioreactor3
+        > pios run stirring --units pio01 --units pio03
 
         """
         extra_args = list(ctx.args)

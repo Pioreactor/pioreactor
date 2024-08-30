@@ -149,7 +149,6 @@ def yield_response(
     body = _prepare_body(body, form, json, headers)
 
     visited_urls: list[str] = []
-
     while max_redirects is None or len(visited_urls) <= max_redirects:
         url, conn, path = _prepare_request(
             method,

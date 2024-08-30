@@ -64,7 +64,7 @@ def add_worker(hostname: str, password: str, version: str, model: str) -> None:
     logger.info(f"Adding new pioreactor {hostname} to cluster.")
 
     hostname = hostname.removesuffix(".local")
-    hostname_dot_local = hostname + ".local"
+    hostname_dot_local = networking.add_local(hostname)
 
     assert model == "pioreactor_20ml"
 
@@ -123,32 +123,32 @@ def add_worker(hostname: str, password: str, version: str, model: str) -> None:
 
 
 @click.command(name="remove", short_help="remove a pioreactor worker")
-@click.argument("hostname")
-def remove_worker(hostname: str) -> None:
+@click.argument("worker")
+def remove_worker(worker: str) -> None:
     try:
-        r = delete_from_leader(f"/api/workers/{hostname}")
+        r = delete_from_leader(f"/api/workers/{worker}")
         r.raise_for_status()
     except HTTPErrorStatus:
         if r.status_code >= 500:
             click.echo("Server error. Could not complete. See UI logs.")
         else:
-            click.echo(f"Worker {hostname} not present to be removed. Check hostname.")
+            click.echo(f"Worker {worker} not present to be removed. Check hostname.")
         click.Abort()
     except HTTPException:
         click.echo(f"Not able to connect to leader's backend at {leader_address}.")
         click.Abort()
     else:
-        click.echo(f"Removed {hostname} from cluster.")  # this needs to shutdown the worker too???
+        click.echo(f"Removed {worker} from cluster.")  # this needs to shutdown the worker too???
 
 
 @click.command(name="assign", short_help="assign a pioreactor worker")
-@click.argument("hostname")
+@click.argument("worker")
 @click.argument("experiment")
-def assign_worker_to_experiment(hostname: str, experiment: str) -> None:
+def assign_worker_to_experiment(worker: str, experiment: str) -> None:
     try:
         r = put_into_leader(
             f"/api/experiments/{experiment}/workers",
-            json={"pioreactor_unit": hostname},
+            json={"pioreactor_unit": worker},
         )
         r.raise_for_status()
     except HTTPErrorStatus:
@@ -161,16 +161,16 @@ def assign_worker_to_experiment(hostname: str, experiment: str) -> None:
         click.echo("Not able to connect to leader's backend.")
         click.Abort()
     else:
-        click.echo(f"Assigned {hostname} to {experiment}")
+        click.echo(f"Assigned {worker} to {experiment}")
 
 
 @click.command(name="unassign", short_help="unassign a pioreactor worker")
-@click.argument("hostname")
+@click.argument("worker")
 @click.argument("experiment")
-def unassign_worker_from_experiment(hostname: str, experiment: str) -> None:
+def unassign_worker_from_experiment(worker: str, experiment: str) -> None:
     try:
         r = delete_from_leader(
-            f"/api/experiments/{experiment}/workers/{hostname}",
+            f"/api/experiments/{experiment}/workers/{worker}",
         )
         r.raise_for_status()
     except HTTPErrorStatus:
@@ -180,16 +180,16 @@ def unassign_worker_from_experiment(hostname: str, experiment: str) -> None:
         click.echo("Not able to connect to leader's backend.")
         click.Abort()
     else:
-        click.echo(f"Unassigned {hostname} from {experiment}")
+        click.echo(f"Unassigned {worker} from {experiment}")
 
 
 @click.command(name="update-active", short_help="change active of worker")
 @click.argument("hostname")
 @click.argument("active", type=click.IntRange(0, 1))
-def update_active(hostname: str, active: int) -> None:
+def update_active(worker: str, active: int) -> None:
     try:
         r = put_into_leader(
-            f"/api/workers/{hostname}/is_active",
+            f"/api/workers/{worker}/is_active",
             json={"is_active": active},
         )
         r.raise_for_status()
@@ -197,7 +197,7 @@ def update_active(hostname: str, active: int) -> None:
         click.echo("Not able to connect to leader's backend.")
         click.Abort()
     else:
-        click.echo(f"Updated {hostname}'s active to {bool(active)}")
+        click.echo(f"Updated {worker}'s active to {bool(active)}")
 
 
 @click.command(
