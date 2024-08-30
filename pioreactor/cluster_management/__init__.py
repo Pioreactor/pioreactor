@@ -269,7 +269,7 @@ def cluster_status() -> None:
 
         return ip, state, reachable, app_version, experiment
 
-    def display_data_for(worker: dict[str, str]) -> bool:
+    def display_data_for(worker: dict[str, str]) -> None:
         hostname, is_active = worker["pioreactor_unit"], worker["is_active"]
 
         ip, state, reachable, version, experiment = get_metadata(hostname)
@@ -287,7 +287,7 @@ def cluster_status() -> None:
         click.echo(
             f"{hostnamef} {is_leaderf} {ipf} {statef} {is_activef} {reachablef} {versionf} {experimentf}"
         )
-        return reachable & (state == "ready")
+        return
 
     workers = get_from_leader("/api/workers").json()
     n_workers = len(workers)
@@ -302,5 +302,8 @@ def cluster_status() -> None:
     with ThreadPoolExecutor(max_workers=n_workers) as executor:
         results = executor.map(display_data_for, workers)
 
-    if not all(results):
-        raise click.Abort()
+        # Iterating over the results ensures that all tasks complete
+        for result in results:
+            pass
+
+    return
