@@ -474,11 +474,11 @@ def exception_retry(func: Callable, retries: int = 3, sleep_for: float = 0.5, ar
             time.sleep(sleep_for)
 
 
-def safe_kill(*args: int) -> None:
-    from sh import kill  # type: ignore
+def safe_kill(*args: str) -> None:
+    from subprocess import run
 
     try:
-        kill("-2", *args)
+        run(("kill", "-2") + args)
     except Exception:
         pass
 
@@ -494,7 +494,7 @@ class ShellKill:
         if len(self.list_of_pids) == 0:
             return 0
 
-        safe_kill(*self.list_of_pids)
+        safe_kill(*(str(pid) for pid in self.list_of_pids))
 
         return len(self.list_of_pids)
 
@@ -677,7 +677,7 @@ class ClusterJobManager:
                 r.raise_for_status()
                 return True
             except Exception as e:
-                print(e)
+                print(f"Failed to send kill command to {unit}: {e}")
                 return False
 
         with ThreadPoolExecutor(max_workers=len(self.units)) as executor:

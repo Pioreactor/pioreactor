@@ -9,11 +9,20 @@ from queue import Queue
 from threading import Thread
 from typing import Generator
 
+from pioreactor.exc import RsyncError
+
+
+def rsync(*args):
+    from subprocess import check_call
+    from subprocess import CalledProcessError
+
+    try:
+        check_call(("rsync",) + args)
+    except CalledProcessError:
+        raise RsyncError
+
 
 def cp_file_across_cluster(unit: str, localpath: str, remotepath: str, timeout: int = 5) -> None:
-    from sh import rsync  # type: ignore
-    from sh import ErrorReturnCode_30  # type: ignore
-
     try:
         rsync(
             "-z",
@@ -25,8 +34,8 @@ def cp_file_across_cluster(unit: str, localpath: str, remotepath: str, timeout: 
             localpath,
             f"{add_local(unit)}:{remotepath}",
         )
-    except ErrorReturnCode_30:
-        raise ConnectionRefusedError(f"Error connecting to {unit}.")
+    except RsyncError:
+        raise RsyncError(f"Error moving file {localpath} to {unit}:{remotepath}.")
 
 
 def is_using_local_access_point() -> bool:

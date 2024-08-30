@@ -17,6 +17,7 @@ from pioreactor.cluster_management import get_active_workers_in_inventory
 from pioreactor.cluster_management import get_workers_in_inventory
 from pioreactor.config import config
 from pioreactor.config import get_leader_hostname
+from pioreactor.exc import RsyncError
 from pioreactor.logging import create_logger
 from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import post_into
@@ -373,7 +374,6 @@ if am_I_leader():
             raise click.Abort()
 
     @pios.command(name="sync-configs", short_help="sync config")
-    @which_units
     @click.option(
         "--shared",
         is_flag=True,
@@ -389,15 +389,14 @@ if am_I_leader():
         is_flag=True,
         help="don't save to db",
     )
+    @which_units
     @confirmation
-    def sync_configs(units: tuple[str, ...], shared: bool, specific: bool, skip_save: bool, y: bool) -> None:
+    def sync_configs(shared: bool, specific: bool, skip_save: bool, units: tuple[str, ...], y: bool) -> None:
         """
         Deploys the shared config.ini and specific config.inis to the pioreactor units.
 
         If neither `--shared` not `--specific` are specified, both are set to true.
         """
-        from sh import ErrorReturnCode_12  # type: ignore
-
         logger = create_logger("sync_configs", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
         units = add_leader(universal_identifier_to_all_workers(units))
 
@@ -409,8 +408,8 @@ if am_I_leader():
             try:
                 sync_config_files(unit, shared, specific)
                 return True
-            except ErrorReturnCode_12 as e:
-                logger.warning(f"Could not resolve hostname {unit}. Name not known.")
+            except RsyncError as e:
+                logger.warning(str(e))
                 logger.debug(e, exc_info=True)
                 return False
             except Exception as e:
@@ -504,13 +503,13 @@ if am_I_leader():
         """
         extra_args = list(ctx.args)
 
-        data = parse_click_arguments(extra_args)
-
         if "unit" in extra_args:
             click.echo("Did you mean to use 'units' instead of 'unit'? Exiting.", err=True)
             raise click.Abort()
 
+        data = parse_click_arguments(extra_args)
         units = universal_identifier_to_all_active_workers(units)
+        assert len(units) > 0, "Empty units!"
 
         if not y:
             confirm = input(f"Confirm running {job} on {units}? Y/n: ").strip()
