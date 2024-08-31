@@ -10,7 +10,7 @@ from pioreactor.logging import create_logger
 from pioreactor.pubsub import subscribe
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import managed_lifecycle
-from pioreactor.utils.networking import add_local
+from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.networking import rsync
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import get_unit_name
@@ -97,7 +97,7 @@ def backup_database(output_file: str, force: bool = False, backup_to_workers: in
                     "--partial",
                     "--inplace",
                     output_file,
-                    f"{add_local(backup_unit)}:{output_file}",
+                    f"{resolve_to_address(backup_unit)}:{output_file}",
                 )
             except RsyncError:
                 logger.debug(

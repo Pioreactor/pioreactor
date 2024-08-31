@@ -32,7 +32,7 @@ def cp_file_across_cluster(unit: str, localpath: str, remotepath: str, timeout: 
             "-e",
             "ssh",
             localpath,
-            f"{add_local(unit)}:{remotepath}",
+            f"{resolve_to_address(unit)}:{remotepath}",
         )
     except RsyncError:
         raise RsyncError(f"Error moving file {localpath} to {unit}:{remotepath}.")
@@ -140,9 +140,15 @@ def discover_workers_on_network(terminate: bool = False) -> Generator[str, None,
                 break
 
 
+def resolve_to_address(hostname: str) -> str:
+    # TODO: make this more fleshed out: resolve to IP, etc.
+    # add_local assumes a working mDNS.
+    return add_local(hostname)
+
+
 def add_local(hostname: str) -> str:
     try:
-        # if it looks like an IPv4, don't continue
+        # if it looks like an IP, don't continue
         ipaddress.ip_address(hostname)
         return hostname
     except ValueError:

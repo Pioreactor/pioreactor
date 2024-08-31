@@ -53,7 +53,7 @@ def add_worker(hostname: str, password: str, version: str, model: str) -> None:
     """
     Add a new pioreactor worker to the cluster. The pioreactor should already have the worker image installed and is turned on.
     """
-
+    # TODO: this needs to be more robust, i.e. remove the add_local parts
     import socket
 
     logger = create_logger(

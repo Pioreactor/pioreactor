@@ -22,8 +22,8 @@ from pioreactor.logging import create_logger
 from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import post_into
 from pioreactor.utils import ClusterJobManager
-from pioreactor.utils.networking import add_local
 from pioreactor.utils.networking import cp_file_across_cluster
+from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import am_I_leader
 from pioreactor.whoami import get_assigned_experiment_name
@@ -220,7 +220,7 @@ if am_I_leader():
         def _thread_function(unit: str) -> bool:
             try:
                 logger.debug(f"deleting {unit}:{filepath}...")
-                r = post_into(add_local(unit), "/unit_api/system/rm", json={"filepath": filepath})
+                r = post_into(resolve_to_address(unit), "/unit_api/system/rm", json={"filepath": filepath})
                 r.raise_for_status()
                 return True
 
@@ -280,7 +280,9 @@ if am_I_leader():
         def _thread_function(unit: str):
             logger.debug(f"Executing update {target} command {unit}...")
             try:
-                r = post_into(add_local(unit), f"/unit_api/system/update/{target}", json={"options": options})
+                r = post_into(
+                    resolve_to_address(unit), f"/unit_api/system/update/{target}", json={"options": options}
+                )
                 r.raise_for_status()
                 return True
             except HTTPException as e:
@@ -325,7 +327,9 @@ if am_I_leader():
 
         def _thread_function(unit: str) -> bool:
             try:
-                r = post_into(add_local(unit), "/unit_api/plugins/install", json=commands, timeout=60)
+                r = post_into(
+                    resolve_to_address(unit), "/unit_api/plugins/install", json=commands, timeout=60
+                )
                 r.raise_for_status()
                 return True
             except HTTPException as e:
@@ -359,7 +363,9 @@ if am_I_leader():
 
         def _thread_function(unit: str) -> bool:
             try:
-                r = post_into(add_local(unit), "/unit_api/plugins/uninstall", json=commands, timeout=60)
+                r = post_into(
+                    resolve_to_address(unit), "/unit_api/plugins/uninstall", json=commands, timeout=60
+                )
                 r.raise_for_status()
                 return True
 
@@ -519,7 +525,7 @@ if am_I_leader():
         def _thread_function(unit: str) -> bool:
             click.echo(f"Executing run {job} on {unit}.")
             try:
-                r = post_into(add_local(unit), f"/unit_api/jobs/{job}/run", json=data)
+                r = post_into(resolve_to_address(unit), f"/unit_api/jobs/{job}/run", json=data)
                 r.raise_for_status()
                 return True
             except HTTPException as e:
@@ -554,7 +560,7 @@ if am_I_leader():
 
         def _thread_function(unit: str) -> bool:
             try:
-                post_into(add_local(unit), "/unit_api/system/shutdown", timeout=60)
+                post_into(resolve_to_address(unit), "/unit_api/system/shutdown", timeout=60)
                 return True
             except HTTPException as e:
                 click.echo(f"Unable to install plugin on {unit} due to server error: {e}.")
@@ -567,7 +573,7 @@ if am_I_leader():
         # we delay shutdown leader (if asked), since it would prevent
         # executing the shutdown cmd on other workers
         if also_shutdown_leader:
-            post_into(add_local(get_leader_hostname()), "/unit_api/shutdown", timeout=60)
+            post_into(resolve_to_address(get_leader_hostname()), "/unit_api/shutdown", timeout=60)
 
     @pios.command(name="reboot", short_help="reboot Pioreactors")
     @which_units
@@ -587,7 +593,7 @@ if am_I_leader():
 
         def _thread_function(unit: str) -> bool:
             try:
-                post_into(add_local(unit), "/unit_api/system/reboot", timeout=60)
+                post_into(resolve_to_address(unit), "/unit_api/system/reboot", timeout=60)
                 return True
             except HTTPException as e:
                 click.echo(f"Unable to install plugin on {unit} due to server error: {e}.")
@@ -600,7 +606,7 @@ if am_I_leader():
         # we delay rebooting leader (if asked), since it would prevent
         # executing the reboot cmd on other workers
         if also_reboot_leader:
-            post_into(add_local(get_leader_hostname()), "/unit_api/reboot", timeout=60)
+            post_into(resolve_to_address(get_leader_hostname()), "/unit_api/reboot", timeout=60)
 
     @pios.command(
         name="update-settings",

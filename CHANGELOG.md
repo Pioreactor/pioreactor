@@ -1,3 +1,11 @@
+### Upcoming
+
+ - Workers now have a webserver on them. This is one of the largest architectural changes to Pioreactor, and lays the foundation for better plugin and calibration management, plus future features.
+ - APIs that initiate a background task either return with the result, or return a task id that be be looked up at `/api/task_status/`.
+ - previous actions that would involve SSHing from leader to a worker are replaced by web requests.
+ - We no longer recommend the Raspberry Pi Zero (the original Zero, not the Zero 2.).
+
+
 ### 24.8.22
 
 #### Enhancements
