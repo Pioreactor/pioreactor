@@ -536,7 +536,7 @@ def start_job(
                 logger.info(f"Dry-run: Starting {job_name} on {unit} with options {options} and args {args}.")
             else:
                 patch_into_leader(
-                    f"/api/workers/{unit}/experiment/{experiment}/jobs/{job_name}/run",
+                    f"/api/workers/{unit}/jobs/run/job_name/{job_name}/experiment/{experiment}",
                     body=encode(
                         {
                             "options": evaluate_options(options, env) | {"job_source": "experiment_profile"},
@@ -574,7 +574,7 @@ def pause_job(
                 logger.info(f"Dry-run: Pausing {job_name} on {unit}.")
             else:
                 patch_into_leader(
-                    f"/api/workers/{unit}/experiment/{experiment}/jobs/{job_name}/update",
+                    f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiment/{experiment}",
                     body=encode({"settings": {"state": "sleeping"}}),
                 )
         else:
@@ -607,7 +607,7 @@ def resume_job(
                 logger.info(f"Dry-run: Resuming {job_name} on {unit}.")
             else:
                 patch_into_leader(
-                    f"/api/workers/{unit}/experiment/{experiment}/jobs/{job_name}/update",
+                    f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiment/{experiment}",
                     body=encode({"settings": {"state": "ready"}}),
                 )
         else:
@@ -640,7 +640,7 @@ def stop_job(
                 logger.info(f"Dry-run: Stopping {job_name} on {unit}.")
             else:
                 patch_into_leader(
-                    f"/api/workers/{unit}/experiment/{experiment}/jobs/{job_name}/update",
+                    f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiment/{experiment}",
                     body=encode({"settings": {"state": "disconnected"}}),
                 )
         else:
@@ -677,7 +677,7 @@ def update_job(
             else:
                 for setting, value in evaluate_options(options, env).items():
                     patch_into_leader(
-                        f"/api/workers/{unit}/experiment/{experiment}/jobs/{job_name}/update",
+                        f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiment/{experiment}",
                         body=encode({"settings": {setting: value}}),
                     )
         else:

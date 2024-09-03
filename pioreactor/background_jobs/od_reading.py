@@ -743,23 +743,17 @@ class CachedCalibrationTransformer(CalibrationTransformer):
                     return ideal_root
 
                 except IndexError:
+                    if not self.has_logged_warning:
+                        self.logger.warning(
+                            f"Signal below suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V."
+                        )
+                        self.has_logged_warning = True
+
                     if observed_voltage <= min_voltage:
                         # voltage less than the blank recorded during the calibration and the calibration curve doesn't have solutions (ex even-deg poly)
                         # this isn't great, as there is nil noise in the signal.
-
-                        if not self.has_logged_warning:
-                            self.logger.warning(
-                                f"Signal below suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V."
-                            )
-                            self.has_logged_warning = True
                         return min_OD
-
                     else:
-                        if not self.has_logged_warning:
-                            self.logger.warning(
-                                f"Signal outside suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V."
-                            )
-                            self.has_logged_warning = True
                         return max_OD
 
         else:

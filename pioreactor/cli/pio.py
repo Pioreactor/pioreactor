@@ -671,7 +671,7 @@ if whoami.am_I_leader():
                 "mosquitto_sub",
                 "-v",
                 "-t",
-                "#",
+                topic,
                 "-F",
                 "%19.19I||%t||%p",
                 "-u",
