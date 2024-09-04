@@ -620,8 +620,8 @@ def test_calibration_not_present() -> None:
         assert len(od.calibration_transformer.models) == 0
 
 
-def test_calibration_simple_linear_calibration() -> None:
-    experiment = "test_calibration_simple_linear_calibration"
+def test_calibration_simple_linear_calibration_positive_slope() -> None:
+    experiment = "test_calibration_simple_linear_calibration_positive_slope"
 
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = encode(
@@ -671,7 +671,7 @@ def test_calibration_simple_linear_calibration() -> None:
             pause()
             pause()
             pause()
-            assert "suggested" in bucket[0]["message"]
+            assert "Signal outside" in bucket[0]["message"]
 
     with local_persistant_storage("current_od_calibration") as c:
         del c["90"]
@@ -679,7 +679,7 @@ def test_calibration_simple_linear_calibration() -> None:
 
 def test_calibration_simple_linear_calibration_negative_slope() -> None:
     experiment = "test_calibration_simple_linear_calibration_negative_slope"
-
+    maximum_voltage = 2.0
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = encode(
             structs.OD90Calibration(
@@ -692,7 +692,7 @@ def test_calibration_simple_linear_calibration_negative_slope() -> None:
                 ir_led_intensity=90.0,
                 angle="90",
                 minimum_voltage=0.0,
-                maximum_voltage=2.0,
+                maximum_voltage=maximum_voltage,
                 voltages=[],
                 od600s=[],
                 pd_channel="2",
@@ -713,13 +713,14 @@ def test_calibration_simple_linear_calibration_negative_slope() -> None:
 
         with collect_all_logs_of_level("warning", unit=get_unit_name(), experiment="+") as bucket:
             voltage = 12.0
-            assert voltage > 2.0
+            assert voltage > maximum_voltage
 
             pause()
-            assert od.calibration_transformer.models["2"](voltage) == 20.0
+            assert od.calibration_transformer.models["2"](voltage) == 0.0
             pause()
             pause()
             assert "suggested" in bucket[0]["message"]
+
     with local_persistant_storage("current_od_calibration") as c:
         del c["90"]
 
@@ -856,6 +857,54 @@ def test_calibration_errors_when_pd_channel_differs() -> None:
             pass
 
     assert "channel" in str(error.value)
+
+    with local_persistant_storage("current_od_calibration") as c:
+        del c["90"]
+
+
+def test_calibration_with_irl_data1() -> None:
+    with local_persistant_storage("current_od_calibration") as c:
+        c["90"] = encode(
+            structs.OD90Calibration(
+                created_at=current_utc_datetime(),
+                curve_type="poly",
+                curve_data_=[
+                    0.13015369282405273,
+                    -0.49893265063642067,
+                    0.6953041334198933,
+                    0.45652927538964966,
+                    0.0024870149666305712,
+                ],
+                name="quad_test",
+                maximum_od600=1.131,
+                minimum_od600=0.0,
+                ir_led_intensity=70.0,
+                angle="90",
+                minimum_voltage=0.001996680972202709,
+                maximum_voltage=0.8995772568778957,
+                voltages=[
+                    0.030373011520747333,
+                    0.0678711757682291,
+                    0.12972798681328354,
+                    0.2663836655898364,
+                    0.4248479170421593,
+                    0.5921451667865667,
+                    0.8995772568778957,
+                    0.001996680972202709,
+                ],
+                od600s=[0.042, 0.108, 0.237, 0.392, 0.585, 0.781, 1.131, 0.0],
+                pd_channel="2",
+                pioreactor_unit=get_unit_name(),
+            )
+        )
+
+    cc = CachedCalibrationTransformer()
+    cc.hydate_models_from_disk({"2": "90"})
+    assert cc({"2": 0.001})["2"] == 0
+    assert cc({"2": 0.002})["2"] == 0
+    assert cc({"2": 0.004})["2"] == 0.0032975807375385234
+    assert cc({"2": 0.020})["2"] == 0.03639585015289039
+    assert cc({"2": 1.0})["2"] == 1.131
 
     with local_persistant_storage("current_od_calibration") as c:
         del c["90"]
