@@ -276,7 +276,13 @@ class Monitor(LongRunningBackgroundJob):
             self.check_for_webserver()
             self.check_for_required_jobs_running()
 
-        if whoami.am_I_a_worker():
+        try:
+            am_I_a_worker = whoami.am_I_a_worker()
+        except Exception:
+            # can error out due to a network failure
+            am_I_a_worker = False
+
+        if am_I_a_worker:
             # watch for undervoltage problems
             self.check_for_power_problems()
             # workers need a HAT
@@ -447,26 +453,31 @@ class Monitor(LongRunningBackgroundJob):
 
     def check_for_mqtt_connection_to_leader(self) -> None:
         while (not self.pub_client.is_connected()) or (not self.sub_client.is_connected()):
-            try:
-                error_code_pc = self.pub_client.reconnect()
-                self.logger.debug(f"{error_code_pc=}")
-            except Exception:
-                pass
-            try:
-                error_code_sc = self.sub_client.reconnect()
-                self.logger.debug(f"{error_code_sc=}")
-            except Exception:
-                pass
-
             self.logger.warning(
                 f"""Not able to connect MQTT clients to leader.
 1. Is the mqtt_adress={get_mqtt_address()}, in config.ini correct?
 2. Is the Pioreactor leader online and responsive?
 """
             )  # remember, this doesn't get published to leader...
+            self.flicker_led_with_error_code(error_codes.MQTT_CLIENT_NOT_CONNECTED_TO_LEADER)
+
+            try:
+                error_code_pc = (
+                    self.pub_client.reconnect()
+                )  # this may return a MQTT_ERR_SUCCESS, but that only means the CONNECT message is sent, still waiting for a CONNACK.
+                self.logger.debug(f"{error_code_pc=}")
+            except Exception:
+                pass
+
+            try:
+                error_code_sc = self.sub_client.reconnect()
+                self.logger.debug(f"{error_code_sc=}")
+            except Exception:
+                pass
+
+            sleep(1)
 
             # self.set_state(self.LOST)
-            self.flicker_led_with_error_code(error_codes.MQTT_CLIENT_NOT_CONNECTED_TO_LEADER)
 
     def check_for_last_backup(self) -> None:
         with utils.local_persistant_storage("database_backups") as cache:

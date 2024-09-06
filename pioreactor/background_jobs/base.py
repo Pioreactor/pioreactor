@@ -351,6 +351,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # task in on_ready, which delays writing to the db, which means `pio kill` might not see it.
         self.set_state(self.READY)
 
+        # now start listening to confirm our state is correct in mqtt
+        self.subscribe_and_callback(
+            self._confirm_state_in_broker,
+            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$state",
+        )
+
     def start_passive_listeners(self) -> None:
         # overwrite this to in subclasses to subscribe to topics in MQTT
         # using this handles reconnects correctly.
@@ -604,7 +610,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             client.will_set(**last_will)  # type: ignore
 
         def reconnect_protocol(client: Client, userdata, flags, rc: int, properties=None) -> None:
-            self.logger.info("Reconnected to the MQTT broker on leader.")
+            self.logger.info("Sub client reconnected to the MQTT broker on leader.")
             self._publish_properties_string_to_broker(self.published_settings)
             self._publish_settings_metadata_to_broker(self.published_settings)
             self._publish_defined_settings_to_broker(self.published_settings)
@@ -919,19 +925,16 @@ class _BackgroundJob(metaclass=PostInitCaller):
             allow_retained=False,
         )
 
-        self.subscribe_and_callback(
-            self._confirm_state_in_broker,
-            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$state",
-        )
-
     def _confirm_state_in_broker(self, message: pt.MQTTMessage) -> None:
         if message.payload is None:
             return
 
         state_in_broker = message.payload.decode()
         if state_in_broker == self.LOST and state_in_broker != self.state:
-            self.logger.debug(f"Wrong state {state_in_broker} in broker - fixing by publishing {self.state}.")
-            sleep(5)
+            self.logger.debug(
+                f"Job is in state {self.state}, but in state {state_in_broker} in broker. Attempting fix by publishing {self.state}."
+            )
+            sleep(1)
             self._publish_attr("state")
 
     def _clear_mqtt_cache(self) -> None:
