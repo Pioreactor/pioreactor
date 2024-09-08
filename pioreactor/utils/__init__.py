@@ -29,7 +29,7 @@ from pioreactor.exc import RoleError
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import post_into
 from pioreactor.pubsub import subscribe_and_callback
-from pioreactor.utils.networking import add_local
+from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import current_utc_timestamp
 
 if TYPE_CHECKING:
@@ -659,7 +659,7 @@ class ClusterJobManager:
         name: str | None = None,
         job_source: str | None = None,
     ) -> bool:
-        if len(self.units) == 0 or whoami.is_testing_env():
+        if len(self.units) == 0:
             return True
 
         if experiment:
@@ -673,7 +673,7 @@ class ClusterJobManager:
 
         def _thread_function(unit: str) -> bool:
             try:
-                r = post_into(add_local(unit), endpoint)
+                r = post_into(resolve_to_address(unit), endpoint)
                 r.raise_for_status()
                 return True
             except Exception as e:

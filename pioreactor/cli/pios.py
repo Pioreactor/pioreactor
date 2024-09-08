@@ -326,6 +326,7 @@ if am_I_leader():
             commands["options"] = {"source": source}
 
         def _thread_function(unit: str) -> bool:
+            print(f"Installing {plugin} on {unit}")
             try:
                 r = post_into(
                     resolve_to_address(unit), "/unit_api/plugins/install", json=commands, timeout=60
@@ -362,6 +363,7 @@ if am_I_leader():
                 raise click.Abort()
 
         def _thread_function(unit: str) -> bool:
+            print(f"Uninstalling {plugin} on {unit}")
             try:
                 r = post_into(
                     resolve_to_address(unit), "/unit_api/plugins/uninstall", json=commands, timeout=60
@@ -525,7 +527,7 @@ if am_I_leader():
         def _thread_function(unit: str) -> bool:
             click.echo(f"Executing run {job} on {unit}.")
             try:
-                r = post_into(resolve_to_address(unit), f"/unit_api/jobs/{job}/run", json=data)
+                r = post_into(resolve_to_address(unit), f"/unit_api/jobs/run/job_name/{job}", json=data)
                 r.raise_for_status()
                 return True
             except HTTPException as e:

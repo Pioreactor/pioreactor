@@ -38,6 +38,10 @@ jobs:
         with:
           version: '1.6'
 
+      - name: Install any required linux software
+        run: |
+           sudo apt-get install -y avahi avahi-utils
+
       - name: Create dot_pioreactor folder
         run: |
            mkdir -p .pioreactor/storage

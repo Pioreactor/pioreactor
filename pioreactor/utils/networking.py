@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 import ipaddress
-import os
 import subprocess
+from pathlib import Path
 from queue import Empty
 from queue import Queue
 from threading import Thread
@@ -18,8 +18,8 @@ def rsync(*args):
 
     try:
         check_call(("rsync",) + args)
-    except CalledProcessError:
-        raise RsyncError
+    except CalledProcessError as e:
+        raise RsyncError from e
 
 
 def cp_file_across_cluster(unit: str, localpath: str, remotepath: str, timeout: int = 5) -> None:
@@ -27,7 +27,7 @@ def cp_file_across_cluster(unit: str, localpath: str, remotepath: str, timeout: 
         rsync(
             "-z",
             "--timeout",
-            timeout,
+            f"{timeout}",
             "--inplace",
             "-e",
             "ssh",
@@ -39,7 +39,7 @@ def cp_file_across_cluster(unit: str, localpath: str, remotepath: str, timeout: 
 
 
 def is_using_local_access_point() -> bool:
-    return os.path.isfile("/boot/firmware/local_access_point")
+    return Path("/boot/firmware/local_access_point").is_file()
 
 
 def is_hostname_on_network(hostname: str, timeout: float = 10.0) -> bool:

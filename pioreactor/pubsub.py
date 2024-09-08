@@ -384,7 +384,7 @@ def put_into(
 def put_into_leader(
     endpoint: str, body: bytes | None = None, json: dict | Struct | None = None, **kwargs
 ) -> mureq.Response:
-    return put_into(leader_address, endpoint, **kwargs)
+    return put_into(leader_address, endpoint, body=body, json=json, **kwargs)
 
 
 def patch_into(
@@ -397,7 +397,7 @@ def patch_into(
 def patch_into_leader(
     endpoint: str, body: bytes | None = None, json: dict | Struct | None = None, **kwargs
 ) -> mureq.Response:
-    return patch_into(leader_address, endpoint, **kwargs)
+    return patch_into(leader_address, endpoint, body=body, json=json, **kwargs)
 
 
 def post_into(
@@ -410,7 +410,7 @@ def post_into(
 def post_into_leader(
     endpoint: str, body: bytes | None = None, json: dict | Struct | None = None, **kwargs
 ) -> mureq.Response:
-    return post_into(leader_address, endpoint, **kwargs)
+    return post_into(leader_address, endpoint, body=body, json=json, **kwargs)
 
 
 def delete_from(address: str, endpoint: str, **kwargs) -> mureq.Response:

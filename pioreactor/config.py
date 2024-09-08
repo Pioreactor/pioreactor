@@ -163,19 +163,19 @@ def get_config() -> ConfigParserMod:
     return config
 
 
+config = get_config()
+
+
 @cache
 def get_leader_hostname() -> str:
-    return get_config().get("cluster.topology", "leader_hostname", fallback="localhost")
+    return config.get("cluster.topology", "leader_hostname", fallback="localhost")
 
 
 @cache
 def get_leader_address() -> str:
-    return get_config().get("cluster.topology", "leader_address", fallback="localhost")
+    return config.get("cluster.topology", "leader_address", fallback="localhost")
 
 
 @cache
 def get_mqtt_address() -> str:
-    return get_config().get("mqtt", "broker_address", fallback=get_leader_address())
-
-
-config = get_config()
+    return config.get("mqtt", "broker_address", fallback=get_leader_address())
