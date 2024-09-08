@@ -473,7 +473,6 @@ if am_I_leader():
         """
 
         units = universal_identifier_to_all_active_workers(units)
-
         if not y:
             confirm = input(f"Confirm killing jobs on {units}? Y/n: ").strip()
             if confirm != "Y":

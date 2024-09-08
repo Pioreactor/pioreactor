@@ -27,7 +27,7 @@ from pioreactor import whoami
 from pioreactor.exc import NotActiveWorkerError
 from pioreactor.exc import RoleError
 from pioreactor.pubsub import create_client
-from pioreactor.pubsub import post_into
+from pioreactor.pubsub import patch_into
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import current_utc_timestamp
@@ -673,7 +673,7 @@ class ClusterJobManager:
 
         def _thread_function(unit: str) -> bool:
             try:
-                r = post_into(resolve_to_address(unit), endpoint)
+                r = patch_into(resolve_to_address(unit), endpoint)
                 r.raise_for_status()
                 return True
             except Exception as e:
