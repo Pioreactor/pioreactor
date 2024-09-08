@@ -28,6 +28,7 @@ from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import am_I_leader
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
+from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
@@ -52,7 +53,7 @@ def pios(ctx) -> None:
         raise click.Abort()
 
 
-if am_I_leader():
+if am_I_leader() or is_testing_env():
     which_units = click.option(
         "--units",
         multiple=True,
@@ -94,14 +95,14 @@ if am_I_leader():
         if workers == (UNIVERSAL_IDENTIFIER,):
             return active_workers
         else:
-            return tuple(u for u in workers if u in active_workers)
+            return tuple(u for u in set(workers) if u in active_workers)
 
     def universal_identifier_to_all_workers(workers: tuple[str, ...]) -> tuple[str, ...]:
         all_workers = get_workers_in_inventory()
         if workers == (UNIVERSAL_IDENTIFIER,):
             return all_workers
         else:
-            return tuple(u for u in workers if u in all_workers)
+            return tuple(u for u in set(workers) if u in all_workers)
 
     def add_leader(units: tuple[str, ...]) -> tuple[str, ...]:
         leader = get_leader_hostname()

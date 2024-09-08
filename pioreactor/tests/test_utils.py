@@ -267,13 +267,23 @@ def test_kill_pumping(job_manager):
 
 
 def test_ClusterJobManager_sends_requests():
+    workers = ["pio01", "pio02", "pio03"]
     with capture_requests() as bucket:
-        with ClusterJobManager(["pio01", "pio02", "pio03"]) as cm:
+        with ClusterJobManager(workers) as cm:
             cm.kill_jobs(name="stirring")
 
-    assert len(bucket) == 3
+    assert len(bucket) == len(workers)
     assert bucket[0].body is None
     assert bucket[0].method == "PATCH"
-    assert bucket[0].url == "http://pio01.local:4999/unit_api/jobs/stop/job_name/stirring"
-    assert bucket[1].url == "http://pio02.local:4999/unit_api/jobs/stop/job_name/stirring"
-    assert bucket[2].url == "http://pio03.local:4999/unit_api/jobs/stop/job_name/stirring"
+
+    for request, worker in zip(bucket, workers):
+        assert request.url == f"http://{worker}.local:4999/unit_api/jobs/stop/job_name/stirring"
+
+
+def test_empty_ClusterJobManager():
+    workers = []
+    with capture_requests() as bucket:
+        with ClusterJobManager(workers) as cm:
+            cm.kill_jobs(name="stirring")
+
+    assert len(bucket) == len(workers)
