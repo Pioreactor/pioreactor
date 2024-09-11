@@ -97,12 +97,20 @@ if am_I_leader() or is_testing_env():
         else:
             return tuple(u for u in set(workers) if u in active_workers)
 
-    def universal_identifier_to_all_workers(workers: tuple[str, ...]) -> tuple[str, ...]:
+    def universal_identifier_to_all_workers(
+        workers: tuple[str, ...], filter_out_non_workers=True
+    ) -> tuple[str, ...]:
         all_workers = get_workers_in_inventory()
+
+        if filter_out_non_workers:
+            include = lambda u: u in all_workers  # noqa: E731
+        else:
+            include = lambda u: True  # noqa: E731
+
         if workers == (UNIVERSAL_IDENTIFIER,):
             return all_workers
         else:
-            return tuple(u for u in set(workers) if u in all_workers)
+            return tuple(u for u in set(workers) if include(u))
 
     def add_leader(units: tuple[str, ...]) -> tuple[str, ...]:
         leader = get_leader_hostname()
@@ -407,7 +415,9 @@ if am_I_leader() or is_testing_env():
         If neither `--shared` not `--specific` are specified, both are set to true.
         """
         logger = create_logger("sync_configs", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
-        units = add_leader(universal_identifier_to_all_workers(units))
+        units = add_leader(
+            universal_identifier_to_all_workers(units, filter_out_non_workers=False)
+        )  # TODO: why is leader being added if I only specify a subset of units?
 
         if not shared and not specific:
             shared = specific = True

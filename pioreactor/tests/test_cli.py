@@ -128,8 +128,8 @@ def test_pios_run_requests():
     assert bucket[0].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/stirring"
 
 
-def test_pios_run_requests_dedup_and_filter():
-    units = ("unit1", "unit1", "notaunit")
+def test_pios_run_requests_dedup_and_filter_units():
+    units = ("unit1", "unit1", "notaunitincluster")
 
     with capture_requests() as bucket:
         ctx = click.Context(run, allow_extra_args=True)

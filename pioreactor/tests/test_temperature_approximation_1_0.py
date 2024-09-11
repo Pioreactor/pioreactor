@@ -984,3 +984,83 @@ class TestTemperatureApproximation_1_0:
         }
 
         assert 55.5 <= self.t.approximate_temperature_1_0(features) <= 56.5
+
+    def test_temperature_approximation50(self) -> None:
+        # this was real data from a bheit
+
+        features = {
+            "previous_heater_dc": 1.3,
+            "room_temp": 22.0,
+            "time_series_of_temp": [
+                27.21875,
+                26.23958333,
+                25.52083333,
+                24.94791667,
+                24.45833333,
+                24.0625,
+                23.73958333,
+                23.4375,
+                23.1875,
+                23.0,
+                22.8125,
+                22.63541667,
+                22.5,
+                22.41666667,
+                22.3125,
+                22.23958333,
+                22.13541667,
+                22.0625,
+                22.0,
+                21.98958333,
+                21.9375,
+                21.875,
+                21.85416667,
+                21.8125,
+                21.80208333,
+                21.75,
+                21.75,
+                21.72916667,
+                21.6875,
+            ],
+        }
+
+        with pytest.raises(ValueError):
+            assert 20 <= self.t.approximate_temperature_1_0(features) <= 30
+
+        features = {
+            "previous_heater_dc": 1.3,
+            "room_temp": 22.0 - 3.0,  # here.
+            "time_series_of_temp": [
+                27.21875,
+                26.23958333,
+                25.52083333,
+                24.94791667,
+                24.45833333,
+                24.0625,
+                23.73958333,
+                23.4375,
+                23.1875,
+                23.0,
+                22.8125,
+                22.63541667,
+                22.5,
+                22.41666667,
+                22.3125,
+                22.23958333,
+                22.13541667,
+                22.0625,
+                22.0,
+                21.98958333,
+                21.9375,
+                21.875,
+                21.85416667,
+                21.8125,
+                21.80208333,
+                21.75,
+                21.75,
+                21.72916667,
+                21.6875,
+            ],
+        }
+
+        assert 20 <= self.t.approximate_temperature_1_0(features) <= 30
