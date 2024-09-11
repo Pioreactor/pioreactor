@@ -229,7 +229,9 @@ if am_I_leader() or is_testing_env():
         def _thread_function(unit: str) -> bool:
             try:
                 logger.debug(f"deleting {unit}:{filepath}...")
-                r = post_into(resolve_to_address(unit), "/unit_api/system/rm", json={"filepath": filepath})
+                r = post_into(
+                    resolve_to_address(unit), "/unit_api/system/remove_file", json={"filepath": filepath}
+                )
                 r.raise_for_status()
                 return True
 
