@@ -63,7 +63,7 @@ function InstallByNameDialog(props){
     setSnackbarMsg(`Installing ${text} in the background - this may take a minute...`);
     fetch('/api/plugins/install', {
       method: "POST",
-      body: JSON.stringify({plugin_name: text}),
+      body: JSON.stringify({args: [text]}),
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json'
@@ -181,7 +181,7 @@ function ListSuggestedPlugins({alreadyInstalledPluginsNames}){
       setSnackbarMsg(`Installing ${plugin_name} in the background - this may take a minute...`);
       fetch('/api/plugins/install', {
         method: "POST",
-        body: JSON.stringify({plugin_name: plugin_name}),
+        body: JSON.stringify({args: [plugin_name]}),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
@@ -295,7 +295,7 @@ function ListInstalledPlugins({installedPlugins}){
       setSnackbarMsg(`Uninstalling ${plugin_name} in the background...`);
       fetch('/api/plugins/uninstall', {
         method: "POST",
-        body: JSON.stringify({plugin_name: plugin_name}),
+        body: JSON.stringify({args: [plugin_name]}),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
@@ -367,7 +367,7 @@ function ListInstalledPlugins({installedPlugins}){
                     component={Link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    to={`/api/plugins/installed/${plugin.source.slice(8)}`}
+                    to={`/unit_api/plugins/installed/${plugin.source.slice(8)}`}
                     variant="text"
                     size="small"
                     color="primary"
@@ -415,7 +415,7 @@ function PluginContainer(){
 
   React.useEffect(() => {
     async function getData() {
-         await fetch("/api/plugins/installed")
+         await fetch("/unit_api/plugins/installed")
         .then((response) => {
           return response.json();
         })

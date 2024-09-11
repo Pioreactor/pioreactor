@@ -58,7 +58,7 @@ export function getRelabelMap(setCallback, experiment="current") {
 
 
 export function runPioreactorJob(unit, experiment, job, args = [], options = {}) {
-    return fetch(`/api/workers/${unit}/experiments/${experiment}/jobs/${job}/run`, {
+    return fetch(`/api/workers/${unit}/jobs/run/job_name/${job}/experiments/${experiment}`, {
       method: "PATCH",
       body: JSON.stringify({ args: args, options: options }),
       headers: {
@@ -107,7 +107,7 @@ export const colors = [
   "#33BBEE",
   "#EE7733",
   "#EE3377",
-  "#BBBBBB",
+  "#b1bab3",
   "#a6cee3",
   "#1f78b4",
   "#b2df8a",

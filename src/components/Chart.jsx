@@ -330,10 +330,10 @@ ${this.relabelAndFormatSeries(d.datum.childName)}: ${Math.round(this.yTransforma
 
   selectLegendData(name){
     var reformattedName = this.relabelAndFormatSeriesForLegend(name)
-    if (!this.state.seriesMap) {
+    if (Object.keys(this.state.seriesMap).length === 0) {
       return {}
     }
-    const line = this.state.seriesMap[name];
+    const line = this.state.seriesMap?.[name];
     const item = {
       name: reformattedName,
       symbol: { fill: line.color },
@@ -348,14 +348,14 @@ ${this.relabelAndFormatSeries(d.datum.childName)}: ${Math.round(this.yTransforma
     var reformattedName = this.relabelAndFormatSeries(name)
 
     var marker = null;
-    if (this.state.seriesMap[name].data.length === 1){
+    if (this.state.seriesMap?.[name]?.data?.length === 1){
       marker = <VictoryScatter
           size={4}
           key={"line-" + reformattedName + this.props.chartKey}
           name={reformattedName}
           style={{
             data: {
-              fill: this.state.seriesMap[name].color
+              fill: this.state.seriesMap?.[name]?.color
             },
           }}
         />
@@ -366,9 +366,9 @@ ${this.relabelAndFormatSeries(d.datum.childName)}: ${Math.round(this.yTransforma
           key={"line-" + reformattedName + this.props.chartKey}
           name={reformattedName}
           style={{
-            labels: {fill: this.state.seriesMap[name].color},
+            labels: {fill: this.state.seriesMap?.[name]?.color},
             data: {
-              stroke: this.state.seriesMap[name].color,
+              stroke: this.state.seriesMap?.[name]?.color,
               strokeWidth: 2,
             },
             parent: { border: "1px solid #ccc" },
@@ -379,7 +379,7 @@ ${this.relabelAndFormatSeries(d.datum.childName)}: ${Math.round(this.yTransforma
     return (
       <VictoryGroup
         key={this.props.chartKey}
-        data={(this.state.hiddenSeries.has(reformattedName)) ? [] : this.state.seriesMap[name].data}
+        data={(this.state.hiddenSeries.has(reformattedName)) ? [] : this.state.seriesMap?.[name]?.data}
         x={(datum) => this.xTransformation(datum.x)}
         y={(datum) => this.yTransformation(datum.y)}
       >

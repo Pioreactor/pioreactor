@@ -19,7 +19,6 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useConfirm } from 'material-ui-confirm';
 import UnderlineSpan from "./components/UnderlineSpan";
 import SelectButton from "./components/SelectButton";
-import ScienceIcon from '@mui/icons-material/Science';
 import FolderZipIcon from '@mui/icons-material/FolderZip';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
@@ -66,7 +65,7 @@ function UploadArchiveAndConfirm(props) {
     const formData = new FormData();
     formData.append('file', selectedFile);
     try {
-      const response = await fetch('/api/upload', {
+      const response = await fetch('/api/system/upload', {
         method: 'POST',
         body: formData,
       });
@@ -174,9 +173,7 @@ function UpdateSoftwareConfirmDialog(props) {
 
   const updateVersion = () => {
     setOpenSnackbar(true)
-    if (installOption === "development"){
-      fetch("/api/update_app_to_develop", {method: "POST"})
-    } else if (installOption === "latest") {
+    if (installOption === "latest") {
       fetch("/api/update_app", {method: "POST"})
     }
   }
@@ -203,10 +200,7 @@ function UpdateSoftwareConfirmDialog(props) {
   };
 
   const getIcon = () =>{
-    if ( installOption ==="development"){
-      return <ScienceIcon/>
-    }
-    else if (installOption === "latest") {
+    if (installOption === "latest") {
       return <UpdateIcon/>
     }
     else if (installOption === "archive"){
@@ -215,10 +209,7 @@ function UpdateSoftwareConfirmDialog(props) {
   }
 
   const getTitle = () => {
-    if (installOption === "development"){
-      return "Update to development build?"
-    }
-    else if (installOption === "latest") {
+    if (installOption === "latest") {
       return "Update to next release?"
     }
     else if (installOption === "archive"){
@@ -227,10 +218,7 @@ function UpdateSoftwareConfirmDialog(props) {
   }
 
   const getDescription = () => {
-    if (installOption === "development"){
-      return "This requires an internet connection. To avoid possible data interruptions, we suggest updating between running experiments. We also recommend being on the latest release of software before doing this. Check you are on the latest software before updating."
-    }
-    else if (installOption === "latest") {
+    if (installOption === "latest") {
       return "This requires an internet connection. To avoid possible data interruptions, we suggest updating between running experiments."
     }
     else if (installOption === "archive"){
@@ -252,7 +240,6 @@ function UpdateSoftwareConfirmDialog(props) {
         endIcon={getIcon()}
       >
         <MenuItem disabled={!internetAccess} value={"latest"}>Update to next release over internet</MenuItem>
-        <MenuItem disabled={!internetAccess} value={"development"}>Update to development over internet</MenuItem>
         <MenuItem value={"archive"}>Update from zip file</MenuItem>
       </SelectButton>
       <Snackbar
@@ -283,7 +270,7 @@ function PageHeader(props) {
 
   React.useEffect(() => {
     async function getCurrentAppVersion() {
-         await fetch("/api/versions/app")
+         await fetch("/unit_api/versions/app")
         .then((response) => {
           return response.text();
         })
@@ -293,7 +280,7 @@ function PageHeader(props) {
       }
 
     async function getCurrentUIVersion() {
-         await fetch("/api/versions/ui")
+         await fetch("/unit_api/versions/ui")
         .then((response) => {
           return response.text();
         })
@@ -343,7 +330,7 @@ function PageHeader(props) {
       <Typography variant="subtitle2">
 
         <Box fontWeight="fontWeightBold" style={{margin: "10px 2px 10px 2px", display:"inline-block"}}>
-          <SystemUpdateAltIcon style={{ fontSize: 14, verticalAlign: "-1px" }}/> Leader version installed:
+          <SystemUpdateAltIcon style={{ fontSize: 14, verticalAlign: "-1px" }}/> Version installed on leader:
         </Box>
         <Box fontWeight="fontWeightRegular" style={{marginRight: "20px", display:"inline-block"}}>
           <UnderlineSpan title={`App: ${version}, UI:  ${uiVersion}`}> {version} </UnderlineSpan>

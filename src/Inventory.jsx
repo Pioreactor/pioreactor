@@ -37,7 +37,14 @@ import { useNavigate } from 'react-router-dom';
 import UnderlineSpan from "./components/UnderlineSpan";
 import PioreactorIcon from "./components/PioreactorIcon";
 import WarningIcon from '@mui/icons-material/Warning';
-
+import Menu from "@mui/material/Menu";
+import ListItemText from "@mui/material/ListItemText";
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
+import PanToolOutlinedIcon from '@mui/icons-material/PanToolOutlined';
+import ListIcon from '@mui/icons-material/List';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
 
 const disconnectedGrey = "#585858"
 const lostRed = "#DE3618"
@@ -57,12 +64,115 @@ function Header(props) {
         </Typography>
         <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
           <AddNewPioreactor/>
+          <Divider orientation="vertical" flexItem variant="middle"/>
+          <ManageInventoryMenu/>
         </Box>
       </Box>
        <Divider sx={{marginTop: "0px", marginBottom: "15px"}} />
     </Box>
   )
 }
+
+
+
+function ManageInventoryMenu(){
+  const [anchorEl, setAnchorEl] = React.useState(null);
+  const open = Boolean(anchorEl);
+  const confirm = useConfirm();
+  const navigate = useNavigate();
+
+
+  const handleClick = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleReboot = () => {
+    confirm({
+      description: 'This will stop running activities in worker Pioreactors and reboot them. Do you wish to continue?',
+      title: "Reboot all workers?",
+      confirmationText: "Confirm",
+      confirmationButtonProps: {color: "primary"},
+      cancellationButtonProps: {color: "secondary"},
+
+      }).then(() =>
+        fetch('/api/workers/system/reboot', {method: "POST"})
+    );
+
+  };
+
+  const handleShutdown = () => {
+    confirm({
+      description: 'This will stop running activities in worker Pioreactors and shut them down. A power-cycle is required to restart them. Do you wish to continue?',
+      title: "Shutdown all workers?",
+      confirmationText: "Confirm",
+      confirmationButtonProps: {color: "primary"},
+      cancellationButtonProps: {color: "secondary"},
+
+      }).then(() =>
+        fetch('/api/workers/system/shutdown', {method: "POST"})
+      )
+  };
+  const handleUnassign = () => {
+    confirm({
+      description: 'Unassign all workers from active experiments. This will stop running activities in worker Pioreactors and shut them down. Do you wish to continue?',
+      title: "Unassign all workers?",
+      confirmationText: "Confirm",
+      confirmationButtonProps: {color: "primary"},
+      cancellationButtonProps: {color: "secondary"},
+
+      }).then(() =>
+        fetch('/api/workers/assignments', {method: "DELETE"})
+      ).then(() => navigate(0)).catch(() => {});
+
+  };
+
+  return (
+    <div>
+      <Button
+        aria-controls={open ? 'basic-menu' : undefined}
+        aria-haspopup="true"
+        aria-expanded={open ? 'true' : undefined}
+        onClick={handleClick}
+        style={{textTransform: "None"}}
+      >
+        Manage inventory <ArrowDropDownIcon/>
+      </Button>
+      <Menu
+        id="manage-inv"
+        anchorEl={anchorEl}
+        open={open}
+        onClose={handleClose}
+        MenuListProps={{
+          'aria-labelledby': 'basic-button',
+        }}
+      >
+        <MenuItem onClick={handleUnassign}>
+          <ListItemIcon>
+            <RemoveCircleOutlineRoundedIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Unassign all workers</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleReboot}>
+          <ListItemIcon>
+            <RestartAltIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Reboot all workers</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleShutdown}>
+          <ListItemIcon>
+            <PowerSettingsNewIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Shutdown all workers</ListItemText>
+        </MenuItem>
+      </Menu>
+    </div>
+  );
+}
+
+
 
 
 
@@ -527,7 +637,7 @@ function Reboot({unit, isLeader}) {
       confirmationButtonProps: {color: "primary"},
       cancellationButtonProps: {color: "secondary"},
     }).then(() => {
-      fetch(`/api/units/${unit}/reboot`, {method: "POST"})
+      fetch(`/api/units/${unit}/system/reboot`, {method: "POST"})
     }).catch(() => {});
   };
 
@@ -588,7 +698,7 @@ function InventoryDisplay({isLoading, workers, config}){
 
   React.useEffect(() => {
     async function getLeaderVersion() {
-       await fetch("/api/versions/app")
+       await fetch("/unit_api/versions/app")
       .then((response) => {
         return response.text();
       })

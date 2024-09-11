@@ -9,21 +9,37 @@ export const ExperimentProvider = ({ children }) => {
   const [allExperiments, setAllExperiments] = useState([]);
 
   useEffect(() => {
-    // defer to disk
-    const maybeExperimentMetadata = JSON.parse(window.localStorage.getItem("experimentMetadata"))
+    const getExperimentMetadata = async () => {
+      const now = Date.now();
+      let maybeExperimentMetadata = JSON.parse(window.localStorage.getItem("experimentMetadata"));
 
-    if (maybeExperimentMetadata){
-      setExperimentMetadata(maybeExperimentMetadata)
-    }
-    // Fetch the latest experiment metadata from the backend
-    else {
-      fetch("/api/experiments/latest")
-        .then((response) => response.json())
-        .then((data) => {
-          setExperimentMetadata(data);
-          window.localStorage.setItem("experimentMetadata", JSON.stringify(data));
-        });
-    }
+      // Check if we have metadata and if it is less than an hour old
+      if (maybeExperimentMetadata && (now - maybeExperimentMetadata._createdAt < 60 * 60 * 1000)) {
+        return maybeExperimentMetadata;
+      }
+
+      // Fetch new metadata if we don't have any or if it's too old
+      const url = maybeExperimentMetadata?.experiment
+        ? `/api/experiments/${maybeExperimentMetadata.experiment}`
+        : "/api/experiments/latest";
+
+      const response = await fetch(url);
+      const data = await response.json();
+
+      // Add the current timestamp to the data
+      data._createdAt = now;
+      window.localStorage.setItem("experimentMetadata", JSON.stringify(data));
+
+      return data;
+    };
+
+    // Async function to update state
+    const fetchAndSetMetadata = async () => {
+      const metadata = await getExperimentMetadata();
+      setExperimentMetadata(metadata);
+    };
+
+    fetchAndSetMetadata(); // Call the async function
 
   }, []);
 
@@ -37,12 +53,16 @@ export const ExperimentProvider = ({ children }) => {
   }, []);
 
   const updateExperiment = (newExperiment, put=false) => {
+    const now = Date.now()
+    newExperiment._createdAt = now
+
     setExperimentMetadata(newExperiment);
 
 
     if (newExperiment){
       window.localStorage.setItem("experimentMetadata", JSON.stringify(newExperiment))
     }
+
     if (put){
       // PUT
       setAllExperiments((prevExperiment) => [newExperiment, ...prevExperiment])

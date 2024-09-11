@@ -300,7 +300,7 @@ function ButtonStopProcess({experiment, unit}) {
       cancellationButtonProps: {color: "secondary"},
 
       }).then(() =>
-        fetch(`/api/workers/${unit}/experiments/${experiment}/stop`, {method: "POST"})
+        fetch(`/api/workers/${unit}/jobs/stop/experiments/${experiment}`, {method: "POST"})
     ).catch(() => {});
 
   };
@@ -590,14 +590,14 @@ function SettingsActionsDialog(props) {
   function rebootRaspberryPi(){
     return function() {
       setRebooting(true)
-      fetch(`/api/units/${props.unit}/reboot`, {method: "POST"})
+      fetch(`/api/units/${props.unit}/system/reboot`, {method: "POST"})
     }
   }
 
   function shutDownRaspberryPi(){
     return function() {
       setShuttingDown(true)
-      fetch(`/api/units/${props.unit}/shutdown`, {method: "POST"})
+      fetch(`/api/units/${props.unit}/system/shutdown`, {method: "POST"})
     }
   }
 
@@ -607,7 +607,7 @@ function SettingsActionsDialog(props) {
 
   function setPioreactorJobAttr(job, setting, value) {
 
-    fetch(`/api/workers/${props.unit}/experiments/${props.experiment}/jobs/${job}/update`, {
+    fetch(`/api/workers/${props.unit}/jobs/update/job_name/${job}/experiments/${props.experiment}`, {
       method: "PATCH",
       body: JSON.stringify({settings: {[setting]: value}}),
       headers: {
