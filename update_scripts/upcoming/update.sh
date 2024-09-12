@@ -5,10 +5,11 @@ set -xeu
 
 export LC_ALL=C
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 UI_FOLDER=/var/www/pioreactorui
 SYSTEMD_DIR=/lib/systemd/system/
-UI_TAG="TODO"
+UI_TAG="TODO" # TODO
 
 HOSTNAME=$(hostname)
 
@@ -18,10 +19,12 @@ LEADER_HOSTNAME=$(crudini --get "$PIO_DIR"/config.ini cluster.topology leader_ho
 if [ "$HOSTNAME" != "$LEADER_HOSTNAME" ]; then
     # worker updates
 
-    # 1. install pioreactorui
-    mkdir /var/www
+    # install pioreactorui
+    rm -rf $UI_FOLDER
+    mkdir -p /var/www
 
-    tar -xzf pioreactorui.tar.gz # TODO: correct location
+
+    tar -xzf "$SCRIPT_DIR"/pioreactorui_"$UI_TAG".tar.gz
     mv pioreactorui-"$UI_TAG" /var/www
     mv /var/www/pioreactorui-"$UI_TAG" $UI_FOLDER
 
@@ -33,6 +36,7 @@ if [ "$HOSTNAME" != "$LEADER_HOSTNAME" ]; then
     touch $UI_FOLDER/huey.db-shm
     touch $UI_FOLDER/huey.db-wal
 
+
     # make correct permissions in new www folders and files
     # https://superuser.com/questions/19318/how-can-i-give-write-access-of-a-folder-to-all-users-in-linux
     chown -R pioreactor:www-data /var/www
@@ -42,31 +46,52 @@ if [ "$HOSTNAME" != "$LEADER_HOSTNAME" ]; then
     chmod +x $UI_FOLDER/main.fcgi
 
     # install lighttp and set up mods
-    apt-get install lighttpd -y # TODO
+    unzip lighttpd_packages.zip -d lighttpd_packages
+    dpkg -i lighttpd_packages/*.deb
 
     # install our own lighttpd service
-    sudo cp /files/system/systemd/lighttpd.service $SYSTEMD_DIR
-    sudo systemctl enable lighttpd.service
+    cp -u "$SCRIPT_DIR"/lighttpd.service $SYSTEMD_DIR
 
+    cp -u "$SCRIPT_DIR"/lighttpd.conf        /etc/lighttpd/
+    cp -u "$SCRIPT_DIR"/50-pioreactorui.conf /etc/lighttpd/conf-available/
+    cp -u "$SCRIPT_DIR"/52-api-only.conf     /etc/lighttpd/conf-available/
 
-    cp /files/system/lighttpd/lighttpd.conf        /etc/lighttpd/lighttpd.conf
-    cp /files/system/lighttpd/50-pioreactorui.conf /etc/lighttpd/conf-available/50-pioreactorui.conf
-    cp /files/system/lighttpd/52-api-only.conf     /etc/lighttpd/conf-available/52-api-only.conf
-
-    lighttpd-enable-mod fastcgi
-    lighttpd-enable-mod rewrite
-    lighttpd-enable-mod pioreactorui
+    /usr/sbin/lighttpd-enable-mod fastcgi
+    /usr/sbin/lighttpd-enable-mod rewrite
+    /usr/sbin/lighttpd-enable-mod pioreactorui
     # workers only have an api, not served static files.
-    lighttpd-enable-mod api-only
+    /usr/sbin/lighttpd-enable-mod api-only
 
 
-    # 2. Add necessary files and services
-    # TODO: add update_ui.sh
-    # TODO: add create_diskcache.sh
-    # TODO: add huey.service
-    # TODO: add create_diskcache.service
+    cp -u "$SCRIPT_DIR"/create_diskcache.sh /usr/local/bin/
+    cp -u "$SCRIPT_DIR"/update_ui.sh        /usr/local/bin/
 
+    cp -u "$SCRIPT_DIR"/huey.service $SYSTEMD_DIR
+    cp -u "$SCRIPT_DIR"/create_diskcache.service $SYSTEMD_DIR
+
+    systemctl enable huey.service
+    systemctl enable create_diskcache.service
+    systemctl enable lighttpd.service
+
+
+    # don't need to start these services, as we do a pio update ui which should handle this.
+else
+
+    CONFIG_FILE=/etc/lighttpd/conf-available/50-pioreactorui.conf
+    # add new unit_api to rewrite
+    # Check if the unit_api rule is already present
+    if grep -q 'unit_api' "$CONFIG_FILE"; then
+      echo "unit_api rewrite rule already exists."
+    else
+      # Add the new rewrite rule for /unit_api
+      sed -i '/^url.rewrite-once = (/a\  "^(/unit_api/.*)$" => "/main.fcgi$1",' "$CONFIG_FILE"
+    fi
 
 fi
 
-# TODO add updated pioreactorui lighttpd conf
+
+
+# test services
+huey_consumer -h
+lighttpd -h
+flask --help
