@@ -24,7 +24,7 @@ from pioreactor.cli.lazy_group import LazyGroup
 from pioreactor.logging import create_logger
 from pioreactor.mureq import get
 from pioreactor.mureq import HTTPException
-from pioreactor.pubsub import get_from_leader
+from pioreactor.pubsub import get_from
 from pioreactor.utils import JobManager
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistant_storage
@@ -172,7 +172,7 @@ def version(verbose: bool) -> None:
         from pioreactor.version import rpi_version_info
         from pioreactor.whoami import get_pioreactor_model_and_version
 
-        click.echo(f"Pioreactor software:    {tuple_to_text(software_version_info)}")
+        click.echo(f"Pioreactor app:         {tuple_to_text(software_version_info)}")
         click.echo(f"Pioreactor HAT:         {tuple_to_text(hardware_version_info)}")
         click.echo(f"Pioreactor firmware:    {tuple_to_text(get_firmware_version())}")
         click.echo(f"Model name:             {get_pioreactor_model_and_version()}")
@@ -180,15 +180,14 @@ def version(verbose: bool) -> None:
         click.echo(f"Operating system:       {platform.platform()}")
         click.echo(f"Raspberry Pi:           {rpi_version_info}")
         click.echo(f"Image version:          {whoami.get_image_git_hash()}")
-        if whoami.am_I_leader():
-            try:
-                result = get_from_leader("api/versions/ui")
-                result.raise_for_status()
-                ui_version = result.body.decode()
-            except Exception:
-                ui_version = "<Failed to fetch>"
+        try:
+            result = get_from("localhost", "/unit_api/versions/ui")
+            result.raise_for_status()
+            ui_version = result.body.decode()
+        except Exception:
+            ui_version = "<Failed to fetch>"
 
-            click.echo(f"Pioreactor UI:          {ui_version}")
+        click.echo(f"Pioreactor UI:          {ui_version}")
     else:
         click.echo(pioreactor.__version__)
 
