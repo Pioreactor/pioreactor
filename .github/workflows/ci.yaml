@@ -40,7 +40,7 @@ jobs:
 
       - name: Install any required linux software
         run: |
-           sudo apt-get install -y avahi avahi-utils
+           sudo apt-get install avahi-daemon avahi-discover avahi-utils
 
       - name: Create dot_pioreactor folder
         run: |
