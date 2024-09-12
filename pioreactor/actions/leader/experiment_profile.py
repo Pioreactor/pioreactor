@@ -11,7 +11,6 @@ from typing import Callable
 from typing import Optional
 
 import click
-from msgspec.json import encode
 from msgspec.yaml import decode
 
 from pioreactor.cluster_management import get_active_workers_in_experiment
@@ -536,13 +535,11 @@ def start_job(
                 logger.info(f"Dry-run: Starting {job_name} on {unit} with options {options} and args {args}.")
             else:
                 patch_into_leader(
-                    f"/api/workers/{unit}/experiment/{experiment}/jobs/{job_name}/run",
-                    body=encode(
-                        {
-                            "options": evaluate_options(options, env) | {"job_source": "experiment_profile"},
-                            "args": args,
-                        }
-                    ),
+                    f"/api/workers/{unit}/jobs/run/job_name/{job_name}/experiments/{experiment}",
+                    json={
+                        "options": evaluate_options(options, env) | {"job_source": "experiment_profile"},
+                        "args": args,
+                    },
                 )
         else:
             logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
@@ -574,8 +571,8 @@ def pause_job(
                 logger.info(f"Dry-run: Pausing {job_name} on {unit}.")
             else:
                 patch_into_leader(
-                    f"/api/workers/{unit}/experiment/{experiment}/jobs/{job_name}/update",
-                    body=encode({"settings": {"state": "sleeping"}}),
+                    f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
+                    json={"settings": {"$state": "sleeping"}},
                 )
         else:
             logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
@@ -607,8 +604,8 @@ def resume_job(
                 logger.info(f"Dry-run: Resuming {job_name} on {unit}.")
             else:
                 patch_into_leader(
-                    f"/api/workers/{unit}/experiment/{experiment}/jobs/{job_name}/update",
-                    body=encode({"settings": {"state": "ready"}}),
+                    f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
+                    json={"settings": {"$state": "ready"}},
                 )
         else:
             logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
@@ -640,8 +637,8 @@ def stop_job(
                 logger.info(f"Dry-run: Stopping {job_name} on {unit}.")
             else:
                 patch_into_leader(
-                    f"/api/workers/{unit}/experiment/{experiment}/jobs/{job_name}/update",
-                    body=encode({"settings": {"state": "disconnected"}}),
+                    f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
+                    json={"settings": {"$state": "disconnected"}},
                 )
         else:
             logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
@@ -677,8 +674,8 @@ def update_job(
             else:
                 for setting, value in evaluate_options(options, env).items():
                     patch_into_leader(
-                        f"/api/workers/{unit}/experiment/{experiment}/jobs/{job_name}/update",
-                        body=encode({"settings": {setting: value}}),
+                        f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
+                        json={"settings": {setting: value}},
                     )
         else:
             logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")

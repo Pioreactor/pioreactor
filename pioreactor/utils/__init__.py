@@ -26,7 +26,10 @@ from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.exc import NotActiveWorkerError
 from pioreactor.exc import RoleError
-from pioreactor.utils.networking import add_local
+from pioreactor.pubsub import create_client
+from pioreactor.pubsub import patch_into
+from pioreactor.pubsub import subscribe_and_callback
+from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import current_utc_timestamp
 
 if TYPE_CHECKING:
@@ -145,8 +148,6 @@ class managed_lifecycle:
         source: str = "app",
         job_source: str | None = None,
     ) -> None:
-        from pioreactor.pubsub import create_client
-
         if not ignore_is_active_state and not whoami.is_active(unit):
             raise NotActiveWorkerError(f"{unit} is not active.")
 
@@ -235,8 +236,6 @@ class managed_lifecycle:
             self._exit()
 
     def start_passive_listeners(self) -> None:
-        from pioreactor.pubsub import subscribe_and_callback
-
         subscribe_and_callback(
             self.exit_from_mqtt,
             [
@@ -475,11 +474,11 @@ def exception_retry(func: Callable, retries: int = 3, sleep_for: float = 0.5, ar
             time.sleep(sleep_for)
 
 
-def safe_kill(*args: int) -> None:
-    from sh import kill  # type: ignore
+def safe_kill(*args: str) -> None:
+    from subprocess import run
 
     try:
-        kill("-2", *args)
+        run(("kill", "-2") + args)
     except Exception:
         pass
 
@@ -495,7 +494,7 @@ class ShellKill:
         if len(self.list_of_pids) == 0:
             return 0
 
-        safe_kill(*self.list_of_pids)
+        safe_kill(*(str(pid) for pid in self.list_of_pids))
 
         return len(self.list_of_pids)
 
@@ -511,8 +510,6 @@ class MQTTKill:
         count = 0
         if len(self.job_names_to_kill) == 0:
             return count
-
-        from pioreactor.pubsub import create_client
 
         with create_client() as client:
             for i, name in enumerate(self.job_names_to_kill):
@@ -541,7 +538,7 @@ class JobManager:
     LONG_RUNNING_JOBS = ("monitor", "mqtt_to_db_streaming", "watchdog")
 
     def __init__(self) -> None:
-        self.db_path = f"{tempfile.gettempdir()}/pio_jobs_metadata.db"
+        self.db_path = f"{tempfile.gettempdir()}/local_intermittent_pioreactor_metadata.sqlite"
         self.conn = sqlite3.connect(self.db_path)
         self.cursor = self.conn.cursor()
         self._create_table()
@@ -662,32 +659,25 @@ class ClusterJobManager:
         name: str | None = None,
         job_source: str | None = None,
     ) -> bool:
-        if len(self.units) == 0 or whoami.is_testing_env():
+        if len(self.units) == 0:
             return True
 
-        from shlex import join
-        from sh import ssh  # type: ignore
-        from sh import ErrorReturnCode_255  # type: ignore
-        from sh import ErrorReturnCode_1  # type: ignore
-
-        command_pieces = ["pio", "kill"]
         if experiment:
-            command_pieces.extend(["--experiment", experiment])
+            endpoint = f"/unit_api/jobs/stop/experiment/{experiment}"
         if name:
-            command_pieces.extend(["--name", name])
+            endpoint = f"/unit_api/jobs/stop/job_name/{name}"
         if job_source:
-            command_pieces.extend(["--job-source", job_source])
+            endpoint = f"/unit_api/jobs/stop/job_source/{job_source}"
         if all_jobs:
-            command_pieces.append("--all-jobs")
-
-        command = join(command_pieces)
+            endpoint = "/unit_api/jobs/stop/all"
 
         def _thread_function(unit: str) -> bool:
             try:
-                ssh(add_local(unit), command)
+                r = patch_into(resolve_to_address(unit), endpoint)
+                r.raise_for_status()
                 return True
-
-            except (ErrorReturnCode_255, ErrorReturnCode_1):
+            except Exception as e:
+                print(f"Failed to send kill command to {unit}: {e}")
                 return False
 
         with ThreadPoolExecutor(max_workers=len(self.units)) as executor:

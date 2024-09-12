@@ -11,6 +11,9 @@ from paho.mqtt.client import Client
 
 from pioreactor.pubsub import add_hash_suffix
 from pioreactor.pubsub import create_client
+from pioreactor.pubsub import post_into
+from pioreactor.pubsub import post_into_leader
+from pioreactor.tests.conftest import capture_requests
 
 
 def test_add_hash_suffix() -> None:
@@ -83,3 +86,35 @@ def test_create_client_max_connection_attempts(mock_client) -> None:
     create_client(hostname=hostname, max_connection_attempts=max_connection_attempts)
 
     assert client_instance.connect.call_count == max_connection_attempts
+
+
+def test_post_into():
+    data = b'{"key": "value"}'
+
+    with capture_requests() as bucket:
+        post_into("pio01.local", "/api/my_endpoint", body=data)
+
+    # Check that the request was made
+    assert len(bucket) == 1
+    captured_request = bucket[0]
+
+    # Assert request details
+    assert captured_request.method == "POST"
+    assert captured_request.url == "http://pio01.local:4999/api/my_endpoint"
+    assert captured_request.body == data
+
+
+def test_post_into_leader():
+    data = b'{"key": "value"}'
+
+    with capture_requests() as bucket:
+        post_into_leader("/api/my_endpoint", body=data)
+
+    # Check that the request was made
+    assert len(bucket) == 1
+    captured_request = bucket[0]
+
+    # Assert request details
+    assert captured_request.method == "POST"
+    assert captured_request.url == "http://localhost:4999/api/my_endpoint"
+    assert captured_request.body == data

@@ -10,7 +10,6 @@ exec(compile(open("pioreactor/version.py").read(), "pioreactor/version.py", "exe
 CORE_REQUIREMENTS = [
     "click==8.1.7",
     "paho-mqtt==2.1.0",
-    "sh==2.0.6",
     "JSON-log-formatter==0.5.1",
     "colorlog==6.7.0",
     "msgspec==0.18.5",
@@ -18,11 +17,6 @@ CORE_REQUIREMENTS = [
     "crudini==0.9.5",
     "iniparse==0.5",
     "six==1.16.0",
-    # "lgpio; platform_machine!='armv7l' and platform_machine!='armv6l'", # primarily available with base image, or via apt-get install python3-lgpio
-]
-
-
-LEADER_REQUIREMENTS = [
     "blinker==1.8.2",
     "flask==3.0.2",
     "flup6==1.1.1",
@@ -34,6 +28,9 @@ LEADER_REQUIREMENTS = [
     "python-dotenv==1.0.1",
     "Werkzeug==3.0.3",
 ]
+
+
+LEADER_REQUIREMENTS: list[str] = []
 
 
 WORKER_REQUIREMENTS = [

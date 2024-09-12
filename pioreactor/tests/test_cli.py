@@ -4,15 +4,20 @@ from __future__ import annotations
 
 import time
 
+import click
 import pytest
 from click.testing import CliRunner
 
 from pioreactor import whoami
 from pioreactor.background_jobs.dosing_automation import start_dosing_automation
 from pioreactor.cli.pio import pio
+from pioreactor.cli.pios import kill
 from pioreactor.cli.pios import pios
+from pioreactor.cli.pios import reboot
+from pioreactor.cli.pios import run
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import subscribe_and_callback
+from pioreactor.tests.conftest import capture_requests
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_intermittent_storage
 
@@ -112,3 +117,42 @@ def test_pio_kill_cleans_up_automations_correctly() -> None:
         pause()
 
         assert not is_pio_job_running("dosing_automation")
+
+
+def test_pios_run_requests():
+    with capture_requests() as bucket:
+        ctx = click.Context(run, allow_extra_args=True)
+        ctx.forward(run, job="stirring", y=True)
+
+    assert len(bucket) == 2
+    assert bucket[0].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/stirring"
+
+
+def test_pios_run_requests_dedup_and_filter_units():
+    units = ("unit1", "unit1", "notaunitincluster")
+
+    with capture_requests() as bucket:
+        ctx = click.Context(run, allow_extra_args=True)
+        ctx.forward(run, job="stirring", y=True, units=units)
+
+    assert len(bucket) == 1
+    assert bucket[0].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/stirring"
+
+
+def test_pios_kill_requests():
+    with capture_requests() as bucket:
+        ctx = click.Context(kill, allow_extra_args=True)
+        ctx.forward(kill, experiment="demo", y=True)
+
+    assert len(bucket) == 2
+    assert bucket[0].url == "http://unit1.local:4999/unit_api/jobs/stop/experiment/demo"
+    assert bucket[1].url == "http://unit2.local:4999/unit_api/jobs/stop/experiment/demo"
+
+
+def test_pios_reboot_requests():
+    with capture_requests() as bucket:
+        ctx = click.Context(reboot, allow_extra_args=True)
+        ctx.forward(reboot, y=True, units=("unit1",))
+
+    assert len(bucket) == 1
+    assert bucket[0].url == "http://unit1.local:4999/unit_api/system/reboot"

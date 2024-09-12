@@ -1,35 +1,45 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import os
+import ipaddress
 import subprocess
+from pathlib import Path
 from queue import Empty
 from queue import Queue
 from threading import Thread
 from typing import Generator
 
+from pioreactor.exc import RsyncError
+
+
+def rsync(*args):
+    from subprocess import check_call
+    from subprocess import CalledProcessError
+
+    try:
+        check_call(("rsync",) + args)
+    except CalledProcessError as e:
+        raise RsyncError from e
+
 
 def cp_file_across_cluster(unit: str, localpath: str, remotepath: str, timeout: int = 5) -> None:
-    from sh import rsync  # type: ignore
-    from sh import ErrorReturnCode_30  # type: ignore
-
     try:
         rsync(
             "-z",
             "--timeout",
-            timeout,
+            f"{timeout}",
             "--inplace",
             "-e",
             "ssh",
             localpath,
-            f"{add_local(unit)}:{remotepath}",
+            f"{resolve_to_address(unit)}:{remotepath}",
         )
-    except ErrorReturnCode_30:
-        raise ConnectionRefusedError(f"Error connecting to {unit}.")
+    except RsyncError:
+        raise RsyncError(f"Error moving file {localpath} to {unit}:{remotepath}.")
 
 
 def is_using_local_access_point() -> bool:
-    return os.path.isfile("/boot/firmware/local_access_point")
+    return Path("/boot/firmware/local_access_point").is_file()
 
 
 def is_hostname_on_network(hostname: str, timeout: float = 10.0) -> bool:
@@ -130,7 +140,19 @@ def discover_workers_on_network(terminate: bool = False) -> Generator[str, None,
                 break
 
 
+def resolve_to_address(hostname: str) -> str:
+    # TODO: make this more fleshed out: resolve to IP, etc.
+    # add_local assumes a working mDNS.
+    return add_local(hostname)
+
+
 def add_local(hostname: str) -> str:
+    try:
+        # if it looks like an IP, don't continue
+        ipaddress.ip_address(hostname)
+        return hostname
+    except ValueError:
+        pass
     if not hostname.endswith(".local"):
         return hostname + ".local"
     return hostname

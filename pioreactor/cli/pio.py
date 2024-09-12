@@ -24,7 +24,7 @@ from pioreactor.cli.lazy_group import LazyGroup
 from pioreactor.logging import create_logger
 from pioreactor.mureq import get
 from pioreactor.mureq import HTTPException
-from pioreactor.pubsub import get_from_leader
+from pioreactor.pubsub import get_from
 from pioreactor.utils import JobManager
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistant_storage
@@ -172,7 +172,7 @@ def version(verbose: bool) -> None:
         from pioreactor.version import rpi_version_info
         from pioreactor.whoami import get_pioreactor_model_and_version
 
-        click.echo(f"Pioreactor software:    {tuple_to_text(software_version_info)}")
+        click.echo(f"Pioreactor app:         {tuple_to_text(software_version_info)}")
         click.echo(f"Pioreactor HAT:         {tuple_to_text(hardware_version_info)}")
         click.echo(f"Pioreactor firmware:    {tuple_to_text(get_firmware_version())}")
         click.echo(f"Model name:             {get_pioreactor_model_and_version()}")
@@ -180,15 +180,14 @@ def version(verbose: bool) -> None:
         click.echo(f"Operating system:       {platform.platform()}")
         click.echo(f"Raspberry Pi:           {rpi_version_info}")
         click.echo(f"Image version:          {whoami.get_image_git_hash()}")
-        if whoami.am_I_leader():
-            try:
-                result = get_from_leader("api/versions/ui")
-                result.raise_for_status()
-                ui_version = result.body.decode()
-            except Exception:
-                ui_version = "<Failed to fetch>"
+        try:
+            result = get_from("localhost", "/unit_api/versions/ui")
+            result.raise_for_status()
+            ui_version = result.body.decode()
+        except Exception:
+            ui_version = "<Failed to fetch>"
 
-            click.echo(f"Pioreactor UI:          {ui_version}")
+        click.echo(f"Pioreactor UI:          {ui_version}")
     else:
         click.echo(pioreactor.__version__)
 
@@ -399,6 +398,7 @@ def update_app(
                     (f"sudo bash {tmp_rls_dir}/pre_update.sh", 2),
                     (f"sudo bash {tmp_rls_dir}/update.sh", 4),
                     (f"sudo bash {tmp_rls_dir}/post_update.sh", 20),
+                    (f"mv {tmp_rls_dir}/pioreactorui_*.tar.gz {tmp_dir}/pioreactorui_archive", 98),  # move ui folder to be accessed by a `pio update ui`
                     (f"rm -rf {tmp_rls_dir}", 99),
                 ]
             )
@@ -407,7 +407,6 @@ def update_app(
                 commands_and_priority.extend([
                     (f"sudo pip install --no-index --find-links={tmp_rls_dir}/wheels/ {tmp_rls_dir}/pioreactor-{version_installed}-py3-none-any.whl[leader,worker]", 3),
                     (f'sudo sqlite3 {config.config["storage"]["database"]} < {tmp_rls_dir}/update.sql', 10),
-                    (f"mv {tmp_rls_dir}/pioreactorui_*.tar.gz {tmp_dir}/pioreactorui_archive", 98),  # move ui folder to be accessed by a `pio update ui`
                 ])
             else:
                 commands_and_priority.extend([
@@ -593,6 +592,68 @@ def update_firmware(version: Optional[str]) -> None:
     logger.notice(f"Updated Pioreactor firmware to version {version_installed}.")  # type: ignore
 
 
+@update.command(name="ui")
+@click.option("-b", "--branch", help="install from a branch on github")
+@click.option(
+    "-r",
+    "--repo",
+    help="install from a repo on github. Format: username/project",
+    default="pioreactor/pioreactorui",
+)
+@click.option("--source", help="use a tar.gz file")
+@click.option("-v", "--version", help="install a specific version")
+def update_ui(branch: Optional[str], repo: str, source: Optional[str], version: Optional[str]) -> None:
+    """
+    Update the PioreactorUI
+
+    Source, if provided, should be a .tar.gz with a top-level dir like pioreactorui-{version}/
+    This is what is provided from Github releases.
+    """
+    logger = create_logger("update_ui", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT)
+    commands = []
+
+    if version is None:
+        version = "latest"
+    else:
+        version = f"tags/{version}"
+
+    if source is not None:
+        source = quote(source)
+        version_installed = source
+
+    elif branch is not None:
+        cleaned_branch = quote(branch)
+        cleaned_repo = quote(repo)
+        version_installed = cleaned_branch
+        url = f"https://github.com/{cleaned_repo}/archive/{cleaned_branch}.tar.gz"
+        source = "/tmp/pioreactorui.tar.gz"
+        commands.append(["wget", url, "-O", source])
+
+    else:
+        latest_release_metadata = loads(get(f"https://api.github.com/repos/{repo}/releases/{version}").body)
+        version_installed = latest_release_metadata["tag_name"]
+        url = f"https://github.com/{repo}/archive/refs/tags/{version_installed}.tar.gz"
+        source = "/tmp/pioreactorui.tar.gz"
+        commands.append(["wget", url, "-O", source])
+
+    assert source is not None
+    commands.append(["bash", "/usr/local/bin/update_ui.sh", source])
+
+    for command in commands:
+        logger.debug(" ".join(command))
+        p = subprocess.run(
+            command,
+            universal_newlines=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+        )
+        if p.returncode != 0:
+            logger.error(p.stderr)
+            raise exc.BashScriptError(p.stderr)
+
+    logger.notice(f"Updated PioreactorUI to version {version_installed}.")  # type: ignore
+
+
 if whoami.am_I_leader():
 
     @pio.command(short_help="access the db CLI")
@@ -609,7 +670,7 @@ if whoami.am_I_leader():
                 "mosquitto_sub",
                 "-v",
                 "-t",
-                "#",
+                topic,
                 "-F",
                 "%19.19I||%t||%p",
                 "-u",
@@ -630,68 +691,3 @@ if whoami.am_I_leader():
                     + " | "
                     + click.style(value, fg="bright_yellow")
                 )
-
-    @update.command(name="ui")
-    @click.option("-b", "--branch", help="install from a branch on github")
-    @click.option(
-        "-r",
-        "--repo",
-        help="install from a repo on github. Format: username/project",
-        default="pioreactor/pioreactorui",
-    )
-    @click.option("--source", help="use a tar.gz file")
-    @click.option("-v", "--version", help="install a specific version")
-    def update_ui(branch: Optional[str], repo: str, source: Optional[str], version: Optional[str]) -> None:
-        """
-        Update the PioreactorUI
-
-        Source, if provided, should be a .tar.gz with a top-level dir like pioreactorui-{version}/
-        This is what is provided from Github releases.
-        """
-        logger = create_logger(
-            "update_ui", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
-        )
-        commands = []
-
-        if version is None:
-            version = "latest"
-        else:
-            version = f"tags/{version}"
-
-        if source is not None:
-            source = quote(source)
-            version_installed = source
-
-        elif branch is not None:
-            cleaned_branch = quote(branch)
-            cleaned_repo = quote(repo)
-            version_installed = cleaned_branch
-            url = f"https://github.com/{cleaned_repo}/archive/{cleaned_branch}.tar.gz"
-            source = "/tmp/pioreactorui.tar.gz"
-            commands.append(["wget", url, "-O", source])
-
-        else:
-            latest_release_metadata = loads(
-                get(f"https://api.github.com/repos/{repo}/releases/{version}").body
-            )
-            version_installed = latest_release_metadata["tag_name"]
-            url = f"https://github.com/{repo}/archive/refs/tags/{version_installed}.tar.gz"
-            source = "/tmp/pioreactorui.tar.gz"
-            commands.append(["wget", url, "-O", source])
-
-        assert source is not None
-        commands.append(["bash", "/usr/local/bin/update_ui.sh", source])
-
-        for command in commands:
-            logger.debug(" ".join(command))
-            p = subprocess.run(
-                command,
-                universal_newlines=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.PIPE,
-            )
-            if p.returncode != 0:
-                logger.error(p.stderr)
-                raise exc.BashScriptError(p.stderr)
-
-        logger.notice(f"Updated PioreactorUI to version {version_installed}.")  # type: ignore

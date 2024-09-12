@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import contextlib
 import re
 from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
 
-from pioreactor.cli import run
+from pioreactor.mureq import Response
 
 
 @pytest.fixture(autouse=True)
@@ -81,3 +83,29 @@ def mock_external_leader_webserver_apis(mocker, active_workers_in_cluster):
     )
 
     return mock_get
+
+
+class CapturedRequest:
+    def __init__(self, method, url, headers, body):
+        self.method = method
+        self.url = url
+        self.headers = headers
+        self.body = body
+
+
+@contextlib.contextmanager
+def capture_requests():
+    bucket = []
+
+    def mock_request(method, url, **kwargs):
+        # Capture the request details
+        headers = kwargs.get("headers")
+        body = kwargs.get("body", None)
+        bucket.append(CapturedRequest(method, url, headers, body))
+
+        # Return a mock response object
+        return Response(url, 200, {}, b'{"mocked": "response"}')
+
+    # Patch the mureq.request method
+    with patch("pioreactor.mureq.request", side_effect=mock_request):
+        yield bucket

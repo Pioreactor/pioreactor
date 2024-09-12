@@ -10,7 +10,9 @@ import pytest
 
 from pioreactor.background_jobs.stirring import start_stirring
 from pioreactor.pubsub import subscribe_and_callback
+from pioreactor.tests.conftest import capture_requests
 from pioreactor.utils import callable_stack
+from pioreactor.utils import ClusterJobManager
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import JobManager
 from pioreactor.utils import JobMetadataKey
@@ -262,3 +264,26 @@ def test_kill_pumping(job_manager):
 
     job_manager.set_not_running(job_key1)
     job_manager.set_not_running(job_key2)
+
+
+def test_ClusterJobManager_sends_requests():
+    workers = ["pio01", "pio02", "pio03"]
+    with capture_requests() as bucket:
+        with ClusterJobManager(workers) as cm:
+            cm.kill_jobs(name="stirring")
+
+    assert len(bucket) == len(workers)
+    assert bucket[0].body is None
+    assert bucket[0].method == "PATCH"
+
+    for request, worker in zip(bucket, workers):
+        assert request.url == f"http://{worker}.local:4999/unit_api/jobs/stop/job_name/stirring"
+
+
+def test_empty_ClusterJobManager():
+    workers = []
+    with capture_requests() as bucket:
+        with ClusterJobManager(workers) as cm:
+            cm.kill_jobs(name="stirring")
+
+    assert len(bucket) == len(workers)

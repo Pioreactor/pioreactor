@@ -5,11 +5,13 @@ import click
 
 from pioreactor.cluster_management import get_active_workers_in_inventory
 from pioreactor.config import config
+from pioreactor.exc import RsyncError
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import subscribe
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import managed_lifecycle
-from pioreactor.utils.networking import add_local
+from pioreactor.utils.networking import resolve_to_address
+from pioreactor.utils.networking import rsync
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
@@ -43,7 +45,6 @@ def backup_database(output_file: str, force: bool = False, backup_to_workers: in
     """
 
     import sqlite3
-    from sh import ErrorReturnCode, rsync  # type: ignore
 
     unit = get_unit_name()
     experiment = UNIVERSAL_EXPERIMENT
@@ -96,9 +97,9 @@ def backup_database(output_file: str, force: bool = False, backup_to_workers: in
                     "--partial",
                     "--inplace",
                     output_file,
-                    f"{add_local(backup_unit)}:{output_file}",
+                    f"{resolve_to_address(backup_unit)}:{output_file}",
                 )
-            except ErrorReturnCode:
+            except RsyncError:
                 logger.debug(
                     f"Unable to backup database to {backup_unit}. Is it online?",
                     exc_info=True,

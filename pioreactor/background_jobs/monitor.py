@@ -29,7 +29,6 @@ from pioreactor.hardware import is_HAT_present
 from pioreactor.hardware import PCB_BUTTON_PIN as BUTTON_PIN
 from pioreactor.hardware import PCB_LED_PIN as LED_PIN
 from pioreactor.hardware import TEMP
-from pioreactor.pubsub import get_from_leader
 from pioreactor.pubsub import QOS
 from pioreactor.structs import Voltage
 from pioreactor.types import MQTTMessage
@@ -268,12 +267,12 @@ class Monitor(LongRunningBackgroundJob):
 
         # report on CPU usage, memory, disk space
         self.check_and_publish_self_statistics()
+        sleep(0 if whoami.is_testing_env() else 5)  # wait for other processes to catch up
+        self.check_for_webserver()
 
         if whoami.am_I_leader():
             self.check_for_last_backup()
-            sleep(0 if whoami.is_testing_env() else 5)  # wait for other processes to catch up
             self.check_for_correct_permissions()
-            self.check_for_webserver()
             self.check_for_required_jobs_running()
 
         try:
@@ -392,19 +391,6 @@ class Monitor(LongRunningBackgroundJob):
         except Exception as e:
             self.logger.debug(f"Error checking huey status: {e}", exc_info=True)
             self.logger.error(f"Error checking huey status: {e}")
-
-        attempt = 0
-        retries = 5
-        while attempt < retries:
-            attempt += 1
-            res = get_from_leader("/api/experiments/latest")
-            if res.ok:
-                break
-            sleep(1.0)
-        else:
-            self.logger.debug(f"Error pinging UI: {res.status_code}")
-            self.logger.error(f"Error pinging UI: {res.status_code}")
-            self.flicker_led_with_error_code(error_codes.WEBSERVER_OFFLINE)
 
     def check_for_required_jobs_running(self) -> None:
         if not all(utils.is_pio_job_running(["watchdog", "mqtt_to_db_streaming"])):

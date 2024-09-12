@@ -60,3 +60,9 @@ class MQTTValueError(ValueError):
     """
     Data from MQTT is not expected / correct
     """
+
+
+class RsyncError(OSError):
+    """
+    Syncing files failed
+    """

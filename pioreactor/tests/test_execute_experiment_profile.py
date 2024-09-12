@@ -829,3 +829,50 @@ def test_profiles_in_github_repo() -> None:
         content = get(file["download_url"]).content
         profile = decode(content, type=Profile)
         assert _verify_experiment_profile(profile)
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_api_requests_are_made(
+    mock__load_experiment_profile,
+) -> None:
+    experiment = "_testing_experiment"
+
+    action1 = Start(hours_elapsed=0 / 60 / 60)
+    action2 = Start(hours_elapsed=2 / 60 / 60)
+    action3 = Stop(hours_elapsed=4 / 60 / 60)
+
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        plugins=[],
+        common=CommonBlock(jobs={"job1": Job(actions=[action1])}),
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(jobs={"job2": Job(actions=[action2, action3])}, label="label1"),
+        },
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    from pioreactor.tests.conftest import capture_requests
+
+    with capture_requests() as bucket:
+        execute_experiment_profile("profile.yaml", experiment)
+
+    assert len(bucket) == 5
+    assert bucket[0].url == f"http://localhost:4999/api/experiments/{experiment}/unit_labels"
+    assert (
+        bucket[1].url
+        == f"http://localhost:4999/api/workers/unit1/jobs/run/job_name/job1/experiments/{experiment}"
+    )
+    assert (
+        bucket[2].url
+        == f"http://localhost:4999/api/workers/unit2/jobs/run/job_name/job1/experiments/{experiment}"
+    )
+    assert (
+        bucket[3].url
+        == f"http://localhost:4999/api/workers/unit1/jobs/run/job_name/job2/experiments/{experiment}"
+    )
+    assert (
+        bucket[4].url
+        == f"http://localhost:4999/api/workers/unit1/jobs/update/job_name/job2/experiments/{experiment}"
+    )
