@@ -21,8 +21,11 @@ def test_pio_commands():
     for script in scripts:
         with open(script, "r") as file:
             for line_number, line in enumerate(file, start=1):
+                if line.lstrip().startswith("#"):  # comment
+                    continue
+
                 # Checking for 'pio' not preceded by 'su -u pioreactor'
-                if (" pio " in line or line.strip().startswith('pio')) and "sudo -u pioreactor" not in line:
+                if (" pio " in line or line.strip().startswith("pio")) and "sudo -u pioreactor" not in line:
                     error_msgs.append(
                         f"Error in {script} at line {line_number}: 'pio' command must be prefixed with 'su -u pioreactor'."
                     )

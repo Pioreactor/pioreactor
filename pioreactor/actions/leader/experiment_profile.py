@@ -349,6 +349,7 @@ def when(
                 condition_met = evaluate_bool_expression(condition, env)
             except MQTTValueError:
                 condition_met = False
+
             if condition_met:
                 for action in actions:
                     schedule.enter(
@@ -637,8 +638,7 @@ def stop_job(
                 logger.info(f"Dry-run: Stopping {job_name} on {unit}.")
             else:
                 patch_into_leader(
-                    f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
-                    json={"settings": {"$state": "disconnected"}},
+                    f"/api/workers/{unit}/jobs/stop/job_name/{job_name}/experiments/{experiment}",
                 )
         else:
             logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
