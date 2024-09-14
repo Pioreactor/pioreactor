@@ -110,7 +110,7 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName, s
       confirmationButtonProps: {color: "primary"},
       cancellationButtonProps: {color: "secondary"},
     }).then(() => {
-      fetch(`/api/workers/${leaderHostname}/experiments/${experiment}/jobs/experiment_profile/update`, {
+      fetch(`/api/units/${leaderHostname}/jobs/update/job_name/experiment_profile/experiments/${experiment}`, {
         method: "PATCH",
         body: JSON.stringify({settings: {'$state': 'disconnected'}}),
         headers: {

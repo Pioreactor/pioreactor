@@ -1609,7 +1609,7 @@ function SettingsActionsDialogAll({experiment}) {
 
 
   function setPioreactorJobAttr(job, setting, value) {
-    fetch(`/api/workers/${unit}/jobs/update/job_name/${jobs}/experiments/${experiment}`, {
+    fetch(`/api/workers/${unit}/jobs/update/job_name/${job}/experiments/${experiment}`, {
       method: "PATCH",
       body: JSON.stringify({settings: {[setting]: value}}),
       headers: {

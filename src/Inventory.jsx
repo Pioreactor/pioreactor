@@ -91,7 +91,7 @@ function ManageInventoryMenu(){
 
   const handleReboot = () => {
     confirm({
-      description: 'This will stop running activities in worker Pioreactors and reboot them. Do you wish to continue?',
+      description: 'This will halt running activities in worker Pioreactors and reboot them. Do you wish to continue?',
       title: "Reboot all workers?",
       confirmationText: "Confirm",
       confirmationButtonProps: {color: "primary"},
@@ -105,7 +105,7 @@ function ManageInventoryMenu(){
 
   const handleShutdown = () => {
     confirm({
-      description: 'This will stop running activities in worker Pioreactors and shut them down. A power-cycle is required to restart them. Do you wish to continue?',
+      description: 'This will halt running activities in worker Pioreactors and shut them down. A power-cycle is required to restart them. Do you wish to continue?',
       title: "Shutdown all workers?",
       confirmationText: "Confirm",
       confirmationButtonProps: {color: "primary"},
@@ -117,7 +117,7 @@ function ManageInventoryMenu(){
   };
   const handleUnassign = () => {
     confirm({
-      description: 'Unassign all workers from active experiments. This will stop running activities in worker Pioreactors and shut them down. Do you wish to continue?',
+      description: 'Unassign all workers from active experiments. This will also halt all activities in worker Pioreactors. Do you wish to continue?',
       title: "Unassign all workers?",
       confirmationText: "Confirm",
       confirmationButtonProps: {color: "primary"},
@@ -589,6 +589,7 @@ function WorkerCard({worker, config, leaderVersion}) {
         <Box>
           <Unassign unit={unit} experimentAssigned={experimentAssigned} setExperimentAssigned={setExperimentAssigned} />
           <Reboot unit={unit} />
+          <Shutdown unit={unit} />
           <Remove unit={unit} isLeader={isLeader}/>
         </Box>
       </CardActions>
@@ -648,6 +649,29 @@ function Reboot({unit, isLeader}) {
 )}
 
 
+function Shutdown({unit, isLeader}) {
+
+  const confirm = useConfirm();
+
+  const shworker = () => {
+    confirm({
+      description: 'Shutting down this Pioreactor will halt all activity and require a power-cycle to bring it back up.',
+      title: `Shutdown ${unit}?`,
+      confirmationText: "Confirm",
+      confirmationButtonProps: {color: "primary"},
+      cancellationButtonProps: {color: "secondary"},
+    }).then(() => {
+      fetch(`/api/units/${unit}/system/shutdown`, {method: "POST"})
+    }).catch(() => {});
+  };
+
+  return (
+      <Button style={{textTransform: "none"}} size="small" onClick={shworker}>
+        <PowerSettingsNewIcon fontSize="small" sx={textIcon} />Shutdown
+      </Button>
+)}
+
+
 function Unassign({unit, experimentAssigned, setExperimentAssigned}) {
 
   const unassignWorker = () => {
@@ -688,8 +712,8 @@ function Remove({unit, isLeader}) {
   };
 
   return (
-    <Button style={{textTransform: "none"}} disabled={isLeader} size="small" onClick={removeWorker}>
-       <DeleteIcon fontSize="small" sx={textIcon}/> Remove
+    <Button color="secondary" style={{textTransform: "none"}} disabled={isLeader} size="small" onClick={removeWorker}>
+       <DeleteIcon  disabled={isLeader} color={isLeader ? "text.disabled" : "secondary"} fontSize="small" sx={textIcon}/> Remove
     </Button>
 )}
 
