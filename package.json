@@ -29,7 +29,7 @@
     "react-scripts": "^5.0.1",
     "react-showdown": "^2.3.1",
     "react-simple-code-editor": "^0.13.1",
-    "victory": "^37.0.2"
+    "victory": "36.5.9"
   },
   "scripts": {
     "start": "react-scripts start",

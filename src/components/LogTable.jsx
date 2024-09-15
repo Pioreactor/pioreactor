@@ -69,7 +69,7 @@ function LogTable({byDuration, experimentStartTime, experiment, config, relabelM
       const logs = await response.json();
       setListOfLogs(logs.map((log, index) => ({
         ...log,
-        key: index
+        key: `${log.timestamp}-${log.pioreactor_unit}-${log.level}-${log.message}`,
       })));
     };
     if (experiment && Object.keys(config).length){
@@ -134,7 +134,7 @@ function LogTable({byDuration, experimentStartTime, experiment, config, relabelM
         message: String(payload.message),
         task: payload.task,
         level: payload.level.toUpperCase(),
-        key: Math.random()
+        key: `${moment.utc().format()}-${unit}-${payload.level.toUpperCase()}-${String(payload.message)}`,
       },
       ...currentLogs.slice(0, 49)
     ]);

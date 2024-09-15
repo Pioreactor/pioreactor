@@ -67,7 +67,7 @@ function LogTableByUnit({experiment, unit}) {
       const logs = await response.json();
       setListOfLogs(logs.map((log, index) => ({
         ...log,
-        key: index
+        key: `${log.timestamp}-${log.pioreactor_unit}-${log.level}-${log.message}`,
       })));
     };
 
@@ -121,7 +121,7 @@ function LogTableByUnit({experiment, unit}) {
         message: String(payload.message),
         task: payload.task,
         level: payload.level.toUpperCase(),
-        key: Math.random()
+        key: `${moment.utc().format()}-${unit}-${payload.level.toUpperCase()}-${String(payload.message)}`,
       },
       ...currentLogs.slice(0, 49)
     ]);
