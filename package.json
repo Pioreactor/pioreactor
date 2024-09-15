@@ -8,10 +8,10 @@
     "@emotion/react": "^11.11.4",
     "@emotion/styled": "^11.11.5",
     "@fontsource/roboto": "^4.4.5",
-    "@mui/icons-material": "^5.15.16",
-    "@mui/lab": "^5.0.0-alpha.170",
-    "@mui/material": "^5.15.16",
-    "@mui/system": "^5.15.15",
+    "@mui/icons-material": "^6.1.0",
+    "@mui/lab": "^6.0.0-beta.9",
+    "@mui/material": "^6.1.0",
+    "@mui/system": "^6.1.0",
     "@testing-library/jest-dom": "^4.2.4",
     "@testing-library/react": "^9.5.0",
     "@testing-library/user-event": "^7.2.1",
@@ -29,7 +29,7 @@
     "react-scripts": "^5.0.1",
     "react-showdown": "^2.3.1",
     "react-simple-code-editor": "^0.13.1",
-    "victory": "36.5.9"
+    "victory": "36.9.2"
   },
   "scripts": {
     "start": "react-scripts start",
