@@ -392,14 +392,14 @@ def update_app(
             # fmt: off
             commands_and_priority.extend(
                 [
-                    (f"rm -rf {tmp_rls_dir}", -99),
+                    (f"sudo rm -rf {tmp_rls_dir}", -99),
                     (f"unzip {source} -d {tmp_rls_dir}", 0),
                     (f"unzip {tmp_rls_dir}/wheels_{version_installed}.zip -d {tmp_rls_dir}/wheels", 1),
                     (f"sudo bash {tmp_rls_dir}/pre_update.sh", 2),
                     (f"sudo bash {tmp_rls_dir}/update.sh", 4),
                     (f"sudo bash {tmp_rls_dir}/post_update.sh", 20),
                     (f"mv {tmp_rls_dir}/pioreactorui_*.tar.gz {tmp_dir}/pioreactorui_archive", 98),  # move ui folder to be accessed by a `pio update ui`
-                    (f"rm -rf {tmp_rls_dir}", 99),
+                    (f"sudo rm -rf {tmp_rls_dir}", 99),
                 ]
             )
 

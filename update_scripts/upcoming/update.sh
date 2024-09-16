@@ -48,6 +48,7 @@ if [ "$HOSTNAME" != "$LEADER_HOSTNAME" ]; then
 
     # install lighttp and set up mods
     unzip "$SCRIPT_DIR"/lighttpd_packages.zip -d "$SCRIPT_DIR"/lighttpd_packages
+    sudo chown -R pioreactor:pioreactor "$SCRIPT_DIR"/lighttpd_packages # required so this can be deleted by pioreactor user if needed to run again.
     dpkg -i "$SCRIPT_DIR"/lighttpd_packages/*.deb
 
     # install our own lighttpd service
