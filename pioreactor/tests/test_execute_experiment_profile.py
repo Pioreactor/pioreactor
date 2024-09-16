@@ -239,9 +239,28 @@ def test_execute_experiment_start_automation_succeeds(
     execute_experiment_profile("profile.yaml", experiment)
 
 
-@pytest.mark.xfail(reason="need to write a good test for this")
-def test_label_fires_a_relabel_to_leader_endpoint():
-    assert False
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_label_fires_a_relabel_to_leader_endpoint(mock__load_experiment_profile):
+    experiment = "_testing_experiment"
+
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        plugins=[],
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(label="label1"),
+            "unit2": PioreactorSpecificBlock(label="label2"),
+        },
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    with capture_requests() as bucket:
+        execute_experiment_profile("profile.yaml", experiment)
+
+    assert bucket[0].path == "/api/experiments/_testing_experiment/unit_labels"
+    assert bucket[0].json == {"label": "label1", "unit": "unit1"}
+    assert bucket[1].json == {"label": "label2", "unit": "unit2"}
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
@@ -416,7 +435,6 @@ def test_wrong_syntax_in_if_statement(mock__load_experiment_profile) -> None:
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_repeat_block(mock__load_experiment_profile) -> None:
-    experiment = "_testing_experiment"
     repeat_num = 6
     repeat_every_hours = 0.001
     start = Start(hours_elapsed=0)
@@ -443,20 +461,15 @@ def test_repeat_block(mock__load_experiment_profile) -> None:
 
     mock__load_experiment_profile.return_value = profile
 
-    actions = []
+    with capture_requests() as bucket:
+        execute_experiment_profile("profile.yaml", "_testing_experiment")
 
-    def collect_actions(msg):
-        actions.append(msg.payload.decode())
-
-    subscribe_and_callback(
-        collect_actions,
-        [f"pioreactor/unit1/{experiment}/jobbing/setting/set"],
-        allow_retained=False,
-    )
-
-    execute_experiment_profile("profile.yaml", experiment)
-
-    assert actions == ["1"] * repeat_num
+    r = [
+        b.json["settings"]["setting"]
+        for b in bucket
+        if b.path == "/api/workers/unit1/jobs/update/job_name/jobbing/experiments/_testing_experiment"
+    ]
+    assert r == ["1"] * repeat_num
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
@@ -565,17 +578,6 @@ def test_execute_experiment_profile_when_action_simple(mock__load_experiment_pro
 
     mock__load_experiment_profile.return_value = profile
 
-    actions = []
-
-    def collect_actions(msg):
-        actions.append(msg.topic)
-
-    subscribe_and_callback(
-        collect_actions,
-        [f"pioreactor/unit1/{experiment}/#"],
-        allow_retained=False,
-    )
-
     # Simulate OD value
     publish(
         f"pioreactor/unit1/{experiment}/od_reading/od1",
@@ -583,13 +585,14 @@ def test_execute_experiment_profile_when_action_simple(mock__load_experiment_pro
         retain=True,
     )
 
-    execute_experiment_profile("profile.yaml", experiment)
+    with capture_requests() as bucket:
+        execute_experiment_profile("profile.yaml", experiment)
 
-    assert actions == [
-        f"pioreactor/unit1/{experiment}/od_reading/od1",
-        f"pioreactor/unit1/{experiment}/run/stirring",
-        f"pioreactor/unit1/{experiment}/stirring/target_rpm/set",
-    ]
+    assert len(bucket) == 2
+    assert bucket[0].path == "/api/workers/unit1/jobs/run/job_name/stirring/experiments/_testing_experiment"
+    assert (
+        bucket[1].path == "/api/workers/unit1/jobs/update/job_name/stirring/experiments/_testing_experiment"
+    )
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
@@ -618,17 +621,6 @@ def test_execute_experiment_profile_when_action_with_if(mock__load_experiment_pr
 
     mock__load_experiment_profile.return_value = profile
 
-    actions = []
-
-    def collect_actions(msg):
-        actions.append(msg.topic)
-
-    subscribe_and_callback(
-        collect_actions,
-        [f"pioreactor/unit1/{experiment}/#"],
-        allow_retained=False,
-    )
-
     # Simulate OD value
     publish(
         f"pioreactor/unit1/{experiment}/od_reading/od1",
@@ -636,13 +628,14 @@ def test_execute_experiment_profile_when_action_with_if(mock__load_experiment_pr
         retain=True,
     )
 
-    execute_experiment_profile("profile.yaml", experiment)
+    with capture_requests() as bucket:
+        execute_experiment_profile("profile.yaml", experiment)
 
-    assert actions == [
-        f"pioreactor/unit1/{experiment}/od_reading/od1",
-        f"pioreactor/unit1/{experiment}/run/stirring",
-        f"pioreactor/unit1/{experiment}/stirring/target_rpm/set",
-    ]
+    assert len(bucket) == 2
+    assert bucket[0].path == "/api/workers/unit1/jobs/run/job_name/stirring/experiments/_testing_experiment"
+    assert (
+        bucket[1].path == "/api/workers/unit1/jobs/update/job_name/stirring/experiments/_testing_experiment"
+    )
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")

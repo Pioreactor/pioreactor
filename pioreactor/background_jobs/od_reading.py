@@ -1018,7 +1018,9 @@ class ODReader(BackgroundJob):
         ) / 50  # divide by N since the culture is unlikely to Nx.
 
         ir_intensity_max = 80.0
-        return min(ir_intensity_max, ir_intensity_argmax_ANGLE_can_be, ir_intensity_argmax_REF_can_be)
+        return round(
+            min(ir_intensity_max, ir_intensity_argmax_ANGLE_can_be, ir_intensity_argmax_REF_can_be), 2
+        )
 
     def _prepare_post_callbacks(self) -> list[Callable]:
         callbacks: list[Callable] = []
