@@ -10,6 +10,7 @@ general API:
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+from subprocess import run as run_ssh
 
 import click
 
@@ -296,9 +297,29 @@ if am_I_leader() or is_testing_env():
                 )
                 r.raise_for_status()
                 return True
-            except HTTPException as e:
-                logger.error(f"Unable to update {target} on {unit} due to server error: {e}.")
-                return False
+            except HTTPException:
+                # TODO: remove this code after next release
+                logger.debug("Falling back on SSH approach")
+                if source:
+                    result = run_ssh(
+                        ["ssh", resolve_to_address(unit), "pio", "update", target, "--source", source]
+                    )
+                elif version:
+                    result = run_ssh(
+                        ["ssh", resolve_to_address(unit), "pio", "update", target, "--version", version]
+                    )
+                else:
+                    raise ValueError("Must supply version or source")
+
+                if result.returncode != 0:
+                    logger.error(f"Unable to update {target} on {unit} due to server error.")
+                    return False
+                else:
+                    return True
+                #########
+
+                # logger.error(f"Unable to update {target} on {unit} due to server error: {e}.")
+                # return False
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
             results = executor.map(_thread_function, units)

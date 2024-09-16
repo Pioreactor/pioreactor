@@ -3,17 +3,18 @@
 #### Highlights
  - Workers now have a webserver on them. This is one of the largest architectural changes to Pioreactor, and lays the foundation for better plugin and calibration cluster management, plus future features.
    - As an example, in your browser, you can enter the url: http://some_worker.local/unit_api/jobs/running to see a list of jobs running on a worker.
-   - Note: there is no user-interface for workers, just an api
+   - Note: there is no interactive user interface for workers, just an API
    - Previous actions that would involve SSHing from leader to a worker are replaced by web requests.
    - APIs that initiate a background task either return with the result, or return a task id that be be looked up at `/api/task_status/`.
 
 #### Bug fixes
- - fixed a issue where a calibrated OD reading would be mapped to max OD signal if it was too low.
+ - fixed an issue where a calibrated OD reading would be mapped to max OD signal if it was too low.
+ - fixed an issue where the Pioreactor UI would lock up if trying to create a new experiment with an existing name.
 
 #### Breaking changes
- - **Lots and lots of API changes**. You'll want to review them on our docs:
+ - **Lots and lots of API changes**. You'll want to review them on our docs: https://docs.pioreactor.com/developer-guide/web-ui-api
  - We no longer recommend the Raspberry Pi Zero (the original Zero, not the Zero 2.) since supporting a web server + pioreactor functions is too much for a single core.
- - `watchdog` is neutered. It use to try to "wake-up" a job, but this was flakey and causing more problems than it solved.
+ - `watchdog` is neutered. It used to try to "wake-up" a job, but this was flaky and causing more problems than it solved.
  - removed python library dependency `sh`
 
 #### Enhancements
