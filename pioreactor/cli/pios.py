@@ -212,7 +212,7 @@ if am_I_leader() or is_testing_env():
             _thread_function(unit)
 
     @pios.command("rm", short_help="rm a file across the cluster")
-    @click.argument("filepath", type=click.Path(exists=True, resolve_path=True))
+    @click.argument("filepath", type=click.Path(resolve_path=True))
     @which_units
     @confirmation
     def rm(
@@ -328,7 +328,7 @@ if am_I_leader() or is_testing_env():
 
         for result, api_result in results:
             click.secho(
-                f'{api_result.get("unit")}: {api_result.get("result_url_path")}',
+                api_result,
                 fg="green" if result else "red",
             )
 
@@ -366,7 +366,7 @@ if am_I_leader() or is_testing_env():
             commands["options"] = {"source": source}
 
         def _thread_function(unit: str) -> tuple[bool, dict]:
-            print(f"Installing {plugin} on {unit}")
+            click.echo(f"Installing {plugin} on {unit}")
             try:
                 r = post_into(
                     resolve_to_address(unit), "/unit_api/plugins/install", json=commands, timeout=60
@@ -382,7 +382,7 @@ if am_I_leader() or is_testing_env():
 
         for result, api_result in results:
             click.secho(
-                f'{api_result.get("unit")}: {api_result.get("result_url_path")}',
+                api_result,
                 fg="green" if result else "red",
             )
 
@@ -409,7 +409,7 @@ if am_I_leader() or is_testing_env():
                 raise click.Abort()
 
         def _thread_function(unit: str) -> tuple[bool, dict]:
-            print(f"Uninstalling {plugin} on {unit}")
+            click.echo(f"Uninstalling {plugin} on {unit}")
             try:
                 r = post_into(
                     resolve_to_address(unit), "/unit_api/plugins/uninstall", json=commands, timeout=60
@@ -426,7 +426,7 @@ if am_I_leader() or is_testing_env():
 
         for result, api_result in results:
             click.secho(
-                f'{api_result.get("unit")}: {api_result.get("result_url_path")}',
+                api_result,
                 fg="green" if result else "red",
             )
 
