@@ -245,8 +245,89 @@ if am_I_leader() or is_testing_env():
         for unit in units:
             _thread_function(unit)
 
-    @pios.command("update", short_help="update PioreactorApp on workers")
-    @click.argument("target", default="app")
+    @pios.group(invoke_without_command=True)
+    @click.option("-s", "--source", help="use a release-***.zip already on the workers")
+    @which_units
+    @confirmation
+    @click.pass_context
+    def update(
+        ctx,
+        source: str | None,
+        units: tuple[str, ...],
+        y: bool,
+    ) -> None:
+        if ctx.invoked_subcommand is None:
+            logger = create_logger("update", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
+
+            units = universal_identifier_to_all_workers(units)
+
+            if not y:
+                confirm = input(f"Confirm updating app and ui on {units}? Y/n: ").strip()
+                if confirm != "Y":
+                    raise click.Abort()
+
+            options: dict[str, str | None] = {}
+
+            if source is not None:
+                options["source"] = source
+
+            def _thread_function(unit: str) -> tuple[bool, dict]:
+                try:
+                    r = post_into(
+                        resolve_to_address(unit), "/unit_api/system/update", json={"options": options}
+                    )
+                    r.raise_for_status()
+                    return True, r.json()
+                except HTTPException:
+                    # TODO: remove this code after next release
+                    logger.debug("Falling back on SSH approach")
+                    if source:
+                        result = run_ssh(
+                            [
+                                "ssh",
+                                "-o",
+                                "ConnectTimeout=5",
+                                resolve_to_address(unit),
+                                "pio",
+                                "update",
+                                "app",
+                                "--source",
+                                source,
+                            ]
+                        )
+                    else:
+                        result = run_ssh(
+                            [
+                                "ssh",
+                                "-o",
+                                "ConnectTimeout=5",
+                                resolve_to_address(unit),
+                                "pio",
+                                "update",
+                                "app",
+                            ]
+                        )
+
+                    if result.returncode != 0:
+                        logger.error(f"Unable to update app on {unit} due to server error.")
+                        return False, {"unit": unit}
+                    else:
+                        return True, {"unit": unit}
+                    #########
+
+                    # logger.error(f"Unable to update {target} on {unit} due to server error: {e}.")
+                    # return False
+
+            with ThreadPoolExecutor(max_workers=len(units)) as executor:
+                results = executor.map(_thread_function, units)
+
+            for result, api_result in results:
+                click.secho(api_result, fg="green" if result else "red")
+
+            if not all((r for r in results)):
+                click.Abort()
+
+    @update.command(name="app", short_help="update Pioreactor app on workers")
     @click.option("-b", "--branch", help="update to the github branch")
     @click.option(
         "-r",
@@ -257,8 +338,7 @@ if am_I_leader() or is_testing_env():
     @click.option("-s", "--source", help="install from a source, whl or release archive")
     @which_units
     @confirmation
-    def update(
-        target: str,
+    def update_app(
         branch: str | None,
         repo: str | None,
         version: str | None,
@@ -274,7 +354,7 @@ if am_I_leader() or is_testing_env():
         units = universal_identifier_to_all_workers(units)
 
         if not y:
-            confirm = input(f"Confirm updating {target} on {units}? Y/n: ").strip()
+            confirm = input(f"Confirm updating app on {units}? Y/n: ").strip()
             if confirm != "Y":
                 raise click.Abort()
 
@@ -294,42 +374,83 @@ if am_I_leader() or is_testing_env():
         def _thread_function(unit: str) -> tuple[bool, dict]:
             try:
                 r = post_into(
-                    resolve_to_address(unit), f"/unit_api/system/update/{target}", json={"options": options}
+                    resolve_to_address(unit), "/unit_api/system/update/app", json={"options": options}
                 )
                 r.raise_for_status()
                 return True, r.json()
-            except HTTPException:
-                # TODO: remove this code after next release
-                logger.debug("Falling back on SSH approach")
-                if source:
-                    result = run_ssh(
-                        ["ssh", resolve_to_address(unit), "pio", "update", target, "--source", source]
-                    )
-                elif version:
-                    result = run_ssh(
-                        ["ssh", resolve_to_address(unit), "pio", "update", target, "--version", version]
-                    )
-                else:
-                    raise ValueError("Must supply version or source")
-
-                if result.returncode != 0:
-                    logger.error(f"Unable to update {target} on {unit} due to server error.")
-                    return False, {"unit": unit}
-                else:
-                    return True, {"unit": unit}
-                #########
-
-                # logger.error(f"Unable to update {target} on {unit} due to server error: {e}.")
-                # return False
+            except HTTPException as e:
+                logger.error(f"Unable to update app on {unit} due to server error: {e}.")
+                return False, {"unit": unit}
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
             results = executor.map(_thread_function, units)
 
         for result, api_result in results:
-            click.secho(
-                api_result,
-                fg="green" if result else "red",
-            )
+            click.secho(api_result, fg="green" if result else "red")
+
+        if not all((r for r in results)):
+            click.Abort()
+
+    @update.command(name="ui", short_help="update Pioreactor ui on workers")
+    @click.option("-b", "--branch", help="update to the github branch")
+    @click.option(
+        "-r",
+        "--repo",
+        help="install from a repo on github. Format: username/project",
+    )
+    @click.option("-v", "--version", help="install a specific version, default is latest")
+    @click.option("-s", "--source", help="install from a source")
+    @which_units
+    @confirmation
+    def update_ui(
+        branch: str | None,
+        repo: str | None,
+        version: str | None,
+        source: str | None,
+        units: tuple[str, ...],
+        y: bool,
+    ) -> None:
+        """
+        Pulls and installs a Pioreactor software version across the cluster
+        """
+        logger = create_logger("update", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
+
+        units = universal_identifier_to_all_workers(units)
+
+        if not y:
+            confirm = input(f"Confirm updating ui on {units}? Y/n: ").strip()
+            if confirm != "Y":
+                raise click.Abort()
+
+        options: dict[str, str | None] = {}
+
+        # only one of these three is possible, mutually exclusive
+        if version is not None:
+            options["version"] = version
+        elif branch is not None:
+            options["branch"] = branch
+        elif source is not None:
+            options["source"] = source
+
+        if repo is not None:
+            options["repo"] = repo
+
+        def _thread_function(unit: str) -> tuple[bool, dict]:
+            try:
+                r = post_into(
+                    resolve_to_address(unit), "/unit_api/system/update/ui", json={"options": options}
+                )
+                r.raise_for_status()
+                return True, r.json()
+            except HTTPException as e:
+                logger.error(f"Unable to update ui on {unit} due to server error: {e}.")
+                return False, {"unit": unit}
+
+        with ThreadPoolExecutor(max_workers=len(units)) as executor:
+            results = executor.map(_thread_function, units)
+
+        for result, api_result in results:
+            click.secho(api_result, fg="green" if result else "red")
 
         if not all((r for r in results)):
             click.Abort()
@@ -412,7 +533,7 @@ if am_I_leader() or is_testing_env():
                 return True, r.json()
 
             except HTTPException as e:
-                logger.error(f"Unable to install plugin on {unit} due to server error: {e}.")
+                logger.error(f"Unable to uninstall plugin on {unit} due to server error: {e}.")
                 return False, {"unit": unit}
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:

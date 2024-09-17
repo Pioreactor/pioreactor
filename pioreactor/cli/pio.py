@@ -283,12 +283,21 @@ def update_settings(ctx, job: str) -> None:
         publish(f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value)
 
 
-@pio.group()
-def update() -> None:
+@pio.group(invoke_without_command=True)
+@click.option("--source", help="use a URL, whl file, or release-***.zip file")
+@click.pass_context
+def update(ctx, source: Optional[str]) -> None:
     """
     update software for the app and UI
     """
-    pass
+    if ctx.invoked_subcommand is None:
+        # run update app and then update ui
+        if source is not None:
+            ctx.invoke(update_app, source=source)
+            ctx.invoke(update_ui, source="/tmp/pioreactorui_archive.tar.gz")
+        else:
+            ctx.invoke(update_app)
+            ctx.invoke(update_ui)
 
 
 def get_non_prerelease_tags_of_pioreactor(repo) -> list[str]:
@@ -398,7 +407,7 @@ def update_app(
                     (f"sudo bash {tmp_rls_dir}/pre_update.sh", 2),
                     (f"sudo bash {tmp_rls_dir}/update.sh", 4),
                     (f"sudo bash {tmp_rls_dir}/post_update.sh", 20),
-                    (f"mv {tmp_rls_dir}/pioreactorui_*.tar.gz {tmp_dir}/pioreactorui_archive", 98),  # move ui folder to be accessed by a `pio update ui`
+                    (f"mv {tmp_rls_dir}/pioreactorui_*.tar.gz {tmp_dir}/pioreactorui_archive.tar.gz", 98),  # move ui folder to be accessed by a `pio update ui`
                     (f"sudo rm -rf {tmp_rls_dir}", 99),
                 ]
             )
