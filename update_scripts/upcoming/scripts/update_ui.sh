@@ -19,7 +19,7 @@ trap finish EXIT
 
 # unpack source provided
 tar -xzf "$SRC_TAR" -C $TEMP_DIR
-WORK_DIR=$(find "$TEMP_DIR" -mindepth 1 -maxdepth 1 -type d) # get the directory inside the archive, name is not predictable.
+WORK_DIR=$(find "$TEMP_DIR" -mindepth 1 -maxdepth 1 -type d) # get the directory inside the archive, name is not predictable. TODO: I think I can use --strip-components for this...
 
 echo $WORK_DIR
 # Verify that WORK_DIR is valid

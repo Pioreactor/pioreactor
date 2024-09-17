@@ -393,8 +393,8 @@ def update_app(
             commands_and_priority.extend(
                 [
                     (f"sudo rm -rf {tmp_rls_dir}", -99),
-                    (f"unzip {source} -d {tmp_rls_dir}", 0),
-                    (f"unzip {tmp_rls_dir}/wheels_{version_installed}.zip -d {tmp_rls_dir}/wheels", 1),
+                    (f"unzip -o {source} -d {tmp_rls_dir}", 0),
+                    (f"unzip -o {tmp_rls_dir}/wheels_{version_installed}.zip -d {tmp_rls_dir}/wheels", 1),
                     (f"sudo bash {tmp_rls_dir}/pre_update.sh", 2),
                     (f"sudo bash {tmp_rls_dir}/update.sh", 4),
                     (f"sudo bash {tmp_rls_dir}/post_update.sh", 20),

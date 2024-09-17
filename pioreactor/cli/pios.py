@@ -188,13 +188,14 @@ if am_I_leader() or is_testing_env():
         units: tuple[str, ...],
         y: bool,
     ) -> None:
+        units = remove_leader(universal_identifier_to_all_workers(units))
+
         if not y:
             confirm = input(f"Confirm copying {filepath} onto {units}? Y/n: ").strip()
             if confirm != "Y":
                 raise click.Abort()
 
         logger = create_logger("cp", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
-        units = remove_leader(universal_identifier_to_all_workers(units))
 
         def _thread_function(unit: str) -> bool:
             logger.debug(f"Copying {filepath} to {unit}:{filepath}...")
@@ -219,13 +220,14 @@ if am_I_leader() or is_testing_env():
         units: tuple[str, ...],
         y: bool,
     ) -> None:
-        logger = create_logger("rm", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
         units = remove_leader(universal_identifier_to_all_workers(units))
 
         if not y:
             confirm = input(f"Confirm deleting {filepath} on {units}? Y/n: ").strip()
             if confirm != "Y":
                 raise click.Abort()
+
+        logger = create_logger("rm", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
         def _thread_function(unit: str) -> bool:
             try:
