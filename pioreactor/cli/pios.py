@@ -292,7 +292,6 @@ if am_I_leader() or is_testing_env():
             options["repo"] = repo
 
         def _thread_function(unit: str) -> tuple[bool, dict]:
-            logger.debug(f"Executing update {target} command {unit}...")
             try:
                 r = post_into(
                     resolve_to_address(unit), f"/unit_api/system/update/{target}", json={"options": options}
@@ -366,7 +365,6 @@ if am_I_leader() or is_testing_env():
             commands["options"] = {"source": source}
 
         def _thread_function(unit: str) -> tuple[bool, dict]:
-            click.echo(f"Installing {plugin} on {unit}")
             try:
                 r = post_into(
                     resolve_to_address(unit), "/unit_api/plugins/install", json=commands, timeout=60
@@ -381,10 +379,7 @@ if am_I_leader() or is_testing_env():
             results = executor.map(_thread_function, units)
 
         for result, api_result in results:
-            click.secho(
-                api_result,
-                fg="green" if result else "red",
-            )
+            click.secho(api_result, fg="green" if result else "red")
 
         if not all((r for r in results)):
             click.Abort()
@@ -409,7 +404,6 @@ if am_I_leader() or is_testing_env():
                 raise click.Abort()
 
         def _thread_function(unit: str) -> tuple[bool, dict]:
-            click.echo(f"Uninstalling {plugin} on {unit}")
             try:
                 r = post_into(
                     resolve_to_address(unit), "/unit_api/plugins/uninstall", json=commands, timeout=60
@@ -577,21 +571,23 @@ if am_I_leader() or is_testing_env():
             if confirm != "Y":
                 raise click.Abort()
 
-        def _thread_function(unit: str) -> bool:
-            click.echo(f"Executing run {job} on {unit}.")
+        def _thread_function(unit: str) -> tuple[bool, dict]:
             try:
                 r = post_into(resolve_to_address(unit), f"/unit_api/jobs/run/job_name/{job}", json=data)
                 r.raise_for_status()
-                return True
+                return True, r.json()
             except HTTPException as e:
                 click.echo(f"Unable to execute run command on {unit} due to server error: {e}.")
-                return False
+                return False, {"unit": unit}
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
             results = executor.map(_thread_function, units)
 
-        if not all(results):
-            raise click.Abort()
+        for result, api_result in results:
+            click.secho(api_result, fg="green" if result else "red")
+
+        if not all((r for r in results)):
+            click.Abort()
 
     @pios.command(
         name="shutdown",
