@@ -9,6 +9,7 @@
 #### Bug fixes
  - fixed an issue where a calibrated OD reading would be mapped to max OD signal if it was too low.
  - fixed an issue where the Pioreactor UI would lock up if trying to create a new experiment with an existing name.
+ - fixed Hours Elapsed not updating in Overview
 
 #### Breaking changes
  - **Lots and lots of API changes**. You'll want to review them on our docs: https://docs.pioreactor.com/developer-guide/web-ui-api

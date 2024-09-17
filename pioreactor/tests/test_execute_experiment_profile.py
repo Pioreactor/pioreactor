@@ -678,8 +678,9 @@ def test_execute_experiment_profile_when_action_condition_eventually_met(
         allow_retained=False,
     )
 
-    with start_stirring(target_rpm=500, unit="unit1", experiment=experiment, use_rpm=True):
-        execute_experiment_profile("profile.yaml", experiment)
+    with capture_requests():
+        with start_stirring(target_rpm=500, unit="unit1", experiment=experiment, use_rpm=True):
+            execute_experiment_profile("profile.yaml", experiment)
 
     assert actions == [500, 1000, 200]
 
@@ -730,8 +731,9 @@ def test_execute_experiment_profile_when_action_nested(
         allow_retained=False,
     )
 
-    with start_stirring(target_rpm=500, unit="unit1", experiment=experiment, use_rpm=True):
-        execute_experiment_profile("profile.yaml", experiment)
+    with capture_requests():
+        with start_stirring(target_rpm=500, unit="unit1", experiment=experiment, use_rpm=True):
+            execute_experiment_profile("profile.yaml", experiment)
 
     assert actions == [500, 1000, 200, 400]
 

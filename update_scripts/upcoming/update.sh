@@ -9,7 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 UI_FOLDER=/var/www/pioreactorui
 SYSTEMD_DIR=/lib/systemd/system/
-UI_TAG="TODO" # TODO
+UI_TAG="24.9.16" # TODO
 PIO_DIR="/home/pioreactor/.pioreactor"
 
 HOSTNAME=$(hostname)
@@ -58,11 +58,12 @@ if [ "$HOSTNAME" != "$LEADER_HOSTNAME" ]; then
     cp -u "$SCRIPT_DIR"/50-pioreactorui.conf /etc/lighttpd/conf-available/
     cp -u "$SCRIPT_DIR"/52-api-only.conf     /etc/lighttpd/conf-available/
 
-    /usr/sbin/lighttpd-enable-mod fastcgi
-    /usr/sbin/lighttpd-enable-mod rewrite
-    /usr/sbin/lighttpd-enable-mod pioreactorui
+    # lighttpd-enable-mod returns !0 if already enabled, breaking a potential reinstall.
+    /usr/sbin/lighttpd-enable-mod fastcgi || true
+    /usr/sbin/lighttpd-enable-mod rewrite || true
+    /usr/sbin/lighttpd-enable-mod pioreactorui || true
     # workers only have an api, not served static files.
-    /usr/sbin/lighttpd-enable-mod api-only
+    /usr/sbin/lighttpd-enable-mod api-only || true
 
 
     cp -u "$SCRIPT_DIR"/create_diskcache.sh /usr/local/bin/

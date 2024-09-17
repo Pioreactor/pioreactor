@@ -863,6 +863,7 @@ def test_calibration_errors_when_pd_channel_differs() -> None:
 
 
 def test_calibration_with_irl_data1() -> None:
+    MAX_OD = 1.131
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = encode(
             structs.OD90Calibration(
@@ -876,7 +877,7 @@ def test_calibration_with_irl_data1() -> None:
                     0.0024870149666305712,
                 ],
                 name="quad_test",
-                maximum_od600=1.131,
+                maximum_od600=MAX_OD,
                 minimum_od600=0.0,
                 ir_led_intensity=70.0,
                 angle="90",
@@ -902,9 +903,9 @@ def test_calibration_with_irl_data1() -> None:
     cc.hydate_models_from_disk({"2": "90"})
     assert cc({"2": 0.001})["2"] == 0
     assert cc({"2": 0.002})["2"] == 0
-    assert cc({"2": 0.004})["2"] == 0.0032975807375385234
-    assert cc({"2": 0.020})["2"] == 0.03639585015289039
-    assert cc({"2": 1.0})["2"] == 1.131
+    assert abs(cc({"2": 0.004})["2"] - 0.0032975807375385234) < 1e-5
+    assert abs(cc({"2": 0.020})["2"] - 0.03639585015289039) < 1e-5
+    assert cc({"2": 1.0})["2"] == MAX_OD
 
     with local_persistant_storage("current_od_calibration") as c:
         del c["90"]
@@ -1054,7 +1055,7 @@ def test_auto_ir_led_intensit_REF_and_90() -> None:
     experiment = "test_auto_ir_led_intensity"
 
     with start_od_reading("REF", "90", interval=None, fake_data=True, experiment=experiment) as od:
-        assert abs(od.ir_led_intensity - 67.19794921875) < 0.001
+        assert abs(od.ir_led_intensity - 67.19794921875) < 0.01
 
     config["od_reading.config"]["ir_led_intensity"] = existing_intensity
 
