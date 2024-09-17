@@ -125,7 +125,7 @@ def test_pios_run_requests():
         ctx.forward(run, job="stirring", y=True)
 
     assert len(bucket) == 2
-    assert bucket[0].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/stirring"
+    assert sorted(bucket)[0].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/stirring"
 
 
 def test_pios_run_requests_dedup_and_filter_units():

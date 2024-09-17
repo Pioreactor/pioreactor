@@ -96,6 +96,9 @@ class CapturedRequest:
 
         self.path = r.path
 
+    def __lt__(self, other):
+        return self.path < other.path
+
 
 @contextlib.contextmanager
 def capture_requests():
