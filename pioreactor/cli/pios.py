@@ -291,14 +291,14 @@ if am_I_leader() or is_testing_env():
         if repo is not None:
             options["repo"] = repo
 
-        def _thread_function(unit: str):
+        def _thread_function(unit: str) -> tuple[bool, dict]:
             logger.debug(f"Executing update {target} command {unit}...")
             try:
                 r = post_into(
                     resolve_to_address(unit), f"/unit_api/system/update/{target}", json={"options": options}
                 )
                 r.raise_for_status()
-                return True
+                return True, r.json()
             except HTTPException:
                 # TODO: remove this code after next release
                 logger.debug("Falling back on SSH approach")
@@ -315,9 +315,9 @@ if am_I_leader() or is_testing_env():
 
                 if result.returncode != 0:
                     logger.error(f"Unable to update {target} on {unit} due to server error.")
-                    return False
+                    return False, {"unit": unit}
                 else:
-                    return True
+                    return True, {"unit": unit}
                 #########
 
                 # logger.error(f"Unable to update {target} on {unit} due to server error: {e}.")
@@ -326,8 +326,14 @@ if am_I_leader() or is_testing_env():
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
             results = executor.map(_thread_function, units)
 
-        if not all(results):
-            raise click.Abort()
+        for result, api_result in results:
+            click.secho(
+                f'{api_result.get("unit")}: {api_result.get("result_url_path")}',
+                fg="green" if result else "red",
+            )
+
+        if not all((r for r in results)):
+            click.Abort()
 
     @pios.group()
     def plugins():
@@ -359,23 +365,29 @@ if am_I_leader() or is_testing_env():
         if source:
             commands["options"] = {"source": source}
 
-        def _thread_function(unit: str) -> bool:
+        def _thread_function(unit: str) -> tuple[bool, dict]:
             print(f"Installing {plugin} on {unit}")
             try:
                 r = post_into(
                     resolve_to_address(unit), "/unit_api/plugins/install", json=commands, timeout=60
                 )
                 r.raise_for_status()
-                return True
+                return True, r.json()
             except HTTPException as e:
                 logger.error(f"Unable to install plugin on {unit} due to server error: {e}.")
-                return False
+                return False, {"unit": unit}
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
             results = executor.map(_thread_function, units)
 
-        if not all(results):
-            raise click.Abort()
+        for result, api_result in results:
+            click.secho(
+                f'{api_result.get("unit")}: {api_result.get("result_url_path")}',
+                fg="green" if result else "red",
+            )
+
+        if not all((r for r in results)):
+            click.Abort()
 
     @plugins.command("uninstall", short_help="uninstall a plugin on workers")
     @click.argument("plugin")
@@ -396,24 +408,30 @@ if am_I_leader() or is_testing_env():
             if confirm != "Y":
                 raise click.Abort()
 
-        def _thread_function(unit: str) -> bool:
+        def _thread_function(unit: str) -> tuple[bool, dict]:
             print(f"Uninstalling {plugin} on {unit}")
             try:
                 r = post_into(
                     resolve_to_address(unit), "/unit_api/plugins/uninstall", json=commands, timeout=60
                 )
                 r.raise_for_status()
-                return True
+                return True, r.json()
 
             except HTTPException as e:
                 logger.error(f"Unable to install plugin on {unit} due to server error: {e}.")
-                return False
+                return False, {"unit": unit}
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
             results = executor.map(_thread_function, units)
 
-        if not all(results):
-            raise click.Abort()
+        for result, api_result in results:
+            click.secho(
+                f'{api_result.get("unit")}: {api_result.get("result_url_path")}',
+                fg="green" if result else "red",
+            )
+
+        if not all((r for r in results)):
+            click.Abort()
 
     @pios.command(name="sync-configs", short_help="sync config")
     @click.option(
