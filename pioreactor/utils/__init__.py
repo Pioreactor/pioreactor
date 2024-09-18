@@ -658,9 +658,9 @@ class ClusterJobManager:
         experiment: str | None = None,
         name: str | None = None,
         job_source: str | None = None,
-    ) -> bool:
+    ) -> list[tuple[bool, dict]]:
         if len(self.units) == 0:
-            return True
+            return []
 
         if experiment:
             endpoint = f"/unit_api/jobs/stop/experiment/{experiment}"
@@ -671,19 +671,19 @@ class ClusterJobManager:
         if all_jobs:
             endpoint = "/unit_api/jobs/stop/all"
 
-        def _thread_function(unit: str) -> bool:
+        def _thread_function(unit: str) -> tuple[bool, dict]:
             try:
                 r = patch_into(resolve_to_address(unit), endpoint)
                 r.raise_for_status()
-                return True
+                return True, r.json()
             except Exception as e:
                 print(f"Failed to send kill command to {unit}: {e}")
-                return False
+                return False, {"unit": unit}
 
         with ThreadPoolExecutor(max_workers=len(self.units)) as executor:
             results = executor.map(_thread_function, self.units)
 
-        return all(results)
+        return list(results)
 
     def __enter__(self) -> ClusterJobManager:
         return self
