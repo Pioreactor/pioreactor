@@ -256,6 +256,7 @@ if am_I_leader() or is_testing_env():
     def update(
         ctx,
         source: str | None,
+        branch: str | None,
         units: tuple[str, ...],
         y: bool,
         json: bool,
@@ -273,6 +274,8 @@ if am_I_leader() or is_testing_env():
 
             if source is not None:
                 options["source"] = source
+            elif branch is not None:
+                options["branch"] = branch
 
             def _thread_function(unit: str) -> tuple[bool, dict]:
                 try:
@@ -282,7 +285,7 @@ if am_I_leader() or is_testing_env():
                     r.raise_for_status()
                     return True, r.json()
                 except HTTPException:
-                    # TODO: remove this code after next release
+                    # TODO: remove this code after next release. We are only supporting source and -- for this.
                     logger.debug("Falling back on SSH approach")
                     if source:
                         result = run_ssh(

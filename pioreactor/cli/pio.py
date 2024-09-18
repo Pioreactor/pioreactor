@@ -284,9 +284,10 @@ def update_settings(ctx, job: str) -> None:
 
 
 @pio.group(invoke_without_command=True)
-@click.option("--source", help="use a URL, whl file, or release-***.zip file")
+@click.option("-s", "--source", help="use a URL, whl file, or release-***.zip file")
+@click.option("-b", "--branch", help="specify a branch")
 @click.pass_context
-def update(ctx, source: Optional[str]) -> None:
+def update(ctx, source: Optional[str], branch: Optional[str]) -> None:
     """
     update software for the app and UI
     """
@@ -296,8 +297,8 @@ def update(ctx, source: Optional[str]) -> None:
             ctx.invoke(update_app, source=source)
             ctx.invoke(update_ui, source="/tmp/pioreactorui_archive.tar.gz")
         else:
-            ctx.invoke(update_app)
-            ctx.invoke(update_ui)
+            ctx.invoke(update_app, branch=branch)
+            ctx.invoke(update_ui, branch=branch)
 
 
 def get_non_prerelease_tags_of_pioreactor(repo) -> list[str]:
