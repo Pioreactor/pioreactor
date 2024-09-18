@@ -667,8 +667,10 @@ if am_I_leader() or is_testing_env():
             if confirm != "Y":
                 raise click.Abort()
 
-        with ClusterJobManager(units) as cm:
-            results = cm.kill_jobs(all_jobs=all_jobs, experiment=experiment, job_source=job_source, name=name)
+        with ClusterJobManager() as cm:
+            results = cm.kill_jobs(
+                units, all_jobs=all_jobs, experiment=experiment, job_source=job_source, name=name
+            )
 
         if json:
             for success, api_result in results:

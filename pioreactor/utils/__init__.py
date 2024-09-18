@@ -646,20 +646,20 @@ class JobManager:
 
 
 class ClusterJobManager:
-    def __init__(self, units: tuple[str, ...]) -> None:
+    # this is a context manager to mimic the API for JobManager.
+    def __init__(self) -> None:
         if not whoami.am_I_leader():
             raise RoleError("Must be leader to use this. Maybe you want JobManager?")
 
-        self.units = units
-
+    @staticmethod
     def kill_jobs(
-        self,
+        units: tuple[str, ...],
         all_jobs: bool = False,
         experiment: str | None = None,
         name: str | None = None,
         job_source: str | None = None,
     ) -> list[tuple[bool, dict]]:
-        if len(self.units) == 0:
+        if len(units) == 0:
             return []
 
         if experiment:
@@ -680,8 +680,8 @@ class ClusterJobManager:
                 print(f"Failed to send kill command to {unit}: {e}")
                 return False, {"unit": unit}
 
-        with ThreadPoolExecutor(max_workers=len(self.units)) as executor:
-            results = executor.map(_thread_function, self.units)
+        with ThreadPoolExecutor(max_workers=len(units)) as executor:
+            results = executor.map(_thread_function, units)
 
         return list(results)
 

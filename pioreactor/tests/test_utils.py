@@ -269,8 +269,8 @@ def test_kill_pumping(job_manager):
 def test_ClusterJobManager_sends_requests():
     workers = ["pio01", "pio02", "pio03"]
     with capture_requests() as bucket:
-        with ClusterJobManager(workers) as cm:
-            cm.kill_jobs(name="stirring")
+        with ClusterJobManager() as cm:
+            cm.kill_jobs(workers, name="stirring")
 
     assert len(bucket) == len(workers)
     assert bucket[0].body is None
@@ -283,7 +283,7 @@ def test_ClusterJobManager_sends_requests():
 def test_empty_ClusterJobManager():
     workers = []
     with capture_requests() as bucket:
-        with ClusterJobManager(workers) as cm:
-            cm.kill_jobs(name="stirring")
+        with ClusterJobManager() as cm:
+            cm.kill_jobs(workers, name="stirring")
 
     assert len(bucket) == len(workers)

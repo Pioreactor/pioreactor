@@ -892,8 +892,8 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
                 # stop all jobs started
                 # we can use active workers in experiment, since if a worker leaves an experiment or goes inactive, it's jobs are stopped
                 workers = get_active_workers_in_experiment(experiment)
-                with ClusterJobManager(workers) as jm:
-                    jm.kill_jobs(experiment=experiment, job_source="experiment_profile")
+                with ClusterJobManager() as cjm:
+                    cjm.kill_jobs(workers, experiment=experiment, job_source="experiment_profile")
 
             else:
                 if dry_run:
