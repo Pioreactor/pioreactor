@@ -537,7 +537,7 @@ def update_app(
         else:
             logger.debug(p.stdout)
 
-    logger.notice(f"Updated {whoami.get_unit_name()} to version {version_installed}.")  # type: ignore
+    logger.notice(f"Updated Pioreactor app to version {version_installed}.")  # type: ignore
     # everything work? Let's publish to MQTT. This is a terrible hack, as monitor should do this.
     from pioreactor.pubsub import publish
 
@@ -599,7 +599,7 @@ def update_firmware(version: Optional[str]) -> None:
             # end early
             raise click.Abort()
 
-    logger.notice(f"Updated Pioreactor firmware to version {version_installed}.")  # type: ignore
+    logger.info(f"Updated Pioreactor firmware to version {version_installed}.")  # type: ignore
 
 
 @update.command(name="ui")
@@ -661,7 +661,7 @@ def update_ui(branch: Optional[str], repo: str, source: Optional[str], version: 
             logger.error(p.stderr)
             raise exc.BashScriptError(p.stderr)
 
-    logger.notice(f"Updated PioreactorUI to version {version_installed}.")  # type: ignore
+    logger.info(f"Updated PioreactorUI to version {version_installed}.")  # type: ignore
 
 
 if whoami.am_I_leader():

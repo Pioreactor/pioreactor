@@ -249,6 +249,7 @@ if am_I_leader() or is_testing_env():
 
     @pios.group(invoke_without_command=True)
     @click.option("-s", "--source", help="use a release-***.zip already on the workers")
+    @click.option("-b", "--branch", help="specify a branch in repos")
     @which_units
     @confirmation
     @json_output
