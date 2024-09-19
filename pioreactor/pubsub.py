@@ -69,6 +69,7 @@ def create_client(
     port: int = config.getint("mqtt", "broker_port", fallback=1883),
     tls: bool = config.getboolean("mqtt", "use_tls", fallback="0"),
     skip_loop: bool = False,
+    logger=None,
 ):
     """
     Create a MQTT client and connect to a host.
@@ -89,6 +90,10 @@ def create_client(
         clean_session=clean_session,
         userdata=userdata,
     )
+
+    if logger is not None:
+        client.enable_logger(logger)
+
     client.username_pw_set(
         config.get("mqtt", "username", fallback="pioreactor"),
         config.get("mqtt", "password", fallback="raspberry"),

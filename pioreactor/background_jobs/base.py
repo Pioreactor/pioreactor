@@ -625,6 +625,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             last_will=last_will,
             keepalive=120,
             clean_session=False,  # this, in theory, will reconnect to old subs when we reconnect.
+            logger=self.logger,
         )
         # we catch exceptions and report them in our software
         client.suppress_exceptions = True
