@@ -448,18 +448,20 @@ class Monitor(LongRunningBackgroundJob):
             self.flicker_led_with_error_code(error_codes.MQTT_CLIENT_NOT_CONNECTED_TO_LEADER)
 
             try:
+                self.pub_client.disconnect()
                 error_code_pc = (
                     self.pub_client.reconnect()
                 )  # this may return a MQTT_ERR_SUCCESS, but that only means the CONNECT message is sent, still waiting for a CONNACK.
                 self.logger.debug(f"{error_code_pc=}")
-            except Exception:
-                pass
+            except Exception as e:
+                self.logger.debug(f"{e=}")
 
             try:
+                self.sub_client.disconnect()
                 error_code_sc = self.sub_client.reconnect()
                 self.logger.debug(f"{error_code_sc=}")
-            except Exception:
-                pass
+            except Exception as e:
+                self.logger.debug(f"{e=}")
 
             sleep(1)
 
