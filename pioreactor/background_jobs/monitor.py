@@ -441,7 +441,7 @@ class Monitor(LongRunningBackgroundJob):
         while (not self.pub_client.is_connected()) or (not self.sub_client.is_connected()):
             self.logger.warning(
                 f"""Not able to connect MQTT clients to leader.
-1. Is the mqtt_adress={get_mqtt_address()}, in config.ini correct?
+1. Is the mqtt_adress={get_mqtt_address()} in configuration correct?
 2. Is the Pioreactor leader online and responsive?
 """
             )  # remember, this doesn't get published to leader...
@@ -452,6 +452,7 @@ class Monitor(LongRunningBackgroundJob):
                 error_code_pc = (
                     self.pub_client.reconnect()
                 )  # this may return a MQTT_ERR_SUCCESS, but that only means the CONNECT message is sent, still waiting for a CONNACK.
+                self.pub_client.loop_start()
                 self.logger.debug(f"{error_code_pc=}")
             except Exception as e:
                 self.logger.debug(f"{e=}")
@@ -459,11 +460,12 @@ class Monitor(LongRunningBackgroundJob):
             try:
                 self.sub_client.disconnect()
                 error_code_sc = self.sub_client.reconnect()
+                self.sub_client.loop_start()
                 self.logger.debug(f"{error_code_sc=}")
             except Exception as e:
                 self.logger.debug(f"{e=}")
 
-            sleep(1)
+            sleep(2)
 
             # self.set_state(self.LOST)
 
