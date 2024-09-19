@@ -9,7 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 UI_FOLDER=/var/www/pioreactorui
 SYSTEMD_DIR=/etc/systemd/system/
-UI_TAG="24.9.17" # TODO
+UI_TAG="24.9.19" # TODO
 PIO_DIR="/home/pioreactor/.pioreactor"
 
 HOSTNAME=$(hostname)
@@ -79,15 +79,15 @@ if [ "$HOSTNAME" != "$LEADER_HOSTNAME" ]; then
 
     # we need to restart the monitor jobs on the worker so that the new table (pio_job_metadata) and db exist first
     systemctl restart pioreactor_startup_run@monitor.service
-    sleep 5
+    sleep 1
 
     systemctl enable create_diskcache.service
-    systemctl enable lighttpd.service
     systemctl enable huey.service
+    systemctl enable lighttpd.service
 
     systemctl start create_diskcache.service
-    systemctl start lighttpd.service
     systemctl start huey.service
+    systemctl start lighttpd.service
 
     sleep 2
 
