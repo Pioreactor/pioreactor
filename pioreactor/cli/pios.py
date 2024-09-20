@@ -426,7 +426,7 @@ if am_I_leader() or is_testing_env():
         json: bool,
     ) -> None:
         """
-        Pulls and installs a Pioreactor software version across the cluster
+        Pulls and installs the Pioreactor UI software version across the cluster
         """
 
         units = universal_identifier_to_all_workers(units)

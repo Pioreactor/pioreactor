@@ -672,7 +672,7 @@ class NullCalibrationTransformer(CalibrationTransformer):
         return
 
 
-def closest_point_to_domain(P, D):
+def closest_point_to_domain(P: list[float], D: tuple[float, float]) -> float:
     # Unpack the domain D into its lower and upper bounds
     a, b = D
 
@@ -692,6 +692,7 @@ def closest_point_to_domain(P, D):
             min_distance = distance
             closest_point = p
 
+    assert closest_point is not None
     return closest_point
 
 
@@ -768,8 +769,9 @@ class CachedCalibrationTransformer(CalibrationTransformer):
                             f"Can't compute calibrated data from curve {poly} and point {observed_voltage}"
                         )
 
-                # find the closest root to our OD domain
-                ideal_OD = float(closest_point_to_domain(plausible_ODs_, [min_OD, max_OD]))
+                # more than 0 possibilities...
+                # find the closest root to our OD domain (or in the OD domain)
+                ideal_OD = float(closest_point_to_domain(plausible_ODs_, (min_OD, max_OD)))
 
                 if ideal_OD < min_OD:
                     # voltage less than the blank recorded during the calibration and the calibration curve doesn't have solutions (ex even-deg poly)
@@ -790,6 +792,7 @@ class CachedCalibrationTransformer(CalibrationTransformer):
                         self.has_logged_warning = True
                     return max_OD
                 else:
+                    # happy path
                     return ideal_OD
 
         else:

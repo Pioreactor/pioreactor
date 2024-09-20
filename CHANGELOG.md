@@ -16,13 +16,15 @@
  - We no longer recommend the Raspberry Pi Zero (the original Zero, not the Zero 2.) since supporting a web server + pioreactor functions is too much for a single core.
  - `watchdog` is neutered. It used to try to "wake-up" a job, but this was flaky and causing more problems than it solved.
  - removed python library dependency `sh`
- - APIs that initiate a background task either return with the result, or return a task id that be be looked up at `/api/task_status/`.
+ - APIs that initiate a background task either return with the result, or return a task id that be be looked up at `/unit_api/task_status/`.
  - `pios update` now updates the UI too.
 
 #### Enhancements
  - Better MQTT re-connection logic.
  - New `Manage Inventory` menu on the Inventory page that can be used for bulk actions.
  - `pio update` is a new command to update both the UI and app.
+ - adding more network logs to `network_info.txt`
+ - `pios` commands now return quicker since they post to the workers servers and don't wait around. You can view the status of the worker's by using the output from including `--json`.
 
 
 ### 24.8.22
