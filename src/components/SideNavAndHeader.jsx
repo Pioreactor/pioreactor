@@ -65,10 +65,10 @@ export default function SideNavAndHeader() {
     async function getCurrentApp() {
          await fetch("/unit_api/versions/app")
         .then((response) => {
-          return response.text();
+          return response.json();
         })
         .then((data) => {
-          setVersion(data)
+          setVersion(data['version'])
         });
       }
 

@@ -724,10 +724,10 @@ function InventoryDisplay({isLoading, workers, config}){
     async function getLeaderVersion() {
        await fetch("/unit_api/versions/app")
       .then((response) => {
-        return response.text();
+        return response.json();
       })
       .then((data) => {
-        setLeaderVersion(data)
+        setLeaderVersion(data['version'])
       });
     }
     getLeaderVersion()

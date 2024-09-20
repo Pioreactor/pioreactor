@@ -272,20 +272,20 @@ function PageHeader(props) {
     async function getCurrentAppVersion() {
          await fetch("/unit_api/versions/app")
         .then((response) => {
-          return response.text();
+          return response.json();
         })
         .then((data) => {
-          setVersion(data)
+          setVersion(data['version'])
         });
       }
 
     async function getCurrentUIVersion() {
          await fetch("/unit_api/versions/ui")
         .then((response) => {
-          return response.text();
+          return response.json();
         })
         .then((data) => {
-          setUIVersion(data)
+          setUIVersion(data['version'])
         });
       }
 
