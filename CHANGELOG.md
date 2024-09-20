@@ -1,4 +1,4 @@
-### Upcoming
+### 24.9.19
 
 #### Highlights
  - Workers now have a webserver on them. This is one of the largest architectural changes to Pioreactor, and lays the foundation for better plugin, version, and calibration cluster management, plus future features.
