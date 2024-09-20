@@ -9,7 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 UI_FOLDER=/var/www/pioreactorui
 SYSTEMD_DIR=/etc/systemd/system/
-UI_TAG="24.9.19" # TODO
+UI_TAG="24.9.20"
 PIO_DIR="/home/pioreactor/.pioreactor"
 
 HOSTNAME=$(hostname)
