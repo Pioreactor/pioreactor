@@ -1,3 +1,7 @@
+### Upcoming
+
+ - only show ipv4 in UI and in avahi aliases.
+
 ### 24.9.19
 
 #### Highlights

@@ -183,7 +183,7 @@ def version(verbose: bool) -> None:
         try:
             result = get_from("localhost", "/unit_api/versions/ui")
             result.raise_for_status()
-            ui_version = result.body.decode()
+            ui_version = result.json()['version']
         except Exception:
             ui_version = "<Failed to fetch>"
 

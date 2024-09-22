@@ -16,6 +16,7 @@ from msgspec.yaml import decode
 from pioreactor.cluster_management import get_active_workers_in_experiment
 from pioreactor.exc import MQTTValueError
 from pioreactor.experiment_profiles import profile_struct as struct
+from pioreactor.structs import ArgsOptions
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
 from pioreactor.pubsub import Client
@@ -537,10 +538,10 @@ def start_job(
             else:
                 patch_into_leader(
                     f"/api/workers/{unit}/jobs/run/job_name/{job_name}/experiments/{experiment}",
-                    json={
-                        "options": evaluate_options(options, env) | {"job_source": "experiment_profile"},
-                        "args": args,
-                    },
+                    json=ArgsOptions(
+                        options=evaluate_options(options, env) | {"job_source": "experiment_profile"},
+                        args=args,
+                    )
                 )
         else:
             logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")

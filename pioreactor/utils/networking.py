@@ -75,7 +75,7 @@ def is_reachable(address: str) -> bool:
 
 def get_ip() -> str:
     # returns all ipv4s as comma-separated string
-    result = subprocess.run(["hostname", "-I"], stdout=subprocess.PIPE, text=True)
+    result = subprocess.run(r"hostname -I | grep -Eo '([0-9]*\.){3}[0-9]*' | tr '\n' '\n'", capture_output=True, text=True, shell=True)
     ipv4_addresses = result.stdout.strip().split()
     if ipv4_addresses:
         return ",".join(ipv4_addresses)

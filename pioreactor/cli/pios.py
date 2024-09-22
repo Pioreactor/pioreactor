@@ -10,7 +10,6 @@ general API:
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
-from subprocess import run as run_ssh
 
 import click
 from msgspec.json import encode as dumps
@@ -21,6 +20,7 @@ from pioreactor.config import config
 from pioreactor.config import get_leader_hostname
 from pioreactor.exc import RsyncError
 from pioreactor.logging import create_logger
+from pioreactor.structs import ArgsOptions
 from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import post_into
 from pioreactor.utils import ClusterJobManager
@@ -67,7 +67,7 @@ if am_I_leader() or is_testing_env():
     confirmation = click.option("-y", is_flag=True, help="Skip asking for confirmation.")
     json_output = click.option("--json", is_flag=True, help="output as json")
 
-    def parse_click_arguments(input_list: list[str]) -> dict:
+    def parse_click_arguments(input_list: list[str]) -> ArgsOptions:
         args: list[str] = []
         opts: dict[str, str | None] = {}
 
@@ -91,7 +91,7 @@ if am_I_leader() or is_testing_env():
 
             i += 1
 
-        return {"args": args, "options": opts}
+        return ArgsOptions(args=args, options=opts)
 
     def universal_identifier_to_all_active_workers(workers: tuple[str, ...]) -> tuple[str, ...]:
         active_workers = get_active_workers_in_inventory()
@@ -281,49 +281,13 @@ if am_I_leader() or is_testing_env():
             def _thread_function(unit: str) -> tuple[bool, dict]:
                 try:
                     r = post_into(
-                        resolve_to_address(unit), "/unit_api/system/update", json={"options": options}
+                        resolve_to_address(unit), "/unit_api/system/update", json=ArgsOptions(options=options)
                     )
                     r.raise_for_status()
                     return True, r.json()
                 except HTTPException:
-                    # TODO: remove this code after next release. We are only supporting source and -- for this.
-                    logger.debug("Falling back on SSH approach")
-                    if source:
-                        result = run_ssh(
-                            [
-                                "ssh",
-                                "-o",
-                                "ConnectTimeout=5",
-                                resolve_to_address(unit),
-                                "pio",
-                                "update",
-                                "app",
-                                "--source",
-                                source,
-                            ]
-                        )
-                    else:
-                        result = run_ssh(
-                            [
-                                "ssh",
-                                "-o",
-                                "ConnectTimeout=5",
-                                resolve_to_address(unit),
-                                "pio",
-                                "update",
-                                "app",
-                            ]
-                        )
-
-                    if result.returncode != 0:
-                        logger.error(f"Unable to update app on {unit} due to server error.")
-                        return False, {"unit": unit}
-                    else:
-                        return True, {"unit": unit}
-                    #########
-
-                    # logger.error(f"Unable to update {target} on {unit} due to server error: {e}.")
-                    # return False
+                    logger.error(f"Unable to update {target} on {unit} due to server error: {e}.")
+                    return False
 
             with ThreadPoolExecutor(max_workers=len(units)) as executor:
                 results = executor.map(_thread_function, units)
@@ -385,7 +349,7 @@ if am_I_leader() or is_testing_env():
         def _thread_function(unit: str) -> tuple[bool, dict]:
             try:
                 r = post_into(
-                    resolve_to_address(unit), "/unit_api/system/update/app", json={"options": options}
+                    resolve_to_address(unit), "/unit_api/system/update/app", json=ArgsOptions(options=options)
                 )
                 r.raise_for_status()
                 return True, r.json()
@@ -453,7 +417,7 @@ if am_I_leader() or is_testing_env():
         def _thread_function(unit: str) -> tuple[bool, dict]:
             try:
                 r = post_into(
-                    resolve_to_address(unit), "/unit_api/system/update/ui", json={"options": options}
+                    resolve_to_address(unit), "/unit_api/system/update/ui", json=ArgsOptions(options=options)
                 )
                 r.raise_for_status()
                 return True, r.json()
@@ -499,10 +463,10 @@ if am_I_leader() or is_testing_env():
                 raise click.Abort()
 
         logger = create_logger("install_plugin", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
-        commands = {"args": [plugin], "options": dict()}
+        commands = ArgsOptions(args=[plugin])
 
         if source:
-            commands["options"] = {"source": source}
+            commands.options["source"] = source
 
         def _thread_function(unit: str) -> tuple[bool, dict]:
             try:
@@ -544,7 +508,7 @@ if am_I_leader() or is_testing_env():
                 raise click.Abort()
 
         logger = create_logger("uninstall_plugin", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
-        commands = {"args": [plugin]}
+        commands = ArgsOptions(args=[plugin])
 
         def _thread_function(unit: str) -> tuple[bool, dict]:
             try:
