@@ -1,5 +1,6 @@
 import React from "react";
-import moment from "moment";
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
 
 import Grid from '@mui/material/Grid';
 import FormGroup from '@mui/material/FormGroup';
@@ -14,13 +15,10 @@ import {useNavigate } from 'react-router-dom';
 import SaveIcon from '@mui/icons-material/Save';
 import LoadingButton from '@mui/lab/LoadingButton';
 
-
-//import CleaningScript from "./components/CleaningScript"
-// import AssignLabels from "./components/AssignLabels"
-//import RunFromExperimentProfile from "./components/RunFromExperimentProfile"
-//import StartSensors from "./components/StartSensors"
-//import StartCalculations from "./components/StartCalculations"
 import { useExperiment } from './providers/ExperimentContext';
+
+// Activate the UTC plugin
+dayjs.extend(utc);
 
 
 
@@ -104,7 +102,7 @@ function FreeSoloCreateOption(props) {
 
 function ExperimentSummaryForm(props) {
   const { updateExperiment } = useExperiment();
-  const timestamp = moment.utc()
+  const timestamp = dayjs.utc()
   const [formError, setFormError] = React.useState(false);
   const [helperText, setHelperText] = React.useState(" ");
   const [expName, setExpName] = React.useState("");

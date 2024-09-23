@@ -18,7 +18,7 @@
     "codeflask": "^1.4.1",
     "js-yaml": "^4.1.0",
     "material-ui-confirm": "^3.0.5",
-    "moment": "^2.29.1",
+    "dayjs": "^1.11.13",
     "mqtt": "^5.7.0",
     "prismjs": "^1.29.0",
     "react": "^18.3.1",
@@ -43,16 +43,19 @@
     "extends": "react-app"
   },
   "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
+   "production": [
+     "> 0.5%",
+     "last 2 versions",
+     "Firefox ESR",
+     "not dead",
+     "safari >= 15.4",
+     "iOS >= 15.4"
+   ],
+   "development": [
+     "last 1 chrome version",
+     "last 1 firefox version",
+     "last 1 safari version"
+   ]
   },
   "devDependencies": {
     "@babel/plugin-proposal-private-property-in-object": "^7.21.11",

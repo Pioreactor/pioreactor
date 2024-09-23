@@ -1,5 +1,5 @@
 import React from "react";
-import moment from "moment";
+import dayjs from "dayjs";
 
 import FormLabel from '@mui/material/FormLabel';
 import FormControl from '@mui/material/FormControl';
@@ -49,7 +49,7 @@ function ExperimentSelection(props) {
   }
 
   const experimentOptions = experiments.map((v, index) => {
-            return <MenuItem key={index} value={v.experiment}>{v.experiment +  (v.created_at ? ` (${moment(v.created_at).format("MMMM D, YYYY")})` : "")}</MenuItem>
+            return <MenuItem key={index} value={v.experiment}>{v.experiment +  (v.created_at ? ` (${dayjs(v.created_at).format("MMMM D, YYYY")})` : "")}</MenuItem>
   })
 
   return (
@@ -70,7 +70,7 @@ function ExperimentSelection(props) {
           Experiment created
         </Typography>
         <Typography variant="body2" style={{whiteSpace: "pre-line"}} gutterBottom>
-          {moment(selectedExperient?.created_at).format("MMMM D, YYYY, h:mm a")}
+          {dayjs(selectedExperient?.created_at).format("MMMM D, YYYY, h:mm a")}
         </Typography>
         <Typography sx={{ fontSize: 16, pt: 1}} color="text.secondary" gutterBottom>
           Description

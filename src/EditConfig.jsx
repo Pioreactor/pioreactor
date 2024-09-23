@@ -16,7 +16,7 @@ import Editor from 'react-simple-code-editor';
 import { highlight, languages } from 'prismjs';
 import 'prismjs/components/prism-ini';
 
-import moment from "moment";
+import dayjs from "dayjs";
 
 
 function EditableCodeDiv(props) {
@@ -153,7 +153,7 @@ function EditableCodeDiv(props) {
                 onChange={onSelectionHistoricalChange}
               >
                 {state.historicalConfigs.map((v, i) => (
-                  <MenuItem key={v.timestamp} value={v.timestamp}>{i === 0 ? "Current" : moment(v.timestamp).format("MMM DD [at] hh:mm a")}</MenuItem>
+                  <MenuItem key={v.timestamp} value={v.timestamp}>{i === 0 ? "Current" : dayjs(v.timestamp).format("MMM DD, YYYY [at] hh:mm a")}</MenuItem>
                 ))}
               </Select>
             </div>

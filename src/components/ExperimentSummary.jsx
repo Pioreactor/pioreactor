@@ -1,5 +1,6 @@
 import React from 'react'
-import moment from "moment";
+import dayjs from "dayjs";
+//import dayjs from "dayjs";
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/Card';
 import {Typography} from '@mui/material';
@@ -10,6 +11,7 @@ import Divider from '@mui/material/Divider';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import TimelapseIcon from '@mui/icons-material/Timelapse';
 import ManageExperimentMenu from "./ManageExperimentMenu";
+import UnderlineSpan from "./UnderlineSpan";
 
 
 
@@ -118,7 +120,7 @@ function ExperimentSummary({experimentMetadata, updateExperiment}){
               </Box>
               <Box fontWeight="fontWeightRegular" sx={{mr: "1%", display:"inline-block"}}>
                 {(startedAt !== "") &&
-                <span title={moment(startedAt).format("YYYY-MM-DD HH:mm:ss")}>{moment(startedAt).format("dddd, MMMM D, h:mm a")}</span>
+                <UnderlineSpan title={dayjs(startedAt).format("YYYY-MM-DD HH:mm:ss")}>{dayjs(startedAt).format("dddd, MMMM D, h:mm a")}</UnderlineSpan>
                 }
               </Box>
             </Box>

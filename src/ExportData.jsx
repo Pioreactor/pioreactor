@@ -1,5 +1,5 @@
 import React from "react";
-import moment from "moment";
+import dayjs from "dayjs";
 
 import Grid from '@mui/material/Grid';
 import FormLabel from '@mui/material/FormLabel';
@@ -70,7 +70,7 @@ function ExperimentSelection(props) {
           onChange={handleExperimentSelectionChange}
         >
           {experiments.map((v) => {
-            return <MenuItem key={v.experiment} value={v.experiment}>{v.experiment +  (v.created_at ? ` (started ${moment(v.created_at).format("MMMM D, YYYY")})` : "")}</MenuItem>
+            return <MenuItem key={v.experiment} value={v.experiment}>{v.experiment +  (v.created_at ? ` (started ${dayjs(v.created_at).format("MMMM D, YYYY")})` : "")}</MenuItem>
             }
           )}
         </Select>

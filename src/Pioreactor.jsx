@@ -1,4 +1,4 @@
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 import React, {useState, useEffect} from "react";
 
@@ -1281,7 +1281,7 @@ function SettingsActionsDialog(props) {
                     Last updated at
                 </td>
                 <td >
-                  <StylizedCode>{voltageInfo.timestamp ? moment.utc(voltageInfo.timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]').local().format('MMMM Do, h:mm a') : "-"}</StylizedCode>
+                  <StylizedCode>{voltageInfo.timestamp ? dayjs.utc(voltageInfo.timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]').local().format('MMMM Do, h:mm a') : "-"}</StylizedCode>
                 </td>
               </tr>
             </table>

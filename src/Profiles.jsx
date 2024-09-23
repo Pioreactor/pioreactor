@@ -1,5 +1,5 @@
 import React from "react";
-import moment from "moment";
+import dayjs from "dayjs";
 
 import FormControl from '@mui/material/FormControl';
 import Grid from "@mui/material/Grid";
@@ -305,7 +305,7 @@ function ProfilesContainer({experiment, config}){
                 <CalendarTodayIcon sx={{ fontSize: 12, verticalAlign: "-1px" }}/> Profile started at:&nbsp;
               </Box>
               <Box fontWeight="fontWeightRegular" sx={{mr: "1%", display:"inline-block"}}>
-                {(startTime && moment(startTime).format("dddd, MMMM D, h:mm a")) || "-"}
+                {(startTime && dayjs(startTime).format("dddd, MMMM D, h:mm a")) || "-"}
               </Box>
             </Box>
 

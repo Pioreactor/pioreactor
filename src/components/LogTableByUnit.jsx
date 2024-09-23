@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useMQTT } from '../providers/MQTTContext'; // Import the useMQTT hook
-import moment from 'moment';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
@@ -13,6 +14,9 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import { styled } from '@mui/material/styles';
 import {ERROR_COLOR, WARNING_COLOR, NOTICE_COLOR} from "../utilities"
+
+// Activate the UTC plugin
+dayjs.extend(utc);
 
 
 const StyledTableCell = styled(TableCell)(({ theme, level }) => {
@@ -100,13 +104,13 @@ function LogTableByUnit({experiment, unit}) {
   }, [client, experiment]);
 
   const toTimestampObject = (timestamp) => {
-    return moment.utc(timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]')
+    return dayjs.utc(timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]')
   }
 
   const timestampCell = (timestampStr) => {
     const ts = toTimestampObject(timestampStr);
     const localTs = ts.local();
-    return <span title={localTs.format('YYYY-MM-DD HH:mm:ss.SS')}>{localTs.format('HH:mm:ss')}</span>;
+    return <span title={localTs.format('YYYY-MM-DD HH:mm:ss')}>{localTs.format('HH:mm:ss')}</span>;
   };
 
   const onMessage = (topic, message, packet) => {
@@ -116,12 +120,12 @@ function LogTableByUnit({experiment, unit}) {
 
     setListOfLogs(currentLogs => [
       {
-        timestamp: moment.utc().format('YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]'),
+        timestamp: dayjs.utc().format('YYYY-MM-DD[T]HH:mm:ss.SSS[Z]'),
         pioreactor_unit: unit,
         message: String(payload.message),
         task: payload.task,
         level: payload.level.toUpperCase(),
-        key: `${moment.utc().format()}-${unit}-${payload.level.toUpperCase()}-${String(payload.message)}`,
+        key: `${dayjs.utc().format()}-${unit}-${payload.level.toUpperCase()}-${String(payload.message)}`,
       },
       ...currentLogs.slice(0, 49)
     ]);

@@ -11,8 +11,11 @@ import {
   VictoryTooltip,
   createContainer
 } from "victory";
-import moment from "moment";
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
 
+// Activate the UTC plugin
+dayjs.extend(utc);
 
 const sensorRe = /(.*)-[12]/;
 
@@ -98,10 +101,10 @@ class Chart extends React.Component {
 
     var transformX
     if (this.props.byDuration){
-      const experimentStartTime = moment.utc(this.props.experimentStartTime)
-      transformX = (x) => Math.round(moment.utc(x, 'YYYY-MM-DDTHH:mm:ss.SSSSS').diff(experimentStartTime, 'hours', true) * 1e3)/1e3
+      const experimentStartTime = dayjs.utc(this.props.experimentStartTime)
+      transformX = (x) => Math.round(dayjs.utc(x, 'YYYY-MM-DDTHH:mm:ss.SSS').diff(experimentStartTime, 'hours', true) * 1e3)/1e3
     } else {
-      transformX = (x) => moment.utc(x, 'YYYY-MM-DDTHH:mm:ss.SSSSS').local()
+      transformX = (x) => dayjs.utc(x, 'YYYY-MM-DDTHH:mm:ss.SSS').local()
     }
 
     await fetch(`/api/experiments/${this.props.experiment}/time_series/${this.props.dataSource}${this.props.dataSourceColumn ? "/" + this.props.dataSourceColumn : ""}?${queryParams}`)
@@ -214,17 +217,17 @@ class Chart extends React.Component {
             if (!payload.hasOwnProperty(this.props.payloadKey)) {
                 throw new Error(`Payload key '${this.props.payloadKey}' not found in the message.`);
             }
-            var timestamp = moment.utc(payload.timestamp);
+            var timestamp = dayjs.utc(payload.timestamp);
             var y_value = parseFloat(payload[this.props.payloadKey]);
         } else {
             var y_value = parseFloat(message.toString());
-            var timestamp = moment.utc();
+            var timestamp = dayjs.utc();
         }
     } catch (error) {
         // Exit or handle the error appropriately
         return;
     }
-    var duration = Math.round(timestamp.diff(moment.utc(this.props.experimentStartTime), 'hours', true) * 1e3)/1e3
+    var duration = Math.round(timestamp.diff(dayjs.utc(this.props.experimentStartTime), 'hours', true) * 1e3)/1e3
     var local_timestamp = timestamp.local()
     const x_value = this.props.byDuration ? duration : local_timestamp
 

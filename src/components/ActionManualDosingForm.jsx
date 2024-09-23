@@ -9,7 +9,7 @@ import FormControl from '@mui/material/FormControl';
 import InputAdornment from '@mui/material/InputAdornment';
 import {runPioreactorJob} from "../utilities"
 
-import moment from 'moment';
+import dayjs from 'dayjs';
 
 
 const actionTextField = {
@@ -40,7 +40,7 @@ export default function ActionPumpForm(props) {
     e.preventDefault();
     if (mL > 0) {
 
-      var msg = `Recorded ${actionToAct[manualAction]} of ${mL} mL at ${moment().format('h:mm:ss a')}.`
+      var msg = `Recorded ${actionToAct[manualAction]} of ${mL} mL at ${dayjs().format('h:mm:ss a')}.`
       var params = { ml: parseFloat(mL), source_of_event: "manually", manually: true};
       runPioreactorJob(props.unit, props.experiment, manualAction, [], params)
       setSnackbarMsg(msg)
