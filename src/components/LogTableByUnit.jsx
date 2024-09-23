@@ -144,7 +144,7 @@ function LogTableByUnit({experiment, unit}) {
             </TableHead>
             <TableBody>
               {listOfLogs.map( (log, i) => (
-                <>
+                <React.Fragment key={log.key}>
                 <TableRow key={log.key}>
                   <StyledTimeTableCell level={log.level}>
                     {timestampCell(log.timestamp)}
@@ -154,12 +154,12 @@ function LogTableByUnit({experiment, unit}) {
                 </TableRow>
                 {
                   listOfLogs[i+1] && (toTimestampObject(log.timestamp).diff(toTimestampObject(listOfLogs[i+1].timestamp), 'hours', true) >= 1) && (
-                    <TableRow key={-log.key}>
+                    <TableRow key={`filler-${log.key}`}>
                       <StyledTableCellFiller colspan="3">{toTimestampObject(log.timestamp).diff(toTimestampObject(listOfLogs[i+1].timestamp), 'hours')} hours earlier...</StyledTableCellFiller>
                     </TableRow>
                   )
                 }
-                </>
+                </React.Fragment>
 
               ))}
             </TableBody>

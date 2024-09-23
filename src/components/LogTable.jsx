@@ -158,7 +158,7 @@ function LogTable({byDuration, experimentStartTime, experiment, config, relabelM
             </TableHead>
             <TableBody>
               {listOfLogs.map( (log, i) => (
-                <>
+                <React.Fragment key={log.key}>
                 <TableRow key={log.key}>
                   <StyledTimeTableCell level={log.level}>
                     {timestampCell(log.timestamp)}
@@ -169,12 +169,12 @@ function LogTable({byDuration, experimentStartTime, experiment, config, relabelM
                 </TableRow>
                 {
                   listOfLogs[i+1] && (toTimestampObject(log.timestamp).diff(toTimestampObject(listOfLogs[i+1].timestamp), 'hours', true) >= 1) && (
-                    <TableRow key={-log.key}>
+                    <TableRow key={`filler-${log.key}`}>
                       <StyledTableCellFiller colspan="4">{toTimestampObject(log.timestamp).diff(toTimestampObject(listOfLogs[i+1].timestamp), 'hours')} hours earlier...</StyledTableCellFiller>
                     </TableRow>
                   )
                 }
-                </>
+                </React.Fragment>
 
               ))}
             </TableBody>
