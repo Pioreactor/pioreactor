@@ -266,7 +266,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self._source = source
         self._job_source = environ.get(
             "JOB_SOURCE", default="user"
-        )  # ex: could be JOB_SOURCE=experiment_profile, or JOB_SOURCE=external_provider
+        )  # ex: could be JOB_SOURCE=experiment_profile, or JOB_SOURCE=external_provider.
 
         # why do we need two clients? Paho lib can't publish a message in a callback,
         # but this is critical to our usecase: listen for events, and fire a response (ex: state change)

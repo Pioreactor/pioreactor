@@ -183,7 +183,7 @@ def version(verbose: bool) -> None:
         try:
             result = get_from("localhost", "/unit_api/versions/ui")
             result.raise_for_status()
-            ui_version = result.json()['version']
+            ui_version = result.json()["version"]
         except Exception:
             ui_version = "<Failed to fetch>"
 
@@ -192,10 +192,15 @@ def version(verbose: bool) -> None:
         click.echo(pioreactor.__version__)
 
 
-@pio.command(name="view-cache", short_help="print out the contents of a cache")
+@pio.group()
+def cache():
+    pass
+
+
+@cache.command(name="view", short_help="print out the contents of a cache")
 @click.argument("cache")
 def view_cache(cache: str) -> None:
-    import os.path
+    from pathlib import Path
     import tempfile
 
     tmp_dir = tempfile.gettempdir()
@@ -205,10 +210,10 @@ def view_cache(cache: str) -> None:
     )
 
     # is it a temp cache or persistant cache?
-    if os.path.isdir(f"{tmp_dir}/{cache}"):
+    if Path(f"{tmp_dir}/{cache}").is_dir():
         cacher = local_intermittent_storage
 
-    elif os.path.isdir(f"{persistant_dir}/{cache}"):
+    elif Path(f"{persistant_dir}/{cache}").is_dir():
         cacher = local_persistant_storage
 
     else:
@@ -220,12 +225,12 @@ def view_cache(cache: str) -> None:
             click.echo(f"{click.style(key, bold=True)} = {c[key]}")
 
 
-@pio.command(name="clear-cache", short_help="clear out the contents of a cache")
+@cache.command(name="clear", short_help="clear out the contents of a cache")
 @click.argument("cache")
 @click.argument("key")
 @click.option("--as-int", is_flag=True, help="evict after casting key to int, useful for gpio pins.")
 def clear_cache(cache: str, key: str, as_int: bool) -> None:
-    import os.path
+    from pathlib import Path
     import tempfile
 
     tmp_dir = tempfile.gettempdir()
@@ -235,10 +240,10 @@ def clear_cache(cache: str, key: str, as_int: bool) -> None:
     )
 
     # is it a temp cache or persistant cache?
-    if os.path.isdir(f"{tmp_dir}/{cache}"):
+    if Path(f"{tmp_dir}/{cache}").is_dir():
         cacher = local_intermittent_storage
 
-    elif os.path.isdir(f"{persistant_dir}/{cache}"):
+    elif Path(f"{persistant_dir}/{cache}").is_dir():
         cacher = local_persistant_storage
 
     else:

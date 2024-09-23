@@ -1,6 +1,8 @@
 ### Upcoming
 
  - only show ipv4 in UI and in avahi aliases.
+ - `pio clear-cache` renamed to `pio cache clear`
+ - `pio view-cache` renamed to `pio cache view`
 
 ### 24.9.19
 

@@ -39,7 +39,7 @@ def cp_file_across_cluster(unit: str, localpath: str, remotepath: str, timeout: 
 
 
 def is_using_local_access_point() -> bool:
-    return Path("/boot/firmware/local_access_point").is_file()
+    return Path("/boot/firmware/local_access_point").exists()
 
 
 def is_hostname_on_network(hostname: str, timeout: float = 10.0) -> bool:
@@ -75,7 +75,12 @@ def is_reachable(address: str) -> bool:
 
 def get_ip() -> str:
     # returns all ipv4s as comma-separated string
-    result = subprocess.run(r"hostname -I | grep -Eo '([0-9]*\.){3}[0-9]*' | tr '\n' '\n'", capture_output=True, text=True, shell=True)
+    result = subprocess.run(
+        r"hostname -I | grep -Eo '([0-9]*\.){3}[0-9]*' | tr '\n' '\n'",
+        capture_output=True,
+        text=True,
+        shell=True,
+    )
     ipv4_addresses = result.stdout.strip().split()
     if ipv4_addresses:
         return ",".join(ipv4_addresses)
@@ -147,12 +152,21 @@ def resolve_to_address(hostname: str) -> str:
 
 
 def add_local(hostname: str) -> str:
+    hostname_lower = hostname.lower()
+
+    # Check if it's localhost first
+    if hostname_lower == "localhost":
+        return hostname
+
+    # Check if it's a valid IP address
     try:
-        # if it looks like an IP, don't continue
         ipaddress.ip_address(hostname)
         return hostname
     except ValueError:
         pass
-    if not hostname.endswith(".local"):
+
+    # Add .local if not already present
+    if not hostname_lower.endswith(".local"):
         return hostname + ".local"
+
     return hostname

@@ -16,7 +16,6 @@ from msgspec.yaml import decode
 from pioreactor.cluster_management import get_active_workers_in_experiment
 from pioreactor.exc import MQTTValueError
 from pioreactor.experiment_profiles import profile_struct as struct
-from pioreactor.structs import ArgsOptions
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
 from pioreactor.pubsub import Client
@@ -183,13 +182,6 @@ def wrapped_execute_action(
     # hack...
     if job_name == "led_intensity":
         action = _led_intensity_hack(action)
-
-    # TODO: remove in a future version.
-    if job_name in ["temperature_control", "led_control", "dosing_control"]:
-        logger.warning(
-            f'Found deprecated `{job_name}` in profile. Update this to `{job_name.replace("control", "automation")}` (or combine with existing `{job_name.replace("control", "automation")}`). See changelog.'
-        )
-        job_name = job_name.replace("control", "automation")
 
     env = global_env | {"unit": unit, "experiment": experiment, "job_name": job_name}
 
@@ -538,10 +530,11 @@ def start_job(
             else:
                 patch_into_leader(
                     f"/api/workers/{unit}/jobs/run/job_name/{job_name}/experiments/{experiment}",
-                    json=ArgsOptions(
-                        options=evaluate_options(options, env) | {"job_source": "experiment_profile"},
-                        args=args,
-                    )
+                    json={
+                        "options": evaluate_options(options, env),
+                        "env": {"JOB_SOURCE": "experiment_profile", "EXPERIMENT": experiment},
+                        "args": args,
+                    },
                 )
         else:
             logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")

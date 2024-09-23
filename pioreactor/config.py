@@ -4,6 +4,7 @@ from __future__ import annotations
 import configparser
 import os
 from functools import cache
+from pathlib import Path
 
 
 def __getattr__(attr):  # type: ignore
@@ -130,7 +131,7 @@ def get_config() -> ConfigParserMod:
         global_config_path = "/home/pioreactor/.pioreactor/config.ini"
         local_config_path = "/home/pioreactor/.pioreactor/unit_config.ini"
 
-    if not os.path.isfile(global_config_path):
+    if not Path(global_config_path).exists():
         raise FileNotFoundError(
             f"Configuration file at {global_config_path} is missing. Has it completed initializing? Does it need to connect to a leader? Alternatively, use the env variable GLOBAL_CONFIG to specify its location."
         )

@@ -101,18 +101,27 @@ def test_execute_experiment_profile_hack_for_led_intensity(mock__load_experiment
     assert (
         bucket[0].path == "/api/workers/unit1/jobs/run/job_name/led_intensity/experiments/_testing_experiment"
     )
-    assert bucket[0].json == {"options": {"A": 50, "job_source": "experiment_profile"}, "args": []}
+    assert bucket[0].json == {
+        "options": {"A": 50},
+        "args": [],
+        "env": {"JOB_SOURCE": "experiment_profile", "EXPERIMENT": "_testing_experiment"},
+    }
 
     assert (
         bucket[1].path == "/api/workers/unit1/jobs/run/job_name/led_intensity/experiments/_testing_experiment"
     )
-    assert bucket[1].json == {"options": {"A": 40, "B": 22.5, "job_source": "experiment_profile"}, "args": []}
+    assert bucket[1].json == {
+        "options": {"A": 40, "B": 22.5},
+        "args": [],
+        "env": {"JOB_SOURCE": "experiment_profile", "EXPERIMENT": "_testing_experiment"},
+    }
 
     assert (
         bucket[2].path == "/api/workers/unit1/jobs/run/job_name/led_intensity/experiments/_testing_experiment"
     )
     assert bucket[2].json == {
-        "options": {"A": 0, "B": 0, "C": 0, "D": 0, "job_source": "experiment_profile"},
+        "options": {"A": 0, "B": 0, "C": 0, "D": 0},
+        "env": {"JOB_SOURCE": "experiment_profile", "EXPERIMENT": "_testing_experiment"},
         "args": [],
     }
 

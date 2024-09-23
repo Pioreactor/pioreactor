@@ -3,17 +3,13 @@ from __future__ import annotations
 
 import subprocess
 from contextlib import suppress
-from shlex import join
-from shlex import quote
 from threading import Thread
 from time import sleep
 from time import time
-from typing import Any
 from typing import Callable
 from typing import Optional
 
 import click
-from msgspec.json import decode as loads
 
 from pioreactor import error_codes
 from pioreactor import utils
@@ -21,9 +17,7 @@ from pioreactor import version
 from pioreactor import whoami
 from pioreactor.background_jobs.base import LongRunningBackgroundJob
 from pioreactor.config import config
-from pioreactor.config import get_config
 from pioreactor.config import get_mqtt_address
-from pioreactor.exc import NotAssignedAnExperimentError
 from pioreactor.hardware import GPIOCHIP
 from pioreactor.hardware import is_HAT_present
 from pioreactor.hardware import PCB_BUTTON_PIN as BUTTON_PIN
@@ -32,7 +26,6 @@ from pioreactor.hardware import TEMP
 from pioreactor.pubsub import QOS
 from pioreactor.structs import Voltage
 from pioreactor.types import MQTTMessage
-from pioreactor.types import MQTTMessagePayload
 from pioreactor.utils.gpio_helpers import set_gpio_availability
 from pioreactor.utils.networking import get_ip
 from pioreactor.utils.timing import current_utc_datetime
@@ -83,9 +76,7 @@ class Monitor(LongRunningBackgroundJob):
      5. Use the LED blinks to report error codes to the user, see error_codes module
         can also be invoked with the MQTT topic:
          pioreactor/{unit}/+/monitor/flicker_led_with_error_code   error_code as message
-     6. Listens to MQTT for job to start, on the topic
-         pioreactor/{unit}/$experiment/run/{job_name}   json-encoded args as message
-     7. Checks for connection to leader
+     6. Checks for connection to leader
 
 
      TODO: start a watchdog job on all pioreactors (currently only on leader), and let it monitor the network activity.
@@ -636,137 +627,6 @@ class Monitor(LongRunningBackgroundJob):
 
         self.led_in_use = False
 
-    def run_job_on_machine(self, msg: MQTTMessage) -> None:
-        """
-        Listens to messages on pioreactor/{self.unit}/+/run/job_name
-
-        Payload should look like:
-        {
-          "options": {
-            "option_A": "value1",
-            "option_B": "value2"
-            "flag": None
-          },
-          "args": ["arg1", "arg2"]
-        }
-
-
-        effectively runs:
-        > pio run job_name arg1 arg2 --option-A value1 --option-B value2 --flag
-
-        """
-        topic = msg.topic
-        payload = msg.payload
-
-        # this dedups on topic to avoid a stampede of requests for the same task
-        if (topic, payload) in self._processed_topics_and_payloads:
-            return
-
-        self._processed_topics_and_payloads.add((topic, payload))
-
-        return self._run_job_on_machine(topic, payload)
-
-    def _run_job_on_machine(self, topic: str, raw_payload: MQTTMessagePayload) -> None:
-        # we use a thread below since we want to exit this callback without blocking it.
-        # a blocked callback can disconnect from MQTT broker, prevent other callbacks, etc.
-        # TODO: we should this entire code into a thread...
-
-        topic_parts = topic.split("/")
-        job_name = topic_parts[-1]
-        experiment = topic_parts[2]
-
-        if experiment != whoami.UNIVERSAL_EXPERIMENT:
-            # we put this into two if statements to minimize chances we have to fetch data.
-            try:
-                assigned_experiment = whoami._get_assigned_experiment_name(self.unit)
-            except NotAssignedAnExperimentError:
-                assigned_experiment = whoami.NO_EXPERIMENT
-
-            # make sure I'm assigned to the correct experiment
-            if experiment != assigned_experiment:
-                return
-        else:
-            assigned_experiment = None
-
-        payload = loads(raw_payload) if raw_payload else {"options": {}, "args": []}
-
-        options = payload.get("options", {})
-        args = payload.get("args", [])
-
-        # this is a performance hack and should be changed later...
-        if job_name == "led_intensity":
-            # TODO: this needs to check if active / assigned
-            # the below would work, but is very slow for a callback
-            # putting it in led_intensity makes everything else slow (ex: od_reading)
-            # if not whoami.is_active(self.unit):
-            #    return
-
-            from pioreactor.actions.led_intensity import led_intensity, ALL_LED_CHANNELS
-
-            state = {ch: float(options.pop(ch)) for ch in ALL_LED_CHANNELS if ch in options}
-            options["pubsub_client"] = self.pub_client
-            options["unit"] = self.unit
-            options["experiment"] = experiment  # techdebt
-            options.pop("job_source", "")  # techdebt, led_intensity doesn't use job_source
-            Thread(
-                target=utils.boolean_retry,
-                args=(led_intensity,),
-                kwargs={"sleep_for": 0.4, "retries": 5, "args": (state,), "kwargs": options},
-            ).start()
-
-        elif job_name in {
-            "add_media",
-            "add_alt_media",
-            "remove_waste",
-            "circulate_media",
-            "circulate_alt_media",
-        }:
-            # is_active is checked in the lifecycle block
-
-            from pioreactor.actions import pump as pump_actions
-
-            pump_action = getattr(pump_actions, job_name)
-
-            options["unit"] = self.unit
-            options["experiment"] = experiment  # techdebt
-            options["config"] = get_config()  # techdebt
-            Thread(target=pump_action, kwargs=options, daemon=True).start()
-
-        else:
-            command = self._job_options_and_args_to_shell_command(
-                job_name, assigned_experiment, args, options
-            )
-            Thread(
-                target=subprocess.run,
-                args=(command,),
-                kwargs={"shell": True, "start_new_session": True},
-                daemon=True,
-            ).start()
-            self.logger.debug(f"Running `{command}` from monitor job.")
-
-    @staticmethod
-    def _job_options_and_args_to_shell_command(
-        job_name: str, experiment: Optional[str], args: list[str], options: dict[str, Any]
-    ) -> str:
-        core_command = ["pio", "run", job_name]
-
-        # job source could be experiment_profile, but defaults to user
-        # we actually can skip another API request by reusing the assigned experiment above...
-        env = f'JOB_SOURCE={quote(options.pop("job_source", "user"))}'
-        if experiment:
-            env += f" EXPERIMENT={quote(experiment)}"
-
-        list_of_options: list[str] = []
-        for option, value in options.items():
-            list_of_options.append(f"--{option.replace('_', '-')}")
-            if value is not None:
-                # this handles flag arguments, like --dry-run
-                list_of_options.append(str(value))
-
-        # shell-escaped to protect against injection vulnerabilities, see join docs
-        # we don't escape the suffix.
-        return env + " " + join(["nohup"] + core_command + args + list_of_options) + " >/dev/null 2>&1 &"
-
     def flicker_error_code_from_mqtt(self, message: MQTTMessage) -> None:
         if self.led_in_use:
             return
@@ -794,17 +654,6 @@ class Monitor(LongRunningBackgroundJob):
             self.flicker_error_code_from_mqtt,
             f"pioreactor/{self.unit}/+/{self.job_name}/flicker_led_with_error_code",
             qos=QOS.AT_LEAST_ONCE,
-        )
-
-        # one can also start jobs via MQTT, using the following topics.
-        # The payload provided is a json dict of options for the command line invocation of the job.
-        self.subscribe_and_callback(
-            self.run_job_on_machine,
-            [
-                f"pioreactor/{self.unit}/+/run/+",
-                f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/+/run/+",
-            ],
-            allow_retained=False,
         )
 
 
