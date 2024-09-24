@@ -1,16 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 CLI for running the commands on workers, or otherwise interacting with the workers.
-
-general API:
-
- - All `pios` commands should have a -y to confirm the execution.
-
 """
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any
 
 import click
 from msgspec.json import encode as dumps
@@ -463,7 +457,7 @@ if am_I_leader() or is_testing_env():
                 raise click.Abort()
 
         logger = create_logger("install_plugin", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
-        commands: dict[str, Any] = {"args": [plugin]}
+        commands = {"args": [plugin], "options": {}}
 
         if source:
             commands["options"] = {"source": source}

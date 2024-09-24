@@ -5,7 +5,6 @@ import subprocess
 from contextlib import suppress
 from threading import Thread
 from time import sleep
-from time import time
 from typing import Callable
 from typing import Optional
 
@@ -16,7 +15,9 @@ from pioreactor import utils
 from pioreactor import version
 from pioreactor import whoami
 from pioreactor.background_jobs.base import LongRunningBackgroundJob
+from pioreactor.cluster_management import get_workers_in_inventory
 from pioreactor.config import config
+from pioreactor.config import get_leader_hostname
 from pioreactor.config import get_mqtt_address
 from pioreactor.hardware import GPIOCHIP
 from pioreactor.hardware import is_HAT_present
@@ -24,9 +25,11 @@ from pioreactor.hardware import PCB_BUTTON_PIN as BUTTON_PIN
 from pioreactor.hardware import PCB_LED_PIN as LED_PIN
 from pioreactor.hardware import TEMP
 from pioreactor.pubsub import QOS
+from pioreactor.pubsub import subscribe
 from pioreactor.structs import Voltage
 from pioreactor.types import MQTTMessage
 from pioreactor.utils.gpio_helpers import set_gpio_availability
+from pioreactor.utils.networking import discover_workers_on_network
 from pioreactor.utils.networking import get_ip
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import current_utc_timestamp
@@ -36,33 +39,6 @@ from pioreactor.utils.timing import to_datetime
 if whoami.is_testing_env():
     from pioreactor.utils.mock import MockCallback
     from pioreactor.utils.mock import MockHandle
-
-
-class ExpiringMembershipSet:
-    """
-    A quick lookup to see if a object was recently added or not (min_time duration).
-
-    Use `S.add(x)` and `x in S` semantics.
-
-    """
-
-    def __init__(self, min_time=1):
-        self.data = dict()
-        self.min_time = min_time
-
-    def __contains__(self, item):
-        now = time()
-        if item in self.data and (now - self.data[item]) < self.min_time:
-            return True
-        else:
-            return False
-
-    def add(self, item):
-        now = time()
-        self.data[item] = now
-
-    def clear(self):
-        self.data = dict()
 
 
 class Monitor(LongRunningBackgroundJob):
@@ -78,9 +54,6 @@ class Monitor(LongRunningBackgroundJob):
          pioreactor/{unit}/+/monitor/flicker_led_with_error_code   error_code as message
      6. Checks for connection to leader
 
-
-     TODO: start a watchdog job on all pioreactors (currently only on leader), and let it monitor the network activity.
-     OR merge the watchdog with monitor
 
 
     Notes
@@ -123,7 +96,6 @@ class Monitor(LongRunningBackgroundJob):
     led_in_use: bool = False
     _pre_button: list[Callable] = []
     _post_button: list[Callable] = []
-    _processed_topics_and_payloads = ExpiringMembershipSet(min_time=0.5)
 
     def __init__(self, unit: str, experiment: str) -> None:
         super().__init__(unit=unit, experiment=experiment)
@@ -284,9 +256,6 @@ class Monitor(LongRunningBackgroundJob):
             # check for MQTT connection to leader
             self.check_for_mqtt_connection_to_leader()
 
-        # clean up our queue so it doesn't grow without bound.
-        self._processed_topics_and_payloads.clear()
-
     def check_for_correct_permissions(self) -> None:
         if whoami.is_testing_env():
             return
@@ -384,10 +353,8 @@ class Monitor(LongRunningBackgroundJob):
             self.logger.error(f"Error checking huey status: {e}")
 
     def check_for_required_jobs_running(self) -> None:
-        if not all(utils.is_pio_job_running(["watchdog", "mqtt_to_db_streaming"])):
-            self.logger.warning(
-                "watchdog and mqtt_to_db_streaming should be running on leader. Double check."
-            )
+        if not utils.is_pio_job_running("mqtt_to_db_streaming"):
+            self.logger.warning("mqtt_to_db_streaming should be running on leader. Double check.")
 
     def check_for_HAT(self) -> None:
         if not is_HAT_present():
@@ -475,6 +442,10 @@ class Monitor(LongRunningBackgroundJob):
         self.logger.notice(f"{self.unit} is online and ready.")  # type: ignore
 
         # we can delay this check until ready.
+
+    def on_init_to_ready(self) -> None:
+        if whoami.am_I_leader():
+            Thread(target=self.announce_new_workers, daemon=True).start()
 
     def on_disconnected(self) -> None:
         import lgpio
@@ -642,6 +613,35 @@ class Monitor(LongRunningBackgroundJob):
 
         self.versions = self.versions | data
 
+    def watch_for_lost_state(self, state_message: MQTTMessage) -> None:
+        unit = state_message.topic.split("/")[1]
+
+        # ignore if leader is "lost"
+        if (
+            (state_message.payload.decode() == self.LOST)
+            and (unit != self.unit)
+            and (unit in get_workers_in_inventory())
+        ):
+            self.logger.warning(f"{unit} seems to be lost.")
+
+    def announce_new_workers(self) -> None:
+        sleep(10)  # wait for the web server to be available
+        for worker in discover_workers_on_network():
+            # not in current cluster, and not leader
+            if (worker not in get_workers_in_inventory()) and (worker != get_leader_hostname()):
+                # is there an MQTT state for this worker?
+                # a new worker doesn't have the leader_address, so it won't connect to the leaders MQTT.
+                result = subscribe(
+                    f"pioreactor/{worker}/{whoami.UNIVERSAL_EXPERIMENT}/monitor/$state",
+                    timeout=3,
+                    name=self.job_name,
+                    retries=1,
+                )
+                if result is None or result.payload.decode() == self.LOST:
+                    self.logger.notice(  # type: ignore
+                        f"Pioreactor worker, {worker}, is available to be added to your cluster."
+                    )
+
     def start_passive_listeners(self) -> None:
         self.subscribe_and_callback(
             self.flicker_led_response_okay_and_publish_state,
@@ -655,6 +655,13 @@ class Monitor(LongRunningBackgroundJob):
             f"pioreactor/{self.unit}/+/{self.job_name}/flicker_led_with_error_code",
             qos=QOS.AT_LEAST_ONCE,
         )
+
+        if whoami.am_I_leader():
+            self.subscribe_and_callback(
+                self.watch_for_lost_state,
+                "pioreactor/+/+/monitor/$state",
+                allow_retained=False,
+            )
 
 
 @click.command(name="monitor")
