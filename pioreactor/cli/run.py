@@ -11,7 +11,6 @@ from pioreactor.automations.temperature import *  # noqa: F403, F401
 from pioreactor.background_jobs.dosing_automation import click_dosing_automation
 from pioreactor.background_jobs.growth_rate_calculating import click_growth_rate_calculating
 from pioreactor.background_jobs.leader.mqtt_to_db_streaming import click_mqtt_to_db_streaming
-from pioreactor.background_jobs.leader.watchdog import click_watchdog
 from pioreactor.background_jobs.led_automation import click_led_automation
 from pioreactor.background_jobs.monitor import click_monitor
 from pioreactor.background_jobs.od_reading import click_od_reading
@@ -57,7 +56,6 @@ for plugin in plugin_management.get_plugins().values():
 
 if am_I_leader():
     run.add_command(click_mqtt_to_db_streaming)
-    run.add_command(click_watchdog)
     run.add_command(actions.export_experiment_data.click_export_experiment_data)
     run.add_command(actions.backup_database.click_backup_database)
     run.add_command(actions.experiment_profile.click_experiment_profile)

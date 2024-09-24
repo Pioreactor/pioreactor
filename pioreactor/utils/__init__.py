@@ -535,7 +535,7 @@ class JobManager:
         "circulate_media",
         "circulate_alt_media",
     )
-    LONG_RUNNING_JOBS = ("monitor", "mqtt_to_db_streaming", "watchdog")
+    LONG_RUNNING_JOBS = ("monitor", "mqtt_to_db_streaming")
 
     def __init__(self) -> None:
         self.db_path = f"{tempfile.gettempdir()}/local_intermittent_pioreactor_metadata.sqlite"

@@ -616,7 +616,7 @@ if am_I_leader() or is_testing_env():
         > pios kill stirring dosing_automation
 
 
-        Kill all worker jobs (i.e. this excludes leader jobs like watchdog). Ignores `job` argument.
+        Kill all worker jobs (i.e. this excludes leader jobs like monitor). Ignores `job` argument.
 
         > pios kill --all-jobs -y
 
