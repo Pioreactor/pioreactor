@@ -48,7 +48,7 @@ export default function ActionPumpForm(props) {
         params = { duration: parseFloat(duration), source_of_event: "UI"}
         msg = actionToAct[props.action] + (" for " +  duration + " seconds.")
       } else {
-        params = {continuously: true, source_of_event: "UI"}
+        params = {continuously: null, source_of_event: "UI"}
         msg = actionToAct[props.action] + " continuously"
       }
 

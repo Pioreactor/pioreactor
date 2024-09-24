@@ -12,6 +12,7 @@ import UpdateIcon from '@mui/icons-material/Update';
 import Toolbar from '@mui/material/Toolbar';
 import FormControl from '@mui/material/FormControl';
 import Select from '@mui/material/Select';
+import Tooltip from '@mui/material/Tooltip';
 import ListSubheader from '@mui/material/ListSubheader';
 import {AppBar, Typography, Button} from '@mui/material';
 import PioreactorIcon from './PioreactorIcon';
@@ -40,6 +41,124 @@ const DrawerStyled = styled(Drawer)(({ theme }) => ({
 }));
 
 
+const ConditionalTooltip = ({condition, title, children}) => {
+  return (
+    <>
+      {condition ? (
+        <Tooltip placement="top" title={title}>
+          {children}
+        </Tooltip>
+      ) : (
+        children
+      )}
+    </>
+  );
+};
+
+
+const SelectableMenuItem = ({allExperiments, experiment, updateExperiment}) => {
+  const navigate = useNavigate();
+  const [selectOpen, setSelectOpen] = React.useState(false);
+  const [activeExperiments, setActiveExperiments] = React.useState(new Set([]))
+
+  React.useEffect(() => {
+    async function getActiveExperiments() {
+         await fetch("/api/experiments/assignment_count")
+        .then((response) => {
+          return response.json();
+        })
+        .then((data) => {
+          setActiveExperiments(new Set(data.map(item => item.experiment)))
+        })
+      }
+    getActiveExperiments()
+  }, [])
+
+  const handleMenuItemClick = (e) => {
+    e.stopPropagation()
+    setSelectOpen(true);
+  };
+
+  const handleSelectClose = (e) => {
+    e.stopPropagation()
+    setSelectOpen(false);
+  };
+  const handleSelectOpen = () => {
+    setSelectOpen(true);
+  };
+
+  function handleExperimentChange(e) {
+    const currentPath = window.location.pathname.split('/')[1]; // Assumes the base path is at the first segment
+    const allowedPaths = ['pioreactors', 'experiment-profiles', 'overview'];
+
+    if (!allowedPaths.includes(currentPath)) {
+      navigate('/overview');
+    }
+
+    if (e.target.value){
+      updateExperiment(allExperiments.find(obj => obj.experiment === e.target.value));
+    }
+
+    setSelectOpen(false)
+  }
+  return (
+
+    <ConditionalTooltip
+      title={experiment}
+      condition={experiment.length > 20}
+    >
+    <MenuItem onClick={handleMenuItemClick} icon={<ScienceOutlinedIcon />}>
+      <FormControl variant="standard" fullWidth>
+        <Select
+          open={selectOpen}
+          onClose={handleSelectClose}
+          value={experiment}
+          label="Experiment"
+          onChange={handleExperimentChange}
+          MenuProps={{ classes: { paper: { maxHeight: 400 } } }}
+          sx={{
+            '&:before': {
+              borderColor: 'rgba(0, 0, 0, 0);',
+            },
+            '&:after': {
+              borderColor: 'rgba(0, 0, 0, 0);',
+            },
+            '&:not(.Mui-disabled):hover::before': {
+              borderColor: 'rgba(0, 0, 0, 0);',
+            },
+          }}
+        >
+          <MenuItemMUI value={null} component={Link} to="/start-new-experiment">
+            <AddCircleOutlineIcon fontSize="15" sx={{ verticalAlign: 'middle', margin: '0px 3px' }} />
+            New experiment
+          </MenuItemMUI>
+          <Divider />
+          <ListSubheader>Active</ListSubheader>
+          {allExperiments
+            .filter((e) => activeExperiments.has(e.experiment))
+            .map((e) => (
+              <MenuItemMUI key={e.experiment} value={e.experiment}>
+                {e.experiment}
+              </MenuItemMUI>
+            ))}
+          <Divider />
+          <ListSubheader>Inactive</ListSubheader>
+          {allExperiments
+            .filter((e) => !activeExperiments.has(e.experiment))
+            .map((e) => (
+              <MenuItemMUI key={e.experiment} value={e.experiment}>
+                {e.experiment}
+              </MenuItemMUI>
+            ))}
+        </Select>
+      </FormControl>
+    </MenuItem>
+    </ConditionalTooltip>
+  );
+};
+
+
+
 export default function SideNavAndHeader() {
   const location = useLocation()
 
@@ -47,9 +166,7 @@ export default function SideNavAndHeader() {
   const [version, setVersion] = React.useState(null)
   const [lap, setLAP] = React.useState(false)
   const [latestVersion, setLatestVersion] = React.useState(null)
-  const [activeExperiments, setActiveExperiments] = React.useState(new Set([]))
   const {experimentMetadata, updateExperiment, allExperiments} = useExperiment()
-  const navigate = useNavigate();
 
   React.useEffect(() => {
     async function getLAP() {
@@ -85,20 +202,9 @@ export default function SideNavAndHeader() {
         });
       }
 
-    async function getActiveExperiments() {
-         await fetch("/api/experiments/assignment_count")
-        .then((response) => {
-          return response.json();
-        })
-        .then((data) => {
-          setActiveExperiments(new Set(data.map(item => item.experiment)))
-        })
-      }
-
-      getCurrentApp()
-      getLatestVersion()
-      getLAP()
-      getActiveExperiments()
+    getCurrentApp()
+    getLatestVersion()
+    getLAP()
   }, [])
 
   const handleDrawerToggle = () => {
@@ -109,23 +215,11 @@ export default function SideNavAndHeader() {
     return (location.pathname === path)
   }
 
-  function handleExperimentChange(e) {
-    const currentPath = window.location.pathname.split('/')[1]; // Assumes the base path is at the first segment
-    const allowedPaths = ['pioreactors', 'experiment-profiles', 'overview'];
-
-    if (!allowedPaths.includes(currentPath)) {
-      navigate('/overview');
-    }
-
-    if (e.target.value){
-      updateExperiment(allExperiments.find(obj => obj.experiment === e.target.value));
-    }
-  }
 
   const list = () => (
     <Sidebar rootStyles={{height: "100%"}} width="230px" backgroundColor="white">
       <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-        <div  style={{ flex: 1}}>
+        <div style={{ flex: 1}}>
 
           <Menu
               style={{minWidth: "230px", width: "230px", height: "100%"}}
@@ -147,47 +241,11 @@ export default function SideNavAndHeader() {
                 }
               }}
             >
-              <MenuItem
-                icon={<ScienceOutlinedIcon/>}
-              >
-                <FormControl
-                    variant="standard"
-                    fullWidth>
-                  <Select
-                    value={experimentMetadata.experiment || ""}
-                    label="Experiment"
-                    onChange={handleExperimentChange}
-                    MenuProps={{ classes: { paper: {maxHeight: 400} } }}
-                    sx={{
-                      '&:before': {
-                        borderColor: 'rgba(0, 0, 0, 0);',
-                      },
-                      '&:after': {
-                        borderColor: 'rgba(0, 0, 0, 0);',
-                      },
-                        '&:not(.Mui-disabled):hover::before': {
-                          borderColor: 'rgba(0, 0, 0, 0);',
-                      },
-                    }}
-                  >
-                      <MenuItemMUI  value={null} component={Link} to="/start-new-experiment">
-                        <AddCircleOutlineIcon fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> New experiment
-                      </MenuItemMUI>
-                    <Divider/>
-                    <ListSubheader>Active</ListSubheader>
-                    {allExperiments.filter(e => activeExperiments.has(e.experiment)).map((e) => {
-                        return <MenuItemMUI key={e.experiment} value={e.experiment}>{e.experiment}</MenuItemMUI>
-                      })
-                     }
-                    <Divider/>
-                    <ListSubheader>Inactive</ListSubheader>
-                    {allExperiments.filter(e => !activeExperiments.has(e.experiment)).map((e) => {
-                        return <MenuItemMUI key={e.experiment} value={e.experiment}>{e.experiment}</MenuItemMUI>
-                      })
-                     }
-                  </Select>
-                </FormControl>
-              </MenuItem>
+              <SelectableMenuItem
+                experiment={experimentMetadata.experiment || ""}
+                allExperiments={allExperiments}
+                updateExperiment={updateExperiment}
+                />
 
               <MenuItem
                 icon={<DashboardOutlinedIcon/>}

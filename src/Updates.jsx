@@ -86,7 +86,7 @@ function UploadArchiveAndConfirm(props) {
 
   const handleUpdate = async (savePath) => {
     try {
-      await fetch("/api/update_app_from_release_archive", {
+      await fetch("/api/system/update_from_archive", {
         method: "POST",
         body: JSON.stringify({ release_archive_location: savePath }),
         headers: {
@@ -174,7 +174,7 @@ function UpdateSoftwareConfirmDialog(props) {
   const updateVersion = () => {
     setOpenSnackbar(true)
     if (installOption === "latest") {
-      fetch("/api/update_app", {method: "POST"})
+      fetch("/api/system/update_next_version", {method: "POST"})
     }
   }
 

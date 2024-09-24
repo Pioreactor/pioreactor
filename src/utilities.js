@@ -60,7 +60,7 @@ export function getRelabelMap(setCallback, experiment="current") {
 export function runPioreactorJob(unit, experiment, job, args = [], options = {}) {
     return fetch(`/api/workers/${unit}/jobs/run/job_name/${job}/experiments/${experiment}`, {
       method: "PATCH",
-      body: JSON.stringify({ args: args, options: options }),
+      body: JSON.stringify({ args: args, options: options, env: {EXPERIMENT: experiment, JOB_SOURCE: "user"} }),
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json'

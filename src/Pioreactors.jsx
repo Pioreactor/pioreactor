@@ -637,7 +637,7 @@ function CalibrateDialog(props) {
                <PatientButton
                 color="primary"
                 variant="contained"
-                onClick={() => runPioreactorJob(props.unit, '$experiment', job)}
+                onClick={() => runPioreactorJob(props.unit, props.experiment, job)}
                 buttonText="Start"
                 disabled={always_disable}
                />
@@ -699,7 +699,7 @@ function CalibrateDialog(props) {
             <div style={{display: "flex"}}>
               {blankODButton}
               <div>
-                <Button size="small" sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}} color="secondary" disabled={(props.odBlankReading === null) || (isGrowRateJobRunning)} onClick={() => runPioreactorJob(props.unit, '$experiment', "od_blank", ['delete']) }> Clear </Button>
+                <Button size="small" sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}} color="secondary" disabled={(props.odBlankReading === null) || (isGrowRateJobRunning)} onClick={() => runPioreactorJob(props.unit, props.experiment, "od_blank", ['delete']) }> Clear </Button>
               </div>
             </div>
             <ManageDivider/>
@@ -2476,6 +2476,7 @@ function PioreactorCard(props){
                 <SelfTestDialog
                   client={client}
                   disabled={!isUnitActive}
+                  experiment={experiment}
                   unit={unit}
                   label={label}
                   selfTestState={jobs['self_test'] ? jobs['self_test'].state : null}

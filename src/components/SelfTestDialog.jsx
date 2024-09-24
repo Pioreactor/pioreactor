@@ -59,7 +59,7 @@ function PatientButton(props) {
 }
 
 
-export default function SelfTestDialog({client, disabled, unit,label ,selfTestState, selfTestTests}) {
+export default function SelfTestDialog({client, disabled, experiment, unit, label ,selfTestState, selfTestTests}) {
   const [open, setOpen] = useState(false);
 
   const handleClickOpen = () => {
@@ -109,7 +109,7 @@ export default function SelfTestDialog({client, disabled, unit,label ,selfTestSt
                <PatientButton
                 color="primary"
                 variant="contained"
-                onClick={() => runPioreactorJob(unit, '$experiment', "self_test")}
+                onClick={() => runPioreactorJob(unit, experiment, "self_test")}
                 buttonText="Start"
                />
               </Box>)
@@ -174,7 +174,7 @@ export default function SelfTestDialog({client, disabled, unit,label ,selfTestSt
                 color="primary"
                 variant="text"
                 disabled={!(selfTestTests?.publishedSettings.all_tests_passed.value === false) || ["init", "ready"].includes(selfTestState)}
-                onClick={() => runPioreactorJob(unit, '$experiment', "self_test", [], {"retry-failed": null})}
+                onClick={() => runPioreactorJob(unit, experiment, "self_test", [], {"retry-failed": null})}
                >
                Retry failed tests
                </Button>

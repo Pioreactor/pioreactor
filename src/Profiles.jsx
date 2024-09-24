@@ -99,7 +99,7 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName, s
 
   const onSubmit = () => {
     setConfirmed(true)
-    runPioreactorJob(leaderHostname, '$experiment' , 'experiment_profile', ['execute', selectedExperimentProfile, experiment], (dryRun ? {'dry-run': null} : {}))
+    runPioreactorJob(leaderHostname, experiment , 'experiment_profile', ['execute', selectedExperimentProfile, experiment], (dryRun ? {'dry-run': null} : {}))
   }
 
   const onStop = () => {
