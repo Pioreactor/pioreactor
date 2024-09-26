@@ -7,8 +7,8 @@
 
 #### Bug fixes
  - only show ipv4 in UI and in avahi aliases.
- - fixed experiment profile plugin checks
- - fixed experiment profile display crashing the UI when editing plugins
+ - fixed experiment profile plugin checks.
+ - fixed experiment profile display crashing the UI when editing plugins section.
 
 #### Breaking changes
  - `pio clear-cache` renamed to `pio cache clear`

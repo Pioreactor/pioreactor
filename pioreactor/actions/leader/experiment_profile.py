@@ -764,19 +764,19 @@ def push_labels_to_ui(experiment, labels_map: dict[str, str]) -> None:
         pass
 
 
-def get_plugins_and_versions() -> dict[str, str]:
+def get_installed_plugins_and_versions() -> dict[str, str]:
     local_plugins = {name: metadata.version for name, metadata in get_plugins().items()}
     return local_plugins
 
 
 def check_plugins(required_plugins: list[struct.Plugin]) -> None:
-    """Check if the specified packages with versions are installed"""
+    """Check if the specified plugins with versions are installed"""
 
     if not required_plugins:
         # this can be slow, so skip it if no plugins are needed
         return
 
-    installed_plugins = get_plugins_and_versions()
+    installed_plugins = get_installed_plugins_and_versions()
     not_installed = []
 
     for required_plugin in required_plugins:
@@ -792,6 +792,10 @@ def check_plugins(required_plugins: list[struct.Plugin]) -> None:
                 # Version constraint is '<='
                 if not (installed_version <= required_version[2:]):
                     not_installed.append(required_plugin)
+            elif required_version.startswith("=="):
+                # specific version constraint, exact version match required
+                if installed_version != required_version:
+                    not_installed.append(required_plugin)
             else:
                 # No version constraint, exact version match required
                 if installed_version != required_version:
@@ -800,7 +804,7 @@ def check_plugins(required_plugins: list[struct.Plugin]) -> None:
             not_installed.append(required_plugin)
 
     if not_installed:
-        raise ImportError(f"Missing packages {not_installed}")
+        raise ImportError(f"Missing plugins: {not_installed}")
 
 
 def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: bool = False) -> None:
