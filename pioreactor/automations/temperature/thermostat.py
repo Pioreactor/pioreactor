@@ -41,6 +41,8 @@ class Thermostat(TemperatureAutomationJob):
 
         self.set_target_temperature(target_temperature)
 
+    def on_init_to_ready(self):
+        self.super().on_init_to_ready()
         if not is_pio_job_running("stirring"):
             self.logger.warning("It's recommended to have stirring on when using the thermostat.")
 
