@@ -824,7 +824,9 @@ def test_plugin_version_checks(
 
     profile_with_wrong_version = Profile(
         experiment_profile_name="test_profile",
-        plugins=[Plugin(name="my-example-plugin", version="<=0.1.0")],  # this plugin is locally present in CI
+        plugins=[
+            Plugin(name="my-example-plugin", version="<=0.1.0")
+        ],  # this plugin is locally present in CI, but version 0.2.0
         common=CommonBlock(jobs={}),
         pioreactors={},
         metadata=Metadata(author="test_author"),
@@ -835,7 +837,7 @@ def test_plugin_version_checks(
 
     profile_with_missing_package = Profile(
         experiment_profile_name="test_profile",
-        plugins=[Plugin(name="doesnt-exist", version="<=0.1.0")],  # this plugin is locally present in CI
+        plugins=[Plugin(name="doesnt-exist", version="<=0.1.0")],
         common=CommonBlock(jobs={}),
         pioreactors={},
         metadata=Metadata(author="test_author"),
@@ -843,3 +845,17 @@ def test_plugin_version_checks(
     mock__load_experiment_profile.return_value = profile_with_missing_package
     with pytest.raises(ImportError):
         execute_experiment_profile("profile.yaml", experiment)
+
+    profile_with_nontrivial_version = Profile(
+        experiment_profile_name="test_profile",
+        plugins=[
+            Plugin(name="my-example-plugin", version="<=0.15.1"),
+            Plugin(name="my-example-plugin", version=">=0.0.1"),
+            Plugin(name="my-example-plugin", version="<=1.0.1"),
+        ],
+        common=CommonBlock(jobs={}),
+        pioreactors={},
+        metadata=Metadata(author="test_author"),
+    )
+    mock__load_experiment_profile.return_value = profile_with_nontrivial_version
+    execute_experiment_profile("profile.yaml", experiment)

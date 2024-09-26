@@ -776,6 +776,8 @@ def check_plugins(required_plugins: list[struct.Plugin]) -> None:
         # this can be slow, so skip it if no plugins are needed
         return
 
+    from packaging.version import Version
+
     installed_plugins = get_installed_plugins_and_versions()
     not_installed = []
 
@@ -783,22 +785,22 @@ def check_plugins(required_plugins: list[struct.Plugin]) -> None:
         required_name = required_plugin.name
         required_version = required_plugin.version
         if required_name in installed_plugins:
-            installed_version = installed_plugins[required_name]
+            installed_version = Version(installed_plugins[required_name])
             if required_version.startswith(">="):
                 # Version constraint is '>='
-                if not (installed_version >= required_version[2:]):
+                if not (installed_version >= Version(required_version[2:])):
                     not_installed.append(required_plugin)
             elif required_version.startswith("<="):
                 # Version constraint is '<='
-                if not (installed_version <= required_version[2:]):
+                if not (installed_version <= Version(required_version[2:])):
                     not_installed.append(required_plugin)
             elif required_version.startswith("=="):
                 # specific version constraint, exact version match required
-                if installed_version != required_version:
+                if installed_version != Version(required_version):
                     not_installed.append(required_plugin)
             else:
                 # No version constraint, exact version match required
-                if installed_version != required_version:
+                if installed_version != Version(required_version):
                     not_installed.append(required_plugin)
         else:
             not_installed.append(required_plugin)
