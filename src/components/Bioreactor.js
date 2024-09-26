@@ -190,7 +190,7 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
     ];
 
     const warningRects = [
-      { text: '⚠ liquid volume above may not be an accurate\nreflection of the vial volume - observe carefully.', x: 40, y: 450, width: 320, height: 50, radius: 5 },
+      { text: '⚠ diagram above may not be an accurate\nrepresentation of the actual volume - observe carefully.', x: 40, y: 450, width: 320, height: 50, radius: 5 },
     ]
 
     var dynamicRects = []

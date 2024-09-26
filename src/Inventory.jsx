@@ -484,7 +484,7 @@ function WorkerCard({worker, config, leaderVersion}) {
 
         <div style={{display: "flex", justifyContent: "space-between"}}>
           <Typography sx={{ fontSize: 14 }} color={activeStatus === "active" ? "text.secondary" : inactiveGrey} gutterBottom>
-            {isLeader ? "Leader / Worker" : "Worker"}
+            {isLeader ? "Leader & Worker" : "Worker"}
           </Typography>
         </div>
 

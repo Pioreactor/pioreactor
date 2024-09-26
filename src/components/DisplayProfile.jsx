@@ -368,7 +368,7 @@ const DescriptionSection = ({ description, sx }) => (
         <Typography variant="subtitle2">
         Description:
         </Typography>
-        <Typography variant="body2">
+        <Typography variant="body2" sx={{whiteSpace: "pre-line"}}>
         {description}
         </Typography>
       </Box>
@@ -378,19 +378,30 @@ const DescriptionSection = ({ description, sx }) => (
 
 const PluginsSection = ({ plugins }) => (
   <>
-    {plugins && plugins.length > 0 && (
+    {plugins && Array.isArray(plugins) && plugins.length > 0 && (
       <>
         <Typography variant="body2">
           <b>Plugins required:</b>
         </Typography>
         {plugins.map(plugin => (
-          <Typography key={plugin.name} variant="body2" sx={level1}>
-            {plugin.name} {plugin.version}
+          <Typography key={plugin?.name} variant="body2" sx={level1}>
+            {plugin?.name || <UnderlineSpan title="require `name` key"> name?? </UnderlineSpan>} {plugin?.version || <UnderlineSpan title="require `version` as string"> version?? </UnderlineSpan>}
           </Typography>
         ))}
         <br />
       </>
     )}
+    {plugins && !Array.isArray(plugins) && (
+      <>
+      <Typography variant="body2">
+          <b>Plugins required:</b>
+      </Typography>
+      <Typography sx={level1} variant="body2">
+        <UnderlineSpan title="require list, prepend with `-`"> plugins?? </UnderlineSpan>
+      </Typography>
+      </>
+      )
+    }
   </>
 );
 
