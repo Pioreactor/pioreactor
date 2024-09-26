@@ -1,2 +1,3 @@
 -r requirements.txt
+packaging==24.1
 # pyyaml
