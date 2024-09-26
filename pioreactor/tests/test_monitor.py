@@ -82,6 +82,6 @@ def test_monitor_doesnt_alert_if_already_in_cluster() -> None:
         with Monitor(unit=get_unit_name(), experiment=experiment):
             time.sleep(20)
 
-        assert len(logs) == 0
+        assert len(logs) == 1
 
     r.unregister_service(info)

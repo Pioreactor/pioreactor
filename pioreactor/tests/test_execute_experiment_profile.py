@@ -415,6 +415,7 @@ def test_execute_experiment_profile_expression(mock__load_experiment_profile) ->
 
     assert bucket[0].json == {
         "options": {"target": 11.0, "dont_eval": "1.0 + 1.0", "job_source": "experiment_profile"},
+        "env": {"EXPERIMENT": "_testing_experiment", "JOB_SOURCE": "experiment_profile"},
         "args": [],
     }
 
@@ -555,8 +556,8 @@ def test_execute_experiment_profile_expression_in_common_also_works_with_unit_fu
     for item in bucket:
         assert item.json == {
             "args": [],
+            "env": {"EXPERIMENT": "_testing_experiment", "JOB_SOURCE": "experiment_profile"},
             "options": {
-                "job_source": "experiment_profile",
                 "target": 11.0,
             },
         }
