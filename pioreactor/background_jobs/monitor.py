@@ -25,7 +25,6 @@ from pioreactor.hardware import PCB_BUTTON_PIN as BUTTON_PIN
 from pioreactor.hardware import PCB_LED_PIN as LED_PIN
 from pioreactor.hardware import TEMP
 from pioreactor.pubsub import QOS
-from pioreactor.pubsub import subscribe
 from pioreactor.structs import Voltage
 from pioreactor.types import MQTTMessage
 from pioreactor.utils.gpio_helpers import set_gpio_availability
@@ -629,18 +628,9 @@ class Monitor(LongRunningBackgroundJob):
         for worker in discover_workers_on_network():
             # not in current cluster, and not leader
             if (worker not in get_workers_in_inventory()) and (worker != get_leader_hostname()):
-                # is there an MQTT state for this worker?
-                # a new worker doesn't have the leader_address, so it won't connect to the leaders MQTT.
-                result = subscribe(
-                    f"pioreactor/{worker}/{whoami.UNIVERSAL_EXPERIMENT}/monitor/$state",
-                    timeout=3,
-                    name=self.job_name,
-                    retries=1,
+                self.logger.notice(  # type: ignore
+                    f"Pioreactor worker, {worker}, is available to be added to your cluster."
                 )
-                if result is None or result.payload.decode() == self.LOST:
-                    self.logger.notice(  # type: ignore
-                        f"Pioreactor worker, {worker}, is available to be added to your cluster."
-                    )
 
     def start_passive_listeners(self) -> None:
         self.subscribe_and_callback(

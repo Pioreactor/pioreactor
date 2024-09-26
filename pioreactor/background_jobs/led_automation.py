@@ -310,7 +310,7 @@ def start_led_automation(
 
     except Exception as e:
         logger = create_logger("led_automation")
-        logger.error(f"Error: {e}")
+        logger.error(e)
         logger.debug(e, exc_info=True)
         raise e
 

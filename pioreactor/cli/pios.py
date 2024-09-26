@@ -566,11 +566,11 @@ if am_I_leader() or is_testing_env():
                 sync_config_files(unit, shared, specific)
                 return True
             except RsyncError as e:
-                logger.warning(str(e))
+                logger.warning(f"Could not transfer config to {unit}. Is it online?")
                 logger.debug(e, exc_info=True)
                 return False
             except Exception as e:
-                logger.warning(f"Encountered error syncing configs to {unit}.")
+                logger.warning(f"Encountered error syncing configs to {unit}: {e}")
                 logger.debug(e, exc_info=True)
                 return False
 

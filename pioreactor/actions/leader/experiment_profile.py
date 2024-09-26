@@ -407,6 +407,10 @@ def repeat(
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
+            logger.debug(
+                f"Skipping repeat action on {unit} do to not being assigned to experiment {experiment}."
+            )
+
             return
 
         nonlocal env
@@ -489,6 +493,10 @@ def log(
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
+            logger.debug(
+                f"Skipping log action on {unit} do to not being assigned to experiment {experiment}."
+            )
+
             return
 
         nonlocal env
@@ -519,6 +527,9 @@ def start_job(
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
+            logger.debug(
+                f"Skipping start action on {unit} do to not being assigned to experiment {experiment}."
+            )
             return
 
         nonlocal env
@@ -556,6 +567,9 @@ def pause_job(
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
+            logger.debug(
+                f"Skipping pause action on {unit} do to not being assigned to experiment {experiment}."
+            )
             return
 
         nonlocal env
@@ -589,6 +603,10 @@ def resume_job(
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
+            logger.debug(
+                f"Skipping resume action on {unit} do to not being assigned to experiment {experiment}."
+            )
+
             return
 
         nonlocal env
@@ -622,6 +640,10 @@ def stop_job(
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
+            logger.debug(
+                f"Skipping stop action on {unit} do to not being assigned to experiment {experiment}."
+            )
+
             return
 
         nonlocal env
@@ -655,6 +677,10 @@ def update_job(
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
+            logger.debug(
+                f"Skipping update action on {unit} do to not being assigned to experiment {experiment}."
+            )
+
             return
 
         nonlocal env

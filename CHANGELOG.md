@@ -1,10 +1,19 @@
 ### Upcoming
 
+#### Enhancements
+ - UI improvements to the experiment select box.
+ - Better clean up of configs when a worker is removed from the cluster.
+ - Improved UI loading time
+
+#### Bug fixes
  - only show ipv4 in UI and in avahi aliases.
+
+#### Breaking changes
  - `pio clear-cache` renamed to `pio cache clear`
  - `pio view-cache` renamed to `pio cache view`
- - some more API changes
- - `watchdog` job has been merged with `monitor`
+ - some more web API changes to endpoints that manage updates
+ - We no longer use `monitor` to start jobs. This has a slowdown when changing LEDs or starting pumps, unfortunately, but generally better performance elsewhere.
+ - `watchdog` job has been merged with `monitor`. `watchdog` no longer exists.
 
 ### 24.9.19
 

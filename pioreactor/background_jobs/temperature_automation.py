@@ -658,7 +658,7 @@ def start_temperature_automation(
 
     except Exception as e:
         logger = create_logger("temperature_automation")
-        logger.error(f"Error: {e}")
+        logger.error(e)
         logger.debug(e, exc_info=True)
         raise e
 
