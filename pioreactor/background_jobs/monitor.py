@@ -24,6 +24,8 @@ from pioreactor.hardware import is_HAT_present
 from pioreactor.hardware import PCB_BUTTON_PIN as BUTTON_PIN
 from pioreactor.hardware import PCB_LED_PIN as LED_PIN
 from pioreactor.hardware import TEMP
+from pioreactor.mureq import HTTPException
+from pioreactor.pubsub import get_from
 from pioreactor.pubsub import QOS
 from pioreactor.structs import Voltage
 from pioreactor.types import MQTTMessage
@@ -280,76 +282,16 @@ class Monitor(LongRunningBackgroundJob):
     def check_for_webserver(self) -> None:
         if whoami.is_testing_env():
             return
-
-        attempt = 0
-        retries = 5
         try:
-            while attempt < retries:
-                attempt += 1
-                # Run the command 'systemctl is-active lighttpd' and capture the output
-                result = subprocess.run(
-                    ["systemctl", "is-active", "lighttpd"], capture_output=True, text=True
-                )
-                status = result.stdout.strip()
-
-                # Check stderr if stdout is empty
-                if not status:
-                    status = result.stderr.strip()
-
-                # Handle case where status is still empty
-                if not status:
-                    raise ValueError("No output from systemctl command")
-
-                # Check if the output is okay
-                if status == "failed" or status == "inactive" or status == "deactivating":
-                    self.logger.error("lighttpd is not running. Check `systemctl status lighttpd`.")
-                    self.flicker_led_with_error_code(error_codes.WEBSERVER_OFFLINE)
-                elif status == "activating" or status == "reloading":
-                    # try again
-                    pass
-                elif status == "active":
-                    # okay
-                    break
-                else:
-                    raise ValueError(status)
-                sleep(1.0)
-        except Exception as e:
-            self.logger.debug(f"Error checking lighttpd status: {e}", exc_info=True)
-            self.logger.error(f"Error checking lighttpd status: {e}")
-
-        attempt = 0
-        retries = 5
-        try:
-            while attempt < retries:
-                attempt += 1
-                # Run the command 'systemctl is-active huey' and capture the output
-                result = subprocess.run(["systemctl", "is-active", "huey"], capture_output=True, text=True)
-                status = result.stdout.strip()
-
-                # Check stderr if stdout is empty
-                if not status:
-                    status = result.stderr.strip()
-
-                # Handle case where status is still empty
-                if not status:
-                    raise ValueError("No output from systemctl command")
-
-                # Check if the output is okay
-                if status == "failed" or status == "inactive" or status == "deactivating":
-                    self.logger.error("huey is not running. Check `systemctl status huey`.")
-                    self.flicker_led_with_error_code(error_codes.WEBSERVER_OFFLINE)
-                elif status == "activating" or status == "reloading":
-                    # try again
-                    pass
-                elif status == "active":
-                    # okay
-                    break
-                else:
-                    raise ValueError(status)
-                sleep(1.0)
-        except Exception as e:
-            self.logger.debug(f"Error checking huey status: {e}", exc_info=True)
-            self.logger.error(f"Error checking huey status: {e}")
+            r = get_from("localhost", "/unit_api/versions/ui")
+            r.raise_for_status()
+            ui_version = r.json()["version"]
+        except HTTPException:
+            self.logger.warning("Webserver isn't online.")
+            ui_version = "Unknown"
+        finally:
+            self.set_versions({"ui": ui_version})
+            self.logger.debug(f"Pioreactor UI version: {self.versions['ui']}")
 
     def check_for_required_jobs_running(self) -> None:
         if not utils.is_pio_job_running("mqtt_to_db_streaming"):
