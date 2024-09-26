@@ -1,4 +1,4 @@
-### Upcoming
+### 24.9.26
 
 #### Enhancements
  - UI improvements to the experiment select box.
