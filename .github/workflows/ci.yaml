@@ -53,7 +53,8 @@ jobs:
            import click
            from pioreactor.background_jobs.base import BackgroundJob
 
-           __plugin_version__ = "0.0.1"
+           __plugin_version__ = "0.2.0"
+           __plugin_name__ = "my-example-plugin"
 
            class ExamplePlugin(BackgroundJob):
               job_name="example_plugin"

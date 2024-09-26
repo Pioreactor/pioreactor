@@ -19,6 +19,7 @@ from pioreactor.experiment_profiles.profile_struct import Job
 from pioreactor.experiment_profiles.profile_struct import Log
 from pioreactor.experiment_profiles.profile_struct import Metadata
 from pioreactor.experiment_profiles.profile_struct import PioreactorSpecificBlock
+from pioreactor.experiment_profiles.profile_struct import Plugin
 from pioreactor.experiment_profiles.profile_struct import Profile
 from pioreactor.experiment_profiles.profile_struct import Repeat
 from pioreactor.experiment_profiles.profile_struct import Start
@@ -803,3 +804,42 @@ def test_api_requests_are_made(
     assert bucket[2].path == f"/api/workers/unit2/jobs/run/job_name/job1/experiments/{experiment}"
     assert bucket[3].path == f"/api/workers/unit1/jobs/run/job_name/job2/experiments/{experiment}"
     assert bucket[4].path == f"/api/workers/unit1/jobs/stop/job_name/job2/experiments/{experiment}"
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_plugin_version_checks(
+    mock__load_experiment_profile,
+) -> None:
+    experiment = "_testing_experiment"
+
+    profile_with_okay_plugins = Profile(
+        experiment_profile_name="test_profile",
+        plugins=[Plugin(name="my-example-plugin", version=">=0.1.0")],  # this plugin is locally present in CI
+        common=CommonBlock(jobs={}),
+        pioreactors={},
+        metadata=Metadata(author="test_author"),
+    )
+    mock__load_experiment_profile.return_value = profile_with_okay_plugins
+    execute_experiment_profile("profile.yaml", experiment)
+
+    profile_with_wrong_version = Profile(
+        experiment_profile_name="test_profile",
+        plugins=[Plugin(name="my-example-plugin", version="<=0.1.0")],  # this plugin is locally present in CI
+        common=CommonBlock(jobs={}),
+        pioreactors={},
+        metadata=Metadata(author="test_author"),
+    )
+    mock__load_experiment_profile.return_value = profile_with_wrong_version
+    with pytest.raises(ImportError):
+        execute_experiment_profile("profile.yaml", experiment)
+
+    profile_with_missing_package = Profile(
+        experiment_profile_name="test_profile",
+        plugins=[Plugin(name="doesnt-exist", version="<=0.1.0")],  # this plugin is locally present in CI
+        common=CommonBlock(jobs={}),
+        pioreactors={},
+        metadata=Metadata(author="test_author"),
+    )
+    mock__load_experiment_profile.return_value = profile_with_missing_package
+    with pytest.raises(ImportError):
+        execute_experiment_profile("profile.yaml", experiment)

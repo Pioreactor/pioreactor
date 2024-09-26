@@ -18,6 +18,7 @@ from pioreactor.exc import MQTTValueError
 from pioreactor.experiment_profiles import profile_struct as struct
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
+from pioreactor.plugin_management import get_plugins
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import patch_into_leader
 from pioreactor.utils import ClusterJobManager
@@ -763,42 +764,40 @@ def push_labels_to_ui(experiment, labels_map: dict[str, str]) -> None:
         pass
 
 
-def get_installed_packages() -> dict[str, str]:
-    import pkg_resources
-
-    """Return a dictionary of installed packages and their versions"""
-    installed_packages = {d.project_name: d.version for d in pkg_resources.working_set}
-    return installed_packages
+def get_plugins_and_versions() -> dict[str, str]:
+    local_plugins = {name: metadata.version for name, metadata in get_plugins().items()}
+    return local_plugins
 
 
-def check_plugins(plugins: list[struct.Plugin]) -> None:
+def check_plugins(required_plugins: list[struct.Plugin]) -> None:
     """Check if the specified packages with versions are installed"""
 
-    if not plugins:
+    if not required_plugins:
         # this can be slow, so skip it if no plugins are needed
         return
 
-    installed_packages = get_installed_packages()
+    installed_plugins = get_plugins_and_versions()
     not_installed = []
 
-    for plugin in plugins:
-        name = plugin.name
-        version = plugin.version
-        if name in installed_packages:
-            if version.startswith(">="):
+    for required_plugin in required_plugins:
+        required_name = required_plugin.name
+        required_version = required_plugin.version
+        if required_name in installed_plugins:
+            installed_version = installed_plugins[required_name]
+            if required_version.startswith(">="):
                 # Version constraint is '>='
-                if installed_packages[name] < version[2:]:
-                    not_installed.append(plugin)
-            if version.startswith("<="):
+                if not (installed_version >= required_version[2:]):
+                    not_installed.append(required_plugin)
+            elif required_version.startswith("<="):
                 # Version constraint is '<='
-                if installed_packages[name] > version[2:]:
-                    not_installed.append(plugin)
+                if not (installed_version <= required_version[2:]):
+                    not_installed.append(required_plugin)
             else:
                 # No version constraint, exact version match required
-                if installed_packages[name] != version:
-                    not_installed.append(plugin)
+                if installed_version != required_version:
+                    not_installed.append(required_plugin)
         else:
-            not_installed.append(plugin)
+            not_installed.append(required_plugin)
 
     if not_installed:
         raise ImportError(f"Missing packages {not_installed}")
