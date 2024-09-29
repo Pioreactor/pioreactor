@@ -28,7 +28,8 @@ fi
 
 # stop everything that might touch the database or config files...
 pio kill --all-jobs > /dev/null
-pio kill monitor watchdog mqtt_to_db_streaming
+pio kill --name monitor
+pio kill --name mqtt_to_db_streaming
 sudo systemctl stop lighttpd.service || true
 sudo systemctl stop huey.service || true
 

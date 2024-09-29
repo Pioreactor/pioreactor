@@ -317,7 +317,7 @@ class Stirrer(BackgroundJob):
         self.logger.debug("Kicking stirring")
         _existing_duty_cycle = self.duty_cycle
         self.set_duty_cycle(0)
-        sleep(0.30)
+        sleep(0.5)
         self.set_duty_cycle(100)
         sleep(0.5)
         self.set_duty_cycle(

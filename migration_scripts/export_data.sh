@@ -13,7 +13,8 @@ echo "Starting export of all data. Don't run anything. The Pioreactor UI will be
 
 # stop everything that might touch the database or config files...
 pio kill --all-jobs  > /dev/null
-pio kill monitor mqtt_to_db_streaming watchdog
+pio kill --name monitor
+pio kill --name mqtt_to_db_streaming
 sudo systemctl stop lighttpd.service || true
 sudo systemctl stop huey.service || true
 
@@ -45,7 +46,6 @@ tar --exclude='*.sqlite' --exclude='*.sqlite-wal'  --exclude='*.sqlite-shm' --ex
 sudo systemctl start lighttpd.service
 sudo systemctl start huey.service
 sudo systemctl start pioreactor_startup_run@mqtt_to_db_streaming.service
-sudo systemctl start pioreactor_startup_run@watchdog.service
 sudo systemctl start pioreactor_startup_run@monitor.service
 
 echo "Your export is ready as: $EXPORT_NAME"
