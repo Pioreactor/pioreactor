@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
-import mqtt from 'mqtt';
+import mqtt from 'mqtt'
 import Alert from '@mui/material/Alert';
 import Snackbar from '@mui/material/Snackbar';
 
@@ -104,6 +104,7 @@ export const MQTTProvider = ({ name, config, children, experiment }) => {
         username,
         password,
         keepalive: 120,
+        clean: true
       });
 
       mqttClient.on('connect', () => {
@@ -139,7 +140,7 @@ export const MQTTProvider = ({ name, config, children, experiment }) => {
   const subscribeToTopic = (topic_or_topics, messageHandler, key) => {
     // use the `key`` to provide unique handlers per topic (else it's overwritten)
     addHandlerToTrie(topicTrie.current, topic_or_topics, messageHandler, key);
-    client.subscribe(topic_or_topics);
+    client.subscribe(topic_or_topics, { qos: 0 });
   };
 
   const unsubscribeFromTopic = (topic, key) => {

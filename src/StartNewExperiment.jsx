@@ -172,11 +172,13 @@ function ExperimentSummaryForm(props) {
     if (expName === ""){
       setFormError(true)
       setHelperText("Can't be blank.")
+      setLoading(false)
       return
     }
-    else if (expName.includes("#") || expName.includes("+") || expName.includes("/")|| expName.includes("\\")) {
+    else if (expName.includes("#") || expName.includes("+") || expName.includes("/")|| expName.includes("$")|| expName.includes("%")|| expName.includes("\\")) {
       setFormError(true)
-      setHelperText("Can't use #,\\, / or + characters in experiment name.")
+      setHelperText("Can't use $, %, #,\\, / or + characters in experiment name.")
+      setLoading(false)
       return
     }
 
@@ -217,9 +219,9 @@ function ExperimentSummaryForm(props) {
       setFormError(true);
       setHelperText("Experiment name already used. Please choose another.")
     }
-    else if (experimentNameProposed.includes("#") || experimentNameProposed.includes("+") || experimentNameProposed.includes("/") || experimentNameProposed.includes("\\")) {
+    else if (experimentNameProposed.includes("#") || experimentNameProposed.includes("+") || experimentNameProposed.includes("/") ||experimentNameProposed.includes("$") ||experimentNameProposed.includes("%") || experimentNameProposed.includes("\\")) {
       setFormError(true)
-      setHelperText("Can't use #, \\, / or + characters in experiment name.")
+      setHelperText("Can't use $, %, #, \\, / or + characters in experiment name.")
     }
     else {
       setHelperText(" ")

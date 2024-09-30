@@ -53,6 +53,15 @@ const theme = createTheme({
 });
 
 
+const NotFound = () => {
+  return (
+    <>
+      <h1>Page Not Found</h1>
+      <p>Sorry, the page you are looking for could not be found.</p>
+    </>
+  );
+};
+
 function ScrollToTop() {
   const { pathname } = useLocation();
 
@@ -112,6 +121,7 @@ function MainSite() {
                   <Route path="/updates" element={<Updates title="Pioreactor ~ Updates"/>}/>
                   <Route path="/inventory" element={<Inventory title="Pioreactor ~ Inventory"/>}/>
                   <Route path="/" element={<ExperimentOverview title="Pioreactor ~ Overview"/>}/>
+                  <Route path="*" element={<NotFound />} />
                 </Routes>
                 <ErrorSnackbar />
                 <TactileButtonNotification />

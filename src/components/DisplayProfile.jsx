@@ -516,7 +516,7 @@ export const DisplayProfile = ({ data }) => {
         <ParametersSection parameters={data.inputs} />
 
         {data?.common?.jobs && (Object.keys(data?.common?.jobs).length > 0) && <>
-          <Typography variant="subtitle2">All Pioreactor(s) do the following:</Typography>
+          <Typography variant="subtitle2">Every Pioreactor does the following:</Typography>
           <JobSection jobs={data?.common?.jobs} />
           </>
         }

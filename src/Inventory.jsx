@@ -584,7 +584,7 @@ function WorkerCard({worker, config, leaderVersion}) {
       </CardContent>
       <CardActions sx={{display: "flex", justifyContent: "space-between"}}>
         <Box>
-          <Blink unit={unit} client={client}/>
+          <Blink unit={unit}/>
         </Box>
         <Box>
           <Unassign unit={unit} experimentAssigned={experimentAssigned} setExperimentAssigned={setExperimentAssigned} />
@@ -597,26 +597,14 @@ function WorkerCard({worker, config, leaderVersion}) {
 )}
 
 
-function Blink({unit, client}){
+function Blink({unit}){
 
   const [flashing, setFlashing] = useState(false)
 
 
   const onClick = () => {
     setFlashing(true)
-    const sendMessage = () => {
-      const topic = `pioreactor/${unit}/$experiment/monitor/flicker_led_response_okay`
-      try{
-        client.publish(topic, "1", {qos: 0});
-      }
-      catch (e){
-        console.log(e)
-        setTimeout(() => {sendMessage()}, 1000)
-      }
-    }
-
-    sendMessage()
-    setTimeout(() => {setFlashing(false)}, 3600 ) // .9 * 4
+    fetch(`/api/workers/${unit}/blink`, {method: "POST"})
   }
 
   return (

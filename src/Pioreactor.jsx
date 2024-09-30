@@ -1281,7 +1281,7 @@ function SettingsActionsDialog(props) {
                     Last updated at
                 </td>
                 <td >
-                  <StylizedCode>{voltageInfo.timestamp ? dayjs.utc(voltageInfo.timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]').local().format('MMMM Do, h:mm a') : "-"}</StylizedCode>
+                  <StylizedCode>{voltageInfo.timestamp ? dayjs.utc(voltageInfo.timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]').local().format('MMMM D, h:mm a') : "-"}</StylizedCode>
                 </td>
               </tr>
             </table>
@@ -1535,23 +1535,9 @@ function FlashLEDButton(props){
 
   const [flashing, setFlashing] = useState(false)
 
-
   const onClick = () => {
     setFlashing(true)
-    const sendMessage = () => {
-      const topic = `pioreactor/${props.unit}/$experiment/monitor/flicker_led_response_okay`
-      try{
-        props.client.publish(topic, "1", {qos: 0});
-      }
-      catch (e){
-        console.log(e)
-
-        setTimeout(() => {sendMessage()}, 1000)
-      }
-    }
-
-    sendMessage()
-    setTimeout(() => {setFlashing(false)}, 3600 ) // .9 * 4
+    fetch(`/api/workers/${props.unit}/blink`, {method: "POST"})
   }
 
   return (
@@ -1783,7 +1769,7 @@ function PioreactorCard(props){
                 />
               </div>
               <div>
-                <FlashLEDButton client={client} disabled={!isUnitActive} unit={unit}/>
+                <FlashLEDButton disabled={!isUnitActive} unit={unit}/>
               </div>
               <div>
                 <CalibrateDialog

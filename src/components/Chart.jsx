@@ -76,6 +76,7 @@ class Chart extends React.Component {
         this.props.subscribeToTopic(`pioreactor/+/${this.props.experiment}/${topic}`, this.onMessage, "Chart")
       });
     }
+    console.log(this.state.legendEvents)
 
   }
 
@@ -93,7 +94,9 @@ class Chart extends React.Component {
     if (!this.props.experiment){
       return
     }
-    const tweak = 0.65 // increase to filter more
+    const initialTweak = 0.65 // increase to filter more. The default here is good for samples_per_second=0.2
+    const tweak = this.props.config['od_reading.config']['samples_per_second'] * 0.65/0.2
+
     const queryParams = new URLSearchParams({
         filter_mod_N: this.props.downSample ? Math.max(Math.floor(tweak * Math.min(this.props.deltaHours, this.props.lookback)), 1) : 1,
         lookback: this.props.lookback
@@ -169,12 +172,13 @@ class Chart extends React.Component {
       target: "data",
       eventHandlers: {
         onClick: (_, props) => {
+          console.log(props)
           return [
             {
               childName: props.datum.name,
               target: "data",
-              eventKey: "all",
               mutation: () => {
+                console.log(this.state.hiddenSeries, props.datum.name)
                 if (!this.state.hiddenSeries.has(props.datum.name)) {
                   // Was not already hidden => add to set
                   this.setState((prevState) => ({

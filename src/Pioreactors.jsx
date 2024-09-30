@@ -1474,7 +1474,7 @@ function SettingsActionsDialog(props) {
                     Last updated at
                 </td>
                 <td >
-                  <StylizedCode>{voltageInfo.timestamp ? dayjs.utc(voltageInfo.timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]').local().format('MMMM Do, h:mm a') : "-"}</StylizedCode>
+                  <StylizedCode>{voltageInfo.timestamp ? dayjs.utc(voltageInfo.timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]').local().format('MMMM D, h:mm a') : "-"}</StylizedCode>
                 </td>
               </tr>
             </table>
@@ -2193,7 +2193,7 @@ function ActiveUnits({experiment, config, units, isLoading}){
   }, [experiment])
 
   const renderCards = () => units.map(unit =>
-      <PioreactorCard isUnitActive={true} key={unit} unit={unit} config={config} experiment={experiment} label={relabelMap[unit]}/>
+      <PioreactorCard  key={unit} isUnitActive={true} unit={unit} config={config} experiment={experiment} originalLabel={relabelMap[unit]}/>
   )
   const renderEmptyState = () => (
     <Box sx={{textAlign: "center"}}>
@@ -2235,25 +2235,10 @@ function FlashLEDButton(props){
 
   const [flashing, setFlashing] = useState(false)
 
-
   const onClick = () => {
     setFlashing(true)
-    const sendMessage = () => {
-      const topic = `pioreactor/${props.unit}/$experiment/monitor/flicker_led_response_okay`
-      try{
-        props.client.publish(topic, "1", {qos: 0});
-      }
-      catch (e){
-        console.log(e)
-
-        setTimeout(() => {sendMessage()}, 1000)
-      }
-    }
-
-    sendMessage()
-    setTimeout(() => {setFlashing(false)}, 3600 ) // .9 * 4
+    fetch(`/api/workers/${props.unit}/blink`, {method: "POST"})
   }
-
   return (
     <Button style={{textTransform: 'none', float: "right"}} className={flashing ? 'blinkled' : ''}  disabled={props.disabled} onClick={onClick} color="primary">
       <FlareIcon color={props.disabled ? "disabled" : "primary"} fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> <span > Identify </span>
@@ -2261,12 +2246,8 @@ function FlashLEDButton(props){
 )}
 
 
+function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel}){
 
-function PioreactorCard(props){
-  const unit = props.unit
-  const isUnitActive = props.isUnitActive
-  const experiment = props.experiment
-  const config = props.config
   const [jobFetchComplete, setJobFetchComplete] = useState(false)
   const [label, setLabel] = useState("")
   const {client, subscribeToTopic } = useMQTT();
@@ -2296,8 +2277,8 @@ function PioreactorCard(props){
   })
 
   useEffect(() => {
-    setLabel(props.label)
-  }, [props.label])
+    setLabel(originalLabel)
+  }, [originalLabel])
 
 
   useEffect(() => {
@@ -2484,7 +2465,7 @@ function PioreactorCard(props){
                 />
               </div>
               <div>
-                <FlashLEDButton client={client} disabled={!isUnitActive} unit={unit}/>
+                <FlashLEDButton disabled={!isUnitActive} unit={unit}/>
               </div>
               <div>
                 <CalibrateDialog
@@ -2521,7 +2502,7 @@ function PioreactorCard(props){
         }}>
         <Box sx={{width: "100px", mt: "10px", mr: "5px"}}>
           <Typography variant="body2" component={'span'}>
-            <Box fontWeight="fontWeightBold" sx={{ color: !props.isUnitActive ? disabledColor : 'inherit' }}>
+            <Box fontWeight="fontWeightBold" sx={{ color: !isUnitActive ? disabledColor : 'inherit' }}>
               Activities:
             </Box>
           </Typography>
@@ -2531,7 +2512,7 @@ function PioreactorCard(props){
               .filter(job => job.metadata.display)
               .map(job => (
             <Box sx={{width: "130px", mt: "10px"}} key={job.metadata.key}>
-              <Typography variant="body2" style={{fontSize: "0.84rem"}} sx={{ color: !props.isUnitActive ? disabledColor : 'inherit' }}>
+              <Typography variant="body2" style={{fontSize: "0.84rem"}} sx={{ color: !isUnitActive ? disabledColor : 'inherit' }}>
                 {job.metadata.display_name}
               </Typography>
               <UnitSettingDisplay
@@ -2556,7 +2537,7 @@ function PioreactorCard(props){
         }}>
         <Box sx={{width: "100px", mt: "10px", mr: "5px"}}>
           <Typography variant="body2" component={'span'}>
-            <Box fontWeight="fontWeightBold" sx={{ color: !props.isUnitActive ? disabledColor : 'inherit' }}>
+            <Box fontWeight="fontWeightBold" sx={{ color: !isUnitActive ? disabledColor : 'inherit' }}>
               Settings:
             </Box>
           </Typography>
@@ -2570,7 +2551,7 @@ function PioreactorCard(props){
                 .filter(([setting_key, setting], _) => setting.display)
                 .map(([setting_key, setting], _) =>
                   <Box sx={{width: "130px", mt: "10px"}} key={job_key + setting_key}>
-                    <Typography variant="body2" style={{fontSize: "0.84rem"}} sx={{ color: !props.isUnitActive ? disabledColor : 'inherit' }}>
+                    <Typography variant="body2" style={{fontSize: "0.84rem"}} sx={{ color: !isUnitActive ? disabledColor : 'inherit' }}>
                       {setting.label}
                     </Typography>
                     <UnitSettingDisplay
@@ -2605,7 +2586,7 @@ function InactiveUnits(props){
       </Typography>
     </div>
     {props.units.map(unit =>
-      <PioreactorCard isUnitActive={false} key={unit} unit={unit} config={props.config} experiment={props.experiment}/>
+      <PioreactorCard  key={unit} isUnitActive={false} unit={unit} config={props.config} experiment={props.experiment}/>
   )}
     </React.Fragment>
 )}
