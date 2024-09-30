@@ -38,6 +38,7 @@ from pioreactor.hardware import voltage_in_aux
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
 from pioreactor.pubsub import Client
+from pioreactor.pubsub import post_into_leader
 from pioreactor.pubsub import prune_retained_messages
 from pioreactor.types import LedChannel
 from pioreactor.types import PdChannel
@@ -525,7 +526,7 @@ def click_self_test(k: Optional[str], retry_failed: bool) -> int:
             raise click.Abort()
 
         # flicker to assist the user to confirm they are testing the right pioreactor.
-        client.publish(f"pioreactor/{unit}/{experiment}/monitor/flicker_led_response_okay", 1)
+        post_into_leader(f"/api/workers/{unit}/blink")
 
         # automagically finds the test_ functions.
         tests_to_run: Iterator[str]

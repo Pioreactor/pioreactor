@@ -25,6 +25,7 @@ from pioreactor.logging import create_logger
 from pioreactor.mureq import get
 from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import get_from
+from pioreactor.pubsub import post_into_leader
 from pioreactor.utils import JobManager
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistant_storage
@@ -135,12 +136,7 @@ def blink() -> None:
     """
     monitor job is required to be running.
     """
-    from pioreactor.pubsub import publish
-
-    publish(
-        f"pioreactor/{whoami.get_unit_name()}/{whoami.UNIVERSAL_EXPERIMENT}/monitor/flicker_led_response_okay",
-        1,
-    )
+    post_into_leader(f"/api/workers/{whoami.get_unit_name()}/blink")
 
 
 @pio.command(name="kill", short_help="kill job(s)")

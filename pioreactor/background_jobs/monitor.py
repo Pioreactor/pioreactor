@@ -290,6 +290,9 @@ class Monitor(LongRunningBackgroundJob):
         except HTTPException:
             self.logger.warning("Webserver isn't online.")
             ui_version = "Unknown"
+        except Exception as e:
+            self.logger.warning(e)
+            ui_version = "Unknown"
         finally:
             self.set_versions({"ui": ui_version})
             self.logger.debug(f"Pioreactor UI version: {self.versions['ui']}")

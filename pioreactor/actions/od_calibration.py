@@ -27,6 +27,7 @@ from pioreactor.background_jobs.stirring import start_stirring as stirring
 from pioreactor.background_jobs.stirring import Stirrer
 from pioreactor.config import config
 from pioreactor.config import leader_address
+from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.pubsub import patch_into_leader
 from pioreactor.pubsub import put_into_leader
 from pioreactor.utils import is_pio_job_running
@@ -676,19 +677,22 @@ def change_current(name: str) -> None:
                 f"/api/calibrations/{get_unit_name()}/{new_calibration.type}/{new_calibration.name}",
                 json={"current": 1},
             )
-            if not res.ok:
-                raise Exception
-        except Exception:
-            echo("Could not update in database on leader ❌")
-
-        if old_calibration:
-            echo(f"Replaced `{old_calibration.name}` with `{new_calibration.name}`   ✅")
+            res.raise_for_status()
+        except HTTPErrorStatus as e:
+            if e.status_code == 404:
+                # it doesn't exist in leader, so lets put it there.
+                publish_to_leader(name)
+                change_current(name)
+            else:
+                echo("Could not update in database on leader ❌")
         else:
-            echo(f"Set `{new_calibration.name}` to current calibration  ✅")
-        echo()
+            if old_calibration:
+                echo(f"Replaced `{old_calibration.name}` with `{new_calibration.name}`   ✅")
+            else:
+                echo(f"Set `{new_calibration.name}` to current calibration  ✅")
 
-    except Exception:
-        echo("Failed to swap.")
+    except Exception as e:
+        echo(f"Failed to swap. {e}")
         raise click.Abort()
 
 

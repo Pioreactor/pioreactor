@@ -29,6 +29,7 @@ from pioreactor.config import config
 from pioreactor.config import leader_address
 from pioreactor.hardware import voltage_in_aux
 from pioreactor.logging import create_logger
+from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.pubsub import patch_into_leader
 from pioreactor.pubsub import put_into_leader
 from pioreactor.utils import local_persistant_storage
@@ -555,7 +556,7 @@ def display(name: str | None) -> None:
                 echo()
 
 
-def change_current(name: str) -> bool:
+def change_current(name: str) -> None:
     with local_persistant_storage("pump_calibrations") as all_calibrations:
         try:
             new_calibration = decode(
@@ -584,17 +585,18 @@ def change_current(name: str) -> bool:
                 json={"current": 1},
             )
             res.raise_for_status()
-        except Exception:
-            echo(
-                f"❌ Could not update on leader at http://{leader_address}/api/calibrations/{get_unit_name()}/{new_calibration.type}/{new_calibration.name}"
-            )
-            return False
-
-        if old_calibration:
-            echo(f"Replaced {old_calibration.name} with {new_calibration.name} as current calibration.")
+        except HTTPErrorStatus as e:
+            if e.status_code == 404:
+                # it doesn't exist in leader, so lets put it there.
+                publish_to_leader(name)
+                change_current(name)
+            else:
+                echo("Could not update in database on leader ❌")
         else:
-            echo(f"Set {new_calibration.name} to current calibration.")
-        return True
+            if old_calibration:
+                echo(f"Replaced `{old_calibration.name}` with `{new_calibration.name}`   ✅")
+            else:
+                echo(f"Set `{new_calibration.name}` to current calibration  ✅")
 
 
 def list_():

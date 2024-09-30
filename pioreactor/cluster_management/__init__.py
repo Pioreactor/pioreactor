@@ -219,9 +219,6 @@ def discover_workers(terminate: bool) -> None:
 
 @click.command(name="status", short_help="report information on the cluster")
 def cluster_status() -> None:
-    """
-    Note that this only looks at the current cluster as defined in config.ini.
-    """
     import socket
 
     def get_metadata(hostname):
@@ -269,7 +266,7 @@ def cluster_status() -> None:
 
         return ip, state, reachable, app_version, experiment
 
-    def display_data_for(worker: dict[str, str]) -> None:
+    def display_data_for(worker: dict[str, str]) -> str:
         hostname, is_active = worker["pioreactor_unit"], worker["is_active"]
 
         ip, state, reachable, version, experiment = get_metadata(hostname)
@@ -284,12 +281,10 @@ def cluster_status() -> None:
         is_activef = f"{(click.style('Y', fg='green') if is_active else click.style('N', fg='red')):24s}"
         experimentf = f"{experiment:15s}"
 
-        click.echo(
-            f"{hostnamef} {is_leaderf} {ipf} {statef} {is_activef} {reachablef} {versionf} {experimentf}"
-        )
-        return
+        return f"{hostnamef} {is_leaderf} {ipf} {statef} {is_activef} {reachablef} {versionf} {experimentf}"
 
     workers = get_from_leader("/api/workers").json()
+
     n_workers = len(workers)
 
     click.secho(
@@ -301,9 +296,7 @@ def cluster_status() -> None:
 
     with ThreadPoolExecutor(max_workers=n_workers) as executor:
         results = executor.map(display_data_for, workers)
-
-        # Iterating over the results ensures that all tasks complete
         for result in results:
-            pass
+            click.echo(result)
 
     return
