@@ -22,6 +22,7 @@ from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
+from pioreactor.whoami import is_active
 from pioreactor.whoami import is_testing_env
 
 ALL_LED_CHANNELS: list[LedChannel] = ["A", "B", "C", "D"]
@@ -134,6 +135,9 @@ def led_intensity(
     """
     unit = unit or get_unit_name()
     experiment = experiment or get_assigned_experiment_name(unit)
+
+    if not is_active(unit):
+        return False
 
     logger = create_logger("led_intensity", experiment=experiment, unit=unit, pub_client=pubsub_client)
     updated_successfully = True
