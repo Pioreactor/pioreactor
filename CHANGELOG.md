@@ -9,6 +9,7 @@
  - Fix for bug when clicking a legend element it not hiding
  - `led_intensity` (i.e. changes to LEDs) now respect whether a worker is active or not.
  - Fix bug for UI crashing with "colors" error.
+ - If a worker is referenced in a profile, but is not part of the current experiment, the actions will not be schedualed for it.
 
 
 

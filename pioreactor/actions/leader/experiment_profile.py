@@ -15,6 +15,7 @@ from msgspec.yaml import decode
 
 from pioreactor.cluster_management import get_active_workers_in_experiment
 from pioreactor.exc import MQTTValueError
+from pioreactor.exc import NotAssignedAnExperimentError
 from pioreactor.experiment_profiles import profile_struct as struct
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
@@ -873,7 +874,12 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
 
             # process specific pioreactors
             for unit_ in profile.pioreactors:
-                if (get_assigned_experiment_name(unit_) != experiment) and not is_testing_env():
+                try:
+                    assigned_experiment = get_assigned_experiment_name(unit_)
+                except NotAssignedAnExperimentError:
+                    assigned_experiment = None
+
+                if (assigned_experiment != experiment) and not is_testing_env():
                     logger.warning(
                         f"There exists profile actions for {unit}, but it's not assigned to experiment {experiment}. Skipping scheduling actions."
                     )
