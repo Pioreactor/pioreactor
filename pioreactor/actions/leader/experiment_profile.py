@@ -873,6 +873,12 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
 
             # process specific pioreactors
             for unit_ in profile.pioreactors:
+                if (get_assigned_experiment_name(unit_) != experiment) and not is_testing_env():
+                    logger.warning(
+                        f"There exists profile actions for {unit}, but it's not assigned to experiment {experiment}. Skipping scheduling actions."
+                    )
+                    continue
+
                 pioreactor_specific_block = profile.pioreactors[unit_]
                 if pioreactor_specific_block.label is not None:
                     label = pioreactor_specific_block.label

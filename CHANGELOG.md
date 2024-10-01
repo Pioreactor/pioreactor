@@ -1,3 +1,17 @@
+### Upcoming
+
+ #### Enhancements
+ - amount of data shown on charts is now a function of the OD sampling rate
+ - allow for showing more than 16 workers in a chart.
+
+#### Bug fixes
+ - Bug fix for "Manage all" that would start activities in all Pioreactors, whether they were in the experiment or not.
+ - Fix for bug when clicking a legend element it not hiding
+ - `led_intensity` (i.e. changes to LEDs) now respect whether a worker is active or not.
+ - Fix bug for UI crashing with "colors" error.
+
+
+
 ### 24.9.26
 
 #### Enhancements
