@@ -1,4 +1,4 @@
-### Upcoming
+### 24.10.1
 
  #### Enhancements
  - amount of data shown on charts is now a function of the OD sampling rate
