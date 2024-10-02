@@ -12,7 +12,6 @@ from __future__ import annotations
 import contextlib
 import io
 import os.path
-import socket
 import urllib.parse
 from http.client import HTTPConnection
 from http.client import HTTPException
@@ -273,26 +272,6 @@ _JSON_CONTENTTYPE = "application/json"
 _FORM_CONTENTTYPE = "application/x-www-form-urlencoded"
 
 
-class UnixHTTPConnection(HTTPConnection):
-    """UnixHTTPConnection is a subclass of HTTPConnection that connects to a
-    Unix domain stream socket instead of a TCP address.
-    """
-
-    def __init__(self, path, timeout=DEFAULT_TIMEOUT):
-        super(UnixHTTPConnection, self).__init__("localhost", timeout=timeout)
-        self._unix_path = path
-
-    def connect(self):
-        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        try:
-            sock.settimeout(self.timeout)
-            sock.connect(self._unix_path)
-        except Exception:
-            sock.close()
-            raise
-        self.sock = sock
-
-
 def _check_redirect(url, status, response_headers):
     """Return the URL to redirect to, or None for no redirection."""
     if status not in (301, 302, 303, 307, 308):
@@ -450,7 +429,7 @@ def _prepare_request(
         source_address = (source_address, 0)
 
     if is_unix:
-        conn = UnixHTTPConnection(unix_socket, timeout=timeout)
+        raise NotImplementedError("Need this? Get it from https://github.com/slingamn/mureq")
     elif is_https:
         if ssl_context is None:
             ssl_context = ssl.create_default_context()

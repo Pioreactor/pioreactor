@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import ipaddress
 import subprocess
 from pathlib import Path
 from queue import Empty
@@ -160,6 +159,8 @@ def add_local(hostname: str) -> str:
 
     # Check if it's a valid IP address
     try:
+        import ipaddress
+
         ipaddress.ip_address(hostname)
         return hostname
     except ValueError:

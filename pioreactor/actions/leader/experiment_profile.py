@@ -19,7 +19,6 @@ from pioreactor.exc import NotAssignedAnExperimentError
 from pioreactor.experiment_profiles import profile_struct as struct
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
-from pioreactor.plugin_management import get_plugins
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import patch_into_leader
 from pioreactor.utils import ClusterJobManager
@@ -766,6 +765,8 @@ def push_labels_to_ui(experiment, labels_map: dict[str, str]) -> None:
 
 
 def get_installed_plugins_and_versions() -> dict[str, str]:
+    from pioreactor.plugin_management import get_plugins
+
     local_plugins = {name: metadata.version for name, metadata in get_plugins().items()}
     return local_plugins
 

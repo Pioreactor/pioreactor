@@ -546,7 +546,7 @@ def od_calibration(data_file: str | None) -> None:
         else:
             pd_channel, angle, inferred_od600s, voltages, curve_data_, curve_type = get_data_from_data_file(  # type: ignore
                 data_file
-            )  # type: ignore
+            )
 
         degree = 5 if len(voltages) > 10 else 3
         okay_with_result = False
@@ -561,7 +561,7 @@ def od_calibration(data_file: str | None) -> None:
             curve_data_, curve_type = calculate_curve_of_best_fit(voltages, inferred_od600s, degree)
 
         echo("Saving results...")
-        data_blob = save_results(  # type: ignore
+        data_blob = save_results(
             curve_data_,  # type: ignore
             curve_type,  # type: ignore
             voltages,
