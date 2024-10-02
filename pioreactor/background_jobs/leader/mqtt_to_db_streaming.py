@@ -299,6 +299,18 @@ def parse_alt_media_fraction(topic: str, payload: pt.MQTTMessagePayload) -> dict
     }
 
 
+def parse_liquid_volume(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+    metadata = produce_metadata(topic)
+    payload = loads(payload)
+
+    return {
+        "experiment": metadata.experiment,
+        "pioreactor_unit": metadata.pioreactor_unit,
+        "timestamp": current_utc_datetime(),
+        "liquid_volume": float(payload),
+    }
+
+
 def parse_logs(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     metadata = produce_metadata(topic)
     log = msgspec_loads(payload, type=structs.Log)
@@ -400,6 +412,11 @@ def add_default_source_to_sinks() -> list[TopicToParserToTable]:
                 "pioreactor/+/+/dosing_automation/alt_media_fraction",
                 parse_alt_media_fraction,
                 "alt_media_fractions",
+            ),
+            TopicToParserToTable(
+                "pioreactor/+/+/dosing_automation/liquid_volume",
+                parse_liquid_volume,
+                "liquid_volumes",
             ),
             TopicToParserToTable("pioreactor/+/+/logs/#", parse_logs, "logs"),
             TopicToParserToTable(

@@ -24,8 +24,8 @@ from pioreactor.automations.dosing.turbidostat import Turbidostat
 from pioreactor.background_jobs.dosing_automation import AltMediaFractionCalculator
 from pioreactor.background_jobs.dosing_automation import close
 from pioreactor.background_jobs.dosing_automation import DosingAutomationJob
+from pioreactor.background_jobs.dosing_automation import LiquidVolumeCalculator
 from pioreactor.background_jobs.dosing_automation import start_dosing_automation
-from pioreactor.background_jobs.dosing_automation import VialVolumeCalculator
 from pioreactor.structs import DosingEvent
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.timing import current_utc_datetime
@@ -637,7 +637,7 @@ def test_execute_io_action() -> None:
 def test_execute_io_action2() -> None:
     experiment = "test_execute_io_action2"
 
-    with Silent(unit=unit, experiment=experiment, initial_vial_volume=14.0) as ca:
+    with Silent(unit=unit, experiment=experiment, initial_liquid_volume=14.0) as ca:
         results = ca.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
         pause()
         assert results["media_ml"] == 1.25
@@ -913,7 +913,7 @@ def test_what_happens_when_no_od_data_is_coming_in() -> None:
 
 def test_AltMediaFractionCalculator() -> None:
     ac = AltMediaFractionCalculator()
-    vial_volume = 14
+    liquid_volume = 14
 
     media_added = 1.0
     add_media_event = DosingEvent(
@@ -922,9 +922,9 @@ def test_AltMediaFractionCalculator() -> None:
         timestamp=default_datetime_for_pioreactor(0),
         source_of_event="test",
     )
-    assert ac.update(add_media_event, 0.0, vial_volume) == 0.0
-    assert close(ac.update(add_media_event, 0.20, vial_volume), 0.18666666666666668)
-    assert close(ac.update(add_media_event, 1.0, vial_volume), 0.9333333333333333)
+    assert ac.update(add_media_event, 0.0, liquid_volume) == 0.0
+    assert close(ac.update(add_media_event, 0.20, liquid_volume), 0.18666666666666668)
+    assert close(ac.update(add_media_event, 1.0, liquid_volume), 0.9333333333333333)
 
     alt_media_added = 1.0
     add_alt_media_event = DosingEvent(
@@ -933,7 +933,7 @@ def test_AltMediaFractionCalculator() -> None:
         timestamp=default_datetime_for_pioreactor(1),
         source_of_event="test",
     )
-    assert ac.update(add_alt_media_event, 0.0, vial_volume) == 1 / (vial_volume + 1)
+    assert ac.update(add_alt_media_event, 0.0, liquid_volume) == 1 / (liquid_volume + 1)
 
     alt_media_added = 2.0
     add_alt_media_event = DosingEvent(
@@ -942,16 +942,16 @@ def test_AltMediaFractionCalculator() -> None:
         timestamp=default_datetime_for_pioreactor(2),
         source_of_event="test",
     )
-    assert ac.update(add_alt_media_event, 0.0, vial_volume) == 2 / (vial_volume + 2)
+    assert ac.update(add_alt_media_event, 0.0, liquid_volume) == 2 / (liquid_volume + 2)
 
-    alt_media_added = vial_volume
+    alt_media_added = liquid_volume
     add_alt_media_event = DosingEvent(
         volume_change=alt_media_added,
         event="add_alt_media",
         timestamp=default_datetime_for_pioreactor(3),
         source_of_event="test",
     )
-    assert ac.update(add_alt_media_event, 0, vial_volume) == 0.5
+    assert ac.update(add_alt_media_event, 0, liquid_volume) == 0.5
 
     add_alt_media_event = DosingEvent(
         volume_change=alt_media_added,
@@ -959,7 +959,7 @@ def test_AltMediaFractionCalculator() -> None:
         timestamp=default_datetime_for_pioreactor(4),
         source_of_event="test",
     )
-    assert ac.update(add_alt_media_event, 0.5, vial_volume) == 0.75
+    assert ac.update(add_alt_media_event, 0.5, liquid_volume) == 0.75
 
 
 def test_latest_event_goes_to_mqtt() -> None:
@@ -1038,7 +1038,7 @@ def test_pass_in_initial_alt_media_fraction() -> None:
     ) as chemostat:
         assert chemostat.alt_media_fraction == 0.5
         pause(n=35)
-        alt_media_fraction_post_dosing = 0.5 / (1 + 0.25 / chemostat.vial_volume)
+        alt_media_fraction_post_dosing = 0.5 / (1 + 0.25 / chemostat.liquid_volume)
         assert chemostat.media_throughput == 0.25
         assert chemostat.alt_media_throughput == 0.0
         assert close(chemostat.alt_media_fraction, alt_media_fraction_post_dosing)
@@ -1071,14 +1071,14 @@ def test_chemostat_from_0_volume() -> None:
         unit,
         experiment,
         volume=0.5,
-        initial_vial_volume=0,
+        initial_liquid_volume=0,
     ) as chemostat:
         pause(n=25)
         assert chemostat.media_throughput == 0.5
-        assert chemostat.vial_volume == 0.5
+        assert chemostat.liquid_volume == 0.5
         pause(n=25)
         assert chemostat.media_throughput == 1.0
-        assert chemostat.vial_volume == 1.0
+        assert chemostat.liquid_volume == 1.0
 
 
 def test_execute_io_respects_dilutions_ratios() -> None:
@@ -1132,20 +1132,20 @@ def test_execute_io_respects_dilutions_ratios() -> None:
         assert automation_job.alt_media_fraction > 0.5
 
 
-def test_vial_volume_is_published() -> None:
+def test_liquid_volume_is_published() -> None:
     unit = get_unit_name()
-    experiment = "test_vial_volume_is_published"
+    experiment = "test_liquid_volume_is_published"
 
     with start_dosing_automation("chemostat", 2, False, unit, experiment, volume=2.0) as chemostat:
-        assert chemostat.vial_volume == 14
-        result = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/dosing_automation/vial_volume")
+        assert chemostat.liquid_volume == 14
+        result = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/dosing_automation/liquid_volume")
         if result:
             assert float(result.payload) == 14
 
 
-def test_vial_volume_calculator() -> None:
+def test_liquid_volume_calculator() -> None:
     # let's start from 0 volume, and start adding.
-    vc = VialVolumeCalculator
+    vc = LiquidVolumeCalculator
     current_volume = 0.0
 
     # adding 6ml of media
@@ -1233,7 +1233,7 @@ def test_vial_volume_calculator() -> None:
 def test_alt_media_calculator_from_0_volume() -> None:
     # let's start from 0, and start adding.
     ac = AltMediaFractionCalculator
-    vc = VialVolumeCalculator
+    vc = LiquidVolumeCalculator
 
     current_volume = 0.0
     current_alt_media_fraction = 0.0  # this value doesn't matter, could be anything since volume = 0.
@@ -1361,7 +1361,7 @@ def test_automation_will_pause_itself_if_pumping_goes_above_safety_threshold() -
         experiment=experiment,
         duration=0.05,
         volume=0.5,
-        initial_vial_volume=17.95,
+        initial_liquid_volume=17.95,
     ) as job:
         while job.state == "ready":
             pause()
@@ -1373,7 +1373,7 @@ def test_automation_will_pause_itself_if_pumping_goes_above_safety_threshold() -
         job.remove_waste_from_bioreactor(job.unit, job.experiment, ml=5.0, source_of_event="manual")
 
         pause()
-        assert job.vial_volume <= 17.95
+        assert job.liquid_volume <= 17.95
 
         job.set_state("ready")
         assert job.state == "ready"

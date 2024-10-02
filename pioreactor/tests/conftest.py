@@ -46,7 +46,7 @@ def run_around_tests(request):
         c.pop(test_name)
     with local_persistant_storage("alt_media_fraction") as c:
         c.pop(test_name)
-    with local_persistant_storage("vial_volume") as c:
+    with local_persistant_storage("liquid_volume") as c:
         c.pop(test_name)
 
     yield

@@ -201,7 +201,7 @@ def plot_data(
     plt.plot_size(105, 22)
 
     if interpolation_curve:
-        plt.plot(x, [interpolation_curve(x_) for x_ in x], color=204)
+        plt.plot(sorted(x), [interpolation_curve(x_) for x_ in sorted(x)], color=204)
         plt.plot_size(145, 26)
 
     plt.xlim(x_min, x_max)
@@ -490,7 +490,9 @@ def save_results(
     return data_blob
 
 
-def get_data_from_data_file(data_file: str) -> tuple[pt.PdChannel, pt.PdAngle, list[float], list[float]]:
+def get_data_from_data_file(
+    data_file: str,
+) -> tuple[pt.PdChannel, pt.PdAngle, list[float], list[float], list[float] | None, str | None]:
     import json
 
     click.echo(f"Pulling data from {data_file}...")
@@ -498,7 +500,11 @@ def get_data_from_data_file(data_file: str) -> tuple[pt.PdChannel, pt.PdAngle, l
     with open(data_file, "r") as f:
         data = json.loads(f.read())
 
+    curve_data_ = data.get("curve_data_", [])
+    curve_type = data.get("curve_type", None)
+
     ods, voltages = data["od600s"], data["voltages"]
+
     assert len(ods) == len(voltages), "data must be the same length."
 
     pd_channel = data.get(
@@ -507,12 +513,14 @@ def get_data_from_data_file(data_file: str) -> tuple[pt.PdChannel, pt.PdAngle, l
     )
     angle = data.get("angle", str(config["od_config.photodiode_channel"][pd_channel]))
 
-    return pd_channel, angle, ods, voltages
+    return pd_channel, angle, ods, voltages, curve_data_, curve_type
 
 
 def od_calibration(data_file: str | None) -> None:
     unit = get_unit_name()
     experiment = get_testing_experiment_name()
+    curve_data_ = []  # type: ignore
+    curve_type = ""  # type: ignore
 
     if any(is_pio_job_running(["stirring", "od_reading"])):
         raise ValueError("Stirring and OD reading should be turned off.")
@@ -536,21 +544,26 @@ def od_calibration(data_file: str | None) -> None:
                     st, initial_od600, minimum_od600, dilution_amount, pd_channel
                 )
         else:
-            pd_channel, angle, inferred_od600s, voltages = get_data_from_data_file(data_file)
+            pd_channel, angle, inferred_od600s, voltages, curve_data_, curve_type = get_data_from_data_file(  # type: ignore
+                data_file
+            )  # type: ignore
 
         degree = 5 if len(voltages) > 10 else 3
+        okay_with_result = False
         while True:
-            curve_data_, curve_type = calculate_curve_of_best_fit(voltages, inferred_od600s, degree)
-            okay_with_result, degree = show_results_and_confirm_with_user(
-                curve_data_, curve_type, voltages, inferred_od600s
-            )
+            if curve_type and curve_data_:
+                okay_with_result, degree = show_results_and_confirm_with_user(
+                    curve_data_, curve_type, voltages, inferred_od600s
+                )
             if okay_with_result:
                 break
 
+            curve_data_, curve_type = calculate_curve_of_best_fit(voltages, inferred_od600s, degree)
+
         echo("Saving results...")
-        data_blob = save_results(
-            curve_data_,
-            curve_type,
+        data_blob = save_results(  # type: ignore
+            curve_data_,  # type: ignore
+            curve_type,  # type: ignore
             voltages,
             inferred_od600s,
             angle,

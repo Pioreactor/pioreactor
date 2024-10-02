@@ -1,6 +1,13 @@
+### Upcoming
+ - `vial_volume` to replaced with `liquid_volume`.
+ - Adding a SQL table for tracking `liquid_volume`
+ - fix for OD calibration graph showing "two lines"
+
+
+
 ### 24.10.1
 
- #### Enhancements
+#### Enhancements
  - amount of data shown on charts is now a function of the OD sampling rate
  - allow for showing more than 16 workers in a chart.
 
