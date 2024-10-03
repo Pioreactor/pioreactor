@@ -96,3 +96,44 @@ def test_get_tag_to_install(monkeypatch) -> None:
 
     monkeypatch.setattr("pioreactor.version.__version__", "22.2.1rc0")
     assert get_tag_to_install("pioreactor/pioreactor", None) == "tags/22.3.1"
+
+
+def test_get_non_prerelease_tags_of_pioreactor_with_no_releases(monkeypatch) -> None:
+    # Test with no releases
+    fake_releases: list[str] = []
+
+    def mock_get_request(url, headers):
+        return mock_get(200, dumps(fake_releases))
+
+    monkeypatch.setattr("pioreactor.cli.pio.get", mock_get_request)
+
+    result = get_non_prerelease_tags_of_pioreactor("pioreactor/pioreactor")
+    assert result == []
+
+
+def test_get_tag_to_install_with_empty_version_history(monkeypatch) -> None:
+    # Test with empty version history
+    monkeypatch.setattr("pioreactor.cli.pio.get_non_prerelease_tags_of_pioreactor", lambda _: [])
+    monkeypatch.setattr("pioreactor.version.__version__", "22.2.1")
+    assert get_tag_to_install("pioreactor/pioreactor", None) == "latest"
+
+
+def test_get_tag_to_install_with_large_version_history(monkeypatch) -> None:
+    # Test with a large version history to simulate stress testing
+    fake_versions = [f"23.4.{i}" for i in range(1, 1000)]
+    monkeypatch.setattr("pioreactor.cli.pio.get_non_prerelease_tags_of_pioreactor", lambda _: fake_versions)
+    monkeypatch.setattr("pioreactor.version.__version__", "23.4.500")
+    assert get_tag_to_install("pioreactor/pioreactor", None) == "tags/23.4.501"
+
+
+def test_get_tag_to_install_handles_dev_and_rc_versions(monkeypatch) -> None:
+    # Test handling dev and rc versions in the current version
+    monkeypatch.setattr(
+        "pioreactor.cli.pio.get_non_prerelease_tags_of_pioreactor",
+        lambda _: ["21.12.1", "22.1.1", "22.2.1", "22.3.1", "22.4.1"],
+    )
+    monkeypatch.setattr("pioreactor.version.__version__", "22.4.1.dev10")
+    assert get_tag_to_install("pioreactor/pioreactor", None) == "latest"
+
+    monkeypatch.setattr("pioreactor.version.__version__", "22.3.1.rc1")
+    assert get_tag_to_install("pioreactor/pioreactor", None) == "tags/22.4.1"

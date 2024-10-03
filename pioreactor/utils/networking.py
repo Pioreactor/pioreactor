@@ -16,7 +16,7 @@ def rsync(*args):
     from subprocess import CalledProcessError
 
     try:
-        check_call(("rsync",) + args)
+        check_call(("rsync",) + args, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
     except CalledProcessError as e:
         raise RsyncError from e
 

@@ -2,12 +2,11 @@
  - `vial_volume` to replaced with `liquid_volume`.
  - Adding a SQL table for tracking `liquid_volume`
  - fix for OD calibration graph showing "two lines" in the terminal display
- - fix for updating over the internet from a .devX or .rcY release
+ - fix for updating over the internet when a Pioreactor is on a `A.devX` or `B.rcY` release
  - od calibrations can use the -f to edit calibration curve polynomial coefficients.
  - faster UI response times when starting jobs
  - faster syncing configs
- - faster copy files across cluster via `pio cp`
-
+ - faster copying files across cluster via `pio cp`
 
 
 ### 24.10.1
