@@ -240,8 +240,11 @@ if am_I_leader() or is_testing_env():
                 logger.error(f"Unable to remove file on {unit} due to server error: {e}.")
                 return False
 
-        for unit in units:
-            _thread_function(unit)
+        with ThreadPoolExecutor(max_workers=len(units)) as executor:
+            results = executor.map(_thread_function, units)
+
+        if not all(results):
+            raise click.Abort()
 
     @pios.group(invoke_without_command=True)
     @click.option("-s", "--source", help="use a release-***.zip already on the workers")

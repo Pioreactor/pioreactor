@@ -5,7 +5,8 @@
  - fix for updating over the internet from a .devX or .rcY release
  - od calibrations can use the -f to edit calibration curve polynomial coefficients.
  - faster UI response times when starting jobs
-
+ - faster syncing configs
+ - faster copy files across cluster via `pio cp`
 
 
 
