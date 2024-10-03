@@ -27,10 +27,11 @@ CORE_REQUIREMENTS = [
     "MarkupSafe==2.1.5",
     "python-dotenv==1.0.1",
     "Werkzeug==3.0.3",
+    "packaging==24.1",
 ]
 
 
-LEADER_REQUIREMENTS = ["packaging==24.1"]
+LEADER_REQUIREMENTS: list[str] = []
 
 
 WORKER_REQUIREMENTS = [

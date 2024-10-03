@@ -88,15 +88,12 @@ def _get_assigned_experiment_name(unit_name: str) -> str:
 
 
 def is_active(unit_name: str) -> bool:
-    from pioreactor.pubsub import get_from_leader
-
-    if os.environ.get("ACTIVE") == "1":
+    if os.environ.get("ACTIVE") == "1" or is_testing_env():
         return True
     elif os.environ.get("ACTIVE") == "0":
         return False
 
-    if is_testing_env():
-        return True
+    from pioreactor.pubsub import get_from_leader
 
     try:
         result = get_from_leader(f"/api/workers/{unit_name}")

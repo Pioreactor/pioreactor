@@ -205,6 +205,7 @@ if am_I_leader() or is_testing_env():
 
         for unit in units:
             # TODO: why don't we pool this? It was here at one point, now removed (probably for good reason/)
+            # it's pretty slow to do this one-by-one: example, for 16 units, it takes up to ~10 seconds => 10 * 16 = ~3m
             _thread_function(unit)
 
     @pios.command("rm", short_help="rm a file across the cluster")

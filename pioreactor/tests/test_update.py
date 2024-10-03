@@ -30,7 +30,11 @@ def test_get_non_prerelease_tags_of_pioreactor(monkeypatch) -> None:
     monkeypatch.setattr("pioreactor.cli.pio.get", mock_get_request)
 
     result = get_non_prerelease_tags_of_pioreactor("pioreactor/pioreactor")
-    assert result == ["22.3.1", "22.2.1", "22.1.1"]
+    assert [str(r) for r in result] == [
+        "22.1.1",
+        "22.2.1",
+        "22.3.1",
+    ]
 
     # Test when response status code is not 200
     def mock_get_bad_request(url, headers):
@@ -56,13 +60,18 @@ def test_get_non_prerelease_tags_of_pioreactor_sorts_calver_correctly(monkeypatc
     monkeypatch.setattr("pioreactor.cli.pio.get", mock_get_request)
 
     result = get_non_prerelease_tags_of_pioreactor("pioreactor/pioreactor")
-    assert result == ["23.4.15", "23.4.5", "23.4.4", "22.12.1"]
+    assert [str(r) for r in result] == [
+        "22.12.1",
+        "23.4.4",
+        "23.4.5",
+        "23.4.15",
+    ]
 
 
 def test_get_tag_to_install(monkeypatch) -> None:
     monkeypatch.setattr(
         "pioreactor.cli.pio.get_non_prerelease_tags_of_pioreactor",
-        lambda _: ["22.4.1", "22.3.1", "22.2.1", "22.1.1", "21.12.1"],
+        lambda _: ["21.12.1", "22.1.1", "22.2.1", "22.3.1", "22.4.1"],
     )
     assert get_tag_to_install("pioreactor/pioreactor", "latest") == "latest"
     assert get_tag_to_install("pioreactor/pioreactor", "22.3.1") == "tags/22.3.1"
@@ -79,8 +88,11 @@ def test_get_tag_to_install(monkeypatch) -> None:
     monkeypatch.setattr("pioreactor.version.__version__", "30.4.1")
     assert get_tag_to_install("pioreactor/pioreactor", None) == "latest"
 
-    monkeypatch.setattr("pioreactor.version.__version__", "22.4.1dev")
+    monkeypatch.setattr("pioreactor.version.__version__", "22.4.1.dev0")
     assert get_tag_to_install("pioreactor/pioreactor", None) == "latest"
 
     monkeypatch.setattr("pioreactor.version.__version__", "22.4.1rc0")
     assert get_tag_to_install("pioreactor/pioreactor", None) == "latest"
+
+    monkeypatch.setattr("pioreactor.version.__version__", "22.2.1rc0")
+    assert get_tag_to_install("pioreactor/pioreactor", None) == "tags/22.3.1"

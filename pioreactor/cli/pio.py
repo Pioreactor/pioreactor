@@ -306,6 +306,8 @@ def get_non_prerelease_tags_of_pioreactor(repo) -> list[str]:
     """
     Returns a list of all the tag names associated with non-prerelease releases, sorted in descending order
     """
+    from packaging.version import Version
+
     url = f"https://api.github.com/repos/{repo}/releases"
     headers = {"Accept": "application/vnd.github.v3+json"}
     response = get(url, headers=headers)
@@ -320,11 +322,7 @@ def get_non_prerelease_tags_of_pioreactor(repo) -> list[str]:
         if not release["prerelease"]:
             non_prerelease_tags.append(release["tag_name"])
 
-    def version_key(version):
-        major, minor, patch = version.split(".")
-        return int(major), int(minor), int(patch)
-
-    return sorted(non_prerelease_tags, reverse=True, key=version_key)
+    return sorted(non_prerelease_tags, key=Version)
 
 
 def get_tag_to_install(repo: str, version_desired: Optional[str]) -> str:
@@ -343,15 +341,16 @@ def get_tag_to_install(repo: str, version_desired: Optional[str]) -> str:
 
     if version_desired is None:
         # we should only update one step at a time.
-        from pioreactor.version import __version__ as software_version
+        from pioreactor.version import __version__
+        from packaging.version import Version
+        from bisect import bisect
 
+        software_version = Version(Version(__version__).base_version)  # this removes and .devY or rcx
         version_history = get_non_prerelease_tags_of_pioreactor(repo)
-
-        if software_version in version_history:
-            ix = version_history.index(software_version)
-
+        if bisect(version_history, software_version, key=Version) < len(version_history):
+            ix = bisect(version_history, software_version, key=Version)
             if ix >= 1:
-                tag = f"tags/{version_history[ix-1]}"  # update to the succeeding version.
+                tag = f"tags/{version_history[ix]}"
             elif ix == 0:
                 tag = "latest"  # essentially a re-install?
 
