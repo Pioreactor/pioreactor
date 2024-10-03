@@ -57,10 +57,31 @@ export function getRelabelMap(setCallback, experiment="current") {
 
 
 
-export function runPioreactorJob(unit, experiment, job, args = [], options = {}) {
+export function runPioreactorJob(unit, experiment, job, args = [], options = {}, skipEnv=false) {
     return fetch(`/api/workers/${unit}/jobs/run/job_name/${job}/experiments/${experiment}`, {
       method: "PATCH",
-      body: JSON.stringify({ args: args, options: options, env: {EXPERIMENT: experiment, JOB_SOURCE: "user"} }),
+      body: JSON.stringify({ args: args, options: options, env: (!skipEnv) ? {EXPERIMENT: experiment, JOB_SOURCE: "user"} : {} }),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+    }).then(response => {
+      if (response.ok) {
+        // If response status is in the range 200-299
+        return
+      } else {
+        throw new Error(`Error ${response.status}.`);
+      }
+    }).catch(error => {
+      // Handle network errors or 4xx/5xx errors
+      throw error;
+    });
+}
+
+export function runPioreactorJobViaUnitAPI(unit, job, args = [], options = {}) {
+    return fetch(`/unit_api/jobs/run/job_name/${job}`, {
+      method: "PATCH",
+      body: JSON.stringify({ args: args, options: options}),
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json'
@@ -105,25 +126,22 @@ export const colors = [
   "#009988",
   "#CC3311",
   "#33BBEE",
-  "#EE7733",
+  "#be5f29",
   "#EE3377",
-  "#b1bab3",
+  "#8e958f",
   "#a6cee3",
   "#1f78b4",
-  "#b2df8a",
   "#33a02c",
-  "#fb9a99",
+  "#c97b7a",
   "#e31a1c",
   "#fdbf6f",
-  "#ff7f00",
   "#cab2d6",
   "#6a3d9a",
-  "#ffff99",
   "#b15928",
   "#9ACD32",
   "#40E0D0",
   "#4682B4",
-  "#D473D4"
+  "#aa5caa"
 ];
 
 export const ERROR_COLOR = "#ff7961"

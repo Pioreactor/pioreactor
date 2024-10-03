@@ -31,7 +31,7 @@ import { useConfirm } from 'material-ui-confirm';
 import { MQTTProvider, useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 import ManageExperimentMenu from "./components/ManageExperimentMenu";
-import {runPioreactorJob} from "./utilities"
+import {runPioreactorJobViaUnitAPI} from "./utilities"
 
 
 
@@ -99,7 +99,7 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName, s
 
   const onSubmit = () => {
     setConfirmed(true)
-    runPioreactorJob(leaderHostname, experiment , 'experiment_profile', ['execute', selectedExperimentProfile, experiment], (dryRun ? {'dry-run': null} : {}))
+    runPioreactorJobViaUnitAPI(leaderHostname, 'experiment_profile', ['execute', selectedExperimentProfile, experiment], (dryRun ? {'dry-run': null} : {}))
   }
 
   const onStop = () => {

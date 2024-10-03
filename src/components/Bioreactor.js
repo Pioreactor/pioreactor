@@ -127,7 +127,7 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
       } else {
         setNOD(JSON.parse(messageString).od_filtered)
       }
-    } else if (topicString.endsWith("dosing_automation/vial_volume")){
+    } else if (topicString.endsWith("dosing_automation/liquid_volume")){
       if (messageString === "") {
         //
       } else {
@@ -153,12 +153,12 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
       subscribeToTopic([`pioreactor/${unit}/${experiment}/temperature_automation/temperature`,
         `pioreactor/${unit}/${experiment}/growth_rate_calculating/od_filtered`,
         `pioreactor/${unit}/${experiment}/leds/intensity`,
-        `pioreactor/${unit}/${experiment}/dosing_automation/vial_volume`,
+        `pioreactor/${unit}/${experiment}/dosing_automation/liquid_volume`,
         `pioreactor/${unit}/${experiment}/pwms/dc`,
         `pioreactor/${unit}/_testing_${experiment}/temperature_automation/temperature`,
         `pioreactor/${unit}/_testing_${experiment}/growth_rate_calculating/od_filtered`,
         `pioreactor/${unit}/_testing_${experiment}/leds/intensity`,
-        `pioreactor/${unit}/_testing_${experiment}/dosing_automation/vial_volume`,
+        `pioreactor/${unit}/_testing_${experiment}/dosing_automation/liquid_volume`,
         `pioreactor/${unit}/_testing_${experiment}/pwms/dc`,
       ], onMessage, "BioreactorDiagram")
 
@@ -190,7 +190,7 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
     ];
 
     const warningRects = [
-      { text: '⚠ diagram above may not be an accurate\nrepresentation of the actual volume - observe carefully.', x: 40, y: 450, width: 320, height: 50, radius: 5 },
+      { text: '⚠ diagram above may not be an accurate\nrepresentation of the volume. Observe carefully.', x: 40, y: 450, width: 320, height: 50, radius: 5 },
     ]
 
     var dynamicRects = []

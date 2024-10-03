@@ -83,9 +83,7 @@ const SelectableMenuItem = ({allExperiments, experiment, updateExperiment}) => {
     e.stopPropagation()
     setSelectOpen(false);
   };
-  const handleSelectOpen = () => {
-    setSelectOpen(true);
-  };
+
 
   function handleExperimentChange(e) {
     const currentPath = window.location.pathname.split('/')[1]; // Assumes the base path is at the first segment

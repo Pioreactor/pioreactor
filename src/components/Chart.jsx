@@ -36,7 +36,6 @@ class Chart extends React.Component {
       seriesMap: {},
       hiddenSeries: new Set(),
       names: [],
-      legendEvents: [],
       fetched: false,
     };
 
@@ -76,7 +75,6 @@ class Chart extends React.Component {
         this.props.subscribeToTopic(`pioreactor/+/${this.props.experiment}/${topic}`, this.onMessage, "Chart")
       });
     }
-    console.log(this.state.legendEvents)
 
   }
 
@@ -126,7 +124,6 @@ class Chart extends React.Component {
               continue
             }
           }
-
           if (data["data"][i].length > 0) {
             initialSeriesMap[unit] = {
               data: (data["data"][i]).map(item => ({y: item.y, x: transformX(item.x) })),
@@ -136,10 +133,8 @@ class Chart extends React.Component {
           }
         }
         let names = Object.keys(initialSeriesMap);
-        const events = this.createLegendEvents()
         this.setState({
           seriesMap: initialSeriesMap,
-          legendEvents: events,
           names: names,
           fetched: true
         });
@@ -165,42 +160,36 @@ class Chart extends React.Component {
     }
   }
 
-
   createLegendEvents() {
-    return [{
-      childName: "legend",
-      target: "data",
-      eventHandlers: {
-        onClick: (_, props) => {
-          console.log(props)
-          return [
-            {
-              childName: props.datum.name,
-              target: "data",
-              mutation: () => {
-                console.log(this.state.hiddenSeries, props.datum.name)
-                if (!this.state.hiddenSeries.has(props.datum.name)) {
-                  // Was not already hidden => add to set
-                  this.setState((prevState) => ({
-                    hiddenSeries: new Set(prevState.hiddenSeries).add(props.datum.name)
-                  }));
-                } else {
-                  // remove from set
-                  this.setState((prevState) => ({
-                    hiddenSeries: (() => {
-                      const newSet = new Set(prevState.hiddenSeries);
-                      newSet.delete(props.datum.name);
-                      return newSet;
-                      })()
-                  }));
-                }
-                return null;
+    return [
+      {
+        childName: "legend",
+        target: "data",
+        eventHandlers: {
+          onClick: (_, props) => {
+            return [
+              {
+                childName: props.datum.name,
+                target: "data",
+                mutation: () => {
+                  const seriesName = props.datum.name;
+                  this.setState((prevState) => {
+                    const hiddenSeries = new Set(prevState.hiddenSeries);
+                    if (hiddenSeries.has(seriesName)) {
+                      hiddenSeries.delete(seriesName);
+                    } else {
+                      hiddenSeries.add(seriesName);
+                    }
+                    return { hiddenSeries };
+                  });
+                  return null;
+                },
               },
-            },
-          ];
+            ];
+          },
         },
       },
-    }]
+    ];
   }
 
   onMessage(topic, message, packet) {
@@ -336,14 +325,17 @@ ${this.relabelAndFormatSeries(d.datum.childName)}: ${Math.round(this.yTransforma
 
 
   selectLegendData(name){
-    var reformattedName = this.relabelAndFormatSeriesForLegend(name)
     if (Object.keys(this.state.seriesMap).length === 0) {
       return {}
+    } else if (!(name in this.state.seriesMap)){
+      return {}
     }
-    const line = this.state.seriesMap?.[name];
+
+    var reformattedName = this.relabelAndFormatSeriesForLegend(name)
+    const line = this.state.seriesMap[name];
     const item = {
       name: reformattedName,
-      symbol: { fill: line.color },
+      symbol: { fill: line?.color },
     };
     if (this.state.hiddenSeries.has(reformattedName)) {
       return { ...item, symbol: { fill: "white" } };
@@ -397,14 +389,17 @@ ${this.relabelAndFormatSeries(d.datum.childName)}: ${Math.round(this.yTransforma
   }
 
   render() {
+    const legendEvents = this.createLegendEvents();
+    const chartKey = this.state.names.join('-');
     return (
         <VictoryChart
+          key={chartKey}
           style={{ parent: { maxWidth: "700px"}}}
           title={this.props.title}
           domainPadding={10}
-          padding={{ left: 70, right: 50, bottom: 60 + 20 * Math.floor(this.state.names.length / 4), top: 50 }}
-          events={this.state.legendEvents}
-          height={295 + 20 * Math.floor(this.state.names.length / 4)}
+          padding={{ left: 70, right: 50, bottom: 40 + 25 * Math.ceil(this.state.names.length / 4), top: 50 }}
+          events={legendEvents}
+          height={285 + 25 * Math.ceil(this.state.names.length / 4)}
           width={600}
           scale={{x: this.props.byDuration ? 'linear' : "time"}}
           theme={VictoryTheme.material}
@@ -446,7 +441,7 @@ ${this.relabelAndFormatSeries(d.datum.childName)}: ${Math.round(this.yTransforma
                 fontFamily: "inherit",
               },
             }}
-            offsetY={60 + 20 * Math.floor(this.state.names.length / 4)}
+            offsetY={40 + 25 * Math.ceil(this.state.names.length / 4)}
             label={this.props.byDuration ? "Hours" : "Time"}
             orientation="bottom"
             fixLabelOverlap={true}
@@ -488,7 +483,7 @@ ${this.relabelAndFormatSeries(d.datum.childName)}: ${Math.round(this.yTransforma
           />
           <VictoryLegend
             x={65}
-            y={270}
+            y={285}
             symbolSpacer={6}
             itemsPerRow={4}
             name="legend"
