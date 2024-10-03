@@ -17,6 +17,7 @@ from pioreactor.logging import create_logger
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import delete_from_leader
+from pioreactor.pubsub import get_from
 from pioreactor.pubsub import get_from_leader
 from pioreactor.pubsub import put_into_leader
 from pioreactor.pubsub import subscribe
@@ -227,8 +228,9 @@ def cluster_status() -> None:
             ip = networking.get_ip()
         else:
             try:
-                ip = socket.gethostbyname(networking.add_local(hostname))
-            except OSError:
+                # TODO: we can get this from MQTT, too?
+                ip = socket.gethostbyname(networking.resolve_to_address(hostname))
+            except (OSError, Exception):
                 ip = "unknown"
 
         # get state
@@ -243,25 +245,22 @@ def cluster_status() -> None:
             state = "unknown"
 
         # get version
-        # TODO: change to ping webserver
-        result = subscribe(
-            f"pioreactor/{hostname}/{whoami.UNIVERSAL_EXPERIMENT}/monitor/versions",
-            timeout=1,
-            name="CLI",
-        )
-        if result:
-            app_version = loads(result.payload.decode())["app"]
-        else:
+        try:
+            r = get_from(networking.resolve_to_address(hostname), "/unit_api/versions/app")
+            r.raise_for_status()
+            app_version = r.json()["version"]
+        except HTTPException:
             app_version = "unknown"
 
-        # is reachable? # TODO: change to webserver
-        reachable = networking.is_reachable(networking.add_local(hostname))
+        # is reachable? # TODO: change to webserver?
+        reachable = networking.is_reachable(networking.resolve_to_address(hostname))
 
         # get experiment
         try:
-            result = get_from_leader(f"/api/workers/{hostname}/experiment")
-            experiment = result.json()["experiment"]
-        except Exception:
+            r = get_from_leader(f"/api/workers/{hostname}/experiment")
+            r.raise_for_status()
+            experiment = r.json()["experiment"]
+        except HTTPException:
             experiment = ""
 
         return ip, state, reachable, app_version, experiment

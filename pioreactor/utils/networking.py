@@ -61,7 +61,7 @@ def is_reachable(address: str) -> bool:
     # TODO: why not use sh.ping? Ex: ping("leader7.local", "-c1", "-W50")
 
     std_out_from_ping = subprocess.Popen(
-        ["ping", "-c1", "-W50", address],
+        ["ping", "-c1", "-W3", address],
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
     ).stdout

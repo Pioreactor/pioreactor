@@ -203,10 +203,11 @@ if am_I_leader() or is_testing_env():
                 logger.debug(f"Error occurred: {e}.", exc_info=True)
                 return False
 
-        for unit in units:
-            # TODO: why don't we pool this? It was here at one point, now removed (probably for good reason/)
-            # it's pretty slow to do this one-by-one: example, for 16 units, it takes up to ~10 seconds => 10 * 16 = ~3m
-            _thread_function(unit)
+        with ThreadPoolExecutor(max_workers=len(units)) as executor:
+            results = executor.map(_thread_function, units)
+
+        if not all(results):
+            raise click.Abort()
 
     @pios.command("rm", short_help="rm a file across the cluster")
     @click.argument("filepath", type=click.Path(resolve_path=True))
@@ -579,9 +580,8 @@ if am_I_leader() or is_testing_env():
             # save config.inis to database
             save_config_files_to_db(units, shared, specific)
 
-        results = []
-        for unit in units:
-            results.append(_thread_function(unit))
+        with ThreadPoolExecutor(max_workers=len(units)) as executor:
+            results = executor.map(_thread_function, units)
 
         if not all(results):
             raise click.Abort()

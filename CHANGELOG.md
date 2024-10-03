@@ -1,7 +1,11 @@
 ### Upcoming
  - `vial_volume` to replaced with `liquid_volume`.
  - Adding a SQL table for tracking `liquid_volume`
- - fix for OD calibration graph showing "two lines"
+ - fix for OD calibration graph showing "two lines" in the terminal display
+ - fix for updating over the internet from a .devX or .rcY release
+ - od calibrations can use the -f to edit calibration curve polynomial coefficients.
+ - faster UI response times when starting jobs
+
 
 
 
