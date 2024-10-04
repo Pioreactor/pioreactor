@@ -123,6 +123,8 @@ class RpmFromFrequency(RpmCalculator):
     """
 
     _running_sum = 0.0
+    _running_min = -100
+    _running_max = 100
     _running_count = 0
     _start_time = None
 
@@ -133,8 +135,11 @@ class RpmFromFrequency(RpmCalculator):
             return
 
         if _start_time is not None:
-            self._running_sum += obs_time - _start_time
+            delta = obs_time - _start_time
+            self._running_sum += delta
             self._running_count += 1
+            self._running_min = min(self._running_min, delta)
+            self._running_max = max(self._running_max, delta)
 
         self._start_time = obs_time
 
@@ -142,12 +147,16 @@ class RpmFromFrequency(RpmCalculator):
         self._running_sum = 0.0
         self._running_count = 0
         self._start_time = None
+        self._running_min = -100
+        self._running_max = 100
 
     def estimate(self, seconds_to_observe: float) -> float:
         self.clear_aggregates()
         self.turn_on_collection()
         self.sleep_for(seconds_to_observe)
         self.turn_off_collection()
+
+        print(self._running_max, self._running_min)
 
         if self._running_sum == 0.0:
             return 0.0
