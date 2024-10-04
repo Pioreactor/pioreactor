@@ -123,8 +123,8 @@ class RpmFromFrequency(RpmCalculator):
     """
 
     _running_sum = 0.0
-    _running_min = -100
-    _running_max = 100
+    _running_min = 100
+    _running_max = -100
     _running_count = 0
     _start_time = None
 
@@ -147,8 +147,8 @@ class RpmFromFrequency(RpmCalculator):
         self._running_sum = 0.0
         self._running_count = 0
         self._start_time = None
-        self._running_min = -100
-        self._running_max = 100
+        self._running_min = 100
+        self._running_max = -100
 
     def estimate(self, seconds_to_observe: float) -> float:
         self.clear_aggregates()
