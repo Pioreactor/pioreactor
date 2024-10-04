@@ -1,12 +1,14 @@
 ### Upcoming
  - `vial_volume` to replaced with `liquid_volume`.
  - Adding a SQL table for tracking `liquid_volume`
+ - New dataset exports from the UI: calibrations and liquid-volumes.
  - fix for OD calibration graph showing "two lines" in the terminal display
  - fix for updating over the internet when a Pioreactor is on a `A.devX` or `B.rcY` release
- - od calibrations can use the -f to edit calibration curve polynomial coefficients.
+ - od calibrations can use the `-f` to edit calibration curve polynomial coefficients.
  - faster UI response times when starting jobs
  - faster syncing configs
  - faster copying files across cluster via `pio cp`
+ - Added a partition by unit option to the Export data page.
 
 
 ### 24.10.1

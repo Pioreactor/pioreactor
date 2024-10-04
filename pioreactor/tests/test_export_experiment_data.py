@@ -49,9 +49,7 @@ def test_filter_to_timestamp_columns() -> None:
 
 def test_generate_timestamp_to_localtimestamp_clause() -> None:
     conn = sqlite3.connect(":memory:")
-    conn.execute(
-        "CREATE TABLE test_table (id INTEGER, name TEXT, timestamp DATETIME, created_at DATETIME)"
-    )
+    conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp DATETIME, created_at DATETIME)")
     cursor = conn.cursor()
 
     assert (
@@ -69,9 +67,7 @@ def test_export_experiment_data(temp_zipfile) -> None:
     # Set up a temporary SQLite database with sample data
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp DATETIME)")
-    conn.execute(
-        "INSERT INTO test_table (id, name, timestamp) VALUES (1, 'John', '2021-09-01 00:00:00')"
-    )
+    conn.execute("INSERT INTO test_table (id, name, timestamp) VALUES (1, 'John', '2021-09-01 00:00:00')")
     conn.commit()
 
     # Mock the connection and logger objects
@@ -134,9 +130,7 @@ def test_export_experiment_data_with_experiment(temp_zipfile) -> None:
         # Find the file with a matching pattern
         csv_filename = None
         for filename in zf.namelist():
-            if re.match(
-                r"test_export_experiment_data_with_experiment-test_table-\d{14}\.csv", filename
-            ):
+            if re.match(r"test_export_experiment_data_with_experiment-test_table-\d{14}\.csv", filename):
                 csv_filename = filename
                 break
 
@@ -153,3 +147,42 @@ def test_export_experiment_data_with_experiment(temp_zipfile) -> None:
             assert (
                 values[0][:4] == "2021"
             )  # can't compare exactly since it uses datetime(ts, 'locatime') in sqlite3, and the localtime will vary between CI servers.
+
+
+def test_export_experiment_data_with_partition_by_unit(temp_zipfile) -> None:
+    # Set up a temporary SQLite database with sample data
+    conn = sqlite3.connect(":memory:")
+    conn.execute(
+        "CREATE TABLE od_readings (pioreactor_unit TEXT, experiment TEXT, od_reading REAL, timestamp TEXT)"
+    )
+    conn.execute(
+        """
+    INSERT INTO od_readings (pioreactor_unit, experiment, od_reading, timestamp) VALUES ('pio01', 'exp1', 0.1, '2021-09-01 00:00:00'),
+                                                                             ('pio02', 'exp1', 0.2, '2021-09-01 00:00:00'),
+                                                                             ('pio01', 'exp1', 0.1, '2021-09-01 00:00:10'),
+                                                                             ('pio02', 'exp1', 0.21, '2021-09-01 00:00:10'),
+                                                                             ('pio01', 'exp1', 0.1, '2021-09-01 00:00:15'),
+                                                                             ('pio02', 'exp1', 0.22, '2021-09-01 00:00:15'),
+                                                                             ('pio02', 'exp2', 0.1, '2021-01-01 00:00:15'),
+                                                                             ('pio02', 'exp2', 0.1, '2021-10-01 00:00:15');
+    """
+    )
+    conn.commit()
+
+    # Mock the connection and logger objects
+    with patch("sqlite3.connect") as mock_connect:
+        mock_connect.return_value = conn
+
+        export_experiment_data(
+            experiment="exp1",
+            output=temp_zipfile.strpath,
+            partition_by_unit=True,
+            tables=["od_readings"],
+        )
+
+    # Check if the exported data is correct
+    with zipfile.ZipFile(temp_zipfile.strpath, mode="r") as zf:
+        # Find the file with a matching pattern
+        assert len(zf.namelist()) == 2
+        assert "pio01" in sorted(zf.namelist())[0]
+        assert "pio02" in sorted(zf.namelist())[1]
