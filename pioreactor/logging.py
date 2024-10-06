@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 logging.raiseExceptions = False
 
 
-def add_logging_level(levelName, levelNum):
+def add_logging_level(levelName: str, levelNum: int) -> None:
     """
     Comprehensively adds a new logging level to the `logging` module and the
     currently configured logging class.
@@ -41,11 +41,11 @@ def add_logging_level(levelName, levelNum):
     """
     methodName = levelName.lower()
 
-    def logForLevel(self, message, *args, **kwargs):
+    def logForLevel(self: logging.Logger, message: str, *args, **kwargs) -> None:
         if self.isEnabledFor(levelNum):
             self._log(levelNum, message, args, **kwargs)
 
-    def logToRoot(message, *args, **kwargs):
+    def logToRoot(message: str, *args, **kwargs) -> None:
         logging.log(levelNum, message, *args, **kwargs)
 
     logging.addLevelName(levelNum, levelName)

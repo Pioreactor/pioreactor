@@ -448,7 +448,7 @@ def update_app(
                 f"Unable to retrieve information over internet. Is the Pioreactor connected to the internet? Local access point is {'active' if is_using_local_access_point() else 'inactive'}."
             )
         response = get(f"https://api.github.com/repos/{repo}/releases/{tag}")
-        if response.raise_for_status():
+        if response.ok:
             logger.error(f"Version {version} not found")
             raise click.Abort()
 

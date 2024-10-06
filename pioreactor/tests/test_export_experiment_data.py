@@ -186,3 +186,41 @@ def test_export_experiment_data_with_partition_by_unit(temp_zipfile) -> None:
         assert len(zf.namelist()) == 2
         assert "pio01" in sorted(zf.namelist())[0]
         assert "pio02" in sorted(zf.namelist())[1]
+
+
+def test_export_experiment_data_with_partition_by_unit_if_pioreactor_unit_col_doesnt_exist(
+    temp_zipfile,
+) -> None:
+    # Set up a temporary SQLite database with sample data
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE od_readings (experiment TEXT, od_reading REAL, timestamp TEXT)")
+    conn.execute(
+        """
+    INSERT INTO od_readings (experiment, od_reading, timestamp) VALUES ('exp1', 0.1, '2021-09-01 00:00:00'),
+                                                                       ('exp1', 0.2, '2021-09-01 00:00:00'),
+                                                                       ('exp1', 0.1, '2021-09-01 00:00:10'),
+                                                                       ('exp1', 0.21, '2021-09-01 00:00:10'),
+                                                                       ('exp1', 0.1, '2021-09-01 00:00:15'),
+                                                                       ('exp1', 0.22, '2021-09-01 00:00:15'),
+                                                                       ('exp2', 0.1, '2021-01-01 00:00:15'),
+                                                                       ('exp2', 0.1, '2021-10-01 00:00:15');
+    """
+    )
+    conn.commit()
+
+    # Mock the connection and logger objects
+    with patch("sqlite3.connect") as mock_connect:
+        mock_connect.return_value = conn
+
+        export_experiment_data(
+            experiment="exp1",
+            output=temp_zipfile.strpath,
+            partition_by_unit=True,
+            tables=["od_readings"],
+        )
+
+    # Check if the exported data is correct
+    with zipfile.ZipFile(temp_zipfile.strpath, mode="r") as zf:
+        # Find the file with a matching pattern
+        assert len(zf.namelist()) == 1
+        assert zf.namelist()[0].startswith("exp1-od_readings-all")

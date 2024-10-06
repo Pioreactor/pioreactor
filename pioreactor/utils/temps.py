@@ -27,6 +27,6 @@ class TMP1075:
         return ((b[0] << 4) + (b[1] >> 4)) * 0.0625
 
     @property
-    def temperature(self):
+    def temperature(self) -> float:
         """alias for get_temperature"""
         return self.get_temperature()

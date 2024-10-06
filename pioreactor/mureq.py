@@ -222,7 +222,7 @@ class Response:
         alias for compatibility with requests.Response."""
         return self.body
 
-    def raise_for_status(self):
+    def raise_for_status(self) -> None:
         """raise_for_status checks the response's success code, raising an
         exception for error codes."""
         if not self.ok:

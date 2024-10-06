@@ -96,7 +96,7 @@ class CalcLexer(Lexer):
 
 
 # Test basic recognition of various tokens and literals
-def test_tokens():
+def test_tokens() -> None:
     lexer = CalcLexer()
     toks = list(lexer.tokenize("abc 123 + - * / = < <= ( )"))
     types = [t.type for t in toks]
@@ -106,7 +106,7 @@ def test_tokens():
 
 
 # Test position tracking
-def test_positions():
+def test_positions() -> None:
     lexer = CalcLexer()
     text = "abc\n( )"
     toks = list(lexer.tokenize(text))
@@ -121,7 +121,7 @@ def test_positions():
 
 
 # Test ignored comments and newlines
-def test_ignored():
+def test_ignored() -> None:
     lexer = CalcLexer()
     toks = list(lexer.tokenize("\n\n# A comment\n123\nabc\n"))
     types = [t.type for t in toks]
@@ -134,7 +134,7 @@ def test_ignored():
 
 
 # Test error handling
-def test_error():
+def test_error() -> None:
     lexer = CalcLexer()
     toks = list(lexer.tokenize("123 :+-"))
     types = [t.type for t in toks]
@@ -145,7 +145,7 @@ def test_error():
 
 
 # Test error token return handling
-def test_error_return():
+def test_error_return() -> None:
     lexer = CalcLexer()
     lexer.return_error = True
     toks = list(lexer.tokenize("123 :+-"))
@@ -205,7 +205,7 @@ class ModernCalcLexer(Lexer):
 
 
 # Test basic recognition of various tokens and literals
-def test_modern_tokens():
+def test_modern_tokens() -> None:
     lexer = ModernCalcLexer()
     toks = list(lexer.tokenize("abc if else 123 + - * / = < <= ( )"))
     types = [t.type for t in toks]
@@ -229,7 +229,7 @@ def test_modern_tokens():
 
 
 # Test ignored comments and newlines
-def test_modern_ignored():
+def test_modern_ignored() -> None:
     lexer = ModernCalcLexer()
     toks = list(lexer.tokenize("\n\n# A comment\n123\nabc\n"))
     types = [t.type for t in toks]
@@ -242,7 +242,7 @@ def test_modern_ignored():
 
 
 # Test error handling
-def test_modern_error():
+def test_modern_error() -> None:
     lexer = ModernCalcLexer()
     toks = list(lexer.tokenize("123 :+-"))
     types = [t.type for t in toks]
@@ -253,7 +253,7 @@ def test_modern_error():
 
 
 # Test error token return handling
-def test_modern_error_return():
+def test_modern_error_return() -> None:
     lexer = ModernCalcLexer()
     lexer.return_error = True
     toks = list(lexer.tokenize("123 :+-"))

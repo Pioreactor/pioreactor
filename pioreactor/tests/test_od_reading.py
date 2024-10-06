@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from datetime import datetime
 
 import numpy as np
 import pytest
@@ -1102,7 +1103,7 @@ def test_at_least_one_signal_channel() -> None:
             pass
 
 
-def test_CachedCalibrationTransformer_with_real_calibration():
+def test_CachedCalibrationTransformer_with_real_calibration() -> None:
     calibration = structs.OD90Calibration(
         angle="90",
         maximum_od600=1.0,
@@ -1203,7 +1204,7 @@ def test_CachedCalibrationTransformer_with_real_calibration():
         ],
         ir_led_intensity=50,
         pd_channel="2",
-        created_at="2024-05-10T14:13:20.698706Z",
+        created_at=datetime.utcnow(),
         pioreactor_unit="pio1",
         name="test",
     )

@@ -407,13 +407,13 @@ def test_dodging() -> None:
     class JustPause(BackgroundJobWithDodging):
         job_name = "just_pause"
 
-        def __init__(self):
+        def __init__(self) -> None:
             super().__init__(unit=get_unit_name(), experiment="test_dodging")
 
-        def action_to_do_before_od_reading(self):
+        def action_to_do_before_od_reading(self) -> None:
             self.logger.notice(f"   Pausing at {time.time()} 🛑")
 
-        def action_to_do_after_od_reading(self):
+        def action_to_do_after_od_reading(self) -> None:
             self.logger.notice(f"   Unpausing at {time.time()} 🟢")
 
     st = start_od_reading(
@@ -445,13 +445,13 @@ def test_dodging_when_od_reading_stops_first() -> None:
     class JustPause(BackgroundJobWithDodging):
         job_name = "just_pause"
 
-        def __init__(self):
+        def __init__(self) -> None:
             super().__init__(unit=get_unit_name(), experiment="test_dodging_when_od_reading_stops_first")
 
-        def action_to_do_before_od_reading(self):
+        def action_to_do_before_od_reading(self) -> None:
             self.logger.notice(f"   Pausing at {time.time()} 🛑")
 
-        def action_to_do_after_od_reading(self):
+        def action_to_do_after_od_reading(self) -> None:
             self.logger.notice(f"   Unpausing at {time.time()} 🟢")
 
     st = start_od_reading(
@@ -486,13 +486,13 @@ def test_disabled_dodging() -> None:
         job_name = "just_pause"
         published_settings = {"test": {"datatype": "float", "settable": True}}
 
-        def __init__(self):
+        def __init__(self) -> None:
             super().__init__(unit=get_unit_name(), experiment=exp)
 
-        def action_to_do_before_od_reading(self):
+        def action_to_do_before_od_reading(self) -> None:
             self.logger.notice("Pausing")
 
-        def action_to_do_after_od_reading(self):
+        def action_to_do_after_od_reading(self) -> None:
             self.logger.notice("Unpausing")
 
     with collect_all_logs_of_level("NOTICE", unit=get_unit_name(), experiment=exp) as bucket:

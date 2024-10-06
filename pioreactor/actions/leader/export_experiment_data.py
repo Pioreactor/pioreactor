@@ -123,13 +123,22 @@ def export_experiment_data(
                     cursor.execute(query, {"order_by": order_by})
 
                 headers = [_[0] for _ in cursor.description]
-                iloc_pioreactor_unit = headers.index("pioreactor_unit")
+                if "pioreactor_unit" in headers:
+                    iloc_pioreactor_unit = headers.index("pioreactor_unit")
+                else:
+                    logger.debug(f"pioreactor_unit not found in {table}, skipping partition.")
+                    iloc_pioreactor_unit = None
+
                 filenames = []
                 unit_to_writer_map = {}
 
                 with ExitStack() as stack:
                     for row in cursor:
-                        unit = row[iloc_pioreactor_unit]
+                        if iloc_pioreactor_unit:
+                            unit = row[iloc_pioreactor_unit]
+                        else:
+                            unit = "all"
+
                         if unit not in unit_to_writer_map:
                             filename = f"{experiment or 'exp'}-{table}-{unit}-{time}.csv"
                             filenames.append(filename)

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from datetime import datetime
 from math import sqrt
 
 import pytest
@@ -18,7 +19,7 @@ unit = get_unit_name()
 exp = get_assigned_experiment_name(unit)
 
 
-def test_identity():
+def test_identity() -> None:
     assert parse_profile_expression("test") == "test"
     assert parse_profile_expression("test_test") == "test_test"
     assert parse_profile_expression("-1.5") == -1.5
@@ -26,7 +27,7 @@ def test_identity():
     assert parse_profile_expression("True") is True
 
 
-def test_simple_bool():
+def test_simple_bool() -> None:
     assert parse_profile_expression_to_bool("True and True")
     assert not parse_profile_expression_to_bool("True and False")
     assert parse_profile_expression_to_bool("True or False")
@@ -36,7 +37,7 @@ def test_simple_bool():
     assert not parse_profile_expression_to_bool("not (True)")
 
 
-def test_syntax_errors_and_typos():
+def test_syntax_errors_and_typos() -> None:
     with pytest.raises(SyntaxError):
         assert parse_profile_expression_to_bool("(False or True) or False)") is None  # unbalanced paren
 
@@ -44,7 +45,7 @@ def test_syntax_errors_and_typos():
         assert parse_profile_expression_to_bool("test.test > 1")  # test.test is too few for mqtt fetches
 
 
-def test_simple_float_comparison():
+def test_simple_float_comparison() -> None:
     assert parse_profile_expression_to_bool("1 > 0")
     assert not parse_profile_expression_to_bool("1 < 0")
     assert parse_profile_expression_to_bool("1.1 > -1.1")
@@ -58,14 +59,14 @@ def test_simple_float_comparison():
     assert parse_profile_expression_to_bool("-1 <= 1.0")
 
 
-def test_mqtt_fetches():
+def test_mqtt_fetches() -> None:
     # complex
 
     experiment = "_testing_experiment"
 
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od1",
-        encode(structs.ODReading(timestamp="2021-01-01", angle="90", od=1.2, channel="2")),
+        encode(structs.ODReading(timestamp=datetime.utcnow(), angle="90", od=1.2, channel="2")),
         retain=True,
     )
 
@@ -101,12 +102,12 @@ def test_mqtt_fetches():
     assert parse_profile_expression_to_bool(f"{unit}:test_job:bool_false or {unit}:test_job:bool_true")
 
 
-def test_mqtt_fetches_with_env():
+def test_mqtt_fetches_with_env() -> None:
     experiment = "_testing_experiment"
 
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od1",
-        encode(structs.ODReading(timestamp="2021-01-01", angle="90", od=1.2, channel="2")),
+        encode(structs.ODReading(timestamp=datetime.utcnow(), angle="90", od=1.2, channel="2")),
         retain=True,
     )
 
@@ -118,12 +119,12 @@ def test_mqtt_fetches_with_env():
         assert not parse_profile_expression_to_bool("::od_reading:od1.od > 2.0")
 
 
-def test_mqtt_timeout():
+def test_mqtt_timeout() -> None:
     with pytest.raises(ValueError):
         assert parse_profile_expression_to_bool(f"{unit}:test_job:does_not_exist or True")
 
 
-def test_calculator():
+def test_calculator() -> None:
     assert parse_profile_expression("True + True") == 2.0
     assert parse_profile_expression("1 + 1") == 2
     assert parse_profile_expression("1.0 - 1.0") == 0.0
@@ -142,7 +143,7 @@ def test_calculator():
         assert parse_profile_expression("-1.5 / 0") == 0.75
 
 
-def test_env_and_functions():
+def test_env_and_functions() -> None:
     parse_profile_expression("unit()", env={"unit": "test"}) == "test"
     assert parse_profile_expression("unit() == test", env={"unit": "test"})
 
@@ -163,17 +164,17 @@ def test_env_and_functions():
         parse_profile_expression("unit()", env={})
 
 
-def test_env():
+def test_env() -> None:
     assert parse_profile_expression("rpm + 5.0", env={"rpm": 100}) == 105.0
     assert parse_profile_expression("rpm_start * other", env={"rpm_start": 10, "other": 6.6}) == 10 * 6.6
     assert parse_profile_expression("b", env={"b": True})
 
 
-def test_mqtt_fetches_with_calculations():
+def test_mqtt_fetches_with_calculations() -> None:
     experiment = "_testing_experiment"
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od1",
-        encode(structs.ODReading(timestamp="2021-01-01", angle="90", od=1.2, channel="2")),
+        encode(structs.ODReading(timestamp=datetime.utcnow(), angle="90", od=1.2, channel="2")),
         retain=True,
     )
 

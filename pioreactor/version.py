@@ -85,7 +85,7 @@ def version_text_to_tuple(s: str) -> tuple[int, int]:
     return tuple((safe_int(_) for _ in s.split(".")))  # type: ignore
 
 
-def safe_int(s):
+def safe_int(s) -> int:
     try:
         return int(s)
     except (ValueError, TypeError):

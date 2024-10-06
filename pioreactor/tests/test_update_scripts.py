@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import os
+from typing import Generator
 
 
-def find_shell_scripts(directory):
+def find_shell_scripts(directory: str) -> Generator[str, None, None]:
     """Recursively find all shell script files in the specified directory."""
     types = {"update.sh", "pre_update.sh", "post_update.sh"}
     for root, dirs, files in os.walk(directory):
@@ -13,7 +14,7 @@ def find_shell_scripts(directory):
                 yield os.path.join(root, file)
 
 
-def test_pio_commands():
+def test_pio_commands() -> None:
     script_directory = "update_scripts"
     scripts = find_shell_scripts(script_directory)
     error_msgs = []

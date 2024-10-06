@@ -1,15 +1,23 @@
 ### Upcoming
- - `vial_volume` to replaced with `liquid_volume`.
+
+#### Enhancements
+ - `dosing_automation.vial_volume` replaced with `liquid_volume`.
  - Adding a SQL table for tracking `liquid_volume`
- - New dataset exports from the UI: calibrations and liquid-volumes.
- - fix for OD calibration graph showing "two lines" in the terminal display
- - fix for updating over the internet when a Pioreactor is on a `A.devX` or `B.rcY` release
- - od calibrations can use the `-f` to edit calibration curve polynomial coefficients.
+ - New dataset exports from the Export data page in the UI: calibrations and liquid-volumes.
+ - Added a "partition by unit" option to the Export data page that will create a csv per Pioreactor in the export, instead of grouping them all together.
+ - od calibrations can use the `-f` to edit calibration polynomial coefficients.
  - faster UI response times when starting jobs
  - faster syncing configs
  - faster copying files across cluster via `pio cp`
- - Added a partition by unit option to the Export data page.
+ - Because we are now storing `liquid_volume` in the database, you can add charts in the UI that track the volume over time:
+    1. Add the following yaml contents to `~/.pioreactor/plugins/contrib/charts/lqiuid_volume.yaml`: https://gist.github.com/CamDavidsonPilon/95eef30189101da69f706d02ef28d972
+    2. In your config.ini, under `ui.overview.charts`, add the line `liquid_volume=1`.
 
+
+#### Bug fixes
+ - fix for OD calibration graph showing "two lines" in the terminal display
+ - fix for updating over the internet when a Pioreactor is on a `A.devX` or `B.rcY` release
+ - updating the UI software won't stop running activities
 
 ### 24.10.1
 

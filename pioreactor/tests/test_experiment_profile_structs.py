@@ -304,7 +304,7 @@ pioreactors:
     assert decode(file, type=structs.Profile) is not None
 
 
-def test_fails_on_extra_top_level_field():
+def test_fails_on_extra_top_level_field() -> None:
     # common mistake
     file = """
 experiment_profile_name: demo_of_logging
@@ -326,7 +326,7 @@ worker1:
         decode(file, type=structs.Profile)
 
 
-def test_fails_on_adding_options_where_they_shouldnt_be():
+def test_fails_on_adding_options_where_they_shouldnt_be() -> None:
     file = """
 experiment_profile_name: demo_of_logging
 
@@ -447,7 +447,7 @@ pioreactors:
     assert decode(file, type=structs.Profile) is not None
 
 
-def test_no_repeats_in_repeats():
+def test_no_repeats_in_repeats() -> None:
     bad_file = """
   experiment_profile_name: demo_stirring_repeat
 

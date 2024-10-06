@@ -22,10 +22,10 @@ def test_repeated_timer_will_not_execute_if_killed_during_run_immediately_paused
     class Counter:
         counter = 0
 
-        def __init__(self):
+        def __init__(self) -> None:
             self.thread = RepeatedTimer(5, self.run, run_immediately=True, run_after=60).start()
 
-        def run(self):
+        def run(self) -> None:
             self.counter += 1
 
     c = Counter()
@@ -101,14 +101,14 @@ def test_repeated_timer_run_immediately_works_as_intended() -> None:
     class Counter:
         counter = 0
 
-        def __init__(self, run_immediately):
+        def __init__(self, run_immediately) -> None:
             self.thread = RepeatedTimer(
                 5,
                 self.run,
                 run_immediately=run_immediately,
             ).start()
 
-        def run(self):
+        def run(self) -> None:
             self.counter += 1
 
     c = Counter(run_immediately=True)
@@ -126,12 +126,10 @@ def test_repeated_timer_run_after_works_as_intended() -> None:
     class Counter:
         counter = 0
 
-        def __init__(self, run_after):
-            self.thread = RepeatedTimer(
-                5, self.run, run_immediately=True, run_after=run_after
-            ).start()
+        def __init__(self, run_after) -> None:
+            self.thread = RepeatedTimer(5, self.run, run_immediately=True, run_after=run_after).start()
 
-        def run(self):
+        def run(self) -> None:
             self.counter += 1
 
     c = Counter(run_after=0)
@@ -149,14 +147,14 @@ def test_repeated_timer_pause_works_as_intended() -> None:
     class Counter:
         counter = 0
 
-        def __init__(self):
+        def __init__(self) -> None:
             self.thread = RepeatedTimer(
                 3,
                 self.run,
                 run_immediately=True,
             ).start()
 
-        def run(self):
+        def run(self) -> None:
             self.counter += 1
 
     c = Counter()

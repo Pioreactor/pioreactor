@@ -11,7 +11,7 @@ from typing import Generator
 from pioreactor.exc import RsyncError
 
 
-def rsync(*args):
+def rsync(*args: str) -> None:
     from subprocess import check_call
     from subprocess import CalledProcessError
 

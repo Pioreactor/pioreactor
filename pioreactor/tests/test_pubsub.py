@@ -88,7 +88,7 @@ def test_create_client_max_connection_attempts(mock_client) -> None:
     assert client_instance.connect.call_count == max_connection_attempts
 
 
-def test_post_into():
+def test_post_into() -> None:
     data = b'{"key": "value"}'
 
     with capture_requests() as bucket:
@@ -104,7 +104,7 @@ def test_post_into():
     assert captured_request.body == data
 
 
-def test_post_into_leader():
+def test_post_into_leader() -> None:
     data = b'{"key": "value"}'
 
     with capture_requests() as bucket:

@@ -40,5 +40,5 @@ def install_plugin(name_of_plugin: str, source: str | None = None) -> None:
     type=str,
     help="Install from a url, ex: https://github.com/user/repository/archive/branch.zip, or wheel file",
 )
-def click_install_plugin(name_of_plugin: str, source: str | None):
+def click_install_plugin(name_of_plugin: str, source: str | None) -> None:
     install_plugin(name_of_plugin, source)

@@ -90,7 +90,7 @@ class LoggerMixin:
         super().__init__(*args, **kwargs)
         self._logger = None
 
-    def add_external_logger(self, logger):
+    def add_external_logger(self, logger) -> None:
         self._logger = logger
 
     @property

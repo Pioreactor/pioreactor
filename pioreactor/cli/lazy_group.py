@@ -7,11 +7,11 @@ import click
 
 
 class LazyGroup(click.Group):
-    def __init__(self, *args, lazy_subcommands=None, **kwargs):
+    def __init__(self, *args, lazy_subcommands: dict[str, str] | None = None, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         # lazy_subcommands is a map of the form:
         #
-        #   {command-name} -> {module-name}.{command-object-name}
+        #   "{command-name}"" -> "{module-name}.{command-object-name}""
         #
         self.lazy_subcommands = lazy_subcommands or {}
 

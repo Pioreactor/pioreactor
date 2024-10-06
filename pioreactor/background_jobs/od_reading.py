@@ -530,7 +530,7 @@ class ADCReader(LoggerMixin):
         timestamps: dict[pt.PdChannel, list[float]],
         aggregated_signals: dict[pt.PdChannel, list[pt.AnalogValue]],
     ) -> float:
-        def _compute_best_freq(timestamps, aggregated_signals):
+        def _compute_best_freq(timestamps: list[float], aggregated_signals: list[float]) -> float:
             FREQS_TO_TRY = [60.0, 50.0]
             argmin_freq = FREQS_TO_TRY[0]
             min_AIC = float("inf")
@@ -667,7 +667,7 @@ class NullCalibrationTransformer(CalibrationTransformer):
     def __init__(self) -> None:
         super().__init__()
 
-    def hydate_models_from_disk(self, channel_angle_map: dict[pt.PdChannel, pt.PdAngle]):
+    def hydate_models_from_disk(self, channel_angle_map: dict[pt.PdChannel, pt.PdAngle]) -> None:
         self.models: dict[pt.PdChannel, Callable] = {}
         return
 
@@ -701,7 +701,7 @@ class CachedCalibrationTransformer(CalibrationTransformer):
         super().__init__()
         self.has_logged_warning = False
 
-    def hydate_models_from_disk(self, channel_angle_map: dict[pt.PdChannel, pt.PdAngle]):
+    def hydate_models_from_disk(self, channel_angle_map: dict[pt.PdChannel, pt.PdAngle]) -> None:
         self.models: dict[pt.PdChannel, Callable] = {}
 
         with local_persistant_storage("current_od_calibration") as c:
@@ -1044,11 +1044,11 @@ class ODReader(BackgroundJob):
         return callbacks
 
     @classmethod
-    def add_pre_read_callback(cls, function: Callable):
+    def add_pre_read_callback(cls, function: Callable) -> None:
         cls._pre_read.append(function)
 
     @classmethod
-    def add_post_read_callback(cls, function: Callable):
+    def add_post_read_callback(cls, function: Callable) -> None:
         cls._post_read.append(function)
 
     @property
@@ -1218,7 +1218,9 @@ class ODReader(BackgroundJob):
         assert False  # we never reach here - this is to silence mypy
 
 
-def find_ir_led_reference(od_angle_channel1, od_angle_channel2) -> Optional[pt.PdChannel]:
+def find_ir_led_reference(
+    od_angle_channel1: Optional[pt.PdAngleOrREF], od_angle_channel2: Optional[pt.PdAngleOrREF]
+) -> Optional[pt.PdChannel]:
     if od_angle_channel1 == REF_keyword:
         return "1"
     elif od_angle_channel2 == REF_keyword:
@@ -1340,7 +1342,7 @@ def click_od_reading(
     od_angle_channel1: pt.PdAngleOrREF,
     od_angle_channel2: pt.PdAngleOrREF,
     fake_data: bool,
-):
+) -> None:
     """
     Start the optical density reading job
     """

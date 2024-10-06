@@ -156,7 +156,8 @@ class RpmFromFrequency(RpmCalculator):
         self.sleep_for(seconds_to_observe)
         self.turn_off_collection()
 
-        print(self._running_max, self._running_min)
+        # self._running_max  / self._running_min # in a high vortex, noisy case, these aren't more than 25% apart.
+        # at 3200 RPM, we still aren't seeing much difference here. I'm pretty confident we don't see skipping.
 
         if self._running_sum == 0.0:
             return 0.0

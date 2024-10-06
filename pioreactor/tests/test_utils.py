@@ -266,8 +266,8 @@ def test_kill_pumping(job_manager):
     job_manager.set_not_running(job_key2)
 
 
-def test_ClusterJobManager_sends_requests():
-    workers = ["pio01", "pio02", "pio03"]
+def test_ClusterJobManager_sends_requests() -> None:
+    workers = ("pio01", "pio02", "pio03")
     with capture_requests() as bucket:
         with ClusterJobManager() as cm:
             cm.kill_jobs(workers, name="stirring")
@@ -280,8 +280,8 @@ def test_ClusterJobManager_sends_requests():
         assert request.url == f"http://{worker}.local:4999/unit_api/jobs/stop/job_name/stirring"
 
 
-def test_empty_ClusterJobManager():
-    workers = []
+def test_empty_ClusterJobManager() -> None:
+    workers = tuple()  # type: ignore
     with capture_requests() as bucket:
         with ClusterJobManager() as cm:
             cm.kill_jobs(workers, name="stirring")

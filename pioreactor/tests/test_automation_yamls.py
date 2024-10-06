@@ -17,14 +17,14 @@ def get_specific_yaml(path):
     return load(data.content, Loader=Loader)
 
 
-def test_automations_and_their_yamls_have_the_same_data():
+def test_automations_and_their_yamls_have_the_same_data() -> None:
     try:
         for type_, available_automations in [
             ("led", available_led_automations),
             ("temperature", available_temperature_automations),
             ("dosing", available_dosing_automations),
         ]:
-            for automation_name, klass in available_automations.items():
+            for automation_name, klass in available_automations.items():  # type: ignore
                 if automation_name.startswith("_test"):
                     continue
 
