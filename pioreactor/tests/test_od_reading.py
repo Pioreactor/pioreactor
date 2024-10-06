@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime
 
 import numpy as np
 import pytest
@@ -1204,7 +1203,7 @@ def test_CachedCalibrationTransformer_with_real_calibration() -> None:
         ],
         ir_led_intensity=50,
         pd_channel="2",
-        created_at=datetime.utcnow(),
+        created_at=current_utc_datetime(),
         pioreactor_unit="pio1",
         name="test",
     )
