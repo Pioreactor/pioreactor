@@ -93,7 +93,7 @@ class Chart extends React.Component {
       return
     }
     const initialTweak = 0.65 // increase to filter more. The default here is good for samples_per_second=0.2
-    const tweak = this.props.config['od_reading.config']['samples_per_second'] * 0.65/0.2
+    const tweak = this.props.config['od_reading.config']['samples_per_second'] * initialTweak/0.2
 
     const queryParams = new URLSearchParams({
         filter_mod_N: this.props.downSample ? Math.max(Math.floor(tweak * Math.min(this.props.deltaHours, this.props.lookback)), 1) : 1,

@@ -36,9 +36,6 @@ const expression = {
   fontFamily: "monospace",
 }
 
-const highlightedSetting = highlight
-
-const highlightedTarget = highlight
 
 const highlightedIf = highlight
 

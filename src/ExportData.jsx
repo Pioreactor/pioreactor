@@ -79,12 +79,27 @@ function ExperimentSelection(props) {
   )
 }
 
+const PartitionByUnitSelection = (props) => {
+  return (
+    <Box sx={{m: 1, mt: 2}}>
+      <FormControl component="fieldset" >
+      <FormLabel component="legend">Partitions</FormLabel>
+        <Box sx={{p: 1}}>
+          <FormControlLabel
+            control={<Checkbox checked={props.partitionByUnitSelection} onChange={props.handleChange} name="partition_by_unit" />}
+            label="Partition csv files by Pioreactor unit?"
+          />
+        </Box>
+      </FormControl>
+    </Box>
+)}
+
 
 
 const CheckboxesGroup = (props) => {
 
   return (
-    <Box sx={{mt: "15px", m: 1}}>
+    <Box sx={{m: 1}}>
       <FormControl component="fieldset" >
         <FormLabel component="legend">Available datasets</FormLabel>
         <FormGroup>
@@ -313,6 +328,26 @@ const CheckboxesGroup = (props) => {
             </Typography>
           </Box>
 
+          <Box sx={{p: 1}}>
+            <FormControlLabel
+            control={<Checkbox checked={props.isChecked.calibrations} onChange={props.handleChange} name="calibrations" />}
+            label="Calibrations"
+            />
+            <Typography  sx={datasetDescription} gutterBottom>
+              This dataset contains all the calibrations produced by Pioreactors in your cluster.
+            </Typography>
+          </Box>
+
+          <Box sx={{p: 1}}>
+            <FormControlLabel
+            control={<Checkbox checked={props.isChecked.liquid_volumes} onChange={props.handleChange} name="liquid_volumes" />}
+            label="Liquid volumes"
+            />
+            <Typography  sx={datasetDescription} gutterBottom>
+              This dataset contains time series for the amount of volume calculated to be in the Pioreactors during experiments.
+            </Typography>
+          </Box>
+
         </FormGroup>
       </FormControl>
     </Box>
@@ -328,6 +363,7 @@ function ExportDataContainer() {
 
   const [state, setState] = React.useState({
     experimentSelection: queryParams.get("experiment") || "",
+    partitionByUnitSelection: false,
     datasetCheckbox: {
       pioreactor_unit_activity_data: false || queryParams.get("pioreactor_unit_activity_data") === "1",
       growth_rates: false || queryParams.get("growth_rates") === "1",
@@ -350,6 +386,8 @@ function ExportDataContainer() {
       temperature_automation_events: false || queryParams.get("temperature_automation_events") === "1",
       pwm_dcs: false || queryParams.get("pwm_dcs") === "1",
       ir_led_intensities: false || queryParams.get("ir_led_intensities") === "1",
+      calibrations: false || queryParams.get("calibrations") === "1",
+      liquid_volumes: false || queryParams.get("liquid_volumes") === "1",
       pioreactor_unit_activity_data_rollup: false || queryParams.get("pioreactor_unit_activity_data_rollup") === "1",
     }
   });
@@ -406,6 +444,13 @@ function ExportDataContainer() {
     }));
   };
 
+  function handlePartitionByUnitChange(event) {
+    setState(prevState => ({
+      ...prevState,
+      partitionByUnitSelection: event.target.checked
+    }));
+  };
+
   const errorFeedbackOrDefault = isError ? <Box color="error.main">{errorMsg}</Box>: ""
   return (
     <React.Fragment>
@@ -443,6 +488,12 @@ function ExportDataContainer() {
                 <ExperimentSelection
                   experimentSelection={state.experimentSelection}
                   handleChange={handleExperimentSelectionChange}
+                />
+              </Grid>
+              <Grid item xs={12} md={12}>
+                <PartitionByUnitSelection
+                  partitionByUnitSelection={state.partitionByUnitSelection}
+                  handleChange={handlePartitionByUnitChange}
                 />
               </Grid>
               <Grid item xs={12} md={12}>

@@ -125,6 +125,7 @@ export const MQTTProvider = ({ name, config, children, experiment }) => {
       });
 
       mqttClient.on('close', () => {
+        // this doesn't get logged (not sure why, rc?) but you can watch mosquitto logs and see they are disconnecting
         console.warn(`MQTT ${name} client connection closed`);
       });
 

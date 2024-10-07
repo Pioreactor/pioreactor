@@ -32,19 +32,10 @@ import Button from "@mui/material/Button";
 import LoadingButton from '@mui/lab/LoadingButton';
 import ClearIcon from '@mui/icons-material/Clear';
 import CloseIcon from '@mui/icons-material/Close';
-import CheckIcon from '@mui/icons-material/Check';
 import FlareIcon from '@mui/icons-material/Flare';
 import SettingsIcon from '@mui/icons-material/Settings';
 import TuneIcon from '@mui/icons-material/Tune';
-import CheckBoxOutlinedIcon from '@mui/icons-material/CheckBoxOutlined';
-import IndeterminateCheckBoxIcon from '@mui/icons-material/IndeterminateCheckBox';
-import ListItemIcon from '@mui/material/ListItemIcon';
-import ListItemText from '@mui/material/ListItemText';
-import List from '@mui/material/List';
 import IconButton from '@mui/material/IconButton';
-import ListItem from '@mui/material/ListItem';
-import ListSubheader from '@mui/material/ListSubheader';
-import IndeterminateCheckBoxOutlinedIcon from '@mui/icons-material/IndeterminateCheckBoxOutlined';
 import Switch from '@mui/material/Switch';
 import { useConfirm } from 'material-ui-confirm';
 import {getConfig, getRelabelMap, runPioreactorJob} from "./utilities"
@@ -82,6 +73,41 @@ const stateDisplay = {
   "NA":            {display: "Not available", color: disconnectedGrey, backgroundColor: null},
 }
 
+
+// can this change to LoadingButton from MUI
+function PatientButton({buttonText, onClick, color, variant, disabled}) {
+  const [text, setText] = useState(buttonText)
+  const [error, setError] = useState(null)
+
+  const handleClick = async () => {
+    setError(null)
+    setText(<CircularProgress color="inherit" size={21}/>);
+    try {
+      await onClick();
+      setTimeout(() => setText(buttonText), 30000); // Reset to original text after a delay
+    } catch (error) {
+      setError(error.message)
+      setTimeout(() => setText(buttonText), 10000); // Reset to original text after a delay
+    }
+  };
+
+  return (
+    <>
+    {error && <p style={{color: lostRed}}>{error}</p>}
+    <Button
+      disableElevation
+      sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}}
+      color={color}
+      variant={variant}
+      disabled={disabled}
+      size="small"
+      onClick={handleClick}
+    >
+      {text}
+    </Button>
+    </>
+  )
+}
 
 
 function StateTypography({ state, isDisabled=false }) {
@@ -555,46 +581,6 @@ function PioreactorHeader({experiment}) {
       </Box>
       <Divider sx={{marginTop: "0px", marginBottom: "15px"}} />
     </Box>
-  )
-}
-
-
-function PatientButton(props) {
-  const [buttonText, setButtonText] = useState(props.buttonText)
-  const [error, setError] = useState(null)
-
-  useEffect(() => {
-      setButtonText(props.buttonText)
-    }
-  , [props.buttonText])
-
-  const onClick = async () => {
-    setError(null)
-    setButtonText(<CircularProgress color="inherit" size={21}/>);
-    try {
-      await props.onClick();
-      setTimeout(() => setButtonText(props.buttonText), 30000); // Reset to original text after a delay
-    } catch (error) {
-      setError(error.message)
-      setTimeout(() => setButtonText(props.buttonText), 10000); // Reset to original text after a delay
-    }
-  };
-
-  return (
-    <>
-    {error && <p style={{color: lostRed}}>{error}</p>}
-    <Button
-      disableElevation
-      sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}}
-      color={props.color}
-      variant={props.variant}
-      disabled={props.disabled}
-      size="small"
-      onClick={onClick}
-    >
-      {buttonText}
-    </Button>
-    </>
   )
 }
 
@@ -2195,22 +2181,6 @@ function ActiveUnits({experiment, config, units, isLoading}){
   const renderCards = () => units.map(unit =>
       <PioreactorCard  key={unit} isUnitActive={true} unit={unit} config={config} experiment={experiment} originalLabel={relabelMap[unit]}/>
   )
-  const renderEmptyState = () => (
-    <Box sx={{textAlign: "center"}}>
-      {isLoading ? <CircularProgress /> : (
-      <>
-      <img alt="filler image for no pioreactor assigned" src="/pioreactor_cloud.webp" style={{width: "500px", opacity: 0.9, filter: "grayscale(50%)", marginLeft: "30px"}}/>
-      <Typography component='div' variant='h6' sx={{mb: 2}}>
-        No Pioreactors assigned to this experiment
-      </Typography>
-      <AssignPioreactors experiment={experiment} variant="contained"/>
-      <Typography component='div' variant='body2'>
-        <p>Learn more about <a href="https://docs.pioreactor.com/user-guide/create-cluster" target="_blank" rel="noopener noreferrer">assigning inventory</a>.</p>
-      </Typography>
-      </>
-      )}
-    </Box>
-  )
 
   return (
     <React.Fragment>
@@ -2224,8 +2194,7 @@ function ActiveUnits({experiment, config, units, isLoading}){
 
         </div>
       </div>
-
-      {(units.length === 0 ? renderEmptyState() : renderCards())}
+      {renderCards()}
 
     </React.Fragment>
 )}
@@ -2626,18 +2595,44 @@ function Pioreactors({title}) {
     }
   };
 
-  const activeUnits = workers.filter(worker => worker.is_active === 1).map(worker => worker.pioreactor_unit);
-  const inactiveUnits = workers.filter(worker => worker.is_active === 0).map(worker => worker.pioreactor_unit);
+
+  const renderCards = () => {
+      const activeUnits = workers.filter(worker => worker.is_active === 1).map(worker => worker.pioreactor_unit);
+      const inactiveUnits = workers.filter(worker => worker.is_active === 0).map(worker => worker.pioreactor_unit);
+      return (
+      <>
+      <ActiveUnits isLoading={isLoading} experiment={experimentMetadata.experiment} config={config} units={activeUnits} />
+      { (inactiveUnits.length > 0) &&
+      <InactiveUnits experiment={experimentMetadata.experiment} config={config} units={inactiveUnits}/>
+      }
+      </>
+    )
+  }
+  const renderEmptyState = () => (
+    <Box sx={{textAlign: "center"}}>
+      {isLoading ? <CircularProgress /> : (
+      <>
+      <img alt="filler image for no pioreactor assigned" src="/pioreactor_cloud.webp" style={{width: "500px", opacity: 0.9, filter: "grayscale(50%)", marginLeft: "30px"}}/>
+      <Typography component='div' variant='h6' sx={{mb: 2}}>
+        No Pioreactors assigned to this experiment
+      </Typography>
+      <AssignPioreactors experiment={experimentMetadata.experiment} variant="contained"/>
+      <Typography component='div' variant='body2'>
+        <p>Learn more about <a href="https://docs.pioreactor.com/user-guide/create-cluster" target="_blank" rel="noopener noreferrer">assigning inventory</a>.</p>
+      </Typography>
+      </>
+      )}
+    </Box>
+  )
 
   return (
     <MQTTProvider name="pioreactor" config={config} experiment={experimentMetadata.experiment}>
       <Grid container spacing={2} >
         <Grid item md={12} xs={12}>
           <PioreactorHeader experiment={experimentMetadata.experiment}/>
-          <ActiveUnits isLoading={isLoading} experiment={experimentMetadata.experiment} config={config} units={activeUnits} />
-          { (inactiveUnits.length > 0) &&
-          <InactiveUnits experiment={experimentMetadata.experiment} config={config} units={inactiveUnits}/>
-          }
+
+          {(workers.length === 0 ? renderEmptyState() : renderCards())}
+
         </Grid>
       </Grid>
     </MQTTProvider>
