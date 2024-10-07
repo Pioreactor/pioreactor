@@ -209,7 +209,13 @@ class managed_lifecycle:
 
         with JobManager() as jm:
             self._jm_key = jm.register_and_set_running(
-                self.unit, self.experiment, self.name, self._job_source, getpid(), ""
+                self.unit,
+                self.experiment,
+                self.name,
+                self._job_source,
+                getpid(),
+                "",
+                False,  # TODO: why is leader string empty?
             )
 
         return self
@@ -535,7 +541,6 @@ class JobManager:
         "circulate_media",
         "circulate_alt_media",
     )
-    LONG_RUNNING_JOBS = ("monitor", "mqtt_to_db_streaming")
 
     def __init__(self) -> None:
         self.db_path = f"{tempfile.gettempdir()}/local_intermittent_pioreactor_metadata.sqlite"
@@ -555,16 +560,24 @@ class JobManager:
             is_running   INTEGER NOT NULL,
             leader       TEXT NOT NULL,
             pid          INTEGER NOT NULL,
-            ended_at     TEXT
+            is_long_running_job INTEGER NOT NULL,
+            ended_at     TEXT,
         );
         """
         self.cursor.execute(create_table_query)
         self.conn.commit()
 
     def register_and_set_running(
-        self, unit: str, experiment: str, name: str, job_source: str | None, pid: int, leader: str
+        self,
+        unit: str,
+        experiment: str,
+        name: str,
+        job_source: str | None,
+        pid: int,
+        leader: str,
+        is_long_running_job: bool,
     ) -> JobMetadataKey:
-        insert_query = "INSERT INTO pio_job_metadata (started_at, is_running, job_source, experiment, unit, name, leader, pid, ended_at) VALUES (STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW'), 1, :job_source, :experiment, :unit, :name, :leader, :pid, NULL);"
+        insert_query = "INSERT INTO pio_job_metadata (started_at, is_running, job_source, experiment, unit, name, leader, pid, is_long_running_job, ended_at) VALUES (STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW'), 1, :job_source, :experiment, :unit, :name, :leader, :pid, :is_long_running_job, NULL);"
         self.cursor.execute(
             insert_query,
             {
@@ -574,6 +587,7 @@ class JobManager:
                 "pid": pid,
                 "leader": leader,
                 "name": name,
+                "is_long_running_job": is_long_running_job,
             },
         )
         self.conn.commit()
@@ -610,7 +624,9 @@ class JobManager:
 
         else:
             # Construct the SELECT query
-            select_query = f"SELECT name, pid FROM pio_job_metadata WHERE is_running=1 AND name NOT IN {self.LONG_RUNNING_JOBS}"
+            select_query = (
+                "SELECT name, pid FROM pio_job_metadata WHERE is_running=1 AND is_long_running_job=0"
+            )
 
             # Execute the query and fetch the results
             self.cursor.execute(select_query)

@@ -17,7 +17,7 @@
 #### Bug fixes
  - fix for OD calibration graph showing "two lines" in the terminal display
  - fix for updating over the internet when a Pioreactor is on a `A.devX` or `B.rcY` release
- - updating the UI software won't stop running activities
+ - updating the UI software won't prematurely stop any currently running activities
 
 ### 24.10.1
 
