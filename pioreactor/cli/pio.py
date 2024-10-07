@@ -149,7 +149,13 @@ def kill(name: str | None, experiment: str | None, job_source: str | None, all_j
     stop job(s).
     """
     if not (name or experiment or job_source or all_jobs):
-        raise click.Abort("Provide an option to kill.")
+        raise click.Abort("Provide an option to kill. See --help")
+
+    # hack, see https://github.com/Pioreactor/pioreactor/pull/529 for long-term solution.
+    from pioreactor.plugin_management import get_plugins
+
+    get_plugins()
+
     with JobManager() as jm:
         count = jm.kill_jobs(all_jobs=all_jobs, name=name, experiment=experiment, job_source=job_source)
     click.echo(f"Killed {count} job{'s' if count != 1 else ''}.")
