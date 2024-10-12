@@ -175,7 +175,7 @@ def job_manager():
         yield jm
 
 
-def test_create_table(job_manager):
+def test_create_table(job_manager: JobManager) -> None:
     assert (
         job_manager.conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='pio_job_metadata'"
@@ -184,13 +184,13 @@ def test_create_table(job_manager):
     )
 
 
-def test_register_and_set_running(job_manager):
+def test_register_and_set_running(job_manager: JobManager) -> None:
     job_key = job_manager.register_and_set_running(
         "test_unit", "test_experiment", "test_name", "test_source", 12345, "test_leader"
     )
     assert isinstance(job_key, JobMetadataKey)
     job = job_manager.conn.execute(
-        "SELECT unit, experiment, name, job_source, pid, leader, is_running FROM pio_job_metadata WHERE id=?",
+        "SELECT unit, experiment, job_name, job_source, pid, leader, is_running FROM pio_job_metadata WHERE id=?",
         (job_key,),
     ).fetchone()
     assert job is not None
@@ -204,7 +204,7 @@ def test_register_and_set_running(job_manager):
     job_manager.set_not_running(job_key)
 
 
-def test_set_not_running(job_manager):
+def test_set_not_running(job_manager: JobManager) -> None:
     job_key = job_manager.register_and_set_running(
         "test_unit", "test_experiment", "test_name", "test_source", 12345, "test_leader"
     )
@@ -216,16 +216,16 @@ def test_set_not_running(job_manager):
     assert job[0] == 0
 
 
-def test_can_kill_monitor_if_request(job_manager):
+def test_can_kill_monitor_if_request(job_manager: JobManager) -> None:
     job_key = job_manager.register_and_set_running(
         "test_unit", "test_experiment", "monitor", "test_source", 12345, "test_leader"
     )
-    assert job_manager.kill_jobs(name="monitor") == 1
+    assert job_manager.kill_jobs(job_name="monitor") == 1
     # clean up
     job_manager.set_not_running(job_key)
 
 
-def test_is_job_running(job_manager):
+def test_is_job_running(job_manager: JobManager) -> None:
     job_key = job_manager.register_and_set_running(
         "test_unit", "test_experiment", "test_name", "test_source", 12345, "test_leader"
     )
@@ -234,7 +234,7 @@ def test_is_job_running(job_manager):
     assert job_manager.is_job_running("test_name") is False
 
 
-def test_kill_pumping(job_manager):
+def test_kill_pumping(job_manager: JobManager) -> None:
     job_key1 = job_manager.register_and_set_running(
         "testing_unit", "test_experiment", "add_media", "user", 12345, "test_leader"
     )
@@ -250,14 +250,14 @@ def test_kill_pumping(job_manager):
 
     subscribe_and_callback(collect, "pioreactor/testing_unit/+/add_media/$state/set")
 
-    assert job_manager.kill_jobs(name="add_media") == 1
+    assert job_manager.kill_jobs(job_name="add_media") == 1
 
     sleep(0.5)
 
     assert len(collection) == 1
     assert collection[0] == "disconnected"
 
-    assert job_manager.kill_jobs(name="not_pumping") == 1
+    assert job_manager.kill_jobs(job_name="not_pumping") == 1
 
     sleep(0.5)
     assert len(collection) == 1
@@ -270,7 +270,7 @@ def test_ClusterJobManager_sends_requests() -> None:
     workers = ("pio01", "pio02", "pio03")
     with capture_requests() as bucket:
         with ClusterJobManager() as cm:
-            cm.kill_jobs(workers, name="stirring")
+            cm.kill_jobs(workers, job_name="stirring")
 
     assert len(bucket) == len(workers)
     assert bucket[0].body is None
@@ -284,6 +284,6 @@ def test_empty_ClusterJobManager() -> None:
     workers = tuple()  # type: ignore
     with capture_requests() as bucket:
         with ClusterJobManager() as cm:
-            cm.kill_jobs(workers, name="stirring")
+            cm.kill_jobs(workers, job_name="stirring")
 
     assert len(bucket) == len(workers)

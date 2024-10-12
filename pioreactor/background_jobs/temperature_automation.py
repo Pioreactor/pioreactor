@@ -78,10 +78,7 @@ class TemperatureAutomationJob(AutomationJob):
     automation_name = "temperature_automation_base"  # is overwritten in subclasses
     job_name = "temperature_automation"
 
-    published_settings: dict[str, pt.PublishableSetting] = {
-        "temperature": {"datatype": "Temperature", "settable": False, "unit": "℃"},
-        "heater_duty_cycle": {"datatype": "float", "settable": False, "unit": "%"},
-    }
+    published_settings: dict[str, pt.PublishableSetting] = {}
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)

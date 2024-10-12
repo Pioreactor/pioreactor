@@ -538,18 +538,18 @@ class JobManager:
     LONG_RUNNING_JOBS = ("monitor", "mqtt_to_db_streaming")
 
     def __init__(self) -> None:
-        self.db_path = f"{tempfile.gettempdir()}/local_intermittent_pioreactor_metadata.sqlite"
-        self.conn = sqlite3.connect(self.db_path)
+        db_path = f"{tempfile.gettempdir()}/local_intermittent_pioreactor_metadata.sqlite"
+        self.conn = sqlite3.connect(db_path)
         self.cursor = self.conn.cursor()
-        self._create_table()
+        self._create_tables()
 
-    def _create_table(self) -> None:
+    def _create_tables(self) -> None:
         create_table_query = """
-            CREATE TABLE IF NOT EXISTS pio_job_metadata (
+        CREATE TABLE IF NOT EXISTS pio_job_metadata (
             id           INTEGER PRIMARY KEY AUTOINCREMENT,
             unit         TEXT NOT NULL,
             experiment   TEXT NOT NULL,
-            name         TEXT NOT NULL,
+            job_name     TEXT NOT NULL,
             job_source   TEXT NOT NULL,
             started_at   TEXT NOT NULL,
             is_running   INTEGER NOT NULL,
@@ -557,14 +557,22 @@ class JobManager:
             pid          INTEGER NOT NULL,
             ended_at     TEXT
         );
+
+        CREATE TABLE IF NOT EXISTS pio_job_published_settings (
+            setting     TEXT NOT NULL,
+            value       TEXT,
+            job_id      INTEGER NOT NULL,
+            FOREIGN KEY(job_id) REFERENCES pio_job_metadata(id),
+            UNIQUE(setting, job_id)
+        );
         """
-        self.cursor.execute(create_table_query)
+        self.cursor.executescript(create_table_query)
         self.conn.commit()
 
     def register_and_set_running(
-        self, unit: str, experiment: str, name: str, job_source: str | None, pid: int, leader: str
+        self, unit: str, experiment: str, job_name: str, job_source: str | None, pid: int, leader: str
     ) -> JobMetadataKey:
-        insert_query = "INSERT INTO pio_job_metadata (started_at, is_running, job_source, experiment, unit, name, leader, pid, ended_at) VALUES (STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW'), 1, :job_source, :experiment, :unit, :name, :leader, :pid, NULL);"
+        insert_query = "INSERT INTO pio_job_metadata (started_at, is_running, job_source, experiment, unit, job_name, leader, pid, ended_at) VALUES (STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW'), 1, :job_source, :experiment, :unit, :job_name, :leader, :pid, NULL);"
         self.cursor.execute(
             insert_query,
             {
@@ -573,21 +581,34 @@ class JobManager:
                 "job_source": job_source,
                 "pid": pid,
                 "leader": leader,
-                "name": name,
+                "job_name": job_name,
             },
         )
         self.conn.commit()
         assert isinstance(self.cursor.lastrowid, int)
         return self.cursor.lastrowid
 
-    def set_not_running(self, job_metadata_key: JobMetadataKey) -> None:
+    def upsert_setting(self, job_id: JobMetadataKey, setting: str, value: Any) -> None:
+        update_query = """
+        INSERT INTO pio_job_published_settings (setting, value, job_id)
+        VALUES (:setting, :value, :job_id)
+        ON CONFLICT (setting, job_id)
+        DO
+           UPDATE
+           SET value = :value;
+        """
+        self.cursor.execute(update_query, {"setting": setting, "value": value, "job_id": job_id})
+        self.conn.commit()
+        return
+
+    def set_not_running(self, job_id: JobMetadataKey) -> None:
         update_query = "UPDATE pio_job_metadata SET is_running=0, ended_at=STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW') WHERE id=(?)"
-        self.cursor.execute(update_query, (job_metadata_key,))
+        self.cursor.execute(update_query, (job_id,))
         self.conn.commit()
         return
 
     def is_job_running(self, job_name: str) -> bool:
-        select_query = """SELECT pid FROM pio_job_metadata WHERE name=(?) and is_running=1"""
+        select_query = """SELECT pid FROM pio_job_metadata WHERE job_name=(?) and is_running=1"""
         self.cursor.execute(select_query, (job_name,))
         return len(self.cursor.fetchall()) > 0
 
@@ -599,7 +620,7 @@ class JobManager:
             # Construct the SELECT query
             select_query = f"""
                 SELECT
-                    name, pid
+                    job_name, pid
                 FROM pio_job_metadata
                 WHERE is_running=1
                 AND {where_clause};
@@ -610,7 +631,7 @@ class JobManager:
 
         else:
             # Construct the SELECT query
-            select_query = f"SELECT name, pid FROM pio_job_metadata WHERE is_running=1 AND name NOT IN {self.LONG_RUNNING_JOBS}"
+            select_query = f"SELECT job_name, pid FROM pio_job_metadata WHERE is_running=1 AND name NOT IN {self.LONG_RUNNING_JOBS}"
 
             # Execute the query and fetch the results
             self.cursor.execute(select_query)
@@ -618,7 +639,7 @@ class JobManager:
         return self.cursor.fetchall()
 
     def kill_jobs(self, all_jobs: bool = False, **query) -> int:
-        # ex: kill_jobs(experiment="testing_exp") should return end all jobs with experiment='testing_exp'
+        # ex: kill_jobs(experiment="testing_exp") should end all jobs with experiment='testing_exp'
 
         mqtt_kill = MQTTKill()
         shell_kill = ShellKill()
@@ -646,7 +667,7 @@ class JobManager:
 
 
 class ClusterJobManager:
-    # this is a context manager to mimic the API for JobManager.
+    # this is a context manager to mimic the kill API for JobManager.
     def __init__(self) -> None:
         if not whoami.am_I_leader():
             raise RoleError("Must be leader to use this. Maybe you want JobManager?")
@@ -656,7 +677,7 @@ class ClusterJobManager:
         units: tuple[str, ...],
         all_jobs: bool = False,
         experiment: str | None = None,
-        name: str | None = None,
+        job_name: str | None = None,
         job_source: str | None = None,
     ) -> list[tuple[bool, dict]]:
         if len(units) == 0:
@@ -664,8 +685,8 @@ class ClusterJobManager:
 
         if experiment:
             endpoint = f"/unit_api/jobs/stop/experiment/{experiment}"
-        if name:
-            endpoint = f"/unit_api/jobs/stop/job_name/{name}"
+        if job_name:
+            endpoint = f"/unit_api/jobs/stop/job_name/{job_name}"
         if job_source:
             endpoint = f"/unit_api/jobs/stop/job_source/{job_source}"
         if all_jobs:

@@ -287,6 +287,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         self._check_for_duplicate_activity()
 
+        # this registration use to be in post_init, and I feel like it was there for a good reason...
+        with JobManager() as jm:
+            self._job_id = jm.register_and_set_running(
+                self.unit, self.experiment, self.job_name, self._job_source, getpid(), leader_hostname
+            )
+
         # if we no-op in the _check_for_duplicate_activity, we don't want to fire the LWT, so we delay subclient until after.
         self.sub_client = self._create_sub_client()
 
@@ -341,12 +347,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         P.ready()
         C.on_ready()
         """
-
-        with JobManager() as jm:
-            self._jm_key = jm.register_and_set_running(
-                self.unit, self.experiment, self.job_name, self._job_source, getpid(), leader_hostname
-            )
-
         # setting READY should happen after we write to the job manager, since a job might do a long-running
         # task in on_ready, which delays writing to the db, which means `pio kill` might not see it.
         self.set_state(self.READY)
@@ -660,21 +660,28 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.debug(f"Disconnected from MQTT with {reason_code=}: {error_string(reason_code)}")
         return
 
-    def _publish_attr(self, attr: str) -> None:
+    def _publish_setting(self, setting: str) -> None:
         """
         Publish the current value of the class attribute `attr` to MQTT.
         """
-        if attr == "state":
-            attr_name = "$state"
+        if setting == "state":
+            setting_name = "$state"
         else:
-            attr_name = attr
+            setting_name = setting
+        value = getattr(self, setting)
 
         self.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr_name}",
-            getattr(self, attr),
+            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting_name}",
+            value,
             retain=True,
             qos=QOS.EXACTLY_ONCE,
         )
+
+        if hasattr(self, "_job_id"):
+            with JobManager() as jm:
+                jm.upsert_setting(self._job_id, setting_name, repr(value))
+        else:
+            print(f"missed {setting=} {value=}")
 
     def _set_up_exit_protocol(self) -> None:
         # here, we set up how jobs should disconnect and exit.
@@ -803,10 +810,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # we "set" the internal event, which will cause any event.waits to finishing blocking.
         self._blocking_event.set()
 
-    def _remove_from_cache(self) -> None:
-        if hasattr(self, "_jm_key"):
+    def _remove_from_manager(self) -> None:
+        if hasattr(self, "_job_id"):
             with JobManager() as jm:
-                jm.set_not_running(self._jm_key)
+                jm.set_not_running(self._job_id)
 
     def _disconnect_from_loggers(self) -> None:
         # clean up logger handlers
@@ -822,7 +829,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.pub_client.disconnect()
 
     def _clean_up_resources(self) -> None:
-        self._remove_from_cache()
+        self._remove_from_manager()
         # Explicitly cleanup MQTT resources...
         self._disconnect_from_mqtt_clients()
         self._disconnect_from_loggers()
@@ -871,7 +878,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     ) -> None:
         for name in published_settings.keys():
             if hasattr(self, name):
-                self._publish_attr(name)
+                self._publish_setting(name)
 
     def _log_state(self, state: pt.JobState) -> None:
         if state == self.READY or state == self.DISCONNECTED:
@@ -935,7 +942,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
                 f"Job is in state {self.state}, but in state {state_in_broker} in broker. Attempting fix by publishing {self.state}."
             )
             sleep(1)
-            self._publish_attr("state")
+            self._publish_setting("state")
 
     def _clear_mqtt_cache(self) -> None:
         """
@@ -980,7 +987,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def __setattr__(self, name: str, value: t.Any) -> None:
         super(_BackgroundJob, self).__setattr__(name, value)
         if name in self.published_settings:
-            self._publish_attr(name)
+            setting = name
+
+            self._publish_setting(setting)
 
     def __enter__(self: BJT) -> BJT:
         return self
