@@ -522,14 +522,14 @@ def od_calibration(data_file: str | None) -> None:
     curve_data_ = []  # type: ignore
     curve_type = ""  # type: ignore
 
-    if any(is_pio_job_running(["stirring", "od_reading"])):
-        raise ValueError("Stirring and OD reading should be turned off.")
-
     with managed_lifecycle(unit, experiment, "od_calibration"):
         introduction()
         name = get_name_from_user()
 
         if data_file is None:
+            if any(is_pio_job_running(["stirring", "od_reading"])):
+                raise ValueError("Stirring and OD reading should be turned off.")
+
             (
                 initial_od600,
                 minimum_od600,

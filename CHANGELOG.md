@@ -18,6 +18,7 @@
  - fix for OD calibration graph showing "two lines" in the terminal display
  - fix for updating over the internet when a Pioreactor is on a `A.devX` or `B.rcY` release
  - updating the UI software won't stop running activities
+ - `pio kill --all-jobs` will no longer kill long-running jobs from plugins (specifically, `logs2x` jobs.)
 
 ### 24.10.1
 
