@@ -246,7 +246,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
     # initial state is disconnected
     state: pt.JobState = DISCONNECTED
     job_name: str = "background_job"
-    _clean: bool = False
+    _is_cleaned_up: bool = False  # mqtt connections closed, logger closed, etc.
+    _IS_LONG_RUNNING = False  # by default, jobs aren't long running (persistent over experiments)
 
     # published_settings is typically overwritten in the subclasses. Attributes here will
     # be published to MQTT and available settable attributes will be editable. Currently supported
@@ -332,15 +333,15 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         Typical sequence (doesn't represent calling stack, but "blocks of code" run)
 
-        C == calling class (usually a subclass)
-        P = BackgroundJob (this class)
+        P == BackgroundJob (this class)
+        C == calling class (a subclass)
 
-        P.__init__() # check for duplicate job
-        C.__init__() # risk of job failing here
+        P.__init__() # check for duplicate job, among other checks
+        C.__init__() # Note: risk of job failing here
         P.__post__init__()  # THIS FUNCTION
-        P.on_init_to_ready()  # default noop - can be overwritten in sub.
+        P.on_init_to_ready()  # default noop - can be overwritten in sub class C
         P.ready()
-        C.on_ready()
+        C.on_ready() # default noop
         """
         # setting READY should happen after we write to the job manager, since a job might do a long-running
         # task in on_ready, which delays writing to the db, which means `pio kill` might not see it.
@@ -681,7 +682,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def _set_up_exit_protocol(self) -> None:
         # here, we set up how jobs should disconnect and exit.
         def exit_gracefully(reason: int | str, *args) -> None:
-            if self._clean:
+            if self._is_cleaned_up:
                 return
 
             if isinstance(reason, int):
@@ -814,7 +815,13 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # this registration use to be in post_init, and I feel like it was there for a good reason...
         with JobManager() as jm:
             return jm.register_and_set_running(
-                self.unit, self.experiment, self.job_name, self._job_source, getpid(), leader_hostname
+                self.unit,
+                self.experiment,
+                self.job_name,
+                self._job_source,
+                getpid(),
+                leader_hostname,
+                self._IS_LONG_RUNNING,
             )
 
     def _disconnect_from_loggers(self) -> None:
@@ -836,7 +843,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self._disconnect_from_mqtt_clients()
         self._disconnect_from_loggers()
 
-        self._clean = True
+        self._is_cleaned_up = True
 
     def _publish_properties_string_to_broker(
         self, published_settings: dict[str, pt.PublishableSetting]
@@ -1002,11 +1009,24 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
 class LongRunningBackgroundJob(_BackgroundJob):
     """
-    This doesn't check for is_active, so should be used for jobs like monitor, etc.
+    This doesn't check for is_active and doesn't obey `pio kill --all-jobs` so should be used for jobs like monitor, etc.
     """
+
+    _IS_LONG_RUNNING = True
 
     def __init__(self, unit: str, experiment: str) -> None:
         super().__init__(unit, experiment, source="app")
+
+
+class LongRunningBackgroundJobContrib(_BackgroundJob):
+    """
+    Used for jobs like logs2x, etc.
+    """
+
+    _IS_LONG_RUNNING = True
+
+    def __init__(self, unit: str, experiment: str, plugin_name: str) -> None:
+        super().__init__(unit, experiment, source=plugin_name)
 
 
 class BackgroundJob(_BackgroundJob):
