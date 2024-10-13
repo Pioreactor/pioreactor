@@ -12,12 +12,19 @@
  - Because we are now storing `liquid_volume` in the database, you can add charts in the UI that track the volume over time:
     1. Add the following yaml contents to `~/.pioreactor/plugins/contrib/charts/lqiuid_volume.yaml`: https://gist.github.com/CamDavidsonPilon/95eef30189101da69f706d02ef28d972
     2. In your config.ini, under `ui.overview.charts`, add the line `liquid_volume=1`.
- - New API endpoints for get the settings of a _running_ job:
-    - GET: `/unit_api/jobs/settings/job_name/<job_name>`
-    - GET: `/unit_api/jobs/settings/job_name/<job_name>/setting/<setting>`
+ - New API endpoints for getting the current settings of a _running_ job:
+    - Per pioreactor:
+      - GET: `/unit_api/jobs/settings/job_name/<job_name>`
+      - GET: `/unit_api/jobs/settings/job_name/<job_name>/setting/<setting>`
+    - Across the cluster:
+      - GET: `/api/jobs/settings/job_name/<job_name>/setting/<setting>`
+      - GET: `/api/jobs/settings/job_name/<job_name>/experiments/<experiment>`
+      - GET: `/api/jobs/settings/job_name/<job_name>/experiments/<experiment>/setting/<setting>`
+   This is the first time a web API has allowed one to query basic Pioreactor data, ex: like the temperature of a Pioreactor: `curl pio01.local/unit_api/jobs/settings/job_name/temperature_automation/setting/temperature`
+
 
 #### Breaking changes
- - `pio kill --name` is now `pio kill --job-name`
+ - `pio kill --name x` is now `pio kill --job-name x`
 
 #### Bug fixes
  - fix for OD calibration graph showing "two lines" in the terminal display

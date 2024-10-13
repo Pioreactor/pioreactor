@@ -117,8 +117,9 @@ class managed_lifecycle:
     Example
     ----------
 
-    > with managed_lifecycle(unit, experiment, "self_test"): # publishes "ready" to mqtt
-    >    do_work()
+    > with managed_lifecycle(unit, experiment, "self_test") as state: # publishes "ready" to mqtt
+    >    value = do_work()
+    >    state.publish_setting("work", value) # looks like a entry from a published_setting
     >
     > # on close of block, a "disconnected" is fired to MQTT, regardless of how that end is achieved (error, return statement, etc.)
 
@@ -199,14 +200,6 @@ class managed_lifecycle:
         except ValueError:
             pass
 
-        self.state = "ready"
-        self.mqtt_client.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
-            self.state,
-            qos=1,
-            retain=True,
-        )
-
         with JobManager() as jm:
             self._job_id = jm.register_and_set_running(
                 self.unit,
@@ -219,16 +212,14 @@ class managed_lifecycle:
             )
             jm.upsert_setting(self._job_id, "$state", self.state)
 
+        self.state = "ready"
+        self.publish_setting("$state", self.state)
+
         return self
 
     def __exit__(self, *args) -> None:
         self.state = "disconnected"
-        self.mqtt_client.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
-            b"disconnected",
-            qos=1,
-            retain=True,
-        )
+        self.publish_setting("$state", self.state)
         if not self._externally_provided_client:
             self.mqtt_client.loop_stop()
             self.mqtt_client.disconnect()
@@ -257,6 +248,13 @@ class managed_lifecycle:
 
     def block_until_disconnected(self) -> None:
         self.exit_event.wait()
+
+    def publish_setting(self, setting: str, value: Any) -> None:
+        self.mqtt_client.publish(
+            f"pioreactor/{self.unit}/{self.experiment}/{self.name}/{setting}", value, retain=True
+        )
+        with JobManager() as jm:
+            jm.upsert_setting(self._job_id, setting, str(value) if value is not None else "")
 
 
 @contextmanager
@@ -572,6 +570,13 @@ class JobManager:
             FOREIGN KEY(job_id) REFERENCES pio_job_metadata(id),
             UNIQUE(setting, job_id)
         );
+
+        CREATE INDEX IF NOT EXISTS idx_pio_job_metadata_is_running ON pio_job_metadata(is_running);
+        CREATE INDEX IF NOT EXISTS idx_pio_job_metadata_is_running_experiment ON pio_job_metadata(is_running, experiment);
+        CREATE INDEX IF NOT EXISTS idx_pio_job_metadata_job_name ON pio_job_metadata(job_name);
+
+        CREATE INDEX IF NOT EXISTS idx_pio_job_published_settings_job_id ON pio_job_published_settings(job_id);
+        CREATE UNIQUE INDEX IF NOT EXISTS  idx_pio_job_published_settings_setting_job_id ON pio_job_published_settings(setting, job_id);
         """
         self.cursor.executescript(create_table_query)
         self.conn.commit()

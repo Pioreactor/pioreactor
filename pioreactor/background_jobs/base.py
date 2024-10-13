@@ -673,9 +673,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
             qos=QOS.EXACTLY_ONCE,
         )
 
-        if hasattr(self, "_job_id"):
-            with JobManager() as jm:
-                jm.upsert_setting(self._job_id, setting_name, str(value))
+        with JobManager() as jm:
+            jm.upsert_setting(self._job_id, setting_name, str(value) if value is not None else "")
 
     def _set_up_exit_protocol(self) -> None:
         # here, we set up how jobs should disconnect and exit.
@@ -805,6 +804,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self._blocking_event.set()
 
     def _remove_from_manager(self) -> None:
+        # TODO what happens if the job_id isn't found?
         if hasattr(self, "_job_id"):
             with JobManager() as jm:
                 jm.set_not_running(self._job_id)

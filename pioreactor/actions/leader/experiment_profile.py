@@ -822,15 +822,13 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
             logger.error(e)
             raise e
 
-        state.mqtt_client.publish(
-            f"pioreactor/{unit}/{experiment}/{action_name}/experiment_profile_name",
+        state.publish_setting(
+            "experiment_profile_name",
             profile.experiment_profile_name,
-            retain=True,
         )
-        state.mqtt_client.publish(
-            f"pioreactor/{unit}/{experiment}/{action_name}/start_time_utc",
+        state.publish_setting(
+            "start_time_utc",
             current_utc_timestamp(),
-            retain=True,
         )
 
         if dry_run:
@@ -942,16 +940,8 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
                 else:
                     logger.info(f"Finished executing profile {profile.experiment_profile_name}.")  # type: ignore
 
-            state.mqtt_client.publish(
-                f"pioreactor/{unit}/{experiment}/{action_name}/experiment_profile_name",
-                None,
-                retain=True,
-            )
-            state.mqtt_client.publish(
-                f"pioreactor/{unit}/{experiment}/{action_name}/start_time_utc",
-                None,
-                retain=True,
-            )
+            state.publish_setting("experiment_profile_name", None)
+            state.publish_setting("start_time_utc", None)
 
             logger.clean_up()
 
