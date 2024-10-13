@@ -140,24 +140,21 @@ def blink() -> None:
 
 
 @pio.command(name="kill", short_help="kill job(s)")
-@click.option("--name", type=click.STRING)
+@click.option("--job-name", type=click.STRING)
 @click.option("--experiment", type=click.STRING)
 @click.option("--job-source", type=click.STRING)
 @click.option("--all-jobs", is_flag=True, help="kill all Pioreactor jobs running")
-def kill(name: str | None, experiment: str | None, job_source: str | None, all_jobs: bool) -> None:
+def kill(job_name: str | None, experiment: str | None, job_source: str | None, all_jobs: bool) -> None:
     """
     stop job(s).
     """
-    if not (name or experiment or job_source or all_jobs):
+    if not (job_name or experiment or job_source or all_jobs):
         raise click.Abort("Provide an option to kill. See --help")
 
-    # hack, see https://github.com/Pioreactor/pioreactor/pull/529 for long-term solution.
-    from pioreactor.plugin_management import get_plugins
-
-    get_plugins()
-
     with JobManager() as jm:
-        count = jm.kill_jobs(all_jobs=all_jobs, name=name, experiment=experiment, job_source=job_source)
+        count = jm.kill_jobs(
+            all_jobs=all_jobs, job_name=job_name, experiment=experiment, job_source=job_source
+        )
     click.echo(f"Killed {count} job{'s' if count != 1 else ''}.")
 
 
