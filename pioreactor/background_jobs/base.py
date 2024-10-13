@@ -286,12 +286,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         )
 
         self._check_for_duplicate_activity()
-
-        # this registration use to be in post_init, and I feel like it was there for a good reason...
-        with JobManager() as jm:
-            self._job_id = jm.register_and_set_running(
-                self.unit, self.experiment, self.job_name, self._job_source, getpid(), leader_hostname
-            )
+        self._job_id = self._add_to_manager()
 
         # if we no-op in the _check_for_duplicate_activity, we don't want to fire the LWT, so we delay subclient until after.
         self.sub_client = self._create_sub_client()
@@ -679,7 +674,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         if hasattr(self, "_job_id"):
             with JobManager() as jm:
-                jm.upsert_setting(self._job_id, setting_name, repr(value))
+                jm.upsert_setting(self._job_id, setting_name, str(value))
         else:
             print(f"missed {setting=} {value=}")
 
@@ -814,6 +809,13 @@ class _BackgroundJob(metaclass=PostInitCaller):
         if hasattr(self, "_job_id"):
             with JobManager() as jm:
                 jm.set_not_running(self._job_id)
+
+    def _add_to_manager(self) -> int:
+        # this registration use to be in post_init, and I feel like it was there for a good reason...
+        with JobManager() as jm:
+            return jm.register_and_set_running(
+                self.unit, self.experiment, self.job_name, self._job_source, getpid(), leader_hostname
+            )
 
     def _disconnect_from_loggers(self) -> None:
         # clean up logger handlers

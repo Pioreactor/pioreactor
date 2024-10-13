@@ -33,7 +33,7 @@ def subclass_union(cls: t.Type[T]) -> t.Type[T]:
 
 
 class JsonReprStuct(Struct):
-    def __repr__(self):
+    def __str__(self):
         return encode(self).decode()
 
 
@@ -59,7 +59,7 @@ class AutomationEvent(JsonReprStuct, tag=True, tag_field="event_name"):  # type:
     message: t.Optional[str] = None
     data: t.Optional[dict] = None
 
-    def __str__(self) -> str:
+    def display(self) -> str:
         if self.message:
             return f"{self.human_readable_name}: {self.message}"
         else:

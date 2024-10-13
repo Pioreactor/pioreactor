@@ -588,14 +588,12 @@ class JobManager:
         assert isinstance(self.cursor.lastrowid, int)
         return self.cursor.lastrowid
 
-    def upsert_setting(self, job_id: JobMetadataKey, setting: str, value: Any) -> None:
+    def upsert_setting(self, job_id: JobMetadataKey, setting: str, value: str) -> None:
         update_query = """
         INSERT INTO pio_job_published_settings (setting, value, job_id)
         VALUES (:setting, :value, :job_id)
-        ON CONFLICT (setting, job_id)
-        DO
-           UPDATE
-           SET value = :value;
+            ON CONFLICT (setting, job_id) DO
+            UPDATE SET value = :value;
         """
         self.cursor.execute(update_query, {"setting": setting, "value": value, "job_id": job_id})
         self.conn.commit()

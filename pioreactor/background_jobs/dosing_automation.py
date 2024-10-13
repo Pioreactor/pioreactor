@@ -153,8 +153,10 @@ class AltMediaFractionCalculator:
         assert alt_media_delta >= 0
         total_addition = media_delta + alt_media_delta
 
-        return (current_alt_media_fraction * current_liquid_volume + alt_media_delta) / (
-            current_liquid_volume + total_addition
+        return round(
+            (current_alt_media_fraction * current_liquid_volume + alt_media_delta)
+            / (current_liquid_volume + total_addition),
+            10,
         )
 
 
@@ -325,7 +327,7 @@ class DosingAutomationJob(AutomationJob):
                 event = events.ErrorOccurred(str(e))
 
         if event:
-            self.logger.info(str(event))
+            self.logger.info(event.display())
 
         self.latest_event = event
         return event
