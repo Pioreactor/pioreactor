@@ -12,13 +12,18 @@
  - Because we are now storing `liquid_volume` in the database, you can add charts in the UI that track the volume over time:
     1. Add the following yaml contents to `~/.pioreactor/plugins/contrib/charts/lqiuid_volume.yaml`: https://gist.github.com/CamDavidsonPilon/95eef30189101da69f706d02ef28d972
     2. In your config.ini, under `ui.overview.charts`, add the line `liquid_volume=1`.
+ - New API endpoints for get the settings of a _running_ job:
+    - GET: `/unit_api/jobs/settings/job_name/<job_name>`
+    - GET: `/unit_api/jobs/settings/job_name/<job_name>/setting/<setting>`
 
+#### Breaking changes
+ - `pio kill --name` is now `pio kill --job-name`
 
 #### Bug fixes
  - fix for OD calibration graph showing "two lines" in the terminal display
  - fix for updating over the internet when a Pioreactor is on a `A.devX` or `B.rcY` release
- - updating the UI software won't stop running activities
  - `pio kill --all-jobs` will no longer kill long-running jobs from plugins (specifically, `logs2x` jobs.)
+ - updating the UI software won't prematurely stop any currently running activities
 
 ### 24.10.1
 

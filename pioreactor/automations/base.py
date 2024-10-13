@@ -42,7 +42,7 @@ class AutomationJob(BackgroundJob):
                 "settable": False,
             },
         )
-        self._publish_attr("automation_name")
+        self._publish_setting("automation_name")
 
         self._latest_settings_started_at = current_utc_datetime()
 

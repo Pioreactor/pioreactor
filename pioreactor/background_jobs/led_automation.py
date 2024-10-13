@@ -147,7 +147,7 @@ class LEDAutomationJob(AutomationJob):
                 event = events.ErrorOccurred(str(e))
 
         if event:
-            self.logger.info(str(event))
+            self.logger.info(event.display())
 
         self.latest_event = event
         self._latest_run_at = current_utc_datetime()

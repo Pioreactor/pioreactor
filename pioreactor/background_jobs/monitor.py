@@ -503,7 +503,7 @@ class Monitor(LongRunningBackgroundJob):
         self._republish_state()
 
     def _republish_state(self) -> None:
-        self._publish_attr("state")
+        self._publish_setting("state")
 
     def flicker_led_response_okay(self, *args) -> None:
         if self.led_in_use:

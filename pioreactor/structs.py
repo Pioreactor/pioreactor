@@ -10,6 +10,7 @@ from datetime import datetime
 
 from msgspec import Meta
 from msgspec import Struct
+from msgspec.json import encode
 
 from pioreactor import types as pt
 
@@ -31,7 +32,12 @@ def subclass_union(cls: t.Type[T]) -> t.Type[T]:
     return t.Union[tuple(classes)]  # type: ignore
 
 
-class AutomationSettings(Struct):
+class JsonReprStuct(Struct):
+    def __str__(self):
+        return encode(self).decode()
+
+
+class AutomationSettings(JsonReprStuct):
     """
     Metadata produced when settings in an automation job change
     """
@@ -44,7 +50,7 @@ class AutomationSettings(Struct):
     settings: bytes
 
 
-class AutomationEvent(Struct, tag=True, tag_field="event_name"):  # type: ignore
+class AutomationEvent(JsonReprStuct, tag=True, tag_field="event_name"):  # type: ignore
     """
     Automations can return an AutomationEvent from their `execute` method, and it
     will get published to MQTT under /latest_event
@@ -53,7 +59,7 @@ class AutomationEvent(Struct, tag=True, tag_field="event_name"):  # type: ignore
     message: t.Optional[str] = None
     data: t.Optional[dict] = None
 
-    def __str__(self) -> str:
+    def display(self) -> str:
         if self.message:
             return f"{self.human_readable_name}: {self.message}"
         else:
@@ -69,7 +75,7 @@ class AutomationEvent(Struct, tag=True, tag_field="event_name"):  # type: ignore
     #    return self.__class__.__struct_tag__  # type: ignore
 
 
-class LEDChangeEvent(Struct):
+class LEDChangeEvent(JsonReprStuct):
     """
     Produced when an LED changes value
     """
@@ -80,7 +86,7 @@ class LEDChangeEvent(Struct):
     timestamp: t.Annotated[datetime, Meta(tz=True)]
 
 
-class DosingEvent(Struct):
+class DosingEvent(JsonReprStuct):
     """
     Output of a pump action
     """
@@ -91,44 +97,44 @@ class DosingEvent(Struct):
     timestamp: t.Annotated[datetime, Meta(tz=True)]
 
 
-class MeasuredRPM(Struct):
+class MeasuredRPM(JsonReprStuct):
     measured_rpm: t.Annotated[float, Meta(ge=0)]
     timestamp: t.Annotated[datetime, Meta(tz=True)]
 
 
-class GrowthRate(Struct):
+class GrowthRate(JsonReprStuct):
     growth_rate: float
     timestamp: t.Annotated[datetime, Meta(tz=True)]
 
 
-class ODFiltered(Struct):
+class ODFiltered(JsonReprStuct):
     od_filtered: float
     timestamp: t.Annotated[datetime, Meta(tz=True)]
 
 
-class ODReading(Struct):
+class ODReading(JsonReprStuct):
     timestamp: t.Annotated[datetime, Meta(tz=True)]
     angle: pt.PdAngle
     od: pt.OD
     channel: pt.PdChannel
 
 
-class ODReadings(Struct):
+class ODReadings(JsonReprStuct):
     timestamp: t.Annotated[datetime, Meta(tz=True)]
     ods: dict[pt.PdChannel, ODReading]
 
 
-class Temperature(Struct):
+class Temperature(JsonReprStuct):
     timestamp: t.Annotated[datetime, Meta(tz=True)]
     temperature: float
 
 
-class Voltage(Struct):
+class Voltage(JsonReprStuct):
     timestamp: t.Annotated[datetime, Meta(tz=True)]
     voltage: pt.Voltage
 
 
-class Calibration(Struct, tag=True, tag_field="type"):
+class Calibration(JsonReprStuct, tag=True, tag_field="type"):
     created_at: t.Annotated[datetime, Meta(tz=True)]
     pioreactor_unit: str
     name: str
@@ -209,7 +215,7 @@ class OD180Calibration(ODCalibration, tag="od_180"):
 AnyODCalibration = t.Union[OD90Calibration, OD45Calibration, OD180Calibration, OD135Calibration]
 
 
-class Log(Struct):
+class Log(JsonReprStuct):
     message: str
     level: str
     task: str
@@ -217,7 +223,7 @@ class Log(Struct):
     timestamp: t.Annotated[datetime, Meta(tz=True)]
 
 
-class KalmanFilterOutput(Struct):
+class KalmanFilterOutput(JsonReprStuct):
     state: t.Annotated[list[float], Meta(max_length=3)]
     covariance_matrix: list[list[float]]
     timestamp: t.Annotated[datetime, Meta(tz=True)]

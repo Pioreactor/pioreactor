@@ -594,7 +594,7 @@ if am_I_leader() or is_testing_env():
     @click.option("--all-jobs", is_flag=True, help="kill all worker jobs")
     @click.option("--experiment", type=click.STRING)
     @click.option("--job-source", type=click.STRING)
-    @click.option("--name", type=click.STRING)
+    @click.option("--job-name", type=click.STRING)
     @which_units
     @confirmation
     @json_output
@@ -603,21 +603,16 @@ if am_I_leader() or is_testing_env():
         all_jobs: bool,
         experiment: str | None,
         job_source: str | None,
-        name: str | None,
+        job_name: str | None,
         units: tuple[str, ...],
         y: bool,
         json: bool,
     ) -> None:
         """
-        Send a SIGTERM signal to JOB. JOB can be any Pioreactor job name, like "stirring".
+        Send a SIG signal to JOB. JOB can be any Pioreactor job name, like "stirring".
         Example:
 
-        > pios kill stirring
-
-
-        multiple jobs accepted:
-
-        > pios kill stirring dosing_automation
+        > pios kill --job-name stirring
 
 
         Kill all worker jobs (i.e. this excludes leader jobs like monitor). Ignores `job` argument.
@@ -635,7 +630,7 @@ if am_I_leader() or is_testing_env():
 
         with ClusterJobManager() as cm:
             results = cm.kill_jobs(
-                units, all_jobs=all_jobs, experiment=experiment, job_source=job_source, name=name
+                units, all_jobs=all_jobs, experiment=experiment, job_source=job_source, job_name=job_name
             )
 
         if json:

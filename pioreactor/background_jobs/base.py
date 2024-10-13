@@ -246,7 +246,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
     # initial state is disconnected
     state: pt.JobState = DISCONNECTED
     job_name: str = "background_job"
-    _clean: bool = False
+    _is_cleaned_up: bool = False  # mqtt connections closed, logger closed, etc.
+    _IS_LONG_RUNNING = False  # by default, jobs aren't long running (persistent over experiments)
 
     # published_settings is typically overwritten in the subclasses. Attributes here will
     # be published to MQTT and available settable attributes will be editable. Currently supported
@@ -286,6 +287,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         )
 
         self._check_for_duplicate_activity()
+        self._job_id = self._add_to_manager()
 
         # if we no-op in the _check_for_duplicate_activity, we don't want to fire the LWT, so we delay subclient until after.
         self.sub_client = self._create_sub_client()
@@ -331,22 +333,16 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         Typical sequence (doesn't represent calling stack, but "blocks of code" run)
 
-        C == calling class (usually a subclass)
-        P = BackgroundJob (this class)
+        P == BackgroundJob (this class)
+        C == calling class (a subclass)
 
-        P.__init__() # check for duplicate job
-        C.__init__() # risk of job failing here
+        P.__init__() # check for duplicate job, among other checks
+        C.__init__() # Note: risk of job failing here
         P.__post__init__()  # THIS FUNCTION
-        P.on_init_to_ready()  # default noop - can be overwritten in sub.
+        P.on_init_to_ready()  # default noop - can be overwritten in sub class C
         P.ready()
-        C.on_ready()
+        C.on_ready() # default noop
         """
-
-        with JobManager() as jm:
-            self._jm_key = jm.register_and_set_running(
-                self.unit, self.experiment, self.job_name, self._job_source, getpid(), leader_hostname
-            )
-
         # setting READY should happen after we write to the job manager, since a job might do a long-running
         # task in on_ready, which delays writing to the db, which means `pio kill` might not see it.
         self.set_state(self.READY)
@@ -660,26 +656,31 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.debug(f"Disconnected from MQTT with {reason_code=}: {error_string(reason_code)}")
         return
 
-    def _publish_attr(self, attr: str) -> None:
+    def _publish_setting(self, setting: str) -> None:
         """
         Publish the current value of the class attribute `attr` to MQTT.
         """
-        if attr == "state":
-            attr_name = "$state"
+        if setting == "state":
+            setting_name = "$state"
         else:
-            attr_name = attr
+            setting_name = setting
+        value = getattr(self, setting)
 
         self.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr_name}",
-            getattr(self, attr),
+            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting_name}",
+            value,
             retain=True,
             qos=QOS.EXACTLY_ONCE,
         )
 
+        if hasattr(self, "_job_id"):
+            with JobManager() as jm:
+                jm.upsert_setting(self._job_id, setting_name, str(value))
+
     def _set_up_exit_protocol(self) -> None:
         # here, we set up how jobs should disconnect and exit.
         def exit_gracefully(reason: int | str, *args) -> None:
-            if self._clean:
+            if self._is_cleaned_up:
                 return
 
             if isinstance(reason, int):
@@ -803,10 +804,23 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # we "set" the internal event, which will cause any event.waits to finishing blocking.
         self._blocking_event.set()
 
-    def _remove_from_cache(self) -> None:
-        if hasattr(self, "_jm_key"):
+    def _remove_from_manager(self) -> None:
+        if hasattr(self, "_job_id"):
             with JobManager() as jm:
-                jm.set_not_running(self._jm_key)
+                jm.set_not_running(self._job_id)
+
+    def _add_to_manager(self) -> int:
+        # this registration use to be in post_init, and I feel like it was there for a good reason...
+        with JobManager() as jm:
+            return jm.register_and_set_running(
+                self.unit,
+                self.experiment,
+                self.job_name,
+                self._job_source,
+                getpid(),
+                leader_hostname,
+                self._IS_LONG_RUNNING,
+            )
 
     def _disconnect_from_loggers(self) -> None:
         # clean up logger handlers
@@ -822,12 +836,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.pub_client.disconnect()
 
     def _clean_up_resources(self) -> None:
-        self._remove_from_cache()
+        self._remove_from_manager()
         # Explicitly cleanup MQTT resources...
         self._disconnect_from_mqtt_clients()
         self._disconnect_from_loggers()
 
-        self._clean = True
+        self._is_cleaned_up = True
 
     def _publish_properties_string_to_broker(
         self, published_settings: dict[str, pt.PublishableSetting]
@@ -871,7 +885,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     ) -> None:
         for name in published_settings.keys():
             if hasattr(self, name):
-                self._publish_attr(name)
+                self._publish_setting(name)
 
     def _log_state(self, state: pt.JobState) -> None:
         if state == self.READY or state == self.DISCONNECTED:
@@ -935,7 +949,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
                 f"Job is in state {self.state}, but in state {state_in_broker} in broker. Attempting fix by publishing {self.state}."
             )
             sleep(1)
-            self._publish_attr("state")
+            self._publish_setting("state")
 
     def _clear_mqtt_cache(self) -> None:
         """
@@ -980,7 +994,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def __setattr__(self, name: str, value: t.Any) -> None:
         super(_BackgroundJob, self).__setattr__(name, value)
         if name in self.published_settings:
-            self._publish_attr(name)
+            setting = name
+
+            self._publish_setting(setting)
 
     def __enter__(self: BJT) -> BJT:
         return self
@@ -991,11 +1007,24 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
 class LongRunningBackgroundJob(_BackgroundJob):
     """
-    This doesn't check for is_active, so should be used for jobs like monitor, etc.
+    This doesn't check for is_active and doesn't obey `pio kill --all-jobs` so should be used for jobs like monitor, etc.
     """
+
+    _IS_LONG_RUNNING = True
 
     def __init__(self, unit: str, experiment: str) -> None:
         super().__init__(unit, experiment, source="app")
+
+
+class LongRunningBackgroundJobContrib(_BackgroundJob):
+    """
+    Used for jobs like logs2x, etc.
+    """
+
+    _IS_LONG_RUNNING = True
+
+    def __init__(self, unit: str, experiment: str, plugin_name: str) -> None:
+        super().__init__(unit, experiment, source=plugin_name)
 
 
 class BackgroundJob(_BackgroundJob):
