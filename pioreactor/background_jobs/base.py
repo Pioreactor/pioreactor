@@ -674,7 +674,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         )
 
         with JobManager() as jm:
-            jm.upsert_setting(self._job_id, setting_name, str(value) if value is not None else "")
+            jm.upsert_setting(self._job_id, setting_name, value)
 
     def _set_up_exit_protocol(self) -> None:
         # here, we set up how jobs should disconnect and exit.
@@ -796,7 +796,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.debug(e, exc_info=True)
 
         # remove attrs from MQTT
-        self._clear_mqtt_cache()
+        self._clear_caches()
 
         self._log_state(self.state)
 
@@ -951,7 +951,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             sleep(1)
             self._publish_setting("state")
 
-    def _clear_mqtt_cache(self) -> None:
+    def _clear_caches(self) -> None:
         """
         From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
         Use "persist" to keep it from clearing.
@@ -962,29 +962,31 @@ class _BackgroundJob(metaclass=PostInitCaller):
             retain=True,
         )
 
-        for attr, metadata_on_attr in self.published_settings.items():
-            if not metadata_on_attr.get("persist", False):
+        with JobManager() as jm:
+            for setting, metadata_on_attr in self.published_settings.items():
+                if not metadata_on_attr.get("persist", False):
+                    self.publish(
+                        f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting}",
+                        None,
+                        retain=True,
+                    )
+                    jm.upsert_setting(self._job_id, setting, None)
+
                 self.publish(
-                    f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}",
+                    f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting}/$settable",
                     None,
                     retain=True,
                 )
-
-            self.publish(
-                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}/$settable",
-                None,
-                retain=True,
-            )
-            self.publish(
-                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}/$datatype",
-                None,
-                retain=True,
-            )
-            self.publish(
-                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}/$unit",
-                None,
-                retain=True,
-            )
+                self.publish(
+                    f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting}/$datatype",
+                    None,
+                    retain=True,
+                )
+                self.publish(
+                    f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting}/$unit",
+                    None,
+                    retain=True,
+                )
 
     def _check_for_duplicate_activity(self) -> None:
         if is_pio_job_running(self.job_name) and not is_testing_env():

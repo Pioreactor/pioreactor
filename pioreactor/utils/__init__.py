@@ -254,7 +254,7 @@ class managed_lifecycle:
             f"pioreactor/{self.unit}/{self.experiment}/{self.name}/{setting}", value, retain=True
         )
         with JobManager() as jm:
-            jm.upsert_setting(self._job_id, setting, str(value) if value is not None else "")
+            jm.upsert_setting(self._job_id, setting, value)
 
 
 @contextmanager
@@ -609,14 +609,23 @@ class JobManager:
         assert isinstance(self.cursor.lastrowid, int)
         return self.cursor.lastrowid
 
-    def upsert_setting(self, job_id: JobMetadataKey, setting: str, value: str) -> None:
-        update_query = """
-        INSERT INTO pio_job_published_settings (setting, value, job_id)
-        VALUES (:setting, :value, :job_id)
-            ON CONFLICT (setting, job_id) DO
-            UPDATE SET value = :value;
-        """
-        self.cursor.execute(update_query, {"setting": setting, "value": value, "job_id": job_id})
+    def upsert_setting(self, job_id: JobMetadataKey, setting: str, value: Any) -> None:
+        if value is None:
+            # delete
+            delete_query = """
+            DELETE FROM pio_job_published_settings WHERE setting = :setting and job_id = :job_id
+            """
+            self.cursor.execute(delete_query, {"setting": setting, "job_id": job_id})
+        else:
+            # upsert
+            update_query = """
+            INSERT INTO pio_job_published_settings (setting, value, job_id)
+            VALUES (:setting, :value, :job_id)
+                ON CONFLICT (setting, job_id) DO
+                UPDATE SET value = :value;
+            """
+            self.cursor.execute(update_query, {"setting": setting, "value": str(value), "job_id": job_id})
+
         self.conn.commit()
         return
 
