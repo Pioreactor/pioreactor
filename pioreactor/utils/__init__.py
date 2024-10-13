@@ -208,15 +208,16 @@ class managed_lifecycle:
         )
 
         with JobManager() as jm:
-            self._jm_key = jm.register_and_set_running(
+            self._job_id = jm.register_and_set_running(
                 self.unit,
                 self.experiment,
                 self.name,
                 self._job_source,
                 getpid(),
-                "",
-                False,  # TODO: why is leader string empty?
+                "",  # TODO: why is leader string empty? perf?
+                False,
             )
+            jm.upsert_setting(self._job_id, "$state", self.state)
 
         return self
 
@@ -233,7 +234,7 @@ class managed_lifecycle:
             self.mqtt_client.disconnect()
 
         with JobManager() as jm:
-            jm.set_not_running(self._jm_key)
+            jm.set_not_running(self._job_id)
 
         return
 
@@ -561,7 +562,7 @@ class JobManager:
             leader       TEXT NOT NULL,
             pid          INTEGER NOT NULL,
             is_long_running_job INTEGER NOT NULL,
-            ended_at     TEXT,
+            ended_at     TEXT
         );
 
         CREATE TABLE IF NOT EXISTS pio_job_published_settings (

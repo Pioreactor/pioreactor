@@ -676,8 +676,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         if hasattr(self, "_job_id"):
             with JobManager() as jm:
                 jm.upsert_setting(self._job_id, setting_name, str(value))
-        else:
-            print(f"missed {setting=} {value=}")
 
     def _set_up_exit_protocol(self) -> None:
         # here, we set up how jobs should disconnect and exit.
