@@ -20,7 +20,9 @@
       - GET: `/api/jobs/settings/job_name/<job_name>/setting/<setting>`
       - GET: `/api/jobs/settings/job_name/<job_name>/experiments/<experiment>`
       - GET: `/api/jobs/settings/job_name/<job_name>/experiments/<experiment>/setting/<setting>`
-   This is the first time a web API has allowed one to query basic Pioreactor data, ex: like the temperature of a Pioreactor: `curl pio01.local/unit_api/jobs/settings/job_name/temperature_automation/setting/temperature`
+      - GET: `/api/jobs/settings/workers/<unit>/job_name/<job_name>/experiments/<experiment>`
+      - GET: `/api/jobs/settings/workers/<unit>/job_name/<job_name>/experiments/<experiment>/setting/<setting>`
+   Ex: query the temperature of a Pioreactor: `curl pio01.local/unit_api/jobs/settings/job_name/temperature_automation/setting/temperature`
 
 
 #### Breaking changes

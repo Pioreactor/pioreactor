@@ -549,6 +549,9 @@ class JobManager:
 
     def _create_tables(self) -> None:
         create_table_query = """
+        PRAGMA journal_mode=WAL;
+        PRAGMA synchronous = 1;
+
         CREATE TABLE IF NOT EXISTS pio_job_metadata (
             id           INTEGER PRIMARY KEY AUTOINCREMENT,
             unit         TEXT NOT NULL,
@@ -566,6 +569,7 @@ class JobManager:
         CREATE TABLE IF NOT EXISTS pio_job_published_settings (
             setting     TEXT NOT NULL,
             value       TEXT,
+            proposed_value TEXT,
             job_id      INTEGER NOT NULL,
             FOREIGN KEY(job_id) REFERENCES pio_job_metadata(id),
             UNIQUE(setting, job_id)

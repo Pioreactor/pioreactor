@@ -162,7 +162,7 @@ class RpmFromFrequency(RpmCalculator):
         if self._running_sum == 0.0:
             return 0.0
         else:
-            return self._running_count * 60 / self._running_sum
+            return round(self._running_count * 60 / self._running_sum, 1)
 
 
 class Stirrer(BackgroundJob):
@@ -372,7 +372,7 @@ class Stirrer(BackgroundJob):
         if self.rpm_calculator is None:
             return None
 
-        recent_rpm = round(self.rpm_calculator.estimate(poll_for_seconds), 2)
+        recent_rpm = self.rpm_calculator.estimate(poll_for_seconds)
 
         self._measured_rpm = recent_rpm
         self.measured_rpm = structs.MeasuredRPM(

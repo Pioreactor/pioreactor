@@ -4,10 +4,10 @@ from __future__ import annotations
 import os
 
 # pioreactor version
-# Append ".dev0" if a dev version
+# Append "dev0" if a dev version
 # Append "rc0" if a rc version
 # No zero padding!
-__version__ = "24.10.1.dev0"
+__version__ = "24.10.1dev0"
 
 
 def get_hardware_version() -> tuple[int, int] | tuple[int, int, str]:
