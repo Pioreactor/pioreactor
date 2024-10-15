@@ -53,7 +53,7 @@ WORKER_REQUIREMENTS = [
 
 setup(
     name="pioreactor",
-    version="24.10.1",
+    version="24.10.15dev0",
     license="MIT",
     description="The core Python app of the Pioreactor. Control your bioreactor through Python.",
     url="https://github.com/pioreactor/pioreactor",

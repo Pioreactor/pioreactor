@@ -1,5 +1,5 @@
 [bumpver]
-current_version = "24.10.1"
+current_version = "24.10.15dev0"
 version_pattern = "YY.MM.DD[PYTAGNUM]"
 commit_message = "bump version {old_version} -> {new_version}"
 tag_message = "{new_version}"
