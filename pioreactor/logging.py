@@ -78,7 +78,7 @@ class CustomisedJSONFormatter(JSONFormatter):
         extra["level"] = record.levelname
         extra["task"] = record.name
         extra["timestamp"] = current_utc_timestamp()
-        extra["source"] = record.source  # type: ignore
+        extra["source"] = getattr(record, "source", None)  # type: ignore
 
         if record.exc_info:
             extra["message"] += "\n" + self.formatException(record.exc_info)
@@ -217,7 +217,9 @@ def create_logger(
         assert pub_client is not None
 
         # create MQTT handlers for logs table
-        topic = f"pioreactor/{unit}/{experiment}/logs/{source}"  # NOTE: we append the log-level, ex: /debug
+        topic = (
+            f"pioreactor/{unit}/{experiment}/logs/{source}"  # NOTE: we later append the log-level, ex: /debug
+        )
         mqtt_to_db_handler = MQTTHandler(topic, pub_client)
         mqtt_to_db_handler.setLevel(logging.DEBUG)
         mqtt_to_db_handler.setFormatter(CustomisedJSONFormatter())

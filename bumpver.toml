@@ -12,11 +12,14 @@ push = true
 
 [bumpver.file_patterns]
 "setup.py" = [
-    'version="{pep440_version}",',
+    'version="{pep440_version}",'
 ]
 "bumpver.toml" = [
     'current_version = "{version}"',
 ]
 "pioreactor/version.py" = [
     '^__version__ = "{version}"$',
+]
+"CHANGELOG.md" = [
+    '^### {version}$',
 ]

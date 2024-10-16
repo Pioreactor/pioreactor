@@ -3,15 +3,15 @@
 #### Enhancements
  - `dosing_automation.vial_volume` replaced with `liquid_volume`.
  - Adding a SQL table for tracking `liquid_volume`
+ - Because we are now storing `liquid_volume` in the database, you can add charts in the UI that track the volume over time:
+    1. Add the following yaml contents to `~/.pioreactor/plugins/contrib/charts/lqiuid_volume.yaml`: https://gist.github.com/CamDavidsonPilon/95eef30189101da69f706d02ef28d972
+    2. In your config.ini, under `ui.overview.charts`, add the line `liquid_volume=1`.
  - New dataset exports from the Export data page in the UI: calibrations and liquid-volumes.
  - Added a "partition by unit" option to the Export data page that will create a csv per Pioreactor in the export, instead of grouping them all together.
  - od calibrations can use the `-f` to edit calibration polynomial coefficients.
  - faster UI response times when starting jobs
  - faster syncing configs
  - faster copying files across cluster via `pio cp`
- - Because we are now storing `liquid_volume` in the database, you can add charts in the UI that track the volume over time:
-    1. Add the following yaml contents to `~/.pioreactor/plugins/contrib/charts/lqiuid_volume.yaml`: https://gist.github.com/CamDavidsonPilon/95eef30189101da69f706d02ef28d972
-    2. In your config.ini, under `ui.overview.charts`, add the line `liquid_volume=1`.
  - New API endpoints for getting the current settings of a _running_ job:
     - Per pioreactor:
       - GET: `/unit_api/jobs/settings/job_name/<job_name>`
@@ -22,7 +22,7 @@
       - GET: `/api/jobs/settings/job_name/<job_name>/experiments/<experiment>/setting/<setting>`
       - GET: `/api/jobs/settings/workers/<unit>/job_name/<job_name>/experiments/<experiment>`
       - GET: `/api/jobs/settings/workers/<unit>/job_name/<job_name>/experiments/<experiment>/setting/<setting>`
-   Ex: query the temperature of a Pioreactor: `curl pio01.local/unit_api/jobs/settings/job_name/temperature_automation/setting/temperature`
+   Ex: query the temperature of a Pioreactor: `curl http://pio01.local/unit_api/jobs/settings/job_name/temperature_automation/setting/temperature`
 
 
 #### Breaking changes
