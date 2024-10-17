@@ -7,6 +7,7 @@ from io import StringIO
 from time import sleep
 
 import pytest
+from msgspec.json import encode as dumps
 
 from pioreactor.background_jobs.stirring import start_stirring
 from pioreactor.pubsub import subscribe_and_callback
@@ -320,6 +321,22 @@ def test_upsert_setting_insert(job_manager, job_id):
     result = job_manager.cursor.fetchone()
     assert result is not None
     assert result[0] == value
+
+
+def test_upsert_setting_insert_complex_types(job_manager, job_id):
+    setting = "settingDict"
+    value = {"A": 1, "B": {"C": 2}}
+
+    # Call the upsert_setting function
+    job_manager.upsert_setting(job_id, setting, value)
+
+    # Verify the setting was inserted correctly
+    job_manager.cursor.execute(
+        "SELECT value FROM pio_job_published_settings WHERE job_id=? AND setting=?", (job_id, setting)
+    )
+    result = job_manager.cursor.fetchone()
+    assert result is not None
+    assert result[0] == dumps(value).decode() == r'{"A":1,"B":{"C":2}}'
 
 
 def test_upsert_setting_update(job_manager, job_id):

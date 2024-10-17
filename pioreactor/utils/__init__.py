@@ -627,7 +627,7 @@ class JobManager:
                 UPDATE SET value = :value;
             """
             if isinstance(value, dict):
-                value = dumps(value)
+                value = dumps(value).decode()  # back to string, not bytes
             else:
                 value = str(value)
 
