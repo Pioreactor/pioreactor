@@ -20,6 +20,7 @@ from typing import Sequence
 from typing import TYPE_CHECKING
 
 from diskcache import Cache  # type: ignore
+from msgspec.json import encode as dumps
 
 from pioreactor import structs
 from pioreactor import types as pt
@@ -625,7 +626,12 @@ class JobManager:
                 ON CONFLICT (setting, job_id) DO
                 UPDATE SET value = :value;
             """
-            self.cursor.execute(update_query, {"setting": setting, "value": str(value), "job_id": job_id})
+            if isinstance(value, dict):
+                value = dumps(value)
+            else:
+                value = str(value)
+
+            self.cursor.execute(update_query, {"setting": setting, "value": value, "job_id": job_id})
 
         self.conn.commit()
         return
