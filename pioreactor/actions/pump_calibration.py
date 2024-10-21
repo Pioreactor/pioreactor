@@ -43,11 +43,15 @@ from pioreactor.whoami import get_testing_experiment_name
 from pioreactor.whoami import get_unit_name
 
 
-def green(string):
+def green(string: str) -> str:
     return style(string, fg="green")
 
 
-def bold(string):
+def red(string: str) -> str:
+    return style(string, fg="red")
+
+
+def bold(string: str) -> str:
     return style(string, bold=True)
 
 
@@ -167,7 +171,11 @@ def setup(pump_type: str, execute_pump: Callable, hz: float, dc: float, unit: st
     try:
         channel_pump_is_configured_for = config.get("PWM_reverse", pump_type)
     except KeyError:
-        echo(f"❌ {pump_type} is not present in config.ini. Please add it to the [PWM] section and try again.")
+        echo(
+            red(
+                f"❌ {pump_type} is not present in config.ini. Please add it to the [PWM] section and try again."
+            )
+        )
         raise click.Abort()
     clear()
     echo()
@@ -350,7 +358,7 @@ def run_tests(
                 echo()
                 break
             except ValueError:
-                echo("Not a number - retrying.")
+                echo(red("Not a number - retrying."))
 
     return durations_to_test, results
 
@@ -563,7 +571,7 @@ def change_current(name: str) -> None:
                 all_calibrations[name], type=structs.subclass_union(structs.PumpCalibration)
             )  # decode name from list of all names
         except KeyError:
-            create_logger("pump_calibration").error(f"Failed to swap. Calibration `{name}` not found.")
+            echo(red(f"Failed to swap. Calibration `{name}` not found."))
             raise click.Abort()
 
         pump_type_from_new_calibration = new_calibration.pump  # retrieve the pump type
@@ -591,7 +599,7 @@ def change_current(name: str) -> None:
                 publish_to_leader(name)
                 change_current(name)
             else:
-                echo("Could not update in database on leader ❌")
+                echo(red("Could not update in database on leader ❌"))
         else:
             if old_calibration:
                 echo(f"Replaced `{old_calibration.name}` with `{new_calibration.name}`   ✅")
@@ -642,7 +650,8 @@ def click_pump_calibration(
         elif (max_duration is not None) and (min_duration is not None):
             assert min_duration < max_duration, "min_duration >= max_duration"
         else:
-            raise ValueError("min_duration and max_duration must both be set.")
+            echo(red("min_duration and max_duration must both be set."))
+            raise click.Abort()
 
         pump_calibration(min_duration, max_duration, json_file)
 

@@ -40,11 +40,15 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
 
-def green(string):
+def green(string: str) -> str:
     return style(string, fg="green")
 
 
-def bold(string):
+def red(string: str) -> str:
+    return style(string, fg="red")
+
+
+def bold(string: str) -> str:
     return style(string, bold=True)
 
 
@@ -92,9 +96,12 @@ def get_name_from_user() -> str:
 
 def get_metadata_from_user() -> tuple[pt.OD600, pt.OD600, pt.mL, pt.PdAngle, pt.PdChannel]:
     if config["od_reading.config"]["ir_led_intensity"] == "auto":
-        raise ValueError(
-            "Can't use auto with OD calibrations. Change ir_led_intensity in your config.ini to a numeric value (70 is good default)."
+        echo(
+            red(
+                "Can't use ir_led_intensity=auto with OD calibrations. Change ir_led_intensity in your config.ini to a numeric value (70 is good default). Aborting!"
+            )
         )
+        raise click.Abort()
 
     initial_od600 = prompt(
         green("Provide the OD600 measurement of your initial, high density, culture"),
@@ -131,9 +138,12 @@ def get_metadata_from_user() -> tuple[pt.OD600, pt.OD600, pt.mL, pt.PdAngle, pt.
     confirm(green("Continue?"), abort=True, default=True)
 
     if "REF" not in config["od_config.photodiode_channel_reverse"]:
-        raise ValueError(
-            "REF required for OD calibration. Set an input to REF in [od_config.photodiode_channel] in your config."
+        echo(
+            red(
+                "REF required for OD calibration. Set an input to REF in [od_config.photodiode_channel] in your config."
+            )
         )
+        raise click.Abort()
         # technically it's not required? we just need a specific PD channel to calibrate from.
 
     ref_channel = config["od_config.photodiode_channel_reverse"]["REF"]
@@ -355,11 +365,18 @@ def start_recording_and_diluting(
             x_max=initial_od600,
         )
         echo("Empty the vial and replace with 10 mL of the media you used.")
-        od600_of_blank = prompt(
-            green("What is the OD600 of your blank?"),
-            type=float,
-            confirmation_prompt=green("Repeat for confirmation"),
-        )
+        while True:
+            od600_of_blank = prompt(
+                green("What is the OD600 of your blank?"),
+                type=str,
+                confirmation_prompt=green("Repeat for confirmation"),
+            )
+            try:
+                od600_of_blank = float(od600_of_blank)
+                break
+            except ValueError:
+                echo("OD600 entered is invalid.")
+
         echo("Confirm vial outside is dry and clean. Place back into Pioreactor.")
         while not confirm(green("Continue?"), default=False):
             pass
@@ -373,7 +390,8 @@ def start_recording_and_diluting(
             else:
                 break
         else:
-            raise ValueError(f"Why is the blank reading, {value}V, higher than everything else: {voltages}V?")
+            echo(red(f"Why is the blank reading, {value}V, higher than everything else: {voltages}V?"))
+            raise click.Abort()
 
         voltages.append(value)
         inferred_od600s.append(od600_of_blank)
@@ -528,7 +546,8 @@ def od_calibration(data_file: str | None) -> None:
 
         if data_file is None:
             if any(is_pio_job_running(["stirring", "od_reading"])):
-                raise ValueError("Stirring and OD reading should be turned off.")
+                echo(red("Both Stirring and OD reading should be turned off."))
+                raise click.Abort()
 
             (
                 initial_od600,
@@ -705,7 +724,7 @@ def change_current(name: str) -> None:
                 echo(f"Set `{new_calibration.name}` to current calibration  ✅")
 
     except Exception as e:
-        echo(f"Failed to swap. {e}")
+        echo(red(f"Failed to swap. {e}"))
         raise click.Abort()
 
 

@@ -1,17 +1,18 @@
 ### Upcoming
 
 #### Enhancements
- - `dosing_automation.vial_volume` replaced with `liquid_volume`.
- - Adding a SQL table for tracking `liquid_volume`
+ - `dosing_automation.vial_volume` replaced with `dosing_automation.liquid_volume`. You can see the values by watching `pio mqtt -t "pioreactor/+/+/dosing_automation/liquid_volume"`  after starting a dosing automation.
+ - Adding a SQL table for tracking `liquid_volume`.
  - Because we are now storing `liquid_volume` in the database, you can add charts in the UI that track the volume over time:
     1. Add the following yaml contents to `~/.pioreactor/plugins/contrib/charts/lqiuid_volume.yaml`: https://gist.github.com/CamDavidsonPilon/95eef30189101da69f706d02ef28d972
     2. In your config.ini, under `ui.overview.charts`, add the line `liquid_volume=1`.
  - New dataset exports from the Export data page in the UI: calibrations and liquid-volumes.
  - Added a "partition by unit" option to the Export data page that will create a csv per Pioreactor in the export, instead of grouping them all together.
- - od calibrations can use the `-f` to edit calibration polynomial coefficients.
- - faster UI response times when starting jobs
- - faster syncing configs
- - faster copying files across cluster via `pio cp`
+ - od calibrations can use the `--json-file` to edit calibration polynomial coefficients. In the json file, specify `curve_data_` fields with values of the curve's polynomial coefficients (leading term first), and set `curve_type` as `"poly"`. The routine will begin with that calibration curve displayed.
+ - faster UI response times when starting jobs.
+ - faster syncing configs.
+ - faster copying files across cluster via `pio cp`.
+ - new database table in `/tmp/local_intermittent_pioreactor_metadata.sqlite` called `pio_job_published_settings` that stores the published settings for each job. This powers the next API endpoints:
  - New API endpoints for getting the current settings of a _running_ job:
     - Per pioreactor:
       - GET: `/unit_api/jobs/settings/job_name/<job_name>`
@@ -33,6 +34,7 @@
  - fix for updating over the internet when a Pioreactor is on a `A.devX` or `B.rcY` release
  - `pio kill --all-jobs` will no longer kill long-running jobs from plugins (specifically, `logs2x` jobs.)
  - updating the UI software won't prematurely stop any currently running activities
+
 
 ### 24.10.1
 

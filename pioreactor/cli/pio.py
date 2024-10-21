@@ -669,7 +669,7 @@ def update_ui(branch: Optional[str], repo: str, source: Optional[str], version: 
 
 if whoami.am_I_leader():
 
-    @pio.command(short_help="access the db CLI")
+    @pio.command(short_help="access the database's CLI")
     def db() -> None:
         import os
 
