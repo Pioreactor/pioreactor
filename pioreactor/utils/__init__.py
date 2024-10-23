@@ -211,7 +211,6 @@ class managed_lifecycle:
                 "",  # TODO: why is leader string empty? perf?
                 False,
             )
-            jm.upsert_setting(self._job_id, "$state", self.state)
 
         self.state = "ready"
         self.publish_setting("$state", self.state)

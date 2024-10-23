@@ -1,14 +1,7 @@
 # -*- coding: utf-8 -*-
-"""
-cmd line interface for running individual pioreactor units (including leader)
-
-> pio run stirring --ignore-rpm
-> pio logs
-"""
 from __future__ import annotations
 
 import subprocess
-from os import geteuid
 from shlex import quote
 from typing import Optional
 
@@ -16,7 +9,6 @@ import click
 from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
 
-import pioreactor
 from pioreactor import config
 from pioreactor import exc
 from pioreactor import whoami
@@ -31,14 +23,13 @@ from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.networking import is_using_local_access_point
 from pioreactor.utils.timing import current_utc_timestamp
-from pioreactor.whoami import am_I_leader
 
 lazy_subcommands = {
     "run": "pioreactor.cli.run.run",
     "plugins": "pioreactor.cli.plugins.plugins",
 }
 
-if am_I_leader():
+if whoami.am_I_leader():
     # add in ability to control workers
     lazy_subcommands["workers"] = "pioreactor.cli.workers.workers"
 
@@ -71,6 +62,8 @@ def pio(ctx) -> None:
             "/usr/local/bin/firstboot.sh found on disk. firstboot.sh likely failed. Try looking for errors in `sudo systemctl status firstboot.service`."
         )
 
+    from os import geteuid
+
     if geteuid() == 0:
         raise SystemError("Don't run as root!")
 
@@ -88,7 +81,7 @@ def logs(n: int) -> None:
     log_file = config.config.get("logging", "log_file", fallback="/var/log/pioreactor.log")
     ui_log_file = config.config.get("logging", "ui_log_file", fallback="/var/log/pioreactor.log")
 
-    if am_I_leader():
+    if whoami.am_I_leader():
         log_files = list(set([log_file, ui_log_file]))  # deduping
     else:
         log_files = [log_file]
@@ -161,12 +154,13 @@ def kill(job_name: str | None, experiment: str | None, job_source: str | None, a
 @pio.command(name="version", short_help="print the Pioreactor software version")
 @click.option("--verbose", "-v", is_flag=True, help="show more system information")
 def version(verbose: bool) -> None:
+    from pioreactor.version import tuple_to_text
+    from pioreactor.version import software_version_info
+
     if verbose:
         import platform
         from pioreactor.version import hardware_version_info
-        from pioreactor.version import software_version_info
         from pioreactor.version import serial_number
-        from pioreactor.version import tuple_to_text
         from pioreactor.version import get_firmware_version
         from pioreactor.version import rpi_version_info
         from pioreactor.whoami import get_pioreactor_model_and_version
@@ -188,7 +182,7 @@ def version(verbose: bool) -> None:
 
         click.echo(f"Pioreactor UI:          {ui_version}")
     else:
-        click.echo(pioreactor.__version__)
+        click.echo(tuple_to_text(software_version_info))
 
 
 @pio.group()
