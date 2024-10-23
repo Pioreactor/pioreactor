@@ -12,6 +12,7 @@ from typing import Optional
 from typing import Type
 
 import click
+from click import Abort
 from click import clear
 from click import confirm
 from click import echo
@@ -176,7 +177,7 @@ def setup(pump_type: str, execute_pump: Callable, hz: float, dc: float, unit: st
                 f"❌ {pump_type} is not present in config.ini. Please add it to the [PWM] section and try again."
             )
         )
-        raise click.Abort()
+        raise Abort()
     clear()
     echo()
     echo(green(bold("Step 2")))
@@ -431,7 +432,7 @@ def publish_to_leader(name: str) -> bool:
 def get_data_from_data_file(data_file: str) -> tuple[list[float], list[float], float, float]:
     import json
 
-    click.echo(f"Pulling data from {data_file}...")
+    echo(f"Pulling data from {data_file}...")
 
     with open(data_file, "r") as f:
         data = json.loads(f.read())
@@ -572,7 +573,7 @@ def change_current(name: str) -> None:
             )  # decode name from list of all names
         except KeyError:
             echo(red(f"Failed to swap. Calibration `{name}` not found."))
-            raise click.Abort()
+            raise Abort()
 
         pump_type_from_new_calibration = new_calibration.pump  # retrieve the pump type
 
@@ -651,7 +652,7 @@ def click_pump_calibration(
             assert min_duration < max_duration, "min_duration >= max_duration"
         else:
             echo(red("min_duration and max_duration must both be set."))
-            raise click.Abort()
+            raise Abort()
 
         pump_calibration(min_duration, max_duration, json_file)
 

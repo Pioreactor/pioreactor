@@ -207,7 +207,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     >     st = Stirrer(duty_cycle=50, unit=unit, experiment=experiment)
     >     ...
     >     st.clean_up()
-    >    return
+    >     return
 
     When Python exits, jobs will also clean themselves up, so this also works as a script:
 
@@ -287,7 +287,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         )
 
         self._check_for_duplicate_activity()
-        self._job_id = self._add_to_manager()
+        self._job_id = self._add_to_job_manager()
 
         # if we no-op in the _check_for_duplicate_activity, we don't want to fire the LWT, so we delay subclient until after.
         self.sub_client = self._create_sub_client()
@@ -313,8 +313,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
             # (hence the _cleanup bit, don't use set_state)
             # but we still raise the error afterwards.
             self._check_published_settings(self.published_settings)
-            self._publish_properties_string_to_broker(self.published_settings)
-            self._publish_settings_metadata_to_broker(self.published_settings)
 
         except ValueError as e:
             self.logger.debug(e, exc_info=True)
@@ -547,8 +545,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self._check_published_settings(new_setting_pair)
         # we need create a new dict (versus just a key update), since published_settings is a class level prop, and editing this would have effects for other BackgroundJob classes.
         self.published_settings = self.published_settings | new_setting_pair
-        self._publish_properties_string_to_broker(self.published_settings)
-        self._publish_settings_metadata_to_broker(new_setting_pair)
 
     ########### Private #############
 
@@ -607,8 +603,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         def reconnect_protocol(client: Client, userdata, flags, rc: int, properties=None) -> None:
             self.logger.info("Sub client reconnected to the MQTT broker on leader.")
-            self._publish_properties_string_to_broker(self.published_settings)
-            self._publish_settings_metadata_to_broker(self.published_settings)
             self._publish_defined_settings_to_broker(self.published_settings)
             self._start_general_passive_listeners()
             self.start_passive_listeners()
@@ -803,13 +797,13 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # we "set" the internal event, which will cause any event.waits to finishing blocking.
         self._blocking_event.set()
 
-    def _remove_from_manager(self) -> None:
+    def _remove_from_job_manager(self) -> None:
         # TODO what happens if the job_id isn't found?
         if hasattr(self, "_job_id"):
             with JobManager() as jm:
                 jm.set_not_running(self._job_id)
 
-    def _add_to_manager(self) -> int:
+    def _add_to_job_manager(self) -> int:
         # this registration use to be in post_init, and I feel like it was there for a good reason...
         with JobManager() as jm:
             return jm.register_and_set_running(
@@ -836,49 +830,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.pub_client.disconnect()
 
     def _clean_up_resources(self) -> None:
-        self._remove_from_manager()
+        self._remove_from_job_manager()
         # Explicitly cleanup MQTT resources...
         self._disconnect_from_mqtt_clients()
         self._disconnect_from_loggers()
 
         self._is_cleaned_up = True
-
-    def _publish_properties_string_to_broker(
-        self, published_settings: dict[str, pt.PublishableSetting]
-    ) -> None:
-        # publishes a comma seperated list of settings available to $properties. ex: state,rpm,duty_cycle
-        # this follows some of the Homie convention: https://homieiot.github.io/specification/
-        self.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$properties",
-            ",".join(published_settings),
-            qos=QOS.AT_LEAST_ONCE,
-            retain=True,
-        )
-
-    def _publish_settings_metadata_to_broker(
-        self, published_settings: dict[str, pt.PublishableSetting]
-    ) -> None:
-        # this follows some of the Homie convention: https://homieiot.github.io/specification/
-        for setting, props in published_settings.items():
-            self.publish(
-                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting}/$settable",
-                props["settable"],
-                qos=QOS.AT_LEAST_ONCE,
-                retain=True,
-            )
-            self.publish(
-                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting}/$datatype",
-                props["datatype"],
-                qos=QOS.AT_LEAST_ONCE,
-                retain=True,
-            )
-            if props.get("unit"):
-                self.publish(
-                    f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting}/$unit",
-                    props["unit"],
-                    qos=QOS.AT_LEAST_ONCE,
-                    retain=True,
-                )
 
     def _publish_defined_settings_to_broker(
         self, published_settings: dict[str, pt.PublishableSetting]
