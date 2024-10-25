@@ -18,6 +18,8 @@ def __getattr__(attr):  # type: ignore
         return get_leader_address()
     elif attr == "mqtt_address":
         return get_mqtt_address()
+    elif attr == "config":
+        return get_config()
     else:
         raise AttributeError
 
@@ -91,6 +93,7 @@ class ConfigParserMod(configparser.ConfigParser):
             raise e
 
 
+@cache
 def get_config() -> ConfigParserMod:
     """
     This function reads from disk and initializes the configuration logic for the Pioreactor cluster.
@@ -164,19 +167,16 @@ def get_config() -> ConfigParserMod:
     return config
 
 
-config = get_config()
-
-
 @cache
 def get_leader_hostname() -> str:
-    return config.get("cluster.topology", "leader_hostname", fallback="localhost")
+    return get_config().get("cluster.topology", "leader_hostname", fallback="localhost")
 
 
 @cache
 def get_leader_address() -> str:
-    return config.get("cluster.topology", "leader_address", fallback="localhost")
+    return get_config().get("cluster.topology", "leader_address", fallback="localhost")
 
 
 @cache
 def get_mqtt_address() -> str:
-    return config.get("mqtt", "broker_address", fallback=get_leader_address())
+    return get_config().get("mqtt", "broker_address", fallback=get_leader_address())

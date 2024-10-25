@@ -5,6 +5,11 @@ set -xeu
 
 export LC_ALL=C
 
+
+# apply this to all pioreactors
+sudo pip3 config set global.break-system-packages true
+
+
 # Lower bound version
 min_version="24.9.19"
 
