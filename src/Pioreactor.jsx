@@ -899,7 +899,7 @@ function SettingsActionsDialog(props) {
               <StateTypography state={dosingControlJob.state}/>
             </div>
             <div key={dosingControlJob.metadata.key}>
-              {(dosingControlJob.state === "ready") || (dosingControlJob.state === "sleeping") || (temperatureControlJob.state === "init")
+              {(dosingControlJob.state === "ready") || (dosingControlJob.state === "sleeping") || (dosingControlJob.state === "init")
               ?<React.Fragment>
                 <Typography variant="body2" component="p" gutterBottom>
                 Currently running dosing automation <Chip size="small" label={dosingControlJob.publishedSettings.automation_name.value}/>.
@@ -958,7 +958,7 @@ function SettingsActionsDialog(props) {
             </div>
 
             <div key={ledControlJob.metadata.key}>
-              {(ledControlJob.state === "ready") || (ledControlJob.state === "sleeping") || (temperatureControlJob.state === "init")
+              {(ledControlJob.state === "ready") || (ledControlJob.state === "sleeping") || (ledControlJob.state === "init")
               ?<React.Fragment>
                 <Typography variant="body2" component="p" gutterBottom>
                 Currently running LED automation <Chip size="small" label={ledControlJob.publishedSettings.automation_name.value}/>.

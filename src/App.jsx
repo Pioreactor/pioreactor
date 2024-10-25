@@ -47,7 +47,7 @@ const theme = createTheme({
       // contrastText: will be calculated to contrast with palette.primary.main
     },
     secondary: {
-      main: '#f44336',
+      main: '#DF1A0C',
     },
   },
 });

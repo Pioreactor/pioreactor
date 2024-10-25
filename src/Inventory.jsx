@@ -348,6 +348,11 @@ function WorkerCard({worker, config, leaderVersion}) {
   const [WLANaddress, setWLANaddress] = React.useState(null)
   const [ETHAddress, setETHAddress] = React.useState(null)
 
+
+  const isActive = () => {
+    return activeStatus === "active"
+  }
+
   const onMonitorData = (topic, message, packet) => {
     const setting = topic.toString().split('/').pop()
     switch (setting) {
@@ -410,7 +415,7 @@ function WorkerCard({worker, config, leaderVersion}) {
 
   const indicatorDotColor = getIndicatorDotColor(state)
   const indicatorDotShadow = 2
-  const indicatorLabel = getInicatorLabel(state, activeStatus === "active")
+  const indicatorLabel = getInicatorLabel(state, isActive())
 
 
   React.useEffect(() => {
@@ -483,7 +488,7 @@ function WorkerCard({worker, config, leaderVersion}) {
       <CardContent>
 
         <div style={{display: "flex", justifyContent: "space-between"}}>
-          <Typography sx={{ fontSize: 14 }} color={activeStatus === "active" ? "text.secondary" : inactiveGrey} gutterBottom>
+          <Typography sx={{ fontSize: 14 }} color={isActive() ? "text.secondary" : inactiveGrey} gutterBottom>
             {isLeader ? "Leader & Worker" : "Worker"}
           </Typography>
         </div>
@@ -495,7 +500,7 @@ function WorkerCard({worker, config, leaderVersion}) {
                 fontSize: 20,
                 color: "rgba(0, 0, 0, 0.87)",
                 fontWeight: 500,
-                ...(activeStatus === "active" ? {} : { color: inactiveGrey }),
+                ...(isActive() ? {} : { color: inactiveGrey }),
               }}
               gutterBottom>
               <PioreactorIcon  style={{verticalAlign: "middle", marginRight: "3px"}} sx={{ display: {xs: 'none', sm: 'none', md: 'inline' } }}/>
@@ -511,7 +516,7 @@ function WorkerCard({worker, config, leaderVersion}) {
           <div>
           <FormControl component="fieldset">
             <FormControlLabel
-              checked={activeStatus === "active"}
+              checked={isActive()}
               control={<Switch color="primary" onChange={handleStatusChange}  size="small" />}
               label={activeStatus ==="active" ? "Active" : "Inactive"}
               labelPlacement="start"
@@ -522,14 +527,14 @@ function WorkerCard({worker, config, leaderVersion}) {
 
         </div>
 
-        <Typography variant="subtitle2" color={activeStatus === "active" ? "inherit" : inactiveGrey}  >
-          {experimentAssigned ? <>Assigned to <Chip size="small" label={experimentAssigned}/> </> : "Unassigned"}
+        <Typography variant="subtitle2" color={isActive() ? "inherit" : inactiveGrey}  >
+          {experimentAssigned ? <>Assigned to <Chip disabled={!isActive()} size="small" label={experimentAssigned}/> </> : "Unassigned"}
         </Typography>
 
         <Divider sx={{margin: "5px 0px"}}/>
 
         <table style={{borderCollapse: "separate", borderSpacing: "5px", fontSize: "0.90rem"}}>
-          <tbody style={{color: activeStatus === "active" ? "inherit" : inactiveGrey}}>
+          <tbody style={{color: isActive() ? "inherit" : inactiveGrey}}>
           <tr>
             <td style={{textAlign: "left", minWidth: "120px", color: ""}}>
                 Model
@@ -540,10 +545,26 @@ function WorkerCard({worker, config, leaderVersion}) {
           </tr>
           <tr>
             <td style={{textAlign: "left", minWidth: "120px", color: ""}}>
+                Software version
+            </td>
+            <td >
+              <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{softwareVersion()}</code>
+            </td>
+          </tr>
+          <tr>
+            <td style={{textAlign: "left", minWidth: "120px", color: ""}}>
                 IPv4
             </td>
             <td>
               <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{ipv4 || "-"}</code>
+            </td>
+          </tr>
+          <tr>
+            <td style={{textAlign: "left", minWidth: "120px", color: ""}}>
+                Raspberry Pi
+            </td>
+            <td >
+              <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{versions.rpi_machine || "-"}</code>
             </td>
           </tr>
           <tr>
@@ -560,22 +581,6 @@ function WorkerCard({worker, config, leaderVersion}) {
             </td>
             <td>
               <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{ETHAddress || "-"}</code>
-            </td>
-          </tr>
-          <tr>
-            <td style={{textAlign: "left", minWidth: "120px", color: ""}}>
-                Software version
-            </td>
-            <td >
-              <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{softwareVersion()}</code>
-            </td>
-          </tr>
-          <tr>
-            <td style={{textAlign: "left", minWidth: "120px", color: ""}}>
-                Raspberry Pi
-            </td>
-            <td >
-              <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{versions.rpi_machine || "-"}</code>
             </td>
           </tr>
           </tbody>

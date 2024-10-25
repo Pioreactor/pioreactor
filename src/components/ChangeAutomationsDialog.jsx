@@ -172,6 +172,7 @@ function ChangeAutomationsDialog(props) {
           variant="contained"
           color="primary"
           onClick={startJob}
+          disabled={isLoading}
         >
           Start
         </Button>

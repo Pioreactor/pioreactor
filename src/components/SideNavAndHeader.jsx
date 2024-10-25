@@ -103,7 +103,7 @@ const SelectableMenuItem = ({allExperiments, experiment, updateExperiment}) => {
 
     <ConditionalTooltip
       title={experiment}
-      condition={experiment.length > 16}
+      condition={experiment.length > 18}
     >
     <MenuItem onClick={handleMenuItemClick} icon={<ScienceOutlinedIcon />}>
       <FormControl variant="standard" fullWidth>

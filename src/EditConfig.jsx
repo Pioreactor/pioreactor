@@ -42,7 +42,7 @@ function EditableCodeDiv(props) {
 
 
   const getHistoricalConfigFiles = (filename) => {
-    fetch(`/api/historical_configs/${filename}`)
+    fetch(`/api/configs/${filename}/history`)
       .then(response => response.json())
       .then(listOfHistoricalConfigs => setState(prev => ({
         ...prev,
