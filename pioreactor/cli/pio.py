@@ -9,10 +9,10 @@ import click
 from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
 
-from pioreactor import config
 from pioreactor import exc
 from pioreactor import whoami
 from pioreactor.cli.lazy_group import LazyGroup
+from pioreactor.config import config
 from pioreactor.logging import create_logger
 from pioreactor.mureq import get
 from pioreactor.mureq import HTTPException
@@ -78,8 +78,8 @@ def logs(n: int) -> None:
     """
     Tail & stream the logs from this unit to the terminal. CTRL-C to exit.
     """
-    log_file = config.config.get("logging", "log_file", fallback="/var/log/pioreactor.log")
-    ui_log_file = config.config.get("logging", "ui_log_file", fallback="/var/log/pioreactor.log")
+    log_file = config.get("logging", "log_file", fallback="/var/log/pioreactor.log")
+    ui_log_file = config.get("logging", "ui_log_file", fallback="/var/log/pioreactor.log")
 
     if whoami.am_I_leader():
         log_files = list(set([log_file, ui_log_file]))  # deduping
@@ -413,7 +413,7 @@ def update_app(
             if whoami.am_I_leader():
                 commands_and_priority.extend([
                     (f"sudo pip install --no-index --find-links={tmp_rls_dir}/wheels/ {tmp_rls_dir}/pioreactor-{version_installed}-py3-none-any.whl[leader,worker]", 3),
-                    (f'sudo sqlite3 {config.config["storage"]["database"]} < {tmp_rls_dir}/update.sql', 10),
+                    (f'sudo sqlite3 {config.get("storage", "database")} < {tmp_rls_dir}/update.sql', 10),
                 ])
             else:
                 commands_and_priority.extend([
@@ -497,7 +497,7 @@ def update_app(
                     [
                         (f"wget -O {tmp_rls_dir}/update.sql {url}", 5),
                         (
-                            f'sudo sqlite3 {config.config["storage"]["database"]} < {tmp_rls_dir}/update.sql || :',
+                            f'sudo sqlite3 {config.get("storage", "database")} < {tmp_rls_dir}/update.sql || :',
                             6,
                         ),  # or True at the end, since this may run on workers, that's okay.
                     ]
@@ -667,7 +667,7 @@ if whoami.am_I_leader():
     def db() -> None:
         import os
 
-        os.system(f"sqlite3 {config.config['storage']['database']} -column -header")
+        os.system(f"sqlite3 {config.get('storage','database')} -column -header")
 
     @pio.command(short_help="tail MQTT")
     @click.option("--topic", "-t", default="pioreactor/#")

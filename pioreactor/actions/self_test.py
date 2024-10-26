@@ -269,6 +269,8 @@ def test_ambient_light_interference(managed_state, logger: CustomLogger, unit: s
 def test_REF_is_lower_than_0_dot_256_volts(
     managed_state, logger: CustomLogger, unit: str, experiment: str
 ) -> None:
+    assert is_HAT_present(), "HAT is not detected."
+
     reference_channel = cast(PdChannel, config.get("od_config.photodiode_channel_reverse", REF_keyword))
     ir_channel = cast(LedChannel, config["leds_reverse"][IR_keyword])
     config_ir_intensity = config.get("od_reading.config", "ir_led_intensity")

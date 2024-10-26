@@ -773,8 +773,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def disconnected(self) -> None:
         # set state to disconnect
-        # call this first to make sure that it gets published to the broker.
-        self.state = self.DISCONNECTED
 
         # call job specific on_disconnected to clean up subjobs, etc.
         # however, if it fails, nothing below executes, so we don't get a clean
@@ -789,9 +787,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.debug("Error in on_disconnected:")
             self.logger.debug(e, exc_info=True)
 
-        # remove attrs from MQTT
         self._clear_caches()
-
+        self.state = self.DISCONNECTED
         self._log_state(self.state)
 
         # we "set" the internal event, which will cause any event.waits to finishing blocking.

@@ -34,6 +34,7 @@
  - fix for updating over the internet when a Pioreactor is on a `A.devX` or `B.rcY` release
  - `pio kill --all-jobs` will no longer kill long-running jobs from plugins (specifically, `logs2x` jobs.)
  - updating the UI software won't prematurely stop any currently running activities
+ - correct eth mac address on RPi5s
 
 
 ### 24.10.1
