@@ -586,8 +586,15 @@ def click_add_media(
 
 @click.command(name="circulate_media")
 @click.option("--duration", required=True, type=float)
+@click.option(
+    "--source-of-event",
+    default="CLI",
+    type=str,
+    help="who is calling this function - data goes into database and MQTT",
+)
 def click_circulate_media(
     duration: Optional[pt.Seconds],
+    source_of_event: Optional[str],
 ) -> tuple[pt.mL, pt.mL]:
     """
     Cycle waste/media from unit
@@ -596,16 +603,21 @@ def click_circulate_media(
     experiment = get_assigned_experiment_name(unit)
 
     return circulate_media(
-        duration=duration,
-        unit=unit,
-        experiment=experiment,
+        duration=duration, unit=unit, experiment=experiment, source_of_event=source_of_event
     )
 
 
 @click.command(name="circulate_alt_media")
 @click.option("--duration", required=True, type=float)
+@click.option(
+    "--source-of-event",
+    default="CLI",
+    type=str,
+    help="who is calling this function - data goes into database and MQTT",
+)
 def click_circulate_alt_media(
     duration: Optional[pt.Seconds],
+    source_of_event: Optional[str],
 ) -> tuple[pt.mL, pt.mL]:
     """
     Cycle waste/alt media from unit
@@ -614,7 +626,5 @@ def click_circulate_alt_media(
     experiment = get_assigned_experiment_name(unit)
 
     return circulate_alt_media(
-        duration=duration,
-        unit=unit,
-        experiment=experiment,
+        duration=duration, unit=unit, experiment=experiment, source_of_event=source_of_event
     )
