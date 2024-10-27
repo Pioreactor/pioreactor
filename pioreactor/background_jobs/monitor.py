@@ -211,33 +211,36 @@ class Monitor(LongRunningBackgroundJob):
         utils.boolean_retry(did_find_network, retries=3, sleep_for=2)
         self.ipv4 = get_ip()
 
-        def get_first_mac(interface_type: str) -> Optional[str]:
+        def get_mac_addresses(interface_type: str) -> str:
             """
-            Finds the first network interface of the given type (wireless or wired) and retrieves its MAC address.
+            Finds all network interfaces of the given type (wireless or wired) and retrieves their MAC addresses.
+            Returns a comma-separated string of MAC addresses.
             """
             net_path = Path("/sys/class/net")
+            mac_addresses = []
+
             for iface_path in net_path.iterdir():
                 if iface_path.is_dir():
                     try:
-                        # Check the type of the interface using 'type' and presence of 'wireless' directory.
                         iface_type_path = iface_path / "type"
                         is_wireless = (iface_path / "wireless").exists()
 
                         if iface_type_path.exists():
                             iface_type = iface_type_path.read_text().strip()
 
-                            # Match the interface type: '1' means Ethernet, and the presence of 'wireless' means Wi-Fi.
+                            # Collect MAC addresses for specified type
                             if interface_type == "wireless" and is_wireless:
-                                return (iface_path / "address").read_text().strip()
+                                mac_addresses.append((iface_path / "address").read_text().strip())
                             elif interface_type == "wired" and iface_type == "1" and not is_wireless:
-                                return (iface_path / "address").read_text().strip()
+                                mac_addresses.append((iface_path / "address").read_text().strip())
                     except (FileNotFoundError, ValueError):
                         continue
-            return None
 
-        # Get the MAC addresses for the first wireless and wired interfaces
-        self.wlan_mac_address = get_first_mac("wireless") or "Not available"
-        self.eth_mac_address = get_first_mac("wired") or "Not available"
+            return ", ".join(mac_addresses) if mac_addresses else "Not available"
+
+        # Get MAC addresses for all wireless and wired interfaces
+        self.wlan_mac_address = get_mac_addresses("wireless")
+        self.eth_mac_address = get_mac_addresses("wired")
 
         self.logger.debug(f"IPv4 address: {self.ipv4}")
         self.logger.debug(f"WLAN MAC address: {self.wlan_mac_address}")

@@ -12,6 +12,7 @@
  - faster UI response times when starting jobs.
  - faster syncing configs.
  - faster copying files across cluster via `pio cp`.
+ - faster clean up of jobs using PWMs.
  - new database table in `/tmp/local_intermittent_pioreactor_metadata.sqlite` called `pio_job_published_settings` that stores the published settings for each job. This powers the next API endpoints:
  - New API endpoints for getting the current settings of a _running_ job:
     - Per pioreactor:
@@ -36,6 +37,7 @@
  - updating the UI software won't prematurely stop any currently running activities
  - correct ethernet mac address on RPi5s
  - We weren't passing all the OS environment variables when jobs were started from the UI. This is fixed now.
+ - Fixed circulate media / alt. media in the UI.
 
 
 ### 24.10.1

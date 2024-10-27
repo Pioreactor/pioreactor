@@ -496,7 +496,7 @@ def click_add_alt_media(
     continuously: bool,
     source_of_event: Optional[str],
     manually: bool,
-) -> float:
+) -> pt.mL:
     """
     Remove waste/media from unit
     """
@@ -531,7 +531,7 @@ def click_remove_waste(
     continuously: bool,
     source_of_event: Optional[str],
     manually: bool,
-) -> float:
+) -> pt.mL:
     """
     Remove waste/media from unit
     """
@@ -566,7 +566,7 @@ def click_add_media(
     continuously: bool,
     source_of_event: Optional[str],
     manually: bool,
-) -> float:
+) -> pt.mL:
     """
     Add media to unit
     """
@@ -581,4 +581,40 @@ def click_add_media(
         unit=unit,
         experiment=experiment,
         manually=manually,
+    )
+
+
+@click.command(name="circulate_media")
+@click.option("--duration", required=True, type=float)
+def click_circulate_media(
+    duration: Optional[pt.Seconds],
+) -> tuple[pt.mL, pt.mL]:
+    """
+    Cycle waste/media from unit
+    """
+    unit = get_unit_name()
+    experiment = get_assigned_experiment_name(unit)
+
+    return circulate_media(
+        duration=duration,
+        unit=unit,
+        experiment=experiment,
+    )
+
+
+@click.command(name="circulate_alt_media")
+@click.option("--duration", required=True, type=float)
+def click_circulate_alt_media(
+    duration: Optional[pt.Seconds],
+) -> tuple[pt.mL, pt.mL]:
+    """
+    Cycle waste/alt media from unit
+    """
+    unit = get_unit_name()
+    experiment = get_assigned_experiment_name(unit)
+
+    return circulate_alt_media(
+        duration=duration,
+        unit=unit,
+        experiment=experiment,
     )
