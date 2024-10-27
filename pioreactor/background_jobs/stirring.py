@@ -240,7 +240,11 @@ class Stirrer(BackgroundJob):
 
         pin: pt.GpioPin = hardware.PWM_TO_PIN[channel]
         self.pwm = PWM(
-            pin, config.getfloat("stirring.config", "pwm_hz"), unit=self.unit, experiment=self.experiment
+            pin,
+            config.getfloat("stirring.config", "pwm_hz"),
+            unit=self.unit,
+            experiment=self.experiment,
+            pubsub_client=self.pub_client,
         )
         self.pwm.lock()
         self.duty_cycle_lock = Lock()

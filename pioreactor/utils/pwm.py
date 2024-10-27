@@ -216,9 +216,6 @@ class PWM:
 
             self._pwm = SoftwarePWMOutputDevice(self.pin, self.hz)
 
-        with local_intermittent_storage("pwm_hz") as cache:
-            cache[self.pin] = self.hz
-
         self.logger.debug(
             f"Initialized GPIO-{self.pin} using {'hardware' if self.using_hardware else 'software'}-timing, initial frequency = {self.hz} hz."
         )
@@ -289,9 +286,6 @@ class PWM:
         self.unlock()
 
         with local_intermittent_storage("pwm_dc") as cache:
-            cache.pop(self.pin)
-
-        with local_intermittent_storage("pwm_hz") as cache:
             cache.pop(self.pin)
 
         gpio_helpers.set_gpio_availability(self.pin, True)
