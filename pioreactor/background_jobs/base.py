@@ -243,10 +243,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
     SLEEPING: pt.JobState = "sleeping"
     LOST: pt.JobState = "lost"
 
-    # initial state is disconnected
-    state: pt.JobState = DISCONNECTED
-    job_name: str = "background_job"
-    _is_cleaned_up: bool = False  # mqtt connections closed, logger closed, etc.
+    # initial state is disconnected, set other metadata
+    state = DISCONNECTED
+    job_name = "_background_job"  # this should be overwritten in subclasses
+    _is_cleaned_up = False  # mqtt connections closed, JM cache is empty, logger closed, etc.
     _IS_LONG_RUNNING = False  # by default, jobs aren't long running (persistent over experiments)
 
     # published_settings is typically overwritten in the subclasses. Attributes here will
@@ -999,6 +999,11 @@ class BackgroundJobContrib(_BackgroundJob):
     Plugin jobs should inherit from this class.
     """
 
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if cls.job_name == "_background_job":
+            raise NameError(f"must provide a job_name property to this BackgroundJob class {cls}.")
+
     def __init__(self, unit: str, experiment: str, plugin_name: str) -> None:
         super().__init__(unit, experiment, source=plugin_name)
 
@@ -1197,6 +1202,11 @@ class BackgroundJobWithDodgingContrib(BackgroundJobWithDodging):
     """
     Plugin jobs should inherit from this class.
     """
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if cls.job_name == "_background_job":
+            raise NameError(f"must provide a job_name property to this BackgroundJob class {cls}.")
 
     def __init__(self, unit: str, experiment: str, plugin_name: str) -> None:
         super().__init__(unit=unit, experiment=experiment, source=plugin_name)

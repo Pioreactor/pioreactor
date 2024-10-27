@@ -6,6 +6,7 @@ import time
 import pytest
 
 from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.background_jobs.base import BackgroundJobContrib
 from pioreactor.background_jobs.base import BackgroundJobWithDodging
 from pioreactor.background_jobs.od_reading import ODReader
 from pioreactor.background_jobs.od_reading import start_od_reading
@@ -519,3 +520,17 @@ def test_disabled_dodging() -> None:
 
     od.clean_up()
     jp.clean_up()
+
+
+def test_subclasses_provide_a_unique_job_name_for_contrib():
+    with pytest.raises(NameError):
+
+        class TestJobBad(BackgroundJobContrib):
+            def __init__(self, unit: str, experiment: str) -> None:
+                super(TestJobBad, self).__init__(unit=unit, experiment=experiment, plugin_name="test")
+
+    class TestJobOkay(BackgroundJobContrib):
+        job_name = "test_job"
+
+        def __init__(self, unit: str, experiment: str) -> None:
+            super(TestJobOkay, self).__init__(unit=unit, experiment=experiment, plugin_name="test")

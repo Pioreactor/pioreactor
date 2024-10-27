@@ -4,6 +4,7 @@ After=network.target firstboot.service
 Before=lighttpd.service
 
 [Service]
+EnvironmentFile=/etc/environment
 User=pioreactor
 WorkingDirectory=/var/www/pioreactorui
 ExecStart=huey_consumer pioreactorui.tasks.huey -n -b 1.0 -w 6 -f -C -d 0.05

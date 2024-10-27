@@ -18,8 +18,6 @@ def __getattr__(attr):  # type: ignore
         return get_leader_address()
     elif attr == "mqtt_address":
         return get_mqtt_address()
-    elif attr == "config":
-        return get_config()
     else:
         raise AttributeError
 
@@ -165,6 +163,9 @@ def get_config() -> ConfigParserMod:
         config["od_config.photodiode_channel_reverse"] = config.invert_section("od_config.photodiode_channel")
 
     return config
+
+
+config = get_config()
 
 
 @cache
