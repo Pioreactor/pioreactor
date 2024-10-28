@@ -13,6 +13,7 @@
  - faster syncing configs.
  - faster copying files across cluster via `pio cp`.
  - faster clean up of jobs using PWMs.
+ - New installs only: updated base RPiOS to 2024-10-22.
  - new database table in `/tmp/local_intermittent_pioreactor_metadata.sqlite` called `pio_job_published_settings` that stores the published settings for each job. This powers the next API endpoints:
  - New API endpoints for getting the current settings of a _running_ job:
     - Per pioreactor:
