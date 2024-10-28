@@ -173,13 +173,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
     Hooks can be set up when property `p` changes. The function `set_p(self, new_value)`
     will be called (if defined) whenever `p` changes over MQTT.
 
-    On __init__, attributes are broadcast under `pioreactor/<unit>/<experiment>/<job_name>/$properties`,
-    and each has
-     - `pioreactor/<unit>/<experiment>/<job_name>/$settable` set to True or False
-     - `pioreactor/<unit>/<experiment>/<job_name>/$datatype` set to its datatype
-     - `pioreactor/<unit>/<experiment>/<job_name>/$unit` set to its unit (optional)
-
-
     Best code practices of background jobs
     ---------------------------------------
 
@@ -925,22 +918,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
                         retain=True,
                     )
                     jm.upsert_setting(self._job_id, setting, None)
-
-                self.publish(
-                    f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting}/$settable",
-                    None,
-                    retain=True,
-                )
-                self.publish(
-                    f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting}/$datatype",
-                    None,
-                    retain=True,
-                )
-                self.publish(
-                    f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting}/$unit",
-                    None,
-                    retain=True,
-                )
 
     def _check_for_duplicate_activity(self) -> None:
         if is_pio_job_running(self.job_name) and not is_testing_env():

@@ -337,25 +337,6 @@ def test_sys_exit_does_exit() -> None:
             t.call_all_i_do_is_exit()
 
 
-def test_adding_key_in_published_settings() -> None:
-    exp = "test_adding_key_in_published_settings"
-
-    class TestJob(BackgroundJob):
-        job_name = "test_job"
-
-        def __init__(self, *args, **kwargs) -> None:
-            super(TestJob, self).__init__(*args, **kwargs)
-            self.add_to_published_settings("test", {"datatype": "string", "persist": True, "settable": True})
-
-    with TestJob(unit=get_unit_name(), experiment=exp):
-        msg = subscribe(f"pioreactor/testing_unit/{exp}/test_job/test/$settable")
-        assert msg is not None
-        assert msg.payload.decode() == "True"
-        msg = subscribe(f"pioreactor/testing_unit/{exp}/test_job/$properties")
-        assert msg is not None
-        assert msg.payload.decode() == "state,test"
-
-
 def test_cleans_up_mqtt() -> None:
     class TestJob(BackgroundJob):
         job_name = "job"
@@ -366,13 +347,14 @@ def test_cleans_up_mqtt() -> None:
             },
         }
 
+        def __init__(self, unit, experiment):
+            super().__init__(unit=unit, experiment=experiment)
+            self.readonly_attr = 1.0
+
     exp = "test_cleans_up_mqtt"
 
     with TestJob(unit=get_unit_name(), experiment=exp):
-        msg = subscribe(f"pioreactor/+/{exp}/job/readonly_attr/#", timeout=0.5)
-        assert msg is not None
-
-        msg = subscribe(f"pioreactor/+/{exp}/job/$properties", timeout=0.5)
+        msg = subscribe(f"pioreactor/+/{exp}/job/readonly_attr", timeout=0.5)
         assert msg is not None
 
         msg = subscribe(f"pioreactor/+/{exp}/job/$state", timeout=0.5)
@@ -380,10 +362,7 @@ def test_cleans_up_mqtt() -> None:
 
         pause()
 
-    msg = subscribe(f"pioreactor/+/{exp}/job/readonly_attr/#", timeout=0.5)
-    assert msg is None
-
-    msg = subscribe(f"pioreactor/+/{exp}/job/$properties", timeout=0.5)
+    msg = subscribe(f"pioreactor/+/{exp}/job/readonly_attr", timeout=0.5)
     assert msg is None
 
     msg = subscribe(f"pioreactor/+/{exp}/job/$state", timeout=0.5)
