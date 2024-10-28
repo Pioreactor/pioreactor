@@ -4,7 +4,7 @@
  - `dosing_automation.vial_volume` replaced with `dosing_automation.liquid_volume`. You can see the values by watching `pio mqtt -t "pioreactor/+/+/dosing_automation/liquid_volume"`  after starting a dosing automation.
  - Adding a SQL table for tracking `liquid_volume`.
  - Because we are now storing `liquid_volume` in the database, you can add charts in the UI that track the volume over time:
-    1. Add the following yaml contents to `~/.pioreactor/plugins/contrib/charts/lqiuid_volume.yaml`: https://gist.github.com/CamDavidsonPilon/95eef30189101da69f706d02ef28d972
+    1. Add the following yaml contents to `~/.pioreactor/plugins/ui/contrib/charts/liquid_volume.yaml`: https://gist.github.com/CamDavidsonPilon/95eef30189101da69f706d02ef28d972
     2. In your config.ini, under `ui.overview.charts`, add the line `liquid_volume=1`.
  - New dataset exports from the Export data page in the UI: calibrations and liquid-volumes.
  - Added a "partition by unit" option to the Export data page that will create a csv per Pioreactor in the export, instead of grouping them all together.
@@ -30,6 +30,7 @@
 
 #### Breaking changes
  - `pio kill --name x` is now `pio kill --job-name x`
+ - removed publishing published_settings metadata to mqtt. Ex `$properties`, `$settable`, `$unit`, `$datatype` are no longer being sent mqtt. This was never used, and just a bandwidth suck.
 
 #### Bug fixes
  - fix for OD calibration graph showing "two lines" in the terminal display

@@ -132,7 +132,7 @@ def test_all_positive_correlations_between_pds_and_leds(
     # the problem is that if an LED is directly across from a PD, a high intensity will quickly
     # saturate it and fail the test. So we try low intensities first, and if we exceed some threshold
     # we exit before moving to the high intensities.
-    INTENSITIES = (32, 35, 53, 44, 38, 47, 50, 41, 56, 59, 62, 65)
+    INTENSITIES = (35, 53, 44, 38, 47, 50, 41, 56, 59, 62, 65)
 
     results: dict[tuple[LedChannel, PdChannel], float] = {}
 
@@ -155,7 +155,7 @@ def test_all_positive_correlations_between_pds_and_leds(
     # TODO: should we remove blank? Technically correlation is invariant to location.
 
     with stirring.start_stirring(
-        target_rpm=1250,
+        target_rpm=500,
         unit=unit,
         experiment=experiment,
     ) as st:

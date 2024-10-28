@@ -903,12 +903,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
         Use "persist" to keep it from clearing.
         """
-        self.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$properties",
-            None,
-            retain=True,
-        )
-
         with JobManager() as jm:
             for setting, metadata_on_attr in self.published_settings.items():
                 if not metadata_on_attr.get("persist", False):
