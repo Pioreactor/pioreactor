@@ -7,7 +7,7 @@ from pioreactor.cluster_management import get_active_workers_in_inventory
 from pioreactor.config import config
 from pioreactor.exc import RsyncError
 from pioreactor.logging import create_logger
-from pioreactor.pubsub import subscribe
+from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import managed_lifecycle
 from pioreactor.utils.networking import resolve_to_address
@@ -18,15 +18,8 @@ from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
 def count_writes_occurring(unit: str) -> int:
-    msg_or_none = subscribe(
-        f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/mqtt_to_db_streaming/inserts_in_last_60s",
-        timeout=2,
-    )
-    if msg_or_none is not None:
-        count = int(msg_or_none.payload.decode())
-    else:
-        count = 0
-    return count
+    with local_intermittent_storage("mqtt_to_db_streaming") as c:
+        return c.get("local_intermittent_cache", 0)
 
 
 def backup_database(output_file: str, force: bool = False, backup_to_workers: int = 0) -> None:

@@ -18,6 +18,7 @@ from pioreactor.background_jobs.base import LongRunningBackgroundJob
 from pioreactor.config import config
 from pioreactor.hardware import PWM_TO_PIN
 from pioreactor.pubsub import QOS
+from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.sqlite_worker import Sqlite3Worker
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import RepeatedTimer
@@ -59,11 +60,6 @@ class TopicToCallback(Struct):
 
 class MqttToDBStreamer(LongRunningBackgroundJob):
     job_name = "mqtt_to_db_streaming"
-    published_settings = {
-        "inserts_in_last_60s": {"datatype": "integer", "settable": False},
-    }
-
-    inserts_in_last_60s = 0
     _inserts_in_last_60s = 0
 
     def __init__(
@@ -92,7 +88,9 @@ class MqttToDBStreamer(LongRunningBackgroundJob):
         self.initialize_callbacks(topics_and_callbacks)
 
     def publish_stats(self) -> None:
-        self.inserts_in_last_60s = self._inserts_in_last_60s
+        with local_intermittent_storage(self.job_name) as c:
+            c["inserts_in_last_60s"] = self._inserts_in_last_60s
+
         self._inserts_in_last_60s = 0
 
     def on_disconnected(self) -> None:
