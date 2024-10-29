@@ -1127,6 +1127,7 @@ class ODReader(BackgroundJob):
             verbose=False,
         )
         if not r:
+            self.clean_up()
             raise OSError("IR LED could not be started. Stopping OD reading.")
 
         return
