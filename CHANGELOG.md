@@ -1,4 +1,4 @@
-### Upcoming
+### 24.10.29
 
 #### Enhancements
  - `dosing_automation.vial_volume` replaced with `dosing_automation.liquid_volume`. You can see the values by watching `pio mqtt -t "pioreactor/+/+/dosing_automation/liquid_volume"`  after starting a dosing automation.
