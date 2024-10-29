@@ -19,7 +19,7 @@ from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 def count_writes_occurring(unit: str) -> int:
     with local_intermittent_storage("mqtt_to_db_streaming") as c:
-        return c.get("local_intermittent_cache", 0)
+        return c.get("inserts_in_last_60s", 0)
 
 
 def backup_database(output_file: str, force: bool = False, backup_to_workers: int = 0) -> None:
