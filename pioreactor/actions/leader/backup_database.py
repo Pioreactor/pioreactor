@@ -17,7 +17,7 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
-def count_writes_occurring(unit: str) -> int:
+def count_writes_occurring() -> int:
     with local_intermittent_storage("mqtt_to_db_streaming") as c:
         return c.get("inserts_in_last_60s", 0)
 
@@ -49,8 +49,8 @@ def backup_database(output_file: str, force: bool = False, backup_to_workers: in
 
         logger.debug(f"Starting backup of database to {output_file}")
 
-        if not force and count_writes_occurring(unit) >= 2:
-            logger.debug("Too many writes to proceed with backup. Exiting.")
+        if not force and count_writes_occurring() >= 2:
+            logger.debug("Too many writes to proceed with backup. Exiting. Use --force to force backing up.")
             return
 
         current_time = current_utc_timestamp()

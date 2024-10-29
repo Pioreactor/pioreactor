@@ -422,10 +422,12 @@ def publish_to_leader(name: str) -> bool:
     try:
         res = put_into_leader("/api/calibrations", json=calibration_result)
         res.raise_for_status()
-    except Exception:
+        echo("✅ Published to leader.")
+    except Exception as e:
         success = False
-    if not success:
+        print(e)
         echo(f"❌ Could not publish on leader at http://{leader_address}/api/calibrations")
+
     return success
 
 

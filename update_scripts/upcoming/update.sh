@@ -13,7 +13,7 @@ mv "$SCRIPT_DIR"/huey.service $HUEY_SERVICE_FILE
 
 # Reload systemd to apply changes
 sudo systemctl daemon-reload
-sudo systemctl restart huey.service
+#sudo systemctl restart huey.service # don't need to do this, a later ui update will.
 
 sudo chown pioreactor:www-data /var/www/pioreactorui/__pycache__ || :
 sudo chown pioreactor:www-data /var/www/pioreactorui/pioreactorui/__pycache__ || :
