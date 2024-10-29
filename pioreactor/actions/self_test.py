@@ -177,7 +177,10 @@ def test_all_positive_correlations_between_pds_and_leds(
 
                 # record from ADC, we'll average them
                 avg_reading = average_over_pd_channel_to_voltages(
-                    adc_reader.take_reading(), adc_reader.take_reading(), adc_reader.take_reading()
+                    adc_reader.take_reading(),
+                    adc_reader.take_reading(),
+                    adc_reader.take_reading(),
+                    adc_reader.take_reading(),
                 )
 
                 # Add to accumulating list
@@ -451,13 +454,14 @@ class BatchTestRunner:
 
     def _run(self, managed_state, logger: CustomLogger, unit: str, testing_experiment: str) -> None:
         for test in self.tests_to_run:
-            res = False
             test_name = test.__name__
 
+            logger.debug(f"Starting test {test_name}...")
             try:
                 test(managed_state, logger, unit, testing_experiment)
                 res = True
             except Exception as e:
+                res = False
                 logger.debug(e, exc_info=True)
                 logger.warning(f"{test_name.replace('_', ' ')}: {e}")
 

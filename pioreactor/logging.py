@@ -19,6 +19,11 @@ if TYPE_CHECKING:
 
 logging.raiseExceptions = False
 
+PIOREACTOR_LOG_FORMAT = logging.Formatter(
+    "%(asctime)s [%(name)s] %(levelname)-2s %(message)s",
+    datefmt="%Y-%m-%dT%H:%M:%S%z",
+)
+
 
 def add_logging_level(levelName: str, levelNum: int) -> None:
     """
@@ -179,12 +184,7 @@ def create_logger(
     # file handler
     file_handler = handlers.WatchedFileHandler(config["logging"]["log_file"])
     file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(
-        logging.Formatter(
-            "%(asctime)s [%(name)s] %(levelname)-2s %(message)s",
-            datefmt="%Y-%m-%dT%H:%M:%S%z",
-        )
-    )
+    file_handler.setFormatter(PIOREACTOR_LOG_FORMAT)
     # define a Handler which writes to the sys.stderr
     console_handler = logging.StreamHandler()
     console_handler.setLevel(config.get("logging", "console_log_level", fallback="DEBUG"))

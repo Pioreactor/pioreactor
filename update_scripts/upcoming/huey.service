@@ -12,6 +12,7 @@ ExecStartPost=pio log -m "%n successful" -n systemd --local-only
 StandardOutput=null
 StandardError=null
 KillMode=process
+Restart=always
 
 [Install]
 WantedBy=multi-user.target
