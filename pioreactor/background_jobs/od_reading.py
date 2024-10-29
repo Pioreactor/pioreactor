@@ -876,6 +876,7 @@ class ODReader(BackgroundJob):
             self.logger.error(
                 "Need to supply a signal channel. Check `[od_config.photodiode_channel]` in your config."
             )
+            self.clean_up()
             raise ValueError(
                 "Need to supply a signal channel. Check `[od_config.photodiode_channel]` in your config."
             )
@@ -1178,6 +1179,7 @@ class ODReader(BackgroundJob):
         A=IR
             """
             )
+            self.clean_up()
             raise KeyError("`IR` value not found in section.")
 
     def _read_from_adc_and_transform(self) -> PdChannelToVoltage:
