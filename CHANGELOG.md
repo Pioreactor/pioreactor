@@ -13,7 +13,7 @@
  - faster syncing configs.
  - faster copying files across cluster via `pio cp`.
  - faster clean up of jobs using PWMs.
- - New installs only: updated base RPiOS to 2024-10-22.
+ - new installs only: updated base RPiOS to 2024-10-22.
  - new database table in `/tmp/local_intermittent_pioreactor_metadata.sqlite` called `pio_job_published_settings` that stores the published settings for each job. This powers the next API endpoints:
  - New API endpoints for getting the current settings of a _running_ job:
     - Per pioreactor:
@@ -23,8 +23,8 @@
       - GET: `/api/jobs/settings/job_name/<job_name>/setting/<setting>`
       - GET: `/api/jobs/settings/job_name/<job_name>/experiments/<experiment>`
       - GET: `/api/jobs/settings/job_name/<job_name>/experiments/<experiment>/setting/<setting>`
-      - GET: `/api/jobs/settings/workers/<unit>/job_name/<job_name>/experiments/<experiment>`
-      - GET: `/api/jobs/settings/workers/<unit>/job_name/<job_name>/experiments/<experiment>/setting/<setting>`
+      - GET: `/api/jobs/settings/workers/<pioreactor_unit>/job_name/<job_name>`
+      - GET: `/api/jobs/settings/workers/<pioreactor_unit>/job_name/<job_name>/setting/<setting>`
    Ex: query the temperature of a Pioreactor: `curl http://pio01.local/unit_api/jobs/settings/job_name/temperature_automation/setting/temperature`
 
 
@@ -40,6 +40,8 @@
  - correct ethernet mac address on RPi5s
  - We weren't passing all the OS environment variables when jobs were started from the UI. This is fixed now.
  - Fixed circulate media / alt. media in the UI.
+ - Fixed manual dosing updates in the UI.
+
 
 
 ### 24.10.1

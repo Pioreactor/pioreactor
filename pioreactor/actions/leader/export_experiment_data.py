@@ -94,15 +94,14 @@ def export_experiment_data(
                 _partition_by_unit = True
 
             if not _partition_by_unit:
-                if experiment is None and "experiment" in get_column_names(cursor, table):
-                    query = f"SELECT {timestamp_to_localtimestamp_clause} * from {table} ORDER BY {order_by}"
-                    cursor.execute(query)
-                    filename = f"{table}-{time}.csv"
-
-                else:
+                if experiment is not None and "experiment" in get_column_names(cursor, table):
                     query = f"SELECT {timestamp_to_localtimestamp_clause} * from {table} WHERE experiment=:experiment ORDER BY {order_by}"
                     cursor.execute(query, {"experiment": experiment})
                     filename = f"{experiment}-{table}-{time}.csv"
+                else:
+                    query = f"SELECT {timestamp_to_localtimestamp_clause} * from {table} ORDER BY {order_by}"
+                    cursor.execute(query)
+                    filename = f"{table}-{time}.csv"
 
                 filename = filename.replace(" ", "_")
                 path_to_file = os.path.join(os.path.dirname(output), filename)
