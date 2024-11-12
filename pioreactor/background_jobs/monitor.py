@@ -135,12 +135,6 @@ class Monitor(LongRunningBackgroundJob):
         except Exception as e:
             self.logger.debug(e, exc_info=True)
 
-        try:
-            # if these fail, don't kill the entire job - sucks for onboarding.
-            self.self_checks()
-        except Exception as e:
-            self.logger.debug(e, exc_info=True)
-
         # set up a self check function to periodically check vitals and log them
         # we manually run a self_check outside of a thread first, as if there are
         # problems detected, we may want to block and not let the job continue.
@@ -148,7 +142,7 @@ class Monitor(LongRunningBackgroundJob):
             4 * 60 * 60,
             self.self_checks,
             job_name=self.job_name,
-            run_immediately=False,
+            run_immediately=True,
         ).start()
 
         self.add_pre_button_callback(self._republish_state)
@@ -248,11 +242,11 @@ class Monitor(LongRunningBackgroundJob):
 
     def self_checks(self) -> None:
         # check active network connection
-        self.check_for_network()
+        sleep(0 if whoami.is_testing_env() else 5)  # wait for other processes to catch up
 
+        self.check_for_network()
         # report on CPU usage, memory, disk space
         self.check_and_publish_self_statistics()
-        sleep(0 if whoami.is_testing_env() else 5)  # wait for other processes to catch up
         self.check_for_webserver()
 
         if whoami.am_I_leader():
@@ -308,9 +302,11 @@ class Monitor(LongRunningBackgroundJob):
             r.raise_for_status()
             ui_version = r.json()["version"]
         except HTTPException:
+            self.set_state(self.LOST)
             self.logger.warning("Webserver isn't online.")
             ui_version = "Unknown"
         except Exception as e:
+            self.set_state(self.LOST)
             self.logger.warning(e)
             ui_version = "Unknown"
         finally:

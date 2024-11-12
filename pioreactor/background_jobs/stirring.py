@@ -17,7 +17,7 @@ from pioreactor import error_codes
 from pioreactor import exc
 from pioreactor import hardware
 from pioreactor import structs
-from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.background_jobs.base import BackgroundJobWithDodging
 from pioreactor.config import config
 from pioreactor.pubsub import subscribe
 from pioreactor.utils import clamp
@@ -71,8 +71,8 @@ class RpmCalculator:
             )
             self._edge_callback = lgpio.callback(self._handle, hardware.HALL_SENSOR_PIN, lgpio.FALLING_EDGE)
         else:
-            self._edge_callback = MockCallback()
             self._handle = MockHandle()
+            self._edge_callback = MockCallback()
 
         self.turn_off_collection()
 
@@ -165,7 +165,7 @@ class RpmFromFrequency(RpmCalculator):
             return round(self._running_count * 60 / self._running_sum, 1)
 
 
-class Stirrer(BackgroundJob):
+class Stirrer(BackgroundJobWithDodging):
     """
     Parameters
     ------------
@@ -280,6 +280,12 @@ class Stirrer(BackgroundJob):
             run_immediately=True,
             run_after=6,
         )
+
+    def action_to_do_before_od_reading(self):
+        self.on_ready_to_sleeping()
+
+    def action_to_do_after_od_reading(self):
+        self.on_sleeping_to_ready()
 
     def initialize_rpm_to_dc_lookup(self) -> Callable:
         if self.rpm_calculator is None:

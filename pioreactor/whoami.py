@@ -4,7 +4,6 @@ from __future__ import annotations
 import os
 import sys
 import time
-import warnings
 from functools import cache
 
 from pioreactor import mureq
@@ -27,28 +26,20 @@ def get_testing_experiment_name() -> str:
         return f"_testing_{NO_EXPERIMENT}"
 
 
-def get_latest_experiment_name() -> str:
-    warnings.warn("Use whoami.get_assigned_experiment_name(unit) instead", DeprecationWarning, stacklevel=2)
-    return get_assigned_experiment_name(get_unit_name())
-
-
 def get_assigned_experiment_name(unit_name: str) -> str:
     return _get_assigned_experiment_name(unit_name)
 
 
 def _get_assigned_experiment_name(unit_name: str) -> str:
     from pioreactor.pubsub import get_from_leader
-    from pioreactor.logging import create_logger
+    from pioreactor.config import leader_address
 
     if os.environ.get("EXPERIMENT") is not None:
         return os.environ["EXPERIMENT"]
     elif is_testing_env():
         return "_testing_experiment"
 
-    from pioreactor.config import leader_address
-
     retries = 6
-    exit_reason = None
 
     for attempt in range(retries):
         try:
@@ -59,32 +50,24 @@ def _get_assigned_experiment_name(unit_name: str) -> str:
         except mureq.HTTPErrorStatus as e:
             if e.status_code == 401:
                 # auth error, something is wrong
-                exit_reason = "auth"
-                break
+                raise mureq.HTTPException(
+                    f"Error in authentication to UI. Check http://{leader_address} and config.ini for api_key."
+                )
             elif e.status_code == 404:
-                raise NotAssignedAnExperimentError(f"Worker {unit_name} is not assigned to an experiment")
+                data = result.json()
+                raise NotAssignedAnExperimentError(data["error"])
         except mureq.HTTPException:
-            exit_reason = "connection_refused"
+            raise mureq.HTTPException(
+                f"Not able to access experiments in UI. Check http://{leader_address} is online and check network."
+            )
         except Exception:
             # some other error? Keep trying
             pass
         time.sleep(0.5 * attempt)
     else:
-        exit_reason = "timeout"
-
-    logger = create_logger("pioreactor", experiment=UNIVERSAL_EXPERIMENT, to_mqtt=False)
-
-    if exit_reason == "auth":
-        logger.warning(
-            f"Error in authentication to UI. Check http://{leader_address} and config.ini for api_key."
+        raise ConnectionError(
+            f"Not able to access experiments in UI. Check http://{leader_address}/api/experiments."
         )
-    elif exit_reason == "timeout":
-        logger.warning(f"Not able to access experiments in UI. Check http://{leader_address}/api/experiments")
-    elif exit_reason == "connection_refused":
-        logger.warning(
-            f"Not able to access experiments in UI. Check http://{leader_address} is online and check network."
-        )
-    return NO_EXPERIMENT
 
 
 def is_active(unit_name: str) -> bool:
@@ -114,6 +97,7 @@ def is_testing_env() -> bool:
     return ("pytest" in sys.modules) or (os.environ.get("TESTING") is not None)
 
 
+@cache
 def get_hostname() -> str:
     import socket
 
@@ -145,6 +129,7 @@ def am_I_leader() -> bool:
     return get_unit_name() == leader_hostname
 
 
+@cache
 def am_I_a_worker() -> bool:
     from pioreactor.pubsub import get_from_leader
 
@@ -191,6 +176,7 @@ def get_pioreactor_model() -> str | None:
         return None
 
 
+@cache
 def get_pioreactor_model_and_version() -> str:
     maybe_model = get_pioreactor_model()
     if maybe_model:
@@ -199,6 +185,7 @@ def get_pioreactor_model_and_version() -> str:
         return ""
 
 
+@cache
 def get_image_git_hash() -> str:
     try:
         with open("/home/pioreactor/.pioreactor/.image_info") as f:
@@ -207,6 +194,7 @@ def get_image_git_hash() -> str:
         return "<Failed to fetch>"
 
 
+@cache
 def check_firstboot_successful() -> bool:
     if is_testing_env():
         return True

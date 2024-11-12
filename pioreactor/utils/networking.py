@@ -28,6 +28,7 @@ def cp_file_across_cluster(unit: str, localpath: str, remotepath: str, timeout: 
             "--timeout",
             f"{timeout}",
             "--inplace",
+            "--checksum",
             "-e",
             "ssh",
             localpath,
@@ -41,13 +42,13 @@ def is_using_local_access_point() -> bool:
     return Path("/boot/firmware/local_access_point").exists()
 
 
-def is_hostname_on_network(hostname: str, timeout: float = 10.0) -> bool:
+def is_address_on_network(address: str, timeout: float = 10.0) -> bool:
     import socket
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.settimeout(timeout)
     try:
-        s.connect((hostname, 22))
+        s.connect((address, 22))
         s.close()
         return True
     except (socket.error, socket.timeout):
@@ -58,8 +59,6 @@ def is_reachable(address: str) -> bool:
     """
     Can we ping the computer at `address`?
     """
-    # TODO: why not use sh.ping? Ex: ping("leader7.local", "-c1", "-W50")
-
     std_out_from_ping = subprocess.Popen(
         ["ping", "-c1", "-W3", address],
         stdout=subprocess.PIPE,

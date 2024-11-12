@@ -54,8 +54,9 @@ def add_worker(hostname: str, password: str, version: str, model: str) -> None:
     """
     Add a new pioreactor worker to the cluster. The pioreactor should already have the worker image installed and is turned on.
     """
-    # TODO: this needs to be more robust, i.e. remove the add_local parts
     import socket
+
+    assert model == "pioreactor_20ml"
 
     logger = create_logger(
         "add_pioreactor",
@@ -64,10 +65,7 @@ def add_worker(hostname: str, password: str, version: str, model: str) -> None:
     )
     logger.info(f"Adding new pioreactor {hostname} to cluster.")
 
-    hostname = hostname.removesuffix(".local")
-    hostname_dot_local = networking.add_local(hostname)
-
-    assert model == "pioreactor_20ml"
+    possible_address = networking.resolve_to_address(hostname)
 
     # check to make sure <hostname>.local is on network
     checks, max_checks = 0, 15
@@ -75,18 +73,15 @@ def add_worker(hostname: str, password: str, version: str, model: str) -> None:
 
     if not whoami.is_testing_env():
         with catchtime() as elapsed:
-            while not networking.is_hostname_on_network(hostname_dot_local):
+            while not networking.is_address_on_network(possible_address):
                 checks += 1
-                try:
-                    socket.gethostbyname(hostname_dot_local)
-                except socket.gaierror:
-                    sleep(sleep_time)
-                    click.echo(f"`{hostname}` not found on network - checking again.")
-                    if checks >= max_checks:
-                        logger.error(
-                            f"`{hostname}` not found on network after {round(elapsed())} seconds. Check that you provided the right i) the name is correct, ii) worker is powered on, iii) any WiFi credentials to the network are correct."
-                        )
-                        raise click.Abort()
+                click.echo(f"`{hostname}` not found on network - checking again.")
+                if checks >= max_checks:
+                    logger.error(
+                        f"`{hostname}` not found on network after {round(elapsed())} seconds. Check that you provided the right i) the name is correct, ii) worker is powered on, iii) any WiFi credentials to the network are correct."
+                    )
+                    raise click.Abort()
+                sleep(sleep_time)
 
         res = subprocess.run(
             [

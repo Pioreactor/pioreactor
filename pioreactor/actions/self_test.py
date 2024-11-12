@@ -127,12 +127,12 @@ def test_all_positive_correlations_between_pds_and_leds(
     # we randomize to reduce effects of temperature
     # upper bound shouldn't be too high, as it could saturate the ADC, and lower bound shouldn't be too low, else we don't detect anything.
 
-    # what's up with this order? We originally did a shuffle() of list(range(20, 55, 3))
+    # what's up with this order? We originally did a shuffle() of list(range(x, y, z))
     # so as to reduce the effects of temperature.
     # the problem is that if an LED is directly across from a PD, a high intensity will quickly
     # saturate it and fail the test. So we try low intensities first, and if we exceed some threshold
     # we exit before moving to the high intensities.
-    INTENSITIES = (35, 53, 44, 38, 47, 50, 41, 56, 59, 62, 65)
+    INTENSITIES = [10, 70, 60, 40, 30, 20, 50, 80]
 
     results: dict[tuple[LedChannel, PdChannel], float] = {}
 

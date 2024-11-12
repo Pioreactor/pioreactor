@@ -95,7 +95,7 @@ def get_name_from_user() -> str:
 
 
 def get_metadata_from_user() -> tuple[pt.OD600, pt.OD600, pt.mL, pt.PdAngle, pt.PdChannel]:
-    if config["od_reading.config"]["ir_led_intensity"] == "auto":
+    if config.get("od_reading.config", "ir_led_intensity") == "auto":
         echo(
             red(
                 "Can't use ir_led_intensity=auto with OD calibrations. Change ir_led_intensity in your config.ini to a numeric value (70 is good default). Aborting!"

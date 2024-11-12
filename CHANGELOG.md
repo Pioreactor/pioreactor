@@ -1,3 +1,6 @@
+### Upcoming
+ - improvements to correlation self-tests
+
 ### 24.10.29
 
 #### Enhancements
