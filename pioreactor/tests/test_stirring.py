@@ -4,7 +4,6 @@ from __future__ import annotations
 import json
 import time
 
-from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.stirring import RpmCalculator
 from pioreactor.background_jobs.stirring import RpmFromFrequency
 from pioreactor.background_jobs.stirring import start_stirring
@@ -57,6 +56,7 @@ def test_pause_stirring_mid_cycle() -> None:
     exp = "test_pause_stirring_mid_cycle"
     with Stirrer(500, unit, exp, rpm_calculator=None) as st:
         original_dc = st.duty_cycle
+        assert original_dc > 0
         pause()
 
         publish(f"pioreactor/{unit}/{exp}/stirring/$state/set", "sleeping")
@@ -161,6 +161,8 @@ def test_stirring_with_lookup_linear_v1() -> None:
 
 def test_stirring_will_try_to_restart_and_dodge_od_reading() -> None:
     # TODO make this an actual test
+    from pioreactor.background_jobs.od_reading import start_od_reading
+
     exp = "test_stirring_will_try_to_restart_and_dodge_od_reading"
     rpm_calculator = RpmCalculator()
     rpm_calculator.setup()

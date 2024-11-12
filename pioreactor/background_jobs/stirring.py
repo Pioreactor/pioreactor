@@ -203,7 +203,7 @@ class Stirrer(BackgroundJobWithDodging):
     }
 
     duty_cycle: float = 0
-    _previous_duty_cycle: float = 0
+    _estimate_duty_cycle: float = config.getfloat("stirring.config", "initial_duty_cycle", fallback=30)
     _measured_rpm: Optional[float] = None
 
     def __init__(
@@ -255,9 +255,9 @@ class Stirrer(BackgroundJobWithDodging):
             self.target_rpm = None
 
         # initialize DC with initial_duty_cycle, however we can update it with a lookup (if it exists)
-        self.duty_cycle = config.getfloat("stirring.config", "initial_duty_cycle")
         self.rpm_to_dc_lookup = self.initialize_rpm_to_dc_lookup()
-        self.duty_cycle = self.rpm_to_dc_lookup(self.target_rpm)
+        self._estimate_duty_cycle = self.rpm_to_dc_lookup(self.target_rpm)
+        self.set_duty_cycle(self._estimate_duty_cycle)
 
         # set up PID
         self.pid = PID(
@@ -291,7 +291,7 @@ class Stirrer(BackgroundJobWithDodging):
         if self.rpm_calculator is None:
             # if we can't track RPM, no point in adjusting DC, use current value
             assert self.target_rpm is None
-            return lambda rpm: self.duty_cycle
+            return lambda rpm: self._estimate_duty_cycle
 
         assert isinstance(self.target_rpm, float)
         with local_persistant_storage("stirring_calibration") as cache:
@@ -303,14 +303,16 @@ class Stirrer(BackgroundJobWithDodging):
 
                 # since we have calibration data, and the initial_duty_cycle could be
                 # far off, giving the below equation a bad "first step". We set it here.
-                self.duty_cycle = coef * self.target_rpm + intercept
+                self._estimate_duty_cycle = coef * self.target_rpm + intercept
 
                 # we scale this by 90% to make sure the PID + prediction doesn't overshoot,
                 # better to be conservative here.
                 # equivalent to a weighted average: 0.1 * current + 0.9 * predicted
-                return lambda rpm: self.duty_cycle - 0.90 * (self.duty_cycle - (coef * rpm + intercept))
+                return lambda rpm: self._estimate_duty_cycle - 0.90 * (
+                    self._estimate_duty_cycle - (coef * rpm + intercept)
+                )
             else:
-                return lambda rpm: self.duty_cycle
+                return lambda rpm: self._estimate_duty_cycle
 
     def on_disconnected(self) -> None:
         with suppress(AttributeError):
@@ -322,20 +324,16 @@ class Stirrer(BackgroundJobWithDodging):
                 self.rpm_calculator.clean_up()
 
     def start_stirring(self) -> None:
-        self.logger.debug(
-            f"Starting stirring with {'no' if self.target_rpm is None  else  self.target_rpm} RPM."
-        )
-
         self.pwm.start(100)  # get momentum to start
         sleep(0.35)
-        self.set_duty_cycle(self.duty_cycle)
+        self.set_duty_cycle(self._estimate_duty_cycle)
 
         if self.rpm_calculator is not None:
             self.rpm_check_repeated_thread.start()  # .start is idempotent
 
     def kick_stirring(self) -> None:
         self.logger.debug("Kicking stirring")
-        _existing_duty_cycle = self.duty_cycle
+        _existing_duty_cycle = self._estimate_duty_cycle
         self.set_duty_cycle(0)
         sleep(0.5)
         self.set_duty_cycle(100)
@@ -419,20 +417,19 @@ class Stirrer(BackgroundJobWithDodging):
             return
 
         result = self.pid.update(self._measured_rpm)
-        self.set_duty_cycle(self.duty_cycle + result)
+        self.set_duty_cycle(self._estimate_duty_cycle + result)
 
     def on_ready_to_sleeping(self) -> None:
         self.rpm_check_repeated_thread.pause()
         self.set_duty_cycle(0.0)
 
     def on_sleeping_to_ready(self) -> None:
-        self.duty_cycle = self._previous_duty_cycle
+        self.duty_cycle = self._estimate_duty_cycle
         self.rpm_check_repeated_thread.unpause()
         self.start_stirring()
 
     def set_duty_cycle(self, value: float) -> None:
         with self.duty_cycle_lock:
-            self._previous_duty_cycle = self.duty_cycle
             self.duty_cycle = clamp(0.0, round(value, 5), 100.0)
             self.pwm.change_duty_cycle(self.duty_cycle)
 
