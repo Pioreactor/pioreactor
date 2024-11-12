@@ -257,7 +257,6 @@ class Stirrer(BackgroundJobWithDodging):
         # initialize DC with initial_duty_cycle, however we can update it with a lookup (if it exists)
         self.rpm_to_dc_lookup = self.initialize_rpm_to_dc_lookup()
         self._estimate_duty_cycle = self.rpm_to_dc_lookup(self.target_rpm)
-        self.set_duty_cycle(self._estimate_duty_cycle)
 
         # set up PID
         self.pid = PID(

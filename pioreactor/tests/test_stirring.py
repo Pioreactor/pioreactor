@@ -37,6 +37,7 @@ def test_change_target_rpm_mid_cycle() -> None:
     rpm_calculator.setup()
 
     with Stirrer(original_rpm, unit, exp, rpm_calculator=rpm_calculator) as st:
+        st.start_stirring()
         assert st.target_rpm == original_rpm
         pause()
 
@@ -55,6 +56,8 @@ def test_change_target_rpm_mid_cycle() -> None:
 def test_pause_stirring_mid_cycle() -> None:
     exp = "test_pause_stirring_mid_cycle"
     with Stirrer(500, unit, exp, rpm_calculator=None) as st:
+        assert st.duty_cycle == 0
+        st.start_stirring()
         original_dc = st.duty_cycle
         assert original_dc > 0
         pause()
@@ -82,6 +85,7 @@ def test_publish_target_rpm() -> None:
     rpm_calculator = RpmCalculator()
     rpm_calculator.setup()
     with Stirrer(target_rpm, unit, exp, rpm_calculator=rpm_calculator) as st:
+        st.start_stirring()
         assert st.target_rpm == target_rpm
 
         pause()
