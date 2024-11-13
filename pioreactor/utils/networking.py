@@ -8,6 +8,7 @@ from queue import Queue
 from threading import Thread
 from typing import Generator
 
+from pioreactor.config import config
 from pioreactor.exc import RsyncError
 
 
@@ -146,7 +147,11 @@ def discover_workers_on_network(terminate: bool = False) -> Generator[str, None,
 def resolve_to_address(hostname: str) -> str:
     # TODO: make this more fleshed out: resolve to IP, etc.
     # add_local assumes a working mDNS.
-    return add_local(hostname)
+    address_in_config = config.get("cluster.addresses", f"{hostname}_address", fallback=None)
+    if address_in_config is not None:
+        return address_in_config
+    else:
+        return add_local(hostname)
 
 
 def add_local(hostname: str) -> str:

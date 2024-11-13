@@ -162,6 +162,10 @@ def get_config() -> ConfigParserMod:
     if "od_config.photodiode_channel" in config:
         config["od_config.photodiode_channel_reverse"] = config.invert_section("od_config.photodiode_channel")
 
+    # add this for hostname resolution using config.ini, see pioreactor.utils.networking.resolve_to_address
+    leader_hostname = config["cluster.topology"]["leader_hostname"]
+    config["cluster.addresses"][f"{leader_hostname}_address"] = config["cluster.topology"]["leader_address"]
+
     return config
 
 

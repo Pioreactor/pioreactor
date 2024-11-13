@@ -1096,10 +1096,10 @@ class BackgroundJobWithDodging(_BackgroundJob):
         post_delay = self.get_from_config("post_delay_duration", cast=float, fallback=1.0)
         pre_delay = self.get_from_config("pre_delay_duration", cast=float, fallback=1.5)
 
-        if post_delay <= 0.25:
+        if post_delay < 0.25:
             self.logger.warning("For optimal OD readings, keep `post_delay_duration` more than 0.25 seconds.")
 
-        if pre_delay <= 0.25:
+        if pre_delay < 0.25:
             self.logger.warning("For optimal OD readings, keep `pre_delay_duration` more than 0.25 seconds.")
 
         def sneak_in(ads_interval, post_delay, pre_delay) -> None:

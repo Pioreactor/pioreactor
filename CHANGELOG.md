@@ -1,5 +1,17 @@
 ### Upcoming
  - improvements to correlation self-tests
+ - you can add addresses to the (new) `[cluster.addresses]` section to specify IPs for pioreactors. Example:
+   ```
+
+  [cluster.addresses]
+  leader_hostname=pio00
+  leader_address=10.42.0.1
+
+  pio01_address=10.42.0.2
+  pio02_address=10.42.0.3
+
+   ```
+   Note that the leader is automatically added.
 
 ### 24.10.29
 
