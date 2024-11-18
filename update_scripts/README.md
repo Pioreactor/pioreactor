@@ -10,7 +10,7 @@ Possible update scripts and their sequence, always run as `root`:
 
 It's very important that update scripts are idempotent. Some tips:
 
- - Use ChatGPT to assist psuedo-check if a script is idempotent, or making suggestions.
+ - Use ChatGPT to inspect if a script is idempotent, or make suggestions.
 
 
 ### `bash` specific tips

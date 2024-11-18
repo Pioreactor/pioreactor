@@ -32,6 +32,9 @@ from pioreactor.whoami import is_testing_env
 bool_expression = str | bool
 Env = dict[str, Any]
 
+STRICT_EXPRESSION_PATTERN = r"^\${{(.*?)}}$"
+FLEXIBLE_EXPRESSION_PATTERN = r"\${{(.*?)}}"
+
 
 def wrap_in_try_except(func, logger: CustomLogger) -> Callable:
     def inner_function(*args, **kwargs) -> None:
@@ -46,15 +49,13 @@ def wrap_in_try_except(func, logger: CustomLogger) -> Callable:
 def is_bracketed_expression(value: str) -> bool:
     import re
 
-    pattern = r"\${{(.*?)}}"
-    return bool(re.search(pattern, str(value)))
+    return bool(re.search(STRICT_EXPRESSION_PATTERN, str(value)))
 
 
 def strip_expression_brackets(value: str) -> str:
     import re
 
-    pattern = r"\${{(.*?)}}"
-    match = re.search(pattern, value)
+    match = re.search(STRICT_EXPRESSION_PATTERN, value)
     assert match is not None
     return match.group(1)
 
@@ -80,14 +81,12 @@ def evaluate_log_message(message: str, env: dict) -> str:
     import re
     from pioreactor.experiment_profiles.parser import parse_profile_expression
 
-    pattern = r"\${{(.*?)}}"
-
-    matches = re.findall(pattern, message)
+    matches = re.findall(FLEXIBLE_EXPRESSION_PATTERN, message)
 
     modified_matches = [parse_profile_expression(match, env) for match in matches]
 
     # Replace each ${{...}} in the original string with the modified match
-    result_string = re.sub(pattern, lambda m: str(modified_matches.pop(0)), message)
+    result_string = re.sub(FLEXIBLE_EXPRESSION_PATTERN, lambda m: str(modified_matches.pop(0)), message)
     return result_string
 
 
@@ -924,7 +923,7 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
             if state.exit_event.is_set():
                 # ended early
 
-                logger.notice(f"Stopping profile {profile.experiment_profile_name} early: {len(sched.queue)} actions not started, and stopping all started actions.")  # type: ignore
+                logger.notice(f"Stopping profile {profile.experiment_profile_name} early: {len(sched.queue)} action(s) not started, and stopping all started action(s).")  # type: ignore
                 # stop all jobs started
                 # we can use active workers in experiment, since if a worker leaves an experiment or goes inactive, it's jobs are stopped
                 workers = get_active_workers_in_experiment(experiment)

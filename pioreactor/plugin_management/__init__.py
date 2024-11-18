@@ -7,6 +7,7 @@ import importlib.metadata as entry_point
 import os
 from typing import Any
 
+import click
 from msgspec import Struct
 
 from .install_plugin import click_install_plugin
@@ -82,7 +83,7 @@ def get_plugins() -> dict[str, Plugin]:
                 "entry_points",
             )
         except Exception as e:
-            print(f"{plugin.name} plugin load error: {e}")
+            click.secho(f"{plugin.name} plugin load error: {e}", color="red")
 
     # get file-based plugins.
     # Users can put .py files into the MODULE_DIR folder below.
@@ -110,7 +111,7 @@ def get_plugins() -> dict[str, Plugin]:
                 f"plugins/{py_file.name}",
             )
         except Exception as e:
-            print(f"{py_file} encountered plugin load error: {e}")
+            click.secho(f"{py_file} plugin load error: {e}", color="red")
 
     return plugins
 

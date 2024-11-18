@@ -14,11 +14,10 @@ CORE_REQUIREMENTS = [
     "diskcache==5.6.3",
     "crudini==0.9.5",
     "iniparse==0.5",
-    "six==1.16.0",
     "blinker==1.8.2",
     "flask==3.0.2",
     "flup6==1.1.1",
-    "huey==2.5.0",
+    "huey==2.5.2",
     "ifaddr==0.2.0",
     "itsdangerous==2.2.0",
     "Jinja2==3.1.4",
@@ -47,7 +46,6 @@ WORKER_REQUIREMENTS = [
     "pyserial==3.5",
     "pyusb==1.2.1",
     "rpi_hardware_pwm==0.2.1",
-    "typing_extensions==4.12.2",
 ]
 
 
