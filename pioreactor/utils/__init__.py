@@ -565,8 +565,8 @@ class JobManager:
 
         CREATE TABLE IF NOT EXISTS pio_job_published_settings (
             setting     TEXT NOT NULL,
-            value       TEXT,
-            proposed_value TEXT,
+            value          BLOB,
+            proposed_value BLOB,
             job_id      INTEGER NOT NULL,
             FOREIGN KEY(job_id) REFERENCES pio_job_metadata(id),
             UNIQUE(setting, job_id)

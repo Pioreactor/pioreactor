@@ -227,3 +227,17 @@ class KalmanFilterOutput(JSONPrintedStruct):
     state: t.Annotated[list[float], Meta(max_length=3)]
     covariance_matrix: list[list[float]]
     timestamp: t.Annotated[datetime, Meta(tz=True)]
+
+
+class Dataset(JSONPrintedStruct):
+    dataset_name: str  # the unique key
+    description: t.Optional[str]
+    display_name: str
+    has_experiment: bool
+    has_unit: bool
+    default_order_by: t.Optional[str]
+    table: t.Optional[str] = None
+    query: t.Optional[str] = None
+    source: str = "app"
+    timestamp_columns: list[str] = []
+    partition_by_unit_default: bool = False

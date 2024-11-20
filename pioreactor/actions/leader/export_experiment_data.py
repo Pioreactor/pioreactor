@@ -3,16 +3,17 @@
 # See create_tables.sql for all tables
 from __future__ import annotations
 
-import os
 from contextlib import closing
 from contextlib import ExitStack
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 import click
 
 from pioreactor.config import config
 from pioreactor.logging import create_logger
+from pioreactor.structs import Dataset
 
 
 def is_valid_table_name(table_name: str) -> bool:
@@ -36,23 +37,81 @@ def filter_to_timestamp_columns(column_names: list[str]) -> list[str]:
     return [c for c in column_names if (c == "timestamp") or c.endswith("_at")]
 
 
-def generate_timestamp_to_localtimestamp_clause(cursor, table_name: str) -> str:
-    columns = get_column_names(cursor, table_name)
-    timestamp_columns = filter_to_timestamp_columns(columns)
+def generate_timestamp_to_localtimestamp_clause(timestamp_columns) -> str:
 
     if not timestamp_columns:
         return ""
 
     clause = ",".join([f"datetime({c}, 'localtime') as {c}_localtime" for c in timestamp_columns])
 
-    if clause:
-        clause += ","
-
     return clause
 
 
+def load_exportable_datasets() -> list[Dataset]:
+    builtins = sorted(Path("/home/pioreactor/.pioreactor/exportable_datasets").glob("*.y*ml"))
+    plugins = sorted(Path("/home/pioreactor/.pioreactor/plugins/exportable_datasets").glob("*.y*ml"))
+    parsed_yaml = {}
+    for file in (builtins + plugins):
+        try:
+            dataset = yaml_decode(file.read_bytes(), type=Dataset)
+            parsed_yaml[dataset.dataset_name] = dataset
+        except (ValidationError, DecodeError) as e:
+            click.echo(
+                f"Yaml error in {Path(file).name}: {e}"
+            )
+
+    return parsed_yaml
+
+
+def validate_dataset_information(dataset: Dataset, cursor):
+    if not (dataset.table or dataset.query):
+        raise ValueError("query or table must be defined.")
+
+    if dataset.table:
+        table = dataset.table
+        if not source_exists(cursor, table)
+            raise ValueError(f"Table {table} does not exist.")
+
+def export_dataset(dataset):
+    pass
+
+def create_experiment_clause(experiments: list[str], existing_placeholders: dict[str, str]) -> tuple[str, dict[str, str]]:
+    if not experiments:  # Simplified check for an empty list
+        return "TRUE"
+    else:
+        quoted_experiments = ", ".join(f":experiment{i}" for i in range(experiments))
+        existing_placeholders = existing_placeholders | {f":experiment{i}": experiment for i, experiment in enumerate(experiments)}
+        return f"experiment IN ({quoted_experiments})", existing_placeholders
+
+
+def create_sql_query(
+    selects: list[str],
+    table_or_subquery: str,
+    existing_placeholders: dict[str, str],
+    where_clauses: list[str] | None = None,
+    order_by: str | None = None,
+) -> str, dict[str, str]:
+    """
+    Constructs an SQL query with SELECT, FROM, WHERE, and ORDER BY clauses.
+    """
+    # Base SELECT and FROM clause
+    query = f"SELECT {', '.join(selects)} FROM {table_or_subquery}"
+
+    # Add WHERE clause if provided
+    if where_clauses:
+        query += f" WHERE {' AND '.join(where_clauses)}"
+
+    # Add ORDER BY clause if provided
+    if order_by:
+        query += f" ORDER BY :order_by"
+        existing_placeholders['order_by'] = order_by
+
+    return query, existing_placeholders
+
+
+
 def export_experiment_data(
-    experiment: Optional[str], output: str, partition_by_unit: bool, tables: list
+    experiments: list[str], dataset_names: list[str], output: str, partition_by_unit: bool = False,
 ) -> None:
     """
     Set an experiment, else it defaults to the entire table.
@@ -66,42 +125,42 @@ def export_experiment_data(
         raise click.Abort()
 
     logger = create_logger("export_experiment_data")
-    logger.info(f"Starting export of table{'s' if len(tables) > 1 else ''}: {', '.join(tables)}.")
+    logger.info(f"Starting export of dataset{'s' if len(dataset_names) > 1 else ''}: {', '.join(dataset_names)}.")
 
     time = datetime.now().strftime("%Y%m%d%H%M%S")
 
     with zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED) as zf, closing(
         sqlite3.connect(config["storage"]["database"])
     ) as con:
-        for table in tables:
-            cursor = con.cursor()
+        cursor = con.cursor()
 
-            # so apparently, you can't parameterize the table name in python's sqlite3, so I
-            # have to use string formatting (SQL-injection vector), but first check that the table exists (else fail)
-            if not (source_exists(cursor, table) and is_valid_table_name(table)):
-                raise ValueError(f"Table {table} does not exist.")
+        for dataset in dataset_names:
 
-            timestamp_to_localtimestamp_clause = generate_timestamp_to_localtimestamp_clause(cursor, table)
+            validate_dataset_information(dataset)
 
-            timestamp_columns = filter_to_timestamp_columns(get_column_names(cursor, table))
-            if not timestamp_columns:
-                order_by = "rowid"  # yes this is stupid, but I need a placeholder for the queries below
-            else:
-                order_by = timestamp_columns[0]  # just take first...
+
+            placeholders: dict[str, str] = {}
+            timestamp_to_localtimestamp_clause = generate_timestamp_to_localtimestamp_clause(dataset.timestamp_columns)
+            order_by = dataset.default_order_by
+            table_or_subquery = dataset.table or dataset.query
+
+            where_clauses: list[str] = []
+            selects = ["*", timestamp_to_localtimestamp_clause]
+
+            if dataset.has_experiment:
+               experiment_clause, placeholders = create_experiment_clause(experiments, placeholders)
+               where_clauses.append(experiment_clause)
+
+            query, placeholders = create_sql_query(selects, table_or_subquery, placeholders, where_clauses, order_by)
+
+            cursor.execute(query, placeholders)
+
 
             _partition_by_unit = partition_by_unit
             if table in ("pioreactor_unit_activity_data", "pioreactor_unit_activity_data_rollup"):
                 _partition_by_unit = True
 
             if not _partition_by_unit:
-                if experiment is not None and "experiment" in get_column_names(cursor, table):
-                    query = f"SELECT {timestamp_to_localtimestamp_clause} * from {table} WHERE experiment=:experiment ORDER BY {order_by}"
-                    cursor.execute(query, {"experiment": experiment})
-                    filename = f"{experiment}-{table}-{time}.csv"
-                else:
-                    query = f"SELECT {timestamp_to_localtimestamp_clause} * from {table} ORDER BY {order_by}"
-                    cursor.execute(query)
-                    filename = f"{table}-{time}.csv"
 
                 filename = filename.replace(" ", "_")
                 path_to_file = os.path.join(os.path.dirname(output), filename)
@@ -111,16 +170,10 @@ def export_experiment_data(
                     csv_writer.writerows(cursor)
 
                 zf.write(path_to_file, arcname=filename)
-                os.remove(path_to_file)
+                Path(path_to_file).unlink() # rm file
+
 
             else:
-                if experiment is not None and "experiment" in get_column_names(cursor, table):
-                    query = f"SELECT {timestamp_to_localtimestamp_clause} * from {table} WHERE experiment=:experiment ORDER BY :order_by"
-                    cursor.execute(query, {"experiment": experiment, "order_by": order_by})
-                else:
-                    query = f"SELECT {timestamp_to_localtimestamp_clause} * from {table} ORDER BY :order_by"
-                    cursor.execute(query, {"order_by": order_by})
-
                 headers = [_[0] for _ in cursor.description]
                 if "pioreactor_unit" in headers:
                     iloc_pioreactor_unit = headers.index("pioreactor_unit")
@@ -152,19 +205,19 @@ def export_experiment_data(
                 for filename in filenames:
                     path_to_file = os.path.join(os.path.dirname(output), filename)
                     zf.write(path_to_file, arcname=filename)
-                    os.remove(path_to_file)
+                    Path(path_to_file).unlink()
 
     logger.info("Finished export.")
     return
 
 
 @click.command(name="export_experiment_data")
-@click.option("--experiment", default=None)
+@click.option("--experiment", multiple=True, default=[])
 @click.option("--output", default="./output.zip")
 @click.option("--partition-by-unit", is_flag=True)
-@click.option("--tables", multiple=True, default=[])
-def click_export_experiment_data(experiment, output, partition_by_unit, tables):
+@click.option("--dataset-name", multiple=True, default=[])
+def click_export_experiment_data(experiment, output, partition_by_unit, dataset_name):
     """
     (leader only) Export tables from db.
     """
-    export_experiment_data(experiment, output, partition_by_unit, tables)
+    export_experiment_data(experiment, dataset_name, output, partition_by_unit)
