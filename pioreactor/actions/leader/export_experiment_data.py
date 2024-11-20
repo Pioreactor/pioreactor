@@ -7,9 +7,12 @@ from contextlib import closing
 from contextlib import ExitStack
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
 import click
+from msgspec import DecodeError
+from msgspec import ValidationError
+from msgspec.yaml import decode as yaml_decode
 
 from pioreactor.config import config
 from pioreactor.logging import create_logger
@@ -38,7 +41,6 @@ def filter_to_timestamp_columns(column_names: list[str]) -> list[str]:
 
 
 def generate_timestamp_to_localtimestamp_clause(timestamp_columns) -> str:
-
     if not timestamp_columns:
         return ""
 
@@ -47,18 +49,16 @@ def generate_timestamp_to_localtimestamp_clause(timestamp_columns) -> str:
     return clause
 
 
-def load_exportable_datasets() -> list[Dataset]:
+def load_exportable_datasets() -> dict[str, Dataset]:
     builtins = sorted(Path("/home/pioreactor/.pioreactor/exportable_datasets").glob("*.y*ml"))
     plugins = sorted(Path("/home/pioreactor/.pioreactor/plugins/exportable_datasets").glob("*.y*ml"))
     parsed_yaml = {}
-    for file in (builtins + plugins):
+    for file in builtins + plugins:
         try:
             dataset = yaml_decode(file.read_bytes(), type=Dataset)
             parsed_yaml[dataset.dataset_name] = dataset
         except (ValidationError, DecodeError) as e:
-            click.echo(
-                f"Yaml error in {Path(file).name}: {e}"
-            )
+            click.echo(f"Yaml error in {Path(file).name}: {e}")
 
     return parsed_yaml
 
@@ -69,18 +69,20 @@ def validate_dataset_information(dataset: Dataset, cursor):
 
     if dataset.table:
         table = dataset.table
-        if not source_exists(cursor, table)
+        if not source_exists(cursor, table):
             raise ValueError(f"Table {table} does not exist.")
 
-def export_dataset(dataset):
-    pass
 
-def create_experiment_clause(experiments: list[str], existing_placeholders: dict[str, str]) -> tuple[str, dict[str, str]]:
+def create_experiment_clause(
+    experiments: list[str], existing_placeholders: dict[str, str]
+) -> tuple[str, dict[str, str]]:
     if not experiments:  # Simplified check for an empty list
-        return "TRUE"
+        return "TRUE", existing_placeholders
     else:
-        quoted_experiments = ", ".join(f":experiment{i}" for i in range(experiments))
-        existing_placeholders = existing_placeholders | {f":experiment{i}": experiment for i, experiment in enumerate(experiments)}
+        quoted_experiments = ", ".join(f":experiment{i}" for i in range(len(experiments)))
+        existing_placeholders = existing_placeholders | {
+            f":experiment{i}": experiment for i, experiment in enumerate(experiments)
+        }
         return f"experiment IN ({quoted_experiments})", existing_placeholders
 
 
@@ -90,7 +92,7 @@ def create_sql_query(
     existing_placeholders: dict[str, str],
     where_clauses: list[str] | None = None,
     order_by: str | None = None,
-) -> str, dict[str, str]:
+) -> tuple[str, dict[str, str]]:
     """
     Constructs an SQL query with SELECT, FROM, WHERE, and ORDER BY clauses.
     """
@@ -103,15 +105,17 @@ def create_sql_query(
 
     # Add ORDER BY clause if provided
     if order_by:
-        query += f" ORDER BY :order_by"
-        existing_placeholders['order_by'] = order_by
+        query += " ORDER BY :order_by"
+        existing_placeholders["order_by"] = order_by
 
     return query, existing_placeholders
 
 
-
 def export_experiment_data(
-    experiments: list[str], dataset_names: list[str], output: str, partition_by_unit: bool = False,
+    experiments: list[str],
+    dataset_names: list[str],
+    output: str,
+    partition_by_unit: bool = False,
 ) -> None:
     """
     Set an experiment, else it defaults to the entire table.
@@ -125,87 +129,91 @@ def export_experiment_data(
         raise click.Abort()
 
     logger = create_logger("export_experiment_data")
-    logger.info(f"Starting export of dataset{'s' if len(dataset_names) > 1 else ''}: {', '.join(dataset_names)}.")
+    logger.info(
+        f"Starting export of dataset{'s' if len(dataset_names) > 1 else ''}: {', '.join(dataset_names)}."
+    )
 
     time = datetime.now().strftime("%Y%m%d%H%M%S")
+
+    available_datasets = load_exportable_datasets()
 
     with zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED) as zf, closing(
         sqlite3.connect(config["storage"]["database"])
     ) as con:
         cursor = con.cursor()
 
-        for dataset in dataset_names:
+        for dataset_name in dataset_names:
+            try:
+                dataset = available_datasets[dataset_name]
+            except IndexError:
+                click.echo(
+                    f"Dataset `{dataset_name}` is not found as an available exportable dataset. A yaml file needs to be added to ~/.pioreactor/exportable_datasets."
+                )
 
-            validate_dataset_information(dataset)
+            validate_dataset_information(dataset, cursor)
 
-
+            _partition_by_unit = dataset.has_unit and (partition_by_unit or dataset.always_partition_by_unit)
+            filenames: list[str] = []
             placeholders: dict[str, str] = {}
-            timestamp_to_localtimestamp_clause = generate_timestamp_to_localtimestamp_clause(dataset.timestamp_columns)
+            timestamp_to_localtimestamp_clause = generate_timestamp_to_localtimestamp_clause(
+                dataset.timestamp_columns
+            )
             order_by = dataset.default_order_by
             table_or_subquery = dataset.table or dataset.query
+            assert table_or_subquery is not None
 
             where_clauses: list[str] = []
             selects = ["*", timestamp_to_localtimestamp_clause]
 
             if dataset.has_experiment:
-               experiment_clause, placeholders = create_experiment_clause(experiments, placeholders)
-               where_clauses.append(experiment_clause)
+                experiment_clause, placeholders = create_experiment_clause(experiments, placeholders)
+                where_clauses.append(experiment_clause)
 
-            query, placeholders = create_sql_query(selects, table_or_subquery, placeholders, where_clauses, order_by)
+            query, placeholders = create_sql_query(
+                selects, table_or_subquery, placeholders, where_clauses, order_by
+            )
 
             cursor.execute(query, placeholders)
 
+            headers = [_[0] for _ in cursor.description]
 
-            _partition_by_unit = partition_by_unit
-            if table in ("pioreactor_unit_activity_data", "pioreactor_unit_activity_data_rollup"):
-                _partition_by_unit = True
+            try:
+                iloc_experiment = headers.index("experiment")
+            except IndexError:
+                iloc_experiment = None
 
-            if not _partition_by_unit:
-
-                filename = filename.replace(" ", "_")
-                path_to_file = os.path.join(os.path.dirname(output), filename)
-                with open(path_to_file, "w") as csv_file:
-                    csv_writer = csv.writer(csv_file, delimiter=",")
-                    csv_writer.writerow([_[0] for _ in cursor.description])
-                    csv_writer.writerows(cursor)
-
-                zf.write(path_to_file, arcname=filename)
-                Path(path_to_file).unlink() # rm file
-
-
+            if _partition_by_unit:
+                try:
+                    iloc_unit = headers.index("pioreactor_unit")
+                except IndexError:
+                    iloc_unit = None
             else:
-                headers = [_[0] for _ in cursor.description]
-                if "pioreactor_unit" in headers:
-                    iloc_pioreactor_unit = headers.index("pioreactor_unit")
-                else:
-                    logger.debug(f"pioreactor_unit not found in {table}, skipping partition.")
-                    iloc_pioreactor_unit = None
+                iloc_unit = None
 
-                filenames = []
-                unit_to_writer_map = {}
+            parition_to_writer_map: dict[tuple, Any] = {}
 
-                with ExitStack() as stack:
-                    for row in cursor:
-                        if iloc_pioreactor_unit:
-                            unit = row[iloc_pioreactor_unit]
-                        else:
-                            unit = "all"
+            with ExitStack() as stack:
+                for row in cursor:
+                    rows_partition = (
+                        row[iloc_experiment] if iloc_experiment else "all_experiments",
+                        row[iloc_unit] if iloc_unit else "all_units",
+                    )
 
-                        if unit not in unit_to_writer_map:
-                            filename = f"{experiment or 'exp'}-{table}-{unit}-{time}.csv"
-                            filenames.append(filename)
-                            path_to_file = os.path.join(os.path.dirname(output), filename)
-                            unit_to_writer_map[unit] = csv.writer(
-                                stack.enter_context(open(path_to_file, "w")), delimiter=","
-                            )
-                            unit_to_writer_map[unit].writerow(headers)
+                    if rows_partition not in parition_to_writer_map:
+                        filename = "-".join(rows_partition) + f"-{dataset}-{time}.csv"
+                        filenames.append(filename)
+                        path_to_file = Path(Path(output).parent / filename)
+                        parition_to_writer_map[rows_partition] = csv.writer(
+                            stack.enter_context(open(path_to_file, "w")), delimiter=","
+                        )
+                        parition_to_writer_map[rows_partition].writerow(headers)
 
-                        unit_to_writer_map[unit].writerow(row)
+                    parition_to_writer_map[rows_partition].writerow(row)
 
-                for filename in filenames:
-                    path_to_file = os.path.join(os.path.dirname(output), filename)
-                    zf.write(path_to_file, arcname=filename)
-                    Path(path_to_file).unlink()
+            for filename in filenames:
+                path_to_file = Path(Path(output).parent / filename)
+                zf.write(path_to_file, arcname=filename)
+                Path(path_to_file).unlink()
 
     logger.info("Finished export.")
     return

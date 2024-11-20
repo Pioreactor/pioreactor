@@ -240,4 +240,4 @@ class Dataset(JSONPrintedStruct):
     query: t.Optional[str] = None
     source: str = "app"
     timestamp_columns: list[str] = []
-    partition_by_unit_default: bool = False
+    always_partition_by_unit: bool = False
