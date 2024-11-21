@@ -1110,7 +1110,7 @@ function SettingsActionsDialog(props) {
             Manual adjustments
           </Typography>
           <Typography variant="body2" component="p" gutterBottom>
-            Record adjustments before manually adding or removing from the vial. This is recorded in the database and will ensure accurate metrics.
+            Record adjustments before manually adding or removing from the vial. This is recorded in the database and will ensure accurate metrics. Dosing automation must be on.
           </Typography>
           <ActionManualDosingForm unit={props.unit} experiment={props.experiment}/>
 

@@ -63,7 +63,7 @@ function EditableCodeDiv(props) {
     })
     .then(res => {
       if (res.ok) {
-        setState(prev => ({ ...prev, snackbarMsg: `${state.filename} saved and synced.`, hasChangedSinceSave: false, saving: false, openSnackbar: true }));
+        setState(prev => ({ ...prev, snackbarMsg: `Success: ${state.filename} saved and synced.`, hasChangedSinceSave: false, saving: false, openSnackbar: true }));
       } else {
         res.json().then(parsedJson =>
           setState(prev => ({ ...prev, errorMsg: parsedJson['msg'], isError: true, hasChangedSinceSave: true, saving: false }))
@@ -212,7 +212,7 @@ function EditableCodeDiv(props) {
         open={state.openSnackbar}
         onClose={handleSnackbarClose}
         message={state.snackbarMsg}
-        autoHideDuration={2000}
+        autoHideDuration={2500}
         key={"edit-config-snackbar"}
       />
     </React.Fragment>

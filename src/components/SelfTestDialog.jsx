@@ -35,12 +35,11 @@ const lostRed = "#DE3618"
 
 
 function PatientButton(props) {
-  const [buttonText, setButtonText] = useState(props.buttonText)
+  const [buttonText, setButtonText] = useState(props.initialButtonText)
 
   const onClick = () => {
       setButtonText(<CircularProgress color="inherit" size={21}/>)
       props.onClick()
-      setTimeout(() => setButtonText(""), 30000)
   }
 
   return (
@@ -59,7 +58,7 @@ function PatientButton(props) {
 }
 
 
-export default function SelfTestDialog({client, disabled, experiment, unit, label ,selfTestState, selfTestTests}) {
+export default function SelfTestDialog({client, disabled, experiment, unit, label , selfTestState, selfTestTests}) {
   const [open, setOpen] = useState(false);
 
   const handleClickOpen = () => {
@@ -101,7 +100,7 @@ export default function SelfTestDialog({client, disabled, experiment, unit, labe
                 color="primary"
                 variant="contained"
                 disabled={true}
-                buttonText="Running"
+                initialButtonText="Running"
                />
               </Box>)
       default:
@@ -110,7 +109,7 @@ export default function SelfTestDialog({client, disabled, experiment, unit, labe
                 color="primary"
                 variant="contained"
                 onClick={() => runPioreactorJob(unit, experiment, "self_test")}
-                buttonText="Start"
+                initialButtonText="Start"
                />
               </Box>)
     }
