@@ -1,0 +1,203 @@
+
+od_readings:
+  has_experiment: true
+  has_unit: true
+  timestamp_columns: ["timestamp"]
+  default_order_by: "timestamp"
+  partition_by_unit_default: false
+
+alt_media_fractions:
+  has_experiment: true
+  has_unit: true
+  timestamp_columns: ["timestamp"]
+  default_order_by: "timestamp"
+  partition_by_unit_default: false
+
+liquid_volumes:
+  has_experiment: true
+  has_unit: true
+  timestamp_columns: ["timestamp"]
+  default_order_by: "timestamp"
+  partition_by_unit_default: false
+
+od_readings_filtered:
+  has_experiment: true
+  has_unit: true
+  timestamp_columns: ["timestamp"]
+  default_order_by: "timestamp"
+  partition_by_unit_default: false
+
+dosing_events:
+  has_experiment: true
+  has_unit: true
+  timestamp_columns: ["timestamp"]
+  default_order_by: "timestamp"
+  partition_by_unit_default: false
+
+led_change_events:
+  has_experiment: true
+  has_unit: true
+  timestamp_columns: ["timestamp"]
+  default_order_by: "timestamp"
+  partition_by_unit_default: false
+
+growth_rates:
+  has_experiment: true
+  has_unit: true
+  timestamp_columns: ["timestamp"]
+  default_order_by: "timestamp"
+  partition_by_unit_default: false
+
+logs:
+  has_experiment: true
+  has_unit: true
+  timestamp_columns: ["timestamp"]
+  default_order_by: "timestamp"
+  partition_by_unit_default: false
+
+experiments:
+  has_experiment: false
+  has_unit: false
+  timestamp_columns: ["created_at"]
+  default_order_by: "created_at"
+  partition_by_unit_default: false
+
+dosing_automation_settings:
+  has_experiment: true
+  has_unit: true
+  timestamp_columns: ["started_at", "ended_at"]
+  default_order_by: "started_at"
+  partition_by_unit_default: false
+
+led_automation_settings:
+  has_experiment: true
+  has_unit: true
+  timestamp_columns: ["started_at", "ended_at"]
+  default_order_by: "started_at"
+  partition_by_unit_default: false
+
+temperature_automation_settings:
+  has_experiment: true
+  has_unit: true
+  timestamp_columns: ["started_at", "ended_at"]
+  default_order_by: "started_at"
+  partition_by_unit_default: false
+
+kalman_filter_outputs:
+  has_experiment: true
+  has_unit: true
+  timestamp_columns: ["timestamp"]
+  default_order_by: "timestamp"
+  partition_by_unit_default: false
+
+temperature_readings:
+  has_experiment: true
+  has_unit: true
+  timestamp_columns: ["timestamp"]
+  default_order_by: "timestamp"
+  partition_by_unit_default: false
+
+stirring_rates:
+  has_experiment: true
+  has_unit: true
+  timestamp_columns: ["timestamp"]
+  default_order_by: "timestamp"
+  partition_by_unit_default: false
+
+config_files_histories:
+  has_experiment: false
+  has_unit: false
+  timestamp_columns: ["timestamp"]
+  default_order_by: "timestamp"
+  partition_by_unit_default: false
+
+od_blanks:
+  has_experiment: true
+  has_unit: true
+  timestamp_columns: ["timestamp"]
+  default_order_by: "timestamp"
+  partition_by_unit_default: false
+
+ir_led_intensities:
+  has_experiment: true
+  has_unit: true
+  timestamp_columns: ["timestamp"]
+  default_order_by: "timestamp"
+  partition_by_unit_default: false
+
+pioreactor_unit_labels:
+  has_experiment: true
+  has_unit: true
+  timestamp_columns: ["created_at"]
+  default_order_by: "created_at"
+  partition_by_unit_default: false
+
+temperature_automation_events:
+  has_experiment: true
+  has_unit: true
+  timestamp_columns: ["timestamp"]
+  default_order_by: "timestamp"
+  partition_by_unit_default: false
+
+dosing_automation_events:
+  has_experiment: true
+  has_unit: true
+  timestamp_columns: ["timestamp"]
+  default_order_by: "timestamp"
+  partition_by_unit_default: false
+
+led_automation_events:
+  has_experiment: true
+  has_unit: true
+  timestamp_columns: ["timestamp"]
+  default_order_by: "timestamp"
+  partition_by_unit_default: false
+
+pioreactor_unit_activity_data:
+  has_experiment: true
+  has_unit: true
+  timestamp_columns: ["timestamp"]
+  default_order_by: "timestamp"
+  partition_by_unit_default: true
+
+pioreactor_unit_activity_data_rollup:
+  has_experiment: true
+  has_unit: true
+  timestamp_columns: ["timestamp"]
+  default_order_by: "timestamp"
+  partition_by_unit_default: true
+
+calibrations:
+  has_experiment: false
+  has_unit: true
+  timestamp_columns: ["created_at", "set_to_current_at"]
+  default_order_by: "created_at"
+  partition_by_unit_default: false
+
+pwm_dcs:
+  has_experiment: true
+  has_unit: true
+  timestamp_columns: ["timestamp"]
+  default_order_by: "timestamp"
+  partition_by_unit_default: false
+
+experiment_profile_runs:
+  has_experiment: true
+  has_unit: false
+  timestamp_columns: ["started_at"]
+  default_order_by: "started_at"
+  partition_by_unit_default: false
+
+experiment_worker_assignments:
+  has_experiment: true
+  has_unit: true
+  timestamp_columns: ["assigned_at"]
+  default_order_by: "assigned_at"
+  partition_by_unit_default: false
+
+workers:
+  has_experiment: false
+  has_unit: true
+  timestamp_columns: ["added_at"]
+  default_order_by: "added_at"
+  partition_by_unit_default: false

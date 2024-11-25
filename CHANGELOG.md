@@ -1,5 +1,6 @@
 ### Upcoming
  - better error handling for failed OD blanks.
+ - better button state management in the UI.
  - improvements to correlation self-tests
  - The stirring job now has opt-in "dodging" of OD readings. This replaces the old, unreliable, plugin that was on our forums. Now, with a configuration change, stirring will turn off prior to an OD reading occurring. Add the following to your `[stirring.config]` section:
    ```
