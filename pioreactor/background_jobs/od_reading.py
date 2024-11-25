@@ -1129,7 +1129,7 @@ class ODReader(BackgroundJob):
         )
         if not r:
             self.clean_up()
-            raise OSError("IR LED could not be started. Stopping OD reading.")
+            raise exc.HardwareNotFoundError("IR LED could not be started. Stopping OD reading.")
 
         return
 

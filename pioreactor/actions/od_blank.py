@@ -26,6 +26,10 @@ from pioreactor.utils import math_helpers
 from pioreactor.utils.timing import current_utc_datetime
 
 
+# turn off dodging in the stirring, if set to true.
+config["stirring.config"]["enable_dodging_od"] = "False"
+
+
 def od_statistics(
     od_stream: Iterator,
     action_name: str,

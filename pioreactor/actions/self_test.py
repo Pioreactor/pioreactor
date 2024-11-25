@@ -57,6 +57,10 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
 
+# turn off dodging in the stirring, if set to true.
+config["stirring.config"]["enable_dodging_od"] = "False"
+
+
 def test_pioreactor_HAT_present(managed_state, logger: CustomLogger, unit: str, experiment: str) -> None:
     assert is_HAT_present(), "HAT is not connected"
 
