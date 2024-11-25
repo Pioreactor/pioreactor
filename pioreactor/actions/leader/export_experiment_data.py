@@ -35,8 +35,8 @@ def generate_timestamp_to_localtimestamp_clause(timestamp_columns) -> str:
 
 
 def load_exportable_datasets() -> dict[str, Dataset]:
-    builtins = sorted(Path(".pioreactor/exportable_datasets").glob("*.y*ml"))
-    plugins = sorted(Path(".pioreactor/plugins/exportable_datasets").glob("*.y*ml"))
+    builtins = sorted(Path("/home/pioreactor/.pioreactor/exportable_datasets").glob("*.y*ml"))
+    plugins = sorted(Path("/home/pioreactor/.pioreactor/plugins/exportable_datasets").glob("*.y*ml"))
     parsed_yaml = {}
     for file in builtins + plugins:
         try:
@@ -48,11 +48,11 @@ def load_exportable_datasets() -> dict[str, Dataset]:
     return parsed_yaml
 
 
-def decode_base64(string):
+def decode_base64(string: str) -> str:
     return json_decode(string)
 
 
-def validate_dataset_information(dataset: Dataset, cursor):
+def validate_dataset_information(dataset: Dataset, cursor) -> None:
     if not (dataset.table or dataset.query):
         raise ValueError("query or table must be defined.")
 
@@ -155,7 +155,7 @@ def export_experiment_data(
             "BASE64", 1, decode_base64
         )  # TODO: until next OS release which implements a native sqlite3 base64 function
 
-        con.set_trace_callback(print)
+        con.set_trace_callback(logger.debug)
 
         cursor = con.cursor()
 
@@ -163,7 +163,7 @@ def export_experiment_data(
             try:
                 dataset = available_datasets[dataset_name]
             except KeyError:
-                click.secho(
+                logger.warning(
                     f"Dataset `{dataset_name}` is not found as an available exportable dataset. A yaml file needs to be added to ~/.pioreactor/exportable_datasets. Skipping. Available datasets are {list(available_datasets.keys())}",
                     fg="red",
                 )

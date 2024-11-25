@@ -185,7 +185,7 @@ def version(verbose: bool) -> None:
         click.echo(tuple_to_text(software_version_info))
 
 
-@pio.group()
+@pio.group(short_help="manage the local caches")
 def cache():
     pass
 

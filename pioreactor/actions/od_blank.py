@@ -40,9 +40,9 @@ def od_statistics(
     There's a variance w.r.t. the rotation of the vial that we can't control.
     """
 
-    logger = logger or create_logger(action_name)
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_assigned_experiment_name(unit)
+    logger = logger or create_logger(action_name, unit=unit, experiment=experiment)
 
     logger.info(
         f"Starting to compute statistics from OD readings. Collecting {n_samples} data points. This may take a while."
@@ -147,71 +147,78 @@ def od_blank(
     unit=None,
     experiment=None,
 ) -> dict[pt.PdChannel, float]:
+    from pioreactor.background_jobs.od_reading import start_od_reading
+    from pioreactor.background_jobs.stirring import start_stirring
+
     action_name = "od_blank"
-    logger = create_logger(action_name)
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_assigned_experiment_name(unit)
     testing_experiment = whoami.get_testing_experiment_name()
 
-    from pioreactor.background_jobs.od_reading import start_od_reading
-    from pioreactor.background_jobs.stirring import start_stirring
+    logger = create_logger(action_name, unit=unit, experiment=experiment)
+    logger.info("Starting blank OD calibration.")
 
     with managed_lifecycle(unit, experiment, action_name):
-        with start_od_reading(
-            od_angle_channel1,
-            od_angle_channel2,
-            unit=unit,
-            interval=1.5,
-            experiment=testing_experiment,  # use testing experiment to not pollute the database (and they would show up in the UI)
-            fake_data=whoami.is_testing_env(),
-        ) as od_stream, start_stirring(
-            unit=unit,
-            experiment=testing_experiment,
-        ) as st:
-            # warm up OD reader
-            for count, _ in enumerate(od_stream, start=0):
-                if count == 5:
-                    break
-
-            st.block_until_rpm_is_close_to_target(timeout=30)
-
-            means, _ = od_statistics(
-                od_stream,
-                action_name,
+        try:
+            with start_od_reading(
+                od_angle_channel1,
+                od_angle_channel2,
                 unit=unit,
-                experiment=experiment,
-                n_samples=n_samples,
-                logger=logger,
-            )
+                interval=1.5,
+                experiment=testing_experiment,  # use testing experiment to not pollute the database (and they would show up in the UI)
+                fake_data=whoami.is_testing_env(),
+            ) as od_stream, start_stirring(
+                unit=unit,
+                experiment=testing_experiment,
+            ) as st:
+                # warm up OD reader
+                for count, _ in enumerate(od_stream, start=0):
+                    if count == 5:
+                        break
 
-            with local_persistant_storage(action_name) as cache:
-                cache[experiment] = dumps(means)
+                st.block_until_rpm_is_close_to_target(timeout=30)
 
-            for channel, mean in means.items():
-                pubsub.publish(
-                    f"pioreactor/{unit}/{experiment}/{action_name}/mean/{channel}",
-                    encode(
-                        structs.ODReading(
-                            timestamp=current_utc_datetime(),
-                            channel=channel,
-                            od=means[channel],
-                            angle=config.get("od_config.photodiode_channel", channel, fallback=None),
-                        )
-                    ),
-                    qos=pubsub.QOS.AT_LEAST_ONCE,
-                    retain=True,
+                means, _ = od_statistics(
+                    od_stream,
+                    action_name,
+                    unit=unit,
+                    experiment=experiment,
+                    n_samples=n_samples,
+                    logger=logger,
                 )
+        except Exception as e:
+            logger.debug(e, exc_info=True)
+            logger.error(e)
+            raise e
 
-            # publish to UI
+        with local_persistant_storage(action_name) as cache:
+            cache[experiment] = dumps(means)
+
+        for channel, mean in means.items():
             pubsub.publish(
-                f"pioreactor/{unit}/{experiment}/{action_name}/means",
-                encode(means),
+                f"pioreactor/{unit}/{experiment}/{action_name}/mean/{channel}",
+                encode(
+                    structs.ODReading(
+                        timestamp=current_utc_datetime(),
+                        channel=channel,
+                        od=means[channel],
+                        angle=config.get("od_config.photodiode_channel", channel, fallback=None),
+                    )
+                ),
                 qos=pubsub.QOS.AT_LEAST_ONCE,
                 retain=True,
             )
 
-            logger.info("Finished reading blank OD.")
-            prune_retained_messages(f"pioreactor/{unit}/{testing_experiment}/#")
+        # publish to UI
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/{action_name}/means",
+            encode(means),
+            qos=pubsub.QOS.AT_LEAST_ONCE,
+            retain=True,
+        )
+
+        logger.info("Finished computing blank ODs.")
+        prune_retained_messages(f"pioreactor/{unit}/{testing_experiment}/#")
 
     return means
 

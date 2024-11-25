@@ -1,17 +1,23 @@
 ### Upcoming
  - improvements to correlation self-tests
+ - The stirring job now has opt-in "dodging" of OD readings. This replaces the old, unreliable, plugin that was on our forums. Now, with a configuration change, stirring will turn off prior to an OD reading occurring. Add the following to your `[stirring.config]` section:
+   ```
+   post_delay_duration=0.25
+   pre_delay_duration=2.0
+   enable_dodging_od=False
+   ```
+   To enable dodging, change `enable_dodging_od` under `[stirring.config]` to `True` (or `1`).
  - you can add addresses to the (new) `[cluster.addresses]` section to specify IPs for pioreactors. Example:
    ```
 
   [cluster.addresses]
-  leader_hostname=pio00
-  leader_address=10.42.0.1
-
   pio01_address=10.42.0.2
   pio02_address=10.42.0.3
 
    ```
-   Note that the leader is automatically added.
+   Note that the leader's address is automatically added in our software.
+ - new export dataset API. The datasets on the Export page are now provided via YAML files on the leader's disk. This makes it easy to add new datasets to that UI to be exported. These YAML files can be added to `~/.pioreactor/exportable_datasets`.
+ - new installs only: updated RPiOS to version 2024-11-19
 
 ### 24.10.29
 
