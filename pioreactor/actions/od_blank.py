@@ -17,6 +17,7 @@ from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.config import config
+from pioreactor.config import temporary_config_change
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import prune_retained_messages
 from pioreactor.utils import is_pio_job_running
@@ -24,10 +25,6 @@ from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import managed_lifecycle
 from pioreactor.utils import math_helpers
 from pioreactor.utils.timing import current_utc_datetime
-
-
-# turn off dodging in the stirring, if set to true.
-config["stirring.config"]["enable_dodging_od"] = "False"
 
 
 def od_statistics(
@@ -257,13 +254,14 @@ def click_od_blank(ctx, od_angle_channel1, od_angle_channel2, n_samples: int) ->
     experiment = whoami.get_assigned_experiment_name(unit)
 
     if ctx.invoked_subcommand is None:
-        od_blank(
-            od_angle_channel1,
-            od_angle_channel2,
-            n_samples=n_samples,
-            unit=unit,
-            experiment=experiment,
-        )
+        with temporary_config_change(config, "stirring.config", "enable_dodging_od", "false"):
+            od_blank(
+                od_angle_channel1,
+                od_angle_channel2,
+                n_samples=n_samples,
+                unit=unit,
+                experiment=experiment,
+            )
 
 
 @click_od_blank.command(name="delete")

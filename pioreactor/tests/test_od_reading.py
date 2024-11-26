@@ -12,11 +12,13 @@ from pioreactor import exc
 from pioreactor import structs
 from pioreactor.background_jobs.od_reading import ADCReader
 from pioreactor.background_jobs.od_reading import CachedCalibrationTransformer
+from pioreactor.background_jobs.od_reading import closest_point_to_domain
 from pioreactor.background_jobs.od_reading import NullCalibrationTransformer
 from pioreactor.background_jobs.od_reading import ODReader
 from pioreactor.background_jobs.od_reading import PhotodiodeIrLedReferenceTrackerStaticInit
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.config import config
+from pioreactor.config import temporary_config_change
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.timing import current_utc_datetime
@@ -796,37 +798,34 @@ def test_calibration_multi_modal() -> None:
 def test_calibration_errors_when_ir_led_differs() -> None:
     experiment = "test_calibration_errors_when_ir_led_differs"
 
-    config["od_reading.config"]["ir_led_intensity"] = "90"
-
-    with local_persistant_storage("current_od_calibration") as c:
-        c["90"] = encode(
-            structs.OD90Calibration(
-                created_at=current_utc_datetime(),
-                curve_type="poly",
-                curve_data_=[1.0, 0, -0.1],
-                name="quad_test",
-                maximum_od600=2.0,
-                minimum_od600=0.0,
-                ir_led_intensity=50.0,
-                angle="90",
-                minimum_voltage=0.0,
-                maximum_voltage=1.0,
-                voltages=[],
-                od600s=[],
-                pd_channel="2",
-                pioreactor_unit=get_unit_name(),
+    with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "90"):
+        with local_persistant_storage("current_od_calibration") as c:
+            c["90"] = encode(
+                structs.OD90Calibration(
+                    created_at=current_utc_datetime(),
+                    curve_type="poly",
+                    curve_data_=[1.0, 0, -0.1],
+                    name="quad_test",
+                    maximum_od600=2.0,
+                    minimum_od600=0.0,
+                    ir_led_intensity=50.0,
+                    angle="90",
+                    minimum_voltage=0.0,
+                    maximum_voltage=1.0,
+                    voltages=[],
+                    od600s=[],
+                    pd_channel="2",
+                    pioreactor_unit=get_unit_name(),
+                )
             )
-        )
 
-    with pytest.raises(exc.CalibrationError) as error:
-        with start_od_reading("REF", "90", interval=1, fake_data=True, experiment=experiment):
-            pass
-    assert "LED intensity" in str(error.value)
+        with pytest.raises(exc.CalibrationError) as error:
+            with start_od_reading("REF", "90", interval=1, fake_data=True, experiment=experiment):
+                pass
+        assert "LED intensity" in str(error.value)
 
-    with local_persistant_storage("current_od_calibration") as c:
-        del c["90"]
-
-    config["od_reading.config"]["ir_led_intensity"] = "auto"
+        with local_persistant_storage("current_od_calibration") as c:
+            del c["90"]
 
 
 def test_calibration_errors_when_pd_channel_differs() -> None:
@@ -1048,42 +1047,27 @@ def test_calibration_data_from_user2() -> None:
 
 
 def test_auto_ir_led_intensit_REF_and_90() -> None:
-    existing_intensity = config["od_reading.config"]["ir_led_intensity"]
+    with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "auto"):
+        experiment = "test_auto_ir_led_intensity"
 
-    config["od_reading.config"]["ir_led_intensity"] = "auto"
-
-    experiment = "test_auto_ir_led_intensity"
-
-    with start_od_reading("REF", "90", interval=None, fake_data=True, experiment=experiment) as od:
-        assert abs(od.ir_led_intensity - 67.19794921875) < 0.01
-
-    config["od_reading.config"]["ir_led_intensity"] = existing_intensity
+        with start_od_reading("REF", "90", interval=None, fake_data=True, experiment=experiment) as od:
+            assert abs(od.ir_led_intensity - 67.19794921875) < 0.01
 
 
 def test_auto_ir_led_intensity_90_only() -> None:
-    existing_intensity = config["od_reading.config"]["ir_led_intensity"]
+    with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "auto"):
+        experiment = "test_auto_ir_led_intensity"
 
-    config["od_reading.config"]["ir_led_intensity"] = "auto"
-
-    experiment = "test_auto_ir_led_intensity"
-
-    with start_od_reading(None, "90", interval=None, fake_data=True, experiment=experiment) as od:
-        assert od.ir_led_intensity == 70.0
-
-    config["od_reading.config"]["ir_led_intensity"] = existing_intensity
+        with start_od_reading(None, "90", interval=None, fake_data=True, experiment=experiment) as od:
+            assert od.ir_led_intensity == 70.0
 
 
 def test_auto_ir_led_intensity_90_and_90() -> None:
-    existing_intensity = config["od_reading.config"]["ir_led_intensity"]
+    with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "auto"):
+        experiment = "test_auto_ir_led_intensity"
 
-    config["od_reading.config"]["ir_led_intensity"] = "auto"
-
-    experiment = "test_auto_ir_led_intensity"
-
-    with start_od_reading("90", "90", interval=None, fake_data=True, experiment=experiment) as od:
-        assert od.ir_led_intensity == 70.0
-
-    config["od_reading.config"]["ir_led_intensity"] = existing_intensity
+        with start_od_reading("90", "90", interval=None, fake_data=True, experiment=experiment) as od:
+            assert od.ir_led_intensity == 70.0
 
 
 def test_at_least_one_channel() -> None:
@@ -1214,3 +1198,31 @@ def test_CachedCalibrationTransformer_with_real_calibration() -> None:
     cal_transformer.hydate_models_from_disk({"2": "90"})
 
     assert abs(cal_transformer({"2": 0.096})["2"] - 0.06) < 0.01
+
+
+def test_closest_point_single_point_in_domain():
+    assert closest_point_to_domain([1.0], (0.5, 1.5)) == 1.0
+
+
+def test_closest_point_multiple_points_in_domain():
+    assert closest_point_to_domain([0.6, 0.8, 1.2], (0.5, 1.5)) == 0.6
+
+
+def test_closest_point_all_outside_domain():
+    assert closest_point_to_domain([2.0, 3.0], (0.5, 1.5)) == 2.0
+    assert closest_point_to_domain([-1.0, -2.0], (0.5, 1.5)) == -1.0
+
+
+def test_closest_point_empty_list():
+    with pytest.raises(AssertionError):
+        closest_point_to_domain([], (0.5, 1.5))
+
+
+def test_closest_point_on_boundaries():
+    assert closest_point_to_domain([0.5, 1.5], (0.5, 1.5)) == 0.5
+
+
+def test_missing_calibration_data():
+    cal_transformer = CachedCalibrationTransformer()
+    cal_transformer.models = {"1": lambda v: v * 2}
+    assert cal_transformer({"1": 1.0, "2": 2.0}) == {"1": 2.0, "2": 2.0}

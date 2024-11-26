@@ -284,7 +284,9 @@ class Stirrer(BackgroundJobWithDodging):
         self.on_ready_to_sleeping()
 
     def action_to_do_after_od_reading(self):
-        self.on_sleeping_to_ready()
+        self.duty_cycle = self._estimate_duty_cycle
+        self.rpm_check_repeated_thread.unpause()
+        self.start_stirring()
 
     def initialize_rpm_to_dc_lookup(self) -> Callable:
         if self.rpm_calculator is None:
@@ -314,6 +316,7 @@ class Stirrer(BackgroundJobWithDodging):
                 return lambda rpm: self._estimate_duty_cycle
 
     def on_disconnected(self) -> None:
+        super().on_disconnected()
         with suppress(AttributeError):
             self.rpm_check_repeated_thread.cancel()
         with suppress(AttributeError):
@@ -423,9 +426,12 @@ class Stirrer(BackgroundJobWithDodging):
         self.set_duty_cycle(0.0)
 
     def on_sleeping_to_ready(self) -> None:
+        super().on_sleeping_to_ready()
         self.duty_cycle = self._estimate_duty_cycle
         self.rpm_check_repeated_thread.unpause()
-        self.start_stirring()
+        if not self.enable_dodging_od:
+            # if we aren't dodging OD readings, we can start stirring right away.
+            self.start_stirring()
 
     def set_duty_cycle(self, value: float) -> None:
         with self.duty_cycle_lock:

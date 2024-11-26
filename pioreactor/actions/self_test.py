@@ -32,6 +32,7 @@ from pioreactor.background_jobs.od_reading import IR_keyword
 from pioreactor.background_jobs.od_reading import REF_keyword
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.config import config
+from pioreactor.config import temporary_config_change
 from pioreactor.hardware import is_HAT_present
 from pioreactor.hardware import is_heating_pcb_present
 from pioreactor.hardware import voltage_in_aux
@@ -55,10 +56,6 @@ from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_testing_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
-
-
-# turn off dodging in the stirring, if set to true.
-config["stirring.config"]["enable_dodging_od"] = "False"
 
 
 def test_pioreactor_HAT_present(managed_state, logger: CustomLogger, unit: str, experiment: str) -> None:
@@ -518,7 +515,9 @@ def click_self_test(k: Optional[str], retry_failed: bool) -> int:
         test_positive_correlation_between_rpm_and_stirring,
     )
 
-    with managed_lifecycle(unit, experiment, "self_test") as managed_state:
+    with managed_lifecycle(unit, experiment, "self_test") as managed_state, temporary_config_change(
+        config, "stirring.config", "enable_dodging_od", "false"
+    ):
         if any(
             is_pio_job_running(
                 ["od_reading", "temperature_automation", "stirring", "dosing_automation", "led_automation"]

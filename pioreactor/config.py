@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import configparser
 import os
+from contextlib import contextmanager
 from functools import cache
 from pathlib import Path
 
@@ -126,7 +127,7 @@ def get_config() -> ConfigParserMod:
     from pioreactor.whoami import is_testing_env
 
     if is_testing_env():
-        global_config_path = os.environ.get("GLOBAL_CONFIG", "./config.dev.ini")
+        global_config_path = os.environ.get("GLOBAL_CONFIG", "./.pioreactor/config.dev.ini")
         local_config_path = os.environ.get("LOCAL_CONFIG", "")
     else:
         global_config_path = "/home/pioreactor/.pioreactor/config.ini"
@@ -136,7 +137,6 @@ def get_config() -> ConfigParserMod:
         raise FileNotFoundError(
             f"Configuration file at {global_config_path} is missing. Has it completed initializing? Does it need to connect to a leader? Alternatively, use the env variable GLOBAL_CONFIG to specify its location."
         )
-
     config_files = [global_config_path, local_config_path]
 
     try:
@@ -189,3 +189,34 @@ def get_leader_address() -> str:
 @cache
 def get_mqtt_address() -> str:
     return get_config().get("mqtt", "broker_address", fallback=get_leader_address())
+
+
+@contextmanager
+def temporary_config_change(config: ConfigParserMod, section: str, parameter: str, new_value: str):
+    """
+    A context manager to temporarily change a value in a ConfigParser object.
+
+    Args:
+        config (ConfigParser): The ConfigParser instance.
+        section (str): The section in the ConfigParser to modify.
+        parameter (str): The parameter in the section to modify.
+        new_value (str): The temporary value for the parameter.
+
+    Yields:
+        None: The context where the parameter is temporarily modified.
+    """
+    if not config.has_section(section):
+        raise ValueError(f"Section '{section}' does not exist in the configuration.")
+    if not config.has_option(section, parameter):
+        raise ValueError(f"Parameter '{parameter}' does not exist in section '{section}'.")
+
+    # Save the original value
+    original_value = config.get(section, parameter)
+
+    try:
+        # Apply the temporary change
+        config.set(section, parameter, new_value)
+        yield
+    finally:
+        # Restore the original value
+        config.set(section, parameter, original_value)
