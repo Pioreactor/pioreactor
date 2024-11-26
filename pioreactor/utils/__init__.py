@@ -694,9 +694,7 @@ class JobManager:
         count = 0
 
         for job, pid in self._get_jobs(all_jobs, **query):
-            if job in self.PUMPING_JOBS:
-                mqtt_kill.append(job)
-            elif job == "led_intensity":
+            if job == "led_intensity":
                 # led_intensity doesn't register with the JobManager, probably should somehow. #502
                 pass
             else:
