@@ -4,6 +4,8 @@ from __future__ import annotations
 from setuptools import find_packages
 from setuptools import setup
 
+exec(compile(open("pioreactor/version.py").read(), "pioreactor/version.py", "exec"))
+
 
 CORE_REQUIREMENTS = [
     "click==8.1.7",
@@ -51,7 +53,7 @@ WORKER_REQUIREMENTS = [
 
 setup(
     name="pioreactor",
-    version="24.10.15dev0",
+    version=__version__,  # type: ignore # noqa: F821
     license="MIT",
     description="The core Python app of the Pioreactor. Control your bioreactor through Python.",
     url="https://github.com/pioreactor/pioreactor",
