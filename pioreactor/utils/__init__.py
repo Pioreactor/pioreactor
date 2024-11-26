@@ -25,6 +25,7 @@ from msgspec.json import encode as dumps
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor import whoami
+from pioreactor.exc import JobNotRunningError
 from pioreactor.exc import NotActiveWorkerError
 from pioreactor.exc import RoleError
 from pioreactor.pubsub import create_client
@@ -627,13 +628,24 @@ class JobManager:
             """
             if isinstance(value, dict):
                 value = dumps(value).decode()  # back to string, not bytes
-            else:
-                value = str(value)
 
             self.cursor.execute(update_query, {"setting": setting, "value": value, "job_id": job_id})
 
         self.conn.commit()
         return
+
+    def get_setting_from_running_job(self, job_name: str, setting: str) -> Any:
+        select_query = """
+            SELECT value
+                FROM pio_job_published_settings s
+                JOIN pio_job_metadata m ON s.job_id = m.id
+            WHERE job_name=(?) and setting=(?) and is_running=1"""
+        self.cursor.execute(select_query, (job_name, setting))
+        result = self.cursor.fetchone()  # returns None if not found
+        if result is not None:
+            return result[0]
+        else:
+            raise JobNotRunningError(f"Job {job_name} is not running.")
 
     def set_not_running(self, job_id: JobMetadataKey) -> None:
         update_query = "UPDATE pio_job_metadata SET is_running=0, ended_at=STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW') WHERE id=(?)"
@@ -689,16 +701,20 @@ class JobManager:
                 pass
             else:
                 shell_kill.append(pid)
+
         count += mqtt_kill.kill_jobs()
         count += shell_kill.kill_jobs()
 
         return count
 
+    def close(self):
+        self.conn.close()
+
     def __enter__(self) -> JobManager:
         return self
 
     def __exit__(self, *args) -> None:
-        self.conn.close()
+        self.close()
         return
 
 

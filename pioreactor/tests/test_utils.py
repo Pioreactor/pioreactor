@@ -10,6 +10,7 @@ import pytest
 from msgspec.json import encode as dumps
 
 from pioreactor.background_jobs.stirring import start_stirring
+from pioreactor.exc import JobNotRunningError
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.tests.conftest import capture_requests
 from pioreactor.utils import callable_stack
@@ -356,3 +357,24 @@ def test_upsert_setting_update(job_manager, job_id):
     result = job_manager.cursor.fetchone()
     assert result is not None
     assert result[0] == updated_value
+
+
+def test_retrieve_setting(job_manager, job_id):
+    job_key = job_manager.register_and_set_running(
+        "test_unit", "test_experiment", "test_name", "test_source", 12345, "test_leader", False
+    )
+
+    setting = "my_setting"
+    initial_value = "initial_value"
+    job_manager.upsert_setting(job_key, setting, initial_value)
+    assert job_manager.get_setting_from_running_job("test_name", "my_setting") == "initial_value"
+
+    setting = "my_setting_int"
+    initial_value = 1
+    job_manager.upsert_setting(job_key, setting, initial_value)
+    assert job_manager.get_setting_from_running_job("test_name", "my_setting_int") == 1
+
+    # turn off
+    job_manager.set_not_running(job_key)
+    with pytest.raises(JobNotRunningError):
+        job_manager.get_setting_from_running_job("test_name", "my_setting_int")

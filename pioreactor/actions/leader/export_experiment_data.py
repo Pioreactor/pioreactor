@@ -123,8 +123,8 @@ def export_experiment_data(
     experiments: list[str],
     dataset_names: list[str],
     output: str,
-    start_time: str | None,
-    end_time: str | None,
+    start_time: str | None = None,
+    end_time: str | None = None,
     partition_by_unit: bool = False,
     partition_by_experiment: bool = True,
 ) -> None:

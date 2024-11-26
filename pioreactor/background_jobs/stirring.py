@@ -19,7 +19,6 @@ from pioreactor import hardware
 from pioreactor import structs
 from pioreactor.background_jobs.base import BackgroundJobWithDodging
 from pioreactor.config import config
-from pioreactor.pubsub import subscribe
 from pioreactor.utils import clamp
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
@@ -349,30 +348,22 @@ class Stirrer(BackgroundJobWithDodging):
         This will determine when the next od reading occurs (if possible), and
         wait until it completes before kicking stirring.
         """
-        first_od_obs_time_msg = subscribe(
-            f"pioreactor/{self.unit}/{self.experiment}/od_reading/first_od_obs_time",
-            timeout=3,
-        )
-
-        if first_od_obs_time_msg is not None and first_od_obs_time_msg.payload:
-            first_od_obs_time = float(first_od_obs_time_msg.payload)
-        else:
+        if not is_pio_job_running("od_reading"):
             self.kick_stirring()
-            return
 
-        interval_msg = subscribe(f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval", timeout=3)
-
-        if interval_msg is not None and interval_msg.payload:
-            interval = float(interval_msg.payload)
-        else:
+        try:
+            first_od_obs_time = float(
+                self.job_manager_client.get_setting_from_running_job("od_reading", "first_od_obs_time")
+            )
+            interval = float(self.job_manager_client.get_setting_from_running_job("od_reading", "interval"))
+            seconds_to_next_reading = interval - (time() - first_od_obs_time) % interval
+            sleep(
+                seconds_to_next_reading + 2
+            )  # add an additional 2 seconds to make sure we wait long enough for OD reading to complete.
+        except exc.JobNotRunningError:
+            pass
+        finally:
             self.kick_stirring()
-            return
-
-        seconds_to_next_reading = interval - (time() - first_od_obs_time) % interval
-        sleep(
-            seconds_to_next_reading + 2
-        )  # add an additional 2 seconds to make sure we wait long enough for OD reading to complete.
-        self.kick_stirring()
         return
 
     def poll(self, poll_for_seconds: float) -> Optional[structs.MeasuredRPM]:

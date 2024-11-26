@@ -23,7 +23,6 @@ from pioreactor.logging import create_logger
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import QOS
-from pioreactor.pubsub import subscribe
 from pioreactor.utils import append_signal_handlers
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import JobManager
@@ -280,6 +279,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
         )
 
         self._check_for_duplicate_activity()
+
+        self.job_manager_client = JobManager()
         self._job_id = self._add_to_job_manager()
 
         # if we no-op in the _check_for_duplicate_activity, we don't want to fire the LWT, so we delay subclient until after.
@@ -660,8 +661,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             qos=QOS.EXACTLY_ONCE,
         )
 
-        with JobManager() as jm:
-            jm.upsert_setting(self._job_id, setting_name, value)
+        self.job_manager_client.upsert_setting(self._job_id, setting_name, value)
 
     def _set_up_exit_protocol(self) -> None:
         # here, we set up how jobs should disconnect and exit.
@@ -790,21 +790,19 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def _remove_from_job_manager(self) -> None:
         # TODO what happens if the job_id isn't found?
         if hasattr(self, "_job_id"):
-            with JobManager() as jm:
-                jm.set_not_running(self._job_id)
+            self.job_manager_client.set_not_running(self._job_id)
 
     def _add_to_job_manager(self) -> int:
         # this registration use to be in post_init, and I feel like it was there for a good reason...
-        with JobManager() as jm:
-            return jm.register_and_set_running(
-                self.unit,
-                self.experiment,
-                self.job_name,
-                self._job_source,
-                getpid(),
-                leader_hostname,
-                self._IS_LONG_RUNNING,
-            )
+        return self.job_manager_client.register_and_set_running(
+            self.unit,
+            self.experiment,
+            self.job_name,
+            self._job_source,
+            getpid(),
+            leader_hostname,
+            self._IS_LONG_RUNNING,
+        )
 
     def _disconnect_from_loggers(self) -> None:
         # clean up logger handlers
@@ -821,6 +819,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def _clean_up_resources(self) -> None:
         self._remove_from_job_manager()
+        self.job_manager_client.close()
         # Explicitly cleanup MQTT resources...
         self._disconnect_from_mqtt_clients()
         self._disconnect_from_loggers()
@@ -903,15 +902,14 @@ class _BackgroundJob(metaclass=PostInitCaller):
         From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
         Use "persist" to keep it from clearing.
         """
-        with JobManager() as jm:
-            for setting, metadata_on_attr in self.published_settings.items():
-                if not metadata_on_attr.get("persist", False):
-                    self.publish(
-                        f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting}",
-                        None,
-                        retain=True,
-                    )
-                    jm.upsert_setting(self._job_id, setting, None)
+        for setting, metadata_on_attr in self.published_settings.items():
+            if not metadata_on_attr.get("persist", False):
+                self.publish(
+                    f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting}",
+                    None,
+                    retain=True,
+                )
+                self.job_manager_client.upsert_setting(self._job_id, setting, None)
 
     def _check_for_duplicate_activity(self) -> None:
         if is_pio_job_running(self.job_name) and not is_testing_env():
@@ -1025,18 +1023,9 @@ class BackgroundJobWithDodging(_BackgroundJob):
     def __init__(self, *args, source="app", **kwargs) -> None:
         super().__init__(*args, source=source, **kwargs)  # type: ignore
         self.add_to_published_settings("enable_dodging_od", {"datatype": "boolean", "settable": True})
-        self.set_enable_dodging_od(self.get_from_config("enable_dodging_od", cast=bool, fallback="True"))
-
-    def get_from_config(self, key: str, cast=None, **get_kwargs):
-        section = f"{self.job_name}.config"
-        if cast == float:
-            return config.getfloat(section, key, **get_kwargs)
-        elif cast == bool:
-            return config.getboolean(section, key, **get_kwargs)
-        elif cast == int:
-            return config.getint(section, key, **get_kwargs)
-        else:
-            return config.get(section, key, **get_kwargs)
+        self.set_enable_dodging_od(
+            config.getboolean(f"{self.job_name}.config", "enable_dodging_od", fallback="True")
+        )
 
     def action_to_do_before_od_reading(self) -> None:
         raise NotImplementedError()
@@ -1092,8 +1081,8 @@ class BackgroundJobWithDodging(_BackgroundJob):
         except AttributeError:
             pass
 
-        post_delay = self.get_from_config("post_delay_duration", cast=float, fallback=1.0)
-        pre_delay = self.get_from_config("pre_delay_duration", cast=float, fallback=1.5)
+        post_delay = config.getfloat(f"{self.job_name}.config", "post_delay_duration", fallback=1.0)
+        pre_delay = config.getfloat(f"{self.job_name}.config", "pre_delay_duration", fallback=1.5)
 
         if post_delay < 0.25:
             self.logger.warning("For optimal OD readings, keep `post_delay_duration` more than 0.25 seconds.")
@@ -1114,19 +1103,10 @@ class BackgroundJobWithDodging(_BackgroundJob):
         # this could fail in the following way:
         # in the same experiment, the od_reading fails catastrophically so that the ADC attributes are never
         # cleared. Later, this job starts, and it will pick up the _old_ ADC attributes.
-        ads_start_time_msg = subscribe(
-            f"pioreactor/{self.unit}/{self.experiment}/od_reading/first_od_obs_time"
+        ads_start_time = float(
+            self.job_manager_client.get_setting_from_running_job("od_reading", "first_od_obs_time")
         )
-        if ads_start_time_msg and ads_start_time_msg.payload:
-            ads_start_time = float(ads_start_time_msg.payload)
-        else:
-            return
-
-        ads_interval_msg = subscribe(f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval")
-        if ads_interval_msg and ads_interval_msg.payload:
-            ads_interval = float(ads_interval_msg.payload)
-        else:
-            return
+        ads_interval = float(self.job_manager_client.get_setting_from_running_job("od_reading", "interval"))
 
         # get interval, and confirm that the requirements are possible: post_delay + pre_delay <= ADS interval - (od reading duration)
         if not (ads_interval - self.OD_READING_DURATION > (post_delay + pre_delay)):
