@@ -1077,6 +1077,17 @@ class BackgroundJobWithDodging(_BackgroundJob):
         # action_to_do_before_od_reading references things in the subclasses __init__, it will
         # fail.
         self.logger.debug("OD reading data is found in MQTT. Dodging!")
+        sleep(3)
+
+        def sneak_in(ads_interval, post_delay, pre_delay) -> None:
+            if self.state != self.READY:
+                return
+
+            self.is_after_period = True
+            self.action_to_do_after_od_reading()
+            sleep(ads_interval - self.OD_READING_DURATION - (post_delay + pre_delay))
+            self.is_after_period = False
+            self.action_to_do_before_od_reading()
 
         try:
             self.action_to_do_before_od_reading()
@@ -1097,19 +1108,6 @@ class BackgroundJobWithDodging(_BackgroundJob):
         if pre_delay < 0.25:
             self.logger.warning("For optimal OD readings, keep `pre_delay_duration` more than 0.25 seconds.")
 
-        def sneak_in(ads_interval, post_delay, pre_delay) -> None:
-            if self.state != self.READY:
-                return
-
-            self.is_after_period = True
-            self.action_to_do_after_od_reading()
-            sleep(ads_interval - self.OD_READING_DURATION - (post_delay + pre_delay))
-            self.is_after_period = False
-            self.action_to_do_before_od_reading()
-
-        # this could fail in the following way:
-        # in the same experiment, the od_reading fails catastrophically so that the ADC attributes are never
-        # cleared. Later, this job starts, and it will pick up the _old_ ADC attributes.
         with JobManager() as jm:
             ads_start_time = float(jm.get_setting_from_running_job("od_reading", "first_od_obs_time"))
             ads_interval = float(jm.get_setting_from_running_job("od_reading", "interval"))
