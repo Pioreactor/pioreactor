@@ -370,10 +370,10 @@ def test_cleans_up_mqtt() -> None:
 
 
 def test_dodging() -> None:
-    config["just_pause"] = {}
-    config["just_pause"]["post_delay_duration"] = "0.75"
-    config["just_pause"]["pre_delay_duration"] = "0.25"
-    config["just_pause"]["enable_dodging_od"] = "1"
+    config["just_pause.config"] = {}
+    config["just_pause.config"]["post_delay_duration"] = "0.75"
+    config["just_pause.config"]["pre_delay_duration"] = "0.25"
+    config["just_pause.config"]["enable_dodging_od"] = "1"
 
     def post_cb(od_job, batched_readings, *args):
         od_job.logger.notice(f"Done OD Reading at {time.time()}")
@@ -417,10 +417,10 @@ def test_dodging() -> None:
 
 
 def test_dodging_when_od_reading_stops_first() -> None:
-    config["just_pause"] = {}
-    config["just_pause"]["post_delay_duration"] = "0.75"
-    config["just_pause"]["pre_delay_duration"] = "0.25"
-    config["just_pause"]["enable_dodging_od"] = "1"
+    config["just_pause.config"] = {}
+    config["just_pause.config"]["post_delay_duration"] = "0.75"
+    config["just_pause.config"]["pre_delay_duration"] = "0.25"
+    config["just_pause.config"]["enable_dodging_od"] = "1"
 
     class JustPause(BackgroundJobWithDodging):
         job_name = "just_pause"
@@ -457,10 +457,11 @@ def test_dodging_when_od_reading_stops_first() -> None:
 
 def test_disabled_dodging() -> None:
     exp = "test_disabled_dodging"
-    config["just_pause"] = {}
-    config["just_pause"]["post_delay_duration"] = "0.2"
-    config["just_pause"]["pre_delay_duration"] = "0.1"
-    config["just_pause"]["enable_dodging_od"] = "1"
+
+    config["just_pause.config"] = {}
+    config["just_pause.config"]["post_delay_duration"] = "0.2"
+    config["just_pause.config"]["pre_delay_duration"] = "0.1"
+    config["just_pause.config"]["enable_dodging_od"] = "1"
 
     class JustPause(BackgroundJobWithDodging):
         job_name = "just_pause"
@@ -499,6 +500,33 @@ def test_disabled_dodging() -> None:
 
     od.clean_up()
     jp.clean_up()
+
+
+def test_disabled_dodging_will_start_action_to_do_after_od_reading() -> None:
+    exp = "test_disabled_dodging_will_start_action_to_do_after_od_reading"
+
+    config["just_pause.config"] = {}
+    config["just_pause.config"]["post_delay_duration"] = "0.2"
+    config["just_pause.config"]["pre_delay_duration"] = "0.1"
+    config["just_pause.config"]["enable_dodging_od"] = "0"
+
+    class JustPause(BackgroundJobWithDodging):
+        job_name = "just_pause"
+
+        def __init__(self) -> None:
+            super().__init__(unit=get_unit_name(), experiment=exp)
+
+        def action_to_do_before_od_reading(self) -> None:
+            self.logger.notice("NOPE")
+
+        def action_to_do_after_od_reading(self) -> None:
+            self.logger.notice("OK")
+
+    with collect_all_logs_of_level("NOTICE", unit=get_unit_name(), experiment=exp) as bucket:
+        with JustPause():
+            time.sleep(5)
+        assert any("OK" in b["message"] for b in bucket)
+        assert all("NOPE" not in b["message"] for b in bucket)
 
 
 def test_subclasses_provide_a_unique_job_name_for_contrib():

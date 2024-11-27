@@ -45,11 +45,13 @@ def change_leds_intensities_temporarily(
         with local_intermittent_storage("leds") as cache:
             old_state = {c: cache.get(c, 0.0) for c in desired_state.keys()}
 
-        led_intensity(desired_state, **kwargs)
+        if not led_intensity(desired_state, **kwargs):
+            raise ValueError("Unable to update LED.")
 
         yield
     finally:
-        led_intensity(old_state, **kwargs)
+        if not led_intensity(old_state, **kwargs):
+            raise ValueError("Unable to update LED.")
 
 
 @contextmanager

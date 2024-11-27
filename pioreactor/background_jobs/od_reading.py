@@ -1,43 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Continuously take an optical density reading (more accurately: a turbidity reading, which is a proxy for OD).
-Topics published to
-
-    pioreactor/<unit>/<experiment>/od_reading/od1
-
-Ex:
-
-    pioreactor/pioreactor1/trial15/od_reading/od1
-
-a json blob like:
-
-    {
-        "voltage": 0.10030799136835057,
-        "timestamp": "2021-06-06T15:08:12.080594",
-        "angle": "90,135"
-    }
-
-
-All signals published together to
-
-    pioreactor/<unit>/<experiment>/od_reading/ods
-
-a serialized json blob like:
-
-    {
-      "ods": {
-        "2": {
-          "od": 0.1008556663221068,
-          "angle": "135,45"
-        },
-        "1": {
-          "od": 0.10030799136835057,
-          "angle": "90,135"
-        }
-      },
-      "timestamp": "2021-06-06T15:08:12.081153"
-    }
-
 
 Internally, the ODReader runs a function every `interval` seconds. The function
  1. turns off all non-IR LEDs
@@ -626,7 +589,7 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
             self.led_output_ema.update(ir_output_reading / self.INITIAL)
         else:
             self.logger.warning(
-                f"The reference PD is very noisy, std={latest_std:.2g}. Is the PD in channel {self.channel} correctly positioned? Is the IR LED behaving as expected?"
+                f"The reference PD is very noisy, std={latest_std:.2g}. Is the PD in channel {self.channel} positioned correctly? Is the IR LED behaving as expected?"
             )
             self.led_output_emstd.clear()  # reset it for i) reduce warnings, ii) if the user purposely changed the IR intensity, this is an approx of that
 
@@ -764,10 +727,6 @@ class CachedCalibrationTransformer(CalibrationTransformer):
                         return min_OD
                     elif observed_voltage > max_voltage:
                         return max_OD
-                    else:
-                        raise ValueError(
-                            f"Can't compute calibrated data from curve {poly} and point {observed_voltage}"
-                        )
 
                 # more than 0 possibilities...
                 # find the closest root to our OD domain (or in the OD domain)

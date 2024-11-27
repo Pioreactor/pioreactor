@@ -1023,6 +1023,12 @@ class BackgroundJobWithDodging(_BackgroundJob):
 
     def __init__(self, *args, source="app", **kwargs) -> None:
         super().__init__(*args, source=source, **kwargs)  # type: ignore
+
+        if not config.has_section(f"{self.job_name}.config"):
+            raise ValueError(
+                f"Required section '{self.job_name}.config' does not exist in the configuration."
+            )
+
         self.add_to_published_settings("enable_dodging_od", {"datatype": "boolean", "settable": True})
         self.set_enable_dodging_od(
             config.getboolean(f"{self.job_name}.config", "enable_dodging_od", fallback="True")
