@@ -20,6 +20,7 @@ from typing import Sequence
 from typing import TYPE_CHECKING
 
 from diskcache import Cache  # type: ignore
+from msgspec import Struct
 from msgspec.json import encode as dumps
 
 from pioreactor import structs
@@ -594,6 +595,8 @@ class JobManager:
             """
             if isinstance(value, dict):
                 value = dumps(value).decode()  # back to string, not bytes
+            elif isinstance(value, Struct):
+                value = str(value)  # complex type
 
             self.cursor.execute(update_query, {"setting": setting, "value": value, "job_id": job_id})
 

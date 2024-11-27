@@ -780,7 +780,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.debug("Error in on_disconnected:")
             self.logger.debug(e, exc_info=True)
 
-        self._clear_caches()
         self.state = self.DISCONNECTED
         self._log_state(self.state)
 
@@ -818,6 +817,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.pub_client.disconnect()
 
     def _clean_up_resources(self) -> None:
+        self._clear_caches()
         self._remove_from_job_manager()
         self.job_manager_client.close()
         # Explicitly cleanup MQTT resources...
