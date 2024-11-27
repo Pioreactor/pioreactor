@@ -2,13 +2,6 @@
 
 #### Highlights
  - new export dataset API. The datasets on the Export page are now provided via YAML files on the leader's disk. This makes it easy to add new datasets to that UI to be exported. These YAML files can be added to `~/.pioreactor/exportable_datasets`.
- - The stirring job now has opt-in "dodging" of OD readings. This means the stirring will stop when an OD reading takes place. This replaces the old, unreliable, plugin that was on our forums. Add the following to your `[stirring.config]` section:
-   ```
-   post_delay_duration=0.25
-   pre_delay_duration=2.0
-   enable_dodging_od=False
-   ```
-   To enable dodging, change `enable_dodging_od` under `[stirring.config]` to `True` (or `1`).
 
 #### Enhancements
  - better error handling for failed OD blanks.

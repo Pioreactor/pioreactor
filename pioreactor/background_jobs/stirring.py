@@ -17,11 +17,11 @@ from pioreactor import error_codes
 from pioreactor import exc
 from pioreactor import hardware
 from pioreactor import structs
-from pioreactor.background_jobs.base import BackgroundJobWithDodging
+from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.config import config
+from pioreactor.pubsub import subscribe
 from pioreactor.utils import clamp
 from pioreactor.utils import is_pio_job_running
-from pioreactor.utils import JobManager
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.gpio_helpers import set_gpio_availability
 from pioreactor.utils.pwm import PWM
@@ -71,8 +71,8 @@ class RpmCalculator:
             )
             self._edge_callback = lgpio.callback(self._handle, hardware.HALL_SENSOR_PIN, lgpio.FALLING_EDGE)
         else:
-            self._handle = MockHandle()
             self._edge_callback = MockCallback()
+            self._handle = MockHandle()
 
         self.turn_off_collection()
 
@@ -138,12 +138,17 @@ class RpmFromFrequency(RpmCalculator):
             delta = obs_time - _start_time
             self._running_sum += delta
             self._running_count += 1
+            self._running_min = min(self._running_min, delta)
+            self._running_max = max(self._running_max, delta)
+
         self._start_time = obs_time
 
     def clear_aggregates(self) -> None:
         self._running_sum = 0.0
         self._running_count = 0
         self._start_time = None
+        self._running_min = 100
+        self._running_max = -100
 
     def estimate(self, seconds_to_observe: float) -> float:
         self.clear_aggregates()
@@ -151,13 +156,16 @@ class RpmFromFrequency(RpmCalculator):
         self.sleep_for(seconds_to_observe)
         self.turn_off_collection()
 
+        # self._running_max  / self._running_min # in a high vortex, noisy case, these aren't more than 25% apart.
+        # at 3200 RPM, we still aren't seeing much difference here. I'm pretty confident we don't see skipping.
+
         if self._running_sum == 0.0:
             return 0.0
         else:
             return round(self._running_count * 60 / self._running_sum, 1)
 
 
-class Stirrer(BackgroundJobWithDodging):
+class Stirrer(BackgroundJob):
     """
     Parameters
     ------------
@@ -193,9 +201,8 @@ class Stirrer(BackgroundJobWithDodging):
         "measured_rpm": {"datatype": "MeasuredRPM", "settable": False, "unit": "RPM"},
         "duty_cycle": {"datatype": "float", "settable": True, "unit": "%"},
     }
-
-    duty_cycle: float = 0
     _estimate_duty_cycle: float = config.getfloat("stirring.config", "initial_duty_cycle", fallback=30)
+    duty_cycle: float = 0
     _measured_rpm: Optional[float] = None
 
     def __init__(
@@ -266,20 +273,11 @@ class Stirrer(BackgroundJobWithDodging):
         # set up thread to periodically check the rpm
         self.rpm_check_repeated_thread = RepeatedTimer(
             config.getfloat("stirring.config", "duration_between_updates_seconds", fallback=23.0),
-            self.poll_and_update_dc if not self.enable_dodging_od else lambda: None,  # type: ignore
+            self.poll_and_update_dc,
             job_name=self.job_name,
             run_immediately=True,
             run_after=6,
         )
-
-    def action_to_do_before_od_reading(self):
-        self.set_duty_cycle(0.0)
-
-    def action_to_do_after_od_reading(self):
-        self.duty_cycle = self._estimate_duty_cycle
-        self.start_stirring()
-        sleep(1)
-        self.poll_and_update_dc()
 
     def initialize_rpm_to_dc_lookup(self) -> Callable:
         if self.rpm_calculator is None:
@@ -309,7 +307,6 @@ class Stirrer(BackgroundJobWithDodging):
                 return lambda rpm: self._estimate_duty_cycle
 
     def on_disconnected(self) -> None:
-        super().on_disconnected()
         with suppress(AttributeError):
             self.rpm_check_repeated_thread.cancel()
         with suppress(AttributeError):
@@ -342,22 +339,30 @@ class Stirrer(BackgroundJobWithDodging):
         This will determine when the next od reading occurs (if possible), and
         wait until it completes before kicking stirring.
         """
-        if not is_pio_job_running("od_reading"):
-            self.kick_stirring()
+        first_od_obs_time_msg = subscribe(
+            f"pioreactor/{self.unit}/{self.experiment}/od_reading/first_od_obs_time",
+            timeout=3,
+        )
 
-        try:
-            with JobManager() as jm:
-                first_od_obs_time = float(jm.get_setting_from_running_job("od_reading", "first_od_obs_time"))
-                interval = float(jm.get_setting_from_running_job("od_reading", "interval"))
-
-            seconds_to_next_reading = interval - (time() - first_od_obs_time) % interval
-            sleep(
-                seconds_to_next_reading + 2
-            )  # add an additional 2 seconds to make sure we wait long enough for OD reading to complete.
-        except exc.JobNotRunningError:
-            pass
-        finally:
+        if first_od_obs_time_msg is not None and first_od_obs_time_msg.payload:
+            first_od_obs_time = float(first_od_obs_time_msg.payload)
+        else:
             self.kick_stirring()
+            return
+
+        interval_msg = subscribe(f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval", timeout=3)
+
+        if interval_msg is not None and interval_msg.payload:
+            interval = float(interval_msg.payload)
+        else:
+            self.kick_stirring()
+            return
+
+        seconds_to_next_reading = interval - (time() - first_od_obs_time) % interval
+        sleep(
+            seconds_to_next_reading + 2
+        )  # add an additional 2 seconds to make sure we wait long enough for OD reading to complete.
+        self.kick_stirring()
         return
 
     def poll(self, poll_for_seconds: float) -> Optional[structs.MeasuredRPM]:
@@ -411,15 +416,13 @@ class Stirrer(BackgroundJobWithDodging):
         self.set_duty_cycle(0.0)
 
     def on_sleeping_to_ready(self) -> None:
-        super().on_sleeping_to_ready()
         self.duty_cycle = self._estimate_duty_cycle
         self.rpm_check_repeated_thread.unpause()
-        if not self.enable_dodging_od:
-            # if we aren't dodging OD readings, we can start stirring right away.
-            self.start_stirring()
+        self.start_stirring()
 
     def set_duty_cycle(self, value: float) -> None:
         with self.duty_cycle_lock:
+            self._previous_duty_cycle = self.duty_cycle
             self.duty_cycle = clamp(0.0, round(value, 5), 100.0)
             self.pwm.change_duty_cycle(self.duty_cycle)
 
@@ -455,9 +458,7 @@ class Stirrer(BackgroundJobWithDodging):
 
         """
 
-        if (
-            self.rpm_calculator is None or self.target_rpm is None or self.enable_dodging_od
-        ):  # or is_testing_env():
+        if self.rpm_calculator is None or self.target_rpm is None:  # or is_testing_env():
             # can't block if we aren't recording the RPM
             return False
 
