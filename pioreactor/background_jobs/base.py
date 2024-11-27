@@ -23,6 +23,7 @@ from pioreactor.logging import create_logger
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import QOS
+from pioreactor.pubsub import subscribe
 from pioreactor.utils import append_signal_handlers
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import JobManager
@@ -1031,7 +1032,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
 
         self.add_to_published_settings("enable_dodging_od", {"datatype": "boolean", "settable": True})
         self.set_enable_dodging_od(
-            config.getboolean(f"{self.job_name}.config", "enable_dodging_od", fallback="True")
+            config.get(f"{self.job_name}.config", "enable_dodging_od", fallback="True")
         )
 
     def action_to_do_before_od_reading(self) -> None:
@@ -1077,17 +1078,6 @@ class BackgroundJobWithDodging(_BackgroundJob):
         # action_to_do_before_od_reading references things in the subclasses __init__, it will
         # fail.
         self.logger.debug("OD reading data is found in MQTT. Dodging!")
-        sleep(3)
-
-        def sneak_in(ads_interval, post_delay, pre_delay) -> None:
-            if self.state != self.READY:
-                return
-
-            self.is_after_period = True
-            self.action_to_do_after_od_reading()
-            sleep(ads_interval - self.OD_READING_DURATION - (post_delay + pre_delay))
-            self.is_after_period = False
-            self.action_to_do_before_od_reading()
 
         try:
             self.action_to_do_before_od_reading()
@@ -1099,8 +1089,8 @@ class BackgroundJobWithDodging(_BackgroundJob):
         except AttributeError:
             pass
 
-        post_delay = config.getfloat(f"{self.job_name}.config", "post_delay_duration", fallback=1.0)
-        pre_delay = config.getfloat(f"{self.job_name}.config", "pre_delay_duration", fallback=1.5)
+        post_delay = config.get(f"{self.job_name}.config", "post_delay_duration", fallback=1.0)
+        pre_delay = config.get(f"{self.job_name}.config", "pre_delay_duration", fallback=1.5)
 
         if post_delay < 0.25:
             self.logger.warning("For optimal OD readings, keep `post_delay_duration` more than 0.25 seconds.")
@@ -1108,9 +1098,32 @@ class BackgroundJobWithDodging(_BackgroundJob):
         if pre_delay < 0.25:
             self.logger.warning("For optimal OD readings, keep `pre_delay_duration` more than 0.25 seconds.")
 
-        with JobManager() as jm:
-            ads_start_time = float(jm.get_setting_from_running_job("od_reading", "first_od_obs_time"))
-            ads_interval = float(jm.get_setting_from_running_job("od_reading", "interval"))
+        def sneak_in(ads_interval, post_delay, pre_delay) -> None:
+            if self.state != self.READY:
+                return
+
+            self.is_after_period = True
+            self.action_to_do_after_od_reading()
+            sleep(ads_interval - self.OD_READING_DURATION - (post_delay + pre_delay))
+            self.is_after_period = False
+            self.action_to_do_before_od_reading()
+
+        # this could fail in the following way:
+        # in the same experiment, the od_reading fails catastrophically so that the ADC attributes are never
+        # cleared. Later, this job starts, and it will pick up the _old_ ADC attributes.
+        ads_start_time_msg = subscribe(
+            f"pioreactor/{self.unit}/{self.experiment}/od_reading/first_od_obs_time"
+        )
+        if ads_start_time_msg and ads_start_time_msg.payload:
+            ads_start_time = float(ads_start_time_msg.payload)
+        else:
+            return
+
+        ads_interval_msg = subscribe(f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval")
+        if ads_interval_msg and ads_interval_msg.payload:
+            ads_interval = float(ads_interval_msg.payload)
+        else:
+            return
 
         # get interval, and confirm that the requirements are possible: post_delay + pre_delay <= ADS interval - (od reading duration)
         if not (ads_interval - self.OD_READING_DURATION > (post_delay + pre_delay)):
