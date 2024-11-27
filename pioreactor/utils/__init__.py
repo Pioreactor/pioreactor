@@ -511,7 +511,7 @@ class ShellKill:
 class JobManager:
     def __init__(self) -> None:
         db_path = f"{tempfile.gettempdir()}/local_intermittent_pioreactor_metadata.sqlite"
-        self.conn = sqlite3.connect(db_path, check_same_thread=False)  # chack
+        self.conn = sqlite3.connect(db_path)
         self.cursor = self.conn.cursor()
         self._create_tables()
 

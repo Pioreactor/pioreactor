@@ -280,7 +280,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         self._check_for_duplicate_activity()
 
-        self.job_manager_client = JobManager()
         self._job_id = self._add_to_job_manager()
 
         # if we no-op in the _check_for_duplicate_activity, we don't want to fire the LWT, so we delay subclient until after.
@@ -660,8 +659,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
             retain=True,
             qos=QOS.EXACTLY_ONCE,
         )
-
-        self.job_manager_client.upsert_setting(self._job_id, setting_name, value)
+        with JobManager() as jm:
+            jm.upsert_setting(self._job_id, setting_name, value)
 
     def _set_up_exit_protocol(self) -> None:
         # here, we set up how jobs should disconnect and exit.
@@ -789,19 +788,21 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def _remove_from_job_manager(self) -> None:
         # TODO what happens if the job_id isn't found?
         if hasattr(self, "_job_id"):
-            self.job_manager_client.set_not_running(self._job_id)
+            with JobManager() as jm:
+                jm.set_not_running(self._job_id)
 
     def _add_to_job_manager(self) -> int:
         # this registration use to be in post_init, and I feel like it was there for a good reason...
-        return self.job_manager_client.register_and_set_running(
-            self.unit,
-            self.experiment,
-            self.job_name,
-            self._job_source,
-            getpid(),
-            leader_hostname,
-            self._IS_LONG_RUNNING,
-        )
+        with JobManager() as jm:
+            return jm.register_and_set_running(
+                self.unit,
+                self.experiment,
+                self.job_name,
+                self._job_source,
+                getpid(),
+                leader_hostname,
+                self._IS_LONG_RUNNING,
+            )
 
     def _disconnect_from_loggers(self) -> None:
         # clean up logger handlers
@@ -819,7 +820,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def _clean_up_resources(self) -> None:
         self._clear_caches()
         self._remove_from_job_manager()
-        self.job_manager_client.close()
         # Explicitly cleanup MQTT resources...
         self._disconnect_from_mqtt_clients()
         self._disconnect_from_loggers()
@@ -902,14 +902,15 @@ class _BackgroundJob(metaclass=PostInitCaller):
         From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
         Use "persist" to keep it from clearing.
         """
-        for setting, metadata_on_attr in self.published_settings.items():
-            if not metadata_on_attr.get("persist", False):
-                self.publish(
-                    f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting}",
-                    None,
-                    retain=True,
-                )
-                self.job_manager_client.upsert_setting(self._job_id, setting, None)
+        with JobManager() as jm:
+            for setting, metadata_on_attr in self.published_settings.items():
+                if not metadata_on_attr.get("persist", False):
+                    self.publish(
+                        f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting}",
+                        None,
+                        retain=True,
+                    )
+                    jm.upsert_setting(self._job_id, setting, None)
 
     def _check_for_duplicate_activity(self) -> None:
         if is_pio_job_running(self.job_name) and not is_testing_env():
@@ -1103,10 +1104,9 @@ class BackgroundJobWithDodging(_BackgroundJob):
         # this could fail in the following way:
         # in the same experiment, the od_reading fails catastrophically so that the ADC attributes are never
         # cleared. Later, this job starts, and it will pick up the _old_ ADC attributes.
-        ads_start_time = float(
-            self.job_manager_client.get_setting_from_running_job("od_reading", "first_od_obs_time")
-        )
-        ads_interval = float(self.job_manager_client.get_setting_from_running_job("od_reading", "interval"))
+        with JobManager() as jm:
+            ads_start_time = float(jm.get_setting_from_running_job("od_reading", "first_od_obs_time"))
+            ads_interval = float(jm.get_setting_from_running_job("od_reading", "interval"))
 
         # get interval, and confirm that the requirements are possible: post_delay + pre_delay <= ADS interval - (od reading duration)
         if not (ads_interval - self.OD_READING_DURATION > (post_delay + pre_delay)):

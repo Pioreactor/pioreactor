@@ -21,6 +21,7 @@ from pioreactor.background_jobs.base import BackgroundJobWithDodging
 from pioreactor.config import config
 from pioreactor.utils import clamp
 from pioreactor.utils import is_pio_job_running
+from pioreactor.utils import JobManager
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.gpio_helpers import set_gpio_availability
 from pioreactor.utils.pwm import PWM
@@ -352,10 +353,9 @@ class Stirrer(BackgroundJobWithDodging):
             self.kick_stirring()
 
         try:
-            first_od_obs_time = float(
-                self.job_manager_client.get_setting_from_running_job("od_reading", "first_od_obs_time")
-            )
-            interval = float(self.job_manager_client.get_setting_from_running_job("od_reading", "interval"))
+            with JobManager() as jm:
+                first_od_obs_time = float(jm.get_setting_from_running_job("od_reading", "first_od_obs_time"))
+                interval = float(jm.get_setting_from_running_job("od_reading", "interval"))
             seconds_to_next_reading = interval - (time() - first_od_obs_time) % interval
             sleep(
                 seconds_to_next_reading + 2
