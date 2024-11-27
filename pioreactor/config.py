@@ -195,20 +195,11 @@ def get_mqtt_address() -> str:
 def temporary_config_change(config: ConfigParserMod, section: str, parameter: str, new_value: str):
     """
     A context manager to temporarily change a value in a ConfigParser object.
-
-    Args:
-        config (ConfigParser): The ConfigParser instance.
-        section (str): The section in the ConfigParser to modify.
-        parameter (str): The parameter in the section to modify.
-        new_value (str): The temporary value for the parameter.
-
-    Yields:
-        None: The context where the parameter is temporarily modified.
     """
     if not config.has_section(section):
-        raise ValueError(f"Section '{section}' does not exist in the configuration.")
+        return
     if not config.has_option(section, parameter):
-        raise ValueError(f"Parameter '{parameter}' does not exist in section '{section}'.")
+        return
 
     # Save the original value
     original_value = config.get(section, parameter)

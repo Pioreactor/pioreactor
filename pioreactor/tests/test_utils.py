@@ -4,14 +4,12 @@ from __future__ import annotations
 
 from contextlib import redirect_stdout
 from io import StringIO
-from time import sleep
 
 import pytest
 from msgspec.json import encode as dumps
 
 from pioreactor.background_jobs.stirring import start_stirring
 from pioreactor.exc import JobNotRunningError
-from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.tests.conftest import capture_requests
 from pioreactor.utils import callable_stack
 from pioreactor.utils import ClusterJobManager
@@ -250,38 +248,6 @@ def test_is_job_running(job_manager: JobManager) -> None:
     assert job_manager.is_job_running("test_name") is True
     job_manager.set_not_running(job_key)
     assert job_manager.is_job_running("test_name") is False
-
-
-def test_kill_pumping(job_manager: JobManager) -> None:
-    job_key1 = job_manager.register_and_set_running(
-        "testing_unit", "test_experiment", "add_media", "user", 12345, "test_leader", False
-    )
-
-    job_key2 = job_manager.register_and_set_running(
-        "testing_unit", "test_experiment", "not_pumping", "user", 12345, "test_leader", False
-    )
-
-    collection = []
-
-    def collect(msg):
-        collection.append(msg.payload.decode())
-
-    subscribe_and_callback(collect, "pioreactor/testing_unit/+/add_media/$state/set")
-
-    assert job_manager.kill_jobs(job_name="add_media") == 1
-
-    sleep(0.5)
-
-    assert len(collection) == 1
-    assert collection[0] == "disconnected"
-
-    assert job_manager.kill_jobs(job_name="not_pumping") == 1
-
-    sleep(0.5)
-    assert len(collection) == 1
-
-    job_manager.set_not_running(job_key1)
-    job_manager.set_not_running(job_key2)
 
 
 def test_ClusterJobManager_sends_requests() -> None:

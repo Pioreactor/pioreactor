@@ -138,26 +138,18 @@ class RpmFromFrequency(RpmCalculator):
             delta = obs_time - _start_time
             self._running_sum += delta
             self._running_count += 1
-            self._running_min = min(self._running_min, delta)
-            self._running_max = max(self._running_max, delta)
-
         self._start_time = obs_time
 
     def clear_aggregates(self) -> None:
         self._running_sum = 0.0
         self._running_count = 0
         self._start_time = None
-        self._running_min = 100
-        self._running_max = -100
 
     def estimate(self, seconds_to_observe: float) -> float:
         self.clear_aggregates()
         self.turn_on_collection()
         self.sleep_for(seconds_to_observe)
         self.turn_off_collection()
-
-        # self._running_max  / self._running_min # in a high vortex, noisy case, these aren't more than 25% apart.
-        # at 3200 RPM, we still aren't seeing much difference here. I'm pretty confident we don't see skipping.
 
         if self._running_sum == 0.0:
             return 0.0
@@ -274,19 +266,20 @@ class Stirrer(BackgroundJobWithDodging):
         # set up thread to periodically check the rpm
         self.rpm_check_repeated_thread = RepeatedTimer(
             config.getfloat("stirring.config", "duration_between_updates_seconds", fallback=23.0),
-            self.poll_and_update_dc,
+            self.poll_and_update_dc if not self.enable_dodging_od else lambda: None,  # type: ignore
             job_name=self.job_name,
             run_immediately=True,
             run_after=6,
         )
 
     def action_to_do_before_od_reading(self):
-        self.on_ready_to_sleeping()
+        self.set_duty_cycle(0.0)
 
     def action_to_do_after_od_reading(self):
         self.duty_cycle = self._estimate_duty_cycle
-        self.rpm_check_repeated_thread.unpause()
         self.start_stirring()
+        sleep(1)
+        self.poll_and_update_dc()
 
     def initialize_rpm_to_dc_lookup(self) -> Callable:
         if self.rpm_calculator is None:
@@ -356,6 +349,7 @@ class Stirrer(BackgroundJobWithDodging):
             with JobManager() as jm:
                 first_od_obs_time = float(jm.get_setting_from_running_job("od_reading", "first_od_obs_time"))
                 interval = float(jm.get_setting_from_running_job("od_reading", "interval"))
+
             seconds_to_next_reading = interval - (time() - first_od_obs_time) % interval
             sleep(
                 seconds_to_next_reading + 2
@@ -461,7 +455,9 @@ class Stirrer(BackgroundJobWithDodging):
 
         """
 
-        if self.rpm_calculator is None or self.target_rpm is None:  # or is_testing_env():
+        if (
+            self.rpm_calculator is None or self.target_rpm is None or self.enable_dodging_od
+        ):  # or is_testing_env():
             # can't block if we aren't recording the RPM
             return False
 

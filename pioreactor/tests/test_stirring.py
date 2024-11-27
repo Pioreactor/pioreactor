@@ -8,6 +8,8 @@ from pioreactor.background_jobs.stirring import RpmCalculator
 from pioreactor.background_jobs.stirring import RpmFromFrequency
 from pioreactor.background_jobs.stirring import start_stirring
 from pioreactor.background_jobs.stirring import Stirrer
+from pioreactor.config import config
+from pioreactor.config import temporary_config_change
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
 from pioreactor.utils import local_persistant_storage
@@ -201,3 +203,17 @@ def test_block_until_rpm_is_close_will_exit() -> None:
         with catchtime() as delta:
             st.block_until_rpm_is_close_to_target(timeout=50)
         assert delta() < 7
+
+
+def test_dodging_od() -> None:
+    exp = "test_block_until_rpm_is_close_to_target_will_timeout"
+
+    rpm_calculator = MockRpmCalculator()
+    rpm_calculator.setup()
+    with temporary_config_change(config, "stirring.config", "enable_dodging_od", "true"):
+        with Stirrer(500, unit, exp, rpm_calculator=rpm_calculator) as st:  # type: ignore
+            st.start_stirring()
+
+            st.block_until_rpm_is_close_to_target()
+
+            pause(40)
