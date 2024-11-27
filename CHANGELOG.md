@@ -1,4 +1,5 @@
 ### Upcoming
+ - Fixed "circulate X" actions in the Manage All dialog in the UI.
  - better error handling for failed OD blanks.
  - better button state management in the UI.
  - improvements to correlation self-tests

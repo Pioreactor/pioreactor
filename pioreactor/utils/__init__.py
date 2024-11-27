@@ -198,7 +198,7 @@ class managed_lifecycle:
         try:
             # this only works on the main thread.
             append_signal_handler(signal.SIGTERM, self._exit)
-            append_signal_handler(signal.SIGINT, self._exit)
+            append_signal_handler(signal.SIGINT, [self._exit, lambda *args: signal.signal(signal.SIGINT, signal.SIG_IGN)]) # ignore future sigints so we clean up properly.
         except ValueError:
             pass
 
@@ -504,43 +504,7 @@ class ShellKill:
 
         return len(self.list_of_pids)
 
-
-class MQTTKill:
-    def __init__(self) -> None:
-        self.job_names_to_kill: list[str] = []
-
-    def append(self, name: str) -> None:
-        self.job_names_to_kill.append(name)
-
-    def kill_jobs(self) -> int:
-        count = 0
-        if len(self.job_names_to_kill) == 0:
-            return count
-
-        with create_client() as client:
-            for i, name in enumerate(self.job_names_to_kill):
-                count += 1
-                msg = client.publish(
-                    f"pioreactor/{whoami.get_unit_name()}/{whoami.UNIVERSAL_EXPERIMENT}/{name}/$state/set",
-                    "disconnected",
-                    qos=1,
-                )
-
-                if (i + 1) == len(self.job_names_to_kill):
-                    # last one
-                    msg.wait_for_publish(2)
-
-        return count
-
-
 class JobManager:
-    PUMPING_JOBS = (
-        "add_media",
-        "remove_waste",
-        "add_alt_media",
-        "circulate_media",
-        "circulate_alt_media",
-    )
 
     def __init__(self) -> None:
         db_path = f"{tempfile.gettempdir()}/local_intermittent_pioreactor_metadata.sqlite"
@@ -635,6 +599,9 @@ class JobManager:
         return
 
     def get_setting_from_running_job(self, job_name: str, setting: str) -> Any:
+        if not self.is_job_running(job_name):
+            raise JobNotRunningError(f"Job {job_name} is not running.")
+
         select_query = """
             SELECT value
                 FROM pio_job_published_settings s
@@ -645,7 +612,8 @@ class JobManager:
         if result is not None:
             return result[0]
         else:
-            raise JobNotRunningError(f"Job {job_name} is not running.")
+            # TODO: could also be that the setting was wrong...
+            raise NameError(f"Setting {setting} was not found.")
 
     def set_not_running(self, job_id: JobMetadataKey) -> None:
         update_query = "UPDATE pio_job_metadata SET is_running=0, ended_at=STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW') WHERE id=(?)"
@@ -689,18 +657,16 @@ class JobManager:
     def kill_jobs(self, all_jobs: bool = False, **query) -> int:
         # ex: kill_jobs(experiment="testing_exp") should end all jobs with experiment='testing_exp'
 
-        mqtt_kill = MQTTKill()
         shell_kill = ShellKill()
         count = 0
 
         for job, pid in self._get_jobs(all_jobs, **query):
             if job == "led_intensity":
                 # led_intensity doesn't register with the JobManager, probably should somehow. #502
-                pass
+                continue
             else:
                 shell_kill.append(pid)
 
-        count += mqtt_kill.kill_jobs()
         count += shell_kill.kill_jobs()
 
         return count
