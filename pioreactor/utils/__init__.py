@@ -197,8 +197,8 @@ class managed_lifecycle:
     def __enter__(self) -> managed_lifecycle:
         try:
             # this only works on the main thread.
-            append_signal_handler(signal.SIGTERM, self._exit)
-            append_signal_handler(
+            append_signal_handlers(signal.SIGTERM, [self._exit])
+            append_signal_handlers(
                 signal.SIGINT, [self._exit, lambda *args: signal.signal(signal.SIGINT, signal.SIG_IGN)]
             )  # ignore future sigints so we clean up properly.
         except ValueError:
