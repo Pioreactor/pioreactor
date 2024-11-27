@@ -198,7 +198,9 @@ class managed_lifecycle:
         try:
             # this only works on the main thread.
             append_signal_handler(signal.SIGTERM, self._exit)
-            append_signal_handler(signal.SIGINT, [self._exit, lambda *args: signal.signal(signal.SIGINT, signal.SIG_IGN)]) # ignore future sigints so we clean up properly.
+            append_signal_handler(
+                signal.SIGINT, [self._exit, lambda *args: signal.signal(signal.SIGINT, signal.SIG_IGN)]
+            )  # ignore future sigints so we clean up properly.
         except ValueError:
             pass
 
@@ -504,8 +506,8 @@ class ShellKill:
 
         return len(self.list_of_pids)
 
-class JobManager:
 
+class JobManager:
     def __init__(self) -> None:
         db_path = f"{tempfile.gettempdir()}/local_intermittent_pioreactor_metadata.sqlite"
         self.conn = sqlite3.connect(db_path)
