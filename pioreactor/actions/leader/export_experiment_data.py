@@ -3,6 +3,7 @@
 # See create_tables.sql for all tables
 from __future__ import annotations
 
+from base64 import b64decode
 from contextlib import closing
 from contextlib import ExitStack
 from datetime import datetime
@@ -12,7 +13,6 @@ from typing import Any
 import click
 from msgspec import DecodeError
 from msgspec import ValidationError
-from msgspec.json import decode as json_decode
 from msgspec.yaml import decode as yaml_decode
 
 from pioreactor.config import config
@@ -49,7 +49,7 @@ def load_exportable_datasets() -> dict[str, Dataset]:
 
 
 def decode_base64(string: str) -> str:
-    return json_decode(string)
+    return b64decode(string).decode("utf-8")
 
 
 def validate_dataset_information(dataset: Dataset, cursor) -> None:

@@ -56,6 +56,15 @@ def mock_load_exportable_datasets():
             default_order_by="timestamp",
             timestamp_columns=["timestamp"],
         ),
+        "test_base64": Dataset(
+            dataset_name="test_base64",
+            display_name="Test Table",
+            query="SELECT id, BASE64(data) as data FROM test_base64",
+            has_unit=False,
+            has_experiment=False,
+            description="",
+            default_order_by=None,
+        ),
     }
     with patch(
         "pioreactor.actions.leader.export_experiment_data.load_exportable_datasets",
@@ -109,6 +118,46 @@ def test_export_experiment_data(temp_zipfile, mock_load_exportable_datasets) -> 
             assert (
                 values[3][:4] == "2021"
             )  # can't compare exactly since it uses datetime(ts, 'locatime') in sqlite3, and the localtime will vary between CI servers.
+
+
+def test_export_experiment_data_with_base64_data(temp_zipfile, mock_load_exportable_datasets) -> None:
+    # Set up a temporary SQLite database with sample data
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE test_base64 (id INTEGER, data BLOB)")
+    conn.execute(
+        "INSERT INTO test_base64 (id, data) VALUES (1, 'eyJ2b2x1bWUiOjAuNSwiZHVyYXRpb24iOjIwLjAsInN0YXRlIjoiaW5pdCJ9')"
+    )
+    conn.commit()
+
+    # Mock the connection and logger objects
+    with patch("sqlite3.connect") as mock_connect:
+        mock_connect.return_value = conn
+
+        export_experiment_data(
+            experiments=[],
+            output=temp_zipfile.strpath,
+            partition_by_unit=False,
+            dataset_names=["test_base64"],
+        )
+
+    # Check if the exported data is correct
+    with zipfile.ZipFile(temp_zipfile.strpath, mode="r") as zf:
+        # Find the file with a matching pattern
+        csv_filename = None
+        for filename in zf.namelist():
+            if re.match(r"test_base64-all_experiments-all_units-\d{14}\.csv", filename):
+                csv_filename = filename
+                break
+
+        assert csv_filename is not None, "CSV file not found in the zipfile"
+
+        with zf.open(csv_filename) as csv_file:
+            content = csv_file.read().decode("utf-8").strip()
+            headers, rows = content.split("\r\n")
+            assert headers == "id,data"
+            values = rows.split(",", maxsplit=1)
+            assert values[0] == "1"
+            assert values[1] == '"{""volume"":0.5,""duration"":20.0,""state"":""init""}"'
 
 
 def test_export_experiment_data_with_experiment(temp_zipfile, mock_load_exportable_datasets) -> None:
