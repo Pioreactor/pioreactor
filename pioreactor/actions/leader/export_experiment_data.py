@@ -165,7 +165,6 @@ def export_experiment_data(
             except KeyError:
                 logger.warning(
                     f"Dataset `{dataset_name}` is not found as an available exportable dataset. A yaml file needs to be added to ~/.pioreactor/exportable_datasets. Skipping. Available datasets are {list(available_datasets.keys())}",
-                    fg="red",
                 )
                 continue
 
@@ -175,15 +174,16 @@ def export_experiment_data(
             _partition_by_experiment = dataset.has_experiment and partition_by_experiment
             filenames: list[str] = []
             placeholders: dict[str, str] = {}
-            timestamp_to_localtimestamp_clause = generate_timestamp_to_localtimestamp_clause(
-                dataset.timestamp_columns
-            )
+
             order_by = dataset.default_order_by
             table_or_subquery = dataset.table or dataset.query
             assert table_or_subquery is not None
 
             where_clauses: list[str] = []
-            selects = ["*", timestamp_to_localtimestamp_clause]
+            selects = ["*"]
+
+            if dataset.timestamp_columns:
+                selects.append(generate_timestamp_to_localtimestamp_clause(dataset.timestamp_columns))
 
             if dataset.has_experiment:
                 experiment_clause, placeholders = create_experiment_clause(experiments, placeholders)
@@ -199,7 +199,6 @@ def export_experiment_data(
             query, placeholders = create_sql_query(
                 selects, table_or_subquery, placeholders, where_clauses, order_by
             )
-
             cursor.execute(query, placeholders)
 
             headers = [_[0] for _ in cursor.description]
