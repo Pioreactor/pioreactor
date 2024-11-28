@@ -1032,7 +1032,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
 
         self.add_to_published_settings("enable_dodging_od", {"datatype": "boolean", "settable": True})
         self.set_enable_dodging_od(
-            config.get(f"{self.job_name}.config", "enable_dodging_od", fallback="True")
+            config.getboolean(f"{self.job_name}.config", "enable_dodging_od", fallback="True")
         )
 
     def action_to_do_before_od_reading(self) -> None:
@@ -1089,8 +1089,8 @@ class BackgroundJobWithDodging(_BackgroundJob):
         except AttributeError:
             pass
 
-        post_delay = config.get(f"{self.job_name}.config", "post_delay_duration", fallback=1.0)
-        pre_delay = config.get(f"{self.job_name}.config", "pre_delay_duration", fallback=1.5)
+        post_delay = config.getfloat(f"{self.job_name}.config", "post_delay_duration", fallback=1.0)
+        pre_delay = config.getfloat(f"{self.job_name}.config", "pre_delay_duration", fallback=1.5)
 
         if post_delay < 0.25:
             self.logger.warning("For optimal OD readings, keep `post_delay_duration` more than 0.25 seconds.")
