@@ -197,8 +197,10 @@ def temporary_config_change(config: ConfigParserMod, section: str, parameter: st
     A context manager to temporarily change a value in a ConfigParser object.
     """
     if not config.has_section(section):
+        yield
         return
     if not config.has_option(section, parameter):
+        yield
         return
 
     # Save the original value
