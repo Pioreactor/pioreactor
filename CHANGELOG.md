@@ -2,6 +2,8 @@
 
 #### Highlights
  - new export dataset API. The datasets on the Export page are now provided via YAML files on the leader's disk. This makes it easy to add new datasets to that UI to be exported. These YAML files can be added to `~/.pioreactor/exportable_datasets`.
+ - new Export Data page in the UI. Preview datasets before you export them, and new partition options for the exported csvs.
+ - Plugins can now add datasets to the Export Data page. The plugin's datasets are automatically added to the Export Data page when installed.
 
 #### Enhancements
  - better error handling for failed OD blanks.

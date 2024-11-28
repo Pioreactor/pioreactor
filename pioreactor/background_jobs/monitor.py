@@ -139,10 +139,7 @@ class Monitor(LongRunningBackgroundJob):
         # we manually run a self_check outside of a thread first, as if there are
         # problems detected, we may want to block and not let the job continue.
         self.self_check_thread = RepeatedTimer(
-            4 * 60 * 60,
-            self.self_checks,
-            job_name=self.job_name,
-            run_immediately=True,
+            4 * 60 * 60, self.self_checks, job_name=self.job_name, run_immediately=True, logger=self.logger
         ).start()
 
         self.add_pre_button_callback(self._republish_state)

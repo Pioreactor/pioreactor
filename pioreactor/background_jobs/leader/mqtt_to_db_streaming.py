@@ -83,11 +83,11 @@ class MqttToDBStreamer(LongRunningBackgroundJob):
             for topic_to_table in topics_to_tables
         ]
 
-        self.timer = RepeatedTimer(60, self.publish_stats).start()
+        self.timer = RepeatedTimer(60, self.write_stats).start()
 
         self.initialize_callbacks(topics_and_callbacks)
 
-    def publish_stats(self) -> None:
+    def write_stats(self) -> None:
         with local_intermittent_storage(self.job_name) as c:
             c["inserts_in_last_60s"] = self._inserts_in_last_60s
 

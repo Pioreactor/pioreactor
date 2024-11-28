@@ -98,6 +98,7 @@ class RepeatedTimer:
         job_name: t.Optional[str] = None,
         run_immediately: bool = False,
         run_after: t.Optional[float] = None,
+        logger=None,
         args=(),
         kwargs={},
     ) -> None:
@@ -107,9 +108,12 @@ class RepeatedTimer:
         self.function = function
         self.args = args
         self.kwargs = kwargs
-        self.logger = create_logger(
-            job_name or "RepeatedTimer"
-        )  # TODO: I don't think this works as expected.
+        if logger is None:
+            self.logger = create_logger(
+                job_name or "RepeatedTimer"
+            )  # TODO: I don't think this works as expected.
+        else:
+            self.logger = logger
         self.is_paused = False
         if run_after is not None:
             assert run_after >= 0, "run_after should be non-negative."

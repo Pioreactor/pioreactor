@@ -279,6 +279,7 @@ class DosingAutomationJob(AutomationJob):
                 job_name=self.job_name,
                 run_immediately=(not self.skip_first_run) or (self._latest_run_at is not None),
                 run_after=run_after,
+                logger=self.logger,
             ).start()
 
         else:

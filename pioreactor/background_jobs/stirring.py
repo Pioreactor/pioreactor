@@ -277,6 +277,7 @@ class Stirrer(BackgroundJob):
             job_name=self.job_name,
             run_immediately=True,
             run_after=6,
+            logger=self.logger,
         )
 
     def initialize_rpm_to_dc_lookup(self) -> Callable:

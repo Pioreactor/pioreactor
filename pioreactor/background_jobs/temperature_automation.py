@@ -127,6 +127,7 @@ class TemperatureAutomationJob(AutomationJob):
             self.read_external_temperature,
             job_name=self.job_name,
             run_immediately=False,
+            logger=self.logger,
         ).start()
 
         self.publish_temperature_timer = RepeatedTimer(

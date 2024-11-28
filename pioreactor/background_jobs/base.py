@@ -915,8 +915,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def _check_for_duplicate_activity(self) -> None:
         if is_pio_job_running(self.job_name) and not is_testing_env():
-            self.logger.warning(f"{self.job_name} is already running. Skipping")
-            raise RuntimeError(f"{self.job_name} is already running. Skipping")
+            self.logger.warning(f"{self.job_name} is already running. Skipping.")
+            raise RuntimeError(f"{self.job_name} is already running. Skipping.")
 
     def __setattr__(self, name: str, value: t.Any) -> None:
         super(_BackgroundJob, self).__setattr__(name, value)
@@ -1138,6 +1138,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
             job_name=self.job_name,
             args=(ads_interval, post_delay, pre_delay),
             run_immediately=False,
+            logger=self.logger,
         )
 
         # TODO: shouldn't I just use run_after in `RepeatedTimer` instead of this?

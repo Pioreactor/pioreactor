@@ -937,6 +937,7 @@ class ODReader(BackgroundJob):
                 self.record_from_adc,
                 job_name=self.job_name,
                 run_immediately=True,
+                logger=self.logger,
             ).start()
 
         self.logger.debug(
