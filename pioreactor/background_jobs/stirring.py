@@ -281,16 +281,17 @@ class Stirrer(BackgroundJobWithDodging):
         )
 
     def action_to_do_before_od_reading(self):
-        self.logger.debug("stop stirring")
         self.set_duty_cycle(0)
+        self.logger.debug("stop stirring")
 
     def action_to_do_after_od_reading(self):
         self.logger.debug("starting stirring")
-        self.set_duty_cycle(self._estimate_duty_cycle)
-        sleep(1)
-        self.poll_and_update_dc()
+        self.start_stirring()
+        # sleep(1)
+        # self.poll_and_update_dc()
 
     def initialize_dodging_operation(self):
+        self.set_duty_cycle(0)  # stop stirring
         self.rpm_check_repeated_thread = RepeatedTimer(
             1_000,
             lambda *args: None,
@@ -308,7 +309,6 @@ class Stirrer(BackgroundJobWithDodging):
             run_after=6,
             logger=self.logger,
         )
-
 
     def initialize_rpm_to_dc_lookup(self) -> Callable:
         if self.rpm_calculator is None:
@@ -455,7 +455,6 @@ class Stirrer(BackgroundJobWithDodging):
 
     def set_duty_cycle(self, value: float) -> None:
         with self.duty_cycle_lock:
-            self._previous_duty_cycle = self.duty_cycle
             self.duty_cycle = clamp(0.0, round(value, 5), 100.0)
             self.pwm.change_duty_cycle(self.duty_cycle)
 
@@ -491,7 +490,9 @@ class Stirrer(BackgroundJobWithDodging):
 
         """
 
-        if self.rpm_calculator is None or self.target_rpm is None or self.currently_dodging_od:  # or is_testing_env():
+        if (
+            self.rpm_calculator is None or self.target_rpm is None or self.currently_dodging_od
+        ):  # or is_testing_env():
             # can't block if we aren't recording the RPM
             return False
 
@@ -550,7 +551,8 @@ def start_stirring(
         experiment=experiment,
         rpm_calculator=rpm_calculator,
     )
-    stirrer.start_stirring()
+    if not stirrer.currently_dodging_od:
+        stirrer.start_stirring()
     return stirrer
 
 

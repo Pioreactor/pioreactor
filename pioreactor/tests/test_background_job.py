@@ -410,7 +410,6 @@ def test_dodging_order() -> None:
                 time.sleep(26)
                 assert len(bucket) > 4, bucket
 
-
         with JustPause():
             time.sleep(6)
             with start_od_reading(
@@ -422,9 +421,6 @@ def test_dodging_order() -> None:
                 use_calibration=False,
             ):
                 time.sleep(26)
-
-
-
 
     ODReader._post_read = []
     ODReader._pre_read = []
@@ -510,8 +506,9 @@ def test_disabling_dodging() -> None:
                 fake_data=True,
                 use_calibration=False,
             ) as od:
-
-                assert set(jp.published_settings.keys()) == set(["test", "state", "enable_dodging_od", "currently_dodging_od"])
+                assert set(jp.published_settings.keys()) == set(
+                    ["test", "state", "enable_dodging_od", "currently_dodging_od"]
+                )
                 time.sleep(20)
 
                 assert len(bucket) == 4

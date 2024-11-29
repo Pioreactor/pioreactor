@@ -1125,7 +1125,6 @@ class ODReader(BackgroundJob):
         except Exception:
             pass
 
-
     def _get_ir_led_channel_from_configuration(self) -> pt.LedChannel:
         try:
             return cast(pt.LedChannel, config.get("leds_reverse", IR_keyword))

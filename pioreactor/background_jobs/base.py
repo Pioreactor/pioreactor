@@ -978,7 +978,6 @@ class BackgroundJobContrib(_BackgroundJob):
         super().__init__(unit, experiment, source=plugin_name)
 
 
-
 class BackgroundJobWithDodging(_BackgroundJob):
     """
     This utility class allows for a change in behaviour when an OD reading is about to taken. Example: shutting
@@ -1020,7 +1019,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
         1.0  # WARNING: this may change slightly in the future, don't depend on this too much.
     )
     sneak_in_timer: RepeatedTimer
-    is_after_period: bool = False
+    currently_dodging_od = False
 
     def __init__(self, *args, source="app", **kwargs) -> None:
         super().__init__(*args, source=source, **kwargs)  # type: ignore
@@ -1030,36 +1029,39 @@ class BackgroundJobWithDodging(_BackgroundJob):
                 f"Required section '{self.job_name}.config' does not exist in the configuration."
             )
 
-        self.sneak_in_timer = RepeatedTimer(5, self._noop, job_name=self.job_name, logger=self.logger) # placeholder?
+        self.sneak_in_timer = RepeatedTimer(
+            5, self._noop, job_name=self.job_name, logger=self.logger
+        )  # placeholder?
         self.add_to_published_settings("enable_dodging_od", {"datatype": "boolean", "settable": True})
         self.add_to_published_settings("currently_dodging_od", {"datatype": "boolean", "settable": False})
 
     def __post__init__(self):
         super().__post__init__()
-        self.set_enable_dodging_od(config.getboolean(f"{self.job_name}.config", "enable_dodging_od", fallback="True"))
+        self.set_enable_dodging_od(
+            config.getboolean(f"{self.job_name}.config", "enable_dodging_od", fallback="True")
+        )
         self.start_passive_listeners()
 
     def _noop(self):
         pass
 
     def set_currently_dodging_od(self, value: bool):
-        if self.set_currently_dodging_od == value:
+        if self.currently_dodging_od == value:
             # noop
             return
 
         self.currently_dodging_od = value
         if self.currently_dodging_od:
-            self.initialize_dodging_operation() # user defined
+            self.initialize_dodging_operation()  # user defined
             self._action_to_do_before_od_reading = self.action_to_do_before_od_reading
             self._action_to_do_after_od_reading = self.action_to_do_after_od_reading
             self._setup_timer()
         else:
-            self.initialize_continuous_operation() # user defined
+            self.initialize_continuous_operation()  # user defined
 
             self._action_to_do_before_od_reading = self._noop
             self._action_to_do_after_od_reading = self._noop
             self.sneak_in_timer.cancel()
-
 
     def set_enable_dodging_od(self, value: bool):
         self.enable_dodging_od = value
@@ -1106,14 +1108,12 @@ class BackgroundJobWithDodging(_BackgroundJob):
             else:
                 self.set_currently_dodging_od(False)
 
-
     def _setup_timer(self) -> None:
-
         self.logger.debug("OD reading present. Dodging!")
 
         self.sneak_in_timer.cancel()
 
-        post_delay = config.getfloat(f"{self.job_name}.config", "post_delay_duration", fallback=1.0)
+        post_delay = config.getfloat(f"{self.job_name}.config", "post_delay_duration", fallback=0.5)
         pre_delay = config.getfloat(f"{self.job_name}.config", "pre_delay_duration", fallback=1.5)
 
         if post_delay < 0.25:
@@ -1126,28 +1126,16 @@ class BackgroundJobWithDodging(_BackgroundJob):
             if self.state != self.READY:
                 return
 
-            self.is_after_period = True
             self._action_to_do_after_od_reading()
             sleep(ads_interval - self.OD_READING_DURATION - (post_delay + pre_delay))
-            self.is_after_period = False
             self._action_to_do_before_od_reading()
 
         # this could fail in the following way:
         # in the same experiment, the od_reading fails catastrophically so that the ADC attributes are never
         # cleared. Later, this job starts, and it will pick up the _old_ ADC attributes.
-        ads_start_time_msg = subscribe(
-            f"pioreactor/{self.unit}/{self.experiment}/od_reading/first_od_obs_time", timeout=5
-        )
-        if ads_start_time_msg and ads_start_time_msg.payload:
-            ads_start_time = float(ads_start_time_msg.payload)
-        else:
-            return
-
-        ads_interval_msg = subscribe(f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval", timeout=5)
-        if ads_interval_msg and ads_interval_msg.payload:
-            ads_interval = float(ads_interval_msg.payload)
-        else:
-            return
+        with JobManager() as jm:
+            ads_start_time = jm.get_setting_from_running_job("od_reading", "first_od_obs_time")
+            ads_interval = jm.get_setting_from_running_job("od_reading", "interval")
 
         # get interval, and confirm that the requirements are possible: post_delay + pre_delay <= ADS interval - (od reading duration)
         if not (ads_interval - self.OD_READING_DURATION > (post_delay + pre_delay)):
@@ -1171,7 +1159,6 @@ class BackgroundJobWithDodging(_BackgroundJob):
         sleep(time_to_next_ads_reading + (post_delay + self.OD_READING_DURATION))
         self.sneak_in_timer.start()
 
-
     def on_sleeping(self) -> None:
         try:
             self.sneak_in_timer.pause()
@@ -1189,8 +1176,6 @@ class BackgroundJobWithDodging(_BackgroundJob):
             self.sneak_in_timer.unpause()
         except AttributeError:
             pass
-
-
 
 
 class BackgroundJobWithDodgingContrib(BackgroundJobWithDodging):
