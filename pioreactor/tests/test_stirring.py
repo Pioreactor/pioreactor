@@ -113,6 +113,17 @@ def test_publish_measured_rpm() -> None:
         assert message is not None
         assert json.loads(message.payload)["measured_rpm"] == 0
 
+        publish(f"pioreactor/{unit}/{exp}/stirring/$state/set", "sleeping")
+        pause()
+        pause()
+        pause()
+        assert st.state == st.SLEEPING
+        assert st.duty_cycle == 0
+        assert st.measured_rpm.measured_rpm == 0
+        message = subscribe(f"pioreactor/{unit}/{exp}/stirring/measured_rpm", timeout=3)
+        assert message is not None
+        assert json.loads(message.payload)["measured_rpm"] == 0
+
 
 def test_rpm_isnt_updated_if_there_is_no_rpm_measurement() -> None:
     exp = "test_publish_measured_rpm"

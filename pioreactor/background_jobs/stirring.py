@@ -282,7 +282,7 @@ class Stirrer(BackgroundJobWithDodging):
         )
 
     def action_to_do_before_od_reading(self):
-        self.set_duty_cycle(0)
+        self.stop_stirring()
 
     def action_to_do_after_od_reading(self):
         self.start_stirring()
@@ -359,6 +359,12 @@ class Stirrer(BackgroundJobWithDodging):
         if self.rpm_calculator is not None:
             self.rpm_check_repeated_thread.start()  # .start is idempotent
 
+    def stop_stirring(self) -> None:
+        self.set_duty_cycle(0)  # get momentum to start
+        if self.rpm_calculator is not None:
+            self.measured_rpm = structs.MeasuredRPM(timestamp=current_utc_datetime(), measured_rpm=0)
+            self.rpm_check_repeated_thread.pause()  # .start is idempotent
+
     def kick_stirring(self) -> None:
         self.logger.debug("Kicking stirring")
         self.set_duty_cycle(0)
@@ -433,8 +439,7 @@ class Stirrer(BackgroundJobWithDodging):
         self.set_duty_cycle(self._estimate_duty_cycle)
 
     def on_ready_to_sleeping(self) -> None:
-        self.rpm_check_repeated_thread.pause()
-        self.set_duty_cycle(0.0)
+        self.stop_stirring()
 
     def on_sleeping_to_ready(self) -> None:
         super().on_sleeping_to_ready()
