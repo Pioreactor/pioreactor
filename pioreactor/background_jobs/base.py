@@ -26,6 +26,7 @@ from pioreactor.pubsub import QOS
 from pioreactor.utils import append_signal_handlers
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import JobManager
+from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.whoami import is_active
 from pioreactor.whoami import is_testing_env
@@ -1125,8 +1126,9 @@ class BackgroundJobWithDodging(_BackgroundJob):
             if self.state != self.READY:
                 return
 
-            self._action_to_do_after_od_reading()
-            sleep(ads_interval - self.OD_READING_DURATION - (post_delay + pre_delay))
+            with catchtime() as timer:
+                self._action_to_do_after_od_reading()
+            sleep(ads_interval - self.OD_READING_DURATION - (post_delay + pre_delay) - timer())
             self._action_to_do_before_od_reading()
 
         # this could fail in the following way:
