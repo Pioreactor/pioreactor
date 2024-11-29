@@ -19,9 +19,9 @@ from pioreactor import hardware
 from pioreactor import structs
 from pioreactor.background_jobs.base import BackgroundJobWithDodging
 from pioreactor.config import config
-from pioreactor.pubsub import subscribe
 from pioreactor.utils import clamp
 from pioreactor.utils import is_pio_job_running
+from pioreactor.utils import JobManager
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.gpio_helpers import set_gpio_availability
 from pioreactor.utils.pwm import PWM
@@ -356,13 +356,12 @@ class Stirrer(BackgroundJobWithDodging):
 
     def kick_stirring(self) -> None:
         self.logger.debug("Kicking stirring")
-        _existing_duty_cycle = self._estimate_duty_cycle
         self.set_duty_cycle(0)
         sleep(0.5)
         self.set_duty_cycle(100)
         sleep(0.5)
         self.set_duty_cycle(
-            min(1.01 * _existing_duty_cycle, 60)
+            min(1.01 * self._estimate_duty_cycle, 60)
         )  # DC should never need to be above 60 - simply not realistic. We want to avoid the death spiral to 100%.
 
     def kick_stirring_but_avoid_od_reading(self) -> None:
@@ -370,24 +369,9 @@ class Stirrer(BackgroundJobWithDodging):
         This will determine when the next od reading occurs (if possible), and
         wait until it completes before kicking stirring.
         """
-        first_od_obs_time_msg = subscribe(
-            f"pioreactor/{self.unit}/{self.experiment}/od_reading/first_od_obs_time",
-            timeout=3,
-        )
-
-        if first_od_obs_time_msg is not None and first_od_obs_time_msg.payload:
-            first_od_obs_time = float(first_od_obs_time_msg.payload)
-        else:
-            self.kick_stirring()
-            return
-
-        interval_msg = subscribe(f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval", timeout=3)
-
-        if interval_msg is not None and interval_msg.payload:
-            interval = float(interval_msg.payload)
-        else:
-            self.kick_stirring()
-            return
+        with JobManager() as jm:
+            interval = jm.get_setting_from_running_job("od_reading", "interval", timeout=5)
+            first_od_obs_time = jm.get_setting_from_running_job("od_reading", "first_od_obs_time", timeout=5)
 
         seconds_to_next_reading = interval - (time() - first_od_obs_time) % interval
         sleep(
