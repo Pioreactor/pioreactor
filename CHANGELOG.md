@@ -1,11 +1,14 @@
 ### Upcoming
 
 #### Highlights
- - new export dataset API. The datasets on the Export page are now provided via YAML files on the leader's disk. This makes it easy to add new datasets to that UI to be exported. These YAML files can be added to `~/.pioreactor/exportable_datasets`.
- - new Export Data page in the UI. Preview datasets before you export them, and new partition options for the exported csvs.
- - Plugins can now add datasets to the Export Data page. The plugin's datasets are automatically added to the Export Data page when installed.
+ - New export datasets improvements!
+   - new export dataset API. The datasets on the Export Data UI page are now provided via YAML files on the leader's disk. This makes it easy to add new datasets to that UI to be exported. These YAML files can be added to `~/.pioreactor/exportable_datasets`.
+   - new Export Data page in the UI. Preview datasets before you export them, and new partition options for the exported CSVs.
+   - Plugins can now add datasets to the Export Data page. The plugin's datasets are automatically added to the Export Data page when installed.
+ - Stirring can now pause itself during an OD reading. This is accomplished by "dodging OD readings". You can activate this feature by setting the `enable_dodging_od` to `True` in config.ini, under `[stirring.config]`. The replaces an older, less reliable plugin that was on our forums. Users have wanted this feature to have a very fast RPM between OD measurements (to get more aeration), and avoid noisy OD measurements.
 
 #### Enhancements
+ - improvements to Dodging background job code, including the ability to initialize the class based on dodging or not.
  - better error handling for failed OD blanks.
  - better button state management in the UI.
  - you can add addresses to the (new) `[cluster.addresses]` section to specify IPs for pioreactors. Example:

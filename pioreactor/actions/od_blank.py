@@ -17,6 +17,7 @@ from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.config import config
+from pioreactor.config import temporary_config_change
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import prune_retained_messages
 from pioreactor.utils import is_pio_job_running
@@ -53,10 +54,11 @@ def od_statistics(
         from pioreactor.background_jobs.stirring import start_stirring
 
         logger.info("Starting stirring.")
-        st = start_stirring(
-            unit=unit,
-            experiment=experiment,
-        )
+        with temporary_config_change(config, "stirring.config", "enable_dodging_od", "False"):
+            st = start_stirring(
+                unit=unit,
+                experiment=experiment,
+            )
         st.block_until_rpm_is_close_to_target(timeout=40)  # wait for stirring to be reasonable.
     else:
         st = nullcontext()  # type: ignore
@@ -160,32 +162,33 @@ def od_blank(
 
     with managed_lifecycle(unit, experiment, action_name):
         try:
-            with start_od_reading(
-                od_angle_channel1,
-                od_angle_channel2,
-                unit=unit,
-                interval=1.5,
-                experiment=testing_experiment,  # use testing experiment to not pollute the database (and they would show up in the UI)
-                fake_data=whoami.is_testing_env(),
-            ) as od_stream, start_stirring(
-                unit=unit,
-                experiment=testing_experiment,
-            ) as st:
-                # warm up OD reader
-                for count, _ in enumerate(od_stream, start=0):
-                    if count == 5:
-                        break
-
-                st.block_until_rpm_is_close_to_target(timeout=30)
-
-                means, _ = od_statistics(
-                    od_stream,
-                    action_name,
+            with temporary_config_change(config, "stirring.config", "enable_dodging_od", "False"):
+                with start_od_reading(
+                    od_angle_channel1,
+                    od_angle_channel2,
                     unit=unit,
-                    experiment=experiment,
-                    n_samples=n_samples,
-                    logger=logger,
-                )
+                    interval=1.5,
+                    experiment=testing_experiment,  # use testing experiment to not pollute the database (and they would show up in the UI)
+                    fake_data=whoami.is_testing_env(),
+                ) as od_stream, start_stirring(
+                    unit=unit,
+                    experiment=testing_experiment,
+                ) as st:
+                    # warm up OD reader
+                    for count, _ in enumerate(od_stream, start=0):
+                        if count == 5:
+                            break
+
+                    st.block_until_rpm_is_close_to_target(timeout=30)
+
+                    means, _ = od_statistics(
+                        od_stream,
+                        action_name,
+                        unit=unit,
+                        experiment=experiment,
+                        n_samples=n_samples,
+                        logger=logger,
+                    )
         except Exception as e:
             logger.debug(e, exc_info=True)
             logger.error(e)

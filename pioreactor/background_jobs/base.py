@@ -1038,7 +1038,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
     def __post__init__(self):
         super().__post__init__()
         self.set_enable_dodging_od(
-            config.getboolean(f"{self.job_name}.config", "enable_dodging_od", fallback="True")
+            config.getboolean(f"{self.job_name}.config", "enable_dodging_od", fallback="False")
         )
         self.start_passive_listeners()
 
@@ -1066,17 +1066,15 @@ class BackgroundJobWithDodging(_BackgroundJob):
     def set_enable_dodging_od(self, value: bool):
         self.enable_dodging_od = value
 
-        if self.is_od_job_running() and self.enable_dodging_od:
-            self.logger.info("Will attempt to dodge OD readings.")
-            self.set_currently_dodging_od(True)
-        elif self.is_od_job_running() and not self.enable_dodging_od:
-            self.logger.info("Running continuously through OD readings.")
-            self.set_currently_dodging_od(False)
-        elif not self.is_od_job_running() and not self.enable_dodging_od:
-            self.logger.info("Running continuously through OD readings.")
-            self.set_currently_dodging_od(False)
-        elif not self.is_od_job_running() and self.enable_dodging_od:
-            self.logger.info("Will attempt to dodge later OD readings.")
+        if self.enable_dodging_od:
+            if self.is_od_job_running():
+                self.logger.debug("Will attempt to dodge OD readings.")
+                self.set_currently_dodging_od(True)
+            else:
+                self.logger.debug("Will attempt to dodge later OD readings.")
+                self.set_currently_dodging_od(False)
+        else:
+            self.logger.debug("Running continuously through OD readings.")
             self.set_currently_dodging_od(False)
 
     def is_od_job_running(self) -> bool:
