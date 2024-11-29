@@ -288,8 +288,8 @@ class Stirrer(BackgroundJobWithDodging):
     def action_to_do_after_od_reading(self):
         self.logger.debug("starting stirring")
         self.start_stirring()
-        # sleep(1)
-        # self.poll_and_update_dc()
+        sleep(1)
+        self.poll_and_update_dc(2)
 
     def initialize_dodging_operation(self):
         self.set_duty_cycle(0)

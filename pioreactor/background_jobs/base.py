@@ -23,7 +23,6 @@ from pioreactor.logging import create_logger
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import QOS
-from pioreactor.pubsub import subscribe
 from pioreactor.utils import append_signal_handlers
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import JobManager
@@ -1134,7 +1133,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
         # in the same experiment, the od_reading fails catastrophically so that the settings are never
         # cleared. Later, this job starts, and it will pick up the _old_ settings.
         with JobManager() as jm:
-            ads_interval = jm.get_setting_from_running_job("od_reading", "interval")
+            ads_interval = jm.get_setting_from_running_job("od_reading", "interval", timeout=5)
             ads_start_time = jm.get_setting_from_running_job(
                 "od_reading", "first_od_obs_time", timeout=5
             )  # this is populated later in the job...
