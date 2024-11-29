@@ -290,6 +290,11 @@ class Stirrer(BackgroundJobWithDodging):
         self.poll_and_update_dc(2)
 
     def initialize_dodging_operation(self):
+        if config.getfloat("od_reading.config", "samples_per_second") >= 0.2:
+            self.logger.warning(
+                "Recommended to decrease `samples_per_second` to ensure there is time to start/stop stirring. Try 0.15 or less."
+            )
+
         self.set_duty_cycle(0)
         self.rpm_check_repeated_thread = RepeatedTimer(
             1_000,
@@ -424,7 +429,8 @@ class Stirrer(BackgroundJobWithDodging):
             return
 
         result = self.pid.update(self._measured_rpm)
-        self.set_duty_cycle(self._estimate_duty_cycle + result)
+        self._estimate_duty_cycle += result
+        self.set_duty_cycle(self._estimate_duty_cycle)
 
     def on_ready_to_sleeping(self) -> None:
         self.rpm_check_repeated_thread.pause()
