@@ -34,6 +34,7 @@ from pioreactor.pubsub import patch_into
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import current_utc_timestamp
+from pioreactor.utils.timing import catchtime
 
 if TYPE_CHECKING:
     from pioreactor.pubsub import Client
@@ -516,6 +517,7 @@ class JobManager:
         self._create_tables()
 
     def _create_tables(self) -> None:
+        # TODO: add a created_at, updated_at to pio_job_published_settings
         create_table_query = """
         CREATE TABLE IF NOT EXISTS pio_job_metadata (
             id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -532,10 +534,10 @@ class JobManager:
         );
 
         CREATE TABLE IF NOT EXISTS pio_job_published_settings (
-            setting     TEXT NOT NULL,
+            setting        TEXT NOT NULL,
             value          BLOB,
             proposed_value BLOB,
-            job_id      INTEGER NOT NULL,
+            job_id         INTEGER NOT NULL,
             FOREIGN KEY(job_id) REFERENCES pio_job_metadata(id),
             UNIQUE(setting, job_id)
         );
@@ -603,27 +605,26 @@ class JobManager:
         self.conn.commit()
         return
 
-    def get_setting_from_running_job(self, job_name: str, setting: str, block=False) -> Any:
-        if not block and not self.is_job_running(job_name):
+    def get_setting_from_running_job(self, job_name: str, setting: str, timeout=None) -> Any:
+        if timeout is not None and not self.is_job_running(job_name):
             raise JobNotRunningError(f"Job {job_name} is not running.")
 
-        result = None
-        while result is None:
-            select_query = """
-                SELECT value
-                    FROM pio_job_published_settings s
-                    JOIN pio_job_metadata m ON s.job_id = m.id
-                WHERE job_name=(?) and setting=(?) and is_running=1"""
-            self.cursor.execute(select_query, (job_name, setting))
-            result = self.cursor.fetchone()  # returns None if not found
+        with catchtime() as timer:
+            while True:
+                select_query = """
+                    SELECT value
+                        FROM pio_job_published_settings s
+                        JOIN pio_job_metadata m ON s.job_id = m.id
+                    WHERE job_name=(?) and setting=(?) and is_running=1"""
+                self.cursor.execute(select_query, (job_name, setting))
+                result = self.cursor.fetchone()  # returns None if not found
 
-            if result is not None:
-                return result[0]
-            else:
-                if block:
-                    continue
-                else:
+                if result:
+                    return result[0]
+
+                if (timeout and timer() > timeout) or (timeout is None):
                     raise NameError(f"Setting {setting} was not found.")
+
 
     def set_not_running(self, job_id: JobMetadataKey) -> None:
         update_query = "UPDATE pio_job_metadata SET is_running=0, ended_at=STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW') WHERE id=(?)"

@@ -1136,7 +1136,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
         with JobManager() as jm:
             ads_interval = jm.get_setting_from_running_job("od_reading", "interval")
             ads_start_time = jm.get_setting_from_running_job(
-                "od_reading", "first_od_obs_time", block=True
+                "od_reading", "first_od_obs_time", timeout=5
             )  # this is populated later in the job...
 
         # get interval, and confirm that the requirements are possible: post_delay + pre_delay <= ADS interval - (od reading duration)
