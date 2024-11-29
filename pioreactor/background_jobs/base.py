@@ -1131,11 +1131,13 @@ class BackgroundJobWithDodging(_BackgroundJob):
             self._action_to_do_before_od_reading()
 
         # this could fail in the following way:
-        # in the same experiment, the od_reading fails catastrophically so that the ADC attributes are never
-        # cleared. Later, this job starts, and it will pick up the _old_ ADC attributes.
+        # in the same experiment, the od_reading fails catastrophically so that the settings are never
+        # cleared. Later, this job starts, and it will pick up the _old_ settings.
         with JobManager() as jm:
-            ads_start_time = jm.get_setting_from_running_job("od_reading", "first_od_obs_time")
             ads_interval = jm.get_setting_from_running_job("od_reading", "interval")
+            ads_start_time = jm.get_setting_from_running_job(
+                "od_reading", "first_od_obs_time", block=True
+            )  # this is populated later in the job...
 
         # get interval, and confirm that the requirements are possible: post_delay + pre_delay <= ADS interval - (od reading duration)
         if not (ads_interval - self.OD_READING_DURATION > (post_delay + pre_delay)):

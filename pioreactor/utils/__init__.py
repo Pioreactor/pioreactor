@@ -603,22 +603,27 @@ class JobManager:
         self.conn.commit()
         return
 
-    def get_setting_from_running_job(self, job_name: str, setting: str) -> Any:
-        if not self.is_job_running(job_name):
+    def get_setting_from_running_job(self, job_name: str, setting: str, block=False) -> Any:
+        if not block and not self.is_job_running(job_name):
             raise JobNotRunningError(f"Job {job_name} is not running.")
 
-        select_query = """
-            SELECT value
-                FROM pio_job_published_settings s
-                JOIN pio_job_metadata m ON s.job_id = m.id
-            WHERE job_name=(?) and setting=(?) and is_running=1"""
-        self.cursor.execute(select_query, (job_name, setting))
-        result = self.cursor.fetchone()  # returns None if not found
-        if result is not None:
-            return result[0]
-        else:
-            # TODO: could also be that the setting was wrong...
-            raise NameError(f"Setting {setting} was not found.")
+        result = None
+        while result is None:
+            select_query = """
+                SELECT value
+                    FROM pio_job_published_settings s
+                    JOIN pio_job_metadata m ON s.job_id = m.id
+                WHERE job_name=(?) and setting=(?) and is_running=1"""
+            self.cursor.execute(select_query, (job_name, setting))
+            result = self.cursor.fetchone()  # returns None if not found
+
+            if result is not None:
+                return result[0]
+            else:
+                if block:
+                    continue
+                else:
+                    raise NameError(f"Setting {setting} was not found.")
 
     def set_not_running(self, job_id: JobMetadataKey) -> None:
         update_query = "UPDATE pio_job_metadata SET is_running=0, ended_at=STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW') WHERE id=(?)"

@@ -291,7 +291,8 @@ class Stirrer(BackgroundJobWithDodging):
         # self.poll_and_update_dc()
 
     def initialize_dodging_operation(self):
-        self.set_duty_cycle(0)  # stop stirring
+        self._estimate_duty_cycle = 0
+        self.set_duty_cycle(self._estimate_duty_cycle)
         self.rpm_check_repeated_thread = RepeatedTimer(
             1_000,
             lambda *args: None,
@@ -551,8 +552,7 @@ def start_stirring(
         experiment=experiment,
         rpm_calculator=rpm_calculator,
     )
-    if not stirrer.currently_dodging_od:
-        stirrer.start_stirring()
+    stirrer.start_stirring()
     return stirrer
 
 
