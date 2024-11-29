@@ -245,6 +245,7 @@ class Stirrer(BackgroundJobWithDodging):
             experiment=self.experiment,
             pubsub_client=self.pub_client,
         )
+        self.pwm.start(0)
         self.pwm.lock()
         self.duty_cycle_lock = Lock()
 
@@ -291,8 +292,7 @@ class Stirrer(BackgroundJobWithDodging):
         # self.poll_and_update_dc()
 
     def initialize_dodging_operation(self):
-        self._estimate_duty_cycle = 0
-        self.set_duty_cycle(self._estimate_duty_cycle)
+        self.set_duty_cycle(0)
         self.rpm_check_repeated_thread = RepeatedTimer(
             1_000,
             lambda *args: None,
@@ -349,7 +349,7 @@ class Stirrer(BackgroundJobWithDodging):
                 self.rpm_calculator.clean_up()
 
     def start_stirring(self) -> None:
-        self.pwm.start(100)  # get momentum to start
+        self.set_duty_cycle(100)  # get momentum to start
         sleep(0.35)
         self.set_duty_cycle(self._estimate_duty_cycle)
 
