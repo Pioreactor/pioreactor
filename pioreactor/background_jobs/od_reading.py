@@ -1125,9 +1125,6 @@ class ODReader(BackgroundJob):
         except Exception:
             pass
 
-        # tech debt: clear _pre and _post
-        self._pre_read.clear()
-        self._post_read.clear()
 
     def _get_ir_led_channel_from_configuration(self) -> pt.LedChannel:
         try:

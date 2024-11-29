@@ -139,6 +139,10 @@ def export_experiment_data(
         click.echo("output should end with .zip")
         raise click.Abort()
 
+    if len(dataset_names) == 0:
+        click.echo("At least one dataset name must be provided.")
+        raise click.Abort()
+
     logger = create_logger("export_experiment_data")
     logger.info(
         f"Starting export of dataset{'s' if len(dataset_names) > 1 else ''}: {', '.join(dataset_names)}."

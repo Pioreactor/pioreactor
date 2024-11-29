@@ -17,7 +17,7 @@ from pioreactor import error_codes
 from pioreactor import exc
 from pioreactor import hardware
 from pioreactor import structs
-from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.background_jobs.base import BackgroundJobWithDodging
 from pioreactor.config import config
 from pioreactor.pubsub import subscribe
 from pioreactor.utils import clamp
@@ -165,7 +165,7 @@ class RpmFromFrequency(RpmCalculator):
             return round(self._running_count * 60 / self._running_sum, 1)
 
 
-class Stirrer(BackgroundJob):
+class Stirrer(BackgroundJobWithDodging):
     """
     Parameters
     ------------
@@ -280,6 +280,36 @@ class Stirrer(BackgroundJob):
             logger=self.logger,
         )
 
+    def action_to_do_before_od_reading(self):
+        self.logger.debug("stop stirring")
+        self.set_duty_cycle(0)
+
+    def action_to_do_after_od_reading(self):
+        self.logger.debug("starting stirring")
+        self.set_duty_cycle(self._estimate_duty_cycle)
+        sleep(1)
+        self.poll_and_update_dc()
+
+    def initialize_dodging_operation(self):
+        self.rpm_check_repeated_thread = RepeatedTimer(
+            1_000,
+            lambda *args: None,
+            job_name=self.job_name,
+            logger=self.logger,
+        )
+
+    def initialize_continuous_operation(self):
+        # set up thread to periodically check the rpm
+        self.rpm_check_repeated_thread = RepeatedTimer(
+            config.getfloat("stirring.config", "duration_between_updates_seconds", fallback=23.0),
+            self.poll_and_update_dc,
+            job_name=self.job_name,
+            run_immediately=True,
+            run_after=6,
+            logger=self.logger,
+        )
+
+
     def initialize_rpm_to_dc_lookup(self) -> Callable:
         if self.rpm_calculator is None:
             # if we can't track RPM, no point in adjusting DC, use current value
@@ -308,6 +338,7 @@ class Stirrer(BackgroundJob):
                 return lambda rpm: self._estimate_duty_cycle
 
     def on_disconnected(self) -> None:
+        super().on_disconnected()
         with suppress(AttributeError):
             self.rpm_check_repeated_thread.cancel()
         with suppress(AttributeError):
@@ -417,6 +448,7 @@ class Stirrer(BackgroundJob):
         self.set_duty_cycle(0.0)
 
     def on_sleeping_to_ready(self) -> None:
+        super().on_sleeping_to_ready()
         self.duty_cycle = self._estimate_duty_cycle
         self.rpm_check_repeated_thread.unpause()
         self.start_stirring()
@@ -459,7 +491,7 @@ class Stirrer(BackgroundJob):
 
         """
 
-        if self.rpm_calculator is None or self.target_rpm is None:  # or is_testing_env():
+        if self.rpm_calculator is None or self.target_rpm is None or self.currently_dodging_od:  # or is_testing_env():
             # can't block if we aren't recording the RPM
             return False
 
