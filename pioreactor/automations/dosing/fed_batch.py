@@ -16,7 +16,6 @@ class FedBatch(DosingAutomationJob):
     automation_name = "fed_batch"
     published_settings = {
         "volume": {"datatype": "float", "unit": "mL", "settable": True},
-        "duration": {"datatype": "float", "settable": True, "unit": "min"},
     }
 
     def __init__(self, volume, **kwargs):

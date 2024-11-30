@@ -174,9 +174,7 @@ class DosingAutomationJob(AutomationJob):
 
     automation_name = "dosing_automation_base"  # is overwritten in subclasses
     job_name = "dosing_automation"
-    published_settings: dict[str, pt.PublishableSetting] = {
-        "duration": {"datatype": "float", "settable": True}
-    }
+    published_settings: dict[str, pt.PublishableSetting] = {}
 
     previous_normalized_od: Optional[float] = None
     previous_growth_rate: Optional[float] = None
@@ -239,6 +237,20 @@ class DosingAutomationJob(AutomationJob):
         **kwargs,
     ) -> None:
         super(DosingAutomationJob, self).__init__(unit, experiment)
+
+        if not is_pio_job_running("stirring"):
+            self.logger.warning(
+                "It's recommended to have stirring on to improve mixing during dosing events."
+            )
+
+        self.add_to_published_settings(
+            "duration",
+            {
+                "datatype": "float",
+                "settable": True,
+                "unit": "min",
+            },
+        )
 
         self.skip_first_run = skip_first_run
 

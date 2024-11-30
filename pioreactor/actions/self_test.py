@@ -411,25 +411,23 @@ def test_positive_correlation_between_rpm_and_stirring(
     dcs = []
     measured_rpms = []
     n_samples = 8
-    start = initial_dc * 1.2
-    end = initial_dc * 0.8
+    start = min(initial_dc * 1.2, 100)
+    end = max(initial_dc * 0.8, 5)
 
-    with stirring.Stirrer(
-        target_rpm=0, unit=unit, experiment=experiment, rpm_calculator=None
-    ) as st, stirring.RpmFromFrequency() as rpm_calc:
+    with stirring.RpmFromFrequency() as rpm_calc:
         rpm_calc.setup()
-        st.duty_cycle = initial_dc
-        st.start_stirring()
-        sleep(0.75)
-
-        for i in range(n_samples):
-            p = i / n_samples
-            dc = start * (1 - p) + p * end
-
-            st.set_duty_cycle(dc)
+        with stirring.Stirrer(target_rpm=None, unit=unit, experiment=experiment, rpm_calculator=None) as st:
+            st.set_duty_cycle(initial_dc)
             sleep(0.75)
-            measured_rpms.append(rpm_calc.estimate(3.0))
-            dcs.append(dc)
+
+            for i in range(n_samples):
+                p = i / n_samples
+                dc = start * (1 - p) + p * end
+
+                st.set_duty_cycle(dc)
+                sleep(0.75)
+                measured_rpms.append(rpm_calc.estimate(3.0))
+                dcs.append(dc)
 
         measured_correlation = round(correlation(dcs, measured_rpms), 2)
         logger.debug(f"Correlation between stirring RPM and duty cycle: {measured_correlation}")

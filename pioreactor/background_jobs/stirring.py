@@ -271,16 +271,6 @@ class Stirrer(BackgroundJobWithDodging):
             output_limits=(-7.5, 7.5),  # avoid whiplashing
         )
 
-        # set up thread to periodically check the rpm
-        self.rpm_check_repeated_thread = RepeatedTimer(
-            config.getfloat("stirring.config", "duration_between_updates_seconds", fallback=23.0),
-            self.poll_and_update_dc,
-            job_name=self.job_name,
-            run_immediately=True,
-            run_after=6,
-            logger=self.logger,
-        )
-
     def action_to_do_before_od_reading(self):
         self.stop_stirring()
 
@@ -295,13 +285,13 @@ class Stirrer(BackgroundJobWithDodging):
                 "Recommended to decrease `samples_per_second` to ensure there is time to start/stop stirring. Try 0.12 or less."
             )
 
-        self.stop_stirring()
         self.rpm_check_repeated_thread = RepeatedTimer(
             1_000,
             lambda *args: None,
             job_name=self.job_name,
             logger=self.logger,
         )
+        self.stop_stirring()  # we'll start it in action_to_do_after_od_reading
 
     def initialize_continuous_operation(self):
         # set up thread to periodically check the rpm
@@ -312,7 +302,8 @@ class Stirrer(BackgroundJobWithDodging):
             run_immediately=True,
             run_after=6,
             logger=self.logger,
-        )
+        ).start()
+        self.start_stirring()
 
     def initialize_rpm_to_dc_lookup(self) -> Callable:
         if self.rpm_calculator is None:
@@ -355,20 +346,18 @@ class Stirrer(BackgroundJobWithDodging):
         self.set_duty_cycle(100)  # get momentum to start
         sleep(0.35)
         self.set_duty_cycle(self._estimate_duty_cycle)
-
-        if self.rpm_calculator is not None:
-            self.rpm_check_repeated_thread.start()  # .start is idempotent
+        self.rpm_check_repeated_thread.unpause()
 
     def stop_stirring(self) -> None:
         self.set_duty_cycle(0)  # get momentum to start
+        self.rpm_check_repeated_thread.pause()
         if self.rpm_calculator is not None:
             self.measured_rpm = structs.MeasuredRPM(timestamp=current_utc_datetime(), measured_rpm=0)
-            self.rpm_check_repeated_thread.pause()  # .start is idempotent
 
     def kick_stirring(self) -> None:
         self.logger.debug("Kicking stirring")
         self.set_duty_cycle(0)
-        sleep(0.5)
+        sleep(0.75)
         self.set_duty_cycle(100)
         sleep(0.5)
         self.set_duty_cycle(
@@ -491,7 +480,7 @@ class Stirrer(BackgroundJobWithDodging):
             return False
 
         sleep_time = 0.2
-        poll_time = 2  # usually 4, but we don't need high accuracy here,
+        poll_time = 1.5
         self.logger.debug(f"{self.job_name} is blocking until RPM is near {self.target_rpm}.")
 
         self.rpm_check_repeated_thread.pause()
@@ -522,7 +511,7 @@ class Stirrer(BackgroundJobWithDodging):
 
 
 def start_stirring(
-    target_rpm: float = config.getfloat("stirring.config", "target_rpm", fallback=400),
+    target_rpm: Optional[float] = config.getfloat("stirring.config", "target_rpm", fallback=400),
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
     use_rpm: bool = config.getboolean("stirring.config", "use_rpm", fallback="true"),
@@ -545,8 +534,6 @@ def start_stirring(
         experiment=experiment,
         rpm_calculator=rpm_calculator,
     )
-    if not stirrer.currently_dodging_od:
-        stirrer.start_stirring()
     return stirrer
 
 

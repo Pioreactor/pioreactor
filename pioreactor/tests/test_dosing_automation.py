@@ -1431,3 +1431,30 @@ def test_a_failing_automation_cleans_duration_attr_in_mqtt_up() -> None:
         f"pioreactor/{get_unit_name()}/{experiment}/dosing_automation/duration", timeout=2
     )
     assert result is None
+
+
+def test_custom_class_without_duration() -> None:
+    experiment = "test_custom_class_without_duration"
+
+    class NaiveTurbidostat(DosingAutomationJob):
+        automation_name = "_test_naive_turbidostat"
+        published_settings = {
+            "target_od": {"datatype": "float", "settable": True, "unit": "AU"},
+        }
+
+        def __init__(self, target_od: float, **kwargs: Any) -> None:
+            super(NaiveTurbidostat, self).__init__(**kwargs)
+            self.target_od = target_od
+
+        def execute(self) -> None:
+            if self.latest_normalized_od > self.target_od:
+                self.execute_io_action(media_ml=1.0, waste_ml=1.0)
+
+    with NaiveTurbidostat(
+        unit=get_unit_name(),
+        experiment=experiment,
+        target_od=2.0,
+        duration=10,
+    ):
+        msg = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/dosing_automation/duration", timeout=1)
+        assert msg is not None

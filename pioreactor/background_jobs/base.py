@@ -981,10 +981,19 @@ class BackgroundJobContrib(_BackgroundJob):
 class BackgroundJobWithDodging(_BackgroundJob):
     """
     This utility class allows for a change in behaviour when an OD reading is about to taken. Example: shutting
-    off a air-bubbler, or shutting off a pump or valve, with appropriate delay between.
+    off a air-bubbler, or shutting off an LED, with appropriate delay between.
 
     The methods `action_to_do_before_od_reading` and `action_to_do_after_od_reading` need to be overwritten, and
-    config needs to be added:
+    optional initialize_dodging_operation and initialize_continuous_operation can be overwritten.
+
+    If dodging is enabled, and OD reading is present then:
+      1. initialize_dodging_operation runs immediately. Use this to set up important state for dodging
+      2. before an OD reading is taken, action_to_do_before_od_reading is run
+      3. after an OD reading is taken, action_to_do_after_od_reading is run
+    If dodging is enabled, but OD reading is not present OR dodging is NOT enabled:
+      1. initialize_continuous_operation runs immediately. Use this to set up important state for continuous operation.
+
+    Config parameters needs to be added:
 
         [<job_name>.config]
         post_delay_duration=
@@ -1036,20 +1045,16 @@ class BackgroundJobWithDodging(_BackgroundJob):
         self.add_to_published_settings("currently_dodging_od", {"datatype": "boolean", "settable": False})
 
     def __post__init__(self):
-        super().__post__init__()
         self.set_enable_dodging_od(
             config.getboolean(f"{self.job_name}.config", "enable_dodging_od", fallback="False")
         )
         self.start_passive_listeners()
+        super().__post__init__()
 
     def _noop(self):
         pass
 
     def set_currently_dodging_od(self, value: bool):
-        if self.currently_dodging_od == value:
-            # noop
-            return
-
         self.currently_dodging_od = value
         if self.currently_dodging_od:
             self.initialize_dodging_operation()  # user defined
@@ -1058,14 +1063,12 @@ class BackgroundJobWithDodging(_BackgroundJob):
             self._setup_timer()
         else:
             self.initialize_continuous_operation()  # user defined
-
             self._action_to_do_before_od_reading = self._noop
             self._action_to_do_after_od_reading = self._noop
             self.sneak_in_timer.cancel()
 
     def set_enable_dodging_od(self, value: bool):
         self.enable_dodging_od = value
-
         if self.enable_dodging_od:
             if self.is_od_job_running():
                 self.logger.debug("Will attempt to dodge OD readings.")
@@ -1100,15 +1103,16 @@ class BackgroundJobWithDodging(_BackgroundJob):
 
     def _od_reading_changed_status(self, msg):
         if self.enable_dodging_od:
-            if msg.payload:
+            # only act if our internal state is discordant with the external state
+            if msg.payload and not self.currently_dodging_od:
                 # turned off
+                self.logger.debug("OD reading present. Dodging!")
                 self.set_currently_dodging_od(True)
-            else:
+            elif not msg.payload and self.currently_dodging_od:
+                self.logger.debug("OD reading turned off. Stop dodging.")
                 self.set_currently_dodging_od(False)
 
     def _setup_timer(self) -> None:
-        self.logger.debug("OD reading present. Dodging!")
-
         self.sneak_in_timer.cancel()
 
         post_delay = config.getfloat(f"{self.job_name}.config", "post_delay_duration", fallback=0.5)
@@ -1151,13 +1155,15 @@ class BackgroundJobWithDodging(_BackgroundJob):
             )
             self.clean_up()
 
+        time_to_next_ads_reading = ads_interval - ((time() - ads_start_time) % ads_interval)
+
         self.sneak_in_timer = RepeatedTimer(
             ads_interval,
             sneak_in,
             job_name=self.job_name,
             args=(ads_interval, post_delay, pre_delay),
             run_immediately=True,
-            run_after=ads_interval - ((time() - ads_start_time) % ads_interval),
+            run_after=time_to_next_ads_reading + (post_delay + self.OD_READING_DURATION),
             logger=self.logger,
         )
         self.sneak_in_timer.start()

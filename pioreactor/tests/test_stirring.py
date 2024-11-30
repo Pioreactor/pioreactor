@@ -58,6 +58,7 @@ def test_change_target_rpm_mid_cycle() -> None:
 def test_pause_stirring_mid_cycle() -> None:
     exp = "test_pause_stirring_mid_cycle"
     with Stirrer(500, unit, exp, rpm_calculator=None) as st:
+        st.stop_stirring()
         assert st.duty_cycle == 0
         st.start_stirring()
         original_dc = st.duty_cycle

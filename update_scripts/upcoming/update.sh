@@ -15,7 +15,11 @@ HOSTNAME=$(hostname)
 LEADER_HOSTNAME=$(crudini --get "$PIO_DIR"/config.ini cluster.topology leader_hostname)
 
 if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
-    crudini  --set /home/pioreactor/.pioreactor/config.ini cluster_addresses
+    crudini  --set /home/pioreactor/.pioreactor/config.ini cluster_addresses \
+             --set /home/pioreactor/.pioreactor/config.ini stirring.config post_delay_duration 0.25 \
+             --set /home/pioreactor/.pioreactor/config.ini stirring.config pre_delay_duration 1.50 \
+             --set /home/pioreactor/.pioreactor/config.ini stirring.config enable_dodging_od False
+
 
     sudo -u pioreactor mkdir -p /home/pioreactor/.pioreactor/exportable_datasets
     sudo -u pioreactor mkdir -p /home/pioreactor/.pioreactor/plugins/exportable_datasets
