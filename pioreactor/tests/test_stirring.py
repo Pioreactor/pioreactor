@@ -8,6 +8,8 @@ from pioreactor.background_jobs.stirring import RpmCalculator
 from pioreactor.background_jobs.stirring import RpmFromFrequency
 from pioreactor.background_jobs.stirring import start_stirring
 from pioreactor.background_jobs.stirring import Stirrer
+from pioreactor.config import config
+from pioreactor.config import temporary_config_change
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
 from pioreactor.utils import local_persistant_storage
@@ -179,15 +181,18 @@ def test_stirring_will_try_to_restart_and_dodge_od_reading() -> None:
     from pioreactor.background_jobs.od_reading import start_od_reading
 
     exp = "test_stirring_will_try_to_restart_and_dodge_od_reading"
-    rpm_calculator = RpmCalculator()
-    rpm_calculator.setup()
-    with start_od_reading(
-        "90", interval=5.0, unit=unit, experiment=exp, fake_data=True, use_calibration=False
-    ):
-        with Stirrer(500, unit, exp, rpm_calculator=rpm_calculator) as st:  # type: ignore
-            st.start_stirring()
-
-            pause(20)
+    # rpm_calculator = RpmCalculator()
+    # rpm_calculator.setup()
+    with temporary_config_change(config, "stirring.config", "enable_dodging_od", "true"):
+        with start_od_reading(
+            "90", interval=10.0, unit=unit, experiment=exp, fake_data=True, use_calibration=False
+        ):
+            with start_stirring(500, unit, exp, use_rpm=True) as st:
+                assert st.duty_cycle == 0
+                assert st._estimate_duty_cycle > 0
+                assert st.currently_dodging_od
+                assert st.enable_dodging_od
+                pause(5)
 
 
 def test_block_until_rpm_is_close_to_target_will_timeout() -> None:
@@ -203,7 +208,7 @@ def test_block_until_rpm_is_close_to_target_will_timeout() -> None:
 
 
 def test_block_until_rpm_is_close_will_exit() -> None:
-    exp = "test_block_until_rpm_is_close_to_target_will_timeout"
+    exp = "test_block_until_rpm_isf_close_to_target_will_timeout"
     rpm_calculator = MockRpmCalculator()
     rpm_calculator.setup()
     with Stirrer(

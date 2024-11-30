@@ -1126,7 +1126,13 @@ class BackgroundJobWithDodging(_BackgroundJob):
 
             with catchtime() as timer:
                 self._action_to_do_after_od_reading()
-            sleep(ads_interval - self.OD_READING_DURATION - (post_delay + pre_delay) - timer())
+            action_after_duration = timer()
+            if ads_interval - self.OD_READING_DURATION - (post_delay + pre_delay) - action_after_duration < 0:
+                raise ValueError(
+                    "samples_per_second is too high, or post_delay is too high, or pre_delay is too high, or action_to_do_after_od_reading takes too long."
+                )
+
+            sleep(ads_interval - self.OD_READING_DURATION - (post_delay + pre_delay) - action_after_duration)
             self._action_to_do_before_od_reading()
 
         # this could fail in the following way:
@@ -1150,14 +1156,10 @@ class BackgroundJobWithDodging(_BackgroundJob):
             sneak_in,
             job_name=self.job_name,
             args=(ads_interval, post_delay, pre_delay),
-            run_immediately=False,
+            run_immediately=True,
+            run_after=ads_interval - ((time() - ads_start_time) % ads_interval),
             logger=self.logger,
         )
-
-        # TODO: shouldn't I just use run_after in `RepeatedTimer` instead of this?
-        time_to_next_ads_reading = ads_interval - ((time() - ads_start_time) % ads_interval)
-
-        sleep(time_to_next_ads_reading + (post_delay + self.OD_READING_DURATION))
         self.sneak_in_timer.start()
 
     def on_sleeping(self) -> None:
