@@ -277,10 +277,10 @@ class Stirrer(BackgroundJobWithDodging):
     def action_to_do_after_od_reading(self):
         self.start_stirring()
         sleep(1)
-        self.poll_and_update_dc(2)
+        self.poll_and_update_dc()
 
     def initialize_dodging_operation(self):
-        if config.getfloat("od_reading.config", "samples_per_second") > 0.12:
+        if config.getfloat("od_reading.config", "samples_per_second") > 0.121:
             self.logger.warning(
                 "Recommended to decrease `samples_per_second` to ensure there is time to start/stop stirring. Try 0.12 or less."
             )
@@ -416,7 +416,9 @@ class Stirrer(BackgroundJobWithDodging):
         if poll_for_seconds is None:
             target_n_data_points = 12
             rps = self.target_rpm / 60.0
-            poll_for_seconds = target_n_data_points / rps
+            poll_for_seconds = min(
+                target_n_data_points / rps, 5
+            )  # things can break if this function takes too long.
 
         self.poll(poll_for_seconds)
 
