@@ -1124,7 +1124,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
         if pre_delay < 0.25:
             self.logger.warning("For optimal OD readings, keep `pre_delay_duration` more than 0.25 seconds.")
 
-        def sneak_in(ads_interval, post_delay, pre_delay) -> None:
+        def sneak_in(ads_interval: float, post_delay: float, pre_delay: float) -> None:
             if self.state != self.READY:
                 return
 
@@ -1149,9 +1149,9 @@ class BackgroundJobWithDodging(_BackgroundJob):
         # in the same experiment, the od_reading fails catastrophically so that the settings are never
         # cleared. Later, this job starts, and it will pick up the _old_ settings.
         with JobManager() as jm:
-            ads_interval = jm.get_setting_from_running_job("od_reading", "interval", timeout=5)
-            ads_start_time = jm.get_setting_from_running_job(
-                "od_reading", "first_od_obs_time", timeout=5
+            ads_interval = float(jm.get_setting_from_running_job("od_reading", "interval", timeout=5))
+            ads_start_time = float(
+                jm.get_setting_from_running_job("od_reading", "first_od_obs_time", timeout=5)
             )  # this is populated later in the OD job...
 
         # get interval, and confirm that the requirements are possible: post_delay + pre_delay <= ADS interval - (od reading duration)

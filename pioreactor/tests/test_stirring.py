@@ -209,7 +209,7 @@ def test_block_until_rpm_is_close_to_target_will_timeout() -> None:
 
 
 def test_block_until_rpm_is_close_will_exit() -> None:
-    exp = "test_block_until_rpm_isf_close_to_target_will_timeout"
+    exp = "test_block_until_rpm_is_close_will_exit"
     rpm_calculator = MockRpmCalculator()
     rpm_calculator.setup()
     with Stirrer(

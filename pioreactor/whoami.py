@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 import sys
 import time
+import warnings
 from functools import cache
 
 from pioreactor import mureq
@@ -16,6 +17,11 @@ from pioreactor.version import version_text_to_tuple
 UNIVERSAL_IDENTIFIER = "$broadcast"
 UNIVERSAL_EXPERIMENT = "$experiment"
 NO_EXPERIMENT = "$no_experiment_present"
+
+
+def get_latest_experiment_name() -> str:
+    warnings.warn("Use whoami.get_assigned_experiment_name(unit) instead", DeprecationWarning, stacklevel=2)
+    return get_assigned_experiment_name(get_unit_name())
 
 
 def get_testing_experiment_name() -> str:

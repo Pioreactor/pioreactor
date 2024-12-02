@@ -27,6 +27,9 @@
 #### Bug fixes
  - Fixed "circulate X" actions in the Manage All dialog in the UI.
 
+#### Breaking changes
+ - moved all the temporary caches, which previously where their own sqlite3 db in /tmp/ to /tmp/local_intermittent_pioreactor_metadata.sqlite. This shouldn't break anything unless you update _during_ an experiment - don't do that!
+
 ### 24.10.29
 
 #### Enhancements

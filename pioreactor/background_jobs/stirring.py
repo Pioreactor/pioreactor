@@ -201,6 +201,7 @@ class Stirrer(BackgroundJobWithDodging):
         "measured_rpm": {"datatype": "MeasuredRPM", "settable": False, "unit": "RPM"},
         "duty_cycle": {"datatype": "float", "settable": True, "unit": "%"},
     }
+    # the _estimate_duty_cycle parameter is like the unrealized DC, and the duty_cycle is the realized DC.
     _estimate_duty_cycle: float = config.getfloat("stirring.config", "initial_duty_cycle", fallback=30)
     duty_cycle: float = 0
     _measured_rpm: Optional[float] = None
@@ -370,8 +371,10 @@ class Stirrer(BackgroundJobWithDodging):
         wait until it completes before kicking stirring.
         """
         with JobManager() as jm:
-            interval = jm.get_setting_from_running_job("od_reading", "interval", timeout=5)
-            first_od_obs_time = jm.get_setting_from_running_job("od_reading", "first_od_obs_time", timeout=5)
+            interval = float(jm.get_setting_from_running_job("od_reading", "interval", timeout=5))
+            first_od_obs_time = float(
+                jm.get_setting_from_running_job("od_reading", "first_od_obs_time", timeout=5)
+            )
 
         seconds_to_next_reading = interval - (time() - first_od_obs_time) % interval
         sleep(

@@ -33,8 +33,8 @@ from pioreactor.pubsub import create_client
 from pioreactor.pubsub import patch_into
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.utils.networking import resolve_to_address
-from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import catchtime
+from pioreactor.utils.timing import current_utc_timestamp
 
 if TYPE_CHECKING:
     from pioreactor.pubsub import Client
@@ -262,6 +262,68 @@ class managed_lifecycle:
             jm.upsert_setting(self._job_id, setting, value)
 
 
+class cache:
+    def __init__(self, table_name):
+        self.table_name = f"cache_{table_name}"
+        self.db_path = f"{tempfile.gettempdir()}/local_intermittent_pioreactor_metadata.sqlite"
+
+    def __enter__(self):
+        self.conn = sqlite3.connect(self.db_path)
+        self.cursor = self.conn.cursor()
+        self._initialize_table()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.conn.commit()
+        self.conn.close()
+
+    def _initialize_table(self):
+        self.cursor.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS {self.table_name} (
+                key BLOB PRIMARY KEY,
+                value BLOB
+            )
+        """
+        )
+
+    def __setitem__(self, key, value):
+        self.cursor.execute(
+            f"""
+            INSERT INTO {self.table_name} (key, value)
+            VALUES (?, ?)
+            ON CONFLICT(key) DO UPDATE SET value=excluded.value
+        """,
+            (key, value),
+        )
+
+    def get(self, key, default=None):
+        self.cursor.execute(f"SELECT value FROM {self.table_name} WHERE key = ?", (key,))
+        result = self.cursor.fetchone()
+        return result[0] if result else default
+
+    def iterkeys(self):
+        self.cursor.execute(f"SELECT key FROM {self.table_name}")
+        return (row[0] for row in self.cursor.fetchall())
+
+    def __contains__(self, key):
+        self.cursor.execute(f"SELECT 1 FROM {self.table_name} WHERE key = ?", (key,))
+        return self.cursor.fetchone() is not None
+
+    def __iter__(self):
+        return self.iterkeys()
+
+    def __delitem__(self, key):
+        self.cursor.execute(f"DELETE FROM {self.table_name} WHERE key = ?", (key,))
+
+    def __getitem__(self, key):
+        self.cursor.execute(f"SELECT value FROM {self.table_name} WHERE key = ?", (key,))
+        result = self.cursor.fetchone()
+        if result is None:
+            raise KeyError(f"Key '{key}' not found in cache.")
+        return result[0]
+
+
 @contextmanager
 def local_intermittent_storage(
     cache_name: str,
@@ -282,11 +344,8 @@ def local_intermittent_storage(
     Opening the same cache in a context manager is tricky, and should be avoided.
 
     """
-    # gettempdir find the directory named by the TMPDIR environment variable.
-    # TMPDIR is set in the Pioreactor img.
-    tmp_dir = tempfile.gettempdir()
-    with Cache(f"{tmp_dir}/{cache_name}", sqlite_journal_mode="wal") as cache:
-        yield cache  # type: ignore
+    with cache(f"{cache_name}") as c:
+        yield c  # type: ignore
 
 
 @contextmanager
@@ -624,7 +683,6 @@ class JobManager:
 
                 if (timeout and timer() > timeout) or (timeout is None):
                     raise NameError(f"Setting {setting} was not found.")
-
 
     def set_not_running(self, job_id: JobMetadataKey) -> None:
         update_query = "UPDATE pio_job_metadata SET is_running=0, ended_at=STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW') WHERE id=(?)"
