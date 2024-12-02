@@ -219,7 +219,6 @@ def led_intensity(
                 logger.info(
                     f"Updated LED {channel} from {old_state[channel]:0.3g}% to {new_state[channel]:0.3g}%."
                 )
-
         return updated_successfully
 
 

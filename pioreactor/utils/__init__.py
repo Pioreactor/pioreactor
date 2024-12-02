@@ -286,6 +286,7 @@ class cache:
             )
         """
         )
+        self.conn.commit()
 
     def __setitem__(self, key, value):
         self.cursor.execute(
@@ -296,6 +297,7 @@ class cache:
         """,
             (key, value),
         )
+        self.conn.commit()
 
     def get(self, key, default=None):
         self.cursor.execute(f"SELECT value FROM {self.table_name} WHERE key = ?", (key,))
@@ -306,6 +308,17 @@ class cache:
         self.cursor.execute(f"SELECT key FROM {self.table_name}")
         return (row[0] for row in self.cursor.fetchall())
 
+    def pop(self, key, default=None):
+        self.cursor.execute(f"SELECT value FROM {self.table_name} WHERE key = ?", (key,))
+        result = self.cursor.fetchone()
+        if result is None:
+            if default is None:
+                raise KeyError(f"Key '{key}' not found in cache.")
+            return default
+        self.cursor.execute(f"DELETE FROM {self.table_name} WHERE key = ?", (key,))
+        self.conn.commit()
+        return result[0]
+
     def __contains__(self, key):
         self.cursor.execute(f"SELECT 1 FROM {self.table_name} WHERE key = ?", (key,))
         return self.cursor.fetchone() is not None
@@ -315,6 +328,7 @@ class cache:
 
     def __delitem__(self, key):
         self.cursor.execute(f"DELETE FROM {self.table_name} WHERE key = ?", (key,))
+        self.conn.commit()
 
     def __getitem__(self, key):
         self.cursor.execute(f"SELECT value FROM {self.table_name} WHERE key = ?", (key,))
