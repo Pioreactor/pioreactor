@@ -86,9 +86,8 @@ def _update_current_state(
         }
 
         # update cache
-        with led_cache.transact():
-            for channel, intensity in state.items():
-                led_cache[channel] = intensity
+        for channel, intensity in state.items():
+            led_cache[channel] = intensity
 
         new_state: LEDsToIntensityMapping = {
             channel: led_cache.get(str(channel), 0.0) for channel in ALL_LED_CHANNELS
