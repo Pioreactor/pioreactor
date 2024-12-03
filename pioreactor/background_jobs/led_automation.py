@@ -102,7 +102,6 @@ class LEDAutomationJob(AutomationJob):
             run_after = min(
                 1.0 / config.getfloat("od_reading.config", "samples_per_second"), 10
             )  # max so users aren't waiting forever to see lights come on...
-
         self.run_thread = RepeatedTimer(
             self.duration * 60,  # RepeatedTimer uses seconds
             self.run,

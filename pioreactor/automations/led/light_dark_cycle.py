@@ -60,10 +60,7 @@ class LightDarkCycle(LEDAutomationJob):
             Returns None if the LEDs' state didn't change.
         """
         cycle_duration_min = int(self.light_duration_minutes + self.dark_duration_minutes)
-
-        if ((minutes % cycle_duration_min) < (self.light_duration_minutes)) and (
-            not self.light_active
-        ):
+        if ((minutes % cycle_duration_min) < (self.light_duration_minutes)) and (not self.light_active):
             self.light_active = True
 
             for channel in self.channels:
@@ -71,9 +68,7 @@ class LightDarkCycle(LEDAutomationJob):
 
             return events.ChangedLedIntensity(f"{minutes:.1f}min: turned on LEDs.")
 
-        elif ((minutes % cycle_duration_min) >= (self.light_duration_minutes)) and (
-            self.light_active
-        ):
+        elif ((minutes % cycle_duration_min) >= (self.light_duration_minutes)) and (self.light_active):
             self.light_active = False
             for channel in self.channels:
                 self.set_led_intensity(channel, 0)

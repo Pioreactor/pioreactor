@@ -70,7 +70,7 @@ def test_light_dark_cycle_starts_on() -> None:
     experiment = "test_light_dark_cycle_starts_on"
     unit = get_unit_name()
     with LightDarkCycle(
-        duration=60,
+        duration=1,
         light_intensity=50,
         light_duration_minutes=60 * 16,
         dark_duration_minutes=8 * 60,
@@ -79,7 +79,7 @@ def test_light_dark_cycle_starts_on() -> None:
     ) as lc:
         pause(12)
 
-        assert lc.light_active
+        assert lc.light_active  # is this failing future Dev? od config samples_per_second==0.2
         with local_intermittent_storage("leds") as c:
             assert c["D"] == 50
             assert c["C"] == 50

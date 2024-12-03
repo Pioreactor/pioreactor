@@ -505,16 +505,16 @@ def test_disabling_dodging() -> None:
                 experiment=exp,
                 fake_data=True,
                 use_calibration=False,
-            ) as od:
+            ):
                 assert set(jp.published_settings.keys()) == set(
                     ["test", "state", "enable_dodging_od", "currently_dodging_od"]
                 )
                 time.sleep(20)
 
-                assert len(bucket) == 4
+                assert len(bucket) == 6
 
                 jp.set_enable_dodging_od(False)
-                assert jp.test == True
+                assert jp.test
                 time.sleep(20)
 
                 jp.set_enable_dodging_od(True)

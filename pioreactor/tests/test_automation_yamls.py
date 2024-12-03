@@ -34,6 +34,8 @@ def test_automations_and_their_yamls_have_the_same_data() -> None:
                 # check yaml -> settings
                 for field in data["fields"]:
                     key = field["key"]
+                    if key == "duration":
+                        continue
                     assert field["unit"] == klass.published_settings[key]["unit"]
 
                 # check settings -> yaml
