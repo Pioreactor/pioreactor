@@ -49,14 +49,14 @@ def backup_database(output_file: str, force: bool = False, backup_to_workers: in
 
         logger.debug(f"Starting backup of database to {output_file}")
 
-        if not force and count_writes_occurring() >= 2:
+        if not force and count_writes_occurring() >= 10:
             logger.debug("Too many writes to proceed with backup. Exiting. Use --force to force backing up.")
             return
 
         current_time = current_utc_timestamp()
         page_size = 50
 
-        con = sqlite3.connect(config.get("storage", "database"))
+        con = sqlite3.connect(f"file:{config.get('storage', 'database')}?mode=ro", uri=True)
         bck = sqlite3.connect(output_file)
 
         with bck:
