@@ -153,7 +153,7 @@ def export_experiment_data(
     available_datasets = load_exportable_datasets()
 
     with zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED) as zf, closing(
-        sqlite3.connect(config.get("storage", "database"))
+        sqlite3.connect(f"file:{config.get('storage', 'database')}?mode=ro", uri=True)
     ) as con:
         con.create_function(
             "BASE64", 1, decode_base64
@@ -226,7 +226,7 @@ def export_experiment_data(
             parition_to_writer_map: dict[tuple, Any] = {}
 
             with ExitStack() as stack:
-                for row in cursor:
+                for i, row in enumerate(cursor, start=1):
                     rows_partition = (
                         row[iloc_experiment] if iloc_experiment is not None else "all_experiments",
                         row[iloc_unit] if iloc_unit is not None else "all_units",
@@ -243,6 +243,11 @@ def export_experiment_data(
                         parition_to_writer_map[rows_partition].writerow(headers)
 
                     parition_to_writer_map[rows_partition].writerow(row)
+
+                    if i % 1000 == 0:
+                        logger.debug(f"Exported {i} rows...")
+
+            logger.debug(f"Exported {i} rows from {dataset_name}.")
 
             for filename in filenames:
                 path_to_file = Path(Path(output).parent / filename)
