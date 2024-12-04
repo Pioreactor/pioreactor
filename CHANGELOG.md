@@ -9,15 +9,14 @@
 
 #### Enhancements
  - improvements to Dodging background job code, including the ability to initialize the class based on dodging or not.
- - better error handling for failed OD blanks.
+ - better error handling for failed OD blank action.
  - better button state management in the UI.
- - job YAMLs' published_settings can have a new field, `editable` (bool), which controls whether it shows up on the Settings dialog or not. (False means it won't show up since it's not editable!). Default is true. This _should_ align with the `published_setting` in Python's job classes.
+ - a job YAMLs' published_settings can have a new field, `editable` (bool), which controls whether it shows up on the Settings dialog or not. (False means it won't show up since it's not editable!). Default is true. This _should_ align with the `published_setting` in Python's job classes.
  - you can add IPv4 addresses to the (new) `[cluster.addresses]` section to specify IPs for pioreactors. Example:
    ```
-
-  [cluster.addresses]
-  pio01_address=10.42.0.2
-  pio02_address=10.42.0.3
+   [cluster.addresses]
+   pio01=10.42.0.2
+   pio02=10.42.0.3
 
    ```
    Note that the leader's address is automatically added in our software.
@@ -28,7 +27,7 @@
  - Fixed "circulate X" actions in the Manage All dialog in the UI.
 
 #### Breaking changes
- - moved all the temporary caches, which previously where their own sqlite3 db in /tmp/ to /tmp/local_intermittent_pioreactor_metadata.sqlite. This shouldn't break anything unless you update _during_ an experiment - don't do that!
+ - moved all the temporary caches, which previously where their own sqlite3 dbs in `/tmp/` to `/tmp/local_intermittent_pioreactor_metadata.sqlite`. This shouldn't break anything unless you update _during_ an experiment - don't do that!
 
 ### 24.10.29
 

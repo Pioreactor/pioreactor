@@ -179,7 +179,8 @@ class RepeatedTimer:
         self.is_paused = False
 
     def cancel(self, timeout: t.Optional[float] = None) -> None:
-        self.event.set()
+        self.pause()  # this will exit from the _target early.
+        self.event.set()  # stop waiting in _target.
 
         with suppress(RuntimeError):
             # possible to happen if self.thread hasn't started yet,

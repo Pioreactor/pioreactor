@@ -531,7 +531,7 @@ def update_app(
             logger.error("Update failed. See logs.")
             # end early
             raise click.Abort()
-        else:
+        elif p.stdout:
             logger.debug(p.stdout)
 
     logger.notice(f"Updated Pioreactor app to version {version_installed}.")  # type: ignore

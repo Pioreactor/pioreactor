@@ -168,7 +168,7 @@ def get_config() -> ConfigParserMod:
 
     leader_hostname = config.get("cluster.topology", "leader_hostname")
     leader_address = config.get("cluster.topology", "leader_address")
-    config.set("cluster.addresses", f"{leader_hostname}_address", leader_address)
+    config.set("cluster.addresses", leader_hostname, leader_address)
 
     return config
 

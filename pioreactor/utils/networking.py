@@ -147,7 +147,7 @@ def discover_workers_on_network(terminate: bool = False) -> Generator[str, None,
 def resolve_to_address(hostname: str) -> str:
     # TODO: make this more fleshed out: resolve to IP, etc.
     # add_local assumes a working mDNS.
-    address_in_config = config.get("cluster.addresses", f"{hostname}_address", fallback=None)
+    address_in_config = config.get("cluster.addresses", hostname, fallback=None)
     if address_in_config is not None:
         return address_in_config
     else:

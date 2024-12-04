@@ -1053,8 +1053,12 @@ class BackgroundJobWithDodging(_BackgroundJob):
         self.set_enable_dodging_od(
             config.getboolean(f"{self.job_name}.config", "enable_dodging_od", fallback="False")
         )
-        self.start_passive_listeners()
-        super().__post__init__()
+        # now that `enable_dodging_od` is set, we can check for OD
+        self.subscribe_and_callback(
+            self._od_reading_changed_status,
+            f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval",
+        )
+        super().__post__init__()  # set ready
 
     def set_currently_dodging_od(self, value: bool):
         self.currently_dodging_od = value
@@ -1093,13 +1097,6 @@ class BackgroundJobWithDodging(_BackgroundJob):
 
     def initialize_continuous_operation(self) -> None:
         pass
-
-    def _start_general_passive_listeners(self) -> None:
-        super()._start_general_passive_listeners()
-        self.subscribe_and_callback(
-            self._od_reading_changed_status,
-            f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval",
-        )
 
     def _od_reading_changed_status(self, msg):
         if self.enable_dodging_od:
