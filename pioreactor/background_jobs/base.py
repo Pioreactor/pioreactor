@@ -1181,18 +1181,21 @@ class BackgroundJobWithDodging(_BackgroundJob):
 
     def on_sleeping(self) -> None:
         try:
+            self._event_is_dodging_od.set()
             self.sneak_in_timer.pause()
         except AttributeError:
             pass
 
     def on_disconnected(self) -> None:
         try:
+            self._event_is_dodging_od.set()
             self.sneak_in_timer.cancel()
         except AttributeError:
             pass
 
     def on_sleeping_to_ready(self) -> None:
         try:
+            self._event_is_dodging_od.clear()
             self.sneak_in_timer.unpause()
         except AttributeError:
             pass
