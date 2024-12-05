@@ -56,6 +56,7 @@ import UnderlineSpan from "./components/UnderlineSpan";
 import ManageExperimentMenu from "./components/ManageExperimentMenu";
 import { MQTTProvider, useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
+import PatientButton from './components/PatientButton';
 
 
 const readyGreen = "#176114"
@@ -71,42 +72,6 @@ const stateDisplay = {
   "disconnected":  {display: "Off", color: disconnectedGrey, backgroundColor: null},
   "lost":          {display: "Lost", color: lostRed, backgroundColor: null},
   "NA":            {display: "Not available", color: disconnectedGrey, backgroundColor: null},
-}
-
-
-// can this change to LoadingButton from MUI
-function PatientButton({buttonText, onClick, color, variant, disabled}) {
-  const [text, setText] = useState(buttonText)
-  const [error, setError] = useState(null)
-
-  const handleClick = async () => {
-    setError(null)
-    setText(<CircularProgress color="inherit" size={21}/>);
-    try {
-      await onClick();
-      setTimeout(() => setText(buttonText), 30000); // Reset to original text after a delay
-    } catch (error) {
-      setError(error.message)
-      setTimeout(() => setText(buttonText), 10000); // Reset to original text after a delay
-    }
-  };
-
-  return (
-    <>
-    {error && <p style={{color: lostRed}}>{error}</p>}
-    <Button
-      disableElevation
-      sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}}
-      color={color}
-      variant={variant}
-      disabled={disabled}
-      size="small"
-      onClick={handleClick}
-    >
-      {text}
-    </Button>
-    </>
-  )
 }
 
 
@@ -1218,7 +1183,7 @@ function SettingsActionsDialog(props) {
             .map(job => [job.state, job.metadata.key, job.publishedSettings])
             .map(([state, job_key, settings], index) => (
               Object.entries(settings)
-                .filter(([setting_key, setting],_) => setting.display)
+                .filter(([setting_key, setting],_) => setting.display && setting.editable)
                 .map(([setting_key, setting],_) =>
                         <React.Fragment key={setting_key}>
                           <Typography gutterBottom>
@@ -1874,7 +1839,7 @@ function SettingsActionsDialogAll({experiment}) {
             .map(job => [job.state, job.metadata.key, job.publishedSettings])
             .map(([state, job_key, settings], index) => (
               Object.entries(settings)
-                .filter(([setting_key, setting],_) => setting.display)
+                .filter(([setting_key, setting],_) => setting.display && setting.editable)
                 .map(([setting_key, setting],_) =>
               <React.Fragment key={job_key + setting_key}>
                 <Typography  gutterBottom>
@@ -1899,7 +1864,7 @@ function SettingsActionsDialogAll({experiment}) {
             Safely cycle media in and out of your Pioreactor for a set duration (seconds) by running the media pump periodically and waste pump continuously.
           </Typography>
 
-          <ActionCirculatingForm action="circulate_media" unit={unit} />
+          <ActionCirculatingForm action="circulate_media" unit={unit} experiment={experiment} />
 
           <ManageDivider/>
 
@@ -1910,7 +1875,7 @@ function SettingsActionsDialogAll({experiment}) {
             Safely cycle alternative media in and out of your Pioreactor for a set duration (seconds)  by running the alt-media pump periodically and waste pump continuously.
           </Typography>
 
-          <ActionCirculatingForm action="circulate_alt_media" unit={unit} />
+          <ActionCirculatingForm action="circulate_alt_media" unit={unit} experiment={experiment} />
 
           <ManageDivider/>
 
@@ -2227,19 +2192,19 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel})
       metadata: {display: false},
       publishedSettings: {
         versions: {
-            value: null, label: null, type: "json", unit: null, display: false, description: null
+            value: null, label: null, type: "json", unit: null, display: false, description: null, editable: false,
         },
         voltage_on_pwm_rail: {
-            value: null, label: null, type: "json", unit: null, display: false, description: null
+            value: null, label: null, type: "json", unit: null, display: false, description: null, editable: false,
         },
         ipv4: {
-            value: null, label: null, type: "string", unit: null, display: false, description: null
+            value: null, label: null, type: "string", unit: null, display: false, description: null, editable: false,
         },
         wlan_mac_address: {
-            value: null, label: null, type: "string", unit: null, display: false, description: null
+            value: null, label: null, type: "string", unit: null, display: false, description: null, editable: false,
         },
         eth_mac_address: {
-            value: null, label: null, type: "string", unit: null, display: false, description: null
+            value: null, label: null, type: "string", unit: null, display: false, description: null, editable: false,
         },
       },
     },
@@ -2480,7 +2445,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel})
           {Object.values(jobs)
               .filter(job => job.metadata.display)
               .map(job => (
-            <Box sx={{width: "130px", mt: "10px"}} key={job.metadata.key}>
+            <Box sx={{width: "130px", mt: "10px", mr: "2px"}} key={job.metadata.key}>
               <Typography variant="body2" style={{fontSize: "0.84rem"}} sx={{ color: !isUnitActive ? disabledColor : 'inherit' }}>
                 {job.metadata.display_name}
               </Typography>
@@ -2519,7 +2484,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel})
               Object.entries(settings)
                 .filter(([setting_key, setting], _) => setting.display)
                 .map(([setting_key, setting], _) =>
-                  <Box sx={{width: "130px", mt: "10px"}} key={job_key + setting_key}>
+                  <Box sx={{width: "130px", mt: "10px", mr: "2px"}} key={job_key + setting_key}>
                     <Typography variant="body2" style={{fontSize: "0.84rem"}} sx={{ color: !isUnitActive ? disabledColor : 'inherit' }}>
                       {setting.label}
                     </Typography>

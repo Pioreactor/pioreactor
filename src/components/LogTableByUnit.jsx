@@ -157,7 +157,7 @@ function LogTableByUnit({experiment, unit}) {
                   <StyledTableCell level={log.level}>{log.message}</StyledTableCell>
                 </TableRow>
                 {
-                  listOfLogs[i+1] && (toTimestampObject(log.timestamp).diff(toTimestampObject(listOfLogs[i+1].timestamp), 'hours', true) >= 1) && (
+                  listOfLogs[i+1] && (toTimestampObject(log.timestamp).diff(toTimestampObject(listOfLogs[i+1].timestamp), 'hours', true) >= 2) && (
                     <TableRow key={`filler-${log.key}`}>
                       <StyledTableCellFiller colspan="3">{toTimestampObject(log.timestamp).diff(toTimestampObject(listOfLogs[i+1].timestamp), 'hours')} hours earlier...</StyledTableCellFiller>
                     </TableRow>

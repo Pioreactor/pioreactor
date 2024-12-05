@@ -18,13 +18,40 @@ export const ExperimentProvider = ({ children }) => {
         return maybeExperimentMetadata;
       }
 
-      // Fetch new metadata if we don't have any or if it's too old
-      const url = maybeExperimentMetadata?.experiment
+      // Determine the initial URL to fetch metadata
+      const primaryUrl = maybeExperimentMetadata?.experiment
         ? `/api/experiments/${maybeExperimentMetadata.experiment}`
         : "/api/experiments/latest";
 
-      const response = await fetch(url);
-      const data = await response.json();
+      let data;
+
+      try {
+        // Try fetching the primary URL
+        let response = await fetch(primaryUrl);
+
+        if (!response.ok) {
+          // If primary URL fails, throw an error to trigger fallback
+          throw new Error(`Primary request failed with status: ${response.status} ${response.statusText}`);
+        }
+
+        data = await response.json();
+      } catch (error) {
+        console.warn("Primary request failed, attempting fallback:", error);
+
+        try {
+          // Fallback to /api/experiments/latest
+          const fallbackResponse = await fetch("/api/experiments/latest");
+
+          if (!fallbackResponse.ok) {
+            throw new Error(`Fallback request also failed with status: ${fallbackResponse.status} ${fallbackResponse.statusText}`);
+          }
+
+          data = await fallbackResponse.json();
+        } catch (fallbackError) {
+          console.error("Both primary and fallback requests failed:", fallbackError);
+          throw fallbackError; // Rethrow to allow higher-level error handling
+        }
+      }
 
       // Add the current timestamp to the data
       data._createdAt = now;
@@ -32,6 +59,7 @@ export const ExperimentProvider = ({ children }) => {
 
       return data;
     };
+
 
     // Async function to update state
     const fetchAndSetMetadata = async () => {

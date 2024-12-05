@@ -1,4 +1,4 @@
-import { Hashicon } from "@emeraldpay/hashicon-react";
+import Avatar from "boring-avatars";
 import React from "react";
 
 import Grid from '@mui/material/Grid';
@@ -15,7 +15,6 @@ import ListItemAvatar from '@mui/material/ListItemAvatar';
 import ListItemSecondaryAction from '@mui/material/ListItemSecondaryAction';
 import ListItemText from '@mui/material/ListItemText';
 import DeleteIcon from '@mui/icons-material/Delete';
-import Avatar from '@mui/material/Avatar';
 import GetAppIcon from '@mui/icons-material/GetApp';
 import CircularProgress from '@mui/material/CircularProgress';
 import { Link } from 'react-router-dom';
@@ -25,8 +24,6 @@ import DialogContent from '@mui/material/DialogContent';
 import CloseIcon from '@mui/icons-material/Close';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
-
-
 
 
 function InstallByNameDialog(props){
@@ -202,12 +199,10 @@ function ListSuggestedPlugins({alreadyInstalledPluginsNames}){
        <List dense={true}>
           {availablePlugins
               .filter(plugin => (!alreadyInstalledPluginsNames.includes(plugin.name)))
-              .map(plugin =>
+              .map((plugin, i) =>
             <ListItem key={plugin.name}>
               <ListItemAvatar>
-                <Avatar variant="square" style={{backgroundColor:"#FFFFFF"}}>
-                  <Hashicon value={plugin.name} size={40} />
-                </Avatar>
+                  <Avatar name={plugin.name+"seed1"} size={40} colors={["#5332ca", "#856edb", "#94ccc1", "#d8535e", "#f0b250"]} variant="bauhaus"/>
               </ListItemAvatar>
               <ListItemText
                 primary={plugin.name}
@@ -307,12 +302,10 @@ function ListInstalledPlugins({installedPlugins}){
       <React.Fragment>
       <Box sx={{m: "auto", mb: "15px", width: "92%"}}>
        <List dense={true}>
-          {installedPlugins.map(plugin =>
+          {installedPlugins.map(( plugin, i) =>
             <ListItem key={plugin.name}>
               <ListItemAvatar>
-                <Avatar variant="square" style={{backgroundColor:"#FFFFFF"}}>
-                  <Hashicon value={plugin.name} size={42} />
-                </Avatar>
+                  <Avatar name={plugin.name + "seed1"} size={40} colors={["#5332ca", "#94ccc1", "#d8535e", "#f0b250"]} variant="bauhaus"/>
               </ListItemAvatar>
               <ListItemText
                 primary={`${plugin.name} ${(plugin.version === "Unknown")  ? "" : "(" + plugin.version + ")"}`}

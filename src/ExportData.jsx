@@ -1,8 +1,6 @@
 import React from "react";
-import dayjs from "dayjs";
 
 import Grid from '@mui/material/Grid';
-import FormLabel from '@mui/material/FormLabel';
 import FormControl from '@mui/material/FormControl';
 import FormGroup from '@mui/material/FormGroup';
 import FormControlLabel from '@mui/material/FormControlLabel';
@@ -16,14 +14,17 @@ import Box from '@mui/material/Box';
 import LoadingButton from "@mui/lab/LoadingButton";
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import { useTheme } from '@mui/material/styles';
-import OutlinedInput from '@mui/material/OutlinedInput';
 import Chip from '@mui/material/Chip';
+import { Accordion, AccordionSummary, AccordionDetails, Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+
 
 const datasetDescription = {
     marginLeft: "30px",
     fontSize: 14,
-    maxWidth: "80%",
+    color: 'text.secondary',
 }
+
 
 function getStyles(value, values, theme) {
   return {
@@ -54,7 +55,7 @@ function MultipleSelectChip({availableValues, parentHandleChange}) {
   return (
     <div>
       <FormControl fullWidth variant="standard" component="fieldset" sx={{ maxWidth: 470 }}>
-        <Typography variant="h6">Experiments</Typography>
+        <Typography variant="h6" gutterBottom >Experiments</Typography>
         <Select
           labelId="expSelect"
           variant="standard"
@@ -137,37 +138,165 @@ const PartitionBySelection = (props) => {
     </Box>
 )}
 
+const Dataset = ({ dataset, isSelected, handleChange }) => {
+  const [previewData, setPreviewData] = React.useState([]);
+  const [isLoading, setIsLoading] = React.useState(false);
 
-
-const CheckboxesGroup = (props) => {
+  const handlePreview = async (e, expanded) => {
+    if (!expanded){
+      return
+    }
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/contrib/exportable_datasets/${dataset.dataset_name}/preview`);
+      const data = await response.json();
+      setPreviewData(data);
+    } catch (error) {
+      console.error("Failed to fetch preview data:", error);
+      setPreviewData([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <Box sx={{m: 1}}>
-      <FormControl component="fieldset" >
+    <Box
+      key={dataset.dataset_name}
+      sx={{
+        ml: 1,
+        mt: 2,
+        p: 1.5,
+        borderLeft: isSelected ? "4px solid #5331CA" : "4px solid #ddd",
+        borderRadius: "4px",
+        backgroundColor: isSelected ? "#5331ca14" : "white",
+        transition: "background-color 0.15s, border 0.15s",
+      }}
+    >
+      <FormControlLabel
+        control={
+          <Checkbox
+            checked={isSelected}
+            onChange={handleChange}
+            name={dataset.dataset_name}
+          />
+        }
+        label={
+          <Typography
+            variant="subtitle1"
+            sx={{ fontWeight: isSelected ? "bold" : "normal" }}
+          >
+            {dataset.display_name}
+          </Typography>
+        }
+      />
+      {dataset.source !== "app" && (
+        <Typography
+          sx={{ marginLeft: "30px" }}
+          variant="caption"
+          display="block"
+          gutterBottom
+          color="textSecondary"
+        >
+          {`Provided by ${dataset.source}`}
+        </Typography>
+      )}
+      <Typography sx={datasetDescription}>{dataset.description}</Typography>
+      <Accordion
+        square
+        disableGutters
+        elevation={0}
+        sx={{
+          '&::before': {
+            display: 'none',
+          },
+          marginLeft: "20px",
+          backgroundColor: isSelected ? "#f6f4fa" : "white",
+          marginTop: "8px",
+          "&.Mui-expanded": {
+            backgroundColor: isSelected ? "#f6f4fa" : "#f9f9f9",
+            marginLeft: "20px",
+            minHeight: 0,
+          },
+          "&.Mui-expanded:first-of-type": {
+            marginTop: "8px",
+          },
+        }}
+        onChange={handlePreview}
+      >
+        <AccordionSummary
+          sx={{
+            flexDirection: 'row-reverse',
+            fontWeight: "bold",
+            '&:hover': {
+              backgroundColor: "#f3f3f3",
+            },
+          }}
+        expandIcon={<ArrowDropDownIcon />}
+        >
+          <Typography>Preview</Typography>
+        </AccordionSummary>
+        <AccordionDetails
+          sx={{
+            padding: 2,
+            borderTop: '1px solid rgba(0, 0, 0, .125)',
+          }}
+        >
+          {isLoading ? (
+            <Typography>Loading preview...</Typography>
+          ) : previewData.length > 0 ? (
+            <>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  {Object.keys(previewData[0]).map((key) => (
+                    <TableCell key={key} sx={{ maxWidth: 200, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {key}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {previewData.map((row, index) => (
+                  <TableRow key={index}>
+                    {Object.values(row).map((value, idx) => (
+                      <TableCell key={idx} sx={{ maxWidth: 200, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {value}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <Typography color="textSecondary" sx={{fontSize: 12, m:2, mt: 1, md: 0}}>(Random sample from all experiments and units)</Typography>
+            </>
+          ) : (
+            <Typography>No preview data available.</Typography>
+          )}
+        </AccordionDetails>
+      </Accordion>
+    </Box>
+  );
+};
+
+const Datasets = ({ datasets, selectedDatasets, handleChange }) => {
+  return (
+    <Box sx={{ m: 1 }}>
+      <FormControl component="fieldset">
         <Typography variant="h6">Available datasets</Typography>
         <FormGroup>
-
-        {props.datasets.map( (dataset) => (
-          <Box sx={{ml: 1, mt: 1}} key={dataset.dataset_name}>
-            <FormControlLabel
-              control={<Checkbox checked={props.selectedDatasets.includes(dataset.dataset_name)} onChange={props.handleChange} name={dataset.dataset_name} />}
-              label={dataset.display_name}
+          {datasets.map((dataset) => (
+            <Dataset
+              key={dataset.dataset_name}
+              dataset={dataset}
+              isSelected={selectedDatasets.includes(dataset.dataset_name)}
+              handleChange={handleChange}
             />
-            {dataset.source !== "app"  &&
-              <Typography  sx={{marginLeft: "30px"}} variant="caption" display="block" gutterBottom color="textSecondary">
-              {`Provided by ${dataset.source}`}
-              </Typography>
-            }
-            <Typography  sx={datasetDescription}>
-              {dataset.description}
-            </Typography>
-          </Box>
-        ))}
-
+          ))}
         </FormGroup>
       </FormControl>
     </Box>
-)}
+  );
+};
 
 
 function ExportDataContainer() {
@@ -199,12 +328,13 @@ function ExportDataContainer() {
   }, [])
 
 
-  const count = () => state.selectedDatasets.length
+  const countDatasets = () => state.selectedDatasets.length
+  const countExperiments = () => state.experimentSelection.length
 
   const onSubmit =  (event) => {
     event.preventDefault()
 
-    if (count() == 0) {
+    if (countDatasets() === 0) {
       setIsError(true)
       setErrorMsg("At least one dataset must be selected.")
       return
@@ -264,7 +394,6 @@ function ExportDataContainer() {
 
 
   function handleExperimentSelectionChange(experiments) {
-    console.log(experiments)
     setState(prevState => ({
       ...prevState,
       experimentSelection: experiments
@@ -285,6 +414,8 @@ function ExportDataContainer() {
           partitionByExperimentSelection: event.target.checked
         }));
         break;
+      default:
+        break
     }
   };
 
@@ -307,10 +438,10 @@ function ExportDataContainer() {
                 loadingPosition="end"
                 onClick={onSubmit}
                 endIcon={<FileDownloadIcon />}
-                disabled={count() === 0}
+                disabled={(countDatasets() === 0) || (countExperiments() === 0)}
                 style={{textTransform: 'none'}}
               >
-                Export { count() > 0 ?  count() : ""}
+                Export { countDatasets() > 0 ?  countDatasets() : ""}
             </LoadingButton>
           </Box>
         </Box>
@@ -336,7 +467,7 @@ function ExportDataContainer() {
                 />
               </Grid>
               <Grid item xs={12} md={12}>
-                <CheckboxesGroup
+                <Datasets
                 selectedDatasets={state.selectedDatasets}
                 handleChange={handleCheckboxChange}
                 datasets={datasets}

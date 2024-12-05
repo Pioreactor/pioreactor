@@ -22,6 +22,7 @@ import ListItemText from '@mui/material/ListItemText';
 
 
 import PioreactorIcon from "./PioreactorIcon"
+import PatientButton from "./PatientButton"
 import {runPioreactorJob} from "../utilities"
 
 
@@ -32,30 +33,6 @@ const ManageDivider = styled(Divider)(({ theme }) => ({
 
 const readyGreen = "#176114"
 const lostRed = "#DE3618"
-
-
-function PatientButton(props) {
-  const [buttonText, setButtonText] = useState(props.initialButtonText)
-
-  const onClick = () => {
-      setButtonText(<CircularProgress color="inherit" size={21}/>)
-      props.onClick()
-  }
-
-  return (
-    <Button
-      disableElevation
-      sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}}
-      color={props.color}
-      variant={props.variant}
-      disabled={props.disabled}
-      size="small"
-      onClick={onClick}
-    >
-      {buttonText}
-    </Button>
-  )
-}
 
 
 export default function SelfTestDialog({client, disabled, experiment, unit, label , selfTestState, selfTestTests}) {
@@ -100,7 +77,7 @@ export default function SelfTestDialog({client, disabled, experiment, unit, labe
                 color="primary"
                 variant="contained"
                 disabled={true}
-                initialButtonText="Running"
+                buttonText="Running"
                />
               </Box>)
       default:
@@ -109,7 +86,7 @@ export default function SelfTestDialog({client, disabled, experiment, unit, labe
                 color="primary"
                 variant="contained"
                 onClick={() => runPioreactorJob(unit, experiment, "self_test")}
-                initialButtonText="Start"
+                buttonText="Start"
                />
               </Box>)
     }
