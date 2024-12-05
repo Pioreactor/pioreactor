@@ -1048,6 +1048,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
         )  # placeholder?
         self.add_to_published_settings("enable_dodging_od", {"datatype": "boolean", "settable": True})
         self.add_to_published_settings("currently_dodging_od", {"datatype": "boolean", "settable": False})
+        self._event_is_dodging_od = threading.Event()
 
     def __post__init__(self):
         self.set_enable_dodging_od(
@@ -1063,11 +1064,13 @@ class BackgroundJobWithDodging(_BackgroundJob):
     def set_currently_dodging_od(self, value: bool):
         self.currently_dodging_od = value
         if self.currently_dodging_od:
+            self._event_is_dodging_od.clear()
             self.initialize_dodging_operation()  # user defined
             self._action_to_do_before_od_reading = self.action_to_do_before_od_reading
             self._action_to_do_after_od_reading = self.action_to_do_after_od_reading
             self._setup_timer()
         else:
+            self._event_is_dodging_od.set()
             self.initialize_continuous_operation()  # user defined
             self._action_to_do_before_od_reading = _noop
             self._action_to_do_after_od_reading = _noop
@@ -1135,7 +1138,12 @@ class BackgroundJobWithDodging(_BackgroundJob):
                     "samples_per_second is too high, or post_delay is too high, or pre_delay is too high, or action_to_do_after_od_reading takes too long."
                 )
 
-            sleep(ads_interval - self.OD_READING_DURATION - (post_delay + pre_delay) - action_after_duration)
+            if self.state != self.READY:
+                return
+
+            self._event_is_dodging_od.wait(
+                ads_interval - self.OD_READING_DURATION - (post_delay + pre_delay) - action_after_duration
+            )
 
             if self.state != self.READY:
                 return
