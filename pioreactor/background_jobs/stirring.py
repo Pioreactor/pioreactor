@@ -28,6 +28,7 @@ from pioreactor.utils.pwm import PWM
 from pioreactor.utils.streaming_calculations import PID
 from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_datetime
+from pioreactor.utils.timing import paused_timer
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
@@ -287,9 +288,9 @@ class Stirrer(BackgroundJobWithDodging):
             )
 
         with suppress(AttributeError):
-            self.rpm_check_repeated_thread.cancel()
+            self.rpm_check_repeated_timer.cancel()
 
-        self.rpm_check_repeated_thread = RepeatedTimer(
+        self.rpm_check_repeated_timer = RepeatedTimer(
             1_000,
             lambda *args: None,
             job_name=self.job_name,
@@ -299,7 +300,7 @@ class Stirrer(BackgroundJobWithDodging):
 
     def initialize_continuous_operation(self):
         # set up thread to periodically check the rpm
-        self.rpm_check_repeated_thread = RepeatedTimer(
+        self.rpm_check_repeated_timer = RepeatedTimer(
             config.getfloat("stirring.config", "duration_between_updates_seconds", fallback=23.0),
             self.poll_and_update_dc,
             job_name=self.job_name,
@@ -339,7 +340,7 @@ class Stirrer(BackgroundJobWithDodging):
     def on_disconnected(self) -> None:
         super().on_disconnected()
         with suppress(AttributeError):
-            self.rpm_check_repeated_thread.cancel()
+            self.rpm_check_repeated_timer.cancel()
         with suppress(AttributeError):
             self.pwm.clean_up()
         with suppress(AttributeError):
@@ -350,11 +351,11 @@ class Stirrer(BackgroundJobWithDodging):
         self.set_duty_cycle(100)  # get momentum to start
         sleep(0.35)
         self.set_duty_cycle(self._estimate_duty_cycle)
-        self.rpm_check_repeated_thread.unpause()
+        self.rpm_check_repeated_timer.unpause()
 
     def stop_stirring(self) -> None:
         self.set_duty_cycle(0)  # get momentum to start
-        self.rpm_check_repeated_thread.pause()
+        self.rpm_check_repeated_timer.pause()
         if self.rpm_calculator is not None:
             self.measured_rpm = structs.MeasuredRPM(timestamp=current_utc_datetime(), measured_rpm=0)
 
@@ -441,7 +442,7 @@ class Stirrer(BackgroundJobWithDodging):
     def on_sleeping_to_ready(self) -> None:
         super().on_sleeping_to_ready()
         self.duty_cycle = self._estimate_duty_cycle
-        self.rpm_check_repeated_thread.unpause()
+        self.rpm_check_repeated_timer.unpause()
         self.start_stirring()
 
     def set_duty_cycle(self, value: float) -> None:
@@ -471,50 +472,56 @@ class Stirrer(BackgroundJobWithDodging):
         Parameters
         -----------
         abs_tolerance:
-            the maximum delta between current RPM and the target RPM.
+            The maximum delta between current RPM and the target RPM.
         timeout:
             When timeout is not None, block at this function for maximum timeout seconds.
 
         Returns
         --------
         bool: True if successfully waited until RPM is correct.
-
         """
-
         if (
             self.rpm_calculator is None or self.target_rpm is None or self.currently_dodging_od
         ):  # or is_testing_env():
-            # can't block if we aren't recording the RPM
+            # Can't block if we aren't recording the RPM
             return False
 
-        sleep_time = 0.2
-        poll_time = 1.5
-        self.logger.debug(f"{self.job_name} is blocking until RPM is near {self.target_rpm}.")
+        def should_exit() -> bool:
+            """Encapsulates exit conditions to simplify the main loop."""
+            return self.state != self.READY or self.currently_dodging_od
 
-        self.rpm_check_repeated_thread.pause()
-
-        with catchtime() as time_waiting:
-            self.sleep_if_ready(2)  # on init, the stirring is too fast from the initial "kick"
-            self.poll_and_update_dc(poll_time)
+        with paused_timer(self.rpm_check_repeated_timer):  # Automatically pause/unpause
             assert isinstance(self.target_rpm, float)
-            assert self._measured_rpm is not None
+            sleep_time = 0.2
+            poll_time = 1.5
+            self.logger.debug(f"{self.job_name} is blocking until RPM is near {self.target_rpm}.")
 
-            while abs(self._measured_rpm - self.target_rpm) > abs_tolerance:
-                self.sleep_if_ready(sleep_time)
+            with catchtime() as time_waiting:
+                self.sleep_if_ready(2)  # On init, the stirring is too fast from the initial "kick"
+
+                if should_exit():
+                    return False
 
                 self.poll_and_update_dc(poll_time)
+                assert self._measured_rpm is not None
 
-                if self.state != self.READY:
-                    self.rpm_check_repeated_thread.unpause()
-                    return False
-                elif timeout and time_waiting() > timeout:
-                    self.rpm_check_repeated_thread.unpause()
-                    self.logger.debug(
-                        f"Waited {time_waiting():.1f} seconds for RPM to match, breaking out early."
-                    )
-                    return False
+                while abs(self._measured_rpm - self.target_rpm) > abs_tolerance:
+                    if should_exit():
+                        return False
 
-        self.rpm_check_repeated_thread.unpause()
+                    self.sleep_if_ready(sleep_time)
+
+                    if should_exit():
+                        return False
+
+                    self.poll_and_update_dc(poll_time)
+
+                    if timeout and time_waiting() > timeout:
+                        self.logger.debug(
+                            f"Waited {time_waiting():.1f} seconds for RPM to match, breaking out early."
+                        )
+                        return False
+
         return True
 
 

@@ -199,3 +199,15 @@ class RepeatedTimer:
 
     def is_alive(self) -> bool:
         return self.thread.is_alive()
+
+
+@contextmanager
+def paused_timer(timer):
+    """
+    Context manager to pause and unpause a timer object automatically.
+    """
+    timer.pause()
+    try:
+        yield
+    finally:
+        timer.unpause()
