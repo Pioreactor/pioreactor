@@ -63,7 +63,7 @@ function Header(props) {
           </Box>
         </Typography>
         <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
-          <AddNewPioreactor/>
+          <AddNewPioreactor setWorkers={props.setWorkers}/>
           <Divider orientation="vertical" flexItem variant="middle"/>
           <ManageInventoryMenu/>
         </Box>
@@ -239,7 +239,8 @@ function AddNewPioreactor(props){
           response.json().then(data => setErrorMsg(`Unable to complete connection. The following error occurred: ${data.msg}`))
         } else {
           setIsSuccess(true)
-          setSuccessMsg(`Success! Rebooting ${name} now. Refresh to see ${name} in your cluster.`)
+          props.setWorkers((prevWorkers) => [...prevWorkers, {pioreactor_unit: name, is_active: true}])
+          setSuccessMsg(`Success! Rebooting ${name} now. Add another?`)
         }
     })
   }
@@ -288,10 +289,6 @@ function AddNewPioreactor(props){
             sx={{mt: "15px", maxWidth: "195px"}}
             onChange={handleNameChange}
             value={name}
-            InputProps={{
-              endAdornment: <InputAdornment position="end">.local</InputAdornment>,
-            }
-          }
           />
         <FormControl required sx={{mt: "15px", ml: "10px", minWidth: "195px"}} variant="outlined" size="small">
           <InputLabel >Pioreactor model</InputLabel>
@@ -321,6 +318,7 @@ function AddNewPioreactor(props){
             onClick={onSubmit}
             type="submit"
             loading={isRunning}
+            disabled={!name || !version}
             endIcon={ <PioreactorIcon /> }
 
           >
@@ -773,12 +771,11 @@ function Inventory({title}) {
       setIsLoading(false)
     }
   };
-
   return (
     <MQTTProvider name="cluster" config={config}>
       <Grid container spacing={2} >
         <Grid item md={12} xs={12}>
-          <Header />
+          <Header setWorkers={setWorkers}/>
           <InventoryDisplay isLoading={isLoading} workers={workers} config={config} />
           <Grid item xs={12}>
             <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/create-cluster" target="_blank" rel="noopener noreferrer">inventory and cluster management</a>.</p>

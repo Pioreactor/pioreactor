@@ -1553,7 +1553,7 @@ function PioreactorCard(props){
             var metaData_ = {state: "disconnected", publishedSettings: {}, metadata: {display_name: job.display_name, subtext: job.subtext, display: job.display, description: job.description, key: job.job_name, source: job.source}}
             for(var i = 0; i < job["published_settings"].length; ++i){
               var field = job["published_settings"][i]
-              metaData_.publishedSettings[field.key] = {value: field.default || null, label: field.label, type: field.type, unit: field.unit || null, display: field.display, description: field.description}
+              metaData_.publishedSettings[field.key] = {value: field.default || null, label: field.label, type: field.type, unit: field.unit || null, display: field.display, description: field.description, editable: field.editable || true}
             }
             jobs_[job.job_name] = metaData_
           }
