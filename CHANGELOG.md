@@ -1,3 +1,7 @@
+### 24.12.10
+ - Hotfix for UI settings bug
+
+
 ### 24.12.5
 
 #### Highlights
