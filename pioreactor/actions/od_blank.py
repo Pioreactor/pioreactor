@@ -160,6 +160,10 @@ def od_blank(
     logger = create_logger(action_name, unit=unit, experiment=experiment)
     logger.info("Starting blank OD calibration.")
 
+    if is_pio_job_running("od_reading"):
+        logger.error("OD Reading should be off. Perform OD Blanking _before_ OD Reading.")
+        raise click.Abort()
+
     with managed_lifecycle(unit, experiment, action_name):
         try:
             with temporary_config_change(config, "stirring.config", "enable_dodging_od", "False"):

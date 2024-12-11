@@ -48,7 +48,7 @@ class ConfigParserMod(configparser.ConfigParser):
         except TypeError as e:
             from pioreactor.logging import create_logger
 
-            create_logger("read config").error(e)
+            create_logger("read config").error(f"Error in [{section}] parameter {option}: {e}")
             raise e
 
     def getboolean(self, section: str, option: str, *args, **kwargs) -> bool:  # type: ignore
