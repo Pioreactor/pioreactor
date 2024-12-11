@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from time import sleep
 
@@ -80,7 +81,7 @@ def add_worker(hostname: str, password: str, version: str, model: str) -> None:
                     logger.error(
                         f"`{hostname}` not found on network after {round(elapsed())} seconds. Check that you provided the right i) the name is correct, ii) worker is powered on, iii) any WiFi credentials to the network are correct."
                     )
-                    raise click.Abort()
+                    sys.exit()
                 sleep(sleep_time)
 
         res = subprocess.run(
