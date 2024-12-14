@@ -28,12 +28,12 @@ from pioreactor.utils.timing import current_utc_timestamp
 lazy_subcommands = {
     "run": "pioreactor.cli.run.run",
     "plugins": "pioreactor.cli.plugins.plugins",
+    "calibrations": "pioreactor.cli.calibrations.calibration",
 }
 
 if whoami.am_I_leader():
     # add in ability to control workers
     lazy_subcommands["workers"] = "pioreactor.cli.workers.workers"
-
 
 @click.group(
     cls=LazyGroup,

@@ -26,7 +26,7 @@ from msgspec.json import encode as dumps
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor import whoami
-from pioreactor.exc import JobNotRunningError
+from pioreactor.exc import JobRequiredError
 from pioreactor.exc import NotActiveWorkerError
 from pioreactor.exc import RoleError
 from pioreactor.pubsub import create_client
@@ -678,7 +678,7 @@ class JobManager:
 
     def get_setting_from_running_job(self, job_name: str, setting: str, timeout=None) -> Any:
         if timeout is not None and not self.is_job_running(job_name):
-            raise JobNotRunningError(f"Job {job_name} is not running.")
+            raise JobRequiredError(f"Job {job_name} is not running.")
 
         with catchtime() as timer:
             while True:

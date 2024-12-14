@@ -134,25 +134,35 @@ class Voltage(JSONPrintedStruct):
     voltage: pt.Voltage
 
 
-class Calibration(JSONPrintedStruct, tag=True, tag_field="type"):
-    created_at: t.Annotated[datetime, Meta(tz=True)]
+
+def to_calibration_tag(s: str) -> str:
+    return s.lower().removesuffix("calibration")
+
+
+class CalibrationBase(Struct, tag_field="calibration_type", tag=to_calibration_tag, kw_only=True):
+    calibration_name: str
     pioreactor_unit: str
-    name: str
+    created_at: t.Annotated[datetime, Meta(tz=True)]
+    curve_data_: list[float]
+    curve_type: str # ex: "poly"
+    x: str # ex: voltage
+    y: str # ex: od600
+    recorded_data: dict[t.Literal["x", "y"], list[float]]
+    calibration_subtype: str | None = None
 
-    @property
-    def type(self) -> str:
-        return self.__struct_config__.tag  # type: ignore
 
+class CalibrationBaseWithSubtype(CalibrationBase, kw_only=True):
+    calibration_subtype: str # example: waste, media or alt_media. Or 90, 135, etc.
 
-class PumpCalibration(Calibration):
-    pump: str
+class ODCalibration(CalibrationBaseWithSubtype, kw_only=True):
+    ir_led_intensity: float
+
+class PumpCalibration(CalibrationBaseWithSubtype, kw_only=True):
     hz: t.Annotated[float, Meta(ge=0)]
     dc: t.Annotated[float, Meta(ge=0)]
-    duration_: t.Annotated[float, Meta(ge=0)]
-    bias_: float
     voltage: float
-    volumes: t.Optional[list[float]] = None
-    durations: t.Optional[list[float]] = None
+    x: str = "duration"
+    y: str = "volume"
 
     def ml_to_duration(self, ml: pt.mL) -> pt.Seconds:
         duration_ = self.duration_
@@ -165,55 +175,11 @@ class PumpCalibration(Calibration):
         return t.cast(pt.mL, duration * duration_ + bias_)
 
 
-class MediaPumpCalibration(PumpCalibration, tag="media_pump"):
-    pass
-
-
-class AltMediaPumpCalibration(PumpCalibration, tag="alt_media_pump"):
-    pass
-
-
-class WastePumpCalibration(PumpCalibration, tag="waste_pump"):
-    pass
-
-
-AnyPumpCalibration = t.Union[
-    PumpCalibration, MediaPumpCalibration, AltMediaPumpCalibration, WastePumpCalibration
-]
-
-
-class ODCalibration(Calibration):
-    angle: pt.PdAngle
-    maximum_od600: pt.OD
-    minimum_od600: pt.OD
-    minimum_voltage: pt.Voltage
-    maximum_voltage: pt.Voltage
-    curve_type: str
-    curve_data_: list[float]
-    voltages: list[pt.Voltage]
-    od600s: list[pt.OD]
-    ir_led_intensity: float
-    pd_channel: pt.PdChannel
-
-
-class OD45Calibration(ODCalibration, tag="od_45"):
-    pass
-
-
-class OD90Calibration(ODCalibration, tag="od_90"):
-    pass
-
-
-class OD135Calibration(ODCalibration, tag="od_135"):
-    pass
-
-
-class OD180Calibration(ODCalibration, tag="od_180"):
-    pass
-
-
-AnyODCalibration = t.Union[OD90Calibration, OD45Calibration, OD180Calibration, OD135Calibration]
-
+class StirringCalibration(CalibrationBase, kw_only=True):
+    hz: t.Annotated[float, Meta(ge=0)]
+    voltage: float
+    x: str = "DC %"
+    y: str = "RPM"
 
 class Log(JSONPrintedStruct):
     message: str

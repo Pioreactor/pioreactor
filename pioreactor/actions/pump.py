@@ -31,17 +31,16 @@ from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 
 DEFAULT_PWM_CALIBRATION = structs.PumpCalibration(
-    # TODO: provide better estimates for duration_ and bias_ based on some historical data.
-    # it can even be a function of voltage
-    name="default",
     pioreactor_unit=get_unit_name(),
     created_at=default_datetime_for_pioreactor(),
-    pump="",
     hz=200.0,
     dc=100.0,
-    duration_=1.0,
-    bias_=0,
     voltage=-1,
+    calibration_name="default_pwm_calibration",
+    curve_type="poly",
+    curve_data_ = [1., 0.],
+    recorded_data = {'x': [], 'y': []},
+    calibration_subtype="generic"
 )
 
 

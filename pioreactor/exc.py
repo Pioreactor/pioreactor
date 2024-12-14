@@ -19,6 +19,11 @@ class JobRequiredError(Exception):
     A job should be running, but isn't found.
     """
 
+class JobPresentError(Exception):
+    """
+    A job shouldn't be running, but is.
+    """
+
 
 class CalibrationError(Exception):
     """
@@ -67,8 +72,3 @@ class RsyncError(OSError):
     Syncing files failed
     """
 
-
-class JobNotRunningError(Exception):
-    """
-    Required job is not running
-    """
