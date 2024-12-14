@@ -4,6 +4,7 @@ CLI for running the commands on workers, or otherwise interacting with the worke
 """
 from __future__ import annotations
 
+import sys
 from concurrent.futures import ThreadPoolExecutor
 
 import click
@@ -46,7 +47,7 @@ def pios(ctx) -> None:
     # this is run even if workers run `pios plugins etc.`
     if not am_I_leader():
         click.echo("workers cannot run `pios` commands. Try `pio` instead.", err=True)
-        raise click.Abort()
+        sys.exit(1)
 
 
 if am_I_leader() or is_testing_env():
@@ -189,7 +190,7 @@ if am_I_leader() or is_testing_env():
         if not y:
             confirm = input(f"Confirm copying {filepath} onto {units}? Y/n: ").strip()
             if confirm != "Y":
-                raise click.Abort()
+                sys.exit(1)
 
         logger = create_logger("cp", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
@@ -207,7 +208,7 @@ if am_I_leader() or is_testing_env():
             results = executor.map(_thread_function, units)
 
         if not all(results):
-            raise click.Abort()
+            sys.exit(1)
 
     @pios.command("rm", short_help="rm a file across the cluster")
     @click.argument("filepath", type=click.Path(resolve_path=True))
@@ -223,7 +224,7 @@ if am_I_leader() or is_testing_env():
         if not y:
             confirm = input(f"Confirm deleting {filepath} on {units}? Y/n: ").strip()
             if confirm != "Y":
-                raise click.Abort()
+                sys.exit(1)
 
         logger = create_logger("rm", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
@@ -244,7 +245,7 @@ if am_I_leader() or is_testing_env():
             results = executor.map(_thread_function, units)
 
         if not all(results):
-            raise click.Abort()
+            sys.exit(1)
 
     @pios.group(invoke_without_command=True)
     @click.option("-s", "--source", help="use a release-***.zip already on the workers")
@@ -267,7 +268,7 @@ if am_I_leader() or is_testing_env():
             if not y:
                 confirm = input(f"Confirm updating app and ui on {units}? Y/n: ").strip()
                 if confirm != "Y":
-                    raise click.Abort()
+                    sys.exit(1)
 
             logger = create_logger("update", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
             options: dict[str, str | None] = {}
@@ -329,7 +330,7 @@ if am_I_leader() or is_testing_env():
         if not y:
             confirm = input(f"Confirm updating app on {units}? Y/n: ").strip()
             if confirm != "Y":
-                raise click.Abort()
+                sys.exit(1)
 
         logger = create_logger("update", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
         options: dict[str, str | None] = {}
@@ -397,7 +398,7 @@ if am_I_leader() or is_testing_env():
         if not y:
             confirm = input(f"Confirm updating ui on {units}? Y/n: ").strip()
             if confirm != "Y":
-                raise click.Abort()
+                sys.exit(1)
 
         logger = create_logger("update", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
         options: dict[str, str | None] = {}
@@ -459,7 +460,7 @@ if am_I_leader() or is_testing_env():
         if not y:
             confirm = input(f"Confirm installing {plugin} on {units}? Y/n: ").strip()
             if confirm != "Y":
-                raise click.Abort()
+                sys.exit(1)
 
         logger = create_logger("install_plugin", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
         commands = {"args": [plugin], "options": {}}
@@ -504,7 +505,7 @@ if am_I_leader() or is_testing_env():
         if not y:
             confirm = input(f"Confirm uninstalling {plugin} on {units}? Y/n: ").strip()
             if confirm != "Y":
-                raise click.Abort()
+                sys.exit(1)
 
         logger = create_logger("uninstall_plugin", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
         commands = {"args": [plugin]}
@@ -587,7 +588,7 @@ if am_I_leader() or is_testing_env():
             results = executor.map(_thread_function, units)
 
         if not all(results):
-            raise click.Abort()
+            sys.exit(1)
 
     @pios.command("kill", short_help="kill a job(s) on workers")
     @click.option("--job")
@@ -626,7 +627,7 @@ if am_I_leader() or is_testing_env():
         if not y:
             confirm = input(f"Confirm killing jobs on {units}? Y/n: ").strip()
             if confirm != "Y":
-                raise click.Abort()
+                sys.exit(1)
 
         with ClusterJobManager() as cm:
             results = cm.kill_jobs(
@@ -672,7 +673,7 @@ if am_I_leader() or is_testing_env():
 
         if "unit" in extra_args:
             click.echo("Did you mean to use 'units' instead of 'unit'? Exiting.", err=True)
-            raise click.Abort()
+            sys.exit(1)
 
         units = universal_identifier_to_all_active_workers(units)
         assert len(units) > 0, "Empty units!"
@@ -680,7 +681,7 @@ if am_I_leader() or is_testing_env():
         if not y:
             confirm = input(f"Confirm running {job} on {units}? Y/n: ").strip()
             if confirm != "Y":
-                raise click.Abort()
+                sys.exit(1)
 
         data = parse_click_arguments(extra_args)
 
@@ -722,7 +723,7 @@ if am_I_leader() or is_testing_env():
         if not y:
             confirm = input(f"Confirm shutting down on {units}? Y/n: ").strip()
             if confirm != "Y":
-                raise click.Abort()
+                sys.exit(1)
 
         def _thread_function(unit: str) -> bool:
             try:
@@ -755,7 +756,7 @@ if am_I_leader() or is_testing_env():
         if not y:
             confirm = input(f"Confirm rebooting on {units}? Y/n: ").strip()
             if confirm != "Y":
-                raise click.Abort()
+                sys.exit(1)
 
         def _thread_function(unit: str) -> bool:
             try:
@@ -800,7 +801,7 @@ if am_I_leader() or is_testing_env():
         if not y:
             confirm = input(f"Confirm updating {job}'s {extra_args} on {units}? Y/n: ").strip()
             if confirm != "Y":
-                raise click.Abort()
+                sys.exit(1)
 
         units = universal_identifier_to_all_active_workers(units)
 

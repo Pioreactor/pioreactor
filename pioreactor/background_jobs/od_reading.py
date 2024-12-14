@@ -1214,11 +1214,11 @@ def create_channel_angle_map(
 def start_od_reading(
     od_angle_channel1: Optional[pt.PdAngleOrREF] = None,
     od_angle_channel2: Optional[pt.PdAngleOrREF] = None,
-    interval: Optional[float] = 1 / config.getfloat("od_reading.config", "samples_per_second"),
+    interval: Optional[float] = 1 / config.getfloat("od_reading.config", "samples_per_second", fallback=0.2),
     fake_data: bool = False,
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
-    use_calibration: bool = config.getboolean("od_reading.config", "use_calibration"),
+    use_calibration: bool = config.getboolean("od_reading.config", "use_calibration", fallback="True"),
 ) -> ODReader:
     """
     This function prepares ODReader and other necessary transformation objects. It's a higher level API than using ODReader.

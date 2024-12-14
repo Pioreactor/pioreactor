@@ -81,7 +81,7 @@ def add_worker(hostname: str, password: str, version: str, model: str) -> None:
                     logger.error(
                         f"`{hostname}` not found on network after {round(elapsed())} seconds. Check that you provided the right i) the name is correct, ii) worker is powered on, iii) any WiFi credentials to the network are correct."
                     )
-                    sys.exit()
+                    sys.exit(1)
                 sleep(sleep_time)
 
         res = subprocess.run(

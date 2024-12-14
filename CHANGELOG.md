@@ -1,3 +1,8 @@
+### Upcoming
+ - API to set clock time
+ - deprecated `default` in background_jobs yaml fields.
+   - [ ] test self-test
+
 ### 24.12.10
  - Hotfix for UI settings bug
 

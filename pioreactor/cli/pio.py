@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 from shlex import quote
 from typing import Optional
 
@@ -427,7 +428,7 @@ def update_app(
             commands_and_priority.append((f"sudo pip3 install --force-reinstall --no-index {source}", 1))
         else:
             click.echo("Not a valid source file. Should be either a whl or release archive.")
-            raise click.Abort()
+            sys.exit(1)
 
     elif branch is not None:
         cleaned_branch = quote(branch)
@@ -447,7 +448,7 @@ def update_app(
         response = get(f"https://api.github.com/repos/{repo}/releases/{tag}")
         if not response.ok:
             logger.error(f"Version {version} not found")
-            raise click.Abort()
+            sys.exit(1)
 
         release_metadata = loads(response.body)
         version_installed = release_metadata["tag_name"]
@@ -530,7 +531,7 @@ def update_app(
             logger.debug(p.stderr)
             logger.error("Update failed. See logs.")
             # end early
-            raise click.Abort()
+            sys.exit(1)
         elif p.stdout:
             logger.debug(p.stdout)
 
@@ -594,7 +595,7 @@ def update_firmware(version: Optional[str]) -> None:
             logger.debug(p.stderr)
             logger.error("Update failed. See logs.")
             # end early
-            raise click.Abort()
+            sys.exit(1)
 
     logger.info(f"Updated Pioreactor firmware to version {version_installed}.")  # type: ignore
 

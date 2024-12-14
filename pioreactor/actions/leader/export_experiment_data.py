@@ -3,6 +3,7 @@
 # See create_tables.sql for all tables
 from __future__ import annotations
 
+import sys
 from base64 import b64decode
 from contextlib import closing
 from contextlib import ExitStack
@@ -137,11 +138,11 @@ def export_experiment_data(
 
     if not output.endswith(".zip"):
         click.echo("output should end with .zip")
-        raise click.Abort()
+        sys.exit(1)
 
     if len(dataset_names) == 0:
         click.echo("At least one dataset name must be provided.")
-        raise click.Abort()
+        sys.exit(1)
 
     logger = create_logger("export_experiment_data")
     logger.info(
