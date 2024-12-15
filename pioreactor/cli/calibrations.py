@@ -8,10 +8,10 @@ from msgspec.yaml import decode as yaml_decode
 from msgspec.yaml import encode as yaml_encode
 
 from pioreactor import structs
-from pioreactor.whoami import is_testing_env
-from pioreactor.calibrations.utils import plot_data
 from pioreactor.calibrations.utils import curve_to_callable
+from pioreactor.calibrations.utils import plot_data
 from pioreactor.utils import local_persistant_storage
+from pioreactor.whoami import is_testing_env
 
 if not is_testing_env():
     CALIBRATION_PATH = Path("/home/pioreactor/.pioreactor/storage/calibrations/")
@@ -55,10 +55,11 @@ class StirringAssistant(CalibrationAssistant):
         pass
 
     def run(self, min_dc: str | None = None, max_dc: str | None = None) -> structs.StirringCalibration:
-
         from pioreactor.calibrations.stirring_calibration import run_stirring_calibration
 
-        return run_stirring_calibration(min_dc=float(min_dc) if min_dc is not None else None, max_dc=float(max_dc) if max_dc else None)
+        return run_stirring_calibration(
+            min_dc=float(min_dc) if min_dc is not None else None, max_dc=float(max_dc) if max_dc else None
+        )
 
 
 @click.group(short_help="calibration utils")
@@ -82,14 +83,11 @@ def list_calibrations(cal_type: str):
 
     assistant = CALIBRATION_ASSISTANTS.get(cal_type)
 
-
-
     header = f"{'Name':<50}{'Created At':<25}{'Subtype':<15}{'Current?':<15}"
     click.echo(header)
-    click.echo('-' * len(header))
+    click.echo("-" * len(header))
 
     with local_persistant_storage("current_calibrations") as c:
-
         for file in calibration_dir.glob("*.yaml"):
             try:
                 data = yaml_decode(file.read_bytes(), type=assistant.calibration_struct)
@@ -99,6 +97,7 @@ def list_calibrations(cal_type: str):
             except Exception as e:
                 error_message = f"Error reading {file.stem}: {e}"
                 click.echo(f"{error_message:<60}")
+
 
 @calibration.command(name="run", context_settings=dict(ignore_unknown_options=True, allow_extra_args=True))
 @click.option("--type", "cal_type", required=True, help="Type of calibration (e.g. od, pump, stirring).")
@@ -116,7 +115,9 @@ def run_calibration(ctx, cal_type: str):
         raise click.Abort()
 
     # Run the assistant function to get the final calibration data
-    calibration_data = assistant().run(**{ctx.args[i][2:].replace("-", "_"): ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},)
+    calibration_data = assistant().run(
+        **{ctx.args[i][2:].replace("-", "_"): ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},
+    )
     calibration_name = calibration_data.calibration_name
 
     calibration_dir = CALIBRATION_PATH / cal_type
@@ -154,12 +155,13 @@ def display_calibration(cal_type: str, calibration_name: str):
     click.echo()
     curve = curve_to_callable(data.curve_type, data.curve_data_)
     plot_data(
-            data.recorded_data['x'],
-            data.recorded_data['y'],
-            calibration_name,
-            data.x,
-            data.y,
-            interpolation_curve=curve)
+        data.recorded_data["x"],
+        data.recorded_data["y"],
+        calibration_name,
+        data.x,
+        data.y,
+        interpolation_curve=curve,
+    )
 
     click.echo()
     click.echo()

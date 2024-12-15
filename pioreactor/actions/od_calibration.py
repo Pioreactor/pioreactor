@@ -617,7 +617,6 @@ def curve_to_functional_form(curve_type: str, curve_data) -> str:
         raise ValueError()
 
 
-
 def display(name: str | None) -> None:
     def display_from_calibration_blob(data_blob: dict) -> None:
         voltages = data_blob["voltages"]

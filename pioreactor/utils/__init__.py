@@ -19,10 +19,10 @@ from typing import overload
 from typing import Sequence
 from typing import TYPE_CHECKING
 
-from msgspec import Struct
 from msgspec import DecodeError
-from msgspec.json import encode as dumps
+from msgspec import Struct
 from msgspec.json import decode as loads
+from msgspec.json import encode as dumps
 
 from pioreactor import structs
 from pioreactor import types as pt
@@ -264,30 +264,32 @@ class managed_lifecycle:
 
 
 class cache:
-    # keys can be tuples!
     @staticmethod
     def adapt_key(key):
+        # keys can be tuples!
         return dumps(key)
 
     @staticmethod
     def convert_key(s):
-        try:
-            return loads(s)
-        except DecodeError:
-            return s.decode()
+        if isinstance(s, bytes):
+            try:
+                return loads(s)
+            except DecodeError:
+                return s.decode()
+        else:
+            return s
 
     def __init__(self, table_name, db_path):
         self.table_name = f"cache_{table_name}"
         self.db_path = db_path
 
     def __enter__(self):
-
         sqlite3.register_adapter(tuple, self.adapt_key)
-        sqlite3.register_converter("_key", self.convert_key)
+        # sqlite3.register_converter("_key_BLOB", self.convert_key)
 
         self.conn = sqlite3.connect(self.db_path, isolation_level=None, detect_types=sqlite3.PARSE_DECLTYPES)
 
-        self.conn.execute('pragma journal_mode=wal')
+        self.conn.execute("pragma journal_mode=wal")
         self.cursor = self.conn.cursor()
         self._initialize_table()
         return self
@@ -299,7 +301,7 @@ class cache:
         self.cursor.execute(
             f"""
             CREATE TABLE IF NOT EXISTS {self.table_name} (
-                key _key PRIMARY KEY,
+                key _key_BLOB PRIMARY KEY,
                 value BLOB
             )
         """
@@ -322,7 +324,7 @@ class cache:
 
     def iterkeys(self):
         self.cursor.execute(f"SELECT key FROM {self.table_name}")
-        return (row[0] for row in self.cursor.fetchall())
+        return (self.convert_key(row[0]) for row in self.cursor.fetchall())
 
     def pop(self, key, default=None):
         self.cursor.execute(f"SELECT value FROM {self.table_name} WHERE key = ?", (key,))
@@ -370,7 +372,9 @@ def local_intermittent_storage(
     Opening the same cache in a context manager is tricky, and should be avoided.
 
     """
-    with cache(f"{cache_name}", db_path=f"{tempfile.gettempdir()}/local_intermittent_pioreactor_metadata.sqlite") as c:
+    with cache(
+        f"{cache_name}", db_path=f"{tempfile.gettempdir()}/local_intermittent_pioreactor_metadata.sqlite"
+    ) as c:
         yield c
 
 
@@ -595,7 +599,7 @@ class JobManager:
     def __init__(self) -> None:
         db_path = f"{tempfile.gettempdir()}/local_intermittent_pioreactor_metadata.sqlite"
         self.conn = sqlite3.connect(db_path, isolation_level=None)
-        self.conn.execute('pragma journal_mode=wal')
+        self.conn.execute("pragma journal_mode=wal")
         self.cursor = self.conn.cursor()
         self._create_tables()
 

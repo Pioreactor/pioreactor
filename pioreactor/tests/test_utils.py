@@ -75,16 +75,34 @@ def test_caches_will_delete_when_asked() -> None:
 
 
 def test_caches_can_have_tuple_or_singleton_keys() -> None:
-
     with local_persistant_storage("test_caches_can_have_tuple_keys") as c:
-        c[(1,2)] = 1
-        c[("a","b")] = 2
-        c[("a",None)] = 3
+        c[(1, 2)] = 1
+        c[("a", "b")] = 2
+        c[("a", None)] = 3
         c[4] = 4
-        c["5e"] = 5
+        c["5"] = 5
 
     with local_persistant_storage("test_caches_can_have_tuple_keys") as c:
-        assert list(c.iterkeys()) == [4, '5e', ['a', 'b'], ['a', None], [1, 2]]
+        assert list(c.iterkeys()) == [4, "5", ["a", "b"], ["a", None], [1, 2]]
+
+
+def test_caches_integer_keys() -> None:
+    with local_persistant_storage("test_caches_integer_keys") as c:
+        c[1] = "a"
+        c[2] = "b"
+
+    with local_persistant_storage("test_caches_integer_keys") as c:
+        assert list(c.iterkeys()) == [1, 2]
+
+
+def test_caches_str_keys_as_ints_stay_as_str() -> None:
+    with local_persistant_storage("test_caches_str_keys_as_ints_stay_as_str") as c:
+        c["1"] = "a"
+        c["2"] = "b"
+
+    with local_persistant_storage("test_caches_str_keys_as_ints_stay_as_str") as c:
+        assert list(c.iterkeys()) == ["1", "2"]
+
 
 def test_is_pio_job_running_single() -> None:
     experiment = "test_is_pio_job_running_single"

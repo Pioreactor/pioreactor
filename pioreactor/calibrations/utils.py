@@ -1,5 +1,7 @@
-from typing import Callable
+# -*- coding: utf-8 -*-
+from __future__ import annotations
 
+from typing import Callable
 
 
 def curve_to_callable(curve_type: str, curve_data: list[float]) -> Callable:
@@ -45,7 +47,6 @@ def plot_data(
     plt.ylabel(y_label)
 
     plt.plot_size(105, 22)
-
 
     plt.xlim(x_min, x_max)
     plt.yfrequency(6)
