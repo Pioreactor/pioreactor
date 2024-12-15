@@ -7,11 +7,11 @@ import click
 from msgspec.yaml import decode as yaml_decode
 from msgspec.yaml import encode as yaml_encode
 
+from pioreactor.calibrations import calibration_assistants
+from pioreactor.calibrations import CALIBRATION_PATH
+from pioreactor.calibrations import load_calibration
 from pioreactor.calibrations.utils import curve_to_callable
 from pioreactor.calibrations.utils import plot_data
-from pioreactor.calibrations import CALIBRATION_PATH
-from pioreactor.calibrations import calibration_assistants
-from pioreactor.calibrations import load_calibration
 from pioreactor.utils import local_persistant_storage
 from pioreactor.whoami import is_testing_env
 
@@ -37,7 +37,7 @@ def list_calibrations(cal_type: str):
 
     assistant = calibration_assistants.get(cal_type)
 
-    header = f"{'Name':<50}{'Created At':<25}{'Subtype':<15}{'Active?':<15}"
+    header = f"{'Name':<50}{'Created At':<25}{'Active?':<15}"
     click.echo(header)
     click.echo("-" * len(header))
 
@@ -45,8 +45,8 @@ def list_calibrations(cal_type: str):
         for file in calibration_dir.glob("*.yaml"):
             try:
                 data = yaml_decode(file.read_bytes(), type=assistant.calibration_struct)
-                active = c.get((cal_type, data.calibration_subtype)) == data.calibration_name
-                row = f"{data.calibration_name:<50}{data.created_at.strftime('%Y-%m-%d %H:%M:%S'):<25}{data.calibration_subtype or '':<15}{'✅' if active else '':<15}"
+                active = c.get(cal_type) == data.calibration_name
+                row = f"{data.calibration_name:<50}{data.created_at.strftime('%Y-%m-%d %H:%M:%S'):<25}{'✅' if active else '':<15}"
                 click.echo(row)
             except Exception as e:
                 error_message = f"Error reading {file.stem}: {e}"
@@ -65,7 +65,9 @@ def run_calibration(ctx, cal_type: str):
     # Dispatch to the assistant function for that type
     assistant = calibration_assistants.get(cal_type)
     if assistant is None:
-        click.echo(f"No assistant found for calibration type '{cal_type}'. Available types: {list(calibration_assistants.keys())}")
+        click.echo(
+            f"No assistant found for calibration type '{cal_type}'. Available types: {list(calibration_assistants.keys())}"
+        )
         raise click.Abort()
 
     # Run the assistant function to get the final calibration data
@@ -86,8 +88,7 @@ def run_calibration(ctx, cal_type: str):
 
     # make active
     with local_persistant_storage("active_calibrations") as c:
-        c[(cal_type, calibration_data.calibration_subtype)] = calibration_name
-
+        c[cal_type] = calibration_name
 
     click.echo(f"Calibration '{calibration_name}' of type '{cal_type}' saved to {out_file}")
 
@@ -136,7 +137,7 @@ def set_active_calibration(cal_type: str, calibration_name: str | None):
         data = load_calibration(cal_type, calibration_name)
 
         with local_persistant_storage("active_calibrations") as c:
-            c[(data.calibration_type, data.calibration_subtype)] = data.calibration_name
+            c[data.calibration_type] = data.calibration_name
 
 
 @calibration.command(name="delete")
@@ -159,4 +160,3 @@ def delete_calibration(cal_type: str, calibration_name: str):
     click.echo(f"Deleted calibration '{calibration_name}' of type '{cal_type}'.")
 
     # TODO: delete from leader and handle updating active?
-

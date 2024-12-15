@@ -18,6 +18,7 @@ from pioreactor import exc
 from pioreactor import hardware
 from pioreactor import structs
 from pioreactor.background_jobs.base import BackgroundJobWithDodging
+from pioreactor.calibrations import load_active_calibration
 from pioreactor.config import config
 from pioreactor.utils import clamp
 from pioreactor.utils import is_pio_job_running
@@ -33,7 +34,6 @@ from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
-from pioreactor.calibrations import load_active_calibration
 
 if is_testing_env():
     from pioreactor.utils.mock import MockRpmCalculator
@@ -324,10 +324,10 @@ class Stirrer(BackgroundJobWithDodging):
         if possible_calibration is not None:
             self.logger.debug(f"Found stirring calibration: {possible_calibration.calibration_name}.")
 
-            assert len(possible_calibration.curve_data_)  == 2
+            assert len(possible_calibration.curve_data_) == 2
             # invert the linear function.
-            coef = 1.0/possible_calibration.curve_data_[0]
-            intercept = -possible_calibration.curve_data_[1]/possible_calibration.curve_data_[0]
+            coef = 1.0 / possible_calibration.curve_data_[0]
+            intercept = -possible_calibration.curve_data_[1] / possible_calibration.curve_data_[0]
 
             # since we have calibration data, and the initial_duty_cycle could be
             # far off, giving the below equation a bad "first step". We set it here.

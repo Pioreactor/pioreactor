@@ -40,7 +40,6 @@ DEFAULT_PWM_CALIBRATION = structs.PumpCalibration(
     curve_type="poly",
     curve_data_=[1.0, 0.0],
     recorded_data={"x": [], "y": []},
-    calibration_subtype="generic",
 )
 
 

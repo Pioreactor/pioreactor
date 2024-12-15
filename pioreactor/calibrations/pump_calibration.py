@@ -523,5 +523,3 @@ def run_pump_calibration(min_duration: float, max_duration: float, json_file: st
             logger.warning("Too much uncertainty in slope - you probably want to rerun this calibration...")
 
         echo(f"Finished {pump_type} pump calibration `{name}`.")
-
-
