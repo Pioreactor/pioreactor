@@ -397,16 +397,7 @@ def test_positive_correlation_between_rpm_and_stirring(
     assert is_heating_pcb_present(), "Heating PCB was not detected."
     assert voltage_in_aux() <= 18.0, f"Voltage measured {voltage_in_aux()} > 18.0V"
 
-    with local_persistant_storage("stirring_calibration") as cache:
-        if "linear_v1" in cache:
-            parameters = loads(cache["linear_v1"])
-            rpm_coef = parameters["rpm_coef"]
-            intercept = parameters["intercept"]
-
-            initial_dc = rpm_coef * 700 + intercept
-
-        else:
-            initial_dc = config.getfloat("stirring.config", "initial_duty_cycle")
+    initial_dc = config.getfloat("stirring.config", "initial_duty_cycle")
 
     dcs = []
     measured_rpms = []

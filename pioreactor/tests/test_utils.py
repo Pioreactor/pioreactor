@@ -16,6 +16,7 @@ from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import JobManager
 from pioreactor.utils import JobMetadataKey
 from pioreactor.utils import local_intermittent_storage
+from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import managed_lifecycle
 from pioreactor.whoami import get_unit_name
 
@@ -72,6 +73,18 @@ def test_caches_will_delete_when_asked() -> None:
         del cache["test"]
         assert "test" not in cache
 
+
+def test_caches_can_have_tuple_or_singleton_keys() -> None:
+
+    with local_persistant_storage("test_caches_can_have_tuple_keys") as c:
+        c[(1,2)] = 1
+        c[("a","b")] = 2
+        c[("a",None)] = 3
+        c[4] = 4
+        c["5e"] = 5
+
+    with local_persistant_storage("test_caches_can_have_tuple_keys") as c:
+        assert list(c.iterkeys()) == [4, '5e', ['a', 'b'], ['a', None], [1, 2]]
 
 def test_is_pio_job_running_single() -> None:
     experiment = "test_is_pio_job_running_single"

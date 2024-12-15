@@ -134,7 +134,6 @@ class Voltage(JSONPrintedStruct):
     voltage: pt.Voltage
 
 
-
 def to_calibration_tag(s: str) -> str:
     return s.lower().removesuffix("calibration")
 
@@ -144,18 +143,20 @@ class CalibrationBase(Struct, tag_field="calibration_type", tag=to_calibration_t
     pioreactor_unit: str
     created_at: t.Annotated[datetime, Meta(tz=True)]
     curve_data_: list[float]
-    curve_type: str # ex: "poly"
-    x: str # ex: voltage
-    y: str # ex: od600
+    curve_type: str  # ex: "poly"
+    x: str  # ex: voltage
+    y: str  # ex: od600
     recorded_data: dict[t.Literal["x", "y"], list[float]]
     calibration_subtype: str | None = None
 
 
 class CalibrationBaseWithSubtype(CalibrationBase, kw_only=True):
-    calibration_subtype: str # example: waste, media or alt_media. Or 90, 135, etc.
+    calibration_subtype: str  # example: waste, media or alt_media. Or 90, 135, etc.
+
 
 class ODCalibration(CalibrationBaseWithSubtype, kw_only=True):
     ir_led_intensity: float
+
 
 class PumpCalibration(CalibrationBaseWithSubtype, kw_only=True):
     hz: t.Annotated[float, Meta(ge=0)]
@@ -176,10 +177,11 @@ class PumpCalibration(CalibrationBaseWithSubtype, kw_only=True):
 
 
 class StirringCalibration(CalibrationBase, kw_only=True):
-    hz: t.Annotated[float, Meta(ge=0)]
+    pwm_hz: t.Annotated[float, Meta(ge=0)]
     voltage: float
     x: str = "DC %"
     y: str = "RPM"
+
 
 class Log(JSONPrintedStruct):
     message: str

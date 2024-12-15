@@ -11,31 +11,29 @@ from time import sleep
 
 from pioreactor.background_jobs import stirring
 from pioreactor.config import config
+from pioreactor.exc import JobPresentError
+from pioreactor.hardware import voltage_in_aux
 from pioreactor.logging import create_logger
+from pioreactor.structs import StirringCalibration
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import managed_lifecycle
 from pioreactor.utils.math_helpers import simple_linear_regression
-from pioreactor.utils.timing import current_utc_timestamp
+from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_testing_experiment_name
 from pioreactor.whoami import get_unit_name
-from pioreactor.structs import StirringCalibration
-from pioreactor.hardware import voltage_in_aux
-from pioreactor.exc import JobPresentError
-
-def run_stirring_calibration(min_dc: int | None = None, max_dc: int | None = None) -> StirringCalibration:
 
 
+def run_stirring_calibration(min_dc: float | None = None, max_dc: float | None = None) -> StirringCalibration:
     if max_dc is None and min_dc is None:
         # seed with initial_duty_cycle
-        config_initial_duty_cycle = config.getfloat("stirring.config", "initial_duty_cycle")
+        config_initial_duty_cycle = config.getfloat("stirring.config", "initial_duty_cycle", fallback=30)
         min_dc, max_dc = round(config_initial_duty_cycle * 0.75), round(config_initial_duty_cycle * 1.33)
     elif (max_dc is not None) and (min_dc is not None):
         assert min_dc < max_dc, "min_dc >= max_dc"
     else:
         raise ValueError("min_dc and max_dc must both be set.")
-
 
     unit = get_unit_name()
     experiment = get_testing_experiment_name()
@@ -53,9 +51,9 @@ def run_stirring_calibration(min_dc: int | None = None, max_dc: int | None = Non
 
         # go up and down to observe any hysteresis.
         dcs = (
-            list(range(max_dc, min_dc, -3))
-            + list(range(min_dc, max_dc, 3))
-            + list(range(max_dc, min_dc - 3, -3))
+              list(range(round(max_dc), round(min_dc), -3))
+            + list(range(round(min_dc), round(max_dc), 3))
+            + list(range(round(max_dc), round(min_dc) - 3, -3))
         )
         n_samples = len(dcs)
 
@@ -74,9 +72,9 @@ def run_stirring_calibration(min_dc: int | None = None, max_dc: int | None = Non
 
             for count, dc in enumerate(dcs, start=1):
                 st.set_duty_cycle(dc)
-                sleep(8)
-                rpm = rpm_calc.estimate(4)
-                measured_rpms.append(rpm)
+                sleep(1)
+                rpm = rpm_calc.estimate(2)
+                measured_rpms.append(dc + 1)
                 logger.debug(f"Detected {rpm=:.1f} RPM @ {dc=}%")
 
                 # log progress
@@ -104,7 +102,7 @@ def run_stirring_calibration(min_dc: int | None = None, max_dc: int | None = Non
         # since in practice, we want a look up from RPM -> required DC, we
         # set x=measure_rpms, y=dcs
         (rpm_coef, rpm_coef_std), (intercept, intercept_std) = simple_linear_regression(
-            filtered_measured_rpms, filtered_dcs
+            filtered_dcs, filtered_measured_rpms
         )
         logger.debug(f"{rpm_coef=}, {rpm_coef_std=}, {intercept=}, {intercept_std=}")
 
@@ -117,12 +115,12 @@ def run_stirring_calibration(min_dc: int | None = None, max_dc: int | None = Non
             raise ValueError("Intercept should be greater than 0.")
 
         return StirringCalibration(
-            hz=config.getfloat("stirring.config", "hz"),
+            pwm_hz=config.getfloat("stirring.config", "pwm_hz"),
             voltage=voltage_in_aux(),
-            calibration_name = f"stirring-calibration-{current_utc_timestamp()}",
+            calibration_name=f"stirring-calibration-{current_utc_datetime().strftime('%Y-%m-%d_%H-%M-%S')}",
             pioreactor_unit=unit,
-            created_at=current_utc_timestamp(),
-            curve_data_= [rpm_coef, intercept],
-            curve_type = "poly",
-            recorded_data={"x": filtered_dcs, "y": filtered_measured_rpms}
+            created_at=current_utc_datetime(),
+            curve_data_=[rpm_coef, intercept],
+            curve_type="poly",
+            recorded_data={"x": filtered_dcs, "y": filtered_measured_rpms},
         )

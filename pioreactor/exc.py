@@ -19,6 +19,7 @@ class JobRequiredError(Exception):
     A job should be running, but isn't found.
     """
 
+
 class JobPresentError(Exception):
     """
     A job shouldn't be running, but is.
@@ -71,4 +72,3 @@ class RsyncError(OSError):
     """
     Syncing files failed
     """
-

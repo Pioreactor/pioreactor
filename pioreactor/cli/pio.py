@@ -35,6 +35,7 @@ if whoami.am_I_leader():
     # add in ability to control workers
     lazy_subcommands["workers"] = "pioreactor.cli.workers.workers"
 
+
 @click.group(
     cls=LazyGroup,
     lazy_subcommands=lazy_subcommands,

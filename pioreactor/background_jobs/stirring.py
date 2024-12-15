@@ -317,6 +317,7 @@ class Stirrer(BackgroundJobWithDodging):
             return lambda rpm: self._estimate_duty_cycle
 
         assert isinstance(self.target_rpm, float)
+
         with local_persistant_storage("stirring_calibration") as cache:
             if "linear_v1" in cache:
                 self.logger.debug("Found stirring calibration `linear_v1`.")

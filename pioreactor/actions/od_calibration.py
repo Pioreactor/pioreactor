@@ -6,7 +6,6 @@ from __future__ import annotations
 
 from math import log2
 from time import sleep
-from typing import Callable
 from typing import cast
 from typing import Type
 
@@ -617,18 +616,6 @@ def curve_to_functional_form(curve_type: str, curve_data) -> str:
     else:
         raise ValueError()
 
-
-def curve_to_callable(curve_type: str, curve_data) -> Callable:
-    if curve_type == "poly":
-        import numpy as np
-
-        def curve_callable(x):
-            return np.polyval(curve_data, x)
-
-        return curve_callable
-
-    else:
-        raise NotImplementedError
 
 
 def display(name: str | None) -> None:
