@@ -37,7 +37,7 @@ from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_testing_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
-
+from pioreactor.calibratiions import utils
 
 def green(string: str) -> str:
     return style(string, fg="green")
@@ -437,7 +437,7 @@ def show_results_and_confirm_with_user(
         highlight_recent_point=False,
     )
     echo()
-    echo(f"Calibration curve: {curve_to_functional_form(curve_type, curve_data)}")
+    echo(f"Calibration curve: {utils.curve_to_functional_form(curve_type, curve_data)}")
     r = prompt(
         green(
             f"""
@@ -533,7 +533,7 @@ def get_data_from_data_file(
     return pd_channel, angle, ods, voltages, curve_data_, curve_type
 
 
-def od_calibration(data_file: str | None) -> None:
+def run_od_calibration(data_file: str | None) -> None:
     unit = get_unit_name()
     experiment = get_testing_experiment_name()
     curve_data_ = []  # type: ignore
@@ -590,7 +590,7 @@ def od_calibration(data_file: str | None) -> None:
             unit,
         )
         echo(style(f"Calibration curve for `{name}`", underline=True, bold=True))
-        echo(curve_to_functional_form(curve_type, curve_data_))
+        echo(utils.curve_to_functional_form(curve_type, curve_data_))
         echo()
         echo(style(f"Data for `{name}`", underline=True, bold=True))
         print(format(encode(data_blob)).decode())
@@ -607,167 +607,4 @@ def od_calibration(data_file: str | None) -> None:
         return
 
 
-def curve_to_functional_form(curve_type: str, curve_data) -> str:
-    if curve_type == "poly":
-        d = len(curve_data)
-        return " + ".join(
-            [(f"{c:0.3f}x^{d - i - 1}" if (i < d - 1) else f"{c:0.3f}") for i, c in enumerate(curve_data)]
-        )
-    else:
-        raise ValueError()
 
-
-def display(name: str | None) -> None:
-    def display_from_calibration_blob(data_blob: dict) -> None:
-        voltages = data_blob["voltages"]
-        ods = data_blob["od600s"]
-        name, angle = data_blob["name"], data_blob["angle"]
-        echo()
-        echo(style(f"Calibration `{name}`", underline=True, bold=True))
-        plot_data(
-            ods,
-            voltages,
-            title=f"`{name}`, calibration of {angle}°",
-            highlight_recent_point=False,
-            interpolation_curve=curve_to_callable(data_blob["curve_type"], data_blob["curve_data_"]),
-        )
-        echo()
-        echo(style(f"Calibration curve for `{name}`", underline=True, bold=True))
-        echo(curve_to_functional_form(data_blob["curve_type"], data_blob["curve_data_"]))
-        echo()
-        echo(style(f"Data for `{name}`", underline=True, bold=True))
-        print(format(encode(data_blob)).decode())
-
-    if name is not None:
-        with local_persistant_storage("od_calibrations") as c:
-            display_from_calibration_blob(decode(c[name]))
-    else:
-        with local_persistant_storage("current_od_calibration") as c:
-            for angle in c.iterkeys():
-                display_from_calibration_blob(decode(c[angle]))
-                echo()
-                echo()
-                echo()
-
-
-def publish_to_leader(name: str) -> bool:
-    success = True
-
-    with local_persistant_storage("od_calibrations") as all_calibrations:
-        calibration_result = decode(
-            all_calibrations[name], type=structs.subclass_union(structs.ODCalibration)
-        )
-
-    try:
-        res = put_into_leader("/api/calibrations", json=calibration_result)
-        res.raise_for_status()
-        echo("✅ Published to leader.")
-    except Exception as e:
-        success = False
-        print(e)
-        echo(f"Could not update in database on leader at http://{leader_address}/api/calibrations ❌")
-
-    return success
-
-
-def change_current(name: str) -> None:
-    try:
-        with local_persistant_storage("od_calibrations") as all_calibrations:
-            new_calibration = decode(
-                all_calibrations[name],
-                type=structs.subclass_union(structs.ODCalibration),
-            )
-
-        angle = new_calibration.angle
-        with local_persistant_storage("current_od_calibration") as current_calibrations:
-            if angle in current_calibrations:
-                old_calibration = decode(
-                    current_calibrations[angle],
-                    type=structs.subclass_union(structs.ODCalibration),
-                )
-            else:
-                old_calibration = None
-
-            current_calibrations[angle] = encode(new_calibration)
-
-        try:
-            res = patch_into_leader(
-                f"/api/calibrations/{get_unit_name()}/{new_calibration.type}/{new_calibration.name}",
-                json={"current": 1},
-            )
-            res.raise_for_status()
-        except HTTPErrorStatus as e:
-            if e.status_code == 404:
-                # it doesn't exist in leader, so lets put it there.
-                publish_to_leader(name)
-                change_current(name)
-            else:
-                echo("Could not update in database on leader ❌")
-        else:
-            if old_calibration:
-                echo(f"Replaced `{old_calibration.name}` with `{new_calibration.name}`   ✅")
-            else:
-                echo(f"Set `{new_calibration.name}` to current calibration  ✅")
-
-    except Exception as e:
-        echo(red(f"Failed to swap. {e}"))
-        raise click.Abort()
-
-
-def list_() -> None:
-    # get current calibrations
-    current = []
-    with local_persistant_storage("current_od_calibration") as c:
-        for _ in c.iterkeys():
-            cal = decode(c[_], type=structs.subclass_union(structs.ODCalibration))
-            current.append(cal.name)
-
-    echo(bold(f"{'Name':18s} {'Date':18s} {'Angle':12s} {'Currently in use?':20s}"))
-    with local_persistant_storage("od_calibrations") as c:
-        for name in c.iterkeys():
-            try:
-                cal = decode(c[name], type=structs.subclass_union(structs.ODCalibration))
-                echo(
-                    f"{cal.name:18s} {cal.created_at:%d %b, %Y}       {cal.angle:12s} {'✅' if cal.name in current else ''}",
-                )
-            except Exception:
-                pass
-
-
-@click.group(invoke_without_command=True, name="od_calibration")
-@click.option(
-    "-f", "--json-file", type=click.Path(exists=True, dir_okay=False, readable=True, resolve_path=True)
-)
-@click.pass_context
-def click_od_calibration(ctx, json_file: str | None) -> None:
-    """
-    Calibrate OD600 to voltages
-
-    To load in data from a json file, the necessary fields are "od600s" and "voltages", optional: "pd_channel" and "angle"
-    Ex:
-
-    {
-        "od600s": [1.0, 0.5, 0.25, 0],
-        "voltages":[0.5, 0.25, 0.125, 0.0]
-    }
-
-    """
-    if ctx.invoked_subcommand is None:
-        od_calibration(json_file)
-
-
-@click_od_calibration.command(name="display")
-@click.option("-n", "--name", type=click.STRING, help="default is current")
-def click_display(name: str) -> None:
-    display(name)
-
-
-@click_od_calibration.command(name="change_current")
-@click.argument("name", type=click.STRING)
-def click_change_current(name: str) -> None:
-    change_current(name)
-
-
-@click_od_calibration.command(name="list")
-def click_list() -> None:
-    list_()

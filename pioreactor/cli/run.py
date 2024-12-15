@@ -46,9 +46,6 @@ run.add_command(actions.pump.click_circulate_media)
 run.add_command(actions.pump.click_circulate_alt_media)
 run.add_command(actions.od_blank.click_od_blank)
 run.add_command(actions.self_test.click_self_test)
-run.add_command(actions.stirring_calibration.click_stirring_calibration)
-run.add_command(actions.pump_calibration.click_pump_calibration)
-run.add_command(actions.od_calibration.click_od_calibration)
 
 # TODO: this only adds to `pio run` - what if users want to add a high level command? Examples?
 for plugin in plugin_management.get_plugins().values():

@@ -33,6 +33,7 @@ from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
+from pioreactor.calibrations import load_active_calibration
 
 if is_testing_env():
     from pioreactor.utils.mock import MockRpmCalculator
@@ -318,25 +319,28 @@ class Stirrer(BackgroundJobWithDodging):
 
         assert isinstance(self.target_rpm, float)
 
-        with local_persistant_storage("stirring_calibration") as cache:
-            if "linear_v1" in cache:
-                self.logger.debug("Found stirring calibration `linear_v1`.")
-                parameters = json.loads(cache["linear_v1"])
-                coef = parameters["rpm_coef"]
-                intercept = parameters["intercept"]
+        possible_calibration = load_active_calibration("stirring")
 
-                # since we have calibration data, and the initial_duty_cycle could be
-                # far off, giving the below equation a bad "first step". We set it here.
-                self._estimate_duty_cycle = coef * self.target_rpm + intercept
+        if possible_calibration is not None:
+            self.logger.debug(f"Found stirring calibration: {possible_calibration.calibration_name}.")
 
-                # we scale this by 90% to make sure the PID + prediction doesn't overshoot,
-                # better to be conservative here.
-                # equivalent to a weighted average: 0.1 * current + 0.9 * predicted
-                return lambda rpm: self._estimate_duty_cycle - 0.90 * (
-                    self._estimate_duty_cycle - (coef * rpm + intercept)
-                )
-            else:
-                return lambda rpm: self._estimate_duty_cycle
+            assert len(possible_calibration.curve_data_)  == 2
+            # invert the linear function.
+            coef = 1.0/possible_calibration.curve_data_[0]
+            intercept = -possible_calibration.curve_data_[1]/possible_calibration.curve_data_[0]
+
+            # since we have calibration data, and the initial_duty_cycle could be
+            # far off, giving the below equation a bad "first step". We set it here.
+            self._estimate_duty_cycle = coef * self.target_rpm + intercept
+
+            # we scale this by 90% to make sure the PID + prediction doesn't overshoot,
+            # better to be conservative here.
+            # equivalent to a weighted average: 0.1 * current + 0.9 * predicted
+            return lambda rpm: self._estimate_duty_cycle - 0.90 * (
+                self._estimate_duty_cycle - (coef * rpm + intercept)
+            )
+        else:
+            return lambda rpm: self._estimate_duty_cycle
 
     def on_disconnected(self) -> None:
         super().on_disconnected()

@@ -4,6 +4,16 @@ from __future__ import annotations
 from typing import Callable
 
 
+def curve_to_functional_form(curve_type: str, curve_data) -> str:
+    if curve_type == "poly":
+        d = len(curve_data)
+        return " + ".join(
+            [(f"{c:0.3f}x^{d - i - 1}" if (i < d - 1) else f"{c:0.3f}") for i, c in enumerate(curve_data)]
+        )
+    else:
+        raise NotImplementedError()
+
+
 def curve_to_callable(curve_type: str, curve_data: list[float]) -> Callable:
     if curve_type == "poly":
         import numpy as np
@@ -14,7 +24,7 @@ def curve_to_callable(curve_type: str, curve_data: list[float]) -> Callable:
         return curve_callable
 
     else:
-        raise NotImplementedError
+        raise NotImplementedError()
 
 
 def plot_data(

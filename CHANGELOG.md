@@ -1,7 +1,10 @@
 ### Upcoming
  - API to set clock time
+ - new calibrations CLI
+ - persistent storage is now on single sqlite3 database
  - deprecated `default` in background_jobs yaml fields.
    - [ ] test self-test
+   - [ ] check back edits to stirring calibration
 
 ### 24.12.10
  - Hotfix for UI settings bug

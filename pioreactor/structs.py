@@ -149,16 +149,16 @@ class CalibrationBase(Struct, tag_field="calibration_type", tag=to_calibration_t
     recorded_data: dict[t.Literal["x", "y"], list[float]]
     calibration_subtype: str | None = None
 
+    @property
+    def calibration_type(self):
+        return to_calibration_tag(self.__class__.__name__)
 
-class CalibrationBaseWithSubtype(CalibrationBase, kw_only=True):
-    calibration_subtype: str  # example: waste, media or alt_media. Or 90, 135, etc.
 
-
-class ODCalibration(CalibrationBaseWithSubtype, kw_only=True):
+class ODCalibration(CalibrationBase, kw_only=True):
     ir_led_intensity: float
 
 
-class PumpCalibration(CalibrationBaseWithSubtype, kw_only=True):
+class PumpCalibration(CalibrationBase, kw_only=True):
     hz: t.Annotated[float, Meta(ge=0)]
     dc: t.Annotated[float, Meta(ge=0)]
     voltage: float
@@ -176,12 +176,23 @@ class PumpCalibration(CalibrationBaseWithSubtype, kw_only=True):
         return t.cast(pt.mL, duration * duration_ + bias_)
 
 
+class MediaPumpCalibration(PumpCalibration, kw_only=True):
+    pass
+
+class AltMediaPumpCalibration(PumpCalibration, kw_only=True):
+    pass
+
+class MediaPumpCalibration(PumpCalibration, kw_only=True):
+    pass
+
 class StirringCalibration(CalibrationBase, kw_only=True):
     pwm_hz: t.Annotated[float, Meta(ge=0)]
     voltage: float
     x: str = "DC %"
     y: str = "RPM"
 
+
+AnyCalibration = t.Union[StirringCalibration, PumpCalibration, ODCalibration]
 
 class Log(JSONPrintedStruct):
     message: str
