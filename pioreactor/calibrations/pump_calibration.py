@@ -214,10 +214,10 @@ def setup(pump_type: str, execute_pump: Callable, hz: float, dc: float, unit: st
                 name="calibration",
                 created_at=current_utc_datetime(),
                 pump=pump_type,
-                duration_=1.0,
+                curve_type="poly",
+                curve_data=[1, 0],
                 hz=hz,
                 dc=dc,
-                bias_=0,
                 voltage=voltage_in_aux(),
                 pioreactor_unit=unit,
             ),
@@ -416,7 +416,7 @@ def publish_to_leader(name: str) -> bool:
 
     with local_persistant_storage("pump_calibrations") as all_calibrations:
         calibration_result = decode(
-            all_calibrations[name], type=structs.subclass_union(structs.PumpCalibration)
+            all_calibrations[name], type=structs.AnyPumpCalibration
         )
 
     try:
@@ -445,7 +445,7 @@ def get_data_from_data_file(data_file: str) -> tuple[list[float], list[float], f
     return durations, volumes, hz, dc
 
 
-def run_pump_calibration(min_duration: float, max_duration: float, json_file: str | None) -> None:
+def run_pump_calibration(min_duration: float, max_duration: float, json_file: str | None) -> structs.AnyPumpCalibration:
     unit = get_unit_name()
     experiment = get_assigned_experiment_name(unit)
 
@@ -523,3 +523,4 @@ def run_pump_calibration(min_duration: float, max_duration: float, json_file: st
             logger.warning("Too much uncertainty in slope - you probably want to rerun this calibration...")
 
         echo(f"Finished {pump_type} pump calibration `{name}`.")
+        return data_blob

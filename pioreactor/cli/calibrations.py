@@ -35,7 +35,7 @@ def list_calibrations(cal_type: str):
         click.echo(f"No calibrations found for type '{cal_type}'. Directory does not exist.")
         return
 
-    assistant = calibration_assistants.get(cal_type)
+    assistant = calibration_assistants[cal_type]
 
     header = f"{'Name':<50}{'Created At':<25}{'Active?':<15}"
     click.echo(header)
@@ -131,7 +131,7 @@ def set_active_calibration(cal_type: str, calibration_name: str | None):
     if calibration_name is None:
         click.echo("No calibration name provided. Clearing active calibration.")
         with local_persistant_storage("active_calibrations") as c:
-            c.pop((cal_type, None))
+            c.pop(cal_type)
 
     else:
         data = load_calibration(cal_type, calibration_name)

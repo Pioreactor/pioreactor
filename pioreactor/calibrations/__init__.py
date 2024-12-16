@@ -34,38 +34,37 @@ class ODAssistant(CalibrationAssistant):
     target_calibration_type = "od"
     calibration_struct = structs.ODCalibration
 
-
     def run(self) -> structs.ODCalibration:
         from pioreactor.calibrations.od_calibration import run_od_calibration
 
-        return run_od_calibration(od_channel=od_channel)
+        return run_od_calibration()
 
 
 class MediaPumpAssistant(CalibrationAssistant):
     target_calibration_type = "media_pump"
     calibration_struct = structs.MediaPumpCalibration
 
-    def run(self) -> structs.PumpCalibration:
+    def run(self) -> structs.MediaPumpCalibration:
         from pioreactor.calibrations.pump_calibration import run_pump_calibration
 
         return run_pump_calibration()
+
 
 class AltMediaPumpAssistant(CalibrationAssistant):
     target_calibration_type = "alt_media_pump"
     calibration_struct = structs.AltMediaPumpCalibration
 
-
-    def run(self) -> structs.PumpCalibration:
+    def run(self) -> structs.AltMediaPumpCalibration:
         from pioreactor.calibrations.pump_calibration import run_pump_calibration
 
         return run_pump_calibration()
+
 
 class WastePumpAssistant(CalibrationAssistant):
     target_calibration_type = "waste_pump"
     calibration_struct = structs.WastePumpCalibration
 
-
-    def run(self) -> structs.PumpCalibration:
+    def run(self) -> structs.WastePumpCalibration:
         from pioreactor.calibrations.pump_calibration import run_pump_calibration
 
         return run_pump_calibration()
@@ -74,7 +73,6 @@ class WastePumpAssistant(CalibrationAssistant):
 class StirringAssistant(CalibrationAssistant):
     target_calibration_type = "stirring"
     calibration_struct = structs.StirringCalibration
-
 
     def run(self, min_dc: str | None = None, max_dc: str | None = None) -> structs.StirringCalibration:
         from pioreactor.calibrations.stirring_calibration import run_stirring_calibration
@@ -108,4 +106,4 @@ def load_calibration(cal_type: str, calibration_name: str) -> structs.AnyCalibra
         data = yaml_decode(target_file.read_bytes(), type=assistant.calibration_struct)
         return data
     except ValidationError as e:
-        raise ValidationError(f"Error reading {target_file.stem()}: {e}")
+        raise ValidationError(f"Error reading {target_file.stem}: {e}")

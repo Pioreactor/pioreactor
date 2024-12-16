@@ -155,6 +155,14 @@ class CalibrationBase(Struct, tag_field="calibration_type", tag=to_calibration_t
 
 class ODCalibration(CalibrationBase, kw_only=True):
     ir_led_intensity: float
+    angle: str
+    pd_channel: str
+    maximum_od600: float
+    minimum_od600: float
+    minimum_voltage: float
+    maximum_voltage: float
+
+
 
 class _PumpCalibration(CalibrationBase, kw_only=True):
     hz: t.Annotated[float, Meta(ge=0)]
@@ -162,6 +170,16 @@ class _PumpCalibration(CalibrationBase, kw_only=True):
     voltage: float
     x: str = "duration"
     y: str = "volume"
+
+    @property
+    def duration_(self):
+        assert len(self.curve_data_) == 2
+        return self.curve_data_[1]
+
+    @property
+    def bias_(self):
+        assert len(self.curve_data_) == 2
+        return self.curve_data_[0]
 
     def ml_to_duration(self, ml: pt.mL) -> pt.Seconds:
         duration_ = self.duration_
@@ -193,7 +211,14 @@ class StirringCalibration(CalibrationBase, kw_only=True):
     y: str = "RPM"
 
 
-AnyCalibration = t.Union[StirringCalibration, MediaPumpCalibration, WastePumpCalibration, AltMediaPumpCalibration, ODCalibration]
+AnyCalibration = t.Union[
+    StirringCalibration, MediaPumpCalibration, WastePumpCalibration, AltMediaPumpCalibration, ODCalibration
+]
+
+
+AnyPumpCalibration = t.Union[
+    MediaPumpCalibration, WastePumpCalibration, AltMediaPumpCalibration
+]
 
 
 class Log(JSONPrintedStruct):

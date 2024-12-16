@@ -126,14 +126,14 @@ def test_dosing_events_land_in_db() -> None:
             exp,
             ml=1,
             calibration=structs.MediaPumpCalibration(
-                name="test",
-                duration_=1.0,
-                bias_=0.0,
+                calibration_name="test",
+                curve_data_=[1.0, 0.0],
+                curve_type="poly",
+                recorded_data={"x": [], 'y': []},
                 dc=60,
                 hz=100,
                 created_at=current_utc_datetime(),
                 voltage=-1.0,
-                pump="media",
                 pioreactor_unit=unit,
             ),
         )

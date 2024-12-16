@@ -45,46 +45,40 @@ def setup_function() -> None:
     with local_persistant_storage("current_pump_calibration") as cache:
         cache["media"] = encode(
             structs.MediaPumpCalibration(
-                name="setup_function",
-                duration_=1.0,
-                bias_=0.0,
+                calibration_name="setup_function",
+                curve_data_=[1.0, 0.0],
+                curve_type="poly",
                 dc=60,
                 hz=100,
                 created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
-                pump="media",
-                durations=[0, 1],
-                volumes=[0, 1.5],
                 pioreactor_unit=unit,
+                recorded_data={"x": [], 'y': []}
             )
         )
         cache["alt_media"] = encode(
             structs.AltMediaPumpCalibration(
-                name="setup_function",
-                duration_=1.0,
-                bias_=0,
+                calibration_name="setup_function",
+                curve_data_=[1.0, 0.0],
+                curve_type="poly",
+                recorded_data={"x": [], 'y': []},
                 dc=60,
                 hz=100,
                 created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
-                pump="alt_media",
-                durations=[0, 1],
-                volumes=[0, 1.5],
                 pioreactor_unit=unit,
             )
         )
         cache["waste"] = encode(
             structs.WastePumpCalibration(
-                name="setup_function",
-                duration_=1.0,
-                bias_=0,
+                calibration_name="setup_function",
+                curve_data_=[1.0, 0.0],
+                curve_type="poly",
+                recorded_data={"x": [], 'y': []},
                 dc=60,
                 hz=100,
                 created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
-                pump="waste",
-                durations=[0, 1],
-                volumes=[0, 1.5],
                 pioreactor_unit=unit,
             )
         )

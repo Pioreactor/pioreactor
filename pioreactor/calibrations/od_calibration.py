@@ -24,7 +24,7 @@ from pioreactor import types as pt
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.stirring import start_stirring as stirring
 from pioreactor.background_jobs.stirring import Stirrer
-from pioreactor.calibratiions import utils
+from pioreactor.calibrations import utils
 from pioreactor.config import config
 from pioreactor.config import leader_address
 from pioreactor.mureq import HTTPErrorStatus
@@ -499,11 +499,6 @@ def save_results(
         pd_channel=pd_channel,
     )
 
-    with local_persistant_storage("od_calibrations") as cache:
-        cache[name] = encode(data_blob)
-
-    publish_to_leader(name)
-    change_current(name)
 
     return data_blob
 
@@ -534,7 +529,7 @@ def get_data_from_data_file(
     return pd_channel, angle, ods, voltages, curve_data_, curve_type
 
 
-def run_od_calibration(data_file: str | None) -> None:
+def run_od_calibration(data_file: str | None) -> structs.ODCalibration:
     unit = get_unit_name()
     experiment = get_testing_experiment_name()
     curve_data_ = []  # type: ignore
@@ -605,4 +600,4 @@ def run_od_calibration(data_file: str | None) -> None:
                     "Currently [od_reading.config][use_calibration] is set to 0 in your config.ini. This should be set to 1 to use calibrations.",
                 )
             )
-        return
+        return data_blob

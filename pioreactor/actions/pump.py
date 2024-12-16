@@ -30,13 +30,13 @@ from pioreactor.utils.timing import default_datetime_for_pioreactor
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 
-DEFAULT_PWM_CALIBRATION = structs.PumpCalibration(
+DEFAULT_PWM_CALIBRATION: structs.AnyPumpCalibration = structs._PumpCalibration(
     pioreactor_unit=get_unit_name(),
     created_at=default_datetime_for_pioreactor(),
     hz=200.0,
     dc=100.0,
     voltage=-1,
-    calibration_name="default_pwm_calibration",
+    calibration_name="default_pump_calibration",
     curve_type="poly",
     curve_data_=[1.0, 0.0],
     recorded_data={"x": [], "y": []},
