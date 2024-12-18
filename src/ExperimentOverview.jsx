@@ -186,6 +186,8 @@ function Overview(props) {
     }
   }, [experimentMetadata])
 
+  const activeUnits = units.filter(unit => unit.is_active === 1).map(unit => unit.pioreactor_unit)
+
   return (
     <Fragment>
       <Grid container spacing={2} justifyContent="space-between">
@@ -213,17 +215,14 @@ function Overview(props) {
 
           {( config['ui.overview.cards'] && (config['ui.overview.cards']['dosings'] === "1")) &&
             <Grid item xs={12} >
-              <MediaCard activeUnits={units.filter(unit => unit.is_active === 1).map(unit => unit.pioreactor_unit)} experiment={experimentMetadata.experiment} relabelMap={relabelMap}/>
+              <MediaCard activeUnits={activeUnits} experiment={experimentMetadata.experiment} relabelMap={relabelMap}/>
             </Grid>
           }
 
 
         {( config['ui.overview.cards'] && (config['ui.overview.cards']['event_logs'] === "1")) &&
           <Grid item xs={12}>
-            <LogTable byDuration={timeScale==="hours"} experimentStartTime={experimentMetadata.created_at} experiment={experimentMetadata.experiment} config={config} relabelMap={relabelMap}/>
-            <Button to={`/export-data?experiment=${experimentMetadata.experiment}&logs=1`} component={Link} color="primary" style={{textTransform: "none", verticalAlign: "middle", margin: "0px 3px"}}>
-              <ListAltOutlinedIcon style={{ fontSize: 17, margin: "0px 3px"}} color="primary"/> Export all logs
-            </Button>
+            <LogTable activeUnits={activeUnits} byDuration={timeScale==="hours"} experimentStartTime={experimentMetadata.created_at} experiment={experimentMetadata.experiment} config={config} relabelMap={relabelMap}/>
           </Grid>
         }
         </Grid>

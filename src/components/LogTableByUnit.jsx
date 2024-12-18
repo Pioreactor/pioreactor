@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useMQTT } from '../providers/MQTTContext'; // Import the useMQTT hook
+import { useMQTT } from '../providers/MQTTContext';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
+
 import Card from '@mui/material/Card';
+import CardActions from '@mui/material/CardActions';
+import Button from '@mui/material/Button';
 import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
@@ -13,10 +16,28 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import { styled } from '@mui/material/styles';
+import Divider from '@mui/material/Divider';
+import AddIcon from '@mui/icons-material/Add';
+import { Link } from 'react-router-dom';
+import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import TextField from '@mui/material/TextField';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import IconButton from '@mui/material/IconButton';
+import CloseIcon from '@mui/icons-material/Close';
+
 import {ERROR_COLOR, WARNING_COLOR, NOTICE_COLOR} from "../utilities"
 
 // Activate the UTC plugin
 dayjs.extend(utc);
+
+const textIcon = { verticalAlign: "middle", margin: "0px 3px" };
 
 
 const StyledTableCell = styled(TableCell)(({ theme, level }) => {
@@ -62,6 +83,14 @@ const LEVELS = [
 function LogTableByUnit({experiment, unit}) {
   const [listOfLogs, setListOfLogs] = useState([]);
   const {client, subscribeToTopic } = useMQTT();
+
+  // Dialog states
+  const [openDialog, setOpenDialog] = useState(false);
+  const [selectedPioreactor, setSelectedPioreactor] = useState("");
+  const [selectedExperiment, setSelectedExperiment] = useState(experiment || "");
+  const [message, setMessage] = useState("");
+  const [timestampLocal, setTimestampLocal] = useState(dayjs().local().format('YYYY-MM-DD HH:mm:ss'));
+  const [source, setSource] = useState("");
 
   useEffect(() => {
     const getData = async () => {
@@ -117,10 +146,9 @@ function LogTableByUnit({experiment, unit}) {
     const unit = topic.toString().split("/")[1];
     const payload = JSON.parse(message.toString());
 
-
     setListOfLogs(currentLogs => [
       {
-        timestamp: dayjs.utc().format('YYYY-MM-DD[T]HH:mm:ss.SSS[Z]'),
+        timestamp: toTimestampObject(payload.timestamp),
         pioreactor_unit: unit,
         message: String(payload.message),
         task: payload.task,
@@ -131,9 +159,54 @@ function LogTableByUnit({experiment, unit}) {
     ]);
   };
 
+
+  // Dialog handlers
+  const handleOpenDialog = () => {
+    setTimestampLocal(dayjs().local().format("YYYY-MM-DD HH:mm:ss"));
+    setSelectedPioreactor(unit);
+    setSelectedExperiment(experiment || "<All experiments>");
+    setMessage(message);
+    setSource("");
+    setOpenDialog(true);
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+  };
+
+  const handleSubmitDialog = async () => {
+
+    const timestampUTC = dayjs(timestampLocal, 'YYYY-MM-DD HH:mm:ss', true)
+      .utc()
+      .format('YYYY-MM-DD[T]HH:mm:ss[Z]');
+    try {
+      const body = {
+        pioreactor_unit: selectedPioreactor,
+        experiment: selectedExperiment,
+        message: message,
+        timestamp: timestampUTC,
+        source: source
+      };
+      // Made-up API endpoint
+      const response = await fetch(`/api/experiments/${selectedExperiment}/logs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      if (!response.ok) {
+        throw new Error("Failed to submit new log entry.");
+      }
+      setOpenDialog(false);
+      setMessage("")
+    } catch (error) {
+      console.error("Error adding new log entry:", error);
+    }
+  };
+
+
   return (
     <Card>
-      <CardContent>
+      <CardContent sx={{  '&:last-child': { pb: 0 }}}>
         <Typography variant="h6" component="h2">
           <Box fontWeight="fontWeightRegular">Recent logs for {unit}</Box>
         </Typography>
@@ -169,7 +242,119 @@ function LogTableByUnit({experiment, unit}) {
             </TableBody>
           </Table>
         </TableContainer>
+        <Divider/>
+        <CardActions sx={{justifyContent:"right"}}>
+          <Button
+            style={{textTransform: 'none', float: "right", marginRight: "0px"}}
+            color="primary"
+            onClick={handleOpenDialog}
+          >
+            <AddIcon fontSize="15" sx={textIcon}/> Record a new log
+          </Button>
+          <Button
+            to={`/export-data`}
+            component={Link}
+            color="primary"
+            style={{textTransform: "none", verticalAlign: "middle", margin: "0px 3px"}}
+          >
+            <ListAltOutlinedIcon style={{ fontSize: 17, margin: "0px 3px"}} color="primary"/> Export all logs
+          </Button>
+        </CardActions>
       </CardContent>
+
+      <Dialog open={openDialog} onClose={handleCloseDialog} aria-labelledby="form-dialog-title" fullWidth maxWidth="sm">
+        <DialogTitle sx={{ mb: 2 }}>
+          Record a new log
+          <IconButton
+            aria-label="close"
+            onClick={handleCloseDialog}
+            sx={{
+              position: 'absolute',
+              right: 8,
+              top: 8,
+              color: (theme) => theme.palette.grey[500],
+            }}
+            size="large"
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent >
+          <Typography variant="body2" sx={{ mb: 3 }}>
+            Fill out the form below to add a new log entry to Pioreactor logs. You can select
+            which Pioreactor or experiment the entry applies to, or choose  "&lt;All experiments&gt;".
+          </Typography>
+
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <FormControl required size="small" variant="outlined" sx={{ flex: 1 }}>
+              <InputLabel id="select-pioreactor-label">Select a Pioreactor</InputLabel>
+              <Select
+                labelId="select-pioreactor-label"
+                label="Select a Pioreactor"
+                value={selectedPioreactor}
+                onChange={(e) => setSelectedPioreactor(e.target.value)}
+              >
+                  <MenuItem key={unit} value={unit}>{unit}</MenuItem>
+
+              </Select>
+            </FormControl>
+
+            <FormControl required size="small" variant="outlined" sx={{ flex: 1 }}>
+              <InputLabel id="select-experiment-label">Which experiment?</InputLabel>
+              <Select
+                labelId="select-experiment-label"
+                label="Which experiment?"
+                value={selectedExperiment}
+                onChange={(e) => setSelectedExperiment(e.target.value)}
+              >
+                <MenuItem value={experiment}>{experiment}</MenuItem>
+                <MenuItem value="$experiment">&lt;All experiments&gt;</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <TextField
+              required
+              size="small"
+              variant="outlined"
+              label="Message"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              multiline
+              minRows={2}
+              sx={{ flex: 1 }}
+            />
+
+          </Box>
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <TextField
+              required
+              size="small"
+              variant="outlined"
+              label="Timestamp"
+              value={timestampLocal}
+              onChange={(e) => setTimestampLocal(e.target.value)}
+            />
+            <TextField
+              variant="outlined"
+              size="small"
+              label="Source (optional)"
+              value={source}
+              onChange={(e) => setSource(e.target.value)}
+            />
+          </Box>
+        </DialogContent>
+
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={handleCloseDialog} style={{textTransform: "none"}}>
+            Cancel
+          </Button>
+          <Button variant="contained" onClick={handleSubmitDialog} style={{textTransform: "none"}} disabled={message===""}>
+            Submit
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Card>
   );
 }

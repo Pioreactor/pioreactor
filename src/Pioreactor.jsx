@@ -403,7 +403,6 @@ function CalibrateDialog(props) {
 
   const isGrowRateJobRunning = props.growthRateJobState === "ready"
   const blankODButton = createUserButtonsBasedOnState(props.odBlankJobState, "od_blank", isGrowRateJobRunning)
-  const stirringCalibrationButton = createUserButtonsBasedOnState(props.stirringCalibrationState, "stirring_calibration")
 
   return (
     <React.Fragment>
@@ -422,9 +421,6 @@ function CalibrateDialog(props) {
             textColor="primary"
             >
             <Tab label="Blanks"/>
-            <Tab label="Stirring"/>
-            <Tab label="Dosing" />
-            <Tab label="OD600"  />
           </Tabs>
           <IconButton
             aria-label="close"
@@ -459,52 +455,8 @@ function CalibrateDialog(props) {
               </div>
             </div>
             <ManageDivider/>
-
-          </TabPanel>
-          <TabPanel value={tabValue} index={1}>
-            <Typography  gutterBottom>
-             Stirring calibration (optional)
-            </Typography>
-            <Typography variant="body2" component="p" gutterBottom>
-              You can improve the responsiveness of stirring RPM changes by running this calibration. This calibration is
-              optional, and stirring RPM changes can still occur without running this calibration. Only needs to be performed once - results are saved to disk.
-            </Typography>
-
-            <Typography variant="body2" component="p" gutterBottom>
-            Add a vial, with a stirbar and ~15ml of liquid, to the Pioreactor, then hit Start below. This calibration will take less than five minutes.
-            </Typography>
-
-            {stirringCalibrationButton}
-
-            <ManageDivider/>
-
-          </TabPanel>
-          <TabPanel value={tabValue} index={2}>
-            <Typography  gutterBottom>
-             Dosing calibration for pumps
-            </Typography>
-            <Typography variant="body2" component="p" gutterBottom>
-            To use a peristatlic pump with your Pioreactor, you'll need to calibrate it to accuractly dose specific volumes.
-            </Typography>
-            <Typography variant="body2" component="p" gutterBottom>
-            See instructions <a target="_blank" rel="noopener noreferrer" href="https://docs.pioreactor.com/user-guide/hardware-calibrations#pump-calibration">here</a>.
-            </Typography>
-            <ManageDivider/>
-
           </TabPanel>
 
-          <TabPanel value={tabValue} index={3}>
-            <Typography  gutterBottom>
-             OD600 Calibration (optional)
-            </Typography>
-            <Typography variant="body2" component="p" gutterBottom>
-            By performing the following calibration, you can relate Pioreactor's internal OD readings (measured in volts) to an offline OD600 value. The UI and datasets will be measured in your OD600 values instead of voltages.
-            </Typography>
-            <Typography variant="body2" component="p" gutterBottom>
-            See instructions <a target="_blank" rel="noopener noreferrer" href="https://docs.pioreactor.com/user-guide/calibrate-od600">here</a>.
-            </Typography>
-            <ManageDivider/>
-          </TabPanel>
         </DialogContent>
       </Dialog>
   </React.Fragment>
@@ -1728,8 +1680,6 @@ function PioreactorCard(props){
                   client={client}
                   odBlankReading={jobs['od_blank'] ? jobs['od_blank'].publishedSettings.means.value : null}
                   odBlankJobState={jobs['od_blank'] ? jobs['od_blank'].state : null}
-                  growthRateJobState={jobs['growth_rate_calculating'] ? jobs['growth_rate_calculating'].state : null}
-                  stirringCalibrationState={jobs['stirring_calibration'] ? jobs['stirring_calibration'].state : null}
                   experiment={experiment}
                   unit={unit}
                   label={label}

@@ -177,7 +177,7 @@ export default function SelfTestDialog({client, disabled, experiment, unit, labe
                   {displayIcon("test_all_positive_correlations_between_pds_and_leds", selfTestState)}
                 </ListItemIcon>
                 <ListItemText primary="Photodiodes are responsive to IR LED" secondary={
-                    selfTestTests ?
+                    (selfTestTests && selfTestTests?.publishedSettings["correlations_between_pds_and_leds"]?.value) ?
                       JSON.parse(selfTestTests.publishedSettings["correlations_between_pds_and_leds"].value).map(led_pd => `${led_pd[0]} ⇝ ${led_pd[1]}`).join(",  ") :
                       ""
                     }/>
