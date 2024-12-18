@@ -174,16 +174,11 @@ def od_blank(
                     interval=1.5,
                     experiment=testing_experiment,  # use testing experiment to not pollute the database (and they would show up in the UI)
                     fake_data=whoami.is_testing_env(),
-                ) as od_stream, start_stirring(
-                    unit=unit,
-                    experiment=testing_experiment,
-                ) as st:
+                ) as od_stream:
                     # warm up OD reader
                     for count, _ in enumerate(od_stream, start=0):
                         if count == 5:
                             break
-
-                    st.block_until_rpm_is_close_to_target(timeout=30)
 
                     means, _ = od_statistics(
                         od_stream,

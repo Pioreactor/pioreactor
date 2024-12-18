@@ -134,11 +134,7 @@ class Voltage(JSONPrintedStruct):
     voltage: pt.Voltage
 
 
-def to_calibration_tag(s: str) -> str:
-    return s.lower().removesuffix("calibration")
-
-
-class CalibrationBase(Struct, tag_field="calibration_type", tag=to_calibration_tag, kw_only=True):
+class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
     calibration_name: str
     pioreactor_unit: str
     created_at: t.Annotated[datetime, Meta(tz=True)]
@@ -150,10 +146,10 @@ class CalibrationBase(Struct, tag_field="calibration_type", tag=to_calibration_t
 
     @property
     def calibration_type(self):
-        return to_calibration_tag(self.__class__.__name__)
+        return self.__struct_config__.tag
 
 
-class ODCalibration(CalibrationBase, kw_only=True):
+class ODCalibration(CalibrationBase, kw_only=True, tag="od"):
     ir_led_intensity: float
     angle: str
     pd_channel: str
@@ -161,7 +157,6 @@ class ODCalibration(CalibrationBase, kw_only=True):
     minimum_od600: float
     minimum_voltage: float
     maximum_voltage: float
-
 
 
 class _PumpCalibration(CalibrationBase, kw_only=True):
@@ -192,19 +187,19 @@ class _PumpCalibration(CalibrationBase, kw_only=True):
         return t.cast(pt.mL, duration * duration_ + bias_)
 
 
-class MediaPumpCalibration(_PumpCalibration, kw_only=True):
+class MediaPumpCalibration(_PumpCalibration, kw_only=True, tag="media_pump"):
     pass
 
 
-class AltMediaPumpCalibration(_PumpCalibration, kw_only=True):
+class AltMediaPumpCalibration(_PumpCalibration, kw_only=True, tag="alt_media_pump"):
     pass
 
 
-class WastePumpCalibration(_PumpCalibration, kw_only=True):
+class WastePumpCalibration(_PumpCalibration, kw_only=True, tag="waste_pump"):
     pass
 
 
-class StirringCalibration(CalibrationBase, kw_only=True):
+class StirringCalibration(CalibrationBase, kw_only=True, tag="stirring_pump"):
     pwm_hz: t.Annotated[float, Meta(ge=0)]
     voltage: float
     x: str = "DC %"
@@ -216,9 +211,7 @@ AnyCalibration = t.Union[
 ]
 
 
-AnyPumpCalibration = t.Union[
-    MediaPumpCalibration, WastePumpCalibration, AltMediaPumpCalibration
-]
+AnyPumpCalibration = t.Union[MediaPumpCalibration, WastePumpCalibration, AltMediaPumpCalibration]
 
 
 class Log(JSONPrintedStruct):

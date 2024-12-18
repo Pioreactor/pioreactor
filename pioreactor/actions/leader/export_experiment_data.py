@@ -225,9 +225,10 @@ def export_experiment_data(
                 iloc_unit = None
 
             parition_to_writer_map: dict[tuple, Any] = {}
-
+            count = 0
             with ExitStack() as stack:
-                for i, row in enumerate(cursor, start=1):
+                for row in cursor:
+                    count += 1
                     rows_partition = (
                         row[iloc_experiment] if iloc_experiment is not None else "all_experiments",
                         row[iloc_unit] if iloc_unit is not None else "all_units",
@@ -245,10 +246,12 @@ def export_experiment_data(
 
                     parition_to_writer_map[rows_partition].writerow(row)
 
-                    if i % 1000 == 0:
-                        logger.debug(f"Exported {i} rows...")
+                    if count % 1000 == 0:
+                        logger.debug(f"Exported {count} rows...")
 
-            logger.debug(f"Exported {i} rows from {dataset_name}.")
+            logger.debug(f"Exported {count} rows from {dataset_name}.")
+            if count == 0:
+                logger.warning(f"No data present in {dataset_name}. Check database?")
 
             for filename in filenames:
                 path_to_file = Path(Path(output).parent / filename)

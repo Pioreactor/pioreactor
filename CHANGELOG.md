@@ -2,9 +2,11 @@
  - API to set clock time
  - new calibrations CLI
  - persistent storage is now on single sqlite3 database
+ - new "add log entry" dialog
  - deprecated `default` in background_jobs yaml fields.
    - [ ] test self-test
    - [ ] check back edits to stirring calibration
+   - [ ] cahnges to settings api
 
 ### 24.12.10
  - Hotfix for UI settings bug
