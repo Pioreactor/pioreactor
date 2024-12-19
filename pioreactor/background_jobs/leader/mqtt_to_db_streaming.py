@@ -432,11 +432,11 @@ def add_default_source_to_sinks() -> list[TopicToParserToTable]:
                 parse_automation_settings,
                 "temperature_automation_settings",
             ),
-            TopicToParserToTable(
-                "pioreactor/+/+/growth_rate_calculating/kalman_filter_outputs",
-                parse_kalman_filter_outputs,
-                "kalman_filter_outputs",
-            ),
+            # TopicToParserToTable(
+            #     "pioreactor/+/+/growth_rate_calculating/kalman_filter_outputs",
+            #     parse_kalman_filter_outputs,
+            #     "kalman_filter_outputs",
+            # ),
             TopicToParserToTable(
                 "pioreactor/+/+/stirring/measured_rpm", parse_stirring_rates, "stirring_rates"
             ),
