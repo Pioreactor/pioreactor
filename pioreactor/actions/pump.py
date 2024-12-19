@@ -145,6 +145,7 @@ class PWMPump:
         return self
 
     def __exit__(self, *args) -> None:
+        self.stop()
         self.clean_up()
 
 
