@@ -187,6 +187,7 @@ function Overview(props) {
   }, [experimentMetadata])
 
   const activeUnits = units.filter(unit => unit.is_active === 1).map(unit => unit.pioreactor_unit)
+  const assignedUnits = units.map(unit => unit.pioreactor_unit)
 
   return (
     <Fragment>
@@ -222,7 +223,7 @@ function Overview(props) {
 
         {( config['ui.overview.cards'] && (config['ui.overview.cards']['event_logs'] === "1")) &&
           <Grid item xs={12}>
-            <LogTable activeUnits={activeUnits} byDuration={timeScale==="hours"} experimentStartTime={experimentMetadata.created_at} experiment={experimentMetadata.experiment} config={config} relabelMap={relabelMap}/>
+            <LogTable units={assignedUnits} byDuration={timeScale==="hours"} experimentStartTime={experimentMetadata.created_at} experiment={experimentMetadata.experiment} config={config} relabelMap={relabelMap}/>
           </Grid>
         }
         </Grid>

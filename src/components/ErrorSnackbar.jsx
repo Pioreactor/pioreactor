@@ -34,7 +34,7 @@ function ErrorSnackbar(props) {
         setMsg(payload.message)
         setTask(payload.task)
         setLevel(payload.level === "NOTICE" ? "SUCCESS" : payload.level)
-        setUnit(unit)
+        setUnit(unit === "$broadcast" ? "All Pioreactors" : unit)
         setOpen(true)
       }
     }

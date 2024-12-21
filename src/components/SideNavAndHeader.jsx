@@ -21,6 +21,7 @@ import LibraryAddOutlinedIcon from '@mui/icons-material/LibraryAddOutlined';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import InsertChartOutlinedIcon from '@mui/icons-material/InsertChartOutlined';
+import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
 import ViewTimelineOutlinedIcon from '@mui/icons-material/ViewTimelineOutlined';
 import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -28,7 +29,7 @@ import { Sidebar, Menu, MenuItem, SubMenu} from "react-pro-sidebar";
 import { useExperiment } from '../providers/ExperimentContext';
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-
+import TuneIcon from '@mui/icons-material/Tune';
 
 const drawerWidth = 230;
 
@@ -87,7 +88,7 @@ const SelectableMenuItem = ({allExperiments, experiment, updateExperiment}) => {
 
   function handleExperimentChange(e) {
     const currentPath = window.location.pathname.split('/')[1]; // Assumes the base path is at the first segment
-    const allowedPaths = ['pioreactors', 'experiment-profiles', 'overview'];
+    const allowedPaths = ['pioreactors', 'experiment-profiles', 'overview', 'logs'];
 
     if (!allowedPaths.includes(currentPath)) {
       navigate('/overview');
@@ -272,6 +273,16 @@ export default function SideNavAndHeader() {
                 Profiles
               </MenuItem>
 
+              <MenuItem
+                icon={
+                      <ListAltOutlinedIcon/>
+                  }
+                component={<Link to="/logs" className="link" />}
+                active={isSelected("/logs")}
+                >
+                Logs
+              </MenuItem>
+
             <Divider sx={{marginTop: "15px", marginBottom: "15px"}} />
           </Menu>
         </div>
@@ -312,6 +323,15 @@ export default function SideNavAndHeader() {
                   >
                   Inventory
 
+                </MenuItem>
+
+                <MenuItem
+                  icon={<TuneIcon/> }
+                  component={<Link to="/calibrations" className="link" />}
+                  active={isSelected("/calibrations")}
+                  disabled={true}
+                  >
+                  Calibrations
                 </MenuItem>
 
                 <MenuItem

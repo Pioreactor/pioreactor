@@ -2396,7 +2396,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel})
           {Object.values(jobs)
               .filter(job => job.metadata.display)
               .map(job => (
-            <Box sx={{width: "130px", mt: "10px", mr: "2px"}} key={job.metadata.key}>
+            <Box sx={{width: "130px", mt: "10px", mr: "2px", p: "0px 3px"}} key={job.metadata.key}>
               <Typography variant="body2" style={{fontSize: "0.84rem"}} sx={{ color: !isUnitActive ? disabledColor : 'inherit' }}>
                 {job.metadata.display_name}
               </Typography>
@@ -2435,7 +2435,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel})
               Object.entries(settings)
                 .filter(([setting_key, setting], _) => setting.display)
                 .map(([setting_key, setting], _) =>
-                  <Box sx={{width: "130px", mt: "10px", mr: "2px"}} key={job_key + setting_key}>
+                  <Box sx={{width: "130px", mt: "10px", mr: "2px", p: "0px 3px"}} key={job_key + setting_key}>
                     <Typography variant="body2" style={{fontSize: "0.84rem"}} sx={{ color: !isUnitActive ? disabledColor : 'inherit' }}>
                       {setting.label}
                     </Typography>

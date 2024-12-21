@@ -19,6 +19,7 @@ import Updates from "./Updates";
 import Plugins from "./Plugins";
 import Profiles from "./Profiles";
 import Inventory from "./Inventory";
+import Logs from "./Logs";
 //import Analysis from "./Analysis";
 import Experiments from "./Experiments";
 import SideNavAndHeader from "./components/SideNavAndHeader";
@@ -120,6 +121,8 @@ function MainSite() {
                   <Route path="/pioreactors/:unit" element={ <Pioreactor title="Pioreactor ~ Pioreactor"/>}/>
                   <Route path="/updates" element={<Updates title="Pioreactor ~ Updates"/>}/>
                   <Route path="/inventory" element={<Inventory title="Pioreactor ~ Inventory"/>}/>
+                  <Route path="/logs" element={<Logs title="Pioreactor ~ Logs"/>}/>
+                  <Route path="/logs/:unit" element={<Logs title="Pioreactor ~ Logs"/>}/>
                   <Route path="/" element={<ExperimentOverview title="Pioreactor ~ Overview"/>}/>
                   <Route path="*" element={<NotFound />} />
                 </Routes>
