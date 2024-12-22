@@ -43,6 +43,8 @@ function RecordEventLogDialog({
         timestamp: timestampUTC,
         source,
       });
+      setMessage("")
+      setSource("")
       onClose()
     }
   };

@@ -33,7 +33,7 @@ function Logs(props) {
   useEffect(() => {
     async function fetchWorkers(experiment) {
       try {
-        const response = await fetch(`/api/experiments/${experiment}/workers`);
+        const response = await fetch(`/api/experiments/${experiment}/historical_workers`);
         if (response.ok) {
           const units = await response.json();
           setAssignedUnits(units.map(u => u.pioreactor_unit));
@@ -86,7 +86,7 @@ function Logs(props) {
         <Box>
           <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
             <Typography variant="h5" component="h2" sx={{ fontWeight: "bold" }}>
-              Detailed event logs:
+              Detailed event logs for
               <Select
                 labelId="configSelect"
                 variant="standard"
@@ -111,7 +111,7 @@ function Logs(props) {
             </Typography>
             <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
               <RecordEventLogDialog
-                defaultPioreactor={assignedUnits.length > 0 ? assignedUnits[0] : ''}
+                defaultPioreactor={unit || ''}
                 defaultExperiment={experimentMetadata.experiment}
                 availableUnits={assignedUnits}
                 onSubmit={handleSubmitDialog}

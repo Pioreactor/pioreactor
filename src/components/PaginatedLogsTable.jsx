@@ -66,7 +66,7 @@ function PaginatedLogTable({unit, experiment, relabelMap }) {
   const [listOfLogs, setListOfLogs] = useState([]);
   const [skip, setSkip] = useState(0); // Tracks the number of logs already loaded
   const [loading, setLoading] = useState(false); // Tracks if the logs are currently loading
-  const { client, subscribeToTopic } = useMQTT();
+  const { client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
   const location = useLocation();
 
   useEffect(() => {
@@ -76,10 +76,10 @@ function PaginatedLogTable({unit, experiment, relabelMap }) {
       try {
         var response
         if (unit){
-          response = await fetch(`/api/units/${unit}/experiments/${experiment}/logs?skip=${skip}`);
+          response = await fetch(`/api/units/${unit}/experiments/${experiment}/logs`);
         }
         else {
-          response = await fetch(`/api/experiments/${experiment}/logs?skip=${skip}`);
+          response = await fetch(`/api/experiments/${experiment}/logs`);
         }
         const logs = await response.json();
         setListOfLogs(
@@ -96,8 +96,10 @@ function PaginatedLogTable({unit, experiment, relabelMap }) {
       }
     };
 
+    setSkip(0)
     getData();
-  }, [experiment, location]);
+
+  }, [experiment, location, unit]);
 
   const loadMoreLogs = async () => {
     setLoading(true);
@@ -136,7 +138,10 @@ function PaginatedLogTable({unit, experiment, relabelMap }) {
         'PagLogTable'
       );
     }
-  }, [client]);
+    return () => {
+      LEVELS.map((level) => unsubscribeFromTopic(`pioreactor/${unit || '+'}/$experiment/logs/+/${level.toLowerCase()}`, 'PagLogTable'))
+    };
+  }, [client, unit]);
 
   useEffect(() => {
     if (experiment && client) {
@@ -146,7 +151,10 @@ function PaginatedLogTable({unit, experiment, relabelMap }) {
         'PagLogTable'
       );
     }
-  }, [client, experiment]);
+    return () => {
+      LEVELS.map((level) => unsubscribeFromTopic(`pioreactor/${unit || '+'}/${experiment}/logs/+/${level.toLowerCase()}`, 'PagLogTable'))
+    };
+  }, [client, experiment, unit]);
 
   const onMessage = (topic, message, packet) => {
     const unit = topic.toString().split('/')[1];
