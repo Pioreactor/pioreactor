@@ -8,6 +8,9 @@
    - [ ] test self-test
    - [ ] check back edits to stirring calibration
    - [ ] changes to settings api in unit_api
+   - [ ] logs page
+ - new table for historical assignments
+ - plugins page has dropdown to select the unit
 
 ### 24.12.10
  - Hotfix for UI settings bug

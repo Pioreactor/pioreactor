@@ -15,6 +15,9 @@ from .list_plugins import click_list_plugins
 from .uninstall_plugin import click_uninstall_plugin
 from .utils import discover_plugins_in_entry_points
 from .utils import discover_plugins_in_local_folder
+from pioreactor import pubsub
+from pioreactor.utils import networking
+from pioreactor.whoami import get_unit_name
 
 """
 How do plugins work? There are a few patterns we use to "register" plugins with the core app.
@@ -54,6 +57,11 @@ class Plugin(Struct):
     homepage: str
     author: str
     source: str
+
+
+def get_plugin_api_url(py_file: str) -> str:
+    endpoint = f"/unit_api/plugins/installed/{py_file}"
+    return pubsub.create_webserver_path(networking.resolve_to_address(get_unit_name()), endpoint)
 
 
 def get_plugins() -> dict[str, Plugin]:
@@ -106,7 +114,7 @@ def get_plugins() -> dict[str, Plugin]:
                 module,
                 getattr(module, "__plugin_summary__", BLANK),
                 getattr(module, "__plugin_version__", BLANK),
-                getattr(module, "__plugin_homepage__", BLANK),
+                getattr(module, "__plugin_homepage__", get_plugin_api_url(py_file.name)),
                 getattr(module, "__plugin_author__", BLANK),
                 f"plugins/{py_file.name}",
             )

@@ -151,6 +151,7 @@ class managed_lifecycle:
         exit_on_mqtt_disconnect: bool = False,
         mqtt_client_kwargs: dict | None = None,
         ignore_is_active_state=False,  # hack and kinda gross
+        is_long_running_job=False,
         source: str = "app",
         job_source: str | None = None,
     ) -> None:
@@ -163,6 +164,7 @@ class managed_lifecycle:
         self.state = "init"
         self.exit_event = Event()
         self._source = source
+        self.is_long_running_job = is_long_running_job
         self._job_source = job_source or os.environ.get("JOB_SOURCE") or "user"
 
         last_will = {
@@ -215,7 +217,7 @@ class managed_lifecycle:
                 self._job_source,
                 getpid(),
                 "",  # TODO: why is leader string empty? perf?
-                False,
+                self.is_long_running_job,
             )
 
         self.state = "ready"

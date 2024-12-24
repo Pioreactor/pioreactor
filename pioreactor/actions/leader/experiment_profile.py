@@ -29,7 +29,7 @@ from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
-bool_expression = str | bool
+BoolExpression = str | bool
 Env = dict[str, Any]
 
 STRICT_EXPRESSION_PATTERN = r"^\${{(.*?)}}$"
@@ -90,7 +90,7 @@ def evaluate_log_message(message: str, env: dict) -> str:
     return result_string
 
 
-def evaluate_bool_expression(bool_expression: bool_expression, env: dict) -> bool:
+def evaluate_bool_expression(bool_expression: BoolExpression, env: dict) -> bool:
     from pioreactor.experiment_profiles.parser import parse_profile_expression_to_bool
 
     if isinstance(bool_expression, bool):
@@ -103,7 +103,7 @@ def evaluate_bool_expression(bool_expression: bool_expression, env: dict) -> boo
     return parse_profile_expression_to_bool(bool_expression, env=env)
 
 
-def check_syntax_of_bool_expression(bool_expression: bool_expression) -> bool:
+def check_syntax_of_bool_expression(bool_expression: BoolExpression) -> bool:
     from pioreactor.experiment_profiles.parser import check_syntax
 
     if isinstance(bool_expression, bool):
@@ -320,11 +320,11 @@ def when(
     client: Client,
     job_name: str,
     dry_run: bool,
-    if_: Optional[bool_expression],
+    if_: Optional[BoolExpression],
     env: dict,
     logger: CustomLogger,
     elapsed_seconds_func: Callable[[], float],
-    condition: bool_expression,
+    condition: BoolExpression,
     when_action: struct.When,
     actions: list[struct.Action],
     schedule: scheduler,
@@ -393,12 +393,12 @@ def repeat(
     client: Client,
     job_name: str,
     dry_run: bool,
-    if_: Optional[bool_expression],
+    if_: Optional[BoolExpression],
     env: dict,
     logger: CustomLogger,
     elapsed_seconds_func: Callable[[], float],
     repeat_action: struct.Repeat,
-    while_: Optional[bool_expression],
+    while_: Optional[BoolExpression],
     repeat_every_hours: float,
     max_hours: Optional[float],
     actions: list[struct.BasicAction],
@@ -484,7 +484,7 @@ def log(
     client: Client,
     job_name: str,
     dry_run: bool,
-    if_: Optional[bool_expression],
+    if_: Optional[BoolExpression],
     env: dict,
     logger: CustomLogger,
     elapsed_seconds_func: Callable[[], float],
@@ -517,7 +517,7 @@ def start_job(
     client: Client,
     job_name: str,
     dry_run: bool,
-    if_: Optional[bool_expression],
+    if_: Optional[BoolExpression],
     env: dict,
     logger: CustomLogger,
     elapsed_seconds_func: Callable[[], float],
@@ -559,7 +559,7 @@ def pause_job(
     client: Client,
     job_name: str,
     dry_run: bool,
-    if_: Optional[bool_expression],
+    if_: Optional[BoolExpression],
     env: dict,
     logger: CustomLogger,
     elapsed_seconds_func: Callable[[], float],
@@ -595,7 +595,7 @@ def resume_job(
     client: Client,
     job_name: str,
     dry_run: bool,
-    if_: Optional[bool_expression],
+    if_: Optional[BoolExpression],
     env: dict,
     logger: CustomLogger,
     elapsed_seconds_func: Callable[[], float],
@@ -632,7 +632,7 @@ def stop_job(
     client: Client,
     job_name: str,
     dry_run: bool,
-    if_: Optional[bool_expression],
+    if_: Optional[BoolExpression],
     env: dict,
     logger: CustomLogger,
     elapsed_seconds_func: Callable[[], float],
@@ -668,7 +668,7 @@ def update_job(
     client: Client,
     job_name: str,
     dry_run: bool,
-    if_: Optional[bool_expression],
+    if_: Optional[BoolExpression],
     env: dict,
     logger: CustomLogger,
     elapsed_seconds_func: Callable[[], float],
@@ -814,7 +814,9 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
     unit = get_unit_name()
     action_name = "experiment_profile"
     logger = create_logger(action_name, unit=unit, experiment=experiment)
-    with managed_lifecycle(unit, experiment, action_name, ignore_is_active_state=True) as state:
+    with managed_lifecycle(
+        unit, experiment, action_name, ignore_is_active_state=True, is_long_running_job=True
+    ) as state:
         try:
             profile = load_and_verify_profile(profile_filename)
         except Exception as e:
