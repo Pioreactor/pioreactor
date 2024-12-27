@@ -5,24 +5,14 @@ import utc from 'dayjs/plugin/utc';
 import CircularProgress from '@mui/material/CircularProgress';
 
 import Grid from '@mui/material/Grid';
-import FormControl from '@mui/material/FormControl';
 import TextField from '@mui/material/TextField';
 import Divider from '@mui/material/Divider';
-import FormGroup from '@mui/material/FormGroup';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import Checkbox from '@mui/material/Checkbox';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import MenuItem from '@mui/material/MenuItem';
 import {Typography} from '@mui/material';
-import Select from '@mui/material/Select';
 import Box from '@mui/material/Box';
 import LoadingButton from "@mui/lab/LoadingButton";
-import FileDownloadIcon from '@mui/icons-material/FileDownload';
-import { useTheme } from '@mui/material/styles';
-import Chip from '@mui/material/Chip';
-import { Accordion, AccordionSummary, AccordionDetails, Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
-import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
 import ManageInventoryMenu from './components/ManageInventoryMenu';
 
 // Activate the UTC plugin

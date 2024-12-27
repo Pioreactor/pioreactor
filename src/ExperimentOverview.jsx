@@ -1,15 +1,12 @@
 import { useState, useEffect, Fragment } from 'react';
 
 import Grid from "@mui/material/Grid";
-import Button from "@mui/material/Button";
 import LogTable from "./components/LogTable";
 import ExperimentSummary from "./components/ExperimentSummary";
 import Chart from "./components/Chart";
 import MediaCard from "./components/MediaCard";
-import { Link } from 'react-router-dom';
 import {getConfig, getRelabelMap, colors, DefaultDict} from "./utilities"
 import Card from "@mui/material/Card";
-import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Stack from "@mui/material/Stack";

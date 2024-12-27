@@ -29,7 +29,6 @@ import { Sidebar, Menu, MenuItem, SubMenu} from "react-pro-sidebar";
 import { useExperiment } from '../providers/ExperimentContext';
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import TuneIcon from '@mui/icons-material/Tune';
 import AutoGraphIcon from '@mui/icons-material/AutoGraph';
 import LanOutlinedIcon from '@mui/icons-material/LanOutlined';
 
@@ -130,7 +129,7 @@ const SelectableMenuItem = ({allExperiments, experiment, updateExperiment}) => {
           }}
         >
           <MenuItemMUI value={null} component={Link} to="/start-new-experiment">
-            <AddCircleOutlineIcon sx={{fontSize: "22px"}} sx={{ verticalAlign: 'middle', margin: '0px 8px 0px 0px' }} />
+            <AddCircleOutlineIcon sx={{ verticalAlign: 'middle', margin: '0px 8px 0px 0px', fontSize: "22px"}} />
             New experiment
           </MenuItemMUI>
           <Divider />

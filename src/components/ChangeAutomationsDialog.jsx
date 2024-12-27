@@ -20,7 +20,6 @@ import {runPioreactorJob} from "../utilities"
 
 import PioreactorIcon from "./PioreactorIcon"
 import AutomationForm from "./AutomationForm"
-import { useMQTT } from '../providers/MQTTContext';
 
 
 const defaultAutomations = {

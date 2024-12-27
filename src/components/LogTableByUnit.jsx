@@ -17,20 +17,8 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import { styled } from '@mui/material/styles';
 import Divider from '@mui/material/Divider';
-import AddIcon from '@mui/icons-material/Add';
 import { Link } from 'react-router-dom';
 import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
-import TextField from '@mui/material/TextField';
-import MenuItem from '@mui/material/MenuItem';
-import Select from '@mui/material/Select';
-import FormControl from '@mui/material/FormControl';
-import InputLabel from '@mui/material/InputLabel';
-import IconButton from '@mui/material/IconButton';
-import CloseIcon from '@mui/icons-material/Close';
 import RecordEventLogDialog from './RecordEventLogDialog';
 
 import {ERROR_COLOR, WARNING_COLOR, NOTICE_COLOR} from "../utilities"

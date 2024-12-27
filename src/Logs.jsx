@@ -16,7 +16,6 @@ import {getRelabelMap} from "./utilities"
 import { useExperiment } from './providers/ExperimentContext';
 import ManageExperimentMenu from "./components/ManageExperimentMenu";
 import RecordEventLogDialog from './components/RecordEventLogDialog';
-import PioreactorIcon from "./components/PioreactorIcon";
 
 function Logs(props) {
 

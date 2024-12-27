@@ -5,7 +5,6 @@ import utc from 'dayjs/plugin/utc';
 import Button from "@mui/material/Button";
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -17,8 +16,6 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import { styled } from '@mui/material/styles';
 import {ERROR_COLOR, WARNING_COLOR, NOTICE_COLOR} from "../utilities"
-import GetAppIcon from '@mui/icons-material/GetApp';
-import { Link} from 'react-router-dom';
 
 // Activate the UTC plugin
 dayjs.extend(utc);
