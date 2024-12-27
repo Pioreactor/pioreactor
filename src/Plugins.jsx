@@ -1,6 +1,8 @@
 import Avatar from "boring-avatars";
 import React from "react";
 
+import Select from '@mui/material/Select';
+import MenuItem from "@mui/material/MenuItem";
 import Grid from '@mui/material/Grid';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/Card';
@@ -24,7 +26,8 @@ import DialogContent from '@mui/material/DialogContent';
 import CloseIcon from '@mui/icons-material/Close';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
-
+import SelectButton from "./components/SelectButton";
+import {checkTaskCallback} from "./utilities";
 
 function InstallByNameDialog(props){
 
@@ -77,7 +80,7 @@ function InstallByNameDialog(props){
     </Button>
     <Dialog open={open} onClose={handleClose} aria-labelledby="form-dialog-title">
       <DialogTitle>
-        Install plugin by name
+        Install plugin
         <IconButton
           aria-label="close"
           onClick={handleClose}
@@ -92,14 +95,14 @@ function InstallByNameDialog(props){
         </IconButton>
       </DialogTitle>
       <DialogContent>
-        <p>Note: this requires access to the internet to download the plugin.</p>
+        <p>This requires access to the internet to download the plugin, and will install across the entire cluster.</p>
         <div>
           <TextField
             size="small"
             id="plugin-name"
             label="Plugin name"
             variant="outlined"
-            sx={{mt: "15px", maxWidth: "180px"}}
+            sx={{mt: "15px", width: "380px"}}
             onChange={handleTextChange}
             value={text}
           />
@@ -107,6 +110,7 @@ function InstallByNameDialog(props){
 
         <div style={{display: "flex", justifyContent: "flex-end"}}>
           <Button
+            disabled={text === ""}
             variant="contained"
             color="primary"
             style={{marginTop: "20px", textTransform: 'none'}}
@@ -151,8 +155,7 @@ function PageHeader(props) {
 
 
 
-function ListSuggestedPlugins({alreadyInstalledPluginsNames}){
-
+function ListSuggestedPlugins({selectedUnit}){
   const [availablePlugins, setSuggestedPlugins] = React.useState([])
   const [snackbarOpen, setSnackbarOpen] = React.useState(false)
   const [snackbarMsg, setSnackbarMsg] = React.useState("")
@@ -173,10 +176,10 @@ function ListSuggestedPlugins({alreadyInstalledPluginsNames}){
       getData()
   }, [])
 
-  const installPlugin = (plugin_name) => () => {
+  const installPlugin = (name, plugin_name)  => {
       setSnackbarOpen(true);
-      setSnackbarMsg(`Installing ${plugin_name} in the background - this may take a minute...`);
-      fetch('/api/plugins/install', {
+      setSnackbarMsg(`Installing ${plugin_name} to ${name === '$broadcast' ? "all units" : name} in the background - this may take a minute...`);
+      fetch(`/api/units/${name}/plugins/install`, {
         method: "POST",
         body: JSON.stringify({args: [plugin_name]}),
         headers: {
@@ -196,13 +199,12 @@ function ListSuggestedPlugins({alreadyInstalledPluginsNames}){
   return (
     <React.Fragment>
       <Box sx={{m: "auto", mb: "15px", width: "92%"}}>
-       <List dense={true}>
+       <List>
           {availablePlugins
-              .filter(plugin => (!alreadyInstalledPluginsNames.includes(plugin.name)))
               .map((plugin, i) =>
             <ListItem key={plugin.name}>
               <ListItemAvatar>
-                  <Avatar name={plugin.name+"seed1"} size={40} colors={["#5332ca", "#856edb", "#94ccc1", "#d8535e", "#f0b250"]} variant="bauhaus"/>
+                <Avatar name={plugin.name+"seed1"} size={40} colors={["#5332ca", "#856edb", "#94ccc1", "#d8535e", "#f0b250"]} variant="bauhaus"/>
               </ListItemAvatar>
               <ListItemText
                 primary={plugin.name}
@@ -226,23 +228,25 @@ function ListSuggestedPlugins({alreadyInstalledPluginsNames}){
               />
               <ListItemSecondaryAction sx={{display: {xs: 'contents', md: 'block'}}}>
 
-                <Button
-                  onClick={installPlugin(plugin.name)}
+                <SelectButton
                   variant="contained"
-                  size="small"
-                  aria-label="install"
                   color="primary"
+                  aria-label="install"
+                  value={selectedUnit}
+                  onClick={(e) => installPlugin(e.target.value, plugin.name)}
+                  //endIcon={<GetAppIcon />}
                   style={{textTransform: 'none'}}
-                  endIcon={<GetAppIcon />}
                   sx={{ml: "5px"}}
                 >
-                  Install
-                </Button>
+                  <MenuItem value={selectedUnit}>Install on {selectedUnit}</MenuItem>
+                  <MenuItem value={"$broadcast"}>Install across cluster</MenuItem>
+                </SelectButton>
+
                 <Button
                   component={Link}
                   target="_blank"
                   rel="noopener noreferrer"
-                  to={plugin.homepage}
+                  to={plugin.homepage.replace(/^https?:\/\/127\.0\.0\.1(?::\d+)?/, '')} // this is a hack since the leader will produce a homepage with it's leader_address which is 127.0.0.1.
                   variant="text"
                   style={{textTransform: 'none'}}
                   size="small"
@@ -274,7 +278,7 @@ function ListSuggestedPlugins({alreadyInstalledPluginsNames}){
 
 
 
-function ListInstalledPlugins({installedPlugins}){
+function ListInstalledPlugins({selectedUnit, installedPlugins}){
   const [snackbarOpen, setSnackbarOpen] = React.useState(false)
   const [snackbarMsg, setSnackbarMsg] = React.useState("")
 
@@ -286,22 +290,22 @@ function ListInstalledPlugins({installedPlugins}){
   }
 
   const uninstallPlugin = (plugin_name) => () => {
-      setSnackbarOpen(true);
-      setSnackbarMsg(`Uninstalling ${plugin_name} in the background...`);
-      fetch('/api/plugins/uninstall', {
-        method: "POST",
-        body: JSON.stringify({args: [plugin_name]}),
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      })
+    setSnackbarOpen(true);
+    setSnackbarMsg(`Uninstalling ${plugin_name} in the background...`);
+    fetch(`/api/units/${selectedUnit}/plugins/uninstall`, {
+      method: "POST",
+      body: JSON.stringify({args: [plugin_name]}),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    })
   }
   if (installedPlugins.length > 0) {
     return (
       <React.Fragment>
       <Box sx={{m: "auto", mb: "15px", width: "92%"}}>
-       <List dense={true}>
+       <List >
           {installedPlugins.map(( plugin, i) =>
             <ListItem key={plugin.name}>
               <ListItemAvatar>
@@ -338,7 +342,6 @@ function ListInstalledPlugins({installedPlugins}){
                 >
                   Uninstall
                 </Button>
-                { !plugin.source.startsWith("plugins/") &&
                   <Button
                     component={Link}
                     target="_blank"
@@ -354,24 +357,6 @@ function ListInstalledPlugins({installedPlugins}){
                   >
                     View
                   </Button>
-                }
-                { plugin.source.startsWith("plugins/") &&
-                  <Button
-                    component={Link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    to={`/unit_api/plugins/installed/${plugin.source.slice(8)}`}
-                    variant="text"
-                    size="small"
-                    color="primary"
-                    aria-label="view homepage"
-                    style={{textTransform: 'none'}}
-                    endIcon={<OpenInNewIcon />}
-                    sx={{ml: "15px", textTransform: 'none'}}
-                  >
-                    View
-                  </Button>
-                }
               </ListItemSecondaryAction>
             </ListItem>,
           )}
@@ -390,13 +375,13 @@ function ListInstalledPlugins({installedPlugins}){
   }
   else {
     return (
-      <div style={{textAlign: "center", marginBottom: '50px', marginTop: "50px"}}>
+      <Box sx={{textAlign: "center", marginBottom: '50px', marginTop: "50px"}}>
         <Typography>
           <Box fontWeight="fontWeightRegular">
             No installed plugins. Try installing one below, or read more about <a href="https://docs.pioreactor.com/user-guide/using-community-plugins" target="_blank" rel="noopener noreferrer">Pioreactor plugins</a>.
           </Box>
         </Typography>
-      </div>
+      </Box>
   )}
 }
 
@@ -405,21 +390,62 @@ function PluginContainer(){
 
   const [installedPlugins, setInstalledPlugins] = React.useState([])
   const [isFetchComplete, setIsFetchComplete] = React.useState(false)
+  const [selectedUnit, setSelectedUnit] = React.useState("")
+  const [units, setUnits] = React.useState([])
 
   React.useEffect(() => {
-    async function getData() {
-         await fetch("/unit_api/plugins/installed")
+    // Recursive approach with an optional delay between retries
+
+    async function getPluginsInstalled() {
+      setIsFetchComplete(false)
+      try {
+        // Fetch installed plugins
+        const response = await fetch(`/api/units/${selectedUnit}/plugins/installed`);
+        const json = await response.json();
+
+        if (!json.result_url_path){
+          throw new Error("No result_url_path in response")
+        }
+
+        // Poll the backend at `json.result_url_path` until status is 200
+        const result = await checkTaskCallback(json.result_url_path);
+
+        // Once 200 is received and JSON is parsed, update state
+        setIsFetchComplete(true);
+
+        if (result['result'][selectedUnit]){
+          setInstalledPlugins(result['result'][selectedUnit])
+        } else {
+          setInstalledPlugins([])
+        }
+      } catch (err) {
+        console.error('Error getting plugins installed:', err);
+      }
+    }
+
+    if (selectedUnit){
+      getPluginsInstalled()
+    }
+  }, [selectedUnit])
+
+
+  React.useEffect(() => {
+    async function getUnits() {
+         await fetch(`/api/units`)
         .then((response) => {
           return response.json();
         })
-        .then((json) => {
-          setIsFetchComplete(true)
-          setInstalledPlugins(json)
+        .then((data) => {
+          setUnits(data.map((unit) => unit.pioreactor_unit))
+          setSelectedUnit(data[0].pioreactor_unit)
         });
       }
-      getData()
+      getUnits()
   }, [])
 
+  const onSelectionChange = (e) => {
+    setSelectedUnit(e.target.value)
+  }
 
   return(
     <React.Fragment>
@@ -427,27 +453,49 @@ function PluginContainer(){
         <CardContent sx={{p: 2}}>
           <p> Discover, install, and manage Pioreactor plugins created by the community. These plugins can provide new functionalities for your Pioreactor (additional hardware may be necessary), or new automations to control dosing, temperature and LED tasks.</p>
 
-         <Typography variant="h6" component="h3">
-          Installed plugins
-         </Typography>
+        <Typography variant="h6" component="h3">
+          Installed plugins on
+
+          <Select
+            labelId="configSelect"
+            variant="standard"
+            value={selectedUnit}
+            onChange={onSelectionChange}
+
+            sx={{
+              "& .MuiSelect-select": {
+                paddingY: 0,
+              },
+              ml: 1,
+              fontWeight: 500, // Matches the title font weight
+              fontSize: "inherit", // Inherits the Typography's font size
+              fontFamily: "inherit", // Inherits the Typography's font family
+            }}
+          >
+            {units.map((unit) => (
+              <MenuItem key={unit} value={unit}>{unit}</MenuItem>
+            ))}
+          </Select>
+
+
+        </Typography>
 
           {isFetchComplete && (
-           <ListInstalledPlugins installedPlugins={installedPlugins}/>
+           <ListInstalledPlugins  selectedUnit={selectedUnit} installedPlugins={installedPlugins}/>
           )}
 
           {!isFetchComplete && (
-            <div style={{textAlign: "center", marginBottom: '50px', marginTop: "50px"}}>
+            <Box sx={{textAlign: "center", marginBottom: '50px', marginTop: "50px"}}>
               <CircularProgress size={33}/>
-            </div>
+            </Box>
           )}
 
-         <Typography variant="h6" component="h3">
+        <Typography variant="h6" component="h3">
           Suggested plugins from the community
-         </Typography>
-          <ListSuggestedPlugins alreadyInstalledPluginsNames={installedPlugins.map(plugin => plugin.name)}/>
+        </Typography>
 
-
-          <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about Pioreactor <a href="https://docs.pioreactor.com/user-guide/using-community-plugins" target="_blank" rel="noopener noreferrer">plugins</a>.</p>
+        <ListSuggestedPlugins selectedUnit={selectedUnit}/>
+        <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about Pioreactor <a href="https://docs.pioreactor.com/user-guide/using-community-plugins" target="_blank" rel="noopener noreferrer">plugins</a>.</p>
 
         </CardContent>
       </Card>

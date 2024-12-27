@@ -13,6 +13,10 @@ const SelectButton = React.forwardRef((props, ref) => {
   const [isOpen, setOpen] = React.useState(false);
   const valueRef = React.useRef(initialValue);
 
+  React.useEffect(() => {
+    valueRef.current = initialValue;
+  }, [initialValue]);
+
   const handleItemClick = (value) => (e) => {
     setOpen(false);
     Object.defineProperty(e, 'target', { writable: true, value: { value } });
@@ -21,6 +25,7 @@ const SelectButton = React.forwardRef((props, ref) => {
   };
 
   const handleButtonClick = (e) => {
+    console.log(e)
     const value = valueRef.current;
     Object.defineProperty(e, 'target', { writable: true, value: { value } });
     onClick(e);
@@ -51,8 +56,14 @@ const SelectButton = React.forwardRef((props, ref) => {
     })
     .filter(item => item !== null);
 
-  const displayName = (value) =>
-    items.find(item => item.props['data-value'] === value).props['data-value-readable'];
+  const displayName = (value) => {
+    const foundItem = items.find(item => item.props['data-value'] === value);
+    if (!foundItem) {
+      // Return fallback text or an empty string
+      return 'Loading...';
+    }
+    return foundItem.props['data-value-readable'];
+  };
 
   return <>
     <ButtonGroup variant='contained' ref={anchorRef}>

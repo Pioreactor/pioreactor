@@ -239,21 +239,20 @@ function ExperimentProfilesContent({experiment, config, setRunningProfileName, s
           }
         </Grid>
         <div style={{display: "flex", justifyContent: "flex-end", marginLeft: "20px"}}>
-            <SelectButton
-              variant="contained"
-              color="primary"
-              value={dryRun ? "execute_dry_run" : "execute"}
-              onClick={onSubmit}
-              endIcon={dryRun ? <PlayDisabledIcon />  : <PlayArrowIcon />}
-              style={{}}
-              disabled={confirmed || (isProfileActive)}
-              onChange={({target: { value } }) =>
-                setDryRun(value === "execute_dry_run")
-              }
-            >
-              <MenuItem value={"execute"}>Run profile</MenuItem>
-              <MenuItem value={"execute_dry_run"}>Dry-run profile</MenuItem>
-           </SelectButton>
+          <SelectButton
+            variant="contained"
+            color="primary"
+            value={dryRun ? "execute_dry_run" : "execute"}
+            onClick={onSubmit}
+            endIcon={dryRun ? <PlayDisabledIcon />  : <PlayArrowIcon />}
+            disabled={confirmed || (isProfileActive)}
+            onChange={({target: { value } }) =>
+              setDryRun(value === "execute_dry_run")
+            }
+          >
+            <MenuItem value={"execute"}>Run profile</MenuItem>
+            <MenuItem value={"execute_dry_run"}>Dry-run profile</MenuItem>
+          </SelectButton>
           <Button
             variant="text"
             color="secondary"

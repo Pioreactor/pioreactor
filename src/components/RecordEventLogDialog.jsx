@@ -150,14 +150,14 @@ function RecordEventLogDialog({
         </Box>
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>
-        <Button onClick={onClose} style={{ textTransform: "none" }}>
+        <Button onClick={onClose} sx={{ textTransform: "none" }}>
           Cancel
         </Button>
         <Button
           variant="contained"
           onClick={handleSubmit}
           style={{ textTransform: "none" }}
-          disabled={message === ""}
+          disabled={message === "" || selectedExperiment === "" || selectedPioreactor === ""}
         >
           Submit
         </Button>

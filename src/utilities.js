@@ -147,3 +147,25 @@ export const colors = [
 export const ERROR_COLOR = "#ff7961"
 export const WARNING_COLOR = "#FFEA8A"
 export const NOTICE_COLOR = "#addcaf"
+
+
+export async function checkTaskCallback(callbackURL, maxRetries = 30, delayMs = 200) {
+  if (maxRetries <= 0) {
+    throw new Error('Max retries reached. Stopping.');
+  }
+
+  try {
+    const response = await fetch(callbackURL);
+    if (response.status === 200) {
+      return await response.json();
+    }
+    // If not 200, wait, decrement retry count, try again
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    return checkTaskCallback(callbackURL, maxRetries - 1, delayMs);
+  } catch (err) {
+    console.error('Error fetching callback:', err);
+    // Wait, decrement retry count, try again
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    return checkTaskCallback(callbackURL, maxRetries - 1, delayMs);
+  }
+}

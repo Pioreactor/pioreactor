@@ -19,6 +19,7 @@ import Updates from "./Updates";
 import Plugins from "./Plugins";
 import Profiles from "./Profiles";
 import Inventory from "./Inventory";
+import ClusterSettings from "./ClusterSettings";
 import Logs from "./Logs";
 //import Analysis from "./Analysis";
 import Experiments from "./Experiments";
@@ -117,6 +118,7 @@ function MainSite() {
                   <Route path="/create-experiment-profile" element={<CreateExperimentProfile title="Pioreactor ~ Create experiment profile"/>}/>
                   <Route path="/edit-experiment-profile" element={<EditExperimentProfile title="Pioreactor ~ Edit experiment profile"/>}/>
                   <Route path="/config" element={<EditConfig title="Pioreactor ~ Configuration"/>}/>
+                  <Route path="/cluster-settings" element={<ClusterSettings title="Pioreactor ~ Cluster settings"/>}/>
                   <Route path="/pioreactors" element={ <Pioreactors title="Pioreactor ~ Pioreactors"/>}/>
                   <Route path="/pioreactors/:unit" element={ <Pioreactor title="Pioreactor ~ Pioreactor"/>}/>
                   <Route path="/updates" element={<Updates title="Pioreactor ~ Updates"/>}/>

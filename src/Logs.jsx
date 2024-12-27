@@ -16,6 +16,7 @@ import {getRelabelMap} from "./utilities"
 import { useExperiment } from './providers/ExperimentContext';
 import ManageExperimentMenu from "./components/ManageExperimentMenu";
 import RecordEventLogDialog from './components/RecordEventLogDialog';
+import PioreactorIcon from "./components/PioreactorIcon";
 
 function Logs(props) {
 
@@ -65,7 +66,7 @@ function Logs(props) {
 
   const handleSubmitDialog = async (newLog) => {
     try {
-      const response = await fetch(`/api/experiments/${newLog.experiment}/logs`, {
+      const response = await fetch(`/api/units/${newLog.pioreactor_unit}/experiments/${newLog.experiment}/logs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newLog),
@@ -106,7 +107,7 @@ function Logs(props) {
                 {assignedUnits.map((unit) => (
                   <MenuItem key={unit} value={unit}>{unit}</MenuItem>
                 ))}
-                <MenuItem key="_all" value="_all">All Pioreactors</MenuItem>
+                <MenuItem key="_all" value="_all">all assigned Pioreactors</MenuItem>
               </Select>
             </Typography>
             <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>

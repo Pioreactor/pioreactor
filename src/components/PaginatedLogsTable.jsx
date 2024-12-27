@@ -9,6 +9,8 @@ import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Switch from '@mui/material/Switch';
 import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
@@ -16,7 +18,7 @@ import TableRow from '@mui/material/TableRow';
 import { styled } from '@mui/material/styles';
 import {ERROR_COLOR, WARNING_COLOR, NOTICE_COLOR} from "../utilities"
 import GetAppIcon from '@mui/icons-material/GetApp';
-import { Link, useLocation} from 'react-router-dom';
+import { Link} from 'react-router-dom';
 
 // Activate the UTC plugin
 dayjs.extend(utc);
@@ -29,7 +31,7 @@ const StyledTableCell = styled(TableCell)(({ theme, level }) => {
     fontSize: 13,
     backgroundColor: level === "ERROR" ? ERROR_COLOR :
                       level === "WARNING" ? WARNING_COLOR :
-                      level === "NOTICE" ? NOTICE_COLOR : "white",
+                      level === "NOTICE" ? NOTICE_COLOR : null,
     whiteSpace: "normal"
   };
 });
@@ -38,7 +40,8 @@ const StyledTableCellFiller = styled(TableCell)(({ theme, level }) => {
   return {
     paddingTop: "25px",
     paddingBottom: "15px",
-    textAlign: "center"
+    textAlign: "center",
+    whiteSpace: "break-spaces",
   };
 });
 
@@ -48,10 +51,20 @@ const StyledTimeTableCell = styled(TableCell)(({ theme, level }) => {
     fontSize: 13,
     backgroundColor: level === "ERROR" ? ERROR_COLOR :
                       level === "WARNING" ? WARNING_COLOR :
-                      level === "NOTICE" ? NOTICE_COLOR : "white",
+                      level === "NOTICE" ? NOTICE_COLOR : null,
     whiteSpace: "pre"
   };
 });
+
+
+const TableRowStyled = styled(TableRow)(({ theme }) => ({
+  '&:nth-of-type(odd)': {
+    backgroundColor: "#F7F7F7",
+  },
+  '&:nth-of-type(even)': {
+    backgroundColor: "white",
+  },
+}));
 
 const LEVELS = [
   "DEBUG",
@@ -66,21 +79,27 @@ function PaginatedLogTable({unit, experiment, relabelMap }) {
   const [listOfLogs, setListOfLogs] = useState([]);
   const [skip, setSkip] = useState(0); // Tracks the number of logs already loaded
   const [loading, setLoading] = useState(false); // Tracks if the logs are currently loading
+  const [onlyAssignedLogs, setOnlyAssignedLogs] = useState(true);
   const { client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
-  const location = useLocation();
+
+  const getAPIURL = (unit, onlyAssignedLogs) => {
+    if (unit && onlyAssignedLogs){
+      return `/api/units/${unit}/experiments/${experiment}/logs`;
+    } else if (!unit && onlyAssignedLogs) {
+      return `/api/experiments/${experiment}/logs`
+    } else if (unit && !onlyAssignedLogs) {
+      return `/api/units/${unit}/logs`;
+    } else {
+      return `/api/logs`
+    }
+  }
 
   useEffect(() => {
     const getData = async () => {
       if (!experiment) return;
       setLoading(true);
       try {
-        var response
-        if (unit){
-          response = await fetch(`/api/units/${unit}/experiments/${experiment}/logs`);
-        }
-        else {
-          response = await fetch(`/api/experiments/${experiment}/logs`);
-        }
+        const response = await fetch(getAPIURL(unit, onlyAssignedLogs));
         const logs = await response.json();
         setListOfLogs(
           logs.map((log, index) => ({
@@ -99,18 +118,12 @@ function PaginatedLogTable({unit, experiment, relabelMap }) {
     setSkip(0)
     getData();
 
-  }, [experiment, location, unit]);
+  }, [experiment, unit, onlyAssignedLogs]);
 
   const loadMoreLogs = async () => {
     setLoading(true);
     try {
-      var response
-      if (unit){
-        response = await fetch(`/api/units/${unit}/experiments/${experiment}/logs?skip=${skip}`);
-      }
-      else {
-        response = await fetch(`/api/experiments/${experiment}/logs?skip=${skip}`);
-      }
+      const response = await fetch(`${getAPIURL(unit, onlyAssignedLogs)}?skip=${skip}`);
       const logs = await response.json();
       if (logs.length > 0) {
         setListOfLogs((prevLogs) => [
@@ -156,6 +169,10 @@ function PaginatedLogTable({unit, experiment, relabelMap }) {
     };
   }, [client, experiment, unit]);
 
+  const handleSwitchChange = (event) => {
+    setOnlyAssignedLogs(!event.target.checked)
+  }
+
   const onMessage = (topic, message, packet) => {
     const unit = topic.toString().split('/')[1];
     const payload = JSON.parse(message.toString());
@@ -191,34 +208,48 @@ function PaginatedLogTable({unit, experiment, relabelMap }) {
     <>
     <Card>
       <CardContent>
+
         <TableContainer sx={{ maxHeight: "500px", minHeight: "200px", width: "100%", overflowY: "auto" }}>
-          <Table stickyHeader size="small" aria-label="log table">
+          <Table sx={{'tableLayout': "fixed"}} stickyHeader size="small" aria-label="log table">
+            <colgroup>
+              <col style={{width:'15%'}}/>
+              <col style={{width:'10%'}}/>
+              <col style={{width:'10%'}}/>
+              <col style={{width:'55%'}}/>
+            </colgroup>
             <TableHead>
-              <TableRow>
-                <StyledTableCell>Time</StyledTableCell>
-                <StyledTableCell>Pioreactor</StyledTableCell>
-                <StyledTableCell>Source</StyledTableCell>
-                <StyledTableCell>Message</StyledTableCell>
+              <TableRow >
+                <TableCell sx={{"backgroundColor": "white"}}>Time</TableCell>
+                <TableCell sx={{"backgroundColor": "white"}}>Pioreactor</TableCell>
+                <TableCell sx={{"backgroundColor": "white"}}>Source</TableCell>
+                <TableCell sx={{"backgroundColor": "white"}}>Message</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {listOfLogs.map((log) => (
-                <TableRow key={log.key}>
+                <TableRowStyled key={log.key}>
                   <StyledTimeTableCell level={log.level}>
                     {timestampCell(log.timestamp)}
                   </StyledTimeTableCell>
                   <StyledTableCell level={log.level}>{relabelUnit(log.pioreactor_unit)}</StyledTableCell>
                   <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
                   <StyledTableCell level={log.level}>{log.message}</StyledTableCell>
-                </TableRow>
+                </TableRowStyled>
               ))}
             </TableBody>
           </Table>
         </TableContainer>
-        <Box display="flex" justifyContent="center" mt={2}>
+        <Box display="flex" justifyContent="space-between" mt={2}>
+          <Box sx={{width: 300}}/>
           <Button onClick={loadMoreLogs} disabled={loading || (skip % 50 !== 0) || (skip === 0) } style={{textTransform: 'none'}}>
             {loading ? "Loading..." : "More"}
           </Button>
+          <FormControlLabel
+            checked={!onlyAssignedLogs}
+            control={<Switch color="primary"  onChange={handleSwitchChange}  size="small" />}
+            label={"Include logs from other experiments"}
+            labelPlacement="start"
+          />
         </Box>
       </CardContent>
     </Card>

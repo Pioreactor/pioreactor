@@ -165,7 +165,7 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
 
   const handleSubmitDialog = async (newLog) => {
     try {
-      const response = await fetch(`/api/experiments/${newLog.experiment}/logs`, {
+      const response = await fetch(`/api/units/${newLog.pioreactor_unit}/experiments/${newLog.experiment}/logs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newLog),
