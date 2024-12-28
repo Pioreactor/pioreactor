@@ -601,7 +601,6 @@ class JobManager:
     def __init__(self) -> None:
         db_path = f"{tempfile.gettempdir()}/local_intermittent_pioreactor_metadata.sqlite"
         self.conn = sqlite3.connect(db_path, isolation_level=None)
-        self.conn.execute("pragma journal_mode=wal")
         self.cursor = self.conn.cursor()
         self._create_tables()
 

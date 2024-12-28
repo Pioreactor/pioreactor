@@ -246,7 +246,7 @@ def export_experiment_data(
 
                     parition_to_writer_map[rows_partition].writerow(row)
 
-                    if count % 1000 == 0:
+                    if count % 10_000 == 0:
                         logger.debug(f"Exported {count} rows...")
 
             logger.debug(f"Exported {count} rows from {dataset_name}.")

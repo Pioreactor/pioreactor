@@ -124,6 +124,7 @@ def log(message: str, level: str, name: str, local_only: bool):
     except Exception as e:
         # don't let a logging error bring down a script...
         print(e)
+        sys.exit(1)
 
 
 @pio.command(name="blink", short_help="blink LED")
