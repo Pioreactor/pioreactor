@@ -78,6 +78,7 @@ function EditableCodeDiv(props) {
   }, []);
 
   useEffect(() => {
+    // what's up with the ignore? https://react.dev/learn/synchronizing-with-effects#fetching-data
     let ignore = false;
 
     async function getConfigs() {

@@ -101,7 +101,7 @@ function PaginatedLogTable({unit, experiment, relabelMap }) {
         setListOfLogs(
           logs.map((log, index) => ({
             ...log,
-            key: `${log.timestamp}-${log.pioreactor_unit}-${log.level}-${log.message}`,
+            key: `${log.timestamp}-${log.pioreactor_unit}-${log.level}-${log.message}-${index}`,
           }))
         );
         setSkip(logs.length); // Set the initial skip value
@@ -127,7 +127,7 @@ function PaginatedLogTable({unit, experiment, relabelMap }) {
           ...prevLogs,
           ...logs.map((log, index) => ({
             ...log,
-            key: `${log.timestamp}-${log.pioreactor_unit}-${log.level}-${log.message}`,
+            key: `${log.timestamp}-${log.pioreactor_unit}-${log.level}-${log.message}-${index}`,
           })),
         ]);
         setSkip((prevSkip) => prevSkip + logs.length);
@@ -181,7 +181,7 @@ function PaginatedLogTable({unit, experiment, relabelMap }) {
           message: String(payload.message),
           task: payload.task,
           level: payload.level.toUpperCase(),
-          key: `${dayjs.utc().format()}-${unit}-${payload.level.toUpperCase()}-${String(payload.message)}`,
+          key: `${dayjs.utc().format()}-${unit}-${payload.level.toUpperCase()}-${String(payload.message)}-00`,
         },
         ...currentLogs.slice(0, 49),
       ]);

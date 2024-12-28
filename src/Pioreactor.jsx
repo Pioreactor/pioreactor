@@ -35,7 +35,6 @@ import TuneIcon from '@mui/icons-material/Tune';
 import IconButton from '@mui/material/IconButton';
 import Switch from '@mui/material/Switch';
 import { useConfirm } from 'material-ui-confirm';
-import {getConfig, getRelabelMap, runPioreactorJob, colors} from "./utilities"
 import Alert from '@mui/material/Alert';
 
 import {Link, useParams  } from 'react-router-dom'
@@ -54,22 +53,7 @@ import LogTableByUnit from "./components/LogTableByUnit";
 import { MQTTProvider, useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 import PatientButton from './components/PatientButton';
-
-
-const readyGreen = "#176114"
-const disconnectedGrey = "#585858"
-const lostRed = "#DE3618"
-const disabledColor = "rgba(0, 0, 0, 0.38)"
-
-
-const stateDisplay = {
-  "init":          {display: "Starting", color: readyGreen, backgroundColor: "#DDFFDC"},
-  "ready":         {display: "On", color: readyGreen, backgroundColor: "#DDFFDC"},
-  "sleeping":      {display: "Paused", color: disconnectedGrey, backgroundColor: null},
-  "disconnected":  {display: "Off", color: disconnectedGrey, backgroundColor: null},
-  "lost":          {display: "Lost", color: lostRed, backgroundColor: null},
-  "NA":            {display: "Not available", color: disconnectedGrey, backgroundColor: null},
-}
+import {getConfig, getRelabelMap, runPioreactorJob, colors, disconnectedGrey, lostRed, disabledColor, stateDisplay} from "./utilities"
 
 
 function StateTypography({ state, isDisabled=false }) {
@@ -88,6 +72,7 @@ function StateTypography({ state, isDisabled=false }) {
     </Typography>
   );
 }
+
 
 
 const StylizedCode = styled('code')(({ theme }) => ({

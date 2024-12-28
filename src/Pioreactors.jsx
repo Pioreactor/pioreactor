@@ -38,7 +38,6 @@ import TuneIcon from '@mui/icons-material/Tune';
 import IconButton from '@mui/material/IconButton';
 import Switch from '@mui/material/Switch';
 import { useConfirm } from 'material-ui-confirm';
-import {getConfig, getRelabelMap, runPioreactorJob} from "./utilities"
 import Alert from '@mui/material/Alert';
 import LibraryAddCheckOutlinedIcon from '@mui/icons-material/LibraryAddCheckOutlined';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
@@ -57,22 +56,8 @@ import ManageExperimentMenu from "./components/ManageExperimentMenu";
 import { MQTTProvider, useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 import PatientButton from './components/PatientButton';
+import {getConfig, getRelabelMap, runPioreactorJob, disconnectedGrey, lostRed, disabledColor, stateDisplay} from "./utilities"
 
-
-const readyGreen = "#176114"
-const disconnectedGrey = "#585858"
-const lostRed = "#DE3618"
-const disabledColor = "rgba(0, 0, 0, 0.38)"
-
-
-const stateDisplay = {
-  "init":          {display: "Starting", color: readyGreen, backgroundColor: "#DDFFDC"},
-  "ready":         {display: "On", color: readyGreen, backgroundColor: "#DDFFDC"},
-  "sleeping":      {display: "Paused", color: disconnectedGrey, backgroundColor: null},
-  "disconnected":  {display: "Off", color: disconnectedGrey, backgroundColor: null},
-  "lost":          {display: "Lost", color: lostRed, backgroundColor: null},
-  "NA":            {display: "Not available", color: disconnectedGrey, backgroundColor: null},
-}
 
 
 function StateTypography({ state, isDisabled=false }) {

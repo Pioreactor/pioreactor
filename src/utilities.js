@@ -169,3 +169,20 @@ export async function checkTaskCallback(callbackURL, maxRetries = 30, delayMs = 
     return checkTaskCallback(callbackURL, maxRetries - 1, delayMs);
   }
 }
+
+
+export const readyGreen = "#176114"
+export const disconnectedGrey = "#585858"
+export const lostRed = "#DE3618"
+export const disabledColor = "rgba(0, 0, 0, 0.38)"
+export const inactiveGrey = "#99999b"
+
+
+export const stateDisplay = {
+  "init":          {display: "Starting", color: readyGreen, backgroundColor: "#DDFFDC"},
+  "ready":         {display: "On", color: readyGreen, backgroundColor: "#DDFFDC"},
+  "sleeping":      {display: "Paused", color: disconnectedGrey, backgroundColor: null},
+  "disconnected":  {display: "Off", color: disconnectedGrey, backgroundColor: null},
+  "lost":          {display: "Lost", color: lostRed, backgroundColor: null},
+  "NA":            {display: "Not available", color: disconnectedGrey, backgroundColor: null},
+}

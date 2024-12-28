@@ -13,7 +13,6 @@ import Chip from '@mui/material/Chip';
 import Typography from '@mui/material/Typography';
 import { MQTTProvider, useMQTT } from './providers/MQTTContext';
 import ManageInventoryMenu from './components/ManageInventoryMenu';
-import {getConfig} from "./utilities"
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
 import FormControlLabel from '@mui/material/FormControlLabel';
@@ -37,11 +36,8 @@ import { useNavigate } from 'react-router-dom';
 import UnderlineSpan from "./components/UnderlineSpan";
 import PioreactorIcon from "./components/PioreactorIcon";
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
+import {getConfig, disconnectedGrey, lostRed, inactiveGrey, readyGreen} from "./utilities"
 
-const disconnectedGrey = "#585858"
-const lostRed = "#DE3618"
-const inactiveGrey = "#99999b"
-const readyGreen = "#3f8451"
 
 const textIcon = {verticalAlign: "middle", margin: "0px 3px"}
 
@@ -511,7 +507,7 @@ function Blink({unit}){
 )}
 
 
-function Reboot({unit, isLeader}) {
+function Reboot({unit}) {
 
   const confirm = useConfirm();
 
@@ -534,7 +530,7 @@ function Reboot({unit, isLeader}) {
 )}
 
 
-function Shutdown({unit, isLeader}) {
+function Shutdown({unit}) {
 
   const confirm = useConfirm();
 
