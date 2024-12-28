@@ -291,7 +291,6 @@ class cache:
 
         self.conn = sqlite3.connect(self.db_path, isolation_level=None, detect_types=sqlite3.PARSE_DECLTYPES)
 
-        self.conn.execute("pragma journal_mode=wal")
         self.cursor = self.conn.cursor()
         self._initialize_table()
         return self
