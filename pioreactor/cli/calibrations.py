@@ -12,7 +12,7 @@ from pioreactor.calibrations import CALIBRATION_PATH
 from pioreactor.calibrations import load_calibration
 from pioreactor.calibrations.utils import curve_to_callable
 from pioreactor.calibrations.utils import plot_data
-from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import local_persistent_storage
 from pioreactor.whoami import is_testing_env
 
 
@@ -41,7 +41,7 @@ def list_calibrations(cal_type: str):
     click.echo(header)
     click.echo("-" * len(header))
 
-    with local_persistant_storage("active_calibrations") as c:
+    with local_persistent_storage("active_calibrations") as c:
         for file in calibration_dir.glob("*.yaml"):
             try:
                 data = yaml_decode(file.read_bytes(), type=assistant.calibration_struct)
@@ -87,7 +87,7 @@ def run_calibration(ctx, cal_type: str):
     # TODO: send to leader
 
     # make active
-    with local_persistant_storage("active_calibrations") as c:
+    with local_persistent_storage("active_calibrations") as c:
         c[cal_type] = calibration_name
 
     click.echo(f"Calibration '{calibration_name}' of type '{cal_type}' saved to {out_file}")
@@ -130,13 +130,13 @@ def set_active_calibration(cal_type: str, calibration_name: str | None):
 
     if calibration_name is None:
         click.echo("No calibration name provided. Clearing active calibration.")
-        with local_persistant_storage("active_calibrations") as c:
+        with local_persistent_storage("active_calibrations") as c:
             c.pop(cal_type)
 
     else:
         data = load_calibration(cal_type, calibration_name)
 
-        with local_persistant_storage("active_calibrations") as c:
+        with local_persistent_storage("active_calibrations") as c:
             c[data.calibration_type] = data.calibration_name
 
 

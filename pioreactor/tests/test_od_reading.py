@@ -20,7 +20,7 @@ from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.config import config
 from pioreactor.config import temporary_config_change
 from pioreactor.pubsub import collect_all_logs_of_level
-from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
 
@@ -613,7 +613,7 @@ def test_calibration_not_requested() -> None:
 
 
 def test_calibration_not_present() -> None:
-    with local_persistant_storage("current_od_calibration") as c:
+    with local_persistent_storage("current_od_calibration") as c:
         if "90" in c:
             del c["90"]
 
@@ -625,7 +625,7 @@ def test_calibration_not_present() -> None:
 def test_calibration_simple_linear_calibration_positive_slope() -> None:
     experiment = "test_calibration_simple_linear_calibration_positive_slope"
 
-    with local_persistant_storage("current_od_calibration") as c:
+    with local_persistent_storage("current_od_calibration") as c:
         c["90"] = encode(
             structs.OD90Calibration(
                 created_at=current_utc_datetime(),
@@ -675,14 +675,14 @@ def test_calibration_simple_linear_calibration_positive_slope() -> None:
             pause()
             assert "Signal outside" in bucket[0]["message"]
 
-    with local_persistant_storage("current_od_calibration") as c:
+    with local_persistent_storage("current_od_calibration") as c:
         del c["90"]
 
 
 def test_calibration_simple_linear_calibration_negative_slope() -> None:
     experiment = "test_calibration_simple_linear_calibration_negative_slope"
     maximum_voltage = 2.0
-    with local_persistant_storage("current_od_calibration") as c:
+    with local_persistent_storage("current_od_calibration") as c:
         c["90"] = encode(
             structs.OD90Calibration(
                 created_at=current_utc_datetime(),
@@ -723,14 +723,14 @@ def test_calibration_simple_linear_calibration_negative_slope() -> None:
             pause()
             assert "suggested" in bucket[0]["message"]
 
-    with local_persistant_storage("current_od_calibration") as c:
+    with local_persistent_storage("current_od_calibration") as c:
         del c["90"]
 
 
 def test_calibration_simple_quadratic_calibration() -> None:
     experiment = "test_calibration_simple_quadratic_calibration"
 
-    with local_persistant_storage("current_od_calibration") as c:
+    with local_persistent_storage("current_od_calibration") as c:
         c["90"] = encode(
             structs.OD90Calibration(
                 created_at=current_utc_datetime(),
@@ -756,7 +756,7 @@ def test_calibration_simple_quadratic_calibration() -> None:
         assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
         x = 0.5
         assert abs(od.calibration_transformer.models["2"](x) - np.sqrt(3 / 5)) < 0.001
-    with local_persistant_storage("current_od_calibration") as c:
+    with local_persistent_storage("current_od_calibration") as c:
         del c["90"]
 
 
@@ -765,7 +765,7 @@ def test_calibration_multi_modal() -> None:
     # note: not a realistic calibration curve, using only because it's unimodal
     poly = [0.2983, -0.585, 0.146, 0.261, 0.0]  # unimodal, peak near ~(0.74, 0.120)
 
-    with local_persistant_storage("current_od_calibration") as c:
+    with local_persistent_storage("current_od_calibration") as c:
         c["90"] = encode(
             structs.OD90Calibration(
                 created_at=current_utc_datetime(),
@@ -791,7 +791,7 @@ def test_calibration_multi_modal() -> None:
             voltage = np.polyval(poly, i / 1000)
             print(voltage, od.calibration_transformer.models["2"](voltage))
 
-    with local_persistant_storage("current_od_calibration") as c:
+    with local_persistent_storage("current_od_calibration") as c:
         del c["90"]
 
 
@@ -799,7 +799,7 @@ def test_calibration_errors_when_ir_led_differs() -> None:
     experiment = "test_calibration_errors_when_ir_led_differs"
 
     with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "90"):
-        with local_persistant_storage("current_od_calibration") as c:
+        with local_persistent_storage("current_od_calibration") as c:
             c["90"] = encode(
                 structs.OD90Calibration(
                     created_at=current_utc_datetime(),
@@ -824,14 +824,14 @@ def test_calibration_errors_when_ir_led_differs() -> None:
                 pass
         assert "LED intensity" in str(error.value)
 
-        with local_persistant_storage("current_od_calibration") as c:
+        with local_persistent_storage("current_od_calibration") as c:
             del c["90"]
 
 
 def test_calibration_errors_when_pd_channel_differs() -> None:
     experiment = "test_calibration_errors_when_pd_channel_differs"
 
-    with local_persistant_storage("current_od_calibration") as c:
+    with local_persistent_storage("current_od_calibration") as c:
         c["90"] = encode(
             structs.OD90Calibration(
                 created_at=current_utc_datetime(),
@@ -857,13 +857,13 @@ def test_calibration_errors_when_pd_channel_differs() -> None:
 
     assert "channel" in str(error.value)
 
-    with local_persistant_storage("current_od_calibration") as c:
+    with local_persistent_storage("current_od_calibration") as c:
         del c["90"]
 
 
 def test_calibration_with_irl_data1() -> None:
     MAX_OD = 1.131
-    with local_persistant_storage("current_od_calibration") as c:
+    with local_persistent_storage("current_od_calibration") as c:
         c["90"] = encode(
             structs.OD90Calibration(
                 created_at=current_utc_datetime(),
@@ -906,7 +906,7 @@ def test_calibration_with_irl_data1() -> None:
     assert abs(cc({"2": 0.020})["2"] - 0.03639585015289039) < 1e-5
     assert cc({"2": 1.0})["2"] == MAX_OD
 
-    with local_persistant_storage("current_od_calibration") as c:
+    with local_persistent_storage("current_od_calibration") as c:
         del c["90"]
 
 
@@ -964,7 +964,7 @@ def test_calibration_data_from_user1() -> None:
     experiment = "test_calibration_data_from_user1"
     poly = [2.583, -3.447, 1.531, 0.223, 0.017]  # email correspondence
 
-    with local_persistant_storage("current_od_calibration") as c:
+    with local_persistent_storage("current_od_calibration") as c:
         c["90"] = encode(
             structs.OD90Calibration(
                 created_at=current_utc_datetime(),
@@ -996,7 +996,7 @@ def test_calibration_data_from_user1() -> None:
             assert od_0 <= od_1
             od_0 = od_1
 
-    with local_persistant_storage("current_od_calibration") as c:
+    with local_persistent_storage("current_od_calibration") as c:
         del c["90"]
 
 
@@ -1010,7 +1010,7 @@ def test_calibration_data_from_user2() -> None:
         -0.01770485,
     ]  # looks like the degree 4 above: https://chat.openai.com/share/2ef30900-22ef-4a7f-8f34-14a88ffc65a8
 
-    with local_persistant_storage("current_od_calibration") as c:
+    with local_persistent_storage("current_od_calibration") as c:
         c["90"] = encode(
             structs.OD90Calibration(
                 created_at=current_utc_datetime(),
@@ -1042,7 +1042,7 @@ def test_calibration_data_from_user2() -> None:
             assert od_0 <= od_1
             od_0 = od_1
 
-    with local_persistant_storage("current_od_calibration") as c:
+    with local_persistent_storage("current_od_calibration") as c:
         del c["90"]
 
 
@@ -1191,7 +1191,7 @@ def test_CachedCalibrationTransformer_with_real_calibration() -> None:
         pioreactor_unit="pio1",
         name="test",
     )
-    with local_persistant_storage("current_od_calibration") as cc:
+    with local_persistent_storage("current_od_calibration") as cc:
         cc[calibration.angle] = encode(calibration)
 
     cal_transformer = CachedCalibrationTransformer()
