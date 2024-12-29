@@ -11,6 +11,11 @@
    - [ ] logs page
  - new table for historical assignments
  - plugins page has dropdown to select the unit
+ - new config entries under storage
+
+
+#### Breaking changes
+ - fixed typo `utils.local_persistant_storage` to `utils.local_persistent_storage`.
 
 ### 24.12.10
  - Hotfix for UI settings bug

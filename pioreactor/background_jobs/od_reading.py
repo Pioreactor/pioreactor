@@ -68,7 +68,7 @@ from pioreactor.hardware import ADC_CHANNEL_FUNCS
 from pioreactor.pubsub import publish
 from pioreactor.utils import argextrema
 from pioreactor.utils import local_intermittent_storage
-from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import timing
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 from pioreactor.utils.streaming_calculations import ExponentialMovingStd
@@ -667,7 +667,7 @@ class CachedCalibrationTransformer(CalibrationTransformer):
     def hydate_models_from_disk(self, channel_angle_map: dict[pt.PdChannel, pt.PdAngle]) -> None:
         self.models: dict[pt.PdChannel, Callable] = {}
 
-        with local_persistant_storage("current_od_calibration") as c:
+        with local_persistent_storage("current_od_calibration") as c:
             for channel, angle in channel_angle_map.items():
                 if angle in c:
                     calibration_data = decode(c[angle], type=structs.AnyODCalibration)  # type: ignore

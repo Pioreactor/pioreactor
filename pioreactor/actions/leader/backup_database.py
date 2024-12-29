@@ -8,7 +8,7 @@ from pioreactor.config import config
 from pioreactor.exc import RsyncError
 from pioreactor.logging import create_logger
 from pioreactor.utils import local_intermittent_storage
-from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import managed_lifecycle
 from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.networking import rsync
@@ -69,7 +69,7 @@ def backup_database(output_file: str, force: bool = False, backup_to_workers: in
         bck.close()
         con.close()
 
-        with local_persistant_storage("database_backups") as cache:
+        with local_persistent_storage("database_backups") as cache:
             cache["latest_backup_timestamp"] = current_time
 
         logger.info("Completed backup of database.")
@@ -102,7 +102,7 @@ def backup_database(output_file: str, force: bool = False, backup_to_workers: in
                 logger.debug(f"Backed up database to {backup_unit}:{output_file}.")
                 backups_complete += 1
 
-                with local_persistant_storage("database_backups") as cache:
+                with local_persistent_storage("database_backups") as cache:
                     cache[f"latest_backup_in_{backup_unit}"] = current_time
 
         return

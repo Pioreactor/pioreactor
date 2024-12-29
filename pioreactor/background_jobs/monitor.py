@@ -386,7 +386,7 @@ class Monitor(LongRunningBackgroundJob):
             # self.set_state(self.LOST)
 
     def check_for_last_backup(self) -> None:
-        with utils.local_persistant_storage("database_backups") as cache:
+        with utils.local_persistent_storage("database_backups") as cache:
             if cache.get("latest_backup_timestamp"):
                 latest_backup_at = to_datetime(cache["latest_backup_timestamp"])
 

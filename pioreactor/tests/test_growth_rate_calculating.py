@@ -15,7 +15,7 @@ from pioreactor.background_jobs.stirring import start_stirring
 from pioreactor.config import config
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
-from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import default_datetime_for_pioreactor
 from pioreactor.utils.timing import to_datetime
@@ -51,23 +51,23 @@ class TestGrowthRateCalculating:
         config["od_config.photodiode_channel"]["1"] = "90"
         config["od_config.photodiode_channel"]["2"] = None  # type: ignore
 
-        with local_persistant_storage("od_blank") as cache:
+        with local_persistent_storage("od_blank") as cache:
             for experiment in cache.iterkeys():
                 del cache[experiment]
 
-        with local_persistant_storage("od_normalization_mean") as cache:
+        with local_persistent_storage("od_normalization_mean") as cache:
             for experiment in cache.iterkeys():
                 del cache[experiment]
 
-        with local_persistant_storage("od_normalization_variance") as cache:
+        with local_persistent_storage("od_normalization_variance") as cache:
             for experiment in cache.iterkeys():
                 del cache[experiment]
 
-        with local_persistant_storage("growth_rate") as cache:
+        with local_persistent_storage("growth_rate") as cache:
             for experiment in cache.iterkeys():
                 del cache[experiment]
 
-        with local_persistant_storage("od_filtered") as cache:
+        with local_persistent_storage("od_filtered") as cache:
             for experiment in cache.iterkeys():
                 del cache[experiment]
 
@@ -78,13 +78,13 @@ class TestGrowthRateCalculating:
         unit = get_unit_name()
         experiment = "test_subscribing"
 
-        with local_persistant_storage("od_normalization_mean") as cache:
+        with local_persistent_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({1: 1.0, 2: 1.0})
 
-        with local_persistant_storage("od_normalization_variance") as cache:
+        with local_persistent_storage("od_normalization_variance") as cache:
             cache[experiment] = json.dumps({1: 1e-3, 2: 1e-3})
 
-        with local_persistant_storage("growth_rate") as cache:
+        with local_persistent_storage("growth_rate") as cache:
             cache[experiment] = 1.0
 
         publish(
@@ -173,10 +173,10 @@ class TestGrowthRateCalculating:
         config["od_config.photodiode_channel"]["1"] = "90"
         config["od_config.photodiode_channel"]["2"] = "135"
 
-        with local_persistant_storage("od_normalization_mean") as cache:
+        with local_persistent_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({1: 1, 2: 1})
 
-        with local_persistant_storage("od_normalization_variance") as cache:
+        with local_persistent_storage("od_normalization_variance") as cache:
             cache[experiment] = json.dumps({1: 1, 2: 1})
 
         publish(
@@ -193,10 +193,10 @@ class TestGrowthRateCalculating:
             retain=True,
         )
 
-        with local_persistant_storage("od_normalization_mean") as cache:
+        with local_persistent_storage("od_normalization_mean") as cache:
             cache[experiment] = '{"1": 1.15, "2": 0.93}'
 
-        with local_persistant_storage("od_normalization_variance") as cache:
+        with local_persistent_storage("od_normalization_variance") as cache:
             cache[experiment] = '{"1": 1, "2": 1}'
 
         pause()
@@ -253,10 +253,10 @@ class TestGrowthRateCalculating:
         unit = get_unit_name()
         experiment = "test_single_observation"
 
-        with local_persistant_storage("od_normalization_mean") as cache:
+        with local_persistent_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({1: 1})
 
-        with local_persistant_storage("od_normalization_variance") as cache:
+        with local_persistent_storage("od_normalization_variance") as cache:
             cache[experiment] = json.dumps({1: 1})
 
         publish(
@@ -280,10 +280,10 @@ class TestGrowthRateCalculating:
         unit = get_unit_name()
         experiment = "test_scaling_works"
 
-        with local_persistant_storage("od_normalization_mean") as cache:
+        with local_persistent_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({"1": 0.5, "2": 0.8})
 
-        with local_persistant_storage("od_normalization_variance") as cache:
+        with local_persistent_storage("od_normalization_variance") as cache:
             cache[experiment] = json.dumps({"1": 1e-6, "2": 1e-4})
 
         publish(
@@ -308,10 +308,10 @@ class TestGrowthRateCalculating:
         config["od_config.photodiode_channel"]["1"] = "90"
         config["od_config.photodiode_channel"]["2"] = "REF"
 
-        with local_persistant_storage("od_normalization_mean") as cache:
+        with local_persistent_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({"1": 0.5})
 
-        with local_persistant_storage("od_normalization_variance") as cache:
+        with local_persistent_storage("od_normalization_variance") as cache:
             cache[experiment] = json.dumps({"1": 8.2e-07})
 
         publish(
@@ -459,10 +459,10 @@ class TestGrowthRateCalculating:
         config["od_config.photodiode_channel"]["1"] = "180"
         config["od_config.photodiode_channel"]["2"] = None  # type: ignore
 
-        with local_persistant_storage("od_normalization_mean") as cache:
+        with local_persistent_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({"1": 3.3})
 
-        with local_persistant_storage("od_normalization_variance") as cache:
+        with local_persistent_storage("od_normalization_variance") as cache:
             cache[experiment] = json.dumps({"1": 1e-6})
 
         class Mock180ODReadings:
@@ -510,10 +510,10 @@ class TestGrowthRateCalculating:
         config["od_config.photodiode_channel"]["1"] = "90"
         config["od_config.photodiode_channel"]["2"] = None  # type: ignore
 
-        with local_persistant_storage("od_normalization_mean") as cache:
+        with local_persistent_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({"1": 0.1})
 
-        with local_persistant_storage("od_normalization_variance") as cache:
+        with local_persistent_storage("od_normalization_variance") as cache:
             cache[experiment] = json.dumps({"1": 1e-6})
 
         class Mock90ODReadings:
@@ -556,13 +556,13 @@ class TestGrowthRateCalculating:
         config["od_config.photodiode_channel"]["1"] = "90"
         config["od_config.photodiode_channel"]["2"] = "135"
 
-        with local_persistant_storage("od_blank") as cache:
+        with local_persistent_storage("od_blank") as cache:
             cache[experiment] = json.dumps({"1": 0.25, "2": 0.4})
 
-        with local_persistant_storage("od_normalization_mean") as cache:
+        with local_persistent_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({"1": 0.5, "2": 0.8})
 
-        with local_persistant_storage("od_normalization_variance") as cache:
+        with local_persistent_storage("od_normalization_variance") as cache:
             cache[experiment] = json.dumps({"1": 1e-6, "2": 1e-4})
 
         calc = GrowthRateCalculator(unit=unit, experiment=experiment)
@@ -592,13 +592,13 @@ class TestGrowthRateCalculating:
     def test_od_blank_being_higher_than_observations(self) -> None:
         unit = get_unit_name()
         experiment = "test_od_blank_being_higher_than_observations"
-        with local_persistant_storage("od_blank") as cache:
+        with local_persistent_storage("od_blank") as cache:
             cache[experiment] = json.dumps({"1": 0.25, "2": 0.4})
 
-        with local_persistant_storage("od_normalization_mean") as cache:
+        with local_persistent_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({"1": 0.5, "2": 0.8})
 
-        with local_persistant_storage("od_normalization_variance") as cache:
+        with local_persistent_storage("od_normalization_variance") as cache:
             cache[experiment] = json.dumps({"1": 1e-6, "2": 1e-4})
 
         calc = GrowthRateCalculator(unit=unit, experiment=experiment)
@@ -642,14 +642,14 @@ class TestGrowthRateCalculating:
         config["od_config.photodiode_channel"]["1"] = "90"
         config["od_config.photodiode_channel"]["2"] = "135"
 
-        with local_persistant_storage("od_blank") as cache:
+        with local_persistent_storage("od_blank") as cache:
             if experiment in cache:
                 del cache[experiment]
 
-        with local_persistant_storage("od_normalization_mean") as cache:
+        with local_persistent_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({"1": 0.5, "2": 0.8})
 
-        with local_persistant_storage("od_normalization_variance") as cache:
+        with local_persistent_storage("od_normalization_variance") as cache:
             cache[experiment] = json.dumps({"1": 1e-6, "2": 1e-4})
 
         publish(
@@ -683,13 +683,13 @@ class TestGrowthRateCalculating:
     def test_observation_order_is_preserved_in_job(self) -> None:
         unit = get_unit_name()
         experiment = "test_observation_order_is_preserved_in_job"
-        with local_persistant_storage("od_normalization_mean") as cache:
+        with local_persistent_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({"1": 2, "2": 1})
 
-        with local_persistant_storage("od_normalization_variance") as cache:
+        with local_persistent_storage("od_normalization_variance") as cache:
             cache[experiment] = json.dumps({"1": 1, "2": 1})
 
-        with local_persistant_storage("growth_rate") as cache:
+        with local_persistent_storage("growth_rate") as cache:
             cache[experiment] = str(1.0)
 
         publish(
@@ -709,13 +709,13 @@ class TestGrowthRateCalculating:
     def test_zero_blank_and_zero_od_coming_in(self) -> None:
         unit = get_unit_name()
         experiment = "test_zero_blank_and_zero_od_coming_in"
-        with local_persistant_storage("od_normalization_mean") as cache:
+        with local_persistent_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({"1": 0})
 
-        with local_persistant_storage("od_normalization_variance") as cache:
+        with local_persistent_storage("od_normalization_variance") as cache:
             cache[experiment] = json.dumps({"1": 0})
 
-        with local_persistant_storage("od_blank") as cache:
+        with local_persistent_storage("od_blank") as cache:
             cache[experiment] = json.dumps({"1": 0})
 
         with collect_all_logs_of_level("ERROR", unit, experiment) as bucket:
@@ -731,10 +731,10 @@ class TestGrowthRateCalculating:
         config["od_config.photodiode_channel"]["1"] = "REF"
         config["od_config.photodiode_channel"]["2"] = "90"
 
-        with local_persistant_storage("od_normalization_mean") as cache:
+        with local_persistent_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({2: 0.05})
 
-        with local_persistant_storage("od_normalization_variance") as cache:
+        with local_persistent_storage("od_normalization_variance") as cache:
             cache[experiment] = json.dumps({2: 1e-5})
 
         with start_od_reading(
@@ -761,10 +761,10 @@ class TestGrowthRateCalculating:
         unit = get_unit_name()
         experiment = "test_a_non_unity_initial_nOD_works"
 
-        with local_persistant_storage("od_normalization_mean") as cache:
+        with local_persistent_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({"1": 0.05, "2": 0.10})
 
-        with local_persistant_storage("od_normalization_variance") as cache:
+        with local_persistent_storage("od_normalization_variance") as cache:
             cache[experiment] = json.dumps({"1": 1e-6, "2": 1e-6})
 
         publish(
@@ -797,10 +797,10 @@ class TestGrowthRateCalculating:
         )
         var = 1e-6
         std = float(np.sqrt(var))
-        with local_persistant_storage("od_normalization_mean") as cache:
+        with local_persistent_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({"2": 0.05})
 
-        with local_persistant_storage("od_normalization_variance") as cache:
+        with local_persistent_storage("od_normalization_variance") as cache:
             cache[experiment] = json.dumps({"2": var})
 
         with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
@@ -896,10 +896,10 @@ class TestGrowthRateCalculating:
 
         var = 1e-6
         std = float(np.sqrt(var))
-        with local_persistant_storage("od_normalization_mean") as cache:
+        with local_persistent_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({"2": 0.05})
 
-        with local_persistant_storage("od_normalization_variance") as cache:
+        with local_persistent_storage("od_normalization_variance") as cache:
             cache[experiment] = json.dumps({"2": std**2})
 
         with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
@@ -960,10 +960,10 @@ class TestGrowthRateCalculating:
         )
         var = 1e-6
         std = float(np.sqrt(var))
-        with local_persistant_storage("od_normalization_mean") as cache:
+        with local_persistent_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({"2": 0.05})
 
-        with local_persistant_storage("od_normalization_variance") as cache:
+        with local_persistent_storage("od_normalization_variance") as cache:
             cache[experiment] = json.dumps({"2": var})
 
         with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:

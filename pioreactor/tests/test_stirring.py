@@ -12,7 +12,7 @@ from pioreactor.config import config
 from pioreactor.config import temporary_config_change
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
-from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.mock import MockRpmCalculator
 from pioreactor.utils.timing import catchtime
 from pioreactor.whoami import get_unit_name
@@ -159,7 +159,7 @@ def test_stirring_with_lookup_linear_v1() -> None:
         def clean_up(self):
             pass
 
-    with local_persistant_storage("stirring_calibration") as cache:
+    with local_persistent_storage("stirring_calibration") as cache:
         cache["linear_v1"] = json.dumps({"rpm_coef": 0.1, "intercept": 20})
 
     target_rpm = 500

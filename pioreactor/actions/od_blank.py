@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 from collections import defaultdict
@@ -21,7 +20,7 @@ from pioreactor.config import temporary_config_change
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import prune_retained_messages
 from pioreactor.utils import is_pio_job_running
-from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import managed_lifecycle
 from pioreactor.utils import math_helpers
 from pioreactor.utils.timing import current_utc_datetime
@@ -119,7 +118,7 @@ def delete_od_blank(unit=None, experiment=None):
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_assigned_experiment_name(unit)
 
-    with local_persistant_storage(action_name) as cache:
+    with local_persistent_storage(action_name) as cache:
         if experiment not in cache:
             return
 
@@ -150,7 +149,6 @@ def od_blank(
     experiment=None,
 ) -> dict[pt.PdChannel, float]:
     from pioreactor.background_jobs.od_reading import start_od_reading
-    from pioreactor.background_jobs.stirring import start_stirring
 
     action_name = "od_blank"
     unit = unit or whoami.get_unit_name()
@@ -193,7 +191,7 @@ def od_blank(
             logger.error(e)
             raise e
 
-        with local_persistant_storage(action_name) as cache:
+        with local_persistent_storage(action_name) as cache:
             cache[experiment] = dumps(means)
 
         for channel, mean in means.items():

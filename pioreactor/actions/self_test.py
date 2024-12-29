@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import sys
 from json import dumps
-from json import loads
 from threading import Thread
 from time import sleep
 from typing import Callable
@@ -44,7 +43,7 @@ from pioreactor.pubsub import prune_retained_messages
 from pioreactor.types import LedChannel
 from pioreactor.types import PdChannel
 from pioreactor.utils import is_pio_job_running
-from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import managed_lifecycle
 from pioreactor.utils import SummableDict
 from pioreactor.utils.math_helpers import correlation
@@ -462,12 +461,12 @@ class BatchTestRunner:
 
             managed_state.publish_setting(test_name, int(res))
 
-            with local_persistant_storage("self_test_results") as c:
+            with local_persistent_storage("self_test_results") as c:
                 c[(self.experiment, test_name)] = int(res)
 
 
 def get_failed_test_names(experiment: str) -> Iterator[str]:
-    with local_persistant_storage("self_test_results") as c:
+    with local_persistent_storage("self_test_results") as c:
         for name in get_all_test_names():
             if c.get((experiment, name)) == 0:
                 yield name

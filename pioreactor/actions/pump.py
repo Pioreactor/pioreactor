@@ -163,7 +163,7 @@ def _get_pin(pump_type: str, config) -> pt.GpioPin:
 
 def _get_calibration(pump_type: str) -> structs.AnyPumpCalibration:
     # TODO: make sure current voltage is the same as calibrated. Actually where should that check occur? in Pump?
-    with utils.local_persistant_storage("current_pump_calibration") as cache:
+    with utils.local_persistent_storage("current_pump_calibration") as cache:
         try:
             return decode(cache[pump_type], type=structs.AnyPumpCalibration)  # type: ignore
         except KeyError:

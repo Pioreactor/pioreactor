@@ -27,6 +27,7 @@ from msgspec.json import encode as dumps
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor import whoami
+from pioreactor.config import config
 from pioreactor.exc import JobRequiredError
 from pioreactor.exc import NotActiveWorkerError
 from pioreactor.exc import RoleError
@@ -290,8 +291,8 @@ class cache:
         # sqlite3.register_converter("_key_BLOB", self.convert_key)
 
         self.conn = sqlite3.connect(self.db_path, isolation_level=None, detect_types=sqlite3.PARSE_DECLTYPES)
-
         self.cursor = self.conn.cursor()
+        self.cursor.execute("PRAGMA journal_mode=WAL;")
         self._initialize_table()
         return self
 
@@ -317,6 +318,9 @@ class cache:
         """,
             (key, value),
         )
+
+    def set(self, key, value):
+        return self.__setitem__(key, value)
 
     def get(self, key, default=None):
         self.cursor.execute(f"SELECT value FROM {self.table_name} WHERE key = ?", (key,))
@@ -373,14 +377,12 @@ def local_intermittent_storage(
     Opening the same cache in a context manager is tricky, and should be avoided.
 
     """
-    with cache(
-        f"{cache_name}", db_path=f"{tempfile.gettempdir()}/local_intermittent_pioreactor_metadata.sqlite"
-    ) as c:
+    with cache(cache_name, db_path=config.get("storage", "temporary_cache")) as c:
         yield c
 
 
 @contextmanager
-def local_persistant_storage(
+def local_persistent_storage(
     cache_name: str,
 ) -> Generator[cache, None, None]:
     """
@@ -389,19 +391,14 @@ def local_persistant_storage(
 
     Examples
     ---------
-    > with local_persistant_storage('od_blank') as cache:
+    > with local_persistent_storage('od_blank') as cache:
     >     assert '1' in cache
     >     cache['1'] = 0.5
 
     """
-    from pioreactor.whoami import is_testing_env
 
-    if is_testing_env():
-        with cache(cache_name, db_path=".pioreactor/storage/local_persistant_pioreactor_metadata.db") as c:
-            yield c
-    else:
-        with cache(cache_name, db_path="/home/pioreactor/local_persistant_pioreactor_metadata.db") as c:
-            yield c
+    with cache(cache_name, db_path=config.get("storage", "persistent_cache")) as c:
+        yield c
 
 
 def clamp(minimum: float | int, x: float | int, maximum: float | int) -> float:
@@ -598,9 +595,10 @@ class ShellKill:
 
 class JobManager:
     def __init__(self) -> None:
-        db_path = f"{tempfile.gettempdir()}/local_intermittent_pioreactor_metadata.sqlite"
+        db_path = config.get("storage", "temporary_cache")
         self.conn = sqlite3.connect(db_path, isolation_level=None)
         self.cursor = self.conn.cursor()
+        self.cursor.execute("PRAGMA journal_mode=WAL;")
         self._create_tables()
 
     def _create_tables(self) -> None:

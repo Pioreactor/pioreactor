@@ -9,7 +9,7 @@ from msgspec.yaml import decode as yaml_decode
 from msgspec.yaml import encode as yaml_encode
 
 from pioreactor import structs
-from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import local_persistent_storage
 from pioreactor.whoami import is_testing_env
 
 if not is_testing_env():
@@ -83,7 +83,7 @@ class StirringAssistant(CalibrationAssistant):
 
 
 def load_active_calibration(cal_type: str) -> None | structs.AnyCalibration:
-    with local_persistant_storage("active_calibrations") as c:
+    with local_persistent_storage("active_calibrations") as c:
         active_cal_name = c.get(cal_type)
 
     if active_cal_name is None:
