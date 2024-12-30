@@ -311,8 +311,13 @@ class Monitor(LongRunningBackgroundJob):
             self.logger.debug(f"Pioreactor UI version: {self.versions['ui']}")
 
     def check_for_required_jobs_running(self) -> None:
-        if not utils.is_pio_job_running("mqtt_to_db_streaming"):
-            self.logger.warning("mqtt_to_db_streaming should be running on leader. Double check.")
+        # we put this in a while loop since if mqtt_to_db_streaming is not working, the warning is not saved to disk,
+        # and the user may never a notification every N hours. So we just spam the user.
+        while not utils.is_pio_job_running("mqtt_to_db_streaming"):
+            self.logger.warning(
+                "mqtt_to_db_streaming should be running on leader. Check `sudo systemctl status pioreactor_startup_run@mqtt_to_db_streaming.service`, or try restarting."
+            )
+            sleep(30)
 
     def check_for_HAT(self) -> None:
         if not is_HAT_present():
