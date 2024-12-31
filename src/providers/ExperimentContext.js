@@ -80,26 +80,35 @@ export const ExperimentProvider = ({ children }) => {
       });
   }, []);
 
-  const updateExperiment = (newExperiment, put=false) => {
+  const selectExperiment = (newExperimentName) => {
+    const foundExperiment = allExperiments.findIndex(exp => exp.experiment === newExperimentName);
+    if (foundExperiment < 0){
+      return
+    }
+    setExperimentMetadata(allExperiments[foundExperiment])
+    window.localStorage.setItem("experimentMetadata", JSON.stringify(allExperiments[foundExperiment]))
+  }
+
+  const updateExperiment = (newExperimentObject, put=false) => {
     const now = Date.now()
-    newExperiment._createdAt = now
+    newExperimentObject._createdAt = now
 
-    setExperimentMetadata(newExperiment);
+    setExperimentMetadata(newExperimentObject);
 
 
-    if (newExperiment){
-      window.localStorage.setItem("experimentMetadata", JSON.stringify(newExperiment))
+    if (newExperimentObject){
+      window.localStorage.setItem("experimentMetadata", JSON.stringify(newExperimentObject))
     }
 
     if (put){
       // PUT
-      setAllExperiments((prevExperiment) => [newExperiment, ...prevExperiment])
+      setAllExperiments((prevExperiment) => [newExperimentObject, ...prevExperiment])
     } else {
       // PATCH
       setAllExperiments((prevExperiments) => {
         const updatedExperiments = [...prevExperiments];
-        const index = updatedExperiments.findIndex(exp => exp.experiment === newExperiment.experiment);
-        updatedExperiments[index] = newExperiment;
+        const index = updatedExperiments.findIndex(exp => exp.experiment === newExperimentObject.experiment);
+        updatedExperiments[index] = newExperimentObject;
         return updatedExperiments;
       });
     }
@@ -107,7 +116,7 @@ export const ExperimentProvider = ({ children }) => {
   };
 
   return (
-    <ExperimentContext.Provider value={{ experimentMetadata, updateExperiment, allExperiments, setAllExperiments}}>
+    <ExperimentContext.Provider value={{ experimentMetadata, updateExperiment, allExperiments, setAllExperiments, selectExperiment}}>
       {children}
     </ExperimentContext.Provider>
   );

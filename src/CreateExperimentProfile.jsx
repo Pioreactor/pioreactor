@@ -102,7 +102,7 @@ metadata:
           setSnackbarMsg(`Experiment profile ${filename}.yaml saved.`);
         } else {
           res.json().then(parsedJson => {
-            setErrorMsg(parsedJson['msg']);
+            setErrorMsg(parsedJson.error);
             setIsError(true);
             setIsChanged(true);
           });
@@ -201,7 +201,7 @@ metadata:
   );
 };
 
-function ProfilesContainer(props){
+function ProfilesContainer(){
   return(
     <>
       <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>

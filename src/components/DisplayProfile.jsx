@@ -81,7 +81,7 @@ function displayPioreactor(pioreactorName){
                 marginBottom: "3px",
                 maxWidth: 'none'
             }}
-            icon={<PioreactorIcon viewBox="0 0 16 24"/>}
+            icon={<PioreactorIcon />}
             label={pioreactorName}
           />
 }

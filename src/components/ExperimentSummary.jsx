@@ -11,7 +11,6 @@ import Divider from '@mui/material/Divider';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import TimelapseIcon from '@mui/icons-material/Timelapse';
 import ManageExperimentMenu from "./ManageExperimentMenu";
-import UnderlineSpan from "./UnderlineSpan";
 
 
 
@@ -120,7 +119,7 @@ function ExperimentSummary({experimentMetadata, updateExperiment}){
               </Box>
               <Box fontWeight="fontWeightRegular" sx={{mr: "1%", display:"inline-block"}}>
                 {(startedAt !== "") &&
-                <UnderlineSpan title={dayjs(startedAt).format("YYYY-MM-DD HH:mm:ss")}>{dayjs(startedAt).format("dddd, MMMM D, h:mm a")}</UnderlineSpan>
+                <span>{dayjs(startedAt).format("dddd, MMMM D, h:mm a")}</span>
                 }
               </Box>
             </Box>

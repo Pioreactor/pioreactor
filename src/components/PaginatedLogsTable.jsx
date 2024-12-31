@@ -16,6 +16,9 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import { styled } from '@mui/material/styles';
 import {ERROR_COLOR, WARNING_COLOR, NOTICE_COLOR} from "../utilities"
+import Chip from '@mui/material/Chip';
+import PioreactorIcon from "./PioreactorIcon"
+import { Link } from 'react-router-dom';
 
 // Activate the UTC plugin
 dayjs.extend(utc);
@@ -33,14 +36,6 @@ const StyledTableCell = styled(TableCell)(({ theme, level }) => {
   };
 });
 
-const StyledTableCellFiller = styled(TableCell)(({ theme, level }) => {
-  return {
-    paddingTop: "25px",
-    paddingBottom: "15px",
-    textAlign: "center",
-    whiteSpace: "break-spaces",
-  };
-});
 
 const StyledTimeTableCell = styled(TableCell)(({ theme, level }) => {
   return {
@@ -228,7 +223,7 @@ function PaginatedLogTable({unit, experiment, relabelMap }) {
                   <StyledTimeTableCell level={log.level}>
                     {timestampCell(log.timestamp)}
                   </StyledTimeTableCell>
-                  <StyledTableCell level={log.level}>{relabelUnit(log.pioreactor_unit)}</StyledTableCell>
+                  <StyledTableCell level={log.level}><Chip size="small" icon={<PioreactorIcon/>} label={relabelUnit(log.pioreactor_unit)} clickable component={Link} to={"/pioreactors/" + log.pioreactor_unit} /></StyledTableCell>
                   <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
                   <StyledTableCell level={log.level}>{log.message}</StyledTableCell>
                 </TableRowStyled>

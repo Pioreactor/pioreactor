@@ -26,7 +26,6 @@ import {ERROR_COLOR, WARNING_COLOR, NOTICE_COLOR} from "../utilities"
 // Activate the UTC plugin
 dayjs.extend(utc);
 
-const textIcon = { verticalAlign: "middle", margin: "0px 3px" };
 
 
 const StyledTableCell = styled(TableCell)(({ theme, level }) => {
@@ -69,7 +68,7 @@ const LEVELS = [
   "CRITICAL"
 ]
 
-function LogTableByUnit({ experiment, unit }) {
+function LogTableByUnit({ experiment, unit, level="info" }) {
   const [listOfLogs, setListOfLogs] = useState([]);
   const { client, subscribeToTopic } = useMQTT();
 
@@ -77,7 +76,7 @@ function LogTableByUnit({ experiment, unit }) {
     const getData = async () => {
       const response = await fetch(
         `/api/workers/${unit}/experiments/${experiment}/recent_logs?` +
-          new URLSearchParams({ min_level: 'info' })
+          new URLSearchParams({ min_level: level })
       );
       const logs = await response.json();
       setListOfLogs(

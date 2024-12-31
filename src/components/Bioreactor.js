@@ -64,7 +64,7 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
 
 
 
-  function onMessage(topic, message, packet) {
+  function onMessage(topic, message) {
 
     const topicString = topic.toString()
     const messageString = message.toString()

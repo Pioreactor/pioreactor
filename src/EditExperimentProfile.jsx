@@ -100,7 +100,7 @@ const EditExperimentProfilesContent = ({ initialCode, filename }) => {
           setSnackbarMsg(`Experiment profile ${filename}.yaml saved.`);
         } else {
           res.json().then(parsedJson => {
-            setErrorMsg(parsedJson['msg']);
+            setErrorMsg(parsedJson.error);
             setIsError(true);
           });
         }

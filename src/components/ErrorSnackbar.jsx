@@ -5,7 +5,7 @@ import AlertTitle from '@mui/material/AlertTitle';
 import { useMQTT } from '../providers/MQTTContext';
 import { useExperiment } from '../providers/ExperimentContext';
 
-function ErrorSnackbar(props) {
+function ErrorSnackbar() {
   const [open, setOpen] = React.useState(false)
   const [unit, setUnit] = React.useState("")
   const [msg, setMsg] = React.useState("")

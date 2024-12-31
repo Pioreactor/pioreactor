@@ -20,7 +20,7 @@ import RecordEventLogDialog from './components/RecordEventLogDialog';
 function Logs(props) {
 
   const location = useLocation();
-  const {experimentMetadata, updateExperiment} = useExperiment()
+  const {experimentMetadata} = useExperiment()
   const [relabelMap, setRelabelMap] = useState({})
   const [assignedUnits, setAssignedUnits] = useState([])
   const {unit} = useParams();
@@ -106,7 +106,7 @@ function Logs(props) {
                 {assignedUnits.map((unit) => (
                   <MenuItem key={unit} value={unit}>{unit}</MenuItem>
                 ))}
-                <MenuItem key="_all" value="_all">all assigned Pioreactors</MenuItem>
+                <MenuItem key="_all" value="_all">&lt;All assigned Pioreactors&gt;</MenuItem>
               </Select>
             </Typography>
             <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>

@@ -16,7 +16,6 @@ import DialogContent from '@mui/material/DialogContent';
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
 import CircularProgress from '@mui/material/CircularProgress';
-import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import Snackbar from '@mui/material/Snackbar';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
@@ -36,6 +35,7 @@ import IconButton from '@mui/material/IconButton';
 import Switch from '@mui/material/Switch';
 import { useConfirm } from 'material-ui-confirm';
 import Alert from '@mui/material/Alert';
+import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 
 import {Link, useParams  } from 'react-router-dom'
 
@@ -72,6 +72,8 @@ function StateTypography({ state, isDisabled=false }) {
     </Typography>
   );
 }
+
+const textIcon = {verticalAlign: "middle", margin: "0px 3px"}
 
 
 
@@ -284,7 +286,7 @@ function ButtonStopProcess({experiment, unit}) {
 
   return (
     <Button style={{textTransform: 'none', float: "right" }} color="secondary" onClick={handleClick}>
-      <ClearIcon fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Stop all activity
+      <ClearIcon fontSize="15" sx={textIcon}/> Stop all activity
     </Button>
   );
 }
@@ -293,14 +295,14 @@ function ButtonStopProcess({experiment, unit}) {
 
 
 
-function PioreactorHeader({unit, assignedExperiment, isActive}) {
+function PioreactorHeader({unit, assignedExperiment, isActive, selectExperiment}) {
   return (
     <Box>
       <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
         <Typography variant="h5" component="h1">
         <Box sx={{display:"inline"}}>
           <Button to={`/pioreactors`} component={Link} sx={{ textTransform: 'none' }}>
-            <ArrowBackIcon sx={{ verticalAlign: "middle", mr: 0.5 }} fontSize="small"/> Back to all Pioreactors
+            <ArrowBackIcon sx={{ verticalAlign: "middle", mr: 0.5 }} fontSize="small"/> All assigned Pioreactors
           </Button>
         </Box>
         </Typography>
@@ -316,10 +318,10 @@ function PioreactorHeader({unit, assignedExperiment, isActive}) {
           <Typography variant="subtitle2" sx={{flexGrow: 1}}>
             <Box sx={{display:"inline"}}>
               <Box fontWeight="fontWeightBold" sx={{display:"inline-block"}}>
-                <ScienceOutlinedIcon sx={{ fontSize: 14, verticalAlign: "-2px" }}/> Experiment assigned:&nbsp;
+                <PlayCircleOutlinedIcon sx={{ fontSize: 14, verticalAlign: "-2px" }}/> Experiment assigned:&nbsp;
               </Box>
               <Box fontWeight="fontWeightRegular" sx={{mr: "1%", display:"inline-block"}}>
-                {assignedExperiment}
+                <Chip icon=<PlayCircleOutlinedIcon/> size="small" label={assignedExperiment} clickable onClick={() => selectExperiment(assignedExperiment)} />
               </Box>
             </Box>
             <Box sx={{display:"inline"}}>
@@ -392,7 +394,7 @@ function CalibrateDialog(props) {
   return (
     <React.Fragment>
       <Button style={{textTransform: 'none', float: "right" }} color="primary" disabled={props.disabled} onClick={handleClickOpen}>
-        <TuneIcon color={props.disabled ? "disabled" : "primary"} fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Calibrate
+        <TuneIcon color={props.disabled ? "disabled" : "primary"} fontSize="15" sx={textIcon}/> Calibrate
       </Button>
       <Dialog open={open} onClose={handleClose} aria-labelledby="form-dialog-title">
         <DialogTitle>
@@ -661,7 +663,7 @@ function SettingsActionsDialog(props) {
   return (
     <div>
     <Button style={{textTransform: 'none', float: "right" }} disabled={props.disabled} onClick={handleClickOpen} color="primary">
-      <SettingsIcon color={props.disabled ? "disabled" : "primary"} fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Manage
+      <SettingsIcon color={props.disabled ? "disabled" : "primary"} fontSize="15" sx={textIcon}/> Manage
     </Button>
     <Dialog maxWidth={isLargeScreen ? "sm" : "md"} fullWidth={true} open={open} onClose={handleClose} PaperProps={{
       sx: {
@@ -928,7 +930,7 @@ function SettingsActionsDialog(props) {
             .map(job => [job.state, job.metadata.key, job.publishedSettings])
             .map(([state, job_key, settings], index) => (
               Object.entries(settings)
-                .filter(([setting_key, setting],_) => setting.display && setting.editable)
+                .filter(([_, setting],__) => setting.display && setting.editable)
                 .map(([setting_key, setting],_) =>
                         <React.Fragment key={setting_key}>
                           <Typography gutterBottom>
@@ -1431,7 +1433,7 @@ function FlashLEDButton(props){
 
   return (
     <Button style={{textTransform: 'none', float: "right"}} className={flashing ? 'blinkled' : ''}  disabled={props.disabled} onClick={onClick} color="primary">
-      <FlareIcon color={props.disabled ? "disabled" : "primary"} fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> <span > Identify </span>
+      <FlareIcon color={props.disabled ? "disabled" : "primary"} fontSize="15" sx={textIcon}/> <span > Identify </span>
     </Button>
 )}
 
@@ -1829,7 +1831,7 @@ function Charts(props) {
 
 
 function Pioreactor({title}) {
-  const { experimentMetadata } = useExperiment();
+  const { experimentMetadata, selectExperiment } = useExperiment();
   const [config, setConfig] = useState({})
   const {unit} = useParams();
   const [assignedExperiment, setAssignedExperiment] = useState(null)
@@ -1882,10 +1884,10 @@ function Pioreactor({title}) {
       <MQTTProvider name={unit} config={config} experiment={experimentMetadata.experiment}>
         <Grid container rowSpacing={1} columnSpacing={2} justifyContent="space-between">
           <Grid item md={12} xs={12}>
-            <PioreactorHeader unit={unit} assignedExperiment={assignedExperiment} isActive={isActive}/>
+            <PioreactorHeader unit={unit} assignedExperiment={assignedExperiment} isActive={isActive} selectExperiment={selectExperiment}/>
             {experimentMetadata.experiment && assignedExperiment && experimentMetadata.experiment !== assignedExperiment &&
             <Box>
-              <Alert severity="info" style={{marginBottom: '10px', marginTop: '10px'}}>This worker is part of different experiment, <Chip size="small" label={assignedExperiment} />. Switch to the experiment <Chip size="small" label={assignedExperiment}/> to control this worker.</Alert>
+              <Alert severity="info" style={{marginBottom: '10px', marginTop: '10px'}}>This worker is part of different experiment. Switch to experiment <Chip icon=<PlayCircleOutlinedIcon/> size="small" label={assignedExperiment} clickable onClick={() => selectExperiment(assignedExperiment)}/> to control this worker.</Alert>
             </Box>
           }
           </Grid>

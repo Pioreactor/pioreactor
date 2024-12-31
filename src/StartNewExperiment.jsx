@@ -346,7 +346,7 @@ function StartNewExperimentContainer(props) {
 
   return (
     <Card sx={{mt: "15px"}}>
-      <CardContent sx={{p: 1}}>
+      <CardContent sx={{p: 2}}>
         <Typography variant="h5" component="h1">
           Start a new experiment
         </Typography>

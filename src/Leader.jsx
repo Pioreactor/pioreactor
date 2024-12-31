@@ -4,31 +4,51 @@ import utc from 'dayjs/plugin/utc';
 
 import CircularProgress from '@mui/material/CircularProgress';
 import { MQTTProvider, useMQTT } from './providers/MQTTContext';
-import PioreactorIcon from "./components/PioreactorIcon";
 import Tooltip from '@mui/material/Tooltip';
 import { useConfirm } from 'material-ui-confirm';
 import Button from '@mui/material/Button';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
-
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
 import Divider from '@mui/material/Divider';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import CardActions from '@mui/material/CardActions';
+import List from '@mui/material/List';
 import {Typography} from '@mui/material';
 import Box from '@mui/material/Box';
 import LoadingButton from "@mui/lab/LoadingButton";
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
 import ManageInventoryMenu from './components/ManageInventoryMenu';
-import {disconnectedGrey, lostRed, disabledColor, stateDisplay, checkTaskCallback, getConfig} from "./utilities"
-
+import LogTableByUnit from './components/LogTableByUnit';
+import {disconnectedGrey, lostRed, disabledColor, readyGreen, checkTaskCallback, getConfig} from "./utilities"
+import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined';
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
+import { Link } from 'react-router-dom';
+
+import {
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  ListItemButton,
+} from '@mui/material';
+import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
+import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { styled } from '@mui/material/styles';
+import Chip from '@mui/material/Chip';
+import PioreactorIcon from "./components/PioreactorIcon"
 
 // Activate the UTC plugin
 dayjs.extend(utc);
 
 const textIcon = {verticalAlign: "middle", margin: "0px 3px"}
+
+export const stateDisplay = {
+  "ready":         {display: "On", color: readyGreen, backgroundColor: "#DDFFDC"},
+  "disconnected":  {display: "Off", color: lostRed, backgroundColor: "#fbeae9"},
+}
+
 
 function StateTypography({ state, isDisabled=false }) {
   const style = {
@@ -94,11 +114,164 @@ function Shutdown({unit}) {
 )}
 
 
+const Path = styled(Box)(({ theme }) => ({
+  display: 'inline-block',
+  fontFamily: 'monospace',
+  backgroundColor: theme.palette.grey[100],
+  padding: theme.spacing(1),
+  paddingLeft: theme.spacing(2),
+  paddingRight: theme.spacing(2),
+  borderRadius: theme.shape.borderRadius,
+  color: theme.palette.text.primary,
+  marginLeft: theme.spacing(0),
+  marginTop: theme.spacing(2),
+}));
+
+const FileDir = styled(Box)(({ theme }) => ({
+  fontFamily: 'monospace',
+  color: theme.palette.text.primary,
+}));
 
 
-function LeaderCard({config}) {
+function PathViewer({ path }) {
+  return (
+    <Path>
+      {path || '/'}
+    </Path>
+  );
+}
 
-  const [unit, setUnit] = React.useState("")
+function FileDirViewer({ filedir }) {
+  return (
+    <FileDir>
+      {filedir}
+    </FileDir>
+  );
+}
+
+function DirectoryNavigatorCard() {
+  const [currentPath, setCurrentPath] = React.useState('');
+  const [dirs, setDirs] = React.useState([]);
+  const [files, setFiles] = React.useState([]);
+  const [loading, setLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    fetchDirectory(currentPath);
+  }, [currentPath]);
+
+  const fetchDirectory = async (path = '') => {
+    setLoading(true);
+    try {
+      // build the endpoint from current path
+      const apiPath = path ? `/unit_api/system/path/${path}` : '/unit_api/system/path/';
+      const resp = await fetch(apiPath);
+      if (!resp.ok) {
+        // handle errors appropriately in real code
+        throw new Error(`Failed to fetch: ${resp.status}`);
+      }
+      const data = await resp.json();
+      setDirs(data.dirs || []);
+      setFiles(data.files || []);
+    } catch (error) {
+      console.error(error);
+      // handle error state if desired
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDirClick = (dirName) => {
+    // Navigate deeper into the directory tree
+    setCurrentPath((prev) => (prev ? `${prev}/${dirName}` : dirName));
+  };
+
+  const handleFileClick = (fileName) => {
+    // Trigger a file download or open in a new tab
+    // Construct path from currentPath + file
+    const filePath = currentPath ? `${currentPath}/${fileName}` : fileName;
+    window.open(`/unit_api/system/path/${filePath}`, '_blank');
+  };
+
+  const handleGoUp = () => {
+    // Go up one directory
+    setCurrentPath((prev) => {
+      if (!prev) return '';
+      const parts = prev.split('/');
+      parts.pop();
+      return parts.join('/');
+    });
+  };
+
+  return (
+    <Card sx={{minHeight: "300px"}}>
+      <CardContent>
+         <Typography variant="h6" component="h2">
+          <Box fontWeight="fontWeightRegular">File browser</Box>
+        </Typography>
+
+          <PathViewer path=
+          {
+          currentPath
+            ? `~/.pioreactor/${currentPath}`
+            : `~/.pioreactor/`
+           }
+          />
+
+        {!loading && (
+          <List dense={true}>
+            {
+              // Show a "Go Up" button if we’re not at root
+              currentPath && (
+              <ListItem onClick={() => handleGoUp()} disablePadding={true}>
+                <ListItemButton>
+                <ListItemIcon>
+                  <ArrowBackIcon />
+                </ListItemIcon>
+                <ListItemText primary={"Back"} />
+                </ListItemButton>
+              </ListItem>
+              )
+            }
+            {/* Directories */}
+            {dirs.map((dir) => (
+              <ListItem onClick={() => handleDirClick(dir)} key={dir} disablePadding={true}>
+                <ListItemButton>
+                <ListItemIcon>
+                  <FolderOutlinedIcon />
+                </ListItemIcon>
+                <ListItemText primary={<FileDirViewer filedir={dir}/> } />
+                </ListItemButton>
+              </ListItem>
+            ))}
+
+            {/* Files */}
+            {files.map((file) => (
+              <ListItem
+                onClick={() => handleFileClick(file)}
+                key={file}
+                disablePadding={true}
+                >
+                <ListItemButton>
+                <ListItemIcon>
+                  <InsertDriveFileOutlinedIcon />
+                </ListItemIcon>
+                <ListItemText primary={<FileDirViewer filedir={file}/> } />
+                </ListItemButton>
+              </ListItem>
+            ))}
+          </List>
+        )}
+
+      </CardContent>
+    </Card>
+  );
+}
+
+
+
+function LeaderCard({leaderHostname}) {
+
+  const unit = leaderHostname
   const {client, subscribeToTopic} = useMQTT();
   const [state, setState] = React.useState(null)
   const [versions, setVersions] = React.useState({})
@@ -108,11 +281,10 @@ function LeaderCard({config}) {
 
 
   React.useEffect(() => {
-    setUnit(config['cluster.topology']?.leader_hostname)
-    if (unit && client) {
+    if (client) {
       subscribeToTopic(`pioreactor/${unit}/$experiment/monitor/+`, onMonitorData, "WorkerCard");
     }
-  }, [config, unit, client]);
+  }, [client]);
 
 
   const onMonitorData = (topic, message, packet) => {
@@ -194,12 +366,6 @@ function LeaderCard({config}) {
       <CardContent>
 
         <div style={{display: "flex", justifyContent: "space-between"}}>
-          <Typography sx={{ fontSize: 14 }} color={"text.secondary" } gutterBottom>
-           Leader
-          </Typography>
-        </div>
-
-        <div style={{display: "flex", justifyContent: "space-between"}}>
 
           <div style={{display: "flex", justifyContent: "left"}}>
             <Typography sx={{
@@ -208,7 +374,7 @@ function LeaderCard({config}) {
                 fontWeight: 500,
               }}
               gutterBottom>
-              <PioreactorIcon  style={{verticalAlign: "middle", marginRight: "3px"}} sx={{ display: {xs: 'none', sm: 'none', md: 'inline' } }}/>
+              <HomeOutlinedIcon  sx={{verticalAlign: "middle", mr: "3px", mb: "2px"}} />
               {unit}
             </Typography>
             <Tooltip title={indicatorLabel} placement="right">
@@ -315,7 +481,6 @@ function LeaderJobs(){
               set_monitor_state("ready");
               break;
             default:
-              // Assume anything else goes to other long-running jobs
               if (!ignore){
                 setOtherLongRunningJobs((prevJobs) => [...prevJobs, { job_name: job.job_name, state: "ready" }]);
               }
@@ -335,35 +500,31 @@ function LeaderJobs(){
   return (
     <Card >
       <CardContent sx={{p: "10px 20px 20px 20px"}}>
-        <Typography variant="h6" component="h3" gutterBottom>
-          Leader's long-running jobs
+         <Typography variant="h6" component="h2">
+          <Box fontWeight="fontWeightRegular">Long-running jobs</Box>
         </Typography>
 
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell>Job name</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Systemd logs</TableCell>
+                <TableCell sx={{padding: "6px 0px"}}>Job name</TableCell>
+                <TableCell align="right" >Status</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               <TableRow>
-                <TableCell>mqtt_to_db_streaming</TableCell>
-                <TableCell><StateTypography state={mqtt_to_db_streaming_state}/></TableCell>
-                <TableCell></TableCell>
+                <TableCell sx={{padding: "6px 0px"}}>mqtt_to_db_streaming</TableCell>
+                <TableCell align="right"><StateTypography state={mqtt_to_db_streaming_state}/></TableCell>
               </TableRow>
               <TableRow>
-                <TableCell>monitor</TableCell>
-                <TableCell><StateTypography state={monitor_state}/></TableCell>
-                <TableCell></TableCell>
+                <TableCell sx={{padding: "6px 0px"}}>monitor</TableCell>
+                <TableCell align="right"><StateTypography state={monitor_state}/></TableCell>
               </TableRow>
               {otherLongRunningJobs.map(element => (
                 <React.Fragment key={element.job_name}>
                 <TableRow>
-                  <TableCell>{element.job_name}</TableCell>
-                  <TableCell><StateTypography state={element.state}/></TableCell>
-                  <TableCell></TableCell>
+                  <TableCell sx={{padding: "6px 0px"}}>{element.job_name}</TableCell>
+                  <TableCell align="right"><StateTypography state={element.state}/></TableCell>
                 </TableRow>
                 </React.Fragment>
               ))}
@@ -373,7 +534,7 @@ function LeaderJobs(){
       </CardContent>
     </Card>)}
 
-function ClusterClockCard(){
+function ClusterClockCard({leaderHostname}){
   const [clockData, setClockData] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [updatingClock, setUpdatingClock] = React.useState(false);
@@ -424,7 +585,7 @@ function ClusterClockCard(){
         throw new Error(`Request failed with status: ${response.status}`);
       }
       const broadcastData = await response.json();
-      const finalResult = await checkTaskCallback(broadcastData.result_url_path);
+      await checkTaskCallback(broadcastData.result_url_path);
       await new Promise(r => setTimeout(r, 1000));
 
       setUpdatingClock(false)
@@ -438,9 +599,10 @@ function ClusterClockCard(){
 
   return (
     <Card>
+
       <CardContent sx={{ p: 2 }}>
-        <Typography variant="h6" component="h3" gutterBottom>
-          Cluster clocks
+         <Typography variant="h6" component="h2">
+          <Box fontWeight="fontWeightRegular">Cluster clocks</Box>
         </Typography>
 
         {loading && (
@@ -459,16 +621,25 @@ function ClusterClockCard(){
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell>Unit</TableCell>
-                <TableCell>Clock time (localtime)</TableCell>
+                <TableCell sx={{padding: "6px 0px"}}>Pioreactor</TableCell>
+                <TableCell align="right" sx={{padding: "6px 0px"}}>Clock time (localtime)</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {Object.entries(clockData).map(([unitName, info]) => {
                 return (
                   <TableRow key={unitName}>
-                    <TableCell>{unitName}</TableCell>
-                    <TableCell>{info?.clock_time ? dayjs.utc(info.clock_time, 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]').local().format('MMM D, YYYY HH:mm:ss') : "No data"}</TableCell>
+                    <TableCell sx={{padding: "6px 0px"}}>
+                      <Chip
+                        size="small"
+                        icon={leaderHostname === unitName ? <HomeOutlinedIcon/> : <PioreactorIcon/>}
+                        label={unitName}
+                        clickable
+                        component={Link}
+                        to={leaderHostname === unitName ? "/leader" : "/pioreactors/" + unitName}
+                        />
+                    </TableCell>
+                    <TableCell align="right" sx={{padding: "6px 0px"}}>{info?.clock_time ? dayjs.utc(info.clock_time, 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]').local().format('MMM D, YYYY HH:mm:ss') : "No data"}</TableCell>
                   </TableRow>
                 );
               })}
@@ -498,14 +669,23 @@ function ClusterClockCard(){
   );
 }
 
-function ClusterSettingsContainer({config}) {
+function LeaderContainer({config}) {
+
+  const [leaderHostname, setLeaderHostname] = React.useState(null)
+
+  React.useEffect(()=>{
+    if (config?.['cluster.topology']){
+      setLeaderHostname(config['cluster.topology']['leader_hostname'])
+    }
+  })
+
   return (
     <React.Fragment>
       <Box>
         <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
           <Typography variant="h5" component="h2">
             <Box fontWeight="fontWeightBold">
-              Cluster settings
+              Leader
             </Box>
           </Typography>
           <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
@@ -516,22 +696,33 @@ function ClusterSettingsContainer({config}) {
 
       </Box>
 
-      <Grid container spacing={2}>
-        <Grid item md={5} xs={12} sm={12}>
-          <LeaderCard config={config}/>
+      <Grid container spacing={2} justifyContent="flex-start" alignItems="flex-start">
+        <Grid item md={5} xs={12} sm={12} container spacing={2}>
+          <Grid item xs={12} sm={12}>
+            <LeaderCard leaderHostname={leaderHostname}/>
+          </Grid>
+          <Grid item xs={12} sm={12}>
+            <LeaderJobs/>
+          </Grid>
+          <Grid item xs={12} sm={12}>
+            <ClusterClockCard leaderHostname={leaderHostname}/>
+          </Grid>
         </Grid>
-        <Grid item xs={7} md={7}>
-          <LeaderJobs/>
-        </Grid>
-        <Grid item xs={5} md={5}>
-          <ClusterClockCard/>
+
+        <Grid item md={7} xs={12} sm={12} container spacing={2}  >
+          <Grid item xs={12} sm={12}>
+            <DirectoryNavigatorCard/>
+          </Grid>
+          <Grid item xs={12} sm={12}>
+            <LogTableByUnit experiment="$experiment" unit={leaderHostname} level="debug"/>
+          </Grid>
         </Grid>
       </Grid>
     </React.Fragment>
   );
 }
 
-function ClusterSettings({title}) {
+function Leader({title}) {
   const [config, setConfig] = React.useState({})
 
   React.useEffect(() => {
@@ -544,14 +735,14 @@ function ClusterSettings({title}) {
 
 
   return (
-    <MQTTProvider name="cluster-settings" config={config}>
+    <MQTTProvider name="leader" config={config}>
       <Grid container spacing={2}>
         <Grid item md={12} xs={12}>
-          <ClusterSettingsContainer config={config}/>
+          <LeaderContainer config={config}/>
         </Grid>
       </Grid>
     </MQTTProvider>
   );
 }
 
-export default ClusterSettings;
+export default Leader;

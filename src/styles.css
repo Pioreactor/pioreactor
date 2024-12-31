@@ -39,6 +39,18 @@ u {
     100% { opacity: 1;}
 }
 
+.blinkicon {
+    animation-name: blink;
+    animation-duration: 0.70s;
+    animation-iteration-count: 1;
+}
+@keyframes blink {
+    0%   { opacity: 1;}
+    13%  { opacity: 0;}
+    26%  { opacity: 1;}
+}
+
+
 .indicator-dot {
   width:8px;
   height:8px;

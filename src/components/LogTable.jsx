@@ -20,13 +20,12 @@ import Divider from '@mui/material/Divider';
 import { Link } from 'react-router-dom';
 import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
 import RecordEventLogDialog from './RecordEventLogDialog';
-
+import Chip from '@mui/material/Chip';
+import PioreactorIcon from "./PioreactorIcon"
 import { ERROR_COLOR, WARNING_COLOR, NOTICE_COLOR } from "../utilities";
 
 // Activate the UTC plugin
 dayjs.extend(utc);
-
-const textIcon = { verticalAlign: "middle", margin: "0px 3px" };
 
 const StyledTableCell = styled(TableCell)(({ level }) => ({
   padding: "6px 6px 6px 10px",
@@ -188,7 +187,9 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
                 <React.Fragment key={log.key}>
                   <TableRow>
                     <StyledTimeTableCell level={log.level}>{timestampCell(log.timestamp)}</StyledTimeTableCell>
-                    <StyledTableCell level={log.level}>{relabelUnit(log.pioreactor_unit)}</StyledTableCell>
+                    <StyledTableCell level={log.level}>
+                      <Chip size="small" icon={<PioreactorIcon/>} label={relabelUnit(log.pioreactor_unit)} clickable component={Link} to={"/pioreactors/" + log.pioreactor_unit}/>
+                    </StyledTableCell>
                     <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
                     <StyledTableCell level={log.level}>{log.message}</StyledTableCell>
                   </TableRow>
@@ -197,7 +198,7 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
                       toTimestampObject(listOfLogs[i + 1].timestamp),
                       'hours',
                       true
-                    ) >= 1 && (
+                    ) >= 2 && (
                       <TableRow key={`filler-${log.key}`}>
                         <StyledTableCellFiller colSpan="4">
                           {toTimestampObject(log.timestamp).diff(

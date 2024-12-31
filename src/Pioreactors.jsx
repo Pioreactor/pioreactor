@@ -41,6 +41,7 @@ import { useConfirm } from 'material-ui-confirm';
 import Alert from '@mui/material/Alert';
 import LibraryAddCheckOutlinedIcon from '@mui/icons-material/LibraryAddCheckOutlined';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 
 import { useNavigate, Link } from 'react-router-dom'
 
@@ -78,8 +79,9 @@ function StateTypography({ state, isDisabled=false }) {
 }
 
 
+const textIcon = {verticalAlign: "middle", margin: "0px 3px"}
 
-const StylizedCode = styled('code')(({ theme }) => ({
+const StylizedCode = styled('code')(() => ({
   backgroundColor: "rgba(0, 0, 0, 0.07)",
   padding: "1px 4px"
 }));
@@ -288,7 +290,7 @@ function ButtonStopProcess({experiment}) {
 
   return (
     <Button style={{textTransform: 'none', float: "right" }} color="secondary" onClick={handleClick}>
-      <ClearIcon fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Stop all activity
+      <ClearIcon fontSize="15" sx={textIcon}/> Stop all activity
     </Button>
   );
 }
@@ -316,6 +318,7 @@ function AssignPioreactors({ experiment, variant="text" }) {
   const [selectAll, setSelectAll] = React.useState(false);
   const [open, setOpen] = React.useState(false);
   const navigate = useNavigate();
+  const { selectExperiment } = useExperiment();
 
   useEffect(() => {
     fetch("/api/workers/assignments")
@@ -441,9 +444,8 @@ function AssignPioreactors({ experiment, variant="text" }) {
         </DialogTitle>
         <DialogContent>
           <p>
-            {" "}
             Assign and unassign Pioreactors to experiment{" "}
-            <Chip size="small" label={experiment}/>.{" "}
+            <Chip icon=<PlayCircleOutlinedIcon/>  size="small" label={experiment} clickable onClick={() => selectExperiment(experiment)}/>.
           </p>
           <FormControl sx={{ m: "auto" }} component="fieldset" variant="standard">
             <FormLabel component="legend">Pioreactors</FormLabel>
@@ -475,8 +477,9 @@ function AssignPioreactors({ experiment, variant="text" }) {
                 const unit = worker.pioreactor_unit;
                 const exp = worker.experiment;
                 const disabled = exp !== null && exp !== experiment;
-                const label = unit;
-                const sublabel = disabled ? `(assigned to ${exp})` : null;
+                const sublabel = disabled ?
+                  <>assigned to <Chip icon=<PlayCircleOutlinedIcon/> size="small" label={exp} clickable onClick={() => selectExperiment(exp)} /> </>
+                  : null;
 
                 return (
                   <CustomFormControlLabel
@@ -489,7 +492,7 @@ function AssignPioreactors({ experiment, variant="text" }) {
                         name={unit}
                       />
                     }
-                    label={label}
+                    label={unit}
                     sublabel={sublabel}
                   />
                 );
@@ -587,7 +590,7 @@ function CalibrateDialog(props) {
   return (
     <React.Fragment>
       <Button style={{textTransform: 'none', float: "right" }} color="primary" disabled={props.disabled} onClick={handleClickOpen}>
-        <TuneIcon color={props.disabled ? "disabled" : "primary"} fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Calibrate
+        <TuneIcon color={props.disabled ? "disabled" : "primary"} fontSize="15" sx={textIcon}/> Calibrate
       </Button>
       <Dialog open={open} onClose={handleClose} aria-labelledby="form-dialog-title">
         <DialogTitle>
@@ -838,7 +841,7 @@ function SettingsActionsDialog(props) {
 
 
   const LEDMap = props.config['leds'] || {}
-  const buttons = Object.fromEntries(Object.entries(props.jobs).map( ([job_key, job], i) => [job_key, createUserButtonsBasedOnState(job.state, job_key)]))
+  const buttons = Object.fromEntries(Object.entries(props.jobs).map( ([job_key, job], _) => [job_key, createUserButtonsBasedOnState(job.state, job_key)]))
   const versionInfo = JSON.parse(props.jobs.monitor.publishedSettings.versions.value || "{}")
   const voltageInfo = JSON.parse(props.jobs.monitor.publishedSettings.voltage_on_pwm_rail.value || "{}")
   const ipInfo = props.jobs.monitor.publishedSettings.ipv4.value
@@ -853,7 +856,7 @@ function SettingsActionsDialog(props) {
   return (
     <div>
     <Button style={{textTransform: 'none', float: "right" }} disabled={props.disabled} onClick={handleClickOpen} color="primary">
-      <SettingsIcon color={props.disabled ? "disabled" : "primary"} fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Manage
+      <SettingsIcon color={props.disabled ? "disabled" : "primary"} fontSize="15" sx={textIcon}/> Manage
     </Button>
     <Dialog maxWidth={isLargeScreen ? "sm" : "md"} fullWidth={true} open={open} onClose={handleClose} PaperProps={{
       sx: {
@@ -897,7 +900,7 @@ function SettingsActionsDialog(props) {
         <TabPanel value={tabValue} index={0}>
           {/* Unit Specific Activites */}
           {Object.entries(props.jobs)
-            .filter(([job_key, job]) => job.metadata.display)
+            .filter(([_, job]) => job.metadata.display)
             .filter(([job_key, job]) => !['dosing_automation', 'led_automation', 'temperature_automation'].includes(job_key)) // added later
             .map(([job_key, job]) =>
             <div key={job_key}>
@@ -1621,7 +1624,7 @@ function SettingsActionsDialogAll({experiment}) {
   return (
     <React.Fragment>
     <Button style={{textTransform: 'none', float: "right" }} onClick={handleClickOpen} color="primary">
-      <SettingsIcon fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Manage Pioreactors
+      <SettingsIcon fontSize="15" sx={textIcon}/> Manage Pioreactors
     </Button>
     <Dialog  maxWidth={isLargeScreen ? "sm" : "md"} fullWidth={true}  open={open} onClose={handleClose} aria-labelledby="form-dialog-title"  PaperProps={{
       sx: {
@@ -2071,7 +2074,7 @@ function SettingNumericField(props) {
 
 
 
-function ActiveUnits({experiment, config, units, isLoading}){
+function ActiveUnits({experiment, config, units}){
   const [relabelMap, setRelabelMap] = useState({})
 
   useEffect(() => {
@@ -2112,7 +2115,7 @@ function FlashLEDButton(props){
   }
   return (
     <Button style={{textTransform: 'none', float: "right"}} className={flashing ? 'blinkled' : ''}  disabled={props.disabled} onClick={onClick} color="primary">
-      <FlareIcon color={props.disabled ? "disabled" : "primary"} fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> <span > Identify </span>
+      <FlareIcon color={props.disabled ? "disabled" : "primary"} fontSize="15" sx={textIcon}/> <span > Identify </span>
     </Button>
 )}
 
@@ -2502,7 +2505,7 @@ function Pioreactors({title}) {
       const inactiveUnits = workers.filter(worker => worker.is_active === 0).map(worker => worker.pioreactor_unit);
       return (
       <>
-      <ActiveUnits isLoading={isLoading} experiment={experimentMetadata.experiment} config={config} units={activeUnits} />
+      <ActiveUnits experiment={experimentMetadata.experiment} config={config} units={activeUnits} />
       { (inactiveUnits.length > 0) &&
       <InactiveUnits experiment={experimentMetadata.experiment} config={config} units={inactiveUnits}/>
       }

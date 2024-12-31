@@ -10,9 +10,10 @@ import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
-
+import Chip from '@mui/material/Chip';
 import PioreactorIcon from "./PioreactorIcon"
 import { useMQTT } from '../providers/MQTTContext';
+import { Link } from 'react-router-dom';
 
 
 function MediaCard({experiment, relabelMap, activeUnits}) {
@@ -96,7 +97,7 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
           <Table size="small" aria-label="media throughput">
             <TableHead>
               <TableRow>
-                <TableCell style={{ padding: '6px 0px' }}>Unit</TableCell>
+                <TableCell style={{ padding: '6px 0px' }}>Pioreactor</TableCell>
                 <TableCell style={{ padding: '6px 0px' }} align="right">
                   Media used
                 </TableCell>
@@ -106,6 +107,20 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
               </TableRow>
             </TableHead>
             <TableBody>
+
+              {activeUnits.map((unit) => (
+                <TableRow key={unit}>
+                  <TableCell style={{ padding: '6px 0px' }} component="th" scope="row">
+                    <Chip size="small" icon={<PioreactorIcon/>} label={relabelUnit(unit)} clickable component={Link} to={"/pioreactors/" + unit} />
+                  </TableCell>
+                  <TableCell align="right" style={{ fontSize: 13, padding: '6px 0px' }}>
+                    {(mediaThroughputPerUnit[unit] || 0).toFixed(1)}mL (~{(rates[unit] ? rates[unit].mediaRate.toFixed(1) : '0.0')}mL/h)
+                  </TableCell>
+                  <TableCell align="right" style={{ fontSize: 13, padding: '6px 0px' }}>
+                    {(altMediaThroughputPerUnit[unit] || 0).toFixed(1)}mL (~{(rates[unit] ? rates[unit].altMediaRate.toFixed(1) : '0.0')}mL/h)
+                  </TableCell>
+                </TableRow>
+              ))}
               <TableRow key="all">
                 <TableCell style={{ padding: '6px 0px' }} component="th" scope="row">
                   <i>All Pioreactors</i>
@@ -117,21 +132,6 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
                   {(altMediaThroughput || 0).toFixed(1)}mL (~{rates.all.altMediaRate.toFixed(1)}mL/h)
                 </TableCell>
               </TableRow>
-
-              {activeUnits.map((unit) => (
-                <TableRow key={unit}>
-                  <TableCell style={{ padding: '6px 0px' }} component="th" scope="row">
-                    <PioreactorIcon style={{ fontSize: 14, verticalAlign: 'middle' }} />
-                    {relabelUnit(unit)}
-                  </TableCell>
-                  <TableCell align="right" style={{ fontSize: 13, padding: '6px 0px' }}>
-                    {(mediaThroughputPerUnit[unit] || 0).toFixed(1)}mL (~{(rates[unit] ? rates[unit].mediaRate.toFixed(1) : '0.0')}mL/h)
-                  </TableCell>
-                  <TableCell align="right" style={{ fontSize: 13, padding: '6px 0px' }}>
-                    {(altMediaThroughputPerUnit[unit] || 0).toFixed(1)}mL (~{(rates[unit] ? rates[unit].altMediaRate.toFixed(1) : '0.0')}mL/h)
-                  </TableCell>
-                </TableRow>
-              ))}
             </TableBody>
           </Table>
         </TableContainer>

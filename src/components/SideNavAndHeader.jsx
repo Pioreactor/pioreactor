@@ -17,6 +17,7 @@ import ListSubheader from '@mui/material/ListSubheader';
 import {AppBar, Typography, Button} from '@mui/material';
 import PioreactorIcon from './PioreactorIcon';
 import PioreactorsIcon from './PioreactorsIcon';
+//import Icon2x2Grid from './Icon2x2Grid';
 import LibraryAddOutlinedIcon from '@mui/icons-material/LibraryAddOutlined';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
@@ -26,8 +27,13 @@ import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Sidebar, Menu, MenuItem, SubMenu} from "react-pro-sidebar";
 import { useExperiment } from '../providers/ExperimentContext';
-import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import AddIcon from '@mui/icons-material/Add';
+//import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
+// import KeyboardDoubleArrowRightOutlinedIcon from '@mui/icons-material/KeyboardDoubleArrowRightOutlined';
+//import DoubleArrowOutlinedIcon from '@mui/icons-material/DoubleArrowOutlined';
+import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
+
+const ExpIcon = PlayCircleOutlinedIcon
 
 const drawerWidth = 230;
 
@@ -55,10 +61,20 @@ const ConditionalTooltip = ({condition, title, children}) => {
 };
 
 
-const SelectableMenuItem = ({allExperiments, experiment, updateExperiment}) => {
+const SelectableMenuItem = ({availableExperiments, experiment, selectExperiment}) => {
   const navigate = useNavigate();
   const [selectOpen, setSelectOpen] = React.useState(false);
   const [activeExperiments, setActiveExperiments] = React.useState(new Set([]))
+  const [highlight, setHighlight] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!experiment) return;
+    setHighlight(true);
+    const timer = setTimeout(() => {
+      setHighlight(false);
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [experiment]);
 
   React.useEffect(() => {
     async function getActiveExperiments() {
@@ -93,7 +109,7 @@ const SelectableMenuItem = ({allExperiments, experiment, updateExperiment}) => {
     }
 
     if (e.target.value){
-      updateExperiment(allExperiments.find(obj => obj.experiment === e.target.value));
+      selectExperiment(e.target.value);
     }
 
     setSelectOpen(false)
@@ -102,9 +118,12 @@ const SelectableMenuItem = ({allExperiments, experiment, updateExperiment}) => {
 
     <ConditionalTooltip
       title={experiment}
-      condition={experiment.length > 18}
+      condition={experiment && experiment.length > 14}
     >
-    <MenuItem onClick={handleMenuItemClick} icon={<ScienceOutlinedIcon sx={{fontSize: "23px"}}/>} >
+    <MenuItem
+      onClick={handleMenuItemClick}
+      icon={<ExpIcon sx={{fontSize: "23px"}} className={highlight ? 'blinkicon' : ''} /> }
+    >
       <FormControl variant="standard" fullWidth>
         <Select
           open={selectOpen}
@@ -131,20 +150,20 @@ const SelectableMenuItem = ({allExperiments, experiment, updateExperiment}) => {
           </MenuItemMUI>
           <Divider />
           <ListSubheader>Active</ListSubheader>
-          {allExperiments
-            .filter((e) => activeExperiments.has(e.experiment))
+          {availableExperiments
+            .filter((e) => activeExperiments.has(e))
             .map((e) => (
-              <MenuItemMUI key={e.experiment} value={e.experiment}>
-                {e.experiment}
+              <MenuItemMUI key={e} value={e}>
+                {e}
               </MenuItemMUI>
             ))}
           <Divider />
           <ListSubheader>Inactive</ListSubheader>
-          {allExperiments
-            .filter((e) => !activeExperiments.has(e.experiment))
+          {availableExperiments
+            .filter((e) => !activeExperiments.has(e))
             .map((e) => (
-              <MenuItemMUI key={e.experiment} value={e.experiment}>
-                {e.experiment}
+              <MenuItemMUI key={e} value={e}>
+                {e}
               </MenuItemMUI>
             ))}
         </Select>
@@ -164,7 +183,7 @@ export default function SideNavAndHeader() {
   const [lap, setLAP] = React.useState(false)
   const [latestVersion, setLatestVersion] = React.useState(null)
   const [openSubmenu, setOpenSubmenu] = React.useState("")
-  const {experimentMetadata, updateExperiment, allExperiments} = useExperiment()
+  const {experimentMetadata, selectExperiment, allExperiments} = useExperiment()
 
 
   React.useEffect(() => {
@@ -204,6 +223,8 @@ export default function SideNavAndHeader() {
     getCurrentApp()
     getLatestVersion()
     getLAP()
+    setOpenSubmenu(location.pathname.substr(1))
+
   }, [])
 
   const handleDrawerToggle = () => {
@@ -251,9 +272,9 @@ export default function SideNavAndHeader() {
               }}
             >
               <SelectableMenuItem
-                experiment={experimentMetadata.experiment || ""}
-                allExperiments={allExperiments}
-                updateExperiment={updateExperiment}
+                experiment={experimentMetadata.experiment || null}
+                availableExperiments={allExperiments.map(v => v.experiment)}
+                selectExperiment={selectExperiment}
                 />
 
               <MenuItem
@@ -267,7 +288,7 @@ export default function SideNavAndHeader() {
 
               <SubMenu
                 open={openSubmenu==="pioreactors"}
-                icon={<PioreactorIcon viewBox="-3 0 24 24" sx={{fontSize: "23px"}}/>}
+                icon={<PioreactorIcon  sx={{fontSize: "23px"}}/>}
                 component={<Link to="/pioreactors" className="link" />}
                 active={isSelected("/pioreactors")}
                 onClick={() => setOpenSubmenu("pioreactors")}
@@ -340,24 +361,18 @@ export default function SideNavAndHeader() {
 
                 <SubMenu label="Inventory"
                   open={openSubmenu==="inventory"}
-                  icon={<PioreactorsIcon viewBox="0 0 18 19" sx={{fontSize: "23px"}}/> }
+                  icon={<PioreactorsIcon sx={{fontSize: "23px"}} />}
                   component={<Link to="/inventory" className="link" />}
                   active={isSelected("/inventory")}
                   onClick={() => setOpenSubmenu("inventory")}
                 >
                   <MenuItem
-                    component={<Link to="/cluster-settings" className="link" />}
-                    active={isSelected("/cluster-settings")}
+                    component={<Link to="/leader" className="link" />}
+                    active={isSelected("/leader")}
                     >
-                    Cluster settings
+                    Leader
                   </MenuItem>
-                  <MenuItem
-                    component={<Link to="/calibrations" className="link" />}
-                    active={isSelected("/calibrations")}
-                    disabled={true}
-                    >
-                    Calibrations
-                  </MenuItem>
+
                 </SubMenu>
 
                 <MenuItem

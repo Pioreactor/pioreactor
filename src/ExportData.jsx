@@ -17,6 +17,7 @@ import { useTheme } from '@mui/material/styles';
 import Chip from '@mui/material/Chip';
 import { Accordion, AccordionSummary, AccordionDetails, Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 
 
 const datasetDescription = {
@@ -65,7 +66,7 @@ function MultipleSelectChip({availableValues, parentHandleChange}) {
           renderValue={(selected) => (
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
               {selected.map((value) => (
-                <Chip key={value} label={value} />
+                <Chip icon=<PlayCircleOutlinedIcon/> key={value} label={value} />
               ))}
             </Box>
           )}

@@ -19,7 +19,7 @@ import 'prismjs/components/prism-ini';
 import dayjs from "dayjs";
 
 
-function EditableCodeDiv(props) {
+function EditableCodeDiv() {
   const [state, setState] = useState({
     code: null,
     openSnackbar: false,
@@ -66,7 +66,7 @@ function EditableCodeDiv(props) {
         setState(prev => ({ ...prev, snackbarMsg: `Success: ${state.filename} saved and synced.`, hasChangedSinceSave: false, saving: false, openSnackbar: true }));
       } else {
         res.json().then(parsedJson =>
-          setState(prev => ({ ...prev, errorMsg: parsedJson['msg'], isError: true, hasChangedSinceSave: true, saving: false }))
+          setState(prev => ({ ...prev, errorMsg: parsedJson.error, isError: true, hasChangedSinceSave: true, saving: false }))
         )
       }
     });

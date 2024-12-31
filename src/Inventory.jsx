@@ -37,7 +37,9 @@ import UnderlineSpan from "./components/UnderlineSpan";
 import PioreactorIcon from "./components/PioreactorIcon";
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
 import {getConfig, disconnectedGrey, lostRed, inactiveGrey, readyGreen} from "./utilities"
+import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 
+import { useExperiment } from './providers/ExperimentContext';
 
 const textIcon = {verticalAlign: "middle", margin: "0px 3px"}
 
@@ -126,7 +128,7 @@ function AddNewPioreactor(props){
         setExpectedPathMsg("")
         if(!response.ok){
           setIsError(true)
-          response.json().then(data => setErrorMsg(`Unable to complete connection. The following error occurred: ${data.msg}`))
+          response.json().then(data => setErrorMsg(`Unable to complete connection. The following error occurred: ${data.error}`))
         } else {
           setIsSuccess(true)
           props.setWorkers((prevWorkers) => [...prevWorkers, {pioreactor_unit: name, is_active: true}])
@@ -235,6 +237,7 @@ function WorkerCard({worker, config, leaderVersion}) {
   const [ipv4, setIpv4] = React.useState(null)
   const [WLANaddress, setWLANaddress] = React.useState(null)
   const [ETHAddress, setETHAddress] = React.useState(null)
+  const { selectExperiment } = useExperiment();
 
 
   const isActive = () => {
@@ -415,9 +418,14 @@ function WorkerCard({worker, config, leaderVersion}) {
 
         </div>
 
-        <Typography variant="subtitle2" color={isActive() ? "inherit" : inactiveGrey}  >
-          {experimentAssigned ? <>Assigned to <Chip disabled={!isActive()} size="small" label={experimentAssigned}/> </> : "Unassigned"}
-        </Typography>
+        <Box sx={{display: "flex", justifyContent: "left", ml: .5}}>
+          {experimentAssigned ? (
+            <>
+            <Typography variant="subtitle2" color={isActive() ? "inherit" : inactiveGrey}> Assigned to <Chip icon=<PlayCircleOutlinedIcon/> disabled={!isActive()} size="small" label={experimentAssigned} clickable onClick={() => selectExperiment(experimentAssigned)} /> </Typography>
+            </>)
+          : <Typography variant="subtitle2" color={isActive() ? "inherit" : inactiveGrey}> Unassigned </Typography>
+        }
+        </Box>
 
         <Divider sx={{margin: "5px 0px"}}/>
 

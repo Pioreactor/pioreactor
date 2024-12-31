@@ -246,7 +246,7 @@ function ListSuggestedPlugins({selectedUnit}){
                   component={Link}
                   target="_blank"
                   rel="noopener noreferrer"
-                  to={plugin.homepage.replace(/^https?:\/\/127\.0\.0\.1(?::\d+)?/, '')} // this is a hack since the leader will produce a homepage with it's leader_address which is 127.0.0.1.
+                  to={plugin.homepage}
                   variant="text"
                   style={{textTransform: 'none'}}
                   size="small"
@@ -346,7 +346,7 @@ function ListInstalledPlugins({selectedUnit, installedPlugins}){
                     component={Link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    to={plugin.homepage}
+                    to={plugin.homepage.replace(/^https?:\/\/127\.0\.0\.1(?::\d+)?/, '')} // this is a hack since the leader will produce a homepage with it's leader_address which is 127.0.0.1.
                     variant="text"
                     size="small"
                     color="primary"

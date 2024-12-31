@@ -5,7 +5,7 @@ import { useMQTT } from '../providers/MQTTContext';
 
 import Snackbar from '@mui/material/Snackbar';
 
-function TactileButtonNotification(props) {
+function TactileButtonNotification() {
   const [unit, setUnit] = React.useState("")
   const [open, setOpen] = React.useState(false)
   const {client, subscribeToTopic } = useMQTT();
@@ -17,7 +17,7 @@ function TactileButtonNotification(props) {
     }
   },[client])
 
-  const onMessage = (topic, msg, packet) => {
+  const onMessage = (topic, msg) => {
     if (msg.toString() === "True"){
       var unit = topic.toString().split("/")[1]
       setUnit(unit)
