@@ -33,9 +33,13 @@ def list_calibrations(cal_type: str):
     calibration_dir = CALIBRATION_PATH / cal_type
     if not calibration_dir.exists():
         click.echo(f"No calibrations found for type '{cal_type}'. Directory does not exist.")
-        return
+        raise click.Abort()
 
-    assistant = calibration_assistants[cal_type]
+    try:
+        assistant = calibration_assistants[cal_type]
+    except KeyError:
+        click.echo(f"No calibrations assistant for type '{cal_type}'.")
+        raise click.Abort()
 
     header = f"{'Name':<50}{'Created At':<25}{'Active?':<15}"
     click.echo(header)
@@ -76,19 +80,8 @@ def run_calibration(ctx, cal_type: str):
     )
     calibration_name = calibration_data.calibration_name
 
-    calibration_dir = CALIBRATION_PATH / cal_type
-    calibration_dir.mkdir(parents=True, exist_ok=True)
-    out_file = calibration_dir / f"{calibration_name}.yaml"
-
-    # Serialize to YAML
-    with out_file.open("wb") as f:
-        f.write(yaml_encode(calibration_data))
-
-    # TODO: send to leader
-
-    # make active
-    with local_persistent_storage("active_calibrations") as c:
-        c[cal_type] = calibration_name
+    out_file = calibration_data.save_to_disk()
+    calibration_data.set_as_active_calibration()
 
     click.echo(f"Calibration '{calibration_name}' of type '{cal_type}' saved to {out_file}")
 
@@ -136,8 +129,7 @@ def set_active_calibration(cal_type: str, calibration_name: str | None):
     else:
         data = load_calibration(cal_type, calibration_name)
 
-        with local_persistent_storage("active_calibrations") as c:
-            c[data.calibration_type] = data.calibration_name
+        data.set_as_active_calibration()
 
 
 @calibration.command(name="delete")

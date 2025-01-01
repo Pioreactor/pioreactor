@@ -16,7 +16,6 @@ from pioreactor.hardware import voltage_in_aux
 from pioreactor.logging import create_logger
 from pioreactor.structs import StirringCalibration
 from pioreactor.utils import is_pio_job_running
-from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import managed_lifecycle
 from pioreactor.utils.math_helpers import simple_linear_regression
 from pioreactor.utils.timing import current_utc_datetime
@@ -122,5 +121,5 @@ def run_stirring_calibration(min_dc: float | None = None, max_dc: float | None =
             created_at=current_utc_datetime(),
             curve_data_=[rpm_coef, intercept],
             curve_type="poly",
-            recorded_data={"x": filtered_dcs, "y": filtered_measured_rpms},
+            recorded_data={"x": list(filtered_dcs), "y": list(filtered_measured_rpms)},
         )

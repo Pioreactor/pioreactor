@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Callable
+from typing import Literal
+from typing import overload
 
 from msgspec import ValidationError
 from msgspec.yaml import decode as yaml_decode
@@ -44,7 +46,7 @@ class MediaPumpAssistant(CalibrationAssistant):
     target_calibration_type = "media_pump"
     calibration_struct = structs.MediaPumpCalibration
 
-    def run(self) -> structs.MediaPumpCalibration:
+    def run(self) -> structs.AnyPumpCalibration:  # structs.MediaPumpCalibration:
         from pioreactor.calibrations.pump_calibration import run_pump_calibration
 
         return run_pump_calibration()
@@ -54,7 +56,7 @@ class AltMediaPumpAssistant(CalibrationAssistant):
     target_calibration_type = "alt_media_pump"
     calibration_struct = structs.AltMediaPumpCalibration
 
-    def run(self) -> structs.AltMediaPumpCalibration:
+    def run(self) -> structs.AnyPumpCalibration:  # structs.AltMediaPumpCalibration:
         from pioreactor.calibrations.pump_calibration import run_pump_calibration
 
         return run_pump_calibration()
@@ -64,7 +66,7 @@ class WastePumpAssistant(CalibrationAssistant):
     target_calibration_type = "waste_pump"
     calibration_struct = structs.WastePumpCalibration
 
-    def run(self) -> structs.WastePumpCalibration:
+    def run(self) -> structs.AnyPumpCalibration:  # structs.WastePumpCalibration:
         from pioreactor.calibrations.pump_calibration import run_pump_calibration
 
         return run_pump_calibration()
@@ -80,6 +82,31 @@ class StirringAssistant(CalibrationAssistant):
         return run_stirring_calibration(
             min_dc=float(min_dc) if min_dc is not None else None, max_dc=float(max_dc) if max_dc else None
         )
+
+
+@overload
+def load_active_calibration(cal_type: Literal["od"]) -> structs.ODCalibration:
+    pass
+
+
+@overload
+def load_active_calibration(cal_type: Literal["media"]) -> structs.MediaPumpCalibration:
+    pass
+
+
+@overload
+def load_active_calibration(cal_type: Literal["waste"]) -> structs.WastePumpCalibration:
+    pass
+
+
+@overload
+def load_active_calibration(cal_type: Literal["alt_media"]) -> structs.AltMediaPumpCalibration:
+    pass
+
+
+@overload
+def load_active_calibration(cal_type: Literal["stirring"]) -> structs.StirringCalibration:
+    pass
 
 
 def load_active_calibration(cal_type: str) -> None | structs.AnyCalibration:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from pioreactor.actions.od_calibration import calculate_curve_of_best_fit
+from pioreactor.calibrations.od_calibration import calculate_curve_of_best_fit
 from pioreactor.calibrations.utils import curve_to_callable
 
 

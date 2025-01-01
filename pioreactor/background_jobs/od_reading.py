@@ -63,6 +63,7 @@ from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.base import LoggerMixin
+from pioreactor.calibrations import load_active_calibration
 from pioreactor.config import config
 from pioreactor.hardware import ADC_CHANNEL_FUNCS
 from pioreactor.pubsub import publish
@@ -630,7 +631,7 @@ class NullCalibrationTransformer(CalibrationTransformer):
     def __init__(self) -> None:
         super().__init__()
 
-    def hydate_models_from_disk(self, channel_angle_map: dict[pt.PdChannel, pt.PdAngle]) -> None:
+    def hydate_models_from_disk(self) -> None:
         self.models: dict[pt.PdChannel, Callable] = {}
         return
 
@@ -664,38 +665,29 @@ class CachedCalibrationTransformer(CalibrationTransformer):
         super().__init__()
         self.has_logged_warning = False
 
-    def hydate_models_from_disk(self, channel_angle_map: dict[pt.PdChannel, pt.PdAngle]) -> None:
+    def hydate_models_from_disk(self) -> None:
         self.models: dict[pt.PdChannel, Callable] = {}
 
-        with local_persistent_storage("current_od_calibration") as c:
-            for channel, angle in channel_angle_map.items():
-                if angle in c:
-                    calibration_data = decode(c[angle], type=structs.AnyODCalibration)  # type: ignore
-                    name = calibration_data.name
+        calibration_data: structs.ODCalibration = load_active_calibration("od")
+        if calibration_data is None:
+            self.logger.debug(f"No calibration available for OD, skipping.")
+            return
 
-                    if config.get("od_reading.config", "ir_led_intensity") != "auto" and (
-                        calibration_data.ir_led_intensity
-                        != config.getfloat("od_reading.config", "ir_led_intensity")
-                    ):
-                        msg = f"The calibration `{name}` was calibrated with a different IR LED intensity ({calibration_data.ir_led_intensity} vs current: {config.getfloat('od_reading.config', 'ir_led_intensity')}). Either re-calibrate, turn off calibration, or change the ir_led_intensity in the config.ini."
-                        self.logger.error(msg)
-                        raise exc.CalibrationError(msg)
-                    # confirm that PD channel is the same as when calibration was performed
-                    elif calibration_data.pd_channel != channel:
-                        msg = f"The calibration `{name}` was calibrated with a different PD channel ({calibration_data.pd_channel} vs current: {channel})."
-                        self.logger.error(msg)
-                        raise exc.CalibrationError(msg)
+        name = calibration_data.calibration_name
+        channel = calibration_data.pd_channel
 
-                    self.models[channel] = self._hydrate_model(calibration_data)
-                    self.logger.info(f"Using OD calibration `{name}` for channel {channel}.")
-                    self.logger.debug(
-                        f"Using OD calibration `{name}` for channel {channel}, {calibration_data.curve_type=}, {calibration_data.curve_data_=}"
-                    )
+        if config.get("od_reading.config", "ir_led_intensity") != "auto" and (
+            calibration_data.ir_led_intensity != config.getfloat("od_reading.config", "ir_led_intensity")
+        ):
+            msg = f"The calibration `{name}` was calibrated with a different IR LED intensity ({calibration_data.ir_led_intensity} vs current: {config.getfloat('od_reading.config', 'ir_led_intensity')}). Either re-calibrate, turn off calibration, or change the ir_led_intensity in the config.ini."
+            self.logger.error(msg)
+            raise exc.CalibrationError(msg)
 
-                else:
-                    self.logger.debug(
-                        f"No calibration available for channel {channel}, angle {angle}, skipping."
-                    )
+        self.models[channel] = self._hydrate_model(calibration_data)
+        self.logger.info(f"Using OD calibration `{name}` for channel {channel}.")
+        self.logger.debug(
+            f"Using OD calibration `{name}` for channel {channel}, {calibration_data.curve_type=}, {calibration_data.curve_data_=}"
+        )
 
     def _hydrate_model(self, calibration_data: structs.ODCalibration) -> Callable[[float], float]:
         if calibration_data.curve_type == "poly":
@@ -858,7 +850,7 @@ class ODReader(BackgroundJob):
         self.calibration_transformer.add_external_logger(self.logger)
         self.ir_led_reference_tracker.add_external_logger(self.logger)
 
-        self.calibration_transformer.hydate_models_from_disk(channel_angle_map)
+        self.calibration_transformer.hydate_models_from_disk()
 
         self.channel_angle_map = channel_angle_map
         self.interval = interval

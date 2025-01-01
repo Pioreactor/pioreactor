@@ -25,13 +25,14 @@ from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.stirring import start_stirring as stirring
 from pioreactor.background_jobs.stirring import Stirrer
 from pioreactor.calibrations import utils
+from pioreactor.calibrations.utils import curve_to_callable
 from pioreactor.config import config
 from pioreactor.config import leader_address
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.pubsub import patch_into_leader
 from pioreactor.pubsub import put_into_leader
 from pioreactor.utils import is_pio_job_running
-from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import managed_lifecycle
 from pioreactor.utils.timing import current_utc_datestamp
 from pioreactor.utils.timing import current_utc_datetime
@@ -70,7 +71,7 @@ def introduction() -> None:
 
 
 def get_name_from_user() -> str:
-    with local_persistant_storage("od_calibrations") as cache:
+    with local_persistent_storage("od_calibrations") as cache:
         while True:
             name = prompt(
                 green(
@@ -471,21 +472,10 @@ def save_results(
     pd_channel: pt.PdChannel,
     unit: str,
 ) -> structs.ODCalibration:
-    if angle == "45":
-        struct: Type[structs.ODCalibration] = structs.OD45Calibration
-    elif angle == "90":
-        struct = structs.OD90Calibration
-    elif angle == "135":
-        struct = structs.OD135Calibration
-    elif angle == "180":
-        struct = structs.OD180Calibration
-    else:
-        raise ValueError()
-
-    data_blob = struct(
+    data_blob = structs.ODCalibration(
         created_at=current_utc_datetime(),
         pioreactor_unit=unit,
-        name=name,
+        calibration_name=name,
         angle=angle,
         maximum_od600=max(od600s),
         minimum_od600=min(od600s),
@@ -493,43 +483,19 @@ def save_results(
         maximum_voltage=max(voltages),
         curve_data_=curve_data_,
         curve_type=curve_type,
-        voltages=voltages,
-        od600s=od600s,
+        y="od600s",
+        x="voltages",
+        recorded_data={"x": voltages, "y": od600s},
         ir_led_intensity=float(config["od_reading.config"]["ir_led_intensity"]),
         pd_channel=pd_channel,
     )
 
+    data_blob.save_to_disk()
 
     return data_blob
 
 
-def get_data_from_data_file(
-    data_file: str,
-) -> tuple[pt.PdChannel, pt.PdAngle, list[float], list[float], list[float] | None, str | None]:
-    import json
-
-    click.echo(f"Pulling data from {data_file}...")
-
-    with open(data_file, "r") as f:
-        data = json.loads(f.read())
-
-    curve_data_ = data.get("curve_data_", [])
-    curve_type = data.get("curve_type", None)
-
-    ods, voltages = data["od600s"], data["voltages"]
-
-    assert len(ods) == len(voltages), "data must be the same length."
-
-    pd_channel = data.get(
-        "pd_channel",
-        "1" if config["od_config.photodiode_channel_reverse"]["REF"] == "2" else "2",
-    )
-    angle = data.get("angle", str(config["od_config.photodiode_channel"][pd_channel]))
-
-    return pd_channel, angle, ods, voltages, curve_data_, curve_type
-
-
-def run_od_calibration(data_file: str | None) -> structs.ODCalibration:
+def run_od_calibration() -> structs.ODCalibration:
     unit = get_unit_name()
     experiment = get_testing_experiment_name()
     curve_data_ = []  # type: ignore
@@ -539,27 +505,22 @@ def run_od_calibration(data_file: str | None) -> structs.ODCalibration:
         introduction()
         name = get_name_from_user()
 
-        if data_file is None:
-            if any(is_pio_job_running(["stirring", "od_reading"])):
-                echo(red("Both Stirring and OD reading should be turned off."))
-                raise click.Abort()
+        if any(is_pio_job_running(["stirring", "od_reading"])):
+            echo(red("Both Stirring and OD reading should be turned off."))
+            raise click.Abort()
 
-            (
-                initial_od600,
-                minimum_od600,
-                dilution_amount,
-                angle,
-                pd_channel,
-            ) = get_metadata_from_user()
-            setup_HDC_instructions()
+        (
+            initial_od600,
+            minimum_od600,
+            dilution_amount,
+            angle,
+            pd_channel,
+        ) = get_metadata_from_user()
+        setup_HDC_instructions()
 
-            with start_stirring() as st:
-                inferred_od600s, voltages = start_recording_and_diluting(
-                    st, initial_od600, minimum_od600, dilution_amount, pd_channel
-                )
-        else:
-            pd_channel, angle, inferred_od600s, voltages, curve_data_, curve_type = get_data_from_data_file(  # type: ignore
-                data_file
+        with start_stirring() as st:
+            inferred_od600s, voltages = start_recording_and_diluting(
+                st, initial_od600, minimum_od600, dilution_amount, pd_channel
             )
 
         degree = 5 if len(voltages) > 10 else 3
@@ -574,7 +535,7 @@ def run_od_calibration(data_file: str | None) -> structs.ODCalibration:
 
             curve_data_, curve_type = calculate_curve_of_best_fit(voltages, inferred_od600s, degree)
 
-        echo("Saving results...")
+        echo("Saving results to disk...")
         data_blob = save_results(
             curve_data_,  # type: ignore
             curve_type,  # type: ignore
@@ -585,6 +546,10 @@ def run_od_calibration(data_file: str | None) -> structs.ODCalibration:
             pd_channel,
             unit,
         )
+
+        echo("Setting as the active calibration...")
+        data_blob.set_as_active_calibration()
+
         echo(style(f"Calibration curve for `{name}`", underline=True, bold=True))
         echo(utils.curve_to_functional_form(curve_type, curve_data_))
         echo()

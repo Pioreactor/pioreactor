@@ -11,6 +11,7 @@ from datetime import datetime
 from msgspec import Meta
 from msgspec import Struct
 from msgspec.json import encode
+from msgspec.yaml import encode as yaml_encode
 
 from pioreactor import types as pt
 
@@ -148,11 +149,43 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
     def calibration_type(self):
         return self.__struct_config__.tag
 
+    def save_to_disk(self) -> str:
+        from pioreactor.calibrations import CALIBRATION_PATH
+
+        calibration_dir = CALIBRATION_PATH / self.calibration_type
+        calibration_dir.mkdir(parents=True, exist_ok=True)
+        out_file = calibration_dir / f"{self.calibration_name}.yaml"
+
+        # Serialize to YAML
+        with out_file.open("wb") as f:
+            f.write(yaml_encode(self))
+
+        return str(out_file)
+
+    def set_as_active_calibration(self) -> None:
+        from pioreactor.calibrations import CALIBRATION_PATH
+        from pioreactor.utils import local_persistent_storage
+
+        if not self.exists_on_disk():
+            raise FileNotFoundError(
+                f"Calibration {self.calibration_name} was not found in {CALIBRATION_PATH /  self.calibration_type}. Save it first."
+            )
+
+        with local_persistent_storage("active_calibrations") as c:
+            c[self.calibration_type] = self.calibration_name
+
+    def exists_on_disk(self) -> bool:
+        from pioreactor.calibrations import CALIBRATION_PATH
+
+        target_file = CALIBRATION_PATH / self.calibration_type / f"{self.calibration_name}.yaml"
+
+        return target_file.exists()
+
 
 class ODCalibration(CalibrationBase, kw_only=True, tag="od"):
     ir_led_intensity: float
-    angle: str
-    pd_channel: str
+    angle: t.Literal["45", "90", "135", "180"]
+    pd_channel: t.Literal["1", "2"]
     maximum_od600: float
     minimum_od600: float
     minimum_voltage: float
@@ -211,7 +244,9 @@ AnyCalibration = t.Union[
 ]
 
 
-AnyPumpCalibration = t.Union[MediaPumpCalibration, WastePumpCalibration, AltMediaPumpCalibration]
+AnyPumpCalibration = t.Union[
+    MediaPumpCalibration, WastePumpCalibration, AltMediaPumpCalibration, _PumpCalibration
+]
 
 
 class Log(JSONPrintedStruct):
