@@ -6,7 +6,6 @@ This should be run with a vial in, with a stirbar. Water is fine.
 """
 from __future__ import annotations
 
-import json
 from time import sleep
 
 from pioreactor.background_jobs import stirring

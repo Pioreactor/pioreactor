@@ -7,7 +7,6 @@ from __future__ import annotations
 from math import log2
 from time import sleep
 from typing import cast
-from typing import Type
 
 import click
 from click import clear
@@ -15,7 +14,6 @@ from click import confirm
 from click import echo
 from click import prompt
 from click import style
-from msgspec.json import decode
 from msgspec.json import encode
 from msgspec.json import format
 
@@ -27,10 +25,6 @@ from pioreactor.background_jobs.stirring import Stirrer
 from pioreactor.calibrations import utils
 from pioreactor.calibrations.utils import curve_to_callable
 from pioreactor.config import config
-from pioreactor.config import leader_address
-from pioreactor.mureq import HTTPErrorStatus
-from pioreactor.pubsub import patch_into_leader
-from pioreactor.pubsub import put_into_leader
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import managed_lifecycle

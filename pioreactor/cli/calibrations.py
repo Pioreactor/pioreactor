@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from pathlib import Path
-
 import click
 from msgspec.yaml import decode as yaml_decode
 from msgspec.yaml import encode as yaml_encode
@@ -13,7 +11,6 @@ from pioreactor.calibrations import load_calibration
 from pioreactor.calibrations.utils import curve_to_callable
 from pioreactor.calibrations.utils import plot_data
 from pioreactor.utils import local_persistent_storage
-from pioreactor.whoami import is_testing_env
 
 
 @click.group(short_help="calibration utils")
