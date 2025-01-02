@@ -202,12 +202,12 @@ class _PumpCalibration(CalibrationBase, kw_only=True):
     @property
     def duration_(self):
         assert len(self.curve_data_) == 2
-        return self.curve_data_[1]
+        return self.curve_data_[0]
 
     @property
     def bias_(self):
         assert len(self.curve_data_) == 2
-        return self.curve_data_[0]
+        return self.curve_data_[1]
 
     def ml_to_duration(self, ml: pt.mL) -> pt.Seconds:
         duration_ = self.duration_

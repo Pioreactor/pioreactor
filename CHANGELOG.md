@@ -12,10 +12,10 @@
    - plugins page
    - leader page
  - moved intermittant cache location - this requires a restart
- - new table for historical experiment assignments
+ - new SQL table for historical experiment assignments
  - plugins page has dropdown to select the unit
  - new config entries under storage
-
+ - fix PWM3 not cleaning up correctly
  - stirring calibrations needs to be redone
 
 
