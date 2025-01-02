@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import sys
 from json import dumps
-from json import loads
 from threading import Thread
 from time import sleep
 from typing import Callable
@@ -44,7 +43,7 @@ from pioreactor.pubsub import prune_retained_messages
 from pioreactor.types import LedChannel
 from pioreactor.types import PdChannel
 from pioreactor.utils import is_pio_job_running
-from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import managed_lifecycle
 from pioreactor.utils import SummableDict
 from pioreactor.utils.math_helpers import correlation
@@ -397,16 +396,7 @@ def test_positive_correlation_between_rpm_and_stirring(
     assert is_heating_pcb_present(), "Heating PCB was not detected."
     assert voltage_in_aux() <= 18.0, f"Voltage measured {voltage_in_aux()} > 18.0V"
 
-    with local_persistant_storage("stirring_calibration") as cache:
-        if "linear_v1" in cache:
-            parameters = loads(cache["linear_v1"])
-            rpm_coef = parameters["rpm_coef"]
-            intercept = parameters["intercept"]
-
-            initial_dc = rpm_coef * 700 + intercept
-
-        else:
-            initial_dc = config.getfloat("stirring.config", "initial_duty_cycle")
+    initial_dc = config.getfloat("stirring.config", "initial_duty_cycle")
 
     dcs = []
     measured_rpms = []
@@ -471,12 +461,12 @@ class BatchTestRunner:
 
             managed_state.publish_setting(test_name, int(res))
 
-            with local_persistant_storage("self_test_results") as c:
+            with local_persistent_storage("self_test_results") as c:
                 c[(self.experiment, test_name)] = int(res)
 
 
 def get_failed_test_names(experiment: str) -> Iterator[str]:
-    with local_persistant_storage("self_test_results") as c:
+    with local_persistent_storage("self_test_results") as c:
         for name in get_all_test_names():
             if c.get((experiment, name)) == 0:
                 yield name

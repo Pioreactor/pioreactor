@@ -23,7 +23,7 @@ from pioreactor.automations.base import AutomationJob
 from pioreactor.config import config
 from pioreactor.logging import create_logger
 from pioreactor.utils import is_pio_job_running
-from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import SummableDict
 from pioreactor.utils import whoami
 from pioreactor.utils.timing import current_utc_datetime
@@ -584,14 +584,14 @@ class DosingAutomationJob(AutomationJob):
         )
 
         # add to cache
-        with local_persistant_storage("alt_media_fraction") as cache:
+        with local_persistent_storage("alt_media_fraction") as cache:
             cache[self.experiment] = self.alt_media_fraction
 
     def _update_liquid_volume(self, dosing_event: structs.DosingEvent) -> None:
         self.liquid_volume = LiquidVolumeCalculator.update(dosing_event, self.liquid_volume)
 
         # add to cache
-        with local_persistant_storage("liquid_volume") as cache:
+        with local_persistent_storage("liquid_volume") as cache:
             cache[self.experiment] = self.liquid_volume
 
         if self.liquid_volume >= self.MAX_VIAL_VOLUME_TO_WARN:
@@ -610,10 +610,10 @@ class DosingAutomationJob(AutomationJob):
         ) = ThroughputCalculator.update(dosing_event, self.media_throughput, self.alt_media_throughput)
 
         # add to cache
-        with local_persistant_storage("alt_media_throughput") as cache:
+        with local_persistent_storage("alt_media_throughput") as cache:
             cache[self.experiment] = self.alt_media_throughput
 
-        with local_persistant_storage("media_throughput") as cache:
+        with local_persistent_storage("media_throughput") as cache:
             cache[self.experiment] = self.media_throughput
 
     def _init_alt_media_fraction(self, initial_alt_media_fraction: float) -> None:
@@ -626,7 +626,7 @@ class DosingAutomationJob(AutomationJob):
             },
         )
 
-        with local_persistant_storage("alt_media_fraction") as cache:
+        with local_persistent_storage("alt_media_fraction") as cache:
             self.alt_media_fraction = cache.get(self.experiment, initial_alt_media_fraction)
 
         return
@@ -643,7 +643,7 @@ class DosingAutomationJob(AutomationJob):
             },
         )
 
-        with local_persistant_storage("liquid_volume") as cache:
+        with local_persistent_storage("liquid_volume") as cache:
             self.liquid_volume = cache.get(self.experiment, initial_liquid_volume)
 
         return
@@ -666,10 +666,10 @@ class DosingAutomationJob(AutomationJob):
             },
         )
 
-        with local_persistant_storage("alt_media_throughput") as cache:
+        with local_persistent_storage("alt_media_throughput") as cache:
             self.alt_media_throughput = cache.get(self.experiment, 0.0)
 
-        with local_persistant_storage("media_throughput") as cache:
+        with local_persistent_storage("media_throughput") as cache:
             self.media_throughput = cache.get(self.experiment, 0.0)
 
         return

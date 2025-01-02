@@ -54,7 +54,10 @@ def default_datetime_for_pioreactor(delta_seconds=0) -> datetime:
 
 
 def to_datetime(timestamp: str) -> datetime:
-    return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=timezone.utc)
+    try:
+        return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
 
 
 class RepeatedTimer:

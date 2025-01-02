@@ -38,7 +38,7 @@ repos:
     hooks:
     -   id: mypy
         additional_dependencies: [
-            msgspec==0.18.5,
+            msgspec==0.19.0,
             types-pkg_resources==0.1.3,
         ]
 

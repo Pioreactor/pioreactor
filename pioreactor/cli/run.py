@@ -3,8 +3,18 @@ from __future__ import annotations
 
 import click
 
-from pioreactor import actions
 from pioreactor import plugin_management
+from pioreactor.actions.leader.backup_database import click_backup_database
+from pioreactor.actions.leader.experiment_profile import click_experiment_profile
+from pioreactor.actions.leader.export_experiment_data import click_export_experiment_data
+from pioreactor.actions.led_intensity import click_led_intensity
+from pioreactor.actions.od_blank import click_od_blank
+from pioreactor.actions.pump import click_add_alt_media
+from pioreactor.actions.pump import click_add_media
+from pioreactor.actions.pump import click_circulate_alt_media
+from pioreactor.actions.pump import click_circulate_media
+from pioreactor.actions.pump import click_remove_waste
+from pioreactor.actions.self_test import click_self_test
 from pioreactor.automations.dosing import *  # noqa: F403, F401
 from pioreactor.automations.led import *  # noqa: F403, F401
 from pioreactor.automations.temperature import *  # noqa: F403, F401
@@ -38,17 +48,14 @@ run.add_command(click_led_automation)
 run.add_command(click_temperature_automation)
 
 
-run.add_command(actions.led_intensity.click_led_intensity)
-run.add_command(actions.pump.click_add_alt_media)
-run.add_command(actions.pump.click_add_media)
-run.add_command(actions.pump.click_remove_waste)
-run.add_command(actions.pump.click_circulate_media)
-run.add_command(actions.pump.click_circulate_alt_media)
-run.add_command(actions.od_blank.click_od_blank)
-run.add_command(actions.self_test.click_self_test)
-run.add_command(actions.stirring_calibration.click_stirring_calibration)
-run.add_command(actions.pump_calibration.click_pump_calibration)
-run.add_command(actions.od_calibration.click_od_calibration)
+run.add_command(click_led_intensity)
+run.add_command(click_add_alt_media)
+run.add_command(click_add_media)
+run.add_command(click_remove_waste)
+run.add_command(click_circulate_media)
+run.add_command(click_circulate_alt_media)
+run.add_command(click_od_blank)
+run.add_command(click_self_test)
 
 # TODO: this only adds to `pio run` - what if users want to add a high level command? Examples?
 for plugin in plugin_management.get_plugins().values():
@@ -58,6 +65,6 @@ for plugin in plugin_management.get_plugins().values():
 
 if am_I_leader():
     run.add_command(click_mqtt_to_db_streaming)
-    run.add_command(actions.export_experiment_data.click_export_experiment_data)
-    run.add_command(actions.backup_database.click_backup_database)
-    run.add_command(actions.experiment_profile.click_experiment_profile)
+    run.add_command(click_export_experiment_data)
+    run.add_command(click_backup_database)
+    run.add_command(click_experiment_profile)

@@ -27,7 +27,7 @@ from pioreactor.background_jobs.dosing_automation import DosingAutomationJob
 from pioreactor.background_jobs.dosing_automation import LiquidVolumeCalculator
 from pioreactor.background_jobs.dosing_automation import start_dosing_automation
 from pioreactor.structs import DosingEvent
-from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import default_datetime_for_pioreactor
 from pioreactor.whoami import get_unit_name
@@ -42,49 +42,43 @@ def pause(n=1) -> None:
 
 
 def setup_function() -> None:
-    with local_persistant_storage("current_pump_calibration") as cache:
+    with local_persistent_storage("current_pump_calibration") as cache:
         cache["media"] = encode(
             structs.MediaPumpCalibration(
-                name="setup_function",
-                duration_=1.0,
-                bias_=0.0,
+                calibration_name="setup_function",
+                curve_data_=[1.0, 0.0],
+                curve_type="poly",
                 dc=60,
                 hz=100,
                 created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
-                pump="media",
-                durations=[0, 1],
-                volumes=[0, 1.5],
                 pioreactor_unit=unit,
+                recorded_data={"x": [], "y": []},
             )
         )
         cache["alt_media"] = encode(
             structs.AltMediaPumpCalibration(
-                name="setup_function",
-                duration_=1.0,
-                bias_=0,
+                calibration_name="setup_function",
+                curve_data_=[1.0, 0.0],
+                curve_type="poly",
+                recorded_data={"x": [], "y": []},
                 dc=60,
                 hz=100,
                 created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
-                pump="alt_media",
-                durations=[0, 1],
-                volumes=[0, 1.5],
                 pioreactor_unit=unit,
             )
         )
         cache["waste"] = encode(
             structs.WastePumpCalibration(
-                name="setup_function",
-                duration_=1.0,
-                bias_=0,
+                calibration_name="setup_function",
+                curve_data_=[1.0, 0.0],
+                curve_type="poly",
+                recorded_data={"x": [], "y": []},
                 dc=60,
                 hz=100,
                 created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
-                pump="waste",
-                durations=[0, 1],
-                volumes=[0, 1.5],
                 pioreactor_unit=unit,
             )
         )
@@ -555,10 +549,10 @@ def test_throughput_calculator_multiple_types() -> None:
 
 def test_throughput_calculator_restart() -> None:
     experiment = "test_throughput_calculator_restart"
-    with local_persistant_storage("media_throughput") as c:
+    with local_persistent_storage("media_throughput") as c:
         c[experiment] = 1.0
 
-    with local_persistant_storage("alt_media_throughput") as c:
+    with local_persistent_storage("alt_media_throughput") as c:
         c[experiment] = 1.5
 
     with Turbidostat(
@@ -576,10 +570,10 @@ def test_throughput_calculator_restart() -> None:
 @pytest.mark.xfail
 def test_throughput_calculator_manual_set() -> None:
     experiment = "test_throughput_calculator_manual_set"
-    with local_persistant_storage("media_throughput") as c:
+    with local_persistent_storage("media_throughput") as c:
         c[experiment] = 1.0
 
-    with local_persistant_storage("alt_media_throughput") as c:
+    with local_persistent_storage("alt_media_throughput") as c:
         c[experiment] = 1.5
 
     with Turbidostat(
@@ -714,7 +708,7 @@ def test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined() 
     # regression test
     experiment = "test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined"
 
-    with local_persistant_storage("current_pump_calibration") as cache:
+    with local_persistent_storage("current_pump_calibration") as cache:
         del cache["media"]
         del cache["alt_media"]
 

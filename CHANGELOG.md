@@ -1,7 +1,26 @@
 ### Upcoming
  - API to set clock time
+ - new calibrations CLI
+ - persistent storage is now on single sqlite3 database
+ - new "add log entry" dialog
+ - kalman filter table is no longer populated
  - deprecated `default` in background_jobs yaml fields.
    - [ ] test self-test
+   - [ ] check back edits to stirring calibration
+   - [ ] changes to settings api in unit_api
+   - [ ] logs page
+   - plugins page
+   - leader page
+ - moved intermittant cache location - this requires a restart
+ - new table for historical experiment assignments
+ - plugins page has dropdown to select the unit
+ - new config entries under storage
+
+ - stirring calibrations needs to be redone
+
+
+#### Breaking changes
+ - fixed typo `utils.local_persistant_storage` to `utils.local_persistent_storage`.
 
 ### 24.12.10
  - Hotfix for UI settings bug

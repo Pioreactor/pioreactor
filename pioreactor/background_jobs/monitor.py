@@ -139,7 +139,7 @@ class Monitor(LongRunningBackgroundJob):
         # we manually run a self_check outside of a thread first, as if there are
         # problems detected, we may want to block and not let the job continue.
         self.self_check_thread = RepeatedTimer(
-            4 * 60 * 60, self.self_checks, job_name=self.job_name, run_immediately=True, logger=self.logger
+            12 * 60 * 60, self.self_checks, job_name=self.job_name, run_immediately=True, logger=self.logger
         ).start()
 
         self.add_pre_button_callback(self._republish_state)
@@ -311,8 +311,13 @@ class Monitor(LongRunningBackgroundJob):
             self.logger.debug(f"Pioreactor UI version: {self.versions['ui']}")
 
     def check_for_required_jobs_running(self) -> None:
-        if not utils.is_pio_job_running("mqtt_to_db_streaming"):
-            self.logger.warning("mqtt_to_db_streaming should be running on leader. Double check.")
+        # we put this in a while loop since if mqtt_to_db_streaming is not working, the warning is not saved to disk,
+        # and the user may never a notification every N hours. So we just spam the user.
+        while not utils.is_pio_job_running("mqtt_to_db_streaming"):
+            self.logger.warning(
+                "mqtt_to_db_streaming should be running on leader. Check `sudo systemctl status pioreactor_startup_run@mqtt_to_db_streaming.service`, or try restarting."
+            )
+            sleep(30)
 
     def check_for_HAT(self) -> None:
         if not is_HAT_present():
@@ -386,7 +391,7 @@ class Monitor(LongRunningBackgroundJob):
             # self.set_state(self.LOST)
 
     def check_for_last_backup(self) -> None:
-        with utils.local_persistant_storage("database_backups") as cache:
+        with utils.local_persistent_storage("database_backups") as cache:
             if cache.get("latest_backup_timestamp"):
                 latest_backup_at = to_datetime(cache["latest_backup_timestamp"])
 

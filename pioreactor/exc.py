@@ -20,6 +20,12 @@ class JobRequiredError(Exception):
     """
 
 
+class JobPresentError(Exception):
+    """
+    A job shouldn't be running, but is.
+    """
+
+
 class CalibrationError(Exception):
     """
     An issue with calibration (pump, stirring, OD, etc.)
@@ -65,10 +71,4 @@ class MQTTValueError(ValueError):
 class RsyncError(OSError):
     """
     Syncing files failed
-    """
-
-
-class JobNotRunningError(Exception):
-    """
-    Required job is not running
     """

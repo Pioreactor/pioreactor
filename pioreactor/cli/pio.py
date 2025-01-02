@@ -21,13 +21,14 @@ from pioreactor.pubsub import get_from
 from pioreactor.pubsub import post_into_leader
 from pioreactor.utils import JobManager
 from pioreactor.utils import local_intermittent_storage
-from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.networking import is_using_local_access_point
 from pioreactor.utils.timing import current_utc_timestamp
 
 lazy_subcommands = {
     "run": "pioreactor.cli.run.run",
     "plugins": "pioreactor.cli.plugins.plugins",
+    "calibrations": "pioreactor.cli.calibrations.calibration",
 }
 
 if whoami.am_I_leader():
@@ -123,6 +124,7 @@ def log(message: str, level: str, name: str, local_only: bool):
     except Exception as e:
         # don't let a logging error bring down a script...
         print(e)
+        sys.exit(1)
 
 
 @pio.command(name="blink", short_help="blink LED")
@@ -208,7 +210,7 @@ def view_cache(cache: str) -> None:
         cacher = local_intermittent_storage
 
     elif Path(f"{persistant_dir}/{cache}").is_dir():
-        cacher = local_persistant_storage
+        cacher = local_persistent_storage
 
     else:
         click.echo(f"cache {cache} not found.")
@@ -238,7 +240,7 @@ def clear_cache(cache: str, key: str, as_int: bool) -> None:
         cacher = local_intermittent_storage
 
     elif Path(f"{persistant_dir}/{cache}").is_dir():
-        cacher = local_persistant_storage
+        cacher = local_persistent_storage
 
     else:
         click.echo(f"cache {cache} not found.")

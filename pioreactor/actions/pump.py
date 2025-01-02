@@ -30,18 +30,16 @@ from pioreactor.utils.timing import default_datetime_for_pioreactor
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 
-DEFAULT_PWM_CALIBRATION = structs.PumpCalibration(
-    # TODO: provide better estimates for duration_ and bias_ based on some historical data.
-    # it can even be a function of voltage
-    name="default",
+DEFAULT_PWM_CALIBRATION: structs.AnyPumpCalibration = structs._PumpCalibration(
     pioreactor_unit=get_unit_name(),
     created_at=default_datetime_for_pioreactor(),
-    pump="",
     hz=200.0,
     dc=100.0,
-    duration_=1.0,
-    bias_=0,
     voltage=-1,
+    calibration_name="default_pump_calibration",
+    curve_type="poly",
+    curve_data_=[1.0, 0.0],
+    recorded_data={"x": [], "y": []},
 )
 
 
@@ -166,7 +164,7 @@ def _get_pin(pump_type: str, config) -> pt.GpioPin:
 
 def _get_calibration(pump_type: str) -> structs.AnyPumpCalibration:
     # TODO: make sure current voltage is the same as calibrated. Actually where should that check occur? in Pump?
-    with utils.local_persistant_storage("current_pump_calibration") as cache:
+    with utils.local_persistent_storage("current_pump_calibration") as cache:
         try:
             return decode(cache[pump_type], type=structs.AnyPumpCalibration)  # type: ignore
         except KeyError:

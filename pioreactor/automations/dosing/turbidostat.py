@@ -7,7 +7,7 @@ from pioreactor.automations import events
 from pioreactor.automations.dosing.base import DosingAutomationJob
 from pioreactor.config import config
 from pioreactor.exc import CalibrationError
-from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 
 
@@ -34,7 +34,7 @@ class Turbidostat(DosingAutomationJob):
     ) -> None:
         super().__init__(**kwargs)
 
-        with local_persistant_storage("current_pump_calibration") as cache:
+        with local_persistent_storage("current_pump_calibration") as cache:
             if "media" not in cache:
                 raise CalibrationError("Media pump calibration must be performed first.")
             elif "waste" not in cache:

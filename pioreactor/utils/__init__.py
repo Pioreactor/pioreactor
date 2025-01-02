@@ -19,14 +19,16 @@ from typing import overload
 from typing import Sequence
 from typing import TYPE_CHECKING
 
-from diskcache import Cache  # type: ignore
+from msgspec import DecodeError
 from msgspec import Struct
+from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
 
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor import whoami
-from pioreactor.exc import JobNotRunningError
+from pioreactor.config import config
+from pioreactor.exc import JobRequiredError
 from pioreactor.exc import NotActiveWorkerError
 from pioreactor.exc import RoleError
 from pioreactor.pubsub import create_client
@@ -150,6 +152,7 @@ class managed_lifecycle:
         exit_on_mqtt_disconnect: bool = False,
         mqtt_client_kwargs: dict | None = None,
         ignore_is_active_state=False,  # hack and kinda gross
+        is_long_running_job=False,
         source: str = "app",
         job_source: str | None = None,
     ) -> None:
@@ -162,6 +165,7 @@ class managed_lifecycle:
         self.state = "init"
         self.exit_event = Event()
         self._source = source
+        self.is_long_running_job = is_long_running_job
         self._job_source = job_source or os.environ.get("JOB_SOURCE") or "user"
 
         last_will = {
@@ -214,7 +218,7 @@ class managed_lifecycle:
                 self._job_source,
                 getpid(),
                 "",  # TODO: why is leader string empty? perf?
-                False,
+                self.is_long_running_job,
             )
 
         self.state = "ready"
@@ -263,30 +267,47 @@ class managed_lifecycle:
 
 
 class cache:
-    def __init__(self, table_name):
+    @staticmethod
+    def adapt_key(key):
+        # keys can be tuples!
+        return dumps(key)
+
+    @staticmethod
+    def convert_key(s):
+        if isinstance(s, bytes):
+            try:
+                return loads(s)
+            except DecodeError:
+                return s.decode()
+        else:
+            return s
+
+    def __init__(self, table_name, db_path):
         self.table_name = f"cache_{table_name}"
-        self.db_path = f"{tempfile.gettempdir()}/local_intermittent_pioreactor_metadata.sqlite"
+        self.db_path = db_path
 
     def __enter__(self):
-        self.conn = sqlite3.connect(self.db_path)
+        sqlite3.register_adapter(tuple, self.adapt_key)
+        # sqlite3.register_converter("_key_BLOB", self.convert_key)
+
+        self.conn = sqlite3.connect(self.db_path, isolation_level=None, detect_types=sqlite3.PARSE_DECLTYPES)
         self.cursor = self.conn.cursor()
+        self.cursor.execute("PRAGMA journal_mode=WAL;")
         self._initialize_table()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self.conn.commit()
         self.conn.close()
 
     def _initialize_table(self):
         self.cursor.execute(
             f"""
             CREATE TABLE IF NOT EXISTS {self.table_name} (
-                key BLOB PRIMARY KEY,
+                key _key_BLOB PRIMARY KEY,
                 value BLOB
             )
         """
         )
-        self.conn.commit()
 
     def __setitem__(self, key, value):
         self.cursor.execute(
@@ -297,7 +318,9 @@ class cache:
         """,
             (key, value),
         )
-        self.conn.commit()
+
+    def set(self, key, value):
+        return self.__setitem__(key, value)
 
     def get(self, key, default=None):
         self.cursor.execute(f"SELECT value FROM {self.table_name} WHERE key = ?", (key,))
@@ -306,7 +329,7 @@ class cache:
 
     def iterkeys(self):
         self.cursor.execute(f"SELECT key FROM {self.table_name}")
-        return (row[0] for row in self.cursor.fetchall())
+        return (self.convert_key(row[0]) for row in self.cursor.fetchall())
 
     def pop(self, key, default=None):
         self.cursor.execute(f"SELECT value FROM {self.table_name} WHERE key = ?", (key,))
@@ -314,7 +337,6 @@ class cache:
         if result is None:
             return default
         self.cursor.execute(f"DELETE FROM {self.table_name} WHERE key = ?", (key,))
-        self.conn.commit()
         return result[0]
 
     def __contains__(self, key):
@@ -326,7 +348,6 @@ class cache:
 
     def __delitem__(self, key):
         self.cursor.execute(f"DELETE FROM {self.table_name} WHERE key = ?", (key,))
-        self.conn.commit()
 
     def __getitem__(self, key):
         self.cursor.execute(f"SELECT value FROM {self.table_name} WHERE key = ?", (key,))
@@ -339,7 +360,7 @@ class cache:
 @contextmanager
 def local_intermittent_storage(
     cache_name: str,
-) -> Generator[Cache, None, None]:
+) -> Generator[cache, None, None]:
     """
 
     The cache is deleted upon a Raspberry Pi restart!
@@ -356,36 +377,28 @@ def local_intermittent_storage(
     Opening the same cache in a context manager is tricky, and should be avoided.
 
     """
-    with cache(f"{cache_name}") as c:
-        yield c  # type: ignore
+    with cache(cache_name, db_path=config.get("storage", "temporary_cache")) as c:
+        yield c
 
 
 @contextmanager
-def local_persistant_storage(
+def local_persistent_storage(
     cache_name: str,
-) -> Generator[Cache, None, None]:
+) -> Generator[cache, None, None]:
     """
     Values stored in this storage will stay around between RPi restarts, and until overwritten
     or deleted.
 
     Examples
     ---------
-    > with local_persistant_storage('od_blank') as cache:
+    > with local_persistent_storage('od_blank') as cache:
     >     assert '1' in cache
     >     cache['1'] = 0.5
 
     """
-    from pioreactor.whoami import is_testing_env
 
-    if is_testing_env():
-        cache = Cache(f".pioreactor/storage/{cache_name}", sqlite_journal_mode="wal")
-    else:
-        cache = Cache(f"/home/pioreactor/.pioreactor/storage/{cache_name}", sqlite_journal_mode="wal")
-
-    try:
-        yield cache  # type: ignore
-    finally:
-        cache.close()
+    with cache(cache_name, db_path=config.get("storage", "persistent_cache")) as c:
+        yield c
 
 
 def clamp(minimum: float | int, x: float | int, maximum: float | int) -> float:
@@ -582,9 +595,10 @@ class ShellKill:
 
 class JobManager:
     def __init__(self) -> None:
-        db_path = f"{tempfile.gettempdir()}/local_intermittent_pioreactor_metadata.sqlite"
-        self.conn = sqlite3.connect(db_path)
+        db_path = config.get("storage", "temporary_cache")
+        self.conn = sqlite3.connect(db_path, isolation_level=None)
         self.cursor = self.conn.cursor()
+        self.cursor.execute("PRAGMA journal_mode=WAL;")
         self._create_tables()
 
     def _create_tables(self) -> None:
@@ -621,7 +635,6 @@ class JobManager:
         CREATE UNIQUE INDEX IF NOT EXISTS  idx_pio_job_published_settings_setting_job_id ON pio_job_published_settings(setting, job_id);
         """
         self.cursor.executescript(create_table_query)
-        self.conn.commit()
 
     def register_and_set_running(
         self,
@@ -647,7 +660,6 @@ class JobManager:
                 "is_long_running_job": is_long_running_job,
             },
         )
-        self.conn.commit()
         assert isinstance(self.cursor.lastrowid, int)
         return self.cursor.lastrowid
 
@@ -673,12 +685,11 @@ class JobManager:
 
             self.cursor.execute(update_query, {"setting": setting, "value": value, "job_id": job_id})
 
-        self.conn.commit()
         return
 
     def get_setting_from_running_job(self, job_name: str, setting: str, timeout=None) -> Any:
         if timeout is not None and not self.is_job_running(job_name):
-            raise JobNotRunningError(f"Job {job_name} is not running.")
+            raise JobRequiredError(f"Job {job_name} is not running.")
 
         with catchtime() as timer:
             while True:
@@ -699,7 +710,6 @@ class JobManager:
     def set_not_running(self, job_id: JobMetadataKey) -> None:
         update_query = "UPDATE pio_job_metadata SET is_running=0, ended_at=STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW') WHERE id=(?)"
         self.cursor.execute(update_query, (job_id,))
-        self.conn.commit()
         return
 
     def is_job_running(self, job_name: str) -> bool:

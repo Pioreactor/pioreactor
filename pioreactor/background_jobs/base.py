@@ -1086,7 +1086,8 @@ class BackgroundJobWithDodging(_BackgroundJob):
                 self.logger.debug("Will attempt to dodge later OD readings.")
                 self.set_currently_dodging_od(False)
         else:
-            self.logger.debug("Running continuously through OD readings.")
+            if is_pio_job_running("od_reading"):
+                self.logger.debug("Running continuously through OD readings.")
             self.set_currently_dodging_od(False)
 
     def action_to_do_after_od_reading(self) -> None:

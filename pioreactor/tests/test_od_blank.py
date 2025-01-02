@@ -5,7 +5,7 @@ import json
 
 from pioreactor.actions.od_blank import od_blank
 from pioreactor.config import config
-from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import local_persistent_storage
 
 
 def test_returns_means_and_outputs_to_cache() -> None:
@@ -14,5 +14,5 @@ def test_returns_means_and_outputs_to_cache() -> None:
     output = od_blank("90", "REF", n_samples=10, experiment=experiment)
     assert "1" in output
 
-    with local_persistant_storage("od_blank") as cache:
+    with local_persistent_storage("od_blank") as cache:
         assert json.loads(cache[experiment])["1"] == output["1"]

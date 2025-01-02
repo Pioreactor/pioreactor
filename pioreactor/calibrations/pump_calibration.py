@@ -26,6 +26,7 @@ from pioreactor import structs
 from pioreactor.actions.pump import add_alt_media
 from pioreactor.actions.pump import add_media
 from pioreactor.actions.pump import remove_waste
+from pioreactor.calibrations.utils import curve_to_callable
 from pioreactor.config import config
 from pioreactor.config import leader_address
 from pioreactor.hardware import voltage_in_aux
@@ -33,7 +34,7 @@ from pioreactor.logging import create_logger
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.pubsub import patch_into_leader
 from pioreactor.pubsub import put_into_leader
-from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import managed_lifecycle
 from pioreactor.utils.math_helpers import correlation
 from pioreactor.utils.math_helpers import simple_linear_regression_with_forced_nil_intercept
@@ -83,7 +84,7 @@ We will dose for a set duration, you'll measure how much volume was expelled, an
 
 
 def get_metadata_from_user(pump_type) -> str:
-    with local_persistant_storage("pump_calibrations") as cache:
+    with local_persistent_storage("pump_calibrations") as cache:
         while True:
             name = prompt(
                 style(
@@ -109,22 +110,22 @@ def get_metadata_from_user(pump_type) -> str:
 
 
 def which_pump_are_you_calibrating() -> tuple[str, Callable]:
-    with local_persistant_storage("current_pump_calibration") as cache:
+    with local_persistent_storage("current_pump_calibration") as cache:
         has_media = "media" in cache
         has_waste = "waste" in cache
         has_alt_media = "alt_media" in cache
 
         if has_media:
             media_timestamp = decode(cache["media"], type=structs.MediaPumpCalibration).created_at
-            media_name = decode(cache["media"], type=structs.MediaPumpCalibration).name
+            media_name = decode(cache["media"], type=structs.MediaPumpCalibration).calibration_name
 
         if has_waste:
             waste_timestamp = decode(cache["waste"], type=structs.WastePumpCalibration).created_at
-            waste_name = decode(cache["waste"], type=structs.WastePumpCalibration).name
+            waste_name = decode(cache["waste"], type=structs.WastePumpCalibration).calibration_name
 
         if has_alt_media:
             alt_media_timestamp = decode(cache["alt_media"], type=structs.AltMediaPumpCalibration).created_at
-            alt_media_name = decode(cache["alt_media"], type=structs.AltMediaPumpCalibration).name
+            alt_media_name = decode(cache["alt_media"], type=structs.AltMediaPumpCalibration).calibration_name
 
     echo(green(bold("Step 1")))
     r = prompt(
@@ -210,16 +211,16 @@ def setup(pump_type: str, execute_pump: Callable, hz: float, dc: float, unit: st
             source_of_event="pump_calibration",
             unit=get_unit_name(),
             experiment=get_testing_experiment_name(),
-            calibration=structs.PumpCalibration(
-                name="calibration",
+            calibration=structs._PumpCalibration(
+                calibration_name="calibration",
                 created_at=current_utc_datetime(),
-                pump=pump_type,
-                duration_=1.0,
+                curve_type="poly",
+                curve_data_=[1, 0],
                 hz=hz,
                 dc=dc,
-                bias_=0,
                 voltage=voltage_in_aux(),
                 pioreactor_unit=unit,
+                recorded_data={"x": [], "y": []},
             ),
         )
     except KeyboardInterrupt:
@@ -289,16 +290,16 @@ def run_tests(
     echo(green(bold("Step 3")))
     echo("Beginning tests.")
 
-    empty_calibration = structs.PumpCalibration(
-        name="_test",
-        duration_=1.0,
-        pump=pump_type,
+    empty_calibration = structs._PumpCalibration(
+        calibration_name="_test",
+        curve_data_=[1, 0],
+        curve_type="poly",
         hz=hz,
         dc=dc,
-        bias_=0,
         created_at=current_utc_datetime(),
         voltage=voltage_in_aux(),
         pioreactor_unit=unit,
+        recorded_data={"x": [], "y": []},
     )
 
     results: list[float] = []
@@ -375,7 +376,7 @@ def save_results(
     durations: list[float],
     volumes: list[float],
     unit: str,
-) -> structs.PumpCalibration:
+) -> structs.AnyPumpCalibration:
     struct: Type[structs.AnyPumpCalibration]
 
     if pump_type == "media":
@@ -388,25 +389,17 @@ def save_results(
         raise ValueError()
 
     pump_calibration_result = struct(
-        name=name,
+        calibration_name=name,
         pioreactor_unit=unit,
         created_at=current_utc_datetime(),
-        pump=pump_type,
-        duration_=duration_,
-        bias_=bias_,
+        curve_type="poly",
+        curve_data_=[duration_, bias_],
         hz=hz,
         dc=dc,
         voltage=voltage_in_aux(),
-        durations=durations,
-        volumes=volumes,
+        recorded_data={"x": durations, "y": volumes},
     )
-
-    # save to cache
-    with local_persistant_storage("pump_calibrations") as cache:
-        cache[name] = encode(pump_calibration_result)
-
-    publish_to_leader(name)
-    change_current(name)
+    pump_calibration_result.save_to_disk()
 
     return pump_calibration_result
 
@@ -414,10 +407,8 @@ def save_results(
 def publish_to_leader(name: str) -> bool:
     success = True
 
-    with local_persistant_storage("pump_calibrations") as all_calibrations:
-        calibration_result = decode(
-            all_calibrations[name], type=structs.subclass_union(structs.PumpCalibration)
-        )
+    with local_persistent_storage("pump_calibrations") as all_calibrations:
+        calibration_result = decode(all_calibrations[name], type=structs.AnyPumpCalibration)
 
     try:
         res = put_into_leader("/api/calibrations", json=calibration_result)
@@ -431,21 +422,7 @@ def publish_to_leader(name: str) -> bool:
     return success
 
 
-def get_data_from_data_file(data_file: str) -> tuple[list[float], list[float], float, float]:
-    import json
-
-    echo(f"Pulling data from {data_file}...")
-
-    with open(data_file, "r") as f:
-        data = json.loads(f.read())
-
-    durations, volumes, hz, dc = data["durations"], data["volumes"], data["hz"], data["dc"]
-    assert len(durations) == len(volumes), "data must be the same length."
-
-    return durations, volumes, hz, dc
-
-
-def pump_calibration(min_duration: float, max_duration: float, json_file: str | None) -> None:
+def run_pump_calibration(min_duration: float = 0.40, max_duration: float = 1.5) -> structs.AnyPumpCalibration:
     unit = get_unit_name()
     experiment = get_assigned_experiment_name(unit)
 
@@ -454,27 +431,23 @@ def pump_calibration(min_duration: float, max_duration: float, json_file: str | 
 
     with managed_lifecycle(unit, experiment, "pump_calibration"):
         clear()
-        if json_file is None:
-            introduction()
+        introduction()
 
         pump_type, execute_pump = which_pump_are_you_calibrating()
         name = get_metadata_from_user(pump_type)
 
-        if json_file is None:
-            is_ready = True
-            while is_ready:
-                hz, dc = choose_settings()
-                setup(pump_type, execute_pump, hz, dc, unit)
+        is_ready = True
+        while is_ready:
+            hz, dc = choose_settings()
+            setup(pump_type, execute_pump, hz, dc, unit)
 
-                is_ready = confirm(
-                    style(green("Do you want to change the frequency or duty cycle?")),
-                    prompt_suffix=" ",
-                    default=False,
-                )
+            is_ready = confirm(
+                style(green("Do you want to change the frequency or duty cycle?")),
+                prompt_suffix=" ",
+                default=False,
+            )
 
-            durations, volumes = run_tests(execute_pump, hz, dc, min_duration, max_duration, pump_type, unit)
-        else:
-            durations, volumes, hz, dc = get_data_from_data_file(json_file)
+        durations, volumes = run_tests(execute_pump, hz, dc, min_duration, max_duration, pump_type, unit)
 
         (slope, std_slope), (
             bias,
@@ -523,176 +496,4 @@ def pump_calibration(min_duration: float, max_duration: float, json_file: str | 
             logger.warning("Too much uncertainty in slope - you probably want to rerun this calibration...")
 
         echo(f"Finished {pump_type} pump calibration `{name}`.")
-
-
-def curve_to_callable(curve_type: str, curve_data) -> Optional[Callable]:
-    if curve_type == "poly":
-        import numpy as np
-
-        def curve_callable(x):
-            return np.polyval(curve_data, x)
-
-        return curve_callable
-
-    else:
-        return None
-
-
-def display(name: str | None) -> None:
-    def display_from_calibration_blob(pump_calibration: dict) -> None:
-        volumes = pump_calibration["volumes"]
-        durations = pump_calibration["durations"]
-        name, pump = pump_calibration["name"], pump_calibration["pump"]
-        plot_data(
-            durations,
-            volumes,
-            title=f"Calibration for {pump} pump",
-            highlight_recent_point=False,
-            interpolation_curve=curve_to_callable(
-                "poly", [pump_calibration["duration_"], pump_calibration["bias_"]]
-            ),
-        )
-        echo(style(f"Data for `{name}`", underline=True, bold=True))
-        print(format(encode(pump_calibration)).decode())
-
-    if name is not None:
-        with local_persistant_storage("pump_calibrations") as c:
-            display_from_calibration_blob(decode(c[name]))
-    else:
-        with local_persistant_storage("current_pump_calibration") as c:
-            for pump in c.iterkeys():
-                display_from_calibration_blob(decode(c[pump]))
-                echo()
-                echo()
-                echo()
-
-
-def change_current(name: str) -> None:
-    with local_persistant_storage("pump_calibrations") as all_calibrations:
-        try:
-            new_calibration = decode(
-                all_calibrations[name], type=structs.subclass_union(structs.PumpCalibration)
-            )  # decode name from list of all names
-        except KeyError:
-            echo(red(f"Failed to swap. Calibration `{name}` not found."))
-            raise Abort()
-
-        pump_type_from_new_calibration = new_calibration.pump  # retrieve the pump type
-
-        with local_persistant_storage("current_pump_calibration") as current_calibrations:
-            if pump_type_from_new_calibration in current_calibrations:
-                old_calibration = decode(
-                    current_calibrations[pump_type_from_new_calibration],
-                    type=structs.subclass_union(structs.PumpCalibration),
-                )
-            else:
-                old_calibration = None
-
-            current_calibrations[pump_type_from_new_calibration] = encode(new_calibration)
-
-        try:
-            res = patch_into_leader(
-                f"/api/calibrations/{get_unit_name()}/{new_calibration.type}/{new_calibration.name}",
-                json={"current": 1},
-            )
-            res.raise_for_status()
-        except HTTPErrorStatus as e:
-            if e.status_code == 404:
-                # it doesn't exist in leader, so lets put it there.
-                publish_to_leader(name)
-                change_current(name)
-            else:
-                echo(red("Could not update in database on leader ❌"))
-        else:
-            if old_calibration:
-                echo(f"Replaced `{old_calibration.name}` with `{new_calibration.name}`   ✅")
-            else:
-                echo(f"Set `{new_calibration.name}` to current calibration  ✅")
-
-
-def list_():
-    # get current calibrations
-    current = []
-    with local_persistant_storage("current_pump_calibration") as c:
-        for pump in c.iterkeys():
-            cal = decode(c[pump], type=structs.subclass_union(structs.PumpCalibration))
-            current.append(cal.name)
-
-    echo(
-        bold(
-            f"{'Name':21s} {'Date':18s} {'Pump type':12s} {'Currently in use?':20s}",
-        )
-    )
-    with local_persistant_storage("pump_calibrations") as c:
-        for name in c.iterkeys():
-            try:
-                cal = decode(c[name], type=structs.subclass_union(structs.PumpCalibration))
-                echo(
-                    f"{cal.name:21s} {cal.created_at:%d %b, %Y}       {cal.pump:12s} {'✅' if cal.name in current else ''}",
-                )
-            except Exception as e:
-                raise e
-
-
-@click.group(invoke_without_command=True, name="pump_calibration")
-@click.pass_context
-@click.option("--min-duration", type=float)
-@click.option("--max-duration", type=float)
-@click.option(
-    "-f", "--json-file", type=click.Path(exists=True, dir_okay=False, readable=True, resolve_path=True)
-)
-def click_pump_calibration(
-    ctx, min_duration: float | None, max_duration: float | None, json_file: str | None
-):
-    """
-    Calibrate a pump
-    """
-    if ctx.invoked_subcommand is None:
-        if max_duration is None and min_duration is None:
-            min_duration, max_duration = 0.65, 1.6
-        elif (max_duration is not None) and (min_duration is not None):
-            assert min_duration < max_duration, "min_duration >= max_duration"
-        else:
-            echo(red("min_duration and max_duration must both be set."))
-            raise Abort()
-
-        pump_calibration(min_duration, max_duration, json_file)
-
-
-@click_pump_calibration.command(name="display")
-@click.option("-n", "--name", type=click.STRING)
-def click_display(name: str | None) -> None:
-    """
-    Display a graph and metadata about the current pump calibrations.
-    """
-    display(name)
-
-
-@click_pump_calibration.command(name="change_current")
-@click.argument("name", type=click.STRING)
-def click_change_current(name: str) -> None:
-    """
-    Change the current calibration
-    """
-    change_current(name)
-
-
-@click_pump_calibration.command(name="list")
-def click_list() -> None:
-    """
-    Print a list of all pump calibrations done
-    """
-    list_()
-
-
-@click_pump_calibration.command(name="publish")
-@click.argument("name", type=click.STRING)
-def click_publish(name: str) -> None:
-    """
-    Publish calibration to the leader's database.
-    """
-    publish_to_leader(name)
-
-
-if __name__ == "__main__":
-    click_pump_calibration()
+        return data_blob

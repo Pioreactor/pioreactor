@@ -6,45 +6,52 @@ This should be run with a vial in, with a stirbar. Water is fine.
 """
 from __future__ import annotations
 
-import json
 from time import sleep
-
-import click
 
 from pioreactor.background_jobs import stirring
 from pioreactor.config import config
+from pioreactor.exc import JobPresentError
+from pioreactor.hardware import voltage_in_aux
 from pioreactor.logging import create_logger
-from pioreactor.pubsub import publish
+from pioreactor.structs import StirringCalibration
 from pioreactor.utils import is_pio_job_running
-from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import managed_lifecycle
 from pioreactor.utils.math_helpers import simple_linear_regression
-from pioreactor.utils.timing import current_utc_timestamp
+from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_testing_experiment_name
 from pioreactor.whoami import get_unit_name
 
 
-def stirring_calibration(min_dc: int, max_dc: int) -> None:
+def run_stirring_calibration(min_dc: float | None = None, max_dc: float | None = None) -> StirringCalibration:
+    if max_dc is None and min_dc is None:
+        # seed with initial_duty_cycle
+        config_initial_duty_cycle = config.getfloat("stirring.config", "initial_duty_cycle", fallback=30)
+        min_dc, max_dc = round(config_initial_duty_cycle * 0.75), round(config_initial_duty_cycle * 1.33)
+    elif (max_dc is not None) and (min_dc is not None):
+        assert min_dc < max_dc, "min_dc >= max_dc"
+    else:
+        raise ValueError("min_dc and max_dc must both be set.")
+
     unit = get_unit_name()
     experiment = get_testing_experiment_name()
     action_name = "stirring_calibration"
     logger = create_logger(action_name)
 
-    with managed_lifecycle(unit, get_assigned_experiment_name(unit), action_name):
+    with managed_lifecycle(unit, get_assigned_experiment_name(unit), action_name) as lc:
         logger.info("Starting stirring calibration.")
 
         if is_pio_job_running("stirring"):
             logger.error("Make sure Stirring job is off before running stirring calibration. Exiting.")
-            return
+            raise JobPresentError("Make sure Stirring job is off before running stirring calibration.")
 
         measured_rpms = []
 
         # go up and down to observe any hysteresis.
         dcs = (
-            list(range(max_dc, min_dc, -3))
-            + list(range(min_dc, max_dc, 3))
-            + list(range(max_dc, min_dc - 3, -3))
+            list(range(round(max_dc), round(min_dc), -3))
+            + list(range(round(min_dc), round(max_dc), 3))
+            + list(range(round(max_dc), round(min_dc) - 3, -3))
         )
         n_samples = len(dcs)
 
@@ -63,13 +70,13 @@ def stirring_calibration(min_dc: int, max_dc: int) -> None:
 
             for count, dc in enumerate(dcs, start=1):
                 st.set_duty_cycle(dc)
-                sleep(8)
-                rpm = rpm_calc.estimate(4)
-                measured_rpms.append(rpm)
+                sleep(1)
+                rpm = rpm_calc.estimate(2)
+                measured_rpms.append(dc + 1)
                 logger.debug(f"Detected {rpm=:.1f} RPM @ {dc=}%")
 
                 # log progress
-                publish(
+                lc.mqtt_client.publish(
                     f"pioreactor/{unit}/{experiment}/{action_name}/percent_progress",
                     count / n_samples * 100,
                 )
@@ -81,69 +88,37 @@ def stirring_calibration(min_dc: int, max_dc: int) -> None:
         except ValueError:
             # the above can fail if all measured rpms are 0
             logger.error("No RPMs were measured. Is the stirring spinning?")
-            return
+            raise ValueError("No RPMs were measured. Is the stirring spinning?")
 
         if len(filtered_dcs) <= n_samples * 0.75:
             # the above can fail if all measured rpms are 0
             logger.warning(
                 "Not enough RPMs were measured. Is the stirring spinning and working correctly? Try changing your initial_duty_cycle."
             )
-            return
+            raise ValueError("Not enough RPMs were measured.")
 
         # since in practice, we want a look up from RPM -> required DC, we
         # set x=measure_rpms, y=dcs
         (rpm_coef, rpm_coef_std), (intercept, intercept_std) = simple_linear_regression(
-            filtered_measured_rpms, filtered_dcs
+            filtered_dcs, filtered_measured_rpms
         )
         logger.debug(f"{rpm_coef=}, {rpm_coef_std=}, {intercept=}, {intercept_std=}")
 
         if rpm_coef <= 0:
             logger.warning("Something went wrong - detected negative correlation between RPM and stirring.")
-            return
+            raise ValueError("Negative correlation between RPM and stirring.")
 
         elif intercept <= 0:
             logger.warning("Something went wrong - the intercept should be greater than 0.")
-            return
+            raise ValueError("Intercept should be greater than 0.")
 
-        with local_persistant_storage(action_name) as cache:
-            cache["linear_v1"] = json.dumps(
-                {
-                    "rpm_coef": rpm_coef,
-                    "intercept": intercept,
-                    "timestamp": current_utc_timestamp(),
-                }
-            )
-            cache["stirring_calibration_data"] = json.dumps(
-                {
-                    "timestamp": current_utc_timestamp(),
-                    "data": {"dcs": dcs, "measured_rpms": measured_rpms},
-                }
-            )
-
-
-@click.option(
-    "--min-dc",
-    help="value between 0 and 100",
-    type=click.IntRange(0, 100),
-)
-@click.option(
-    "--max-dc",
-    help="value between 0 and 100",
-    type=click.IntRange(0, 100),
-)
-@click.command(name="stirring_calibration")
-def click_stirring_calibration(min_dc: int, max_dc: int) -> None:
-    """
-    Generate a lookup between stirring and voltage
-    """
-
-    if max_dc is None and min_dc is None:
-        # seed with initial_duty_cycle
-        config_initial_duty_cycle = config.getfloat("stirring.config", "initial_duty_cycle")
-        min_dc, max_dc = round(config_initial_duty_cycle * 0.75), round(config_initial_duty_cycle * 1.33)
-    elif (max_dc is not None) and (min_dc is not None):
-        assert min_dc < max_dc, "min_dc >= max_dc"
-    else:
-        raise ValueError("min_dc and max_dc must both be set.")
-
-    stirring_calibration(min_dc, max_dc)
+        return StirringCalibration(
+            pwm_hz=config.getfloat("stirring.config", "pwm_hz"),
+            voltage=voltage_in_aux(),
+            calibration_name=f"stirring-calibration-{current_utc_datetime().strftime('%Y-%m-%d_%H-%M-%S')}",
+            pioreactor_unit=unit,
+            created_at=current_utc_datetime(),
+            curve_data_=[rpm_coef, intercept],
+            curve_type="poly",
+            recorded_data={"x": list(filtered_dcs), "y": list(filtered_measured_rpms)},
+        )

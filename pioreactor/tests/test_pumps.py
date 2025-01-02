@@ -22,7 +22,7 @@ from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.utils import local_intermittent_storage
-from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import timing
 from pioreactor.whoami import get_unit_name
 
@@ -34,43 +34,43 @@ def pause(n=1):
 
 
 def setup_function():
-    with local_persistant_storage("current_pump_calibration") as cache:
+    with local_persistent_storage("current_pump_calibration") as cache:
         cache["media"] = encode(
             structs.MediaPumpCalibration(
-                name="setup_function",
-                duration_=1.0,
-                bias_=0.0,
+                calibration_name="setup_function",
+                curve_data_=[1.0, 0.0],
+                curve_type="poly",
+                recorded_data={"x": [], "y": []},
                 dc=60,
                 hz=100,
                 created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
-                pump="media",
                 pioreactor_unit=unit,
             )
         )
         cache["alt_media"] = encode(
             structs.AltMediaPumpCalibration(
-                name="setup_function",
-                duration_=1.0,
-                bias_=0,
+                calibration_name="setup_function",
+                curve_data_=[1.0, 0.0],
+                curve_type="poly",
+                recorded_data={"x": [], "y": []},
                 dc=60,
                 hz=100,
                 created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
-                pump="alt_media",
                 pioreactor_unit=unit,
             )
         )
         cache["waste"] = encode(
             structs.WastePumpCalibration(
-                name="setup_function",
-                duration_=1.0,
-                bias_=0,
+                calibration_name="setup_function",
+                curve_data_=[1.0, 0.0],
+                curve_type="poly",
+                recorded_data={"x": [], "y": []},
                 dc=60,
                 hz=100,
                 created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
-                pump="waste",
                 pioreactor_unit=unit,
             )
         )
@@ -92,7 +92,7 @@ def test_pump_io() -> None:
 def test_pump_fails_if_calibration_not_present() -> None:
     exp = "test_pump_fails_if_calibration_not_present"
 
-    with local_persistant_storage("current_pump_calibration") as cache:
+    with local_persistent_storage("current_pump_calibration") as cache:
         del cache["media"]
         del cache["alt_media"]
         del cache["waste"]
@@ -208,14 +208,14 @@ def test_pump_publishes_to_state() -> None:
 def test_pump_can_be_interrupted() -> None:
     experiment = "test_pump_can_be_interrupted"
     calibration = structs.MediaPumpCalibration(
-        name="setup_function",
-        duration_=1.0,
-        bias_=0.0,
+        calibration_name="setup_function",
+        curve_data_=[1.0, 0.0],
+        curve_type="poly",
+        recorded_data={"x": [], "y": []},
         dc=100,
         hz=100,
         created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
         voltage=-1.0,
-        pump="media",
         pioreactor_unit=unit,
     )
 
@@ -255,14 +255,14 @@ def test_pumps_can_run_in_background() -> None:
     experiment = "test_pumps_can_run_in_background"
 
     calibration = structs.MediaPumpCalibration(
-        name="setup_function",
-        duration_=1.0,
-        bias_=0.0,
+        calibration_name="setup_function",
+        curve_data_=[1.0, 0.0],
+        curve_type="poly",
+        recorded_data={"x": [], "y": []},
         dc=60,
         hz=100,
         created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
         voltage=-1.0,
-        pump="media",
         pioreactor_unit=unit,
     )
     with PWMPump(unit=unit, experiment=experiment, pin=13, calibration=calibration) as p:
@@ -317,30 +317,30 @@ def test_waste_pump_cant_run_when_media_circulation_is_running() -> None:
 def test_media_circulation_will_control_media_pump_if_it_has_a_higher_flow_rate() -> None:
     exp = "test_media_circulation_will_control_media_pump_if_it_has_a_higher_rate"
 
-    with local_persistant_storage("current_pump_calibration") as cache:
+    with local_persistent_storage("current_pump_calibration") as cache:
         cache["media"] = encode(
             structs.MediaPumpCalibration(
-                name="setup_function",
-                duration_=10.0,
-                bias_=0.0,
+                calibration_name="setup_function",
+                curve_data_=[10.0, 0.0],
+                curve_type="poly",
+                recorded_data={"x": [], "y": []},
                 dc=60,
                 hz=100,
                 created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
-                pump="media",
                 pioreactor_unit=unit,
             )
         )
         cache["waste"] = encode(
             structs.WastePumpCalibration(
-                name="setup_function",
-                duration_=1.0,
-                bias_=0,
+                calibration_name="setup_function",
+                curve_data_=[1.0, 0.0],
+                curve_type="poly",
+                recorded_data={"x": [], "y": []},
                 dc=60,
                 hz=100,
                 created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
-                pump="waste",
                 pioreactor_unit=unit,
             )
         )
@@ -352,30 +352,30 @@ def test_media_circulation_will_control_media_pump_if_it_has_a_higher_flow_rate(
 def test_media_circulation_will_control_media_pump_if_it_has_a_lower_flow_rate() -> None:
     exp = "test_media_circulation_will_control_media_pump_if_it_has_a_lower_flow_rate"
 
-    with local_persistant_storage("current_pump_calibration") as cache:
+    with local_persistent_storage("current_pump_calibration") as cache:
         cache["media"] = encode(
             structs.MediaPumpCalibration(
-                name="setup_function",
-                duration_=0.15,
-                bias_=0.0,
+                calibration_name="setup_function",
+                curve_data_=[0.15, 0.0],
+                curve_type="poly",
+                recorded_data={"x": [], "y": []},
                 dc=60,
                 hz=100,
                 created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
-                pump="media",
                 pioreactor_unit=unit,
             )
         )
         cache["waste"] = encode(
             structs.WastePumpCalibration(
-                name="setup_function",
-                duration_=1.0,
-                bias_=0,
+                calibration_name="setup_function",
+                curve_data_=[1.0, 0.0],
+                curve_type="poly",
+                recorded_data={"x": [], "y": []},
                 dc=60,
                 hz=100,
                 created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
-                pump="waste",
                 pioreactor_unit=unit,
             )
         )
@@ -386,7 +386,7 @@ def test_media_circulation_will_control_media_pump_if_it_has_a_lower_flow_rate()
 
 def test_media_circulation_works_without_calibration_since_we_are_entering_duration() -> None:
     exp = "test_media_circulation_works_without_calibration_since_we_are_entering_duration"
-    with local_persistant_storage("current_pump_calibration") as cache:
+    with local_persistent_storage("current_pump_calibration") as cache:
         del cache["media"]
         del cache["waste"]
 

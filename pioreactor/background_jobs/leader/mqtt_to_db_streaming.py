@@ -83,7 +83,11 @@ class MqttToDBStreamer(LongRunningBackgroundJob):
             for topic_to_table in topics_to_tables
         ]
 
-        self.timer = RepeatedTimer(60, self.write_stats).start()
+        self.timer = RepeatedTimer(
+            60,
+            self.write_stats,
+            job_name=self.job_name,
+        ).start()
 
         self.initialize_callbacks(topics_and_callbacks)
 
@@ -432,11 +436,11 @@ def add_default_source_to_sinks() -> list[TopicToParserToTable]:
                 parse_automation_settings,
                 "temperature_automation_settings",
             ),
-            TopicToParserToTable(
-                "pioreactor/+/+/growth_rate_calculating/kalman_filter_outputs",
-                parse_kalman_filter_outputs,
-                "kalman_filter_outputs",
-            ),
+            # TopicToParserToTable(
+            #     "pioreactor/+/+/growth_rate_calculating/kalman_filter_outputs",
+            #     parse_kalman_filter_outputs,
+            #     "kalman_filter_outputs",
+            # ),
             TopicToParserToTable(
                 "pioreactor/+/+/stirring/measured_rpm", parse_stirring_rates, "stirring_rates"
             ),
