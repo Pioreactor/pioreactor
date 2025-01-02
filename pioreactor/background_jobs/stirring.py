@@ -334,6 +334,7 @@ class Stirrer(BackgroundJobWithDodging):
             # we scale this by 90% to make sure the PID + prediction doesn't overshoot,
             # better to be conservative here.
             # equivalent to a weighted average: 0.1 * current + 0.9 * predicted
+
             return lambda rpm: self._estimate_duty_cycle - 0.90 * (
                 self._estimate_duty_cycle - (coef * rpm + intercept)
             )

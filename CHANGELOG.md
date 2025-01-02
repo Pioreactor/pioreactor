@@ -9,9 +9,14 @@
    - [ ] check back edits to stirring calibration
    - [ ] changes to settings api in unit_api
    - [ ] logs page
- - new table for historical assignments
+   - plugins page
+   - leader page
+ - moved intermittant cache location - this requires a restart
+ - new table for historical experiment assignments
  - plugins page has dropdown to select the unit
  - new config entries under storage
+
+ - stirring calibrations needs to be redone
 
 
 #### Breaking changes

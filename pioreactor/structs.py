@@ -232,7 +232,7 @@ class WastePumpCalibration(_PumpCalibration, kw_only=True, tag="waste_pump"):
     pass
 
 
-class StirringCalibration(CalibrationBase, kw_only=True, tag="stirring_pump"):
+class StirringCalibration(CalibrationBase, kw_only=True, tag="stirring"):
     pwm_hz: t.Annotated[float, Meta(ge=0)]
     voltage: float
     x: str = "DC %"

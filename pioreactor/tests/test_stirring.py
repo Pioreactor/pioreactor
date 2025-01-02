@@ -12,9 +12,10 @@ from pioreactor.config import config
 from pioreactor.config import temporary_config_change
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
-from pioreactor.utils import local_persistent_storage
+from pioreactor.structs import StirringCalibration
 from pioreactor.utils.mock import MockRpmCalculator
 from pioreactor.utils.timing import catchtime
+from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
 
 unit = get_unit_name()
@@ -146,8 +147,8 @@ def test_rpm_isnt_updated_if_there_is_no_rpm_measurement() -> None:
         assert message is None
 
 
-def test_stirring_with_lookup_linear_v1() -> None:
-    exp = "test_stirring_with_lookup_linear_v1"
+def test_stirring_with_calibration() -> None:
+    exp = "test_stirring_with_calibration"
 
     class FakeRpmCalculator:
         def setup(self):
@@ -159,8 +160,20 @@ def test_stirring_with_lookup_linear_v1() -> None:
         def clean_up(self):
             pass
 
-    with local_persistent_storage("stirring_calibration") as cache:
-        cache["linear_v1"] = json.dumps({"rpm_coef": 0.1, "intercept": 20})
+    linear_term, constant_term = 10, -5
+    cal = StirringCalibration(
+        calibration_name="test_stirring_with_calibration",
+        pioreactor_unit=unit,
+        created_at=current_utc_datetime(),
+        curve_data_=[linear_term, constant_term],
+        curve_type="poly",
+        pwm_hz=200,
+        voltage=5.0,
+        recorded_data={"x": [], "y": []},
+    )
+
+    cal.save_to_disk()
+    cal.set_as_active_calibration()
 
     target_rpm = 500
     rpm_calculator = FakeRpmCalculator()
@@ -168,13 +181,15 @@ def test_stirring_with_lookup_linear_v1() -> None:
     with Stirrer(target_rpm, unit, exp, rpm_calculator=rpm_calculator) as st:  # type: ignore
         st.start_stirring()
 
-        current_dc = st.duty_cycle
+        initial_dc = st.duty_cycle
         target_rpm = 600
-        publish(f"pioreactor/{unit}/{exp}/stirring/target_rpm/set", target_rpm)
-        pause()
+        st.set_target_rpm(target_rpm)
         pause()
 
-        assert st.duty_cycle == current_dc - 0.9 * (current_dc - (0.1 * target_rpm + 20))
+        assert st.duty_cycle > initial_dc
+
+        assert st.rpm_to_dc_lookup(600) == 59.5
+        assert st.rpm_to_dc_lookup(700) == 68.5
 
 
 def test_stirring_will_try_to_restart_and_dodge_od_reading() -> None:
