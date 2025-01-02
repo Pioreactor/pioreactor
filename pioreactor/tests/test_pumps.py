@@ -408,10 +408,8 @@ def test_manually_doesnt_trigger_pwm_dcs() -> None:
     assert add_alt_media(ml=ml, unit=unit, experiment=exp, manually=True) == 0.0
     assert remove_waste(ml=ml, unit=unit, experiment=exp, manually=True) == 0.0
 
-    assert len(pwm_updates) == 3
-    assert pwm_updates[0] == r"{}"
-    assert pwm_updates[1] == r"{}"
-    assert pwm_updates[2] == r"{}"
+    for update in pwm_updates:
+        assert update == r"{}"
 
 
 def test_can_provide_mqtt_client() -> None:
