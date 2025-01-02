@@ -12,6 +12,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Chip from '@mui/material/Chip';
 import PioreactorIcon from "./PioreactorIcon"
+import PioreactorsIcon from "./PioreactorsIcon"
 import { useMQTT } from '../providers/MQTTContext';
 import { Link } from 'react-router-dom';
 
@@ -123,7 +124,7 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
               ))}
               <TableRow key="all">
                 <TableCell style={{ padding: '6px 0px' }} component="th" scope="row">
-                  <i>All Pioreactors</i>
+                  <Chip size="small" icon={<PioreactorsIcon/>} label="All Pioreactors" sx={{backgroundColor: "white"}} />
                 </TableCell>
                 <TableCell align="right" style={{ fontSize: 13, padding: '6px 0px' }}>
                   {(mediaThroughput || 0).toFixed(1)}mL (~{rates.all.mediaRate.toFixed(1)}mL/h)

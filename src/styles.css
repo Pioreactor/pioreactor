@@ -40,11 +40,11 @@ u {
 }
 
 .blinkicon {
-    animation-name: blink;
+    animation-name: blink2;
     animation-duration: 0.70s;
     animation-iteration-count: 1;
 }
-@keyframes blink {
+@keyframes blink2 {
     0%   { opacity: 1;}
     13%  { opacity: 0;}
     26%  { opacity: 1;}

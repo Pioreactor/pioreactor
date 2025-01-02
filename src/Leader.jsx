@@ -22,7 +22,6 @@ import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material'
 import ManageInventoryMenu from './components/ManageInventoryMenu';
 import LogTableByUnit from './components/LogTableByUnit';
 import {disconnectedGrey, lostRed, disabledColor, readyGreen, checkTaskCallback, getConfig} from "./utilities"
-import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined';
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
 import { Link } from 'react-router-dom';
 
@@ -287,7 +286,7 @@ function LeaderCard({leaderHostname}) {
   }, [client]);
 
 
-  const onMonitorData = (topic, message, packet) => {
+  const onMonitorData = (topic, message) => {
     const setting = topic.toString().split('/').pop()
     switch (setting) {
       case "$state":
@@ -374,7 +373,7 @@ function LeaderCard({leaderHostname}) {
                 fontWeight: 500,
               }}
               gutterBottom>
-              <HomeOutlinedIcon  sx={{verticalAlign: "middle", mr: "3px", mb: "2px"}} />
+              <PioreactorIcon  sx={{verticalAlign: "middle", mr: "3px", mb: "2px"}} />
               {unit}
             </Typography>
             <Tooltip title={indicatorLabel} placement="right">
@@ -632,7 +631,7 @@ function ClusterClockCard({leaderHostname}){
                     <TableCell sx={{padding: "6px 0px"}}>
                       <Chip
                         size="small"
-                        icon={leaderHostname === unitName ? <HomeOutlinedIcon/> : <PioreactorIcon/>}
+                        icon={<PioreactorIcon/>}
                         label={unitName}
                         clickable
                         component={Link}

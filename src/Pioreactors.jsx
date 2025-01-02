@@ -51,6 +51,7 @@ import ActionManualDosingForm from "./components/ActionManualDosingForm"
 import ActionCirculatingForm from "./components/ActionCirculatingForm"
 import ActionLEDForm from "./components/ActionLEDForm"
 import PioreactorIcon from "./components/PioreactorIcon"
+import PioreactorsIcon from "./components/PioreactorsIcon"
 import SelfTestDialog from "./components/SelfTestDialog"
 import UnderlineSpan from "./components/UnderlineSpan";
 import ManageExperimentMenu from "./components/ManageExperimentMenu";
@@ -1633,7 +1634,7 @@ function SettingsActionsDialogAll({experiment}) {
     }}>
       <DialogTitle style={{backgroundImage: "linear-gradient(to bottom left, rgba(83, 49, 202, 0.4), rgba(0,0,0,0))"}}>
         <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}}>
-          <b>All assigned & active Pioreactors</b>
+          <PioreactorsIcon style={{verticalAlign: "middle", fontSize: "1.2em"}}/> <b>All assigned & active Pioreactors</b>
         </Typography>
         <IconButton
           aria-label="close"
