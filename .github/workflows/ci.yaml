@@ -42,9 +42,10 @@ jobs:
         run: |
            sudo apt-get install avahi-daemon avahi-discover avahi-utils
 
-      - name: Create dot_pioreactor folder
+      - name: Create necessary folders
         run: |
            mkdir -p .pioreactor/storage
+           mkdir -p /tmp/pioreactor_cache
 
       - name: Create plugin folder and seed it
         run: |
