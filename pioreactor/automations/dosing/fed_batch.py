@@ -21,8 +21,8 @@ class FedBatch(DosingAutomationJob):
     def __init__(self, volume, **kwargs):
         super().__init__(**kwargs)
 
-        with local_persistent_storage("current_pump_calibration") as cache:
-            if "media" not in cache:
+        with local_persistent_storage("active_calibrations") as cache:
+            if "media_pump" not in cache:
                 raise CalibrationError("Media pump calibration must be performed first.")
 
         self.logger.warning(

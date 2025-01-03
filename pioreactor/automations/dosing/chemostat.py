@@ -20,10 +20,10 @@ class Chemostat(DosingAutomationJob):
     def __init__(self, volume: float | str, **kwargs) -> None:
         super().__init__(**kwargs)
 
-        with local_persistent_storage("current_pump_calibration") as cache:
-            if "media" not in cache:
+        with local_persistent_storage("active_calibrations") as cache:
+            if "media_pump" not in cache:
                 raise CalibrationError("Media and waste pump calibration must be performed first.")
-            elif "waste" not in cache:
+            elif "waste_pump" not in cache:
                 raise CalibrationError("Media and waste pump calibration must be performed first.")
 
         self.volume = float(volume)

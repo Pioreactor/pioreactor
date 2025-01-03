@@ -10,7 +10,6 @@ from functools import cache
 from pioreactor import mureq
 from pioreactor.exc import NotAssignedAnExperimentError
 from pioreactor.exc import NoWorkerFoundError
-from pioreactor.version import serial_number
 from pioreactor.version import version_text_to_tuple
 
 
@@ -151,13 +150,6 @@ def am_I_a_worker() -> bool:
             return False
         else:
             raise e
-
-
-@cache
-def get_hashed_serial_number() -> str:
-    from hashlib import md5
-
-    return md5(serial_number.encode()).hexdigest()
 
 
 @cache

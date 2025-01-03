@@ -28,7 +28,7 @@ def temp_calibration_dir():
     yield calibrations_dir
 
 
-def test_calibration_assistants_dict():
+def test_calibration_assistants_dict() -> None:
     assert "od" in calibration_assistants
     assert calibration_assistants["od"] is ODAssistant
 
@@ -45,7 +45,7 @@ def test_calibration_assistants_dict():
     assert calibration_assistants["stirring"] is StirringAssistant
 
 
-def test_save_and_load_calibration(temp_calibration_dir):
+def test_save_and_load_calibration(temp_calibration_dir) -> None:
     # 1. Create an ODCalibration object (fully valid).
     od_cal = ODCalibration(
         calibration_name="my_test_cal",
@@ -66,7 +66,7 @@ def test_save_and_load_calibration(temp_calibration_dir):
     )
 
     # 2. Save to disk
-    od_cal.save_to_disk()
+    od_cal.save_to_disk_for_device("od")
     # The calibration file should now exist in .pioreactor/storage/calibrations/od/
 
     # 3. Load from disk
@@ -77,7 +77,7 @@ def test_save_and_load_calibration(temp_calibration_dir):
     assert loaded_cal.curve_data_ == [1.0, 2.0, 3.0]
 
     # 4. Set as active
-    od_cal.set_as_active_calibration()
+    od_cal.set_as_active_calibration_for_device("od")
 
     # 5. Load via load_active_calibration
     active_cal = load_active_calibration("od")
@@ -85,12 +85,12 @@ def test_save_and_load_calibration(temp_calibration_dir):
     assert active_cal.calibration_name == "my_test_cal"
 
 
-def test_load_calibration_missing_file(temp_calibration_dir):
+def test_load_calibration_missing_file(temp_calibration_dir) -> None:
     with pytest.raises(FileNotFoundError):
         load_calibration("od", "non_existent_cal")
 
 
-def test_load_active_calibration_none(temp_calibration_dir):
+def test_load_active_calibration_none(temp_calibration_dir) -> None:
     # Make sure 'od' key is not set in local_persistent_storage("active_calibrations")
     with local_persistent_storage("active_calibrations") as store:
         store.pop("od", None)
@@ -99,7 +99,7 @@ def test_load_active_calibration_none(temp_calibration_dir):
     assert cal is None
 
 
-def test_load_calibration_validation_error(temp_calibration_dir):
+def test_load_calibration_validation_error(temp_calibration_dir) -> None:
     # 1. Create the directory for "od" calibrations
     od_dir = temp_calibration_dir / "od"
     od_dir.mkdir(parents=True, exist_ok=True)

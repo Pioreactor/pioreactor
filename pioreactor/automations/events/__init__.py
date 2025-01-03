@@ -24,10 +24,6 @@ class ChangedLedIntensity(AutomationEvent):
     pass
 
 
-class RunningContinuously(AutomationEvent):
-    pass
-
-
 class ErrorOccurred(AutomationEvent):
     pass
 

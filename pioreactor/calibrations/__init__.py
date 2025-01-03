@@ -26,14 +26,14 @@ calibration_assistants = {}
 class CalibrationAssistant:
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        calibration_assistants[cls.target_calibration_type] = cls
+        calibration_assistants[cls.target_device] = cls
 
     def run(self, *args, **kwargs):
         raise NotImplementedError("Subclasses must implement this method.")
 
 
 class ODAssistant(CalibrationAssistant):
-    target_calibration_type = "od"
+    target_device = "od"
     calibration_struct = structs.ODCalibration
 
     def run(self) -> structs.ODCalibration:
@@ -43,40 +43,40 @@ class ODAssistant(CalibrationAssistant):
 
 
 class MediaPumpAssistant(CalibrationAssistant):
-    target_calibration_type = "media_pump"
-    calibration_struct = structs.MediaPumpCalibration
+    target_device = "media_pump"
+    calibration_struct = structs.SimplePeristalticPumpCalibration
 
-    def run(self) -> structs.AnyPumpCalibration:  # structs.MediaPumpCalibration:
+    def run(self) -> structs.SimplePeristalticPumpCalibration:
         from pioreactor.calibrations.pump_calibration import run_pump_calibration
 
         return run_pump_calibration()
 
 
 class AltMediaPumpAssistant(CalibrationAssistant):
-    target_calibration_type = "alt_media_pump"
-    calibration_struct = structs.AltMediaPumpCalibration
+    target_device = "alt_media_pump"
+    calibration_struct = structs.SimplePeristalticPumpCalibration
 
-    def run(self) -> structs.AnyPumpCalibration:  # structs.AltMediaPumpCalibration:
+    def run(self) -> structs.SimplePeristalticPumpCalibration:
         from pioreactor.calibrations.pump_calibration import run_pump_calibration
 
         return run_pump_calibration()
 
 
 class WastePumpAssistant(CalibrationAssistant):
-    target_calibration_type = "waste_pump"
-    calibration_struct = structs.WastePumpCalibration
+    target_device = "waste_pump"
+    calibration_struct = structs.SimplePeristalticPumpCalibration
 
-    def run(self) -> structs.AnyPumpCalibration:  # structs.WastePumpCalibration:
+    def run(self) -> structs.SimplePeristalticPumpCalibration:
         from pioreactor.calibrations.pump_calibration import run_pump_calibration
 
         return run_pump_calibration()
 
 
 class StirringAssistant(CalibrationAssistant):
-    target_calibration_type = "stirring"
-    calibration_struct = structs.StirringCalibration
+    target_device = "stirring"
+    calibration_struct = structs.SimpleStirringCalibration
 
-    def run(self, min_dc: str | None = None, max_dc: str | None = None) -> structs.StirringCalibration:
+    def run(self, min_dc: str | None = None, max_dc: str | None = None) -> structs.SimpleStirringCalibration:
         from pioreactor.calibrations.stirring_calibration import run_stirring_calibration
 
         return run_stirring_calibration(
@@ -85,49 +85,41 @@ class StirringAssistant(CalibrationAssistant):
 
 
 @overload
-def load_active_calibration(cal_type: Literal["od"]) -> structs.ODCalibration:
+def load_active_calibration(device: Literal["od"]) -> structs.ODCalibration:
     pass
 
 
 @overload
-def load_active_calibration(cal_type: Literal["media"]) -> structs.MediaPumpCalibration:
+def load_active_calibration(
+    device: Literal["media_pump", "waste_pump", "alt_media_pump"]
+) -> structs.SimplePeristalticPumpCalibration:
     pass
 
 
 @overload
-def load_active_calibration(cal_type: Literal["waste"]) -> structs.WastePumpCalibration:
+def load_active_calibration(device: Literal["stirring"]) -> structs.SimpleStirringCalibration:
     pass
 
 
-@overload
-def load_active_calibration(cal_type: Literal["alt_media"]) -> structs.AltMediaPumpCalibration:
-    pass
-
-
-@overload
-def load_active_calibration(cal_type: Literal["stirring"]) -> structs.StirringCalibration:
-    pass
-
-
-def load_active_calibration(cal_type: str) -> None | structs.AnyCalibration:
+def load_active_calibration(device: str) -> None | structs.AnyCalibration:
     with local_persistent_storage("active_calibrations") as c:
-        active_cal_name = c.get(cal_type)
+        active_cal_name = c.get(device)
 
     if active_cal_name is None:
         return None
 
-    return load_calibration(cal_type, active_cal_name)
+    return load_calibration(device, active_cal_name)
 
 
-def load_calibration(cal_type: str, calibration_name: str) -> structs.AnyCalibration:
-    target_file = CALIBRATION_PATH / cal_type / f"{calibration_name}.yaml"
+def load_calibration(device: str, calibration_name: str) -> structs.AnyCalibration:
+    target_file = CALIBRATION_PATH / device / f"{calibration_name}.yaml"
 
     if not target_file.exists():
         raise FileNotFoundError(
-            f"Calibration {calibration_name} was not found in {CALIBRATION_PATH / cal_type}"
+            f"Calibration {calibration_name} was not found in {CALIBRATION_PATH / device}"
         )
 
-    assistant = calibration_assistants[cal_type]
+    assistant = calibration_assistants[device]
 
     try:
         data = yaml_decode(target_file.read_bytes(), type=assistant.calibration_struct)

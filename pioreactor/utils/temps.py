@@ -15,7 +15,7 @@ class TMP1075:
     """
 
     TEMP_REGISTER = bytearray([0x00])
-    CONFIG_REGISTER = bytearray([0x01])
+    # CONFIG_REGISTER = bytearray([0x01])
 
     def __init__(self, address: int = 0x4F):
         comm_port = I2C(hardware.SCL, hardware.SDA)

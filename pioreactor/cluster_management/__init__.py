@@ -36,11 +36,6 @@ def get_active_workers_in_inventory() -> tuple[str, ...]:
     return tuple(worker["pioreactor_unit"] for worker in result.json() if bool(worker["is_active"]))
 
 
-def get_workers_in_experiment(experiment: str) -> tuple[str, ...]:
-    result = get_from_leader(f"/api/experiments/{experiment}/workers")
-    return tuple(worker["pioreactor_unit"] for worker in result.json())
-
-
 def get_active_workers_in_experiment(experiment: str) -> tuple[str, ...]:
     result = get_from_leader(f"/api/experiments/{experiment}/workers")
     return tuple(worker["pioreactor_unit"] for worker in result.json() if bool(worker["is_active"]))

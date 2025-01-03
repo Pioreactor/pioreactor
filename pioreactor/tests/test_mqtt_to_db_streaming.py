@@ -125,7 +125,7 @@ def test_dosing_events_land_in_db() -> None:
             unit,
             exp,
             ml=1,
-            calibration=structs.MediaPumpCalibration(
+            calibration=structs.SimplePeristalticPumpCalibration(
                 calibration_name="test",
                 curve_data_=[1.0, 0.0],
                 curve_type="poly",

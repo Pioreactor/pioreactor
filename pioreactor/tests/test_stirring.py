@@ -12,7 +12,7 @@ from pioreactor.config import config
 from pioreactor.config import temporary_config_change
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
-from pioreactor.structs import StirringCalibration
+from pioreactor.structs import SimpleStirringCalibration
 from pioreactor.utils.mock import MockRpmCalculator
 from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_datetime
@@ -161,7 +161,7 @@ def test_stirring_with_calibration() -> None:
             pass
 
     linear_term, constant_term = 10, -5
-    cal = StirringCalibration(
+    cal = SimpleStirringCalibration(
         calibration_name="test_stirring_with_calibration",
         pioreactor_unit=unit,
         created_at=current_utc_datetime(),
@@ -172,8 +172,7 @@ def test_stirring_with_calibration() -> None:
         recorded_data={"x": [], "y": []},
     )
 
-    cal.save_to_disk()
-    cal.set_as_active_calibration()
+    cal.set_as_active_calibration_for_device("stirring")
 
     target_rpm = 500
     rpm_calculator = FakeRpmCalculator()

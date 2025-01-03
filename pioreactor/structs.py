@@ -20,7 +20,11 @@ T = t.TypeVar("T")
 
 
 def subclass_union(cls: t.Type[T]) -> t.Type[T]:
-    """Returns a Union of all subclasses of `cls` (excluding `cls` itself)"""
+    """
+    Returns a Union of all subclasses of `cls` (excluding `cls` itself)
+    Note: this can't be used in type inference...
+    """
+
     classes = set()
 
     def _add(cls):
@@ -149,10 +153,10 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
     def calibration_type(self):
         return self.__struct_config__.tag
 
-    def save_to_disk(self) -> str:
+    def save_to_disk_for_device(self, device: str) -> str:
         from pioreactor.calibrations import CALIBRATION_PATH
 
-        calibration_dir = CALIBRATION_PATH / self.calibration_type
+        calibration_dir = CALIBRATION_PATH / device
         calibration_dir.mkdir(parents=True, exist_ok=True)
         out_file = calibration_dir / f"{self.calibration_name}.yaml"
 
@@ -162,22 +166,19 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
 
         return str(out_file)
 
-    def set_as_active_calibration(self) -> None:
-        from pioreactor.calibrations import CALIBRATION_PATH
+    def set_as_active_calibration_for_device(self, device: str) -> None:
         from pioreactor.utils import local_persistent_storage
 
-        if not self.exists_on_disk():
-            raise FileNotFoundError(
-                f"Calibration {self.calibration_name} was not found in {CALIBRATION_PATH /  self.calibration_type}. Save it first."
-            )
+        if not self.exists_on_disk_for_device(device):
+            self.save_to_disk_for_device(device)
 
         with local_persistent_storage("active_calibrations") as c:
-            c[self.calibration_type] = self.calibration_name
+            c[device] = self.calibration_name
 
-    def exists_on_disk(self) -> bool:
+    def exists_on_disk_for_device(self, device: str) -> bool:
         from pioreactor.calibrations import CALIBRATION_PATH
 
-        target_file = CALIBRATION_PATH / self.calibration_type / f"{self.calibration_name}.yaml"
+        target_file = CALIBRATION_PATH / device / f"{self.calibration_name}.yaml"
 
         return target_file.exists()
 
@@ -192,7 +193,7 @@ class ODCalibration(CalibrationBase, kw_only=True, tag="od"):
     maximum_voltage: float
 
 
-class _PumpCalibration(CalibrationBase, kw_only=True):
+class SimplePeristalticPumpCalibration(CalibrationBase, kw_only=True, tag="simple_peristaltic_pump"):
     hz: t.Annotated[float, Meta(ge=0)]
     dc: t.Annotated[float, Meta(ge=0)]
     voltage: float
@@ -220,19 +221,7 @@ class _PumpCalibration(CalibrationBase, kw_only=True):
         return t.cast(pt.mL, duration * duration_ + bias_)
 
 
-class MediaPumpCalibration(_PumpCalibration, kw_only=True, tag="media_pump"):
-    pass
-
-
-class AltMediaPumpCalibration(_PumpCalibration, kw_only=True, tag="alt_media_pump"):
-    pass
-
-
-class WastePumpCalibration(_PumpCalibration, kw_only=True, tag="waste_pump"):
-    pass
-
-
-class StirringCalibration(CalibrationBase, kw_only=True, tag="stirring"):
+class SimpleStirringCalibration(CalibrationBase, kw_only=True, tag="simple_stirring"):
     pwm_hz: t.Annotated[float, Meta(ge=0)]
     voltage: float
     x: str = "DC %"
@@ -240,12 +229,7 @@ class StirringCalibration(CalibrationBase, kw_only=True, tag="stirring"):
 
 
 AnyCalibration = t.Union[
-    StirringCalibration, MediaPumpCalibration, WastePumpCalibration, AltMediaPumpCalibration, ODCalibration
-]
-
-
-AnyPumpCalibration = t.Union[
-    MediaPumpCalibration, WastePumpCalibration, AltMediaPumpCalibration, _PumpCalibration
+    SimpleStirringCalibration, SimplePeristalticPumpCalibration, ODCalibration, CalibrationBase
 ]
 
 

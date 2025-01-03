@@ -164,10 +164,6 @@ class RepeatedTimer:
             # TODO technically this is wrong, but it fixes an edge case.
             return 0
 
-    @property
-    def time_from_previous_run(self) -> float:
-        return self.interval - self.time_to_next_run
-
     def pause(self) -> None:
         """
         Stop the target function from running. This does not pause the timing however,

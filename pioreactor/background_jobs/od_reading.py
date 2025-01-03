@@ -52,7 +52,6 @@ from typing import cast
 from typing import Optional
 
 import click
-from msgspec.json import decode
 
 import pioreactor.actions.led_intensity as led_utils
 from pioreactor import error_codes
@@ -69,7 +68,6 @@ from pioreactor.hardware import ADC_CHANNEL_FUNCS
 from pioreactor.pubsub import publish
 from pioreactor.utils import argextrema
 from pioreactor.utils import local_intermittent_storage
-from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import timing
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 from pioreactor.utils.streaming_calculations import ExponentialMovingStd
@@ -670,7 +668,7 @@ class CachedCalibrationTransformer(CalibrationTransformer):
 
         calibration_data: structs.ODCalibration = load_active_calibration("od")
         if calibration_data is None:
-            self.logger.debug(f"No calibration available for OD, skipping.")
+            self.logger.debug("No calibration available for OD, skipping.")
             return
 
         name = calibration_data.calibration_name
@@ -1057,7 +1055,7 @@ class ODReader(BackgroundJob):
 
         self.ods = od_readings
         for channel, _ in self.channel_angle_map.items():
-            setattr(self, f"od{channel}", od_readings.ods[channel])
+            setattr(self, f"od{channel}", od_readings.ods[channel])  # od1 or od2
 
         self._log_relative_intensity_of_ir_led()
         self._unblock_internal_event()

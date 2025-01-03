@@ -22,23 +22,23 @@ def calibration():
 
 
 @calibration.command(name="list")
-@click.option("--type", "cal_type", required=True, help="Filter by calibration type.")
-def list_calibrations(cal_type: str):
+@click.option("--device", required=True, help="Filter by calibration type.")
+def list_calibrations(device: str):
     """
     List existing calibrations for the given type.
     """
-    calibration_dir = CALIBRATION_PATH / cal_type
+    calibration_dir = CALIBRATION_PATH / device
     if not calibration_dir.exists():
-        click.echo(f"No calibrations found for type '{cal_type}'. Directory does not exist.")
+        click.echo(f"No calibrations found for device '{device}'. Directory does not exist.")
         raise click.Abort()
 
     try:
-        assistant = calibration_assistants[cal_type]
+        assistant = calibration_assistants[device]
     except KeyError:
-        click.echo(f"No calibrations assistant for type '{cal_type}'.")
+        click.echo(f"No calibrations assistant for type '{device}'.")
         raise click.Abort()
 
-    header = f"{'Name':<50}{'Created At':<25}{'Active?':<15}"
+    header = f"{'Name':<50}{'Created At':<25}{'Active?':<10}{'Location':<75}"
     click.echo(header)
     click.echo("-" * len(header))
 
@@ -46,8 +46,8 @@ def list_calibrations(cal_type: str):
         for file in calibration_dir.glob("*.yaml"):
             try:
                 data = yaml_decode(file.read_bytes(), type=assistant.calibration_struct)
-                active = c.get(cal_type) == data.calibration_name
-                row = f"{data.calibration_name:<50}{data.created_at.strftime('%Y-%m-%d %H:%M:%S'):<25}{'✅' if active else '':<15}"
+                active = c.get(device) == data.calibration_name
+                row = f"{data.calibration_name:<50}{data.created_at.strftime('%Y-%m-%d %H:%M:%S'):<25}{'✅' if active else '':<10}{file}"
                 click.echo(row)
             except Exception as e:
                 error_message = f"Error reading {file.stem}: {e}"
@@ -55,19 +55,19 @@ def list_calibrations(cal_type: str):
 
 
 @calibration.command(name="run", context_settings=dict(ignore_unknown_options=True, allow_extra_args=True))
-@click.option("--type", "cal_type", required=True, help="Type of calibration (e.g. od, pump, stirring).")
+@click.option("--device", "device", required=True, help="Type of calibration (e.g. od, pump, stirring).")
 @click.pass_context
-def run_calibration(ctx, cal_type: str):
+def run_calibration(ctx, device: str):
     """
     Run an interactive calibration assistant for a specific type.
     On completion, stores a YAML file in: /home/pioreactor/.pioreactor/storage/calibrations/<type>/<calibration_name>.yaml
     """
 
     # Dispatch to the assistant function for that type
-    assistant = calibration_assistants.get(cal_type)
+    assistant = calibration_assistants.get(device)
     if assistant is None:
         click.echo(
-            f"No assistant found for calibration type '{cal_type}'. Available types: {list(calibration_assistants.keys())}"
+            f"No assistant found for calibration device '{device}'. Available types: {list(calibration_assistants.keys())}"
         )
         raise click.Abort()
 
@@ -77,20 +77,20 @@ def run_calibration(ctx, cal_type: str):
     )
     calibration_name = calibration_data.calibration_name
 
-    out_file = calibration_data.save_to_disk()
-    calibration_data.set_as_active_calibration()
+    out_file = calibration_data.save_to_disk(device)
+    calibration_data.set_as_active_calibration_for_device(device)
 
-    click.echo(f"Calibration '{calibration_name}' of type '{cal_type}' saved to {out_file}")
+    click.echo(f"Calibration '{calibration_name}' of device '{device}' saved to {out_file}")
 
 
 @calibration.command(name="display")
-@click.option("--type", "cal_type", required=True, help="Calibration type.")
+@click.option("--device", required=True, help="Calibration device.")
 @click.option("--name", "calibration_name", required=True, help="Name of calibration to display.")
-def display_calibration(cal_type: str, calibration_name: str):
+def display_calibration(device: str, calibration_name: str):
     """
     Display the contents of a calibration YAML file.
     """
-    data = load_calibration(cal_type, calibration_name)
+    data = load_calibration(device, calibration_name)
 
     click.echo()
     curve = curve_to_callable(data.curve_type, data.curve_data_)
@@ -111,41 +111,40 @@ def display_calibration(cal_type: str, calibration_name: str):
 
 
 @calibration.command(name="set-active")
-@click.option("--type", "cal_type", required=True, help="Which calibration type to set as active.")
+@click.option("--device", required=True, help="Which calibration device to set as active.")
 @click.option("--name", "calibration_name", required=False, help="Which calibration name to set as active.")
-def set_active_calibration(cal_type: str, calibration_name: str | None):
+def set_active_calibration(device: str, calibration_name: str | None):
     """
-    Mark a specific calibration as 'active' for that calibration type.
+    Mark a specific calibration as 'active' for that calibration device.
     """
 
     if calibration_name is None:
         click.echo("No calibration name provided. Clearing active calibration.")
         with local_persistent_storage("active_calibrations") as c:
-            c.pop(cal_type)
+            c.pop(device)
 
     else:
-        data = load_calibration(cal_type, calibration_name)
-
-        data.set_as_active_calibration()
+        data = load_calibration(device, calibration_name)
+        data.set_as_active_calibration_for_device(device)
 
 
 @calibration.command(name="delete")
-@click.option("--type", "cal_type", required=True, help="Which calibration type to delete from.")
+@click.option("--device", required=True, help="Which calibration device to delete from.")
 @click.option("--name", "calibration_name", required=True, help="Which calibration name to delete.")
 @click.confirmation_option(prompt="Are you sure you want to delete this calibration?")
-def delete_calibration(cal_type: str, calibration_name: str):
+def delete_calibration(device: str, calibration_name: str):
     """
     Delete a calibration file from local storage.
 
     Example usage:
-      calibration delete --type od --name my_od_cal_v1
+      calibration delete --device od --name my_od_cal_v1
     """
-    target_file = CALIBRATION_PATH / cal_type / f"{calibration_name}.yaml"
+    target_file = CALIBRATION_PATH / device / f"{calibration_name}.yaml"
     if not target_file.exists():
         click.echo(f"No such calibration file: {target_file}")
         raise click.Abort()
 
     target_file.unlink()
-    click.echo(f"Deleted calibration '{calibration_name}' of type '{cal_type}'.")
+    click.echo(f"Deleted calibration '{calibration_name}' of device '{device}'.")
 
     # TODO: delete from leader and handle updating active?

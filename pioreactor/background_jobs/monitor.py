@@ -301,10 +301,12 @@ class Monitor(LongRunningBackgroundJob):
         except HTTPException:
             self.set_state(self.LOST)
             self.logger.warning("Webserver isn't online.")
+            self.flicker_led_with_error_code(error_codes.WEBSERVER_OFFLINE)
             ui_version = "Unknown"
         except Exception as e:
             self.set_state(self.LOST)
             self.logger.warning(e)
+            self.flicker_led_with_error_code(error_codes.WEBSERVER_OFFLINE)
             ui_version = "Unknown"
         finally:
             self.set_versions({"ui": ui_version})

@@ -13,7 +13,7 @@ from pioreactor.config import config
 from pioreactor.exc import JobPresentError
 from pioreactor.hardware import voltage_in_aux
 from pioreactor.logging import create_logger
-from pioreactor.structs import StirringCalibration
+from pioreactor.structs import SimpleStirringCalibration
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import managed_lifecycle
 from pioreactor.utils.math_helpers import simple_linear_regression
@@ -23,7 +23,9 @@ from pioreactor.whoami import get_testing_experiment_name
 from pioreactor.whoami import get_unit_name
 
 
-def run_stirring_calibration(min_dc: float | None = None, max_dc: float | None = None) -> StirringCalibration:
+def run_stirring_calibration(
+    min_dc: float | None = None, max_dc: float | None = None
+) -> SimpleStirringCalibration:
     if max_dc is None and min_dc is None:
         # seed with initial_duty_cycle
         config_initial_duty_cycle = config.getfloat("stirring.config", "initial_duty_cycle", fallback=30)
@@ -112,7 +114,7 @@ def run_stirring_calibration(min_dc: float | None = None, max_dc: float | None =
             logger.warning("Something went wrong - the intercept should be greater than 0.")
             raise ValueError("Intercept should be greater than 0.")
 
-        return StirringCalibration(
+        return SimpleStirringCalibration(
             pwm_hz=config.getfloat("stirring.config", "pwm_hz"),
             voltage=voltage_in_aux(),
             calibration_name=f"stirring-calibration-{current_utc_datetime().strftime('%Y-%m-%d_%H-%M-%S')}",

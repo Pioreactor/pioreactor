@@ -152,3 +152,6 @@ GpioChip = t.Literal[0, 4]
 
 mL = float
 Seconds = float
+
+# calibration stuff
+PumpCalibrationDevices = t.Literal["waste_pump", "media_pump", "alt_media_pump"]

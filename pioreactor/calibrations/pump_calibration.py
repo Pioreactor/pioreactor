@@ -8,8 +8,7 @@ from __future__ import annotations
 
 import time
 from typing import Callable
-from typing import Optional
-from typing import Type
+from typing import Literal
 
 import click
 from click import Abort
@@ -28,12 +27,9 @@ from pioreactor.actions.pump import add_media
 from pioreactor.actions.pump import remove_waste
 from pioreactor.calibrations.utils import curve_to_callable
 from pioreactor.config import config
-from pioreactor.config import leader_address
 from pioreactor.hardware import voltage_in_aux
 from pioreactor.logging import create_logger
-from pioreactor.mureq import HTTPErrorStatus
-from pioreactor.pubsub import patch_into_leader
-from pioreactor.pubsub import put_into_leader
+from pioreactor.types import PumpCalibrationDevices
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import managed_lifecycle
 from pioreactor.utils.math_helpers import correlation
@@ -83,16 +79,16 @@ We will dose for a set duration, you'll measure how much volume was expelled, an
     clear()
 
 
-def get_metadata_from_user(pump_type) -> str:
+def get_metadata_from_user(pump_device: PumpCalibrationDevices) -> str:
     with local_persistent_storage("pump_calibrations") as cache:
         while True:
             name = prompt(
                 style(
-                    f"Optional: Provide a name for this calibration. [enter] to use default name `{pump_type}-{current_utc_datestamp()}`",
+                    f"Optional: Provide a name for this calibration. [enter] to use default name `{pump_device}-{current_utc_datestamp()}`",
                     fg="green",
                 ),
                 type=str,
-                default=f"{pump_type}-{current_utc_datestamp()}",
+                default=f"{pump_device}-{current_utc_datestamp()}",
                 show_default=False,
             ).strip()
             if name == "":
@@ -109,23 +105,31 @@ def get_metadata_from_user(pump_type) -> str:
     return name
 
 
-def which_pump_are_you_calibrating() -> tuple[str, Callable]:
-    with local_persistent_storage("current_pump_calibration") as cache:
-        has_media = "media" in cache
-        has_waste = "waste" in cache
-        has_alt_media = "alt_media" in cache
+def which_pump_are_you_calibrating() -> tuple[PumpCalibrationDevices, Callable]:
+    with local_persistent_storage("active_calibrations") as cache:
+        has_media = "media_pump" in cache
+        has_waste = "waste_pump" in cache
+        has_alt_media = "alt_media_pump" in cache
 
         if has_media:
-            media_timestamp = decode(cache["media"], type=structs.MediaPumpCalibration).created_at
-            media_name = decode(cache["media"], type=structs.MediaPumpCalibration).calibration_name
+            media_timestamp = decode(cache["media"], type=structs.SimplePeristalticPumpCalibration).created_at
+            media_name = decode(
+                cache["media"], type=structs.SimplePeristalticPumpCalibration
+            ).calibration_name
 
         if has_waste:
-            waste_timestamp = decode(cache["waste"], type=structs.WastePumpCalibration).created_at
-            waste_name = decode(cache["waste"], type=structs.WastePumpCalibration).calibration_name
+            waste_timestamp = decode(cache["waste"], type=structs.SimplePeristalticPumpCalibration).created_at
+            waste_name = decode(
+                cache["waste"], type=structs.SimplePeristalticPumpCalibration
+            ).calibration_name
 
         if has_alt_media:
-            alt_media_timestamp = decode(cache["alt_media"], type=structs.AltMediaPumpCalibration).created_at
-            alt_media_name = decode(cache["alt_media"], type=structs.AltMediaPumpCalibration).calibration_name
+            alt_media_timestamp = decode(
+                cache["alt_media"], type=structs.SimplePeristalticPumpCalibration
+            ).created_at
+            alt_media_name = decode(
+                cache["alt_media"], type=structs.SimplePeristalticPumpCalibration
+            ).calibration_name
 
     echo(green(bold("Step 1")))
     r = prompt(
@@ -141,41 +145,25 @@ def which_pump_are_you_calibrating() -> tuple[str, Callable]:
     )
 
     if r == "1":
-        if has_media:
-            confirm(
-                green("Confirm replacing current calibration?"),
-                abort=True,
-                prompt_suffix=" ",
-            )
-        return ("media", add_media)
+        return ("media_pump", add_media)
     elif r == "2":
-        if has_alt_media:
-            confirm(
-                green("Confirm replacing current calibration?"),
-                abort=True,
-                prompt_suffix=" ",
-            )
-        return ("alt_media", add_alt_media)
+        return ("alt_media_pump", add_alt_media)
     elif r == "3":
-        if has_waste:
-            confirm(
-                green("Confirm replacing current calibration?"),
-                abort=True,
-                prompt_suffix=" ",
-            )
-        return ("waste", remove_waste)
+        return ("waste_pump", remove_waste)
     else:
         raise ValueError()
 
 
-def setup(pump_type: str, execute_pump: Callable, hz: float, dc: float, unit: str) -> None:
+def setup(
+    pump_device: PumpCalibrationDevices, execute_pump: Callable, hz: float, dc: float, unit: str
+) -> None:
     # set up...
     try:
-        channel_pump_is_configured_for = config.get("PWM_reverse", pump_type)
+        channel_pump_is_configured_for = config.get("PWM_reverse", pump_device.removesuffix("_pump"))
     except KeyError:
         echo(
             red(
-                f"❌ {pump_type} is not present in config.ini. Please add it to the [PWM] section and try again."
+                f"❌ {pump_device} is not present in config.ini. Please add it to the [PWM] section and try again."
             )
         )
         raise Abort()
@@ -211,7 +199,7 @@ def setup(pump_type: str, execute_pump: Callable, hz: float, dc: float, unit: st
             source_of_event="pump_calibration",
             unit=get_unit_name(),
             experiment=get_testing_experiment_name(),
-            calibration=structs._PumpCalibration(
+            calibration=structs.SimplePeristalticPumpCalibration(
                 calibration_name="calibration",
                 created_at=current_utc_datetime(),
                 curve_type="poly",
@@ -282,7 +270,7 @@ def run_tests(
     dc: float,
     min_duration: float,
     max_duration: float,
-    pump_type: str,
+    pump_device: PumpCalibrationDevices,
     unit: str,
 ) -> tuple[list[float], list[float]]:
     clear()
@@ -290,7 +278,7 @@ def run_tests(
     echo(green(bold("Step 3")))
     echo("Beginning tests.")
 
-    empty_calibration = structs._PumpCalibration(
+    empty_calibration = structs.SimplePeristalticPumpCalibration(
         calibration_name="_test",
         curve_data_=[1, 0],
         curve_type="poly",
@@ -367,7 +355,7 @@ def run_tests(
 
 def save_results(
     name: str,
-    pump_type: str,
+    pump_device: Literal["media_pump", "waste_pump", "alt_media_pump"],
     duration_: float,
     bias_: float,
     hz: float,
@@ -376,19 +364,8 @@ def save_results(
     durations: list[float],
     volumes: list[float],
     unit: str,
-) -> structs.AnyPumpCalibration:
-    struct: Type[structs.AnyPumpCalibration]
-
-    if pump_type == "media":
-        struct = structs.MediaPumpCalibration
-    elif pump_type == "waste":
-        struct = structs.WastePumpCalibration
-    elif pump_type == "alt_media":
-        struct = structs.AltMediaPumpCalibration
-    else:
-        raise ValueError()
-
-    pump_calibration_result = struct(
+) -> structs.SimplePeristalticPumpCalibration:
+    pump_calibration_result = structs.SimplePeristalticPumpCalibration(
         calibration_name=name,
         pioreactor_unit=unit,
         created_at=current_utc_datetime(),
@@ -399,30 +376,14 @@ def save_results(
         voltage=voltage_in_aux(),
         recorded_data={"x": durations, "y": volumes},
     )
-    pump_calibration_result.save_to_disk()
+    pump_calibration_result.save_to_disk_for_device(pump_device)
 
     return pump_calibration_result
 
 
-def publish_to_leader(name: str) -> bool:
-    success = True
-
-    with local_persistent_storage("pump_calibrations") as all_calibrations:
-        calibration_result = decode(all_calibrations[name], type=structs.AnyPumpCalibration)
-
-    try:
-        res = put_into_leader("/api/calibrations", json=calibration_result)
-        res.raise_for_status()
-        echo("✅ Published to leader.")
-    except Exception as e:
-        success = False
-        print(e)
-        echo(f"❌ Could not publish on leader at http://{leader_address}/api/calibrations")
-
-    return success
-
-
-def run_pump_calibration(min_duration: float = 0.40, max_duration: float = 1.5) -> structs.AnyPumpCalibration:
+def run_pump_calibration(
+    min_duration: float = 0.40, max_duration: float = 1.5
+) -> structs.SimplePeristalticPumpCalibration:
     unit = get_unit_name()
     experiment = get_assigned_experiment_name(unit)
 
@@ -433,13 +394,13 @@ def run_pump_calibration(min_duration: float = 0.40, max_duration: float = 1.5) 
         clear()
         introduction()
 
-        pump_type, execute_pump = which_pump_are_you_calibrating()
-        name = get_metadata_from_user(pump_type)
+        pump_device, execute_pump = which_pump_are_you_calibrating()
+        name = get_metadata_from_user(pump_device)
 
         is_ready = True
         while is_ready:
             hz, dc = choose_settings()
-            setup(pump_type, execute_pump, hz, dc, unit)
+            setup(pump_device, execute_pump, hz, dc, unit)
 
             is_ready = confirm(
                 style(green("Do you want to change the frequency or duty cycle?")),
@@ -447,7 +408,7 @@ def run_pump_calibration(min_duration: float = 0.40, max_duration: float = 1.5) 
                 default=False,
             )
 
-        durations, volumes = run_tests(execute_pump, hz, dc, min_duration, max_duration, pump_type, unit)
+        durations, volumes = run_tests(execute_pump, hz, dc, min_duration, max_duration, pump_device, unit)
 
         (slope, std_slope), (
             bias,
@@ -466,7 +427,7 @@ def run_pump_calibration(min_duration: float = 0.40, max_duration: float = 1.5) 
 
         data_blob = save_results(
             name=name,
-            pump_type=pump_type,
+            pump_device=pump_device,
             duration_=slope,
             bias_=bias,
             hz=hz,
@@ -495,5 +456,5 @@ def run_pump_calibration(min_duration: float = 0.40, max_duration: float = 1.5) 
         if std_slope > 0.04:
             logger.warning("Too much uncertainty in slope - you probably want to rerun this calibration...")
 
-        echo(f"Finished {pump_type} pump calibration `{name}`.")
+        echo(f"Finished {pump_device} calibration `{name}`.")
         return data_blob

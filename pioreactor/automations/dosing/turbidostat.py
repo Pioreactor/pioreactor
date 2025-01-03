@@ -34,10 +34,10 @@ class Turbidostat(DosingAutomationJob):
     ) -> None:
         super().__init__(**kwargs)
 
-        with local_persistent_storage("current_pump_calibration") as cache:
-            if "media" not in cache:
+        with local_persistent_storage("active_calibrations") as cache:
+            if "media_pump" not in cache:
                 raise CalibrationError("Media pump calibration must be performed first.")
-            elif "waste" not in cache:
+            elif "waste_pump" not in cache:
                 raise CalibrationError("Waste pump calibration must be performed first.")
 
         if target_normalized_od is not None and target_od is not None:

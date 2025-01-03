@@ -42,46 +42,20 @@ def pause(n=1) -> None:
 
 
 def setup_function() -> None:
-    with local_persistent_storage("current_pump_calibration") as cache:
-        cache["media"] = encode(
-            structs.MediaPumpCalibration(
-                calibration_name="setup_function",
-                curve_data_=[1.0, 0.0],
-                curve_type="poly",
-                dc=60,
-                hz=100,
-                created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
-                voltage=-1.0,
-                pioreactor_unit=unit,
-                recorded_data={"x": [], "y": []},
-            )
-        )
-        cache["alt_media"] = encode(
-            structs.AltMediaPumpCalibration(
-                calibration_name="setup_function",
-                curve_data_=[1.0, 0.0],
-                curve_type="poly",
-                recorded_data={"x": [], "y": []},
-                dc=60,
-                hz=100,
-                created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
-                voltage=-1.0,
-                pioreactor_unit=unit,
-            )
-        )
-        cache["waste"] = encode(
-            structs.WastePumpCalibration(
-                calibration_name="setup_function",
-                curve_data_=[1.0, 0.0],
-                curve_type="poly",
-                recorded_data={"x": [], "y": []},
-                dc=60,
-                hz=100,
-                created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
-                voltage=-1.0,
-                pioreactor_unit=unit,
-            )
-        )
+    cal = structs.SimplePeristalticPumpCalibration(
+        calibration_name="setup_function",
+        curve_data_=[1.0, 0.0],
+        curve_type="poly",
+        recorded_data={"x": [], "y": []},
+        dc=60,
+        hz=100,
+        created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
+        voltage=-1.0,
+        pioreactor_unit=unit,
+    )
+    cal.set_as_active_calibration_for_device("media_pump")
+    cal.set_as_active_calibration_for_device("alt_media_pump")
+    cal.set_as_active_calibration_for_device("waste_pump")
 
 
 def test_silent_automation() -> None:
@@ -708,9 +682,9 @@ def test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined() 
     # regression test
     experiment = "test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined"
 
-    with local_persistent_storage("current_pump_calibration") as cache:
-        del cache["media"]
-        del cache["alt_media"]
+    with local_persistent_storage("active_calibrations") as cache:
+        cache.pop("media_pump")
+        cache.pop("alt_media_pump")
 
     with pytest.raises(exc.CalibrationError):
         with DosingAutomationJob(unit=unit, experiment=experiment, skip_first_run=True) as ca:

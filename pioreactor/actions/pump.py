@@ -9,7 +9,6 @@ from threading import Event
 from typing import Optional
 
 import click
-from msgspec.json import decode
 from msgspec.json import encode
 from msgspec.structs import replace
 
@@ -17,12 +16,14 @@ from pioreactor import exc
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor import utils
+from pioreactor.calibrations import load_active_calibration
 from pioreactor.config import config
 from pioreactor.hardware import PWM_TO_PIN
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import QOS
+from pioreactor.types import PumpCalibrationDevices
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_datetime
@@ -30,7 +31,7 @@ from pioreactor.utils.timing import default_datetime_for_pioreactor
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 
-DEFAULT_PWM_CALIBRATION: structs.AnyPumpCalibration = structs._PumpCalibration(
+DEFAULT_PWM_CALIBRATION = structs.SimplePeristalticPumpCalibration(
     pioreactor_unit=get_unit_name(),
     created_at=default_datetime_for_pioreactor(),
     hz=200.0,
@@ -54,7 +55,7 @@ class PWMPump:
         unit: str,
         experiment: str,
         pin: pt.GpioPin,
-        calibration: Optional[structs.AnyPumpCalibration] = None,
+        calibration: Optional[structs.SimplePeristalticPumpCalibration] = None,
         mqtt_client: Optional[Client] = None,
         logger: Optional[CustomLogger] = None,
     ) -> None:
@@ -147,28 +148,17 @@ class PWMPump:
         self.clean_up()
 
 
-def _get_pump_action(pump_type: str) -> str:
-    if pump_type == "media":
-        return "add_media"
-    elif pump_type == "alt_media":
-        return "add_alt_media"
-    elif pump_type == "waste":
-        return "remove_waste"
-    else:
-        raise ValueError(f"{pump_type} not valid.")
+def _get_pin(pump_device: PumpCalibrationDevices) -> pt.GpioPin:
+    return PWM_TO_PIN[config.get("PWM_reverse", pump_device.removesuffix("_pump"))]  # backwards compatibility
 
 
-def _get_pin(pump_type: str, config) -> pt.GpioPin:
-    return PWM_TO_PIN[config.get("PWM_reverse", pump_type)]
-
-
-def _get_calibration(pump_type: str) -> structs.AnyPumpCalibration:
+def _get_calibration(pump_device: PumpCalibrationDevices) -> structs.SimplePeristalticPumpCalibration:
     # TODO: make sure current voltage is the same as calibrated. Actually where should that check occur? in Pump?
-    with utils.local_persistent_storage("current_pump_calibration") as cache:
-        try:
-            return decode(cache[pump_type], type=structs.AnyPumpCalibration)  # type: ignore
-        except KeyError:
-            raise exc.CalibrationError(f"Calibration not defined. Run {pump_type} pump calibration first.")
+    cal = load_active_calibration(pump_device)
+    if cal is None:
+        raise exc.CalibrationError(f"Calibration not defined. Run {pump_device} pump calibration first.")
+    else:
+        return cal
 
 
 def _publish_pump_action(
@@ -194,22 +184,24 @@ def _publish_pump_action(
     return dosing_event
 
 
-def _to_human_readable_action(ml: Optional[float], duration: Optional[float], pump_type: str) -> str:
-    if pump_type == "waste":
+def _to_human_readable_action(
+    ml: Optional[float], duration: Optional[float], pump_device: PumpCalibrationDevices
+) -> str:
+    if pump_device == "waste_pump":
         if duration is not None:
             return f"Removing waste for {round(duration,2)}s."
         elif ml is not None:
             return f"Removing {round(ml,3)} mL waste."
         else:
             raise ValueError()
-    elif pump_type == "media":
+    elif pump_device == "media_pump":
         if duration is not None:
             return f"Adding media for {round(duration,2)}s."
         elif ml is not None:
             return f"Adding {round(ml,3)} mL media."
         else:
             raise ValueError()
-    elif pump_type == "alt_media":
+    elif pump_device == "alt_media_pump":
         if duration is not None:
             return f"Adding alt-media for {round(duration,2)}s."
         elif ml is not None:
@@ -221,15 +213,14 @@ def _to_human_readable_action(ml: Optional[float], duration: Optional[float], pu
 
 
 def _pump_action(
-    pump_type: str,
+    pump_device: PumpCalibrationDevices,
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
     ml: Optional[pt.mL] = None,
     duration: Optional[pt.Seconds] = None,
     source_of_event: Optional[str] = None,
-    calibration: Optional[structs.AnyPumpCalibration] = None,
+    calibration: Optional[structs.SimplePeristalticPumpCalibration] = None,
     continuously: bool = False,
-    config=config,  # techdebt, don't use
     manually: bool = False,
     mqtt_client: Optional[Client] = None,
     logger: Optional[CustomLogger] = None,
@@ -239,6 +230,17 @@ def _pump_action(
     Returns the mL cycled. However,
     If calibration is not defined or available on disk, returns gibberish.
     """
+
+    def _get_pump_action(pump_device: PumpCalibrationDevices) -> str:
+        if pump_device == "media_pump":
+            return "add_media"
+        elif pump_device == "alt_media_pump":
+            return "add_alt_media"
+        elif pump_device == "waste_pump":
+            return "remove_waste"
+        else:
+            raise ValueError(f"{pump_device} not valid.")
+
     if not ((ml is not None) or (duration is not None) or continuously):
         raise ValueError("either ml or duration must be set")
     if (ml is not None) and (duration is not None):
@@ -247,20 +249,22 @@ def _pump_action(
     unit = unit or get_unit_name()
     experiment = experiment or get_assigned_experiment_name(unit)
 
-    action_name = _get_pump_action(pump_type)
+    action_name = _get_pump_action(pump_device)
 
     if logger is None:
         logger = create_logger(action_name, experiment=experiment, unit=unit)
 
     try:
-        pin = _get_pin(pump_type, config)
+        pin = _get_pin(pump_device)
     except NoOptionError:
-        logger.error(f"Config entry not found. Add `{pump_type}` to `PWM` section to config_{unit}.ini.")
+        logger.error(
+            f"Config entry not found. Add `{pump_device.removesuffix('_pump')}` to `PWM` section to config_{unit}.ini."
+        )
         return 0.0
 
     if calibration is None:
         try:
-            calibration = _get_calibration(pump_type)
+            calibration = _get_calibration(pump_device)
         except exc.CalibrationError:
             pass
 
@@ -284,33 +288,35 @@ def _pump_action(
                 if ml < 0:
                     raise ValueError("ml should be greater than or equal to 0")
                 duration = 0.0
-                logger.info(f"{_to_human_readable_action(ml, None, pump_type)} (exchanged manually)")
+                logger.info(f"{_to_human_readable_action(ml, None, pump_device)} (exchanged manually)")
             elif ml is not None:
                 ml = float(ml)
                 if calibration is None:
-                    logger.error(f"Calibration not defined. Run {pump_type} pump calibration first.")
+                    logger.error(
+                        f"Active calibration not found. Run {pump_device} calibration first: pio calibrations run --device {pump_device} or set active with `pio run set-active`"
+                    )
                     raise exc.CalibrationError(
-                        f"Calibration not defined. Run {pump_type} pump calibration first."
+                        f"Active calibration not found. Run {pump_device} calibration: `pio calibrations run --device {pump_device}`, or set active with `pio run set-active`"
                     )
 
                 if ml < 0:
                     raise ValueError("ml should be greater than or equal to 0")
                 duration = pump.ml_to_durations(ml)
-                logger.info(_to_human_readable_action(ml, None, pump_type))
+                logger.info(_to_human_readable_action(ml, None, pump_device))
             elif duration is not None:
                 duration = float(duration)
                 try:
                     ml = pump.duration_to_ml(duration)  # can be wrong if calibration is not defined
                 except exc.CalibrationError:
                     ml = DEFAULT_PWM_CALIBRATION.duration_to_ml(duration)  # naive
-                logger.info(_to_human_readable_action(None, duration, pump_type))
+                logger.info(_to_human_readable_action(None, duration, pump_device))
             elif continuously:
                 duration = 2.5
                 try:
                     ml = pump.duration_to_ml(duration)  # can be wrong if calibration is not defined
                 except exc.CalibrationError:
                     ml = DEFAULT_PWM_CALIBRATION.duration_to_ml(duration)
-                logger.info(f"Running {pump_type} pump continuously.")
+                logger.info(f"Running {pump_device} continuously.")
 
             assert duration is not None
             assert ml is not None
@@ -348,7 +354,7 @@ def _pump_action(
                         qos=QOS.AT_MOST_ONCE,  # we don't need the same level of accuracy here
                     )
                 pump.stop()
-                logger.info(f"Stopped {pump_type} pump.")
+                logger.info(f"Stopped {pump_device}.")
 
         if state.exit_event.is_set():
             # ended early
@@ -358,11 +364,10 @@ def _pump_action(
 
 
 def _liquid_circulation(
-    pump_type: str,
+    pump_device: PumpCalibrationDevices,
     duration: pt.Seconds,
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
-    config=config,
     mqtt_client: Optional[Client] = None,
     logger: Optional[CustomLogger] = None,
     source_of_event: Optional[str] = None,
@@ -370,18 +375,27 @@ def _liquid_circulation(
 ) -> tuple[pt.mL, pt.mL]:
     """
     This function runs a continuous circulation of liquid using two pumps - one for waste and the other for the specified
-    `pump_type`. The function takes in the `pump_type`, `unit` and `experiment` as arguments, where `pump_type` specifies
+    `pump_device`. The function takes in the `pump_device`, `unit` and `experiment` as arguments, where `pump_device` specifies
     the type of pump to be used for the liquid circulation.
 
     The `waste_pump` is run continuously first, followed by the `media_pump`, with each pump running for 2 seconds.
 
-    :param pump_type: A string that specifies the type of pump to be used for the liquid circulation.
+    :param pump_device: A string that specifies the type of pump to be used for the liquid circulation.
     :param unit: (Optional) A string that specifies the unit name. If not provided, the unit name will be obtained.
     :param experiment: (Optional) A string that specifies the experiment name. If not provided, the latest experiment name
                        will be obtained.
     :return: None
     """
-    action_name = f"circulate_{pump_type}"
+
+    def _get_pump_action(pump_device: PumpCalibrationDevices) -> str:
+        if pump_device == "media_pump":
+            return "circulate_media"
+        elif pump_device == "alt_media_pump":
+            return "circulate_alt_media"
+        else:
+            raise ValueError(f"{pump_device} not valid.")
+
+    action_name = _get_pump_action(pump_device)
     unit = unit or get_unit_name()
     experiment = experiment or get_assigned_experiment_name(unit)
     duration = float(duration)
@@ -389,15 +403,15 @@ def _liquid_circulation(
     if logger is None:
         logger = create_logger(action_name, experiment=experiment, unit=unit)
 
-    waste_pin, media_pin = _get_pin("waste", config), _get_pin(pump_type, config)
+    waste_pin, media_pin = _get_pin("waste_pump"), _get_pin(pump_device)
 
     try:
-        waste_calibration = _get_calibration("waste")
+        waste_calibration = _get_calibration("waste_pump")
     except exc.CalibrationError:
         waste_calibration = DEFAULT_PWM_CALIBRATION
 
     try:
-        media_calibration = _get_calibration(pump_type)
+        media_calibration = _get_calibration(pump_device)
     except exc.CalibrationError:
         media_calibration = DEFAULT_PWM_CALIBRATION
 
@@ -445,7 +459,7 @@ def _liquid_circulation(
             with catchtime() as running_waste_duration:
                 waste_pump.continuously(block=False)
                 time.sleep(1)
-                logger.info(f"Running {pump_type} for {duration}s.")
+                logger.info(f"Running {pump_device} for {duration}s.")
 
                 running_duration = 0.0
                 running_dosing_duration = 0.0
@@ -471,11 +485,11 @@ def _liquid_circulation(
 
 ### high level functions below:
 
-circulate_media = partial(_liquid_circulation, "media")
-circulate_alt_media = partial(_liquid_circulation, "alt_media")
-add_media = partial(_pump_action, "media")
-remove_waste = partial(_pump_action, "waste")
-add_alt_media = partial(_pump_action, "alt_media")
+circulate_media = partial(_liquid_circulation, "media_pump")
+circulate_alt_media = partial(_liquid_circulation, "alt_media_pump")
+add_media = partial(_pump_action, "media_pump")
+remove_waste = partial(_pump_action, "waste_pump")
+add_alt_media = partial(_pump_action, "alt_media_pump")
 
 
 @click.command(name="add_alt_media")
