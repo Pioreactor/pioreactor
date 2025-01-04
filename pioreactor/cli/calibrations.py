@@ -8,6 +8,7 @@ from msgspec.yaml import encode as yaml_encode
 from pioreactor import structs
 from pioreactor.calibrations import CALIBRATION_PATH
 from pioreactor.calibrations import calibration_protocols
+from pioreactor.calibrations import list_of_calibrations_by_device
 from pioreactor.calibrations import load_calibration
 from pioreactor.calibrations.utils import curve_to_callable
 from pioreactor.calibrations.utils import plot_data
@@ -38,14 +39,17 @@ def list_calibrations(device: str) -> None:
     click.echo("-" * len(header))
 
     with local_persistent_storage("active_calibrations") as c:
-        for file in calibration_dir.glob("*.yaml"):
+        for name in list_of_calibrations_by_device(device):
             try:
-                data = yaml_decode(file.read_bytes(), type=structs.subclass_union(structs.CalibrationBase))
+                location = (calibration_dir / name).with_suffix(".yaml")
+                data = yaml_decode(
+                    location.read_bytes(), type=structs.subclass_union(structs.CalibrationBase)
+                )
                 active = c.get(device) == data.calibration_name
-                row = f"{data.calibration_name:<50}{data.created_at.strftime('%Y-%m-%d %H:%M:%S'):<25}{'✅' if active else '':<10}{file}"
+                row = f"{data.calibration_name:<50}{data.created_at.strftime('%Y-%m-%d %H:%M:%S'):<25}{'✅' if active else '':<10}{location}"
                 click.echo(row)
             except Exception as e:
-                error_message = f"Error reading {file.stem}: {e}"
+                error_message = f"Error reading {name}: {e}"
                 click.echo(f"{error_message:<60}")
 
 

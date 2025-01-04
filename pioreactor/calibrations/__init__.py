@@ -61,7 +61,7 @@ class DurationBasedMediaPumpProtocol(CalibrationProtocol):
     def run(self) -> structs.SimplePeristalticPumpCalibration:
         from pioreactor.calibrations.pump_calibration import run_pump_calibration
 
-        return run_pump_calibration()
+        return run_pump_calibration(self.target_device)
 
 
 class DurationBasedAltMediaPumpProtocol(CalibrationProtocol):
@@ -71,7 +71,7 @@ class DurationBasedAltMediaPumpProtocol(CalibrationProtocol):
     def run(self) -> structs.SimplePeristalticPumpCalibration:
         from pioreactor.calibrations.pump_calibration import run_pump_calibration
 
-        return run_pump_calibration()
+        return run_pump_calibration(self.target_device)
 
 
 class DurationBasedWasteMediaPumpProtocol(CalibrationProtocol):
@@ -81,7 +81,7 @@ class DurationBasedWasteMediaPumpProtocol(CalibrationProtocol):
     def run(self) -> structs.SimplePeristalticPumpCalibration:
         from pioreactor.calibrations.pump_calibration import run_pump_calibration
 
-        return run_pump_calibration()
+        return run_pump_calibration(self.target_device)
 
 
 class DCBasedStirringProtocol(CalibrationProtocol):
@@ -134,3 +134,11 @@ def load_calibration(device: str, calibration_name: str) -> structs.AnyCalibrati
         return data
     except ValidationError as e:
         raise ValidationError(f"Error reading {target_file.stem}: {e}")
+
+
+def list_of_calibrations_by_device(device: str) -> list[str]:
+    calibration_dir = CALIBRATION_PATH / device
+    if not calibration_dir.exists():
+        return []
+
+    return [file.stem for file in calibration_dir.glob("*.yaml")]

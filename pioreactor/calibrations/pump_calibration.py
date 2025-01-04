@@ -24,13 +24,12 @@ from pioreactor import structs
 from pioreactor.actions.pump import add_alt_media
 from pioreactor.actions.pump import add_media
 from pioreactor.actions.pump import remove_waste
-from pioreactor.calibrations import load_active_calibration
+from pioreactor.calibrations import list_of_calibrations_by_device
 from pioreactor.calibrations.utils import curve_to_callable
 from pioreactor.config import config
 from pioreactor.hardware import voltage_in_aux
 from pioreactor.logging import create_logger
 from pioreactor.types import PumpCalibrationDevices
-from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import managed_lifecycle
 from pioreactor.utils.math_helpers import correlation
 from pioreactor.utils.math_helpers import simple_linear_regression_with_forced_nil_intercept
@@ -53,84 +52,53 @@ def bold(string: str) -> str:
     return style(string, bold=True)
 
 
-def introduction() -> None:
+def introduction(pump_device) -> None:
     import logging
 
     logging.disable(logging.WARNING)
 
     echo(
-        """This routine will calibrate the pumps on your current Pioreactor. You'll need:
+        f"""This routine will calibrate the {pump_device} on your current Pioreactor. You'll need:
 
     1. A Pioreactor
     2. A vial placed on a scale with accuracy at least 0.1g
        OR an accurate graduated cylinder.
     3. A larger container filled with water
-    4. A pump connected to the correct PWM channel (1, 2, 3, or 4) as determined in your Configuration.
+    4. {pump_device} connected to the correct PWM channel (1, 2, 3, or 4) as determined in your configuration.
 
 We will dose for a set duration, you'll measure how much volume was expelled, and then record it back here. After doing this a few times, we can construct a calibration line for this pump.
 """
     )
-    confirm(green("Proceed?"))
+    confirm(green("Proceed?"), abort=True, default=True)
     clear()
     echo(
         "You don't need to place your vial in your Pioreactor. While performing this calibration, keep liquids away from the Pioreactor to keep it safe & dry"
     )
-    confirm(green("Proceed?"))
+    confirm(green("Proceed?"), abort=True, default=True)
     clear()
 
 
 def get_metadata_from_user(pump_device: PumpCalibrationDevices) -> str:
-    with local_persistent_storage("pump_calibrations") as cache:
-        while True:
-            name = prompt(
-                style(
-                    f"Optional: Provide a name for this calibration. [enter] to use default name `{pump_device}-{current_utc_datestamp()}`",
-                    fg="green",
-                ),
-                type=str,
-                default=f"{pump_device}-{current_utc_datestamp()}",
-                show_default=False,
-            ).strip()
-            if name == "":
-                echo("Name cannot be empty")
-                continue
-            elif name in cache:
-                if confirm(green("❗️ Name already exists. Do you wish to overwrite?")):
-                    break
-            elif name == "current":
-                echo("Name cannot be `current`.")
-                continue
-            else:
+    existing_calibrations = list_of_calibrations_by_device(pump_device)
+    while True:
+        name = prompt(
+            style(
+                f"Optional: Provide a name for this {pump_device} calibration. [enter] to use default name `{pump_device}-{current_utc_datestamp()}`",
+                fg="green",
+            ),
+            type=str,
+            default=f"{pump_device}-{current_utc_datestamp()}",
+            show_default=False,
+        ).strip()
+        if name == "":
+            echo("Name cannot be empty")
+            continue
+        elif name in existing_calibrations:
+            if confirm(green("❗️ Name already exists. Do you wish to overwrite?")):
                 break
+        else:
+            break
     return name
-
-
-def which_pump_are_you_calibrating() -> tuple[PumpCalibrationDevices, Callable]:
-    m = load_active_calibration("media_pump")
-    a = load_active_calibration("alt_media_pump")
-    w = load_active_calibration("waste_pump")
-
-    echo(green(bold("Step 1")))
-    r = prompt(
-        green(
-            f"""Which pump are you calibrating?
-1. Media       {f'[{m.calibration_name}, last ran {m.created_at:%d %b, %Y}]' if m else '[No calibration]'}
-2. Alt-media   {f'[{a.calibration_name}, last ran {a.created_at:%d %b, %Y}]' if a else '[No calibration]'}
-3. Waste       {f'[{w.calibration_name}, last ran {w.created_at:%d %b, %Y}]' if w else '[No calibration]'}
-""",
-        ),
-        type=click.Choice(["1", "2", "3"]),
-        show_choices=True,
-    )
-
-    if r == "1":
-        return ("media_pump", add_media)
-    elif r == "2":
-        return ("alt_media_pump", add_alt_media)
-    elif r == "3":
-        return ("waste_pump", remove_waste)
-    else:
-        raise ValueError()
 
 
 def setup(
@@ -208,10 +176,10 @@ def choose_settings() -> tuple[float, float]:
     )
     dc = prompt(
         green(
-            "Optional: Enter duty cycle percent as a whole number. [enter] for default 95%",
+            "Optional: Enter duty cycle percent as a whole number. [enter] for default 100%",
         ),
         type=click.IntRange(0, 100),
-        default=95,
+        default=100,
         show_default=False,
     )
 
@@ -361,7 +329,7 @@ def save_results(
 
 
 def run_pump_calibration(
-    min_duration: float = 0.40, max_duration: float = 1.5
+    pump_device, min_duration: float = 0.40, max_duration: float = 1.5
 ) -> structs.SimplePeristalticPumpCalibration:
     unit = get_unit_name()
     experiment = get_assigned_experiment_name(unit)
@@ -371,9 +339,17 @@ def run_pump_calibration(
 
     with managed_lifecycle(unit, experiment, "pump_calibration"):
         clear()
-        introduction()
+        introduction(pump_device)
 
-        pump_device, execute_pump = which_pump_are_you_calibrating()
+        if pump_device == "media_pump":
+            execute_pump = add_media
+        elif pump_device == "alt_media_pump":
+            execute_pump = add_alt_media
+        elif pump_device == "waste_pump":
+            execute_pump = remove_waste
+        else:
+            raise ValueError()
+
         name = get_metadata_from_user(pump_device)
 
         is_ready = True
