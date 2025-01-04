@@ -15,7 +15,7 @@ from pioreactor.utils import local_persistent_storage
 
 
 @click.group(short_help="calibration utils")
-def calibration():
+def calibration() -> None:
     """
     interface for all calibrations.
     """
@@ -24,7 +24,7 @@ def calibration():
 
 @calibration.command(name="list")
 @click.option("--device", required=True)
-def list_calibrations(device: str):
+def list_calibrations(device: str) -> None:
     """
     List existing calibrations for the given device.
     """
@@ -55,11 +55,14 @@ def list_calibrations(device: str):
 )
 @click.option("--protocol-name", required=False, help="name of protocol, defaults to basic builtin protocol")
 @click.pass_context
-def run_calibration(ctx, device: str, protocol_name: str | None):
+def run_calibration(ctx, device: str, protocol_name: str | None) -> None:
     """
     Run an interactive calibration assistant for a specific protocol.
     On completion, stores a YAML file in: /home/pioreactor/.pioreactor/storage/calibrations/<device>/<calibration_name>.yaml
     """
+
+    if "--protocol" in ctx.args:
+        raise click.UsageError("Please use --protocol-name instead of --protocol")
 
     DEFAULT_PROTOCOLS = {
         "od": "single_vial",
@@ -82,11 +85,12 @@ def run_calibration(ctx, device: str, protocol_name: str | None):
         raise click.Abort()
 
     # Run the assistant function to get the final calibration data
+
     calibration_struct = assistant().run(
         **{ctx.args[i][2:].replace("-", "_"): ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},
     )
 
-    out_file = calibration_struct.save_to_disk(device)
+    out_file = calibration_struct.save_to_disk_for_device(device)
     calibration_struct.set_as_active_calibration_for_device(device)
 
     # post to leader??
@@ -99,7 +103,7 @@ def run_calibration(ctx, device: str, protocol_name: str | None):
 @calibration.command(name="display")
 @click.option("--device", required=True, help="Calibration device.")
 @click.option("--name", "calibration_name", required=True, help="Name of calibration to display.")
-def display_calibration(device: str, calibration_name: str):
+def display_calibration(device: str, calibration_name: str) -> None:
     """
     Display the contents of a calibration YAML file.
     """
@@ -126,7 +130,7 @@ def display_calibration(device: str, calibration_name: str):
 @calibration.command(name="set-active")
 @click.option("--device", required=True, help="Which calibration device to set as active.")
 @click.option("--name", "calibration_name", required=False, help="Which calibration name to set as active.")
-def set_active_calibration(device: str, calibration_name: str | None):
+def set_active_calibration(device: str, calibration_name: str | None) -> None:
     """
     Mark a specific calibration as 'active' for that calibration device.
     """
@@ -145,7 +149,7 @@ def set_active_calibration(device: str, calibration_name: str | None):
 @click.option("--device", required=True, help="Which calibration device to delete from.")
 @click.option("--name", "calibration_name", required=True, help="Which calibration name to delete.")
 @click.confirmation_option(prompt="Are you sure you want to delete this calibration?")
-def delete_calibration(device: str, calibration_name: str):
+def delete_calibration(device: str, calibration_name: str) -> None:
     """
     Delete a calibration file from local storage.
 
