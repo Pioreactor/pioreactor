@@ -17,7 +17,6 @@ from click import confirm
 from click import echo
 from click import prompt
 from click import style
-from msgspec.json import decode
 from msgspec.json import encode
 from msgspec.json import format
 
@@ -25,6 +24,7 @@ from pioreactor import structs
 from pioreactor.actions.pump import add_alt_media
 from pioreactor.actions.pump import add_media
 from pioreactor.actions.pump import remove_waste
+from pioreactor.calibrations import load_active_calibration
 from pioreactor.calibrations.utils import curve_to_callable
 from pioreactor.config import config
 from pioreactor.hardware import voltage_in_aux
@@ -106,38 +106,17 @@ def get_metadata_from_user(pump_device: PumpCalibrationDevices) -> str:
 
 
 def which_pump_are_you_calibrating() -> tuple[PumpCalibrationDevices, Callable]:
-    with local_persistent_storage("active_calibrations") as cache:
-        has_media = "media_pump" in cache
-        has_waste = "waste_pump" in cache
-        has_alt_media = "alt_media_pump" in cache
-
-        if has_media:
-            media_timestamp = decode(cache["media"], type=structs.SimplePeristalticPumpCalibration).created_at
-            media_name = decode(
-                cache["media"], type=structs.SimplePeristalticPumpCalibration
-            ).calibration_name
-
-        if has_waste:
-            waste_timestamp = decode(cache["waste"], type=structs.SimplePeristalticPumpCalibration).created_at
-            waste_name = decode(
-                cache["waste"], type=structs.SimplePeristalticPumpCalibration
-            ).calibration_name
-
-        if has_alt_media:
-            alt_media_timestamp = decode(
-                cache["alt_media"], type=structs.SimplePeristalticPumpCalibration
-            ).created_at
-            alt_media_name = decode(
-                cache["alt_media"], type=structs.SimplePeristalticPumpCalibration
-            ).calibration_name
+    m = load_active_calibration("media_pump")
+    a = load_active_calibration("alt_media_pump")
+    w = load_active_calibration("waste_pump")
 
     echo(green(bold("Step 1")))
     r = prompt(
         green(
             f"""Which pump are you calibrating?
-1. Media       {f'[{media_name}, last ran {media_timestamp:%d %b, %Y}]' if has_media else '[No calibration]'}
-2. Alt-media   {f'[{alt_media_name}, last ran {alt_media_timestamp:%d %b, %Y}]' if has_alt_media else '[No calibration]'}
-3. Waste       {f'[{waste_name}, last ran {waste_timestamp:%d %b, %Y}]' if has_waste else '[No calibration]'}
+1. Media       {f'[{m.calibration_name}, last ran {m.created_at:%d %b, %Y}]' if m else '[No calibration]'}
+2. Alt-media   {f'[{a.calibration_name}, last ran {a.created_at:%d %b, %Y}]' if a else '[No calibration]'}
+3. Waste       {f'[{w.calibration_name}, last ran {w.created_at:%d %b, %Y}]' if w else '[No calibration]'}
 """,
         ),
         type=click.Choice(["1", "2", "3"]),

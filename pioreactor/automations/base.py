@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from typing import Optional
-
 from msgspec.json import encode
 
 from pioreactor import structs
@@ -49,7 +47,7 @@ class AutomationJob(BackgroundJob):
     def on_init_to_ready(self) -> None:
         self.start_passive_listeners()
 
-    def execute(self) -> Optional[events.AutomationEvent]:
+    def execute(self) -> events.AutomationEvent | None:
         """
         Overwrite in subclass
         """

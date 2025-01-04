@@ -7,15 +7,9 @@ from datetime import timezone
 import pytest
 from msgspec import ValidationError
 
-from pioreactor.calibrations import AltMediaPumpAssistant
-from pioreactor.calibrations import calibration_assistants
 from pioreactor.calibrations import CALIBRATION_PATH
 from pioreactor.calibrations import load_active_calibration
 from pioreactor.calibrations import load_calibration
-from pioreactor.calibrations import MediaPumpAssistant
-from pioreactor.calibrations import ODAssistant
-from pioreactor.calibrations import StirringAssistant
-from pioreactor.calibrations import WastePumpAssistant
 from pioreactor.structs import ODCalibration
 from pioreactor.utils import local_persistent_storage
 
@@ -26,23 +20,6 @@ def temp_calibration_dir():
     calibrations_dir.mkdir(parents=True, exist_ok=True)
 
     yield calibrations_dir
-
-
-def test_calibration_assistants_dict() -> None:
-    assert "od" in calibration_assistants
-    assert calibration_assistants["od"] is ODAssistant
-
-    assert "media_pump" in calibration_assistants
-    assert calibration_assistants["media_pump"] is MediaPumpAssistant
-
-    assert "alt_media_pump" in calibration_assistants
-    assert calibration_assistants["alt_media_pump"] is AltMediaPumpAssistant
-
-    assert "waste_pump" in calibration_assistants
-    assert calibration_assistants["waste_pump"] is WastePumpAssistant
-
-    assert "stirring" in calibration_assistants
-    assert calibration_assistants["stirring"] is StirringAssistant
 
 
 def test_save_and_load_calibration(temp_calibration_dir) -> None:

@@ -5,12 +5,14 @@ from pathlib import Path
 from typing import Callable
 from typing import Literal
 from typing import overload
+from typing import Type
 
 from msgspec import ValidationError
 from msgspec.yaml import decode as yaml_decode
 from msgspec.yaml import encode as yaml_encode
 
 from pioreactor import structs
+from pioreactor.types import PumpCalibrationDevices
 from pioreactor.utils import local_persistent_storage
 from pioreactor.whoami import is_testing_env
 
@@ -19,22 +21,22 @@ if not is_testing_env():
 else:
     CALIBRATION_PATH = Path(".pioreactor/storage/calibrations/")
 
-# Lookup table for different calibration assistants
-calibration_assistants = {}
+# Lookup table for different calibration protocols
+calibration_protocols: dict[tuple[str, str], Type[CalibrationProtocol]] = {}
 
 
-class CalibrationAssistant:
+class CalibrationProtocol:
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        calibration_assistants[cls.target_device] = cls
+        calibration_protocols[(cls.target_device, cls.protocol_name)] = cls
 
     def run(self, *args, **kwargs):
         raise NotImplementedError("Subclasses must implement this method.")
 
 
-class ODAssistant(CalibrationAssistant):
+class SingleVialODProtocol(CalibrationProtocol):
     target_device = "od"
-    calibration_struct = structs.ODCalibration
+    protocol_name = "single_vial"
 
     def run(self) -> structs.ODCalibration:
         from pioreactor.calibrations.od_calibration import run_od_calibration
@@ -42,9 +44,19 @@ class ODAssistant(CalibrationAssistant):
         return run_od_calibration()
 
 
-class MediaPumpAssistant(CalibrationAssistant):
+class BatchVialODProtocol(CalibrationProtocol):
+    target_device = "od"
+    protocol_name = "batch_vial"
+
+    def run(self) -> structs.ODCalibration:
+        from pioreactor.calibrations.od_calibration import run_od_calibration
+
+        return run_od_calibration()
+
+
+class DurationBasedMediaPumpProtocol(CalibrationProtocol):
     target_device = "media_pump"
-    calibration_struct = structs.SimplePeristalticPumpCalibration
+    protocol_name = "duration_based"
 
     def run(self) -> structs.SimplePeristalticPumpCalibration:
         from pioreactor.calibrations.pump_calibration import run_pump_calibration
@@ -52,9 +64,9 @@ class MediaPumpAssistant(CalibrationAssistant):
         return run_pump_calibration()
 
 
-class AltMediaPumpAssistant(CalibrationAssistant):
+class DurationBasedAltMediaPumpProtocol(CalibrationProtocol):
     target_device = "alt_media_pump"
-    calibration_struct = structs.SimplePeristalticPumpCalibration
+    protocol_name = "duration_based"
 
     def run(self) -> structs.SimplePeristalticPumpCalibration:
         from pioreactor.calibrations.pump_calibration import run_pump_calibration
@@ -62,9 +74,9 @@ class AltMediaPumpAssistant(CalibrationAssistant):
         return run_pump_calibration()
 
 
-class WastePumpAssistant(CalibrationAssistant):
+class DurationBasedWasteMediaPumpProtocol(CalibrationProtocol):
     target_device = "waste_pump"
-    calibration_struct = structs.SimplePeristalticPumpCalibration
+    protocol_name = "duration_based"
 
     def run(self) -> structs.SimplePeristalticPumpCalibration:
         from pioreactor.calibrations.pump_calibration import run_pump_calibration
@@ -72,9 +84,9 @@ class WastePumpAssistant(CalibrationAssistant):
         return run_pump_calibration()
 
 
-class StirringAssistant(CalibrationAssistant):
+class DCBasedStirringProtocol(CalibrationProtocol):
     target_device = "stirring"
-    calibration_struct = structs.SimpleStirringCalibration
+    protocol_name = "dc_based"
 
     def run(self, min_dc: str | None = None, max_dc: str | None = None) -> structs.SimpleStirringCalibration:
         from pioreactor.calibrations.stirring_calibration import run_stirring_calibration
@@ -90,9 +102,7 @@ def load_active_calibration(device: Literal["od"]) -> structs.ODCalibration:
 
 
 @overload
-def load_active_calibration(
-    device: Literal["media_pump", "waste_pump", "alt_media_pump"]
-) -> structs.SimplePeristalticPumpCalibration:
+def load_active_calibration(device: PumpCalibrationDevices) -> structs.SimplePeristalticPumpCalibration:
     pass
 
 
@@ -119,10 +129,8 @@ def load_calibration(device: str, calibration_name: str) -> structs.AnyCalibrati
             f"Calibration {calibration_name} was not found in {CALIBRATION_PATH / device}"
         )
 
-    assistant = calibration_assistants[device]
-
     try:
-        data = yaml_decode(target_file.read_bytes(), type=assistant.calibration_struct)
+        data = yaml_decode(target_file.read_bytes(), type=structs.subclass_union(structs.CalibrationBase))
         return data
     except ValidationError as e:
         raise ValidationError(f"Error reading {target_file.stem}: {e}")
