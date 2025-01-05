@@ -8,6 +8,7 @@ from msgspec.yaml import encode as yaml_encode
 from pioreactor import structs
 from pioreactor.calibrations import CALIBRATION_PATH
 from pioreactor.calibrations import calibration_protocols
+from pioreactor.calibrations import list_devices
 from pioreactor.calibrations import list_of_calibrations_by_device
 from pioreactor.calibrations import load_calibration
 from pioreactor.calibrations.utils import curve_to_callable
@@ -24,17 +25,27 @@ def calibration() -> None:
 
 
 @calibration.command(name="list")
-@click.option("--device", required=True)
-def list_calibrations(device: str) -> None:
+@click.option("--device", required=False)
+def list_calibrations(device: str | None) -> None:
     """
-    List existing calibrations for the given device.
+    List existing calibrations for the given device if provided, else all.
     """
+    if device is None:
+        for device in list_devices():
+            _display_calibrations_by_device(device)
+            click.echo()
+            click.echo()
+    else:
+        _display_calibrations_by_device(device)
+
+
+def _display_calibrations_by_device(device: str) -> None:
     calibration_dir = CALIBRATION_PATH / device
     if not calibration_dir.exists():
         click.echo(f"No calibrations found for device '{device}'. Directory does not exist.")
         raise click.Abort()
 
-    header = f"{'Name':<50}{'Created At':<25}{'Active?':<10}{'Location':<75}"
+    header = f"{'Device':<25}{'Name':<50}{'Created At':<25}{'Active?':<10}{'Location':<75}"
     click.echo(header)
     click.echo("-" * len(header))
 
@@ -46,7 +57,7 @@ def list_calibrations(device: str) -> None:
                     location.read_bytes(), type=structs.subclass_union(structs.CalibrationBase)
                 )
                 active = c.get(device) == data.calibration_name
-                row = f"{data.calibration_name:<50}{data.created_at.strftime('%Y-%m-%d %H:%M:%S'):<25}{'✅' if active else '':<10}{location}"
+                row = f"{device:<25}{data.calibration_name:<50}{data.created_at.strftime('%Y-%m-%d %H:%M:%S'):<25}{'✅' if active else '':<10}{location}"
                 click.echo(row)
             except Exception as e:
                 error_message = f"Error reading {name}: {e}"

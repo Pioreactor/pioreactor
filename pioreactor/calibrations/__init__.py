@@ -142,3 +142,11 @@ def list_of_calibrations_by_device(device: str) -> list[str]:
         return []
 
     return [file.stem for file in calibration_dir.glob("*.yaml")]
+
+
+def list_devices() -> list[str]:
+    calibration_dir = CALIBRATION_PATH
+    if not calibration_dir.exists():
+        return []
+
+    return [f.name for f in calibration_dir.iterdir() if f.is_dir()]
