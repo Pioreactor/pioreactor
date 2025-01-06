@@ -137,11 +137,11 @@ def load_calibration(device: str, calibration_name: str) -> structs.AnyCalibrati
 
 
 def list_of_calibrations_by_device(device: str) -> list[str]:
-    calibration_dir = CALIBRATION_PATH / device
-    if not calibration_dir.exists():
+    device_dir = CALIBRATION_PATH / device
+    if not device_dir.exists():
         return []
 
-    return [file.stem for file in calibration_dir.glob("*.yaml")]
+    return [file.stem for file in device_dir.glob("*.yaml")]
 
 
 def list_devices() -> list[str]:

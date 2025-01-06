@@ -484,8 +484,6 @@ def save_results(
         pd_channel=pd_channel,
     )
 
-    data_blob.save_to_disk_for_device("od")
-
     return data_blob
 
 
@@ -540,9 +538,6 @@ def run_od_calibration() -> structs.ODCalibration:
             pd_channel,
             unit,
         )
-
-        echo("Setting as the active calibration...")
-        data_blob.set_as_active_calibration_for_device("od")
 
         echo(style(f"Calibration curve for `{name}`", underline=True, bold=True))
         echo(utils.curve_to_functional_form(curve_type, curve_data_))

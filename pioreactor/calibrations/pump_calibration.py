@@ -323,7 +323,6 @@ def save_results(
         voltage=voltage_in_aux(),
         recorded_data={"x": durations, "y": volumes},
     )
-    pump_calibration_result.save_to_disk_for_device(pump_device)
 
     return pump_calibration_result
 

@@ -106,9 +106,11 @@ def run_calibration(ctx, device: str, protocol_name: str | None) -> None:
     )
 
     out_file = calibration_struct.save_to_disk_for_device(device)
-    calibration_struct.set_as_active_calibration_for_device(device)
 
-    # post to leader??
+    if click.confirm(
+        f"Do you want to set this calibration as the Active Calibration for {device}?", default=True
+    ):
+        calibration_struct.set_as_active_calibration_for_device(device)
 
     click.echo(
         f"Calibration '{calibration_struct.calibration_name}' of device '{device}' saved to {out_file} ✅"
