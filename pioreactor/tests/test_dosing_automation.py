@@ -51,7 +51,7 @@ def setup_function() -> None:
         hz=100,
         created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
         voltage=-1.0,
-        pioreactor_unit=unit,
+        calibrated_on_pioreactor_unit=unit,
     )
     cal.set_as_active_calibration_for_device("media_pump")
     cal.set_as_active_calibration_for_device("alt_media_pump")

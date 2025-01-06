@@ -26,7 +26,7 @@ def test_save_and_load_calibration(temp_calibration_dir) -> None:
     # 1. Create an ODCalibration object (fully valid).
     od_cal = ODCalibration(
         calibration_name="my_test_cal",
-        pioreactor_unit="unitA",
+        calibrated_on_pioreactor_unit="unitA",
         created_at=datetime.now(timezone.utc),
         curve_data_=[1.0, 2.0, 3.0],
         curve_type="poly",

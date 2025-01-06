@@ -163,7 +163,7 @@ def test_stirring_with_calibration() -> None:
     linear_term, constant_term = 10, -5
     cal = SimpleStirringCalibration(
         calibration_name="test_stirring_with_calibration",
-        pioreactor_unit=unit,
+        calibrated_on_pioreactor_unit=unit,
         created_at=current_utc_datetime(),
         curve_data_=[linear_term, constant_term],
         curve_type="poly",

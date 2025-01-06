@@ -42,7 +42,7 @@ def setup_function():
         hz=100,
         created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
         voltage=-1.0,
-        pioreactor_unit=unit,
+        calibrated_on_pioreactor_unit=unit,
     )
     cal.set_as_active_calibration_for_device("media_pump")
     cal.set_as_active_calibration_for_device("alt_media_pump")
@@ -189,7 +189,7 @@ def test_pump_can_be_interrupted() -> None:
         hz=100,
         created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
         voltage=-1.0,
-        pioreactor_unit=unit,
+        calibrated_on_pioreactor_unit=unit,
     )
 
     with PWMPump(unit=unit, experiment=experiment, pin=13, calibration=calibration) as p:
@@ -236,7 +236,7 @@ def test_pumps_can_run_in_background() -> None:
         hz=100,
         created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
         voltage=-1.0,
-        pioreactor_unit=unit,
+        calibrated_on_pioreactor_unit=unit,
     )
     with PWMPump(unit=unit, experiment=experiment, pin=13, calibration=calibration) as p:
         with local_intermittent_storage("pwm_dc") as cache:
@@ -298,7 +298,7 @@ def test_media_circulation_will_control_media_pump_if_it_has_a_higher_flow_rate(
         hz=100,
         created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
         voltage=-1.0,
-        pioreactor_unit=unit,
+        calibrated_on_pioreactor_unit=unit,
     ).set_as_active_calibration_for_device("media_pump")
 
     structs.SimplePeristalticPumpCalibration(
@@ -310,7 +310,7 @@ def test_media_circulation_will_control_media_pump_if_it_has_a_higher_flow_rate(
         hz=100,
         created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
         voltage=-1.0,
-        pioreactor_unit=unit,
+        calibrated_on_pioreactor_unit=unit,
     ).set_as_active_calibration_for_device("waste_pump")
 
     media_added, waste_removed = circulate_media(5.0, unit, exp)
@@ -329,7 +329,7 @@ def test_media_circulation_will_control_media_pump_if_it_has_a_lower_flow_rate()
         hz=100,
         created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
         voltage=-1.0,
-        pioreactor_unit=unit,
+        calibrated_on_pioreactor_unit=unit,
     ).set_as_active_calibration_for_device("media_pump")
 
     structs.SimplePeristalticPumpCalibration(
@@ -341,7 +341,7 @@ def test_media_circulation_will_control_media_pump_if_it_has_a_lower_flow_rate()
         hz=100,
         created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
         voltage=-1.0,
-        pioreactor_unit=unit,
+        calibrated_on_pioreactor_unit=unit,
     ).set_as_active_calibration_for_device("waste_pump")
 
     media_added, waste_removed = circulate_media(5.0, unit, exp)

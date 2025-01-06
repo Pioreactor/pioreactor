@@ -32,7 +32,7 @@ from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 
 DEFAULT_PWM_CALIBRATION = structs.SimplePeristalticPumpCalibration(
-    pioreactor_unit=get_unit_name(),
+    calibrated_on_pioreactor_unit=get_unit_name(),
     created_at=default_datetime_for_pioreactor(),
     hz=200.0,
     dc=100.0,

@@ -154,7 +154,7 @@ def setup(
                 hz=hz,
                 dc=dc,
                 voltage=voltage_in_aux(),
-                pioreactor_unit=unit,
+                calibrated_on_pioreactor_unit=unit,
                 recorded_data={"x": [], "y": []},
             ),
         )
@@ -233,7 +233,7 @@ def run_tests(
         dc=dc,
         created_at=current_utc_datetime(),
         voltage=voltage_in_aux(),
-        pioreactor_unit=unit,
+        calibrated_on_pioreactor_unit=unit,
         recorded_data={"x": [], "y": []},
     )
 
@@ -314,7 +314,7 @@ def save_results(
 ) -> structs.SimplePeristalticPumpCalibration:
     pump_calibration_result = structs.SimplePeristalticPumpCalibration(
         calibration_name=name,
-        pioreactor_unit=unit,
+        calibrated_on_pioreactor_unit=unit,
         created_at=current_utc_datetime(),
         curve_type="poly",
         curve_data_=[duration_, bias_],

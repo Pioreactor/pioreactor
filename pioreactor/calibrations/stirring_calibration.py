@@ -118,7 +118,7 @@ def run_stirring_calibration(
             pwm_hz=config.getfloat("stirring.config", "pwm_hz"),
             voltage=voltage_in_aux(),
             calibration_name=f"stirring-calibration-{current_utc_datetime().strftime('%Y-%m-%d_%H-%M-%S')}",
-            pioreactor_unit=unit,
+            calibrated_on_pioreactor_unit=unit,
             created_at=current_utc_datetime(),
             curve_data_=[rpm_coef, intercept],
             curve_type="poly",

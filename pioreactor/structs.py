@@ -141,7 +141,7 @@ class Voltage(JSONPrintedStruct):
 
 class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
     calibration_name: str
-    pioreactor_unit: str
+    calibrated_on_pioreactor_unit: str
     created_at: t.Annotated[datetime, Meta(tz=True)]
     curve_data_: list[float]
     curve_type: str  # ex: "poly"

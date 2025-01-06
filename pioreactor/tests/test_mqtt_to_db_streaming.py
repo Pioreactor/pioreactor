@@ -134,7 +134,7 @@ def test_dosing_events_land_in_db() -> None:
                 hz=100,
                 created_at=current_utc_datetime(),
                 voltage=-1.0,
-                pioreactor_unit=unit,
+                calibrated_on_pioreactor_unit=unit,
             ),
         )
 

@@ -638,7 +638,7 @@ def test_calibration_simple_linear_calibration_positive_slope() -> None:
         x="voltage",
         y="od600s",
         pd_channel="2",
-        pioreactor_unit=get_unit_name(),
+        calibrated_on_pioreactor_unit=get_unit_name(),
     )
 
     cal.set_as_active_calibration_for_device("od")
@@ -692,7 +692,7 @@ def test_calibration_simple_linear_calibration_negative_slope() -> None:
         x="voltage",
         y="od600s",
         pd_channel="2",
-        pioreactor_unit=get_unit_name(),
+        calibrated_on_pioreactor_unit=get_unit_name(),
     )
 
     cal.set_as_active_calibration_for_device("od")
@@ -737,7 +737,7 @@ def test_calibration_simple_quadratic_calibration() -> None:
         x="voltage",
         y="od600s",
         pd_channel="2",
-        pioreactor_unit=get_unit_name(),
+        calibrated_on_pioreactor_unit=get_unit_name(),
     )
 
     cal.set_as_active_calibration_for_device("od")
@@ -770,7 +770,7 @@ def test_calibration_multi_modal() -> None:
         x="voltage",
         y="od600s",
         pd_channel="2",
-        pioreactor_unit=get_unit_name(),
+        calibrated_on_pioreactor_unit=get_unit_name(),
     )
 
     cal.set_as_active_calibration_for_device("od")
@@ -801,7 +801,7 @@ def test_calibration_errors_when_ir_led_differs() -> None:
             x="voltage",
             y="od600s",
             pd_channel="2",
-            pioreactor_unit=get_unit_name(),
+            calibrated_on_pioreactor_unit=get_unit_name(),
         )
 
         cal.set_as_active_calibration_for_device("od")
@@ -846,7 +846,7 @@ def test_calibration_with_irl_data1() -> None:
         x="voltage",
         y="od600s",
         pd_channel="2",
-        pioreactor_unit=get_unit_name(),
+        calibrated_on_pioreactor_unit=get_unit_name(),
     )
 
     cal.set_as_active_calibration_for_device("od")
@@ -929,7 +929,7 @@ def test_calibration_data_from_user1() -> None:
         x="voltage",
         y="od600s",
         pd_channel="2",
-        pioreactor_unit=get_unit_name(),
+        calibrated_on_pioreactor_unit=get_unit_name(),
     )
 
     calibration.set_as_active_calibration_for_device("od")
@@ -971,7 +971,7 @@ def test_calibration_data_from_user2() -> None:
         x="voltage",
         y="od600s",
         pd_channel="2",
-        pioreactor_unit=get_unit_name(),
+        calibrated_on_pioreactor_unit=get_unit_name(),
     )
 
     cal.set_as_active_calibration_for_device("od")
@@ -1047,7 +1047,7 @@ def test_CachedCalibrationTransformer_with_real_calibration() -> None:
         ir_led_intensity=50,
         pd_channel="2",
         created_at=current_utc_datetime(),
-        pioreactor_unit="pio1",
+        calibrated_on_pioreactor_unit="pio1",
         recorded_data={
             "x": [
                 1.359234153183015,

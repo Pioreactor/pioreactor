@@ -468,7 +468,7 @@ def save_results(
 ) -> structs.ODCalibration:
     data_blob = structs.ODCalibration(
         created_at=current_utc_datetime(),
-        pioreactor_unit=unit,
+        calibrated_on_pioreactor_unit=unit,
         calibration_name=name,
         angle=angle,
         maximum_od600=max(od600s),
