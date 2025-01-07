@@ -28,9 +28,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Sidebar, Menu, MenuItem, SubMenu} from "react-pro-sidebar";
 import { useExperiment } from '../providers/ExperimentContext';
 import AddIcon from '@mui/icons-material/Add';
-//import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
-// import KeyboardDoubleArrowRightOutlinedIcon from '@mui/icons-material/KeyboardDoubleArrowRightOutlined';
-//import DoubleArrowOutlinedIcon from '@mui/icons-material/DoubleArrowOutlined';
+import TuneIcon from '@mui/icons-material/Tune';
+
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 
 const ExpIcon = PlayCircleOutlinedIcon
@@ -374,6 +373,15 @@ export default function SideNavAndHeader() {
                   </MenuItem>
 
                 </SubMenu>
+
+                <MenuItem
+                  icon={<TuneIcon sx={{fontSize: "23px"}}/> }
+                  component={<Link to="/calibrations" className="link" />}
+                  active={isSelected("/calibrations")}
+                  onClick={() => setOpenSubmenu("calibrations")}
+                  >
+                  Calibrations
+                </MenuItem>
 
                 <MenuItem
                   icon={<SaveAltIcon sx={{fontSize: "23px"}}/> }

@@ -124,7 +124,7 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
               ))}
               <TableRow key="all">
                 <TableCell style={{ padding: '6px 0px' }} component="th" scope="row">
-                  <Chip size="small" icon={<PioreactorsIcon/>} label="All Pioreactors" sx={{backgroundColor: "white"}} />
+                  <Chip size="small" icon={<PioreactorsIcon/>} label="All assigned Pioreactors" sx={{backgroundColor: "white"}} />
                 </TableCell>
                 <TableCell align="right" style={{ fontSize: 13, padding: '6px 0px' }}>
                   {(mediaThroughput || 0).toFixed(1)}mL (~{rates.all.mediaRate.toFixed(1)}mL/h)

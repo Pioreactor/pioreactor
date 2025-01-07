@@ -153,7 +153,7 @@ function LogTableByUnit({ experiment, unit, level="info" }) {
 
   const handleSubmitDialog = async (newLog) => {
     try {
-      const response = await fetch(`/api/units/${newLog.pioreactor_unit}/experiments/${newLog.experiment}/logs`, {
+      const response = await fetch(`/api/workers/${newLog.pioreactor_unit}/experiments/${newLog.experiment}/logs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newLog),

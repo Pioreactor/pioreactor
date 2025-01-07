@@ -23,6 +23,7 @@ import Leader from "./Leader";
 import Logs from "./Logs";
 //import Analysis from "./Analysis";
 import Experiments from "./Experiments";
+import Calibrations from "./Calibrations";
 import SideNavAndHeader from "./components/SideNavAndHeader";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ConfirmProvider } from 'material-ui-confirm';
@@ -119,6 +120,7 @@ function MainSite() {
                   <Route path="/edit-experiment-profile" element={<EditExperimentProfile title="Pioreactor ~ Edit experiment profile"/>}/>
                   <Route path="/config" element={<EditConfig title="Pioreactor ~ Configuration"/>}/>
                   <Route path="/leader" element={<Leader title="Pioreactor ~ Leader"/>}/>
+                  <Route path="/calibrations" element={<Calibrations title="Pioreactor ~ Calibrations"/>}/>
                   <Route path="/pioreactors" element={ <Pioreactors title="Pioreactor ~ Pioreactors"/>}/>
                   <Route path="/pioreactors/:unit" element={ <Pioreactor title="Pioreactor ~ Pioreactor"/>}/>
                   <Route path="/updates" element={<Updates title="Pioreactor ~ Updates"/>}/>

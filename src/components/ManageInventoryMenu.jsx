@@ -34,7 +34,7 @@ function ManageInventoryMenu(){
       cancellationButtonProps: {color: "secondary"},
 
       }).then(() =>
-        fetch('/api/workers/$broadcast/system/reboot', {method: "POST"})
+        fetch('/api/units/$broadcast/system/reboot', {method: "POST"})
     );
 
   };
@@ -48,7 +48,7 @@ function ManageInventoryMenu(){
       cancellationButtonProps: {color: "secondary"},
 
       }).then(() =>
-        fetch('/api/workers/$broadcast/system/shutdown', {method: "POST"})
+        fetch('/api/units/$broadcast/system/shutdown', {method: "POST"})
       )
   };
   const handleUnassign = () => {

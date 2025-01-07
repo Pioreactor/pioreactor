@@ -7,6 +7,7 @@ import Chip from '@mui/material/Chip';
 import UnderlineSpan from "./UnderlineSpan";
 import CalculateOutlinedIcon from '@mui/icons-material/CalculateOutlined';
 import PioreactorIcon from "./PioreactorIcon"
+import PioreactorsIcon from './PioreactorsIcon';
 
 
 const DisplayProfileCard = {
@@ -513,7 +514,7 @@ export const DisplayProfile = ({ data }) => {
         <ParametersSection parameters={data.inputs} />
 
         {data?.common?.jobs && (Object.keys(data?.common?.jobs).length > 0) && <>
-          <Typography variant="subtitle2">Every Pioreactor does the following:</Typography>
+          <Typography variant="subtitle2">All assigned Pioreactors <PioreactorsIcon fontSize="15" sx={{verticalAlign: "middle", margin: "0px 2px 0px 0px"}} /> do:</Typography>
           <JobSection jobs={data?.common?.jobs} />
           </>
         }

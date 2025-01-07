@@ -203,7 +203,7 @@ function DirectoryNavigatorCard() {
 
   return (
     <Card sx={{minHeight: "300px"}}>
-      <CardContent>
+      <CardContent sx={{p:2}}>
          <Typography variant="h6" component="h2">
           <Box fontWeight="fontWeightRegular">File browser</Box>
         </Typography>
@@ -498,7 +498,7 @@ function LeaderJobs(){
 
   return (
     <Card >
-      <CardContent sx={{p: "10px 20px 20px 20px"}}>
+      <CardContent sx={{p: 2}}>
          <Typography variant="h6" component="h2">
           <Box fontWeight="fontWeightRegular">Long-running jobs</Box>
         </Typography>
