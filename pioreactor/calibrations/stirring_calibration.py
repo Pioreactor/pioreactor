@@ -99,20 +99,12 @@ def run_stirring_calibration(
             )
             raise ValueError("Not enough RPMs were measured.")
 
-        # since in practice, we want a look up from RPM -> required DC, we
-        # set x=measure_rpms, y=dcs
-        (rpm_coef, rpm_coef_std), (intercept, intercept_std) = simple_linear_regression(
-            filtered_dcs, filtered_measured_rpms
-        )
-        logger.debug(f"{rpm_coef=}, {rpm_coef_std=}, {intercept=}, {intercept_std=}")
+        (alpha, _), (beta, _) = simple_linear_regression(filtered_dcs, filtered_measured_rpms)
+        logger.debug(f"rpm = {alpha:.2f} * dc% + {beta:.2f}")
 
-        if rpm_coef <= 0:
+        if alpha <= 0:
             logger.warning("Something went wrong - detected negative correlation between RPM and stirring.")
             raise ValueError("Negative correlation between RPM and stirring.")
-
-        elif intercept <= 0:
-            logger.warning("Something went wrong - the intercept should be greater than 0.")
-            raise ValueError("Intercept should be greater than 0.")
 
         return SimpleStirringCalibration(
             pwm_hz=config.getfloat("stirring.config", "pwm_hz"),
@@ -120,7 +112,7 @@ def run_stirring_calibration(
             calibration_name=f"stirring-calibration-{current_utc_datetime().strftime('%Y-%m-%d_%H-%M-%S')}",
             calibrated_on_pioreactor_unit=unit,
             created_at=current_utc_datetime(),
-            curve_data_=[rpm_coef, intercept],
+            curve_data_=[alpha, beta],
             curve_type="poly",
             recorded_data={"x": list(filtered_dcs), "y": list(filtered_measured_rpms)},
         )
