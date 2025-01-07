@@ -72,9 +72,9 @@ def run_stirring_calibration(
 
             for count, dc in enumerate(dcs, start=1):
                 st.set_duty_cycle(dc)
-                sleep(1)
+                sleep(3)
                 rpm = rpm_calc.estimate(2)
-                measured_rpms.append(dc + 1)
+                measured_rpms.append(rpm)
                 logger.debug(f"Detected {rpm=:.1f} RPM @ {dc=}%")
 
                 # log progress
