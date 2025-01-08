@@ -30,7 +30,6 @@ from pioreactor.pubsub import get_from
 from pioreactor.pubsub import QOS
 from pioreactor.structs import Voltage
 from pioreactor.types import MQTTMessage
-from pioreactor.utils.gpio_helpers import set_gpio_availability
 from pioreactor.utils.networking import discover_workers_on_network
 from pioreactor.utils.networking import get_ip
 from pioreactor.utils.timing import current_utc_datetime
@@ -158,9 +157,6 @@ class Monitor(LongRunningBackgroundJob):
 
     def _setup_GPIO(self) -> None:
         import lgpio
-
-        set_gpio_availability(BUTTON_PIN, False)
-        set_gpio_availability(LED_PIN, False)
 
         if not whoami.is_testing_env():
             self._handle = lgpio.gpiochip_open(GPIOCHIP)
@@ -419,9 +415,6 @@ class Monitor(LongRunningBackgroundJob):
         with suppress(AttributeError):
             self._button_callback.cancel()
             lgpio.gpiochip_close(self._handle)
-
-        set_gpio_availability(BUTTON_PIN, True)
-        set_gpio_availability(LED_PIN, True)
 
     def led_on(self) -> None:
         import lgpio

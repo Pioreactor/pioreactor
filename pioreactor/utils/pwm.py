@@ -18,7 +18,6 @@ from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 from pioreactor.types import GpioPin
 from pioreactor.utils import clamp
-from pioreactor.utils import gpio_helpers
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.version import rpi_version_info
 from pioreactor.whoami import get_assigned_experiment_name
@@ -199,8 +198,6 @@ class PWM:
             self.logger.error(msg)
             raise PWMError(msg)
 
-        gpio_helpers.set_gpio_availability(self.pin, False)
-
         self._pwm: HardwarePWMOutputDevice | SoftwarePWMOutputDevice | MockPWMOutputDevice
 
         if is_testing_env():
@@ -286,8 +283,6 @@ class PWM:
 
         with local_intermittent_storage("pwm_dc") as cache:
             cache.pop(self.pin)
-
-        gpio_helpers.set_gpio_availability(self.pin, True)
 
         self.logger.debug(f"Cleaned up GPIO-{self.pin}.")
 

@@ -191,14 +191,16 @@ class ODCalibration(CalibrationBase, kw_only=True, tag="od"):
     minimum_od600: float
     minimum_voltage: float
     maximum_voltage: float
+    x: str = "Voltage"
+    y: str = "OD600"
 
 
 class SimplePeristalticPumpCalibration(CalibrationBase, kw_only=True, tag="simple_peristaltic_pump"):
     hz: t.Annotated[float, Meta(ge=0)]
     dc: t.Annotated[float, Meta(ge=0)]
     voltage: float
-    x: str = "duration"
-    y: str = "volume"
+    x: str = "Duration"
+    y: str = "Volume"
 
     @property
     def duration_(self):

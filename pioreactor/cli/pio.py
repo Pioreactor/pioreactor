@@ -196,29 +196,10 @@ def cache():
 @cache.command(name="view", short_help="print out the contents of a cache")
 @click.argument("cache")
 def view_cache(cache: str) -> None:
-    from pathlib import Path
-    import tempfile
-
-    tmp_dir = tempfile.gettempdir()
-
-    persistant_dir = (
-        "/home/pioreactor/.pioreactor/storage/" if not whoami.is_testing_env() else ".pioreactor/storage"
-    )
-
-    # is it a temp cache or persistant cache?
-    if Path(f"{tmp_dir}/{cache}").is_dir():
-        cacher = local_intermittent_storage
-
-    elif Path(f"{persistant_dir}/{cache}").is_dir():
-        cacher = local_persistent_storage
-
-    else:
-        click.echo(f"cache {cache} not found.")
-        return
-
-    with cacher(cache) as c:
-        for key in sorted(list(c.iterkeys())):
-            click.echo(f"{click.style(key, bold=True)} = {c[key]}")
+    for cacher in [local_intermittent_storage, local_persistent_storage]:  # TODO: this sucks
+        with cacher(cache) as c:
+            for key in sorted(list(c.iterkeys())):
+                click.echo(f"{click.style(key, bold=True)} = {c[key]}")
 
 
 @cache.command(name="clear", short_help="clear out the contents of a cache")
@@ -226,32 +207,13 @@ def view_cache(cache: str) -> None:
 @click.argument("key")
 @click.option("--as-int", is_flag=True, help="evict after casting key to int, useful for gpio pins.")
 def clear_cache(cache: str, key: str, as_int: bool) -> None:
-    from pathlib import Path
-    import tempfile
+    for cacher in [local_intermittent_storage, local_persistent_storage]:
+        with cacher(cache) as c:
+            if as_int:
+                key = int(key)  # type: ignore
 
-    tmp_dir = tempfile.gettempdir()
-
-    persistant_dir = (
-        "/home/pioreactor/.pioreactor/storage/" if not whoami.is_testing_env() else ".pioreactor/storage"
-    )
-
-    # is it a temp cache or persistant cache?
-    if Path(f"{tmp_dir}/{cache}").is_dir():
-        cacher = local_intermittent_storage
-
-    elif Path(f"{persistant_dir}/{cache}").is_dir():
-        cacher = local_persistent_storage
-
-    else:
-        click.echo(f"cache {cache} not found.")
-        return
-
-    with cacher(cache) as c:
-        if as_int:
-            key = int(key)  # type: ignore
-
-        if key in c:
-            del c[key]
+            if key in c:
+                del c[key]
 
 
 @pio.command(

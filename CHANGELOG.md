@@ -26,7 +26,7 @@
 
     For example, to run a pump calibration, use `pio calibrations run --device media_pump`. View all your media pump calibrations with:  `pio calibrations list --device media_pump`. And to duplicate a
 
-   - For now, the actual calibrations are the same protocol as before, but in the near future, we'll be updating them with new features. Adding this CLI and YAML format was the first step.
+   - For now, the actual calibrations are the same protocol as before, but in the near future, we'll be updating them with new features. Adding this unified CLI and YAML format was the first step.
 
 
 #### Web API changes

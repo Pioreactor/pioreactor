@@ -334,10 +334,12 @@ class cache:
     def pop(self, key, default=None):
         self.cursor.execute(f"SELECT value FROM {self.table_name} WHERE key = ?", (key,))
         result = self.cursor.fetchone()
+        self.cursor.execute(f"DELETE FROM {self.table_name} WHERE key = ?", (key,))
+
         if result is None:
             return default
-        self.cursor.execute(f"DELETE FROM {self.table_name} WHERE key = ?", (key,))
-        return result[0]
+        else:
+            return result[0]
 
     def __contains__(self, key):
         self.cursor.execute(f"SELECT 1 FROM {self.table_name} WHERE key = ?", (key,))

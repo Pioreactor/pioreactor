@@ -53,7 +53,7 @@ def run_stirring_calibration(
         dcs = (
             list(range(round(max_dc), round(min_dc), -3))
             + list(range(round(min_dc), round(max_dc), 3))
-            + list(range(round(max_dc), round(min_dc) - 3, -3))
+            + list(range(round(max_dc), round(min_dc), -3))
         )
         n_samples = len(dcs)
 

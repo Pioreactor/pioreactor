@@ -69,8 +69,9 @@ def _display_calibrations_by_device(device: str) -> None:
     "--device", "device", required=True, help="Target device of calibration (e.g. od, pump, stirring)."
 )
 @click.option("--protocol-name", required=False, help="name of protocol, defaults to basic builtin protocol")
+@click.option("-y", is_flag=True, help="Skip asking for confirmation for active.")
 @click.pass_context
-def run_calibration(ctx, device: str, protocol_name: str | None) -> None:
+def run_calibration(ctx, device: str, protocol_name: str | None, y: bool) -> None:
     """
     Run an interactive calibration assistant for a specific protocol.
     On completion, stores a YAML file in: /home/pioreactor/.pioreactor/storage/calibrations/<device>/<calibration_name>.yaml
@@ -107,15 +108,16 @@ def run_calibration(ctx, device: str, protocol_name: str | None) -> None:
 
     out_file = calibration_struct.save_to_disk_for_device(device)
 
-    if click.confirm(
-        f"Do you want to set this calibration as the Active Calibration for {device}?", default=True
-    ):
-        calibration_struct.set_as_active_calibration_for_device(device)
-        click.echo(f"Set{calibration_struct.calibration_name} as the active calibration for {device}.")
-    else:
-        click.echo(
-            f"Okay. You can use 'pio calibration set-active --device {device} --name {calibration_struct.calibration_name}' to set this calibration as the active one."
-        )
+    if not y:
+        if click.confirm(
+            f"Do you want to set this calibration as the Active Calibration for {device}?", default=True
+        ):
+            calibration_struct.set_as_active_calibration_for_device(device)
+            click.echo(f"Set{calibration_struct.calibration_name} as the active calibration for {device}.")
+        else:
+            click.echo(
+                f"Okay. You can use 'pio calibration set-active --device {device} --name {calibration_struct.calibration_name}' to set this calibration as the active one."
+            )
 
     click.echo(
         f"Calibration '{calibration_struct.calibration_name}' of device '{device}' saved to {out_file} ✅"
@@ -158,9 +160,14 @@ def set_active_calibration(device: str, calibration_name: str | None) -> None:
     """
 
     if calibration_name is None:
-        click.echo("No calibration name provided. Clearing active calibration.")
         with local_persistent_storage("active_calibrations") as c:
-            c.pop(device)
+            is_present = c.pop(device)
+        if is_present:
+            click.echo(f"No calibration name provided. Clearing active calibration for {device}.")
+        else:
+            click.echo(
+                f"No calibration name provided. Tried clearing active calibration for {device}, but didn't find one."
+            )
 
     else:
         data = load_calibration(device, calibration_name)

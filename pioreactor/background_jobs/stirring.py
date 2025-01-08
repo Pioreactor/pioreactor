@@ -22,7 +22,6 @@ from pioreactor.config import config
 from pioreactor.utils import clamp
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import JobManager
-from pioreactor.utils.gpio_helpers import set_gpio_availability
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.streaming_calculations import PID
 from pioreactor.utils.timing import catchtime
@@ -60,7 +59,6 @@ class RpmCalculator:
 
         # we delay the setup so that when all other checks are done (like in stirring's uniqueness), we can start to
         # use the GPIO for this.
-        set_gpio_availability(hardware.HALL_SENSOR_PIN, False)
 
         if not is_testing_env():
             self._handle = lgpio.gpiochip_open(hardware.GPIOCHIP)
@@ -96,8 +94,6 @@ class RpmCalculator:
         with suppress(AttributeError):
             self._edge_callback.cancel()
             lgpio.gpiochip_close(self._handle)
-
-        set_gpio_availability(hardware.HALL_SENSOR_PIN, True)
 
     def estimate(self, seconds_to_observe: float) -> float:
         return 0.0
