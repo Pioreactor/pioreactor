@@ -4,11 +4,9 @@ import {
   VictoryScatter,
   VictoryLine,
   VictoryAxis,
-  VictoryLegend,
   VictoryTheme,
   VictoryLabel,
 } from "victory";
-import {colors} from './../utilities'
 
 /**
  * Evaluates a polynomial at x given an array of coefficients in descending order.
@@ -67,7 +65,7 @@ function generatePolynomialData(calibration, stepCount = 50) {
  *   (each containing recorded_data.x, recorded_data.y, curve_data_, etc.)
  * @param {String} deviceName  - optional device name for display
  */
-function CalibrationChart({ calibrations, deviceName }) {
+function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlightedModel, title }) {
   if (!calibrations || calibrations.length === 0) {
     return <div>No calibrations to plot for {deviceName}.</div>;
   }
@@ -75,21 +73,22 @@ function CalibrationChart({ calibrations, deviceName }) {
   // Assume the x and y fields match across all calibrations for a device
   const { x: xField = "X", y: yField = "Y" } = calibrations[0] || {};
 
-  const countOf = calibrations.length
+  const isHighlighted = (calibration) => {
+    return (calibration.pioreactor_unit === highlightedModel.pioreactorUnit && calibration.calibration_name === highlightedModel.calibrationName);
+  }
 
+  const width = 1050
   return (
       <VictoryChart
-        title={`${deviceName} Calibrations`}
-        style={{ parent: { maxWidth: "800px"}}}
         domainPadding={10}
-        height={295 + 25 * Math.ceil(countOf / 4)}
-        width={750}
+        height={350}
+        width={1050}
         theme={VictoryTheme.material}
-        padding={{ left: 50, right: 50, bottom: 40 + 25 * Math.ceil(countOf / 4), top: 45 }}
+        padding={{ left: 50, right: 50, bottom: 40, top: 45 }}
       >
         <VictoryLabel
-            text={`${deviceName} Calibrations`}
-            x={400}
+            text={title}
+            x={width/2}
             y={30}
             textAnchor="middle"
             style={{
@@ -106,7 +105,7 @@ function CalibrationChart({ calibrations, deviceName }) {
                 fontFamily: "inherit",
               },
             }}
-            offsetY={40 + 25 * Math.ceil(countOf / 4)}
+            offsetY={40}
             label={xField}
             orientation="bottom"
             fixLabelOverlap={true}
@@ -154,7 +153,7 @@ function CalibrationChart({ calibrations, deviceName }) {
           }));
 
           // Simple color selection (optional)
-          const color = colors[index]
+          const color = unitsColorMap[cal.pioreactor_unit + cal.calibration_name] || "black";
 
           return (
               <VictoryScatter
@@ -172,32 +171,17 @@ function CalibrationChart({ calibrations, deviceName }) {
           const polynomialData = generatePolynomialData(cal);
 
           // Simple color selection (optional)
-          const color = colors[index]
+          const color = unitsColorMap[cal.pioreactor_unit + cal.calibration_name] || "black";
 
           return (
               <VictoryLine
                 key={cal.calibration_name || index}
                 interpolation='basis'
                 data={polynomialData}
-                style={{ data: { stroke: color } }}
+                style={{ data: { stroke: color, strokeWidth: isHighlighted(cal) ? 4 : 1.5 } }}
               />
           );
         })}
-        <VictoryLegend
-          x={70}
-          y={300}
-          symbolSpacer={6}
-          itemsPerRow={7}
-          orientation="horizontal"
-          gutter={15}
-          rowGutter={5}
-          name="legend"
-          borderPadding={{ right: 8 }}
-          data={calibrations.map((cal, index) => ({
-            name: cal.pioreactor_unit,
-            symbol: { fill: colors[index] },
-          }))}
-        />
 
       </VictoryChart>
   );

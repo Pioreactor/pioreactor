@@ -12,6 +12,7 @@ import ExportData from "./ExportData";
 import Pioreactors from "./Pioreactors";
 import Pioreactor from "./Pioreactor";
 import StartNewExperiment from "./StartNewExperiment";
+import SingleCalibrationPage from "./SingleCalibrationPage";
 import CreateExperimentProfile from "./CreateExperimentProfile";
 import EditExperimentProfile from "./EditExperimentProfile";
 import EditConfig from "./EditConfig";
@@ -121,6 +122,9 @@ function MainSite() {
                   <Route path="/config" element={<EditConfig title="Pioreactor ~ Configuration"/>}/>
                   <Route path="/leader" element={<Leader title="Pioreactor ~ Leader"/>}/>
                   <Route path="/calibrations" element={<Calibrations title="Pioreactor ~ Calibrations"/>}/>
+                  <Route path="/calibrations/:pioreactor_unit/" element={<Calibrations title="Pioreactor ~ Calibrations"/>}/>
+                  <Route path="/calibrations/:pioreactor_unit/:device" element={<Calibrations title="Pioreactor ~ Calibrations"/>}/>
+                  <Route path="/calibrations/:pioreactor_unit/:device/:calibration_name" element={<SingleCalibrationPage title="Pioreactor ~ Calibration"/>}/>
                   <Route path="/pioreactors" element={ <Pioreactors title="Pioreactor ~ Pioreactors"/>}/>
                   <Route path="/pioreactors/:unit" element={ <Pioreactor title="Pioreactor ~ Pioreactor"/>}/>
                   <Route path="/updates" element={<Updates title="Pioreactor ~ Updates"/>}/>

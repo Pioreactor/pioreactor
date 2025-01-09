@@ -67,6 +67,13 @@ u {
   margin: auto 10px auto 0px;
 }
 
+.indicator-dot-as-legend{
+  width:10px;
+  height:10px;
+  border-radius:5px;
+  margin: auto 7px auto 0px;
+}
+
 .readonlyEditor textarea {
   outline: 0;
 }

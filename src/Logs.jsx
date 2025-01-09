@@ -6,8 +6,7 @@ import Grid from "@mui/material/Grid";
 import MenuItem from "@mui/material/MenuItem";
 import Button from "@mui/material/Button";
 import Divider from "@mui/material/Divider";
-import { Link, useNavigate } from 'react-router-dom';
-import {useParams, useLocation} from "react-router-dom";
+import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import GetAppIcon from '@mui/icons-material/GetApp';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
@@ -21,10 +20,10 @@ import PioreactorsIcon from './components/PioreactorsIcon';
 function Logs(props) {
 
   const location = useLocation();
+  const {unit} = useParams();
   const {experimentMetadata} = useExperiment()
   const [relabelMap, setRelabelMap] = useState({})
   const [assignedUnits, setAssignedUnits] = useState([])
-  const {unit} = useParams();
   const navigate = useNavigate();
 
   useEffect(() => {

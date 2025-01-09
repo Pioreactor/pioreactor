@@ -239,7 +239,7 @@ function PaginatedLogTable({unit, experiment, relabelMap }) {
           <FormControlLabel
             checked={!onlyAssignedLogs}
             control={<Switch color="primary"  onChange={handleSwitchChange}  size="small" />}
-            label={"Include logs from other experiments"}
+            label="Include logs from other experiments"
             labelPlacement="start"
           />
         </Box>

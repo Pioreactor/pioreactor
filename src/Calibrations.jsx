@@ -1,10 +1,10 @@
 import dayjs from 'dayjs';
 
 import React, { useEffect, useState } from 'react';
+import { useParams } from "react-router-dom";
 import {
   CircularProgress,
   FormControl,
-  InputLabel,
   MenuItem,
   Select,
   Typography,
@@ -14,38 +14,59 @@ import Grid from "@mui/material/Grid";
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/Card';
-import {checkTaskCallback} from "./utilities"
+import {checkTaskCallback, colors, DefaultDict} from "./utilities"
 import CalibrationChart from "./components/CalibrationChart"
 import FormLabel from '@mui/material/FormLabel';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Switch from '@mui/material/Switch';
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
 import Chip from '@mui/material/Chip';
+import Button from '@mui/material/Button';
+import GetAppIcon from '@mui/icons-material/GetApp';
+import { useNavigate } from 'react-router-dom';
+
 import PioreactorIcon from "./components/PioreactorIcon"
 import PioreactorsIcon from './components/PioreactorsIcon';
 
 
-function ActiveCalibrationCard(){
+function CalibrationCard(){
   return (
 
     <Card>
       <CardContent sx={{p: 2}}>
-       <Typography variant="h6" component="h2">
-          <Box fontWeight="fontWeightRegular">Active calibrations</Box>
-        </Typography>
-
-        <ActiveCalibrationData/>
+        <CalibrationData/>
       </CardContent>
     </Card>
   )
 }
 
-function ActiveCalibrationData() {
+
+const ActiveOrNotCheckBox = ({onlyActive, setOnlyActive}) => {
+  return (
+      <FormControl sx={{mt: 3, ml: 1}}>
+          <FormControlLabel
+            checked={onlyActive}
+            control={<Switch color="primary"  onChange={setOnlyActive}  size="small" />}
+            label="Only Active calibrations"
+          />
+      </FormControl>
+)}
+
+
+function CalibrationData() {
+  const { pioreactor_unit, device } = useParams();
+
   const [loading, setLoading] = useState(true);
   const [rawData, setRawData] = useState(null);
   const [devices, setDevices] = useState([]);
   const [workers, setWorkers] = useState([]);
   const [calibrationDataByDevice, setCalibrationDataByDevice] = useState({});
-  const [selectedDevice, setSelectedDevice] = useState('');
-  const [selectedUnit, setSelectedUnit] = useState('_all');
+  const [selectedDevice, setSelectedDevice] = useState(device || '');
+  const [selectedUnit, setSelectedUnit] = useState(pioreactor_unit || '_all');
+  const [onlyActive, setOnlyActive] = useState(true);
+  const [highlightedModel, setHighlightedModel] = useState({pioreactorUnit: null, calibrationName: null});
+  const unitsColorMap = new DefaultDict(colors)
+  const navigate = useNavigate()
 
   useEffect(() => {
     const fetchData = async () => {
@@ -82,7 +103,7 @@ function ActiveCalibrationData() {
       // machine is an object like:
       // { media_pump: [ ... ], od: [ ... ], stirring: [ ... ] }
 
-      Object.entries(machine).forEach(([deviceName, calibrations]) => {
+      Object.entries(machine ?? {}).forEach(([deviceName, calibrations]) => {
         // If calibrations is not an array, skip
         if (!Array.isArray(calibrations)) return;
 
@@ -101,7 +122,7 @@ function ActiveCalibrationData() {
     setDevices(deviceArray);
     setCalibrationDataByDevice(deviceMap);
 
-    if (deviceArray.length > 0) {
+    if (selectedDevice === '') {
       setSelectedDevice(deviceArray[0]);
     }
   }, [rawData]);
@@ -114,8 +135,10 @@ function ActiveCalibrationData() {
     setSelectedUnit(event.target.value);
   };
 
-  // This would be the calibrations associated with the currently selected device
-  const calibrationsForSelectedDevice = calibrationDataByDevice[selectedDevice] || [];
+  const handleOnlyActiveChange = (event) => {
+    setOnlyActive(event.target.checked);
+  };
+
 
   if (loading) {
     return (
@@ -128,74 +151,129 @@ function ActiveCalibrationData() {
   if (!rawData || rawData.status !== 'complete') {
     return <Typography>Something went wrong or data is incomplete. Check web server logs.</Typography>;
   }
-  console.log(calibrationsForSelectedDevice.filter(cal => cal.pioreactor_unit === selectedUnit))
+
+  // filter calibrations to active if onlyActive is true, and by pioreactor_unit if selectedUnit is not _all
+  const filteredCalibrations = (calibrationDataByDevice[selectedDevice] || []).filter((cal) => {
+    const allUnits = (selectedUnit === '_all');
+
+    if (allUnits && onlyActive) {
+      // Case 1: All units and only active
+      return cal.is_active;
+    }
+    if (allUnits && !onlyActive) {
+      // Case 2: All units, regardless of activity
+      return true;
+    }
+    if (!allUnits && onlyActive) {
+      // Case 3: Selected unit and only active
+      return cal.pioreactor_unit === selectedUnit && cal.is_active;
+    }
+    if (!allUnits && !onlyActive) {
+      // Case 4: Selected unit, regardless of activity
+      return cal.pioreactor_unit === selectedUnit;
+    }
+  });
+
+  const onMouseOverRow = (event, cal) => {
+    setHighlightedModel({pioreactorUnit: cal.pioreactor_unit, calibrationName: cal.calibration_name});
+    // change background of row to light grey
+  }
+  const onMouseExitRow = (event) => {
+    setHighlightedModel({pioreactorUnit: null, calibrationName: null});
+  }
+
   return (
     <Box>
-      <Box sx={{mt: 2}}>
-        <Box sx={{display: "flex", justifyContent: "left" }}>
-          <FormControl size="small" sx={{ marginBottom: '1rem', mr: 4}}>
-            <FormLabel component="legend">Pioreactor</FormLabel>
-            <Select
-              labelId="pioreactor-select-label"
-              label="Pioreactor"
-              variant="standard"
-              value={selectedUnit}
-              onChange={handleSelectUnitChange}
-              sx={{width: "200px"}}
-            >
-              {workers.map((worker) => (
-                <MenuItem key={worker} value={worker}>
-                  {worker}
-                </MenuItem>
-              ))}
-                <MenuItem  value={"_all"}>
-                  <PioreactorsIcon fontSize="15" sx={{verticalAlign: "middle", margin: "0px 4px"}} /> All Pioreactors
-                </MenuItem>
-            </Select>
-          </FormControl>
-          <FormControl size="small" sx={{ marginBottom: '1rem', mr: 4}}>
-            <FormLabel component="legend">Device</FormLabel>
-            <Select
-              labelId="device-select-label"
-              label="Device"
-              variant="standard"
-              value={selectedDevice}
-              onChange={handleSelectDeviceChange}
-              sx={{width: "200px"}}
-            >
-              {devices.map((device) => (
-                <MenuItem key={device} value={device}>
-                  {device}
-                </MenuItem>
+      <Box >
+        <Box sx={{display: "flex", justifyContent: "space-between" }}>
+          <Box>
+            <FormControl size="small" sx={{ marginBottom: '1rem', mr: 4}}>
+              <FormLabel component="legend">Pioreactor</FormLabel>
+              <Select
+                labelId="pioreactor-select-label"
+                label="Pioreactor"
+                variant="standard"
+                value={selectedUnit}
+                onChange={handleSelectUnitChange}
+                sx={{width: "200px"}}
+              >
+                {workers.map((worker) => (
+                  <MenuItem key={worker} value={worker}>
+                    {worker}
+                  </MenuItem>
                 ))}
-            </Select>
-          </FormControl>
+                  <MenuItem  value={"_all"}>
+                    <PioreactorsIcon fontSize="15" sx={{verticalAlign: "middle", margin: "0px 4px"}} /> All Pioreactors
+                  </MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl size="small" sx={{ marginBottom: '1rem', mr: 4}}>
+              <FormLabel component="legend">Device</FormLabel>
+              <Select
+                labelId="device-select-label"
+                label="Device"
+                variant="standard"
+                value={selectedDevice}
+                onChange={handleSelectDeviceChange}
+                sx={{width: "200px"}}
+              >
+                {devices.map((device) => (
+                  <MenuItem key={device} value={device}>
+                    {device}
+                  </MenuItem>
+                  ))}
+              </Select>
+            </FormControl>
+          </Box>
+          <Box>
+            <ActiveOrNotCheckBox onlyActive={onlyActive} setOnlyActive={handleOnlyActiveChange}/>
+          </Box>
         </Box>
-        <Box>
+
+        <Box sx={{display: "flex", justifyContent: "center" }}>
           <CalibrationChart
-            calibrations={selectedUnit == "_all" ? calibrationsForSelectedDevice : calibrationsForSelectedDevice.filter(cal => cal.pioreactor_unit === selectedUnit)}
+            highlightedModel={highlightedModel}
+            calibrations={filteredCalibrations}
             deviceName={selectedDevice}
+            unitsColorMap={unitsColorMap}
+            title={`Calibrations for ${selectedDevice}`}
           />
 
         </Box>
       </Box>
 
-      <Box>
-        <Table size="small" sx={{mt: 2}}>
+      <Box sx={{px: 5, mt: 1, mb: 1}}>
+        <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell sx={{padding: "6px 0px"}}>Pioreactor</TableCell>
-              <TableCell align="right" sx={{padding: "6px 0px"}}>Device</TableCell>
-              <TableCell align="right" sx={{padding: "6px 0px"}}>Active calibration name</TableCell>
-              <TableCell align="right" sx={{padding: "6px 0px"}}>Calibrated on</TableCell>
+              <TableCell sx={{padding: "6px 0px"}}>
+                Pioreactor
+              </TableCell>
+              <TableCell align="left" sx={{padding: "6px 0px"}}>Device</TableCell>
+              <TableCell align="left" sx={{padding: "6px 0px"}}>Calibration name</TableCell>
+              <TableCell align="left" sx={{padding: "6px 0px"}}>Active</TableCell>
+              <TableCell align="right" sx={{padding: "6px 6px"}}>Calibrated on</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {calibrationsForSelectedDevice.map((cal, i) => {
+            {filteredCalibrations.map((cal, i) => {
               const unitName = cal.pioreactor_unit
+              const calName = cal.calibration_name
               return (
-                <TableRow key={i}>
-                  <TableCell sx={{padding: "6px 0px"}}>
+                <TableRow
+                  sx={{
+                    ':hover': {
+                      bgcolor: '#F7F7F7', // theme.palette.primary.main
+                    },
+                    cursor: "pointer",
+                  }}
+                  onMouseOver={(e) => onMouseOverRow(e, cal) }
+                  onMouseOut={(e) => onMouseExitRow(e)}
+                  onClick={() => navigate(`/calibrations/${unitName}/${selectedDevice}/${calName}`)}
+                  key={i}
+                  >
+                  <TableCell sx={{padding: "6px 6px", display: "flex"}}>
+                    <div className="indicator-dot-as-legend" style={{boxShadow: `0 0 0px, inset 0 0 100px  ${unitsColorMap[unitName + calName]}`}} />
                     <Chip
                       size="small"
                       icon={<PioreactorIcon/>}
@@ -205,9 +283,10 @@ function ActiveCalibrationData() {
                       // to={leaderHostname === unitName ? "/leader" : "/pioreactors/" + unitName}
                       />
                   </TableCell>
-                  <TableCell align="right" sx={{padding: "6px 0px"}}>{selectedDevice}</TableCell>
-                  <TableCell align="right" sx={{padding: "6px 0px"}}>{cal.calibration_name}</TableCell>
-                  <TableCell align="right" sx={{padding: "6px 0px"}}>{dayjs(cal.created_at).format('YYYY-MM-DD') }</TableCell>
+                  <TableCell align="left" sx={{padding: "6px 0px"}}>{selectedDevice}</TableCell>
+                  <TableCell align="left" sx={{padding: "6px 0px"}}>{calName}</TableCell>
+                  <TableCell align="left" sx={{padding: "6px 0px"}}>{cal.is_active ? "Active" : ""}</TableCell>
+                  <TableCell align="right" sx={{padding: "6px 6px"}}>{dayjs(cal.created_at).format('YYYY-MM-DD') }</TableCell>
                 </TableRow>
               );
             })}
@@ -222,8 +301,36 @@ function ActiveCalibrationData() {
 function CalibrationsContainer(props) {
 
   const [config, setConfig] = React.useState({})
-  const [calibrationData, setCalibrationData] = React.useState({})
   const [selectedDevice, setSelectedDevice] = React.useState(null)
+
+
+  const handleDownloadCalibrations = async () => {
+    try {
+      // Request the ZIP as binary data
+      const response = await fetch('/api/workers/$broadcast/zipped_calibrations');
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      const blob = await response.blob();
+
+      // Create a temporary URL for the blob
+      const url = window.URL.createObjectURL(blob);
+
+      // Create a link to programmatically click
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'calibration_yamls.zip');
+      document.body.appendChild(link);
+      link.click();
+
+      // Clean up
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download failed:', error);
+    }
+  };
+
 
   return (
     <React.Fragment>
@@ -236,19 +343,17 @@ function CalibrationsContainer(props) {
             </Box>
           </Typography>
           <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
-
+            <Button style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="primary" onClick={handleDownloadCalibrations}>
+              <GetAppIcon fontSize="15"/> Download all calibrations
+            </Button>
           </Box>
-
         </Box>
-        <Divider sx={{marginTop: "0px", marginBottom: "15px"}} />
       </Box>
-      <Grid container spacing={2} >
-        <Grid item xs={2} sm={2} />
-        <Grid item xs={8} sm={8}>
-          <ActiveCalibrationCard/>
-        </Grid>
-        <Grid item xs={2} sm={2} />
 
+      <Grid container spacing={2} >
+        <Grid item xs={12} sm={12}>
+          <CalibrationCard/>
+        </Grid>
       </Grid>
 
     </React.Fragment>
