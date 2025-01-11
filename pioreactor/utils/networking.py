@@ -19,8 +19,8 @@ def rsync(*args: str) -> None:
 
     l = create_logger("rsync")
     try:
-        l.info("rsync" + " ".join(args))
-        r = check_call(("rsync",) + args, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+        l.info("rsync" + " " + " ".join(args))
+        r = check_call(("rsync",) + args)
         l.info(r)
     except CalledProcessError as e:
         raise RsyncError from e
@@ -30,6 +30,7 @@ def cp_file_across_cluster(unit: str, localpath: str, remotepath: str, timeout: 
     try:
         rsync(
             "-z",
+            "-v",
             "--timeout",
             f"{timeout}",
             "--inplace",
