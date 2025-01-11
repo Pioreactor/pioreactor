@@ -570,7 +570,7 @@ if am_I_leader() or is_testing_env():
             logger.debug(f"Syncing configs on {unit}...")
             try:
                 sync_config_files(unit, shared, specific)
-                logger.debug(f"worker for {unit}?")
+                logger.debug(f"worked for {unit}?")
                 return True
             except RsyncError as e:
                 logger.warning(f"Could not transfer config to {unit}. Is it online?")
@@ -589,9 +589,7 @@ if am_I_leader() or is_testing_env():
             results = executor.map(_thread_function, units)
 
         if not all(results):
-            print(results)
             sys.exit(1)
-        print(results)
 
     @pios.command("kill", short_help="kill a job(s) on workers")
     @click.option("--job")
