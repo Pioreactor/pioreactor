@@ -1,15 +1,16 @@
+#!/bin/bash
 
-sudo pip3 install FILE
-mkdir ~/.pioreactor/storage/calibrations
-
-replace create_dishcache.sh
-TODO
+set -xeu
 
 
-# create persistant db
+export LC_ALL=C
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LEADER_HOSTNAME=$(crudini --get "$PIO_DIR"/config.ini cluster.topology leader_hostname)
 USERNAME=pioreactor
 STORAGE_DIR=/home/$USERNAME/.pioreactor/storage
+
+# 1. create persistant db in all pioreactors
 DB=$STORAGE_DIR/local_persistent_pioreactor_metadata.sqlite
 
 touch $DB
@@ -17,3 +18,30 @@ touch $DB-shm
 touch $DB-wal
 
 chown -R $USERNAME:www-data $DB*
+
+# 2. make a calibration dir in all pioreactors
+sudo -u $USERNAME mkdir "$STORAGE_DIR"/calibrations
+
+# 3. install pyyaml (only leader has it, but workers need it now)
+sudo pip3 install "$SCRIPT_DIR"/PyYAML-6.0.2-cp311-cp311-linux_armv7l.whl
+
+# 4. update diskcache.sh
+mv "$SCRIPT_DIR"/create_diskcache.sh /usr/local/bin/create_diskcache.sh
+
+
+# if leader
+if [ "$HOSTNAME" != "$LEADER_HOSTNAME" ]; then
+
+    # 5. remove calibrations dataset file
+    rm -f /home/pioreactor/.pioreactor/exportable_datasets/*calibrations.yaml
+
+
+    # 6. fix any bad pioreactor start up systemd services
+    rm -f  /usr/lib/systemd/system/pioreactor_startup_run@.service
+    cp  "$SCRIPT_DIR"/pioreactor_startup_run@.service /etc/systemd/system/
+fi
+
+
+# 7. replace old calibrations with new yaml files. This doesn't delete old calibrations
+python "$SCRIPT_DIR"/cal_convert.py "$STORAGE_DIR"/od_calibrations/cache.db
+python "$SCRIPT_DIR"/cal_convert.py "$STORAGE_DIR"/pump_calibrations/cache.db

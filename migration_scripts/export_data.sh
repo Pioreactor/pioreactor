@@ -13,8 +13,8 @@ echo "Starting export of all data. Don't run anything. The Pioreactor UI will be
 
 # stop everything that might touch the database or config files...
 pio kill --all-jobs  > /dev/null
-pio kill --name monitor
-pio kill --name mqtt_to_db_streaming
+pio kill --job-name monitor
+pio kill --job-name mqtt_to_db_streaming
 sudo systemctl stop lighttpd.service || true
 sudo systemctl stop huey.service || true
 
@@ -29,7 +29,7 @@ if [[ "$DB_CHECK" != "ok" ]]; then
 fi
 
 # back up database. Use || since older version might not have it.
-pio run backup_database --force || pio run backup_database
+pio run backup_database --force
 
 # check integrity, slowly, of backup.
 DB_CHECK=$(sqlite3 /home/pioreactor/.pioreactor/storage/pioreactor.sqlite.backup "PRAGMA integrity_check;")

@@ -7,6 +7,7 @@ from pioreactor.cluster_management import get_active_workers_in_inventory
 from pioreactor.config import config
 from pioreactor.exc import RsyncError
 from pioreactor.logging import create_logger
+from pioreactor.mureq import HTTPException
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import managed_lifecycle
@@ -76,7 +77,11 @@ def backup_database(output_file: str, force: bool = False, backup_to_workers: in
 
         # back up to workers, if available
         backups_complete = 0
-        available_workers = list(get_active_workers_in_inventory())
+        try:
+            available_workers = list(get_active_workers_in_inventory())
+        except HTTPException:
+            # server is offline, sometimes happens during a full export
+            available_workers = []
 
         while (backups_complete < backup_to_workers) and (len(available_workers) > 0):
             backup_unit = available_workers.pop()
