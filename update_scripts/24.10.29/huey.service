@@ -6,7 +6,7 @@ Before=lighttpd.service
 [Service]
 EnvironmentFile=/etc/environment
 User=pioreactor
-WorkingDirectory=/var/www/pioreactorui
+WorkingDirectory=c
 ExecStart=huey_consumer pioreactorui.tasks.huey -n -b 1.0 -w 6 -f -C -d 0.05
 ExecStartPost=pio log -m "%n successful" -n systemd --local-only
 StandardOutput=null

@@ -163,6 +163,7 @@ if am_I_leader() or is_testing_env():
 
         # move the specific unit config.ini
         if specific:
+            print(unit, localpath, remotepath)
             try:
                 localpath = f"/home/pioreactor/.pioreactor/config_{unit}.ini"
                 remotepath = "/home/pioreactor/.pioreactor/unit_config.ini"
