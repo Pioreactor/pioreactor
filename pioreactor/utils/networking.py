@@ -20,7 +20,8 @@ def rsync(*args: str) -> None:
     l = create_logger("rsync")
     try:
         l.info("rsync" + " ".join(args))
-        check_call(("rsync",) + args, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+        r = check_call(("rsync",) + args, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+        l.info(r)
     except CalledProcessError as e:
         raise RsyncError from e
 
