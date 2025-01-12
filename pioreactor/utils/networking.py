@@ -13,13 +13,9 @@ from pioreactor.exc import RsyncError
 
 
 def rsync(*args: str) -> None:
-    from pioreactor.logging import create_logger
-
-    l = create_logger("rsync")
     try:
-        l.info("rsync" + " " + " ".join(args))
         r = subprocess.run(("rsync",) + args, check=True)
-        l.info(r)
+        assert r.returncode == 0
     except subprocess.CalledProcessError as e:
         raise RsyncError from e
 
@@ -28,7 +24,6 @@ def cp_file_across_cluster(unit: str, localpath: str, remotepath: str, timeout: 
     try:
         rsync(
             "-z",
-            "-v",
             "--timeout",
             f"{timeout}",
             "--inplace",

@@ -391,7 +391,6 @@ def _prepare_request(
 
     """Parses the URL, returns the path and the right HTTPConnection subclass."""
     parsed_url = urllib.parse.urlparse(url)
-
     is_unix = unix_socket is not None
     scheme = parsed_url.scheme.lower()
     if scheme.endswith("+unix"):
