@@ -640,6 +640,7 @@ def test_calibration_simple_linear_calibration_positive_slope() -> None:
         pd_channel="2",
         calibrated_on_pioreactor_unit=get_unit_name(),
     )
+    cal.save_to_disk_for_device("od")
 
     cal.set_as_active_calibration_for_device("od")
 
@@ -694,6 +695,7 @@ def test_calibration_simple_linear_calibration_negative_slope() -> None:
         pd_channel="2",
         calibrated_on_pioreactor_unit=get_unit_name(),
     )
+    cal.save_to_disk_for_device("od")
 
     cal.set_as_active_calibration_for_device("od")
 
@@ -739,7 +741,7 @@ def test_calibration_simple_quadratic_calibration() -> None:
         pd_channel="2",
         calibrated_on_pioreactor_unit=get_unit_name(),
     )
-
+    cal.save_to_disk_for_device("od")
     cal.set_as_active_calibration_for_device("od")
 
     with start_od_reading(
@@ -772,7 +774,7 @@ def test_calibration_multi_modal() -> None:
         pd_channel="2",
         calibrated_on_pioreactor_unit=get_unit_name(),
     )
-
+    cal.save_to_disk_for_device("od")
     cal.set_as_active_calibration_for_device("od")
 
     with start_od_reading("REF", "90", interval=None, fake_data=True, experiment=experiment) as od:
@@ -803,6 +805,7 @@ def test_calibration_errors_when_ir_led_differs() -> None:
             pd_channel="2",
             calibrated_on_pioreactor_unit=get_unit_name(),
         )
+        cal.save_to_disk_for_device("od")
 
         cal.set_as_active_calibration_for_device("od")
         with pytest.raises(exc.CalibrationError) as error:
@@ -848,6 +851,7 @@ def test_calibration_with_irl_data1() -> None:
         pd_channel="2",
         calibrated_on_pioreactor_unit=get_unit_name(),
     )
+    cal.save_to_disk_for_device("od")
 
     cal.set_as_active_calibration_for_device("od")
 
@@ -931,8 +935,9 @@ def test_calibration_data_from_user1() -> None:
         pd_channel="2",
         calibrated_on_pioreactor_unit=get_unit_name(),
     )
-
+    calibration.save_to_disk_for_device("od")
     calibration.set_as_active_calibration_for_device("od")
+
     with start_od_reading("REF", "90", interval=None, fake_data=True, experiment=experiment) as od:
         assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
         infer = od.calibration_transformer.models["2"]
@@ -973,6 +978,7 @@ def test_calibration_data_from_user2() -> None:
         pd_channel="2",
         calibrated_on_pioreactor_unit=get_unit_name(),
     )
+    cal.save_to_disk_for_device("od")
 
     cal.set_as_active_calibration_for_device("od")
 
@@ -1138,6 +1144,7 @@ def test_CachedCalibrationTransformer_with_real_calibration() -> None:
         y="od600s",
         calibration_name="test",
     )
+    calibration.save_to_disk_for_device("od")
 
     calibration.set_as_active_calibration_for_device("od")
 

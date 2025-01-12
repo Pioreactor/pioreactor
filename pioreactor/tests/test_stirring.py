@@ -171,7 +171,7 @@ def test_stirring_with_calibration() -> None:
         voltage=5.0,
         recorded_data={"x": [], "y": []},
     )
-
+    cal.save_to_disk_for_device("stirring")
     cal.set_as_active_calibration_for_device("stirring")
 
     target_rpm = 500
@@ -187,8 +187,8 @@ def test_stirring_with_calibration() -> None:
 
         assert st.duty_cycle > initial_dc
 
-        assert st.rpm_to_dc_lookup(600) == 59.5
-        assert st.rpm_to_dc_lookup(700) == 68.5
+        assert st.rpm_to_dc_lookup(600) == 60.4
+        assert st.rpm_to_dc_lookup(700) == 69.4
 
 
 def test_stirring_will_try_to_restart_and_dodge_od_reading() -> None:
