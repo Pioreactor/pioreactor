@@ -47,3 +47,16 @@ BEGIN
         AND assigned_at = OLD.assigned_at
         AND unassigned_at IS NULL;
 END;
+
+
+-- populate with existing data
+INSERT OR IGNORE INTO experiment_worker_assignments_history (
+    pioreactor_unit,
+    experiment,
+    assigned_at
+)
+SELECT
+    pioreactor_unit,
+    experiment,
+    assigned_at
+FROM experiment_worker_assignments;

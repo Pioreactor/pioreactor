@@ -13,10 +13,13 @@ from msgspec import Struct
 from msgspec.json import encode
 from msgspec.yaml import encode as yaml_encode
 
+from pioreactor import exc
 from pioreactor import types as pt
+from pioreactor.utils.math_helpers import closest_point_to_domain
 
 
 T = t.TypeVar("T")
+
 
 
 def subclass_union(cls: t.Type[T]) -> t.Type[T]:
@@ -138,6 +141,8 @@ class Voltage(JSONPrintedStruct):
     timestamp: t.Annotated[datetime, Meta(tz=True)]
     voltage: pt.Voltage
 
+X = float
+Y = float
 
 class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
     calibration_name: str
@@ -147,7 +152,7 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
     curve_type: str  # ex: "poly"
     x: str  # ex: voltage
     y: str  # ex: od600
-    recorded_data: dict[t.Literal["x", "y"], list[float]]
+    recorded_data: dict[t.Literal["x", "y"], list[X | Y]]
 
     @property
     def calibration_type(self):
@@ -182,15 +187,62 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
 
         return target_file.exists()
 
+    def predict(self, x: X) -> Y:
+        """
+        Predict y given x
+        """
+        assert self.curve_type == "poly"
+        return sum([c * x ** i for i, c in enumerate(reversed(self.curve_data_))])
+
+
+    def ipredict(self, y: Y) -> X:
+        assert self.curve_type == "poly"
+        poly = self.curve_data_
+
+        if len(poly) == 1:
+            return poly[0]
+        elif len(poly) == 2:
+            return (y - poly[1]) / poly[0]
+
+        # complex case: we have to solve the polynomial roots numerically, possibly with complex roots
+        from numpy import roots, zeros_like, real, imag
+
+        min_X, max_X = min(self.recorded_data["x"]), max(self.recorded_data["x"])
+
+        coef_shift = zeros_like(poly)
+        coef_shift[-1] = y
+        solve_for_poly = poly - coef_shift
+        roots_ = roots(solve_for_poly)
+        plausible_sols_: list[X] = sorted([real(r) for r in roots_ if (abs(imag(r)) < 1e-10)])
+
+        if len(plausible_sols_) == 0:
+            raise exc.NoSolutionsFoundError("No solutions found")
+        elif len(plausible_sols_) == 1:
+            sol = plausible_sols_[0]
+            # if we are here, we let the downstream user decide how to proceed
+            if min_X <= sol <= max_X:
+                return sol
+            elif sol < min_X:
+                raise exc.SolutionBelowDomainError(f"Solution below domain [{min_X}, {max_X}]")
+            else:
+                raise exc.SolutionAboveDomainError(f"Solution above domain [{min_X}, {max_X}]")
+
+        # what do we do with multiple solutions?
+        closest_sol = closest_point_to_domain(plausible_sols_, (min_X, max_X))
+        # closet sol can be inside or outside domain. If inside, happy path:
+        if min_X <= closest_sol <= max_X:
+            return closest_sol
+
+        # if we are here, we let the downstream user decide how to proceed
+        elif closest_sol < min_X:
+            raise exc.SolutionBelowDomainError("Solution below domain")
+        else:
+            raise exc.SolutionAboveDomainError("Solution below domain")
 
 class ODCalibration(CalibrationBase, kw_only=True, tag="od"):
     ir_led_intensity: float
     angle: t.Literal["45", "90", "135", "180"]
     pd_channel: t.Literal["1", "2"]
-    maximum_od600: float
-    minimum_od600: float
-    minimum_voltage: float
-    maximum_voltage: float
     x: str = "Voltage"
     y: str = "OD600"
 
@@ -202,25 +254,11 @@ class SimplePeristalticPumpCalibration(CalibrationBase, kw_only=True, tag="simpl
     x: str = "Duration"
     y: str = "Volume"
 
-    @property
-    def duration_(self):
-        assert len(self.curve_data_) == 2
-        return self.curve_data_[0]
-
-    @property
-    def bias_(self):
-        assert len(self.curve_data_) == 2
-        return self.curve_data_[1]
-
     def ml_to_duration(self, ml: pt.mL) -> pt.Seconds:
-        duration_ = self.duration_
-        bias_ = self.bias_
-        return t.cast(pt.Seconds, (ml - bias_) / duration_)
+        return t.cast(pt.Seconds, self.ipredict(ml))
 
     def duration_to_ml(self, duration: pt.Seconds) -> pt.mL:
-        duration_ = self.duration_
-        bias_ = self.bias_
-        return t.cast(pt.mL, duration * duration_ + bias_)
+        return t.cast(pt.mL, self.predict(duration))
 
 
 class SimpleStirringCalibration(CalibrationBase, kw_only=True, tag="simple_stirring"):

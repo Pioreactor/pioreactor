@@ -44,10 +44,6 @@ def convert_old_to_new_od(old_cal: dict) -> tuple[ODCalibration, str]:
         angle=old_cal["type"].split("_")[1],
         pd_channel=old_cal["pd_channel"],
         ir_led_intensity=old_cal["ir_led_intensity"],
-        maximum_od600=old_cal["maximum_od600"],
-        minimum_od600=old_cal["minimum_od600"],
-        minimum_voltage=old_cal["minimum_voltage"],
-        maximum_voltage=old_cal["maximum_voltage"],
     )
     return new_cal, device
 

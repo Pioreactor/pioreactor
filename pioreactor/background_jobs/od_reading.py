@@ -72,6 +72,7 @@ from pioreactor.utils import timing
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 from pioreactor.utils.streaming_calculations import ExponentialMovingStd
 from pioreactor.utils.timing import catchtime
+from pioreactor.utils.math_helpers import closest_point_to_domain
 
 ALL_PD_CHANNELS: list[pt.PdChannel] = ["1", "2"]
 VALID_PD_ANGLES: list[pt.PdAngle] = ["45", "90", "135", "180"]
@@ -634,30 +635,6 @@ class NullCalibrationTransformer(CalibrationTransformer):
         return
 
 
-def closest_point_to_domain(P: list[float], D: tuple[float, float]) -> float:
-    # Unpack the domain D into its lower and upper bounds
-    a, b = D
-
-    # Initialize the closest point and minimum distance
-    closest_point = None
-    min_distance = float("inf")
-
-    for p in P:
-        if a <= p <= b:  # Check if p is within the domain D
-            return p  # If p is within D, it's the closest point with distance 0
-
-        # Calculate the distance to the closest boundary of D
-        distance = min(abs(p - a), abs(p - b))
-
-        # Update the closest point if this distance is smaller than the current min_distance
-        if distance < min_distance:
-            min_distance = distance
-            closest_point = p
-
-    assert closest_point is not None
-    return closest_point
-
-
 class CachedCalibrationTransformer(CalibrationTransformer):
     def __init__(self) -> None:
         super().__init__()
@@ -700,49 +677,28 @@ class CachedCalibrationTransformer(CalibrationTransformer):
 
             def calibration(observed_voltage: pt.Voltage) -> pt.OD:
                 poly = calibration_data.curve_data_
-                min_OD, max_OD = calibration_data.minimum_od600, calibration_data.maximum_od600
-                min_voltage, max_voltage = (
-                    calibration_data.minimum_voltage,
-                    calibration_data.maximum_voltage,
-                )
+                min_OD, max_OD = min(calibration_data.recorded_data['y']), max(calibration_data.recorded_data['y'])
+                min_voltage, max_voltage = min(calibration_data.recorded_data['x']), max(calibration_data.recorded_data['x'])
 
-                coef_shift = zeros_like(poly)
-                coef_shift[-1] = observed_voltage
-                solve_for_poly = poly - coef_shift
-                roots_ = roots(solve_for_poly)
-                plausible_ODs_ = sorted([real(r) for r in roots_ if (imag(r) == 0)])
-
-                if len(plausible_ODs_) == 0:
+                try:
+                    return calibration_data.ipredict(observed_voltage)
+                except exc.NoSolutionsFoundError as e:
                     if observed_voltage <= min_voltage:
                         return min_OD
                     elif observed_voltage > max_voltage:
                         return max_OD
-
-                # more than 0 possibilities...
-                # find the closest root to our OD domain (or in the OD domain)
-                ideal_OD = float(closest_point_to_domain(plausible_ODs_, (min_OD, max_OD)))
-
-                if ideal_OD < min_OD:
-                    # voltage less than the blank recorded during the calibration and the calibration curve doesn't have solutions (ex even-deg poly)
-                    # this isn't great, as there is nil noise in the signal.
-
-                    if not self.has_logged_warning:
-                        self.logger.warning(
-                            f"Signal outside suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V."
-                        )
-                        self.has_logged_warning = True
+                except exc.SolutionBelowDomainError:
+                    self.logger.warning(
+                        f"Signal outside suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V."
+                    )
+                    self.has_logged_warning = True
                     return min_OD
-
-                elif ideal_OD > max_OD:
-                    if not self.has_logged_warning:
-                        self.logger.warning(
-                            f"Signal outside suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V."
-                        )
-                        self.has_logged_warning = True
+                except exc.SolutionAboveDomainError:
+                    self.logger.warning(
+                        f"Signal outside suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V."
+                    )
+                    self.has_logged_warning = True
                     return max_OD
-                else:
-                    # happy path
-                    return ideal_OD
 
         else:
 

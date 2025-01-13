@@ -628,13 +628,9 @@ def test_calibration_simple_linear_calibration_positive_slope() -> None:
         curve_type="poly",
         curve_data_=[2.0, 0.0],
         calibration_name="linear",
-        maximum_od600=2.0,
-        minimum_od600=0.0,
         ir_led_intensity=90.0,
         angle="90",
-        minimum_voltage=0.0,
-        maximum_voltage=1.0,
-        recorded_data={"x": [], "y": []},
+        recorded_data={"x": [0, 1], "y": [0, 2]},
         x="voltage",
         y="od600s",
         pd_channel="2",
@@ -668,7 +664,7 @@ def test_calibration_simple_linear_calibration_positive_slope() -> None:
             pause()
             pause()
             pause()
-            assert od.calibration_transformer.models["2"](voltage) == 2.0
+            assert od.calibration_transformer.models["2"](voltage) == 5.0
             pause()
             pause()
             pause()
@@ -677,19 +673,15 @@ def test_calibration_simple_linear_calibration_positive_slope() -> None:
 
 def test_calibration_simple_linear_calibration_negative_slope() -> None:
     experiment = "test_calibration_simple_linear_calibration_negative_slope"
-    maximum_voltage = 2.0
+    maximum_voltage = 5.0
     cal = structs.ODCalibration(
         created_at=current_utc_datetime(),
         curve_type="poly",
         curve_data_=[-0.1, 2],
         calibration_name="linear",
-        maximum_od600=20.0,
-        minimum_od600=0.0,
         ir_led_intensity=90.0,
         angle="90",
-        minimum_voltage=0.0,
-        maximum_voltage=maximum_voltage,
-        recorded_data={"x": [], "y": []},
+        recorded_data={"x": [0, maximum_voltage], "y": [0, 20]},
         x="voltage",
         y="od600s",
         pd_channel="2",
@@ -729,13 +721,9 @@ def test_calibration_simple_quadratic_calibration() -> None:
         curve_type="poly",
         curve_data_=[1.0, 0, -0.1],
         calibration_name="quad_test",
-        maximum_od600=2.0,
-        minimum_od600=0.0,
         ir_led_intensity=90.0,
         angle="90",
-        minimum_voltage=0.0,
-        maximum_voltage=1.0,
-        recorded_data={"x": [], "y": []},
+        recorded_data={"x": [0, 1], "y": [0, 2]},
         x="voltage",
         y="od600s",
         pd_channel="2",
@@ -762,13 +750,9 @@ def test_calibration_multi_modal() -> None:
         curve_type="poly",
         curve_data_=poly,
         calibration_name="multi_test",
-        maximum_od600=2.0,
-        minimum_od600=0.0,
         ir_led_intensity=90.0,
         angle="90",
-        minimum_voltage=0.0,
-        maximum_voltage=1.0,
-        recorded_data={"x": [], "y": []},
+        recorded_data={"x": [0, 1], "y": [0, 2]},
         x="voltage",
         y="od600s",
         pd_channel="2",
@@ -793,13 +777,9 @@ def test_calibration_errors_when_ir_led_differs() -> None:
             curve_type="poly",
             curve_data_=[1.0, 0, -0.1],
             calibration_name="quad_test",
-            maximum_od600=2.0,
-            minimum_od600=0.0,
             ir_led_intensity=50.0,
             angle="90",
-            minimum_voltage=0.0,
-            maximum_voltage=1.0,
-            recorded_data={"x": [], "y": []},
+            recorded_data={"x": [0, 1], "y": [0, 2]},
             x="voltage",
             y="od600s",
             pd_channel="2",
@@ -827,12 +807,8 @@ def test_calibration_with_irl_data1() -> None:
             0.0024870149666305712,
         ],
         calibration_name="quad_test",
-        maximum_od600=MAX_OD,
-        minimum_od600=0.0,
         ir_led_intensity=70.0,
         angle="90",
-        minimum_voltage=0.001996680972202709,
-        maximum_voltage=0.8995772568778957,
         recorded_data={
             "x": [
                 0.030373011520747333,
@@ -844,7 +820,7 @@ def test_calibration_with_irl_data1() -> None:
                 0.8995772568778957,
                 0.001996680972202709,
             ],
-            "y": [0.042, 0.108, 0.237, 0.392, 0.585, 0.781, 1.131, 0.0],
+            "y": [0.042, 0.108, 0.237, 0.392, 0.585, 0.781,MAX_OD, 0.0],
         },
         x="voltage",
         y="od600s",
@@ -923,13 +899,9 @@ def test_calibration_data_from_user1() -> None:
         curve_type="poly",
         curve_data_=poly,
         calibration_name="multi_test",
-        maximum_od600=1.0,
-        minimum_od600=0.01,
         ir_led_intensity=90.0,
         angle="90",
-        minimum_voltage=0.018,
-        maximum_voltage=1.0,
-        recorded_data={"x": [], "y": []},
+        recorded_data={"x": [0.018, 1], "y": [0.01, 1]},
         x="voltage",
         y="od600s",
         pd_channel="2",
@@ -966,13 +938,9 @@ def test_calibration_data_from_user2() -> None:
         curve_type="poly",
         curve_data_=poly,
         calibration_name="multi_test",
-        maximum_od600=1.0,
-        minimum_od600=0.01,
         ir_led_intensity=90.0,
         angle="90",
-        minimum_voltage=0.018,
-        maximum_voltage=1.0,
-        recorded_data={"x": [], "y": []},
+        recorded_data={"x": [0.018, 1], "y": [0.01, 1]},
         x="voltage",
         y="od600s",
         pd_channel="2",
@@ -1038,10 +1006,6 @@ def test_at_least_one_signal_channel() -> None:
 def test_CachedCalibrationTransformer_with_real_calibration() -> None:
     calibration = structs.ODCalibration(
         angle="90",
-        maximum_od600=1.0,
-        minimum_od600=0.0,
-        minimum_voltage=0.044709852782465254,
-        maximum_voltage=1.359234153183015,
         curve_type="poly",
         curve_data_=[
             -0.9876751958847302,

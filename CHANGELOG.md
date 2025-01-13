@@ -52,7 +52,7 @@
   - GET `/api/workers/<pioreactor_unit>/calibrations/<device>`
   - GET `/unit_api/calibrations/<device>`
   - PATCH `/api/workers/<pioreactor_unit>/active_calibrations/<device>/<cal_name>`
-  - PATCH `/unit_api/calibrations/<device>/<cal_name>/active`
+  - PATCH `/unit_api/active_calibrations/<device>/<cal_name>`
   - DELETE `/api/workers/<pioreactor_unit>/active_calibrations/<device>/<cal_name>`
   - DELETE `/api/workers/<pioreactor_unit>/calibrations/<device>/<cal_name>`
   - DELETE `/unit_api/active_calibrations/<device>/<cal_name>`
@@ -62,26 +62,41 @@
   - PATCH `/api/units/<pioreactor_unit>/plugins/install`
   - PATCH `/api/units/<pioreactor_unit>/plugins/uninstall`
  - Changed the `settings` API (see docs).
- - New `/api/units` that returns a list of units (this is workers & leader)
+ - New `/api/units` that returns a list of units (this is workers & leader). If leader is also a worker, then it's identical to `/api/workers`
  - New `/api/experiments/<experiment>/historical_worker_assignments` that stores historical assignments to experiments
  - New Path API for getting the dir structure of `~/.pioreactor`:
   - `/unit_api/system/path/<path>`
 
 ### Enhancements
- - new SQL table for `historical_experiment_assignments`
+ - new SQL table for `historical_experiment_assignments` that stores historical assignments to experiments.
+ - UI performance improvements
 
 ### Breaking changes
- - any stirring calibrations needs to be redone
+ - removed Python library `diskcache`.
+ - any stirring calibrations needs to be redone. On the command line, run `pio calibration run --device stirring` to start the calibration assistant.
  - fixed typo `utils.local_persistant_storage` to `utils.local_persistent_storage`.
  - Kalman Filter database table is no longer populated. There is a way to re-add it, lmk.
- - moved intermittent cache location to `/tmp/pioreactor_cache/local_intermittent_pioreactor_metadata.sqlite`. This also determined by your configuration.
+ - moved intermittent cache location to `/tmp/pioreactor_cache/local_intermittent_pioreactor_metadata.sqlite`. This also determined by your configuration, see `[storage]`.
  - removed `calibrations` export dataset. Use the export option on the /Calibrations page instead.
  - persistent storage is now on single sqlite3 database in `/home/pioreactor/.pioreactor/storage/local_persistent_pioreactor_metadata.sqlite`. This is configurable in your configuration.
+ - When checking for calibrations in custom Dosing automations, users may have added:
+   ```python
+      with local_persistant_storage("current_pump_calibration") as cache:
+          if "media" not in cache:
+          ...
+   ```
+    This should be updated to:
+    ```python
+        with local_persistent_storage("active_calibrations") as cache:
+            if "media_pump" not in cache:
+            ...
+    ```
+  - removed `pioreactor.utils.gpio_helpers`
 
 ### Bug fixes
  - fix PWM3 not cleaning up correctly
+ - fixed Stirring not updating to best DC % when using a calibration after changing target RPM
 
-   - [ ] test self-test
 
 
 ### 24.12.10

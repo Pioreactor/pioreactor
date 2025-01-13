@@ -191,6 +191,31 @@ def delete_calibration(device: str, calibration_name: str) -> None:
         raise click.Abort()
 
     target_file.unlink()
+
+    with local_persistent_storage("active_calibrations") as c:
+        is_present = c.get(device) == calibration_name
+        if is_present:
+            c.pop(device)
+
+
     click.echo(f"Deleted calibration '{calibration_name}' of device '{device}'.")
 
-    # TODO: delete from leader and handle updating active?
+@calibration.command(name="analyze")
+@click.option("--device", required=True, help="Which calibration device to delete from.")
+@click.option("--name", "calibration_name", required=True, help="Which calibration name to delete.")
+def analyse_calibration(device: str, calibration_name: str) -> None:
+    """
+    Delete a calibration file from local storage.
+
+    Example usage:
+      calibration delete --device od --name my_od_cal_v1
+    """
+    target_file = CALIBRATION_PATH / device / f"{calibration_name}.yaml"
+    if not target_file.exists():
+        click.echo(f"No such calibration file: {target_file}")
+        raise click.Abort()
+
+
+    data = load_calibration(device, calibration_name)
+    finsished, degree = show_results_and_confirm_with_user(...)
+    # TODO finish this
