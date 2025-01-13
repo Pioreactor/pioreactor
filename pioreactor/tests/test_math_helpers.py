@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from pioreactor.utils.math_helpers import closest_point_to_domain
 from pioreactor.utils.math_helpers import simple_linear_regression
 from pioreactor.utils.math_helpers import trimmed_mean
 
@@ -43,3 +44,25 @@ def test_trimmed_mean() -> None:
 
     assert trimmed_mean([-100, -50, 1, 2, 3, 50, 10], cut_off_n=2) == 2
     assert trimmed_mean([100, -50, -1, 0, 1, -50, 10], cut_off_n=2) == 0
+
+
+def test_closest_point_single_point_in_domain():
+    assert closest_point_to_domain([1.0], (0.5, 1.5)) == 1.0
+
+
+def test_closest_point_multiple_points_in_domain():
+    assert closest_point_to_domain([0.6, 0.8, 1.2], (0.5, 1.5)) == 0.6
+
+
+def test_closest_point_all_outside_domain():
+    assert closest_point_to_domain([2.0, 3.0], (0.5, 1.5)) == 2.0
+    assert closest_point_to_domain([-1.0, -2.0], (0.5, 1.5)) == -1.0
+
+
+def test_closest_point_empty_list():
+    with pytest.raises(AssertionError):
+        closest_point_to_domain([], (0.5, 1.5))
+
+
+def test_closest_point_on_boundaries():
+    assert closest_point_to_domain([0.5, 1.5], (0.5, 1.5)) == 0.5

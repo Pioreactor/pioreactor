@@ -15,11 +15,9 @@ from msgspec.yaml import encode as yaml_encode
 
 from pioreactor import exc
 from pioreactor import types as pt
-from pioreactor.utils.math_helpers import closest_point_to_domain
 
 
 T = t.TypeVar("T")
-
 
 
 def subclass_union(cls: t.Type[T]) -> t.Type[T]:
@@ -141,8 +139,10 @@ class Voltage(JSONPrintedStruct):
     timestamp: t.Annotated[datetime, Meta(tz=True)]
     voltage: pt.Voltage
 
+
 X = float
 Y = float
+
 
 class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
     calibration_name: str
@@ -192,8 +192,7 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         Predict y given x
         """
         assert self.curve_type == "poly"
-        return sum([c * x ** i for i, c in enumerate(reversed(self.curve_data_))])
-
+        return sum([c * x**i for i, c in enumerate(reversed(self.curve_data_))])
 
     def ipredict(self, y: Y) -> X:
         assert self.curve_type == "poly"
@@ -206,6 +205,7 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
 
         # complex case: we have to solve the polynomial roots numerically, possibly with complex roots
         from numpy import roots, zeros_like, real, imag
+        from pioreactor.utils.math_helpers import closest_point_to_domain
 
         min_X, max_X = min(self.recorded_data["x"]), max(self.recorded_data["x"])
 
@@ -238,6 +238,7 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
             raise exc.SolutionBelowDomainError("Solution below domain")
         else:
             raise exc.SolutionAboveDomainError("Solution below domain")
+
 
 class ODCalibration(CalibrationBase, kw_only=True, tag="od"):
     ir_led_intensity: float

@@ -102,8 +102,6 @@ def correlation(x: Sequence, y: Sequence) -> float:
         raise StatisticsError(f"{e}. x: {x}, y: {y}") from e
 
 
-
-
 def closest_point_to_domain(P: list[float], D: tuple[float, float]) -> float:
     # Unpack the domain D into its lower and upper bounds
     a, b = D

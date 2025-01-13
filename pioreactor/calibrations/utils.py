@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 from typing import Callable
+
 import click
 
+from pioreactor import structs
 
 
 def green(string: str) -> str:
     return click.style(string, fg="green")
+
 
 def red(string: str) -> str:
     return click.style(string, fg="red")
@@ -17,25 +20,24 @@ def bold(string: str) -> str:
     return click.style(string, bold=True)
 
 
-def calculate_curve_of_best_fit(
-    x: list[float], y: list[float], degree: int
-) -> tuple[list[float], str]:
+def calculate_poly_curve_of_best_fit(x: list[float], y: list[float], degree: int) -> list[float]:
     import numpy as np
 
     # weigh the last point, the "blank measurement", more.
     # 1. It's far away from the other points
     # 2. We have prior knowledge that OD~0 when V~0.
-    n = len(voltages)
-    weights = np.ones_like(voltages)
+    n = len(x)
+    weights = np.ones_like(x)
     weights[-1] = n / 2
 
     try:
-        coefs = np.polyfit(inferred_od600s, voltages, deg=degree, w=weights).tolist()
+        coefs = np.polyfit(x, y, deg=degree, w=weights).tolist()
     except Exception:
-        echo("Unable to fit.")
+        click.echo("Unable to fit.")
         coefs = np.zeros(degree).tolist()
 
-    return coefs, "poly"
+    return coefs
+
 
 def curve_to_functional_form(curve_type: str, curve_data) -> str:
     if curve_type == "poly":
@@ -98,22 +100,20 @@ def plot_data(
     plt.show()
 
 
-
-def crunch_data_and_confirm_with_user(
-    calibration
-) -> bool:
-
-    click.clear()
-
+def crunch_data_and_confirm_with_user(calibration: structs.AnyCalibration) -> structs.AnyCalibration:
     y, x = calibration.recorded_data["y"], calibration.recorded_data["x"]
     candidate_curve = calibration.curve_data_
 
     while True:
+        click.clear()
 
-        if candidate_curve is not None:
+        if candidate_curve is None:
             degree = 1
-            candidate_curve = calculate_curve_of_best_fit(x, y, degree)
 
+            if calibration.curve_type == "poly":
+                candidate_curve = calculate_poly_curve_of_best_fit(x, y, degree)
+            else:
+                raise ValueError("only poly supported")
 
         curve_callable = curve_to_callable("poly", candidate_curve)
         plot_data(
@@ -121,26 +121,35 @@ def crunch_data_and_confirm_with_user(
             y,
             interpolation_curve=curve_callable,
             highlight_recent_point=False,
+            title="Calibration Curve",
+            x_label=calibration.x,
+            y_label=calibration.y,
         )
         click.echo()
-        click.echo(f"Calibration curve: {curve_to_functional_form(curve_type, candidate_curve)}")
+
+        click.echo(f"Calibration curve: {curve_to_functional_form(calibration.curve_type, candidate_curve)}")
         r = click.prompt(
             green(
                 f"""
-    y: confirm and save to disk
-    n: exit completely
-    d: choose a new degree for polynomial fit (currently {len(candidate_curve)-1})
-
-    """
+y: confirm and save to disk
+q: exit completely
+d: choose a new degree for polynomial fit (currently {len(candidate_curve)-1})
+"""
             ),
-            type=click.Choice(["y", "n", "d"]),
+            type=click.Choice(["y", "q", "d"]),
         )
         if r == "y":
             calibration.curve_data_ = candidate_curve
-            return True
+            return calibration
         elif r == "n":
-            return False
+            return calibration
         elif r == "d":
             degree = click.prompt(green("Enter new degree"), type=click.IntRange(1, 5, clamp=True))
+
+            if calibration.curve_type == "poly":
+                candidate_curve = calculate_poly_curve_of_best_fit(x, y, degree)
+            else:
+                raise ValueError("only poly supported")
+
         else:
-            return False
+            return calibration

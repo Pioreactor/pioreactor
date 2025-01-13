@@ -11,7 +11,6 @@ from pioreactor import exc
 from pioreactor import structs
 from pioreactor.background_jobs.od_reading import ADCReader
 from pioreactor.background_jobs.od_reading import CachedCalibrationTransformer
-from pioreactor.background_jobs.od_reading import closest_point_to_domain
 from pioreactor.background_jobs.od_reading import NullCalibrationTransformer
 from pioreactor.background_jobs.od_reading import ODReader
 from pioreactor.background_jobs.od_reading import PhotodiodeIrLedReferenceTrackerStaticInit
@@ -820,7 +819,7 @@ def test_calibration_with_irl_data1() -> None:
                 0.8995772568778957,
                 0.001996680972202709,
             ],
-            "y": [0.042, 0.108, 0.237, 0.392, 0.585, 0.781,MAX_OD, 0.0],
+            "y": [0.042, 0.108, 0.237, 0.392, 0.585, 0.781, MAX_OD, 0.0],
         },
         x="voltage",
         y="od600s",
@@ -1116,28 +1115,6 @@ def test_CachedCalibrationTransformer_with_real_calibration() -> None:
     cal_transformer.hydate_models_from_disk()
 
     assert abs(cal_transformer({"2": 0.096})["2"] - 0.06) < 0.01
-
-
-def test_closest_point_single_point_in_domain():
-    assert closest_point_to_domain([1.0], (0.5, 1.5)) == 1.0
-
-
-def test_closest_point_multiple_points_in_domain():
-    assert closest_point_to_domain([0.6, 0.8, 1.2], (0.5, 1.5)) == 0.6
-
-
-def test_closest_point_all_outside_domain():
-    assert closest_point_to_domain([2.0, 3.0], (0.5, 1.5)) == 2.0
-    assert closest_point_to_domain([-1.0, -2.0], (0.5, 1.5)) == -1.0
-
-
-def test_closest_point_empty_list():
-    with pytest.raises(AssertionError):
-        closest_point_to_domain([], (0.5, 1.5))
-
-
-def test_closest_point_on_boundaries():
-    assert closest_point_to_domain([0.5, 1.5], (0.5, 1.5)) == 0.5
 
 
 def test_missing_calibration_data():

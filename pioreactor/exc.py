@@ -73,6 +73,7 @@ class RsyncError(OSError):
     Syncing files failed
     """
 
+
 class NoSolutionsFoundError(ValueError):
     """
     No solutions found
@@ -83,6 +84,7 @@ class SolutionBelowDomainError(ValueError):
     """
     Outside minimum range
     """
+
 
 class SolutionAboveDomainError(ValueError):
     """

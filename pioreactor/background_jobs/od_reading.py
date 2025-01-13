@@ -72,7 +72,6 @@ from pioreactor.utils import timing
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 from pioreactor.utils.streaming_calculations import ExponentialMovingStd
 from pioreactor.utils.timing import catchtime
-from pioreactor.utils.math_helpers import closest_point_to_domain
 
 ALL_PD_CHANNELS: list[pt.PdChannel] = ["1", "2"]
 VALID_PD_ANGLES: list[pt.PdAngle] = ["45", "90", "135", "180"]
@@ -673,20 +672,24 @@ class CachedCalibrationTransformer(CalibrationTransformer):
             this procedure effectively ignores it.
 
             """
-            from numpy import roots, zeros_like, real, imag
 
             def calibration(observed_voltage: pt.Voltage) -> pt.OD:
-                poly = calibration_data.curve_data_
-                min_OD, max_OD = min(calibration_data.recorded_data['y']), max(calibration_data.recorded_data['y'])
-                min_voltage, max_voltage = min(calibration_data.recorded_data['x']), max(calibration_data.recorded_data['x'])
+                min_OD, max_OD = min(calibration_data.recorded_data["y"]), max(
+                    calibration_data.recorded_data["y"]
+                )
+                min_voltage, max_voltage = min(calibration_data.recorded_data["x"]), max(
+                    calibration_data.recorded_data["x"]
+                )
 
                 try:
                     return calibration_data.ipredict(observed_voltage)
-                except exc.NoSolutionsFoundError as e:
+                except exc.NoSolutionsFoundError:
                     if observed_voltage <= min_voltage:
                         return min_OD
                     elif observed_voltage > max_voltage:
                         return max_OD
+                    else:
+                        raise exc.NoSolutionsFoundError
                 except exc.SolutionBelowDomainError:
                     self.logger.warning(
                         f"Signal outside suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V."

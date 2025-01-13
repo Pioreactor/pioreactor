@@ -7,13 +7,13 @@ from datetime import timezone
 import pytest
 from msgspec import ValidationError
 
+from pioreactor import exc
 from pioreactor.calibrations import CALIBRATION_PATH
 from pioreactor.calibrations import load_active_calibration
 from pioreactor.calibrations import load_calibration
-from pioreactor.structs import ODCalibration
 from pioreactor.structs import CalibrationBase
+from pioreactor.structs import ODCalibration
 from pioreactor.utils import local_persistent_storage
-from pioreactor import exc
 
 
 @pytest.fixture
@@ -97,8 +97,8 @@ def test_load_calibration_validation_error(temp_calibration_dir) -> None:
     assert "Error reading bad_cal" in str(exc_info.value)
 
 
-
 # test calibration structs
+
 
 @pytest.fixture
 def calibration():
@@ -113,23 +113,27 @@ def calibration():
         recorded_data={"x": [0.1, 0.2, 0.3], "y": [1.0, 2.0, 3.0]},
     )
 
+
 def test_predict_linear(calibration) -> None:
     calibration.curve_data_ = [3, 2]  # 3x + 2
     x = 4
     expected_y = 3 * x + 2
     assert calibration.predict(x) == expected_y
 
+
 def test_predict_quadratic(calibration) -> None:
     calibration.curve_data_ = [5, 3, 2]  # 5x^2 + 3x + 2
     x = 2
-    expected_y = 5 * x ** 2 + 3 * x + 2
+    expected_y = 5 * x**2 + 3 * x + 2
     assert calibration.predict(x) == expected_y
+
 
 def test_ipredict_linear(calibration) -> None:
     calibration.curve_data_ = [3, 2]  # 3x + 2
     y = 14
     expected_x = (y - 2) / 3
     assert calibration.ipredict(y) == pytest.approx(expected_x)
+
 
 def test_ipredict_quadratic_single_solution(calibration) -> None:
     calibration.curve_data_ = [5, 3, 2]  # 5x^2 + 3x + 2
@@ -138,16 +142,19 @@ def test_ipredict_quadratic_single_solution(calibration) -> None:
     expected_x = 1.145683229480096  # Solves 5x^2 + 3x + 2 = 12
     assert calibration.ipredict(y) == pytest.approx(expected_x)
 
+
 def test_ipredict_no_solution(calibration) -> None:
     calibration.curve_data_ = [1, 0, 5]  # x^2 + 5, no solution for y = -10
     with pytest.raises(exc.NoSolutionsFoundError):
         calibration.ipredict(-10)
+
 
 def test_ipredict_multiple_solutions(calibration) -> None:
     calibration.curve_data_ = [1, 0, -6]  # x^2 - 6, solutions for y=0 are +- 2.45
     calibration.recorded_data = {"x": [0, 3], "y": [0, 9]}
     y = 0
     assert calibration.ipredict(y) == pytest.approx(2.44948974)
+
 
 def test_ipredict_solution_below_domain(calibration) -> None:
     calibration.curve_data_ = [5, 3, 2]  # 5x^2 + 3x + 2
@@ -156,12 +163,14 @@ def test_ipredict_solution_below_domain(calibration) -> None:
     with pytest.raises(exc.SolutionBelowDomainError):
         calibration.ipredict(y)
 
+
 def test_ipredict_solution_above_domain(calibration) -> None:
     calibration.curve_data_ = [25, -10, 1]  # 25x^2 - 10x + 1
     calibration.recorded_data = {"x": [0, 1], "y": [0, 100]}
     y = 50  # Solution above domain
     with pytest.raises(exc.SolutionAboveDomainError):
         calibration.ipredict(y)
+
 
 def test_predict_ipredict_consistency(calibration) -> None:
     calibration.curve_data_ = [2, -3, 1]  # 2x^2 - 3x + 1
