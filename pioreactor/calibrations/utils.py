@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from typing import Callable
+from typing import TypeVar
 
 import click
 
@@ -100,14 +101,17 @@ def plot_data(
     plt.show()
 
 
-def crunch_data_and_confirm_with_user(calibration: structs.AnyCalibration) -> structs.AnyCalibration:
+Calb = TypeVar("Calb", bound=structs.CalibrationBase)
+
+
+def crunch_data_and_confirm_with_user(calibration: Calb) -> Calb:
     y, x = calibration.recorded_data["y"], calibration.recorded_data["x"]
     candidate_curve = calibration.curve_data_
 
     while True:
         click.clear()
 
-        if candidate_curve is None:
+        if (candidate_curve is None) or len(candidate_curve) == 0:
             degree = 1
 
             if calibration.curve_type == "poly":

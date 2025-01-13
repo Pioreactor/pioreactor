@@ -23,7 +23,6 @@ from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.stirring import start_stirring as stirring
 from pioreactor.background_jobs.stirring import Stirrer
 from pioreactor.calibrations import utils
-from pioreactor.calibrations.utils import curve_to_callable
 from pioreactor.config import config
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistent_storage
@@ -394,69 +393,7 @@ def start_recording_and_diluting(
         return inferred_od600s, voltages
 
 
-def calculate_curve_of_best_fit(
-    voltages: list[pt.Voltage], inferred_od600s: list[pt.OD], degree: int
-) -> tuple[list[float], str]:
-    import numpy as np
-
-    # weigh the last point, the "blank measurement", more.
-    # 1. It's far away from the other points
-    # 2. We have prior knowledge that OD~0 when V~0.
-    n = len(voltages)
-    weights = np.ones_like(voltages)
-    weights[-1] = n / 2
-
-    try:
-        coefs = np.polyfit(inferred_od600s, voltages, deg=degree, w=weights).tolist()
-    except Exception:
-        echo("Unable to fit.")
-        coefs = np.zeros(degree).tolist()
-
-    return coefs, "poly"
-
-
-def show_results_and_confirm_with_user(
-    curve_data: list[float],
-    curve_type: str,
-    voltages: list[pt.Voltage],
-    inferred_od600s: list[pt.OD],
-) -> tuple[bool, int]:
-    clear()
-
-    curve_callable = curve_to_callable(curve_type, curve_data)
-
-    plot_data(
-        inferred_od600s,
-        voltages,
-        title="OD Calibration with curve of best fit",
-        interpolation_curve=curve_callable,
-        highlight_recent_point=False,
-    )
-    echo()
-    echo(f"Calibration curve: {utils.curve_to_functional_form(curve_type, curve_data)}")
-    r = prompt(
-        green(
-            f"""
-y: confirm and save to disk
-n: abort completely
-d: choose a new degree for polynomial fit (currently {len(curve_data)-1})
-
-"""
-        ),
-        type=click.Choice(["y", "n", "d"]),
-    )
-    if r == "y":
-        return True, -1
-    elif r == "n":
-        raise click.Abort()
-    elif r == "d":
-        d = prompt(green("Enter new degree"), type=click.IntRange(1, 5, clamp=True))
-        return False, d
-    else:
-        raise click.Abort()
-
-
-def save_results(
+def to_struct(
     curve_data_: list[float],
     curve_type: str,
     voltages: list[pt.Voltage],
@@ -486,8 +423,8 @@ def save_results(
 def run_od_calibration() -> structs.ODCalibration:
     unit = get_unit_name()
     experiment = get_testing_experiment_name()
-    curve_data_ = []  # type: ignore
-    curve_type = ""  # type: ignore
+    curve_data_: list[float] = []
+    curve_type = "poly"
 
     with managed_lifecycle(unit, experiment, "od_calibration"):
         introduction()
@@ -511,22 +448,9 @@ def run_od_calibration() -> structs.ODCalibration:
                 st, initial_od600, minimum_od600, dilution_amount, pd_channel
             )
 
-        degree = 5 if len(voltages) > 10 else 3
-        okay_with_result = False
-        while True:
-            if curve_type and curve_data_:
-                okay_with_result, degree = show_results_and_confirm_with_user(
-                    curve_data_, curve_type, voltages, inferred_od600s
-                )
-            if okay_with_result:
-                break
-
-            curve_data_, curve_type = calculate_curve_of_best_fit(voltages, inferred_od600s, degree)
-
-        echo("Saving results to disk...")
-        data_blob = save_results(
-            curve_data_,  # type: ignore
-            curve_type,  # type: ignore
+        cal = to_struct(
+            curve_data_,
+            curve_type,
             voltages,
             inferred_od600s,
             angle,
@@ -535,19 +459,14 @@ def run_od_calibration() -> structs.ODCalibration:
             unit,
         )
 
+        cal = utils.crunch_data_and_confirm_with_user(cal)
+
         echo(style(f"Calibration curve for `{name}`", underline=True, bold=True))
-        echo(utils.curve_to_functional_form(curve_type, curve_data_))
+        echo(utils.curve_to_functional_form(cal.curve_type, cal.curve_data_))
         echo()
         echo(style(f"Data for `{name}`", underline=True, bold=True))
-        print(format(encode(data_blob)).decode())
+        print(format(encode(cal)).decode())
         echo()
         echo(f"Finished calibration of `{name}` ✅")
 
-        if not config.getboolean("od_reading.config", "use_calibration", fallback=False):
-            echo()
-            echo(
-                bold(
-                    "Currently [od_reading.config][use_calibration] is set to 0 in your config.ini. This should be set to 1 to use calibrations.",
-                )
-            )
-        return data_blob
+        return cal
