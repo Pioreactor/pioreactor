@@ -87,7 +87,8 @@
           if "media" not in cache:
           ...
    ```
-    This should be updated to:
+    This should be updated to (**Note** the spelling in `local_persistant_storage` changed, too!):
+
     ```python
         with local_persistent_storage("active_calibrations") as cache:
             if "media_pump" not in cache:

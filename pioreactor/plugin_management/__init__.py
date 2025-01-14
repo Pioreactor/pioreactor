@@ -5,17 +5,18 @@ import glob
 import importlib
 import importlib.metadata as entry_point
 import os
+from functools import cache
 from typing import Any
 
 import click
 from msgspec import Struct
 
-from .install_plugin import click_install_plugin
-from .list_plugins import click_list_plugins
-from .uninstall_plugin import click_uninstall_plugin
-from .utils import discover_plugins_in_entry_points
-from .utils import discover_plugins_in_local_folder
 from pioreactor import pubsub
+from pioreactor.plugin_management.install_plugin import click_install_plugin
+from pioreactor.plugin_management.list_plugins import click_list_plugins
+from pioreactor.plugin_management.uninstall_plugin import click_uninstall_plugin
+from pioreactor.plugin_management.utils import discover_plugins_in_entry_points
+from pioreactor.plugin_management.utils import discover_plugins_in_local_folder
 from pioreactor.utils import networking
 from pioreactor.whoami import get_unit_name
 
@@ -64,6 +65,7 @@ def get_plugin_api_url(py_file: str) -> str:
     return pubsub.create_webserver_path(networking.resolve_to_address(get_unit_name()), endpoint)
 
 
+@cache
 def get_plugins() -> dict[str, Plugin]:
     """
     This function is really time consuming...

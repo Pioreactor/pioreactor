@@ -7,12 +7,13 @@ from shlex import quote
 import click
 
 from pioreactor.exc import BashScriptError
-from pioreactor.logging import create_logger
 from pioreactor.plugin_management.utils import discover_plugins_in_local_folder
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
 def uninstall_plugin(name_of_plugin: str) -> None:
+    from pioreactor.logging import create_logger
+
     logger = create_logger("uninstall_plugin", experiment=UNIVERSAL_EXPERIMENT)
     logger.debug(f"Uninstalling plugin {name_of_plugin}.")
 

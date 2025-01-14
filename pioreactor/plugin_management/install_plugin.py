@@ -7,11 +7,12 @@ from shlex import quote
 import click
 
 from pioreactor.exc import BashScriptError
-from pioreactor.logging import create_logger
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
 def install_plugin(name_of_plugin: str, source: str | None = None) -> None:
+    from pioreactor.logging import create_logger
+
     logger = create_logger("install_plugin", experiment=UNIVERSAL_EXPERIMENT)
     logger.debug(f"Installing plugin {name_of_plugin}.")
     command = (

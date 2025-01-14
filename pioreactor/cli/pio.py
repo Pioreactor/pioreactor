@@ -69,6 +69,11 @@ def pio(ctx) -> None:
     if geteuid() == 0:
         raise SystemError("Don't run as root!")
 
+    # load plugins
+    from pioreactor import plugin_management
+
+    plugin_management.get_plugins()
+
 
 @pio.command(name="logs", short_help="show recent logs")
 @click.option(
