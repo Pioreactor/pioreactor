@@ -32,12 +32,12 @@ def calculate_poly_curve_of_best_fit(x: list[float], y: list[float], degree: int
     weights[-1] = n / 2
 
     try:
-        coefs = np.polyfit(x, y, deg=degree, w=weights).tolist()
+        coefs = np.polyfit(x, y, deg=degree, w=weights)
     except Exception:
         click.echo("Unable to fit.")
-        coefs = np.zeros(degree).tolist()
+        coefs = np.zeros(degree)
 
-    return coefs
+    return coefs.tolist()
 
 
 def curve_to_functional_form(curve_type: str, curve_data) -> str:

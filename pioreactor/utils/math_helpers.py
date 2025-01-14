@@ -103,21 +103,18 @@ def correlation(x: Sequence, y: Sequence) -> float:
 
 
 def closest_point_to_domain(P: list[float], D: tuple[float, float]) -> float:
-    # Unpack the domain D into its lower and upper bounds
+    # Note: this function returns the _minimal_ found solution, if there are multiple
     a, b = D
 
-    # Initialize the closest point and minimum distance
     closest_point = None
     min_distance = float("inf")
 
-    for p in P:
+    for p in sorted(P):
         if a <= p <= b:  # Check if p is within the domain D
             return p  # If p is within D, it's the closest point with distance 0
 
-        # Calculate the distance to the closest boundary of D
         distance = min(abs(p - a), abs(p - b))
 
-        # Update the closest point if this distance is smaller than the current min_distance
         if distance < min_distance:
             min_distance = distance
             closest_point = p

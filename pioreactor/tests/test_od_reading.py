@@ -15,6 +15,7 @@ from pioreactor.background_jobs.od_reading import NullCalibrationTransformer
 from pioreactor.background_jobs.od_reading import ODReader
 from pioreactor.background_jobs.od_reading import PhotodiodeIrLedReferenceTrackerStaticInit
 from pioreactor.background_jobs.od_reading import start_od_reading
+from pioreactor.calibrations import load_active_calibration
 from pioreactor.config import config
 from pioreactor.config import temporary_config_change
 from pioreactor.pubsub import collect_all_logs_of_level
@@ -392,7 +393,7 @@ def test_sin_regression_all_negative() -> None:
 
 
 def test_simple_API() -> None:
-    od_job = start_od_reading("90", "REF", interval=100_000, fake_data=True, use_calibration=False)
+    od_job = start_od_reading("90", "REF", interval=100_000, fake_data=True)
 
     for led_int in range(5, 70, 15):
         time.sleep(2)
@@ -412,7 +413,6 @@ def test_ability_to_be_iterated() -> None:
         interval=1.0,
         fake_data=True,
         experiment="test_ability_to_be_iterated",
-        use_calibration=False,
     )
     results = []
 
@@ -434,7 +434,7 @@ def test_add_pre_read_callback() -> None:
 
     ODReader.add_pre_read_callback(cb)
 
-    od = start_od_reading("45", "REF", interval=1, fake_data=True, use_calibration=False)
+    od = start_od_reading("45", "REF", interval=1, fake_data=True)
     pause()
     pause()
     pause()
@@ -462,7 +462,6 @@ def test_add_post_read_callback() -> None:
             fake_data=True,
             experiment="test_add_post_read_callback",
             unit="test",
-            use_calibration=False,
         )
         pause(25)
         od.clean_up()
@@ -604,7 +603,7 @@ def test_determine_best_ir_led_intensity_values() -> None:
 
 
 def test_calibration_not_requested() -> None:
-    with start_od_reading("90", "REF", interval=None, fake_data=True, use_calibration=False) as od:
+    with start_od_reading("90", "REF", interval=None, fake_data=True) as od:
         assert isinstance(od.calibration_transformer, NullCalibrationTransformer)
         assert od.calibration_transformer({"2": 0.1}) == {"2": 0.1}
         assert od.calibration_transformer({"2": 0.5, "1": 0.0}) == {"2": 0.5, "1": 0.0}
@@ -614,9 +613,11 @@ def test_calibration_not_present() -> None:
     with local_persistent_storage("active_calibrations") as c:
         c.pop("od")
 
-    with start_od_reading("90", "REF", interval=None, fake_data=True, use_calibration=True) as od:
-        assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
-        assert len(od.calibration_transformer.models) == 0
+    cal = load_active_calibration("od")
+
+    with start_od_reading("90", "REF", interval=None, fake_data=True, calibration=cal) as od:
+        assert isinstance(od.calibration_transformer, NullCalibrationTransformer)
+        assert len(od.calibration_transformer.models) == 0, od.calibration_transformer.models
 
 
 def test_calibration_simple_linear_calibration_positive_slope() -> None:
@@ -629,13 +630,10 @@ def test_calibration_simple_linear_calibration_positive_slope() -> None:
         calibration_name="linear",
         ir_led_intensity=90.0,
         angle="90",
-        recorded_data={"x": [0, 1], "y": [0, 2]},
-        x="voltage",
-        y="od600s",
+        recorded_data={"x": [0, 2], "y": [0, 1]},
         pd_channel="2",
         calibrated_on_pioreactor_unit=get_unit_name(),
     )
-    cal.save_to_disk_for_device("od")
 
     cal.set_as_active_calibration_for_device("od")
 
@@ -646,7 +644,7 @@ def test_calibration_simple_linear_calibration_positive_slope() -> None:
         fake_data=True,
         experiment=experiment,
         unit=get_unit_name(),
-        use_calibration=True,
+        calibration=cal,
     ) as od:
         assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
 
@@ -659,11 +657,11 @@ def test_calibration_simple_linear_calibration_positive_slope() -> None:
         pause()
         pause()
         with collect_all_logs_of_level("warning", unit=get_unit_name(), experiment="+") as bucket:
+            pause()
+            pause()
+            pause()
             voltage = 10.0
-            pause()
-            pause()
-            pause()
-            assert od.calibration_transformer.models["2"](voltage) == 5.0
+            assert od.calibration_transformer.models["2"](voltage) == 1.0
             pause()
             pause()
             pause()
@@ -680,18 +678,21 @@ def test_calibration_simple_linear_calibration_negative_slope() -> None:
         calibration_name="linear",
         ir_led_intensity=90.0,
         angle="90",
-        recorded_data={"x": [0, maximum_voltage], "y": [0, 20]},
-        x="voltage",
-        y="od600s",
+        recorded_data={"y": [0, maximum_voltage], "x": [0, 20]},
         pd_channel="2",
         calibrated_on_pioreactor_unit=get_unit_name(),
     )
-    cal.save_to_disk_for_device("od")
 
     cal.set_as_active_calibration_for_device("od")
 
     with start_od_reading(
-        "REF", "90", interval=None, fake_data=True, experiment=experiment, unit=get_unit_name()
+        "REF",
+        "90",
+        interval=None,
+        fake_data=True,
+        experiment=experiment,
+        unit=get_unit_name(),
+        calibration=cal,
     ) as od:
         assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
 
@@ -723,16 +724,20 @@ def test_calibration_simple_quadratic_calibration() -> None:
         ir_led_intensity=90.0,
         angle="90",
         recorded_data={"x": [0, 1], "y": [0, 2]},
-        x="voltage",
-        y="od600s",
         pd_channel="2",
         calibrated_on_pioreactor_unit=get_unit_name(),
     )
-    cal.save_to_disk_for_device("od")
+
     cal.set_as_active_calibration_for_device("od")
 
     with start_od_reading(
-        "REF", "90", interval=None, fake_data=True, experiment=experiment, unit=get_unit_name()
+        "REF",
+        "90",
+        interval=None,
+        fake_data=True,
+        experiment=experiment,
+        unit=get_unit_name(),
+        calibration=cal,
     ) as od:
         assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
         x = 0.5
@@ -752,15 +757,15 @@ def test_calibration_multi_modal() -> None:
         ir_led_intensity=90.0,
         angle="90",
         recorded_data={"x": [0, 1], "y": [0, 2]},
-        x="voltage",
-        y="od600s",
         pd_channel="2",
         calibrated_on_pioreactor_unit=get_unit_name(),
     )
-    cal.save_to_disk_for_device("od")
+
     cal.set_as_active_calibration_for_device("od")
 
-    with start_od_reading("REF", "90", interval=None, fake_data=True, experiment=experiment) as od:
+    with start_od_reading(
+        "REF", "90", interval=None, fake_data=True, experiment=experiment, calibration=cal
+    ) as od:
         assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
         for i in range(0, 1000):
             voltage = np.polyval(poly, i / 1000)
@@ -770,7 +775,7 @@ def test_calibration_multi_modal() -> None:
 def test_calibration_errors_when_ir_led_differs() -> None:
     experiment = "test_calibration_errors_when_ir_led_differs"
 
-    with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "90"):
+    with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "100"):
         cal = structs.ODCalibration(
             created_at=current_utc_datetime(),
             curve_type="poly",
@@ -779,16 +784,15 @@ def test_calibration_errors_when_ir_led_differs() -> None:
             ir_led_intensity=50.0,
             angle="90",
             recorded_data={"x": [0, 1], "y": [0, 2]},
-            x="voltage",
-            y="od600s",
             pd_channel="2",
             calibrated_on_pioreactor_unit=get_unit_name(),
         )
-        cal.save_to_disk_for_device("od")
 
         cal.set_as_active_calibration_for_device("od")
         with pytest.raises(exc.CalibrationError) as error:
-            with start_od_reading("REF", "90", interval=1, fake_data=True, experiment=experiment):
+            with start_od_reading(
+                "REF", "90", interval=1, fake_data=True, experiment=experiment, calibration=cal
+            ):
                 pass
         assert "LED intensity" in str(error.value)
 
@@ -821,17 +825,14 @@ def test_calibration_with_irl_data1() -> None:
             ],
             "y": [0.042, 0.108, 0.237, 0.392, 0.585, 0.781, MAX_OD, 0.0],
         },
-        x="voltage",
-        y="od600s",
         pd_channel="2",
         calibrated_on_pioreactor_unit=get_unit_name(),
     )
-    cal.save_to_disk_for_device("od")
 
     cal.set_as_active_calibration_for_device("od")
 
     cc = CachedCalibrationTransformer()
-    cc.hydate_models_from_disk()
+    cc.hydate_models(cal)
     assert cc({"2": 0.001})["2"] == 0
     assert cc({"2": 0.002})["2"] == 0
     assert abs(cc({"2": 0.004})["2"] - 0.0032975807375385234) < 1e-5
@@ -900,23 +901,24 @@ def test_calibration_data_from_user1() -> None:
         calibration_name="multi_test",
         ir_led_intensity=90.0,
         angle="90",
-        recorded_data={"x": [0.018, 1], "y": [0.01, 1]},
-        x="voltage",
-        y="od600s",
+        recorded_data={"x": [0, 10], "y": [0, 10]},
         pd_channel="2",
         calibrated_on_pioreactor_unit=get_unit_name(),
     )
-    calibration.save_to_disk_for_device("od")
+
     calibration.set_as_active_calibration_for_device("od")
 
-    with start_od_reading("REF", "90", interval=None, fake_data=True, experiment=experiment) as od:
+    with start_od_reading(
+        "REF", "90", interval=None, fake_data=True, experiment=experiment, calibration=calibration
+    ) as od:
         assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
         infer = od.calibration_transformer.models["2"]
 
         # try varying voltage up over and across the lower bound, and assert we are always non-decreasing.
         od_0 = 0
         for i in range(10):
-            voltage = i / 5 * 0.018
+            voltage = i / 5 + 0.1
+
             od_1 = infer(voltage)
             assert od_0 <= od_1
             od_0 = od_1
@@ -939,17 +941,16 @@ def test_calibration_data_from_user2() -> None:
         calibration_name="multi_test",
         ir_led_intensity=90.0,
         angle="90",
-        recorded_data={"x": [0.018, 1], "y": [0.01, 1]},
-        x="voltage",
-        y="od600s",
+        recorded_data={"x": [0, 10], "y": [0, 10]},
         pd_channel="2",
         calibrated_on_pioreactor_unit=get_unit_name(),
     )
-    cal.save_to_disk_for_device("od")
 
     cal.set_as_active_calibration_for_device("od")
 
-    with start_od_reading("REF", "90", interval=None, fake_data=True, experiment=experiment) as od:
+    with start_od_reading(
+        "REF", "90", interval=None, fake_data=True, experiment=experiment, calibration=cal
+    ) as od:
         assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
         infer = od.calibration_transformer.models["2"]
 
@@ -1018,7 +1019,7 @@ def test_CachedCalibrationTransformer_with_real_calibration() -> None:
         created_at=current_utc_datetime(),
         calibrated_on_pioreactor_unit="pio1",
         recorded_data={
-            "x": [
+            "y": [
                 1.359234153183015,
                 1.1302469550069834,
                 0.9620188870414657,
@@ -1060,7 +1061,7 @@ def test_CachedCalibrationTransformer_with_real_calibration() -> None:
                 0.04809794996045024,
                 0.044709852782465254,
             ],
-            "y": [
+            "x": [
                 1.0,
                 0.8333333333333334,
                 0.7142857142857143,
@@ -1103,8 +1104,6 @@ def test_CachedCalibrationTransformer_with_real_calibration() -> None:
                 0.0,
             ],
         },
-        x="voltage",
-        y="od600s",
         calibration_name="test",
     )
     calibration.save_to_disk_for_device("od")
@@ -1112,7 +1111,7 @@ def test_CachedCalibrationTransformer_with_real_calibration() -> None:
     calibration.set_as_active_calibration_for_device("od")
 
     cal_transformer = CachedCalibrationTransformer()
-    cal_transformer.hydate_models_from_disk()
+    cal_transformer.hydate_models(calibration)
 
     assert abs(cal_transformer({"2": 0.096})["2"] - 0.06) < 0.01
 

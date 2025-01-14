@@ -179,7 +179,6 @@ def test_kalman_filter_entries() -> None:
         fake_data=True,
         unit=unit,
         experiment=exp,
-        use_calibration=False,
     )
 
     gr = GrowthRateCalculator(unit=unit, experiment=exp)

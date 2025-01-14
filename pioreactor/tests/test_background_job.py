@@ -403,7 +403,6 @@ def test_dodging_order() -> None:
             unit=get_unit_name(),
             experiment="test_dodging",
             fake_data=True,
-            use_calibration=False,
         ):
             time.sleep(5)
             with JustPause():
@@ -418,7 +417,6 @@ def test_dodging_order() -> None:
                 unit=get_unit_name(),
                 experiment="test_dodging",
                 fake_data=True,
-                use_calibration=False,
             ):
                 time.sleep(26)
 
@@ -450,7 +448,6 @@ def test_dodging_when_od_reading_stops_first() -> None:
         unit=get_unit_name(),
         experiment="test_dodging_when_od_reading_stops_first",
         fake_data=True,
-        use_calibration=False,
     )
     time.sleep(5)
 
@@ -504,7 +501,6 @@ def test_disabling_dodging() -> None:
                 unit=get_unit_name(),
                 experiment=exp,
                 fake_data=True,
-                use_calibration=False,
             ):
                 assert set(jp.published_settings.keys()) == set(
                     ["test", "state", "enable_dodging_od", "currently_dodging_od"]

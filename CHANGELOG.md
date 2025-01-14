@@ -72,6 +72,8 @@
  - UI performance improvements
 
 ### Breaking changes
+ - `use_calibration` under `od_reading.config` is deprecated. Use the calibrations "active" state instead.
+ - **Note**: by default, all calibrations are not active, even if they were "current" before. You must set them to be active.
  - removed Python library `diskcache`.
  - any stirring calibrations needs to be redone. On the command line, run `pio calibration run --device stirring` to start the calibration assistant.
  - fixed typo `utils.local_persistant_storage` to `utils.local_persistent_storage`.

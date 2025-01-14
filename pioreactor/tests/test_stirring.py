@@ -199,9 +199,7 @@ def test_stirring_will_try_to_restart_and_dodge_od_reading() -> None:
     # rpm_calculator = RpmCalculator()
     # rpm_calculator.setup()
     with temporary_config_change(config, "stirring.config", "enable_dodging_od", "true"):
-        with start_od_reading(
-            "90", interval=10.0, unit=unit, experiment=exp, fake_data=True, use_calibration=False
-        ):
+        with start_od_reading("90", interval=10.0, unit=unit, experiment=exp, fake_data=True):
             with start_stirring(500, unit, exp, use_rpm=True) as st:
                 assert st.duty_cycle == 0
                 assert st._estimate_duty_cycle > 0

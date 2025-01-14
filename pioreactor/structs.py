@@ -150,8 +150,8 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
     created_at: t.Annotated[datetime, Meta(tz=True)]
     curve_data_: list[float]
     curve_type: str  # ex: "poly"
-    x: str  # ex: voltage
-    y: str  # ex: od600
+    x: str
+    y: str
     recorded_data: dict[t.Literal["x", "y"], list[X | Y]]
 
     @property
@@ -194,19 +194,17 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         assert self.curve_type == "poly"
         return sum([c * x**i for i, c in enumerate(reversed(self.curve_data_))])
 
-    def ipredict(self, y: Y) -> X:
+    def ipredict(self, y: Y, enforce_bounds=False) -> X:
+        """
+        predict x given y
+        """
         assert self.curve_type == "poly"
-        poly = self.curve_data_
 
-        if len(poly) == 1:
-            return poly[0]
-        elif len(poly) == 2:
-            return (y - poly[1]) / poly[0]
-
-        # complex case: we have to solve the polynomial roots numerically, possibly with complex roots
+        # we have to solve the polynomial roots numerically, possibly with complex roots
         from numpy import roots, zeros_like, real, imag
         from pioreactor.utils.math_helpers import closest_point_to_domain
 
+        poly = self.curve_data_
         min_X, max_X = min(self.recorded_data["x"]), max(self.recorded_data["x"])
 
         coef_shift = zeros_like(poly)
@@ -219,6 +217,10 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
             raise exc.NoSolutionsFoundError("No solutions found")
         elif len(plausible_sols_) == 1:
             sol = plausible_sols_[0]
+
+            if not enforce_bounds:
+                return sol
+
             # if we are here, we let the downstream user decide how to proceed
             if min_X <= sol <= max_X:
                 return sol
@@ -230,7 +232,7 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         # what do we do with multiple solutions?
         closest_sol = closest_point_to_domain(plausible_sols_, (min_X, max_X))
         # closet sol can be inside or outside domain. If inside, happy path:
-        if min_X <= closest_sol <= max_X:
+        if (min_X <= closest_sol <= max_X) or not enforce_bounds:
             return closest_sol
 
         # if we are here, we let the downstream user decide how to proceed
@@ -244,8 +246,8 @@ class ODCalibration(CalibrationBase, kw_only=True, tag="od"):
     ir_led_intensity: float
     angle: t.Literal["45", "90", "135", "180"]
     pd_channel: t.Literal["1", "2"]
-    x: str = "Voltage"
-    y: str = "OD600"
+    x: str = "OD600"
+    y: str = "Voltage"
 
 
 class SimplePeristalticPumpCalibration(CalibrationBase, kw_only=True, tag="simple_peristaltic_pump"):

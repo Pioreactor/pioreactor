@@ -617,6 +617,7 @@ class NullIrLedReferenceTracker(IrLedReferenceTracker):
 
 class CalibrationTransformer(LoggerMixin):
     _logger_name = "calibration_transformer"
+    models: dict[pt.PdChannel, Callable] = {}
 
     def __init__(self) -> None:
         super().__init__()
@@ -629,8 +630,7 @@ class NullCalibrationTransformer(CalibrationTransformer):
     def __init__(self) -> None:
         super().__init__()
 
-    def hydate_models_from_disk(self) -> None:
-        self.models: dict[pt.PdChannel, Callable] = {}
+    def hydate_models(self, calibration_data: structs.ODCalibration | None) -> None:
         return
 
 
@@ -639,10 +639,7 @@ class CachedCalibrationTransformer(CalibrationTransformer):
         super().__init__()
         self.has_logged_warning = False
 
-    def hydate_models_from_disk(self) -> None:
-        self.models: dict[pt.PdChannel, Callable] = {}
-
-        calibration_data: structs.ODCalibration = load_active_calibration("od")
+    def hydate_models(self, calibration_data: structs.ODCalibration | None) -> None:
         if calibration_data is None:
             self.logger.debug("No calibration available for OD, skipping.")
             return
@@ -682,7 +679,7 @@ class CachedCalibrationTransformer(CalibrationTransformer):
                 )
 
                 try:
-                    return calibration_data.ipredict(observed_voltage)
+                    return calibration_data.ipredict(observed_voltage, enforce_bounds=True)
                 except exc.NoSolutionsFoundError:
                     if observed_voltage <= min_voltage:
                         return min_OD
@@ -806,8 +803,6 @@ class ODReader(BackgroundJob):
         self.adc_reader.add_external_logger(self.logger)
         self.calibration_transformer.add_external_logger(self.logger)
         self.ir_led_reference_tracker.add_external_logger(self.logger)
-
-        self.calibration_transformer.hydate_models_from_disk()
 
         self.channel_angle_map = channel_angle_map
         self.interval = interval
@@ -1167,7 +1162,7 @@ def start_od_reading(
     fake_data: bool = False,
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
-    use_calibration: bool = config.getboolean("od_reading.config", "use_calibration", fallback="True"),
+    calibration: structs.ODCalibration | None = None,
 ) -> ODReader:
     """
     This function prepares ODReader and other necessary transformation objects. It's a higher level API than using ODReader.
@@ -1207,8 +1202,9 @@ def start_od_reading(
         ir_led_reference_tracker = NullIrLedReferenceTracker()  # type: ignore
 
     # use an OD calibration?
-    if use_calibration:
+    if calibration:
         calibration_transformer = CachedCalibrationTransformer()
+        calibration_transformer.hydate_models(calibration)
     else:
         calibration_transformer = NullCalibrationTransformer()  # type: ignore
 
@@ -1254,9 +1250,13 @@ def click_od_reading(
     """
     Start the optical density reading job
     """
+
+    possible_calibration = load_active_calibration("od")
+
     od = start_od_reading(
         od_angle_channel1,
         od_angle_channel2,
         fake_data=fake_data or whoami.is_testing_env(),
+        calibration=possible_calibration,
     )
     od.block_until_disconnected()

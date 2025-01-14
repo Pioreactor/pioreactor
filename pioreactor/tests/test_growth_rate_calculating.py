@@ -744,7 +744,6 @@ class TestGrowthRateCalculating:
             fake_data=True,
             unit=unit,
             experiment=experiment,
-            use_calibration=False,
         ) as od_stream:
             with GrowthRateCalculator(unit=unit, experiment=experiment, source_obs_from_mqtt=False) as gr:
                 results = []

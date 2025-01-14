@@ -97,21 +97,23 @@ class DCBasedStirringProtocol(CalibrationProtocol):
 
 
 @overload
-def load_active_calibration(device: Literal["od"]) -> structs.ODCalibration:
+def load_active_calibration(device: Literal["od"]) -> structs.ODCalibration | None:
     pass
 
 
 @overload
-def load_active_calibration(device: PumpCalibrationDevices) -> structs.SimplePeristalticPumpCalibration:
+def load_active_calibration(
+    device: PumpCalibrationDevices,
+) -> structs.SimplePeristalticPumpCalibration | None:
     pass
 
 
 @overload
-def load_active_calibration(device: Literal["stirring"]) -> structs.SimpleStirringCalibration:
+def load_active_calibration(device: Literal["stirring"]) -> structs.SimpleStirringCalibration | None:
     pass
 
 
-def load_active_calibration(device: str) -> None | structs.AnyCalibration:
+def load_active_calibration(device: str) -> structs.AnyCalibration | None:
     with local_persistent_storage("active_calibrations") as c:
         active_cal_name = c.get(device)
 
