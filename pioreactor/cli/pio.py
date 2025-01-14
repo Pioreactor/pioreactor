@@ -11,6 +11,7 @@ from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
 
 from pioreactor import exc
+from pioreactor import plugin_management
 from pioreactor import whoami
 from pioreactor.cli.lazy_group import LazyGroup
 from pioreactor.config import config
@@ -70,8 +71,6 @@ def pio(ctx) -> None:
         raise SystemError("Don't run as root!")
 
     # load plugins
-    from pioreactor import plugin_management
-
     plugin_management.get_plugins()
 
 
