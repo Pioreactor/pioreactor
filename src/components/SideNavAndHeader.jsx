@@ -50,7 +50,7 @@ const ConditionalTooltip = ({condition, title, children}) => {
     <>
       {condition ? (
         <Tooltip placement="top" title={title}>
-          {children}
+          <span>{children}</span>
         </Tooltip>
       ) : (
         children
@@ -64,16 +64,6 @@ const SelectableMenuItem = ({availableExperiments, experiment, selectExperiment}
   const navigate = useNavigate();
   const [selectOpen, setSelectOpen] = React.useState(false);
   const [activeExperiments, setActiveExperiments] = React.useState(new Set([]))
-  const [highlight, setHighlight] = React.useState(false);
-
-  React.useEffect(() => {
-    if (!experiment) return;
-    setHighlight(true);
-    const timer = setTimeout(() => {
-      setHighlight(false);
-    }, 800);
-    return () => clearTimeout(timer);
-  }, [experiment]);
 
   React.useEffect(() => {
     async function getActiveExperiments() {
@@ -121,7 +111,7 @@ const SelectableMenuItem = ({availableExperiments, experiment, selectExperiment}
     >
     <MenuItem
       onClick={handleMenuItemClick}
-      icon={<ExpIcon sx={{fontSize: "23px"}} className={highlight ? 'blinkicon' : ''} /> }
+      icon={<ExpIcon sx={{fontSize: "23px"}} /> }
     >
       <FormControl variant="standard" fullWidth>
         <Select
@@ -222,9 +212,12 @@ export default function SideNavAndHeader() {
     getCurrentApp()
     getLatestVersion()
     getLAP()
-    setOpenSubmenu(location.pathname.substr(1))
 
   }, [])
+
+  React.useEffect(() => {
+    setOpenSubmenu(location.pathname.substr(1))
+  }, [location.pathname])
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -271,7 +264,7 @@ export default function SideNavAndHeader() {
               }}
             >
               <SelectableMenuItem
-                experiment={experimentMetadata.experiment || null}
+                experiment={experimentMetadata.experiment || undefined}
                 availableExperiments={allExperiments.map(v => v.experiment)}
                 selectExperiment={selectExperiment}
                 />
@@ -280,17 +273,17 @@ export default function SideNavAndHeader() {
                 icon={<DashboardOutlinedIcon sx={{fontSize: "23px"}}/>}
                 component={<Link to="/overview" className="link" />}
                 active={(isSelected("/") || isSelected("/overview"))}
-                onClick={() => setOpenSubmenu("overview")}
+
                 >
                 Overview
               </MenuItem>
 
               <SubMenu
-                open={openSubmenu==="pioreactors"}
+                open={openSubmenu==="pioreactors" || openSubmenu==="logs"}
                 icon={<PioreactorIcon  sx={{fontSize: "23px"}}/>}
                 component={<Link to="/pioreactors" className="link" />}
                 active={isSelected("/pioreactors")}
-                onClick={() => setOpenSubmenu("pioreactors")}
+
                 label={"Pioreactors"}
                 >
                 <MenuItem
@@ -307,7 +300,7 @@ export default function SideNavAndHeader() {
                   }
                 component={<Link to="/experiment-profiles" className="link" />}
                 active={isSelected("/experiment-profiles")}
-                onClick={() => setOpenSubmenu("experiment-profiles")}
+
                 >
                 Profiles
               </MenuItem>
@@ -353,17 +346,17 @@ export default function SideNavAndHeader() {
                   icon={<SettingsOutlinedIcon sx={{fontSize: "23px"}}/> }
                   component={<Link to="/config" className="link" />}
                   active={isSelected("/config")}
-                  onClick={() => setOpenSubmenu("config")}
+
                 >
                 Configuration
                 </MenuItem>
 
                 <SubMenu label="Inventory"
-                  open={openSubmenu==="inventory"}
+                  open={openSubmenu==="inventory" || openSubmenu==="leader"}
                   icon={<PioreactorsIcon sx={{fontSize: "23px"}} />}
                   component={<Link to="/inventory" className="link" />}
                   active={isSelected("/inventory")}
-                  onClick={() => setOpenSubmenu("inventory")}
+
                 >
                   <MenuItem
                     component={<Link to="/leader" className="link" />}
@@ -378,7 +371,7 @@ export default function SideNavAndHeader() {
                   icon={<TuneIcon sx={{fontSize: "23px"}}/> }
                   component={<Link to="/calibrations" className="link" />}
                   active={isSelected("/calibrations")}
-                  onClick={() => setOpenSubmenu("calibrations")}
+
                   >
                   Calibrations
                 </MenuItem>
@@ -387,7 +380,7 @@ export default function SideNavAndHeader() {
                   icon={<SaveAltIcon sx={{fontSize: "23px"}}/> }
                   component={<Link to="/export-data" className="link" />}
                   active={isSelected("/export-data")}
-                  onClick={() => setOpenSubmenu("export-data")}
+
                   >
                   Export data
                 </MenuItem>
@@ -396,7 +389,7 @@ export default function SideNavAndHeader() {
                   icon={<InsertChartOutlinedIcon sx={{fontSize: "23px"}}/> }
                   component={<Link to="/experiments" className="link" />}
                   active={isSelected("/experiments")}
-                  onClick={() => setOpenSubmenu("experiments")}
+
                   >
                   Past experiments
                 </MenuItem>
@@ -405,7 +398,7 @@ export default function SideNavAndHeader() {
                   icon={<LibraryAddOutlinedIcon sx={{fontSize: "23px"}}/> }
                   component={<Link to="/plugins" className="link" />}
                   active={isSelected("/plugins")}
-                  onClick={() => setOpenSubmenu("plugins")}
+
                   >
                   Plugins
                 </MenuItem>
@@ -418,7 +411,7 @@ export default function SideNavAndHeader() {
                     }
                   component={<Link to="/updates" className="link" />}
                   active={isSelected("/updates")}
-                  onClick={() => setOpenSubmenu("updates")}
+
                   >
                   Updates
                 </MenuItem>

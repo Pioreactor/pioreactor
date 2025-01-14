@@ -76,7 +76,7 @@ function PaginatedLogTable({unit, experiment, relabelMap }) {
 
   const getAPIURL = (unit, onlyAssignedLogs) => {
     if (unit && onlyAssignedLogs){
-      return `/api/units/${unit}/experiments/${experiment}/logs`;
+      return `/api/workers/${unit}/experiments/${experiment}/logs`;
     } else if (!unit && onlyAssignedLogs) {
       return `/api/experiments/${experiment}/logs`
     } else if (unit && !onlyAssignedLogs) {

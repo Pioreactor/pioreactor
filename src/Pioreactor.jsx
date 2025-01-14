@@ -37,7 +37,7 @@ import { useConfirm } from 'material-ui-confirm';
 import Alert from '@mui/material/Alert';
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 
-import {Link, useParams  } from 'react-router-dom'
+import {Link, useParams, useNavigate} from 'react-router-dom'
 
 import SelfTestDialog from "./components/SelfTestDialog"
 import ChangeAutomationsDialog from "./components/ChangeAutomationsDialog"
@@ -53,7 +53,8 @@ import LogTableByUnit from "./components/LogTableByUnit";
 import { MQTTProvider, useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 import PatientButton from './components/PatientButton';
-import {getConfig, getRelabelMap, runPioreactorJob, colors, disconnectedGrey, lostRed, disabledColor, stateDisplay} from "./utilities"
+import {getConfig, getRelabelMap, runPioreactorJob, colors, disconnectedGrey, lostRed, disabledColor, stateDisplay, checkTaskCallback} from "./utilities"
+import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
 
 
 function StateTypography({ state, isDisabled=false }) {
@@ -296,6 +297,13 @@ function ButtonStopProcess({experiment, unit}) {
 
 
 function PioreactorHeader({unit, assignedExperiment, isActive, selectExperiment}) {
+  const navigate = useNavigate()
+
+  const onExperimentClick = () => {
+    selectExperiment(assignedExperiment);
+    navigate("/overview");
+  }
+
   return (
     <Box>
       <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
@@ -321,7 +329,7 @@ function PioreactorHeader({unit, assignedExperiment, isActive, selectExperiment}
                 <PlayCircleOutlinedIcon sx={{ fontSize: 14, verticalAlign: "-2px" }}/> Experiment assigned:&nbsp;
               </Box>
               <Box fontWeight="fontWeightRegular" sx={{mr: "1%", display:"inline-block"}}>
-                <Chip icon=<PlayCircleOutlinedIcon/> size="small" label={assignedExperiment} clickable onClick={() => selectExperiment(assignedExperiment)} />
+                <Chip icon=<PlayCircleOutlinedIcon/> size="small" label={assignedExperiment} clickable onClick={onExperimentClick} />
               </Box>
             </Box>
             <Box sx={{display:"inline"}}>
@@ -342,9 +350,30 @@ function PioreactorHeader({unit, assignedExperiment, isActive, selectExperiment}
 }
 
 
+
 function CalibrateDialog(props) {
   const [open, setOpen] = useState(false);
   const [tabValue, setTabValue] = useState(0);
+  const [activeCalibrations, setActiveCalibrations] = useState({})
+
+  useEffect(() => {
+    if (!open) return;
+
+    const apiUrl = `/api/workers/${props.unit}/active_calibrations`;
+
+    const fetchCalibrations = async () => {
+      try {
+        const response = await fetch(apiUrl);
+        const firstResponse = await response.json();
+        const data = await checkTaskCallback(firstResponse.result_url_path, {delayMs: 2000})
+        setActiveCalibrations(data.result[props.unit]);
+      } catch (err) {
+        console.error("Failed to fetch calibration:", err);
+      }
+    };
+
+    fetchCalibrations();
+  }, [open, props.unit] )
 
 
   const handleTabChange = (event, newValue) => {
@@ -408,6 +437,7 @@ function CalibrateDialog(props) {
             textColor="primary"
             >
             <Tab label="Blanks"/>
+            <Tab label="Calibrations"/>
           </Tabs>
           <IconButton
             aria-label="close"
@@ -442,15 +472,51 @@ function CalibrateDialog(props) {
               </div>
             </div>
             <ManageDivider/>
-          </TabPanel>
 
+          </TabPanel>
+          <TabPanel value={tabValue} index={1}>
+            <Typography  gutterBottom>
+             Active calibrations
+            </Typography>
+            <Typography variant="body2" component="p" gutterBottom>
+              Below are the active calibrations that will be used when running devices like pumps, stirring, etc. Read more about <a href="https://docs.pioreactor.com/user-guide/hardware-calibrations">calibrations</a>.
+            </Typography>
+
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell align="left" sx={{padding: "6px 0px"}}>Device</TableCell>
+                    <TableCell align="left" sx={{padding: "6px 0px"}}>Calibration name</TableCell>
+                    <TableCell align="left" sx={{padding: "6px 0px"}}>Calibrated on</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                    {Object.entries(activeCalibrations || {}).map(([device, calibration]) => {
+                      const calName = calibration.calibration_name
+                      return (
+                        <TableRow key={calName + device}>
+                          <TableCell align="left" sx={{padding: "6px 0px"}}> {device} </TableCell>
+                          <TableCell align="left" sx={{padding: "6px 0px"}}>
+                              <Chip
+                                size="small"
+                                icon={<TuneIcon/>}
+                                label={calName}
+                                clickable component={Link} to={`/calibrations/${props.unit}/${device}/${calName}`}
+                              />
+                          </TableCell>
+                          <TableCell align="left" sx={{padding: "6px 0px"}}> {dayjs(calibration.created_at).format('YYYY-MM-DD')} </TableCell>
+                        </TableRow>
+                        )
+                      })}
+              </TableBody>
+            </Table>
+
+          </TabPanel>
         </DialogContent>
       </Dialog>
   </React.Fragment>
   );
 }
-
-
 
 
 
@@ -1837,7 +1903,12 @@ function Pioreactor({title}) {
   const [assignedExperiment, setAssignedExperiment] = useState(null)
   const [isActive, setIsActive] = useState(true)
   const [error, setError] = useState(null)
+  const navigate = useNavigate()
 
+  const onExperimentClick = () => {
+    selectExperiment(assignedExperiment);
+    navigate("/overview");
+  }
 
   useEffect(() => {
     document.title = title;
@@ -1887,7 +1958,7 @@ function Pioreactor({title}) {
             <PioreactorHeader unit={unit} assignedExperiment={assignedExperiment} isActive={isActive} selectExperiment={selectExperiment}/>
             {experimentMetadata.experiment && assignedExperiment && experimentMetadata.experiment !== assignedExperiment &&
             <Box>
-              <Alert severity="info" style={{marginBottom: '10px', marginTop: '10px'}}>This worker is part of different experiment. Switch to experiment <Chip icon=<PlayCircleOutlinedIcon/> size="small" label={assignedExperiment} clickable onClick={() => selectExperiment(assignedExperiment)}/> to control this worker.</Alert>
+              <Alert severity="info" style={{marginBottom: '10px', marginTop: '10px'}}>This worker is part of different experiment. Switch to experiment <Chip icon=<PlayCircleOutlinedIcon/> size="small" label={assignedExperiment} clickable onClick={onExperimentClick}/> to control this worker.</Alert>
             </Box>
           }
           </Grid>

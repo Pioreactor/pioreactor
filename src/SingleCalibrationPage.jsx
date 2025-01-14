@@ -6,7 +6,8 @@ import Link from '@mui/material/Link';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/Card';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
-import CalibrationChart from "./components/CalibrationChart"; // Reuse from your previous code
+import CalibrationChart from "./components/CalibrationChart";
+import CableIcon from '@mui/icons-material/Cable';
 import {
   Table,
   TableBody,
@@ -16,6 +17,50 @@ import {
 import PioreactorIcon from "./components/PioreactorIcon"
 import dayjs from 'dayjs';
 import Snackbar from '@mui/material/Snackbar';
+import TuneIcon from '@mui/icons-material/Tune';
+import Chip from '@mui/material/Chip';
+import DoNotDisturbOnOutlinedIcon from '@mui/icons-material/DoNotDisturbOnOutlined';
+import CheckCircleOutlineOutlinedIcon from '@mui/icons-material/CheckCircleOutlineOutlined';
+
+
+function formatPolynomial(coefficients) {
+    const superscripts = {
+        0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹'
+    };
+
+    const toSuperscript = (num) => {
+        return String(num).split('').map(digit => superscripts[digit] || '').join('');
+    };
+
+    let result = '';
+
+    coefficients.forEach((coef, i) => {
+        if (coef === 0) return;
+
+        const power = coefficients.length - i - 1;
+        const absCoef = Math.abs(coef);
+
+        let term = '';
+
+        // Add sign
+        if (result) term += coef > 0 ? ' + ' : ' - ';
+        else if (coef < 0) term += '-';
+
+        // Add coefficient (only show if not 1 or power is 0)
+        if (absCoef !== 1 || power === 0) term += absCoef.toFixed(2);
+
+        // Add variable and power
+        if (power > 0) {
+            term += 'x';
+            if (power > 1) term += toSuperscript(power);
+        }
+
+        result += term;
+    });
+
+    return result || '0';
+}
+
 
 
 function SingleCalibrationPage(props) {
@@ -49,29 +94,26 @@ function SingleCalibrationPageCard() {
 
   const [calibration, setCalibration] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activateLoading, setActivateLoading] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
 
   useEffect(() => {
-    // 1. Build your API URL with the route parameters
-    // Example: /api/calibrations/<pioreactor_unit>/<device>/<calibration_name>
-    const apiUrl = `/api/workers/${pioreactor_unit}/calibrations/${device}/${calibration_name}`;
-    
-    const fetchSingleCalibration = async () => {
-      try {
-        const response = await fetch(apiUrl);
-        const firstResponse = await response.json();
-        const data = await checkTaskCallback(firstResponse.result_url_path)
-        setCalibration(data.result[pioreactor_unit]);
-      } catch (err) {
-        console.error("Failed to fetch calibration:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchSingleCalibration();
   }, [pioreactor_unit, device, calibration_name]);
+
+  const fetchSingleCalibration = async () => {
+    const apiUrl = `/api/workers/${pioreactor_unit}/calibrations/${device}/${calibration_name}`;
+    try {
+      const response = await fetch(apiUrl);
+      const firstResponse = await response.json();
+      const data = await checkTaskCallback(firstResponse.result_url_path)
+      setCalibration(data.result[pioreactor_unit]);
+    } catch (err) {
+      console.error("Failed to fetch calibration:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSnackbarClose = (e, reason) => {
     if (reason === 'clickaway') {
@@ -81,19 +123,29 @@ function SingleCalibrationPageCard() {
   }
 
   const handleSetActive = async () => {
-    const apiUrl = `/api/workers/${pioreactor_unit}/calibrations/${device}/${calibration_name}/active`;
-    setActivateLoading(true);
+    const apiUrl = `/api/workers/${pioreactor_unit}/active_calibrations/${device}/${calibration_name}`;
     try {
       const response = await fetch(apiUrl, { method: "PATCH" });
       if (!response.ok) {
         throw new Error("Failed to activate calibration");
       }
+      setSnackbarMessage("Calibration set as Active")
       setSnackbarOpen(true);
+      setTimeout(fetchSingleCalibration, 200)
     } catch (err) {
       console.error("Error setting active calibration:", err);
-    } finally {
-      setActivateLoading(false);
     }
+  };
+
+  const handleRemoveActive = async () => {
+    const apiUrl = `/api/workers/${pioreactor_unit}/active_calibrations/${device}`;
+    const response = await fetch(apiUrl, { method: "DELETE" });
+    if (!response.ok) {
+      throw new Error("Failed to remove active calibration");
+    }
+    setSnackbarMessage("Calibration removed as Active")
+    setSnackbarOpen(true);
+    setTimeout(fetchSingleCalibration, 200);
   };
 
   if (loading) {
@@ -131,9 +183,9 @@ function SingleCalibrationPageCard() {
           <Typography variant="h6" mb={2}>
             <Link component={RouterLink} to={`/calibrations/${pioreactor_unit}`} color="inherit"  underline="hover" sx={{cursor: "pointer"}} > <PioreactorIcon sx={{verticalAlign: "middle", marginRight: "1px"}} /> {pioreactor_unit} </Link>
               <NavigateNextIcon sx={{verticalAlign: "middle", marginRight: "3px"}}/>
-            <Link component={RouterLink} to={`/calibrations/${pioreactor_unit}/${device}`} color="inherit"  underline="hover" sx={{cursor: "pointer"}} > {device} </Link>
+            <Link component={RouterLink} to={`/calibrations/${pioreactor_unit}/${device}`} color="inherit"  underline="hover" sx={{cursor: "pointer"}} >  {device} </Link>
               <NavigateNextIcon sx={{verticalAlign: "middle", marginRight: "3px"}}/>
-            {calibration_name}
+             {calibration_name}
           </Typography>
 
           <CalibrationChart calibrations={[calibration]} deviceName={device} unitsColorMap={unitsColorMap} highlightedModel={{pioreactorUnit: null, calbrationName: null}} title={`Calibration curve for ${calibration_name}`} />
@@ -143,15 +195,39 @@ function SingleCalibrationPageCard() {
                 <TableBody>
                   <TableRow>
                     <TableCell><strong>Pioreactor Unit</strong></TableCell>
-                    <TableCell>{pioreactor_unit}</TableCell>
+                    <TableCell>
+                      <Chip
+                        size="small"
+                        icon={<PioreactorIcon/>}
+                        label={pioreactor_unit}
+                        clickable
+                        component={RouterLink}
+                        to={`/calibrations/${pioreactor_unit}`}
+                        />
+                    </TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell><strong>Device</strong></TableCell>
-                    <TableCell>{device}</TableCell>
+                    <TableCell>{device}
+
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell><strong>Calibration name</strong></TableCell>
+                    <TableCell>
+                      <Chip
+                        size="small"
+                        icon={<TuneIcon/>}
+                        label={calibration_name}
+                        clickable
+                        component={RouterLink}
+                        to={`/calibrations/${pioreactor_unit}/${device}/${calibration_name}`}
+                        />
+                    </TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell><strong>Calibration Type</strong></TableCell>
-                    <TableCell>{calibration_type ?? "n/a"}</TableCell>
+                    <TableCell>{calibration_type}</TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell><strong>Calibrated on</strong></TableCell>
@@ -159,14 +235,25 @@ function SingleCalibrationPageCard() {
                   </TableRow>
                   <TableRow>
                     <TableCell><strong>Active</strong></TableCell>
-                    <TableCell>{is_active ? "Active" : ""}</TableCell>
+                    <TableCell>{is_active ? "Active": ""}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell><strong>Fit polynomial</strong></TableCell>
+                    <TableCell>
+                      {formatPolynomial(curve_data_)}
+                    </TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell><strong>Coefficients</strong></TableCell>
                     <TableCell>
-                      {Array.isArray(curve_data_)
-                        ? JSON.stringify(curve_data_)
-                        : "n/a"}
+                      {curve_data_.map(c => c.toFixed(4)).join(", ")}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow >
+                    <TableCell ><strong>Recorded data</strong></TableCell>
+                    <TableCell sx={{maxWidth: "600px", whiteSpace: "pre-line", wordWrap: "break-word"}}>
+                      <code>{x}: {JSON.stringify(recorded_data['x'])}</code><br/>
+                      <code>{y}: {JSON.stringify(recorded_data['y'])}</code><br/>
                     </TableCell>
                   </TableRow>
                 </TableBody>
@@ -177,21 +264,33 @@ function SingleCalibrationPageCard() {
           {/* 5. Button to set active */}
           <Box mt={2}>
             <Button
+              startIcon={<DoNotDisturbOnOutlinedIcon/>}
+              variant="text"
+              color="secondary"
+              disabled={!is_active}
+              onClick={handleRemoveActive}
+              sx={{ textTransform: "none", float: "right", ml: 1 }}
+            >
+              Set inactive
+            </Button>
+            <Button
+              startIcon={<CheckCircleOutlineOutlinedIcon />}
               variant="contained"
               color="primary"
-              disabled={activateLoading || is_active}
+              disabled={ is_active}
               onClick={handleSetActive}
               sx={{ textTransform: "none", float: "right", }}
             >
-              {activateLoading ? "Activating..." : "Set active"}
+               Set active
             </Button>
+
           </Box>
 
           <Snackbar
             anchorOrigin={{vertical: "bottom", horizontal: "center"}}
             open={snackbarOpen}
             onClose={handleSnackbarClose}
-            message={"Calibration is now active."}
+            message={snackbarMessage}
             autoHideDuration={7000}
             resumeHideDuration={2000}
             key={"snackbar" + pioreactor_unit + device + calibration_name}

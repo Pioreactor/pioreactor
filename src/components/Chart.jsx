@@ -200,6 +200,10 @@ class Chart extends React.Component {
       return
     }
 
+    if (!message){
+      return
+    }
+
     if (!message.toString()){
       return
     }

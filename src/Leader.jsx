@@ -218,19 +218,16 @@ function DirectoryNavigatorCard() {
 
         {!loading && (
           <List dense={true}>
-            {
-              // Show a "Go Up" button if we’re not at root
-              currentPath && (
+
               <ListItem onClick={() => handleGoUp()} disablePadding={true}>
-                <ListItemButton>
+                <ListItemButton disabled={!currentPath}>
                 <ListItemIcon>
                   <ArrowBackIcon />
                 </ListItemIcon>
                 <ListItemText primary={"Back"} />
                 </ListItemButton>
               </ListItem>
-              )
-            }
+
             {/* Directories */}
             {dirs.map((dir) => (
               <ListItem onClick={() => handleDirClick(dir)} key={dir} disablePadding={true}>
@@ -638,7 +635,7 @@ function ClusterClockCard({leaderHostname}){
                         to={leaderHostname === unitName ? "/leader" : "/pioreactors/" + unitName}
                         />
                     </TableCell>
-                    <TableCell align="right" sx={{padding: "6px 0px"}}>{info?.clock_time ? dayjs.utc(info.clock_time, 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]').local().format('MMM D, YYYY HH:mm:ss') : "No data"}</TableCell>
+                    <TableCell align="right" sx={{padding: "6px 0px"}}>{info?.clock_time ? dayjs.utc(info.clock_time, 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]').local().format('MMM D, YYYY HH:mm:ss') : "No data received"}</TableCell>
                   </TableRow>
                 );
               })}

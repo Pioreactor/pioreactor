@@ -238,6 +238,7 @@ function WorkerCard({worker, config, leaderVersion}) {
   const [WLANaddress, setWLANaddress] = React.useState(null)
   const [ETHAddress, setETHAddress] = React.useState(null)
   const { selectExperiment } = useExperiment();
+  const navigate = useNavigate()
 
 
   const isActive = () => {
@@ -343,6 +344,10 @@ function WorkerCard({worker, config, leaderVersion}) {
     })
   };
 
+  const onExperimentClick = () => {
+    selectExperiment(experimentAssigned)
+    navigate("/overview")
+  }
 
   const pioreactorString = () => {
     if (!(state === "ready" || state === "init")){
@@ -421,7 +426,7 @@ function WorkerCard({worker, config, leaderVersion}) {
         <Box sx={{display: "flex", justifyContent: "left", ml: .5}}>
           {experimentAssigned ? (
             <>
-            <Typography variant="subtitle2" color={isActive() ? "inherit" : inactiveGrey}> Assigned to <Chip icon=<PlayCircleOutlinedIcon/> disabled={!isActive()} size="small" label={experimentAssigned} clickable onClick={() => selectExperiment(experimentAssigned)} /> </Typography>
+            <Typography variant="subtitle2" color={isActive() ? "inherit" : inactiveGrey}> Assigned to <Chip icon=<PlayCircleOutlinedIcon/> disabled={!isActive()} size="small" label={experimentAssigned} clickable onClick={onExperimentClick} /> </Typography>
             </>)
           : <Typography variant="subtitle2" color={isActive() ? "inherit" : inactiveGrey}> Unassigned </Typography>
         }

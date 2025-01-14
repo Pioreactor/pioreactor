@@ -155,7 +155,7 @@ function PageHeader(props) {
 
 
 
-function ListSuggestedPlugins({selectedUnit}){
+function ListSuggestedPlugins({selectedUnit, installedPlugins}){
   const [availablePlugins, setSuggestedPlugins] = React.useState([])
   const [snackbarOpen, setSnackbarOpen] = React.useState(false)
   const [snackbarMsg, setSnackbarMsg] = React.useState("")
@@ -195,7 +195,7 @@ function ListSuggestedPlugins({selectedUnit}){
     }
     setSnackbarOpen(false)
   }
-
+  console.log(installedPlugins, availablePlugins)
   return (
     <React.Fragment>
       <Box sx={{m: "auto", mb: "15px", width: "92%"}}>
@@ -237,8 +237,9 @@ function ListSuggestedPlugins({selectedUnit}){
                   //endIcon={<GetAppIcon />}
                   style={{textTransform: 'none'}}
                   sx={{ml: "5px"}}
+                  disabled={installedPlugins.includes(plugin.name)}
                 >
-                  <MenuItem value={selectedUnit}>Install on {selectedUnit}</MenuItem>
+                  <MenuItem value={selectedUnit}>{installedPlugins.includes(plugin.name) ? `Installed on ${selectedUnit}` :  `Install on ${selectedUnit}` }</MenuItem>
                   <MenuItem value={"$broadcast"}>Install across cluster</MenuItem>
                 </SelectButton>
 
@@ -494,7 +495,7 @@ function PluginContainer(){
           Suggested plugins from the community
         </Typography>
 
-        <ListSuggestedPlugins selectedUnit={selectedUnit}/>
+        <ListSuggestedPlugins selectedUnit={selectedUnit} installedPlugins={installedPlugins.map(p => p.name)}/>
         <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about Pioreactor <a href="https://docs.pioreactor.com/user-guide/using-community-plugins" target="_blank" rel="noopener noreferrer">plugins</a>.</p>
 
         </CardContent>

@@ -42,6 +42,7 @@ import Alert from '@mui/material/Alert';
 import LibraryAddCheckOutlinedIcon from '@mui/icons-material/LibraryAddCheckOutlined';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
+import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
 
 import { useNavigate, Link } from 'react-router-dom'
 
@@ -58,7 +59,7 @@ import ManageExperimentMenu from "./components/ManageExperimentMenu";
 import { MQTTProvider, useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 import PatientButton from './components/PatientButton';
-import {getConfig, getRelabelMap, runPioreactorJob, disconnectedGrey, lostRed, disabledColor, stateDisplay} from "./utilities"
+import {getConfig, getRelabelMap, runPioreactorJob, disconnectedGrey, lostRed, disabledColor, stateDisplay, checkTaskCallback} from "./utilities"
 
 
 
@@ -542,6 +543,29 @@ function PioreactorHeader({experiment}) {
 function CalibrateDialog(props) {
   const [open, setOpen] = useState(false);
   const [tabValue, setTabValue] = useState(0);
+  const [activeCalibrations, setActiveCalibrations] = useState({})
+
+  useEffect(() => {
+
+    if (!open) {
+      return;
+    }
+
+    const apiUrl = `/api/workers/${props.unit}/active_calibrations`;
+
+    const fetchCalibrations = async () => {
+      try {
+        const response = await fetch(apiUrl);
+        const firstResponse = await response.json();
+        const data = await checkTaskCallback(firstResponse.result_url_path, {delayMs: 200})
+        setActiveCalibrations(data.result[props.unit]);
+      } catch (err) {
+        console.error("Failed to fetch calibration:", err);
+      }
+    };
+
+    fetchCalibrations();
+  }, [open, props.unit] )
 
 
   const handleTabChange = (event, newValue) => {
@@ -605,6 +629,7 @@ function CalibrateDialog(props) {
             textColor="primary"
             >
             <Tab label="Blanks"/>
+            <Tab label="Calibrations"/>
           </Tabs>
           <IconButton
             aria-label="close"
@@ -639,6 +664,44 @@ function CalibrateDialog(props) {
               </div>
             </div>
             <ManageDivider/>
+
+          </TabPanel>
+          <TabPanel value={tabValue} index={1}>
+            <Typography  gutterBottom>
+             Active calibrations
+            </Typography>
+            <Typography variant="body2" component="p" gutterBottom>
+              Below are the active calibrations that will be used when running devices like pumps, stirring, etc. Read more about <a href="https://docs.pioreactor.com/user-guide/hardware-calibrations">calibrations</a>.
+            </Typography>
+
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell align="left" sx={{padding: "6px 0px"}}>Device</TableCell>
+                    <TableCell align="left" sx={{padding: "6px 0px"}}>Calibration name</TableCell>
+                    <TableCell align="left" sx={{padding: "6px 0px"}}>Calibrated on</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                    {Object.entries(activeCalibrations || {}).map(([device, calibration]) => {
+                      const calName = calibration.calibration_name
+                      return (
+                        <TableRow key={calName + device}>
+                          <TableCell align="left" sx={{padding: "6px 0px"}}> {device} </TableCell>
+                          <TableCell align="left" sx={{padding: "6px 0px"}}>
+                              <Chip
+                                size="small"
+                                icon={<TuneIcon/>}
+                                label={calName}
+                                clickable component={Link} to={`/calibrations/${props.unit}/${device}/${calName}`}
+                              />
+                          </TableCell>
+                          <TableCell align="left" sx={{padding: "6px 0px"}}> {dayjs(calibration.created_at).format('YYYY-MM-DD')} </TableCell>
+                        </TableRow>
+                        )
+                      })}
+              </TableBody>
+            </Table>
 
           </TabPanel>
         </DialogContent>

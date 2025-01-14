@@ -82,9 +82,10 @@ function MultipleSelectChip({availableValues, parentHandleChange}) {
               value={value}
               style={getStyles(value, values, theme)}
             >
-              {value}
+              <Checkbox checked={values.includes(value)} /> {value}
             </MenuItem>
           ))}
+
         </Select>
       </FormControl>
     </div>

@@ -27,6 +27,7 @@ import { useNavigate } from 'react-router-dom';
 
 import PioreactorIcon from "./components/PioreactorIcon"
 import PioreactorsIcon from './components/PioreactorsIcon';
+import TuneIcon from '@mui/icons-material/Tune';
 
 
 function CalibrationCard(){
@@ -172,6 +173,10 @@ function CalibrationData() {
       // Case 4: Selected unit, regardless of activity
       return cal.pioreactor_unit === selectedUnit;
     }
+  }).sort((a, b) => {
+    // Compare `is_active` (true first, false later)
+    if (a.is_active === b.is_active) return 0; // Equal
+    return a.is_active ? -1 : 1; // true comes before false
   });
 
   const onMouseOverRow = (event, cal) => {
@@ -284,7 +289,14 @@ function CalibrationData() {
                       />
                   </TableCell>
                   <TableCell align="left" sx={{padding: "6px 0px"}}>{selectedDevice}</TableCell>
-                  <TableCell align="left" sx={{padding: "6px 0px"}}>{calName}</TableCell>
+                  <TableCell align="left" sx={{padding: "6px 0px"}}>
+
+                      <Chip
+                        size="small"
+                        icon={<TuneIcon/>}
+                        label={calName}
+                        />
+                  </TableCell>
                   <TableCell align="left" sx={{padding: "6px 0px"}}>{cal.is_active ? "Active" : ""}</TableCell>
                   <TableCell align="right" sx={{padding: "6px 6px"}}>{dayjs(cal.created_at).format('YYYY-MM-DD') }</TableCell>
                 </TableRow>
