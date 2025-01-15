@@ -2,6 +2,7 @@
 # test_timing.py
 from __future__ import annotations
 
+import datetime
 import time
 from threading import Event
 
@@ -16,6 +17,15 @@ from pioreactor.utils.timing import to_iso_format
 def test_inverse_relationship() -> None:
     dt = current_utc_datetime()
     assert dt == to_datetime(to_iso_format(dt))
+
+
+def test_to_datetime() -> None:
+    assert to_datetime("2010-01-01T00:00:00Z") == datetime.datetime(
+        2010, 1, 1, 0, 0, tzinfo=datetime.timezone.utc
+    )
+    assert to_datetime("2010-01-01T00:00:00.000Z") == datetime.datetime(
+        2010, 1, 1, 0, 0, tzinfo=datetime.timezone.utc
+    )
 
 
 def test_repeated_timer_will_not_execute_if_killed_during_run_immediately_paused() -> None:

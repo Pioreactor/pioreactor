@@ -8,6 +8,7 @@ import click
 
 from pioreactor.structs import ODCalibration
 from pioreactor.structs import SimplePeristalticPumpCalibration
+from pioreactor.utils.timing import to_datetime
 from pioreactor.whoami import get_unit_name
 
 
@@ -17,7 +18,7 @@ def convert_old_to_new_pump(old_cal: dict) -> tuple[SimplePeristalticPumpCalibra
     new_cal = SimplePeristalticPumpCalibration(
         calibration_name=old_cal["name"],
         calibrated_on_pioreactor_unit=get_unit_name(),
-        created_at=old_cal["created_at"],
+        created_at=to_datetime(old_cal["created_at"]),
         curve_data_=[old_cal["duration_"], old_cal["bias_"]],
         curve_type="poly",
         recorded_data={"x": old_cal["durations"], "y": old_cal["volumes"]},
@@ -33,7 +34,7 @@ def convert_old_to_new_od(old_cal: dict) -> tuple[ODCalibration, str]:
     new_cal = ODCalibration(
         calibration_name=old_cal["name"],
         calibrated_on_pioreactor_unit=get_unit_name(),
-        created_at=old_cal["created_at"],
+        created_at=to_datetime(old_cal["created_at"]),
         curve_data_=old_cal["curve_data_"],
         curve_type="poly",
         recorded_data={"y": old_cal["voltages"], "x": old_cal["od600s"]},
@@ -59,7 +60,7 @@ def old_calibrations(sql_database: str):
 
 @click.command()
 @click.argument("db_location")
-def main(db_location):
+def main(db_location: str) -> None:
     for old_cal in old_calibrations(db_location):
         try:
             if "pump" in old_cal["type"]:

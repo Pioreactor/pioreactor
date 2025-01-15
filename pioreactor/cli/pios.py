@@ -8,6 +8,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 
 import click
+from msgspec import DecodeError
 from msgspec.json import encode as dumps
 
 from pioreactor.cluster_management import get_active_workers_in_inventory
@@ -89,7 +90,13 @@ if am_I_leader() or is_testing_env():
         return {"args": args, "options": opts}
 
     def universal_identifier_to_all_active_workers(workers: tuple[str, ...]) -> tuple[str, ...]:
-        active_workers = get_active_workers_in_inventory()
+        try:
+            active_workers = get_active_workers_in_inventory()
+            # sometimes the webserver is down, and we don't want to crash due to that.
+        except (HTTPException, DecodeError):
+            click.echo("Unable to get workers from the inventory. Is the webserver down?", err=True)
+            active_workers = tuple()
+
         if workers == (UNIVERSAL_IDENTIFIER,):
             return active_workers
         else:
@@ -98,7 +105,12 @@ if am_I_leader() or is_testing_env():
     def universal_identifier_to_all_workers(
         workers: tuple[str, ...], filter_out_non_workers=True
     ) -> tuple[str, ...]:
-        all_workers = get_workers_in_inventory()
+        try:
+            all_workers = get_workers_in_inventory()
+            # sometimes the webserver is down, and we don't want to crash due to that.
+        except (HTTPException, DecodeError):
+            click.echo("Unable to get workers from the inventory. Is the webserver down?", err=True)
+            all_workers = tuple()
 
         if filter_out_non_workers:
             include = lambda u: u in all_workers  # noqa: E731
