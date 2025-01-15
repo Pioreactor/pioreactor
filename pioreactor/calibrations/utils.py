@@ -24,12 +24,14 @@ def bold(string: str) -> str:
 def calculate_poly_curve_of_best_fit(x: list[float], y: list[float], degree: int) -> list[float]:
     import numpy as np
 
-    # weigh the last point, the "blank measurement", more.
+    # weigh the smallest point, the "blank measurement", more.
     # 1. It's far away from the other points
     # 2. We have prior knowledge that OD~0 when V~0.
     n = len(x)
     weights = np.ones_like(x)
-    weights[-1] = n / 2
+    weights[0] = n / 2
+
+    x, y = zip(*sorted(zip(x, y), key=lambda t: t[0]))
 
     try:
         coefs = np.polyfit(x, y, deg=degree, w=weights)

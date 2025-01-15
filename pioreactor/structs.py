@@ -210,7 +210,7 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         coef_shift = zeros_like(poly)
         coef_shift[-1] = y
         solve_for_poly = poly - coef_shift
-        roots_ = roots(solve_for_poly)
+        roots_ = roots(solve_for_poly).tolist()
         plausible_sols_: list[X] = sorted([real(r) for r in roots_ if (abs(imag(r)) < 1e-10)])
 
         if len(plausible_sols_) == 0:
