@@ -205,7 +205,6 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         from pioreactor.utils.math_helpers import closest_point_to_domain
 
         poly = self.curve_data_
-        min_X, max_X = min(self.recorded_data["x"]), max(self.recorded_data["x"])
 
         coef_shift = zeros_like(poly)
         coef_shift[-1] = y
@@ -221,6 +220,7 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
             if not enforce_bounds:
                 return sol
 
+            min_X, max_X = min(self.recorded_data["x"]), max(self.recorded_data["x"])
             # if we are here, we let the downstream user decide how to proceed
             if min_X <= sol <= max_X:
                 return sol

@@ -660,7 +660,7 @@ class CachedCalibrationTransformer(CalibrationTransformer):
             f"Using OD calibration `{name}` for channel {channel}, {calibration_data.curve_type=}, {calibration_data.curve_data_=}"
         )
 
-    def _hydrate_model(self, calibration_data: structs.ODCalibration) -> Callable[[float], float]:
+    def _hydrate_model(self, calibration_data: structs.ODCalibration) -> Callable[[pt.Voltage], pt.OD]:
         if calibration_data.curve_type == "poly":
             """
             Finds the smallest root in the range [minOD, maxOD] calibrated against.

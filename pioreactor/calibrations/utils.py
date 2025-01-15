@@ -31,7 +31,7 @@ def calculate_poly_curve_of_best_fit(x: list[float], y: list[float], degree: int
     weights = np.ones_like(x)
     weights[0] = n / 2
 
-    x, y = zip(*sorted(zip(x, y), key=lambda t: t[0]))
+    x, y = zip(*sorted(zip(x, y), key=lambda t: t[0]))  # type: ignore
 
     try:
         coefs = np.polyfit(x, y, deg=degree, w=weights)
@@ -65,6 +65,17 @@ def curve_to_callable(curve_type: str, curve_data: list[float]) -> Callable:
         raise NotImplementedError()
 
 
+def linspace(start: float, stop: float, num: int = 50):
+    num = int(num)
+    start = start * 1.0
+    stop = stop * 1.0
+
+    step = (stop - start) / (num - 1)
+
+    for i in range(num):
+        yield start + step * i
+
+
 def plot_data(
     x: list[float],
     y: list[float],
@@ -81,7 +92,10 @@ def plot_data(
     plt.clf()
 
     if interpolation_curve:
-        plt.plot(sorted(x), [interpolation_curve(x_) for x_ in sorted(x)], color=204)
+        x_min, x_max = min(x) - 0.1, max(x) + 0.1
+        xs = list(linspace(x_min, x_max, num=100))
+        ys = [interpolation_curve(x_) for x_ in xs]
+        plt.plot(xs, ys, color=204)
         plt.plot_size(145, 26)
 
     plt.scatter(x, y, marker="hd")

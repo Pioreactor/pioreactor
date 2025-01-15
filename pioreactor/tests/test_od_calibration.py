@@ -29,6 +29,7 @@ def test_linear_data_produces_linear_curve_in_range_even_if_high_degree() -> Non
 
 
 def test_mandys_data_for_pathological_poly() -> None:
+    # https://forum.pioreactor.com/t/very-low-od-readings-map-to-max/630/5
     od = [0.0, 0.139, 0.155, 0.378, 0.671, 0.993, 1.82, 4.061]
     v = [0.0, 0.0158, 0.0322, 0.0589, 0.1002, 0.1648, 0.4045, 0.5463]
 
