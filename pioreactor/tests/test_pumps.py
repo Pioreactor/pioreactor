@@ -48,6 +48,10 @@ def setup_function():
     cal.set_as_active_calibration_for_device("alt_media_pump")
     cal.set_as_active_calibration_for_device("waste_pump")
 
+    cal.save_to_disk_for_device("media_pump")
+    cal.save_to_disk_for_device("alt_media_pump")
+    cal.save_to_disk_for_device("waste_pump")
+
 
 def test_pump_io() -> None:
     exp = "test_pump_io"
