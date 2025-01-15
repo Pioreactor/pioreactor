@@ -33,39 +33,39 @@
 
 #### Web API changes
  - New API to retrieve and set clocks on Pioreactors
-  - GET `/api/units/<pioreactor_unit>/system/utc_clock`
-  - GET `/unit_api/system/utc_clock`
-  - POST `/api/system/utc_clock`
-  - POST `/unit_api/system/utc_clock`
+   - GET `/api/units/<pioreactor_unit>/system/utc_clock`
+   - GET `/unit_api/system/utc_clock`
+   - POST `/api/system/utc_clock`
+   - POST `/unit_api/system/utc_clock`
  - New log APIs
-  - GET `/api/experiments/<experiment>/recent_logs`
-  - GET `/api/experiments/<experiment>/logs`
-  - GET `/api/logs`
-  - GET `/api/workers/<pioreactor_unit>/experiments/<experiment>/recent_logs`
-  - GET `/api/workers/<pioreactor_unit>/experiments/<experiment>/logs`
-  - GET `/api/units/<pioreactor_unit>/logs`
-  - POST `/workers/<pioreactor_unit>/experiments/<experiment>/logs`
+   - GET `/api/experiments/<experiment>/recent_logs`
+   - GET `/api/experiments/<experiment>/logs`
+   - GET `/api/logs`
+   - GET `/api/workers/<pioreactor_unit>/experiments/<experiment>/recent_logs`
+   - GET `/api/workers/<pioreactor_unit>/experiments/<experiment>/logs`
+   - GET `/api/units/<pioreactor_unit>/logs`
+   - POST `/workers/<pioreactor_unit>/experiments/<experiment>/logs`
  - New calibrations APIs
-  - GET `/api/workers/<pioreactor_unit>/calibrations`
-  - GET `/unit_api/calibrations`
-  - GET `/unit_api/active_calibrations`
-  - GET `/api/workers/<pioreactor_unit>/calibrations/<device>`
-  - GET `/unit_api/calibrations/<device>`
-  - PATCH `/api/workers/<pioreactor_unit>/active_calibrations/<device>/<cal_name>`
-  - PATCH `/unit_api/active_calibrations/<device>/<cal_name>`
-  - DELETE `/api/workers/<pioreactor_unit>/active_calibrations/<device>/<cal_name>`
-  - DELETE `/api/workers/<pioreactor_unit>/calibrations/<device>/<cal_name>`
-  - DELETE `/unit_api/active_calibrations/<device>/<cal_name>`
-  - DELETE `/unit_api/calibrations/<device>/<cal_name>`
+   - GET `/api/workers/<pioreactor_unit>/calibrations`
+   - GET `/unit_api/calibrations`
+   - GET `/unit_api/active_calibrations`
+   - GET `/api/workers/<pioreactor_unit>/calibrations/<device>`
+   - GET `/unit_api/calibrations/<device>`
+   - PATCH `/api/workers/<pioreactor_unit>/active_calibrations/<device>/<cal_name>`
+   - PATCH `/unit_api/active_calibrations/<device>/<cal_name>`
+   - DELETE `/api/workers/<pioreactor_unit>/active_calibrations/<device>/<cal_name>`
+   - DELETE `/api/workers/<pioreactor_unit>/calibrations/<device>/<cal_name>`
+   - DELETE `/unit_api/active_calibrations/<device>/<cal_name>`
+   - DELETE `/unit_api/calibrations/<device>/<cal_name>`
  - New API for plugins
-  - GET `/api/units/<pioreactor_unit>/plugins/installed`
-  - PATCH `/api/units/<pioreactor_unit>/plugins/install`
-  - PATCH `/api/units/<pioreactor_unit>/plugins/uninstall`
+   - GET `/api/units/<pioreactor_unit>/plugins/installed`
+   - PATCH `/api/units/<pioreactor_unit>/plugins/install`
+   - PATCH `/api/units/<pioreactor_unit>/plugins/uninstall`
  - Changed the `settings` API (see docs).
  - New `/api/units` that returns a list of units (this is workers & leader). If leader is also a worker, then it's identical to `/api/workers`
  - New `/api/experiments/<experiment>/historical_worker_assignments` that stores historical assignments to experiments
  - New Path API for getting the dir structure of `~/.pioreactor`:
-  - `/unit_api/system/path/<path>`
+   - `/unit_api/system/path/<path>`
 
 ### Enhancements
  - new SQL table for `historical_experiment_assignments` that stores historical assignments to experiments.
@@ -99,7 +99,6 @@
 ### Bug fixes
  - fix PWM3 not cleaning up correctly
  - fixed Stirring not updating to best DC % when using a calibration after changing target RPM
-
 
 
 ### 24.12.10

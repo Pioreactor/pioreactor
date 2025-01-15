@@ -13,14 +13,16 @@ STORAGE_DIR=/home/$USERNAME/.pioreactor/storage
 # 1. create persistant db in all pioreactors
 DB=$STORAGE_DIR/local_persistent_pioreactor_metadata.sqlite
 
-touch $DB
-touch $DB-shm
-touch $DB-wal
+if [ ! -f "$DB" ]; then
+    touch $DB
+    touch $DB-shm
+    touch $DB-wal
+fi
 
 chown -R $USERNAME:www-data $DB*
 
 # 2. make a calibration dir in all pioreactors
-sudo -u $USERNAME mkdir "$STORAGE_DIR"/calibrations
+sudo -u $USERNAME mkdir -p "$STORAGE_DIR"/calibrations
 
 # 3. install pyyaml (only leader has it, but workers need it now)
 sudo pip3 install "$SCRIPT_DIR"/PyYAML-6.0.2-cp311-cp311-linux_armv7l.whl
