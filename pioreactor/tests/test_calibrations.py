@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 from datetime import timezone
 
+import numpy as np
 import pytest
 from msgspec import ValidationError
 
@@ -11,16 +12,11 @@ from pioreactor import exc
 from pioreactor.calibrations import CALIBRATION_PATH
 from pioreactor.calibrations import load_active_calibration
 from pioreactor.calibrations import load_calibration
+from pioreactor.calibrations.utils import calculate_poly_curve_of_best_fit
+from pioreactor.calibrations.utils import curve_to_callable
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import ODCalibration
 from pioreactor.utils import local_persistent_storage
-from __future__ import annotations
-
-import numpy as np
-
-from pioreactor.calibrations.utils import calculate_poly_curve_of_best_fit
-from pioreactor.calibrations.utils import curve_to_callable
-from pioreactor.structs import ODCalibration
 from pioreactor.utils.timing import current_utc_datetime
 
 
@@ -186,7 +182,6 @@ def test_predict_ipredict_consistency(calibration) -> None:
     x = 2
     y = calibration.predict(x)
     assert calibration.ipredict(y) == pytest.approx(x)
-
 
 
 def test_linear_data_produces_linear_curve_in_range_even_if_high_degree() -> None:
