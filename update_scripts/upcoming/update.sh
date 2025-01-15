@@ -6,7 +6,7 @@ set -xeu
 export LC_ALL=C
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LEADER_HOSTNAME=$(crudini --get "$PIO_DIR"/config.ini cluster.topology leader_hostname)
+LEADER_HOSTNAME=$(crudini --get /home/$USERNAME/.pioreactor/config.ini cluster.topology leader_hostname)
 USERNAME=pioreactor
 STORAGE_DIR=/home/$USERNAME/.pioreactor/storage
 
