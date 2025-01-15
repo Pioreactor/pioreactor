@@ -1260,4 +1260,3 @@ def click_od_reading(
         calibration=possible_calibration,
     )
     od.block_until_disconnected()
-

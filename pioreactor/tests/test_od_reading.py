@@ -1124,5 +1124,21 @@ def test_missing_calibration_data():
 
 def test_mandys_calibration():
     from pioreactor.calibrations import load_calibration
-    mcal = structs.ODCalibration(calibration_name='mandy', calibrated_on_pioreactor_unit='pio1', created_at=current_utc_datetime(), curve_data_=[-0.03112259838616315, 0.14606367297714123, 0.05224678328234911, 0.009665339167023364], curve_type='poly', x='voltage', y='od600s', recorded_data={'x': [0.0, 0.139, 0.155, 0.378, 0.671, 0.993, 1.82, 4.061], 'y': [0.0, 0.0158, 0.0322, 0.0589, 0.1002, 0.1648, 0.4045, 0.5463]}, ir_led_intensity=70.0, angle='90', pd_channel='2')
+
+    mcal = structs.ODCalibration(
+        calibration_name="mandy",
+        calibrated_on_pioreactor_unit="pio1",
+        created_at=current_utc_datetime(),
+        curve_data_=[-0.03112259838616315, 0.14606367297714123, 0.05224678328234911, 0.009665339167023364],
+        curve_type="poly",
+        x="voltage",
+        y="od600s",
+        recorded_data={
+            "x": [0.0, 0.139, 0.155, 0.378, 0.671, 0.993, 1.82, 4.061],
+            "y": [0.0, 0.0158, 0.0322, 0.0589, 0.1002, 0.1648, 0.4045, 0.5463],
+        },
+        ir_led_intensity=70.0,
+        angle="90",
+        pd_channel="2",
+    )
     assert 0.0 < mcal.ipredict(0.002, enforce_bounds=True) < 1.0

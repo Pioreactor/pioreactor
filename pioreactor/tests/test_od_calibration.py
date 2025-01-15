@@ -29,7 +29,6 @@ def test_linear_data_produces_linear_curve_in_range_even_if_high_degree() -> Non
 
 
 def test_mandys_data_for_pathological_poly() -> None:
-
     od = [0.0, 0.139, 0.155, 0.378, 0.671, 0.993, 1.82, 4.061]
     v = [0.0, 0.0158, 0.0322, 0.0589, 0.1002, 0.1648, 0.4045, 0.5463]
 
@@ -38,20 +37,16 @@ def test_mandys_data_for_pathological_poly() -> None:
     assert abs(curve_callable(0.002) - 0.002) < 0.1
 
     mcal = ODCalibration(
-            calibration_name='mandy',
-            calibrated_on_pioreactor_unit='pio1',
-            created_at=current_utc_datetime(),
-            curve_data_=curve_data_,
-            curve_type='poly',
-            recorded_data={'x': od, 'y': v},
-            ir_led_intensity=70.0,
-            angle='90',
-            pd_channel='2')
+        calibration_name="mandy",
+        calibrated_on_pioreactor_unit="pio1",
+        created_at=current_utc_datetime(),
+        curve_data_=curve_data_,
+        curve_type="poly",
+        recorded_data={"x": od, "y": v},
+        ir_led_intensity=70.0,
+        angle="90",
+        pd_channel="2",
+    )
 
     assert abs(mcal.predict(0.002) - curve_callable(0.002)) < 1e-10
     assert abs(mcal.ipredict(0.002) - 0.002) < 0.1
-
-
-
-
-
