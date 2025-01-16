@@ -210,7 +210,7 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
 
         poly = self.curve_data_
 
-        coef_shift = zeros_like(poly)
+        coef_shift = zeros_like(poly, dtype=float)
         coef_shift[-1] = y
         solve_for_poly = poly - coef_shift
         roots_ = roots(solve_for_poly).tolist()

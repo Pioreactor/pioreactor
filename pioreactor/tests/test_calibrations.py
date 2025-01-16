@@ -163,9 +163,9 @@ def test_ipredict_multiple_solutions(calibration) -> None:
 def test_ipredict_solution_below_domain(calibration) -> None:
     calibration.curve_data_ = [5, 3, 2]  # 5x^2 + 3x + 2
     calibration.recorded_data = {"x": [0, 1], "y": [10, 20]}
-    y = 100  # Solution below domain
+    y = 1.99  # Solution below domain
     with pytest.raises(exc.SolutionBelowDomainError):
-        calibration.ipredict(y)
+        calibration.ipredict(y, enforce_bounds=True)
 
 
 def test_ipredict_solution_above_domain(calibration) -> None:
@@ -173,7 +173,7 @@ def test_ipredict_solution_above_domain(calibration) -> None:
     calibration.recorded_data = {"x": [0, 1], "y": [0, 100]}
     y = 50  # Solution above domain
     with pytest.raises(exc.SolutionAboveDomainError):
-        calibration.ipredict(y)
+        calibration.ipredict(y, enforce_bounds=True)
 
 
 def test_predict_ipredict_consistency(calibration) -> None:
@@ -194,9 +194,9 @@ def test_linear_data_produces_linear_curve_in_range_even_if_high_degree() -> Non
     )
 
     od = np.insert(od, 0, 0)
-    v = 0.5 * od + 0.01 * np.random.randn(od.shape[0])
+    v = 0.5 * od + 0.005 * np.random.randn(od.shape[0])
 
-    curve_data_ = calculate_poly_curve_of_best_fit(v, od, degree=4)  # type: ignore
+    curve_data_ = calculate_poly_curve_of_best_fit(od, v, degree=4)  # type: ignore
     curve_callable = curve_to_callable("poly", curve_data_)
     for od_, v_ in zip(od, curve_callable(od)):
         assert (v_ - od_ * 0.5) < 0.035

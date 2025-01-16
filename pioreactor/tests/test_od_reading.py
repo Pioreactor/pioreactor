@@ -1123,8 +1123,6 @@ def test_missing_calibration_data():
 
 
 def test_mandys_calibration():
-    from pioreactor.calibrations import load_calibration
-
     mcal = structs.ODCalibration(
         calibration_name="mandy",
         calibrated_on_pioreactor_unit="pio1",
@@ -1141,4 +1139,15 @@ def test_mandys_calibration():
         angle="90",
         pd_channel="2",
     )
+
+    with pytest.raises(exc.SolutionAboveDomainError):
+        assert 0.0 < mcal.ipredict(0.002, enforce_bounds=True) < 1.0
+
+    # correct the curve
+    mcal.curve_data_ = [
+        -0.028385470467897377,
+        0.12917002770232924,
+        0.07787877483987993,
+        0.0011023858538965646,
+    ]
     assert 0.0 < mcal.ipredict(0.002, enforce_bounds=True) < 1.0
