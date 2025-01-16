@@ -22,7 +22,10 @@ chown -R pioreactor:www-data $DB*
 chmod -R 770 $DB*
 
 # 2. make a calibration dir in all pioreactors
-sudo -u pioreactor mkdir -p "$STORAGE_DIR"/calibrations
+sudo -u pioreactor mkdir -p "$STORAGE_DIR"/calibrations/od
+sudo -u pioreactor mkdir -p "$STORAGE_DIR"/calibrations/media_pump
+sudo -u pioreactor mkdir -p "$STORAGE_DIR"/calibrations/waste_pump
+sudo -u pioreactor mkdir -p "$STORAGE_DIR"/calibrations/alt_media_pump
 
 # 3. install pyyaml (only leader has it, but workers need it now)
 sudo pip3 install "$SCRIPT_DIR"/PyYAML-6.0.2-cp311-cp311-linux_armv7l.whl

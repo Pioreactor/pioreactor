@@ -726,8 +726,6 @@ class ODReader(BackgroundJob):
     adc_reader: ADCReader
     ir_led_reference_tracker: IrLedReferenceTracker
     calibration_transformer:
-    unit:
-    experie
 
 
     Examples
@@ -1164,7 +1162,7 @@ def start_od_reading(
     fake_data: bool = False,
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
-    calibration: structs.ODCalibration | None = None,
+    calibration: bool | structs.ODCalibration | None = None,
 ) -> ODReader:
     """
     This function prepares ODReader and other necessary transformation objects. It's a higher level API than using ODReader.
@@ -1204,7 +1202,11 @@ def start_od_reading(
         ir_led_reference_tracker = NullIrLedReferenceTracker()  # type: ignore
 
     # use an OD calibration?
-    if calibration:
+    if calibration is True:
+        calibration = load_active_calibration("od")
+        calibration_transformer = CachedCalibrationTransformer()
+        calibration_transformer.hydate_models(calibration)
+    elif isinstance(calibration, structs.ODCalibration):
         calibration_transformer = CachedCalibrationTransformer()
         calibration_transformer.hydate_models(calibration)
     else:

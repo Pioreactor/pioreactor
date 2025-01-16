@@ -100,7 +100,7 @@ def create_sql_query(
     table_or_subquery: str,
     existing_placeholders: dict[str, str],
     where_clauses: list[str] | None = None,
-    order_by: str | None = None,
+    order_by_col: str | None = None,
 ) -> tuple[str, dict[str, str]]:
     """
     Constructs an SQL query with SELECT, FROM, WHERE, and ORDER BY clauses.
@@ -113,9 +113,8 @@ def create_sql_query(
         query += f" WHERE {' AND '.join(where_clauses)}"
 
     # Add ORDER BY clause if provided
-    if order_by:
-        query += " ORDER BY :order_by"
-        existing_placeholders["order_by"] = order_by
+    if order_by_col:
+        query += f' ORDER BY "{order_by_col}"'
 
     return query, existing_placeholders
 
@@ -180,7 +179,7 @@ def export_experiment_data(
             filenames: list[str] = []
             placeholders: dict[str, str] = {}
 
-            order_by = dataset.default_order_by
+            order_by_col = dataset.default_order_by
             table_or_subquery = dataset.table or dataset.query
             assert table_or_subquery is not None
 
@@ -202,7 +201,7 @@ def export_experiment_data(
                 where_clauses.append(timespan_clause)
 
             query, placeholders = create_sql_query(
-                selects, table_or_subquery, placeholders, where_clauses, order_by
+                selects, table_or_subquery, placeholders, where_clauses, order_by_col
             )
             cursor.execute(query, placeholders)
 
