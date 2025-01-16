@@ -456,6 +456,9 @@ def get_cpu_temperature() -> float:
 
 
 def argextrema(x: Sequence) -> tuple[int, int]:
+    if len(x) == 0:
+        raise ValueError("argextrema() arg is an empty sequence")
+
     min_, max_ = float("inf"), float("-inf")
     argmin_, argmax_ = 0, 0
     for i, value in enumerate(x):

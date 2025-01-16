@@ -10,6 +10,7 @@ from msgspec.json import encode as dumps
 
 from pioreactor.background_jobs.stirring import start_stirring
 from pioreactor.tests.conftest import capture_requests
+from pioreactor.utils import argextrema
 from pioreactor.utils import callable_stack
 from pioreactor.utils import ClusterJobManager
 from pioreactor.utils import is_pio_job_running
@@ -374,3 +375,8 @@ def test_retrieve_setting(job_manager, job_id):
     job_manager.set_not_running(job_key)
     with pytest.raises(NameError):
         job_manager.get_setting_from_running_job("test_name", "my_setting_int")
+
+
+def test_argextrema_with_empty_lists() -> None:
+    with pytest.raises(ValueError):
+        argextrema([])

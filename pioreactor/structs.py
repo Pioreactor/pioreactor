@@ -154,6 +154,10 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
     y: str
     recorded_data: dict[t.Literal["x", "y"], list[X | Y]]
 
+    def __post_init__(self):
+        if len(self.recorded_data["x"]) != len(self.recorded_data["y"]):
+            raise ValueError("Lists in `recorded_data` should have the same lengths")
+
     @property
     def calibration_type(self):
         return self.__struct_config__.tag
@@ -212,6 +216,13 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         roots_ = roots(solve_for_poly).tolist()
         plausible_sols_: list[X] = sorted([real(r) for r in roots_ if (abs(imag(r)) < 1e-10)])
 
+        if len(self.recorded_data["x"]) == 0:
+            from math import inf
+
+            min_X, max_X = -inf, inf
+        else:
+            min_X, max_X = min(self.recorded_data["x"]), max(self.recorded_data["x"])
+
         if len(plausible_sols_) == 0:
             raise exc.NoSolutionsFoundError("No solutions found")
         elif len(plausible_sols_) == 1:
@@ -220,7 +231,6 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
             if not enforce_bounds:
                 return sol
 
-            min_X, max_X = min(self.recorded_data["x"]), max(self.recorded_data["x"])
             # if we are here, we let the downstream user decide how to proceed
             if min_X <= sol <= max_X:
                 return sol

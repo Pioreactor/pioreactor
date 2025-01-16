@@ -63,6 +63,7 @@ def old_calibrations(sql_database: str):
 def main(db_location: str) -> None:
     for old_cal in old_calibrations(db_location):
         try:
+            print(f"Converting {old_cal['name']} to new calibration format.")
             if "pump" in old_cal["type"]:
                 new_cal, device = convert_old_to_new_pump(old_cal)
             elif "od" in old_cal["type"]:
