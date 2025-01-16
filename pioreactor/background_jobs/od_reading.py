@@ -617,10 +617,10 @@ class NullIrLedReferenceTracker(IrLedReferenceTracker):
 
 class CalibrationTransformer(LoggerMixin):
     _logger_name = "calibration_transformer"
-    models: dict[pt.PdChannel, Callable] = {}
 
     def __init__(self) -> None:
         super().__init__()
+        self.models: dict[pt.PdChannel, Callable] = {}
 
     def __call__(self, batched_readings: PdChannelToVoltage) -> PdChannelToVoltage:
         return batched_readings
@@ -629,6 +629,7 @@ class CalibrationTransformer(LoggerMixin):
 class NullCalibrationTransformer(CalibrationTransformer):
     def __init__(self) -> None:
         super().__init__()
+        self.models: dict[pt.PdChannel, Callable] = {}
 
     def hydate_models(self, calibration_data: structs.ODCalibration | None) -> None:
         return
@@ -637,6 +638,7 @@ class NullCalibrationTransformer(CalibrationTransformer):
 class CachedCalibrationTransformer(CalibrationTransformer):
     def __init__(self) -> None:
         super().__init__()
+        self.models: dict[pt.PdChannel, Callable] = {}
         self.has_logged_warning = False
 
     def hydate_models(self, calibration_data: structs.ODCalibration | None) -> None:

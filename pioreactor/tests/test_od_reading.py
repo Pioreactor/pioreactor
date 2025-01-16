@@ -614,6 +614,7 @@ def test_calibration_not_present() -> None:
         c.pop("od")
 
     cal = load_active_calibration("od")
+    assert cal is None
 
     with start_od_reading("90", "REF", interval=None, fake_data=True, calibration=cal) as od:
         assert isinstance(od.calibration_transformer, NullCalibrationTransformer)
