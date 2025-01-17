@@ -5,6 +5,14 @@ import os
 from typing import Generator
 
 
+def find_sql_scripts(directory: str) -> Generator[str, None, None]:
+    """Recursively find all SQL script files in the specified directory."""
+    for root, dirs, files in os.walk(directory):
+        for file in files:
+            if file.endswith(".sql"):
+                yield os.path.join(root, file)
+
+
 def find_shell_scripts(directory: str) -> Generator[str, None, None]:
     """Recursively find all shell script files in the specified directory."""
     types = {"update.sh", "pre_update.sh", "post_update.sh"}
@@ -30,6 +38,20 @@ def test_pio_commands() -> None:
                     error_msgs.append(
                         f"Error in {script} at line {line_number}: 'pio' command must be prefixed with 'su -u pioreactor'."
                     )
+
+    assert not error_msgs, "\n".join(error_msgs)
+
+
+def test_sql_scripts_start_with_our_PRAGMA() -> None:
+    script_directory = "update_scripts/upcoming"
+    scripts = find_sql_scripts(script_directory)
+    error_msgs = []
+
+    for script in scripts:
+        with open(script, "r") as file:
+            first_line = file.readline().strip()
+            if not first_line.startswith("PRAGMA"):
+                error_msgs.append(f"Error in {script}: SQL scripts must start with a PRAGMA statement.")
 
     assert not error_msgs, "\n".join(error_msgs)
 

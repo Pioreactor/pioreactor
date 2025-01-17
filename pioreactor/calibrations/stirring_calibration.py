@@ -18,7 +18,6 @@ from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import managed_lifecycle
 from pioreactor.utils.math_helpers import simple_linear_regression
 from pioreactor.utils.timing import current_utc_datetime
-from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_testing_experiment_name
 from pioreactor.whoami import get_unit_name
 
@@ -40,7 +39,7 @@ def run_stirring_calibration(
     action_name = "stirring_calibration"
     logger = create_logger(action_name)
 
-    with managed_lifecycle(unit, get_assigned_experiment_name(unit), action_name) as lc:
+    with managed_lifecycle(unit, experiment, action_name) as lc:
         logger.info("Starting stirring calibration.")
 
         if is_pio_job_running("stirring"):

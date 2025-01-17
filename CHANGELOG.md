@@ -72,6 +72,8 @@
  - new SQL table for `historical_experiment_assignments` that stores historical assignments to experiments.
  - UI performance improvements
  - Better terminal plots
+ - Customs charts in the UI are now downsampled like the other charts.
+ - More logging in experiment profiles
 
 ### Breaking changes
  - `use_calibration` under `od_reading.config` is deprecated. Use the calibrations "active" state instead.
@@ -103,6 +105,8 @@
  - Fixed Stirring not updating to best DC % when using a calibration after changing target RPM
  - Fixed a bug that could cause OD calibrations to map a small voltage value to a max OD.
  - Fixed bug where dataset exports were not sorted correctly.
+ - em-dashes are now replaced in config.ini on save.
+ - Fixed a bug where errors on the Experiment Profiles page weren't properly displayed.
 
 ### 24.12.10
  - Hotfix for UI settings bug

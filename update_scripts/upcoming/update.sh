@@ -34,7 +34,7 @@ sudo bash /usr/local/bin/create_diskcache.sh
 # 5. replace old calibrations with new yaml files. This doesn't delete old calibrations
 sudo -u pioreactor python "$SCRIPT_DIR"/cal_convert.py "$STORAGE_DIR"/od_calibrations/cache.db
 sudo -u pioreactor python "$SCRIPT_DIR"/cal_convert.py "$STORAGE_DIR"/pump_calibrations/cache.db
-chown -R pioreactor:pioreactor "$STORAGE_DIR"/calibrations/
+chown -R pioreactor:www-data "$STORAGE_DIR"/calibrations/
 
 sudo -u pioreactor python "$SCRIPT_DIR"/cal_active.py "$STORAGE_DIR"/current_pump_calibrations/cache.db
 sudo -u pioreactor python "$SCRIPT_DIR"/cal_active.py "$STORAGE_DIR"/current_od_calibrations/cache.db
@@ -48,6 +48,9 @@ if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
     # 7. fix any bad pioreactor start up systemd services
     rm -f  /usr/lib/systemd/system/pioreactor_startup_run@.service
     cp  "$SCRIPT_DIR"/pioreactor_startup_run@.service /etc/systemd/system/
+
+
+    # 8. add yaml mimetype
     echo "application/yaml               yaml yml" | sudo tee -a /etc/mime.types
 
 fi

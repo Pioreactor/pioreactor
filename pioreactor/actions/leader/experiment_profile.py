@@ -539,6 +539,7 @@ def start_job(
             if dry_run:
                 logger.info(f"Dry-run: Starting {job_name} on {unit} with options {options} and args {args}.")
             else:
+                logger.debug(f"Starting {job_name} on {unit} with options {options} and args {args}.")
                 patch_into_leader(
                     f"/api/workers/{unit}/jobs/run/job_name/{job_name}/experiments/{experiment}",
                     json={
@@ -579,6 +580,7 @@ def pause_job(
             if dry_run:
                 logger.info(f"Dry-run: Pausing {job_name} on {unit}.")
             else:
+                logger.debug(f"Pausing {job_name} on {unit}.")
                 patch_into_leader(
                     f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
                     json={"settings": {"$state": "sleeping"}},
@@ -616,6 +618,7 @@ def resume_job(
             if dry_run:
                 logger.info(f"Dry-run: Resuming {job_name} on {unit}.")
             else:
+                logger.debug(f"Resuming {job_name} on {unit}.")
                 patch_into_leader(
                     f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
                     json={"settings": {"$state": "ready"}},
@@ -653,6 +656,7 @@ def stop_job(
             if dry_run:
                 logger.info(f"Dry-run: Stopping {job_name} on {unit}.")
             else:
+                logger.debug(f"Stopping {job_name} on {unit}.")
                 patch_into_leader(
                     f"/api/workers/{unit}/jobs/stop/job_name/{job_name}/experiments/{experiment}",
                 )
@@ -693,6 +697,7 @@ def update_job(
 
             else:
                 for setting, value in evaluate_options(options, env).items():
+                    logger.debug(f"Updating {setting} to {value} in {job_name} on {unit}.")
                     patch_into_leader(
                         f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
                         json={"settings": {setting: value}},

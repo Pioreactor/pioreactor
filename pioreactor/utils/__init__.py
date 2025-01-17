@@ -292,7 +292,18 @@ class cache:
 
         self.conn = sqlite3.connect(self.db_path, isolation_level=None, detect_types=sqlite3.PARSE_DECLTYPES)
         self.cursor = self.conn.cursor()
-        self.cursor.execute("PRAGMA journal_mode=WAL;")
+        self.cursor.executescript(
+            """
+            PRAGMA journal_mode=WAL;
+            PRAGMA synchronous = 1; -- aka NORMAL, recommended when using WAL
+            PRAGMA temp_store = 2;  -- stop writing small files to disk, use mem
+            PRAGMA busy_timeout = 15000;
+            PRAGMA foreign_keys = ON;
+            PRAGMA synchronous = NORMAL;
+            PRAGMA auto_vacuum = INCREMENTAL;
+            PRAGMA cache_size = -20000;
+        """
+        )
         self._initialize_table()
         return self
 
@@ -603,12 +614,21 @@ class JobManager:
         db_path = config.get("storage", "temporary_cache")
         self.conn = sqlite3.connect(db_path, isolation_level=None)
         self.cursor = self.conn.cursor()
-        self.cursor.execute("PRAGMA journal_mode=WAL;")
         self._create_tables()
 
     def _create_tables(self) -> None:
         # TODO: add a created_at, updated_at to pio_job_published_settings
         create_table_query = """
+
+        PRAGMA journal_mode=WAL;
+        PRAGMA synchronous = 1; -- aka NORMAL, recommended when using WAL
+        PRAGMA temp_store = 2;  -- stop writing small files to disk, use mem
+        PRAGMA busy_timeout = 15000;
+        PRAGMA foreign_keys = ON;
+        PRAGMA synchronous = NORMAL;
+        PRAGMA auto_vacuum = INCREMENTAL;
+        PRAGMA cache_size = -20000;
+
         CREATE TABLE IF NOT EXISTS pio_job_metadata (
             id           INTEGER PRIMARY KEY AUTOINCREMENT,
             unit         TEXT NOT NULL,
