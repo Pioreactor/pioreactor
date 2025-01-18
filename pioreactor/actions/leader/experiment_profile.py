@@ -547,7 +547,7 @@ def start_job(
                         "env": {"JOB_SOURCE": "experiment_profile", "EXPERIMENT": experiment},
                         "args": args,
                     },
-                )
+                ).raise_for_status()
         else:
             logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
 
@@ -584,7 +584,7 @@ def pause_job(
                 patch_into_leader(
                     f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
                     json={"settings": {"$state": "sleeping"}},
-                )
+                ).raise_for_status()
         else:
             logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
 
@@ -622,7 +622,7 @@ def resume_job(
                 patch_into_leader(
                     f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
                     json={"settings": {"$state": "ready"}},
-                )
+                ).raise_for_status()
         else:
             logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
 
@@ -659,7 +659,7 @@ def stop_job(
                 logger.debug(f"Stopping {job_name} on {unit}.")
                 patch_into_leader(
                     f"/api/workers/{unit}/jobs/stop/job_name/{job_name}/experiments/{experiment}",
-                )
+                ).raise_for_status()
         else:
             logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
 
@@ -701,7 +701,7 @@ def update_job(
                     patch_into_leader(
                         f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
                         json={"settings": {setting: value}},
-                    )
+                    ).raise_for_status()
         else:
             logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
 
@@ -763,7 +763,7 @@ def push_labels_to_ui(experiment, labels_map: dict[str, str]) -> None:
         for unit_name, label in labels_map.items():
             patch_into_leader(
                 f"/api/experiments/{experiment}/unit_labels", json={"unit": unit_name, "label": label}
-            )
+            ).raise_for_status()
     except Exception:
         pass
 
