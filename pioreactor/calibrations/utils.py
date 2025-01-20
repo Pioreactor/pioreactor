@@ -65,15 +65,18 @@ def curve_to_callable(curve_type: str, curve_data: list[float]) -> Callable:
         raise NotImplementedError()
 
 
-def linspace(start: float, stop: float, num: int = 50):
-    num = int(num)
-    start = start * 1.0
-    stop = stop * 1.0
+def linspace(start: float, stop: float, num: int = 50) -> list[float]:
+    def linspace_(start: float, stop: float, num: int = 50):
+        num = int(num)
+        start = start * 1.0
+        stop = stop * 1.0
 
-    step = (stop - start) / (num - 1)
+        step = (stop - start) / (num - 1)
 
-    for i in range(num):
-        yield start + step * i
+        for i in range(num):
+            yield start + step * i
+
+    return list(linspace_(start, stop, num))
 
 
 def plot_data(
@@ -93,7 +96,7 @@ def plot_data(
 
     if interpolation_curve:
         x_min, x_max = min(x) - 0.1, max(x) + 0.1
-        xs = list(linspace(x_min, x_max, num=100))
+        xs = linspace(x_min, x_max, num=100)
         ys = [interpolation_curve(x_) for x_ in xs]
         plt.plot(xs, ys, color=204)
         plt.plot_size(145, 26)

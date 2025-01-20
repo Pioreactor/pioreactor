@@ -26,9 +26,18 @@ calibration_protocols: dict[tuple[str, str], Type[CalibrationProtocol]] = {}
 
 
 class CalibrationProtocol:
+    protocol_name: str
+    target_device: str | list[str]
+
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        calibration_protocols[(cls.target_device, cls.protocol_name)] = cls
+        if isinstance(cls.target_device, str):
+            calibration_protocols[(cls.target_device, cls.protocol_name)] = cls
+        elif isinstance(cls.target_device, list):
+            for device in cls.target_device:
+                calibration_protocols[(device, cls.protocol_name)] = cls
+        else:
+            raise ValueError("target_device must be a string or a list of strings")
 
     def run(self, *args, **kwargs):
         raise NotImplementedError("Subclasses must implement this method.")
@@ -38,7 +47,7 @@ class SingleVialODProtocol(CalibrationProtocol):
     target_device = "od"
     protocol_name = "single_vial"
 
-    def run(self) -> structs.ODCalibration:
+    def run(self, *args) -> structs.ODCalibration:
         from pioreactor.calibrations.od_calibration import run_od_calibration
 
         return run_od_calibration()
@@ -48,47 +57,27 @@ class BatchVialODProtocol(CalibrationProtocol):
     target_device = "od"
     protocol_name = "batch_vial"
 
-    def run(self) -> structs.ODCalibration:
-        from pioreactor.calibrations.od_calibration import run_od_calibration
-
-        return run_od_calibration()
+    def run(self, *args) -> structs.ODCalibration:
+        raise NotImplementedError("Not implemented yet")
 
 
-class DurationBasedMediaPumpProtocol(CalibrationProtocol):
-    target_device = "media_pump"
+class DurationBasedPumpProtocol(CalibrationProtocol):
+    target_device = ["media_pump", "alt_media_pump", "waste_pump"]
     protocol_name = "duration_based"
 
-    def run(self) -> structs.SimplePeristalticPumpCalibration:
+    def run(self, target_device: str) -> structs.SimplePeristalticPumpCalibration:
         from pioreactor.calibrations.pump_calibration import run_pump_calibration
 
-        return run_pump_calibration(self.target_device)
-
-
-class DurationBasedAltMediaPumpProtocol(CalibrationProtocol):
-    target_device = "alt_media_pump"
-    protocol_name = "duration_based"
-
-    def run(self) -> structs.SimplePeristalticPumpCalibration:
-        from pioreactor.calibrations.pump_calibration import run_pump_calibration
-
-        return run_pump_calibration(self.target_device)
-
-
-class DurationBasedWasteMediaPumpProtocol(CalibrationProtocol):
-    target_device = "waste_pump"
-    protocol_name = "duration_based"
-
-    def run(self) -> structs.SimplePeristalticPumpCalibration:
-        from pioreactor.calibrations.pump_calibration import run_pump_calibration
-
-        return run_pump_calibration(self.target_device)
+        return run_pump_calibration(target_device)
 
 
 class DCBasedStirringProtocol(CalibrationProtocol):
     target_device = "stirring"
     protocol_name = "dc_based"
 
-    def run(self, min_dc: str | None = None, max_dc: str | None = None) -> structs.SimpleStirringCalibration:
+    def run(
+        self, target_device: str, min_dc: str | None = None, max_dc: str | None = None
+    ) -> structs.SimpleStirringCalibration:
         from pioreactor.calibrations.stirring_calibration import run_stirring_calibration
 
         return run_stirring_calibration(

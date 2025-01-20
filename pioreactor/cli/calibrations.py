@@ -92,8 +92,9 @@ def run_calibration(ctx, device: str, protocol_name: str | None, y: bool) -> Non
     # Dispatch to the assistant function for that device
     if protocol_name is None and device in DEFAULT_PROTOCOLS:
         protocol_name = DEFAULT_PROTOCOLS[device]
+    elif protocol_name is None:
+        raise ValueError("Must provide protocol name: --protocol-name <name>")
 
-    assert protocol_name is not None
     assistant = calibration_protocols.get((device, protocol_name))
     if assistant is None:
         click.echo(
@@ -104,6 +105,7 @@ def run_calibration(ctx, device: str, protocol_name: str | None, y: bool) -> Non
     # Run the assistant function to get the final calibration data
 
     calibration_struct = assistant().run(
+        target_device=device,
         **{ctx.args[i][2:].replace("-", "_"): ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},
     )
 

@@ -179,42 +179,6 @@ def start_stirring():
     return st
 
 
-def plot_data(
-    x,
-    y,
-    title,
-    x_min=None,
-    x_max=None,
-    interpolation_curve=None,
-    highlight_recent_point=True,
-):
-    import plotext as plt  # type: ignore
-
-    plt.clf()
-
-    plt.scatter(x, y, marker="hd")
-
-    if highlight_recent_point:
-        plt.scatter([x[-1]], [y[-1]], color=204, marker="hd")
-
-    plt.theme("pro")
-    plt.title(title)
-    plt.xlabel("OD600")
-    plt.ylabel("OD Reading (Raw)")
-
-    plt.plot_size(105, 22)
-
-    if interpolation_curve:
-        plt.plot(sorted(x), [interpolation_curve(x_) for x_ in sorted(x)], color=204)
-        plt.plot_size(145, 26)
-
-    plt.xlim(x_min, x_max)
-    plt.yfrequency(6)
-    plt.xfrequency(6)
-
-    plt.show()
-
-
 def start_recording_and_diluting(
     st: Stirrer,
     initial_od600: pt.OD,
@@ -283,10 +247,12 @@ def start_recording_and_diluting(
 
             for i in range(n_samples):
                 clear()
-                plot_data(
+                utils.plot_data(
                     inferred_od600s,
                     voltages,
                     title="OD Calibration (ongoing)",
+                    x_label="OD600",
+                    y_label="Voltage",
                     x_min=minimum_od600,
                     x_max=initial_od600,
                 )
@@ -326,10 +292,12 @@ def start_recording_and_diluting(
             else:
                 # executed if the loop did not break
                 clear()
-                plot_data(
+                utils.plot_data(
                     inferred_od600s,
                     voltages,
                     title="OD Calibration (ongoing)",
+                    x_label="OD600",
+                    y_label="Voltage",
                     x_min=minimum_od600,
                     x_max=initial_od600,
                 )
@@ -350,10 +318,12 @@ def start_recording_and_diluting(
                 sleep(1.0)
 
         clear()
-        plot_data(
+        utils.plot_data(
             inferred_od600s,
             voltages,
             title="OD Calibration (ongoing)",
+            x_label="OD600",
+            y_label="Voltage",
             x_min=minimum_od600,
             x_max=initial_od600,
         )
