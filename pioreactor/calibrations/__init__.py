@@ -47,7 +47,7 @@ class SingleVialODProtocol(CalibrationProtocol):
     target_device = "od"
     protocol_name = "single_vial"
 
-    def run(self, *args) -> structs.ODCalibration:
+    def run(self, *args, **kwargs) -> structs.ODCalibration:
         from pioreactor.calibrations.od_calibration import run_od_calibration
 
         return run_od_calibration()
@@ -57,7 +57,7 @@ class BatchVialODProtocol(CalibrationProtocol):
     target_device = "od"
     protocol_name = "batch_vial"
 
-    def run(self, *args) -> structs.ODCalibration:
+    def run(self, *args, **kwargs) -> structs.ODCalibration:
         raise NotImplementedError("Not implemented yet")
 
 
@@ -65,7 +65,7 @@ class DurationBasedPumpProtocol(CalibrationProtocol):
     target_device = ["media_pump", "alt_media_pump", "waste_pump"]
     protocol_name = "duration_based"
 
-    def run(self, target_device: str) -> structs.SimplePeristalticPumpCalibration:
+    def run(self, target_device: str, **kwargs) -> structs.SimplePeristalticPumpCalibration:
         from pioreactor.calibrations.pump_calibration import run_pump_calibration
 
         return run_pump_calibration(target_device)

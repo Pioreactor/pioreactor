@@ -35,4 +35,5 @@ if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
 
     sudo -u pioreactor pios sync-configs --shared || :
 
+
 fi

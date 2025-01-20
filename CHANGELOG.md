@@ -58,6 +58,7 @@
    - DELETE `/api/workers/<pioreactor_unit>/calibrations/<device>/<cal_name>`
    - DELETE `/unit_api/active_calibrations/<device>/<cal_name>`
    - DELETE `/unit_api/calibrations/<device>/<cal_name>`
+   - POST `/unit_api/calibrations/<device>`
  - New API for plugins
    - GET `/api/units/<pioreactor_unit>/plugins/installed`
    - PATCH `/api/units/<pioreactor_unit>/plugins/install`
@@ -83,7 +84,7 @@
  - fixed typo `utils.local_persistant_storage` to `utils.local_persistent_storage`.
  - Kalman Filter database table is no longer populated. There is a way to re-add it, lmk.
  - moved intermittent cache location to `/tmp/pioreactor_cache/local_intermittent_pioreactor_metadata.sqlite`. This also determined by your configuration, see `[storage]`.
-- removed `pioreactor.utils.gpio_helpers`
+ - removed `pioreactor.utils.gpio_helpers`
  - removed `calibrations` export dataset. Use the export option on the /Calibrations page instead.
  - persistent storage is now on single sqlite3 database in `/home/pioreactor/.pioreactor/storage/local_persistent_pioreactor_metadata.sqlite`. This is configurable in your configuration.
  - When checking for calibrations in custom Dosing automations, users may have added:

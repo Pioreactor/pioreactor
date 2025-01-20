@@ -53,4 +53,9 @@ if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
     # 8. add yaml mimetype
     echo "application/yaml               yaml yml" | sudo tee -a /etc/mime.types
 
+    # 9. restart monitor and mqtt
+    sudo systemctl daemon-reload
+    sudo systemctl restart pioreactor_startup_run@monitor
+    sudo systemctl restart pioreactor_startup_run@mqtt_to_db_streaming
+
 fi
