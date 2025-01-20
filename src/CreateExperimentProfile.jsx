@@ -102,8 +102,8 @@ metadata:
           setSnackbarMsg(`Experiment profile ${filename}.yaml saved.`);
         } else {
           res.json().then(parsedJson => {
-            setErrorMsg(parsedJson.error);
             setIsError(true);
+            setErrorMsg(parsedJson.error);
             setIsChanged(true);
           });
         }

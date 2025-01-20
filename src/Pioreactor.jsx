@@ -418,7 +418,7 @@ function CalibrateDialog(props) {
    }
 
   const isGrowRateJobRunning = props.growthRateJobState === "ready"
-  const blankODButton = createUserButtonsBasedOnState(props.odBlankJobState, "od_blank", isGrowRateJobRunning)
+  const blankODButton = createUserButtonsBasedOnState(props.odBlankJobState, "od_blank", (isGrowRateJobRunning || "od" in activeCalibrations))
 
   return (
     <React.Fragment>

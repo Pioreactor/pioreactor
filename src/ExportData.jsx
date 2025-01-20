@@ -477,13 +477,13 @@ function ExportDataContainer() {
               </Grid>
 
               <Grid item xs={0}/>
-              <Grid item xs={12}>
-                <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/export-data" target="_blank" rel="noopener noreferrer">data exporting</a>.</p>
-              </Grid>
             </Grid>
           </form>
         </CardContent>
       </Card>
+      <Grid item xs={12}>
+        <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/export-data" target="_blank" rel="noopener noreferrer">data exporting</a>.</p>
+      </Grid>
   </React.Fragment>
   )
 }

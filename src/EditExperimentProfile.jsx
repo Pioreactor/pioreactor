@@ -100,8 +100,8 @@ const EditExperimentProfilesContent = ({ initialCode, filename }) => {
           setSnackbarMsg(`Experiment profile ${filename}.yaml saved.`);
         } else {
           res.json().then(parsedJson => {
-            setErrorMsg(parsedJson.error);
             setIsError(true);
+            setErrorMsg(parsedJson.error);
           });
         }
       });
@@ -175,6 +175,7 @@ const EditExperimentProfilesContent = ({ initialCode, filename }) => {
               >
                 Save
               </Button>
+              {console.log(errorMsg, isError)}
               <p style={{ marginLeft: "10px" }}>{isError ? <Box color="error.main">{errorMsg}</Box> : ""}</p>
             </div>
           </div>

@@ -47,7 +47,7 @@ function formatPolynomial(coefficients) {
         else if (coef < 0) term += '-';
 
         // Add coefficient (only show if not 1 or power is 0)
-        if (absCoef !== 1 || power === 0) term += absCoef.toFixed(2);
+        if (absCoef !== 1 || power === 0) term += absCoef.toFixed(3);
 
         // Add variable and power
         if (power > 0) {
@@ -131,7 +131,7 @@ function SingleCalibrationPageCard() {
       }
       setSnackbarMessage("Calibration set as Active")
       setSnackbarOpen(true);
-      setTimeout(fetchSingleCalibration, 200)
+      setTimeout(fetchSingleCalibration, 300)
     } catch (err) {
       console.error("Error setting active calibration:", err);
     }
@@ -166,7 +166,6 @@ function SingleCalibrationPageCard() {
     );
   }
 
-  // 3. We'll show relevant data in a simple way
   const {
     calibration_type,
     created_at,
@@ -194,25 +193,6 @@ function SingleCalibrationPageCard() {
             <Table size="small">
                 <TableBody>
                   <TableRow>
-                    <TableCell><strong>Pioreactor Unit</strong></TableCell>
-                    <TableCell>
-                      <Chip
-                        size="small"
-                        icon={<PioreactorIcon/>}
-                        label={pioreactor_unit}
-                        clickable
-                        component={RouterLink}
-                        to={`/calibrations/${pioreactor_unit}`}
-                        />
-                    </TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell><strong>Device</strong></TableCell>
-                    <TableCell>{device}
-
-                    </TableCell>
-                  </TableRow>
-                  <TableRow>
                     <TableCell><strong>Calibration name</strong></TableCell>
                     <TableCell>
                       <Chip
@@ -226,7 +206,28 @@ function SingleCalibrationPageCard() {
                     </TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell><strong>Calibration Type</strong></TableCell>
+                    <TableCell><strong>Pioreactor</strong></TableCell>
+                    <TableCell>
+                      <Chip
+                        size="small"
+                        icon={<PioreactorIcon/>}
+                        label={pioreactor_unit}
+                        clickable
+                        component={RouterLink}
+                        to={`/calibrations/${pioreactor_unit}`}
+                        />
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell><strong>Active</strong></TableCell>
+                    <TableCell>{is_active ? <><Chip size="small" label={"Active"} icon={<CheckCircleOutlineOutlinedIcon />} sx={{backgroundColor: "white"}}  /></>: ""}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell><strong>Device</strong></TableCell>
+                    <TableCell>{device}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell><strong>Calibration type</strong></TableCell>
                     <TableCell>{calibration_type}</TableCell>
                   </TableRow>
                   <TableRow>
@@ -234,26 +235,21 @@ function SingleCalibrationPageCard() {
                     <TableCell>{dayjs(created_at).format('YYYY-MM-DD') }</TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell><strong>Active</strong></TableCell>
-                    <TableCell>{is_active ? "Active": ""}</TableCell>
-                  </TableRow>
-                  <TableRow>
                     <TableCell><strong>Fit polynomial</strong></TableCell>
                     <TableCell>
-                      {formatPolynomial(curve_data_)}
-                    </TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell><strong>Coefficients</strong></TableCell>
-                    <TableCell>
-                      {curve_data_.map(c => c.toFixed(4)).join(", ")}
+                      y={formatPolynomial(curve_data_)}
                     </TableCell>
                   </TableRow>
                   <TableRow >
-                    <TableCell ><strong>Recorded data</strong></TableCell>
+                    <TableCell ><strong>Recorded data - {x}</strong></TableCell>
                     <TableCell sx={{maxWidth: "600px", whiteSpace: "pre-line", wordWrap: "break-word"}}>
-                      <code>{x}: {JSON.stringify(recorded_data['x'])}</code><br/>
-                      <code>{y}: {JSON.stringify(recorded_data['y'])}</code><br/>
+                      <code>{JSON.stringify(recorded_data['x'])}</code><br/>
+                    </TableCell>
+                  </TableRow>
+                  <TableRow >
+                    <TableCell ><strong>Recorded data - {y}</strong></TableCell>
+                    <TableCell sx={{maxWidth: "600px", whiteSpace: "pre-line", wordWrap: "break-word"}}>
+                      <code>{JSON.stringify(recorded_data['y'])}</code><br/>
                     </TableCell>
                   </TableRow>
                 </TableBody>
@@ -261,7 +257,6 @@ function SingleCalibrationPageCard() {
           </Box>
 
 
-          {/* 5. Button to set active */}
           <Box mt={2}>
             <Button
               startIcon={<DoNotDisturbOnOutlinedIcon/>}

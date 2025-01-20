@@ -60,11 +60,10 @@ const ConditionalTooltip = ({condition, title, children}) => {
 };
 
 
-const SelectableMenuItem = ({availableExperiments, experiment, selectExperiment}) => {
+const SelectableMenuItem = ({experiment, availableExperiments, selectExperiment}) => {
   const navigate = useNavigate();
   const [selectOpen, setSelectOpen] = React.useState(false);
   const [activeExperiments, setActiveExperiments] = React.useState(new Set([]))
-
   React.useEffect(() => {
     async function getActiveExperiments() {
          await fetch("/api/experiments/assignment_count")
@@ -244,12 +243,12 @@ export default function SideNavAndHeader() {
                     color: disabled ? '#00000050' : (active ? '#5331ca' : 'inherit'),
                     backgroundColor: active ? '#5331ca14' : undefined,
                     height: "43px",
-                    fontWeight: active ? 550 : 450,
+                    fontWeight: active ? 500 : 450,
                   };
                   if (level === 1){
                     sx.paddingLeft = "58px"
                     sx.color = disabled ? '#00000050' : (active ? '#5331ca' : 'rgb(75, 75, 75)')
-                    sx.fontWeight = active ? 550 : 400
+                    sx.fontWeight = active ? 500 : 400
                   }
                   return sx
                 },
@@ -264,7 +263,7 @@ export default function SideNavAndHeader() {
               }}
             >
               <SelectableMenuItem
-                experiment={experimentMetadata.experiment || undefined}
+                experiment={experimentMetadata.experiment || ""} // CAM: don't remove the ""
                 availableExperiments={allExperiments.map(v => v.experiment)}
                 selectExperiment={selectExperiment}
                 />
@@ -321,12 +320,12 @@ export default function SideNavAndHeader() {
                     color: disabled ? '#00000050' : (active ? '#5331ca' : 'inherit'),
                     backgroundColor: active ? '#5331ca14' : undefined,
                     height: "43px",
-                    fontWeight: active ? 550 : 400,
+                    fontWeight: active ? 500 : 400,
                   };
                   if (level === 1){
                     sx.paddingLeft = "58px"
                     sx.color = disabled ? '#00000050' : (active ? '#5331ca' : 'rgb(75, 75, 75)')
-                    sx.fontWeight = active ? 550 : 400
+                    sx.fontWeight = active ? 500 : 400
                   }
                   return sx
                 },

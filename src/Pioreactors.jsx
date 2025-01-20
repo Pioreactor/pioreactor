@@ -323,6 +323,10 @@ function AssignPioreactors({ experiment, variant="text" }) {
   const { selectExperiment } = useExperiment();
 
   useEffect(() => {
+    if (!open){
+      return
+    }
+
     fetch("/api/workers/assignments")
       .then((data) => data.json())
       .then((json) => {
@@ -334,7 +338,7 @@ function AssignPioreactors({ experiment, variant="text" }) {
         setAssigned(assignments);
         setInitialAssigned(assignments);
       });
-  }, [experiment]);
+  }, [experiment, open]);
 
   function compareObjects(o1, o2) {
     const differences = {};
@@ -610,7 +614,7 @@ function CalibrateDialog(props) {
    }
 
   const isGrowRateJobRunning = props.growthRateJobState === "ready"
-  const blankODButton = createUserButtonsBasedOnState(props.odBlankJobState, "od_blank", isGrowRateJobRunning)
+  const blankODButton = createUserButtonsBasedOnState(props.odBlankJobState, "od_blank", (isGrowRateJobRunning || "od" in activeCalibrations))
 
   return (
     <React.Fragment>

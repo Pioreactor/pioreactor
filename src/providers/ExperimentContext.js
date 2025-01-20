@@ -15,6 +15,7 @@ export const ExperimentProvider = ({ children }) => {
 
       // Check if we have metadata and if it is less than an hour old
       if (maybeExperimentMetadata && (now - maybeExperimentMetadata._createdAt < 60 * 60 * 1000)) {
+
         return maybeExperimentMetadata;
       }
 

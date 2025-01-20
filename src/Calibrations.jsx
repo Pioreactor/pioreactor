@@ -28,6 +28,7 @@ import { useNavigate } from 'react-router-dom';
 import PioreactorIcon from "./components/PioreactorIcon"
 import PioreactorsIcon from './components/PioreactorsIcon';
 import TuneIcon from '@mui/icons-material/Tune';
+import CheckCircleOutlineOutlinedIcon from '@mui/icons-material/CheckCircleOutlineOutlined';
 
 
 function CalibrationCard(){
@@ -297,7 +298,7 @@ function CalibrationData() {
                         label={calName}
                         />
                   </TableCell>
-                  <TableCell align="left" sx={{padding: "6px 0px"}}>{cal.is_active ? "Active" : ""}</TableCell>
+                  <TableCell align="left" sx={{padding: "6px 0px"}}>{cal.is_active ?  <><Chip size="small" label={"Active"} icon={<CheckCircleOutlineOutlinedIcon />} sx={{backgroundColor: "inherit"}}  /></> : ""}</TableCell>
                   <TableCell align="right" sx={{padding: "6px 6px"}}>{dayjs(cal.created_at).format('YYYY-MM-DD') }</TableCell>
                 </TableRow>
               );
@@ -367,7 +368,9 @@ function CalibrationsContainer(props) {
           <CalibrationCard/>
         </Grid>
       </Grid>
-
+      <Grid item xs={12}>
+        <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/hardware-calibrations" target="_blank" rel="noopener noreferrer">calibrations</a>.</p>
+      </Grid>
     </React.Fragment>
   );
 }

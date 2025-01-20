@@ -170,8 +170,8 @@ function EditableCodeDiv() {
             position: "relative",
             width: "98%",
             borderRadius: "4px",
-            height: "320px",
-            maxHeight: "320px",
+            height: "360px",
+            maxHeight: "360px",
             overflow: "auto",
             flex: 1
         }}>
@@ -239,9 +239,9 @@ function EditConfigContainer(){
         <CardContent sx={{p: 1}}>
           <EditableCodeDiv/>
 
-          <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about Pioreactor  <a href="https://docs.pioreactor.com/user-guide/configuration" target="_blank" rel="noopener noreferrer">configuration</a>.</p>
         </CardContent>
       </Card>
+      <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about Pioreactor  <a href="https://docs.pioreactor.com/user-guide/configuration" target="_blank" rel="noopener noreferrer">configuration</a>.</p>
     </React.Fragment>
 )}
 

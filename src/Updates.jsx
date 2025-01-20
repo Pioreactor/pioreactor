@@ -80,6 +80,7 @@ function UploadArchiveAndConfirm(props) {
       return data.save_path;
     } catch (error) {
       setErrorMsg(error.message)
+      setIsUploading(false)
       return null;
     }
   };
@@ -95,6 +96,7 @@ function UploadArchiveAndConfirm(props) {
         },
       });
     } catch (error) {
+      setIsUploading(false)
       console.error(error);
     }
   };
