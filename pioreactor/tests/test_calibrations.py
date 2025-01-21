@@ -10,6 +10,8 @@ from msgspec import ValidationError
 
 from pioreactor import exc
 from pioreactor.calibrations import CALIBRATION_PATH
+from pioreactor.calibrations import calibration_protocols
+from pioreactor.calibrations import CalibrationProtocol
 from pioreactor.calibrations import load_active_calibration
 from pioreactor.calibrations import load_calibration
 from pioreactor.calibrations.utils import calculate_poly_curve_of_best_fit
@@ -225,3 +227,27 @@ def test_mandys_data_for_pathological_poly() -> None:
 
     assert abs(mcal.predict(0.002) - curve_callable(0.002)) < 1e-10
     assert abs(mcal.ipredict(0.002) - 0.002) < 0.1
+
+
+def test_custom_protocol():
+    class CustomODCalibrationProtocol(CalibrationProtocol):
+        protocol_name = "custom"
+        target_device = "od"
+
+        @staticmethod
+        def run(target_device, **kwargs):
+            pass
+
+    assert calibration_protocols[("od", "custom")].__name__ == "CustomODCalibrationProtocol"
+
+    class CustomCalibrationProtocolWithList(CalibrationProtocol):
+        protocol_name = "custom"
+        target_device = ["A", "B", "C"]
+
+        @staticmethod
+        def run(target_device, **kwargs):
+            pass
+
+    assert calibration_protocols[("A", "custom")].__name__ == "CustomCalibrationProtocolWithList"
+    assert calibration_protocols[("B", "custom")].__name__ == "CustomCalibrationProtocolWithList"
+    assert calibration_protocols[("C", "custom")].__name__ == "CustomCalibrationProtocolWithList"
