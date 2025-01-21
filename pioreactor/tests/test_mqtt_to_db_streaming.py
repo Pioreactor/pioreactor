@@ -5,6 +5,8 @@ import json
 import sqlite3
 from time import sleep
 
+import pytest
+
 import pioreactor.background_jobs.leader.mqtt_to_db_streaming as m2db
 from pioreactor import mureq
 from pioreactor import structs
@@ -143,6 +145,7 @@ def test_dosing_events_land_in_db() -> None:
     assert len(results) == 1
 
 
+@pytest.mark.xfail(reason="we stopped adding to kalman filter table in 25.1.x release")
 def test_kalman_filter_entries() -> None:
     config["storage"]["database"] = "test.sqlite"
     config["od_reading.config"]["samples_per_second"] = "0.2"
