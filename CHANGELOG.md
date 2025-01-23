@@ -1,3 +1,8 @@
+### Upcoming
+
+ - experiment profiles start now use the unit_api directly. I think this mitigates the huey workers stampeding on each other when try to start many jobs.
+ - improved chart colors in the UI
+
 ### 25.1.21
 
 #### Highlights
@@ -27,7 +32,7 @@
       analyze     Analyze the data from a calibration.
     ```
 
-    For example, to run a pump calibration, use `pio calibrations run --device media_pump`. View all your media pump calibrations with:  `pio calibrations list --device media_pump`. And to duplicate a
+    For example, to run a pump calibration, use `pio calibrations run --device media_pump`. View all your media pump calibrations with:  `pio calibrations list --device media_pump`.
 
    - For now, the actual calibrations are the same protocol as before, but in the near future, we'll be updating them with new features. Adding this unified CLI and YAML format was the first step.
 

@@ -20,14 +20,17 @@ from pioreactor.experiment_profiles import profile_struct as struct
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
 from pioreactor.pubsub import Client
+from pioreactor.pubsub import patch_into
 from pioreactor.pubsub import patch_into_leader
 from pioreactor.utils import ClusterJobManager
 from pioreactor.utils import managed_lifecycle
+from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
+
 
 BoolExpression = str | bool
 Env = dict[str, Any]
@@ -278,6 +281,7 @@ def wrapped_execute_action(
 def chain_functions(*funcs: Callable[[], None]) -> Callable[[], None]:
     def combined_function() -> None:
         for func in funcs:
+            time.sleep(0.01)  # add a tiny sleep to avoid overloading webservers
             func()
 
     return combined_function
@@ -540,8 +544,9 @@ def start_job(
                 logger.info(f"Dry-run: Starting {job_name} on {unit} with options {options} and args {args}.")
             else:
                 logger.debug(f"Starting {job_name} on {unit} with options {options} and args {args}.")
-                patch_into_leader(
-                    f"/api/workers/{unit}/jobs/run/job_name/{job_name}/experiments/{experiment}",
+                patch_into(
+                    resolve_to_address(unit),
+                    f"/unit_api/jobs/run/job_name/{job_name}",
                     json={
                         "options": evaluate_options(options, env),
                         "env": {"JOB_SOURCE": "experiment_profile", "EXPERIMENT": experiment},
