@@ -17,7 +17,7 @@ class TestTemperatureApproximation_2_0:
                 "previous_heater_dc": 0.001,  # should be nonzero to not short circuit the if previous_heater_dc == 0 line.
                 "time_series_of_temp": 21 * [float(temp)],
             }
-            assert abs(temp - self.t.approximate_temperature_2_0(features)) < 0.30
+            assert abs(temp - self.t.approximate_temperature_20_2_0(features)) < 0.30
 
     def test_temperature_approximation1(self) -> None:
         features = {
@@ -47,7 +47,7 @@ class TestTemperatureApproximation_2_0:
                 38.1875,
             ],
         }
-        assert abs(38.9 - self.t.approximate_temperature_2_0(features)) < 0.5
+        assert abs(38.9 - self.t.approximate_temperature_20_2_0(features)) < 0.5
 
     def test_temperature_approximation2(self) -> None:
         features = {
@@ -77,7 +77,7 @@ class TestTemperatureApproximation_2_0:
                 31.822916666666668,
             ],
         }
-        assert abs(31.85 - self.t.approximate_temperature_2_0(features)) < 0.5
+        assert abs(31.85 - self.t.approximate_temperature_20_2_0(features)) < 0.5
 
     def test_temperature_approximation3(self) -> None:
         features = {
@@ -107,7 +107,7 @@ class TestTemperatureApproximation_2_0:
                 38.1875,
             ],
         }
-        assert abs(38.94220102733567 - self.t.approximate_temperature_2_0(features)) < 0.5
+        assert abs(38.94220102733567 - self.t.approximate_temperature_20_2_0(features)) < 0.5
 
     def test_temperature_approximation4(self) -> None:
         features = {
@@ -137,7 +137,7 @@ class TestTemperatureApproximation_2_0:
                 34.625,
             ],
         }
-        assert abs(34.1204 - self.t.approximate_temperature_2_0(features)) < 0.5
+        assert abs(34.1204 - self.t.approximate_temperature_20_2_0(features)) < 0.5
 
     def test_temperature_approximation5(self) -> None:
         features = {
@@ -167,4 +167,4 @@ class TestTemperatureApproximation_2_0:
                 31.395833333333332,
             ],
         }
-        assert abs(30.94587 - self.t.approximate_temperature_2_0(features)) < 0.5
+        assert abs(30.94587 - self.t.approximate_temperature_20_2_0(features)) < 0.5

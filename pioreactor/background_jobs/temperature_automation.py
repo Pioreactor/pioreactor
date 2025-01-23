@@ -409,10 +409,14 @@ class TemperatureAutomationJob(AutomationJob):
         self.logger.debug(f"{features=}")
 
         try:
-            if whoami.get_pioreactor_version() == (1, 0):
-                inferred_temperature = self.approximate_temperature_1_0(features)
-            elif whoami.get_pioreactor_version() >= (1, 1):
-                inferred_temperature = self.approximate_temperature_2_0(features)
+            if whoami.get_pioreactor_model() == "pioreactor_20ml":
+                if whoami.get_pioreactor_version() == (1, 0):
+                    inferred_temperature = self.approximate_temperature_20_1_0(features)
+                elif whoami.get_pioreactor_version() >= (1, 1):
+                    inferred_temperature = self.approximate_temperature_20_2_0(features)
+            elif whoami.get_pioreactor_model() == "pioreactor_40ml":
+                inferred_temperature = self.approximate_temperature_40_1_0(features)
+            raise ValueError("Unknown Pioreactor model. See config.")
 
             self.temperature = Temperature(
                 temperature=round(inferred_temperature, 2),
@@ -425,7 +429,11 @@ class TemperatureAutomationJob(AutomationJob):
             self.logger.error(e)
 
     @staticmethod
-    def approximate_temperature_1_0(features: dict[str, Any]) -> float:
+    def approximate_temperature_40_1_0(features: dict[str, Any]) -> float:
+        raise NotImplementedError("This model has not been implemented yet.")
+
+    @staticmethod
+    def approximate_temperature_20_1_0(features: dict[str, Any]) -> float:
         """
         models
 
@@ -528,7 +536,7 @@ class TemperatureAutomationJob(AutomationJob):
         # return float(room_temp + alpha * (exp(beta * n) - 1)/(beta * n))
 
     @staticmethod
-    def approximate_temperature_2_0(features: dict[str, Any]) -> float:
+    def approximate_temperature_20_2_0(features: dict[str, Any]) -> float:
         """
         This uses linear regression from historical data
         """
