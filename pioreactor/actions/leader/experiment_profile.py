@@ -19,7 +19,9 @@ from pioreactor.exc import NotAssignedAnExperimentError
 from pioreactor.experiment_profiles import profile_struct as struct
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
+from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import Client
+from pioreactor.pubsub import get_from
 from pioreactor.pubsub import patch_into
 from pioreactor.pubsub import patch_into_leader
 from pioreactor.utils import ClusterJobManager
@@ -30,7 +32,6 @@ from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
-
 
 BoolExpression = str | bool
 Env = dict[str, Any]
@@ -115,10 +116,20 @@ def check_syntax_of_bool_expression(bool_expression: BoolExpression) -> bool:
     if is_bracketed_expression(bool_expression):
         bool_expression = strip_expression_brackets(bool_expression)
 
-    # in a common expressions, users can use ::word:work which is technically not allowed. For checking, we replace with garbage
+    # TODO: in a common expressions, users can use ::word:work which is technically not valid syntax. For checking, we replace with garbage
     bool_expression = bool_expression.replace("::", "dummy:", 1)
 
     return check_syntax(bool_expression)
+
+
+def check_if_job_running(unit: str, job: str) -> bool:
+    try:
+        r = get_from(resolve_to_address(unit), f"/unit_api/jobs/running/{job}")
+        r.raise_for_status()
+        return len(r.json()) > 0
+    except HTTPException:
+        # an http hiccup shouldn't stall commands
+        return True
 
 
 def _led_intensity_hack(action: struct.Action) -> struct.Action:
@@ -586,10 +597,13 @@ def pause_job(
                 logger.info(f"Dry-run: Pausing {job_name} on {unit}.")
             else:
                 logger.debug(f"Pausing {job_name} on {unit}.")
-                patch_into_leader(
-                    f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
-                    json={"settings": {"$state": "sleeping"}},
-                ).raise_for_status()
+                if check_if_job_running(unit, job_name):
+                    patch_into_leader(
+                        f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
+                        json={"settings": {"$state": "sleeping"}},
+                    ).raise_for_status()
+                else:
+                    logger.debug(f"Job {job_name} not running on {unit}.")
         else:
             logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
 
@@ -624,10 +638,13 @@ def resume_job(
                 logger.info(f"Dry-run: Resuming {job_name} on {unit}.")
             else:
                 logger.debug(f"Resuming {job_name} on {unit}.")
-                patch_into_leader(
-                    f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
-                    json={"settings": {"$state": "ready"}},
-                ).raise_for_status()
+                if check_if_job_running(unit, job_name):
+                    patch_into_leader(
+                        f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
+                        json={"settings": {"$state": "ready"}},
+                    ).raise_for_status()
+                else:
+                    logger.debug(f"Job {job_name} not running on {unit}.")
         else:
             logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
 
@@ -703,10 +720,13 @@ def update_job(
             else:
                 for setting, value in evaluate_options(options, env).items():
                     logger.debug(f"Updating {setting} to {value} in {job_name} on {unit}.")
-                    patch_into_leader(
-                        f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
-                        json={"settings": {setting: value}},
-                    ).raise_for_status()
+                    if check_if_job_running(unit, job_name):
+                        patch_into_leader(
+                            f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
+                            json={"settings": {setting: value}},
+                        ).raise_for_status()
+                    else:
+                        logger.debug(f"Job {job_name} not running on {unit}.")
         else:
             logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
 

@@ -2,6 +2,7 @@
 
  - experiment profiles start now use the unit_api directly. I think this mitigates the huey workers stampeding on each other when try to start many jobs.
  - improved chart colors in the UI
+ - /jobs/running/<job>
 
 ### 25.1.21
 

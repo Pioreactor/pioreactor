@@ -112,9 +112,7 @@ class RepeatedTimer:
         self.args = args
         self.kwargs = kwargs
         if logger is None:
-            self.logger = create_logger(
-                job_name or "RepeatedTimer"
-            )  # TODO: I don't think this works as expected.
+            self.logger = create_logger(job_name or "RepeatedTimer")
         else:
             self.logger = logger
         self.is_paused = False
