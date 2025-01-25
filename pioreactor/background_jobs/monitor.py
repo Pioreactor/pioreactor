@@ -76,10 +76,10 @@ class Monitor(LongRunningBackgroundJob):
 
     """
 
-    if whoami.get_pioreactor_version() == (1, 0):
+    if whoami.get_pioreactor_model() == "pioreactor_20ml" and whoami.get_pioreactor_version() == (1, 0):
         # made from PLA
         MAX_TEMP_TO_SHUTDOWN = 66.0
-    elif whoami.get_pioreactor_version() >= (1, 1):
+    else:
         # made from PC-CF
         MAX_TEMP_TO_SHUTDOWN = 85.0  # risk damaging PCB components
 

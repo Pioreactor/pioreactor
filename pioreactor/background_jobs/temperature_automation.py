@@ -46,7 +46,7 @@ class TemperatureAutomationJob(AutomationJob):
 
     INFERENCE_SAMPLES_EVERY_T_SECONDS: float = 5.0
 
-    if whoami.get_pioreactor_version() == (1, 0):
+    if whoami.get_pioreactor_model() == "pioreactor_20ml" and whoami.get_pioreactor_version() == (1, 0):
         # made from PLA
         MAX_TEMP_TO_REDUCE_HEATING = 63.0
         MAX_TEMP_TO_DISABLE_HEATING = 65.0  # probably okay, but can't stay here for too long
@@ -54,8 +54,8 @@ class TemperatureAutomationJob(AutomationJob):
         INFERENCE_N_SAMPLES: int = 29
         INFERENCE_EVERY_N_SECONDS: float = 225.0
 
-    elif whoami.get_pioreactor_version() >= (1, 1):
-        # made from PC-CF
+    else:
+        # made from PC-CF - this is true for 40ml and 20ml v1.1
         MAX_TEMP_TO_REDUCE_HEATING = 78.0
         MAX_TEMP_TO_DISABLE_HEATING = 80.0
         MAX_TEMP_TO_SHUTDOWN = 85.0  # risk damaging PCB components
