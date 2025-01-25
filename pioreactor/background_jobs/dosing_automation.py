@@ -238,11 +238,6 @@ class DosingAutomationJob(AutomationJob):
     ) -> None:
         super(DosingAutomationJob, self).__init__(unit, experiment)
 
-        if not is_pio_job_running("stirring"):
-            self.logger.warning(
-                "It's recommended to have stirring on to improve mixing during dosing events."
-            )
-
         self.add_to_published_settings(
             "duration",
             {
@@ -263,6 +258,11 @@ class DosingAutomationJob(AutomationJob):
         self._init_liquid_volume(float(initial_liquid_volume))
 
         self.set_duration(duration)
+
+        if not is_pio_job_running("stirring"):
+            self.logger.warning(
+                "It's recommended to have stirring on to improve mixing during dosing events."
+            )
 
     def set_duration(self, duration: Optional[float]) -> None:
         if duration:

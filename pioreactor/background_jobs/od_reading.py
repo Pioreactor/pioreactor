@@ -1246,10 +1246,9 @@ def start_od_reading(
     help="specify the angle(s) between the IR LED(s) and the PD in channel 2, separated by commas. Don't specify if channel is empty.",
 )
 @click.option("--fake-data", is_flag=True, help="produce fake data (for testing)")
+@click.option("--snapshot", is_flag=True, help="take one reading and exit")
 def click_od_reading(
-    od_angle_channel1: pt.PdAngleOrREF,
-    od_angle_channel2: pt.PdAngleOrREF,
-    fake_data: bool,
+    od_angle_channel1: pt.PdAngleOrREF, od_angle_channel2: pt.PdAngleOrREF, fake_data: bool, snapshot: bool
 ) -> None:
     """
     Start the optical density reading job
@@ -1257,10 +1256,21 @@ def click_od_reading(
 
     possible_calibration = load_active_calibration("od")
 
-    od = start_od_reading(
-        od_angle_channel1,
-        od_angle_channel2,
-        fake_data=fake_data or whoami.is_testing_env(),
-        calibration=possible_calibration,
-    )
-    od.block_until_disconnected()
+    if snapshot:
+        od = start_od_reading(
+            od_angle_channel1,
+            od_angle_channel2,
+            fake_data=fake_data or whoami.is_testing_env(),
+            calibration=possible_calibration,
+            interval=None,
+        )
+        od.logger.debug(od.record_from_adc())
+        # end
+    else:
+        od = start_od_reading(
+            od_angle_channel1,
+            od_angle_channel2,
+            fake_data=fake_data or whoami.is_testing_env(),
+            calibration=possible_calibration,
+        )
+        od.block_until_disconnected()
