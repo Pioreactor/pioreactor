@@ -52,8 +52,6 @@ def add_worker(hostname: str, password: str, version: str, model: str) -> None:
     """
     import socket
 
-    assert model == "pioreactor_20ml"
-
     logger = create_logger(
         "add_pioreactor",
         unit=whoami.get_unit_name(),

@@ -34,7 +34,7 @@ class TestTemperatureApproximation_1_0:
                 19.5,
             ],
         }
-        assert 19.0 <= self.t.approximate_temperature_1_0(features) <= 20.0
+        assert 19.0 <= self.t.approximate_temperature_20_1_0(features) <= 20.0
 
     def test_temperature_approximation_if_constant(self) -> None:
         for temp in range(20, 45):
@@ -43,7 +43,7 @@ class TestTemperatureApproximation_1_0:
                 "previous_heater_dc": 17,
                 "time_series_of_temp": 30 * [float(temp)],
             }
-            assert abs(temp - self.t.approximate_temperature_1_0(features)) < 0.30
+            assert abs(temp - self.t.approximate_temperature_20_1_0(features)) < 0.30
 
     def test_temperature_approximation_even_if_very_tiny_heat_source(self) -> None:
         import numpy as np
@@ -56,7 +56,7 @@ class TestTemperatureApproximation_1_0:
             ),
         }
 
-        assert (32 * np.exp(-0.008 * 17)) < self.t.approximate_temperature_1_0(features) < 32
+        assert (32 * np.exp(-0.008 * 17)) < self.t.approximate_temperature_20_1_0(features) < 32
 
     def test_temperature_approximation_even_if_very_large_heat_source(self) -> None:
         import numpy as np
@@ -69,12 +69,12 @@ class TestTemperatureApproximation_1_0:
             ),
         }
 
-        assert (24 * np.exp(-0.008 * 17)) < self.t.approximate_temperature_1_0(features) < 25
+        assert (24 * np.exp(-0.008 * 17)) < self.t.approximate_temperature_20_1_0(features) < 25
 
     def test_temperature_approximation_if_dc_is_nil(self) -> None:
         features = {"previous_heater_dc": 0, "time_series_of_temp": [37.8125, 32.1875]}
 
-        assert self.t.approximate_temperature_1_0(features) == 32.1875
+        assert self.t.approximate_temperature_20_1_0(features) == 32.1875
 
     # this is all real data measured insitu, the gold standard.
     def test_temperature_approximation1(self) -> None:
@@ -114,7 +114,7 @@ class TestTemperatureApproximation_1_0:
             ],
         }
 
-        assert 33.389 <= self.t.approximate_temperature_1_0(features) <= 33.830
+        assert 33.389 <= self.t.approximate_temperature_20_1_0(features) <= 33.830
 
     def test_temperature_approximation_heating_vial1(self) -> None:
         features = {
@@ -153,7 +153,7 @@ class TestTemperatureApproximation_1_0:
             ],
         }
 
-        assert 33.525 <= self.t.approximate_temperature_1_0(features) <= 34.00
+        assert 33.525 <= self.t.approximate_temperature_20_1_0(features) <= 34.00
 
     def test_temperature_approximation_heating_vial2(self) -> None:
         features = {
@@ -192,7 +192,7 @@ class TestTemperatureApproximation_1_0:
             ],
         }
 
-        assert 33.695 <= self.t.approximate_temperature_1_0(features) <= 34.170
+        assert 33.695 <= self.t.approximate_temperature_20_1_0(features) <= 34.170
 
     def test_temperature_approximation_heating_vial3(self) -> None:
         features = {
@@ -231,7 +231,7 @@ class TestTemperatureApproximation_1_0:
             ],
         }
 
-        assert 33.898 <= self.t.approximate_temperature_1_0(features) <= 34.339
+        assert 33.898 <= self.t.approximate_temperature_20_1_0(features) <= 34.339
 
     def test_temperature_approximation_heating_vial4(self) -> None:
         features = {
@@ -270,7 +270,7 @@ class TestTemperatureApproximation_1_0:
             ],
         }
 
-        assert 34.068 <= self.t.approximate_temperature_1_0(features) <= 34.577
+        assert 34.068 <= self.t.approximate_temperature_20_1_0(features) <= 34.577
 
     def test_temperature_approximation_heating_vial5(self) -> None:
         features = {
@@ -309,7 +309,7 @@ class TestTemperatureApproximation_1_0:
             ],
         }
 
-        assert 34.305 <= self.t.approximate_temperature_1_0(features) <= 34.814
+        assert 34.305 <= self.t.approximate_temperature_20_1_0(features) <= 34.814
 
     def test_temperature_approximation6(self) -> None:
         features = {
@@ -348,7 +348,7 @@ class TestTemperatureApproximation_1_0:
             ],
         }
 
-        assert 34.475 <= self.t.approximate_temperature_1_0(features) <= 35.018
+        assert 34.475 <= self.t.approximate_temperature_20_1_0(features) <= 35.018
 
     def test_temperature_approximation7(self) -> None:
         features = {
@@ -387,7 +387,7 @@ class TestTemperatureApproximation_1_0:
             ],
         }
 
-        assert 34.644 <= self.t.approximate_temperature_1_0(features) <= 35.153
+        assert 34.644 <= self.t.approximate_temperature_20_1_0(features) <= 35.153
 
     def test_temperature_approximation8(self) -> None:
         features = {
@@ -426,7 +426,7 @@ class TestTemperatureApproximation_1_0:
             ],
         }
 
-        assert 34.746 <= self.t.approximate_temperature_1_0(features) <= 35.289
+        assert 34.746 <= self.t.approximate_temperature_20_1_0(features) <= 35.289
 
     def test_temperature_approximation9(self) -> None:
         features = {
@@ -464,7 +464,7 @@ class TestTemperatureApproximation_1_0:
                 35.5,
             ],
         }
-        assert 34.848 <= self.t.approximate_temperature_1_0(features) <= 35.391
+        assert 34.848 <= self.t.approximate_temperature_20_1_0(features) <= 35.391
 
     def test_temperature_approximation10(self) -> None:
         features = {
@@ -503,7 +503,7 @@ class TestTemperatureApproximation_1_0:
             ],
         }
 
-        assert 34.950 <= self.t.approximate_temperature_1_0(features) <= 35.493
+        assert 34.950 <= self.t.approximate_temperature_20_1_0(features) <= 35.493
 
     def test_temperature_approximation20(self) -> None:
         features = {
@@ -542,7 +542,7 @@ class TestTemperatureApproximation_1_0:
             ],
         }
 
-        assert 34.950 <= self.t.approximate_temperature_1_0(features) <= 35.493
+        assert 34.950 <= self.t.approximate_temperature_20_1_0(features) <= 35.493
 
     @pytest.mark.xfail
     def test_temperature_approximation_cooling1(self) -> None:
@@ -582,7 +582,7 @@ class TestTemperatureApproximation_1_0:
             ],
         }
 
-        assert 32.169 <= self.t.approximate_temperature_1_0(features)
+        assert 32.169 <= self.t.approximate_temperature_20_1_0(features)
 
     def test_temperature_approximation_cooling2(self) -> None:
         features = {
@@ -621,7 +621,7 @@ class TestTemperatureApproximation_1_0:
             ],
         }
 
-        assert 31.118 <= self.t.approximate_temperature_1_0(features)
+        assert 31.118 <= self.t.approximate_temperature_20_1_0(features)
 
     def test_temperature_approximation11(self) -> None:
         features = {
@@ -660,7 +660,7 @@ class TestTemperatureApproximation_1_0:
             ],
         }
 
-        assert 29.628 <= self.t.approximate_temperature_1_0(features) <= 30.136
+        assert 29.628 <= self.t.approximate_temperature_20_1_0(features) <= 30.136
 
     def test_temperature_approximation12(self) -> None:
         features = {
@@ -699,7 +699,7 @@ class TestTemperatureApproximation_1_0:
             ],
         }
 
-        assert 28.476 <= self.t.approximate_temperature_1_0(features) <= 28.747
+        assert 28.476 <= self.t.approximate_temperature_20_1_0(features) <= 28.747
 
     def test_temperature_approximation13(self) -> None:
         features = {
@@ -738,7 +738,7 @@ class TestTemperatureApproximation_1_0:
             ],
         }
 
-        assert 28.374 <= self.t.approximate_temperature_1_0(features) <= 28.645
+        assert 28.374 <= self.t.approximate_temperature_20_1_0(features) <= 28.645
 
     def test_temperature_approximation14(self) -> None:
         features = {
@@ -777,7 +777,7 @@ class TestTemperatureApproximation_1_0:
             ],
         }
 
-        assert 28.374 <= self.t.approximate_temperature_1_0(features) <= 28.578
+        assert 28.374 <= self.t.approximate_temperature_20_1_0(features) <= 28.578
 
     def test_temperature_approximation15(self) -> None:
         features = {
@@ -815,7 +815,7 @@ class TestTemperatureApproximation_1_0:
                 29.3125,
             ],
         }
-        assert 28.815 <= self.t.approximate_temperature_1_0(features) <= 29.119
+        assert 28.815 <= self.t.approximate_temperature_20_1_0(features) <= 29.119
 
     @pytest.mark.xfail
     def test_temperature_approximation16(self) -> None:
@@ -855,7 +855,7 @@ class TestTemperatureApproximation_1_0:
             ],
         }
 
-        assert 25.261 <= self.t.approximate_temperature_1_0(features) <= 25.430
+        assert 25.261 <= self.t.approximate_temperature_20_1_0(features) <= 25.430
 
     @pytest.mark.xfail
     def test_temperature_approximation17(self) -> None:
@@ -895,7 +895,7 @@ class TestTemperatureApproximation_1_0:
             ],
         }
 
-        assert 25.295 <= self.t.approximate_temperature_1_0(features) <= 25.430
+        assert 25.295 <= self.t.approximate_temperature_20_1_0(features) <= 25.430
 
     def test_temperature_approximation21(self) -> None:
         # this was real data from a user
@@ -934,7 +934,7 @@ class TestTemperatureApproximation_1_0:
 
         with pytest.raises(ValueError):
             features = {"previous_heater_dc": 25.0, "room_temp": 22.0, "time_series_of_temp": ts_of_temps}
-            self.t.approximate_temperature_1_0(features)
+            self.t.approximate_temperature_20_1_0(features)
 
         better_room_temp = 20
         features = {
@@ -943,7 +943,7 @@ class TestTemperatureApproximation_1_0:
             "time_series_of_temp": ts_of_temps,
         }
 
-        assert better_room_temp < self.t.approximate_temperature_1_0(features) <= 25
+        assert better_room_temp < self.t.approximate_temperature_20_1_0(features) <= 25
 
     def test_temperature_approximation19(self) -> None:
         # this was real data from a user
@@ -983,7 +983,7 @@ class TestTemperatureApproximation_1_0:
             ],
         }
 
-        assert 55.5 <= self.t.approximate_temperature_1_0(features) <= 56.5
+        assert 55.5 <= self.t.approximate_temperature_20_1_0(features) <= 56.5
 
     def test_temperature_approximation50(self) -> None:
         # this was real data from a bheit
@@ -1025,7 +1025,7 @@ class TestTemperatureApproximation_1_0:
         }
 
         with pytest.raises(ValueError):
-            assert 20 <= self.t.approximate_temperature_1_0(features) <= 30
+            assert 20 <= self.t.approximate_temperature_20_1_0(features) <= 30
 
         features = {
             "previous_heater_dc": 1.3,
@@ -1063,4 +1063,4 @@ class TestTemperatureApproximation_1_0:
             ],
         }
 
-        assert 20 <= self.t.approximate_temperature_1_0(features) <= 30
+        assert 20 <= self.t.approximate_temperature_20_1_0(features) <= 30

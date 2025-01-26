@@ -46,7 +46,7 @@ class TemperatureAutomationJob(AutomationJob):
 
     INFERENCE_SAMPLES_EVERY_T_SECONDS: float = 5.0
 
-    if whoami.get_pioreactor_version() == (1, 0):
+    if whoami.get_pioreactor_model() == "pioreactor_20ml" and whoami.get_pioreactor_version() == (1, 0):
         # made from PLA
         MAX_TEMP_TO_REDUCE_HEATING = 63.0
         MAX_TEMP_TO_DISABLE_HEATING = 65.0  # probably okay, but can't stay here for too long
@@ -54,8 +54,8 @@ class TemperatureAutomationJob(AutomationJob):
         INFERENCE_N_SAMPLES: int = 29
         INFERENCE_EVERY_N_SECONDS: float = 225.0
 
-    elif whoami.get_pioreactor_version() >= (1, 1):
-        # made from PC-CF
+    else:
+        # made from PC-CF - this is true for 40ml and 20ml v1.1
         MAX_TEMP_TO_REDUCE_HEATING = 78.0
         MAX_TEMP_TO_DISABLE_HEATING = 80.0
         MAX_TEMP_TO_SHUTDOWN = 85.0  # risk damaging PCB components
@@ -409,10 +409,14 @@ class TemperatureAutomationJob(AutomationJob):
         self.logger.debug(f"{features=}")
 
         try:
-            if whoami.get_pioreactor_version() == (1, 0):
-                inferred_temperature = self.approximate_temperature_1_0(features)
-            elif whoami.get_pioreactor_version() >= (1, 1):
-                inferred_temperature = self.approximate_temperature_2_0(features)
+            if whoami.get_pioreactor_model() == "pioreactor_20ml":
+                if whoami.get_pioreactor_version() == (1, 0):
+                    inferred_temperature = self.approximate_temperature_20_1_0(features)
+                elif whoami.get_pioreactor_version() >= (1, 1):
+                    inferred_temperature = self.approximate_temperature_20_2_0(features)
+            elif whoami.get_pioreactor_model() == "pioreactor_40ml":
+                inferred_temperature = self.approximate_temperature_40_1_0(features)
+            raise ValueError("Unknown Pioreactor model. See config.")
 
             self.temperature = Temperature(
                 temperature=round(inferred_temperature, 2),
@@ -425,7 +429,11 @@ class TemperatureAutomationJob(AutomationJob):
             self.logger.error(e)
 
     @staticmethod
-    def approximate_temperature_1_0(features: dict[str, Any]) -> float:
+    def approximate_temperature_40_1_0(features: dict[str, Any]) -> float:
+        raise NotImplementedError("This model has not been implemented yet.")
+
+    @staticmethod
+    def approximate_temperature_20_1_0(features: dict[str, Any]) -> float:
         """
         models
 
@@ -528,7 +536,7 @@ class TemperatureAutomationJob(AutomationJob):
         # return float(room_temp + alpha * (exp(beta * n) - 1)/(beta * n))
 
     @staticmethod
-    def approximate_temperature_2_0(features: dict[str, Any]) -> float:
+    def approximate_temperature_20_2_0(features: dict[str, Any]) -> float:
         """
         This uses linear regression from historical data
         """
