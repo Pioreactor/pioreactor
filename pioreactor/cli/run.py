@@ -14,6 +14,7 @@ from pioreactor.actions.pump import click_add_media
 from pioreactor.actions.pump import click_circulate_alt_media
 from pioreactor.actions.pump import click_circulate_media
 from pioreactor.actions.pump import click_remove_waste
+from pioreactor.actions.pumps import click_pumps
 from pioreactor.actions.self_test import click_self_test
 from pioreactor.automations.dosing import *  # noqa: F403, F401
 from pioreactor.automations.led import *  # noqa: F403, F401
@@ -50,6 +51,7 @@ run.add_command(click_temperature_automation)
 
 run.add_command(click_led_intensity)
 run.add_command(click_add_alt_media)
+run.add_command(click_pumps)
 run.add_command(click_add_media)
 run.add_command(click_remove_waste)
 run.add_command(click_circulate_media)
