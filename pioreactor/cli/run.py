@@ -59,10 +59,12 @@ run.add_command(click_circulate_alt_media)
 run.add_command(click_od_blank)
 run.add_command(click_self_test)
 
-# TODO: this only adds to `pio run` - what if users want to add a high level command? Examples?
 for plugin in plugin_management.get_plugins().values():
     for possible_entry_point in dir(plugin.module):
         if possible_entry_point.startswith("click_"):
+            print(
+                "The `click` API is deprecated and will stop working in the future. You should update your plugins."
+            )
             run.add_command(getattr(plugin.module, possible_entry_point))
 
 if am_I_leader():
