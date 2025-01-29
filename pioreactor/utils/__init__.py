@@ -211,7 +211,7 @@ class managed_lifecycle:
             pass
 
         with JobManager() as jm:
-            self._job_id = jm.register_and_set_running(
+            self.job_id = jm.register_and_set_running(
                 self.unit,
                 self.experiment,
                 self.name,
@@ -234,7 +234,7 @@ class managed_lifecycle:
             self.mqtt_client.disconnect()
 
         with JobManager() as jm:
-            jm.set_not_running(self._job_id)
+            jm.set_not_running(self.job_id)
 
         return
 
@@ -263,7 +263,7 @@ class managed_lifecycle:
             f"pioreactor/{self.unit}/{self.experiment}/{self.name}/{setting}", value, retain=True
         )
         with JobManager() as jm:
-            jm.upsert_setting(self._job_id, setting, value)
+            jm.upsert_setting(self.job_id, setting, value)
 
 
 class cache:

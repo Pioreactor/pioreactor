@@ -12,12 +12,14 @@
    ```
    pio run pumps --waste 2 --media 1 --waste 2
    ```
- - support for ??
+ - support for 40ml
+ - Run multiple experiment profiles per experiment.
 
 
 #### Web API changes
 
  - GET `/unit_api/jobs/running/<job>` introduced
+ - GET `/api/experiment_profiles/running/experiments/<experiment>` introduced
 
 #### Breaking changes
  - plugins should migrate from `click_some_name` to autodiscover plugins, to importing `run`. Example:

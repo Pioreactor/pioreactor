@@ -191,6 +191,7 @@ def wrapped_execute_action(
     elapsed_seconds_func: Callable[[], float],
     client: Client,
     action: struct.Action,
+    job_id: int,
     dry_run: bool = False,
 ) -> Callable[..., None]:
     # hack...
@@ -211,28 +212,39 @@ def wrapped_execute_action(
                 env,
                 logger,
                 elapsed_seconds_func,
+                job_id,
                 options,
                 args,
             )
 
         case struct.Pause(_, if_):
             return pause_job(
-                unit, experiment, client, job_name, dry_run, if_, env, logger, elapsed_seconds_func
+                unit, experiment, client, job_name, dry_run, if_, env, logger, elapsed_seconds_func, job_id
             )
 
         case struct.Resume(_, if_):
             return resume_job(
-                unit, experiment, client, job_name, dry_run, if_, env, logger, elapsed_seconds_func
+                unit, experiment, client, job_name, dry_run, if_, env, logger, elapsed_seconds_func, job_id
             )
 
         case struct.Stop(_, if_):
             return stop_job(
-                unit, experiment, client, job_name, dry_run, if_, env, logger, elapsed_seconds_func
+                unit, experiment, client, job_name, dry_run, if_, env, logger, elapsed_seconds_func, job_id
             )
 
         case struct.Update(_, if_, options):
             return update_job(
-                unit, experiment, client, job_name, dry_run, if_, env, logger, elapsed_seconds_func, options
+                unit,
+                experiment,
+                client,
+                job_name,
+                dry_run,
+                if_,
+                env,
+                logger,
+                elapsed_seconds_func,
+                job_id,
+                options,
             )
 
         case struct.Log(_, options, if_):
@@ -246,6 +258,7 @@ def wrapped_execute_action(
                 env,
                 logger,
                 elapsed_seconds_func,
+                job_id,
                 options,
             )
 
@@ -260,6 +273,7 @@ def wrapped_execute_action(
                 env,
                 logger,
                 elapsed_seconds_func,
+                job_id,
                 action,
                 while_,
                 repeat_every_hours,
@@ -279,6 +293,7 @@ def wrapped_execute_action(
                 env,
                 logger,
                 elapsed_seconds_func,
+                job_id,
                 condition,
                 action,
                 actions,
@@ -307,6 +322,7 @@ def common_wrapped_execute_action(
     elapsed_seconds_func: Callable[[], float],
     client: Client,
     action: struct.Action,
+    job_id: int,
     dry_run: bool = False,
 ) -> Callable[..., None]:
     actions_to_execute = []
@@ -322,6 +338,7 @@ def common_wrapped_execute_action(
                 elapsed_seconds_func,
                 client,
                 action,
+                job_id,
                 dry_run,
             )
         )
@@ -339,6 +356,7 @@ def when(
     env: dict,
     logger: CustomLogger,
     elapsed_seconds_func: Callable[[], float],
+    job_id: int,
     condition: BoolExpression,
     when_action: struct.When,
     actions: list[struct.Action],
@@ -373,6 +391,7 @@ def when(
                             elapsed_seconds_func,
                             client,
                             action,
+                            job_id,
                             dry_run,
                         ),
                     )
@@ -392,6 +411,7 @@ def when(
                         elapsed_seconds_func,
                         client,
                         when_action,
+                        job_id,
                         dry_run,
                     ),
                 )
@@ -412,6 +432,7 @@ def repeat(
     env: dict,
     logger: CustomLogger,
     elapsed_seconds_func: Callable[[], float],
+    job_id: int,
     repeat_action: struct.Repeat,
     while_: Optional[BoolExpression],
     repeat_every_hours: float,
@@ -455,6 +476,7 @@ def repeat(
                         elapsed_seconds_func,
                         client,
                         action,
+                        job_id,
                         dry_run,
                     ),
                 )
@@ -479,6 +501,7 @@ def repeat(
                         elapsed_seconds_func,
                         client,
                         repeat_action,
+                        job_id,
                         dry_run,
                     ),
                 )
@@ -503,6 +526,7 @@ def log(
     env: dict,
     logger: CustomLogger,
     elapsed_seconds_func: Callable[[], float],
+    job_id: int,
     options: struct._LogOptions,
 ) -> Callable[..., None]:
     def _callable() -> None:
@@ -536,6 +560,7 @@ def start_job(
     env: dict,
     logger: CustomLogger,
     elapsed_seconds_func: Callable[[], float],
+    job_id: int,
     options: dict,
     args: list,
 ) -> Callable[..., None]:
@@ -560,7 +585,7 @@ def start_job(
                     f"/unit_api/jobs/run/job_name/{job_name}",
                     json={
                         "options": evaluate_options(options, env),
-                        "env": {"JOB_SOURCE": "experiment_profile", "EXPERIMENT": experiment},
+                        "env": {"JOB_SOURCE": f"experiment_profile:{job_id}", "EXPERIMENT": experiment},
                         "args": args,
                     },
                 ).raise_for_status()
@@ -580,6 +605,7 @@ def pause_job(
     env: dict,
     logger: CustomLogger,
     elapsed_seconds_func: Callable[[], float],
+    job_id: int,
 ) -> Callable[..., None]:
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
@@ -620,6 +646,7 @@ def resume_job(
     env: dict,
     logger: CustomLogger,
     elapsed_seconds_func: Callable[[], float],
+    job_id: int,
 ) -> Callable[..., None]:
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
@@ -661,6 +688,7 @@ def stop_job(
     env: dict,
     logger: CustomLogger,
     elapsed_seconds_func: Callable[[], float],
+    job_id: int,
 ) -> Callable[..., None]:
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
@@ -698,6 +726,7 @@ def update_job(
     env: dict,
     logger: CustomLogger,
     elapsed_seconds_func: Callable[[], float],
+    job_id: int,
     options: dict,
 ) -> Callable[..., None]:
     def _callable() -> None:
@@ -846,21 +875,23 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
     logger = create_logger(action_name, unit=unit, experiment=experiment)
     with managed_lifecycle(
         unit, experiment, action_name, ignore_is_active_state=True, is_long_running_job=True
-    ) as state:
+    ) as mananged_job:
         try:
             profile = load_and_verify_profile(profile_filename)
         except Exception as e:
             logger.error(e)
             raise e
 
-        state.publish_setting(
+        mananged_job.publish_setting(
             "experiment_profile_name",
             profile.experiment_profile_name,
         )
-        state.publish_setting(
+        mananged_job.publish_setting(
             "start_time_utc",
             current_utc_timestamp(),
         )
+
+        job_id = mananged_job.job_id
 
         if dry_run:
             logger.notice(  # type: ignore
@@ -896,8 +927,9 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
                             logger,
                             sched,
                             elapsed_seconds_func,
-                            state.mqtt_client,
+                            mananged_job.mqtt_client,
                             action,
+                            job_id,
                             dry_run,
                         ),
                     )
@@ -933,8 +965,9 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
                                 logger,
                                 sched,
                                 elapsed_seconds_func,
-                                state.mqtt_client,
+                                mananged_job.mqtt_client,
                                 action,
+                                job_id,
                                 dry_run,
                             ),
                         )
@@ -945,14 +978,14 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
             # try / finally to handle keyboard interrupts
 
             # the below is so the schedule can be canceled by setting the event.
-            while not state.exit_event.wait(timeout=0):
+            while not mananged_job.exit_event.wait(timeout=0):
                 next_event_in = sched.run(blocking=False)
                 if next_event_in is not None:
                     time.sleep(min(0.25, next_event_in))
                 else:
                     break
         finally:
-            if state.exit_event.is_set():
+            if mananged_job.exit_event.is_set():
                 # ended early
 
                 logger.notice(f"Stopping profile {profile.experiment_profile_name} early: {len(sched.queue)} action(s) not started, and stopping all started action(s).")  # type: ignore
@@ -960,7 +993,7 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
                 # we can use active workers in experiment, since if a worker leaves an experiment or goes inactive, it's jobs are stopped
                 workers = get_active_workers_in_experiment(experiment)
                 with ClusterJobManager() as cjm:
-                    cjm.kill_jobs(workers, experiment=experiment, job_source="experiment_profile")
+                    cjm.kill_jobs(workers, experiment=experiment, job_source=f"experiment_profile:{job_id}")
 
             else:
                 if dry_run:
@@ -971,8 +1004,8 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
                 else:
                     logger.info(f"Finished executing profile {profile.experiment_profile_name}.")  # type: ignore
 
-            state.publish_setting("experiment_profile_name", None)
-            state.publish_setting("start_time_utc", None)
+            mananged_job.publish_setting("experiment_profile_name", None)
+            mananged_job.publish_setting("start_time_utc", None)
 
             logger.clean_up()
 

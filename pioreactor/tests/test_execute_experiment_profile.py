@@ -73,9 +73,9 @@ def test_execute_experiment_profile_order(
 
     assert bucket[0].path == "/api/experiments/_testing_experiment/unit_labels"
     assert bucket[0].json == {"label": "label1", "unit": "unit1"}
-    assert bucket[1].path == "/api/workers/unit1/jobs/run/job_name/job1/experiments/_testing_experiment"
-    assert bucket[2].path == "/api/workers/unit2/jobs/run/job_name/job1/experiments/_testing_experiment"
-    assert bucket[3].path == "/api/workers/unit1/jobs/run/job_name/job2/experiments/_testing_experiment"
+    assert bucket[1].path == "/unit_api/jobs/run/job_name/job1"
+    assert bucket[2].path == "/unit_api/jobs/run/job_name/job1"
+    assert bucket[3].path == "/unit_api/jobs/run/job_name/job2"
     assert bucket[4].path == "/api/workers/unit1/jobs/stop/job_name/job2/experiments/_testing_experiment"
 
 
@@ -99,9 +99,7 @@ def test_execute_experiment_profile_hack_for_led_intensity(mock__load_experiment
     with capture_requests() as bucket:
         execute_experiment_profile("profile.yaml", experiment)
 
-    assert (
-        bucket[0].path == "/api/workers/unit1/jobs/run/job_name/led_intensity/experiments/_testing_experiment"
-    )
+    assert bucket[0].path == "/unit_api/jobs/run/job_name/led_intensity"
     assert bucket[0].json == {
         "options": {"A": 50},
         "args": [],

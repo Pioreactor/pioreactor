@@ -389,6 +389,7 @@ class TemperatureAutomationJob(AutomationJob):
                     sleep(time_between_samples)
 
                     if self.state != self.READY:
+                        # TODO: does this
                         # if our state changes in this loop, exit. Note that the finally block is still called.
                         return
 
