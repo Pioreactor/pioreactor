@@ -34,12 +34,12 @@ from pioreactor.whoami import get_unit_name
 DEFAULT_PWM_CALIBRATION = structs.SimplePeristalticPumpCalibration(
     calibrated_on_pioreactor_unit=get_unit_name(),
     created_at=default_datetime_for_pioreactor(),
-    hz=200.0,
-    dc=100.0,
+    hz=250.0,
+    dc=95.0,
     voltage=-1,
     calibration_name="default_pump_calibration",
     curve_type="poly",
-    curve_data_=[1.0, 0.0],
+    curve_data_=[0.0911, 0.0],  # 0.0911 is a pretty okay estimate for the slope of the calibration curve
     recorded_data={"x": [], "y": []},
 )
 

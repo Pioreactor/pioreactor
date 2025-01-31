@@ -3,7 +3,7 @@
 
 #### Enhancements
  - Improved chart colors in the UI
- - The OD reading CLI has a new option, `--snapshot`, that will start the job, take a single reading, and exit.
+ - The OD reading CLI has a new option, `--snapshot`, that will start the job, take a single reading, and exit. This is useful for scripting purposes.
  - A new CLI for pumps: `pio run pumps`. Add pumps as options:
    ```
    pio run pumps --media 1 --waste 2
@@ -12,9 +12,11 @@
    ```
    pio run pumps --waste 2 --media 1 --waste 2
    ```
- - support for 40ml
- - Run multiple experiment profiles per experiment.
-
+ - Initial support for 40ml
+ - Run multiple experiment profiles per experiment!
+ - Specify which Pioreactor to update on the Updates page (option is only available with release archives.)
+ - Choose the level of detail on the new Event Logs page.
+ - Added index to stirring_rates table.
 
 #### Web API changes
 
@@ -38,7 +40,8 @@
 
 #### Bug fixes
  - fixed ui not showing 3p calibrations
- - experiment profiles start now use the unit_api directly. I think this mitigates the huey workers stampeding on each other when try to start many jobs.
+ - experiment profiles start now use the unit_api directly. This may mitigate the issue where huey workers stampeding on each other when try to start many jobs.
+ - fix `pio calibrations run ... -y` not saving as active.
 
 ### 25.1.21
 

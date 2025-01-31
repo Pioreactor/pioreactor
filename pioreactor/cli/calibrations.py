@@ -121,6 +121,8 @@ def run_calibration(ctx, device: str, protocol_name: str | None, y: bool) -> Non
             click.echo(
                 f"Okay. You can use 'pio calibration set-active --device {device} --name {calibration_struct.calibration_name}' to set this calibration as the active one."
             )
+    else:
+        calibration_struct.set_as_active_calibration_for_device(device)
 
     click.echo(
         f"Calibration '{calibration_struct.calibration_name}' of device '{device}' saved to {out_file} ✅"
