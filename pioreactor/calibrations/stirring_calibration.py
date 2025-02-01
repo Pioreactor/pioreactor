@@ -67,7 +67,7 @@ def run_stirring_calibration(
                 max_dc + min_dc
             ) / 2  # we start with a somewhat low value, s.t. the stir bar is caught.
             st.start_stirring()
-            sleep(8)
+            sleep(5)
 
             for count, dc in enumerate(dcs, start=1):
                 st.set_duty_cycle(dc)

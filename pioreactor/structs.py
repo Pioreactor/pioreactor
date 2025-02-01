@@ -164,9 +164,14 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
 
     def save_to_disk_for_device(self, device: str) -> str:
         from pioreactor.calibrations import CALIBRATION_PATH
+        import shutil
 
         calibration_dir = CALIBRATION_PATH / device
         calibration_dir.mkdir(parents=True, exist_ok=True)
+
+        # Set ownership to pioreactor:www-data using shutil
+        shutil.chown(calibration_dir, user="pioreactor", group="www-data")
+
         out_file = calibration_dir / f"{self.calibration_name}.yaml"
 
         # Serialize to YAML

@@ -2,6 +2,7 @@
 
 
 #### Enhancements
+ - new RP2040 firmware improvements => less noise in OD readings
  - Improved chart colors in the UI
  - The OD reading CLI has a new option, `--snapshot`, that will start the job, take a single reading, and exit. This is useful for scripting purposes.
  - A new CLI for pumps: `pio run pumps`. Add pumps as options:
