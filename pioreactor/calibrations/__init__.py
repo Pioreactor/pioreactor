@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from collections import defaultdict
 from pathlib import Path
 from typing import Callable
 from typing import Literal
@@ -22,20 +23,24 @@ else:
     CALIBRATION_PATH = Path(".pioreactor/storage/calibrations/")
 
 # Lookup table for different calibration protocols
-calibration_protocols: dict[tuple[str, str], Type[CalibrationProtocol]] = {}
+Device = str
+ProtocolName = str
+
+calibration_protocols: dict[Device, dict[ProtocolName, Type[CalibrationProtocol]]] = defaultdict(dict)
 
 
 class CalibrationProtocol:
-    protocol_name: str
-    target_device: str | list[str]
+    protocol_name: ProtocolName
+    target_device: Device | list[Device]
+    description = ""
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         if isinstance(cls.target_device, str):
-            calibration_protocols[(cls.target_device, cls.protocol_name)] = cls
+            calibration_protocols[cls.target_device][cls.protocol_name] = cls
         elif isinstance(cls.target_device, list):
             for device in cls.target_device:
-                calibration_protocols[(device, cls.protocol_name)] = cls
+                calibration_protocols[device][cls.protocol_name] = cls
         else:
             raise ValueError("target_device must be a string or a list of strings")
 
@@ -46,19 +51,23 @@ class CalibrationProtocol:
 class SingleVialODProtocol(CalibrationProtocol):
     target_device = "od"
     protocol_name = "single_vial"
+    description = "Calibrate OD using a single vial"
 
     def run(self, *args, **kwargs) -> structs.ODCalibration:
-        from pioreactor.calibrations.od_calibration import run_od_calibration
+        from pioreactor.calibrations.od_calibration_single_vial import run_od_calibration
 
         return run_od_calibration()
 
 
-class BatchVialODProtocol(CalibrationProtocol):
+class StandardsODProtocol(CalibrationProtocol):
     target_device = "od"
-    protocol_name = "batch_vial"
+    protocol_name = "standards"
+    description = "Calibrate OD using standards. Requires multiple vials"
 
     def run(self, *args, **kwargs) -> structs.ODCalibration:
-        raise NotImplementedError("Not implemented yet")
+        from pioreactor.calibrations.od_calibration_using_standards import run_od_calibration
+
+        return run_od_calibration()
 
 
 class DurationBasedPumpProtocol(CalibrationProtocol):
@@ -102,7 +111,7 @@ def load_active_calibration(device: Literal["stirring"]) -> structs.SimpleStirri
     pass
 
 
-def load_active_calibration(device: str) -> structs.AnyCalibration | None:
+def load_active_calibration(device: Device) -> structs.AnyCalibration | None:
     with local_persistent_storage("active_calibrations") as c:
         active_cal_name = c.get(device)
 
@@ -112,7 +121,7 @@ def load_active_calibration(device: str) -> structs.AnyCalibration | None:
     return load_calibration(device, active_cal_name)
 
 
-def load_calibration(device: str, calibration_name: str) -> structs.AnyCalibration:
+def load_calibration(device: Device, calibration_name: str) -> structs.AnyCalibration:
     target_file = CALIBRATION_PATH / device / f"{calibration_name}.yaml"
 
     if not target_file.exists():
@@ -127,7 +136,7 @@ def load_calibration(device: str, calibration_name: str) -> structs.AnyCalibrati
         raise ValidationError(f"Error reading {target_file.stem}: {e}")
 
 
-def list_of_calibrations_by_device(device: str) -> list[str]:
+def list_of_calibrations_by_device(device: Device) -> list[str]:
     device_dir = CALIBRATION_PATH / device
     if not device_dir.exists():
         return []

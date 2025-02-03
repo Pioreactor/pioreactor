@@ -10,11 +10,11 @@ from pioreactor.calibrations import CALIBRATION_PATH
 from pioreactor.calibrations import calibration_protocols
 from pioreactor.calibrations import list_devices
 from pioreactor.calibrations import list_of_calibrations_by_device
+from pioreactor.calibrations import load_active_calibration
 from pioreactor.calibrations import load_calibration
 from pioreactor.calibrations.utils import crunch_data_and_confirm_with_user
 from pioreactor.calibrations.utils import curve_to_callable
 from pioreactor.calibrations.utils import plot_data
-from pioreactor.utils import local_persistent_storage
 
 
 @click.group(short_help="calibration utils")
@@ -50,19 +50,15 @@ def _display_calibrations_by_device(device: str) -> None:
     click.echo(header)
     click.echo("-" * len(header))
 
-    with local_persistent_storage("active_calibrations") as c:
-        for name in list_of_calibrations_by_device(device):
-            try:
-                location = (calibration_dir / name).with_suffix(".yaml")
-                data = yaml_decode(
-                    location.read_bytes(), type=structs.subclass_union(structs.CalibrationBase)
-                )
-                active = c.get(device) == data.calibration_name
-                row = f"{device:<25}{data.calibration_name:<50}{data.created_at.strftime('%Y-%m-%d %H:%M:%S'):<25}{'✅' if active else '':<10}{location}"
-                click.echo(row)
-            except Exception as e:
-                error_message = f"Error reading {name}: {e}"
-                click.echo(f"{error_message:<60}")
+    for name in list_of_calibrations_by_device(device):
+        try:
+            location = (calibration_dir / name).with_suffix(".yaml")
+            data = yaml_decode(location.read_bytes(), type=structs.subclass_union(structs.CalibrationBase))
+            row = f"{device:<25}{data.calibration_name:<50}{data.created_at.strftime('%Y-%m-%d %H:%M:%S'):<25}{'✅' if data.is_active(device) else '':<10}{location}"
+            click.echo(row)
+        except Exception as e:
+            error_message = f"Error reading {name}: {e}"
+            click.echo(f"{error_message:<60}")
 
 
 @calibration.command(name="run", context_settings=dict(ignore_unknown_options=True, allow_extra_args=True))
@@ -81,28 +77,30 @@ def run_calibration(ctx, device: str, protocol_name: str | None, y: bool) -> Non
     if "--protocol" in ctx.args:
         raise click.UsageError("Please use --protocol-name instead of --protocol")
 
-    DEFAULT_PROTOCOLS = {
-        "od": "single_vial",
-        "media_pump": "duration_based",
-        "alt_media_pump": "duration_based",
-        "waste_pump": "duration_based",
-        "stirring": "dc_based",
-    }
-
     # Dispatch to the assistant function for that device
-    if protocol_name is None and device in DEFAULT_PROTOCOLS:
-        protocol_name = DEFAULT_PROTOCOLS[device]
-    elif protocol_name is None:
-        raise ValueError("Must provide protocol name: --protocol-name <name>")
+    if protocol_name is None:
+        if len(calibration_protocols.get(device, {}).keys()) == 1:
+            protocol_name = list(calibration_protocols.get(device, {}).keys())[0]
+        else:
+            # user will choose using click.prompt and click.Choice
+            click.clear()
+            click.echo()
+            click.echo(f"Available protocols for {device}:")
+            for protocol in calibration_protocols.get(device, {}).values():
+                click.echo(click.style(f"  • {protocol.protocol_name}", bold=True))
+                click.echo(f"        Description: {protocol.description}")
+            click.echo()
+            protocol_name = click.prompt(
+                "Choose a protocol", type=click.Choice(list(calibration_protocols.get(device, {}).keys()))
+            )
 
-    assistant = calibration_protocols.get((device, protocol_name))
+    assistant = calibration_protocols.get(device, {}).get(protocol_name)
+
     if assistant is None:
         click.echo(
             f"No protocols found for device '{device}'. Available {device} protocols: {list(c[1] for c in calibration_protocols.keys() if c[0] == device)}"
         )
         raise click.Abort()
-
-    # Run the assistant function to get the final calibration data
 
     calibration_struct = assistant().run(
         target_device=device,
@@ -131,8 +129,9 @@ def run_calibration(ctx, device: str, protocol_name: str | None, y: bool) -> Non
 
 @calibration.command(name="protocols")
 def list_protocols() -> None:
-    for device, protocol in calibration_protocols.keys():
-        click.echo(f"{device}: {protocol}")
+    for device, protocols in calibration_protocols.items():
+        for protocol in protocols:
+            click.echo(f"{device}: {protocol}")
 
 
 @calibration.command(name="display")
@@ -171,14 +170,13 @@ def set_active_calibration(device: str, calibration_name: str | None) -> None:
     """
 
     if calibration_name is None:
-        with local_persistent_storage("active_calibrations") as c:
-            is_present = c.pop(device)
-        if is_present:
-            click.echo(f"No calibration name provided. Clearing active calibration for {device}.")
+        present = load_active_calibration(device)  # type: ignore
+
+        if present is not None:
+            click.echo(f"Clearing active calibration for {device}.")
+            present.remove_as_active_calibration_for_device(device)
         else:
-            click.echo(
-                f"No calibration name provided. Tried clearing active calibration for {device}, but didn't find one."
-            )
+            click.echo(f"Tried clearing active calibration for {device}, but didn't find one.")
 
     else:
         data = load_calibration(device, calibration_name)
@@ -203,10 +201,8 @@ def delete_calibration(device: str, calibration_name: str) -> None:
 
     target_file.unlink()
 
-    with local_persistent_storage("active_calibrations") as c:
-        is_present = c.get(device) == calibration_name
-        if is_present:
-            c.pop(device)
+    cal = load_calibration(device, calibration_name)
+    cal.remove_as_active_calibration_for_device(device)
 
     click.echo(f"Deleted calibration '{calibration_name}' of device '{device}'.")
 

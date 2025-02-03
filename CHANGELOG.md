@@ -2,7 +2,8 @@
 
 
 #### Enhancements
- - new RP2040 firmware improvements => less noise in OD readings
+ - new OD calibration using standards (requires multiple vials). Try `pio calibrations run --device od`. This was inspired by the plugin by @odcambc.
+ - new RP2040 firmware improvements (v0.4) => faster response over i2c.
  - Improved chart colors in the UI
  - The OD reading CLI has a new option, `--snapshot`, that will start the job, take a single reading, and exit. This is useful for scripting purposes.
  - A new CLI for pumps: `pio run pumps`. Add pumps as options:
@@ -25,7 +26,8 @@
  - GET `/api/experiment_profiles/running/experiments/<experiment>` introduced
 
 #### Breaking changes
- - plugins should migrate from `click_some_name` to autodiscover plugins, to importing `run`. Example:
+
+ - (Eventually) plugins should migrate from `click_some_name` to autodiscover plugins, to importing `run`. Example:
    ```
    import click
    from pioreactor.cli.run import run
@@ -37,7 +39,6 @@
    def my_name(my_option):
        ...
    ```
-
 
 #### Bug fixes
  - fixed ui not showing 3p calibrations

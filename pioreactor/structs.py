@@ -15,6 +15,7 @@ from msgspec.yaml import encode as yaml_encode
 
 from pioreactor import exc
 from pioreactor import types as pt
+from pioreactor.logging import create_logger
 
 
 T = t.TypeVar("T")
@@ -166,6 +167,8 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         from pioreactor.calibrations import CALIBRATION_PATH
         import shutil
 
+        logger = create_logger("calibrations")
+
         calibration_dir = CALIBRATION_PATH / device
         calibration_dir.mkdir(parents=True, exist_ok=True)
 
@@ -178,16 +181,31 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         with out_file.open("wb") as f:
             f.write(yaml_encode(self))
 
+        logger.info(f"Saved calibration {self.calibration_name} to {out_file}")
         return str(out_file)
 
     def set_as_active_calibration_for_device(self, device: str) -> None:
         from pioreactor.utils import local_persistent_storage
+
+        logger = create_logger("calibrations")
 
         if not self.exists_on_disk_for_device(device):
             self.save_to_disk_for_device(device)
 
         with local_persistent_storage("active_calibrations") as c:
             c[device] = self.calibration_name
+
+        logger.info(f"Set {self.calibration_name} as active calibration for {device}")
+
+    def remove_as_active_calibration_for_device(self, device: str) -> None:
+        from pioreactor.utils import local_persistent_storage
+
+        logger = create_logger("calibrations")
+
+        with local_persistent_storage("active_calibrations") as c:
+            if c.get(device) == self.calibration_name:
+                del c[device]
+                logger.info(f"Removed {self.calibration_name} as active calibration for {device}")
 
     def exists_on_disk_for_device(self, device: str) -> bool:
         from pioreactor.calibrations import CALIBRATION_PATH
@@ -255,6 +273,12 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
             raise exc.SolutionBelowDomainError("Solution below domain")
         else:
             raise exc.SolutionAboveDomainError("Solution below domain")
+
+    def is_active(self, device: str) -> bool:
+        from pioreactor.utils import local_persistent_storage
+
+        with local_persistent_storage("active_calibrations") as c:
+            return c.get(device) == self.calibration_name
 
 
 class ODCalibration(CalibrationBase, kw_only=True, tag="od"):
