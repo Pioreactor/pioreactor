@@ -39,7 +39,7 @@ def get_default_calibration() -> structs.SimplePeristalticPumpCalibration:
         hz=250.0,
         dc=95.0,
         voltage=-1,
-        calibration_name="default_pump_calibration",
+        calibration_name="__default_pump_calibration",
         curve_type="poly",
         curve_data_=[0.0911, 0.0],  # 0.0911 is a pretty okay estimate for the slope
         recorded_data={"x": [], "y": []},
@@ -47,7 +47,7 @@ def get_default_calibration() -> structs.SimplePeristalticPumpCalibration:
 
 
 def is_default_calibration(cal: structs.SimplePeristalticPumpCalibration):
-    return cal.calibration_name == "default_pump_calibration"
+    return cal.calibration_name == "__default_pump_calibration"
 
 
 # Initialize the thread pool with a worker threads.

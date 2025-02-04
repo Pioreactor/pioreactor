@@ -174,7 +174,9 @@ class DosingAutomationJob(AutomationJob):
 
     automation_name = "dosing_automation_base"  # is overwritten in subclasses
     job_name = "dosing_automation"
-    published_settings: dict[str, pt.PublishableSetting] = {}
+    published_settings: dict[
+        str, pt.PublishableSetting
+    ] = {}  # see methods in init for dynamic additions, like liquid_volume
 
     previous_normalized_od: Optional[float] = None
     previous_growth_rate: Optional[float] = None
