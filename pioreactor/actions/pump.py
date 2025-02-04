@@ -31,17 +31,23 @@ from pioreactor.utils.timing import default_datetime_for_pioreactor
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 
-DEFAULT_PWM_CALIBRATION = structs.SimplePeristalticPumpCalibration(
-    calibrated_on_pioreactor_unit=get_unit_name(),
-    created_at=default_datetime_for_pioreactor(),
-    hz=250.0,
-    dc=95.0,
-    voltage=-1,
-    calibration_name="default_pump_calibration",
-    curve_type="poly",
-    curve_data_=[0.0911, 0.0],  # 0.0911 is a pretty okay estimate for the slope of the calibration curve
-    recorded_data={"x": [], "y": []},
-)
+
+def get_default_calibration() -> structs.SimplePeristalticPumpCalibration:
+    return structs.SimplePeristalticPumpCalibration(
+        calibrated_on_pioreactor_unit=get_unit_name(),
+        created_at=default_datetime_for_pioreactor(),
+        hz=250.0,
+        dc=95.0,
+        voltage=-1,
+        calibration_name="default_pump_calibration",
+        curve_type="poly",
+        curve_data_=[0.0911, 0.0],  # 0.0911 is a pretty okay estimate for the slope
+        recorded_data={"x": [], "y": []},
+    )
+
+
+def is_default_calibration(cal: structs.SimplePeristalticPumpCalibration):
+    return cal.calibration_name == "default_pump_calibration"
 
 
 # Initialize the thread pool with a worker threads.
@@ -55,39 +61,40 @@ class PWMPump:
         unit: str,
         experiment: str,
         pin: pt.GpioPin,
-        calibration: Optional[structs.SimplePeristalticPumpCalibration] = None,
+        calibration: structs.SimplePeristalticPumpCalibration,
         mqtt_client: Optional[Client] = None,
         logger: Optional[CustomLogger] = None,
     ) -> None:
+        if calibration is None:
+            raise ValueError("Calibration must be provided to PWMPump.")
         self.pin = pin
         self.calibration = calibration
         self.interrupt = Event()
 
         self.pwm = PWM(
             self.pin,
-            (self.calibration or DEFAULT_PWM_CALIBRATION).hz,
+            self.calibration.hz,
             experiment=experiment,
             unit=unit,
             pubsub_client=mqtt_client,
             logger=logger,
         )
-
         self.pwm.lock()
 
     def clean_up(self) -> None:
         self.pwm.clean_up()
-        # self._thread_pool.shutdown(wait=False)  # Shutdown the thread pool
+
+    def start(self, duty_cycle: float) -> None:
+        self.interrupt.clear()
+        self.pwm.start(duty_cycle)
 
     def continuously(self, block: bool = True) -> None:
-        calibration = self.calibration or DEFAULT_PWM_CALIBRATION
-        self.interrupt.clear()
-
         if block:
-            self.pwm.start(calibration.dc)
+            self.start(self.calibration.dc)
             self.interrupt.wait()
             self.stop()
         else:
-            self.pwm.start(calibration.dc)
+            self.start(self.calibration.dc)
 
     def stop(self) -> None:
         self.pwm.stop()
@@ -95,52 +102,32 @@ class PWMPump:
 
     def by_volume(self, ml: pt.mL, block: bool = True) -> None:
         if ml < 0:
-            raise ValueError("ml >= 0")
-
-        self.interrupt.clear()
-
+            raise ValueError("ml must be greater than or equal to 0")
         if ml == 0:
             return
-
-        if self.calibration is None:
-            raise exc.CalibrationError(
-                "Calibration not defined. Run pump calibration first to use volume-based dosing."
-            )
-
-        seconds = self.ml_to_durations(ml)
-        return self.by_duration(seconds, block=block)
+        seconds = self.ml_to_duration(ml)
+        self.by_duration(seconds, block=block)
 
     def by_duration(self, seconds: pt.Seconds, block: bool = True) -> None:
         if seconds < 0:
-            raise ValueError("seconds >= 0")
-
-        self.interrupt.clear()
-
+            raise ValueError("seconds must be >= 0")
         if seconds == 0:
             return
-
-        calibration = self.calibration or DEFAULT_PWM_CALIBRATION
         if block:
-            self.pwm.start(calibration.dc)
+            self.start(self.calibration.dc)
             self.interrupt.wait(seconds)
             self.stop()
         else:
+            # Offload to thread pool to avoid blocking the caller
             _thread_pool.submit(self.by_duration, seconds, True)
-            return
 
     def duration_to_ml(self, seconds: pt.Seconds) -> pt.mL:
-        if self.calibration is None:
-            raise exc.CalibrationError("Calibration not defined. Run pump calibration first.")
-
         return self.calibration.duration_to_ml(seconds)
 
-    def ml_to_durations(self, ml: pt.mL) -> pt.Seconds:
-        if self.calibration is None:
-            raise exc.CalibrationError("Calibration not defined. Run pump calibration first.")
-
+    def ml_to_duration(self, ml: pt.mL) -> pt.Seconds:
         return self.calibration.ml_to_duration(ml)
 
-    def __enter__(self) -> PWMPump:
+    def __enter__(self) -> "PWMPump":
         return self
 
     def __exit__(self, *args) -> None:
@@ -156,7 +143,7 @@ def _get_calibration(pump_device: PumpCalibrationDevices) -> structs.SimplePeris
     # TODO: make sure current voltage is the same as calibrated. Actually where should that check occur? in Pump?
     cal = load_active_calibration(pump_device)
     if cal is None:
-        raise exc.CalibrationError(f"Calibration not defined. Run {pump_device} pump calibration first.")
+        return get_default_calibration()
     else:
         return cal
 
@@ -265,8 +252,11 @@ def _pump_action(
     if calibration is None:
         try:
             calibration = _get_calibration(pump_device)
-        except exc.CalibrationError:
-            pass
+        except exc.CalibrationError as e:
+            logger.error(str(e))
+            raise
+
+    assert calibration is not None
 
     with utils.managed_lifecycle(
         unit,
@@ -279,52 +269,51 @@ def _pump_action(
     ) as state:
         mqtt_client = state.mqtt_client
 
+        if manually:
+            assert ml is not None
+            ml = float(ml)
+            if ml < 0:
+                raise ValueError("ml should be greater than or equal to 0")
+            duration = 0.0
+            logger.info(f"{_to_human_readable_action(ml, None, pump_device)} (exchanged manually)")
+        elif ml is not None:
+            ml = float(ml)
+            if is_default_calibration(calibration):
+                logger.error(
+                    f"Active calibration not found. Run {pump_device} calibration first: `pio calibrations run --device {pump_device}` or set active with `pio run set-active`"
+                )
+                raise exc.CalibrationError(
+                    f"Active calibration not found. Run {pump_device} calibration: `pio calibrations run --device {pump_device}`, or set active with `pio run set-active`"
+                )
+
+            if ml < 0:
+                raise ValueError("ml should be greater than or equal to 0")
+            duration = calibration.ml_to_duration(ml)
+            logger.info(_to_human_readable_action(ml, None, pump_device))
+        elif duration is not None:
+            duration = float(duration)
+            ml = calibration.duration_to_ml(duration)  # can be wrong if calibration is not defined
+
+            logger.info(_to_human_readable_action(None, duration, pump_device))
+        elif continuously:
+            duration = 2.5
+            ml = calibration.duration_to_ml(duration)  # can be wrong if calibration is not defined
+
+            logger.info(f"Running {pump_device} continuously.")
+
+        assert duration is not None
+        assert ml is not None
+        duration = float(duration)
+        ml = float(ml)
+        assert isinstance(ml, pt.mL)
+        assert isinstance(duration, pt.Seconds)
+
+        if manually:
+            return 0.0
+
         with PWMPump(
             unit, experiment, pin, calibration=calibration, mqtt_client=mqtt_client, logger=logger
         ) as pump:
-            if manually:
-                assert ml is not None
-                ml = float(ml)
-                if ml < 0:
-                    raise ValueError("ml should be greater than or equal to 0")
-                duration = 0.0
-                logger.info(f"{_to_human_readable_action(ml, None, pump_device)} (exchanged manually)")
-            elif ml is not None:
-                ml = float(ml)
-                if calibration is None:
-                    logger.error(
-                        f"Active calibration not found. Run {pump_device} calibration first: `pio calibrations run --device {pump_device}` or set active with `pio run set-active`"
-                    )
-                    raise exc.CalibrationError(
-                        f"Active calibration not found. Run {pump_device} calibration: `pio calibrations run --device {pump_device}`, or set active with `pio run set-active`"
-                    )
-
-                if ml < 0:
-                    raise ValueError("ml should be greater than or equal to 0")
-                duration = pump.ml_to_durations(ml)
-                logger.info(_to_human_readable_action(ml, None, pump_device))
-            elif duration is not None:
-                duration = float(duration)
-                try:
-                    ml = pump.duration_to_ml(duration)  # can be wrong if calibration is not defined
-                except exc.CalibrationError:
-                    ml = DEFAULT_PWM_CALIBRATION.duration_to_ml(duration)  # naive
-                logger.info(_to_human_readable_action(None, duration, pump_device))
-            elif continuously:
-                duration = 2.5
-                try:
-                    ml = pump.duration_to_ml(duration)  # can be wrong if calibration is not defined
-                except exc.CalibrationError:
-                    ml = DEFAULT_PWM_CALIBRATION.duration_to_ml(duration)
-                logger.info(f"Running {pump_device} continuously.")
-
-            assert duration is not None
-            assert ml is not None
-            duration = float(duration)
-            ml = float(ml)
-            assert isinstance(ml, pt.mL)
-            assert isinstance(duration, pt.Seconds)
-
             # publish this first, as downstream jobs need to know about it.
             dosing_event = _publish_pump_action(
                 action_name, ml, unit, experiment, mqtt_client, source_of_event
@@ -332,9 +321,7 @@ def _pump_action(
 
             pump_start_time = time.monotonic()
 
-            if manually:
-                return 0.0
-            elif not continuously:
+            if not continuously:
                 pump.by_duration(duration, block=False)
                 # how does this work? What's up with the (or True)?
                 # exit_event.wait returns True iff the event is set, i.e by an interrupt. If we timeout (good path)
@@ -405,21 +392,14 @@ def _liquid_circulation(
 
     waste_pin, media_pin = _get_pin("waste_pump"), _get_pin(pump_device)
 
-    try:
-        waste_calibration = _get_calibration("waste_pump")
-    except exc.CalibrationError:
-        waste_calibration = DEFAULT_PWM_CALIBRATION
-
-    try:
-        media_calibration = _get_calibration(pump_device)
-    except exc.CalibrationError:
-        media_calibration = DEFAULT_PWM_CALIBRATION
+    waste_calibration = _get_calibration("waste_pump")
+    media_calibration = _get_calibration(pump_device)
 
     # we "pulse" the media pump so that the waste rate < media rate. By default, we pulse at a ratio of 1 waste : 0.85 media.
     # if we know the calibrations for each pump, we will use a different rate.
     ratio = 0.85
 
-    if waste_calibration != DEFAULT_PWM_CALIBRATION and media_calibration != DEFAULT_PWM_CALIBRATION:
+    if not is_default_calibration(waste_calibration) and not is_default_calibration(media_calibration):
         # provided with calibrations, we can compute if media_rate > waste_rate, which is a danger zone!
         # `predict(1)` asks "how much lqd is moved in 1 second"
         if media_calibration.predict(1) > waste_calibration.predict(1):

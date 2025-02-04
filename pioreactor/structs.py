@@ -173,7 +173,7 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         calibration_dir.mkdir(parents=True, exist_ok=True)
 
         # Set ownership to pioreactor:www-data using shutil
-        shutil.chown(calibration_dir, user="pioreactor", group="www-data")
+        # shutil.chown(calibration_dir, user="pioreactor", group="www-data")
 
         out_file = calibration_dir / f"{self.calibration_name}.yaml"
 
