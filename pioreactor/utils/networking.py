@@ -15,8 +15,9 @@ from pioreactor.exc import SSHError
 
 def ssh(address: str, command: str):
     try:
+        detached_command = f"nohup {command} > /dev/null 2>&1 &"
         subprocess.run(
-            ["ssh", "-o", "ConnectTimeout=5", address, command],
+            ["ssh", "-o", "ConnectTimeout=5", address, detached_command],
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
