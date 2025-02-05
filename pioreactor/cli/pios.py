@@ -16,12 +16,14 @@ from pioreactor.cluster_management import get_workers_in_inventory
 from pioreactor.config import config
 from pioreactor.config import get_leader_hostname
 from pioreactor.exc import RsyncError
+from pioreactor.exc import SSHError
 from pioreactor.logging import create_logger
 from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import post_into
 from pioreactor.utils import ClusterJobManager
 from pioreactor.utils.networking import cp_file_across_cluster
 from pioreactor.utils.networking import resolve_to_address
+from pioreactor.utils.networking import ssh
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import am_I_leader
 from pioreactor.whoami import get_assigned_experiment_name
@@ -298,7 +300,21 @@ if am_I_leader() or is_testing_env():
                     r.raise_for_status()
                     return True, r.json()
                 except HTTPException as e:
-                    logger.error(f"Unable to update on {unit} due to server error: {e}.")
+                    logger.error(
+                        f"Unable to update on {unit} due to server error: {e}. Attempting SSH method..."
+                    )
+                    try:
+                        args: str
+                        if source is not None:
+                            args = f"--source {source}"
+                        elif branch is not None:
+                            args = f"--branch {branch}"
+
+                        ssh(resolve_to_address(unit), f"pio update {args}")
+                        return True, {"unit": unit}
+                    except SSHError as e:
+                        logger.error(f"Unable to update on {unit} due to SSH error: {e}.")
+
                     return False, {"unit": unit}
 
             with ThreadPoolExecutor(max_workers=len(units)) as executor:

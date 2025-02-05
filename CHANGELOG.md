@@ -42,7 +42,7 @@
 
 #### Bug fixes
  - fixed ui not showing 3p calibrations
- - experiment profiles start now use the unit_api directly. This may mitigate the issue where huey workers stampeding on each other when try to start many jobs.
+ - experiment profiles start now use the `unit_api/` directly. This may mitigate the issue where huey workers stampeding on each other when try to start many jobs.
  - fix `pio calibrations run ... -y` not saving as active.
  - fix manual dosing in the UI
 

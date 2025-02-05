@@ -10,6 +10,15 @@ from typing import Generator
 
 from pioreactor.config import config
 from pioreactor.exc import RsyncError
+from pioreactor.exc import SSHError
+
+
+def ssh(address: str, command: str):
+    try:
+        r = subprocess.run(["ssh", "-o", "ConnectTimeout=10", address, f'"{command}"'], check=True)
+        assert r.returncode == 0
+    except subprocess.CalledProcessError as e:
+        raise SSHError from e
 
 
 def rsync(*args: str) -> None:

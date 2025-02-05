@@ -74,6 +74,12 @@ class RsyncError(OSError):
     """
 
 
+class SSHError(OSError):
+    """
+    SSH command failed
+    """
+
+
 class NoSolutionsFoundError(ValueError):
     """
     No solutions found
