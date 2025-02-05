@@ -382,7 +382,20 @@ if am_I_leader() or is_testing_env():
                 r.raise_for_status()
                 return True, r.json()
             except HTTPException as e:
-                logger.error(f"Unable to update app on {unit} due to server error: {e}.")
+                logger.error(f"Unable to update on {unit} due to server error: {e}. Attempting SSH method...")
+                try:
+                    args: str
+                    if source is not None:
+                        args = f"--source {source}"
+                    elif branch is not None:
+                        args = f"--branch {branch}"
+                    elif version is not None:
+                        args = f"--version {version}"
+
+                    ssh(resolve_to_address(unit), f"pio update app {args}")
+                    return True, {"unit": unit}
+                except SSHError as e:
+                    logger.error(f"Unable to update on {unit} due to SSH error: {e}.")
                 return False, {"unit": unit}
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -450,7 +463,20 @@ if am_I_leader() or is_testing_env():
                 r.raise_for_status()
                 return True, r.json()
             except HTTPException as e:
-                logger.error(f"Unable to update ui on {unit} due to server error: {e}.")
+                logger.error(f"Unable to update on {unit} due to server error: {e}. Attempting SSH method...")
+                try:
+                    args: str
+                    if source is not None:
+                        args = f"--source {source}"
+                    elif branch is not None:
+                        args = f"--branch {branch}"
+                    elif version is not None:
+                        args = f"--version {version}"
+
+                    ssh(resolve_to_address(unit), f"pio update ui {args}")
+                    return True, {"unit": unit}
+                except SSHError as e:
+                    logger.error(f"Unable to update on {unit} due to SSH error: {e}.")
                 return False, {"unit": unit}
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
