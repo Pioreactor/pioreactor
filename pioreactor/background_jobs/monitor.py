@@ -532,6 +532,8 @@ class Monitor(LongRunningBackgroundJob):
             self.led_off()
             sleep(0.45)
 
+        self._republish_state()
+
         self.led_in_use = False
 
     def flicker_led_with_error_code(self, error_code: int) -> None:

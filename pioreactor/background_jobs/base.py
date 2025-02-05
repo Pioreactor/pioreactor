@@ -895,7 +895,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.debug(
                 f"Job is in state {self.state}, but in state {state_in_broker} in broker. Attempting fix by publishing {self.state}."
             )
-            sleep(1)
+            sleep(5)
             self._publish_setting("state")
 
     def _clear_caches(self) -> None:
