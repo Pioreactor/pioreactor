@@ -15,18 +15,27 @@ from pioreactor.exc import SSHError
 
 def ssh(address: str, command: str):
     try:
-        r = subprocess.run(["ssh", "-o", "ConnectTimeout=10", address, f'"{command}"'], check=True)
-        assert r.returncode == 0
+        subprocess.run(
+            ["ssh", "-o", "ConnectTimeout=5", address, command],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
     except subprocess.CalledProcessError as e:
-        raise SSHError from e
+        raise SSHError(f"SSH command failed: {e.stderr}") from e
 
 
 def rsync(*args: str) -> None:
     try:
-        r = subprocess.run(("rsync",) + args, check=True)
-        assert r.returncode == 0
+        subprocess.run(
+            ("rsync",) + args,
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
     except subprocess.CalledProcessError as e:
-        raise RsyncError from e
+        raise RsyncError(f"rysnc command failed: {e.stderr}") from e
 
 
 def cp_file_across_cluster(unit: str, localpath: str, remotepath: str, timeout: int = 5) -> None:
