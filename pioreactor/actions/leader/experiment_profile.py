@@ -123,6 +123,8 @@ def check_syntax_of_bool_expression(bool_expression: BoolExpression) -> bool:
 
 
 def check_if_job_running(unit: str, job: str) -> bool:
+    if is_testing_env():
+        return True
     try:
         r = get_from(resolve_to_address(unit), f"/unit_api/jobs/running/{job}")
         r.raise_for_status()
@@ -891,7 +893,10 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
             current_utc_timestamp(),
         )
 
-        job_id = mananged_job.job_id
+        if not is_testing_env():
+            job_id = mananged_job.job_id
+        else:
+            job_id = 1
 
         if dry_run:
             logger.notice(  # type: ignore

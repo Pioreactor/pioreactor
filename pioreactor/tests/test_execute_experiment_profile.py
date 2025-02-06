@@ -99,28 +99,24 @@ def test_execute_experiment_profile_hack_for_led_intensity(mock__load_experiment
     with capture_requests() as bucket:
         execute_experiment_profile("profile.yaml", experiment)
 
-    assert bucket[0].path == "/unit_api/jobs/run/job_name/led_intensity"
+    assert bucket[0].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/led_intensity"
     assert bucket[0].json == {
         "options": {"A": 50},
         "args": [],
-        "env": {"JOB_SOURCE": "experiment_profile", "EXPERIMENT": "_testing_experiment"},
+        "env": {"JOB_SOURCE": "experiment_profile:1", "EXPERIMENT": "_testing_experiment"},
     }
 
-    assert (
-        bucket[1].path == "/api/workers/unit1/jobs/run/job_name/led_intensity/experiments/_testing_experiment"
-    )
+    assert bucket[1].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/led_intensity"
     assert bucket[1].json == {
         "options": {"A": 40, "B": 22.5},
         "args": [],
-        "env": {"JOB_SOURCE": "experiment_profile", "EXPERIMENT": "_testing_experiment"},
+        "env": {"JOB_SOURCE": "experiment_profile:1", "EXPERIMENT": "_testing_experiment"},
     }
 
-    assert (
-        bucket[2].path == "/api/workers/unit1/jobs/run/job_name/led_intensity/experiments/_testing_experiment"
-    )
+    assert bucket[2].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/led_intensity"
     assert bucket[2].json == {
         "options": {"A": 0, "B": 0, "C": 0, "D": 0},
-        "env": {"JOB_SOURCE": "experiment_profile", "EXPERIMENT": "_testing_experiment"},
+        "env": {"JOB_SOURCE": "experiment_profile:1", "EXPERIMENT": "_testing_experiment"},
         "args": [],
     }
 
@@ -295,7 +291,7 @@ def test_execute_experiment_profile_simple_if2(mock__load_experiment_profile) ->
         execute_experiment_profile("profile.yaml", experiment)
 
     assert len(bucket) == 1
-    assert bucket[0].path == "/api/workers/unit1/jobs/run/job_name/jobbing/experiments/_testing_experiment"
+    assert bucket[0].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/jobbing"
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
@@ -322,7 +318,7 @@ def test_execute_experiment_profile_with_unit_function(mock__load_experiment_pro
         execute_experiment_profile("profile.yaml", experiment)
 
     assert len(bucket) == 1
-    assert bucket[0].path == "/api/workers/unit1/jobs/run/job_name/jobbing/experiments/_testing_experiment"
+    assert bucket[0].path == "/unit_api/jobs/run/job_name/jobbing"
 
     action_true = Start(hours_elapsed=0, if_="${{ unit() == unit2 }}")
 
@@ -375,11 +371,8 @@ def test_execute_experiment_profile_simple_if(mock__load_experiment_profile) -> 
         execute_experiment_profile("profile.yaml", experiment)
 
     assert len(bucket) == 2
-    assert bucket[0].path == "/api/workers/unit1/jobs/run/job_name/jobbing/experiments/_testing_experiment"
-    assert (
-        bucket[1].path
-        == "/api/workers/unit1/jobs/run/job_name/conditional_jobbing/experiments/_testing_experiment"
-    )
+    assert bucket[0].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/jobbing"
+    assert bucket[1].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/conditional_jobbing"
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
@@ -413,7 +406,7 @@ def test_execute_experiment_profile_expression(mock__load_experiment_profile) ->
 
     assert bucket[0].json == {
         "options": {"target": 11.0, "dont_eval": "1.0 + 1.0"},
-        "env": {"EXPERIMENT": "_testing_experiment", "JOB_SOURCE": "experiment_profile"},
+        "env": {"EXPERIMENT": "_testing_experiment", "JOB_SOURCE": "experiment_profile:1"},
         "args": [],
     }
 
@@ -514,7 +507,7 @@ def test_execute_experiment_profile_expression_in_common(
     for item in bucket:
         assert item.json == {
             "args": [],
-            "env": {"EXPERIMENT": "_testing_experiment", "JOB_SOURCE": "experiment_profile"},
+            "env": {"EXPERIMENT": "_testing_experiment", "JOB_SOURCE": "experiment_profile:1"},
             "options": {
                 "target": 11.0,
             },
@@ -554,7 +547,7 @@ def test_execute_experiment_profile_expression_in_common_also_works_with_unit_fu
     for item in bucket:
         assert item.json == {
             "args": [],
-            "env": {"EXPERIMENT": "_testing_experiment", "JOB_SOURCE": "experiment_profile"},
+            "env": {"EXPERIMENT": "_testing_experiment", "JOB_SOURCE": "experiment_profile:1"},
             "options": {
                 "target": 11.0,
             },
@@ -641,7 +634,7 @@ def test_execute_experiment_profile_when_action_with_if(mock__load_experiment_pr
         execute_experiment_profile("profile.yaml", experiment)
 
     assert len(bucket) == 2
-    assert bucket[0].path == "/api/workers/unit1/jobs/run/job_name/stirring/experiments/_testing_experiment"
+    assert bucket[0].path == "/unit_api/jobs/run/job_name/stirring"
     assert (
         bucket[1].path == "/api/workers/unit1/jobs/update/job_name/stirring/experiments/_testing_experiment"
     )
@@ -799,9 +792,9 @@ def test_api_requests_are_made(
 
     assert len(bucket) == 5
     assert bucket[0].path == f"/api/experiments/{experiment}/unit_labels"
-    assert bucket[1].path == f"/api/workers/unit1/jobs/run/job_name/job1/experiments/{experiment}"
-    assert bucket[2].path == f"/api/workers/unit2/jobs/run/job_name/job1/experiments/{experiment}"
-    assert bucket[3].path == f"/api/workers/unit1/jobs/run/job_name/job2/experiments/{experiment}"
+    assert bucket[1].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/job1"
+    assert bucket[2].url == "http://unit2.local:4999/unit_api/jobs/run/job_name/job1"
+    assert bucket[3].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/job2"
     assert bucket[4].path == f"/api/workers/unit1/jobs/stop/job_name/job2/experiments/{experiment}"
 
 

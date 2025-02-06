@@ -238,7 +238,7 @@ def test_custom_protocol():
         def run(target_device, **kwargs):
             pass
 
-    assert calibration_protocols[("od", "custom")].__name__ == "CustomODCalibrationProtocol"
+    assert calibration_protocols["od"]["custom"].__name__ == "CustomODCalibrationProtocol"
 
     class CustomCalibrationProtocolWithList(CalibrationProtocol):
         protocol_name = "custom"
@@ -248,6 +248,6 @@ def test_custom_protocol():
         def run(target_device, **kwargs):
             pass
 
-    assert calibration_protocols[("A", "custom")].__name__ == "CustomCalibrationProtocolWithList"
-    assert calibration_protocols[("B", "custom")].__name__ == "CustomCalibrationProtocolWithList"
-    assert calibration_protocols[("C", "custom")].__name__ == "CustomCalibrationProtocolWithList"
+    assert calibration_protocols["A"]["custom"].__name__ == "CustomCalibrationProtocolWithList"
+    assert calibration_protocols["B"]["custom"].__name__ == "CustomCalibrationProtocolWithList"
+    assert calibration_protocols["C"]["custom"].__name__ == "CustomCalibrationProtocolWithList"

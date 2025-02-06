@@ -123,7 +123,7 @@ class ADCReader(LoggerMixin):
         fake_data: bool = False,
         dynamic_gain: bool = True,
         penalizer: float = 0.0,  # smoothing parameter between samples
-        oversampling_count: int = 42,
+        oversampling_count: int = 32,
     ) -> None:
         super().__init__()
         self.fake_data = fake_data
@@ -1256,21 +1256,17 @@ def click_od_reading(
 
     possible_calibration = load_active_calibration("od")
 
+    od = start_od_reading(
+        od_angle_channel1,
+        od_angle_channel2,
+        fake_data=fake_data or whoami.is_testing_env(),
+        calibration=possible_calibration,
+        interval=None,
+    )
+
     if snapshot:
-        od = start_od_reading(
-            od_angle_channel1,
-            od_angle_channel2,
-            fake_data=fake_data or whoami.is_testing_env(),
-            calibration=possible_calibration,
-            interval=None,
-        )
         od.logger.debug(od.record_from_adc())
-        # end
+        # end early
+        return
     else:
-        od = start_od_reading(
-            od_angle_channel1,
-            od_angle_channel2,
-            fake_data=fake_data or whoami.is_testing_env(),
-            calibration=possible_calibration,
-        )
         od.block_until_disconnected()

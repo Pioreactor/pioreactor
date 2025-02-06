@@ -281,7 +281,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         self._check_for_duplicate_activity()
 
-        self._job_id = self._add_to_job_manager()
+        self.job_id = self._add_to_job_manager()
 
         # if we no-op in the _check_for_duplicate_activity, we don't want to fire the LWT, so we delay subclient until after.
         self.sub_client = self._create_sub_client()
@@ -655,7 +655,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             qos=QOS.EXACTLY_ONCE,
         )
         with JobManager() as jm:
-            jm.upsert_setting(self._job_id, setting_name, value)
+            jm.upsert_setting(self.job_id, setting_name, value)
 
     def _set_up_exit_protocol(self) -> None:
         # here, we set up how jobs should disconnect and exit.
@@ -782,9 +782,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def _remove_from_job_manager(self) -> None:
         # TODO what happens if the job_id isn't found?
-        if hasattr(self, "_job_id"):
+        if hasattr(self, "job_id"):
             with JobManager() as jm:
-                jm.set_not_running(self._job_id)
+                jm.set_not_running(self.job_id)
 
     def _add_to_job_manager(self) -> int:
         # this registration use to be in post_init, and I feel like it was there for a good reason...
@@ -911,7 +911,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
                         None,
                         retain=True,
                     )
-                    jm.upsert_setting(self._job_id, setting, None)
+                    jm.upsert_setting(self.job_id, setting, None)
 
     def _check_for_duplicate_activity(self) -> None:
         if is_pio_job_running(self.job_name) and not is_testing_env():
