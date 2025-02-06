@@ -198,12 +198,13 @@ class ADCReader(LoggerMixin):
         )
 
     def check_on_max(self, value: pt.Voltage) -> None:
-        unit = whoami.get_unit_name()
-        exp = whoami.get_assigned_experiment_name(unit)
-
         if value <= 3.0:
             return
         elif value > 3.2:
+            # TODO: sometimes we use ADC in self-tests or calibrations, and it might not be assigned. This will fail if that's the case.
+            unit = whoami.get_unit_name()
+            exp = whoami.get_assigned_experiment_name(unit)
+
             self.logger.error(
                 f"An ADC channel is recording a very high voltage, {round(value, 2)}V. We are shutting down components and jobs to keep the ADC safe."
             )
@@ -235,6 +236,9 @@ class ADCReader(LoggerMixin):
             return
 
         elif value > 3.0:
+            unit = whoami.get_unit_name()
+            exp = whoami.get_assigned_experiment_name(unit)
+
             self.logger.warning(
                 f"An ADC channel is recording a very high voltage, {round(value, 2)}V. It's recommended to keep it less than 3.0V. Suggestion: decrease the IR intensity, or change the PD angle to a lower angle."
             )

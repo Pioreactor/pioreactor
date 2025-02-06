@@ -21,6 +21,10 @@ def green(string: str) -> str:
     return click.style(string, fg="green")
 
 
+def bold(string: str) -> str:
+    return click.style(string, bold=True)
+
+
 @click.group(short_help="calibration utils")
 def calibration() -> None:
     """
@@ -35,11 +39,14 @@ def list_calibrations(device: str | None) -> None:
     """
     List existing calibrations for the given device if provided, else all.
     """
+
+    header = f"{'Device':<25}{'Name':<50}{'Created At':<25}{'Active?':<10}"
+    click.echo(header)
+    click.echo("-" * len(header))
+
     if device is None:
         for device in list_devices():
             _display_calibrations_by_device(device)
-            click.echo()
-            click.echo()
     else:
         _display_calibrations_by_device(device)
 
@@ -50,19 +57,21 @@ def _display_calibrations_by_device(device: str) -> None:
         click.echo(f"No calibrations found for device '{device}'. Directory does not exist.")
         raise click.Abort()
 
-    header = f"{'Device':<25}{'Name':<50}{'Created At':<25}{'Active?':<10}{'Location':<75}"
-    click.echo(header)
-    click.echo("-" * len(header))
+    calibrations_by_device = list_of_calibrations_by_device(device)
 
-    for name in list_of_calibrations_by_device(device):
+    if len(calibrations_by_device) == 0:
+        return
+
+    for name in calibrations_by_device:
         try:
             location = (calibration_dir / name).with_suffix(".yaml")
             data = yaml_decode(location.read_bytes(), type=structs.subclass_union(structs.CalibrationBase))
-            row = f"{device:<25}{data.calibration_name:<50}{data.created_at.strftime('%Y-%m-%d %H:%M:%S'):<25}{'✅' if data.is_active(device) else '':<10}{location}"
+            row = f"{device:<25}{data.calibration_name:<50}{data.created_at.strftime('%Y-%m-%d %H:%M:%S'):<25}{'✅' if data.is_active(device) else '':<10}"
             click.echo(row)
-        except Exception as e:
-            error_message = f"Error reading {name}: {e}"
-            click.echo(f"{error_message:<60}")
+        except Exception:
+            pass
+            # error_message = f"Error reading {name}: {e}"
+            # click.echo(f"{error_message:<60}")
 
 
 @calibration.command(name="run", context_settings=dict(ignore_unknown_options=True, allow_extra_args=True))
@@ -83,6 +92,11 @@ def run_calibration(ctx, device: str, protocol_name: str | None, y: bool) -> Non
 
     # Dispatch to the assistant function for that device
     if protocol_name is None:
+        if len(calibration_protocols.get(device, {}).keys()) == 0:
+            click.echo(
+                f"No protocols found for device '{device}'. Try `pio calibrations protocols` to see available protocols."
+            )
+            raise click.Abort()
         if len(calibration_protocols.get(device, {}).keys()) == 1:
             protocol_name = list(calibration_protocols.get(device, {}).keys())[0]
         else:
@@ -92,7 +106,7 @@ def run_calibration(ctx, device: str, protocol_name: str | None, y: bool) -> Non
             click.echo(f"Available protocols for {device}:")
             click.echo()
             for protocol in calibration_protocols.get(device, {}).values():
-                click.echo(click.style(f"  • {protocol.protocol_name}", bold=True))
+                click.echo(bold(f"  • {protocol.protocol_name}"))
                 click.echo(f"        Description: {protocol.description}")
             click.echo()
             protocol_name = click.prompt(
@@ -137,9 +151,11 @@ def run_calibration(ctx, device: str, protocol_name: str | None, y: bool) -> Non
 
 @calibration.command(name="protocols")
 def list_protocols() -> None:
+    """
+    List available protocols for device calibrations.
+    """
     for device, protocols in calibration_protocols.items():
-        for protocol in protocols:
-            click.echo(f"{device}: {protocol}")
+        click.echo(f"{bold(device)}: {', '.join(protocols.keys())}")
 
 
 @calibration.command(name="display")

@@ -179,8 +179,17 @@ def test_all_positive_correlations_between_pds_and_leds(
                     adc_reader.take_reading(),
                     adc_reader.take_reading(),
                     adc_reader.take_reading(),
-                    adc_reader.take_reading(),
                 )
+
+                # turn off led to cool it down
+                led_intensity(
+                    {led_channel: 0},
+                    unit=unit,
+                    experiment=experiment,
+                    verbose=False,
+                    source_of_event="self_test",
+                )
+                sleep(intensity / 100)  # let it cool down in proportion to the intensity
 
                 # Add to accumulating list
                 for pd_channel in ALL_PD_CHANNELS:
@@ -359,6 +368,13 @@ def test_detect_heating_pcb(managed_state, logger: CustomLogger, unit: str, expe
     assert is_heating_pcb_present(), "Heater PCB is not connected, or i2c is not working."
 
 
+def test_run_stirring_calibration(managed_state, logger: CustomLogger, unit: str, experiment: str) -> None:
+    from pioreactor.calibrations.stirring_calibration import run_stirring_calibration
+
+    cal = run_stirring_calibration()
+    cal.set_as_active_calibration_for_device("stirring")
+
+
 def test_positive_correlation_between_temperature_and_heating(
     managed_state, logger: CustomLogger, unit: str, experiment: str
 ) -> None:
@@ -499,6 +515,7 @@ def click_self_test(k: Optional[str], retry_failed: bool) -> int:
         test_REF_is_in_correct_position,
         test_PD_is_near_0_volts_for_blank,
         test_positive_correlation_between_rpm_and_stirring,
+        test_run_stirring_calibration,
     )
 
     with managed_lifecycle(unit, experiment, "self_test") as managed_state, temporary_config_change(
