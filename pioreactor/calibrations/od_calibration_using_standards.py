@@ -11,7 +11,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 """
 from __future__ import annotations
 
-from math import log2
 from time import sleep
 from typing import cast
 
@@ -56,12 +55,10 @@ def introduction() -> None:
 
     clear()
     echo(
-        """This routine will calibrate the current Pioreactor to (offline) OD600 readings. You'll need:
-    1. The Pioreactor you wish to calibrate (the one you are using)
-    2. At least 10mL of a culture with the highest density you'll ever observe, and its OD600 measurement
-    3. A micro-pipette, or accurate tool to dispense 1ml of liquid.
-    4. Accurate 10mL measurement tool (ex: graduated cylinder)
-    5. Sterile media, amount to be determined shortly.
+        """This routine will calibrate the current Pioreactor to (offline) OD600 readings using a set of standards. You'll need:
+    1. A Pioreactor
+    2. A set of OD600 standards in Pioreactor vials (at least 10 mL in each vial), each with a stirbar
+    3. One of the standards should be a blank (no cells, only media).
 """
     )
 
@@ -91,7 +88,7 @@ def get_name_from_user() -> str:
                 return name
 
 
-def get_metadata_from_user() -> tuple[pt.OD600, pt.OD600, pt.mL, pt.PdAngle, pt.PdChannel]:
+def get_metadata_from_user() -> tuple[pt.PdAngle, pt.PdChannel]:
     if config.get("od_reading.config", "ir_led_intensity") == "auto":
         echo(
             red(
@@ -99,49 +96,6 @@ def get_metadata_from_user() -> tuple[pt.OD600, pt.OD600, pt.mL, pt.PdAngle, pt.
             )
         )
         raise click.Abort()
-
-    initial_od600 = prompt(
-        green("Provide the OD600 measurement of your initial, high density, culture"),
-        type=click.FloatRange(min=0.01, clamp=False),
-    )
-
-    minimum_od600 = prompt(
-        green("Provide the minimum OD600 measurement you wish to calibrate to"),
-        type=click.FloatRange(min=0, max=initial_od600, clamp=False),
-    )
-
-    while minimum_od600 >= initial_od600:
-        minimum_od600 = cast(
-            pt.OD600,
-            prompt(
-                "The minimum OD600 measurement must be less than the initial OD600 culture measurement",
-                type=click.FloatRange(min=0, max=initial_od600, clamp=False),
-            ),
-        )
-
-    if minimum_od600 == 0:
-        minimum_od600 = 0.01
-
-    dilution_amount = prompt(
-        green("Provide the volume to be added to your vial each iteration (default = 1 mL)"),
-        default=1,
-        type=click.FloatRange(min=0.01, max=10, clamp=False),
-    )
-
-    number_of_points = int(log2(initial_od600 / minimum_od600) * (10 / dilution_amount))
-
-    echo(f"This will require {number_of_points} data points.")
-    echo(f"You will need at least {number_of_points * dilution_amount + 10}mL of media available.")
-    confirm(green("Continue?"), abort=True, default=True)
-
-    if "REF" not in config["od_config.photodiode_channel_reverse"]:
-        echo(
-            red(
-                "REF required for OD calibration. Set an input to REF in [od_config.photodiode_channel] in your config."
-            )
-        )
-        raise click.Abort()
-        # technically it's not required? we just need a specific PD channel to calibrate from.
 
     ref_channel = config["od_config.photodiode_channel_reverse"]["REF"]
     pd_channel = cast(pt.PdChannel, "1" if ref_channel == "2" else "2")
@@ -154,7 +108,7 @@ def get_metadata_from_user() -> tuple[pt.OD600, pt.OD600, pt.mL, pt.PdAngle, pt.
         default=True,
     )
     angle = cast(pt.PdAngle, config["od_config.photodiode_channel"][pd_channel])
-    return initial_od600, minimum_od600, dilution_amount, angle, pd_channel
+    return angle, pd_channel
 
 
 def setup_HDC_instructions() -> None:
@@ -243,13 +197,14 @@ def start_recording_standards(st: Stirrer, signal_channel):
             od_readings2 = od_reader.record_from_adc()
             return 0.5 * (od_readings1.ods[signal_channel].od + od_readings2.ods[signal_channel].od)
 
-        for _ in range(4):
+        for _ in range(3):
             # warm up
             od_reader.record_from_adc()
 
     while True:
-        click.echo("Recording next standard.")
-        standard_od = click.prompt("Enter OD600 measurement", type=float)
+        click.clear()
+        click.echo("Recording new standard.")
+        standard_od = click.prompt(green("Enter OD600 measurement of current vial"), type=float)
         for i in range(4):
             click.echo(".", nl=False)
             sleep(0.5)
@@ -276,16 +231,17 @@ def start_recording_standards(st: Stirrer, signal_channel):
             )
             click.echo()
 
-        if not click.confirm("Record another OD600 standard?", default=True):
+        if not click.confirm(green("Record another OD600 standard?"), default=True):
             break
 
         click.echo()
-        click.echo(click.style("Stop❗", fg="red"))
-        click.echo("Carefully remove vial and replace with next standard.")
-        click.echo("Confirm vial outside is dry and clean.")
-        while not click.confirm("Continue?", default=True):
+        click.echo("Remove old vial.")
+        click.echo("Replace with new vial: confirm vial is dry and clean.")
+        click.echo()
+        while not click.confirm(green("Confirm vial is placed in Pioreactor?"), default=True):
             pass
         st.set_state("ready")
+        click.echo("Starting stirring.")
         st.block_until_rpm_is_close_to_target(abs_tolerance=120)
         sleep(1.0)
 
@@ -300,9 +256,9 @@ def start_recording_standards(st: Stirrer, signal_channel):
         y_label="Voltage",
     )
     click.echo("Add media blank standard.")
-    od600_blank = click.prompt("What is the OD600 of your blank?", type=float)
-    click.echo("Confirm vial outside is dry and clean. Place into Pioreactor.")
-    while not click.confirm("Continue?", default=True):
+    od600_blank = click.prompt(green("What is the OD600 of your blank?"), type=float)
+    click.echo("Confirm blank vial outside is dry and clean. Place into Pioreactor.")
+    while not click.confirm(green("Continue?"), default=True):
         pass
 
     voltages.append(get_voltage_from_adc())
@@ -326,9 +282,6 @@ def run_od_calibration() -> structs.ODCalibration:
             raise click.Abort()
 
         (
-            initial_od600,
-            minimum_od600,
-            dilution_amount,
             angle,
             pd_channel,
         ) = get_metadata_from_user()

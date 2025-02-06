@@ -286,11 +286,14 @@ if am_I_leader() or is_testing_env():
 
             logger = create_logger("update", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
             options: dict[str, str | None] = {}
+            args = ""
 
-            if source is not None:
-                options["source"] = source
-            elif branch is not None:
+            if branch is not None:
                 options["branch"] = branch
+                args = f"--branch {branch}"
+            elif source is not None:
+                options["source"] = source
+                args = f"--source {source}"
 
             def _thread_function(unit: str) -> tuple[bool, dict]:
                 try:
@@ -304,12 +307,6 @@ if am_I_leader() or is_testing_env():
                         f"Unable to update on {unit} due to server error: {e}. Attempting SSH method..."
                     )
                     try:
-                        args: str
-                        if source is not None:
-                            args = f"--source {source}"
-                        elif branch is not None:
-                            args = f"--branch {branch}"
-
                         ssh(resolve_to_address(unit), f"pio update {args}")
                         return True, {"unit": unit}
                     except SSHError as e:
@@ -362,14 +359,18 @@ if am_I_leader() or is_testing_env():
 
         logger = create_logger("update", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
         options: dict[str, str | None] = {}
+        args = ""
 
         # only one of these three is possible, mutually exclusive
         if version is not None:
             options["version"] = version
+            args = f"--version {version}"
         elif branch is not None:
             options["branch"] = branch
+            args = f"--branch {branch}"
         elif source is not None:
             options["source"] = source
+            args = f"--source {source}"
 
         if repo is not None:
             options["repo"] = repo
@@ -384,14 +385,6 @@ if am_I_leader() or is_testing_env():
             except HTTPException as e:
                 logger.error(f"Unable to update on {unit} due to server error: {e}. Attempting SSH method...")
                 try:
-                    args: str
-                    if source is not None:
-                        args = f"--source {source}"
-                    elif branch is not None:
-                        args = f"--branch {branch}"
-                    elif version is not None:
-                        args = f"--version {version}"
-
                     ssh(resolve_to_address(unit), f"pio update app {args}")
                     return True, {"unit": unit}
                 except SSHError as e:
@@ -443,14 +436,18 @@ if am_I_leader() or is_testing_env():
 
         logger = create_logger("update", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
         options: dict[str, str | None] = {}
+        args = ""
 
         # only one of these three is possible, mutually exclusive
         if version is not None:
             options["version"] = version
+            args = f"--version {version}"
         elif branch is not None:
             options["branch"] = branch
+            args = f"--branch {branch}"
         elif source is not None:
             options["source"] = source
+            args = f"--source {source}"
 
         if repo is not None:
             options["repo"] = repo
@@ -465,14 +462,6 @@ if am_I_leader() or is_testing_env():
             except HTTPException as e:
                 logger.error(f"Unable to update on {unit} due to server error: {e}. Attempting SSH method...")
                 try:
-                    args: str
-                    if source is not None:
-                        args = f"--source {source}"
-                    elif branch is not None:
-                        args = f"--branch {branch}"
-                    elif version is not None:
-                        args = f"--version {version}"
-
                     ssh(resolve_to_address(unit), f"pio update ui {args}")
                     return True, {"unit": unit}
                 except SSHError as e:

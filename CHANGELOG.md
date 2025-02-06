@@ -3,7 +3,6 @@
 
 #### Enhancements
  - new OD calibration using standards (requires multiple vials). Try `pio calibrations run --device od`. This was inspired by the plugin by @odcambc.
- - new RP2040 firmware improvements (v0.4) => faster response over i2c.
  - Improved chart colors in the UI
  - The OD reading CLI has a new option, `--snapshot`, that will start the job, take a single reading, and exit. This is useful for scripting purposes.
  - A new CLI for pumps: `pio run pumps`. Add pumps as options:
@@ -18,7 +17,7 @@
  - Run multiple experiment profiles per experiment!
  - Specify which Pioreactor to update on the Updates page (option is only available with release archives.)
  - Choose the level of detail on the new Event Logs page.
- - Added index to stirring_rates table.
+ - Previously, when a worker's web server is down, it would halt an update from proceeding (since it can't send the command). Now, leader will try the webserver, and if it observes a 5xx error, will attempt an SSH communication.
 
 #### Web API changes
 

@@ -17,6 +17,10 @@ from pioreactor.calibrations.utils import curve_to_callable
 from pioreactor.calibrations.utils import plot_data
 
 
+def green(string: str) -> str:
+    return click.style(string, fg="green")
+
+
 @click.group(short_help="calibration utils")
 def calibration() -> None:
     """
@@ -86,12 +90,14 @@ def run_calibration(ctx, device: str, protocol_name: str | None, y: bool) -> Non
             click.clear()
             click.echo()
             click.echo(f"Available protocols for {device}:")
+            click.echo()
             for protocol in calibration_protocols.get(device, {}).values():
                 click.echo(click.style(f"  • {protocol.protocol_name}", bold=True))
                 click.echo(f"        Description: {protocol.description}")
             click.echo()
             protocol_name = click.prompt(
-                "Choose a protocol", type=click.Choice(list(calibration_protocols.get(device, {}).keys()))
+                green("Choose a protocol"),
+                type=click.Choice(list(calibration_protocols.get(device, {}).keys())),
             )
 
     assistant = calibration_protocols.get(device, {}).get(protocol_name)
@@ -111,7 +117,8 @@ def run_calibration(ctx, device: str, protocol_name: str | None, y: bool) -> Non
 
     if not y:
         if click.confirm(
-            f"Do you want to set this calibration as the active calibration for {device}?", default=True
+            green(f"Do you want to set this calibration as the active calibration for {device}?"),
+            default=True,
         ):
             calibration_struct.set_as_active_calibration_for_device(device)
             click.echo(f"Set {calibration_struct.calibration_name} as the active calibration for {device}.")
@@ -122,6 +129,7 @@ def run_calibration(ctx, device: str, protocol_name: str | None, y: bool) -> Non
     else:
         calibration_struct.set_as_active_calibration_for_device(device)
 
+    click.echo()
     click.echo(
         f"Calibration '{calibration_struct.calibration_name}' of device '{device}' saved to {out_file} ✅"
     )
@@ -186,7 +194,7 @@ def set_active_calibration(device: str, calibration_name: str | None) -> None:
 @calibration.command(name="delete")
 @click.option("--device", required=True, help="Which calibration device to delete from.")
 @click.option("--name", "calibration_name", required=True, help="Which calibration name to delete.")
-@click.confirmation_option(prompt="Are you sure you want to delete this calibration?")
+@click.confirmation_option(prompt=green("Are you sure you want to delete this calibration?"))
 def delete_calibration(device: str, calibration_name: str) -> None:
     """
     Delete a calibration file from local storage.

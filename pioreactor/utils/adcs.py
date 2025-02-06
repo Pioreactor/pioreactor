@@ -94,7 +94,8 @@ class Pico_ADC(_ADC):
     def __init__(self) -> None:
         # set up i2c connection to hardware.ADC
         self.i2c = I2C(hardware.SCL, hardware.SDA)
-        assert self.get_firmware_version() == (0, 4), "Firmware version mismatch."
+        self.scale = 16
+        # assert self.get_firmware_version() == (0, 4), "Firmware version mismatch."
 
     def read_from_channel(self, channel: pt.AdcChannel) -> pt.AnalogValue:
         assert 0 <= channel <= 3
@@ -115,13 +116,13 @@ class Pico_ADC(_ADC):
         return (result[1], result[0])
 
     def from_voltage_to_raw(self, voltage: pt.Voltage) -> pt.AnalogValue:
-        return int((voltage / 3.3) * 4095 * 32)
+        return int((voltage / 3.3) * 4095 * self.scale)
 
     def from_voltage_to_raw_precise(self, voltage: pt.Voltage) -> float:
-        return (voltage / 3.3) * 4095 * 32
+        return (voltage / 3.3) * 4095 * self.scale
 
     def from_raw_to_voltage(self, raw: pt.AnalogValue) -> pt.Voltage:
-        return (raw / 4095 / 32) * 3.3
+        return (raw / 4095 / self.scale) * 3.3
 
     def check_on_gain(self, value: pt.Voltage, tol: float = 0.85) -> None:
         # pico has no gain.
