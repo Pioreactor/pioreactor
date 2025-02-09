@@ -321,13 +321,13 @@ class Stirrer(BackgroundJobWithDodging):
 
             # since we have calibration data, and the initial_duty_cycle could be
             # far off, giving the below equation a bad "first step". We set it here.
-            self._estimate_duty_cycle = calibration.ipredict(self.target_rpm)
+            self._estimate_duty_cycle = calibration.y_to_x(self.target_rpm)
 
             # we scale this by 90% to make sure the PID + prediction doesn't overshoot,
             # better to be conservative here.
             # equivalent to a weighted average: 0.1 * current + 0.9 * predicted
             return lambda rpm: self._estimate_duty_cycle - 0.90 * (
-                self._estimate_duty_cycle - (calibration.ipredict(rpm))
+                self._estimate_duty_cycle - (calibration.y_to_x(rpm))
             )
         else:
             return lambda rpm: self._estimate_duty_cycle
@@ -367,7 +367,7 @@ class Stirrer(BackgroundJobWithDodging):
     def kick_stirring_but_avoid_od_reading(self) -> None:
         """
         This will determine when the next od reading occurs (if possible), and
-        wait until it completes before kicking stirring.
+        wait until it completes before kicking stirring or sneak in early.
         """
         with JobManager() as jm:
             interval = float(jm.get_setting_from_running_job("od_reading", "interval", timeout=5))
@@ -376,9 +376,13 @@ class Stirrer(BackgroundJobWithDodging):
             )
 
         seconds_to_next_reading = interval - (time() - first_od_obs_time) % interval
-        sleep(
-            seconds_to_next_reading + 2
-        )  # add an additional 2 seconds to make sure we wait long enough for OD reading to complete.
+
+        # if seconds_to_next_reading is like 50s (high duration between ODs), let's kick now and not wait.
+        if seconds_to_next_reading <= 2:
+            sleep(
+                seconds_to_next_reading + 2
+            )  # add an additional 2 seconds to make sure we wait long enough for OD reading to complete.
+
         self.kick_stirring()
         return
 
@@ -403,8 +407,10 @@ class Stirrer(BackgroundJobWithDodging):
             self.blink_error_code(error_codes.STIRRING_FAILED)
 
             is_od_running = is_pio_job_running("od_reading")
+            is_dodging = self.currently_dodging_od
 
-            if not is_od_running:
+            if not is_od_running or is_dodging:
+                # if dodging, poll only runs when needed (outside od readings), so it's always safe to kick.
                 self.kick_stirring()
             else:
                 self.kick_stirring_but_avoid_od_reading()
@@ -418,9 +424,9 @@ class Stirrer(BackgroundJobWithDodging):
         if poll_for_seconds is None:
             target_n_data_points = 12
             rps = self.target_rpm / 60.0
-            poll_for_seconds = min(
-                target_n_data_points / rps, 5
-            )  # things can break if this function takes too long.
+            poll_for_seconds = max(
+                1, min(target_n_data_points / rps, 5)
+            )  # things can break if this function takes too long, but always get _some_ data.
 
         self.poll(poll_for_seconds)
 

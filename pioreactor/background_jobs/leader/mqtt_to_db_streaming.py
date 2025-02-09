@@ -323,7 +323,7 @@ def parse_logs(topic: str, payload: pt.MQTTMessagePayload) -> dict:
         "timestamp": log.timestamp,
         "message": log.message,
         "task": log.task,
-        "level": log.level,
+        "level": log.level.upper(),
         "source": log.source,  # should be app, ui, etc.
     }
 

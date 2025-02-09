@@ -219,14 +219,15 @@ def delete_calibration(device: str, calibration_name: str) -> None:
       calibration delete --device od --name my_od_cal_v1
     """
     target_file = CALIBRATION_PATH / device / f"{calibration_name}.yaml"
+
     if not target_file.exists():
         click.echo(f"No such calibration file: {target_file}")
         raise click.Abort()
 
-    target_file.unlink()
-
     cal = load_calibration(device, calibration_name)
     cal.remove_as_active_calibration_for_device(device)
+
+    target_file.unlink()
 
     click.echo(f"Deleted calibration '{calibration_name}' of device '{device}'.")
 

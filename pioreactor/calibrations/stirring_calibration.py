@@ -9,11 +9,14 @@ from __future__ import annotations
 from time import sleep
 
 from pioreactor.background_jobs import stirring
+from pioreactor.calibrations.utils import linspace
 from pioreactor.config import config
+from pioreactor.config import temporary_config_change
 from pioreactor.exc import JobPresentError
 from pioreactor.hardware import voltage_in_aux
 from pioreactor.logging import create_logger
 from pioreactor.structs import SimpleStirringCalibration
+from pioreactor.utils import clamp
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import managed_lifecycle
 from pioreactor.utils.math_helpers import simple_linear_regression
@@ -28,7 +31,7 @@ def run_stirring_calibration(
     if max_dc is None and min_dc is None:
         # seed with initial_duty_cycle
         config_initial_duty_cycle = config.getfloat("stirring.config", "initial_duty_cycle", fallback=30)
-        min_dc, max_dc = round(config_initial_duty_cycle * 0.75), round(config_initial_duty_cycle * 1.33)
+        min_dc, max_dc = config_initial_duty_cycle * 0.75, clamp(0, config_initial_duty_cycle * 1.5, 100)
     elif (max_dc is not None) and (min_dc is not None):
         assert min_dc < max_dc, "min_dc >= max_dc"
     else:
@@ -49,46 +52,43 @@ def run_stirring_calibration(
         measured_rpms = []
 
         # go up and down to observe any hysteresis.
-        dcs = (
-            list(range(round(max_dc), round(min_dc) - 2, -3))
-            + list(range(round(min_dc), round(max_dc) + 3, 3))
-            + list(range(round(max_dc), round(min_dc) - 2, -3))
-        )
+        dcs = linspace(max_dc, min_dc, 5) + linspace(min_dc, min_dc, 5) + linspace(max_dc, min_dc, 5)
         n_samples = len(dcs)
 
-        with stirring.RpmFromFrequency() as rpm_calc, stirring.Stirrer(
-            target_rpm=0,
-            unit=unit,
-            experiment=experiment,
-            rpm_calculator=None,
-        ) as st:
-            rpm_calc.setup()
-            st.duty_cycle = (
-                max_dc + min_dc
-            ) / 2  # we start with a somewhat low value, s.t. the stir bar is caught.
-            st.start_stirring()
-            sleep(5)
+        with temporary_config_change(config, "stirring.config", "enable_dodging_od", "False"):
+            with stirring.RpmFromFrequency() as rpm_calc, stirring.Stirrer(
+                target_rpm=0,
+                unit=unit,
+                experiment=experiment,
+                rpm_calculator=None,
+            ) as st:
+                rpm_calc.setup()
+                st.duty_cycle = (
+                    max_dc + min_dc
+                ) / 2  # we start with a somewhat low value, s.t. the stir bar is caught.
+                st.start_stirring()
+                sleep(3)
 
-            for count, dc in enumerate(dcs, start=1):
-                st.set_duty_cycle(dc)
-                sleep(1.5)
-                rpm = rpm_calc.estimate(2)
-                measured_rpms.append(rpm)
-                logger.debug(f"Detected {rpm=:.1f} RPM @ {dc=}%")
+                for count, dc in enumerate(dcs, start=1):
+                    st.set_duty_cycle(dc)
+                    sleep(2.0)
+                    rpm = rpm_calc.estimate(2)
+                    measured_rpms.append(rpm)
+                    logger.debug(f"Detected {rpm=:.1f} RPM @ {dc=}%")
 
-                # log progress
-                lc.mqtt_client.publish(
-                    f"pioreactor/{unit}/{experiment}/{action_name}/percent_progress",
-                    count / n_samples * 100,
-                )
-                logger.debug(f"Progress: {count/n_samples:.0%}")
+                    # log progress
+                    lc.mqtt_client.publish(
+                        f"pioreactor/{unit}/{experiment}/{action_name}/percent_progress",
+                        count / n_samples * 100,
+                    )
+                    logger.debug(f"Progress: {count/n_samples:.0%}")
 
         # drop any 0 in RPM, too little DC
         try:
             filtered_dcs, filtered_measured_rpms = zip(*filter(lambda d: d[1] > 0, zip(dcs, measured_rpms)))
         except ValueError:
             # the above can fail if all measured rpms are 0
-            logger.error("No RPMs were measured. Is the stirring spinning?")
+            logger.warning("No RPMs were measured. Is the stirring spinning?")
             raise ValueError("No RPMs were measured. Is the stirring spinning?")
 
         if len(filtered_dcs) <= n_samples * 0.75:

@@ -1051,6 +1051,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
         self._event_is_dodging_od = threading.Event()
 
     def __post__init__(self):
+        # this method runs after the subclasses init
         self.set_enable_dodging_od(
             config.getboolean(f"{self.job_name}.config", "enable_dodging_od", fallback="False")
         )

@@ -218,7 +218,7 @@ if am_I_leader() or is_testing_env():
                 logger.debug(f"Error occurred: {e}.", exc_info=True)
                 return False
 
-        with ThreadPoolExecutor(max_workers=len(units)) as executor:
+        with ThreadPoolExecutor(max_workers=min(len(units), 6)) as executor:
             results = executor.map(_thread_function, units)
 
         if not all(results):
@@ -627,7 +627,7 @@ if am_I_leader() or is_testing_env():
             # save config.inis to database
             save_config_files_to_db(units, shared, specific)
 
-        with ThreadPoolExecutor(max_workers=len(units)) as executor:
+        with ThreadPoolExecutor(max_workers=min(len(units), 6)) as executor:
             results = executor.map(_thread_function, units)
 
         if not all(results):

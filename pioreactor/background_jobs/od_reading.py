@@ -685,7 +685,7 @@ class CachedCalibrationTransformer(CalibrationTransformer):
                 )
 
                 try:
-                    return calibration_data.ipredict(observed_voltage, enforce_bounds=True)
+                    return calibration_data.y_to_x(observed_voltage, enforce_bounds=True)
                 except exc.NoSolutionsFoundError:
                     if observed_voltage <= min_voltage:
                         return min_OD

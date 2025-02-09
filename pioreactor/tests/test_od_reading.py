@@ -1341,7 +1341,7 @@ def test_mandys_calibration():
     )
 
     with pytest.raises(exc.SolutionAboveDomainError):
-        assert 0.0 < mcal.ipredict(0.002, enforce_bounds=True) < 1.0
+        assert 0.0 < mcal.y_to_x(0.002, enforce_bounds=True) < 1.0
 
     # correct the curve
     mcal.curve_data_ = [
@@ -1350,4 +1350,4 @@ def test_mandys_calibration():
         0.07787877483987993,
         0.0011023858538965646,
     ]
-    assert 0.0 < mcal.ipredict(0.002, enforce_bounds=True) < 1.0
+    assert 0.0 < mcal.y_to_x(0.002, enforce_bounds=True) < 1.0

@@ -401,9 +401,9 @@ def _liquid_circulation(
 
     if not is_default_calibration(waste_calibration) and not is_default_calibration(media_calibration):
         # provided with calibrations, we can compute if media_rate > waste_rate, which is a danger zone!
-        # `predict(1)` asks "how much lqd is moved in 1 second"
-        if media_calibration.predict(1) > waste_calibration.predict(1):
-            ratio = min(waste_calibration.predict(1) / media_calibration.predict(1), ratio)
+        # `x_to_y(1)` asks "how much lqd is moved in 1 second"
+        if media_calibration.x_to_y(1) > waste_calibration.x_to_y(1):
+            ratio = min(waste_calibration.x_to_y(1) / media_calibration.x_to_y(1), ratio)
     else:
         logger.warning(
             "Calibrations don't exist for pump(s). Keep an eye on the liquid level to avoid overflowing!"

@@ -165,15 +165,11 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
 
     def save_to_disk_for_device(self, device: str) -> str:
         from pioreactor.calibrations import CALIBRATION_PATH
-        import shutil
 
         logger = create_logger("calibrations")
 
         calibration_dir = CALIBRATION_PATH / device
         calibration_dir.mkdir(parents=True, exist_ok=True)
-
-        # Set ownership to pioreactor:www-data using shutil
-        # shutil.chown(calibration_dir, user="pioreactor", group="www-data")
 
         out_file = calibration_dir / f"{self.calibration_name}.yaml"
 
@@ -214,14 +210,14 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
 
         return target_file.exists()
 
-    def predict(self, x: X) -> Y:
+    def x_to_y(self, x: X) -> Y:
         """
         Predict y given x
         """
         assert self.curve_type == "poly"
         return sum([c * x**i for i, c in enumerate(reversed(self.curve_data_))])
 
-    def ipredict(self, y: Y, enforce_bounds=False) -> X:
+    def y_to_x(self, y: Y, enforce_bounds=False) -> X:
         """
         predict x given y
         """
@@ -297,10 +293,10 @@ class SimplePeristalticPumpCalibration(CalibrationBase, kw_only=True, tag="simpl
     y: str = "Volume"
 
     def ml_to_duration(self, ml: pt.mL) -> pt.Seconds:
-        return t.cast(pt.Seconds, self.ipredict(ml))
+        return t.cast(pt.Seconds, self.y_to_x(ml))
 
     def duration_to_ml(self, duration: pt.Seconds) -> pt.mL:
-        return t.cast(pt.mL, self.predict(duration))
+        return t.cast(pt.mL, self.x_to_y(duration))
 
 
 class SimpleStirringCalibration(CalibrationBase, kw_only=True, tag="simple_stirring"):

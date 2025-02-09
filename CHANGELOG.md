@@ -18,6 +18,8 @@
  - Specify which Pioreactor to update on the Updates page (option is only available with release archives.)
  - Choose the level of detail on the new Event Logs page.
  - Previously, when a worker's web server is down, it would halt an update from proceeding (since it can't send the command). Now, leader will try the webserver, and if it observes a 5xx error, will attempt an SSH communication.
+ - stirring calibration is run as part of self-test now.
+ - improvements to stirring job when OD readings have a long pause between.
 
 #### Web API changes
 
@@ -25,7 +27,7 @@
  - GET `/api/experiment_profiles/running/experiments/<experiment>` introduced
 
 #### Breaking changes
-
+ - Calbration structs `predict` is now `x_to_y`, `ipredict` is now `y_to_x`. This is just more clear!
  - (Eventually) plugins should migrate from `click_some_name` to autodiscover plugins, to importing `run`. Example:
    ```
    import click
@@ -44,6 +46,7 @@
  - experiment profiles start now use the `unit_api/` directly. This may mitigate the issue where huey workers stampeding on each other when try to start many jobs.
  - fix `pio calibrations run ... -y` not saving as active.
  - fix manual dosing in the UI
+ - fix recording logs manually via the UI.
 
 ### 25.1.21
 

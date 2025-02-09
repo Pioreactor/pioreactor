@@ -94,8 +94,10 @@ class Pico_ADC(_ADC):
     def __init__(self) -> None:
         # set up i2c connection to hardware.ADC
         self.i2c = I2C(hardware.SCL, hardware.SDA)
-        self.scale = 16
-        # assert self.get_firmware_version() == (0, 4), "Firmware version mismatch."
+        if self.get_firmware_version() == (0, 4):
+            self.scale = 32
+        else:
+            self.scale = 16
 
     def read_from_channel(self, channel: pt.AdcChannel) -> pt.AnalogValue:
         assert 0 <= channel <= 3
