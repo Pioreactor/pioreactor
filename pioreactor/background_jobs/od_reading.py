@@ -931,7 +931,8 @@ class ODReader(BackgroundJob):
 
         ir_intensity_max = 80.0
         return round(
-            min(ir_intensity_max, ir_intensity_argmax_ANGLE_can_be, ir_intensity_argmax_REF_can_be), 2
+            max(min(ir_intensity_max, ir_intensity_argmax_ANGLE_can_be, ir_intensity_argmax_REF_can_be), 50),
+            2,
         )
 
     def _prepare_post_callbacks(self) -> list[Callable]:
