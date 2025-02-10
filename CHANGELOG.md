@@ -1,52 +1,93 @@
 ### Upcoming
 
+### Enhancements
 
-#### Enhancements
- - new OD calibration using standards (requires multiple vials). Try `pio calibrations run --device od`. This was inspired by the plugin by @odcambc.
- - Improved chart colors in the UI
- - The OD reading CLI has a new option, `--snapshot`, that will start the job, take a single reading, and exit. This is useful for scripting purposes.
- - A new CLI for pumps: `pio run pumps`. Add pumps as options:
-   ```
-   pio run pumps --media 1 --waste 2
-   ```
-   will add 1ml of media, and remove 2ml. The order is important! You can specify the same pump many times:
-   ```
-   pio run pumps --waste 2 --media 1 --waste 2
-   ```
- - Initial support for 40ml
- - Run multiple experiment profiles per experiment.
- - Specify which Pioreactor to update on the Updates page (the option is only available with release archives.)
- - Choose the level of detail on the new Event Logs page.
- - Previously, when a worker's web server is down, it would halt an update from proceeding (since it can't send the command). Now, leader will try the webserver, and if it observes a 5xx error, will attempt an SSH communication.
- - stirring calibration is run as part of self-test now.
- - improvements to stirring job when OD readings have a long pause between.
+- **New OD Calibration**: Introduced a new OD calibration using standards (requires multiple vials). Run:
+  ```
+  pio calibrations run --device od
+  ```
+  Inspired by the plugin by @odcambc.
 
-#### Web API changes
+- **UI Improvements**:
+  - Improved chart colors.
+  - Added the ability to choose the level of detail on the new Event Logs page.
 
- - GET `/unit_api/jobs/running/<job>` introduced
- - GET `/api/experiment_profiles/running/experiments/<experiment>` introduced
+- **New OD Reading Option**: The OD reading CLI now includes a `--snapshot` option to start the job, take a single reading, and exit. This is useful for scripting.
 
-#### Breaking changes
- - Calibration structs `predict` is now `x_to_y`, `ipredict` is now `y_to_x`. This is just more clear!
- - (Eventually) plugins should migrate from `click_some_name` to autodiscover plugins, to importing `run`. Example:
-   ```
-   import click
-   from pioreactor.cli.run import run
-   ...
+- **New Pump Control CLI**: Introduced a new CLI for pumps:
+  ```
+  pio run pumps --media 1 --waste 2
+  ```
+  This command will add 1ml of media and remove 2ml of waste. The order matters, and pumps can be specified multiple times:
+  ```
+  pio run pumps --waste 2 --media 1 --waste 2
+  ```
+  This new CLI is really useful for experiment profiles. For example, a chemostat can be "programmed" as (but don't actually do this, using a dosing automation):
+  ```yaml
+  common:
+    jobs:
+      pumps:
+        actions:
+          - type: repeat
+            hours_elapsed: 0 # start immediately
+            repeat_every_hours: 0.5 # every 30m, run the following actions
+            actions:
+              - type: start
+                hours_elapsed: 0
+                options:
+                  media: 1
+                  waste: 2
+
+  ```
+
+- **Experiment & System Enhancements**:
+  - Initial support for 40ml model.
+  - Ability to run multiple experiment profiles per experiment.
+  - Users can now specify which Pioreactor to update on the Updates page (available only with release archives).
+  - Stirring calibration is now included as part of the self-test.
+  - Improved stirring job handling when OD readings have long pauses.
+
+- Previously, if a worker’s web server was down, an update would be blocked. Now, the leader will first attempt the web server, and if a 5xx error is observed, it will attempt SSH communication instead.
+
+---
+
+### Web API Changes
+
+- Introduced:
+  - `GET /unit_api/jobs/running/<job>`
+  - `GET /api/experiment_profiles/running/experiments/<experiment>`
+
+---
+
+### Breaking Changes
+
+- **Calibration Structs**:
+  - `predict` → `x_to_y`
+  - `ipredict` → `y_to_x`
+  - This change makes naming clearer.
+
+- **Plugin Migration** (Upcoming):
+  - Plugins should migrate from `click_some_name` to auto-discovered plugins by importing `run`.
+  - Example migration:
+    ```python
+    import click
+    from pioreactor.cli.run import run
+
+    @run.command("my_name")
+    @click.option("--my_option")
+    def my_name(my_option):
+        ...
+    ```
 
 
-   @run.command("my_name")
-   @click.option("--my_option")
-   def my_name(my_option):
-       ...
-   ```
+### Bug Fixes
 
-#### Bug fixes
- - fixed UI not showing 3p calibrations
- - experiment profiles start now use the `unit_api/` directly. This may mitigate the issue where huey workers stampeding on each other when try to start many jobs.
- - fix `pio calibrations run ... -y` not saving as active.
- - fix manual dosing in the UI
- - fix recording logs manually via the UI.
+- Fixed UI not displaying third-party calibrations.
+- Experiment profiles now directly use `unit_api/`, potentially mitigating Huey worker stampedes when starting multiple jobs.
+- Fixed `pio calibrations run ... -y` not saving as active.
+- Fixed manual dosing issues in the UI.
+- Fixed manual log recording in the UI.
+
 
 ### 25.1.21
 
