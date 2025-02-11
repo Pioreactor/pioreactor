@@ -591,7 +591,7 @@ def test_execute_experiment_profile_when_action_simple(mock__load_experiment_pro
         execute_experiment_profile("profile.yaml", experiment)
 
     assert len(bucket) == 2
-    assert bucket[0].path == "/api/workers/unit1/jobs/run/job_name/stirring/experiments/_testing_experiment"
+    assert bucket[0].path == "/unit_api/jobs/run/job_name/stirring"
     assert (
         bucket[1].path == "/api/workers/unit1/jobs/update/job_name/stirring/experiments/_testing_experiment"
     )

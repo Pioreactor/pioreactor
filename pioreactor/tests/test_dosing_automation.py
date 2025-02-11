@@ -26,6 +26,8 @@ from pioreactor.background_jobs.dosing_automation import close
 from pioreactor.background_jobs.dosing_automation import DosingAutomationJob
 from pioreactor.background_jobs.dosing_automation import LiquidVolumeCalculator
 from pioreactor.background_jobs.dosing_automation import start_dosing_automation
+from pioreactor.config import config
+from pioreactor.config import temporary_config_change
 from pioreactor.structs import DosingEvent
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.timing import current_utc_datetime
@@ -575,31 +577,37 @@ def test_throughput_calculator_manual_set() -> None:
 def test_execute_io_action() -> None:
     experiment = "test_execute_io_action"
 
-    with Silent(unit=unit, experiment=experiment) as ca:
-        ca.execute_io_action(media_ml=0.50, alt_media_ml=0.35, waste_ml=0.50 + 0.35)
-        pause()
-        assert ca.media_throughput == 0.50
-        assert ca.alt_media_throughput == 0.35
+    with temporary_config_change(config, "bioreactor", "max_volume_ml", "15"):
+        with Silent(unit=unit, experiment=experiment, initial_liquid_volume=15.0) as ca:
+            ca.execute_io_action(media_ml=0.50, alt_media_ml=0.35, waste_ml=0.50 + 0.35)
+            pause()
+            assert ca.media_throughput == 0.50
+            assert ca.alt_media_throughput == 0.35
+            assert ca.liquid_volume == 15.0
 
-        ca.execute_io_action(media_ml=0.15, alt_media_ml=0.15, waste_ml=0.3)
-        pause()
-        assert ca.media_throughput == 0.65
-        assert ca.alt_media_throughput == 0.50
+            ca.execute_io_action(media_ml=0.15, alt_media_ml=0.15, waste_ml=0.3)
+            pause()
+            assert ca.media_throughput == 0.65
+            assert ca.alt_media_throughput == 0.50
+            assert ca.liquid_volume == 15.0
 
-        ca.execute_io_action(media_ml=0.6, alt_media_ml=0, waste_ml=0.6)
-        pause()
-        assert ca.media_throughput == 1.25
-        assert ca.alt_media_throughput == 0.50
+            ca.execute_io_action(media_ml=0.6, alt_media_ml=0, waste_ml=0.6)
+            pause()
+            assert ca.media_throughput == 1.25
+            assert ca.alt_media_throughput == 0.50
+            assert ca.liquid_volume == 15.0
 
-        ca.execute_io_action(media_ml=0.0, alt_media_ml=0.6, waste_ml=0.6)
-        pause()
-        assert ca.media_throughput == 1.25
-        assert ca.alt_media_throughput == 1.1
+            ca.execute_io_action(media_ml=0.0, alt_media_ml=0.6, waste_ml=0.6)
+            pause()
+            assert ca.media_throughput == 1.25
+            assert ca.alt_media_throughput == 1.1
+            assert ca.liquid_volume == 15.0
 
-        ca.execute_io_action(media_ml=0.0, alt_media_ml=0.0, waste_ml=0.0)
-        pause()
-        assert ca.media_throughput == 1.25
-        assert ca.alt_media_throughput == 1.1
+            ca.execute_io_action(media_ml=0.0, alt_media_ml=0.0, waste_ml=0.0)
+            pause()
+            assert ca.media_throughput == 1.25
+            assert ca.alt_media_throughput == 1.1
+            assert ca.liquid_volume == 15.0
 
 
 def test_execute_io_action2() -> None:
@@ -613,6 +621,7 @@ def test_execute_io_action2() -> None:
         assert results["waste_ml"] == 1.26
         assert ca.media_throughput == 1.25
         assert ca.alt_media_throughput == 0.01
+        assert ca.liquid_volume == 14.0
         assert close(ca.alt_media_fraction, 0.0006688099108144436)
 
 
@@ -1104,11 +1113,17 @@ def test_liquid_volume_is_published() -> None:
     unit = get_unit_name()
     experiment = "test_liquid_volume_is_published"
 
-    with start_dosing_automation("chemostat", 2, False, unit, experiment, volume=2.0) as chemostat:
+    with start_dosing_automation(
+        "chemostat", duration=2, skip_first_run=False, unit=unit, experiment=experiment, volume=2.0
+    ) as chemostat:
         assert chemostat.liquid_volume == 14
+        pause(60)
         result = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/dosing_automation/liquid_volume")
         if result:
             assert float(result.payload) == 14
+
+        assert chemostat.media_throughput > 0
+        assert chemostat.liquid_volume == 14
 
 
 def test_liquid_volume_calculator() -> None:

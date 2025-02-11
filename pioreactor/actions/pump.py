@@ -280,10 +280,10 @@ def _pump_action(
             ml = float(ml)
             if is_default_calibration(calibration):
                 logger.error(
-                    f"Active calibration not found. Run {pump_device} calibration first: `pio calibrations run --device {pump_device}` or set active with `pio run set-active`"
+                    f"Active calibration not found. Run {pump_device} calibration first: `pio calibrations run --device {pump_device}` or set active with `pio calibrations set-active`"
                 )
                 raise exc.CalibrationError(
-                    f"Active calibration not found. Run {pump_device} calibration: `pio calibrations run --device {pump_device}`, or set active with `pio run set-active`"
+                    f"Active calibration not found. Run {pump_device} calibration: `pio calibrations run --device {pump_device}`, or set active with `pio calibrations set-active`"
                 )
 
             if ml < 0:

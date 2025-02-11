@@ -87,6 +87,7 @@
 - Fixed `pio calibrations run ... -y` not saving as active.
 - Fixed manual dosing issues in the UI.
 - Fixed manual log recording in the UI.
+- There was a race condition between `monitor` and a db creation job that was preventing the `monitor` job from starting. Awkwardly, this only seemed to happen on power cycles, and only _sometimes_. This escaped our testing. We've fixed it by improving how we initialize the dbs, and how we connect to them.
 
 
 ### 25.1.21

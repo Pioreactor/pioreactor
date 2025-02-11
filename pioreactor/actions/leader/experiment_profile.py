@@ -1001,6 +1001,9 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
                     cjm.kill_jobs(workers, experiment=experiment, job_source=f"experiment_profile:{job_id}")
 
             else:
+                time.sleep(
+                    0.5
+                )  # wait N second for last commands to finish being sent and processed, else the user sees out of order events.
                 if dry_run:
                     logger.info(  # type: ignore
                         f"Finished executing DRY-RUN of profile {profile.experiment_profile_name}."
