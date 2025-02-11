@@ -120,12 +120,12 @@ def get_metadata_from_user() -> tuple[pt.OD600, pt.OD600, pt.mL, pt.PdAngle, pt.
         minimum_od600 = 0.01
 
     dilution_amount = prompt(
-        green("Provide the volume to be added to your vial each iteration (default = 1 mL)"),
-        default=1,
+        green("Provide the volume to be added to your vial each iteration (default = 2 mL)"),
+        default=2,
         type=click.FloatRange(min=0.01, max=10, clamp=False),
     )
 
-    number_of_points = int(log2(initial_od600 / minimum_od600) * (10 / dilution_amount))
+    number_of_points = int(log2(initial_od600 / minimum_od600) * (10 / dilution_amount)) + 1
 
     echo(f"This will require {number_of_points} data points.")
     echo(f"You will need at least {number_of_points * dilution_amount + 10}mL of media available.")
@@ -197,11 +197,10 @@ def start_recording_and_diluting(
         # 20mL in one vial is very scary
         # n_samples is the num samples to run before risk of overflow
 
-    total_n_samples = int(log2(initial_od600 / minimum_od600) * (initial_volume_in_vial / dilution_amount))
+    total_n_samples = (
+        int(log2(initial_od600 / minimum_od600) * (initial_volume_in_vial / dilution_amount)) + 1
+    )
     count_of_samples = 0
-    
-    if total_n_samples < n_samples:
-        n_samples = total_n_samples
 
     echo("Warming up OD...")
 
