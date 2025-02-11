@@ -123,7 +123,7 @@ class ADCReader(LoggerMixin):
         fake_data: bool = False,
         dynamic_gain: bool = True,
         penalizer: float = 0.0,  # smoothing parameter between samples
-        oversampling_count: int = 42,
+        oversampling_count: int = 32,
     ) -> None:
         super().__init__()
         self.fake_data = fake_data
