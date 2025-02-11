@@ -26,8 +26,6 @@ from pioreactor.background_jobs.dosing_automation import close
 from pioreactor.background_jobs.dosing_automation import DosingAutomationJob
 from pioreactor.background_jobs.dosing_automation import LiquidVolumeCalculator
 from pioreactor.background_jobs.dosing_automation import start_dosing_automation
-from pioreactor.config import config
-from pioreactor.config import temporary_config_change
 from pioreactor.structs import DosingEvent
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.timing import current_utc_datetime
@@ -577,43 +575,42 @@ def test_throughput_calculator_manual_set() -> None:
 def test_execute_io_action() -> None:
     experiment = "test_execute_io_action"
 
-    with temporary_config_change(config, "bioreactor", "max_volume_ml", "15"):
-        with Silent(unit=unit, experiment=experiment, initial_liquid_volume=15.0) as ca:
-            ca.execute_io_action(media_ml=0.50, alt_media_ml=0.35, waste_ml=0.50 + 0.35)
-            pause()
-            assert ca.media_throughput == 0.50
-            assert ca.alt_media_throughput == 0.35
-            assert ca.liquid_volume == 15.0
+    with Silent(unit=unit, experiment=experiment, initial_liquid_volume_ml=15.0, max_volume_ml=15.0) as ca:
+        ca.execute_io_action(media_ml=0.50, alt_media_ml=0.35, waste_ml=0.50 + 0.35)
+        pause()
+        assert ca.media_throughput == 0.50
+        assert ca.alt_media_throughput == 0.35
+        assert ca.liquid_volume == 15.0
 
-            ca.execute_io_action(media_ml=0.15, alt_media_ml=0.15, waste_ml=0.3)
-            pause()
-            assert ca.media_throughput == 0.65
-            assert ca.alt_media_throughput == 0.50
-            assert ca.liquid_volume == 15.0
+        ca.execute_io_action(media_ml=0.15, alt_media_ml=0.15, waste_ml=0.3)
+        pause()
+        assert ca.media_throughput == 0.65
+        assert ca.alt_media_throughput == 0.50
+        assert ca.liquid_volume == 15.0
 
-            ca.execute_io_action(media_ml=0.6, alt_media_ml=0, waste_ml=0.6)
-            pause()
-            assert ca.media_throughput == 1.25
-            assert ca.alt_media_throughput == 0.50
-            assert ca.liquid_volume == 15.0
+        ca.execute_io_action(media_ml=0.6, alt_media_ml=0, waste_ml=0.6)
+        pause()
+        assert ca.media_throughput == 1.25
+        assert ca.alt_media_throughput == 0.50
+        assert ca.liquid_volume == 15.0
 
-            ca.execute_io_action(media_ml=0.0, alt_media_ml=0.6, waste_ml=0.6)
-            pause()
-            assert ca.media_throughput == 1.25
-            assert ca.alt_media_throughput == 1.1
-            assert ca.liquid_volume == 15.0
+        ca.execute_io_action(media_ml=0.0, alt_media_ml=0.6, waste_ml=0.6)
+        pause()
+        assert ca.media_throughput == 1.25
+        assert ca.alt_media_throughput == 1.1
+        assert ca.liquid_volume == 15.0
 
-            ca.execute_io_action(media_ml=0.0, alt_media_ml=0.0, waste_ml=0.0)
-            pause()
-            assert ca.media_throughput == 1.25
-            assert ca.alt_media_throughput == 1.1
-            assert ca.liquid_volume == 15.0
+        ca.execute_io_action(media_ml=0.0, alt_media_ml=0.0, waste_ml=0.0)
+        pause()
+        assert ca.media_throughput == 1.25
+        assert ca.alt_media_throughput == 1.1
+        assert ca.liquid_volume == 15.0
 
 
 def test_execute_io_action2() -> None:
     experiment = "test_execute_io_action2"
 
-    with Silent(unit=unit, experiment=experiment, initial_liquid_volume=14.0) as ca:
+    with Silent(unit=unit, experiment=experiment, initial_liquid_volume_ml=14.0) as ca:
         results = ca.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
         pause()
         assert results["media_ml"] == 1.25
@@ -1048,7 +1045,7 @@ def test_chemostat_from_0_volume() -> None:
         unit,
         experiment,
         volume=0.5,
-        initial_liquid_volume=0,
+        initial_liquid_volume_ml=0,
     ) as chemostat:
         pause(n=25)
         assert chemostat.media_throughput == 0.5
@@ -1130,6 +1127,7 @@ def test_liquid_volume_calculator() -> None:
     # let's start from 0 volume, and start adding.
     vc = LiquidVolumeCalculator
     current_volume = 0.0
+    max_volume = 14
 
     # adding 6ml of media
     event = DosingEvent(
@@ -1138,7 +1136,7 @@ def test_liquid_volume_calculator() -> None:
         timestamp=default_datetime_for_pioreactor(0),
         source_of_event="test",
     )
-    current_volume = vc.update(event, current_volume)
+    current_volume = vc.update(event, current_volume, max_volume)
     assert current_volume == 6
 
     # try removing media, but this doesn't do anything since the level is too low.
@@ -1148,7 +1146,7 @@ def test_liquid_volume_calculator() -> None:
         timestamp=default_datetime_for_pioreactor(1),
         source_of_event="test",
     )
-    current_volume = vc.update(event, current_volume)
+    current_volume = vc.update(event, current_volume, max_volume)
     assert current_volume == 6
 
     # add 6ml alt_media
@@ -1158,7 +1156,7 @@ def test_liquid_volume_calculator() -> None:
         timestamp=default_datetime_for_pioreactor(2),
         source_of_event="test",
     )
-    current_volume = vc.update(event, current_volume)
+    current_volume = vc.update(event, current_volume, max_volume)
     assert current_volume == 12.0
 
     # add 3ml alt_media
@@ -1168,7 +1166,7 @@ def test_liquid_volume_calculator() -> None:
         timestamp=default_datetime_for_pioreactor(3),
         source_of_event="test",
     )
-    current_volume = vc.update(event, current_volume)
+    current_volume = vc.update(event, current_volume, max_volume)
     assert current_volume == 15
 
     # try to remove 3ml, should not fall below minimum
@@ -1178,7 +1176,7 @@ def test_liquid_volume_calculator() -> None:
         timestamp=default_datetime_for_pioreactor(4),
         source_of_event="test",
     )
-    current_volume = vc.update(event, current_volume)
+    current_volume = vc.update(event, current_volume, max_volume)
     assert current_volume != 12
     assert current_volume == 14  # TODO: this is equal to [bioreactor].max_volume_ml
 
@@ -1189,7 +1187,7 @@ def test_liquid_volume_calculator() -> None:
         timestamp=default_datetime_for_pioreactor(5),
         source_of_event="test",
     )
-    current_volume = vc.update(event, current_volume)
+    current_volume = vc.update(event, current_volume, max_volume)
     assert current_volume == 16
 
     # remove 1ml
@@ -1199,7 +1197,7 @@ def test_liquid_volume_calculator() -> None:
         timestamp=default_datetime_for_pioreactor(6),
         source_of_event="test",
     )
-    current_volume = vc.update(event, current_volume)
+    current_volume = vc.update(event, current_volume, max_volume)
     assert current_volume == 15
 
     # remove 10ml manually
@@ -1209,7 +1207,7 @@ def test_liquid_volume_calculator() -> None:
         timestamp=default_datetime_for_pioreactor(7),
         source_of_event="manually",
     )
-    current_volume = vc.update(event, current_volume)
+    current_volume = vc.update(event, current_volume, max_volume)
     assert current_volume == 5
 
 
@@ -1219,6 +1217,7 @@ def test_alt_media_calculator_from_0_volume() -> None:
     vc = LiquidVolumeCalculator
 
     current_volume = 0.0
+    max_volume = 14
     current_alt_media_fraction = 0.0  # this value doesn't matter, could be anything since volume = 0.
 
     # adding 6ml of media
@@ -1229,7 +1228,7 @@ def test_alt_media_calculator_from_0_volume() -> None:
         source_of_event="test",
     )
     current_alt_media_fraction = ac.update(event, current_alt_media_fraction, current_volume)
-    current_volume = vc.update(event, current_volume)
+    current_volume = vc.update(event, current_volume, max_volume)
     assert current_alt_media_fraction == 0.0
 
     # removing media, but this doesn't do anything since it doesn't change the fraction
@@ -1240,7 +1239,7 @@ def test_alt_media_calculator_from_0_volume() -> None:
         source_of_event="test",
     )
     current_alt_media_fraction = ac.update(event, current_alt_media_fraction, current_volume)
-    current_volume = vc.update(event, current_volume)
+    current_volume = vc.update(event, current_volume, max_volume)
     assert current_alt_media_fraction == 0.0
 
     # add 6ml alt_media
@@ -1251,7 +1250,7 @@ def test_alt_media_calculator_from_0_volume() -> None:
         source_of_event="test",
     )
     current_alt_media_fraction = ac.update(event, current_alt_media_fraction, current_volume)
-    current_volume = vc.update(event, current_volume)
+    current_volume = vc.update(event, current_volume, max_volume)
     assert current_alt_media_fraction == 0.5
 
     # add 3ml alt_media
@@ -1262,7 +1261,7 @@ def test_alt_media_calculator_from_0_volume() -> None:
         source_of_event="test",
     )
     current_alt_media_fraction = ac.update(event, current_alt_media_fraction, current_volume)
-    current_volume = vc.update(event, current_volume)
+    current_volume = vc.update(event, current_volume, max_volume)
     assert current_alt_media_fraction == 0.6
 
 
@@ -1344,7 +1343,7 @@ def test_automation_will_pause_itself_if_pumping_goes_above_safety_threshold() -
         experiment=experiment,
         duration=0.05,
         volume=0.5,
-        initial_liquid_volume=17.95,
+        initial_liquid_volume_ml=17.95,
     ) as job:
         while job.state == "ready":
             pause()

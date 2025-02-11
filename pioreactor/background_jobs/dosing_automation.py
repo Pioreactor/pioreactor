@@ -83,10 +83,10 @@ class ThroughputCalculator:
 
 
 class LiquidVolumeCalculator:
-    max_volume = config.getfloat("bioreactor", "max_volume_ml")
-
     @classmethod
-    def update(cls, new_dosing_event: structs.DosingEvent, current_liquid_volume: float) -> float:
+    def update(
+        cls, new_dosing_event: structs.DosingEvent, current_liquid_volume: float, max_volume: float
+    ) -> float:
         assert current_liquid_volume >= 0
         volume, event = float(new_dosing_event.volume_change), new_dosing_event.event
         if event == "add_media":
@@ -97,14 +97,14 @@ class LiquidVolumeCalculator:
             if new_dosing_event.source_of_event == "manually":
                 # we assume the user has extracted what they want, regardless of level or tube height.
                 return max(current_liquid_volume - volume, 0.0)
-            elif current_liquid_volume <= cls.max_volume:
+            elif current_liquid_volume <= max_volume:
                 # if the current volume is less than the outflow tube, no liquid is removed
                 return current_liquid_volume
             else:
                 # since we do some additional "removing" after adding, we don't want to
                 # count that as being removed (total volume is limited by position of outflow tube).
                 # hence we keep an lowerbound here.
-                return max(current_liquid_volume - volume, cls.max_volume)
+                return max(current_liquid_volume - volume, max_volume)
         else:
             raise ValueError("Unknown event type")
 
@@ -235,7 +235,8 @@ class DosingAutomationJob(AutomationJob):
         initial_alt_media_fraction: float = config.getfloat(
             "bioreactor", "initial_alt_media_fraction", fallback=0.0
         ),
-        initial_liquid_volume: float = config.getfloat("bioreactor", "initial_volume_ml", fallback=14),
+        initial_liquid_volume_ml: float = config.getfloat("bioreactor", "initial_volume_ml", fallback=14),
+        max_volume_ml: float = config.getfloat("bioreactor", "max_volume_ml", fallback=14),
         **kwargs,
     ) -> None:
         super(DosingAutomationJob, self).__init__(unit, experiment)
@@ -250,6 +251,7 @@ class DosingAutomationJob(AutomationJob):
         )
 
         self.skip_first_run = skip_first_run
+        self.max_volume_ml = max_volume_ml
 
         self.latest_normalized_od_at = current_utc_datetime()
         self.latest_growth_rate_at = current_utc_datetime()
@@ -257,13 +259,19 @@ class DosingAutomationJob(AutomationJob):
 
         self._init_alt_media_fraction(float(initial_alt_media_fraction))
         self._init_volume_throughput()
-        self._init_liquid_volume(float(initial_liquid_volume))
+        self._init_liquid_volume(float(initial_liquid_volume_ml))
 
         self.set_duration(duration)
 
         if not is_pio_job_running("stirring"):
             self.logger.warning(
                 "It's recommended to have stirring on to improve mixing during dosing events."
+            )
+
+        if self.max_volume_ml > self.MAX_VIAL_VOLUME_TO_STOP:
+            # possibly the user messed up thier configuration. We warn them.
+            self.logger.warning(
+                "The parameter max_volume_ml should be less than max_volume_to_stop (otherwise your pumping will stop too soon)."
             )
 
     def set_duration(self, duration: Optional[float]) -> None:
@@ -355,9 +363,7 @@ class DosingAutomationJob(AutomationJob):
     def execute_io_action(
         self,
         waste_ml: float = 0.0,
-        media_ml: float = 0.0,
-        alt_media_ml: float = 0.0,
-        **other_pumps_ml: float,
+        **all_pumps_ml: float,
     ) -> SummableDict:
         """
         This function recursively reduces the amount to add so that we don't end up adding 5ml,
@@ -366,7 +372,7 @@ class DosingAutomationJob(AutomationJob):
         will slow dosing down.
 
 
-        Users can call additional pumps (other than media and alt_media) by providing them as kwargs. Ex:
+        Users can call additional pumps by providing them as kwargs. Ex:
 
         > dc.execute_io_action(waste_ml=2, media_ml=1, salt_media_ml=0.5, media_from_sigma_ml=0.5)
 
@@ -386,7 +392,7 @@ class DosingAutomationJob(AutomationJob):
         sub-call. This keeps the ratio of alt_media to media the same in the vial.
 
         A problem is if the there is skew in the different mLs, then it's possible that one or more pumps
-        most dose a very small amount, where our pumps have poor accuracy.
+        must dose a very small amount, where our pumps have poor accuracy.
 
 
         Returns
@@ -394,12 +400,10 @@ class DosingAutomationJob(AutomationJob):
         A dict of volumes that were moved, in mL. This may be different than the request mLs, if a error in a pump occurred.
 
         """
-        if not all(other_pump_ml.endswith("_ml") for other_pump_ml in other_pumps_ml.keys()):
+        if not all(other_pump_ml.endswith("_ml") for other_pump_ml in all_pumps_ml.keys()):
             raise ValueError(
                 "all kwargs should end in `_ml`. Example: `execute_io_action(salty_media_ml=1.0)`"
             )
-
-        all_pumps_ml = {**{"media_ml": media_ml, "alt_media_ml": alt_media_ml}, **other_pumps_ml}
 
         sum_of_volumes = sum(ml for ml in all_pumps_ml.values())
         if not (waste_ml >= sum_of_volumes - 1e-9):
@@ -422,13 +426,14 @@ class DosingAutomationJob(AutomationJob):
             )
 
         else:
-            # iterate through pumps, and dose required amount. First media, then alt_media, then any others, then waste.
+            # iterate through pumps, and dose required amount. First *_media, then waste.
             for pump, volume_ml in all_pumps_ml.items():
                 if (self.liquid_volume + volume_ml) >= self.MAX_VIAL_VOLUME_TO_STOP:
                     self.logger.error(
-                        f"Stopping all pumping since {self.liquid_volume} + {volume_ml} mL is beyond safety threshold {self.MAX_VIAL_VOLUME_TO_STOP} mL."
+                        f"Pausing all pumping since {self.liquid_volume} + {volume_ml} mL is beyond safety threshold {self.MAX_VIAL_VOLUME_TO_STOP} mL."
                     )
                     self.set_state(self.SLEEPING)
+                    return volumes_moved
 
                 if (volume_ml > 0) and (self.state in (self.READY,)) and self.block_until_not_sleeping():
                     pump_function = getattr(self, f"add_{pump.removesuffix('_ml')}_to_bioreactor")
@@ -590,7 +595,9 @@ class DosingAutomationJob(AutomationJob):
             cache[self.experiment] = self.alt_media_fraction
 
     def _update_liquid_volume(self, dosing_event: structs.DosingEvent) -> None:
-        self.liquid_volume = LiquidVolumeCalculator.update(dosing_event, self.liquid_volume)
+        self.liquid_volume = LiquidVolumeCalculator.update(
+            dosing_event, self.liquid_volume, self.max_volume_ml
+        )
 
         # add to cache
         with local_persistent_storage("liquid_volume") as cache:
@@ -633,8 +640,8 @@ class DosingAutomationJob(AutomationJob):
 
         return
 
-    def _init_liquid_volume(self, initial_liquid_volume: float) -> None:
-        assert initial_liquid_volume >= 0
+    def _init_liquid_volume(self, initial_liquid_volume_ml: float) -> None:
+        assert initial_liquid_volume_ml >= 0
 
         self.add_to_published_settings(
             "liquid_volume",
@@ -642,30 +649,23 @@ class DosingAutomationJob(AutomationJob):
                 "datatype": "float",
                 "settable": False,  # modify using dosing_events, ex: pio run add_media --ml 1 --manually
                 "unit": "mL",
+                "persist": True,  # keep around so the UI can see it
             },
         )
 
         with local_persistent_storage("liquid_volume") as cache:
-            self.liquid_volume = cache.get(self.experiment, initial_liquid_volume)
+            self.liquid_volume = cache.get(self.experiment, initial_liquid_volume_ml)
 
         return
 
     def _init_volume_throughput(self) -> None:
         self.add_to_published_settings(
             "alt_media_throughput",
-            {
-                "datatype": "float",
-                "settable": False,
-                "unit": "mL",
-            },
+            {"datatype": "float", "settable": False, "unit": "mL", "persist": True},
         )
         self.add_to_published_settings(
             "media_throughput",
-            {
-                "datatype": "float",
-                "settable": False,
-                "unit": "mL",
-            },
+            {"datatype": "float", "settable": False, "unit": "mL", "persist": True},
         )
 
         with local_persistent_storage("alt_media_throughput") as cache:
