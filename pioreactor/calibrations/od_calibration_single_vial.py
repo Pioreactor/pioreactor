@@ -195,9 +195,13 @@ def start_recording_and_diluting(
     if initial_volume_in_vial + dilution_amount * n_samples > 18:
         n_samples = n_samples - 1
         # 20mL in one vial is very scary
+        # n_samples is the num samples to run before risk of overflow
 
     total_n_samples = int(log2(initial_od600 / minimum_od600) * (initial_volume_in_vial / dilution_amount))
     count_of_samples = 0
+    
+    if total_n_samples < n_samples:
+        n_samples = total_n_samples
 
     echo("Warming up OD...")
 
