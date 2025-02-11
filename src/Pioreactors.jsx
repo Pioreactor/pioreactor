@@ -304,10 +304,10 @@ const CustomFormControlLabel = ({ label, sublabel, ...props }) => (
   <FormControlLabel
     control={props.control}
     label={
-      <div>
+      <Box>
         <Typography variant="body1">{label}</Typography>
         {sublabel && <Typography variant="body2" color={disabledColor}>{sublabel}</Typography>}
-      </div>
+      </Box>
     }
     {...props}
   />
@@ -429,7 +429,7 @@ function AssignPioreactors({ experiment, variant="text" }) {
       <Dialog
         open={open}
         onClose={handleClose}
-        fullWidth={false}
+        fullWidth={true}
         aria-labelledby="form-dialog-title"
       >
         <DialogTitle>
@@ -473,13 +473,13 @@ function AssignPioreactors({ experiment, variant="text" }) {
                 workers.length > 8
                   ? {
                       display: "grid",
-                      gridTemplateColumns: "1fr 1fr 1fr",
+                      gridTemplateColumns: "1fr 1fr",
                       columnGap: "30px",
                     }
                   : {}
               }
             >
-              {workers.map((worker) => {
+              {(workers || []).map((worker) => {
                 const unit = worker.pioreactor_unit;
                 const exp = worker.experiment;
                 const disabled = exp !== null && exp !== experiment;
@@ -496,6 +496,7 @@ function AssignPioreactors({ experiment, variant="text" }) {
                         onChange={handleChange}
                         checked={!disabled && assigned[unit]}
                         name={unit}
+                        sx={{ mb: sublabel ? 3 : 0 }}
                       />
                     }
                     label={unit}
@@ -658,7 +659,7 @@ function CalibrateDialog(props) {
               media's <i>un-inoculated</i> optical density <i>per experiment</i>. Read more about <a href="https://docs.pioreactor.com/user-guide/od-normal-growth-rate#blanking">using blanks</a>.
             </Typography>
             <Typography variant="body2" component="p" style={{margin: "20px 0px"}}>
-              Recorded optical densities of blank vial: <code>{props.odBlankReading ? Object.entries(JSON.parse(props.odBlankReading)).map( ([k, v]) => `${k}:${v.toFixed(5)}` ).join(", ") : "—"}</code>
+              Recorded optical densities of blank vial: <code>{props.odBlankReading ? Object.entries(JSON.parse(props.odBlankReading) || {}).map( ([k, v]) => `${k}:${v.toFixed(5)}` ).join(", ") : "—"}</code>
             </Typography>
 
             <div style={{display: "flex"}}>
@@ -671,42 +672,56 @@ function CalibrateDialog(props) {
 
           </TabPanel>
           <TabPanel value={tabValue} index={1}>
-            <Typography  gutterBottom>
-             Active calibrations
+            <Typography gutterBottom>
+              Active calibrations
             </Typography>
             <Typography variant="body2" component="p" gutterBottom>
-              Below are the active calibrations that will be used when running devices like pumps, stirring, etc. Read more about <a href="https://docs.pioreactor.com/user-guide/hardware-calibrations">calibrations</a>.
+              Below are the active calibrations that will be used when running devices like pumps, stirring, etc. Read more about{' '}
+              <a href="https://docs.pioreactor.com/user-guide/hardware-calibrations">calibrations</a>.
             </Typography>
 
+            {Object.entries(activeCalibrations || {}).length === 0 ? (
+              // Empty state message when there are no active calibrations.
+              <Typography variant="body2" component="p" color="textSecondary">
+                There are no active calibrations at the moment.
+              </Typography>
+            ) : (
+              // Table rendering when active calibrations exist.
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell align="left" sx={{padding: "6px 0px"}}>Device</TableCell>
-                    <TableCell align="left" sx={{padding: "6px 0px"}}>Calibration name</TableCell>
-                    <TableCell align="left" sx={{padding: "6px 0px"}}>Calibrated on</TableCell>
+                    <TableCell align="left" sx={{ padding: '6px 0px' }}>Device</TableCell>
+                    <TableCell align="left" sx={{ padding: '6px 0px' }}>Calibration name</TableCell>
+                    <TableCell align="left" sx={{ padding: '6px 0px' }}>Calibrated on</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                    {Object.entries(activeCalibrations || {}).map(([device, calibration]) => {
-                      const calName = calibration.calibration_name
-                      return (
-                        <TableRow key={calName + device}>
-                          <TableCell align="left" sx={{padding: "6px 0px"}}> {device} </TableCell>
-                          <TableCell align="left" sx={{padding: "6px 0px"}}>
-                              <Chip
-                                size="small"
-                                icon={<TuneIcon/>}
-                                label={calName}
-                                clickable component={Link} to={`/calibrations/${props.unit}/${device}/${calName}`}
-                              />
-                          </TableCell>
-                          <TableCell align="left" sx={{padding: "6px 0px"}}> {dayjs(calibration.created_at).format('YYYY-MM-DD')} </TableCell>
-                        </TableRow>
-                        )
-                      })}
-              </TableBody>
-            </Table>
-
+                  {Object.entries(activeCalibrations).map(([device, calibration]) => {
+                    const calName = calibration.calibration_name;
+                    return (
+                      <TableRow key={`${calName}-${device}`}>
+                        <TableCell align="left" sx={{ padding: '6px 0px' }}>
+                          {device}
+                        </TableCell>
+                        <TableCell align="left" sx={{ padding: '6px 0px' }}>
+                          <Chip
+                            size="small"
+                            icon={<TuneIcon />}
+                            label={calName}
+                            clickable
+                            component={Link}
+                            to={`/calibrations/${props.unit}/${device}/${calName}`}
+                          />
+                        </TableCell>
+                        <TableCell align="left" sx={{ padding: '6px 0px' }}>
+                          {dayjs(calibration.created_at).format('YYYY-MM-DD')}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
           </TabPanel>
         </DialogContent>
       </Dialog>
@@ -909,7 +924,7 @@ function SettingsActionsDialog(props) {
 
 
   const LEDMap = props.config['leds'] || {}
-  const buttons = Object.fromEntries(Object.entries(props.jobs).map( ([job_key, job], _) => [job_key, createUserButtonsBasedOnState(job.state, job_key)]))
+  const buttons = Object.fromEntries(Object.entries(props.jobs || {}).map( ([job_key, job], _) => [job_key, createUserButtonsBasedOnState(job.state, job_key)]))
   const versionInfo = JSON.parse(props.jobs.monitor.publishedSettings.versions.value || "{}")
   const voltageInfo = JSON.parse(props.jobs.monitor.publishedSettings.voltage_on_pwm_rail.value || "{}")
   const ipInfo = props.jobs.monitor.publishedSettings.ipv4.value
@@ -1683,7 +1698,7 @@ function SettingsActionsDialogAll({experiment}) {
   }
 
 
-  const buttons = Object.fromEntries(Object.entries(jobs).map( ([job_key, job], i) => [job_key, createUserButtonsBasedOnState(job)]))
+  const buttons = Object.fromEntries(Object.entries(jobs || {}).map( ([job_key, job], i) => [job_key, createUserButtonsBasedOnState(job)]))
   const isLargeScreen = useMediaQuery(theme => theme.breakpoints.down('xl'));
   var dosingControlJob = jobs.dosing_automation
   var ledControlJob = jobs.led_automation
@@ -2151,7 +2166,7 @@ function ActiveUnits({experiment, config, units}){
     }
   }, [experiment])
 
-  const renderCards = () => units.map(unit =>
+  const renderCards = () => (units || []).map(unit =>
       <PioreactorCard  key={unit} isUnitActive={true} unit={unit} config={config} experiment={experiment} originalLabel={relabelMap[unit]}/>
   )
 
@@ -2526,7 +2541,7 @@ function InactiveUnits(props){
         </Box>
       </Typography>
     </div>
-    {props.units.map(unit =>
+    {(props.units || []).map(unit =>
       <PioreactorCard  key={unit} isUnitActive={false} unit={unit} config={props.config} experiment={props.experiment}/>
   )}
     </React.Fragment>

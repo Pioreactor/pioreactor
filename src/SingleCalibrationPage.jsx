@@ -29,8 +29,15 @@ function formatPolynomial(coefficients) {
     };
 
     const toSuperscript = (num) => {
-        return String(num).split('').map(digit => superscripts[digit] || '').join('');
+        return String(num)
+            .split('')
+            .map(digit => superscripts[digit] || '')
+            .join('');
     };
+
+    // Define thresholds for extreme magnitudes.
+    const LOWER_THRESHOLD = 1e-3;
+    const UPPER_THRESHOLD = 1e5;
 
     let result = '';
 
@@ -43,13 +50,22 @@ function formatPolynomial(coefficients) {
         let term = '';
 
         // Add sign
-        if (result) term += coef > 0 ? ' + ' : ' - ';
-        else if (coef < 0) term += '-';
+        if (result) {
+            term += coef > 0 ? ' + ' : ' - ';
+        } else if (coef < 0) {
+            term += '-';
+        }
 
-        // Add coefficient (only show if not 1 or power is 0)
-        if (absCoef !== 1 || power === 0) term += absCoef.toFixed(3);
+        // Only display the coefficient if it's not 1 (or -1) for non-constant terms.
+        if (absCoef !== 1 || power === 0) {
+            if (absCoef < LOWER_THRESHOLD || absCoef >= UPPER_THRESHOLD) {
+                term += absCoef.toExponential(3);
+            } else {
+                term += absCoef.toFixed(3);
+            }
+        }
 
-        // Add variable and power
+        // Add the variable and its exponent if needed.
         if (power > 0) {
             term += 'x';
             if (power > 1) term += toSuperscript(power);
@@ -60,6 +76,7 @@ function formatPolynomial(coefficients) {
 
     return result || '0';
 }
+
 
 
 
@@ -199,9 +216,6 @@ function SingleCalibrationPageCard() {
                         size="small"
                         icon={<TuneIcon/>}
                         label={calibration_name}
-                        clickable
-                        component={RouterLink}
-                        to={`/calibrations/${pioreactor_unit}/${device}/${calibration_name}`}
                         />
                     </TableCell>
                   </TableRow>

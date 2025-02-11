@@ -13,6 +13,7 @@ import CardContent from '@mui/material/Card';
 import {getConfig} from "./utilities"
 import FormLabel from '@mui/material/FormLabel';
 import MenuItem from '@mui/material/MenuItem';
+import IconButton from '@mui/material/IconButton';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import {DisplayProfile} from "./components/DisplayProfile"
@@ -20,6 +21,10 @@ import DisplaySourceCode from "./components/DisplaySourceCode"
 import CloseIcon from '@mui/icons-material/Close';
 import CodeIcon from '@mui/icons-material/Code';
 import AddIcon from '@mui/icons-material/Add';
+import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
+import UnderlineSpan from "./components/UnderlineSpan";
+import { RunningProfilesProvider } from './providers/RunningProfilesContext';
+import { useRunningProfiles } from './providers/RunningProfilesContext';
 
 import EditIcon from '@mui/icons-material/Edit';
 import { Link, useNavigate } from 'react-router-dom';
@@ -32,316 +37,398 @@ import { MQTTProvider, useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 import ManageExperimentMenu from "./components/ManageExperimentMenu";
 import {runPioreactorJobViaUnitAPI} from "./utilities"
+import StopIcon from '@mui/icons-material/Stop';
+import CircularProgress from '@mui/material/CircularProgress';
+import Chip from '@mui/material/Chip';
 
 
-
-function ExperimentProfilesContent({experiment, config, setRunningProfileName, setStartTime, runningProfileName}) {
+/**
+ * 1) Child component that displays the experiment profile dropdown,
+ *    the “Run profile” button, etc.
+ */
+function RunExperimentProfilesContent({
+  experiment,
+  experimentProfilesAvailable,
+  selectedExperimentProfile,
+  setSelectedExperimentProfile,
+  confirmed,
+  setConfirmed,
+  viewSource,
+  setViewSource,
+  source,
+  setSource,
+  dryRun,
+  setDryRun
+}) {
   const confirm = useConfirm();
-  const navigate = useNavigate()
-
-  const [experimentProfilesAvailable, setExperimentProfilesAvailable] = React.useState([])
-  const [selectedExperimentProfile, setSelectedExperimentProfile] = React.useState('')
-  const [confirmed, setConfirmed] = React.useState(false)
-  const [viewSource, setViewSource] = React.useState(false)
-  const [source, setSource] = React.useState("Loading...")
-  const [dryRun, setDryRun] = React.useState(false)
-  const [isProfileActive, setIsProfileActive] = React.useState(false)
-  const {client, subscribeToTopic } = useMQTT();
-
-  const leaderHostname = config['cluster.topology']?.leader_hostname
-
-
-
-  React.useEffect(() => {
-    fetch("/api/contrib/experiment_profiles")
-      .then(response => {
-        return response.json();
-      })
-      .then(profiles => {
-        const profilesByKey = profiles.reduce((acc, cur) => ({ ...acc, [cur.file]: cur.experimentProfile}), {})
-        setExperimentProfilesAvailable(profilesByKey)
-        setSelectedExperimentProfile(Object.keys(profilesByKey)[0] ?? "")
-      })
-
-  }, [])
-
-
-  React.useEffect(() => {
-    if (experiment && client){
-      subscribeToTopic(`pioreactor/+/${experiment}/experiment_profile/+`, onMessage, "ExperimentProfilesContent")
-    }
-
-  },[experiment, client])
-
-
-  const onMessage = (topic, message, packet) => {
-    const payload = message.toString()
-    const setting = topic.toString().split("/")[4]
-    if ((setting === "$state") && (payload === "ready")){
-      setIsProfileActive(true)
-    }
-    else if ((setting === "$state") && (payload === "disconnected")){
-      setIsProfileActive(false)
-      setConfirmed(false)
-    }
-    else if(setting === "experiment_profile_name") {
-      if (payload === ""){
-        setRunningProfileName(null)
-      }
-      else {
-        setRunningProfileName(payload)
-      }
-    }
-    else if(setting === "start_time_utc") {
-      setStartTime(payload === "" ? null : payload)
-    }
-  }
+  const navigate = useNavigate();
+  const { startProfile } = useRunningProfiles();
 
   const onSubmit = () => {
-    setConfirmed(true)
-    runPioreactorJobViaUnitAPI(leaderHostname, 'experiment_profile', ['execute', selectedExperimentProfile, experiment], (dryRun ? {'dry-run': null} : {}))
-  }
+    setConfirmed(true);
+    // The “selectedExperimentProfile” is the file key we pass to start
+    startProfile(selectedExperimentProfile, experiment, dryRun);
+  };
 
-  const onStop = () => {
-    confirm({
-      description: 'Stopping this profile early will stop executing new actions end all actions started by it.',
-      title: `Stop profile?`,
-      confirmationText: "Confirm",
-      confirmationButtonProps: {color: "primary"},
-      cancellationButtonProps: {color: "secondary"},
-    }).then(() => {
-      fetch(`/api/units/${leaderHostname}/jobs/update/job_name/experiment_profile/experiments/${experiment}`, {
-        method: "PATCH",
-        body: JSON.stringify({settings: {'$state': 'disconnected'}}),
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      })
-      setIsProfileActive(false)
-    }).catch(() => {});
-
-
-  }
-
+  // Similar to your original onChange
   const onSelectExperimentProfileChange = (e) => {
-    setSelectedExperimentProfile(e.target.value)
-    setViewSource(false)
-  }
+    setSelectedExperimentProfile(e.target.value);
+    setViewSource(false);
+    setConfirmed(false);
+  };
 
   const deleteProfile = () => {
     confirm({
       title: `Are you sure you wish to delete this profile?`,
       description: "This action is permanent.",
       confirmationText: "Delete",
-      confirmationButtonProps: {color: "primary"},
-      cancellationButtonProps: {color: "secondary"}, //style: {textTransform: 'none'}
-      }).then(() => {
+      confirmationButtonProps: { color: "primary" },
+      cancellationButtonProps: { color: "secondary" },
+    })
+      .then(() => {
         fetch(`/api/contrib/experiment_profiles/${selectedExperimentProfile.split('/').pop()}`, {
-              method: "DELETE",
-          }).then(res => {
-              if (res.ok) {
-                navigate(0);
-              }
-          })
-      }
-    ).catch(() => {});
-
-  }
-
-  const getSourceAndView = (e) => {
-    if (!viewSource){
-      fetch(`/api/contrib/experiment_profiles/${selectedExperimentProfile.split('/').pop()}`, {
-            method: "GET",
+          method: "DELETE",
         }).then(res => {
           if (res.ok) {
-            return res.text();
+            navigate(0);
           }
-        }).then(text => {
-          setSource(text)
         })
+      })
+      .catch(() => {});
+  };
+
+  const getSourceAndView = () => {
+    // fetch the raw file content only if we are about to toggle into “view source”
+    if (!viewSource) {
+      fetch(`/api/contrib/experiment_profiles/${selectedExperimentProfile.split('/').pop()}`, {
+        method: "GET",
+      }).then(res => {
+        if (res.ok) {
+          return res.text();
+        }
+      }).then(text => {
+        setSource(text)
+      })
     }
     setViewSource(!viewSource)
-  }
-
+  };
 
   return (
-      <Grid container spacing={1}>
-        <Grid item xs={6}>
-          <div style={{width: "100%", margin: "10px", display: "flex", justifyContent:"space-between"}}>
-            <FormControl style={{minWidth: "300px"}}>
-              <FormLabel component="legend">Experiment profile</FormLabel>
-              <Select
-                labelId="profileSelect"
-                variant="standard"
-                value={selectedExperimentProfile}
-                onChange={onSelectExperimentProfileChange}
-                label="Experiment profile"
-              >
-                {Object.keys(experimentProfilesAvailable).map((file) => {
-                  const profile = experimentProfilesAvailable[file]
-                  return <MenuItem key={file} value={file}>{profile.experiment_profile_name}</MenuItem>
-                  }
-                )}
-              </Select>
-            </FormControl>
-          </div>
-        </Grid>
-        <Grid item xs={2} />
-        <Grid container item xs={4} direction="column" alignItems="flex-end">
-          <Grid item xs={4} />
-          <Grid item xs={8} >
-            <Button
-              variant="text"
-              size="small"
-              color="primary"
-              aria-label="edit source code"
-              style={{textTransform: "none"}}
-              to={`/edit-experiment-profile?profile=${(selectedExperimentProfile || "").split("/").pop()}`}
-              component={Link}
-              disabled={ selectedExperimentProfile === ''}
+    <Grid container spacing={1}>
+      <Grid item xs={6}>
+        <Box sx={{ width: "100%", marginTop: 2,  display: "flex", justifyContent: "space-between" }}>
+          <FormControl style={{ minWidth: "300px" }}>
+            <FormLabel component="legend">Experiment profile</FormLabel>
+            <Select
+              labelId="profileSelect"
+              variant="standard"
+              value={selectedExperimentProfile}
+              onChange={onSelectExperimentProfileChange}
+              label="Experiment profile"
             >
-              <EditIcon fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Edit
-            </Button>
-            <Button
-              variant="text"
-              size="small"
-              color="primary"
-              aria-label="view source code"
-              disabled={selectedExperimentProfile === ""}
-              onClick={getSourceAndView}
-              style={{textTransform: "none"}}
-            >
-              <CodeIcon fontSize="15" sx={{verticalAlign: "middle", margin:"0px 3px"}} /> {viewSource ? "View preview": "View source"}
-            </Button>
-            <Button
-              variant="text"
-              size="small"
-              color="secondary"
-              aria-label="delete profile"
-              onClick={deleteProfile}
-              style={{marginRight: "10px", textTransform: "none"}}
-              disabled={selectedExperimentProfile === ''}
-
-            >
-              <DeleteIcon fontSize="15" sx={{verticalAlign: "middle", margin:"0px 3px"}} /> Delete
-            </Button>
-          </Grid>
-
-        </Grid>
-
-        <Grid item xs={12}>
-          {selectedExperimentProfile !== "" && !viewSource &&
-            <DisplayProfile data={experimentProfilesAvailable[selectedExperimentProfile]} />
-          }
-          {selectedExperimentProfile !== "" && viewSource &&
-            <DisplaySourceCode sourceCode={source}/>
-          }
-        </Grid>
-        <div style={{display: "flex", justifyContent: "flex-end", marginLeft: "20px"}}>
-          <SelectButton
-            variant="contained"
-            color="primary"
-            value={dryRun ? "execute_dry_run" : "execute"}
-            onClick={onSubmit}
-            endIcon={dryRun ? <PlayDisabledIcon />  : <PlayArrowIcon />}
-            disabled={confirmed || (isProfileActive)}
-            onChange={({target: { value } }) =>
-              setDryRun(value === "execute_dry_run")
-            }
-          >
-            <MenuItem value={"execute"}>Run profile</MenuItem>
-            <MenuItem value={"execute_dry_run"}>Dry-run profile</MenuItem>
-          </SelectButton>
+              {Object.keys(experimentProfilesAvailable).map((file) => {
+                const profile = experimentProfilesAvailable[file];
+                return (
+                  <MenuItem key={file} value={file}>
+                    {profile.experiment_profile_name}
+                  </MenuItem>
+                )
+              })}
+            </Select>
+          </FormControl>
+        </Box>
+      </Grid>
+      <Grid item xs={2} />
+      <Grid container item xs={4} direction="column" alignItems="flex-end">
+        <Grid item xs={4} />
+        <Grid item xs={8} >
           <Button
             variant="text"
-            color="secondary"
-            style={{marginLeft: "20px",textTransform: 'none'}}
-            onClick={onStop}
-            endIcon={ <CloseIcon /> }
-            disabled={!isProfileActive}
+            size="small"
+            color="primary"
+            aria-label="edit source code"
+            style={{ textTransform: "none" }}
+            to={`/edit-experiment-profile?profile=${(selectedExperimentProfile || "").split("/").pop()}`}
+            component={Link}
+            disabled={ selectedExperimentProfile === ''}
           >
-            Stop early
-         </Button>
-        </div>
+            <EditIcon fontSize="15" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
+            Edit
+          </Button>
+          <Button
+            variant="text"
+            size="small"
+            color="primary"
+            aria-label="view source code"
+            disabled={selectedExperimentProfile === ""}
+            onClick={getSourceAndView}
+            style={{ textTransform: "none" }}
+          >
+            <CodeIcon fontSize="15" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
+            {viewSource ? "View preview" : "View source"}
+          </Button>
+          <Button
+            variant="text"
+            size="small"
+            color="secondary"
+            aria-label="delete profile"
+            onClick={deleteProfile}
+            style={{ marginRight: "10px", textTransform: "none" }}
+            disabled={selectedExperimentProfile === ''}
+          >
+            <DeleteIcon fontSize="15" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
+            Delete
+          </Button>
+        </Grid>
       </Grid>
+
+      <Grid item xs={12}>
+        {selectedExperimentProfile !== "" && !viewSource &&
+          <DisplayProfile data={experimentProfilesAvailable[selectedExperimentProfile]} />
+        }
+        {selectedExperimentProfile !== "" && viewSource &&
+          <DisplaySourceCode sourceCode={source} />
+        }
+      </Grid>
+
+      <Box sx={{ display: "flex", justifyContent: "flex-end", marginLeft: 1 }}>
+        <SelectButton
+          variant="contained"
+          color="primary"
+          value={dryRun ? "execute_dry_run" : "execute"}
+          onClick={onSubmit}
+          endIcon={dryRun ? <PlayDisabledIcon /> : <PlayArrowIcon />}
+          disabled={confirmed}
+          onChange={({ target: { value } }) =>
+            setDryRun(value === "execute_dry_run")
+          }
+        >
+          <MenuItem value={"execute"}>Run profile</MenuItem>
+          <MenuItem value={"execute_dry_run"}>Dry-run profile</MenuItem>
+        </SelectButton>
+      </Box>
+    </Grid>
   );
 }
 
-function ProfilesContainer({experiment, config}){
-  const [runningProfileName, setRunningProfileName] = React.useState(null)
-  const [startTime, setStartTime] = React.useState(null)
 
-  return(
+/**
+ * 2) Simple container for the “Available profiles” card.
+ *    (We keep it separate just to keep the layout organized.)
+ */
+function RunProfilesContainer(props) {
+  const { experiment } = props; // from parent
+
+  return (
     <React.Fragment>
-      <Box>
-        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-          <Typography variant="h5" component="h2">
-            <Box fontWeight="fontWeightBold">
-              Experiment Profiles
-            </Box>
+      <Card>
+        <CardContent sx={{ p: 2 }}>
+          <Typography variant="h6" component="h2">
+            <Box fontWeight="fontWeightRegular">Available profiles</Box>
           </Typography>
-          <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
-            <Button to={`/create-experiment-profile`} component={Link} style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="primary">
-              <AddIcon fontSize="15" sx={{verticalAlign: "middle", margin:"0px 3px"}}/> Create new profle
-            </Button>
-            <Divider orientation="vertical" flexItem variant="middle"/>
-            <ManageExperimentMenu experiment={experiment}/>
-          </Box>
-        </Box>
-        <Divider/>
-        <Box sx={{margin: "10px 2px 10px 2px", display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
-          <Typography variant="subtitle2" sx={{flexGrow: 1}}>
-            <Box sx={{display:"inline"}}>
-              <Box fontWeight="fontWeightBold" sx={{display:"inline-block"}}>
-                <ViewTimelineOutlinedIcon sx={{ fontSize: 12, verticalAlign: "-1px" }}/> Profile running:&nbsp;
-              </Box>
-              <Box fontWeight="fontWeightRegular" sx={{mr: "1%", display:"inline-block"}}>
-                {runningProfileName || "None"}
-              </Box>
-
-              <Box fontWeight="fontWeightBold" sx={{display:"inline-block"}}>
-                <CalendarTodayIcon sx={{ fontSize: 12, verticalAlign: "-1px" }}/> Profile started at:&nbsp;
-              </Box>
-              <Box fontWeight="fontWeightRegular" sx={{mr: "1%", display:"inline-block"}}>
-                {(startTime && dayjs(startTime).format("dddd, MMMM D, h:mm a")) || "-"}
-              </Box>
-            </Box>
-
-          </Typography>
-        </Box>
-
-      </Box>
-      <Card sx={{mt: "15px"}}>
-        <CardContent sx={{p: 1}}>
-          <ExperimentProfilesContent experiment={experiment} config={config} setStartTime={setStartTime} setRunningProfileName={setRunningProfileName} runningProfileName={runningProfileName}/>
-          <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/experiment-profiles" target="_blank" rel="noopener noreferrer">experiment profiles</a>.</p>
+          {/* Pass all relevant props through */}
+          <RunExperimentProfilesContent {...props} experiment={experiment} />
         </CardContent>
       </Card>
     </React.Fragment>
-)}
+  );
+}
 
 
+/**
+ * 3) The component that lists running profiles, with a clickable Chip.
+ */
+function RunningProfilesContainer({ onChipClick }) {
+  const confirm = useConfirm();
+  const { runningProfiles, loading, stopProfile } = useRunningProfiles();
+
+  const onStop = (job_id) => {
+    confirm({
+      description: 'Stopping this profile early will stop executing new actions end all actions started by it.',
+      title: 'Stop profile?',
+      confirmationText: 'Confirm'
+    })
+      .then(() => stopProfile(job_id))
+      .catch(() => {});
+  };
+
+  return (
+    <React.Fragment>
+      <Card>
+        <CardContent sx={{ p: 2 }}>
+          <Typography variant="h6" component="h2">
+            <Box fontWeight="fontWeightRegular">Profiles Running</Box>
+          </Typography>
+          {loading && (
+            <Box sx={{ textAlign: "center", mt: 3 }}>
+              <CircularProgress size={33}/>
+            </Box>
+          )}
+          {!loading && runningProfiles.length === 0 && (
+            <p>No profiles are currently running.</p>
+          )}
+          {!loading && runningProfiles.length > 0 && (
+            <Table size="small" sx={{ mt: 3 }}>
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ padding: "6px 0px" }}>Profile name</TableCell>
+                  <TableCell align="right">Elapsed</TableCell>
+                  <TableCell align="right"></TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {runningProfiles.map((element) => (
+                  <React.Fragment key={element.job_id}>
+                    <TableRow>
+                      <TableCell sx={{ padding: "6px 0px" }}>
+                        <Chip
+                          size="small"
+                          icon={<ViewTimelineOutlinedIcon/>}
+                          label={element.settings.experiment_profile_name}
+                          clickable
+                          onClick={() => {
+                            // When user clicks, we notify parent which
+                            // profile name they selected.
+                            onChipClick(element.settings.experiment_profile_name);
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell align="right">
+                        {dayjs().diff(dayjs(element.settings.start_time_utc), 'hour', true).toFixed(1)} h
+                      </TableCell>
+                      <TableCell align="right" sx={{ width: "100px" }}>
+                        <Button color="secondary" sx={{ textTransform: "none" }} onClick={() => onStop(element.job_id)}>
+                          Stop
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  </React.Fragment>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </React.Fragment>
+  );
+}
+
+
+/**
+ * 4) Finally, the top-level “Profiles” component lifts up the profiles
+ *    and selected-profile state. We only fetch experimentProfilesAvailable
+ *    once here.
+ */
 function Profiles(props) {
-    const [config, setConfig] = React.useState({})
-    const {experimentMetadata} = useExperiment()
+  const { experimentMetadata } = useExperiment();
 
-    React.useEffect(() => {
-      getConfig(setConfig)
-    }, [])
+  const [experimentProfilesAvailable, setExperimentProfilesAvailable] = React.useState({});
+  const [selectedExperimentProfile, setSelectedExperimentProfile] = React.useState('');
+  const [confirmed, setConfirmed] = React.useState(false);
+  const [viewSource, setViewSource] = React.useState(false);
+  const [source, setSource] = React.useState("Loading...");
+  const [dryRun, setDryRun] = React.useState(false);
 
-    React.useEffect(() => {
-      document.title = props.title;
-    }, [props.title]);
-    return (
-      <MQTTProvider name="profiles" config={config} experiment={experimentMetadata.experiment}>
-        <Grid container spacing={2} >
-          <Grid item md={12} xs={12}>
-            <ProfilesContainer experiment={experimentMetadata.experiment} config={config}/>
-          </Grid>
+  React.useEffect(() => {
+    document.title = props.title;
+  }, [props.title]);
+
+  React.useEffect(() => {
+    fetch("/api/contrib/experiment_profiles")
+      .then(response => response.json())
+      .then(profiles => {
+        // shape: [ {file: "...", experimentProfile: {...}}, ... ]
+        const profilesByKey = profiles.reduce(
+          (acc, cur) => ({ ...acc, [cur.file]: cur.experimentProfile }),
+          {}
+        );
+        setExperimentProfilesAvailable(profilesByKey);
+        // if you want to auto-select the first
+        const firstKey = Object.keys(profilesByKey)[0] ?? "";
+        setSelectedExperimentProfile(firstKey);
+      });
+  }, []);
+
+
+  const handleChipClick = (profileName) => {
+    // We have to find which “file” key has a matching “experiment_profile_name”
+    const foundEntry = Object.entries(experimentProfilesAvailable).find(
+      ([, profile]) => profile.experiment_profile_name === profileName
+    );
+    if (foundEntry) {
+      const fileKey = foundEntry[0];
+      // This sets the parent's selected profile so the left panel updates
+      setSelectedExperimentProfile(fileKey);
+      // If you want to reset “viewSource” or “confirmed” each time:
+      setViewSource(false);
+      setConfirmed(false);
+    }
+  };
+
+  return (
+    <RunningProfilesProvider experiment={experimentMetadata.experiment}>
+      <Grid container spacing={2}>
+        <Grid item md={12} xs={12}>
+          <Box>
+            <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+              <Typography variant="h5" component="h2">
+                <Box fontWeight="fontWeightBold">
+                  Experiment Profiles
+                </Box>
+              </Typography>
+              <Box sx={{ display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap" }}>
+                <Button
+                  to={`/create-experiment-profile`}
+                  component={Link}
+                  style={{ textTransform: 'none', marginRight: "0px", float: "right" }}
+                  color="primary"
+                >
+                  <AddIcon fontSize="15" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
+                  Create new profile
+                </Button>
+                <Divider orientation="vertical" flexItem variant="middle" />
+                <ManageExperimentMenu experiment={experimentMetadata.experiment}/>
+              </Box>
+            </Box>
+            <Divider />
+          </Box>
         </Grid>
-      </MQTTProvider>
-    )
+
+        {/* Left side: For selecting a profile or running a new profile */}
+        <Grid item md={8} xs={12}>
+          <RunProfilesContainer
+            experiment={experimentMetadata.experiment}
+            // Pass all the “lifted” states + setters
+            experimentProfilesAvailable={experimentProfilesAvailable}
+            selectedExperimentProfile={selectedExperimentProfile}
+            setSelectedExperimentProfile={setSelectedExperimentProfile}
+            confirmed={confirmed}
+            setConfirmed={setConfirmed}
+            viewSource={viewSource}
+            setViewSource={setViewSource}
+            source={source}
+            setSource={setSource}
+            dryRun={dryRun}
+            setDryRun={setDryRun}
+          />
+        </Grid>
+
+        {/* Right side: The table of running profiles with clickable Chips */}
+        <Grid item md={4} xs={12}>
+          <RunningProfilesContainer onChipClick={handleChipClick} />
+        </Grid>
+
+        <Grid item xs={12}>
+          <p style={{ textAlign: "center", marginTop: "30px" }}>
+            Learn more about{" "}
+            <a href="https://docs.pioreactor.com/user-guide/experiment-profiles" target="_blank" rel="noopener noreferrer">
+              experiment profiles
+            </a>.
+          </p>
+        </Grid>
+      </Grid>
+    </RunningProfilesProvider>
+  );
 }
 
 export default Profiles;

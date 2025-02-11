@@ -1,7 +1,6 @@
 import { useState, useEffect, Fragment } from 'react';
 
 import Select from '@mui/material/Select';
-
 import Grid from "@mui/material/Grid";
 import MenuItem from "@mui/material/MenuItem";
 import Button from "@mui/material/Button";
@@ -23,8 +22,17 @@ function Logs(props) {
   const {unit} = useParams();
   const {experimentMetadata} = useExperiment()
   const [relabelMap, setRelabelMap] = useState({})
+  const [logLevel, setLogLevel] = useState(() => {
+    // Load logLevel from localStorage or default to "INFO"
+    return localStorage.getItem("logLevel") || "INFO";
+  });
   const [assignedUnits, setAssignedUnits] = useState([])
   const navigate = useNavigate();
+
+  useEffect(() => {
+    localStorage.setItem("logLevel", logLevel);
+  }, [logLevel]);
+
 
   useEffect(() => {
     document.title = props.title;
@@ -54,14 +62,14 @@ function Logs(props) {
   const onSelectionChange = (event) => {
     // go to the selected units /log/<unit> page
 
-    if (event.target.value === "_all"){
+    if (event.target.value === "$broadcast"){
       navigate(`/logs/`);
     }
     else{
       navigate(`/logs/${event.target.value}`);
     }
-
   }
+
 
   const handleSubmitDialog = async (newLog) => {
     try {
@@ -86,11 +94,32 @@ function Logs(props) {
         <Box>
           <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
             <Typography variant="h5" component="h2" sx={{ fontWeight: "bold" }}>
-              Detailed event logs for
+
+              <Select
+                labelId="levelSelect"
+                variant="standard"
+                value={logLevel}
+                onChange={(e) => setLogLevel(e.target.value)}
+
+                sx={{
+                  "& .MuiSelect-select": {
+                    paddingY: 0,
+                  },
+                  mr: 1,
+                  fontWeight: "bold", // Matches the title font weight
+                  fontSize: "inherit", // Inherits the Typography's font size
+                  fontFamily: "inherit", // Inherits the Typography's font family
+                }}
+              >
+                <MenuItem value="DEBUG"  >Detailed </MenuItem>
+                <MenuItem value="INFO"   >Standard </MenuItem>
+                <MenuItem value="NOTICE"> Important </MenuItem>
+              </Select>
+              event logs for
               <Select
                 labelId="configSelect"
                 variant="standard"
-                value={unit ? unit : "_all"}
+                value={unit ? unit : "$broadcast"}
                 onChange={onSelectionChange}
 
                 sx={{
@@ -106,7 +135,7 @@ function Logs(props) {
                 {assignedUnits.map((unit) => (
                   <MenuItem key={unit} value={unit}>{unit}</MenuItem>
                 ))}
-                <MenuItem value="_all"><PioreactorsIcon fontSize="15" sx={{verticalAlign: "middle", margin: "0px 4px"}} />All assigned Pioreactors</MenuItem>
+                <MenuItem value="$broadcast"><PioreactorsIcon fontSize="15" sx={{verticalAlign: "middle", margin: "0px 4px"}} />All assigned Pioreactors</MenuItem>
               </Select>
             </Typography>
             <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
@@ -125,7 +154,7 @@ function Logs(props) {
           </Box>
         </Box>
 
-          <PaginatedLogsTable unit={unit} experiment={experimentMetadata.experiment} relabelMap={relabelMap}/>
+          <PaginatedLogsTable unit={unit} experiment={experimentMetadata.experiment} relabelMap={relabelMap} logLevel={logLevel} />
         </Grid>
 
       </Grid>

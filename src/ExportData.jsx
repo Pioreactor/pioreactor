@@ -1,4 +1,5 @@
 import React from "react";
+import Divider from '@mui/material/Divider';
 
 import Grid from '@mui/material/Grid';
 import FormControl from '@mui/material/FormControl';
@@ -447,6 +448,7 @@ function ExportDataContainer() {
             </LoadingButton>
           </Box>
         </Box>
+      <Divider sx={{marginTop: "0px", marginBottom: "15px"}} />
       </Box>
       <Card >
         <CardContent sx={{p: 1}}>

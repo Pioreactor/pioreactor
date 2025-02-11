@@ -1,5 +1,6 @@
 import Avatar from "boring-avatars";
 import React from "react";
+import Divider from '@mui/material/Divider';
 
 import Select from '@mui/material/Select';
 import MenuItem from "@mui/material/MenuItem";
@@ -149,6 +150,7 @@ function PageHeader(props) {
           <InstallByNameDialog />
         </Box>
       </Box>
+      <Divider sx={{marginTop: "0px", marginBottom: "15px"}} />
     </Box>
   )
 }
@@ -204,7 +206,7 @@ function ListSuggestedPlugins({selectedUnit, installedPlugins}){
               .map((plugin, i) =>
             <ListItem key={plugin.name}>
               <ListItemAvatar>
-                <Avatar name={plugin.name+"seed1"} size={40} colors={["#5332ca", "#856edb", "#94ccc1", "#d8535e", "#f0b250"]} variant="bauhaus"/>
+                <Avatar name={plugin.name+"seed1"} size={40} colors={["#5332ca", "#856edb", "#94ccc1", "#d8535e", "#f0b250", "#e5e5e5"]} variant="bauhaus"/>
               </ListItemAvatar>
               <ListItemText
                 primary={plugin.name}
@@ -310,7 +312,7 @@ function ListInstalledPlugins({selectedUnit, installedPlugins}){
           {installedPlugins.map(( plugin, i) =>
             <ListItem key={plugin.name}>
               <ListItemAvatar>
-                  <Avatar name={plugin.name + "seed1"} size={40} colors={["#5332ca", "#94ccc1", "#d8535e", "#f0b250"]} variant="bauhaus"/>
+                  <Avatar name={plugin.name + "seed1"} size={40} colors={["#5332ca", "#94ccc1", "#d8535e", "#f0b250", "#e5e5e5"]} variant="bauhaus"/>
               </ListItemAvatar>
               <ListItemText
                 primary={`${plugin.name} ${(plugin.version === "Unknown")  ? "" : "(" + plugin.version + ")"}`}

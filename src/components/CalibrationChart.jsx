@@ -160,7 +160,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
                 key={cal.calibration_name}
                 data={scatterData}
                 style={{ data: { fill: color, fillOpacity: 0.8, } }}
-                size={3}
+                size={isHighlighted(cal) ? 4 : 3}
               />
           );
         })}

@@ -78,7 +78,7 @@ export function runPioreactorJob(unit, experiment, job, args = [], options = {},
     });
 }
 
-export function runPioreactorJobViaUnitAPI(unit, job, args = [], options = {}) {
+export function runPioreactorJobViaUnitAPI(job, args = [], options = {}) {
     return fetch(`/unit_api/jobs/run/job_name/${job}`, {
       method: "PATCH",
       body: JSON.stringify({ args: args, options: options}),
@@ -126,22 +126,28 @@ export const colors = [
   "#009988",
   "#CC3311",
   "#33BBEE",
-  "#be5f29",
+  "#BE5F29",
   "#EE3377",
-  "#8e958f",
-  "#a6cee3",
-  "#1f78b4",
-  "#33a02c",
-  "#c97b7a",
-  "#e31a1c",
-  "#fdbf6f",
-  "#cab2d6",
-  "#6a3d9a",
-  "#b15928",
+  "#8E958F",
+  "#A6CEE3",
+  "#33A02C",
+  "#C97B7A",
+  "#FDBF6F",
+  "#CAB2D6",
+  "#6A3D9A",
   "#9ACD32",
   "#40E0D0",
-  "#4682B4",
-  "#aa5caa"
+  "#737B94",
+  "#AA5CAA",
+  "#15742A",
+  "#236AD3",
+  "#445210",
+  "#62F384",
+  "#311535",
+  "#803958",
+  "#B4F2AA",
+  "#1734B8",
+
 ];
 
 export const ERROR_COLOR = "#ff7961"

@@ -64,7 +64,7 @@ function CalibrationData() {
   const [workers, setWorkers] = useState([]);
   const [calibrationDataByDevice, setCalibrationDataByDevice] = useState({});
   const [selectedDevice, setSelectedDevice] = useState(device || '');
-  const [selectedUnit, setSelectedUnit] = useState(pioreactor_unit || '_all');
+  const [selectedUnit, setSelectedUnit] = useState(pioreactor_unit || '$broadcast');
   const [onlyActive, setOnlyActive] = useState(true);
   const [highlightedModel, setHighlightedModel] = useState({pioreactorUnit: null, calibrationName: null});
   const unitsColorMap = new DefaultDict(colors)
@@ -154,9 +154,9 @@ function CalibrationData() {
     return <Typography>Something went wrong or data is incomplete. Check web server logs.</Typography>;
   }
 
-  // filter calibrations to active if onlyActive is true, and by pioreactor_unit if selectedUnit is not _all
+  // filter calibrations to active if onlyActive is true, and by pioreactor_unit if selectedUnit is not $broadcast
   const filteredCalibrations = (calibrationDataByDevice[selectedDevice] || []).filter((cal) => {
-    const allUnits = (selectedUnit === '_all');
+    const allUnits = (selectedUnit === '$broadcast');
 
     if (allUnits && onlyActive) {
       // Case 1: All units and only active
@@ -175,9 +175,12 @@ function CalibrationData() {
       return cal.pioreactor_unit === selectedUnit;
     }
   }).sort((a, b) => {
-    // Compare `is_active` (true first, false later)
-    if (a.is_active === b.is_active) return 0; // Equal
+  // Compare `is_active` (true first, false later)
+  if (a.is_active !== b.is_active) {
     return a.is_active ? -1 : 1; // true comes before false
+  }
+  // If `is_active` is the same, compare `pioreactor_unit`
+  return a.pioreactor_unit.localeCompare(b.pioreactor_unit);
   });
 
   const onMouseOverRow = (event, cal) => {
@@ -208,7 +211,7 @@ function CalibrationData() {
                     {worker}
                   </MenuItem>
                 ))}
-                  <MenuItem  value={"_all"}>
+                  <MenuItem  value={"$broadcast"}>
                     <PioreactorsIcon fontSize="15" sx={{verticalAlign: "middle", margin: "0px 4px"}} /> All Pioreactors
                   </MenuItem>
               </Select>
@@ -361,6 +364,8 @@ function CalibrationsContainer(props) {
             </Button>
           </Box>
         </Box>
+        <Divider sx={{marginTop: "0px", marginBottom: "15px"}} />
+
       </Box>
 
       <Grid container spacing={2} >

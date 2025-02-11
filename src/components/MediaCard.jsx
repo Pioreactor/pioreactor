@@ -115,24 +115,28 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
                     <Chip size="small" icon={<PioreactorIcon/>} label={relabelUnit(unit)} clickable component={Link} to={"/pioreactors/" + unit} />
                   </TableCell>
                   <TableCell align="right" style={{ fontSize: 13, padding: '6px 0px' }}>
-                    {(mediaThroughputPerUnit[unit] || 0).toFixed(1)}mL (~{(rates[unit] ? rates[unit].mediaRate.toFixed(1) : '0.0')}mL/h)
+                    {(mediaThroughputPerUnit[unit] || 0).toFixed(1)}mL ({(rates[unit] ? rates[unit].mediaRate.toFixed(1) : '0.0')}mL/h)
                   </TableCell>
                   <TableCell align="right" style={{ fontSize: 13, padding: '6px 0px' }}>
-                    {(altMediaThroughputPerUnit[unit] || 0).toFixed(1)}mL (~{(rates[unit] ? rates[unit].altMediaRate.toFixed(1) : '0.0')}mL/h)
+                    {(altMediaThroughputPerUnit[unit] || 0).toFixed(1)}mL ({(rates[unit] ? rates[unit].altMediaRate.toFixed(1) : '0.0')}mL/h)
                   </TableCell>
                 </TableRow>
               ))}
+
+              {activeUnits.length > 1 &&
               <TableRow key="all">
                 <TableCell style={{ padding: '6px 0px' }} component="th" scope="row">
                   <Chip size="small" icon={<PioreactorsIcon/>} label="All assigned Pioreactors" sx={{backgroundColor: "white"}} />
                 </TableCell>
                 <TableCell align="right" style={{ fontSize: 13, padding: '6px 0px' }}>
-                  {(mediaThroughput || 0).toFixed(1)}mL (~{rates.all.mediaRate.toFixed(1)}mL/h)
+                  {(mediaThroughput || 0).toFixed(1)}mL ({rates.all.mediaRate.toFixed(1)}mL/h)
                 </TableCell>
                 <TableCell align="right" style={{ fontSize: 13, padding: '6px 0px' }}>
-                  {(altMediaThroughput || 0).toFixed(1)}mL (~{rates.all.altMediaRate.toFixed(1)}mL/h)
+                  {(altMediaThroughput || 0).toFixed(1)}mL ({rates.all.altMediaRate.toFixed(1)}mL/h)
                 </TableCell>
               </TableRow>
+            }
+
             </TableBody>
           </Table>
         </TableContainer>

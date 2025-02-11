@@ -26,6 +26,10 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
 import CloseIcon from '@mui/icons-material/Close';
+import PioreactorsIcon from './components/PioreactorsIcon';
+import Select from '@mui/material/Select';
+import InputLabel from '@mui/material/InputLabel';
+import FormControl from '@mui/material/FormControl';
 
 const VisuallyHiddenInput = styled('input')({
   clip: 'rect(0 0 0 0)',
@@ -45,8 +49,30 @@ const lostRed = "#DE3618"
 function UploadArchiveAndConfirm(props) {
   const [selectedFile, setSelectedFile] = React.useState(null);
   const [errorMsg, setErrorMsg] = React.useState(null);
+  const [units, setUnits] = React.useState([]);
+  const [selectedUnits, setSelectedUnits] = React.useState("$broadcast");
   const [isUploading, setIsUploading] = React.useState(false);
   const handleClose = props.onClose
+
+
+  React.useEffect(() => {
+    async function fetchUnits() {
+      try {
+        const response = await fetch(`/api/units`);
+        if (response.ok) {
+          const units = await response.json();
+          setUnits(units.map(u => u.pioreactor_unit));
+        } else {
+          console.error('Failed to fetch units:', response.statusText);
+        }
+      } catch (error) {
+        console.error('Error fetching units:', error);
+      }
+    };
+    fetchUnits()
+  }, [])
+
+
 
   const handleFileChange = (event) => {
     const file = event.target.files[0]
@@ -89,7 +115,7 @@ function UploadArchiveAndConfirm(props) {
     try {
       await fetch("/api/system/update_from_archive", {
         method: "POST",
-        body: JSON.stringify({ release_archive_location: savePath }),
+        body: JSON.stringify({ release_archive_location: savePath, units: selectedUnits }),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
@@ -115,6 +141,9 @@ function UploadArchiveAndConfirm(props) {
   }
 
 
+  const onSelectionChange = (event) => {
+    setSelectedUnits(event.target.value);
+  }
 
   return (
     <React.Fragment>
@@ -131,19 +160,39 @@ function UploadArchiveAndConfirm(props) {
           <DialogContentText id="alert-dialog-description">
             {props.description}
             <p>You can update the Pioreactor software from our pre-built zip files. First download the <code>release_*.zip</code> file from our <a href="https://github.com/Pioreactor/pioreactor/releases?q=prerelease%3Afalse&expanded=true" target="_blank" rel="noopener noreferrer" >Releases page</a>, and then upload the file.</p>
-            <p>To avoid possible data interruptions, we suggest updating between running experiments.</p>
-            <p>Learn more about <a href="https://docs.pioreactor.com/user-guide/updating-software#method-2-update-using-a-zip-file-and-the-ui" target="_blank" rel="noopener noreferrer">updating from a zip file</a>.</p>
-            <br/>
-            <Button component="label" style={{textTransform: 'none'}}>Upload zip file <VisuallyHiddenInput onChange={handleFileChange} accept=".zip" type="file" /></Button>
-            {selectedFile == null ? "" : `${selectedFile.name}  ✅`}
-            <div style={{minHeight: "30px", alignItems: "center", display: "flex"}}>
+            <p>To avoid possible data interruptions, we suggest updating between running experiments.
+            Learn more about <a href="https://docs.pioreactor.com/user-guide/updating-software#method-2-update-using-a-zip-file-and-the-ui" target="_blank" rel="noopener noreferrer">updating from a zip file</a>.</p>
+
+            <Box sx={{my: 2}}>
+              <FormControl sx={{mt: 2, minWidth: "195px"}} variant="outlined" size="small">
+                <InputLabel >Units to update</InputLabel>
+                <Select
+                  labelId="configSelect"
+                  value={selectedUnits ? selectedUnits : "$broadcast"}
+                  onChange={onSelectionChange}
+                  label="Units to update"
+                >
+                  {units.map((unit) => (
+                    <MenuItem key={unit} value={unit}>{unit}</MenuItem>
+                  ))}
+                  <MenuItem value="$broadcast"><PioreactorsIcon fontSize="15" sx={{verticalAlign: "middle", margin: "0px 4px"}} />All Pioreactors</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+
+
+            <Box sx={{display: "flex", justifyContent: "start", mt: 3}}>
+              <Button variant="text" component="label" sx={{textTransform: 'none'}}>Upload zip file <VisuallyHiddenInput onChange={handleFileChange} accept=".zip" type="file" /></Button>
+              <Box sx={{m: 1, ml: 2}}>{selectedFile == null ? "" : `${selectedFile.name}  ✅`}</Box>
+            </Box>
+            <Box sx={{minHeight: "30px", alignItems: "center", display: "flex"}}>
               {errorMsg   ? <p><CloseIcon sx={{color: lostRed, fontSize: 15, verticalAlign: "middle", margin: "0px 3px"}}/>{errorMsg}</p>           : <React.Fragment/>}
-            </div>
+            </Box>
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose} color="secondary">Cancel</Button>
-          <LoadingButton loading={isUploading} disabled={selectedFile == null} onClick={handleUploadClick}>Update</LoadingButton>
+          <LoadingButton variant="contained" loading={isUploading} disabled={selectedFile == null} onClick={handleUploadClick}>Update</LoadingButton>
         </DialogActions>
       </Dialog>
     </React.Fragment>

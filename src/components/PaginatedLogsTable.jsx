@@ -67,7 +67,7 @@ const LEVELS = [
   "CRITICAL"
 ]
 
-function PaginatedLogTable({unit, experiment, relabelMap }) {
+function PaginatedLogTable({unit, experiment, relabelMap, logLevel }) {
   const [listOfLogs, setListOfLogs] = useState([]);
   const [skip, setSkip] = useState(0); // Tracks the number of logs already loaded
   const [loading, setLoading] = useState(false); // Tracks if the logs are currently loading
@@ -91,7 +91,7 @@ function PaginatedLogTable({unit, experiment, relabelMap }) {
       if (!experiment) return;
       setLoading(true);
       try {
-        const response = await fetch(getAPIURL(unit, onlyAssignedLogs));
+        const response = await fetch(getAPIURL(unit, onlyAssignedLogs) + "?min_level=" + logLevel);
         const logs = await response.json();
         setListOfLogs(
           logs.map((log, index) => ({
@@ -110,7 +110,7 @@ function PaginatedLogTable({unit, experiment, relabelMap }) {
     setSkip(0)
     getData();
 
-  }, [experiment, unit, onlyAssignedLogs]);
+  }, [experiment, unit, onlyAssignedLogs, logLevel]);
 
   const loadMoreLogs = async () => {
     setLoading(true);
@@ -135,6 +135,7 @@ function PaginatedLogTable({unit, experiment, relabelMap }) {
   };
 
 
+
   useEffect(() => {
     if (client) {
       subscribeToTopic(
@@ -147,6 +148,7 @@ function PaginatedLogTable({unit, experiment, relabelMap }) {
       LEVELS.map((level) => unsubscribeFromTopic(`pioreactor/${unit || '+'}/$experiment/logs/+/${level.toLowerCase()}`, 'PagLogTable'))
     };
   }, [client, unit]);
+
 
   useEffect(() => {
     if (experiment && client) {
@@ -161,6 +163,7 @@ function PaginatedLogTable({unit, experiment, relabelMap }) {
     };
   }, [client, experiment, unit]);
 
+
   const handleSwitchChange = (event) => {
     setOnlyAssignedLogs(!event.target.checked)
   }
@@ -168,6 +171,12 @@ function PaginatedLogTable({unit, experiment, relabelMap }) {
   const onMessage = (topic, message, packet) => {
     const unit = topic.toString().split('/')[1];
     const payload = JSON.parse(message.toString());
+    const levelOfMessage = payload.level.toUpperCase();
+
+    if (LEVELS.indexOf(levelOfMessage) < LEVELS.indexOf(logLevel)){
+      return
+    }
+
     setListOfLogs((currentLogs) =>
       [
         {
@@ -178,7 +187,7 @@ function PaginatedLogTable({unit, experiment, relabelMap }) {
           level: payload.level.toUpperCase(),
           key: `${dayjs.utc().format()}-${unit}-${payload.level.toUpperCase()}-${String(payload.message)}-00`,
         },
-        ...currentLogs.slice(0, 49),
+        ...currentLogs,
       ]);
   };
 

@@ -51,10 +51,10 @@ export default function SelfTestDialog({client, disabled, experiment, unit, labe
     if (selfTestTests == null){
       return <IndeterminateCheckBoxIcon />
     }
-    else if (selfTestTests.publishedSettings[key].value === true){
+    else if (selfTestTests.publishedSettings[key]?.value === true){
       return <CheckIcon sx={{color: readyGreen}}/>
     }
-    else if (selfTestTests.publishedSettings[key].value === false){
+    else if (selfTestTests.publishedSettings[key]?.value === false){
       return <CloseIcon sx={{color: lostRed}}/>
     }
     else if (state === "ready") {
@@ -248,6 +248,13 @@ export default function SelfTestDialog({client, disabled, experiment, unit, labe
                   {displayIcon("test_positive_correlation_between_rpm_and_stirring", selfTestState)}
                 </ListItemIcon>
                 <ListItemText primary="Stirring RPM is responsive" />
+              </ListItem>
+
+              <ListItem sx={{pt: 0, pb: 0}}>
+                <ListItemIcon sx={{minWidth: "30px"}}>
+                  {displayIcon("test_run_stirring_calibration", selfTestState)}
+                </ListItemIcon>
+                <ListItemText primary="Create stirring calibration" />
               </ListItem>
 
               <ListItem sx={{pt: 0, pb: 0}}>

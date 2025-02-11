@@ -47,7 +47,8 @@ import ActionCirculatingForm from "./components/ActionCirculatingForm"
 import ActionLEDForm from "./components/ActionLEDForm"
 import PioreactorIcon from "./components/PioreactorIcon"
 import UnderlineSpan from "./components/UnderlineSpan";
-import BioreactorDiagram from "./components/Bioreactor";
+import Bioreactor40Diagram from "./components/Bioreactor40";
+import Bioreactor20Diagram from "./components/Bioreactor20";
 import Chart from "./components/Chart";
 import LogTableByUnit from "./components/LogTableByUnit";
 import { MQTTProvider, useMQTT } from './providers/MQTTContext';
@@ -134,7 +135,7 @@ function UnitSettingDisplaySubtext(props){
 
 
 function UnitSettingDisplay(props) {
-
+  console.log(props)
   const value = props.value === null ?  ""  : props.value
 
   function prettyPrint(x){
@@ -475,41 +476,56 @@ function CalibrateDialog(props) {
 
           </TabPanel>
           <TabPanel value={tabValue} index={1}>
-            <Typography  gutterBottom>
-             Active calibrations
+            <Typography gutterBottom>
+              Active calibrations
             </Typography>
             <Typography variant="body2" component="p" gutterBottom>
-              Below are the active calibrations that will be used when running devices like pumps, stirring, etc. Read more about <a href="https://docs.pioreactor.com/user-guide/hardware-calibrations">calibrations</a>.
+              Below are the active calibrations that will be used when running devices like pumps, stirring, etc. Read more about{' '}
+              <a href="https://docs.pioreactor.com/user-guide/hardware-calibrations">calibrations</a>.
             </Typography>
 
+            {Object.entries(activeCalibrations || {}).length === 0 ? (
+              // Empty state message when there are no active calibrations.
+              <Typography variant="body2" component="p" color="textSecondary">
+                There are no active calibrations at the moment.
+              </Typography>
+            ) : (
+              // Table rendering when active calibrations exist.
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell align="left" sx={{padding: "6px 0px"}}>Device</TableCell>
-                    <TableCell align="left" sx={{padding: "6px 0px"}}>Calibration name</TableCell>
-                    <TableCell align="left" sx={{padding: "6px 0px"}}>Calibrated on</TableCell>
+                    <TableCell align="left" sx={{ padding: '6px 0px' }}>Device</TableCell>
+                    <TableCell align="left" sx={{ padding: '6px 0px' }}>Calibration name</TableCell>
+                    <TableCell align="left" sx={{ padding: '6px 0px' }}>Calibrated on</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                    {Object.entries(activeCalibrations || {}).map(([device, calibration]) => {
-                      const calName = calibration.calibration_name
-                      return (
-                        <TableRow key={calName + device}>
-                          <TableCell align="left" sx={{padding: "6px 0px"}}> {device} </TableCell>
-                          <TableCell align="left" sx={{padding: "6px 0px"}}>
-                              <Chip
-                                size="small"
-                                icon={<TuneIcon/>}
-                                label={calName}
-                                clickable component={Link} to={`/calibrations/${props.unit}/${device}/${calName}`}
-                              />
-                          </TableCell>
-                          <TableCell align="left" sx={{padding: "6px 0px"}}> {dayjs(calibration.created_at).format('YYYY-MM-DD')} </TableCell>
-                        </TableRow>
-                        )
-                      })}
-              </TableBody>
-            </Table>
+                  {Object.entries(activeCalibrations).map(([device, calibration]) => {
+                    const calName = calibration.calibration_name;
+                    return (
+                      <TableRow key={`${calName}-${device}`}>
+                        <TableCell align="left" sx={{ padding: '6px 0px' }}>
+                          {device}
+                        </TableCell>
+                        <TableCell align="left" sx={{ padding: '6px 0px' }}>
+                          <Chip
+                            size="small"
+                            icon={<TuneIcon />}
+                            label={calName}
+                            clickable
+                            component={Link}
+                            to={`/calibrations/${props.unit}/${device}/${calName}`}
+                          />
+                        </TableCell>
+                        <TableCell align="left" sx={{ padding: '6px 0px' }}>
+                          {dayjs(calibration.created_at).format('YYYY-MM-DD')}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
 
           </TabPanel>
         </DialogContent>
@@ -1585,9 +1601,6 @@ function PioreactorCard(props){
 
   useEffect(() => {
 
-    if (!isUnitActive){
-      return
-    }
 
     if (!jobFetchComplete){
       return
@@ -1617,7 +1630,7 @@ function PioreactorCard(props){
       }
     }
 
-  },[experiment, jobFetchComplete, isUnitActive, client])
+  },[experiment, jobFetchComplete, client])
 
   const onMessage = (topic, message, packet) => {
     var [job, setting] = topic.toString().split('/').slice(-2)
@@ -1966,7 +1979,7 @@ function Pioreactor({title}) {
             <UnitCard isActive={isActive} isAssignedToExperiment={experimentMetadata.experiment === assignedExperiment} unit={unit} experiment={experimentMetadata.experiment} config={config}/>
           </Grid>
           <Grid item lg={4} md={12} xs={12}>
-            <BioreactorDiagram  experiment={experimentMetadata.experiment} unit={unit} config={config}/>
+            <Bioreactor20Diagram  experiment={experimentMetadata.experiment} unit={unit} config={config}/>
           </Grid>
 
           <Grid item xs={12} md={7} container spacing={2} justifyContent="flex-start" style={{height: "100%"}}>

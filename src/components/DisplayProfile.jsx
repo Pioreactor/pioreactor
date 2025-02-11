@@ -8,6 +8,8 @@ import UnderlineSpan from "./UnderlineSpan";
 import CalculateOutlinedIcon from '@mui/icons-material/CalculateOutlined';
 import PioreactorIcon from "./PioreactorIcon"
 import PioreactorsIcon from './PioreactorsIcon';
+import { Link } from 'react-router-dom';
+import ViewTimelineOutlinedIcon from '@mui/icons-material/ViewTimelineOutlined';
 
 
 const DisplayProfileCard = {
@@ -15,7 +17,7 @@ const DisplayProfileCard = {
     overflow: "auto",
     backgroundColor: "rgb(250,250,250)",
     letterSpacing: "0em",
-    margin: "10px auto 10px auto",
+    margin: "10px 0px 10px 0px",
     position: "relative",
     width: "98%",
     border: "1px solid #ccc",
@@ -23,9 +25,9 @@ const DisplayProfileCard = {
     boxShadow: "none",
 }
 
-const level1 = { ml: '20px', whiteSpace: "nowrap"}
+const level1 = { ml: '20px', whiteSpace: "nowrap", mt: "4px"}
 const level2 = { ml: '40px', whiteSpace: "nowrap", mt: "4px"}
-const level3 = { ml: '70px', whiteSpace: "nowrap"}
+const level3 = { ml: '70px', whiteSpace: "nowrap", mt: "4px"}
 
 
 const highlight = {
@@ -43,9 +45,9 @@ const highlightedIf = highlight
 const highlightedActionType = {}
 const highlightedLogMessage = {
   borderLeft:  "3px solid #1e1e1e1e",
-  padding: "6px",
+  padding: "6px 6px",
   paddingLeft: "10px",
-  backgroundColor: "#f0f0f0",
+  backgroundColor: "#f3f3f3",
 }
 
 
@@ -83,6 +85,7 @@ function displayPioreactor(pioreactorName){
                 maxWidth: 'none'
             }}
             icon={<PioreactorIcon />}
+            clickable component={Link} to={"/pioreactors/" + pioreactorName}
             label={pioreactorName}
           />
 }
@@ -279,7 +282,7 @@ const ActionDetails = ({ action, jobName, index }) => {
       return (
         <>
           <Typography variant="body2" sx={level2}>
-            {index + 1}: {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)}, {if_} <span style={highlightedActionType}>{action.type}</span> <span style={{ fontWeight: 500 }}>{jobName}</span>
+            {index + 1}. {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)}, {if_} <span style={highlightedActionType}>{action.type}</span> <span style={{ fontWeight: 500 }}>{jobName}</span>
           </Typography>
           {renderOptions()}
           {renderInvalidOptionsMessage()}
@@ -289,11 +292,11 @@ const ActionDetails = ({ action, jobName, index }) => {
       return (
         <>
           <Typography variant="body2" sx={level2}>
-            {index + 1}: {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)}, {if_} <span style={highlightedActionType}>log</span> the message:
+            {index + 1}. {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)}, {if_} <span style={highlightedActionType}>log</span> the message:
           </Typography>
             {action.options?.message &&
             <Typography variant="body2" sx={level3}>
-              <span style={highlightedLogMessage}>"{extractAndApply(action.options.message, processBracketedExpression)}"</span>
+              <span style={highlightedLogMessage}>{extractAndApply(action.options.message, processBracketedExpression)}</span>
             </Typography>
             }
         </>
@@ -304,7 +307,7 @@ const ActionDetails = ({ action, jobName, index }) => {
       return (
         <>
           <Typography variant="body2" sx={level2}>
-            {index + 1}: {if_} <span style={highlightedActionType}>{action.type}</span> <span style={{ fontWeight: 500 }}>{jobName}</span> {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)}
+            {index + 1}. {if_} <span style={highlightedActionType}>{action.type}</span> <span style={{ fontWeight: 500 }}>{jobName}</span> {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)}
           </Typography>
         </>
       );
@@ -312,7 +315,7 @@ const ActionDetails = ({ action, jobName, index }) => {
       return (
         <>
           <Typography variant="body2" sx={level2}>
-            {index + 1}: {if_} {after(action.hours_elapsed)} {humanReadableDurationPre(action.hours_elapsed, 'missing `hours_elapsed` field')}, the first time <span style={highlightedActionType}>when</span> <span style={highlightedIf}>{processOptionalBracketedExpression(action?.condition, "missing `condition`")}</span>, execute:
+            {index + 1}. {if_} {after(action.hours_elapsed)} {humanReadableDurationPre(action.hours_elapsed, 'missing `hours_elapsed` field')}, the first time <span style={highlightedActionType}>when</span> <span style={highlightedIf}>{processOptionalBracketedExpression(action?.condition, "missing `condition`")}</span>, execute:
           </Typography>
           <Box sx={level1}>
           {Array.isArray(action.actions) && action.actions.sort((a, b) => a?.hours_elapsed - b?.hours_elapsed).map((action, index) => (
@@ -325,7 +328,7 @@ const ActionDetails = ({ action, jobName, index }) => {
       return (
         <>
           <Typography variant="body2" sx={level2}>
-            {index + 1}: {if_} {after(action.hours_elapsed)} {humanReadableDurationPre(action.hours_elapsed, 'missing `hours_elapsed` field')}, <span style={highlightedActionType}>repeat</span> the following every {humanReadableDuration(action.repeat_every_hours, 'missing `repeat_every_hours` field')},
+            {index + 1}. {if_} {after(action.hours_elapsed)} {humanReadableDurationPre(action.hours_elapsed, 'missing `hours_elapsed` field')}, <span style={highlightedActionType}>repeat</span> the following every {humanReadableDuration(action.repeat_every_hours, 'missing `repeat_every_hours` field')},
           </Typography>
           {action.while && (
             <Typography variant="body2" sx={level3}>
@@ -352,7 +355,7 @@ const ActionDetails = ({ action, jobName, index }) => {
     default:
       return <>
         <Typography variant="body2" sx={level2}>
-        {index + 1}: {if_} <UnderlineSpan title="`type` required: one of {start, stop, pause, resume, log, repeat, when}">??</UnderlineSpan>
+        {index + 1}. {if_} <UnderlineSpan title="`type` required: one of {start, stop, pause, resume, log, repeat, when}">??</UnderlineSpan>
         </Typography>
       </>;
   }
@@ -503,10 +506,7 @@ export const DisplayProfile = ({ data }) => {
   return (
     <Card sx={DisplayProfileCard}>
       <CardContent sx={{ padding: '10px' }}>
-        <Box>
-          <Typography variant="subtitle2">preview:</Typography>
-        </Box>
-          <Typography variant="h6">{data?.experiment_profile_name || <UnderlineSpan title="missing `experiment_profile_name`">??</UnderlineSpan>}</Typography>
+        <Typography variant="h6"><ViewTimelineOutlinedIcon sx={{verticalAlign: "middle", margin:"0px 3px"}}/>{data?.experiment_profile_name || <UnderlineSpan title="missing `experiment_profile_name`">??</UnderlineSpan>}</Typography>
         <AuthorSection author={data?.metadata?.author} />
         <DescriptionSection description={data?.metadata?.description} />
         <br/>

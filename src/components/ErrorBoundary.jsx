@@ -12,8 +12,14 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.log(error);
-    this.setState({errorMsg: error.message})
+    console.error(error);
+    console.log(errorInfo.componentStack);
+    this.setState({errorMsg: `${error.message}
+
+
+      ${errorInfo.componentStack}
+
+      `} )
   }
 
   render() {

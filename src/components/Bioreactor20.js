@@ -20,7 +20,7 @@ const bioreactor = {
   height: 400,
   x: (canvasDim.width - 200) / 2,
   y: (canvasDim.height - 400) / 2 - 20,
-  cornerRadius: 20,
+  cornerRadius: 10,
   stirBar: {
     maxWidth: 70,
     height: 10,
@@ -39,7 +39,7 @@ const PIN_TO_PWM = {
 }
 
 
-const BioreactorDiagram = ({experiment, unit, config}) => {
+const Bioreactor20Diagram = ({experiment, unit, config}) => {
   const {client, subscribeToTopic } = useMQTT();
 
   const canvasRef = useRef(null);
@@ -233,8 +233,16 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
 
 
     function drawTurbidLiquid(x, y, width, height, radius, turbidity) {
+      if (height <= 0){
+        return
+      }
+
       // Draw the liquid with rounded corners
-      drawRoundedRect(x, y, width, height, radius, '#E1DDFF', '#000');
+      if (height > 30){
+        drawRoundedRect(x, y, width, height, radius, '#E1DDFF', '#000');
+      } else {
+        drawRoundedRect(x, y, width, height, 10, '#E1DDFF', '#000');
+      }
 
       if (!turbidity){
         return
@@ -442,4 +450,4 @@ const BioreactorDiagram = ({experiment, unit, config}) => {
     </div>
   )}
 
-export default BioreactorDiagram;
+export default Bioreactor20Diagram;

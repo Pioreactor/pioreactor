@@ -34,6 +34,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { useConfirm } from 'material-ui-confirm';
 import { useNavigate } from 'react-router-dom';
 import UnderlineSpan from "./components/UnderlineSpan";
+import Pioreactor40Icon from "./components/Pioreactor40Icon";
 import PioreactorIcon from "./components/PioreactorIcon";
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
 import {getConfig, disconnectedGrey, lostRed, inactiveGrey, readyGreen} from "./utilities"
@@ -399,8 +400,14 @@ function WorkerCard({worker, config, leaderVersion}) {
                 ...(isActive() ? {} : { color: inactiveGrey }),
               }}
               gutterBottom>
-              <PioreactorIcon  style={{verticalAlign: "middle", marginRight: "3px"}} sx={{ display: {xs: 'none', sm: 'none', md: 'inline' } }}/>
+              {(versions.pioreactor_model !== "pioreactor_40ml") &&
+              <PioreactorIcon style={{verticalAlign: "middle", marginRight: "3px"}} sx={{ display: {xs: 'none', sm: 'none', md: 'inline' } }}/>
+              }
+              {(versions.pioreactor_model === "pioreactor_40ml") &&
+              <Pioreactor40Icon style={{verticalAlign: "middle", marginRight: "3px"}} sx={{ display: {xs: 'none', sm: 'none', md: 'inline' } }}/>
+              }
               {unit}
+
             </Typography>
             <Tooltip title={indicatorLabel} placement="right">
               <div>

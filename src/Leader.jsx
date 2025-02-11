@@ -202,7 +202,7 @@ function DirectoryNavigatorCard() {
   };
 
   return (
-    <Card sx={{minHeight: "300px"}}>
+    <Card sx={{minHeight: "300px", maxHeight: "600px", overflowY: "scroll"}}>
       <CardContent sx={{p:2}}>
          <Typography variant="h6" component="h2">
           <Box fontWeight="fontWeightRegular">File browser</Box>
@@ -486,7 +486,6 @@ function LeaderJobs(){
       )})
       .catch((error) => {
         console.error("Error fetching long-running jobs:", error);
-        // Optionally, handle the error state here
       });
   return () => {
     ignore = true;
@@ -597,7 +596,7 @@ function ClusterClockCard({leaderHostname}){
     <Card>
 
       <CardContent sx={{ p: 2 }}>
-         <Typography variant="h6" component="h2">
+        <Typography variant="h6" component="h2">
           <Box fontWeight="fontWeightRegular">Cluster clocks</Box>
         </Typography>
 
@@ -614,7 +613,8 @@ function ClusterClockCard({leaderHostname}){
         )}
 
         {!loading && !error && clockData && (
-          <Table size="small">
+          <Box>
+          <Table size="small" sx={{mt: 1}}>
             <TableHead>
               <TableRow>
                 <TableCell sx={{padding: "6px 0px"}}>Pioreactor</TableCell>
@@ -641,6 +641,7 @@ function ClusterClockCard({leaderHostname}){
               })}
             </TableBody>
           </Table>
+          </Box>
         )}
 
         <Box sx={{ mt: 4 }}>
