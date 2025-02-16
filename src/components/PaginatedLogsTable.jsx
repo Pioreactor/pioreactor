@@ -115,7 +115,7 @@ function PaginatedLogTable({unit, experiment, relabelMap, logLevel }) {
   const loadMoreLogs = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${getAPIURL(unit, onlyAssignedLogs)}?skip=${skip}`);
+      const response = await fetch(`${getAPIURL(unit, onlyAssignedLogs)}?skip=${skip}&min_level=${logLevel}`);
       const logs = await response.json();
       if (logs.length > 0) {
         setListOfLogs((prevLogs) => [

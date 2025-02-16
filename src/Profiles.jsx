@@ -285,6 +285,7 @@ function RunningProfilesContainer({ onChipClick }) {
                           size="small"
                           icon={<ViewTimelineOutlinedIcon/>}
                           label={element.settings.experiment_profile_name}
+                          sx={{maxWidth: "210px"}}
                           clickable
                           onClick={() => {
                             // When user clicks, we notify parent which

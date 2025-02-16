@@ -175,7 +175,9 @@ function UploadArchiveAndConfirm(props) {
                   {units.map((unit) => (
                     <MenuItem key={unit} value={unit}>{unit}</MenuItem>
                   ))}
+                  {units.length > 1 &&
                   <MenuItem value="$broadcast"><PioreactorsIcon fontSize="15" sx={{verticalAlign: "middle", margin: "0px 4px"}} />All Pioreactors</MenuItem>
+                  }
                 </Select>
               </FormControl>
             </Box>

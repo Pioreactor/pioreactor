@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 
 import React, { useEffect, useState } from 'react';
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   CircularProgress,
   FormControl,
@@ -23,7 +23,6 @@ import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material'
 import Chip from '@mui/material/Chip';
 import Button from '@mui/material/Button';
 import GetAppIcon from '@mui/icons-material/GetApp';
-import { useNavigate } from 'react-router-dom';
 
 import PioreactorIcon from "./components/PioreactorIcon"
 import PioreactorsIcon from './components/PioreactorsIcon';

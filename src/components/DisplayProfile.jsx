@@ -13,7 +13,7 @@ import ViewTimelineOutlinedIcon from '@mui/icons-material/ViewTimelineOutlined';
 
 
 const DisplayProfileCard = {
-    height: "350px",
+    height: "400px",
     overflow: "auto",
     backgroundColor: "rgb(250,250,250)",
     letterSpacing: "0em",
