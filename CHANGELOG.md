@@ -1,3 +1,9 @@
+### Upcoming
+
+
+#### Bug fixes
+ - When selecting "More" in the Logs UI page, the log level is used (previously would default to "Standard").
+
 ### 25.2.11
 
 ### Enhancements

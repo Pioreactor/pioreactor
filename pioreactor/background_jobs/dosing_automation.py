@@ -468,6 +468,8 @@ class DosingAutomationJob(AutomationJob):
 
                 briefer_pause()
 
+            # check exit conditions again!
+            if waste_ml > 0 and (self.state in (self.READY,)) and self.block_until_not_sleeping():
                 # run remove_waste for an additional few seconds to keep volume constant (determined by the length of the waste tube)
                 extra_waste_ml = waste_ml * config.getfloat(
                     "dosing_automation.config", "waste_removal_multiplier", fallback=2.0
@@ -547,7 +549,7 @@ class DosingAutomationJob(AutomationJob):
     def on_disconnected(self) -> None:
         with suppress(AttributeError):
             self.run_thread.join(
-                timeout=10
+                timeout=5
             )  # thread has N seconds to end. If not, something is wrong, like a while loop in execute that isn't stopping.
             if self.run_thread.is_alive():
                 self.logger.debug("run_thread still alive!")

@@ -50,6 +50,11 @@ def add_worker(hostname: str, password: str, version: str, model: str) -> None:
     """
     Add a new pioreactor worker to the cluster. The pioreactor should already have the worker image installed and is turned on.
     """
+    if hostname.endswith(".local"):
+        # exit with message
+        click.echo("Please provide the hostname without the `.local` suffix.")
+        raise click.Abort()
+
     import socket
 
     logger = create_logger(

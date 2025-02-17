@@ -14,6 +14,7 @@ import click
 from msgspec.yaml import decode
 
 from pioreactor.cluster_management import get_active_workers_in_experiment
+from pioreactor.config import config
 from pioreactor.exc import MQTTValueError
 from pioreactor.exc import NotAssignedAnExperimentError
 from pioreactor.experiment_profiles import profile_struct as struct
@@ -804,8 +805,12 @@ def _verify_experiment_profile(profile: struct.Profile) -> bool:
 
 
 def _load_experiment_profile(profile_filename: str) -> struct.Profile:
-    with open(profile_filename) as f:
-        return decode(f.read(), type=struct.Profile)
+    try:
+        with open(profile_filename) as f:
+            return decode(f.read(), type=struct.Profile)
+    except FileNotFoundError:
+        with open(f"{config.get('storage', 'experiment_profile_dir')}/{profile_filename}") as f:
+            return decode(f.read(), type=struct.Profile)
 
 
 def load_and_verify_profile(profile_filename: str) -> struct.Profile:
@@ -892,6 +897,10 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
             "start_time_utc",
             current_utc_timestamp(),
         )
+        mananged_job.publish_setting(
+            "profile_filename",
+            Path(profile_filename).name,
+        )
 
         if not is_testing_env():
             job_id = mananged_job.job_id
@@ -948,7 +957,7 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
 
                 if (assigned_experiment != experiment) and not is_testing_env():
                     logger.warning(
-                        f"There exists profile actions for {unit}, but it's not assigned to experiment {experiment}. Skipping scheduling actions."
+                        f"There exists profile actions for {unit_}, but it's not assigned to experiment {experiment}. Skipping scheduling actions."
                     )
                     continue
 
