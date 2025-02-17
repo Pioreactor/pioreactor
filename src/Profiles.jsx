@@ -27,7 +27,7 @@ import { RunningProfilesProvider } from './providers/RunningProfilesContext';
 import { useRunningProfiles } from './providers/RunningProfilesContext';
 
 import EditIcon from '@mui/icons-material/Edit';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import SelectButton from "./components/SelectButton";
 import DeleteIcon from '@mui/icons-material/Delete';
 import ViewTimelineOutlinedIcon from '@mui/icons-material/ViewTimelineOutlined';
@@ -70,11 +70,13 @@ function RunExperimentProfilesContent({
     startProfile(selectedExperimentProfile, experiment, dryRun);
   };
 
-  // Similar to your original onChange
   const onSelectExperimentProfileChange = (e) => {
-    setSelectedExperimentProfile(e.target.value);
-    setViewSource(false);
-    setConfirmed(false);
+
+    navigate(`/experiment-profiles/${e.target.value}`)
+
+    //setSelectedExperimentProfile(e.target.value);
+    //setViewSource(false);
+    //setConfirmed(false);
   };
 
   const deleteProfile = () => {
@@ -86,7 +88,7 @@ function RunExperimentProfilesContent({
       cancellationButtonProps: { color: "secondary" },
     })
       .then(() => {
-        fetch(`/api/contrib/experiment_profiles/${selectedExperimentProfile.split('/').pop()}`, {
+        fetch(`/api/contrib/experiment_profiles/${selectedExperimentProfile}`, {
           method: "DELETE",
         }).then(res => {
           if (res.ok) {
@@ -100,7 +102,7 @@ function RunExperimentProfilesContent({
   const getSourceAndView = () => {
     // fetch the raw file content only if we are about to toggle into “view source”
     if (!viewSource) {
-      fetch(`/api/contrib/experiment_profiles/${selectedExperimentProfile.split('/').pop()}`, {
+      fetch(`/api/contrib/experiment_profiles/${selectedExperimentProfile}`, {
         method: "GET",
       }).then(res => {
         if (res.ok) {
@@ -148,7 +150,7 @@ function RunExperimentProfilesContent({
             color="primary"
             aria-label="edit source code"
             style={{ textTransform: "none" }}
-            to={`/edit-experiment-profile?profile=${(selectedExperimentProfile || "").split("/").pop()}`}
+            to={`/experiment-profiles/${(selectedExperimentProfile || "")}/edit`}
             component={Link}
             disabled={ selectedExperimentProfile === ''}
           >
@@ -173,7 +175,7 @@ function RunExperimentProfilesContent({
             color="secondary"
             aria-label="delete profile"
             onClick={deleteProfile}
-            style={{ marginRight: "10px", textTransform: "none" }}
+            style={{ marginRight: "5px", textTransform: "none" }}
             disabled={selectedExperimentProfile === ''}
           >
             <DeleteIcon fontSize="15" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
@@ -238,8 +240,9 @@ function RunProfilesContainer(props) {
 /**
  * 3) The component that lists running profiles, with a clickable Chip.
  */
-function RunningProfilesContainer({ onChipClick }) {
+function RunningProfilesContainer({ }) {
   const confirm = useConfirm();
+  const navigate = useNavigate();
   const { runningProfiles, loading, stopProfile } = useRunningProfiles();
 
   const onStop = (job_id) => {
@@ -288,9 +291,7 @@ function RunningProfilesContainer({ onChipClick }) {
                           sx={{maxWidth: "210px"}}
                           clickable
                           onClick={() => {
-                            // When user clicks, we notify parent which
-                            // profile name they selected.
-                            onChipClick(element.settings.experiment_profile_name);
+                            navigate(`/experiment-profiles/${element.settings.profile_filename}`);
                           }}
                         />
                       </TableCell>
@@ -322,6 +323,7 @@ function RunningProfilesContainer({ onChipClick }) {
  */
 function Profiles(props) {
   const { experimentMetadata } = useExperiment();
+  const { profileFilename } = useParams();
 
   const [experimentProfilesAvailable, setExperimentProfilesAvailable] = React.useState({});
   const [selectedExperimentProfile, setSelectedExperimentProfile] = React.useState('');
@@ -344,27 +346,15 @@ function Profiles(props) {
           {}
         );
         setExperimentProfilesAvailable(profilesByKey);
-        // if you want to auto-select the first
-        const firstKey = Object.keys(profilesByKey)[0] ?? "";
-        setSelectedExperimentProfile(firstKey);
+
+        if (profileFilename){
+          setSelectedExperimentProfile(profileFilename);
+        } else {
+          const firstKey = Object.keys(profilesByKey)[0] ?? "";
+          setSelectedExperimentProfile(firstKey);
+        }
       });
-  }, []);
-
-
-  const handleChipClick = (profileName) => {
-    // We have to find which “file” key has a matching “experiment_profile_name”
-    const foundEntry = Object.entries(experimentProfilesAvailable).find(
-      ([, profile]) => profile.experiment_profile_name === profileName
-    );
-    if (foundEntry) {
-      const fileKey = foundEntry[0];
-      // This sets the parent's selected profile so the left panel updates
-      setSelectedExperimentProfile(fileKey);
-      // If you want to reset “viewSource” or “confirmed” each time:
-      setViewSource(false);
-      setConfirmed(false);
-    }
-  };
+  }, [profileFilename]);
 
   return (
     <RunningProfilesProvider experiment={experimentMetadata.experiment}>
@@ -379,7 +369,7 @@ function Profiles(props) {
               </Typography>
               <Box sx={{ display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap" }}>
                 <Button
-                  to={`/create-experiment-profile`}
+                  to={`/experiment-profiles/new`}
                   component={Link}
                   style={{ textTransform: 'none', marginRight: "0px", float: "right" }}
                   color="primary"
@@ -416,7 +406,7 @@ function Profiles(props) {
 
         {/* Right side: The table of running profiles with clickable Chips */}
         <Grid item md={4} xs={12}>
-          <RunningProfilesContainer onChipClick={handleChipClick} />
+          <RunningProfilesContainer />
         </Grid>
 
         <Grid item xs={12}>

@@ -145,7 +145,7 @@ function AddNewPioreactor(props){
     </Button>
     <Dialog open={open} onClose={handleClose} aria-labelledby="form-dialog-title">
       <DialogTitle>
-        Add new Pioreactor worker to your cluster
+        Add a new Pioreactor to your cluster
         <IconButton
           aria-label="close"
           onClick={handleClose}

@@ -117,9 +117,9 @@ function MainSite() {
                   <Route path="/plugins" element={<Plugins title="Pioreactor ~ Plugins"/>}/>
                   <Route path="/experiments" element={<Experiments title="Pioreactor ~ Past experiments"/>}/>
                   <Route path="/experiment-profiles" element={<Profiles title="Pioreactor ~ Experiment profiles"/>}/>
-                  <Route path="/experiment-profiles/:urlProfileName/" element={<Profiles title="Pioreactor ~ Experiment profiles"/>}/>
-                  <Route path="/create-experiment-profile" element={<CreateExperimentProfile title="Pioreactor ~ Create experiment profile"/>}/>
-                  <Route path="/edit-experiment-profile" element={<EditExperimentProfile title="Pioreactor ~ Edit experiment profile"/>}/>
+                  <Route path="/experiment-profiles/:profileFilename/" element={<Profiles title="Pioreactor ~ Experiment profiles"/>}/>
+                  <Route path="/experiment-profiles/new" element={<CreateExperimentProfile title="Pioreactor ~ Create experiment profile"/>}/>
+                  <Route path="/experiment-profiles/:profileFilename/edit" element={<EditExperimentProfile title="Pioreactor ~ Edit experiment profile"/>}/>
                   <Route path="/config" element={<EditConfig title="Pioreactor ~ Configuration"/>}/>
                   <Route path="/leader" element={<Leader title="Pioreactor ~ Leader"/>}/>
                   <Route path="/calibrations" element={<Calibrations title="Pioreactor ~ Calibrations"/>}/>

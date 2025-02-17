@@ -8,15 +8,15 @@ import 'prismjs/components/prism-yaml'; // You can add more languages or change 
 
 
 const StyledCard = styled(Card)(({ theme }) => ({
-  maxHeight: "350px",
+  height: "350px",
   overflow: "auto",
   backgroundColor: "rgb(248,248,248)",
   letterSpacing: "0em",
-  margin: "10px auto 10px auto",
+  margin: "10px 0px 10px 0px",
   position: "relative",
   width: "98%",
   border: "1px solid #ccc",
-  borderRadius: "0px",
+  borderRadius: "4px",
   boxShadow: "none"
 }));
 

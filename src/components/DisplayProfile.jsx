@@ -13,7 +13,7 @@ import ViewTimelineOutlinedIcon from '@mui/icons-material/ViewTimelineOutlined';
 
 
 const DisplayProfileCard = {
-    height: "400px",
+    height: "350px",
     overflow: "auto",
     backgroundColor: "rgb(250,250,250)",
     letterSpacing: "0em",
@@ -510,8 +510,8 @@ export const DisplayProfile = ({ data }) => {
         <AuthorSection author={data?.metadata?.author} />
         <DescriptionSection description={data?.metadata?.description} />
         <br/>
-        <PluginsSection plugins={data.plugins} />
-        <ParametersSection parameters={data.inputs} />
+        <PluginsSection plugins={data?.plugins} />
+        <ParametersSection parameters={data?.inputs} />
 
         {data?.common?.jobs && (Object.keys(data?.common?.jobs).length > 0) && <>
           <Typography variant="subtitle2">All assigned Pioreactors <PioreactorsIcon fontSize="15" sx={{verticalAlign: "middle", margin: "0px 2px 0px 0px"}} /> do:</Typography>
