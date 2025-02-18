@@ -663,7 +663,7 @@ class JobManager:
             job_id         INTEGER NOT NULL,
             created_at     TEXT NOT NULL,
             updated_at     TEXT NOT NULL,
-            FOREIGN KEY(job_id) REFERENCES pio_job_metadata(id),
+            FOREIGN KEY(job_id) REFERENCES pio_job_metadata(job_id),
             UNIQUE(setting, job_id)
         );
 
