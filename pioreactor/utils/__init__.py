@@ -757,7 +757,7 @@ class JobManager:
                     raise NameError(f"Setting {setting} was not found.")
 
     def set_not_running(self, job_id: JobMetadataKey) -> None:
-        update_query = "UPDATE pio_job_metadata SET is_running=0, ended_at=STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW') WHERE id=(?)"
+        update_query = "UPDATE pio_job_metadata SET is_running=0, ended_at=STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW') WHERE job_id=(?)"
         self.cursor.execute(update_query, (job_id,))
         return
 
