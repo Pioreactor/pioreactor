@@ -14,5 +14,9 @@ if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
     crudini  --set /home/pioreactor/.pioreactor/config.ini ui.overview.cards profiles 1
     crudini  --set /home/pioreactor/.pioreactor/config.ini storage experiment_profile_dir /home/pioreactor/.pioreactor/experiment_profiles
 
-
 fi
+
+# update firmware to 0.4
+sudo cp "$SCRIPT_DIR"/main.elf /usr/local/bin/main.elf
+sudo systemctl restart load_rp2040.service || :
+echo "Added new main.elf firmware."

@@ -116,7 +116,7 @@ def append_signal_handlers(signal_value: signal.Signals, new_callbacks: list[Cal
 
 class managed_lifecycle:
     """
-    Wrap a block of code to have "state" in MQTT. See od_normalization, self_test, pump
+    Wrap a block of code to have "state" in MQTT and persistent cache. See od_normalization, self_test, pump
 
     You can use send a "disconnected" to "pioreactor/<unit>/<exp>/<name>/$state/set" to stop/disconnect it.
 
@@ -167,31 +167,9 @@ class managed_lifecycle:
         self._source = source
         self.is_long_running_job = is_long_running_job
         self._job_source = job_source or os.environ.get("JOB_SOURCE") or "user"
-
-        last_will = {
-            "topic": f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
-            "payload": b"lost",
-            "qos": 2,
-            "retain": True,
-        }
-
-        default_mqtt_client_kwargs = {
-            "keepalive": 5 * 60,
-            "client_id": f"{self.name}-{self.unit}-{self.experiment}",
-        }
-
-        if mqtt_client:
-            self._externally_provided_client = True
-            self.mqtt_client = mqtt_client
-        else:
-            self._externally_provided_client = False
-            self.mqtt_client = create_client(
-                last_will=last_will,
-                on_disconnect=self._on_disconnect if exit_on_mqtt_disconnect else None,
-                **(default_mqtt_client_kwargs | (mqtt_client_kwargs or dict())),  # type: ignore
-            )
-
-        self.start_passive_listeners()
+        self.mqtt_client = mqtt_client
+        self.exit_on_mqtt_disconnect = exit_on_mqtt_disconnect
+        self.mqtt_client_kwargs = mqtt_client_kwargs
 
     def _exit(self, *args) -> None:
         # recall: we can't publish in a callback!
@@ -200,7 +178,7 @@ class managed_lifecycle:
     def _on_disconnect(self, *args):
         self._exit()
 
-    def __enter__(self) -> managed_lifecycle:
+    def __enter__(self) -> self:
         try:
             # this only works on the main thread.
             append_signal_handlers(signal.SIGTERM, [self._exit])
@@ -221,6 +199,31 @@ class managed_lifecycle:
                 self.is_long_running_job,
             )
 
+        last_will = {
+            "topic": f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
+            "payload": b"lost",
+            "qos": 2,
+            "retain": True,
+        }
+
+        default_mqtt_client_kwargs = {
+            "keepalive": 5 * 60,
+            "client_id": f"{self.name}-{self.unit}-{self.experiment}",
+        }
+
+        if self.mqtt_client:
+            self._externally_provided_client = True
+        else:
+            self._externally_provided_client = False
+            self.mqtt_client = create_client(
+                last_will=last_will,
+                on_disconnect=self._on_disconnect if self.exit_on_mqtt_disconnect else None,
+                **(default_mqtt_client_kwargs | (self.mqtt_client_kwargs or dict())),  # type: ignore
+            )
+        assert self.mqtt_client is not None
+
+        self.start_passive_listeners()
+
         self.state = "ready"
         self.publish_setting("$state", self.state)
 
@@ -230,6 +233,7 @@ class managed_lifecycle:
         self.state = "disconnected"
         self.publish_setting("$state", self.state)
         if not self._externally_provided_client:
+            assert self.mqtt_client is not None
             self.mqtt_client.loop_stop()
             self.mqtt_client.disconnect()
 
@@ -242,14 +246,19 @@ class managed_lifecycle:
         if message.payload == b"disconnected":
             self._exit()
 
+    def _mqtt_prefix_topic(self, unit: str, experiment: str) -> str:
+        # hack to get around https://github.com/Pioreactor/pioreactor/issues/551
+        return f"pioreactor/{unit}/{experiment}/{self.name}/"
+
     def start_passive_listeners(self) -> None:
         subscribe_and_callback(
             self.exit_from_mqtt,
             [
-                f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state/set",
-                f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{self.experiment}/{self.name}/$state/set",
-                f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{whoami.UNIVERSAL_EXPERIMENT}/{self.name}/$state/set",
-                f"pioreactor/{self.unit}/{whoami.UNIVERSAL_EXPERIMENT}/{self.name}/$state/set",
+                self._mqtt_prefix_topic(self.unit, self.experiment) + "$state/set",
+                self._mqtt_prefix_topic(self.unit, whoami.UNIVERSAL_EXPERIMENT) + "$state/set",
+                self._mqtt_prefix_topic(whoami.UNIVERSAL_IDENTIFIER, self.experiment) + "$state/set",
+                self._mqtt_prefix_topic(whoami.UNIVERSAL_IDENTIFIER, whoami.UNIVERSAL_EXPERIMENT)
+                + "$state/set",
             ],
             client=self.mqtt_client,
         )
@@ -259,11 +268,21 @@ class managed_lifecycle:
         self.exit_event.wait()
 
     def publish_setting(self, setting: str, value: Any) -> None:
+        assert self.mqtt_client is not None
         self.mqtt_client.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{self.name}/{setting}", value, retain=True
+            self._mqtt_prefix_topic(self.unit, self.experiment) + f"{setting}", value, retain=True
         )
         with JobManager() as jm:
             jm.upsert_setting(self.job_id, setting, value)
+
+
+class long_running_managed_lifecycle(managed_lifecycle):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, is_long_running_job=True, ignore_is_active_state=True, **kwargs)
+
+    def _mqtt_prefix_topic(self, unit: str, experiment: str) -> str:
+        # hack to get around https://github.com/Pioreactor/pioreactor/issues/551
+        return f"pioreactor/{unit}/{experiment}/{self.name}/{self.job_id}/"
 
 
 class cache:
@@ -624,7 +643,7 @@ class JobManager:
         # TODO: add a created_at, updated_at to pio_job_published_settings
         create_table_query = """
         CREATE TABLE IF NOT EXISTS pio_job_metadata (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            job_id       INTEGER PRIMARY KEY AUTOINCREMENT,
             unit         TEXT NOT NULL,
             experiment   TEXT NOT NULL,
             job_name     TEXT NOT NULL,
@@ -642,6 +661,8 @@ class JobManager:
             value          BLOB,
             proposed_value BLOB,
             job_id         INTEGER NOT NULL,
+            created_at     TEXT NOT NULL,
+            updated_at     TEXT NOT NULL,
             FOREIGN KEY(job_id) REFERENCES pio_job_metadata(id),
             UNIQUE(setting, job_id)
         );
@@ -692,17 +713,26 @@ class JobManager:
         else:
             # upsert
             update_query = """
-            INSERT INTO pio_job_published_settings (setting, value, job_id)
-            VALUES (:setting, :value, :job_id)
+            INSERT INTO pio_job_published_settings (setting, value, job_id, created_at, updated_at)
+            VALUES (:setting, :value, :job_id, :created_at, :updated_at)
                 ON CONFLICT (setting, job_id) DO
-                UPDATE SET value = :value;
+                UPDATE SET value = :value, updated_at = :updated_at
             """
             if isinstance(value, dict):
                 value = dumps(value).decode()  # back to string, not bytes
             elif isinstance(value, Struct):
                 value = str(value)  # complex type
 
-            self.cursor.execute(update_query, {"setting": setting, "value": value, "job_id": job_id})
+            self.cursor.execute(
+                update_query,
+                {
+                    "setting": setting,
+                    "value": value,
+                    "job_id": job_id,
+                    "created_at": current_utc_timestamp(),
+                    "updated_at": current_utc_timestamp(),
+                },
+            )
 
         return
 
@@ -715,7 +745,7 @@ class JobManager:
                 select_query = """
                     SELECT value
                         FROM pio_job_published_settings s
-                        JOIN pio_job_metadata m ON s.job_id = m.id
+                        JOIN pio_job_metadata m ON s.job_id = m.job_id
                     WHERE job_name=(?) and setting=(?) and is_running=1"""
                 self.cursor.execute(select_query, (job_name, setting))
                 result = self.cursor.fetchone()  # returns None if not found
@@ -805,18 +835,21 @@ class ClusterJobManager:
         experiment: str | None = None,
         job_name: str | None = None,
         job_source: str | None = None,
+        job_id: int | None = None,
     ) -> list[tuple[bool, dict]]:
         if len(units) == 0:
             return []
 
-        if experiment:
-            endpoint = f"/unit_api/jobs/stop/experiment/{experiment}"
-        if job_name:
-            endpoint = f"/unit_api/jobs/stop/job_name/{job_name}"
-        if job_source:
-            endpoint = f"/unit_api/jobs/stop/job_source/{job_source}"
         if all_jobs:
             endpoint = "/unit_api/jobs/stop/all"
+        elif experiment:
+            endpoint = f"/unit_api/jobs/stop/experiment/{experiment}"
+        elif job_name:
+            endpoint = f"/unit_api/jobs/stop/job_name/{job_name}"
+        elif job_source:
+            endpoint = f"/unit_api/jobs/stop/job_source/{job_source}"
+        elif job_id:
+            endpoint = f"/unit_api/jobs/stop/job_id/{job_id}"
 
         def _thread_function(unit: str) -> tuple[bool, dict]:
             try:

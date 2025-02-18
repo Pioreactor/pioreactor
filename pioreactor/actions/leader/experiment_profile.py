@@ -6,6 +6,7 @@ import time
 from collections import defaultdict
 from pathlib import Path
 from sched import scheduler
+from time import perf_counter
 from typing import Any
 from typing import Callable
 from typing import Optional
@@ -21,12 +22,11 @@ from pioreactor.experiment_profiles import profile_struct as struct
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
 from pioreactor.mureq import HTTPException
-from pioreactor.pubsub import Client
 from pioreactor.pubsub import get_from
 from pioreactor.pubsub import patch_into
 from pioreactor.pubsub import patch_into_leader
 from pioreactor.utils import ClusterJobManager
-from pioreactor.utils import managed_lifecycle
+from pioreactor.utils import long_running_managed_lifecycle
 from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_timestamp
@@ -39,6 +39,19 @@ Env = dict[str, Any]
 
 STRICT_EXPRESSION_PATTERN = r"^\${{(.*?)}}$"
 FLEXIBLE_EXPRESSION_PATTERN = r"\${{(.*?)}}"
+
+
+class ActionMetrics:
+    def __init__(self):
+        self.count = 0
+        self._start = perf_counter()
+
+    def hours_elapsed(self) -> float:
+        return seconds_to_hours(perf_counter() - self._start)
+
+    def increment(self) -> int:
+        self.count += 1
+        return self.count
 
 
 def wrap_in_try_except(func, logger: CustomLogger) -> Callable:
@@ -191,10 +204,9 @@ def wrapped_execute_action(
     job_name: str,
     logger: CustomLogger,
     schedule: scheduler,
-    elapsed_seconds_func: Callable[[], float],
-    client: Client,
+    action_metrics: ActionMetrics,
+    parent_job: long_running_managed_lifecycle,
     action: struct.Action,
-    job_id: int,
     dry_run: bool = False,
 ) -> Callable[..., None]:
     # hack...
@@ -208,45 +220,41 @@ def wrapped_execute_action(
             return start_job(
                 unit,
                 experiment,
-                client,
+                parent_job,
                 job_name,
                 dry_run,
                 if_,
                 env,
                 logger,
-                elapsed_seconds_func,
-                job_id,
+                action_metrics,
                 options,
                 args,
             )
 
         case struct.Pause(_, if_):
             return pause_job(
-                unit, experiment, client, job_name, dry_run, if_, env, logger, elapsed_seconds_func, job_id
+                unit, experiment, parent_job, job_name, dry_run, if_, env, logger, action_metrics
             )
 
         case struct.Resume(_, if_):
             return resume_job(
-                unit, experiment, client, job_name, dry_run, if_, env, logger, elapsed_seconds_func, job_id
+                unit, experiment, parent_job, job_name, dry_run, if_, env, logger, action_metrics
             )
 
         case struct.Stop(_, if_):
-            return stop_job(
-                unit, experiment, client, job_name, dry_run, if_, env, logger, elapsed_seconds_func, job_id
-            )
+            return stop_job(unit, experiment, parent_job, job_name, dry_run, if_, env, logger, action_metrics)
 
         case struct.Update(_, if_, options):
             return update_job(
                 unit,
                 experiment,
-                client,
+                parent_job,
                 job_name,
                 dry_run,
                 if_,
                 env,
                 logger,
-                elapsed_seconds_func,
-                job_id,
+                action_metrics,
                 options,
             )
 
@@ -254,14 +262,13 @@ def wrapped_execute_action(
             return log(
                 unit,
                 experiment,
-                client,
+                parent_job,
                 job_name,
                 dry_run,
                 if_,
                 env,
                 logger,
-                elapsed_seconds_func,
-                job_id,
+                action_metrics,
                 options,
             )
 
@@ -269,14 +276,13 @@ def wrapped_execute_action(
             return repeat(
                 unit,
                 experiment,
-                client,
+                parent_job,
                 job_name,
                 dry_run,
                 if_,
                 env,
                 logger,
-                elapsed_seconds_func,
-                job_id,
+                action_metrics,
                 action,
                 while_,
                 repeat_every_hours,
@@ -289,14 +295,13 @@ def wrapped_execute_action(
             return when(
                 unit,
                 experiment,
-                client,
+                parent_job,
                 job_name,
                 dry_run,
                 if_,
                 env,
                 logger,
-                elapsed_seconds_func,
-                job_id,
+                action_metrics,
                 condition,
                 action,
                 actions,
@@ -322,10 +327,9 @@ def common_wrapped_execute_action(
     global_env: Env,
     logger: CustomLogger,
     schedule: scheduler,
-    elapsed_seconds_func: Callable[[], float],
-    client: Client,
+    action_metrics: ActionMetrics,
+    parent_job: long_running_managed_lifecycle,
     action: struct.Action,
-    job_id: int,
     dry_run: bool = False,
 ) -> Callable[..., None]:
     actions_to_execute = []
@@ -338,10 +342,9 @@ def common_wrapped_execute_action(
                 job_name,
                 logger,
                 schedule,
-                elapsed_seconds_func,
-                client,
+                action_metrics,
+                parent_job,
                 action,
-                job_id,
                 dry_run,
             )
         )
@@ -352,14 +355,13 @@ def common_wrapped_execute_action(
 def when(
     unit: str,
     experiment: str,
-    client: Client,
+    parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
     if_: Optional[BoolExpression],
     env: dict,
     logger: CustomLogger,
-    elapsed_seconds_func: Callable[[], float],
-    job_id: int,
+    action_metrics: ActionMetrics,
     condition: BoolExpression,
     when_action: struct.When,
     actions: list[struct.Action],
@@ -371,7 +373,7 @@ def when(
             return
 
         nonlocal env
-        env = env | {"hours_elapsed": seconds_to_hours(elapsed_seconds_func())}
+        env = env | {"hours_elapsed": action_metrics.hours_elapsed()}
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
             try:
@@ -391,10 +393,9 @@ def when(
                             job_name,
                             logger,
                             schedule,
-                            elapsed_seconds_func,
-                            client,
+                            action_metrics,
+                            parent_job,
                             action,
-                            job_id,
                             dry_run,
                         ),
                     )
@@ -411,10 +412,9 @@ def when(
                         job_name,
                         logger,
                         schedule,
-                        elapsed_seconds_func,
-                        client,
+                        action_metrics,
+                        parent_job,
                         when_action,
-                        job_id,
                         dry_run,
                     ),
                 )
@@ -428,14 +428,13 @@ def when(
 def repeat(
     unit: str,
     experiment: str,
-    client: Client,
+    parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
     if_: Optional[BoolExpression],
     env: dict,
     logger: CustomLogger,
-    elapsed_seconds_func: Callable[[], float],
-    job_id: int,
+    action_metrics: ActionMetrics,
     repeat_action: struct.Repeat,
     while_: Optional[BoolExpression],
     repeat_every_hours: float,
@@ -449,11 +448,10 @@ def repeat(
             logger.debug(
                 f"Skipping repeat action on {unit} do to not being assigned to experiment {experiment}."
             )
-
             return
 
         nonlocal env
-        env = env | {"hours_elapsed": seconds_to_hours(elapsed_seconds_func())}
+        env = env | {"hours_elapsed": action_metrics.hours_elapsed()}
 
         if ((if_ is None) or evaluate_bool_expression(if_, env)) and (
             ((while_ is None) or evaluate_bool_expression(while_, env))
@@ -476,10 +474,9 @@ def repeat(
                         job_name,
                         logger,
                         schedule,
-                        elapsed_seconds_func,
-                        client,
+                        action_metrics,
+                        parent_job,
                         action,
-                        job_id,
                         dry_run,
                     ),
                 )
@@ -501,10 +498,9 @@ def repeat(
                         job_name,
                         logger,
                         schedule,
-                        elapsed_seconds_func,
-                        client,
+                        action_metrics,
+                        parent_job,
                         repeat_action,
-                        job_id,
                         dry_run,
                     ),
                 )
@@ -522,18 +518,20 @@ def repeat(
 def log(
     unit: str,
     experiment: str,
-    client: Client,
+    parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
     if_: Optional[BoolExpression],
     env: dict,
     logger: CustomLogger,
-    elapsed_seconds_func: Callable[[], float],
-    job_id: int,
+    action_metrics: ActionMetrics,
     options: struct._LogOptions,
 ) -> Callable[..., None]:
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
+        action_count = action_metrics.increment()
+        parent_job.publish_setting("action_count", action_count)
+
         if get_assigned_experiment_name(unit) != experiment:
             logger.debug(
                 f"Skipping log action on {unit} do to not being assigned to experiment {experiment}."
@@ -542,7 +540,7 @@ def log(
             return
 
         nonlocal env
-        env = env | {"hours_elapsed": seconds_to_hours(elapsed_seconds_func())}
+        env = env | {"hours_elapsed": action_metrics.hours_elapsed()}
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
             level = options.level.lower()
@@ -556,18 +554,20 @@ def log(
 def start_job(
     unit: str,
     experiment: str,
-    client: Client,
+    parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
     if_: Optional[BoolExpression],
     env: dict,
     logger: CustomLogger,
-    elapsed_seconds_func: Callable[[], float],
-    job_id: int,
+    action_metrics: ActionMetrics,
     options: dict,
     args: list,
 ) -> Callable[..., None]:
     def _callable() -> None:
+        action_count = action_metrics.increment()
+        parent_job.publish_setting("action_count", action_count)
+
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             logger.debug(
@@ -576,19 +576,26 @@ def start_job(
             return
 
         nonlocal env
-        env = env | {"hours_elapsed": seconds_to_hours(elapsed_seconds_func())}
+        env = env | {"hours_elapsed": action_metrics.hours_elapsed()}
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
             if dry_run:
-                logger.info(f"Dry-run: Starting {job_name} on {unit} with options {options} and args {args}.")
+                logger.info(
+                    f"{action_count}. Dry-run: Starting {job_name} on {unit} with options {options} and args {args}."
+                )
             else:
-                logger.debug(f"Starting {job_name} on {unit} with options {options} and args {args}.")
+                logger.debug(
+                    f"{action_count}. Starting {job_name} on {unit} with options {options} and args {args}."
+                )
                 patch_into(
                     resolve_to_address(unit),
                     f"/unit_api/jobs/run/job_name/{job_name}",
                     json={
                         "options": evaluate_options(options, env),
-                        "env": {"JOB_SOURCE": f"experiment_profile:{job_id}", "EXPERIMENT": experiment},
+                        "env": {
+                            "JOB_SOURCE": f"experiment_profile:{parent_job.job_id}",
+                            "EXPERIMENT": experiment,
+                        },
                         "args": args,
                     },
                 ).raise_for_status()
@@ -601,16 +608,18 @@ def start_job(
 def pause_job(
     unit: str,
     experiment: str,
-    client: Client,
+    parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
     if_: Optional[BoolExpression],
     env: dict,
     logger: CustomLogger,
-    elapsed_seconds_func: Callable[[], float],
-    job_id: int,
+    action_metrics: ActionMetrics,
 ) -> Callable[..., None]:
     def _callable() -> None:
+        action_count = action_metrics.increment()
+        parent_job.publish_setting("action_count", action_count)
+
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             logger.debug(
@@ -619,13 +628,13 @@ def pause_job(
             return
 
         nonlocal env
-        env = env | {"hours_elapsed": seconds_to_hours(elapsed_seconds_func())}
+        env = env | {"hours_elapsed": action_metrics.hours_elapsed()}
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
             if dry_run:
-                logger.info(f"Dry-run: Pausing {job_name} on {unit}.")
+                logger.info(f"{action_count}. Dry-run: Pausing {job_name} on {unit}.")
             else:
-                logger.debug(f"Pausing {job_name} on {unit}.")
+                logger.debug(f"{action_count}. Pausing {job_name} on {unit}.")
                 if check_if_job_running(unit, job_name):
                     patch_into_leader(
                         f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
@@ -642,16 +651,18 @@ def pause_job(
 def resume_job(
     unit: str,
     experiment: str,
-    client: Client,
+    parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
     if_: Optional[BoolExpression],
     env: dict,
     logger: CustomLogger,
-    elapsed_seconds_func: Callable[[], float],
-    job_id: int,
+    action_metrics: ActionMetrics,
 ) -> Callable[..., None]:
     def _callable() -> None:
+        action_count = action_metrics.increment()
+        parent_job.publish_setting("action_count", action_count)
+
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             logger.debug(
@@ -661,13 +672,13 @@ def resume_job(
             return
 
         nonlocal env
-        env = env | {"hours_elapsed": seconds_to_hours(elapsed_seconds_func())}
+        env = env | {"hours_elapsed": action_metrics.hours_elapsed()}
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
             if dry_run:
-                logger.info(f"Dry-run: Resuming {job_name} on {unit}.")
+                logger.info(f"{action_count}. Dry-run: Resuming {job_name} on {unit}.")
             else:
-                logger.debug(f"Resuming {job_name} on {unit}.")
+                logger.debug(f"{action_count}. Resuming {job_name} on {unit}.")
                 if check_if_job_running(unit, job_name):
                     patch_into_leader(
                         f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
@@ -684,16 +695,18 @@ def resume_job(
 def stop_job(
     unit: str,
     experiment: str,
-    client: Client,
+    parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
     if_: Optional[BoolExpression],
     env: dict,
     logger: CustomLogger,
-    elapsed_seconds_func: Callable[[], float],
-    job_id: int,
+    action_metrics: ActionMetrics,
 ) -> Callable[..., None]:
     def _callable() -> None:
+        action_count = action_metrics.increment()
+        parent_job.publish_setting("action_count", action_count)
+
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             logger.debug(
@@ -703,13 +716,13 @@ def stop_job(
             return
 
         nonlocal env
-        env = env | {"hours_elapsed": seconds_to_hours(elapsed_seconds_func())}
+        env = env | {"hours_elapsed": action_metrics.hours_elapsed()}
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
             if dry_run:
-                logger.info(f"Dry-run: Stopping {job_name} on {unit}.")
+                logger.info(f"{action_count}. Dry-run: Stopping {job_name} on {unit}.")
             else:
-                logger.debug(f"Stopping {job_name} on {unit}.")
+                logger.debug(f"{action_count}. Stopping {job_name} on {unit}.")
                 patch_into_leader(
                     f"/api/workers/{unit}/jobs/stop/job_name/{job_name}/experiments/{experiment}",
                 ).raise_for_status()
@@ -722,17 +735,19 @@ def stop_job(
 def update_job(
     unit: str,
     experiment: str,
-    client: Client,
+    parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
     if_: Optional[BoolExpression],
     env: dict,
     logger: CustomLogger,
-    elapsed_seconds_func: Callable[[], float],
-    job_id: int,
+    action_metrics: ActionMetrics,
     options: dict,
 ) -> Callable[..., None]:
     def _callable() -> None:
+        action_count = action_metrics.increment()
+        parent_job.publish_setting("action_count", action_count)
+
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             logger.debug(
@@ -742,16 +757,18 @@ def update_job(
             return
 
         nonlocal env
-        env = env | {"hours_elapsed": seconds_to_hours(elapsed_seconds_func())}
+        env = env | {"hours_elapsed": action_metrics.hours_elapsed()}
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
             if dry_run:
                 for setting, value in options.items():
-                    logger.info(f"Dry-run: Updating {setting} to {value} in {job_name} on {unit}.")
+                    logger.info(
+                        f"{action_count}. Dry-run: Updating {setting} to {value} in {job_name} on {unit}."
+                    )
 
             else:
                 for setting, value in evaluate_options(options, env).items():
-                    logger.debug(f"Updating {setting} to {value} in {job_name} on {unit}.")
+                    logger.debug(f"{action_count}. Updating {setting} to {value} in {job_name} on {unit}.")
                     if check_if_job_running(unit, job_name):
                         patch_into_leader(
                             f"/api/workers/{unit}/jobs/update/job_name/{job_name}/experiments/{experiment}",
@@ -880,9 +897,7 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
     unit = get_unit_name()
     action_name = "experiment_profile"
     logger = create_logger(action_name, unit=unit, experiment=experiment)
-    with managed_lifecycle(
-        unit, experiment, action_name, ignore_is_active_state=True, is_long_running_job=True
-    ) as mananged_job:
+    with long_running_managed_lifecycle(unit, experiment, action_name) as mananged_job:
         try:
             profile = load_and_verify_profile(profile_filename)
         except Exception as e:
@@ -927,64 +942,62 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
 
         sched = scheduler()
 
-        with catchtime() as elapsed_seconds_func:
-            # process common
-            for job_name, job in profile.common.jobs.items():
+        action_metrics = ActionMetrics()
+
+        for job_name, job in profile.common.jobs.items():
+            for action in job.actions:
+                sched.enter(
+                    delay=hours_to_seconds(action.hours_elapsed),
+                    priority=get_simple_priority(action),
+                    action=common_wrapped_execute_action(
+                        experiment,
+                        job_name,
+                        global_env,
+                        logger,
+                        sched,
+                        action_metrics,
+                        mananged_job,
+                        action,
+                        dry_run,
+                    ),
+                )
+
+        # process specific pioreactors
+        for unit_ in profile.pioreactors:
+            try:
+                assigned_experiment = get_assigned_experiment_name(unit_)
+            except NotAssignedAnExperimentError:
+                assigned_experiment = None
+
+            if (assigned_experiment != experiment) and not is_testing_env():
+                logger.warning(
+                    f"There exists profile actions for {unit_}, but it's not assigned to experiment {experiment}. Skipping scheduling actions."
+                )
+                continue
+
+            pioreactor_specific_block = profile.pioreactors[unit_]
+            if pioreactor_specific_block.label is not None:
+                label = pioreactor_specific_block.label
+                push_labels_to_ui(experiment, {unit_: label})
+
+            for job_name, job in pioreactor_specific_block.jobs.items():
                 for action in job.actions:
                     sched.enter(
                         delay=hours_to_seconds(action.hours_elapsed),
                         priority=get_simple_priority(action),
-                        action=common_wrapped_execute_action(
+                        action=wrapped_execute_action(
+                            unit_,
                             experiment,
-                            job_name,
                             global_env,
+                            job_name,
                             logger,
                             sched,
-                            elapsed_seconds_func,
-                            mananged_job.mqtt_client,
+                            action_metrics,
+                            mananged_job,
                             action,
-                            job_id,
                             dry_run,
                         ),
                     )
-
-            # process specific pioreactors
-            for unit_ in profile.pioreactors:
-                try:
-                    assigned_experiment = get_assigned_experiment_name(unit_)
-                except NotAssignedAnExperimentError:
-                    assigned_experiment = None
-
-                if (assigned_experiment != experiment) and not is_testing_env():
-                    logger.warning(
-                        f"There exists profile actions for {unit_}, but it's not assigned to experiment {experiment}. Skipping scheduling actions."
-                    )
-                    continue
-
-                pioreactor_specific_block = profile.pioreactors[unit_]
-                if pioreactor_specific_block.label is not None:
-                    label = pioreactor_specific_block.label
-                    push_labels_to_ui(experiment, {unit_: label})
-
-                for job_name, job in pioreactor_specific_block.jobs.items():
-                    for action in job.actions:
-                        sched.enter(
-                            delay=hours_to_seconds(action.hours_elapsed),
-                            priority=get_simple_priority(action),
-                            action=wrapped_execute_action(
-                                unit_,
-                                experiment,
-                                global_env,
-                                job_name,
-                                logger,
-                                sched,
-                                elapsed_seconds_func,
-                                mananged_job.mqtt_client,
-                                action,
-                                job_id,
-                                dry_run,
-                            ),
-                        )
 
         logger.debug("Starting execution of actions.")
 
@@ -1007,19 +1020,17 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
                 # we can use active workers in experiment, since if a worker leaves an experiment or goes inactive, it's jobs are stopped
                 workers = get_active_workers_in_experiment(experiment)
                 with ClusterJobManager() as cjm:
-                    cjm.kill_jobs(workers, experiment=experiment, job_source=f"experiment_profile:{job_id}")
+                    cjm.kill_jobs(workers, experiment=experiment, job_source=f"experiment_profile/{job_id}")
 
             else:
                 time.sleep(
                     0.5
                 )  # wait N second for last commands to finish being sent and processed, else the user sees out of order events.
                 if dry_run:
-                    logger.info(  # type: ignore
-                        f"Finished executing DRY-RUN of profile {profile.experiment_profile_name}."
-                    )
+                    logger.info(f"Finished executing DRY-RUN of profile {profile.experiment_profile_name}.")
 
                 else:
-                    logger.info(f"Finished executing profile {profile.experiment_profile_name}.")  # type: ignore
+                    logger.info(f"Finished executing profile {profile.experiment_profile_name}.")
 
             mananged_job.publish_setting("experiment_profile_name", None)
             mananged_job.publish_setting("start_time_utc", None)

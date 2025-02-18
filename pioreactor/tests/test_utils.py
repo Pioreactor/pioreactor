@@ -307,10 +307,10 @@ def test_empty_ClusterJobManager() -> None:
 def test_upsert_setting_insert(job_manager, job_id):
     # Test inserting a new setting-value pair for a job
     setting = "setting1"
-    value = "value1"
+    value1 = "value1"
 
     # Call the upsert_setting function
-    job_manager.upsert_setting(job_id, setting, value)
+    job_manager.upsert_setting(job_id, setting, value1)
 
     # Verify the setting was inserted correctly
     job_manager.cursor.execute(
@@ -318,7 +318,20 @@ def test_upsert_setting_insert(job_manager, job_id):
     )
     result = job_manager.cursor.fetchone()
     assert result is not None
-    assert result[0] == value
+    assert result[0] == value1
+
+    # Call the upsert_setting function
+    value2 = "value2"
+    job_manager.upsert_setting(job_id, setting, value2)
+    # Verify the setting was updated
+    job_manager.cursor.execute(
+        "SELECT value, updated_at == created_at FROM pio_job_published_settings WHERE job_id=? AND setting=?",
+        (job_id, setting),
+    )
+    result = job_manager.cursor.fetchone()
+    assert result is not None
+    assert result[0] == value2
+    assert not result[1]
 
 
 def test_upsert_setting_insert_complex_types(job_manager, job_id):

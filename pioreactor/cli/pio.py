@@ -156,7 +156,7 @@ def kill(
 
     with JobManager() as jm:
         count = jm.kill_jobs(
-            all_jobs=all_jobs, job_name=job_name, experiment=experiment, job_source=job_source, id=job_id
+            all_jobs=all_jobs, job_name=job_name, experiment=experiment, job_source=job_source, job_id=job_id
         )
     click.echo(f"Killed {count} job{'s' if count != 1 else ''}.")
 

@@ -1,8 +1,13 @@
 ### Upcoming
 
+ - adding updated_at and created_at columns to pio_metadata_settings table
+
+#### Breaking changes
+ - id -> job_id  in pio_metadata_settings table
 
 #### Bug fixes
  - When selecting "More" in the Logs UI page, the log level is used (previously would default to "Standard").
+ - experiment profiles don't overwrite each other in mqtt, but at a cost!
 
 ### 25.2.11
 
