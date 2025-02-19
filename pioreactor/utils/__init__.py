@@ -9,13 +9,14 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from functools import wraps
-from os import getpid
+from subprocess import run
 from threading import Event
 from typing import Any
 from typing import Callable
 from typing import cast
 from typing import Generator
 from typing import overload
+from typing import Self
 from typing import Sequence
 from typing import TYPE_CHECKING
 
@@ -28,6 +29,7 @@ from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.config import config
+from pioreactor.config import get_leader_hostname
 from pioreactor.exc import JobRequiredError
 from pioreactor.exc import NotActiveWorkerError
 from pioreactor.exc import RoleError
@@ -166,19 +168,8 @@ class managed_lifecycle:
         self.exit_event = Event()
         self._source = source
         self.is_long_running_job = is_long_running_job
-        self._job_source = job_source or os.environ.get("JOB_SOURCE") or "user"
-        self.mqtt_client = mqtt_client
-        self.exit_on_mqtt_disconnect = exit_on_mqtt_disconnect
-        self.mqtt_client_kwargs = mqtt_client_kwargs
+        self._job_source = job_source or os.environ.get("JOB_SOURCE", "user")
 
-    def _exit(self, *args) -> None:
-        # recall: we can't publish in a callback!
-        self.exit_event.set()
-
-    def _on_disconnect(self, *args):
-        self._exit()
-
-    def __enter__(self) -> self:
         try:
             # this only works on the main thread.
             append_signal_handlers(signal.SIGTERM, [self._exit])
@@ -194,13 +185,19 @@ class managed_lifecycle:
                 self.experiment,
                 self.name,
                 self._job_source,
-                getpid(),
-                "",  # TODO: why is leader string empty? perf?
+                os.getpid(),
+                get_leader_hostname(),
                 self.is_long_running_job,
             )
 
+        if self.is_long_running_job:  # shitty proxy for "allow duplicate jobs", see #551
+            # eventually, we will move all of mqtt topics to this format
+            self.job_key = f"{self.name}/{self.job_id}"
+        else:
+            self.job_key = f"{self.name}"
+
         last_will = {
-            "topic": f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
+            "topic": f"pioreactor/{self.unit}/{self.experiment}/{self.job_key}/$state",
             "payload": b"lost",
             "qos": 2,
             "retain": True,
@@ -208,22 +205,34 @@ class managed_lifecycle:
 
         default_mqtt_client_kwargs = {
             "keepalive": 5 * 60,
-            "client_id": f"{self.name}-{self.unit}-{self.experiment}",
+            "client_id": f"{self.job_key}-{self.unit}-{self.experiment}",
         }
 
-        if self.mqtt_client:
+        if mqtt_client is not None:
+            self.mqtt_client = mqtt_client
             self._externally_provided_client = True
         else:
             self._externally_provided_client = False
             self.mqtt_client = create_client(
                 last_will=last_will,
-                on_disconnect=self._on_disconnect if self.exit_on_mqtt_disconnect else None,
-                **(default_mqtt_client_kwargs | (self.mqtt_client_kwargs or dict())),  # type: ignore
+                on_disconnect=self._on_disconnect if exit_on_mqtt_disconnect else None,
+                **(default_mqtt_client_kwargs | (mqtt_client_kwargs or dict())),  # type: ignore
             )
         assert self.mqtt_client is not None
 
+        self.state = "init"
+        self.publish_setting("$state", self.state)
+
         self.start_passive_listeners()
 
+    def _exit(self, *args) -> None:
+        # recall: we can't publish in a callback!
+        self.exit_event.set()
+
+    def _on_disconnect(self, *args):
+        self._exit()
+
+    def __enter__(self) -> Self:
         self.state = "ready"
         self.publish_setting("$state", self.state)
 
@@ -246,19 +255,14 @@ class managed_lifecycle:
         if message.payload == b"disconnected":
             self._exit()
 
-    def _mqtt_prefix_topic(self, unit: str, experiment: str) -> str:
-        # hack to get around https://github.com/Pioreactor/pioreactor/issues/551
-        return f"pioreactor/{unit}/{experiment}/{self.name}/"
-
     def start_passive_listeners(self) -> None:
         subscribe_and_callback(
             self.exit_from_mqtt,
             [
-                self._mqtt_prefix_topic(self.unit, self.experiment) + "$state/set",
-                self._mqtt_prefix_topic(self.unit, whoami.UNIVERSAL_EXPERIMENT) + "$state/set",
-                self._mqtt_prefix_topic(whoami.UNIVERSAL_IDENTIFIER, self.experiment) + "$state/set",
-                self._mqtt_prefix_topic(whoami.UNIVERSAL_IDENTIFIER, whoami.UNIVERSAL_EXPERIMENT)
-                + "$state/set",
+                f"pioreactor/{self.unit}/{self.experiment}/{self.job_key}/$state/set",
+                f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{self.experiment}/{self.job_key}/$state/set",
+                f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{whoami.UNIVERSAL_EXPERIMENT}/{self.job_key}/$state/set",
+                f"pioreactor/{self.unit}/{whoami.UNIVERSAL_EXPERIMENT}/{self.job_key}/$state/set",
             ],
             client=self.mqtt_client,
         )
@@ -270,19 +274,36 @@ class managed_lifecycle:
     def publish_setting(self, setting: str, value: Any) -> None:
         assert self.mqtt_client is not None
         self.mqtt_client.publish(
-            self._mqtt_prefix_topic(self.unit, self.experiment) + f"{setting}", value, retain=True
+            f"pioreactor/{self.unit}/{self.experiment}/{self.job_key}/{setting}", value, retain=True
         )
         with JobManager() as jm:
             jm.upsert_setting(self.job_id, setting, value)
 
 
 class long_running_managed_lifecycle(managed_lifecycle):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, is_long_running_job=True, ignore_is_active_state=True, **kwargs)
-
-    def _mqtt_prefix_topic(self, unit: str, experiment: str) -> str:
-        # hack to get around https://github.com/Pioreactor/pioreactor/issues/551
-        return f"pioreactor/{unit}/{experiment}/{self.name}/{self.job_id}/"
+    def __init__(
+        self,
+        unit: str,
+        experiment: str,
+        name: str,
+        mqtt_client: Client | None = None,
+        exit_on_mqtt_disconnect: bool = False,
+        mqtt_client_kwargs: dict | None = None,
+        source: str = "app",
+        job_source: str | None = None,
+    ) -> None:
+        super().__init__(
+            unit,
+            experiment,
+            name,
+            is_long_running_job=True,
+            ignore_is_active_state=True,
+            mqtt_client=mqtt_client,
+            exit_on_mqtt_disconnect=exit_on_mqtt_disconnect,
+            mqtt_client_kwargs=mqtt_client_kwargs,
+            source=source,
+            job_source=job_source,
+        )
 
 
 class cache:
@@ -602,18 +623,16 @@ def exception_retry(func: Callable, retries: int = 3, sleep_for: float = 0.5, ar
             time.sleep(sleep_for)
 
 
-def safe_kill(*args: str) -> None:
-    from subprocess import run
-
-    try:
-        run(("kill", "-2") + args)
-    except Exception:
-        pass
-
-
 class ShellKill:
     def __init__(self) -> None:
         self.list_of_pids: list[int] = []
+
+    @staticmethod
+    def safe_kill(*args: str) -> None:
+        try:
+            run(("kill", "-2") + args)
+        except Exception:
+            pass
 
     def append(self, pid: int) -> None:
         self.list_of_pids.append(pid)
@@ -622,9 +641,18 @@ class ShellKill:
         if len(self.list_of_pids) == 0:
             return 0
 
-        safe_kill(*(str(pid) for pid in self.list_of_pids))
+        self.safe_kill(*(str(pid) for pid in self.list_of_pids))
 
         return len(self.list_of_pids)
+
+
+class LEDKill:
+    def kill_jobs(self) -> int:
+        try:
+            run(("pio", "run", "led_intensity", "--A", "0", "--B", "0", "--C", "0", "--D", "0"))
+            return 1
+        except Exception:
+            return 0
 
 
 class JobManager:
@@ -703,6 +731,11 @@ class JobManager:
         assert isinstance(self.cursor.lastrowid, int)
         return self.cursor.lastrowid
 
+    def get_job_id(self, job_name: str) -> int:
+        select_query = "SELECT job_id FROM pio_job_metadata WHERE job_name=(?) and is_running=1"
+        self.cursor.execute(select_query, (job_name,))
+        return self.cursor.fetchone()[0]
+
     def upsert_setting(self, job_id: JobMetadataKey, setting: str, value: Any) -> None:
         if value is None:
             # delete
@@ -762,11 +795,11 @@ class JobManager:
         return
 
     def is_job_running(self, job_name: str) -> bool:
-        select_query = """SELECT pid FROM pio_job_metadata WHERE job_name=(?) and is_running=1"""
+        select_query = """SELECT 1 FROM pio_job_metadata WHERE job_name=(?) AND is_running=1"""
         self.cursor.execute(select_query, (job_name,))
-        return len(self.cursor.fetchall()) > 0
+        return self.cursor.fetchone() is not None
 
-    def _get_jobs(self, all_jobs: bool = False, **query) -> list[tuple[str, int]]:
+    def _get_jobs(self, all_jobs: bool = False, **query) -> list[tuple[str, int, int]]:
         if not all_jobs:
             # Construct the WHERE clause based on the query parameters
             where_clause = " AND ".join([f"{key} = :{key}" for key in query.keys() if query[key] is not None])
@@ -774,7 +807,7 @@ class JobManager:
             # Construct the SELECT query
             select_query = f"""
                 SELECT
-                    job_name, pid
+                    job_name, pid, job_id
                 FROM pio_job_metadata
                 WHERE is_running=1
                 AND {where_clause};
@@ -800,10 +833,13 @@ class JobManager:
         shell_kill = ShellKill()
         count = 0
 
-        for job, pid in self._get_jobs(all_jobs, **query):
+        for job, pid, job_id in self._get_jobs(all_jobs, **query):
             if job == "led_intensity":
-                # led_intensity doesn't register with the JobManager, probably should somehow. #502
-                continue
+                success = LEDKill().kill_jobs()
+                if success:
+                    count += 1
+                    self.set_not_running(job_id)
+
             else:
                 shell_kill.append(pid)
 

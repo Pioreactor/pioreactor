@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import os
 from contextlib import contextmanager
 from contextlib import nullcontext
-from os import getpid
 from typing import Any
 from typing import Iterator
 
@@ -18,6 +18,7 @@ from pioreactor.pubsub import create_client
 from pioreactor.pubsub import QOS
 from pioreactor.types import LedChannel
 from pioreactor.types import LedIntensityValue
+from pioreactor.utils import JobManager
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_assigned_experiment_name
@@ -59,7 +60,7 @@ def lock_leds_temporarily(channels: list[LedChannel]) -> Iterator[None]:
     try:
         with local_intermittent_storage("led_locks") as cache:
             for c in channels:
-                cache[c] = getpid()
+                cache[c] = os.getpid()
         yield
     finally:
         with local_intermittent_storage("led_locks") as cache:
@@ -197,6 +198,22 @@ def led_intensity(
             qos=QOS.AT_MOST_ONCE,
             retain=True,
         )
+
+        with JobManager() as jm:
+            if not jm.is_job_running("led_intensity"):
+                job_id = jm.register_and_set_running(
+                    unit,
+                    experiment,
+                    "led_intensity",
+                    os.environ.get("JOB_SOURCE", "user"),
+                    os.getpid(),
+                    "",
+                    False,
+                )
+            else:
+                job_id = jm.get_job_id("led_intensity")
+
+            jm.upsert_setting(job_id, "intensity", encode(new_state))
 
         if verbose:
             timestamp_of_change = current_utc_datetime()

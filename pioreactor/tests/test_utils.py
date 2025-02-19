@@ -235,7 +235,7 @@ def test_register_and_set_running(job_manager: JobManager) -> None:
     )
     assert isinstance(job_key, JobMetadataKey)
     job = job_manager.conn.execute(
-        "SELECT unit, experiment, job_name, job_source, pid, leader, is_running, is_long_running_job FROM pio_job_metadata WHERE id=?",
+        "SELECT unit, experiment, job_name, job_source, pid, leader, is_running, is_long_running_job FROM pio_job_metadata WHERE job_id=?",
         (job_key,),
     ).fetchone()
     assert job is not None
@@ -256,7 +256,7 @@ def test_set_not_running(job_manager: JobManager) -> None:
     )
     job_manager.set_not_running(job_key)
     job = job_manager.conn.execute(
-        "SELECT is_running FROM pio_job_metadata WHERE id=?", (job_key,)
+        "SELECT is_running FROM pio_job_metadata WHERE job_id=?", (job_key,)
     ).fetchone()
     assert job is not None
     assert job[0] == 0

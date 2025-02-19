@@ -28,7 +28,6 @@ from pioreactor.pubsub import patch_into_leader
 from pioreactor.utils import ClusterJobManager
 from pioreactor.utils import long_running_managed_lifecycle
 from pioreactor.utils.networking import resolve_to_address
-from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
@@ -593,7 +592,7 @@ def start_job(
                     json={
                         "options": evaluate_options(options, env),
                         "env": {
-                            "JOB_SOURCE": f"experiment_profile:{parent_job.job_id}",
+                            "JOB_SOURCE": parent_job.job_key,
                             "EXPERIMENT": experiment,
                         },
                         "args": args,
@@ -917,11 +916,6 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
             Path(profile_filename).name,
         )
 
-        if not is_testing_env():
-            job_id = mananged_job.job_id
-        else:
-            job_id = 1
-
         if dry_run:
             logger.notice(  # type: ignore
                 f"Executing DRY-RUN of profile {profile.experiment_profile_name}, sourced from {Path(profile_filename).name}. See logs."
@@ -1020,7 +1014,7 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
                 # we can use active workers in experiment, since if a worker leaves an experiment or goes inactive, it's jobs are stopped
                 workers = get_active_workers_in_experiment(experiment)
                 with ClusterJobManager() as cjm:
-                    cjm.kill_jobs(workers, experiment=experiment, job_source=f"experiment_profile/{job_id}")
+                    cjm.kill_jobs(workers, experiment=experiment, job_source=mananged_job.job_key)
 
             else:
                 time.sleep(

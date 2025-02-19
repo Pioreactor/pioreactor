@@ -421,8 +421,8 @@ class ADCReader(LoggerMixin):
                         max(
                             0,
                             -time_sampling_took_to_run()  # the time_sampling_took_to_run() reduces the variance by accounting for the duration of each sampling.
-                            + 0.85 / (oversampling_count - 1)  # aim for 0.85s per read
-                            + 0.0012
+                            + 0.85
+                            / (oversampling_count - 1)  # aim for 0.85s per read
                             * (
                                 (counter * 0.618034) % 1
                             ),  # this is to artificially jitter the samples, so that we observe less aliasing. That constant is phi.
