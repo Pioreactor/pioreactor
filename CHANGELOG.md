@@ -1,17 +1,17 @@
 ### Upcoming
 
 #### Enhancements
- - logs for experiment profiles show the step number.
-
- - adding updated_at and created_at columns to pio_metadata_settings table
+ - logs for experiment profiles show a step number.
 
 #### Breaking changes
  - id -> job_id  in pio_metadata_settings table
+ - adding updated_at and created_at columns to pio_metadata_settings table
 
 #### Bug fixes
  - When selecting "More" in the Logs UI page, the log level is used (previously would default to "Standard").
  - experiment profiles don't overwrite each other in mqtt, but at a cost!
  - `led_intensity` is now registered in our database, so `pio kill --all-jobs` (and related `pio kill` commands) now disables LEDs too.
+ - Fix API not providing the correct web response for huey-related tasks (like adding a new pioreactor, syncing configs, updating, etc.)
 
 ### 25.2.11
 

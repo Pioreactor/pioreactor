@@ -200,8 +200,11 @@ def led_intensity(
         )
 
         with JobManager() as jm:
-            if not jm.is_job_running("led_intensity"):
-                job_id = jm.register_and_set_running(
+            if jm.does_pid_exist(os.getpid()) or new_state == {"A": 0, "B": 0, "C": 0, "D": 0}:
+                # part of a larger job, or turning off LEDs.
+                pass
+            else:
+                jm.register_and_set_running(
                     unit,
                     experiment,
                     "led_intensity",
@@ -210,10 +213,6 @@ def led_intensity(
                     "",
                     False,
                 )
-            else:
-                job_id = jm.get_job_id("led_intensity")
-
-            jm.upsert_setting(job_id, "intensity", encode(new_state))
 
         if verbose:
             timestamp_of_change = current_utc_datetime()

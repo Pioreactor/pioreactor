@@ -1007,7 +1007,7 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
             if mananged_job.exit_event.is_set():
                 # ended early
 
-                logger.notice(f"Stopping profile {profile.experiment_profile_name} early: {len(sched.queue)} action(s) not started, and stopping all started action(s).")  # type: ignore
+                logger.notice(f"Stopping profile {profile.experiment_profile_name} early: {action_metrics.count} actions(s) completed, {len(sched.queue)} action(s) not started, and stopping all started jobs.")  # type: ignore
                 # stop all jobs started
                 # we can use active workers in experiment, since if a worker leaves an experiment or goes inactive, it's jobs are stopped
                 workers = get_active_workers_in_experiment(experiment)

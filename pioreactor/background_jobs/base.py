@@ -901,14 +901,19 @@ class _BackgroundJob(metaclass=PostInitCaller):
         From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
         Use "persist" to keep it from clearing.
         """
+
+        # iterate twice since publish and upsert_setting are slow, and I don't want to block the db.
+        for setting, metadata_on_attr in self.published_settings.items():
+            if not metadata_on_attr.get("persist", False):
+                self.publish(
+                    f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting}",
+                    None,
+                    retain=True,
+                )
+
         with JobManager() as jm:
             for setting, metadata_on_attr in self.published_settings.items():
                 if not metadata_on_attr.get("persist", False):
-                    self.publish(
-                        f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting}",
-                        None,
-                        retain=True,
-                    )
                     jm.upsert_setting(self.job_id, setting, None)
 
     def _check_for_duplicate_activity(self) -> None:

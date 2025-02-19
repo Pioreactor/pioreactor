@@ -585,44 +585,6 @@ def boolean_retry(
     return False
 
 
-def exception_retry(func: Callable, retries: int = 3, sleep_for: float = 0.5, args=(), kwargs={}) -> Any:
-    """
-    Retries a function upon encountering an exception until it succeeds or the maximum number of retries is exhausted.
-
-    Parameters
-    -----------
-    func (callable): The function to be retried.
-    retries (int, optional): The maximum number of times to retry the function. Defaults to 3.
-    delay (float, optional): The number of seconds to wait between retries. Defaults to 0.5.
-    args (tuple, optional): The positional arguments to pass to the function. Defaults to an empty tuple.
-    kwargs (dict, optional): The keyword arguments to pass to the function. Defaults to an empty dictionary.
-
-    Returns
-    --------
-    The return value of the function call, if the function call is successful.
-
-    Raises
-    --------
-    Exception: The exception raised by the function call if the function call is unsuccessful after the specified number of retries.
-
-    Example
-    --------
-
-    > def risky_function(x, y):
-    >     return x / y
-    >
-    > # Call the function with retry
-    > result = exception_retry(risky_function, retries=5, sleep_for=1, args=(10, 0))
-    """
-    for i in range(retries):
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            if i == retries - 1:  # If this was the last attempt
-                raise e
-            time.sleep(sleep_for)
-
-
 class ShellKill:
     def __init__(self) -> None:
         self.list_of_pids: list[int] = []
@@ -731,10 +693,10 @@ class JobManager:
         assert isinstance(self.cursor.lastrowid, int)
         return self.cursor.lastrowid
 
-    def get_job_id(self, job_name: str) -> int:
-        select_query = "SELECT job_id FROM pio_job_metadata WHERE job_name=(?) and is_running=1"
-        self.cursor.execute(select_query, (job_name,))
-        return self.cursor.fetchone()[0]
+    def does_pid_exist(self, pid: int) -> bool:
+        # a proxy for: is this part of a larger job (ex: led intensity relationship to od_reading)
+        self.cursor.execute("SELECT 1 FROM pio_job_metadata WHERE pid=(?) and is_running=1", (pid,))
+        return self.cursor.fetchone() is not None
 
     def upsert_setting(self, job_id: JobMetadataKey, setting: str, value: Any) -> None:
         if value is None:
@@ -807,10 +769,21 @@ class JobManager:
             # Construct the SELECT query
             select_query = f"""
                 SELECT
-                    job_name, pid, job_id
+                    job_name,
+                    pid,
+                    job_id,
+                    CASE
+                        WHEN job_name LIKE "%pump%" THEN 1
+                        WHEN job_name LIKE "%temperature%" THEN 1
+                        WHEN job_name LIKE "%heat%" THEN 1
+                        WHEN job_name LIKE "%pwm%" THEN 1
+                        WHEN job_name LIKE "%_automation" THEN 2
+                        WHEN job_name = "led_intensity" THEN 100
+                    END as priority
                 FROM pio_job_metadata
                 WHERE is_running=1
-                AND {where_clause};
+                AND {where_clause}
+                ORDER BY priority
             """
 
             # Execute the query and fetch the results
@@ -818,9 +791,20 @@ class JobManager:
 
         else:
             # Construct the SELECT query
-            select_query = (
-                "SELECT job_name, pid FROM pio_job_metadata WHERE is_running=1 AND is_long_running_job=0"
-            )
+            select_query = """SELECT
+                    job_name,
+                    pid,
+                    job_id,
+                    CASE
+                        WHEN job_name LIKE "%pump%" THEN 1
+                        WHEN job_name LIKE "%pwm%" THEN 1
+                        WHEN job_name LIKE "%temperature%" THEN 2
+                        WHEN job_name LIKE "%heat%" THEN 2
+                        WHEN job_name LIKE "%_automation" THEN 3
+                        ELSE 5
+                    END as priority
+                 FROM pio_job_metadata WHERE is_running=1 AND is_long_running_job=0
+                ORDER BY priority"""
 
             # Execute the query and fetch the results
             self.cursor.execute(select_query)
@@ -833,7 +817,7 @@ class JobManager:
         shell_kill = ShellKill()
         count = 0
 
-        for job, pid, job_id in self._get_jobs(all_jobs, **query):
+        for job, pid, job_id, *_ in self._get_jobs(all_jobs, **query):
             if job == "led_intensity":
                 if LEDKill().kill_jobs():
                     count += 1
