@@ -835,8 +835,7 @@ class JobManager:
 
         for job, pid, job_id in self._get_jobs(all_jobs, **query):
             if job == "led_intensity":
-                success = LEDKill().kill_jobs()
-                if success:
+                if LEDKill().kill_jobs():
                     count += 1
                     self.set_not_running(job_id)
 

@@ -916,6 +916,9 @@ def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: 
             Path(profile_filename).name,
         )
 
+        if is_testing_env():
+            mananged_job.job_key = "experiment_profile/1"
+
         if dry_run:
             logger.notice(  # type: ignore
                 f"Executing DRY-RUN of profile {profile.experiment_profile_name}, sourced from {Path(profile_filename).name}. See logs."
