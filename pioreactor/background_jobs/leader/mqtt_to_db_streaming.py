@@ -471,7 +471,7 @@ def add_default_source_to_sinks() -> list[TopicToParserToTable]:
                 "pwm_dcs",
             ),
             TopicToParserToTable(
-                "pioreactor/+/+/experiment_profile/experiment_profile_name",
+                "pioreactor/+/+/experiment_profile/+/experiment_profile_name",
                 parse_experiment_profile_runs,
                 "experiment_profile_runs",
             ),

@@ -15,7 +15,6 @@ import click
 from msgspec.yaml import decode
 
 from pioreactor.cluster_management import get_active_workers_in_experiment
-from pioreactor.config import config
 from pioreactor.exc import MQTTValueError
 from pioreactor.exc import NotAssignedAnExperimentError
 from pioreactor.experiment_profiles import profile_struct as struct
@@ -821,12 +820,8 @@ def _verify_experiment_profile(profile: struct.Profile) -> bool:
 
 
 def _load_experiment_profile(profile_filename: str) -> struct.Profile:
-    try:
-        with open(profile_filename) as f:
-            return decode(f.read(), type=struct.Profile)
-    except FileNotFoundError:
-        with open(f"{config.get('storage', 'experiment_profile_dir')}/{profile_filename}") as f:
-            return decode(f.read(), type=struct.Profile)
+    with open(profile_filename) as f:
+        return decode(f.read(), type=struct.Profile)
 
 
 def load_and_verify_profile(profile_filename: str) -> struct.Profile:

@@ -1,5 +1,8 @@
 ### Upcoming
 
+#### Enhancements
+ - logs for experiment profiles show the step number.
+
  - adding updated_at and created_at columns to pio_metadata_settings table
 
 #### Breaking changes
@@ -8,6 +11,7 @@
 #### Bug fixes
  - When selecting "More" in the Logs UI page, the log level is used (previously would default to "Standard").
  - experiment profiles don't overwrite each other in mqtt, but at a cost!
+ - `led_intensity` is now registered in our database, so `pio kill --all-jobs` (and related `pio kill` commands) now disables LEDs too.
 
 ### 25.2.11
 

@@ -12,7 +12,6 @@ LEADER_HOSTNAME=$(crudini --get /home/pioreactor/.pioreactor/config.ini cluster.
 if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
 
     crudini  --set /home/pioreactor/.pioreactor/config.ini ui.overview.cards profiles 1
-    crudini  --set /home/pioreactor/.pioreactor/config.ini storage experiment_profile_dir /home/pioreactor/.pioreactor/experiment_profiles
 
 fi
 
