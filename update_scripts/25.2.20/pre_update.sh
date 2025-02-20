@@ -21,19 +21,3 @@ if [ "$is_valid" != "$min_version" ]; then
 fi
 
 echo "Version check passed: $current_version"
-
-
-
-LEADER_HOSTNAME=$(crudini --get /home/pioreactor/.pioreactor/config.ini cluster.topology leader_hostname)
-
-
-# we need this config for downstream updates, so set it now.
-if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
-
-    crudini  --set /home/pioreactor/.pioreactor/config.ini storage temporary_cache /tmp/pioreactor_cache/local_intermittent_pioreactor_metadata.sqlite \
-             --set /home/pioreactor/.pioreactor/config.ini storage persistent_cache /home/pioreactor/.pioreactor/storage/local_persistent_pioreactor_metadata.sqlite
-
-    sudo -u pioreactor pios sync-configs --shared || :
-
-
-fi
