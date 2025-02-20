@@ -199,9 +199,14 @@ def led_intensity(
             retain=True,
         )
 
+        # this is a hack to deal with there _not_ being a process that controls LEDs when run from the command line with `pio run` (tip: maybe that changes...)
+        # If `pio run led_intensity` is run, it's given a unique pid. This pid won't exist in the DB, so
+        # we register it with the job manager. Later, when we run `pio kill x`, we run `pio run led_intensity --A 0..` in LEDKill(), which trips the second condition, so we don't
+        # end up re-adding it.
+        # if something like OD reading starts led_intesity, it's pid exists, so we don't register it.
         with JobManager() as jm:
             if jm.does_pid_exist(os.getpid()) or new_state == {"A": 0, "B": 0, "C": 0, "D": 0}:
-                # part of a larger job, or turning off LEDs.
+                # part of a larger job, or turning off LEDs as part of LEDKill()
                 pass
             else:
                 jm.register_and_set_running(

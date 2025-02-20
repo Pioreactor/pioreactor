@@ -123,7 +123,7 @@ class ADCReader(LoggerMixin):
         fake_data: bool = False,
         dynamic_gain: bool = True,
         penalizer: float = 0.0,  # smoothing parameter between samples
-        oversampling_count: int = 42,
+        oversampling_count: int = 40,
     ) -> None:
         super().__init__()
         self.fake_data = fake_data
@@ -454,7 +454,7 @@ class ADCReader(LoggerMixin):
                     prior_C=(self.adc.from_voltage_to_raw_precise(self.batched_readings[channel]))
                     if (channel in self.batched_readings)
                     else None,
-                    penalizer_C=(self.penalizer / self.oversampling_count),
+                    penalizer_C=(self.penalizer * oversampling_count),
                 )
 
                 # convert to voltage
@@ -695,13 +695,13 @@ class CachedCalibrationTransformer(CalibrationTransformer):
                         raise exc.NoSolutionsFoundError
                 except exc.SolutionBelowDomainError:
                     self.logger.warning(
-                        f"Signal outside suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V."
+                        f"Signal below suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V."
                     )
                     self.has_logged_warning = True
                     return min_OD
                 except exc.SolutionAboveDomainError:
                     self.logger.warning(
-                        f"Signal outside suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V."
+                        f"Signal above suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V."
                     )
                     self.has_logged_warning = True
                     return max_OD
