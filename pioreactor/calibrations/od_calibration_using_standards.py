@@ -167,9 +167,7 @@ def to_struct(
         angle=angle,
         curve_data_=curve_data_,
         curve_type=curve_type,
-        y="od600s",
-        x="voltages",
-        recorded_data={"x": voltages, "y": od600s},
+        recorded_data={"x": od600s, "y": voltages},
         ir_led_intensity=float(config["od_reading.config"]["ir_led_intensity"]),
         pd_channel=pd_channel,
     )
@@ -301,7 +299,7 @@ def run_od_calibration() -> structs.ODCalibration:
             unit,
         )
 
-        cal = utils.crunch_data_and_confirm_with_user(cal)
+        cal = utils.crunch_data_and_confirm_with_user(cal, initial_degree=3)
 
         echo(style(f"Calibration curve for `{name}`", underline=True, bold=True))
         echo(utils.curve_to_functional_form(cal.curve_type, cal.curve_data_))

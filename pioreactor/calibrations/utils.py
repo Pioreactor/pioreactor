@@ -123,16 +123,15 @@ def plot_data(
 Calb = TypeVar("Calb", bound=structs.CalibrationBase)
 
 
-def crunch_data_and_confirm_with_user(calibration: Calb) -> Calb:
+def crunch_data_and_confirm_with_user(calibration: Calb, initial_degree=1) -> Calb:
     y, x = calibration.recorded_data["y"], calibration.recorded_data["x"]
     candidate_curve = calibration.curve_data_
+    degree = initial_degree
 
     while True:
         click.clear()
 
         if (candidate_curve is None) or len(candidate_curve) == 0:
-            degree = 1
-
             if calibration.curve_type == "poly":
                 candidate_curve = calculate_poly_curve_of_best_fit(x, y, degree)
             else:
