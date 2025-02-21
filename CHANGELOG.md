@@ -14,6 +14,19 @@
  - Fix API not providing the correct web response for huey-related tasks (like adding a new pioreactor, syncing configs, updating, etc.)
  - there was a scaling error in the `od_reading.config`'s `smoothing_penalizer`. This has been fixed, and your config.ini has been updated (it will look much smaller). This is in support of our new firmware, too.
 
+### 25.2.20
+
+**Important**, any OD calibrations made on software versions 25.1.21 and 25.2.10 have incorrect metadata, and it needs to be updated. Use this hot fix release to fix them. You'll still need to rerun:
+
+```
+pio calibrations analyze --device od --name <cal name>
+```
+
+to recreate the calibration curves.
+
+
+- Hot fix for OD Calibrations bug.
+
 ### 25.2.11
 
 ### Enhancements

@@ -32,3 +32,8 @@ echo "Added new main.elf firmware."
 HUEY_SERVICE_FILE="/etc/systemd/system/huey.service"
 sudo cp "$SCRIPT_DIR"/huey.service $HUEY_SERVICE_FILE
 echo "Added new huey.service."
+
+
+# cal fix from previous update
+sudo -u pioreactor python "$SCRIPT_DIR"/cal_fix.py
+

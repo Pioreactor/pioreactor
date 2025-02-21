@@ -1,9 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-https://docs.pioreactor.com/developer-guide/adding-calibration-type
-
-This should have used calibration_type as the keys, but instead it uses media, alt_media, and waste..
-"""
 from __future__ import annotations
 
 import time

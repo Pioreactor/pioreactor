@@ -852,13 +852,13 @@ class ODReader(BackgroundJob):
             with led_utils.lock_leds_temporarily(self.non_ir_led_channels):
                 # IR led is on
                 self.start_ir_led()
-                sleep(0.10)
+                sleep(0.125)
 
                 on_reading = self.adc_reader.tune_adc()  # determine best gain, max-signal, etc.
 
                 # IR led is off so we can set blanks
                 self.stop_ir_led()
-                sleep(0.10)
+                sleep(0.125)
 
                 blank_reading = average_over_pd_channel_to_voltages(
                     self.adc_reader.take_reading(),
@@ -996,7 +996,7 @@ class ODReader(BackgroundJob):
             verbose=False,
         ):
             with led_utils.lock_leds_temporarily(self.non_ir_led_channels):
-                sleep(0.1)
+                sleep(0.125)
                 timestamp_of_readings = timing.current_utc_datetime()
                 od_reading_by_channel = self._read_from_adc_and_transform()
                 od_readings = structs.ODReadings(

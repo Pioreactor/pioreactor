@@ -94,7 +94,7 @@ class Pico_ADC(_ADC):
     def __init__(self) -> None:
         # set up i2c connection to hardware.ADC
         self.i2c = I2C(hardware.SCL, hardware.SDA)
-        if self.get_firmware_version() == (0, 4):
+        if self.get_firmware_version() >= (0, 4):
             self.scale = 32
         else:
             self.scale = 16
