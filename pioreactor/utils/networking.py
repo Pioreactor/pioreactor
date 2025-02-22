@@ -39,7 +39,9 @@ def rsync(*args: str) -> None:
         raise RsyncError(f"rysnc command failed: {e.stderr}") from e
 
 
-def cp_file_across_cluster(unit: str, localpath: str, remotepath: str, timeout: int = 5) -> None:
+def cp_file_across_cluster(
+    unit: str, localpath: str, remotepath: str, timeout: int = 5, user="pioreactor"
+) -> None:
     try:
         rsync(
             "-z",
@@ -47,10 +49,8 @@ def cp_file_across_cluster(unit: str, localpath: str, remotepath: str, timeout: 
             f"{timeout}",
             "--inplace",
             "--checksum",
-            "-e",
-            "ssh",
             localpath,
-            f"{resolve_to_address(unit)}:{remotepath}",
+            f"{user}@{resolve_to_address(unit)}:{remotepath}",
         )
     except RsyncError:
         raise RsyncError(f"Error moving file {localpath} to {unit}:{remotepath}.")

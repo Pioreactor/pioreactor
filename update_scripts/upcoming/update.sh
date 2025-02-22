@@ -16,7 +16,7 @@ if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
     crudini  --set /home/pioreactor/.pioreactor/config.ini ui.overview.cards profiles 1
 
     OLD_SP=$(crudini --get /home/pioreactor/.pioreactor/config.ini od_reading.config smoothing_penalizer)
-    crudini --set /home/pioreactor/.pioreactor/config.ini od_reading.config smoothing_penalizer $(calc $OLD_SP/32/40)
+    crudini --set /home/pioreactor/.pioreactor/config.ini od_reading.config smoothing_penalizer $(calc $OLD_SP/32/40*5)
     pios sync-configs --shared
 
 fi
@@ -36,4 +36,3 @@ echo "Added new huey.service."
 
 # cal fix from previous update
 sudo -u pioreactor python "$SCRIPT_DIR"/cal_fix.py
-
