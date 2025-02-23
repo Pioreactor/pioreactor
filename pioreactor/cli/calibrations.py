@@ -235,7 +235,7 @@ def delete_calibration(device: str, calibration_name: str) -> None:
 @calibration.command(name="analyze")
 @click.option("--device", required=True, help="Which calibration device to delete from.")
 @click.option("--name", "calibration_name", required=True, help="Which calibration name to delete.")
-def analyse_calibration(device: str, calibration_name: str) -> None:
+def analyze_calibration(device: str, calibration_name: str) -> None:
     """
     Analyze a calibration file from local storage.
     """

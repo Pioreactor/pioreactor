@@ -46,7 +46,8 @@ def get_active_workers_in_experiment(experiment: str) -> tuple[str, ...]:
 @click.option("--password", "-p", default="raspberry")
 @click.option("--version", "-v", default="1.1")
 @click.option("--model", "-m", default="pioreactor_20ml")
-def add_worker(hostname: str, password: str, version: str, model: str) -> None:
+@click.option("--address", "-a")
+def add_worker(hostname: str, password: str, version: str, model: str, address: str | None) -> None:
     """
     Add a new pioreactor worker to the cluster. The pioreactor should already have the worker image installed and is turned on.
     """
@@ -64,7 +65,7 @@ def add_worker(hostname: str, password: str, version: str, model: str) -> None:
     )
     logger.info(f"Adding new pioreactor {hostname} to cluster.")
 
-    possible_address = networking.resolve_to_address(hostname)
+    possible_address = address or networking.resolve_to_address(hostname)
 
     # check to make sure <hostname>.local is on network
     checks, max_checks = 0, 15
@@ -90,6 +91,7 @@ def add_worker(hostname: str, password: str, version: str, model: str) -> None:
                 password,
                 version,
                 model,
+                possible_address,
             ],
             capture_output=True,
             text=True,
