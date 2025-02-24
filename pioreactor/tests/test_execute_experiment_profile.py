@@ -103,20 +103,20 @@ def test_execute_experiment_profile_hack_for_led_intensity(mock__load_experiment
     assert bucket[0].json == {
         "options": {"A": 50},
         "args": [],
-        "env": {"JOB_SOURCE": "experiment_profile:1", "EXPERIMENT": "_testing_experiment"},
+        "env": {"JOB_SOURCE": "experiment_profile/1", "EXPERIMENT": "_testing_experiment"},
     }
 
     assert bucket[1].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/led_intensity"
     assert bucket[1].json == {
         "options": {"A": 40, "B": 22.5},
         "args": [],
-        "env": {"JOB_SOURCE": "experiment_profile:1", "EXPERIMENT": "_testing_experiment"},
+        "env": {"JOB_SOURCE": "experiment_profile/1", "EXPERIMENT": "_testing_experiment"},
     }
 
     assert bucket[2].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/led_intensity"
     assert bucket[2].json == {
         "options": {"A": 0, "B": 0, "C": 0, "D": 0},
-        "env": {"JOB_SOURCE": "experiment_profile:1", "EXPERIMENT": "_testing_experiment"},
+        "env": {"JOB_SOURCE": "experiment_profile/1", "EXPERIMENT": "_testing_experiment"},
         "args": [],
     }
 
@@ -406,7 +406,7 @@ def test_execute_experiment_profile_expression(mock__load_experiment_profile) ->
 
     assert bucket[0].json == {
         "options": {"target": 11.0, "dont_eval": "1.0 + 1.0"},
-        "env": {"EXPERIMENT": "_testing_experiment", "JOB_SOURCE": "experiment_profile:1"},
+        "env": {"EXPERIMENT": "_testing_experiment", "JOB_SOURCE": "experiment_profile/1"},
         "args": [],
     }
 
@@ -507,7 +507,7 @@ def test_execute_experiment_profile_expression_in_common(
     for item in bucket:
         assert item.json == {
             "args": [],
-            "env": {"EXPERIMENT": "_testing_experiment", "JOB_SOURCE": "experiment_profile:1"},
+            "env": {"EXPERIMENT": "_testing_experiment", "JOB_SOURCE": "experiment_profile/1"},
             "options": {
                 "target": 11.0,
             },
@@ -547,7 +547,7 @@ def test_execute_experiment_profile_expression_in_common_also_works_with_unit_fu
     for item in bucket:
         assert item.json == {
             "args": [],
-            "env": {"EXPERIMENT": "_testing_experiment", "JOB_SOURCE": "experiment_profile:1"},
+            "env": {"EXPERIMENT": "_testing_experiment", "JOB_SOURCE": "experiment_profile/1"},
             "options": {
                 "target": 11.0,
             },

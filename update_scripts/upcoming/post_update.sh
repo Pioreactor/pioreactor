@@ -9,7 +9,5 @@ LEADER_HOSTNAME=$(crudini --get /home/pioreactor/.pioreactor/config.ini cluster.
 
 # if non-leader
 if [ "$HOSTNAME" != "$LEADER_HOSTNAME" ]; then
-
     sudo reboot
-
 fi

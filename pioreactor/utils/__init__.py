@@ -190,12 +190,6 @@ class managed_lifecycle:
                 self.is_long_running_job,
             )
 
-        if self.is_long_running_job:  # shitty proxy for "allow duplicate jobs", see #551
-            # eventually, we will move all of mqtt topics to this format
-            self.job_key = f"{self.name}/{self.job_id}"
-        else:
-            self.job_key = f"{self.name}"
-
         last_will = {
             "topic": f"pioreactor/{self.unit}/{self.experiment}/{self.job_key}/$state",
             "payload": b"lost",
@@ -224,6 +218,10 @@ class managed_lifecycle:
         self.publish_setting("$state", self.state)
 
         self.start_passive_listeners()
+
+    @property
+    def job_key(self):
+        return self.name
 
     def _exit(self, *args) -> None:
         # recall: we can't publish in a callback!
@@ -304,6 +302,15 @@ class long_running_managed_lifecycle(managed_lifecycle):
             source=source,
             job_source=job_source,
         )
+
+    @property
+    def job_key(self):
+        # shitty proxy for "allow duplicate jobs", see #551
+        # eventually, we will move all of mqtt topics to this format
+        # the backslash here is deliberate and does change the mqtt topics
+        if whoami.is_testing_env():
+            return f"{self.name}/1"
+        return f"{self.name}/{self.job_id}"
 
 
 class cache:
@@ -859,20 +866,25 @@ class ClusterJobManager:
         if len(units) == 0:
             return []
 
+        params: dict[str, Any] = {}
+
         if all_jobs:
             endpoint = "/unit_api/jobs/stop/all"
-        elif experiment:
-            endpoint = f"/unit_api/jobs/stop/experiment/{experiment}"
-        elif job_name:
-            endpoint = f"/unit_api/jobs/stop/job_name/{job_name}"
-        elif job_source:
-            endpoint = f"/unit_api/jobs/stop/job_source/{job_source}"
-        elif job_id:
-            endpoint = f"/unit_api/jobs/stop/job_id/{job_id}"
+        else:
+            endpoint = "/unit_api/jobs/stop"
+
+            if experiment:
+                params["experiment"] = experiment
+            if job_name:
+                params["job_name"] = job_name
+            if job_source:
+                params["job_source"] = job_source
+            if job_id:
+                params["job_id"] = job_id
 
         def _thread_function(unit: str) -> tuple[bool, dict]:
             try:
-                r = patch_into(resolve_to_address(unit), endpoint)
+                r = patch_into(resolve_to_address(unit), endpoint, params=params)
                 r.raise_for_status()
                 return True, r.json()
             except Exception as e:

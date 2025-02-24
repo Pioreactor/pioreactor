@@ -145,8 +145,10 @@ def test_pios_kill_requests() -> None:
         ctx.forward(kill, experiment="demo", y=True)
 
     assert len(bucket) == 2
-    assert bucket[0].url == "http://unit1.local:4999/unit_api/jobs/stop/experiment/demo"
-    assert bucket[1].url == "http://unit2.local:4999/unit_api/jobs/stop/experiment/demo"
+    assert bucket[0].url == "http://unit1.local:4999/unit_api/jobs/stop"
+    assert bucket[0].params == {"experiment": "demo"}
+    assert bucket[1].url == "http://unit2.local:4999/unit_api/jobs/stop"
+    assert bucket[1].params == {"experiment": "demo"}
 
 
 def test_pios_reboot_requests() -> None:

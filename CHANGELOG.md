@@ -1,21 +1,24 @@
 ### Upcoming
 
 #### Enhancements
- - logs for experiment profiles show an action step number.
  - new faster ADC firmware with less noise
  - `led_intensity` is now registered in our database, so `pio kill --all-jobs` (and related `pio kill` commands) now disables LEDs too.
  - new option in `pio workers add` to provide an address to find the new worker at (default is `hostname`.local)
+ - New time option on the Overview page: "Now" for only realtime data.
+ - logs for experiment profiles show an action step number.
 
 #### Breaking changes
  - id -> job_id  in pio_metadata_settings table
  - adding updated_at and created_at columns to pio_metadata_settings table
  - changed the scaling of `smoothing_penalizer` - it's now about 100x less!
+ - `/unit_api/jobs/stop/...` is deprecated (to be removed in a future version). Use query params now: `/unit_api/jobs/stop/?job_name=...`. However, `/unit_api/jobs/stop/all` is valid.
 
 #### Bug fixes
  - When selecting "More" in the Logs UI page, the log level is used (previously would default to "Standard").
  - multiple experiment profiles don't overwrite each other in mqtt, but at a cost!
  - Fix API not providing the correct web response for huey-related tasks (like adding a new pioreactor, syncing configs, updating, etc.)
  - there was a scaling error in the `od_reading.config`'s `smoothing_penalizer`. This has been fixed, and your config.ini has been updated (it will look much smaller). This is in support of our new firmware, too.
+ - Missed a few log events showing up in Event Logs page when they occurred _after_ the worker was unassigned (ex: clean-up, assignment events.) Also removing some logs that shouldn't be there.
 
 ### 25.2.20
 

@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from click.testing import CliRunner
+
 from pioreactor.actions.led_intensity import change_leds_intensities_temporarily
 from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.actions.led_intensity import LedChannel
@@ -91,3 +93,14 @@ def test_local_cache_is_updated() -> None:
 
     with local_intermittent_storage("leds") as cache:
         assert float(cache[channel]) == 20
+
+
+def test_led_intensity_can_be_killed_by_pio_kill():
+    from pioreactor.actions.led_intensity import click_led_intensity
+    from pioreactor.cli.pio import kill
+
+    runner = CliRunner()
+    runner.invoke(click_led_intensity, ["--A", "10"])
+
+    result = runner.invoke(kill, ["--job-name", "led_intensity"])
+    assert result.output.strip() == "Killed 1 job."

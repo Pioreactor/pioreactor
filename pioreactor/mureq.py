@@ -101,7 +101,7 @@ def yield_response(
     unix_socket=None,
     timeout=DEFAULT_TIMEOUT,
     headers=None,
-    params=None,
+    params: dict | None = None,
     body=None,
     form=None,
     json=None,

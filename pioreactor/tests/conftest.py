@@ -81,12 +81,13 @@ def mock_external_leader_webserver_apis(mocker, active_workers_in_cluster):
 
 
 class CapturedRequest:
-    def __init__(self, method, url, headers, body, json):
+    def __init__(self, method, url, headers, body, json, params):
         self.method = method
         self.url = url
         self.headers = headers
         self.body = body
         self.json = json
+        self.params = params
 
         r = urlparse(url)
 
@@ -105,8 +106,8 @@ def capture_requests():
         headers = kwargs.get("headers")
         body = kwargs.get("body", None)
         json = kwargs.get("json", None)
-        bucket.append(CapturedRequest(method, url, headers, body, json))
-
+        params = kwargs.get("params", None)
+        bucket.append(CapturedRequest(method, url, headers, body, json, params))
         if re.search("/api/workers/.*/jobs/update/job_name/.*/experiments/.*", url):
             # fire a mqtt too
             r = re.search("/api/workers/(.*)/jobs/update/job_name/(.*)/experiments/(.*)", url)
