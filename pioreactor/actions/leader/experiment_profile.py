@@ -890,8 +890,9 @@ def check_plugins(required_plugins: list[struct.Plugin]) -> None:
 def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: bool = False) -> None:
     unit = get_unit_name()
     action_name = "experiment_profile"
-    logger = create_logger(action_name, unit=unit, experiment=experiment)
     with long_running_managed_lifecycle(unit, experiment, action_name) as mananged_job:
+        logger = create_logger(mananged_job.job_key, unit=unit, experiment=experiment)
+
         try:
             profile = load_and_verify_profile(profile_filename)
         except Exception as e:

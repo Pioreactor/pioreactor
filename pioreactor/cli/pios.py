@@ -15,6 +15,7 @@ from pioreactor.cluster_management import get_active_workers_in_inventory
 from pioreactor.cluster_management import get_workers_in_inventory
 from pioreactor.config import config
 from pioreactor.config import get_leader_hostname
+from pioreactor.exc import RoleError
 from pioreactor.exc import RsyncError
 from pioreactor.exc import SSHError
 from pioreactor.logging import create_logger
@@ -49,8 +50,7 @@ def pios(ctx) -> None:
 
     # this is run even if workers run `pios plugins etc.`
     if not am_I_leader():
-        click.echo("workers cannot run `pios` commands. Try `pio` instead.", err=True)
-        sys.exit(1)
+        raise RoleError("workers cannot run `pios` commands. Try `pio` instead.")
 
 
 if am_I_leader() or is_testing_env():

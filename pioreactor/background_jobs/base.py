@@ -896,6 +896,11 @@ class _BackgroundJob(metaclass=PostInitCaller):
             sleep(5)
             self._publish_setting("state")
 
+    @property
+    def job_key(self):
+        # not used...yet
+        return self.job_name + "/" + self.job_id
+
     def _clear_caches(self) -> None:
         """
         From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.

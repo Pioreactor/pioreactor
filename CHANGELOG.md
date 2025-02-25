@@ -15,7 +15,7 @@
 
 #### Bug fixes
  - When selecting "More" in the Logs UI page, the log level is used (previously would default to "Standard").
- - multiple experiment profiles don't overwrite each other in mqtt, but at a cost!
+ - multiple experiment profiles don't overwrite each other in mqtt, but at a cost! The new MQTT topic breaks the usual topic nomenclature by introducing a job_id in it.
  - Fix API not providing the correct web response for huey-related tasks (like adding a new pioreactor, syncing configs, updating, etc.)
  - there was a scaling error in the `od_reading.config`'s `smoothing_penalizer`. This has been fixed, and your config.ini has been updated (it will look much smaller). This is in support of our new firmware, too.
  - Missed a few log events showing up in Event Logs page when they occurred _after_ the worker was unassigned (ex: clean-up, assignment events.) Also removing some logs that shouldn't be there.

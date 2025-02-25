@@ -43,9 +43,9 @@ def backup_database(output_file: str, force: bool = False, backup_to_workers: in
     unit = get_unit_name()
     experiment = UNIVERSAL_EXPERIMENT
 
-    with long_running_managed_lifecycle(unit, experiment, "backup_database"):
+    with long_running_managed_lifecycle(unit, experiment, "backup_database") as mj:
         logger = create_logger(
-            "backup_database", experiment=experiment, unit=unit, to_mqtt=False
+            mj.job_key, experiment=experiment, unit=unit, to_mqtt=False
         )  # the backup would take so long that the mqtt client would disconnect. We also don't want to write to the db.
 
         logger.debug(f"Starting backup of database to {output_file}")
