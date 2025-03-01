@@ -9,7 +9,6 @@ from sched import scheduler
 from time import perf_counter
 from typing import Any
 from typing import Callable
-from typing import Optional
 
 import click
 from msgspec.yaml import decode
@@ -24,6 +23,7 @@ from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import get_from
 from pioreactor.pubsub import patch_into
 from pioreactor.pubsub import patch_into_leader
+from pioreactor.pubsub import post_into_leader
 from pioreactor.utils import ClusterJobManager
 from pioreactor.utils import long_running_managed_lifecycle
 from pioreactor.utils.networking import resolve_to_address
@@ -356,7 +356,7 @@ def when(
     parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
-    if_: Optional[BoolExpression],
+    if_: BoolExpression | None,
     env: dict,
     logger: CustomLogger,
     action_metrics: ActionMetrics,
@@ -371,7 +371,7 @@ def when(
             return
 
         nonlocal env
-        env = env | {"hours_elapsed": action_metrics.hours_elapsed()}
+        env = env | {"hours_elapsed": action_metrics.hours_elapsed(), "action_count": action_metrics.count}
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
             try:
@@ -429,14 +429,14 @@ def repeat(
     parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
-    if_: Optional[BoolExpression],
+    if_: BoolExpression | None,
     env: dict,
     logger: CustomLogger,
     action_metrics: ActionMetrics,
     repeat_action: struct.Repeat,
-    while_: Optional[BoolExpression],
+    while_: BoolExpression | None,
     repeat_every_hours: float,
-    max_hours: Optional[float],
+    max_hours: float | None,
     actions: list[struct.BasicAction],
     schedule: scheduler,
 ) -> Callable[..., None]:
@@ -449,7 +449,7 @@ def repeat(
             return
 
         nonlocal env
-        env = env | {"hours_elapsed": action_metrics.hours_elapsed()}
+        env = env | {"hours_elapsed": action_metrics.hours_elapsed(), "action_count": action_metrics.count}
 
         if ((if_ is None) or evaluate_bool_expression(if_, env)) and (
             ((while_ is None) or evaluate_bool_expression(while_, env))
@@ -519,7 +519,7 @@ def log(
     parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
-    if_: Optional[BoolExpression],
+    if_: BoolExpression | None,
     env: dict,
     logger: CustomLogger,
     action_metrics: ActionMetrics,
@@ -527,8 +527,6 @@ def log(
 ) -> Callable[..., None]:
     def _callable() -> None:
         # first check if the Pioreactor is still part of the experiment.
-        action_count = action_metrics.increment()
-        parent_job.publish_setting("action_count", action_count)
 
         if get_assigned_experiment_name(unit) != experiment:
             logger.debug(
@@ -538,11 +536,20 @@ def log(
             return
 
         nonlocal env
-        env = env | {"hours_elapsed": action_metrics.hours_elapsed()}
+        env = env | {"hours_elapsed": action_metrics.hours_elapsed(), "action_count": action_metrics.count}
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
-            level = options.level.lower()
-            getattr(logger, level)(evaluate_log_message(options.message, env))
+            body = {
+                "message": evaluate_log_message(options.message, env),
+                "timestamp": current_utc_timestamp(),
+                "level": options.level,
+                "source": parent_job.job_key,
+                "task": parent_job.job_key,
+            }
+            post_into_leader(
+                f"/api/workers/{unit}/experiments/{experiment}/logs", json=body
+            ).raise_for_status()
+            # getattr(logger, level)(evaluate_log_message(options.message, env))
         else:
             logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
 
@@ -555,7 +562,7 @@ def start_job(
     parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
-    if_: Optional[BoolExpression],
+    if_: BoolExpression | None,
     env: dict,
     logger: CustomLogger,
     action_metrics: ActionMetrics,
@@ -574,7 +581,7 @@ def start_job(
             return
 
         nonlocal env
-        env = env | {"hours_elapsed": action_metrics.hours_elapsed()}
+        env = env | {"hours_elapsed": action_metrics.hours_elapsed(), "action_count": action_metrics.count}
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
             if dry_run:
@@ -609,7 +616,7 @@ def pause_job(
     parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
-    if_: Optional[BoolExpression],
+    if_: BoolExpression | None,
     env: dict,
     logger: CustomLogger,
     action_metrics: ActionMetrics,
@@ -626,7 +633,7 @@ def pause_job(
             return
 
         nonlocal env
-        env = env | {"hours_elapsed": action_metrics.hours_elapsed()}
+        env = env | {"hours_elapsed": action_metrics.hours_elapsed(), "action_count": action_metrics.count}
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
             if dry_run:
@@ -652,7 +659,7 @@ def resume_job(
     parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
-    if_: Optional[BoolExpression],
+    if_: BoolExpression | None,
     env: dict,
     logger: CustomLogger,
     action_metrics: ActionMetrics,
@@ -670,7 +677,7 @@ def resume_job(
             return
 
         nonlocal env
-        env = env | {"hours_elapsed": action_metrics.hours_elapsed()}
+        env = env | {"hours_elapsed": action_metrics.hours_elapsed(), "action_count": action_metrics.count}
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
             if dry_run:
@@ -696,7 +703,7 @@ def stop_job(
     parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
-    if_: Optional[BoolExpression],
+    if_: BoolExpression | None,
     env: dict,
     logger: CustomLogger,
     action_metrics: ActionMetrics,
@@ -714,7 +721,7 @@ def stop_job(
             return
 
         nonlocal env
-        env = env | {"hours_elapsed": action_metrics.hours_elapsed()}
+        env = env | {"hours_elapsed": action_metrics.hours_elapsed(), "action_count": action_metrics.count}
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
             if dry_run:
@@ -736,7 +743,7 @@ def update_job(
     parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
-    if_: Optional[BoolExpression],
+    if_: BoolExpression | None,
     env: dict,
     logger: CustomLogger,
     action_metrics: ActionMetrics,
@@ -755,7 +762,7 @@ def update_job(
             return
 
         nonlocal env
-        env = env | {"hours_elapsed": action_metrics.hours_elapsed()}
+        env = env | {"hours_elapsed": action_metrics.hours_elapsed(), "action_count": action_metrics.count}
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
             if dry_run:

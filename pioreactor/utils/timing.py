@@ -33,7 +33,7 @@ def catchtime() -> t.Generator[t.Callable[[], float], None, None]:
 
 
 def to_iso_format(dt: datetime) -> str:
-    return dt.isoformat().replace("+00:00", "Z")
+    return dt.isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
 def current_utc_datetime() -> datetime:

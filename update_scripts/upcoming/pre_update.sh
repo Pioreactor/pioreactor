@@ -21,3 +21,6 @@ if [ "$is_valid" != "$min_version" ]; then
 fi
 
 echo "Version check passed: $current_version"
+
+
+pio kill --all-jobs
