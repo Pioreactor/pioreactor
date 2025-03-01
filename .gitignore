@@ -7,7 +7,6 @@ plugins_dev
 config*.ini
 *.log
 *.mosquitto
-*.csv
 
 
 # Byte-compiled / optimized / DLL files

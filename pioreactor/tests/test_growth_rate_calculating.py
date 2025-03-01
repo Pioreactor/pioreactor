@@ -1045,7 +1045,7 @@ class TestGrowthRateCalculating:
         config["growth_rate_calculating.config"]["ekf_outlier_std_threshold"] = str(3)
 
         with StreamODReadingsFromExport(
-            "/Users/camerondavidson-pilon/Downloads/export_20250227013938/od_readings-25.02.26_T7R-wk3-20250227093938.csv",
+            "./pioreactor/tests/data/od_readings_with_too_frequently_outlier_detections.csv",
             skip_first_n_rows=40,
         ) as od_stream, GrowthRateCalculator(
             unit=unit, experiment=experiment, source_obs_from_mqtt=False

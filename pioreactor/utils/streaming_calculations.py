@@ -229,7 +229,7 @@ class CultureGrowthEKF:
         self._currently_scaling_process_covariance = False
         self._scale_covariance_timer: Optional[Timer] = None
         self._covariance_pre_scale = None
-        self.ems = ExponentialMovingStd(0.975, 0.80)
+        self.ems = ExponentialMovingStd(0.975, 0.90)
 
     def update(self, observation_: list[float], dt: float):
         import numpy as np

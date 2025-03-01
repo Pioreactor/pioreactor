@@ -6,6 +6,7 @@
  - new option in `pio workers add` to provide an address to find the new worker at (default is `hostname`.local)
  - New time option on the Overview page: "Now" for only realtime data.
  - logs for experiment profiles show an action step number.
+ - improvements to outlier detection in nOD and Growth rates.
 
 #### Breaking changes
  - id -> job_id  in pio_metadata_settings table
@@ -19,6 +20,8 @@
  - Fix API not providing the correct web response for huey-related tasks (like adding a new pioreactor, syncing configs, updating, etc.)
  - there was a scaling error in the `od_reading.config`'s `smoothing_penalizer`. This has been fixed, and your config.ini has been updated (it will look much smaller). This is in support of our new firmware, too.
  - Missed a few log events showing up in Event Logs page when they occurred _after_ the worker was unassigned (ex: clean-up, assignment events.) Also removing some logs that shouldn't be there.
+ - There was a scaling bug in our extended Kalman filter that was causing outlier detections too often. In extreme cases, these detections would compound and case the nOD to go negative, and break the Kalman filter's internal state. This is fixed, and a new, more stable, algorithm is introduced.
+
 
 ### 25.2.20
 
