@@ -229,6 +229,7 @@ class CultureGrowthEKF:
         self._currently_scaling_process_covariance = False
         self._scale_covariance_timer: Optional[Timer] = None
         self._covariance_pre_scale = None
+        self.ems = ExponentialMovingStd(0.975, 0.80)
 
     def update(self, observation_: list[float], dt: float):
         import numpy as np
@@ -252,8 +253,9 @@ class CultureGrowthEKF:
             H @ covariance_prediction @ H.T
             + self.state_[0] * self.observation_noise_covariance
         )
+        # print((H @ covariance_prediction @ H.T)[0], covariance_prediction, H)
 
-        huber_threshold = self.outlier_std_threshold * np.sqrt(residual_covariance[0, 0])
+        huber_threshold = self.outlier_std_threshold * (self.ems.value or 10_000)
         currently_is_outlier = abs(residual_state[0]) > huber_threshold
 
         if self.handle_outliers and (currently_is_outlier):
@@ -264,6 +266,7 @@ class CultureGrowthEKF:
             kalman_gain_[0, 0] *= huber_threshold / abs(residual_state[0])
             kalman_gain_[1:, 0] = 0
         else:
+            self.ems.update(residual_state[0])
             kalman_gain_ = np.linalg.solve(residual_covariance.T, (H @ covariance_prediction.T)).T
 
         ### update estimates

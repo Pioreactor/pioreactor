@@ -15,6 +15,7 @@ from pioreactor.background_jobs.stirring import start_stirring
 from pioreactor.config import config
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
+from pioreactor.tests.conftest import StreamODReadingsFromExport
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import default_datetime_for_pioreactor
@@ -1026,3 +1027,34 @@ class TestGrowthRateCalculating:
 
             assert abs(previous_nOD.od_filtered - current_nOD.od_filtered) < 0.05
             assert abs(previous_gr.growth_rate - current_gr.growth_rate) < 0.01
+
+    def test_abnormal_kf_caused_by_previous_outlier_algo(self):
+        experiment = "test_abnormal_kf_caused_by_previous_outlier_algo"
+        unit = "wk3"
+
+        with local_persistent_storage("od_normalization_mean") as cache:
+            cache[experiment] = json.dumps({"2": 0.2631887966203668})
+
+        with local_persistent_storage("od_normalization_variance") as cache:
+            cache[experiment] = json.dumps({"2": 1.165246946031255e-06})
+
+        with local_persistent_storage("od_filtered") as cache:
+            cache[experiment] = 1.00922563
+
+        config["growth_rate_kalman"]["od_std"] = str(float(config["growth_rate_kalman"]["od_std"]) / 2)
+        config["growth_rate_calculating.config"]["ekf_outlier_std_threshold"] = str(3)
+
+        with StreamODReadingsFromExport(
+            "/Users/camerondavidson-pilon/Downloads/export_20250227013938/od_readings-25.02.26_T7R-wk3-20250227093938.csv",
+            skip_first_n_rows=40,
+        ) as od_stream, GrowthRateCalculator(
+            unit=unit, experiment=experiment, source_obs_from_mqtt=False
+        ) as calc:
+            for i, reading in enumerate(od_stream, start=2):
+                r = calc.update_state_from_observation(reading)
+
+                if r[1].od_filtered <= 0:
+                    assert False
+                    break
+
+            assert True
