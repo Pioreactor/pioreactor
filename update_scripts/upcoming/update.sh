@@ -14,7 +14,7 @@ if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
     crudini --set /home/pioreactor/.pioreactor/config.ini ui.overview.cards profiles 1
     crudini --set /home/pioreactor/.pioreactor/config.ini od_reading.config smoothing_penalizer 6.0
     crudini --set /home/pioreactor/.pioreactor/config.ini growth_rate_calculating.config ekf_outlier_std_threshold 5.0
-    pios sync-configs --shared
+    sudo -u pioreactor pios sync-configs --shared
 
 fi
 

@@ -23,4 +23,4 @@ fi
 echo "Version check passed: $current_version"
 
 
-pio kill --all-jobs
+sudo -u pioreactor pio kill --all-jobs
