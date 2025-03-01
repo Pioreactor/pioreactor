@@ -865,7 +865,7 @@ def test_calibration_simple_linear_calibration_positive_slope() -> None:
             pause()
             pause()
             pause()
-            assert "Signal outside" in bucket[0]["message"]
+            assert "Signal above" in bucket[0]["message"]
 
 
 def test_calibration_simple_linear_calibration_negative_slope() -> None:
@@ -1163,11 +1163,13 @@ def test_calibration_data_from_user2() -> None:
             od_0 = od_1
 
 
-def test_auto_ir_led_intensit_REF_and_90() -> None:
+def test_auto_ir_led_intensity_REF_and_90() -> None:
     with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "auto"):
         experiment = "test_auto_ir_led_intensity"
 
-        with start_od_reading("REF", "90", interval=None, fake_data=True, experiment=experiment) as od:
+        with start_od_reading(
+            "REF", "90", interval=None, fake_data=True, experiment=experiment, calibration=False
+        ) as od:
             assert abs(od.ir_led_intensity - 67.19794921875) < 0.01
 
 
@@ -1175,7 +1177,9 @@ def test_auto_ir_led_intensity_90_only() -> None:
     with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "auto"):
         experiment = "test_auto_ir_led_intensity"
 
-        with start_od_reading(None, "90", interval=None, fake_data=True, experiment=experiment) as od:
+        with start_od_reading(
+            None, "90", interval=None, fake_data=True, experiment=experiment, calibration=False
+        ) as od:
             assert od.ir_led_intensity == 70.0
 
 

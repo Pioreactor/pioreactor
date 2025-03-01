@@ -71,9 +71,9 @@ class Mock_ADC(_ADC):
                 / 60
                 / 60
                 / config.getfloat("od_reading.config", "samples_per_second")
-                / 32  # divide by N from oversampling_count
+                / 40  # divide by N from oversampling_count
             )
-            self._counter += 1.0 / 32  # divide by N from oversampling_count
+            self._counter += 1.0 / 40  # divide by N from oversampling_count
 
             return self.from_voltage_to_raw(
                 self.state + random.normalvariate(0, sigma=self.state * 0.04) + self.OFFSET

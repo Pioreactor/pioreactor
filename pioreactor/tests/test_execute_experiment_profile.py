@@ -590,11 +590,10 @@ def test_execute_experiment_profile_when_action_simple(mock__load_experiment_pro
     with capture_requests() as bucket:
         execute_experiment_profile("profile.yaml", experiment)
 
-    assert len(bucket) == 2
-    assert bucket[0].path == "/unit_api/jobs/run/job_name/stirring"
-    assert (
-        bucket[1].path == "/api/workers/unit1/jobs/update/job_name/stirring/experiments/_testing_experiment"
-    )
+    assert len(bucket) == 3
+    assert bucket[0].path == f"/api/workers/unit1/experiments/{experiment}/logs"
+    assert bucket[1].path == "/unit_api/jobs/run/job_name/stirring"
+    assert bucket[2].path == f"/api/workers/unit1/jobs/update/job_name/stirring/experiments/{experiment}"
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")

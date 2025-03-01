@@ -67,27 +67,35 @@ TEMP = 0x4F
 # ADC map of function to hardware ADC channel
 ADC_CHANNEL_FUNCS: dict[str | PdChannel, AdcChannel]
 
-if hardware_version_info <= (0, 1): # alpha
-    ADC_CHANNEL_FUNCS = {
-        "1": 0,
-        "2": 1,
-        "version": 2,
-        "aux": 3,
-    }
-elif hardware_version_info <= (1, 0): # beta
-    ADC_CHANNEL_FUNCS = {
-        "1": 1,
-        "2": 0,
-        "version": 2,
-        "aux": 3,
-    }
-else: #prod
+if is_testing_env():
     ADC_CHANNEL_FUNCS = {
         "1": 2,
         "2": 3,
         "version": 0,
         "aux": 1,
     }
+elif hardware_version_info <= (0, 1):  # alpha
+    ADC_CHANNEL_FUNCS = {
+        "1": 0,
+        "2": 1,
+        "version": 2,
+        "aux": 3,
+    }
+elif hardware_version_info <= (1, 0):  # beta
+    ADC_CHANNEL_FUNCS = {
+        "1": 1,
+        "2": 0,
+        "version": 2,
+        "aux": 3,
+    }
+else:  # prod
+    ADC_CHANNEL_FUNCS = {
+        "1": 2,
+        "2": 3,
+        "version": 0,
+        "aux": 1,
+    }
+
 
 def is_i2c_device_present(channel: int) -> bool:
     if is_testing_env():
