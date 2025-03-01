@@ -37,7 +37,10 @@ def to_iso_format(dt: datetime) -> str:
 
 
 def current_utc_datetime() -> datetime:
-    return datetime.now(timezone.utc)
+    dt = datetime.now(timezone.utc)
+    return dt.replace(
+        microsecond=1000 * (dt.microsecond // 1000)
+    )  # to replicate timespec="milliseconds" - i.e. round to milliseconds.
 
 
 def current_utc_timestamp() -> str:
@@ -55,9 +58,10 @@ def default_datetime_for_pioreactor(delta_seconds=0) -> datetime:
 
 def to_datetime(timestamp: str) -> datetime:
     try:
-        return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=timezone.utc)
+        dt = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%fZ")
     except ValueError:
-        return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        dt = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ")
+    return dt.replace(tzinfo=timezone.utc)
 
 
 class RepeatedTimer:

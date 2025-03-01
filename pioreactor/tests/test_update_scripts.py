@@ -36,7 +36,7 @@ def test_pio_commands() -> None:
                 # Checking for 'pio' not preceded by 'su -u pioreactor'
                 if (" pio " in line or line.strip().startswith("pio")) and "sudo -u pioreactor" not in line:
                     error_msgs.append(
-                        f"Error in {script} at line {line_number}: 'pio' command must be prefixed with 'sudu -u pioreactor'."
+                        f"Error in {script} at line {line_number}: 'pio' command must be prefixed with 'sudo -u pioreactor'."
                     )
 
     assert not error_msgs, "\n".join(error_msgs)
