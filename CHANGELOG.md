@@ -10,7 +10,6 @@
 
 #### Breaking changes
  - id -> job_id  in pio_metadata_settings table
- - adding updated_at and created_at columns to pio_metadata_settings table
  - changed the scaling of `smoothing_penalizer` - it's now about 100x less!
  - `/unit_api/jobs/stop/...` is deprecated (to be removed in a future version). Use query params now: `/unit_api/jobs/stop/?job_name=...`. However, `/unit_api/jobs/stop/all` is valid.
  - Changing from xxxxx millisecond precision to xxx millisecond precision on our timestamps. This should save time and space!

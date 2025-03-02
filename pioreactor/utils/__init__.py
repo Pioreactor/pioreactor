@@ -658,8 +658,6 @@ class JobManager:
             value          BLOB,
             proposed_value BLOB,
             job_id         INTEGER NOT NULL,
-            created_at     TEXT NOT NULL,
-            updated_at     TEXT NOT NULL,
             FOREIGN KEY(job_id) REFERENCES pio_job_metadata(job_id),
             UNIQUE(setting, job_id)
         );
@@ -715,10 +713,10 @@ class JobManager:
         else:
             # upsert
             update_query = """
-            INSERT INTO pio_job_published_settings (setting, value, job_id, created_at, updated_at)
-            VALUES (:setting, :value, :job_id, :created_at, :updated_at)
+            INSERT INTO pio_job_published_settings (setting, value, job_id)
+            VALUES (:setting, :value, :job_id)
                 ON CONFLICT (setting, job_id) DO
-                UPDATE SET value = :value, updated_at = :updated_at
+                UPDATE SET value = :value
             """
             if isinstance(value, dict):
                 value = dumps(value).decode()  # back to string, not bytes
@@ -731,8 +729,6 @@ class JobManager:
                     "setting": setting,
                     "value": value,
                     "job_id": job_id,
-                    "created_at": current_utc_timestamp(),
-                    "updated_at": current_utc_timestamp(),
                 },
             )
 
