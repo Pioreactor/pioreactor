@@ -9,6 +9,8 @@ from pioreactor.calibrations import load_active_calibration
 from pioreactor.calibrations import load_calibration
 from pioreactor.cli.calibrations import analyze_calibration
 from pioreactor.cli.calibrations import run_calibration
+from pioreactor.config import config
+from pioreactor.config import temporary_config_change
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
 
@@ -36,17 +38,18 @@ def test_analyze():
 
 
 def test_run_od_standards():
-    runner = CliRunner()
-    result = runner.invoke(
-        run_calibration,
-        ["--device", "od"],
-        input="standards\nod-cal-2025-02-23\nY\nY\n1\nY\nY\n0.5\nY\nY\n0.1\nn\n0.0\nY\nd\n1\ny\ny\n",
-    )
-    assert not result.exception
-    cal = load_calibration("od", "od-cal-2025-02-23")
-    assert len(cal.curve_data_) == 2  # two since it's linear
-    assert cal.x == "OD600"
-    assert cal.y == "Voltage"
-    assert len(cal.recorded_data["x"]) == 4
+    with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "70"):
+        runner = CliRunner()
+        result = runner.invoke(
+            run_calibration,
+            ["--device", "od"],
+            input="standards\nod-cal-2025-02-23\nY\nY\n1\nY\nY\n0.5\nY\nY\n0.1\nn\n0.0\nY\nd\n1\ny\ny\n",
+        )
+        assert not result.exception
+        cal = load_calibration("od", "od-cal-2025-02-23")
+        assert len(cal.curve_data_) == 2  # two since it's linear
+        assert cal.x == "OD600"
+        assert cal.y == "Voltage"
+        assert len(cal.recorded_data["x"]) == 4
 
     assert load_active_calibration("od").calibration_name == "od-cal-2025-02-23"

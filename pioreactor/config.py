@@ -191,25 +191,35 @@ def get_mqtt_address() -> str:
     return get_config().get("mqtt", "broker_address", fallback=get_leader_address())
 
 
-@contextmanager
+# @contextmanager
 def temporary_config_change(config: ConfigParserMod, section: str, parameter: str, new_value: str):
     """
     A context manager to temporarily change a value in a ConfigParser object.
     """
-    if not config.has_section(section):
-        yield
-        return
-    if not config.has_option(section, parameter):
-        yield
-        return
+    return temporary_config_changes(config, [(section, parameter, new_value)])
 
-    # Save the original value
-    original_value = config.get(section, parameter)
+
+@contextmanager
+def temporary_config_changes(config, changes):
+    """
+    A context manager to temporarily change multiple values in a ConfigParser object.
+
+    Parameters:
+      config: The ConfigParser object.
+      changes: An iterable of tuples, each containing (section, parameter, new_value).
+    """
+    # Dictionary to store the original values for restoration.
+    originals = {}
 
     try:
-        # Apply the temporary change
-        config.set(section, parameter, new_value)
+        for section, parameter, new_value in changes:
+            if config.has_section(section) and config.has_option(section, parameter):
+                # Save the original value
+                originals[(section, parameter)] = config.get(section, parameter)
+                # Apply the temporary change
+                config.set(section, parameter, new_value)
         yield
     finally:
-        # Restore the original value
-        config.set(section, parameter, original_value)
+        # Restore all the original values
+        for (section, parameter), original_value in originals.items():
+            config.set(section, parameter, original_value)
