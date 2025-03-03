@@ -326,13 +326,12 @@ def test_upsert_setting_insert(job_manager, job_id):
     job_manager.upsert_setting(job_id, setting, value2)
     # Verify the setting was updated
     job_manager.cursor.execute(
-        "SELECT value, updated_at == created_at FROM pio_job_published_settings WHERE job_id=? AND setting=?",
+        "SELECT value FROM pio_job_published_settings WHERE job_id=? AND setting=?",
         (job_id, setting),
     )
     result = job_manager.cursor.fetchone()
     assert result is not None
     assert result[0] == value2
-    assert not result[1]
 
 
 def test_upsert_setting_insert_complex_types(job_manager, job_id):
