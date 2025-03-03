@@ -14,7 +14,12 @@ if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
     crudini --set /home/pioreactor/.pioreactor/config.ini ui.overview.cards profiles 1
     crudini --set /home/pioreactor/.pioreactor/config.ini od_reading.config smoothing_penalizer 6.0
     crudini --set /home/pioreactor/.pioreactor/config.ini growth_rate_calculating.config ekf_outlier_std_threshold 5.0
-    sudo -u pioreactor pios sync-configs --shared
+    sudo -u pioreactor pios sync-configs --shared || :
+
+    # new add_worker script
+    ADD_WORKER_FILE="/usr/local/bin/add_new_pioreactor_worker_from_leader.sh"
+    sudo cp "$SCRIPT_DIR"/add_new_pioreactor_worker_from_leader.sh $ADD_WORKER_FILE
+    echo "Added new add_new_pioreactor_worker_from_leader.sh."
 
 fi
 
