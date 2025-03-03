@@ -49,8 +49,10 @@ class ExponentialMovingStd:
     Ex: if alpha = 0, use latest value only.
     """
 
-    def __init__(self, alpha: float, ema_alpha: Optional[float] = None):
-        self._var_value: Optional[float] = None
+    def __init__(
+        self, alpha: float, ema_alpha: Optional[float] = None, initial_std_value: Optional[float] = None
+    ):
+        self._var_value = initial_std_value**2 if initial_std_value is not None else None
         self.value: Optional[float] = None
         self.alpha = alpha
         self.ema = ExponentialMovingAverage(ema_alpha or self.alpha)
@@ -229,7 +231,9 @@ class CultureGrowthEKF:
         self._currently_scaling_process_covariance = False
         self._scale_covariance_timer: Optional[Timer] = None
         self._covariance_pre_scale = None
-        self.ems = ExponentialMovingStd(0.975, 0.90)
+        self.ems = ExponentialMovingStd(
+            0.975, 0.90, initial_std_value=np.sqrt(observation_noise_covariance[0][0])
+        )
 
     def update(self, observation_: list[float], dt: float):
         import numpy as np
@@ -253,7 +257,6 @@ class CultureGrowthEKF:
             H @ covariance_prediction @ H.T
             + self.state_[0] * self.observation_noise_covariance
         )
-        # print((H @ covariance_prediction @ H.T)[0], covariance_prediction, H)
 
         huber_threshold = self.outlier_std_threshold * (self.ems.value or 10_000)
         currently_is_outlier = abs(residual_state[0]) > huber_threshold

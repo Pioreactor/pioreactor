@@ -29,7 +29,7 @@ def pause() -> None:
     time.sleep(0.5)
 
 
-def create_od_raw_batched_json(channels, voltages: list[float], angles, timestamp: str) -> bytes:
+def create_od_raw_batched(channels, voltages: list[float], angles, timestamp: str) -> structs.ODReadings:
     """
     channel is a list, elements from {1, 2}
     raw_signal is a list
@@ -43,7 +43,17 @@ def create_od_raw_batched_json(channels, voltages: list[float], angles, timestam
             od=voltage, angle=angle, timestamp=to_datetime(timestamp), channel=channel
         )
 
-    return encode(readings)
+    return readings
+
+
+def create_encoded_od_raw_batched(channels, voltages: list[float], angles, timestamp: str) -> bytes:
+    """
+    channel is a list, elements from {1, 2}
+    raw_signal is a list
+    angle is a list, elements from {45, 90, 135, 180}
+
+    """
+    return encode(create_od_raw_batched(channels, voltages, angles, timestamp))
 
 
 class TestGrowthRateCalculating:
@@ -87,7 +97,7 @@ class TestGrowthRateCalculating:
 
             publish(
                 f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                create_od_raw_batched_json(
+                create_encoded_od_raw_batched(
                     ["1", "2"], [1.01, 0.99], ["90", "135"], timestamp="2010-01-01T12:00:00.000Z"
                 ),
                 retain=True,
@@ -99,7 +109,7 @@ class TestGrowthRateCalculating:
 
                 publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                    create_od_raw_batched_json(
+                    create_encoded_od_raw_batched(
                         ["1", "2"],
                         [1.012, 0.985],
                         ["90", "135"],
@@ -109,7 +119,7 @@ class TestGrowthRateCalculating:
                 pause()
                 publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                    create_od_raw_batched_json(
+                    create_encoded_od_raw_batched(
                         ["1", "2"],
                         [1.014, 0.987],
                         ["90", "135"],
@@ -119,7 +129,7 @@ class TestGrowthRateCalculating:
                 pause()
                 publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                    create_od_raw_batched_json(
+                    create_encoded_od_raw_batched(
                         ["1", "2"],
                         [1.016, 0.985],
                         ["90", "135"],
@@ -132,7 +142,7 @@ class TestGrowthRateCalculating:
 
                 publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                    create_od_raw_batched_json(
+                    create_encoded_od_raw_batched(
                         ["1", "2"],
                         [1.014, 0.992],
                         ["90", "135"],
@@ -152,7 +162,7 @@ class TestGrowthRateCalculating:
                 )
                 publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                    create_od_raw_batched_json(
+                    create_encoded_od_raw_batched(
                         ["1", "2"],
                         [1.015, 0.993],
                         ["90", "135"],
@@ -179,7 +189,7 @@ class TestGrowthRateCalculating:
 
             publish(
                 f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                create_od_raw_batched_json(
+                create_encoded_od_raw_batched(
                     ["1", "2"],
                     [
                         1.15,
@@ -202,7 +212,7 @@ class TestGrowthRateCalculating:
 
             publish(
                 f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                create_od_raw_batched_json(
+                create_encoded_od_raw_batched(
                     ["1", "2"],
                     [1.151, 0.931],
                     ["90", "135"],
@@ -211,7 +221,7 @@ class TestGrowthRateCalculating:
             )
             publish(
                 f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                create_od_raw_batched_json(
+                create_encoded_od_raw_batched(
                     ["1", "2"],
                     [1.152, 0.932],
                     ["90", "135"],
@@ -220,7 +230,7 @@ class TestGrowthRateCalculating:
             )
             publish(
                 f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                create_od_raw_batched_json(
+                create_encoded_od_raw_batched(
                     ["1", "2"],
                     [1.153, 0.933],
                     ["90", "135"],
@@ -229,7 +239,7 @@ class TestGrowthRateCalculating:
             )
             publish(
                 f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                create_od_raw_batched_json(
+                create_encoded_od_raw_batched(
                     ["1", "2"],
                     [1.154, 0.934],
                     ["90", "135"],
@@ -259,7 +269,7 @@ class TestGrowthRateCalculating:
 
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/ods",
-            create_od_raw_batched_json(["1"], [1.153], ["90"], timestamp="2010-01-01T12:00:30.000Z"),
+            create_encoded_od_raw_batched(["1"], [1.153], ["90"], timestamp="2010-01-01T12:00:30.000Z"),
             retain=True,
         )
 
@@ -267,7 +277,7 @@ class TestGrowthRateCalculating:
 
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/ods",
-            create_od_raw_batched_json(["1"], [1.155], ["90"], timestamp="2010-01-01T12:00:35.000Z"),
+            create_encoded_od_raw_batched(["1"], [1.155], ["90"], timestamp="2010-01-01T12:00:35.000Z"),
         )
         pause()
 
@@ -286,7 +296,7 @@ class TestGrowthRateCalculating:
 
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/ods",
-            create_od_raw_batched_json(
+            create_encoded_od_raw_batched(
                 ["1", "2"], [0.5, 0.8], ["90", "135"], timestamp="2010-01-01T12:00:35.000Z"
             ),
             retain=True,
@@ -315,7 +325,7 @@ class TestGrowthRateCalculating:
 
             publish(
                 f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                create_od_raw_batched_json(
+                create_encoded_od_raw_batched(
                     ["1"],
                     [0.5],
                     ["90"],
@@ -327,7 +337,7 @@ class TestGrowthRateCalculating:
             calc = GrowthRateCalculator(unit=unit, experiment=experiment)
             publish(
                 f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                create_od_raw_batched_json(
+                create_encoded_od_raw_batched(
                     ["1"],
                     [0.51],
                     ["90"],
@@ -338,7 +348,7 @@ class TestGrowthRateCalculating:
 
             publish(
                 f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                create_od_raw_batched_json(
+                create_encoded_od_raw_batched(
                     ["1"],
                     [0.51],
                     ["90"],
@@ -365,7 +375,7 @@ class TestGrowthRateCalculating:
 
             publish(
                 f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                create_od_raw_batched_json(
+                create_encoded_od_raw_batched(
                     ["1"],
                     [0.49],
                     ["90"],
@@ -375,7 +385,7 @@ class TestGrowthRateCalculating:
             pause()
             publish(
                 f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                create_od_raw_batched_json(
+                create_encoded_od_raw_batched(
                     ["1"],
                     [0.48],
                     ["90"],
@@ -400,7 +410,7 @@ class TestGrowthRateCalculating:
             pause()
             publish(
                 f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                create_od_raw_batched_json(
+                create_encoded_od_raw_batched(
                     ["1"],
                     [0.40],
                     ["90"],
@@ -593,7 +603,7 @@ class TestGrowthRateCalculating:
 
             publish(
                 f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                create_od_raw_batched_json(
+                create_encoded_od_raw_batched(
                     ["1", "2"], [0.50, 0.80], ["90", "135"], timestamp="2010-01-01T12:02:00.000Z"
                 ),
                 retain=True,
@@ -628,7 +638,7 @@ class TestGrowthRateCalculating:
         pause()
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/ods",
-            create_od_raw_batched_json(
+            create_encoded_od_raw_batched(
                 ["1", "2"], [0.50, 0.80], ["90", "135"], timestamp="2010-01-01T12:02:00.000Z"
             ),
             retain=True,
@@ -637,7 +647,7 @@ class TestGrowthRateCalculating:
         pause()
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/ods",
-            create_od_raw_batched_json(
+            create_encoded_od_raw_batched(
                 ["1", "2"], [0.1, 0.1], ["90", "135"], timestamp="2010-01-01T12:02:05.000Z"
             ),
             retain=True,
@@ -647,7 +657,7 @@ class TestGrowthRateCalculating:
         pause()
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/ods",
-            create_od_raw_batched_json(
+            create_encoded_od_raw_batched(
                 ["1", "2"], [0.1, 0.1], ["90", "135"], timestamp="2010-01-01T12:02:10.000Z"
             ),
             retain=True,
@@ -679,7 +689,7 @@ class TestGrowthRateCalculating:
 
             publish(
                 f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                create_od_raw_batched_json(
+                create_encoded_od_raw_batched(
                     ["1", "2"], [0.5, 0.8], ["90", "135"], timestamp="2010-01-01T12:02:10.000Z"
                 ),
                 retain=True,
@@ -691,7 +701,7 @@ class TestGrowthRateCalculating:
                 pause()
                 publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                    create_od_raw_batched_json(
+                    create_encoded_od_raw_batched(
                         ["1", "2"], [0.5, 0.8], ["90", "135"], timestamp="2010-01-01T12:02:15.000Z"
                     ),
                     retain=True,
@@ -719,7 +729,7 @@ class TestGrowthRateCalculating:
 
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/ods",
-            create_od_raw_batched_json(
+            create_encoded_od_raw_batched(
                 ["2", "1"], [0.9, 1.1], ["135", "90"], timestamp="2010-01-01T12:00:00.000Z"
             ),
             retain=True,
@@ -797,7 +807,7 @@ class TestGrowthRateCalculating:
 
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/ods",
-            create_od_raw_batched_json(
+            create_encoded_od_raw_batched(
                 ["1", "2"], [1.0, 1.0], ["90", "135"], timestamp="2010-01-01T12:00:35.000Z"
             ),
             retain=True,
@@ -828,24 +838,27 @@ class TestGrowthRateCalculating:
             )
             var = 1e-6
             std = float(np.sqrt(var))
+            baseline = 0.05
+
             with local_persistent_storage("od_normalization_mean") as cache:
-                cache[experiment] = json.dumps({"2": 0.05})
+                cache[experiment] = json.dumps({"2": baseline})
 
             with local_persistent_storage("od_normalization_variance") as cache:
                 cache[experiment] = json.dumps({"2": var})
 
             with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
-                for _ in range(30):
-                    v = 0.05 + std * np.random.randn()
+                for _ in range(25):
+                    v = baseline + std * np.random.randn()
                     t = current_utc_timestamp()
+                    ods = create_od_raw_batched(["2"], [v], ["90"], timestamp=t)
                     calc.publish(
                         f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                        create_od_raw_batched_json(["2"], [v], ["90"], timestamp=t),
+                        encode(ods),
                         retain=True,
                     )
                     calc.publish(
                         f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                        encode(structs.ODReading(od=v, angle="90", timestamp=to_datetime(t), channel="2")),
+                        encode(ods.ods["2"]),
                         retain=True,
                     )
                     time.sleep(0.5)
@@ -853,29 +866,32 @@ class TestGrowthRateCalculating:
                 previous_nOD = calc.od_filtered
                 previous_gr = calc.growth_rate
                 # EKF is warmed up, introduce outlier. This outlier is "expected", given the smoothing we do.
-                v = 0.10 + std * np.random.randn()
+                v = 2 * baseline + std * np.random.randn()
                 t = current_utc_timestamp()
+                ods = create_od_raw_batched(["2"], [v], ["90"], timestamp=t)
                 calc.publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                    create_od_raw_batched_json(["2"], [v], ["90"], timestamp=t),
+                    encode(ods),
                     retain=True,
                 )
                 calc.publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                    encode(structs.ODReading(od=v, angle="90", timestamp=to_datetime(t), channel="2")),
+                    encode(ods.ods["2"]),
                     retain=True,
                 )
 
-                v = 0.06 + std * np.random.randn()
+                # publish another minor outlier
+                v = 1.2 * baseline + std * np.random.randn()
                 t = current_utc_timestamp()
+                ods = create_od_raw_batched(["2"], [v], ["90"], timestamp=t)
                 calc.publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                    create_od_raw_batched_json(["2"], [v], ["90"], timestamp=t),
+                    encode(ods),
                     retain=True,
                 )
                 calc.publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                    encode(structs.ODReading(od=v, angle="90", timestamp=to_datetime(t), channel="2")),
+                    encode(ods.ods["2"]),
                     retain=True,
                 )
                 time.sleep(0.5)
@@ -890,14 +906,15 @@ class TestGrowthRateCalculating:
                 for _ in range(30):
                     v = 0.05 + std * np.random.randn()
                     t = current_utc_timestamp()
+                    ods = create_od_raw_batched(["2"], [v], ["90"], timestamp=t)
                     calc.publish(
                         f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                        create_od_raw_batched_json(["2"], [v], ["90"], timestamp=t),
+                        encode(ods),
                         retain=True,
                     )
                     calc.publish(
                         f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                        encode(structs.ODReading(od=v, angle="90", timestamp=to_datetime(t), channel="2")),
+                        encode(ods.ods["2"]),
                         retain=True,
                     )
                     time.sleep(0.5)
@@ -940,14 +957,15 @@ class TestGrowthRateCalculating:
                 for _ in range(30):
                     v = 0.05 + std * np.random.randn()
                     t = current_utc_timestamp()
+                    ods = create_od_raw_batched(["2"], [v], ["90"], timestamp=t)
                     calc.publish(
                         f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                        create_od_raw_batched_json(["2"], [v], ["90"], timestamp=t),
+                        encode(ods),
                         retain=True,
                     )
                     calc.publish(
                         f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                        encode(structs.ODReading(od=v, angle="90", timestamp=to_datetime(t), channel="2")),
+                        encode(ods.ods["2"]),
                         retain=True,
                     )
                     time.sleep(0.5)
@@ -956,18 +974,20 @@ class TestGrowthRateCalculating:
                 # EKF is warmed up,
 
                 # offset
+                shift = 0.01
                 calc.logger.info("OFFSET!")
                 for _ in range(30):
-                    v = 0.05 + 0.01 + std * np.random.randn()
+                    v = 0.05 + shift + std * np.random.randn()
                     t = current_utc_timestamp()
+                    ods = create_od_raw_batched(["2"], [v], ["90"], timestamp=t)
                     calc.publish(
                         f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                        create_od_raw_batched_json(["2"], [v], ["90"], timestamp=t),
+                        encode(ods),
                         retain=True,
                     )
                     calc.publish(
                         f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                        encode(structs.ODReading(od=v, angle="90", timestamp=to_datetime(t), channel="2")),
+                        encode(ods.ods["2"]),
                         retain=True,
                     )
                     time.sleep(0.5)
@@ -1009,7 +1029,7 @@ class TestGrowthRateCalculating:
                     t = current_utc_timestamp()
                     calc.publish(
                         f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                        create_od_raw_batched_json(["2"], [v], ["90"], timestamp=t),
+                        create_encoded_od_raw_batched(["2"], [v], ["90"], timestamp=t),
                         retain=True,
                     )
                     calc.publish(
@@ -1026,7 +1046,7 @@ class TestGrowthRateCalculating:
                 t = current_utc_timestamp()
                 calc.publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                    create_od_raw_batched_json(["2"], [v], ["90"], timestamp=t),
+                    create_encoded_od_raw_batched(["2"], [v], ["90"], timestamp=t),
                     retain=True,
                 )
                 calc.publish(
@@ -1048,7 +1068,7 @@ class TestGrowthRateCalculating:
                     t = current_utc_timestamp()
                     calc.publish(
                         f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                        create_od_raw_batched_json(["2"], [v], ["90"], timestamp=t),
+                        create_encoded_od_raw_batched(["2"], [v], ["90"], timestamp=t),
                         retain=True,
                     )
                     calc.publish(

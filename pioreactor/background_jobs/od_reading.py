@@ -573,7 +573,7 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
         self.led_output_ema = ExponentialMovingAverage(
             config.getfloat("od_reading.config", "pd_reference_ema")
         )
-        self.led_output_emstd = ExponentialMovingStd(alpha=0.95, ema_alpha=0.8)
+        self.led_output_emstd = ExponentialMovingStd(alpha=0.95, ema_alpha=0.8, initial_std_value=0.001)
         self.channel = channel
         # self.logger.debug(f"Using PD channel {channel} as IR LED reference.")
 
