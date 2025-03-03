@@ -388,8 +388,14 @@ class GrowthRateCalculator(BackgroundJob):
             for channel, raw_signal in observations.items()
         }
 
-        if any(v <= 0.0 for v in scaled_signals.values()):
-            raise ValueError(f"Negative normalized value(s) observed: {scaled_signals}.")
+        if any(v < 0.0 for v in scaled_signals.values()):
+            raise ValueError(
+                f"Negative normalized value(s) observed: {scaled_signals}. Likely optical signal received is less than the blank signal."
+            )
+        elif any(v == 0.0 for v in scaled_signals.values()):
+            self.logger.warning(
+                f"Zero normalized value(s) observed: {scaled_signals}. This suggests very little signal is reaching the optical sensors."
+            )
 
         return scaled_signals
 
