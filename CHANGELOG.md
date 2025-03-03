@@ -1,27 +1,43 @@
-### Upcoming
 
 #### Enhancements
- - new faster ADC firmware with less noise
- - `led_intensity` is now registered in our database, so `pio kill --all-jobs` (and related `pio kill` commands) now disables LEDs too.
- - new option in `pio workers add` to provide an address to find the new worker at (default is `hostname`.local)
- - New time option on the Overview page: "Now" for only realtime data.
- - logs for experiment profiles show an action step number.
- - improvements to outlier detection in nOD and Growth rates.
+- **New faster ADC firmware with less noise**
+  - Upgraded ADC firmware improves signal processing speed and reduces measurement noise, leading to more reliable readings for all sensors.
+- **`led_intensity` is now registered in our database**
+  - This means that running `pio kill --all-jobs` (and related `pio kill` commands) will now also turn off all LEDs, ensuring a complete shutdown of active processes.
+- **New option in `pio workers add` to specify an IPv4 address**
+  - When adding a new worker, you can now explicitly provide an IPv4 address instead of relying on the default `hostname.local`. This is useful in networks where mDNS resolution is unreliable.
+- **New time option on the Overview page: "Now" for only real-time data**
+  - The UI now has a “Now” option that filters out historical data, displaying only real-time sensor readings and status updates.
+- **Logs for experiment profiles now include an action step number**
+  - Each log entry related to an experiment profile now contains a step number, making it easier to track progress and diagnose issues in multi-step workflows.
+- **Improved outlier detection in nOD and growth rates**
+  - Our outlier detection algorithms for normal optical density (nOD) and growth rates have been refined, reducing false positives and improving tracking accuracy during experiments.
 
-#### Breaking changes
- - id -> job_id  in pio_metadata_settings table
- - changed the scaling of `smoothing_penalizer` - it's now about 100x less!
- - `/unit_api/jobs/stop/...` is deprecated (to be removed in a future version). Use query params now: `/unit_api/jobs/stop/?job_name=...`. However, `/unit_api/jobs/stop/all` is valid.
- - Changing from xxxxx millisecond precision to xxx millisecond precision on our timestamps. This should save time and space!
+#### Breaking Changes
+- **`id` → `job_id` in `pio_metadata_settings` table**
+  - Database schema update: The primary identifier column in `pio_metadata_settings` has been renamed to `job_id`. Ensure all queries and scripts referencing this table are updated accordingly.
+- **Changed the scaling of `smoothing_penalizer`**
+  - The `smoothing_penalizer` parameter now operates on a scale that is **100x lower** than before. If you have custom configurations, update them to match the new scaling factor.
+- **Deprecation of `/unit_api/jobs/stop/...` endpoint**
+  - The `/unit_api/jobs/stop/...` API endpoint is being deprecated in favor of using query parameters:
+    - Instead of `/unit_api/jobs/stop/job_name`, use `/unit_api/jobs/stop/?job_name=...`.
+    - The special case `/unit_api/jobs/stop/all` remains valid and unchanged.
+- **Timestamp precision change: From `xxxxx` milliseconds → `xxx` milliseconds**
+  - All timestamps will now be stored with three-digit millisecond precision instead of five. This change optimizes storage efficiency and speeds up queries while maintaining sufficient accuracy for most use cases.
 
-#### Bug fixes
- - When selecting "More" in the Logs UI page, the log level is used (previously would default to "Standard").
- - multiple experiment profiles don't overwrite each other in mqtt, but at a cost! The new MQTT topic breaks the usual topic nomenclature by introducing a job_id in it.
- - Fix API not providing the correct web response for huey-related tasks (like adding a new pioreactor, syncing configs, updating, etc.)
- - there was a scaling error in the `od_reading.config`'s `smoothing_penalizer`. This has been fixed, and your config.ini has been updated (it will look much smaller). This is in support of our new firmware, too.
- - Missed a few log events showing up in Event Logs page when they occurred _after_ the worker was unassigned (ex: clean-up, assignment events.) Also removing some logs that shouldn't be there.
- - There was a scaling bug in our extended Kalman filter that was causing outlier detections too often. In extreme cases, these detections would compound and case the nOD to go negative, and break the Kalman filter's internal state. This is fixed, and a new, more stable, algorithm is introduced.
-
+#### Bug Fixes
+- **Fix for "More" button in the Logs UI page**
+  - Previously, clicking "More" in the Logs UI would default to "Standard" log level instead of retaining the selected filter. Now, it correctly uses the log level chosen by the user.
+- **Multiple experiment profiles no longer overwrite each other in MQTT**
+  - Previously, running multiple experiment profiles could cause MQTT messages to overwrite each other. This is now fixed, but note that **the new MQTT topic format introduces `job_id`, deviating from our usual topic structure**.
+- **Fix for API returning incorrect responses for Huey-related tasks**
+  - API responses related to background tasks (e.g., adding a new Pioreactor, syncing configs, updating firmware) were sometimes incorrect or missing details. This has been fixed.
+- **Correction to `od_reading.config`'s `smoothing_penalizer` scaling error**
+  - A miscalculated scaling factor in `od_reading.config` caused inconsistencies in readings. This has been corrected, and your `config.ini` file has been **automatically updated** to reflect the new values.
+- **Fix for missing log events in Event Logs after worker unassignment**
+  - Some log events (such as clean-up and assignment events) were missing when they occurred **after** a worker was unassigned. These now appear correctly. Additionally, some unrelated log entries that were mistakenly displayed have been removed.
+- **Scaling bug fix in the extended Kalman filter affecting nOD detection**
+  - A bug in the extended Kalman filter was **causing outlier detections too frequently**. In extreme cases, these detections could compound, driving nOD values negative and corrupting the filter’s internal state. This issue has been fixed with a **new, more stable filtering algorithm** that significantly improves robustness.
 
 ### 25.2.20
 
