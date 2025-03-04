@@ -18,7 +18,7 @@ import EditExperimentProfile from "./EditExperimentProfile";
 import EditConfig from "./EditConfig";
 import Updates from "./Updates";
 import Plugins from "./Plugins";
-import Profiles from "./Profiles";
+import {Profiles} from "./Profiles";
 import Inventory from "./Inventory";
 import Leader from "./Leader";
 import Logs from "./Logs";

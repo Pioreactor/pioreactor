@@ -34,9 +34,9 @@ function AutomationForm(props){
             onChange={onSettingsChange}
             onKeyPress={(e) => {e.key === 'Enter' && e.preventDefault();}}
             sx={{
-              mt: 3,  // theme.spacing(3)
-              mr: 2,  // theme.spacing(2)
-              mb: 0,  // theme.spacing(0)
+              mt: 3,
+              mr: 2,
+              mb: 0,
               width: "18ch"
             }}
           />
@@ -57,9 +57,9 @@ function AutomationForm(props){
             onChange={onSettingsChange}
             onKeyPress={(e) => {e.key === 'Enter' && e.preventDefault();}}
             sx={{
-              mt: 3,  // theme.spacing(3)
-              mr: 2,  // theme.spacing(2)
-              mb: 0,  // theme.spacing(0)
+              mt: 3,
+              mr: 2,
+              mb: 0,
               width: "18ch"
             }}
           />

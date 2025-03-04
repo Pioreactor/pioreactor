@@ -23,8 +23,7 @@ import CodeIcon from '@mui/icons-material/Code';
 import AddIcon from '@mui/icons-material/Add';
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
 import UnderlineSpan from "./components/UnderlineSpan";
-import { RunningProfilesProvider } from './providers/RunningProfilesContext';
-import { useRunningProfiles } from './providers/RunningProfilesContext';
+import { RunningProfilesProvider, useRunningProfiles } from './providers/RunningProfilesContext';
 
 import EditIcon from '@mui/icons-material/Edit';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -36,7 +35,6 @@ import { useConfirm } from 'material-ui-confirm';
 import { MQTTProvider, useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 import ManageExperimentMenu from "./components/ManageExperimentMenu";
-import {runPioreactorJobViaUnitAPI} from "./utilities"
 import StopIcon from '@mui/icons-material/Stop';
 import CircularProgress from '@mui/material/CircularProgress';
 import Chip from '@mui/material/Chip';
@@ -50,7 +48,6 @@ function RunExperimentProfilesContent({
   experiment,
   experimentProfilesAvailable,
   selectedExperimentProfile,
-  setSelectedExperimentProfile,
   confirmed,
   setConfirmed,
   viewSource,
@@ -67,16 +64,13 @@ function RunExperimentProfilesContent({
   const onSubmit = () => {
     setConfirmed(true);
     // The “selectedExperimentProfile” is the file key we pass to start
-    startProfile(selectedExperimentProfile, experiment, dryRun);
+    startProfile(experimentProfilesAvailable[selectedExperimentProfile].fullpath, experiment, dryRun);
   };
 
   const onSelectExperimentProfileChange = (e) => {
 
     navigate(`/experiment-profiles/${e.target.value}`)
 
-    //setSelectedExperimentProfile(e.target.value);
-    //setViewSource(false);
-    //setConfirmed(false);
   };
 
   const deleteProfile = () => {
@@ -129,7 +123,7 @@ function RunExperimentProfilesContent({
               label="Experiment profile"
             >
               {Object.keys(experimentProfilesAvailable).map((file) => {
-                const profile = experimentProfilesAvailable[file];
+                const profile = experimentProfilesAvailable[file].profile;
                 return (
                   <MenuItem key={file} value={file}>
                     {profile.experiment_profile_name}
@@ -186,7 +180,7 @@ function RunExperimentProfilesContent({
 
       <Grid item xs={12}>
         {selectedExperimentProfile !== "" && !viewSource &&
-          <DisplayProfile data={experimentProfilesAvailable[selectedExperimentProfile]} />
+          <DisplayProfile data={experimentProfilesAvailable[selectedExperimentProfile].profile} />
         }
         {selectedExperimentProfile !== "" && viewSource &&
           <DisplaySourceCode sourceCode={source} />
@@ -237,10 +231,7 @@ function RunProfilesContainer(props) {
 }
 
 
-/**
- * 3) The component that lists running profiles, with a clickable Chip.
- */
-function RunningProfilesContainer({ }) {
+function RunningProfilesContainer() {
   const confirm = useConfirm();
   const navigate = useNavigate();
   const { runningProfiles, loading, stopProfile } = useRunningProfiles();
@@ -249,7 +240,9 @@ function RunningProfilesContainer({ }) {
     confirm({
       description: 'Stopping this profile early will stop executing new actions end all actions started by it.',
       title: 'Stop profile?',
-      confirmationText: 'Confirm'
+      confirmationText: 'Stop profile',
+      confirmationButtonProps: {color: "primary"},
+      cancellationButtonProps: {color: "secondary"},
     })
       .then(() => stopProfile(job_id))
       .catch(() => {});
@@ -263,7 +256,7 @@ function RunningProfilesContainer({ }) {
             <Box fontWeight="fontWeightRegular">Profiles Running</Box>
           </Typography>
           {loading && (
-            <Box sx={{ textAlign: "center", mt: 3 }}>
+            <Box sx={{ textAlign: "center", mt: 2 }}>
               <CircularProgress size={33}/>
             </Box>
           )}
@@ -271,7 +264,7 @@ function RunningProfilesContainer({ }) {
             <p>No profiles are currently running.</p>
           )}
           {!loading && runningProfiles.length > 0 && (
-            <Table size="small" sx={{ mt: 3 }}>
+            <Table size="small" sx={{ mt: 0 }}>
               <TableHead>
                 <TableRow>
                   <TableCell sx={{ padding: "6px 0px" }}>Profile name</TableCell>
@@ -298,8 +291,8 @@ function RunningProfilesContainer({ }) {
                       <TableCell align="right">
                         {dayjs().diff(dayjs(element.settings.start_time_utc), 'hour', true).toFixed(1)} h
                       </TableCell>
-                      <TableCell align="right" sx={{ width: "100px" }}>
-                        <Button color="secondary" sx={{ textTransform: "none" }} onClick={() => onStop(element.job_id)}>
+                      <TableCell align="right" sx={{ width: "100px", px: 0 }}>
+                        <Button color="secondary" sx={{ textTransform: "none", p: 0 }} onClick={() => onStop(element.job_id)}>
                           Stop
                         </Button>
                       </TableCell>
@@ -316,11 +309,6 @@ function RunningProfilesContainer({ }) {
 }
 
 
-/**
- * 4) Finally, the top-level “Profiles” component lifts up the profiles
- *    and selected-profile state. We only fetch experimentProfilesAvailable
- *    once here.
- */
 function Profiles(props) {
   const { experimentMetadata } = useExperiment();
   const { profileFilename } = useParams();
@@ -342,16 +330,18 @@ function Profiles(props) {
       .then(profiles => {
         // shape: [ {file: "...", experimentProfile: {...}}, ... ]
         const profilesByKey = profiles.reduce(
-          (acc, cur) => ({ ...acc, [cur.file]: cur.experimentProfile }),
+          (acc, cur) => ({ ...acc, [cur.file]: {profile: cur.experimentProfile, fullpath: cur.fullpath, file: cur.file} }),
           {}
         );
         setExperimentProfilesAvailable(profilesByKey);
 
-        if (profileFilename){
+        if (profileFilename && (profileFilename in profilesByKey)){
           setSelectedExperimentProfile(profileFilename);
+          setConfirmed(false)
         } else {
           const firstKey = Object.keys(profilesByKey)[0] ?? "";
           setSelectedExperimentProfile(firstKey);
+          setConfirmed(false)
         }
       });
   }, [profileFilename]);
@@ -392,7 +382,6 @@ function Profiles(props) {
             // Pass all the “lifted” states + setters
             experimentProfilesAvailable={experimentProfilesAvailable}
             selectedExperimentProfile={selectedExperimentProfile}
-            setSelectedExperimentProfile={setSelectedExperimentProfile}
             confirmed={confirmed}
             setConfirmed={setConfirmed}
             viewSource={viewSource}
@@ -410,7 +399,7 @@ function Profiles(props) {
         </Grid>
 
         <Grid item xs={12}>
-          <p style={{ textAlign: "center", marginTop: "30px" }}>
+          <p style={{ textAlign: "center", marginTop: "20px" }}>
             Learn more about{" "}
             <a href="https://docs.pioreactor.com/user-guide/experiment-profiles" target="_blank" rel="noopener noreferrer">
               experiment profiles
@@ -422,4 +411,4 @@ function Profiles(props) {
   );
 }
 
-export default Profiles;
+export {Profiles, RunningProfilesContainer};

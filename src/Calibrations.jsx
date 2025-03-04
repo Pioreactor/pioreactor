@@ -173,6 +173,7 @@ function CalibrationData() {
       // Case 4: Selected unit, regardless of activity
       return cal.pioreactor_unit === selectedUnit;
     }
+    return
   }).sort((a, b) => {
   // Compare `is_active` (true first, false later)
   if (a.is_active !== b.is_active) {
@@ -182,11 +183,11 @@ function CalibrationData() {
   return a.pioreactor_unit.localeCompare(b.pioreactor_unit);
   });
 
-  const onMouseOverRow = (event, cal) => {
+  const onMouseOverRow = (_, cal) => {
     setHighlightedModel({pioreactorUnit: cal.pioreactor_unit, calibrationName: cal.calibration_name});
     // change background of row to light grey
   }
-  const onMouseExitRow = (event) => {
+  const onMouseExitRow = (_) => {
     setHighlightedModel({pioreactorUnit: null, calibrationName: null});
   }
 
@@ -314,10 +315,6 @@ function CalibrationData() {
 
 
 function CalibrationsContainer(props) {
-
-  const [config, setConfig] = React.useState({})
-  const [selectedDevice, setSelectedDevice] = React.useState(null)
-
 
   const handleDownloadCalibrations = async () => {
     try {

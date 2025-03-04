@@ -18,7 +18,7 @@ import List from '@mui/material/List';
 import {Typography} from '@mui/material';
 import Box from '@mui/material/Box';
 import LoadingButton from "@mui/lab/LoadingButton";
-import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
+import { Table, TableBody, TableCell, TableHead, TableRow, TableContainer } from '@mui/material';
 import ManageInventoryMenu from './components/ManageInventoryMenu';
 import LogTableByUnit from './components/LogTableByUnit';
 import {disconnectedGrey, lostRed, disabledColor, readyGreen, checkTaskCallback, getConfig} from "./utilities"
@@ -613,35 +613,35 @@ function ClusterClockCard({leaderHostname}){
         )}
 
         {!loading && !error && clockData && (
-          <Box>
-          <Table size="small" sx={{mt: 1}}>
-            <TableHead>
-              <TableRow>
-                <TableCell sx={{padding: "6px 0px"}}>Pioreactor</TableCell>
-                <TableCell align="right" sx={{padding: "6px 0px"}}>Clock time (localtime)</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {Object.entries(clockData).map(([unitName, info]) => {
-                return (
-                  <TableRow key={unitName}>
-                    <TableCell sx={{padding: "6px 0px"}}>
-                      <Chip
-                        size="small"
-                        icon={<PioreactorIcon/>}
-                        label={unitName}
-                        clickable
-                        component={Link}
-                        to={leaderHostname === unitName ? "/leader" : "/pioreactors/" + unitName}
-                        />
-                    </TableCell>
-                    <TableCell align="right" sx={{padding: "6px 0px"}}>{info?.clock_time ? dayjs.utc(info.clock_time, 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]').local().format('MMM D, YYYY HH:mm:ss') : "No data received"}</TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-          </Box>
+          <TableContainer sx={{ maxHeight: '400px', width: '100%', overflowY: 'auto' }}>
+            <Table size="small" sx={{mt: 1}}>
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{padding: "6px 0px"}}>Pioreactor</TableCell>
+                  <TableCell align="right" sx={{padding: "6px 0px"}}>Clock time (localtime)</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {Object.entries(clockData).map(([unitName, info]) => {
+                  return (
+                    <TableRow key={unitName}>
+                      <TableCell sx={{padding: "6px 0px"}}>
+                        <Chip
+                          size="small"
+                          icon={<PioreactorIcon/>}
+                          label={unitName}
+                          clickable
+                          component={Link}
+                          to={leaderHostname === unitName ? "/leader" : "/pioreactors/" + unitName}
+                          />
+                      </TableCell>
+                      <TableCell align="right" sx={{padding: "6px 0px"}}>{info?.clock_time ? dayjs.utc(info.clock_time, 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]').local().format('MMM D, YYYY HH:mm:ss') : "No data received"}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TableContainer>
         )}
 
         <Box sx={{ mt: 4 }}>

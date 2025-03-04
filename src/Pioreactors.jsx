@@ -615,7 +615,8 @@ function CalibrateDialog(props) {
    }
 
   const isGrowRateJobRunning = props.growthRateJobState === "ready"
-  const blankODButton = createUserButtonsBasedOnState(props.odBlankJobState, "od_blank", (isGrowRateJobRunning || "od" in activeCalibrations))
+  const hasActiveODCalibration = "od" in (activeCalibrations || {})
+  const blankODButton = createUserButtonsBasedOnState(props.odBlankJobState, "od_blank", (isGrowRateJobRunning || hasActiveODCalibration))
 
   return (
     <React.Fragment>
@@ -633,8 +634,8 @@ function CalibrateDialog(props) {
             indicatorColor="primary"
             textColor="primary"
             >
-            <Tab label="Blanks"/>
             <Tab label="Calibrations"/>
+            <Tab label="Blanks"/>
           </Tabs>
           <IconButton
             aria-label="close"
@@ -650,7 +651,7 @@ function CalibrateDialog(props) {
           </IconButton>
         </DialogTitle>
         <DialogContent>
-          <TabPanel value={tabValue} index={0}>
+          <TabPanel value={tabValue} index={1}>
             <Typography  gutterBottom>
              Record optical densities of blank (optional)
             </Typography>
@@ -663,7 +664,18 @@ function CalibrateDialog(props) {
             </Typography>
 
             <div style={{display: "flex"}}>
-              {blankODButton}
+
+              {hasActiveODCalibration &&
+                <UnderlineSpan title="If an active OD calibration is present, this isn't used.">
+                  {blankODButton}
+                </UnderlineSpan>
+                }
+              {!hasActiveODCalibration &&
+                <div>
+                {blankODButton}
+                </div>
+              }
+
               <div>
                 <Button size="small" sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}} color="secondary" disabled={(props.odBlankReading === null) || (isGrowRateJobRunning)} onClick={() => runPioreactorJob(props.unit, props.experiment, "od_blank", ['delete']) }> Clear </Button>
               </div>
@@ -671,7 +683,7 @@ function CalibrateDialog(props) {
             <ManageDivider/>
 
           </TabPanel>
-          <TabPanel value={tabValue} index={1}>
+          <TabPanel value={tabValue} index={0}>
             <Typography gutterBottom>
               Active calibrations
             </Typography>
@@ -682,8 +694,8 @@ function CalibrateDialog(props) {
 
             {Object.entries(activeCalibrations || {}).length === 0 ? (
               // Empty state message when there are no active calibrations.
-              <Typography variant="body2" component="p" color="textSecondary">
-                There are no active calibrations at the moment.
+              <Typography variant="body2" component="p" color="textSecondary" sx={{mt: 3}}>
+                There are no active calibrations available.
               </Typography>
             ) : (
               // Table rendering when active calibrations exist.

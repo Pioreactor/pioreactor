@@ -111,9 +111,9 @@ function Logs(props) {
                   fontFamily: "inherit", // Inherits the Typography's font family
                 }}
               >
-                <MenuItem value="DEBUG"  >Detailed </MenuItem>
-                <MenuItem value="INFO"   >Standard </MenuItem>
-                <MenuItem value="NOTICE"> Important </MenuItem>
+                <MenuItem value="NOTICE">− Only important </MenuItem>
+                <MenuItem value="INFO" >= Standard </MenuItem>
+                <MenuItem value="DEBUG">≡ Detailed </MenuItem>
               </Select>
               event logs for
               <Select

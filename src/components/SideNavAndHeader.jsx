@@ -29,7 +29,7 @@ import { Sidebar, Menu, MenuItem, SubMenu} from "react-pro-sidebar";
 import { useExperiment } from '../providers/ExperimentContext';
 import AddIcon from '@mui/icons-material/Add';
 import TuneIcon from '@mui/icons-material/Tune';
-
+import SubdirectoryArrowRightIcon from '@mui/icons-material/SubdirectoryArrowRight';
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 
 const ExpIcon = PlayCircleOutlinedIcon
@@ -288,6 +288,7 @@ export default function SideNavAndHeader() {
                 <MenuItem
                   component={<Link to="/logs" className="link" />}
                   active={isSelected("/logs")}
+                  icon={<SubdirectoryArrowRightIcon  sx={{fontSize: "23px"}}/>}
                   >
                   Event logs
                 </MenuItem>
@@ -360,6 +361,7 @@ export default function SideNavAndHeader() {
                   <MenuItem
                     component={<Link to="/leader" className="link" />}
                     active={isSelected("/leader")}
+                    icon={<SubdirectoryArrowRightIcon  sx={{fontSize: "23px"}}/>}
                     >
                     Leader
                   </MenuItem>

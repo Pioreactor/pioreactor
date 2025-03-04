@@ -57,7 +57,9 @@ function MultipleSelectChip({availableValues, parentHandleChange}) {
   return (
     <div>
       <FormControl fullWidth variant="standard" component="fieldset" sx={{ maxWidth: 470 }}>
-        <Typography variant="h6" gutterBottom >Experiments</Typography>
+        <Typography variant="h6" gutterBottom >
+          <Box fontWeight="fontWeightRegular">Experiments</Box>
+        </Typography>
         <Select
           labelId="expSelect"
           variant="standard"
@@ -105,7 +107,7 @@ function ExperimentSelection(props) {
         const data = await response.json();
         const experimentNames = data.map((e) => e.experiment);
 
-        // Ensure "<All experiments>" is always at the top
+        // Ensure "<All experiments>" is always at the bottom
         setExperiments([...experimentNames, "<All experiments>"]);
       } catch (error) {
         console.error("Failed to fetch experiments:", error);
@@ -134,7 +136,7 @@ const PartitionBySelection = (props) => {
           /><br/>
           <FormControlLabel
             control={<Checkbox checked={props.partitionByUnitSelection} onChange={props.handleChange} name="partition_by_unit" />}
-            label="Partition output files by Pioreactor unit"
+            label="Partition output files by Pioreactor"
           />
         </Box>
       </FormControl>
@@ -285,7 +287,9 @@ const Datasets = ({ datasets, selectedDatasets, handleChange }) => {
   return (
     <Box sx={{ m: 1 }}>
       <FormControl component="fieldset">
-        <Typography variant="h6">Available datasets</Typography>
+        <Typography variant="h6" >
+          <Box fontWeight="fontWeightRegular">Available datasets</Box>
+        </Typography>
         <FormGroup>
           {datasets.map((dataset) => (
             <Dataset
@@ -463,7 +467,9 @@ function ExportDataContainer() {
                 />
               </Grid>
               <Grid item xs={6} md={6}>
-                <Typography variant="h6">Export options</Typography>
+                <Typography variant="h6">
+                  <Box fontWeight="fontWeightRegular">Export options</Box>
+                </Typography>
                 <PartitionBySelection
                   partitionByUnitSelection={state.partitionByUnitSelection}
                   partitionByExperimentSelection={state.partitionByExperimentSelection}

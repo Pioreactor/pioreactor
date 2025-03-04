@@ -90,11 +90,17 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
 
   return (
     <Card style={{ marginBottom: '6px' }}>
-      <CardContent>
+      <CardContent sx={{ p: 2 }}>
         <Typography variant="h6" component="h2">
           <Box fontWeight="fontWeightRegular">Dosing</Box>
         </Typography>
-        <TableContainer style={{ width: '100%' }}>
+
+        {activeUnits.length === 0 && (
+            <p>No Pioreactors are currently assigned.</p>
+        )}
+
+        {activeUnits.length > 0 && (
+        <TableContainer sx={{ maxHeight: '400px', width: '100%', overflowY: 'auto' }}>
           <Table size="small" aria-label="media throughput">
             <TableHead>
               <TableRow>
@@ -140,6 +146,7 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
             </TableBody>
           </Table>
         </TableContainer>
+        )}
       </CardContent>
     </Card>
   );

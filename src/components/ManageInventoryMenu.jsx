@@ -1,15 +1,15 @@
 import React from "react";
 import MenuItem from '@mui/material/MenuItem';
 import Button from '@mui/material/Button';
-import RestartAltIcon from '@mui/icons-material/RestartAlt';
-import RemoveCircleOutlineRoundedIcon from '@mui/icons-material/RemoveCircleOutlineRounded';
 import { useConfirm } from 'material-ui-confirm';
 import { useNavigate } from 'react-router-dom';
 import Menu from "@mui/material/Menu";
 import ListItemText from "@mui/material/ListItemText";
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import ListItemIcon from '@mui/material/ListItemIcon';
-import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
+import Divider from '@mui/material/Divider';
+import RemoveCircleOutlineRoundedIcon from '@mui/icons-material/RemoveCircleOutlineRounded';
+
 
 function ManageInventoryMenu(){
   const [anchorEl, setAnchorEl] = React.useState(null);
@@ -89,18 +89,14 @@ function ManageInventoryMenu(){
           <ListItemIcon>
             <RemoveCircleOutlineRoundedIcon fontSize="small" />
           </ListItemIcon>
+
           <ListItemText>Unassign all workers</ListItemText>
         </MenuItem>
+        <Divider/>
         <MenuItem onClick={handleReboot}>
-          <ListItemIcon>
-            <RestartAltIcon fontSize="small" />
-          </ListItemIcon>
           <ListItemText>Reboot all workers</ListItemText>
         </MenuItem>
         <MenuItem onClick={handleShutdown}>
-          <ListItemIcon>
-            <PowerSettingsNewIcon fontSize="small" />
-          </ListItemIcon>
           <ListItemText>Shutdown all workers</ListItemText>
         </MenuItem>
       </Menu>

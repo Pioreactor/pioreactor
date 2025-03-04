@@ -137,20 +137,6 @@ function PaginatedLogTable({unit, experiment, relabelMap, logLevel }) {
 
 
   useEffect(() => {
-    if (client) {
-      subscribeToTopic(
-        LEVELS.map((level) => `pioreactor/${unit || '+'}/$experiment/logs/+/${level.toLowerCase()}`),
-        onMessage,
-        'PagLogTable'
-      );
-    }
-    return () => {
-      LEVELS.map((level) => unsubscribeFromTopic(`pioreactor/${unit || '+'}/$experiment/logs/+/${level.toLowerCase()}`, 'PagLogTable'))
-    };
-  }, [client, unit]);
-
-
-  useEffect(() => {
     if (experiment && client) {
       subscribeToTopic(
         LEVELS.map((level) => `pioreactor/${unit || '+'}/${experiment}/logs/+/${level.toLowerCase()}`),

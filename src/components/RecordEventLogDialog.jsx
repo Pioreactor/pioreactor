@@ -29,23 +29,25 @@ function RecordEventLogDialog({
   const [selectedExperiment, setSelectedExperiment] = useState(defaultExperiment);
   const [message, setMessage] = useState("");
   const [timestampLocal, setTimestampLocal] = useState(dayjs().local().format('YYYY-MM-DD HH:mm:ss'));
-  const [source, setSource] = useState("");
+  const [task, setTask] = useState("");
   const [openDialog, setOpenDialog] = useState(false);
 
   const handleSubmit = () => {
     if (onSubmit) {
       const timestampUTC = dayjs(timestampLocal, 'YYYY-MM-DD HH:mm:ss', true)
         .utc()
-        .format('YYYY-MM-DD[T]HH:mm:ss[Z]');
+        .format('YYYY-MM-DD[T]HH:mm:ss.000[Z]');
       onSubmit({
         pioreactor_unit: selectedPioreactor,
         experiment: selectedExperiment,
-        message,
+        message: message,
         timestamp: timestampUTC,
-        source,
+        task: task,
+        source: "UI",
+        level: "INFO",
       });
       setMessage("")
-      setSource("")
+      setTask("")
       onClose()
     }
   };
@@ -145,8 +147,8 @@ function RecordEventLogDialog({
             variant="outlined"
             size="small"
             label="Source (optional)"
-            value={source}
-            onChange={(e) => setSource(e.target.value)}
+            value={task}
+            onChange={(e) => setTask(e.target.value)}
           />
         </Box>
       </DialogContent>

@@ -5,12 +5,11 @@ import Menu from "@mui/material/Menu";
 import Button from "@mui/material/Button";
 import ListItemText from "@mui/material/ListItemText";
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
-import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
-import PanToolOutlinedIcon from '@mui/icons-material/PanToolOutlined';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import { useNavigate } from 'react-router-dom';
 import { useConfirm } from 'material-ui-confirm';
 import { useExperiment } from '../providers/ExperimentContext';
+import Divider from '@mui/material/Divider';
 
 
 export default function ManageExperimentMenu({experiment}){
@@ -81,15 +80,10 @@ export default function ManageExperimentMenu({experiment}){
         }}
       >
         <MenuItem onClick={handleEndExperiment}>
-          <ListItemIcon>
-            <PanToolOutlinedIcon fontSize="small" />
-          </ListItemIcon>
           <ListItemText>End experiment</ListItemText>
         </MenuItem>
+        <Divider />
         <MenuItem color="secondary" disabled={allExperiments.length <= 1} onClick={handleDeleteExperiment}>
-          <ListItemIcon>
-            <DeleteOutlinedIcon color="secondary"  fontSize="small" />
-          </ListItemIcon>
           <ListItemText primaryTypographyProps={{color: 'secondary.main'}} >Delete experiment</ListItemText>
         </MenuItem>
       </Menu>

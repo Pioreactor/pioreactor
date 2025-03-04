@@ -5,6 +5,8 @@ import LogTable from "./components/LogTable";
 import ExperimentSummary from "./components/ExperimentSummary";
 import Chart from "./components/Chart";
 import MediaCard from "./components/MediaCard";
+import {RunningProfilesContainer} from "./Profiles";
+import { RunningProfilesProvider} from './providers/RunningProfilesContext';
 import {getConfig, getRelabelMap, colors, DefaultDict} from "./utilities"
 import Card from "@mui/material/Card";
 import ToggleButton from "@mui/material/ToggleButton";
@@ -79,6 +81,7 @@ const TimeWindowSwitch = (props) => {
       <ToggleButton style={{textTransform: "None"}} value={10000000}>All time</ToggleButton>
       <ToggleButton style={{textTransform: "None"}} value={12}>Past 12h</ToggleButton>
       <ToggleButton style={{textTransform: "None"}} value={1}>Past hour</ToggleButton>
+      <ToggleButton style={{textTransform: "None"}} value={0}>Now</ToggleButton>
     </ToggleButtonGroup>
 
   );
@@ -121,7 +124,7 @@ function Charts(props) {
                   downSample={chart.down_sample}
                   interpolation={chart.interpolation || "stepAfter"}
                   yAxisDomain={chart.y_axis_domain ? chart.y_axis_domain : null}
-                  lookback={props.timeWindow ? props.timeWindow : (chart.lookback ? eval(chart.lookback) : 10000)}
+                  lookback={(props.timeWindow >= 0) ? props.timeWindow : (chart.lookback ? eval(chart.lookback) : 10000)}
                   fixedDecimals={chart.fixed_decimals}
                   relabelMap={props.relabelMap}
                   yTransformation={eval(chart.y_transformation || "(y) => y")}
@@ -149,7 +152,7 @@ function Overview(props) {
   const [relabelMap, setRelabelMap] = useState({})
 
   const initialTimeScale = localStorage.getItem('timeScale') || config['ui.overview.settings']?.['time_display_mode'] || 'hours';
-  const initialTimeWindow = parseInt(localStorage.getItem('timeWindow')) || 10000000;
+  const initialTimeWindow = parseInt(localStorage.getItem('timeWindow')) >= 0 ? parseInt(localStorage.getItem('timeWindow')) :  10000000;
   const [timeScale, setTimeScale] = useState(initialTimeScale);
   const [timeWindow, setTimeWindow] = useState(initialTimeWindow);
   const [units, setUnits] = useState([])
@@ -200,12 +203,12 @@ function Overview(props) {
 
         <Grid item xs={12} md={5} container spacing={1} justifyContent="flex-end" style={{height: "100%"}}>
 
-          <Grid item xs={6} md={6}>
+          <Grid item xs={7} md={7}>
             <Stack direction="row" justifyContent="start">
               <TimeWindowSwitch setTimeWindow={setTimeWindow} initTimeWindow={timeWindow}/>
             </Stack>
           </Grid>
-          <Grid item xs={6} md={6}>
+          <Grid item xs={5} md={5}>
             <Stack direction="row" justifyContent="end">
               <TimeFormatSwitch setTimeScale={setTimeScale} initTimeScale={timeScale}/>
             </Stack>
@@ -217,6 +220,13 @@ function Overview(props) {
             </Grid>
           }
 
+        {( config['ui.overview.cards'] && (config['ui.overview.cards']['profiles'] === "1")) &&
+        <Grid item xs={12}>
+          <RunningProfilesProvider experiment={experimentMetadata.experiment}>
+            <RunningProfilesContainer/>
+          </RunningProfilesProvider>
+        </Grid>
+       }
 
         {( config['ui.overview.cards'] && (config['ui.overview.cards']['event_logs'] === "1")) &&
           <Grid item xs={12}>
