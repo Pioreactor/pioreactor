@@ -245,6 +245,14 @@ class GrowthRateCalculator(BackgroundJob):
     ) -> tuple[dict[pt.PdChannel, float], dict[pt.PdChannel, float]]:
         # why sleep? Users sometimes spam jobs, and if stirring and gr start closely there can be a race to secure HALL_SENSOR. This gives stirring priority.
         sleep(5)
+        if (
+            config.getint("growth_rate_calculating.config", "samples_for_od_statistics", fallback=35)
+            / config.getfloat("od_reading.config", "samples_per_second", fallback=0.2)
+        ) >= 600:
+            self.logger.warning(
+                "Due to the low `samples_per_second`, and high `samples_for_od_statistics` needed to establish a baseline, growth rate and nOD take a over 10 minutes to show up."
+            )
+
         means, variances = od_statistics(
             self._yield_od_readings_from_mqtt(),
             action_name="od_normalization",

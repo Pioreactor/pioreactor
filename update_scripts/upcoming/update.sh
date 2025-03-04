@@ -23,7 +23,7 @@ if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
 
 fi
 
-# update firmware to 0.4
+# update firmware to 0.5
 MAIN_ELF="/usr/local/bin/main.elf"
 sudo cp "$SCRIPT_DIR"/main.elf $MAIN_ELF
 sudo systemctl restart load_rp2040.service || :
