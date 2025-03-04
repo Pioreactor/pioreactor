@@ -37,4 +37,4 @@ echo "Added new huey.service."
 
 
 # cal fix from previous update
-sudo -u pioreactor python "$SCRIPT_DIR"/cal_fix.py
+sudo -u pioreactor python "$SCRIPT_DIR"/cal_fix.py || :
