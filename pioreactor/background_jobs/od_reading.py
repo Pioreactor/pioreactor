@@ -928,9 +928,12 @@ class ODReader(BackgroundJob):
         )
 
     def set_interval(self, interval: Optional[float]) -> None:
+        if (interval is not None) and interval <= 0:
+            raise ValueError("interval must be positive or None")
+
         self.interval = interval
 
-        if (self.interval is not None) and self.interval > 0:
+        if self.interval is not None:
             if self.interval <= 1.0:
                 self.logger.warning(
                     f"Recommended to have the interval between readings be larger than 1.0 second. Currently {self.interval} s."
@@ -948,9 +951,7 @@ class ODReader(BackgroundJob):
                 logger=self.logger,
             ).start()
 
-        elif (self.interval is not None) and self.interval <= 0:
-            raise ValueError("interval must be positive or None")
-        elif self.interval is None:
+        else:
             if hasattr(self, "record_from_adc_timer"):
                 # cancel any existing one
                 self.record_from_adc_timer.cancel()
