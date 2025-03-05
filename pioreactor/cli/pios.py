@@ -59,7 +59,7 @@ if am_I_leader() or is_testing_env():
         multiple=True,
         default=(UNIVERSAL_IDENTIFIER,),
         type=click.STRING,
-        help="specify a hostname, default is all active units",
+        help="specify a worker name, default is all units",
     )
 
     confirmation = click.option("-y", is_flag=True, help="Skip asking for confirmation.")

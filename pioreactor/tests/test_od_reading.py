@@ -20,6 +20,7 @@ from pioreactor.config import config
 from pioreactor.config import temporary_config_change
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.utils import local_persistent_storage
+from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
 
@@ -1353,3 +1354,31 @@ def test_mandys_calibration():
         0.0011023858538965646,
     ]
     assert 0.0 < mcal.y_to_x(0.002, enforce_bounds=True) < 1.0
+
+
+def test_setting_interval_after_starting():
+    initial_interval = 2
+    with start_od_reading("90", "REF", interval=initial_interval, fake_data=True) as od:
+        next(od)
+        with catchtime() as c:
+            next(od)
+            assert abs(c() - initial_interval) < 0.1
+
+        with catchtime() as c:
+            next(od)
+            assert abs(c() - initial_interval) < 0.1
+
+        new_interval = 4
+        od.set_interval(new_interval)
+        next(od)  # call it once, since it's possible
+
+        with catchtime() as c:
+            next(od)
+            assert abs(c() - new_interval) < 0.1
+
+        with catchtime() as c:
+            next(od)
+            assert abs(c() - new_interval) < 0.1
+
+        od.set_interval(None)
+        assert od.interval is None

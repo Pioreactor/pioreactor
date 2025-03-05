@@ -605,14 +605,14 @@ def update_ui(branch: Optional[str], repo: str, source: Optional[str], version: 
         cleaned_repo = quote(repo)
         version_installed = cleaned_branch
         url = f"https://github.com/{cleaned_repo}/archive/{cleaned_branch}.tar.gz"
-        source = "/tmp/pioreactorui.tar.gz"
+        source = "/tmp/pioreactorui_archive.tar.gz"
         commands.append(["wget", url, "-O", source])
 
     else:
         latest_release_metadata = loads(get(f"https://api.github.com/repos/{repo}/releases/{version}").body)
         version_installed = latest_release_metadata["tag_name"]
         url = f"https://github.com/{repo}/archive/refs/tags/{version_installed}.tar.gz"
-        source = "/tmp/pioreactorui.tar.gz"
+        source = "/tmp/pioreactorui_archive.tar.gz"
         commands.append(["wget", url, "-O", source])
 
     assert source is not None

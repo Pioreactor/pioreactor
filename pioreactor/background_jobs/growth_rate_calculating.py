@@ -244,7 +244,7 @@ class GrowthRateCalculator(BackgroundJob):
         self,
     ) -> tuple[dict[pt.PdChannel, float], dict[pt.PdChannel, float]]:
         # why sleep? Users sometimes spam jobs, and if stirring and gr start closely there can be a race to secure HALL_SENSOR. This gives stirring priority.
-        sleep(5)
+        sleep(3)
         if (
             config.getint("growth_rate_calculating.config", "samples_for_od_statistics", fallback=35)
             / config.getfloat("od_reading.config", "samples_per_second", fallback=0.2)

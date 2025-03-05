@@ -12,6 +12,16 @@
   - Each log entry related to an experiment profile now contains a step number, making it easier to track progress and diagnose issues in multi-step workflows.
 - **Improved outlier detection in nOD and growth rates**
   - Our outlier detection algorithms for normal optical density (nOD) and growth rates have been refined, reducing false positives and improving tracking accuracy during experiments.
+- **Changing OD readings interval programmatically**
+  - OD Reading job now exposes `interval` as a editable published_setting. For example, you can PATCH to `http://pioreactor.local/api/workers/<pioreactor_unit>/jobs/update/job_name/od_reading/experiments/<experiment>` with body:
+    ```
+    {
+      "settings": {
+        "interval": 10
+      },
+    }
+    ```
+    to change OD readings interval to 10s.
 
 #### Breaking Changes
 - **`id` → `job_id` in `pio_metadata_settings` table**

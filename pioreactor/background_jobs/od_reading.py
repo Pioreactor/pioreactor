@@ -756,7 +756,7 @@ class ODReader(BackgroundJob):
     published_settings = {
         "first_od_obs_time": {"datatype": "float", "settable": False},
         "ir_led_intensity": {"datatype": "float", "settable": True, "unit": "%"},
-        "interval": {"datatype": "float", "settable": False, "unit": "s"},
+        "interval": {"datatype": "float", "settable": True, "unit": "s"},
         "relative_intensity_of_ir_led": {"datatype": "float", "settable": False},
         "ods": {"datatype": "ODReadings", "settable": False},
         "od1": {"datatype": "ODReading", "settable": False},
@@ -768,6 +768,7 @@ class ODReader(BackgroundJob):
     od1: structs.ODReading
     od2: structs.ODReading
     ods: structs.ODReadings
+    record_from_adc_timer: timing.RepeatedTimer
 
     def __init__(
         self,
@@ -809,7 +810,7 @@ class ODReader(BackgroundJob):
         self.ir_led_reference_tracker.add_external_logger(self.logger)
 
         self.channel_angle_map = channel_angle_map
-        self.interval = interval
+
         self.first_od_obs_time: Optional[float] = None
         self._set_for_iterating = threading.Event()
 
@@ -874,19 +875,7 @@ class ODReader(BackgroundJob):
                 self.channel_angle_map, self.ir_led_intensity, on_reading, blank_reading
             )
 
-        if (self.interval is not None) and self.interval > 0:
-            if self.interval <= 1.0:
-                self.logger.warning(
-                    f"Recommended to have the interval between readings be larger than 1.0 second. Currently {self.interval} s."
-                )
-
-            self.record_from_adc_timer = timing.RepeatedTimer(
-                self.interval,
-                self.record_from_adc,
-                job_name=self.job_name,
-                run_immediately=True,
-                logger=self.logger,
-            ).start()
+        self.set_interval(interval)
 
         self.logger.debug(
             f"Starting od_reading with PD channels {channel_angle_map}, with IR LED intensity {self.ir_led_intensity}% from channel {self.ir_channel}, every {self.interval} seconds"
@@ -932,9 +921,39 @@ class ODReader(BackgroundJob):
         ir_intensity_max = 80.0
 
         return round(
-            max(min(ir_intensity_max, ir_intensity_argmax_ANGLE_can_be, ir_intensity_argmax_REF_can_be), 50),
+            max(
+                min(ir_intensity_max, ir_intensity_argmax_ANGLE_can_be, ir_intensity_argmax_REF_can_be), 50.0
+            ),
             2,
         )
+
+    def set_interval(self, interval: Optional[float]) -> None:
+        self.interval = interval
+
+        if (self.interval is not None) and self.interval > 0:
+            if self.interval <= 1.0:
+                self.logger.warning(
+                    f"Recommended to have the interval between readings be larger than 1.0 second. Currently {self.interval} s."
+                )
+
+            if hasattr(self, "record_from_adc_timer"):
+                # cancel any existing one
+                self.record_from_adc_timer.cancel()
+
+            self.record_from_adc_timer = timing.RepeatedTimer(
+                self.interval,
+                self.record_from_adc,
+                job_name=self.job_name,
+                run_immediately=True,
+                logger=self.logger,
+            ).start()
+
+        elif (self.interval is not None) and self.interval <= 0:
+            raise ValueError("interval must be positive or None")
+        elif self.interval is None:
+            if hasattr(self, "record_from_adc_timer"):
+                # cancel any existing one
+                self.record_from_adc_timer.cancel()
 
     def _prepare_post_callbacks(self) -> list[Callable]:
         callbacks: list[Callable] = []
@@ -1162,8 +1181,12 @@ def create_channel_angle_map(
 
 
 def start_od_reading(
-    od_angle_channel1: Optional[pt.PdAngleOrREF] = None,
-    od_angle_channel2: Optional[pt.PdAngleOrREF] = None,
+    od_angle_channel1: Optional[pt.PdAngleOrREF] = config.get(
+        "od_config.photodiode_channel", "1", fallback=None
+    ),
+    od_angle_channel2: Optional[pt.PdAngleOrREF] = config.get(
+        "od_config.photodiode_channel", "2", fallback=None
+    ),
     interval: Optional[float] = 1 / config.getfloat("od_reading.config", "samples_per_second", fallback=0.2),
     fake_data: bool = False,
     unit: Optional[str] = None,
