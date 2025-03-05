@@ -200,7 +200,7 @@ def temporary_config_change(config: ConfigParserMod, section: str, parameter: st
 
 
 @contextmanager
-def temporary_config_changes(config, changes):
+def temporary_config_changes(config, changes: list[tuple[str, str, str]]):
     """
     A context manager to temporarily change multiple values in a ConfigParser object.
 
@@ -210,6 +210,7 @@ def temporary_config_changes(config, changes):
     """
     # Dictionary to store the original values for restoration.
     originals = {}
+    to_delete = []
 
     try:
         for section, parameter, new_value in changes:
@@ -218,8 +219,14 @@ def temporary_config_changes(config, changes):
                 originals[(section, parameter)] = config.get(section, parameter)
                 # Apply the temporary change
                 config.set(section, parameter, new_value)
+            else:
+                # delete after
+                config.set(section, parameter, new_value)
+                to_delete.append((section, parameter))
         yield
     finally:
         # Restore all the original values
         for (section, parameter), original_value in originals.items():
             config.set(section, parameter, original_value)
+        for section, parameter in to_delete:
+            config.remove_option(section, parameter)

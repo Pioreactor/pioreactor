@@ -1080,10 +1080,10 @@ class BackgroundJobWithDodging(_BackgroundJob):
             self._setup_timer()
         else:
             self._event_is_dodging_od.set()
+            self.sneak_in_timer.cancel()
             self.initialize_continuous_operation()  # user defined
             self._action_to_do_before_od_reading = _noop
             self._action_to_do_after_od_reading = _noop
-            self.sneak_in_timer.cancel()
 
     def set_enable_dodging_od(self, value: bool):
         self.enable_dodging_od = value
