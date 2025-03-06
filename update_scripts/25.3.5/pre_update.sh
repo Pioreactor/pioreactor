@@ -24,3 +24,4 @@ echo "Version check passed: $current_version"
 
 
 sudo -u pioreactor pio kill --all-jobs
+sqlite3 /tmp/pioreactor_cache/local_intermittent_pioreactor_metadata.sqlite "ALTER TABLE pio_job_metadata RENAME COLUMN id TO job_id;" || :

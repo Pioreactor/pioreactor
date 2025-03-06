@@ -33,6 +33,7 @@ echo "Added new main.elf firmware."
 # new huey
 HUEY_SERVICE_FILE="/etc/systemd/system/huey.service"
 sudo cp "$SCRIPT_DIR"/huey.service $HUEY_SERVICE_FILE
+sudo systemctl daemon-reload
 echo "Added new huey.service."
 
 
