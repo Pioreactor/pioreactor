@@ -205,13 +205,14 @@ class TemperatureAutomationJob(AutomationJob):
         return min(self.latest_normalized_od_at, self.latest_growth_rate_at)
 
     @property
-    def latest_growth_rate(self) -> float:
+    def latest_growth_rate(self) -> float | None:
         # check if None
         if self._latest_growth_rate is None:
             # this should really only happen on the initialization.
             self.logger.debug("Waiting for OD and growth rate data to arrive")
             if not all(is_pio_job_running(["od_reading", "growth_rate_calculating"])):
                 raise exc.JobRequiredError("`od_reading` and `growth_rate_calculating` should be Ready.")
+            return
 
         # check most stale time
         if (current_utc_datetime() - self.most_stale_time).seconds > 5 * 60:
@@ -222,13 +223,14 @@ class TemperatureAutomationJob(AutomationJob):
         return cast(float, self._latest_growth_rate)
 
     @property
-    def latest_normalized_od(self) -> float:
+    def latest_normalized_od(self) -> float | None:
         # check if None
         if self._latest_normalized_od is None:
             # this should really only happen on the initialization.
             self.logger.debug("Waiting for OD and growth rate data to arrive")
             if not all(is_pio_job_running(["od_reading", "growth_rate_calculating"])):
                 raise exc.JobRequiredError("`od_reading` and `growth_rate_calculating` should be running.")
+            return
 
         # check most stale time
         if (current_utc_datetime() - self.most_stale_time).seconds > 5 * 60:
