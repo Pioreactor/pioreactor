@@ -242,10 +242,6 @@ class DosingAutomationJob(AutomationJob):
         self.skip_first_run = skip_first_run
         self.max_volume_ml = max_volume_ml
 
-        self.latest_normalized_od_at = current_utc_datetime()
-        self.latest_growth_rate_at = current_utc_datetime()
-        self.latest_od_at = current_utc_datetime()
-
         self._init_alt_media_fraction(float(initial_alt_media_fraction))
         self._init_volume_throughput()
         self._init_liquid_volume(float(initial_liquid_volume_ml))

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from contextlib import suppress
-from datetime import datetime
 from time import sleep
 from typing import Any
 from typing import Optional
@@ -131,9 +130,7 @@ class TemperatureAutomationJob(AutomationJob):
             run_immediately=True,
         ).start()
 
-        self.latest_normalized_od_at: datetime = current_utc_datetime()
-        self.latest_growth_rate_at: datetime = current_utc_datetime()
-        self.latest_temperture_at: datetime = current_utc_datetime()
+        self.latest_temperture_at = current_utc_datetime()
 
     def on_init_to_ready(self):
         if whoami.is_testing_env() or self.seconds_since_last_active_heating() >= 10:

@@ -60,6 +60,9 @@ class AutomationJob(BackgroundJob):
         self._publish_setting("automation_name")
 
         self._latest_settings_started_at = current_utc_datetime()
+        self.latest_normalized_od_at = current_utc_datetime()
+        self.latest_growth_rate_at = current_utc_datetime()
+        self.latest_od_at = current_utc_datetime()
 
         self.start_passive_listeners()
 

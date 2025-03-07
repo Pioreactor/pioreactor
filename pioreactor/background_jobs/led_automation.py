@@ -70,8 +70,6 @@ class LEDAutomationJob(AutomationJob):
         )
 
         self.skip_first_run = skip_first_run
-        self.latest_normalized_od_at: datetime = current_utc_datetime()
-        self.latest_growth_rate_at: datetime = current_utc_datetime()
         self.edited_channels: set[pt.LedChannel] = set()
 
         self.set_duration(duration)
