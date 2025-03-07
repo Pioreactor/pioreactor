@@ -200,7 +200,7 @@ def temporary_config_change(config: ConfigParserMod, section: str, parameter: st
 
 
 @contextmanager
-def temporary_config_changes(config, changes: list[tuple[str, str, str]]):
+def temporary_config_changes(config, changes: list[tuple[str, str, str | None]]):
     """
     A context manager to temporarily change multiple values in a ConfigParser object.
 

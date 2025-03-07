@@ -5,11 +5,9 @@ from contextlib import suppress
 from datetime import datetime
 from time import sleep
 from typing import Any
-from typing import cast
 from typing import Optional
 
 import click
-from msgspec.json import decode
 
 from pioreactor import error_codes
 from pioreactor import exc
@@ -21,7 +19,6 @@ from pioreactor.config import config
 from pioreactor.logging import create_logger
 from pioreactor.structs import Temperature
 from pioreactor.utils import clamp
-from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import whoami
 from pioreactor.utils.pwm import PWM
@@ -66,11 +63,6 @@ class TemperatureAutomationJob(AutomationJob):
     assert INFERENCE_EVERY_N_SECONDS > inference_total_time
     # PWM is on for (INFERENCE_EVERY_N_SECONDS - inference_total_time) seconds
     # the ratio of time a PWM is on is equal to (INFERENCE_EVERY_N_SECONDS - inference_total_time) / INFERENCE_EVERY_N_SECONDS
-
-    _latest_growth_rate: Optional[float] = None
-    _latest_normalized_od: Optional[float] = None
-    previous_normalized_od: Optional[float] = None
-    previous_growth_rate: Optional[float] = None
 
     latest_temperature = None
     previous_temperature = None
@@ -199,46 +191,6 @@ class TemperatureAutomationJob(AutomationJob):
         Check if the heater PWM channels is locked
         """
         return self.pwm.is_locked()
-
-    @property
-    def most_stale_time(self) -> datetime:
-        return min(self.latest_normalized_od_at, self.latest_growth_rate_at)
-
-    @property
-    def latest_growth_rate(self) -> float | None:
-        # check if None
-        if self._latest_growth_rate is None:
-            # this should really only happen on the initialization.
-            self.logger.debug("Waiting for OD and growth rate data to arrive")
-            if not all(is_pio_job_running(["od_reading", "growth_rate_calculating"])):
-                raise exc.JobRequiredError("`od_reading` and `growth_rate_calculating` should be Ready.")
-            return
-
-        # check most stale time
-        if (current_utc_datetime() - self.most_stale_time).seconds > 5 * 60:
-            raise exc.JobRequiredError(
-                "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
-            )
-
-        return cast(float, self._latest_growth_rate)
-
-    @property
-    def latest_normalized_od(self) -> float | None:
-        # check if None
-        if self._latest_normalized_od is None:
-            # this should really only happen on the initialization.
-            self.logger.debug("Waiting for OD and growth rate data to arrive")
-            if not all(is_pio_job_running(["od_reading", "growth_rate_calculating"])):
-                raise exc.JobRequiredError("`od_reading` and `growth_rate_calculating` should be running.")
-            return
-
-        # check most stale time
-        if (current_utc_datetime() - self.most_stale_time).seconds > 5 * 60:
-            raise exc.JobRequiredError(
-                "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
-            )
-
-        return cast(float, self._latest_normalized_od)
 
     ########## Private & internal methods
 
@@ -592,15 +544,6 @@ class TemperatureAutomationJob(AutomationJob):
 
         return dot_product(coefs, X) + intercept
 
-    def _set_growth_rate(self, message: pt.MQTTMessage) -> None:
-        if not message.payload:
-            return
-
-        self.previous_growth_rate = self._latest_growth_rate
-        payload = decode(message.payload, type=structs.GrowthRate)
-        self._latest_growth_rate = payload.growth_rate
-        self.latest_growth_rate_at = payload.timestamp
-
     def _set_latest_temperature(self, temperature: structs.Temperature) -> None:
         # Note: this doesn't use MQTT data (previously it use to)
         self.previous_temperature = self.latest_temperature
@@ -611,27 +554,6 @@ class TemperatureAutomationJob(AutomationJob):
             self.latest_event = self.execute()
 
         return
-
-    def _set_OD(self, message: pt.MQTTMessage) -> None:
-        if not message.payload:
-            return
-        self.previous_normalized_od = self._latest_normalized_od
-        payload = decode(message.payload, type=structs.ODFiltered)
-        self._latest_normalized_od = payload.od_filtered
-        self.latest_normalized_od_at = payload.timestamp
-
-    def start_passive_listeners(self) -> None:
-        self.subscribe_and_callback(
-            self._set_growth_rate,
-            f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/growth_rate",
-            allow_retained=False,
-        )
-
-        self.subscribe_and_callback(
-            self._set_OD,
-            f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/od_filtered",
-            allow_retained=False,
-        )
 
 
 class TemperatureAutomationJobContrib(TemperatureAutomationJob):
