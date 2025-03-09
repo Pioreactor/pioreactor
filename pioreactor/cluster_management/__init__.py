@@ -44,10 +44,12 @@ def get_active_workers_in_experiment(experiment: str) -> tuple[str, ...]:
 @click.command(name="add", short_help="add a pioreactor worker")
 @click.argument("hostname")
 @click.option("--password", "-p", default="raspberry")
-@click.option("--version", "-v", default="1.1")
-@click.option("--model", "-m", default="pioreactor_20ml")
+@click.option("--model-version", "-v", default="1.1")
+@click.option("--model-name", "-m", default="pioreactor_20ml")
 @click.option("--address", "-a")
-def add_worker(hostname: str, password: str, version: str, model: str, address: str | None) -> None:
+def add_worker(
+    hostname: str, password: str, model_version: str, model_name: str, address: str | None
+) -> None:
     """
     Add a new pioreactor worker to the cluster. The pioreactor should already have the worker image installed and is turned on.
     """
@@ -89,8 +91,6 @@ def add_worker(hostname: str, password: str, version: str, model: str, address: 
                 "/usr/local/bin/add_new_pioreactor_worker_from_leader.sh",
                 hostname,
                 password,
-                version,
-                model,
                 possible_address,
             ],
             capture_output=True,
@@ -103,7 +103,7 @@ def add_worker(hostname: str, password: str, version: str, model: str, address: 
     try:
         r = put_into_leader(
             "/api/workers",
-            json={"pioreactor_unit": hostname},
+            json={"pioreactor_unit": hostname, "model_name": model_name, "model_version": model_version},
         )
         r.raise_for_status()
     except HTTPErrorStatus:

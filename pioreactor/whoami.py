@@ -154,24 +154,44 @@ def am_I_a_worker() -> bool:
 
 @cache
 def get_pioreactor_version() -> tuple[int, int]:
-    if os.environ.get("PIO_VERSION"):
+    if os.environ.get("MODEL_VERSION"):
         return version_text_to_tuple(os.environ["PIO_VERSION"])
 
-    from pioreactor.config import config
+    from pioreactor.pubsub import get_from_leader
 
-    return version_text_to_tuple(config.get("pioreactor", "version", fallback="1.0"))  # type: ignore
+    try:
+        result = get_from_leader(f"/api/workers/{get_unit_name()}")
+        result.raise_for_status()
+        data = result.json()
+        return data["model_version"]
+    except mureq.HTTPErrorStatus as e:
+        if e.status_code == 404:
+            raise NoWorkerFoundError(f"Worker {get_unit_name()} is not present in leader's inventory")
+        else:
+            raise e
+    except mureq.HTTPException as e:
+        raise e
 
 
 @cache
 def get_pioreactor_model() -> str | None:
-    from pioreactor.config import config
+    if os.environ.get("MODEL_NAME"):
+        return os.environ["MODEL_NAME"]
 
-    maybe_model = config.get("pioreactor", "model", fallback=None)
-    if maybe_model:
-        return maybe_model
+    from pioreactor.pubsub import get_from_leader
 
-    else:
-        return None
+    try:
+        result = get_from_leader(f"/api/workers/{get_unit_name()}")
+        result.raise_for_status()
+        data = result.json()
+        return data["model_name"]
+    except mureq.HTTPErrorStatus as e:
+        if e.status_code == 404:
+            raise NoWorkerFoundError(f"Worker {get_unit_name()} is not present in leader's inventory")
+        else:
+            raise e
+    except mureq.HTTPException as e:
+        raise e
 
 
 @cache
