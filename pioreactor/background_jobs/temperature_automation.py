@@ -367,7 +367,7 @@ class TemperatureAutomationJob(AutomationJob):
                 elif whoami.get_pioreactor_version() >= (1, 1):
                     inferred_temperature = self.approximate_temperature_20_2_0(features)
             elif whoami.get_pioreactor_model() == "pioreactor_40ml":
-                inferred_temperature = self.approximate_temperature_40_1_0(features)
+                inferred_temperature = self.approximate_temperature_20_2_0(features)  # TODO: change me back
             else:
                 raise ValueError("Unknown Pioreactor model. See config.")
 

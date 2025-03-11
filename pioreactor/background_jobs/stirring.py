@@ -7,6 +7,7 @@ from time import perf_counter
 from time import sleep
 from time import time
 from typing import Callable
+from typing import cast
 from typing import Optional
 
 import click
@@ -227,7 +228,7 @@ class Stirrer(BackgroundJobWithDodging):
         else:
             self.logger.debug("Operating without RPM feedback loop.")
 
-        channel: Optional[pt.PwmChannel] = config.get("PWM_reverse", "stirring")
+        channel: Optional[pt.PwmChannel] = cast(pt.PwmChannel, config.get("PWM_reverse", "stirring"))
 
         if channel is None:
             self.logger.error("Add stirring to [PWM] section to configuration file.")

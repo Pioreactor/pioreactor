@@ -51,7 +51,7 @@ class ConfigParserMod(configparser.ConfigParser):
             create_logger("read config").error(f"Error in [{section}] parameter {option}: {e}")
             raise e
 
-    def getboolean(self, section: str, option: str, *args, **kwargs) -> bool:  # type: ignore
+    def getboolean(self, section: str, option: str, *args, **kwargs) -> bool:
         try:
             return super().getboolean(section, option, *args, **kwargs)
         except (configparser.NoSectionError, configparser.NoOptionError) as e:
@@ -72,12 +72,12 @@ class ConfigParserMod(configparser.ConfigParser):
             logger.warning(msg)
             raise e
 
-    def get(self, section: str, option: str, *args, **kwargs):  # type: ignore
+    def get(self, section: str, option: str, *args, **kwargs) -> str:  # type: ignore[override]
         try:
             return super().get(section, option, *args, **kwargs)
         except (configparser.NoSectionError, configparser.NoOptionError) as e:
             if "fallback" in kwargs:
-                return
+                return kwargs["fallback"]
 
             from pioreactor.logging import create_logger
 

@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from configparser import NoOptionError
 from functools import partial
 from threading import Event
+from typing import cast
 from typing import Optional
 
 import click
@@ -34,12 +35,12 @@ from pioreactor.whoami import get_unit_name
 
 def get_default_calibration() -> structs.SimplePeristalticPumpCalibration:
     return structs.SimplePeristalticPumpCalibration(
+        calibration_name="__default_pump_calibration",
         calibrated_on_pioreactor_unit=get_unit_name(),
         created_at=default_datetime_for_pioreactor(),
         hz=250.0,
         dc=95.0,
         voltage=-1,
-        calibration_name="__default_pump_calibration",
         curve_type="poly",
         curve_data_=[0.0911, 0.0],  # 0.0911 is a pretty okay estimate for the slope
         recorded_data={"x": [], "y": []},
@@ -136,7 +137,9 @@ class PWMPump:
 
 
 def _get_pin(pump_device: PumpCalibrationDevices) -> pt.GpioPin:
-    return PWM_TO_PIN[config.get("PWM_reverse", pump_device.removesuffix("_pump"))]  # backwards compatibility
+    return PWM_TO_PIN[
+        cast(pt.PwmChannel, config.get("PWM_reverse", pump_device.removesuffix("_pump")))
+    ]  # backwards compatibility
 
 
 def _get_calibration(pump_device: PumpCalibrationDevices) -> structs.SimplePeristalticPumpCalibration:

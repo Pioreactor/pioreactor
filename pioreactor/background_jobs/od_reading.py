@@ -1182,16 +1182,14 @@ def create_channel_angle_map(
 
 
 def start_od_reading(
-    od_angle_channel1: Optional[pt.PdAngleOrREF] = config.get(
-        "od_config.photodiode_channel", "1", fallback=None
-    ),
-    od_angle_channel2: Optional[pt.PdAngleOrREF] = config.get(
-        "od_config.photodiode_channel", "2", fallback=None
-    ),
-    interval: Optional[float] = 1 / config.getfloat("od_reading.config", "samples_per_second", fallback=0.2),
+    od_angle_channel1: pt.PdAngleOrREF
+    | None = cast(pt.PdAngleOrREF, config.get("od_config.photodiode_channel", "1", fallback=None)),
+    od_angle_channel2: pt.PdAngleOrREF
+    | None = cast(pt.PdAngleOrREF, config.get("od_config.photodiode_channel", "2", fallback=None)),
+    interval: float | None = 1 / config.getfloat("od_reading.config", "samples_per_second", fallback=0.2),
     fake_data: bool = False,
-    unit: Optional[str] = None,
-    experiment: Optional[str] = None,
+    unit: str | None = None,
+    experiment: str | None = None,
     calibration: bool | structs.ODCalibration | None = None,
 ) -> ODReader:
     """

@@ -41,6 +41,7 @@ from pioreactor.pubsub import Client
 from pioreactor.pubsub import post_into_leader
 from pioreactor.pubsub import prune_retained_messages
 from pioreactor.types import LedChannel
+from pioreactor.types import PdAngle
 from pioreactor.types import PdChannel
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistent_storage
@@ -338,7 +339,7 @@ def test_PD_is_near_0_volts_for_blank(
     else:
         signal_channel = cast(PdChannel, "1")
 
-    angle = config.get("od_config.photodiode_channel", signal_channel, fallback=None)
+    angle = cast(PdAngle, config.get("od_config.photodiode_channel", signal_channel, fallback=None))
 
     assert angle in ["90", "45", "135"], f"Angle {angle} not valid for this test."
 

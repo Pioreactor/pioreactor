@@ -5,6 +5,7 @@ from collections import defaultdict
 from contextlib import nullcontext
 from json import dumps
 from json import loads
+from typing import cast
 from typing import Iterator
 from typing import Optional
 
@@ -203,7 +204,9 @@ def od_blank(
                         timestamp=current_utc_datetime(),
                         channel=channel,
                         od=means[channel],
-                        angle=config.get("od_config.photodiode_channel", channel, fallback=None),
+                        angle=cast(
+                            pt.PdAngle, config.get("od_config.photodiode_channel", channel, fallback=None)
+                        ),
                     )
                 ),
                 qos=pubsub.QOS.AT_LEAST_ONCE,

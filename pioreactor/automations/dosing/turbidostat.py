@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from typing import cast
 from typing import Optional
 
+from pioreactor import types as pt
 from pioreactor.automations import events
 from pioreactor.automations.dosing.base import DosingAutomationJob
 from pioreactor.config import config
@@ -80,7 +82,9 @@ class Turbidostat(DosingAutomationJob):
     def _execute_target_od(self) -> Optional[events.DilutionEvent]:
         assert self.target_od is not None
         smoothed_od = self.ema_od.update(
-            self.latest_od[config.get("turbidostat.config", "signal_channel", fallback="2")]
+            self.latest_od[
+                cast(pt.PdChannel, config.get("turbidostat.config", "signal_channel", fallback="2"))
+            ]
         )
         if smoothed_od >= self.target_od:
             self.ema_od.clear()  # clear the ema so that we don't cause a second dosing to occur right after.
