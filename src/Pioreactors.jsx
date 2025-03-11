@@ -52,6 +52,7 @@ import ActionManualDosingForm from "./components/ActionManualDosingForm"
 import ActionCirculatingForm from "./components/ActionCirculatingForm"
 import ActionLEDForm from "./components/ActionLEDForm"
 import PioreactorIcon from "./components/PioreactorIcon"
+import PioreactorIconWithModel from "./components/PioreactorIconWithModel"
 import PioreactorsIcon from "./components/PioreactorsIcon"
 import SelfTestDialog from "./components/SelfTestDialog"
 import UnderlineSpan from "./components/UnderlineSpan";
@@ -2179,7 +2180,7 @@ function ActiveUnits({experiment, config, units}){
   }, [experiment])
 
   const renderCards = () => (units || []).map(unit =>
-      <PioreactorCard  key={unit} isUnitActive={true} unit={unit} config={config} experiment={experiment} originalLabel={relabelMap[unit]}/>
+      <PioreactorCard  key={unit.pioreactor_unit} isUnitActive={true} unit={unit.pioreactor_unit} modelName={unit.model_name} config={config} experiment={experiment} originalLabel={relabelMap[unit.pioreactor_unit]}/>
   )
 
   return (
@@ -2215,8 +2216,8 @@ function FlashLEDButton(props){
 )}
 
 
-function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel}){
-
+function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, modelName}){
+  console.log(originalLabel)
   const [jobFetchComplete, setJobFetchComplete] = useState(false)
   const [label, setLabel] = useState("")
   const {client, subscribeToTopic } = useMQTT();
@@ -2408,7 +2409,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel})
                   ...(isUnitActive ? {} : { color: disabledColor }),
                 }}
                 gutterBottom>
-                <PioreactorIcon color={isUnitActive ? "inherit" : "disabled"} sx={{verticalAlign: "middle", marginRight: "3px", display: {xs: 'none', sm: 'none', md: 'inline' } }}/>
+                <PioreactorIconWithModel model={modelName} />
                 {(label ) ? label : unit }
               </Typography>
               <Button disabled={!isUnitActive} component={Link} to={`/pioreactors/${unit}`} sx={{padding: "0px 8px", marginBottom: "7px", ml: 1, textTransform: "none", ...(isUnitActive ? {} : { color: disabledColor }),}}>
@@ -2554,7 +2555,7 @@ function InactiveUnits(props){
       </Typography>
     </div>
     {(props.units || []).map(unit =>
-      <PioreactorCard  key={unit} isUnitActive={false} unit={unit} config={props.config} experiment={props.experiment}/>
+      <PioreactorCard  key={unit.pioreactor_name} isUnitActive={false} unit={unit.pioreactor_name} modelName={unit.model_name} config={props.config} experiment={props.experiment}/>
   )}
     </React.Fragment>
 )}
@@ -2596,8 +2597,8 @@ function Pioreactors({title}) {
 
 
   const renderCards = () => {
-      const activeUnits = workers.filter(worker => worker.is_active === 1).map(worker => worker.pioreactor_unit);
-      const inactiveUnits = workers.filter(worker => worker.is_active === 0).map(worker => worker.pioreactor_unit);
+      const activeUnits = workers.filter(worker => worker.is_active === 1);
+      const inactiveUnits = workers.filter(worker => worker.is_active === 0);
       return (
       <>
       <ActiveUnits experiment={experimentMetadata.experiment} config={config} units={activeUnits} />

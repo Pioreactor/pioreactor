@@ -197,7 +197,6 @@ function ListSuggestedPlugins({selectedUnit, installedPlugins}){
     }
     setSnackbarOpen(false)
   }
-  console.log(installedPlugins, availablePlugins)
   return (
     <React.Fragment>
       <Box sx={{m: "auto", mb: "15px", width: "92%"}}>

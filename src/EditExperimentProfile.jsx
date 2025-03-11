@@ -33,7 +33,6 @@ function convertYamlToJson(yamlString){
   } catch (error) {
     if (["duplicated mapping key"].includes(error.reason)) {
       console.log(error)
-      console.log(yamlString)
       return {error: error.message}
     }
     else {
@@ -169,7 +168,6 @@ const EditExperimentProfilesContent = ({ initialCode, profileFilename }) => {
               >
                 Save
               </Button>
-              {console.log(errorMsg, isError)}
               <p style={{ marginLeft: "10px" }}>{isError ? <Box color="error.main">{errorMsg}</Box> : ""}</p>
             </div>
           </div>

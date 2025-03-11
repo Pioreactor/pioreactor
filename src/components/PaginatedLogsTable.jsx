@@ -171,7 +171,7 @@ function PaginatedLogTable({unit, experiment, relabelMap, logLevel }) {
           message: String(payload.message),
           task: payload.task,
           level: payload.level.toUpperCase(),
-          key: `${dayjs.utc().format()}-${unit}-${payload.level.toUpperCase()}-${String(payload.message)}-00`,
+          key: `${payload.timestamp}-${unit}-${payload.level.toUpperCase()}-${String(payload.message)}-00`,
         },
         ...currentLogs,
       ]);

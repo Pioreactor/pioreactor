@@ -170,7 +170,7 @@ const Bioreactor40Diagram = ({experiment, unit, config}) => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     const liquidLevel = volume / 40 * bioreactor.height
-    const bottomOfWasteTube = bioreactor.height - (config?.bioreactor?.max_volume_ml || 14) / 20 *  bioreactor.height + 20
+    const bottomOfWasteTube = bioreactor.height - (config?.bioreactor?.max_volume_ml || 14) / 40 *  bioreactor.height + 40
 
     const ledsRects = [
       { text: 'B', x: 50,  y: 450, width: 40, height: 30, radius: 5 },

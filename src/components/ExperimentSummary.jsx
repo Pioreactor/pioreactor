@@ -47,10 +47,6 @@ class EditableDescription extends React.Component {
           if (res.ok){
             this.props.updateExperiment({ ...this.props.experimentMetadata, description: this.state.desc });
           }
-          else {
-            console.log("Didn't save successfully.")
-
-          }
         })
         this.setState({savingLoopActive: false})
       }

@@ -46,6 +46,7 @@ import ActionManualDosingForm from "./components/ActionManualDosingForm"
 import ActionCirculatingForm from "./components/ActionCirculatingForm"
 import ActionLEDForm from "./components/ActionLEDForm"
 import PioreactorIcon from "./components/PioreactorIcon"
+import PioreactorIconWithModel from "./components/PioreactorIconWithModel"
 import UnderlineSpan from "./components/UnderlineSpan";
 import Bioreactor40Diagram from "./components/Bioreactor40";
 import Bioreactor20Diagram from "./components/Bioreactor20";
@@ -135,7 +136,6 @@ function UnitSettingDisplaySubtext(props){
 
 
 function UnitSettingDisplay(props) {
-  console.log(props)
   const value = props.value === null ?  ""  : props.value
 
   function prettyPrint(x){
@@ -294,10 +294,19 @@ function ButtonStopProcess({experiment, unit}) {
 }
 
 
+function modelStringFromModelNameAndModelVersion(modelName, modelVersion){
+  if (modelName === "pioreactor_20ml"){
+    return `Pioreactor 20ml, v${modelVersion}`
+  } else if (modelName === "pioreactor_40ml"){
+    return `Pioreactor 40ml, v${modelVersion}`
+  } else {
+    return "Unknown model"
+  }
+}
 
 
 
-function PioreactorHeader({unit, assignedExperiment, isActive, selectExperiment}) {
+function PioreactorHeader({unit, assignedExperiment, isActive, selectExperiment, modelName, modelVersion}) {
   const navigate = useNavigate()
 
   const onExperimentClick = () => {
@@ -339,6 +348,14 @@ function PioreactorHeader({unit, assignedExperiment, isActive, selectExperiment}
               </Box>
               <Box fontWeight="fontWeightRegular" sx={{mr: "1%", display:"inline-block"}}>
                 {isActive ? "Active" : "Inactive"}
+              </Box>
+            </Box>
+            <Box sx={{display:"inline"}}>
+              <Box fontWeight="fontWeightBold" sx={{display:"inline-block"}}>
+                <PioreactorIcon sx={{ fontSize: 14, verticalAlign: "-2px" }}/> Model:&nbsp;
+              </Box>
+              <Box fontWeight="fontWeightRegular" sx={{mr: "1%", display:"inline-block"}}>
+                {modelStringFromModelNameAndModelVersion(modelName, modelVersion)}
               </Box>
             </Box>
 
@@ -1495,9 +1512,8 @@ function SettingNumericField(props) {
 
 
 
-function UnitCard({unit, experiment, config, isAssignedToExperiment, isActive}){
+function UnitCard({unit, experiment, config, isAssignedToExperiment, isActive, modelName}){
   const [relabelMap, setRelabelMap] = useState({})
-
   useEffect(() => {
 
     if (experiment){
@@ -1508,7 +1524,7 @@ function UnitCard({unit, experiment, config, isAssignedToExperiment, isActive}){
   return (
     <React.Fragment>
       <div>
-         <PioreactorCard isUnitActive={isAssignedToExperiment && isActive} unit={unit} config={config} experiment={experiment} label={relabelMap[unit]}/>
+         <PioreactorCard modelName={modelName} isUnitActive={isAssignedToExperiment && isActive} unit={unit} config={config} experiment={experiment} label={relabelMap[unit]}/>
       </div>
     </React.Fragment>
 )}
@@ -1532,6 +1548,7 @@ function FlashLEDButton(props){
 
 function PioreactorCard(props){
   const unit = props.unit
+  const modelName = props.modelName
   const isUnitActive = props.isUnitActive
   const experiment = props.experiment
   const config = props.config
@@ -1721,7 +1738,7 @@ function PioreactorCard(props){
                   ...(isUnitActive ? {} : { color: disabledColor }),
                 }}
                 gutterBottom>
-                <PioreactorIcon color={isUnitActive ? "inherit" : "disabled"} sx={{verticalAlign: "middle", marginRight: "3px", display: {xs: 'none', sm: 'none', md: 'inline' } }}/>
+                <PioreactorIconWithModel model={modelName} />
                 {(label ) ? label : unit }
               </Typography>
               <Tooltip title={indicatorLabel} placement="right">
@@ -1925,6 +1942,8 @@ function Pioreactor({title}) {
   const {unit} = useParams();
   const [assignedExperiment, setAssignedExperiment] = useState(null)
   const [isActive, setIsActive] = useState(true)
+  const [modelName, setModelName] = useState("")
+  const [modelVersion, setModelVersion] = useState("")
   const [error, setError] = useState(null)
   const navigate = useNavigate()
 
@@ -1953,6 +1972,8 @@ function Pioreactor({title}) {
         .then((json) => {
         setAssignedExperiment(json['experiment'])
         setIsActive(json['is_active'])
+        setModelName(json['model_name'])
+        setModelVersion(json['model_version'])
       })
       .catch((error) => {
         setError(error.message);
@@ -1978,7 +1999,7 @@ function Pioreactor({title}) {
       <MQTTProvider name={unit} config={config} experiment={experimentMetadata.experiment}>
         <Grid container rowSpacing={1} columnSpacing={2} justifyContent="space-between">
           <Grid item md={12} xs={12}>
-            <PioreactorHeader unit={unit} assignedExperiment={assignedExperiment} isActive={isActive} selectExperiment={selectExperiment}/>
+            <PioreactorHeader unit={unit} assignedExperiment={assignedExperiment} isActive={isActive} selectExperiment={selectExperiment} modelName={modelName} modelVersion={modelVersion}/>
             {experimentMetadata.experiment && assignedExperiment && experimentMetadata.experiment !== assignedExperiment &&
             <Box>
               <Alert severity="info" style={{marginBottom: '10px', marginTop: '10px'}}>This worker is part of different experiment. Switch to experiment <Chip icon=<PlayCircleOutlinedIcon/> size="small" label={assignedExperiment} clickable onClick={onExperimentClick}/> to control this worker.</Alert>
@@ -1986,10 +2007,15 @@ function Pioreactor({title}) {
           }
           </Grid>
           <Grid item lg={8} md={12} xs={12}>
-            <UnitCard isActive={isActive} isAssignedToExperiment={experimentMetadata.experiment === assignedExperiment} unit={unit} experiment={experimentMetadata.experiment} config={config}/>
+            <UnitCard modelName={modelName} isActive={isActive} isAssignedToExperiment={experimentMetadata.experiment === assignedExperiment} unit={unit} experiment={experimentMetadata.experiment} config={config}/>
           </Grid>
           <Grid item lg={4} md={12} xs={12}>
+            {modelName === "pioreactor_20ml" &&
             <Bioreactor20Diagram  experiment={experimentMetadata.experiment} unit={unit} config={config}/>
+            }
+            {modelName === "pioreactor_40ml" &&
+            <Bioreactor40Diagram  experiment={experimentMetadata.experiment} unit={unit} config={config}/>
+            }
           </Grid>
 
           <Grid item xs={12} md={7} container spacing={2} justifyContent="flex-start" style={{height: "100%"}}>
