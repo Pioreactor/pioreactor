@@ -429,7 +429,11 @@ def run_od_calibration() -> structs.ODCalibration:
             unit,
         )
 
-        cal = utils.crunch_data_and_confirm_with_user(cal, initial_degree=3)
+        n = len(x)
+        weights = [1] * n
+        weights[0] = n / 2
+
+        cal = utils.crunch_data_and_confirm_with_user(cal, initial_degree=3, weights=weights)
 
         echo(style(f"Calibration curve for `{name}`", underline=True, bold=True))
         echo(utils.curve_to_functional_form(cal.curve_type, cal.curve_data_))

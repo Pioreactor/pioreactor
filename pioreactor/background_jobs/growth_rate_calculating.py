@@ -373,6 +373,7 @@ class GrowthRateCalculator(BackgroundJob):
 
     def update_ekf_variance_after_event(self, minutes: float, factor: float) -> None:
         if whoami.is_testing_env():
+            # TODO: replace with jobmanager
             msg = subscribe(  # needs to be pubsub.subscribe (ie not sub_client.subscribe) since this is called in a callback
                 f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval",
                 timeout=1.0,

@@ -458,7 +458,12 @@ class Stirrer(BackgroundJobWithDodging):
             raise ValueError("Can't set target RPM when no RPM measurement is being made")
 
         self.target_rpm = clamp(0.0, float(value), 5_000.0)
-        self._estimate_duty_cycle = self.rpm_to_dc_lookup(self.target_rpm)
+
+        if self.target_rpm == 0:
+            self._estimate_duty_cycle = 0
+        else:
+            self._estimate_duty_cycle = self.rpm_to_dc_lookup(self.target_rpm)
+
         self.set_duty_cycle(self._estimate_duty_cycle)
         self.pid.set_setpoint(self.target_rpm)
 

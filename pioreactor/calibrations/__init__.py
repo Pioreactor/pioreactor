@@ -140,7 +140,6 @@ def list_of_calibrations_by_device(device: Device) -> list[str]:
     device_dir = CALIBRATION_PATH / device
     if not device_dir.exists():
         return []
-
     return [file.stem for file in device_dir.glob("*.yaml")]
 
 

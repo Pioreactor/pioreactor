@@ -21,15 +21,13 @@ def bold(string: str) -> str:
     return click.style(string, bold=True)
 
 
-def calculate_poly_curve_of_best_fit(x: list[float], y: list[float], degree: int) -> list[float]:
+def calculate_poly_curve_of_best_fit(x: list[float], y: list[float], degree: int, weights: list[float] | None) -> list[float]:
     import numpy as np
 
-    # weigh the smallest point, the "blank measurement", more.
-    # 1. It's far away from the other points
-    # 2. We have prior knowledge that OD~0 when V~0.
-    n = len(x)
-    weights = np.ones_like(x)
-    weights[0] = n / 2
+    if not weights:
+        weights = np.ones_like(x)
+
+    assert len(weights) == len(x) == len(y)
 
     x, y = zip(*sorted(zip(x, y), key=lambda t: t[0]))  # type: ignore
 
@@ -123,7 +121,7 @@ def plot_data(
 Calb = TypeVar("Calb", bound=structs.CalibrationBase)
 
 
-def crunch_data_and_confirm_with_user(calibration: Calb, initial_degree=1) -> Calb:
+def crunch_data_and_confirm_with_user(calibration: Calb, initial_degree=1, weights=list[float] | None) -> Calb:
     y, x = calibration.recorded_data["y"], calibration.recorded_data["x"]
     candidate_curve = calibration.curve_data_
 
@@ -133,7 +131,7 @@ def crunch_data_and_confirm_with_user(calibration: Calb, initial_degree=1) -> Ca
         if (candidate_curve is None) or len(candidate_curve) == 0:
             if calibration.curve_type == "poly":
                 degree = initial_degree
-                candidate_curve = calculate_poly_curve_of_best_fit(x, y, degree)
+                candidate_curve = calculate_poly_curve_of_best_fit(x, y, degree, weights)
             else:
                 raise ValueError("only poly supported")
 
