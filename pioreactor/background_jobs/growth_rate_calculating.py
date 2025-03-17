@@ -451,9 +451,7 @@ class GrowthRateCalculator(BackgroundJob):
     ) -> tuple[structs.GrowthRate, structs.ODFiltered, structs.KalmanFilterOutput]:
         timestamp = od_readings.timestamp
 
-        scaled_observations = self.scale_raw_observations(
-            self._batched_od_readings_to_dict(od_readings.ods)
-        )
+        scaled_observations = self.scale_raw_observations(self._batched_od_readings_to_dict(od_readings.ods))
 
         if whoami.is_testing_env():
             # when running a mock script, we run at an accelerated rate, but want to mimic

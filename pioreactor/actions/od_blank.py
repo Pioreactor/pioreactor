@@ -9,7 +9,6 @@ from typing import cast
 from typing import Iterator
 from typing import Optional
 
-
 import click
 from msgspec.json import encode
 
@@ -66,13 +65,11 @@ def od_statistics(
 
     with st:
         readings = defaultdict(list)
-        angles = {}
 
         # okay now start collecting
         for count, batched_reading in enumerate(od_stream, start=1):
             for channel, reading in batched_reading.ods.items():
                 readings[channel].append(reading.od)
-                angles[channel] = reading.angle
 
             pubsub.publish(
                 f"pioreactor/{unit}/{experiment}/{action_name}/percent_progress",
@@ -199,12 +196,11 @@ def od_blank(
             cache[experiment] = dumps(means)
 
         for channel, mean in means.items():
-
             # publish to UI
             pubsub.publish(
                 f"pioreactor/{unit}/{experiment}/{action_name}/mean/{channel}",
                 encode(
-                    structs.ODReading(
+                    structs.RawODReading(  # type error, this can be calibrated too
                         timestamp=current_utc_datetime(),
                         channel=channel,
                         od=means[channel],

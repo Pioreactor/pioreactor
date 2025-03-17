@@ -175,6 +175,7 @@ def parse_od(topic: str, payload: pt.MQTTMessagePayload) -> dict:
         "channel": int(od_reading.channel),
     }
 
+
 def parse_raw_od(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     metadata = produce_metadata(topic)
     od_reading = msgspec_loads(payload, type=structs.ODReading)
@@ -406,7 +407,9 @@ def add_default_source_to_sinks() -> list[TopicToParserToTable]:
                 ["pioreactor/+/+/od_reading/od1", "pioreactor/+/+/od_reading/od2"], parse_od, "od_readings"
             ),
             TopicToParserToTable(
-                ["pioreactor/+/+/od_reading/raw_od1", "pioreactor/+/+/od_reading/raw_od2"], parse_raw_od, "raw_od_readings"
+                ["pioreactor/+/+/od_reading/raw_od1", "pioreactor/+/+/od_reading/raw_od2"],
+                parse_raw_od,
+                "raw_od_readings",
             ),
             TopicToParserToTable("pioreactor/+/+/dosing_events", parse_dosing_events, "dosing_events"),
             TopicToParserToTable(

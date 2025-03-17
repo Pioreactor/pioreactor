@@ -647,9 +647,7 @@ class CalibrationTransformer(LoggerMixin):
         super().__init__()
         self.models: dict[pt.PdChannel, Callable] = {}
 
-    def __call__(
-        self, batched_readings: structs.RawODReadings
-    ) -> structs.RawODReadings | structs.CalibratedODReadings:
+    def __call__(self, batched_readings: structs.ODReadings) -> structs.ODReadings:
         return batched_readings
 
 
@@ -661,7 +659,7 @@ class NullCalibrationTransformer(CalibrationTransformer):
     def hydate_models(self, calibration_data: structs.ODCalibration | None) -> None:
         return
 
-    def __call__(self, batched_readings: structs.RawODReadings) -> structs.RawODReadings:
+    def __call__(self, batched_readings: structs.ODReadings) -> structs.ODReadings:
         return batched_readings
 
 
@@ -740,20 +738,19 @@ class CachedCalibrationTransformer(CalibrationTransformer):
 
         return calibration
 
-    def __call__(self, od_readings: structs.RawODReadings) -> structs.CalibratedODReadings:
-        return structs.CalibratedODReadings(
-            timestamp=od_readings.timestamp,
-            ods={
-                ch: structs.CalibratedODReading(
-                    timestamp=raw_od_reading.timestamp,
-                    angle=raw_od_reading.angle,
-                    od=self.models[ch](raw_od_reading.od),
-                    channel=raw_od_reading.channel,
-                    calibration_name=self.models[ch].name,  # type: ignore
+    def __call__(self, od_readings: structs.ODReadings) -> structs.ODReadings:
+        for channel in self.models:
+            if channel in od_readings.ods:
+                raw_od = od_readings.ods[channel]
+                od_readings.ods[channel] = structs.CalibratedODReading(
+                    timestamp=raw_od.timestamp,
+                    angle=raw_od.angle,
+                    od=self.models[channel](raw_od.od),
+                    channel=raw_od.channel,
+                    calibration_name=self.models[channel].name,  # type: ignore
                 )
-                for ch, raw_od_reading in od_readings.ods.items()
-            },
-        )
+
+        return od_readings
 
 
 class ODReader(BackgroundJob):
@@ -800,12 +797,10 @@ class ODReader(BackgroundJob):
         "ods": {"datatype": "ODReadings", "settable": False},
         "od1": {"datatype": "ODReading", "settable": False},
         "od2": {"datatype": "ODReading", "settable": False},
-        "raw_ods": {"datatype": "ODReadings", "settable": False},
-        "raw_od1": {"datatype": "ODReading", "settable": False},
-        "raw_od2": {"datatype": "ODReading", "settable": False},
-        "calibrated_ods": {"datatype": "ODReadings", "settable": False},
-        "calibrated_od1": {"datatype": "ODReading", "settable": False},
-        "calibrated_od2": {"datatype": "ODReading", "settable": False},
+        "raw_od1": {"datatype": "RawODReading", "settable": False},
+        "raw_od2": {"datatype": "RawODReading", "settable": False},
+        "calibrated_od1": {"datatype": "CalibratedODReading", "settable": False},
+        "calibrated_od2": {"datatype": "CalibratedODReading", "settable": False},
     }
 
     _pre_read: list[Callable] = []
@@ -815,10 +810,9 @@ class ODReader(BackgroundJob):
     ods: structs.ODReadings
     raw_od1: structs.RawODReading
     raw_od2: structs.RawODReading
-    raw_ods: structs.RawODReadings
+    raw_ods: structs.ODReadings
     calibrated_od1: structs.CalibratedODReading
     calibrated_od2: structs.CalibratedODReading
-    calibrated_ods: structs.CalibratedODReadings
     record_from_adc_timer: timing.RepeatedTimer
 
     def __init__(
@@ -1073,17 +1067,14 @@ class ODReader(BackgroundJob):
                 od_readings, raw_od_readings = self._read_from_adc_and_transform()
 
         self.ods = od_readings
-        for channel, _ in self.channel_angle_map.items():
-            setattr(self, f"od{channel}", od_readings.ods[channel])  # od1 or od2
-
         self.raw_ods = raw_od_readings
-        for channel, _ in self.channel_angle_map.items():
-            setattr(self, f"raw_od{channel}", raw_od_readings.ods[channel])  # od1 or od2
 
-        if isinstance(od_readings, structs.CalibratedODReadings):
-            self.calibrated_ods = od_readings
-            for channel, _ in self.channel_angle_map.items():
-                setattr(self, f"calibrated_od{channel}", od_readings.ods[channel])  # od1 or od2
+        for channel, _ in self.channel_angle_map.items():
+            setattr(self, f"od{channel}", od_readings.ods[channel])
+            setattr(self, f"raw_od{channel}", raw_od_readings.ods[channel])
+
+            if isinstance(od_readings.ods[channel], structs.CalibratedODReading):
+                setattr(self, f"calibrated_od{channel}", od_readings.ods[channel])
 
         self._log_relative_intensity_of_ir_led()
         self._unblock_internal_event()
@@ -1156,7 +1147,7 @@ class ODReader(BackgroundJob):
             self.clean_up()
             raise KeyError("`IR` value not found in section.")
 
-    def _read_from_adc_and_transform(self) -> tuple[structs.ODReadings, structs.RawODReadings]:
+    def _read_from_adc_and_transform(self) -> tuple[structs.ODReadings, structs.ODReadings]:
         """
         Read from the ADC. This function normalizes by the IR ref.
 
@@ -1171,7 +1162,7 @@ class ODReader(BackgroundJob):
         )
         self.ir_led_reference_transformer.update(ref_reading)
 
-        raw_od_readings = structs.RawODReadings(
+        raw_od_readings = structs.ODReadings(
             timestamp=raw_pd_readings.timestamp,
             ods={
                 pd: structs.RawODReading(
@@ -1184,9 +1175,9 @@ class ODReader(BackgroundJob):
             },
         )
 
-        calibrated_or_raw_od_readings = self.calibration_transformer(raw_od_readings)
+        calibrated_and_or_raw_od_readings = self.calibration_transformer(raw_od_readings)
 
-        return calibrated_or_raw_od_readings, raw_od_readings
+        return calibrated_and_or_raw_od_readings, raw_od_readings
 
     def _log_relative_intensity_of_ir_led(self) -> None:
         if self.ods.timestamp.microsecond % 8 == 0:  # some pseudo randomness
