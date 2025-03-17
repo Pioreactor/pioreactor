@@ -124,26 +124,32 @@ class RawPDReading(JSONPrintedStruct):
     reading: pt.Voltage
     channel: pt.PdChannel
 
+
 class RawPDReadings(JSONPrintedStruct):
     timestamp: t.Annotated[datetime, Meta(tz=True)]
     readings: dict[pt.PdChannel, RawPDReading]
 
+
 class CalibratedODReading(JSONPrintedStruct, tag=1, tag_field="calibrated"):
     timestamp: t.Annotated[datetime, Meta(tz=True)]
     angle: pt.PdAngle
-    od: pt.OD
+    od: pt.CalibratedOD
     channel: pt.PdChannel
     calibration_name: str
+
 
 class CalibratedODReadings(JSONPrintedStruct, tag=1, tag_field="calibrated"):
     timestamp: t.Annotated[datetime, Meta(tz=True)]
     ods: dict[pt.PdChannel, CalibratedODReading]
 
+
+
 class RawODReading(JSONPrintedStruct, tag=0, tag_field="calibrated"):
     timestamp: t.Annotated[datetime, Meta(tz=True)]
     angle: pt.PdAngle
-    od: pt.OD
+    od: pt.RawOD
     channel: pt.PdChannel
+
 
 class RawODReadings(JSONPrintedStruct, tag=0, tag_field="calibrated"):
     timestamp: t.Annotated[datetime, Meta(tz=True)]

@@ -9,6 +9,7 @@ from typing import cast
 from typing import Iterator
 from typing import Optional
 
+
 import click
 from msgspec.json import encode
 
@@ -28,13 +29,13 @@ from pioreactor.utils.timing import current_utc_datetime
 
 
 def od_statistics(
-    od_stream: Iterator,
+    od_stream: Iterator[structs.ODReadings],
     action_name: str,
     experiment: Optional[str] = None,
     unit: Optional[str] = None,
     n_samples: int = 30,
     logger=None,
-) -> tuple[dict[pt.PdChannel, float], dict[pt.PdChannel, float]]:
+) -> tuple[dict[pt.PdChannel, pt.OD], dict[pt.PdChannel, pt.OD]]:
     """
     Compute a sample statistics of the photodiodes attached.
 
@@ -148,7 +149,7 @@ def od_blank(
     n_samples: int = 20,
     unit=None,
     experiment=None,
-) -> dict[pt.PdChannel, float]:
+) -> dict[pt.PdChannel, pt.OD]:
     from pioreactor.background_jobs.od_reading import start_od_reading
 
     action_name = "od_blank"
@@ -188,6 +189,7 @@ def od_blank(
                         n_samples=n_samples,
                         logger=logger,
                     )
+                    reveal_type(means)
         except Exception as e:
             logger.debug(e, exc_info=True)
             logger.error(e)
@@ -197,6 +199,8 @@ def od_blank(
             cache[experiment] = dumps(means)
 
         for channel, mean in means.items():
+
+            # publish to UI
             pubsub.publish(
                 f"pioreactor/{unit}/{experiment}/{action_name}/mean/{channel}",
                 encode(

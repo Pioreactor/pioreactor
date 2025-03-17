@@ -343,7 +343,7 @@ class GrowthRateCalculator(BackgroundJob):
             return 1.0  # default?
 
         od_readings = decode(msg.payload, type=structs.ODReadings)
-        scaled_ods = self.scale_raw_observations(self._batched_raw_od_readings_to_dict(od_readings.ods))
+        scaled_ods = self.scale_raw_observations(self._batched_od_readings_to_dict(od_readings.ods))
         assert scaled_ods is not None
         return mean(scaled_ods.values())
 
@@ -452,7 +452,7 @@ class GrowthRateCalculator(BackgroundJob):
         timestamp = od_readings.timestamp
 
         scaled_observations = self.scale_raw_observations(
-            self._batched_raw_od_readings_to_dict(od_readings.ods)
+            self._batched_od_readings_to_dict(od_readings.ods)
         )
 
         if whoami.is_testing_env():
@@ -533,7 +533,7 @@ class GrowthRateCalculator(BackgroundJob):
         )
 
     @staticmethod
-    def _batched_raw_od_readings_to_dict(
+    def _batched_od_readings_to_dict(
         raw_od_readings: dict[pt.PdChannel, structs.ODReading]
     ) -> dict[pt.PdChannel, pt.OD]:
         """

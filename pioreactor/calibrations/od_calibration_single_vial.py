@@ -88,7 +88,7 @@ def get_name_from_user() -> str:
                 return name
 
 
-def get_metadata_from_user() -> tuple[pt.OD600, pt.OD600, pt.mL, pt.PdAngle, pt.PdChannel]:
+def get_metadata_from_user() -> tuple[pt.CalibratedOD, pt.CalibratedOD, pt.mL, pt.PdAngle, pt.PdChannel]:
     if config.get("od_reading.config", "ir_led_intensity") == "auto":
         echo(
             red(
@@ -109,7 +109,7 @@ def get_metadata_from_user() -> tuple[pt.OD600, pt.OD600, pt.mL, pt.PdAngle, pt.
 
     while minimum_od600 >= initial_od600:
         minimum_od600 = cast(
-            pt.OD600,
+            pt.CalibratedOD,
             prompt(
                 "The minimum OD600 measurement must be less than the initial OD600 culture measurement",
                 type=click.FloatRange(min=0, max=initial_od600, clamp=False),

@@ -110,8 +110,9 @@ PdAngleOrREF = t.Union[PdAngle, t.Literal["REF"]]
 # hardware level stuff
 AnalogValue = t.Union[int, float]
 Voltage = float  # maybe should be non-negative?
-OD = t.Annotated[float, Meta(ge=0)]
-OD600 = t.Annotated[float, Meta(ge=0)]
+RawOD = t.Annotated[float, Meta(ge=0)]
+CalibratedOD = float
+OD = RawOD | CalibratedOD
 
 AdcChannel = t.Literal[0, 1, 2, 3]
 

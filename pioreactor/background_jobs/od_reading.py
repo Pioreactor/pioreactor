@@ -45,13 +45,13 @@ import math
 import os
 import threading
 import types
+from datetime import datetime
+from datetime import timezone
 from time import sleep
 from time import time
 from typing import Callable
 from typing import cast
 from typing import Optional
-from datetime import datetime
-from datetime import timezone
 
 import click
 
@@ -99,11 +99,13 @@ def average_over_raw_pd_readings(*multiple_raw_pd_readings: structs.RawPDReading
 
     return structs.RawPDReadings(
         timestamp=max_timestamp,
-        readings={pd_channel:
-            structs.RawPDReading(reading=voltage / running_count, timestamp=max_timestamp, channel=pd_channel)
-             for pd_channel, voltage in summed_pd_channel_to_voltage.items()},
+        readings={
+            pd_channel: structs.RawPDReading(
+                reading=voltage / running_count, timestamp=max_timestamp, channel=pd_channel
+            )
+            for pd_channel, voltage in summed_pd_channel_to_voltage.items()
+        },
     )
-
 
 
 class ADCReader(LoggerMixin):
@@ -180,7 +182,9 @@ class ADCReader(LoggerMixin):
             adc_channel = ADC_CHANNEL_FUNCS[pd_channel]
             signal = self.adc.read_from_channel(adc_channel)
 
-            testing_signals.readings[pd_channel] = structs.RawPDReading(reading=self.adc.from_raw_to_voltage(signal), timestamp=datetime.min, channel=pd_channel)
+            testing_signals.readings[pd_channel] = structs.RawPDReading(
+                reading=self.adc.from_raw_to_voltage(signal), timestamp=datetime.min, channel=pd_channel
+            )
 
             running_max_signal = max(self.adc.from_raw_to_voltage(signal), running_max_signal)
             self.check_on_max(running_max_signal)
@@ -461,7 +465,9 @@ class ADCReader(LoggerMixin):
                     timestamps[channel],
                     shifted_signals,
                     self.most_appropriate_AC_hz,
-                    prior_C=(self.adc.from_voltage_to_raw_precise(self.batched_readings.readings[channel].reading))
+                    prior_C=(
+                        self.adc.from_voltage_to_raw_precise(self.batched_readings.readings[channel].reading)
+                    )
                     if (channel in self.batched_readings.readings)
                     else None,
                     penalizer_C=(self.penalizer * oversampling_count),
@@ -484,12 +490,10 @@ class ADCReader(LoggerMixin):
                 timestamp=timestamp,
                 readings={
                     channel: structs.RawPDReading(
-                        reading=batched_estimates_[channel],
-                        channel=channel,
-                        timestamp=timestamp
+                        reading=batched_estimates_[channel], channel=channel, timestamp=timestamp
                     )
                     for channel in self.channels
-                }
+                },
             )
 
             # the max signal should determine the ADS1x15's gain
@@ -548,7 +552,9 @@ class IrLedReferenceTracker(LoggerMixin):
     def update(self, ir_output_reading: pt.Voltage) -> None:
         pass
 
-    def pop_reference_reading(self, raw_readings: structs.RawPDReadings) -> tuple[float, structs.RawPDReadings]:
+    def pop_reference_reading(
+        self, raw_readings: structs.RawPDReadings
+    ) -> tuple[pt.Voltage, structs.RawPDReadings]:
         ref_reading = raw_readings.readings.pop(self.channel).reading
         return ref_reading, raw_readings
 
@@ -616,7 +622,6 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
             )
             self.led_output_emstd.clear()  # reset it for i) reduce warnings, ii) if the user purposely changed the IR intensity, this is an approx of that
 
-
     def transform(self, pd_reading: pt.Voltage) -> pt.OD:
         led_output = self.led_output_ema.get_latest()
 
@@ -629,7 +634,9 @@ class NullIrLedReferenceTracker(IrLedReferenceTracker):
     def __init__(self) -> None:
         super().__init__()
 
-    def pop_reference_reading(self, raw_readings: structs.RawPDReadings) -> tuple[float, structs.RawPDReadings]:
+    def pop_reference_reading(
+        self, raw_readings: structs.RawPDReadings
+    ) -> tuple[float, structs.RawPDReadings]:
         return 1.0, raw_readings
 
 
@@ -640,7 +647,9 @@ class CalibrationTransformer(LoggerMixin):
         super().__init__()
         self.models: dict[pt.PdChannel, Callable] = {}
 
-    def __call__(self, batched_readings: structs.RawODReadings) -> structs.RawODReadings | structs.CalibratedODReadings:
+    def __call__(
+        self, batched_readings: structs.RawODReadings
+    ) -> structs.RawODReadings | structs.CalibratedODReadings:
         return batched_readings
 
 
@@ -654,6 +663,7 @@ class NullCalibrationTransformer(CalibrationTransformer):
 
     def __call__(self, batched_readings: structs.RawODReadings) -> structs.RawODReadings:
         return batched_readings
+
 
 class CachedCalibrationTransformer(CalibrationTransformer):
     def __init__(self) -> None:
@@ -677,7 +687,7 @@ class CachedCalibrationTransformer(CalibrationTransformer):
             raise exc.CalibrationError(msg)
 
         self.models[channel] = self._hydrate_model(calibration_data)
-        self.models[channel].name = name # type: ignore
+        self.models[channel].name = name  # type: ignore
         self.logger.info(f"Using OD calibration `{name}` for channel {channel}.")
         self.logger.debug(
             f"Using OD calibration `{name}` for channel {channel}, {calibration_data.curve_type=}, {calibration_data.curve_data_=}"
@@ -733,14 +743,17 @@ class CachedCalibrationTransformer(CalibrationTransformer):
     def __call__(self, od_readings: structs.RawODReadings) -> structs.CalibratedODReadings:
         return structs.CalibratedODReadings(
             timestamp=od_readings.timestamp,
-            ods={ch: structs.CalibratedODReading(
-                timestamp=raw_od_reading.timestamp,
-                angle=raw_od_reading.angle,
-                od=self.models[ch](raw_od_reading.od),
-                channel=raw_od_reading.channel,
-                calibration_name=self.models[ch].name # type: ignore
-                ) for ch, raw_od_reading in od_readings.ods.items()
-            })
+            ods={
+                ch: structs.CalibratedODReading(
+                    timestamp=raw_od_reading.timestamp,
+                    angle=raw_od_reading.angle,
+                    od=self.models[ch](raw_od_reading.od),
+                    channel=raw_od_reading.channel,
+                    calibration_name=self.models[ch].name,  # type: ignore
+                )
+                for ch, raw_od_reading in od_readings.ods.items()
+            },
+        )
 
 
 class ODReader(BackgroundJob):
@@ -800,6 +813,12 @@ class ODReader(BackgroundJob):
     od1: structs.ODReading
     od2: structs.ODReading
     ods: structs.ODReadings
+    raw_od1: structs.RawODReading
+    raw_od2: structs.RawODReading
+    raw_ods: structs.RawODReadings
+    calibrated_od1: structs.CalibratedODReading
+    calibrated_od2: structs.CalibratedODReading
+    calibrated_ods: structs.CalibratedODReadings
     record_from_adc_timer: timing.RepeatedTimer
 
     def __init__(
@@ -1061,7 +1080,6 @@ class ODReader(BackgroundJob):
         for channel, _ in self.channel_angle_map.items():
             setattr(self, f"raw_od{channel}", raw_od_readings.ods[channel])  # od1 or od2
 
-
         if isinstance(od_readings, structs.CalibratedODReadings):
             self.calibrated_ods = od_readings
             for channel, _ in self.channel_angle_map.items():
@@ -1148,19 +1166,23 @@ class ODReader(BackgroundJob):
         """
         raw_pd_readings = self.adc_reader.take_reading()
 
-        ref_reading, raw_pd_readings = self.ir_led_reference_transformer.pop_reference_reading(raw_pd_readings)
+        ref_reading, raw_pd_readings = self.ir_led_reference_transformer.pop_reference_reading(
+            raw_pd_readings
+        )
         self.ir_led_reference_transformer.update(ref_reading)
 
         raw_od_readings = structs.RawODReadings(
             timestamp=raw_pd_readings.timestamp,
-            ods={pd: structs.RawODReading(
-                od=self.ir_led_reference_transformer.transform(raw_pd_reading.reading),
-                angle=self.channel_angle_map[pd],
-                channel=pd,
-                timestamp=raw_pd_readings.timestamp
-            )
-            for pd, raw_pd_reading in raw_pd_readings.readings.items()
-        })
+            ods={
+                pd: structs.RawODReading(
+                    od=self.ir_led_reference_transformer.transform(raw_pd_reading.reading),
+                    angle=self.channel_angle_map[pd],
+                    channel=pd,
+                    timestamp=raw_pd_readings.timestamp,
+                )
+                for pd, raw_pd_reading in raw_pd_readings.readings.items()
+            },
+        )
 
         calibrated_or_raw_od_readings = self.calibration_transformer(raw_od_readings)
 
