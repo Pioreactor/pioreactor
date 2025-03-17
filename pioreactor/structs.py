@@ -119,16 +119,39 @@ class ODFiltered(JSONPrintedStruct):
     timestamp: t.Annotated[datetime, Meta(tz=True)]
 
 
-class ODReading(JSONPrintedStruct):
+class RawPDReading(JSONPrintedStruct):
+    timestamp: t.Annotated[datetime, Meta(tz=True)]
+    reading: pt.Voltage
+    channel: pt.PdChannel
+
+class RawPDReadings(JSONPrintedStruct):
+    timestamp: t.Annotated[datetime, Meta(tz=True)]
+    readings: dict[pt.PdChannel, RawPDReading]
+
+class CalibratedODReading(JSONPrintedStruct, tag=1, tag_field="calibrated"):
+    timestamp: t.Annotated[datetime, Meta(tz=True)]
+    angle: pt.PdAngle
+    od: pt.OD
+    channel: pt.PdChannel
+    calibration_name: str
+
+class CalibratedODReadings(JSONPrintedStruct, tag=1, tag_field="calibrated"):
+    timestamp: t.Annotated[datetime, Meta(tz=True)]
+    ods: dict[pt.PdChannel, CalibratedODReading]
+
+class RawODReading(JSONPrintedStruct, tag=0, tag_field="calibrated"):
     timestamp: t.Annotated[datetime, Meta(tz=True)]
     angle: pt.PdAngle
     od: pt.OD
     channel: pt.PdChannel
 
-
-class ODReadings(JSONPrintedStruct):
+class RawODReadings(JSONPrintedStruct, tag=0, tag_field="calibrated"):
     timestamp: t.Annotated[datetime, Meta(tz=True)]
-    ods: dict[pt.PdChannel, ODReading]
+    ods: dict[pt.PdChannel, RawODReading]
+
+
+ODReading = RawODReading | CalibratedODReading
+ODReadings = RawODReadings | CalibratedODReadings
 
 
 class Temperature(JSONPrintedStruct):

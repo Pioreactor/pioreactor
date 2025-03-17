@@ -26,7 +26,7 @@ from pioreactor.automations.temperature.only_record_temperature import OnlyRecor
 from pioreactor.background_jobs import stirring
 from pioreactor.background_jobs.od_reading import ADCReader
 from pioreactor.background_jobs.od_reading import ALL_PD_CHANNELS
-from pioreactor.background_jobs.od_reading import average_over_pd_channel_to_voltages
+from pioreactor.background_jobs.od_reading import average_over_raw_pd_readings
 from pioreactor.background_jobs.od_reading import IR_keyword
 from pioreactor.background_jobs.od_reading import REF_keyword
 from pioreactor.background_jobs.od_reading import start_od_reading
@@ -176,7 +176,7 @@ def test_all_positive_correlations_between_pds_and_leds(
                 )
 
                 # record from ADC, we'll average them
-                avg_reading = average_over_pd_channel_to_voltages(
+                avg_reading = average_over_raw_pd_readings(
                     adc_reader.take_reading(),
                     adc_reader.take_reading(),
                     adc_reader.take_reading(),
