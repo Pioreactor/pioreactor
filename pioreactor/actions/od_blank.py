@@ -186,7 +186,7 @@ def od_blank(
                         n_samples=n_samples,
                         logger=logger,
                     )
-                    reveal_type(means)
+
         except Exception as e:
             logger.debug(e, exc_info=True)
             logger.error(e)

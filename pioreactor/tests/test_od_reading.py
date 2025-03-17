@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 
 from pioreactor import exc
+from pioreactor import types as pt
 from pioreactor import structs
 from pioreactor.background_jobs.od_reading import ADCReader
 from pioreactor.background_jobs.od_reading import CachedCalibrationTransformer
@@ -775,8 +776,8 @@ def test_determine_best_ir_led_intensity_values() -> None:
         _determine_best_ir_led_intensity(
             {"2": "90"},
             50,
-            {"1": 0.05, "2": 0.02},  # on
-            {"1": 0.001, "2": 0.001},  # blank
+            {"1": structs.RawPDReading(0.05 ,"1"), "2": structs.RawPDReading(0.02, "2")},  # on
+            {"1": structs.RawPDReading(0.001,"1"), "2": structs.RawPDReading(0.001, "2")},  # blank
         )
         == 80.0
     )
@@ -785,7 +786,7 @@ def test_determine_best_ir_led_intensity_values() -> None:
         _determine_best_ir_led_intensity(
             {"2": "90"},
             50,
-            {"1": structs.RawPDReading(0.2  , "1"), "2": structs.RawPDReading(0.02 , "2")},  # on
+            {"1": structs.RawPDReading(0.2, "1"), "2": structs.RawPDReading(0.02, "2")},  # on
             {"1": structs.RawPDReading(0.001, "1"), "2": structs.RawPDReading(0.001, "2")},  # blank
         )
         == 60.0
@@ -795,7 +796,7 @@ def test_determine_best_ir_led_intensity_values() -> None:
         _determine_best_ir_led_intensity(
             {"2": "90"},
             50,
-            {"1": structs.RawPDReading(0.2  , "1"), "2": structs.RawPDReading(0.5 , "2")},  # on
+            {"1": structs.RawPDReading(0.2, "1"), "2": structs.RawPDReading(0.5, "2")},  # on
             {"1": structs.RawPDReading(0.001, "1"), "2": structs.RawPDReading(0.001, "2")},  # blank
         )
         == 50  # 6.0
@@ -805,8 +806,15 @@ def test_determine_best_ir_led_intensity_values() -> None:
 def test_calibration_not_requested() -> None:
     with start_od_reading("90", "REF", interval=None, fake_data=True) as od:
         assert isinstance(od.calibration_transformer, NullCalibrationTransformer)
-        assert od.calibration_transformer({"2": 0.1}) == {"2": 0.1}
-        assert od.calibration_transformer({"2": 0.5, "1": 0.0}) == {"2": 0.5, "1": 0.0}
+        ts = current_utc_datetime()
+        x = structs.ODReadings(timestamp=ts, ods={"2": structs.RawODReading(od=0.1, angle="90", channel="2", timestamp=ts)})
+        assert od.calibration_transformer(x) == x
+
+        y = structs.ODReadings(timestamp=ts, ods={
+                "1": structs.RawODReading(od=0.5, angle="90", channel="1", timestamp=ts),
+                "2": structs.RawODReading(od=0.23, angle="90", channel="2", timestamp=ts)
+            })
+        assert od.calibration_transformer(y) == y
 
 
 def test_calibration_not_present() -> None:
@@ -1034,11 +1042,20 @@ def test_calibration_with_irl_data1() -> None:
 
     cc = CachedCalibrationTransformer()
     cc.hydate_models(cal)
-    assert cc({"2": 0.001})["2"] == 0
-    assert cc({"2": 0.002})["2"] == 0
-    assert abs(cc({"2": 0.004})["2"] - 0.0032975807375385234) < 1e-5
-    assert abs(cc({"2": 0.020})["2"] - 0.03639585015289039) < 1e-5
-    assert cc({"2": 1.0})["2"] == MAX_OD
+
+    def float_to_od_readings_struct(ch: pt.PdChannel, v: float) -> structs.ODReadings:
+        return structs.ODReadings(
+            timestamp=current_utc_datetime(),
+            ods={
+                ch: structs.RawODReading(od=v, angle="90", channel=ch, timestamp=current_utc_datetime())
+            },
+        )
+
+    assert cc(float_to_od_readings_struct("2", 0.001)).ods["2"].od == 0
+    assert cc(float_to_od_readings_struct("2", 0.002)).ods["2"].od == 0
+    assert abs(cc(float_to_od_readings_struct("2", 0.004)).ods["2"].od - 0.0032975807375385234) < 1e-5
+    assert abs(cc(float_to_od_readings_struct("2", 0.02)).ods["2"].od - 0.03639585015289039) < 1e-5
+    assert cc(float_to_od_readings_struct("2", 1.0)).ods["2"].od == MAX_OD
 
 
 def test_PhotodiodeIrLedReferenceTrackerStaticInit() -> None:
@@ -1318,7 +1335,17 @@ def test_CachedCalibrationTransformer_with_real_calibration() -> None:
     cal_transformer = CachedCalibrationTransformer()
     cal_transformer.hydate_models(calibration)
 
-    assert abs(cal_transformer({"2": 0.096})["2"] - 0.06) < 0.01
+
+    def float_to_od_readings_struct(ch: pt.PdChannel, v: float) -> structs.ODReadings:
+        return structs.ODReadings(
+            timestamp=current_utc_datetime(),
+            ods={
+                ch: structs.RawODReading(od=v, angle="90", channel=ch, timestamp=current_utc_datetime())
+            },
+        )
+
+
+    assert abs(cal_transformer(float_to_od_readings_struct("2", 0.096)).ods["2"].od - 0.06) < 0.01
 
 
 def test_missing_calibration_data():

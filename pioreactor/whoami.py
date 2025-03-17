@@ -177,6 +177,8 @@ def get_pioreactor_version() -> tuple[int, int]:
 def get_pioreactor_model() -> str | None:
     if os.environ.get("MODEL_NAME"):
         return os.environ["MODEL_NAME"]
+    elif is_testing_env():
+        return "Pioreactor 40ml"
 
     from pioreactor.pubsub import get_from_leader
 

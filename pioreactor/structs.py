@@ -123,6 +123,7 @@ class RawPDReading(JSONPrintedStruct):
     reading: pt.Voltage
     channel: pt.PdChannel
 
+
 class CalibratedODReading(JSONPrintedStruct, tag=1, tag_field="calibrated"):
     timestamp: t.Annotated[datetime, Meta(tz=True)]
     angle: pt.PdAngle

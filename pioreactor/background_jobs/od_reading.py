@@ -84,6 +84,7 @@ IR_keyword = "IR"
 
 RawPDReadings = dict[pt.PdChannel, structs.RawPDReading]
 
+
 def average_over_raw_pd_readings(*multiple_raw_pd_readings: RawPDReadings) -> RawPDReadings:
     running_count = 0
 
@@ -97,11 +98,9 @@ def average_over_raw_pd_readings(*multiple_raw_pd_readings: RawPDReadings) -> Ra
         running_count += 1
 
     return {
-            pd_channel: structs.RawPDReading(
-                reading=voltage / running_count, channel=pd_channel
-            )
-            for pd_channel, voltage in summed_pd_channel_to_voltage.items()
-        }
+        pd_channel: structs.RawPDReading(reading=voltage / running_count, channel=pd_channel)
+        for pd_channel, voltage in summed_pd_channel_to_voltage.items()
+    }
 
 
 class ADCReader(LoggerMixin):
@@ -461,9 +460,7 @@ class ADCReader(LoggerMixin):
                     timestamps[channel],
                     shifted_signals,
                     self.most_appropriate_AC_hz,
-                    prior_C=(
-                        self.adc.from_voltage_to_raw_precise(self.batched_readings[channel].reading)
-                    )
+                    prior_C=(self.adc.from_voltage_to_raw_precise(self.batched_readings[channel].reading))
                     if (channel in self.batched_readings)
                     else None,
                     penalizer_C=(self.penalizer * oversampling_count),
@@ -482,11 +479,9 @@ class ADCReader(LoggerMixin):
             self.check_on_max(max_signal)
 
             self.batched_readings = {
-                    channel: structs.RawPDReading(
-                        reading=batched_estimates_[channel], channel=channel
-                    )
-                    for channel in self.channels
-                }
+                channel: structs.RawPDReading(reading=batched_estimates_[channel], channel=channel)
+                for channel in self.channels
+            }
 
             # the max signal should determine the ADS1x15's gain
             self.max_signal_moving_average.update(max_signal)
@@ -544,9 +539,7 @@ class IrLedReferenceTracker(LoggerMixin):
     def update(self, ir_output_reading: pt.Voltage) -> None:
         pass
 
-    def pop_reference_reading(
-        self, raw_readings: RawPDReadings
-    ) -> tuple[pt.Voltage, RawPDReadings]:
+    def pop_reference_reading(self, raw_readings: RawPDReadings) -> tuple[pt.Voltage, RawPDReadings]:
         ref_reading = raw_readings.pop(self.channel).reading
         return ref_reading, raw_readings
 
@@ -626,9 +619,7 @@ class NullIrLedReferenceTracker(IrLedReferenceTracker):
     def __init__(self) -> None:
         super().__init__()
 
-    def pop_reference_reading(
-        self, raw_readings: RawPDReadings
-    ) -> tuple[float, RawPDReadings]:
+    def pop_reference_reading(self, raw_readings: RawPDReadings) -> tuple[float, RawPDReadings]:
         return 1.0, raw_readings
 
 
