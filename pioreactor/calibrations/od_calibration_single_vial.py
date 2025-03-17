@@ -429,8 +429,8 @@ def run_od_calibration() -> structs.ODCalibration:
             unit,
         )
 
-        n = len(x)
-        weights = [1] * n
+        n = len(voltages)
+        weights = [1.0] * n
         weights[0] = n / 2
 
         cal = utils.crunch_data_and_confirm_with_user(cal, initial_degree=3, weights=weights)

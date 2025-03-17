@@ -21,11 +21,13 @@ def bold(string: str) -> str:
     return click.style(string, bold=True)
 
 
-def calculate_poly_curve_of_best_fit(x: list[float], y: list[float], degree: int, weights: list[float] | None) -> list[float]:
+def calculate_poly_curve_of_best_fit(
+    x: list[float], y: list[float], degree: int, weights: list[float] | None = None
+) -> list[float]:
     import numpy as np
 
-    if not weights:
-        weights = np.ones_like(x)
+    if weights is None:
+        weights = [1.0] * len(x)
 
     assert len(weights) == len(x) == len(y)
 
@@ -121,7 +123,9 @@ def plot_data(
 Calb = TypeVar("Calb", bound=structs.CalibrationBase)
 
 
-def crunch_data_and_confirm_with_user(calibration: Calb, initial_degree=1, weights=list[float] | None) -> Calb:
+def crunch_data_and_confirm_with_user(
+    calibration: Calb, initial_degree=1, weights=list[float] | None
+) -> Calb:
     y, x = calibration.recorded_data["y"], calibration.recorded_data["x"]
     candidate_curve = calibration.curve_data_
 
