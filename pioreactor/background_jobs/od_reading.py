@@ -45,8 +45,7 @@ import math
 import os
 import threading
 import types
-from datetime import datetime
-from datetime import timezone
+from copy import deepcopy as copy
 from time import sleep
 from time import time
 from typing import Callable
@@ -703,7 +702,7 @@ class CachedCalibrationTransformer(CalibrationTransformer):
                         raise exc.NoSolutionsFoundError
                 except exc.SolutionBelowDomainError:
                     self.logger.warning(
-                        f"Signal below suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V."
+                        f"Signal below suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V, which would map outside the allowed values."
                     )
                     self.has_logged_warning = True
                     return min_OD
@@ -722,6 +721,7 @@ class CachedCalibrationTransformer(CalibrationTransformer):
         return calibration
 
     def __call__(self, od_readings: structs.ODReadings) -> structs.ODReadings:
+        od_readings = copy(od_readings)
         for channel in self.models:
             if channel in od_readings.ods:
                 raw_od = od_readings.ods[channel]
@@ -793,7 +793,6 @@ class ODReader(BackgroundJob):
     ods: structs.ODReadings
     raw_od1: structs.RawODReading
     raw_od2: structs.RawODReading
-    raw_ods: structs.ODReadings
     calibrated_od1: structs.CalibratedODReading
     calibrated_od2: structs.CalibratedODReading
     record_from_adc_timer: timing.RepeatedTimer
@@ -1050,13 +1049,12 @@ class ODReader(BackgroundJob):
                 od_readings, raw_od_readings = self._read_from_adc_and_transform()
 
         self.ods = od_readings
-        self.raw_ods = raw_od_readings
 
         for channel, _ in self.channel_angle_map.items():
             setattr(self, f"od{channel}", od_readings.ods[channel])
-            setattr(self, f"raw_od{channel}", raw_od_readings.ods[channel])
 
             if isinstance(od_readings.ods[channel], structs.CalibratedODReading):
+                setattr(self, f"raw_od{channel}", raw_od_readings.ods[channel])
                 setattr(self, f"calibrated_od{channel}", od_readings.ods[channel])
 
         self._log_relative_intensity_of_ir_led()
@@ -1158,7 +1156,6 @@ class ODReader(BackgroundJob):
                 for pd, raw_pd_reading in raw_pd_readings.items()
             },
         )
-
         calibrated_and_or_raw_od_readings = self.calibration_transformer(raw_od_readings)
 
         return calibrated_and_or_raw_od_readings, raw_od_readings

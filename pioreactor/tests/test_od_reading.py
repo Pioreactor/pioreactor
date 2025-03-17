@@ -8,8 +8,8 @@ import numpy as np
 import pytest
 
 from pioreactor import exc
-from pioreactor import types as pt
 from pioreactor import structs
+from pioreactor import types as pt
 from pioreactor.background_jobs.od_reading import ADCReader
 from pioreactor.background_jobs.od_reading import CachedCalibrationTransformer
 from pioreactor.background_jobs.od_reading import NullCalibrationTransformer
@@ -776,8 +776,8 @@ def test_determine_best_ir_led_intensity_values() -> None:
         _determine_best_ir_led_intensity(
             {"2": "90"},
             50,
-            {"1": structs.RawPDReading(0.05 ,"1"), "2": structs.RawPDReading(0.02, "2")},  # on
-            {"1": structs.RawPDReading(0.001,"1"), "2": structs.RawPDReading(0.001, "2")},  # blank
+            {"1": structs.RawPDReading(0.05, "1"), "2": structs.RawPDReading(0.02, "2")},  # on
+            {"1": structs.RawPDReading(0.001, "1"), "2": structs.RawPDReading(0.001, "2")},  # blank
         )
         == 80.0
     )
@@ -807,13 +807,18 @@ def test_calibration_not_requested() -> None:
     with start_od_reading("90", "REF", interval=None, fake_data=True) as od:
         assert isinstance(od.calibration_transformer, NullCalibrationTransformer)
         ts = current_utc_datetime()
-        x = structs.ODReadings(timestamp=ts, ods={"2": structs.RawODReading(od=0.1, angle="90", channel="2", timestamp=ts)})
+        x = structs.ODReadings(
+            timestamp=ts, ods={"2": structs.RawODReading(od=0.1, angle="90", channel="2", timestamp=ts)}
+        )
         assert od.calibration_transformer(x) == x
 
-        y = structs.ODReadings(timestamp=ts, ods={
+        y = structs.ODReadings(
+            timestamp=ts,
+            ods={
                 "1": structs.RawODReading(od=0.5, angle="90", channel="1", timestamp=ts),
-                "2": structs.RawODReading(od=0.23, angle="90", channel="2", timestamp=ts)
-            })
+                "2": structs.RawODReading(od=0.23, angle="90", channel="2", timestamp=ts),
+            },
+        )
         assert od.calibration_transformer(y) == y
 
 
@@ -978,7 +983,7 @@ def test_calibration_multi_modal() -> None:
         assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
         for i in range(0, 1000):
             voltage = np.polyval(poly, i / 1000)
-            print(voltage, od.calibration_transformer.models["2"](voltage))
+            print(voltage)
 
 
 def test_calibration_errors_when_ir_led_differs() -> None:
@@ -1046,9 +1051,7 @@ def test_calibration_with_irl_data1() -> None:
     def float_to_od_readings_struct(ch: pt.PdChannel, v: float) -> structs.ODReadings:
         return structs.ODReadings(
             timestamp=current_utc_datetime(),
-            ods={
-                ch: structs.RawODReading(od=v, angle="90", channel=ch, timestamp=current_utc_datetime())
-            },
+            ods={ch: structs.RawODReading(od=v, angle="90", channel=ch, timestamp=current_utc_datetime())},
         )
 
     assert cc(float_to_od_readings_struct("2", 0.001)).ods["2"].od == 0
@@ -1335,15 +1338,11 @@ def test_CachedCalibrationTransformer_with_real_calibration() -> None:
     cal_transformer = CachedCalibrationTransformer()
     cal_transformer.hydate_models(calibration)
 
-
     def float_to_od_readings_struct(ch: pt.PdChannel, v: float) -> structs.ODReadings:
         return structs.ODReadings(
             timestamp=current_utc_datetime(),
-            ods={
-                ch: structs.RawODReading(od=v, angle="90", channel=ch, timestamp=current_utc_datetime())
-            },
+            ods={ch: structs.RawODReading(od=v, angle="90", channel=ch, timestamp=current_utc_datetime())},
         )
-
 
     assert abs(cal_transformer(float_to_od_readings_struct("2", 0.096)).ods["2"].od - 0.06) < 0.01
 
@@ -1409,3 +1408,31 @@ def test_setting_interval_after_starting():
 
         od.set_interval(None)
         assert od.interval is None
+
+
+def test_raw_and_calibrated_data_is_published_if_calibration_is_used():
+    experiment = "test_raw_and_calibrated_data_is_published_if_calibration_is_used"
+
+    calibration = structs.ODCalibration(
+        angle="90",
+        calibration_name="test_raw_and_calibrated_data_is_published_if_calibration_is_used",
+        curve_type="poly",
+        curve_data_=[1, 0],
+        ir_led_intensity=50,
+        pd_channel="2",
+        created_at=current_utc_datetime(),
+        calibrated_on_pioreactor_unit="pio1",
+        recorded_data={"y": [0, 1], "x": [0, 1]},
+    )
+
+    calibration.set_as_active_calibration_for_device("od")
+
+    with start_od_reading(
+        "REF", "90", interval=2, fake_data=True, experiment=experiment, calibration=calibration
+    ) as od_job:
+        next(od_job)
+        assert isinstance(od_job.calibration_transformer, CachedCalibrationTransformer)
+        assert od_job.ods is not None
+        assert od_job.od2 is not None
+        assert od_job.calibrated_od2 is not None
+        assert od_job.raw_od2 is not None
