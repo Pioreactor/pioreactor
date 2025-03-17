@@ -195,24 +195,6 @@ def od_blank(
         with local_persistent_storage(action_name) as cache:
             cache[experiment] = dumps(means)
 
-        for channel, mean in means.items():
-            # publish to UI
-            pubsub.publish(
-                f"pioreactor/{unit}/{experiment}/{action_name}/mean/{channel}",
-                encode(
-                    structs.RawODReading(  # type error, this can be calibrated too
-                        timestamp=current_utc_datetime(),
-                        channel=channel,
-                        od=means[channel],
-                        angle=cast(
-                            pt.PdAngle, config.get("od_config.photodiode_channel", channel, fallback=None)
-                        ),
-                    )
-                ),
-                qos=pubsub.QOS.AT_LEAST_ONCE,
-                retain=True,
-            )
-
         # publish to UI
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/{action_name}/means",

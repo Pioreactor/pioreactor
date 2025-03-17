@@ -39,7 +39,7 @@ def create_od_raw_batched(channels, voltages: list[float], angles, timestamp: st
     readings = structs.ODReadings(timestamp=to_datetime(timestamp), ods=dict())
     for channel, voltage, angle in zip(channels, voltages, angles):
         assert int(channel) in (1, 2)
-        readings.ods[channel] = structs.ODReading(
+        readings.ods[channel] = structs.RawODReading(
             od=voltage, angle=angle, timestamp=to_datetime(timestamp), channel=channel
         )
 
@@ -1034,7 +1034,7 @@ class TestGrowthRateCalculating:
                     )
                     calc.publish(
                         f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                        encode(structs.ODReading(od=v, angle="90", timestamp=to_datetime(t), channel="2")),
+                        encode(structs.RawODReading(od=v, angle="90", timestamp=to_datetime(t), channel="2")),
                         retain=True,
                     )
                     time.sleep(0.5)
@@ -1051,7 +1051,7 @@ class TestGrowthRateCalculating:
                 )
                 calc.publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                    encode(structs.ODReading(od=v, angle="90", timestamp=to_datetime(t), channel="2")),
+                    encode(structs.RawODReading(od=v, angle="90", timestamp=to_datetime(t), channel="2")),
                     retain=True,
                 )
                 time.sleep(0.5)
@@ -1073,7 +1073,7 @@ class TestGrowthRateCalculating:
                     )
                     calc.publish(
                         f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                        encode(structs.ODReading(od=v, angle="90", timestamp=to_datetime(t), channel="2")),
+                        encode(structs.RawODReading(od=v, angle="90", timestamp=to_datetime(t), channel="2")),
                         retain=True,
                     )
                     time.sleep(0.5)

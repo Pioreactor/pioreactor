@@ -785,8 +785,8 @@ def test_determine_best_ir_led_intensity_values() -> None:
         _determine_best_ir_led_intensity(
             {"2": "90"},
             50,
-            {"1": 0.2, "2": 0.02},  # on
-            {"1": 0.001, "2": 0.001},  # blank
+            {"1": structs.RawPDReading(0.2  , "1"), "2": structs.RawPDReading(0.02 , "2")},  # on
+            {"1": structs.RawPDReading(0.001, "1"), "2": structs.RawPDReading(0.001, "2")},  # blank
         )
         == 60.0
     )
@@ -795,8 +795,8 @@ def test_determine_best_ir_led_intensity_values() -> None:
         _determine_best_ir_led_intensity(
             {"2": "90"},
             50,
-            {"1": 0.2, "2": 0.5},  # on
-            {"1": 0.001, "2": 0.001},  # blank
+            {"1": structs.RawPDReading(0.2  , "1"), "2": structs.RawPDReading(0.5 , "2")},  # on
+            {"1": structs.RawPDReading(0.001, "1"), "2": structs.RawPDReading(0.001, "2")},  # blank
         )
         == 50  # 6.0
     )

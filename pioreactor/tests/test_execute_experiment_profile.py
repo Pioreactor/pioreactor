@@ -29,7 +29,7 @@ from pioreactor.experiment_profiles.profile_struct import When
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe_and_callback
-from pioreactor.structs import ODReading
+from pioreactor.structs import RawODReading
 from pioreactor.tests.conftest import capture_requests
 from pioreactor.utils.timing import current_utc_datetime
 
@@ -583,7 +583,7 @@ def test_execute_experiment_profile_when_action_simple(mock__load_experiment_pro
     # Simulate OD value
     publish(
         f"pioreactor/unit1/{experiment}/od_reading/od1",
-        encode(ODReading(od=2.5, angle="90", timestamp=current_utc_datetime(), channel="1")),
+        encode(RawODReading(od=2.5, angle="90", timestamp=current_utc_datetime(), channel="1")),
         retain=True,
     )
 
@@ -625,7 +625,7 @@ def test_execute_experiment_profile_when_action_with_if(mock__load_experiment_pr
     # Simulate OD value
     publish(
         f"pioreactor/unit1/{experiment}/od_reading/od1",
-        encode(ODReading(od=2.5, angle="90", timestamp=current_utc_datetime(), channel="1")),
+        encode(RawODReading(od=2.5, angle="90", timestamp=current_utc_datetime(), channel="1")),
         retain=True,
     )
 

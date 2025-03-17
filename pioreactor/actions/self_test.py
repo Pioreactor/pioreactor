@@ -194,12 +194,12 @@ def test_all_positive_correlations_between_pds_and_leds(
 
                 # Add to accumulating list
                 for pd_channel in ALL_PD_CHANNELS:
-                    varying_intensity_results[pd_channel].append(avg_reading[pd_channel])
+                    varying_intensity_results[pd_channel].append(avg_reading[pd_channel].reading)
 
-                    if avg_reading[pd_channel] >= 2.0:
+                    if avg_reading[pd_channel].reading >= 2.0:
                         # we are probably going to saturate the PD - clearly we are detecting something though!
                         logger.debug(
-                            f"Saw {avg_reading[pd_channel]:.2f} for pair pd_channel={pd_channel}, led_channel={led_channel}@intensity={intensity}. Saturation possible. No solution implemented yet! See issue #445"
+                            f"Saw {avg_reading[pd_channel].reading:.2f} for pair pd_channel={pd_channel}, led_channel={led_channel}@intensity={intensity}. Saturation possible. No solution implemented yet! See issue #445"
                         )
 
         # compute the linear correlation between the intensities and observed PD measurements
@@ -271,10 +271,10 @@ def test_ambient_light_interference(managed_state, logger: CustomLogger, unit: s
     readings = adc_reader.take_reading()
 
     if hardware_version_info < (1, 1):
-        assert all([readings[pd_channel] < 0.005 for pd_channel in ALL_PD_CHANNELS]), readings
+        assert all([readings[pd_channel].reading < 0.005 for pd_channel in ALL_PD_CHANNELS]), readings
     else:
         assert all(
-            [readings[pd_channel] < 0.080 for pd_channel in ALL_PD_CHANNELS]
+            [readings[pd_channel].reading < 0.080 for pd_channel in ALL_PD_CHANNELS]
         ), f"Dark signal too high: {readings=}"  # saw a 0.072 blank during testing
 
 

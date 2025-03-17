@@ -120,15 +120,8 @@ class ODFiltered(JSONPrintedStruct):
 
 
 class RawPDReading(JSONPrintedStruct):
-    timestamp: t.Annotated[datetime, Meta(tz=True)]
     reading: pt.Voltage
     channel: pt.PdChannel
-
-
-class RawPDReadings(JSONPrintedStruct):
-    timestamp: t.Annotated[datetime, Meta(tz=True)]
-    readings: dict[pt.PdChannel, RawPDReading]
-
 
 class CalibratedODReading(JSONPrintedStruct, tag=1, tag_field="calibrated"):
     timestamp: t.Annotated[datetime, Meta(tz=True)]

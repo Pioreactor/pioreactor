@@ -68,7 +68,7 @@ def test_silent_automation() -> None:
                 structs.ODReadings(
                     timestamp=current_utc_datetime(),
                     ods={
-                        "2": structs.ODReading(
+                        "2": structs.RawODReading(
                             timestamp=current_utc_datetime(), angle="45", od=0.05, channel="2"
                         )
                     },
@@ -95,7 +95,7 @@ def test_silent_automation() -> None:
                 structs.ODReadings(
                     timestamp=current_utc_datetime(),
                     ods={
-                        "2": structs.ODReading(
+                        "2": structs.RawODReading(
                             timestamp=current_utc_datetime(), angle="45", od=0.06, channel="2"
                         )
                     },
@@ -234,7 +234,7 @@ def test_turbidostat_targeting_od() -> None:
                 structs.ODReadings(
                     timestamp=current_utc_datetime(),
                     ods={
-                        "2": structs.ODReading(
+                        "2": structs.RawODReading(
                             timestamp=current_utc_datetime(), angle="45", od=0.05, channel="2"
                         )
                     },
@@ -249,7 +249,7 @@ def test_turbidostat_targeting_od() -> None:
                 structs.ODReadings(
                     timestamp=current_utc_datetime(),
                     ods={
-                        "2": structs.ODReading(
+                        "2": structs.RawODReading(
                             timestamp=current_utc_datetime(), angle="45", od=0.250, channel="2"
                         )
                     },
@@ -265,7 +265,7 @@ def test_turbidostat_targeting_od() -> None:
                 structs.ODReadings(
                     timestamp=current_utc_datetime(),
                     ods={
-                        "2": structs.ODReading(
+                        "2": structs.RawODReading(
                             timestamp=current_utc_datetime(), angle="45", od=0.500, channel="2"
                         )
                     },
@@ -281,7 +281,7 @@ def test_turbidostat_targeting_od() -> None:
                 structs.ODReadings(
                     timestamp=current_utc_datetime(),
                     ods={
-                        "2": structs.ODReading(
+                        "2": structs.RawODReading(
                             timestamp=current_utc_datetime(), angle="45", od=0.100, channel="2"
                         )
                     },
