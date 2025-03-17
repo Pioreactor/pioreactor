@@ -209,6 +209,7 @@ class Stirrer(BackgroundJobWithDodging):
         unit: str,
         experiment: str,
         rpm_calculator: Optional[RpmCalculator] = None,
+        calibration: bool | structs.SimpleStirringCalibration | None = None,
     ) -> None:
         super(Stirrer, self).__init__(unit=unit, experiment=experiment)
         self.rpm_calculator = rpm_calculator
@@ -253,7 +254,7 @@ class Stirrer(BackgroundJobWithDodging):
             self.target_rpm = None
 
         # initialize DC with initial_duty_cycle, however we can update it with a lookup (if it exists)
-        self.rpm_to_dc_lookup = self.initialize_rpm_to_dc_lookup()
+        self.rpm_to_dc_lookup = self.initialize_rpm_to_dc_lookup(calibration)
         self._estimate_duty_cycle = self.rpm_to_dc_lookup(self.target_rpm)
 
         # set up PID
@@ -306,7 +307,9 @@ class Stirrer(BackgroundJobWithDodging):
         ).start()
         self.start_stirring()
 
-    def initialize_rpm_to_dc_lookup(self) -> Callable:
+    def initialize_rpm_to_dc_lookup(
+        self, calibration: bool | structs.SimpleStirringCalibration | None
+    ) -> Callable:
         if self.rpm_calculator is None:
             # if we can't track RPM, no point in adjusting DC, use current value
             assert self.target_rpm is None
@@ -314,21 +317,27 @@ class Stirrer(BackgroundJobWithDodging):
 
         assert isinstance(self.target_rpm, float)
 
-        possible_calibration = load_active_calibration("stirring")
+        if calibration is True:
+            possible_calibration = load_active_calibration("stirring")
+        elif isinstance(calibration, structs.SimpleStirringCalibration):
+            possible_calibration = calibration
+        else:
+            possible_calibration = None
 
         if possible_calibration is not None:
-            calibration = possible_calibration
-            self.logger.debug(f"Found stirring calibration: {calibration.calibration_name}.")
+            assert possible_calibration is not None
+            cal = possible_calibration
+            self.logger.debug(f"Found stirring calibration: {cal.calibration_name}.")
 
             # since we have calibration data, and the initial_duty_cycle could be
             # far off, giving the below equation a bad "first step". We set it here.
-            self._estimate_duty_cycle = calibration.y_to_x(self.target_rpm)
+            self._estimate_duty_cycle = cal.y_to_x(self.target_rpm)
 
             # we scale this by 90% to make sure the PID + prediction doesn't overshoot,
             # better to be conservative here.
             # equivalent to a weighted average: 0.1 * current + 0.9 * predicted
             return lambda rpm: self._estimate_duty_cycle - 0.90 * (
-                self._estimate_duty_cycle - (calibration.y_to_x(rpm))
+                self._estimate_duty_cycle - (cal.y_to_x(rpm))
             )
         else:
             return lambda rpm: self._estimate_duty_cycle
@@ -538,6 +547,7 @@ def start_stirring(
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
     use_rpm: bool = config.getboolean("stirring.config", "use_rpm", fallback="true"),
+    calibration: bool | structs.SimpleStirringCalibration | None = None,
 ) -> Stirrer:
     unit = unit or get_unit_name()
     experiment = experiment or get_assigned_experiment_name(unit)
@@ -556,6 +566,7 @@ def start_stirring(
         unit=unit,
         experiment=experiment,
         rpm_calculator=rpm_calculator,
+        calibration=calibration,
     )
     return stirrer
 

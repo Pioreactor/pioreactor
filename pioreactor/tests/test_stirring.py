@@ -171,13 +171,11 @@ def test_stirring_with_calibration() -> None:
         voltage=5.0,
         recorded_data={"x": [], "y": []},
     )
-    cal.save_to_disk_for_device("stirring")
-    cal.set_as_active_calibration_for_device("stirring")
 
     target_rpm = 500
     rpm_calculator = FakeRpmCalculator()
     rpm_calculator.setup()
-    with Stirrer(target_rpm, unit, exp, rpm_calculator=rpm_calculator) as st:  # type: ignore
+    with Stirrer(target_rpm, unit, exp, rpm_calculator=rpm_calculator, calibration=cal) as st:  # type: ignore
         st.start_stirring()
 
         initial_dc = st.duty_cycle
