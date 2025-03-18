@@ -780,6 +780,7 @@ class ODReader(BackgroundJob):
         "ods": {"datatype": "ODReadings", "settable": False},
         "od1": {"datatype": "ODReading", "settable": False},
         "od2": {"datatype": "ODReading", "settable": False},
+        # below are only used if a calibration is used
         "raw_od1": {"datatype": "RawODReading", "settable": False},
         "raw_od2": {"datatype": "RawODReading", "settable": False},
         "calibrated_od1": {"datatype": "CalibratedODReading", "settable": False},
@@ -865,8 +866,8 @@ class ODReader(BackgroundJob):
             self.clean_up()
             raise exc.HardwareNotFoundError("Pioreactor HAT must be present.")
 
-        self.pre_read_callbacks: list[Callable] = self._prepare_pre_callbacks()
-        self.post_read_callbacks: list[Callable] = self._prepare_post_callbacks()
+        self.pre_read_callbacks = self._prepare_pre_callbacks()
+        self.post_read_callbacks = self._prepare_post_callbacks()
 
         # setup the ADC by turning off all LEDs.
         with led_utils.change_leds_intensities_temporarily(

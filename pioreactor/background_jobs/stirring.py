@@ -325,7 +325,6 @@ class Stirrer(BackgroundJobWithDodging):
             possible_calibration = None
 
         if possible_calibration is not None:
-            assert possible_calibration is not None
             cal = possible_calibration
             self.logger.debug(f"Found stirring calibration: {cal.calibration_name}.")
 

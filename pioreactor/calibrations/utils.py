@@ -137,7 +137,7 @@ def crunch_data_and_confirm_with_user(
                 degree = initial_degree
                 candidate_curve = calculate_poly_curve_of_best_fit(x, y, degree, weights)
             else:
-                raise ValueError("only poly supported")
+                raise ValueError("only `poly` supported")
 
         curve_callable = curve_to_callable("poly", candidate_curve)
         plot_data(
@@ -155,8 +155,8 @@ def crunch_data_and_confirm_with_user(
         r = click.prompt(
             green(
                 f"""
-y: confirm and save to disk
-q: exit completely
+y: confirm curve
+q: exit
 d: choose a new degree for polynomial fit (currently {len(candidate_curve)-1})
 """
             ),
@@ -165,12 +165,9 @@ d: choose a new degree for polynomial fit (currently {len(candidate_curve)-1})
         if r == "y":
             calibration.curve_data_ = candidate_curve
             return calibration
-        elif r == "n":
-            return calibration
         elif r == "d":
-            degree = click.prompt(green("Enter new degree"), type=click.IntRange(1, 5, clamp=True))
-
             if calibration.curve_type == "poly":
+                degree = click.prompt(green("Enter new degree"), type=click.IntRange(1, 5, clamp=True))
                 candidate_curve = calculate_poly_curve_of_best_fit(x, y, degree)
             else:
                 raise ValueError("only poly supported")
