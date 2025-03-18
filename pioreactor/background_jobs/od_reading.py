@@ -1229,7 +1229,7 @@ def start_od_reading(
     fake_data: bool = False,
     unit: str | None = None,
     experiment: str | None = None,
-    calibration: bool | structs.ODCalibration | None = None,
+    calibration: bool | structs.ODCalibration | None = True,
 ) -> ODReader:
     """
     This function prepares ODReader and other necessary transformation objects. It's a higher level API than using ODReader.

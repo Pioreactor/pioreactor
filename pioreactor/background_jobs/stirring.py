@@ -546,7 +546,7 @@ def start_stirring(
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
     use_rpm: bool = config.getboolean("stirring.config", "use_rpm", fallback="true"),
-    calibration: bool | structs.SimpleStirringCalibration | None = None,
+    calibration: bool | structs.SimpleStirringCalibration | None = True,
 ) -> Stirrer:
     unit = unit or get_unit_name()
     experiment = experiment or get_assigned_experiment_name(unit)
