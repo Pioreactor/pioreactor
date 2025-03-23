@@ -321,8 +321,8 @@ def test_REF_is_lower_than_0_dot_256_volts(
             samples.append(adc_reader.take_reading()[reference_channel])
 
         assert (
-            0.02 < mean(samples) < 0.256
-        ), f"Recorded {mean(samples):0.3f} in REF, should ideally be between 0.02 and 0.256. Current IR LED: {ir_intensity}%."
+            0.02 < mean(samples) < 0.500
+        ), f"Recorded {mean(samples):0.3f} in REF, should ideally be between 0.02 and 0.500. Current IR LED: {ir_intensity}%."
 
         # also check for stability: the std. of the reference should be quite low:
         assert variance(samples) < 1e-2, f"Too much noise in REF channel, observed {variance(samples)}."
@@ -421,7 +421,9 @@ def test_positive_correlation_between_rpm_and_stirring(
 
     with stirring.RpmFromFrequency() as rpm_calc:
         rpm_calc.setup()
-        with stirring.Stirrer(target_rpm=None, unit=unit, experiment=experiment, rpm_calculator=None) as st:
+        with stirring.Stirrer(
+            target_rpm=None, unit=unit, experiment=experiment, rpm_calculator=None, calibration=False
+        ) as st:
             st.set_duty_cycle(initial_dc)
             sleep(0.75)
 

@@ -57,10 +57,7 @@ def run_stirring_calibration(
 
         with temporary_config_change(config, "stirring.config", "enable_dodging_od", "False"):
             with stirring.RpmFromFrequency() as rpm_calc, stirring.Stirrer(
-                target_rpm=0,
-                unit=unit,
-                experiment=experiment,
-                rpm_calculator=None,
+                target_rpm=0, unit=unit, experiment=experiment, rpm_calculator=None, calibration=False
             ) as st:
                 rpm_calc.setup()
                 st.duty_cycle = (

@@ -209,7 +209,7 @@ class Stirrer(BackgroundJobWithDodging):
         unit: str,
         experiment: str,
         rpm_calculator: Optional[RpmCalculator] = None,
-        calibration: bool | structs.SimpleStirringCalibration | None = None,
+        calibration: bool | structs.SimpleStirringCalibration | None = True,
     ) -> None:
         super(Stirrer, self).__init__(unit=unit, experiment=experiment)
         self.rpm_calculator = rpm_calculator

@@ -1270,9 +1270,8 @@ def start_od_reading(
 
     # use an OD calibration?
     if calibration is True:
-        calibration = load_active_calibration("od")
         calibration_transformer = CachedCalibrationTransformer()
-        calibration_transformer.hydate_models(calibration)
+        calibration_transformer.hydate_models(load_active_calibration("od"))
     elif isinstance(calibration, structs.ODCalibration):
         calibration_transformer = CachedCalibrationTransformer()
         calibration_transformer.hydate_models(calibration)
@@ -1321,14 +1320,11 @@ def click_od_reading(
     Start the optical density reading job
     """
 
-    possible_calibration = load_active_calibration("od")
-
     if snapshot:
         od = start_od_reading(
             od_angle_channel1,
             od_angle_channel2,
             fake_data=fake_data or whoami.is_testing_env(),
-            calibration=possible_calibration,
             interval=None,
         )
         od.logger.debug(od.record_from_adc())
@@ -1339,6 +1335,5 @@ def click_od_reading(
             od_angle_channel1,
             od_angle_channel2,
             fake_data=fake_data or whoami.is_testing_env(),
-            calibration=possible_calibration,
         )
         od.block_until_disconnected()

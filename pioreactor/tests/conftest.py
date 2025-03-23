@@ -11,8 +11,8 @@ import pytest
 
 from pioreactor.mureq import Response
 from pioreactor.pubsub import publish
-from pioreactor.structs import ODReading
 from pioreactor.structs import ODReadings
+from pioreactor.structs import RawODReading
 from pioreactor.utils.timing import to_datetime
 
 
@@ -145,7 +145,7 @@ class StreamODReadingsFromExport:
             if i <= self.skip_first_n_rows:
                 continue
             dt = to_datetime(line["timestamp"])
-            od = ODReading(
+            od = RawODReading(
                 angle=line["angle"], channel=line["channel"], timestamp=dt, od=float(line["od_reading"])
             )
             ods = ODReadings(timestamp=dt, ods={"2": od})

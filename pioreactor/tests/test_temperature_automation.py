@@ -22,10 +22,10 @@ def test_thermostat_automation() -> None:
     with Thermostat(target_temperature=50, unit=unit, experiment=experiment) as automation_job:
         pause(2)
 
-        # 55 is too high - clamps to MAX_TARGET_TEMP
+        # 85 is too high - clamps to MAX_TARGET_TEMP
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_automation/target_temperature/set",
-            55,
+            85,
         )
         pause(2)
 

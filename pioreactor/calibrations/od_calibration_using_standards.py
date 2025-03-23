@@ -187,7 +187,7 @@ def start_recording_standards(st: Stirrer, signal_channel):
         unit=get_unit_name(),
         fake_data=is_testing_env(),
         experiment=get_testing_experiment_name(),
-        calibration=None,
+        calibration=False,
     ) as od_reader:
 
         def get_voltage_from_adc() -> float:

@@ -154,8 +154,9 @@ def am_I_a_worker() -> bool:
 
 @cache
 def get_pioreactor_version() -> tuple[int, int]:
+    # pioreactor model version
     if os.environ.get("MODEL_VERSION"):
-        return version_text_to_tuple(os.environ["PIO_VERSION"])
+        return version_text_to_tuple(os.environ["MODEL_VERSION"])
 
     from pioreactor.pubsub import get_from_leader
 
@@ -175,6 +176,7 @@ def get_pioreactor_version() -> tuple[int, int]:
 
 @cache
 def get_pioreactor_model() -> str | None:
+    # pioreactor model name
     if os.environ.get("MODEL_NAME"):
         return os.environ["MODEL_NAME"]
     elif is_testing_env():

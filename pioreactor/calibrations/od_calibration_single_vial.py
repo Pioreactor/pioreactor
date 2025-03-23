@@ -211,6 +211,7 @@ def start_recording_and_diluting(
         unit=get_unit_name(),
         fake_data=is_testing_env(),
         experiment=get_testing_experiment_name(),
+        calibration=False,
     ) as od_reader:
 
         def get_voltage_from_adc() -> pt.Voltage:

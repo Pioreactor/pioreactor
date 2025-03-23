@@ -6,6 +6,10 @@
  - in the ODReading job, when a calibration is used, then new data streams are published that separate out the "raw" OD reading (aka un-calibrated) at `od_reading/raw_od1` and `od_reading/raw_od2`, and the calibrated readings, `od_reading/calibrated_od1` and `od_reading/calibrated_od2`. These streams land in new database tables TBD. This is useful for showing both calibrated and raw OD readings in the UI. Note that the existing stream `od_reading/ods`, `od_reading/od1`, and `od_reading/od2` are unchanged. They are heterogeneous: they contain calibrated data when a calibration exists, and un-calibrated else.
  -
 
+ #### Bug fixes
+  - OD calibrations don't use calibrations!
+  - /pioreactors/unit page will use specific configurations for that pioreactor from the config_unit.ini file.
+
 ### 25.3.5
 
 #### Enhancements
