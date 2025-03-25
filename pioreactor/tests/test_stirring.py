@@ -12,6 +12,7 @@ from pioreactor.config import config
 from pioreactor.config import temporary_config_change
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
+from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.structs import SimpleStirringCalibration
 from pioreactor.utils.mock import MockRpmCalculator
 from pioreactor.utils.timing import catchtime
@@ -189,13 +190,40 @@ def test_stirring_with_calibration() -> None:
         assert st.rpm_to_dc_lookup(700) == 69.4
 
 
-def test_stirring_will_try_to_restart_and_dodge_od_reading() -> None:
-    # TODO make this an actual test
+def test_stirring_wont_fire_last_100dc_on_od_reading_end() -> None:
+    # regression test for BackgroundJobWithDodging, but first observed in stirring job
+    from pioreactor.background_jobs.od_reading import start_od_reading
+
+    exp = "test_stirring_wont_fire_last_100dc_on_od_reading_end"
+
+    bucket = []
+
+    def collect(msg):
+        pl = json.loads(msg.payload.decode())
+        if pl:
+            bucket.append(pl)
+
+    with temporary_config_change(config, "stirring.config", "enable_dodging_od", "true"):
+        with start_stirring(target_rpm=500, unit=unit, experiment=exp, use_rpm=True) as st:
+            with start_od_reading(
+                "90", interval=10.0, unit=unit, experiment=exp, fake_data=True, calibration=False
+            ):
+                assert st._estimate_duty_cycle > 0
+                assert st.currently_dodging_od
+                assert st.enable_dodging_od
+                time.sleep(15)
+                subscribe_and_callback(collect, f"pioreactor/{unit}/{exp}/pwms/dc", allow_retained=False)
+
+            time.sleep(2)
+    time.sleep(1)
+    assert bucket == []
+
+
+def test_stirring_dodge_od_reading() -> None:
     from pioreactor.background_jobs.od_reading import start_od_reading
 
     exp = "test_stirring_will_try_to_restart_and_dodge_od_reading"
-    # rpm_calculator = RpmCalculator()
-    # rpm_calculator.setup()
+
     with temporary_config_change(config, "stirring.config", "enable_dodging_od", "true"):
         with start_od_reading("90", interval=10.0, unit=unit, experiment=exp, fake_data=True):
             with start_stirring(500, unit, exp, use_rpm=True) as st:
@@ -203,7 +231,6 @@ def test_stirring_will_try_to_restart_and_dodge_od_reading() -> None:
                 assert st._estimate_duty_cycle > 0
                 assert st.currently_dodging_od
                 assert st.enable_dodging_od
-                pause(5)
 
 
 def test_block_until_rpm_is_close_to_target_will_timeout() -> None:
