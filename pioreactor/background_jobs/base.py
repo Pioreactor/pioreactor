@@ -1063,10 +1063,11 @@ class BackgroundJobWithDodging(_BackgroundJob):
         self.set_enable_dodging_od(
             config.getboolean(f"{self.job_name}.config", "enable_dodging_od", fallback="False")
         )
-        # now that `enable_dodging_od` is set, we can check for OD
+        # now that `enable_dodging_od` is set, we can check for OD changes
         self.subscribe_and_callback(
             self._od_reading_changed_status,
             f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval",
+            allow_retained=False,  # only allow future changes
         )
         super().__post__init__()  # set ready
 
@@ -1092,7 +1093,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
                 self.logger.debug("Will attempt to dodge OD readings.")
                 self.set_currently_dodging_od(True)
             else:
-                self.logger.debug("Will attempt to dodge later OD readings.")
+                self.logger.debug("Will attempt to dodge OD readings when they start.")
                 self.set_currently_dodging_od(False)
         else:
             if is_pio_job_running("od_reading"):
@@ -1111,7 +1112,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
     def initialize_continuous_operation(self) -> None:
         pass
 
-    def _od_reading_changed_status(self, msg):
+    def _od_reading_changed_status(self, msg: pt.MQTTMessage) -> None:
         if self.enable_dodging_od:
             # only act if our internal state is discordant with the external state
             if msg.payload and not self.currently_dodging_od:
@@ -1121,6 +1122,10 @@ class BackgroundJobWithDodging(_BackgroundJob):
             elif not msg.payload and self.currently_dodging_od:
                 self.logger.debug("OD reading turned off. Stop dodging.")
                 self.set_currently_dodging_od(False)
+            return
+        else:
+            # ignore
+            return
 
     def _setup_timer(self) -> None:
         self.sneak_in_timer.cancel()

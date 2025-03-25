@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from contextlib import suppress
 from threading import Lock
+from threading import RLock
 from time import perf_counter
 from time import sleep
 from time import time
@@ -246,7 +247,7 @@ class Stirrer(BackgroundJobWithDodging):
         )
         self.pwm.start(0)
         self.pwm.lock()
-        self.duty_cycle_lock = Lock()
+        self.duty_cycle_lock = RLock()
 
         if target_rpm is not None and self.rpm_calculator is not None:
             self.target_rpm: Optional[float] = float(target_rpm)
@@ -293,7 +294,8 @@ class Stirrer(BackgroundJobWithDodging):
             job_name=self.job_name,
             logger=self.logger,
         )
-        self.stop_stirring()  # we'll start it again in action_to_do_after_od_reading
+        with self.duty_cycle_lock:
+            self.stop_stirring()  # we'll start it again in action_to_do_after_od_reading
 
     def initialize_continuous_operation(self):
         # set up thread to periodically check the rpm
@@ -305,7 +307,10 @@ class Stirrer(BackgroundJobWithDodging):
             run_after=6,
             logger=self.logger,
         ).start()
-        self.start_stirring()
+
+        if self.duty_cycle == 0:
+            self.start_stirring()
+        # else kcco
 
     def initialize_rpm_to_dc_lookup(
         self, calibration: bool | structs.SimpleStirringCalibration | None
@@ -395,7 +400,7 @@ class Stirrer(BackgroundJobWithDodging):
         self.kick_stirring()
         return
 
-    def poll(self, poll_for_seconds: float) -> Optional[structs.MeasuredRPM]:
+    def poll(self, poll_for_seconds: float) -> Optional[float]:
         """
         Returns an MeasuredRPM, or None if not measuring RPM.
         """
@@ -424,7 +429,13 @@ class Stirrer(BackgroundJobWithDodging):
             else:
                 self.kick_stirring_but_avoid_od_reading()
 
-        return self.measured_rpm
+        return self._measured_rpm
+
+    def update_dc_with_measured_rpm(self, measured_rpm: Optional[float]) -> None:
+        if measured_rpm is None or self.state != self.READY:
+            return
+        self._estimate_duty_cycle += self.pid.update(measured_rpm)
+        self.set_duty_cycle(self._estimate_duty_cycle)
 
     def poll_and_update_dc(self, poll_for_seconds: Optional[float] = None) -> None:
         if self.rpm_calculator is None or self.target_rpm is None or self.state != self.READY:
@@ -437,14 +448,9 @@ class Stirrer(BackgroundJobWithDodging):
                 1, min(target_n_data_points / rps, 5)
             )  # things can break if this function takes too long, but always get _some_ data.
 
-        self.poll(poll_for_seconds)
-
-        if self._measured_rpm is None or self.state != self.READY:
-            return
-
-        result = self.pid.update(self._measured_rpm)
-        self._estimate_duty_cycle += result
-        self.set_duty_cycle(self._estimate_duty_cycle)
+        measured_rpm = self.poll(poll_for_seconds)
+        self.update_dc_with_measured_rpm(measured_rpm)
+        return
 
     def on_ready_to_sleeping(self) -> None:
         self.stop_stirring()
@@ -513,24 +519,26 @@ class Stirrer(BackgroundJobWithDodging):
             self.logger.debug(f"{self.job_name} is blocking until RPM is near {self.target_rpm}.")
 
             with catchtime() as time_waiting:
-                self.sleep_if_ready(2)  # On init, the stirring is too fast from the initial "kick"
-
                 if should_exit():
                     return False
+                sleep(2)  # On init, the stirring is too fast from the initial "kick"
 
-                self.poll_and_update_dc(poll_time)
+                with self.duty_cycle_lock:
+                    if should_exit():
+                        return False
+                    self.poll_and_update_dc(poll_time)
+
                 assert self._measured_rpm is not None
 
                 while abs(self._measured_rpm - self.target_rpm) > abs_tolerance:
                     if should_exit():
                         return False
+                    sleep(sleep_time)
 
-                    self.sleep_if_ready(sleep_time)
-
-                    if should_exit():
-                        return False
-
-                    self.poll_and_update_dc(poll_time)
+                    with self.duty_cycle_lock:
+                        if should_exit():
+                            return False
+                        self.poll_and_update_dc(poll_time)
 
                     if timeout and time_waiting() > timeout:
                         self.logger.debug(
