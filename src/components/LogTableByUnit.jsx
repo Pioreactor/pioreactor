@@ -131,6 +131,8 @@ function LogTableByUnit({ experiment, unit, level="info" }) {
   };
 
   const onMessage = (topic, message, packet) => {
+    if (!message || !topic) return;
+
     const unit = topic.toString().split('/')[1];
     const payload = JSON.parse(message.toString());
     setListOfLogs((currentLogs) =>

@@ -59,6 +59,8 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
   }
 
   function onMessage(topic, message, packet) {
+    if (!message || !topic) return;
+
     const topicParts = topic.toString().split('/');
     const payload = parseFloat(message.toString());
     const unit = topicParts[1];

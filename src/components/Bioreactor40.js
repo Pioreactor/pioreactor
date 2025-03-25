@@ -65,6 +65,7 @@ const Bioreactor40Diagram = ({experiment, unit, config}) => {
 
 
   function onMessage(topic, message) {
+    if (!message || !topic) return;
 
     const topicString = topic.toString()
     const messageString = message.toString()

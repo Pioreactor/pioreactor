@@ -115,6 +115,7 @@ function MainSite() {
                   <Route path="/start-new-experiment" element={<StartNewExperiment title="Pioreactor ~ Start new experiment" />}/>
                   <Route path="/overview" element={<ExperimentOverview title="Pioreactor ~ Overview"/>}/>
                   <Route path="/plugins" element={<Plugins title="Pioreactor ~ Plugins"/>}/>
+                  <Route path="/plugins/:pioreactorUnit/" element={<Plugins title="Pioreactor ~ Plugins"/>}/>
                   <Route path="/experiments" element={<Experiments title="Pioreactor ~ Past experiments"/>}/>
                   <Route path="/experiment-profiles" element={<Profiles title="Pioreactor ~ Experiment profiles"/>}/>
                   <Route path="/experiment-profiles/:profileFilename/" element={<Profiles title="Pioreactor ~ Experiment profiles"/>}/>
@@ -123,15 +124,15 @@ function MainSite() {
                   <Route path="/config" element={<EditConfig title="Pioreactor ~ Configuration"/>}/>
                   <Route path="/leader" element={<Leader title="Pioreactor ~ Leader"/>}/>
                   <Route path="/calibrations" element={<Calibrations title="Pioreactor ~ Calibrations"/>}/>
-                  <Route path="/calibrations/:pioreactor_unit/" element={<Calibrations title="Pioreactor ~ Calibrations"/>}/>
-                  <Route path="/calibrations/:pioreactor_unit/:device" element={<Calibrations title="Pioreactor ~ Calibrations"/>}/>
-                  <Route path="/calibrations/:pioreactor_unit/:device/:calibration_name" element={<SingleCalibrationPage title="Pioreactor ~ Calibration"/>}/>
+                  <Route path="/calibrations/:pioreactorUnit/" element={<Calibrations title="Pioreactor ~ Calibrations"/>}/>
+                  <Route path="/calibrations/:pioreactorUnit/:device" element={<Calibrations title="Pioreactor ~ Calibrations"/>}/>
+                  <Route path="/calibrations/:pioreactorUnit/:device/:calibrationName" element={<SingleCalibrationPage title="Pioreactor ~ Calibration"/>}/>
                   <Route path="/pioreactors" element={ <Pioreactors title="Pioreactor ~ Pioreactors"/>}/>
-                  <Route path="/pioreactors/:unit" element={ <Pioreactor title="Pioreactor ~ Pioreactor"/>}/>
+                  <Route path="/pioreactors/:pioreactorUnit" element={ <Pioreactor title="Pioreactor ~ Pioreactor"/>}/>
                   <Route path="/updates" element={<Updates title="Pioreactor ~ Updates"/>}/>
                   <Route path="/inventory" element={<Inventory title="Pioreactor ~ Inventory"/>}/>
                   <Route path="/logs" element={<Logs title="Pioreactor ~ Logs"/>}/>
-                  <Route path="/logs/:unit" element={<Logs title="Pioreactor ~ Logs"/>}/>
+                  <Route path="/logs/:pioreactorUnit" element={<Logs title="Pioreactor ~ Logs"/>}/>
                   <Route path="/" element={<ExperimentOverview title="Pioreactor ~ Overview"/>}/>
                   <Route path="*" element={<NotFound />} />
                 </Routes>

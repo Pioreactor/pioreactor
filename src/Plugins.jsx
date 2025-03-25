@@ -20,7 +20,7 @@ import ListItemText from '@mui/material/ListItemText';
 import DeleteIcon from '@mui/icons-material/Delete';
 import GetAppIcon from '@mui/icons-material/GetApp';
 import CircularProgress from '@mui/material/CircularProgress';
-import { Link } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -390,9 +390,12 @@ function ListInstalledPlugins({selectedUnit, installedPlugins}){
 
 function PluginContainer(){
 
+  const {pioreactorUnit} = useParams();
+  const navigate = useNavigate();
+
   const [installedPlugins, setInstalledPlugins] = React.useState([])
   const [isFetchComplete, setIsFetchComplete] = React.useState(false)
-  const [selectedUnit, setSelectedUnit] = React.useState("")
+  const [selectedUnit, setSelectedUnit] = React.useState(pioreactorUnit || "")
   const [units, setUnits] = React.useState([])
 
   React.useEffect(() => {
@@ -439,7 +442,7 @@ function PluginContainer(){
         })
         .then((data) => {
           setUnits(data.map((unit) => unit.pioreactor_unit))
-          setSelectedUnit(data[0].pioreactor_unit)
+          setSelectedUnit(selectedUnit || data[0].pioreactor_unit)
         });
       }
       getUnits()
@@ -447,6 +450,7 @@ function PluginContainer(){
 
   const onSelectionChange = (e) => {
     setSelectedUnit(e.target.value)
+    navigate(`/plugins/${e.target.value}`)
   }
 
   return(

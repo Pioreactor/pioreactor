@@ -106,7 +106,7 @@ function SingleCalibrationPage(props) {
 
 
 function SingleCalibrationPageCard() {
-  const { pioreactor_unit, device, calibration_name } = useParams();
+  const { pioreactorUnit, device, calibrationName } = useParams();
   const unitsColorMap = new DefaultDict(colors)
 
   const [calibration, setCalibration] = useState(null);
@@ -116,15 +116,15 @@ function SingleCalibrationPageCard() {
 
   useEffect(() => {
     fetchSingleCalibration();
-  }, [pioreactor_unit, device, calibration_name]);
+  }, [pioreactorUnit, device, calibrationName]);
 
   const fetchSingleCalibration = async () => {
-    const apiUrl = `/api/workers/${pioreactor_unit}/calibrations/${device}/${calibration_name}`;
+    const apiUrl = `/api/workers/${pioreactorUnit}/calibrations/${device}/${calibrationName}`;
     try {
       const response = await fetch(apiUrl);
       const firstResponse = await response.json();
       const data = await checkTaskCallback(firstResponse.result_url_path)
-      setCalibration(data.result[pioreactor_unit]);
+      setCalibration(data.result[pioreactorUnit]);
     } catch (err) {
       console.error("Failed to fetch calibration:", err);
     } finally {
@@ -140,7 +140,7 @@ function SingleCalibrationPageCard() {
   }
 
   const handleSetActive = async () => {
-    const apiUrl = `/api/workers/${pioreactor_unit}/active_calibrations/${device}/${calibration_name}`;
+    const apiUrl = `/api/workers/${pioreactorUnit}/active_calibrations/${device}/${calibrationName}`;
     try {
       const response = await fetch(apiUrl, { method: "PATCH" });
       if (!response.ok) {
@@ -155,7 +155,7 @@ function SingleCalibrationPageCard() {
   };
 
   const handleRemoveActive = async () => {
-    const apiUrl = `/api/workers/${pioreactor_unit}/active_calibrations/${device}`;
+    const apiUrl = `/api/workers/${pioreactorUnit}/active_calibrations/${device}`;
     const response = await fetch(apiUrl, { method: "DELETE" });
     if (!response.ok) {
       throw new Error("Failed to remove active calibration");
@@ -197,14 +197,14 @@ function SingleCalibrationPageCard() {
     <Card>
       <CardContent sx={{p: 2}}>
           <Typography variant="h6" mb={2}>
-            <Link component={RouterLink} to={`/calibrations/${pioreactor_unit}`} color="inherit"  underline="hover" sx={{cursor: "pointer"}} > <PioreactorIcon sx={{verticalAlign: "middle", marginRight: "1px"}} /> {pioreactor_unit} </Link>
+            <Link component={RouterLink} to={`/calibrations/${pioreactorUnit}`} color="inherit"  underline="hover" sx={{cursor: "pointer"}} > <PioreactorIcon sx={{verticalAlign: "middle", marginRight: "1px"}} /> {pioreactorUnit} </Link>
               <NavigateNextIcon sx={{verticalAlign: "middle", marginRight: "3px"}}/>
-            <Link component={RouterLink} to={`/calibrations/${pioreactor_unit}/${device}`} color="inherit"  underline="hover" sx={{cursor: "pointer"}} >  {device} </Link>
+            <Link component={RouterLink} to={`/calibrations/${pioreactorUnit}/${device}`} color="inherit"  underline="hover" sx={{cursor: "pointer"}} >  {device} </Link>
               <NavigateNextIcon sx={{verticalAlign: "middle", marginRight: "3px"}}/>
-             {calibration_name}
+             {calibrationName}
           </Typography>
 
-          <CalibrationChart calibrations={[calibration]} deviceName={device} unitsColorMap={unitsColorMap} highlightedModel={{pioreactorUnit: null, calbrationName: null}} title={`Calibration curve for ${calibration_name}`} />
+          <CalibrationChart calibrations={[calibration]} deviceName={device} unitsColorMap={unitsColorMap} highlightedModel={{pioreactorUnit: null, calbrationName: null}} title={`Calibration curve for ${calibrationName}`} />
 
           <Box sx={{px: 5, mt: 1}} >
             <Table size="small">
@@ -215,7 +215,7 @@ function SingleCalibrationPageCard() {
                       <Chip
                         size="small"
                         icon={<TuneIcon/>}
-                        label={calibration_name}
+                        label={calibrationName}
                         />
                     </TableCell>
                   </TableRow>
@@ -225,10 +225,10 @@ function SingleCalibrationPageCard() {
                       <Chip
                         size="small"
                         icon={<PioreactorIcon/>}
-                        label={pioreactor_unit}
+                        label={pioreactorUnit}
                         clickable
                         component={RouterLink}
-                        to={`/calibrations/${pioreactor_unit}`}
+                        to={`/calibrations/${pioreactorUnit}`}
                         />
                     </TableCell>
                   </TableRow>
@@ -302,7 +302,7 @@ function SingleCalibrationPageCard() {
             message={snackbarMessage}
             autoHideDuration={7000}
             resumeHideDuration={2000}
-            key={"snackbar" + pioreactor_unit + device + calibration_name}
+            key={"snackbar" + pioreactorUnit + device + calibrationName}
           />
       </CardContent>
   </Card>

@@ -67,7 +67,7 @@ const LEVELS = [
   "CRITICAL"
 ]
 
-function PaginatedLogTable({unit, experiment, relabelMap, logLevel }) {
+function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) {
   const [listOfLogs, setListOfLogs] = useState([]);
   const [skip, setSkip] = useState(0); // Tracks the number of logs already loaded
   const [loading, setLoading] = useState(false); // Tracks if the logs are currently loading
@@ -91,7 +91,7 @@ function PaginatedLogTable({unit, experiment, relabelMap, logLevel }) {
       if (!experiment) return;
       setLoading(true);
       try {
-        const response = await fetch(getAPIURL(unit, onlyAssignedLogs) + "?min_level=" + logLevel);
+        const response = await fetch(getAPIURL(pioreactorUnit, onlyAssignedLogs) + "?min_level=" + logLevel);
         const logs = await response.json();
         setListOfLogs(
           logs.map((log, index) => ({
@@ -110,12 +110,12 @@ function PaginatedLogTable({unit, experiment, relabelMap, logLevel }) {
     setSkip(0)
     getData();
 
-  }, [experiment, unit, onlyAssignedLogs, logLevel]);
+  }, [experiment, pioreactorUnit, onlyAssignedLogs, logLevel]);
 
   const loadMoreLogs = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${getAPIURL(unit, onlyAssignedLogs)}?skip=${skip}&min_level=${logLevel}`);
+      const response = await fetch(`${getAPIURL(pioreactorUnit, onlyAssignedLogs)}?skip=${skip}&min_level=${logLevel}`);
       const logs = await response.json();
       if (logs.length > 0) {
         setListOfLogs((prevLogs) => [
@@ -139,15 +139,15 @@ function PaginatedLogTable({unit, experiment, relabelMap, logLevel }) {
   useEffect(() => {
     if (experiment && client) {
       subscribeToTopic(
-        LEVELS.map((level) => `pioreactor/${unit || '+'}/${experiment}/logs/+/${level.toLowerCase()}`),
+        LEVELS.map((level) => `pioreactor/${pioreactorUnit || '+'}/${experiment}/logs/+/${level.toLowerCase()}`),
         onMessage,
         'PagLogTable'
       );
     }
     return () => {
-      LEVELS.map((level) => unsubscribeFromTopic(`pioreactor/${unit || '+'}/${experiment}/logs/+/${level.toLowerCase()}`, 'PagLogTable'))
+      LEVELS.map((level) => unsubscribeFromTopic(`pioreactor/${pioreactorUnit || '+'}/${experiment}/logs/+/${level.toLowerCase()}`, 'PagLogTable'))
     };
-  }, [client, experiment, unit]);
+  }, [client, experiment, pioreactorUnit]);
 
 
   const handleSwitchChange = (event) => {
@@ -155,6 +155,8 @@ function PaginatedLogTable({unit, experiment, relabelMap, logLevel }) {
   }
 
   const onMessage = (topic, message, packet) => {
+    if (!message || !topic) return;
+
     const unit = topic.toString().split('/')[1];
     const payload = JSON.parse(message.toString());
     const levelOfMessage = payload.level.toUpperCase();

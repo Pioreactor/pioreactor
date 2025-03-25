@@ -55,7 +55,7 @@ const ActiveOrNotCheckBox = ({onlyActive, setOnlyActive}) => {
 
 
 function CalibrationData() {
-  const { pioreactor_unit, device } = useParams();
+  const { pioreactorUnit, device } = useParams();
 
   const [loading, setLoading] = useState(true);
   const [rawData, setRawData] = useState(null);
@@ -63,7 +63,7 @@ function CalibrationData() {
   const [workers, setWorkers] = useState([]);
   const [calibrationDataByDevice, setCalibrationDataByDevice] = useState({});
   const [selectedDevice, setSelectedDevice] = useState(device || '');
-  const [selectedUnit, setSelectedUnit] = useState(pioreactor_unit || '$broadcast');
+  const [selectedUnit, setSelectedUnit] = useState(pioreactorUnit || '$broadcast');
   const [onlyActive, setOnlyActive] = useState(true);
   const [highlightedModel, setHighlightedModel] = useState({pioreactorUnit: null, calibrationName: null});
   const unitsColorMap = new DefaultDict(colors)
@@ -130,10 +130,12 @@ function CalibrationData() {
 
   const handleSelectDeviceChange = (event) => {
     setSelectedDevice(event.target.value);
+    navigate(`/calibrations/${selectedUnit}/${event.target.value}`);
   };
 
   const handleSelectUnitChange = (event) => {
     setSelectedUnit(event.target.value);
+    navigate(`/calibrations/${event.target.value}/${selectedDevice}`);
   };
 
   const handleOnlyActiveChange = (event) => {
@@ -153,7 +155,7 @@ function CalibrationData() {
     return <Typography>Something went wrong or data is incomplete. Check web server logs.</Typography>;
   }
 
-  // filter calibrations to active if onlyActive is true, and by pioreactor_unit if selectedUnit is not $broadcast
+  // filter calibrations to active if onlyActive is true, and by pioreactorUnit if selectedUnit is not $broadcast
   const filteredCalibrations = (calibrationDataByDevice[selectedDevice] || []).filter((cal) => {
     const allUnits = (selectedUnit === '$broadcast');
 

@@ -280,6 +280,8 @@ function WorkerCard({worker, config, leaderVersion}) {
   }
 
   const onMonitorData = (topic, message, packet) => {
+    if (!message || !topic) return;
+
     const setting = topic.toString().split('/').pop()
     switch (setting) {
       case "$state":

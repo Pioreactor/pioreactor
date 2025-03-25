@@ -2329,6 +2329,8 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
   },[experiment, jobFetchComplete, isUnitActive, client])
 
   const onMessage = (topic, message, packet) => {
+    if (!message || !topic) return;
+
     var [job, setting] = topic.toString().split('/').slice(-2)
     if (setting === "$state"){
       var payload = message.toString()

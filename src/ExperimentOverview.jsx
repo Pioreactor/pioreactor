@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, Fragment, Component } from 'react';
 
 import Grid from "@mui/material/Grid";
 import LogTable from "./components/LogTable";
@@ -14,7 +14,6 @@ import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Stack from "@mui/material/Stack";
 import { useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
-
 
 const TimeFormatSwitch = (props) => {
   const [state, setState] = useState(props.initTimeScale);
@@ -129,7 +128,7 @@ function Charts(props) {
                   relabelMap={props.relabelMap}
                   yTransformation={eval(chart.y_transformation || "(y) => y")}
                   dataSourceColumn={chart.data_source_column}
-                  isPartitionedBySensor={chart_key === "raw_optical_density"}
+                  isPartitionedBySensor={["raw_optical_density", 'optical_density'].includes(chart_key)}
                   isLiveChart={true}
                   byDuration={props.timeScale === "hours"}
                   client={client}

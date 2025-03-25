@@ -54,6 +54,7 @@ function RecordEventLogDialog({
 
 
   const handleOpenDialog = () => {
+    setTimestampLocal(dayjs().local().format('YYYY-MM-DD HH:mm:ss'))
     setOpenDialog(true);
   };
 

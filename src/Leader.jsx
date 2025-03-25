@@ -284,6 +284,8 @@ function LeaderCard({leaderHostname}) {
 
 
   const onMonitorData = (topic, message) => {
+    if (!message || !topic) return;
+
     const setting = topic.toString().split('/').pop()
     switch (setting) {
       case "$state":

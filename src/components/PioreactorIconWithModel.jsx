@@ -15,17 +15,14 @@ const PioreactorIconWithModel = ({ model }) => {
         marginRight: "8px",
         "& .MuiBadge-badge": {
           color: "inherit",
-          backgroundColor: "white",
-          border: "0.20em solid rgba(0, 0, 0, 0.87)",
-          borderColor: "inherit",
+          backgroundColor: "rgba(235,235,235)",
           padding: "0px",
-          fontSize: "8px",
+          fontSize: "10px",
           fontWeight: "900",
           height: "16px",
           minWidth: "16px",
-          borderRadius: "8px",
-          top: "12%",
-          right: "24%",
+          top: "10%",
+          right: "20%",
         },
       }}
       max="9999"

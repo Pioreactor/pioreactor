@@ -200,9 +200,8 @@ class Chart extends React.Component {
       return
     }
 
-    if (!message){
-      return
-    }
+    if (!message || !topic) return;
+
 
     if (!message.toString()){
       return
@@ -227,9 +226,9 @@ class Chart extends React.Component {
     var duration = Math.round(timestamp.diff(dayjs.utc(this.props.experimentStartTime), 'hours', true) * 1e3)/1e3
     var local_timestamp = timestamp.local()
     const x_value = this.props.byDuration ? duration : local_timestamp
-
+    console.log(topic)
     var unit = this.props.isPartitionedBySensor
-      ? topic.split("/")[1] + "-" + (topic.split("/")[4]).replace('od', '')
+      ? topic.split("/")[1] + "-" + (topic.split("/")[4]).replace('raw_od', '').replace('od', '')
       : topic.split("/")[1];
 
     if (this.props.unit){
@@ -242,24 +241,22 @@ class Chart extends React.Component {
     }
 
     try {
-      if (!(unit in this.state.seriesMap)){
-        const newSeriesMap = {...this.state.seriesMap, [unit]:  {
-          data: [{x: x_value, y: y_value}],
-          name: unit,
-          color: this.getUnitColor(unit)
-        }}
-
-        this.setState({ seriesMap: newSeriesMap })
-        this.setState({
-          names: [...this.state.names, unit]
-        })
+      if (!(unit in this.state.seriesMap)) {
+        const newSeriesMap = {
+          ...this.state.seriesMap,
+          [unit]: {
+            data: [{ x: x_value, y: y_value }],
+            name: unit,
+            color: this.getUnitColor(unit),
+          },
+        };
+        this.setState({ seriesMap: newSeriesMap, names: [...this.state.names, unit] });
       } else {
-        // .push seems like bad state management, and maybe a hit to performance...
         this.state.seriesMap[unit].data.push({
           x: x_value,
           y: y_value,
         });
-        this.setState({ seriesMap: this.state.seriesMap })
+        this.setState({ seriesMap: this.state.seriesMap });
       }
     }
     catch (error) {
@@ -295,6 +292,7 @@ class Chart extends React.Component {
 
   createToolTip = (d) => {
     var x_value
+    let seriesLabel = d.datum.childName || "unknown";
     try {
       if (this.props.byDuration) {
         x_value = `${d.datum.x.toFixed(2)} hours elapsed`
@@ -306,7 +304,7 @@ class Chart extends React.Component {
     }
 
     return `${x_value}
-${this.relabelAndFormatSeries(d.datum.childName)}: ${Math.round(this.yTransformation(d.datum.y) * 10 ** this.props.fixedDecimals) / 10 ** this.props.fixedDecimals}`
+${this.relabelAndFormatSeries(seriesLabel)}: ${Math.round(this.yTransformation(d.datum.y) * 10 ** this.props.fixedDecimals) / 10 ** this.props.fixedDecimals}`
   }
 
 
@@ -500,7 +498,7 @@ ${this.relabelAndFormatSeries(d.datum.childName)}: ${Math.round(this.yTransforma
               labels: { fontSize: 13 },
               data: { stroke: "#485157", strokeWidth: 0.5, size: 6.5 },
             }}
-            data={this.state.names.map(this.selectLegendData)}
+            data={this.state.names.map(this.selectLegendData).filter(item => item && item.name)}
           />
           {Object.keys(this.state.seriesMap).map(this.selectVictoryLines)}
         </VictoryChart>

@@ -28,6 +28,8 @@ function ErrorSnackbar() {
   },[client, experimentMetadata])
 
   const onMessage = (topic, message, packet) => {
+      if (!message || !topic) return;
+
       if (!topic.toString().endsWith("/ui")){
         const payload = JSON.parse(message.toString())
         const unit = topic.toString().split("/")[1]

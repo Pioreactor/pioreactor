@@ -1660,6 +1660,8 @@ function PioreactorCard(props){
   },[experiment, jobFetchComplete, client])
 
   const onMessage = (topic, message, packet) => {
+    if (!message || !topic) return;
+
     var [job, setting] = topic.toString().split('/').slice(-2)
     var payload;
     if (setting === "$state"){
@@ -1939,7 +1941,8 @@ function Charts(props) {
 function Pioreactor({title}) {
   const { experimentMetadata, selectExperiment } = useExperiment();
   const [config, setConfig] = useState({})
-  const {unit} = useParams();
+  const {pioreactorUnit} = useParams();
+  const unit = pioreactorUnit
   const [assignedExperiment, setAssignedExperiment] = useState(null)
   const [isActive, setIsActive] = useState(true)
   const [modelName, setModelName] = useState("")
@@ -1954,8 +1957,23 @@ function Pioreactor({title}) {
 
   useEffect(() => {
     document.title = title;
-    getConfig(setConfig)
   }, [title]);
+
+  useEffect(() => {
+    fetch(`/api/unit/${unit}/configuration`).then((response) => {
+      if (!response.ok) {
+        return response.json().then((errorData) => {
+          console.log(errorData)
+          throw new Error(errorData.error);
+        });
+      }
+      return response.json();
+    })
+    .then((data) => setConfig(data))
+    .catch((error) => {
+      console.error("Fetching configuration failed:", error);
+    });
+  }, []);
 
   useEffect(() => {
     function getWorkerAssignment() {

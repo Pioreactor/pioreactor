@@ -19,7 +19,7 @@ import PioreactorsIcon from './components/PioreactorsIcon';
 function Logs(props) {
 
   const location = useLocation();
-  const {unit} = useParams();
+  const {pioreactorUnit} = useParams();
   const {experimentMetadata} = useExperiment()
   const [relabelMap, setRelabelMap] = useState({})
   const [logLevel, setLogLevel] = useState(() => {
@@ -73,7 +73,7 @@ function Logs(props) {
 
   const handleSubmitDialog = async (newLog) => {
     try {
-      const response = await fetch(`/api/workers/${newLog.pioreactor_unit}/experiments/${newLog.experiment}/logs`, {
+      const response = await fetch(`/api/workers/${newLog.pioreactorUnit}/experiments/${newLog.experiment}/logs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newLog),
@@ -119,7 +119,7 @@ function Logs(props) {
               <Select
                 labelId="configSelect"
                 variant="standard"
-                value={unit ? unit : "$broadcast"}
+                value={pioreactorUnit ? pioreactorUnit : "$broadcast"}
                 onChange={onSelectionChange}
 
                 sx={{
@@ -140,7 +140,7 @@ function Logs(props) {
             </Typography>
             <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
               <RecordEventLogDialog
-                defaultPioreactor={unit || ''}
+                defaultPioreactor={pioreactorUnit || ''}
                 defaultExperiment={experimentMetadata.experiment}
                 availableUnits={assignedUnits}
                 onSubmit={handleSubmitDialog}
@@ -154,7 +154,7 @@ function Logs(props) {
           </Box>
         </Box>
 
-          <PaginatedLogsTable unit={unit} experiment={experimentMetadata.experiment} relabelMap={relabelMap} logLevel={logLevel} />
+          <PaginatedLogsTable pioreactorUnit={pioreactorUnit} experiment={experimentMetadata.experiment} relabelMap={relabelMap} logLevel={logLevel} />
         </Grid>
 
       </Grid>
