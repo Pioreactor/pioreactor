@@ -1160,7 +1160,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
                 ads_interval - self.OD_READING_DURATION - (post_delay + pre_delay) - action_after_duration
             )  # we use an Event here to allow for quick stopping of the timer.
 
-            if self.state != self.READY:
+            if self.state != self.READY or not self.currently_dodging_od:
                 return
 
             self._action_to_do_before_od_reading()

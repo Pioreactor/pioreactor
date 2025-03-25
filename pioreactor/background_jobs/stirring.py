@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from contextlib import suppress
-from threading import Lock
 from threading import RLock
 from time import perf_counter
 from time import sleep
@@ -310,7 +309,6 @@ class Stirrer(BackgroundJobWithDodging):
 
         if self.duty_cycle == 0:
             self.start_stirring()
-        # else kcco
 
     def initialize_rpm_to_dc_lookup(
         self, calibration: bool | structs.SimpleStirringCalibration | None

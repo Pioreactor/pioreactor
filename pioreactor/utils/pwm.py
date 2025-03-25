@@ -116,7 +116,11 @@ class SoftwarePWMOutputDevice:
     def close(self):
         import lgpio
 
-        lgpio.gpiochip_close(self._handle)
+        try:
+            lgpio.gpiochip_close(self._handle)
+        except lgpio.error:
+            # not sure why this happens.
+            pass
 
 
 class PWM:
