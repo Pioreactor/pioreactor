@@ -16,4 +16,8 @@ if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
     sudo cp "$SCRIPT_DIR"/add_new_pioreactor_worker_from_leader.sh $ADD_WORKER_FILE
     echo "Added new add_new_pioreactor_worker_from_leader.sh."
 
+    # change config's ui.overview.cards to rename and add new entry
+    crudini --set /home/pioreactor/.pioreactor/config.ini ui.overview.charts optical_density 1
+    crudini --set /home/pioreactor/.pioreactor/config.ini ui.overview.charts raw_optical_density 0
+
 fi

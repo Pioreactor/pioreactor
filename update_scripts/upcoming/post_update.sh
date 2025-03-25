@@ -5,7 +5,6 @@ set -xeu
 
 export LC_ALL=C
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LEADER_HOSTNAME=$(crudini --get /home/pioreactor/.pioreactor/config.ini cluster.topology leader_hostname)
 
 # if leader
@@ -36,4 +35,7 @@ EOF
         fi
     done
     sudo -u pioreactor pios sync-configs || :
+
+    # restart mqtt to db
+    sudo systemctl restart pioreactor_startup_run@mqtt_to_db_streaming.service || :
 fi

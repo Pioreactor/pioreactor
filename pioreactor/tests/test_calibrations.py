@@ -198,7 +198,11 @@ def test_linear_data_produces_linear_curve_in_range_even_if_high_degree() -> Non
     od = np.insert(od, 0, 0)
     v = 0.5 * od + 0.005 * np.random.randn(od.shape[0])
 
-    curve_data_ = calculate_poly_curve_of_best_fit(od, v, degree=4)  # type: ignore
+    n = len(v)
+    weights = [1.0] * n
+    weights[0] = n / 2
+
+    curve_data_ = calculate_poly_curve_of_best_fit(od, v, degree=4, weights=weights)  # type: ignore
     curve_callable = curve_to_callable("poly", curve_data_)
     for od_, v_ in zip(od, curve_callable(od)):
         assert (v_ - od_ * 0.5) < 0.035
@@ -209,7 +213,11 @@ def test_mandys_data_for_pathological_poly() -> None:
     od = [0.0, 0.139, 0.155, 0.378, 0.671, 0.993, 1.82, 4.061]
     v = [0.0, 0.0158, 0.0322, 0.0589, 0.1002, 0.1648, 0.4045, 0.5463]
 
-    curve_data_ = calculate_poly_curve_of_best_fit(od, v, degree=3)  # type: ignore
+    n = len(v)
+    weights = [1.0] * n
+    weights[0] = n / 2
+
+    curve_data_ = calculate_poly_curve_of_best_fit(od, v, degree=3, weights=weights)  # type: ignore
     curve_callable = curve_to_callable("poly", curve_data_)
     assert abs(curve_callable(0.002) - 0.002) < 0.1
 

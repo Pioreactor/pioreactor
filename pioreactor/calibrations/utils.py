@@ -168,7 +168,7 @@ d: choose a new degree for polynomial fit (currently {len(candidate_curve)-1})
         elif r == "d":
             if calibration.curve_type == "poly":
                 degree = click.prompt(green("Enter new degree"), type=click.IntRange(1, 5, clamp=True))
-                candidate_curve = calculate_poly_curve_of_best_fit(x, y, degree)
+                candidate_curve = calculate_poly_curve_of_best_fit(x, y, degree, weights)
             else:
                 raise ValueError("only poly supported")
 

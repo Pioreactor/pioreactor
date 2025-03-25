@@ -108,7 +108,7 @@ def backup_database(output_file: str, force: bool = False, backup_to_workers: in
                 backups_complete += 1
 
                 with local_persistent_storage("database_backups") as cache:
-                    cache[f"latest_backup_in_{backup_unit}"] = current_time
+                    cache[f"latest_backup_in_{backup_unit}_timestamp"] = current_time
 
         return
 

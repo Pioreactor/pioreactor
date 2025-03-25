@@ -502,6 +502,7 @@ class TestGrowthRateCalculating:
                                 "angle": "180",
                                 "timestamp": "2021-06-06T15:08:12.081153Z",
                                 "channel": "1",
+                                "calibrated": 0,
                             }
                         },
                         "timestamp": "2021-06-06T15:08:12.081153Z",
@@ -558,6 +559,7 @@ class TestGrowthRateCalculating:
                                 "angle": "90",
                                 "timestamp": "2021-06-06T15:08:12.081153Z",
                                 "channel": "1",
+                                "calibrated": 0,
                             }
                         },
                         "timestamp": "2021-06-06T15:08:12.081153Z",

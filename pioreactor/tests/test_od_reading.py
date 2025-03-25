@@ -804,7 +804,7 @@ def test_determine_best_ir_led_intensity_values() -> None:
 
 
 def test_calibration_not_requested() -> None:
-    with start_od_reading("90", "REF", interval=None, fake_data=True) as od:
+    with start_od_reading("90", "REF", interval=None, fake_data=True, calibration=False) as od:
         assert isinstance(od.calibration_transformer, NullCalibrationTransformer)
         ts = current_utc_datetime()
         x = structs.ODReadings(
@@ -1347,12 +1347,6 @@ def test_CachedCalibrationTransformer_with_real_calibration() -> None:
     assert abs(cal_transformer(float_to_od_readings_struct("2", 0.096)).ods["2"].od - 0.06) < 0.01
 
 
-def test_missing_calibration_data():
-    cal_transformer = CachedCalibrationTransformer()
-    cal_transformer.models = {"1": lambda v: v * 2}
-    assert cal_transformer({"1": 1.0, "2": 2.0}) == {"1": 2.0, "2": 2.0}
-
-
 def test_mandys_calibration():
     mcal = structs.ODCalibration(
         calibration_name="mandy",
@@ -1425,8 +1419,6 @@ def test_raw_and_calibrated_data_is_published_if_calibration_is_used():
         recorded_data={"y": [0, 1], "x": [0, 1]},
     )
 
-    calibration.set_as_active_calibration_for_device("od")
-
     with start_od_reading(
         "REF", "90", interval=2, fake_data=True, experiment=experiment, calibration=calibration
     ) as od_job:
@@ -1436,3 +1428,14 @@ def test_raw_and_calibrated_data_is_published_if_calibration_is_used():
         assert od_job.od2 is not None
         assert od_job.calibrated_od2 is not None
         assert od_job.raw_od2 is not None
+
+    # if no calibration is used:
+    with start_od_reading(
+        "REF", "90", interval=2, fake_data=True, experiment=experiment, calibration=False
+    ) as od_job:
+        next(od_job)
+        assert isinstance(od_job.calibration_transformer, NullCalibrationTransformer)
+        assert od_job.ods is not None
+        assert od_job.od2 is not None
+        assert not hasattr(od_job, "calibrated_od2")
+        assert not hasattr(od_job, "raw_od2")
