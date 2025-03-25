@@ -1140,7 +1140,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
             self.logger.warning("For optimal OD readings, keep `pre_delay_duration` more than 0.25 seconds.")
 
         def sneak_in(ads_interval: float, post_delay: float, pre_delay: float) -> None:
-            if self.state != self.READY:
+            if self.state != self.READY or not self.currently_dodging_od:
                 return
 
             with catchtime() as timer:
@@ -1153,7 +1153,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
                     "samples_per_second is too high, or post_delay is too high, or pre_delay is too high, or action_to_do_after_od_reading takes too long."
                 )
 
-            if self.state != self.READY:
+            if self.state != self.READY or not self.currently_dodging_od:
                 return
 
             self._event_is_dodging_od.wait(

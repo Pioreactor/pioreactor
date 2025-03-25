@@ -7,6 +7,8 @@
 
  #### Bug fixes
   - Fix for UI overview crashing sometimes.
+  - Fix for stirring dodging not respecting OD readings
+  - Fix for dodging background jobs running a final (and incorrect) `action_to_do_before_reading` when OD reading stops.
   - The flow for new OD calibrations won't use OD calibrations (obviously).
   - /pioreactors/some_unit page will use specific configurations for that pioreactor from its config_some_unit.ini file.
 
