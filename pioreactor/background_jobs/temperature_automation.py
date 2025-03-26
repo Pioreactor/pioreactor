@@ -28,6 +28,15 @@ from pioreactor.utils.timing import to_datetime
 from pioreactor.version import rpi_version_info
 
 
+class classproperty(property):
+    def __get__(self, obj, objtype=None):
+        return self.fget(objtype)
+
+
+def is_20ml_v1() -> bool:
+    return whoami.get_pioreactor_model() == "pioreactor_20ml" and whoami.get_pioreactor_version() == (1, 0)
+
+
 class TemperatureAutomationJob(AutomationJob):
     """
     This is the super class that Temperature automations inherit from.
@@ -40,28 +49,29 @@ class TemperatureAutomationJob(AutomationJob):
 
     """
 
-    INFERENCE_SAMPLES_EVERY_T_SECONDS: float = 5.0
+    @classproperty
+    def INFERENCE_SAMPLES_EVERY_T_SECONDS(cls) -> float:
+        return 5.0
 
-    if whoami.get_pioreactor_model() == "pioreactor_20ml" and whoami.get_pioreactor_version() == (1, 0):
-        # made from PLA
-        MAX_TEMP_TO_REDUCE_HEATING = 63.0
-        MAX_TEMP_TO_DISABLE_HEATING = 65.0  # probably okay, but can't stay here for too long
-        MAX_TEMP_TO_SHUTDOWN = 66.0
-        INFERENCE_N_SAMPLES: int = 29
-        INFERENCE_EVERY_N_SECONDS: float = 225.0
+    @classproperty
+    def MAX_TEMP_TO_REDUCE_HEATING(cls) -> float:
+        return 63.0 if is_20ml_v1() else 78.0
 
-    else:
-        # made from PC-CF - this is true for 40ml and 20ml v1.1
-        MAX_TEMP_TO_REDUCE_HEATING = 78.0
-        MAX_TEMP_TO_DISABLE_HEATING = 80.0
-        MAX_TEMP_TO_SHUTDOWN = 85.0  # risk damaging PCB components
-        INFERENCE_N_SAMPLES = 21
-        INFERENCE_EVERY_N_SECONDS = 200.0
+    @classproperty
+    def MAX_TEMP_TO_DISABLE_HEATING(cls) -> float:
+        return 65.0 if is_20ml_v1() else 80.0
 
-    inference_total_time = INFERENCE_SAMPLES_EVERY_T_SECONDS * INFERENCE_N_SAMPLES
-    assert INFERENCE_EVERY_N_SECONDS > inference_total_time
-    # PWM is on for (INFERENCE_EVERY_N_SECONDS - inference_total_time) seconds
-    # the ratio of time a PWM is on is equal to (INFERENCE_EVERY_N_SECONDS - inference_total_time) / INFERENCE_EVERY_N_SECONDS
+    @classproperty
+    def MAX_TEMP_TO_SHUTDOWN(cls) -> float:
+        return 66.0 if is_20ml_v1() else 85.0
+
+    @classproperty
+    def INFERENCE_N_SAMPLES(cls) -> int:
+        return 29 if is_20ml_v1() else 21
+
+    @classproperty
+    def INFERENCE_EVERY_N_SECONDS(cls) -> float:
+        return 225.0 if is_20ml_v1() else 200.0
 
     latest_temperature = None
     previous_temperature = None
@@ -107,6 +117,11 @@ class TemperatureAutomationJob(AutomationJob):
             from pioreactor.utils.mock import MockTMP1075 as TMP1075
         else:
             from pioreactor.utils.temps import TMP1075  # type: ignore
+
+        self.inference_total_time = self.INFERENCE_SAMPLES_EVERY_T_SECONDS * self.INFERENCE_N_SAMPLES
+        assert self.INFERENCE_EVERY_N_SECONDS > self.inference_total_time
+        # PWM is on for (INFERENCE_EVERY_N_SECONDS - inference_total_time) seconds
+        # the ratio of time a PWM is on is equal to (INFERENCE_EVERY_N_SECONDS - inference_total_time) / INFERENCE_EVERY_N_SECONDS
 
         self.heater_duty_cycle = 0.0
         self.pwm = self.setup_pwm()

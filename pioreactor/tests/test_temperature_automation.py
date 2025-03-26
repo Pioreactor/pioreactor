@@ -59,6 +59,15 @@ def test_heating_is_reduced_when_set_temp_is_exceeded() -> None:
         assert 0 < t.heater_duty_cycle < 50
 
 
+def test_static_values_can_be_edited() -> None:
+    experiment = "test_heating_is_reduced_when_set_temp_is_exceeded"
+
+    OnlyRecordTemperature.MAX_TEMP_TO_REDUCE_HEATING = 50  # type: ignore
+
+    with OnlyRecordTemperature(unit=unit, experiment=experiment) as t:
+        t.MAX_TEMP_TO_REDUCE_HEATING == 50
+
+
 def test_thermostat_doesnt_fail_when_initial_target_is_less_than_initial_temperature() -> None:
     experiment = "test_thermostat_doesnt_fail_when_initial_target_is_less_than_initial_temperature"
     with Thermostat(unit=unit, experiment=experiment, target_temperature=20) as t:

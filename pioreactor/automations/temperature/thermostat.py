@@ -2,25 +2,19 @@
 from __future__ import annotations
 
 from pioreactor.automations.events import UpdatedHeaterDC
-from pioreactor.automations.temperature.base import TemperatureAutomationJob
+from pioreactor.background_jobs.temperature_automation import classproperty
+from pioreactor.background_jobs.temperature_automation import is_20ml_v1
+from pioreactor.background_jobs.temperature_automation import TemperatureAutomationJob
 from pioreactor.config import config
 from pioreactor.utils import clamp
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils.streaming_calculations import PID
-from pioreactor.whoami import get_pioreactor_model
-from pioreactor.whoami import get_pioreactor_version
 
 
 class Thermostat(TemperatureAutomationJob):
     """
     Uses a PID controller to change the DC% to match a target temperature.
     """
-
-    if get_pioreactor_model() == "pioreactor_20ml" and get_pioreactor_version() == (1, 0):
-        MAX_TARGET_TEMP = 50
-    else:
-        # made from pccf
-        MAX_TARGET_TEMP = 70
 
     automation_name = "thermostat"
     published_settings = {"target_temperature": {"datatype": "float", "unit": "℃", "settable": True}}
@@ -90,3 +84,7 @@ class Thermostat(TemperatureAutomationJob):
         target_temperature = float(target_temperature)
         self.target_temperature = self._clamp_target_temperature(target_temperature)
         self.pid.set_setpoint(self.target_temperature)
+
+    @classproperty
+    def MAX_TARGET_TEMP(cls) -> float:
+        return 63.0 if is_20ml_v1() else 78.0
