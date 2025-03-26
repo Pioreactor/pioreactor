@@ -84,9 +84,7 @@ class PublishableSetting(t.TypedDict, total=False):
             "KalmanFilterOutput",
             "ODReadings",
             "ODReading",
-            "RawODReadings",
             "RawODReading",
-            "CalibratedODReadings",
             "CalibratedODReading",
         ]
     ]

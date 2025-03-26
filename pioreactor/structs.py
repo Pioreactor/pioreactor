@@ -231,6 +231,10 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         Predict y given x
         """
         assert self.curve_type == "poly"
+
+        if len(self.curve_data_) == 0:
+            raise exc.NoSolutionsFoundError(f"calibration {self}'s curve_data_ is empty")
+
         return sum([c * x**i for i, c in enumerate(reversed(self.curve_data_))])
 
     def y_to_x(self, y: Y, enforce_bounds=False) -> X:
@@ -238,6 +242,9 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         predict x given y
         """
         assert self.curve_type == "poly"
+
+        if len(self.curve_data_) == 0:
+            raise exc.NoSolutionsFoundError(f"calibration {self}'s curve_data_ is empty")
 
         # we have to solve the polynomial roots numerically, possibly with complex roots
         from numpy import roots, zeros_like, real, imag
