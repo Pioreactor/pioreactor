@@ -42,6 +42,11 @@ if whoami.is_testing_env():
     from pioreactor.utils.mock import MockHandle
 
 
+class classproperty(property):
+    def __get__(self, obj, objtype=None):
+        return self.fget(objtype)
+
+
 class Monitor(LongRunningBackgroundJob):
     """
     This job starts at Rpi startup, and isn't connected to any experiment. It has the following roles:
@@ -76,12 +81,16 @@ class Monitor(LongRunningBackgroundJob):
 
     """
 
-    if whoami.get_pioreactor_model() == "pioreactor_20ml" and whoami.get_pioreactor_version() == (1, 0):
-        # made from PLA
-        MAX_TEMP_TO_SHUTDOWN = 66.0
-    else:
-        # made from PC-CF
-        MAX_TEMP_TO_SHUTDOWN = 85.0  # risk damaging PCB components
+    @classproperty
+    def MAX_TEMP_TO_SHUTDOWN(cls) -> float:
+        return (
+            66.0
+            if (
+                whoami.get_pioreactor_model() == "pioreactor_20ml"
+                and whoami.get_pioreactor_version() == (1, 0)
+            )
+            else 85.0
+        )
 
     job_name = "monitor"
     published_settings = {
