@@ -1,18 +1,35 @@
 ### Upcoming
 
- - test local access point
- - Support for Pioreactor 40ml!
- - pioreactor models & versions are now stored in the database, specifically the worker table. We are deprecating the `[pioreactor]` section in the config.ini. You can change models and versions on the inventory page.
- - changes to `pio workers add`
- - in the ODReading job, when a calibration is used, then new data streams are published that separate out the "raw" OD reading (aka un-calibrated) at `od_reading/raw_od1` and `od_reading/raw_od2`, and the calibrated readings, `od_reading/calibrated_od1` and `od_reading/calibrated_od2`. These streams land in new database tables TBD. This is useful for showing both calibrated and raw OD readings in the UI. Note that the existing stream `od_reading/ods`, `od_reading/od1`, and `od_reading/od2` are unchanged. They are heterogeneous: they contain calibrated data when a calibration exists, and un-calibrated else.
+#### Enhancements
 
- #### Bug fixes
-  - Fix for UI overview crashing sometimes.
-  - Fix for stirring dodging not respecting OD readings
-  - Fix for stirring (and other software PWM jobs) not cleaning up properly on disconnect.
-  - Fix for dodging background jobs running a final (and incorrect) `action_to_do_before_reading` when OD reading stops.
-  - The flow for new OD calibrations won't use OD calibrations (obviously).
-  - /pioreactors/some_unit page will use specific configurations for that pioreactor from its config_some_unit.ini file.
+- **Support for Pioreactor 40 mL vessels**
+  - UI and backend now accommodates the new Pioreactor 40mL.
+- **Device models and versions now tracked in the database**
+  - Models and versions for each Pioreactor are now stored in the `worker` table.
+  We're deprecating the `[pioreactor]` section in `config.ini`. You can manage models and versions on the **Inventory** page.
+- **Raw vs. calibrated OD readings now separated**
+  - When a calibration is applied in the `ODReading` job:
+    - New MQTT topics are published:
+      - `od_reading/raw_od1` and `od_reading/raw_od2` for **raw** (un-calibrated) values
+      - `od_reading/calibrated_od1` and `od_reading/calibrated_od2` for **calibrated** values
+  - The raw readings will be stored in new database tables, `raw_od_readings`. The calibrated values still occupy the table `od_readings`.
+  - Existing topics like `od_reading/od1`, `od_reading/od2`, and `od_reading/ods` remain unchanged, but note they may contain either calibrated or raw data depending on calibration status.
+  - To display the raw OD readings when a calibration is being used, switch the config entry `raw_od_reading` from `0` to `1`.
+
+#### Breaking changes
+
+- **Changes to `pio workers add`**
+  - This command has been updated to better reflect the new model/version management.
+
+#### Bug Fixes
+
+- Fixed occasional crash on the **Overview** page in the UI.
+- Stirring dodging now correctly respects the first OD reading.
+- Stirring (and other software PWM-based jobs) now clean up properly more often on disconnect.
+- Fixed issue where dodging background jobs would run a final, incorrect `action_to_do_before_reading` after OD reading stops.
+- The OD calibration flow now correctly ignores existing calibrations when creating a new one.
+- UI page `/pioreactors/<some_unit>` now uses that unit's specific configuration from `config_<some_unit>.ini`.
+
 
 ### 25.3.5
 

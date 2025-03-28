@@ -83,14 +83,10 @@ class Monitor(LongRunningBackgroundJob):
 
     @classproperty
     def MAX_TEMP_TO_SHUTDOWN(cls) -> float:
-        return (
-            66.0
-            if (
-                whoami.get_pioreactor_model() == "pioreactor_20ml"
-                and whoami.get_pioreactor_version() == (1, 0)
-            )
-            else 85.0
+        is_20ml_v1 = (
+            whoami.get_pioreactor_model() == "pioreactor_20ml" and whoami.get_pioreactor_version() == (1, 0)
         )
+        return 66.0 if is_20ml_v1 else 85.0
 
     job_name = "monitor"
     published_settings = {

@@ -240,11 +240,10 @@ class DosingAutomationJob(AutomationJob):
         )
 
         self.skip_first_run = skip_first_run
-        self.max_volume_ml = max_volume_ml
 
         self._init_alt_media_fraction(float(initial_alt_media_fraction))
         self._init_volume_throughput()
-        self._init_liquid_volume(float(initial_liquid_volume_ml))
+        self._init_liquid_volume(float(initial_liquid_volume_ml), float(max_volume_ml))
 
         self.set_duration(duration)
 
@@ -544,7 +543,7 @@ class DosingAutomationJob(AutomationJob):
 
         return
 
-    def _init_liquid_volume(self, initial_liquid_volume_ml: float) -> None:
+    def _init_liquid_volume(self, initial_liquid_volume_ml: float, max_volume_ml: float) -> None:
         assert initial_liquid_volume_ml >= 0
 
         self.add_to_published_settings(
@@ -556,6 +555,18 @@ class DosingAutomationJob(AutomationJob):
                 "persist": True,  # keep around so the UI can see it
             },
         )
+
+        self.add_to_published_settings(
+            "max_volume_ml",
+            {
+                "datatype": "float",
+                "settable": True,  # modify using dosing_events, ex: pio run add_media --ml 1 --manually
+                "unit": "mL",
+                "persist": True,  # keep around so the UI can see it
+            },
+        )
+
+        self.max_volume_ml = float(max_volume_ml)
 
         with local_persistent_storage("liquid_volume") as cache:
             self.liquid_volume = cache.get(self.experiment, initial_liquid_volume_ml)
