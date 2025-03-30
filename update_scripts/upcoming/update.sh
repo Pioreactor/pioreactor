@@ -21,3 +21,6 @@ if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
     crudini --set /home/pioreactor/.pioreactor/config.ini ui.overview.charts raw_optical_density 0
 
 fi
+
+sudo chown pioreactor:www-data /home/pioreactor/.pioreactor/storage
+sudo chmod g+srwx /home/pioreactor/.pioreactor/storage

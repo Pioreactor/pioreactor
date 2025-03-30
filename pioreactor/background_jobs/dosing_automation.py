@@ -224,8 +224,8 @@ class DosingAutomationJob(AutomationJob):
         initial_alt_media_fraction: float = config.getfloat(
             "bioreactor", "initial_alt_media_fraction", fallback=0.0
         ),
-        initial_liquid_volume_ml: float = config.getfloat("bioreactor", "initial_volume_ml", fallback=14),
-        max_volume_ml: float = config.getfloat("bioreactor", "max_volume_ml", fallback=14),
+        initial_liquid_volume_ml: float | None = None,
+        max_volume_ml: float | None = None,
         **kwargs,
     ) -> None:
         super(DosingAutomationJob, self).__init__(unit, experiment)
@@ -243,7 +243,7 @@ class DosingAutomationJob(AutomationJob):
 
         self._init_alt_media_fraction(float(initial_alt_media_fraction))
         self._init_volume_throughput()
-        self._init_liquid_volume(float(initial_liquid_volume_ml), float(max_volume_ml))
+        self._init_liquid_volume(initial_liquid_volume_ml, max_volume_ml)
 
         self.set_duration(duration)
 
@@ -252,7 +252,7 @@ class DosingAutomationJob(AutomationJob):
                 "It's recommended to have stirring on to improve mixing during dosing events."
             )
 
-        if self.max_volume_ml >= self.MAX_VIAL_VOLUME_TO_STOP:
+        if self.max_volume >= self.MAX_VIAL_VOLUME_TO_STOP:
             # possibly the user messed up their configuration. We warn them.
             self.logger.warning(
                 "The parameter max_volume_ml should be less than max_volume_to_stop (otherwise your pumping will stop too soon)."
@@ -498,9 +498,7 @@ class DosingAutomationJob(AutomationJob):
             cache[self.experiment] = self.alt_media_fraction
 
     def _update_liquid_volume(self, dosing_event: structs.DosingEvent) -> None:
-        self.liquid_volume = LiquidVolumeCalculator.update(
-            dosing_event, self.liquid_volume, self.max_volume_ml
-        )
+        self.liquid_volume = LiquidVolumeCalculator.update(dosing_event, self.liquid_volume, self.max_volume)
 
         # add to cache
         with local_persistent_storage("liquid_volume") as cache:
@@ -543,9 +541,9 @@ class DosingAutomationJob(AutomationJob):
 
         return
 
-    def _init_liquid_volume(self, initial_liquid_volume_ml: float, max_volume_ml: float) -> None:
-        assert initial_liquid_volume_ml >= 0
-
+    def _init_liquid_volume(
+        self, initial_liquid_volume_ml: float | None, max_volume_ml: float | None
+    ) -> None:
         self.add_to_published_settings(
             "liquid_volume",
             {
@@ -557,7 +555,7 @@ class DosingAutomationJob(AutomationJob):
         )
 
         self.add_to_published_settings(
-            "max_volume_ml",
+            "max_volume",
             {
                 "datatype": "float",
                 "settable": True,  # modify using dosing_events, ex: pio run add_media --ml 1 --manually
@@ -566,10 +564,22 @@ class DosingAutomationJob(AutomationJob):
             },
         )
 
-        self.max_volume_ml = float(max_volume_ml)
+        if max_volume_ml is None:
+            self.max_volume = config.getfloat("bioreactor", "max_volume_ml", fallback=14)
+        else:
+            self.max_volume = float(max_volume_ml)
 
-        with local_persistent_storage("liquid_volume") as cache:
-            self.liquid_volume = cache.get(self.experiment, initial_liquid_volume_ml)
+        if initial_liquid_volume_ml is None:
+            # look in database first, fallback to config
+            with local_persistent_storage("liquid_volume") as cache:
+                self.liquid_volume = cache.get(
+                    self.experiment, config.getfloat("bioreactor", "initial_volume_ml", fallback=14)
+                )
+        else:
+            self.liquid_volume = float(initial_liquid_volume_ml)
+
+        assert self.liquid_volume >= 0
+        assert self.max_volume >= 0
 
         return
 

@@ -2,11 +2,13 @@
 
 #### Enhancements
 
-- **Support for Pioreactor 40 mL vessels**
-  - UI and backend now accommodates the new Pioreactor 40mL.
+- **Support for Pioreactor 40mL**
+  - UI and backend now accommodates the new Pioreactor 40mL. Change the Pioreactor model on the Inventory page.
 - **Device models and versions now tracked in the database**
   - Models and versions for each Pioreactor are now stored in the `worker` table.
   We're deprecating the `[pioreactor]` section in `config.ini`. You can manage models and versions on the **Inventory** page.
+- **Improvements to dosing automation settings**:
+  - When starting a dosing automation, you can modify the initial and max culture volumes.
 - **Raw vs. calibrated OD readings now separated**
   - When a calibration is applied in the `ODReading` job:
     - New MQTT topics are published:
