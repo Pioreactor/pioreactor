@@ -168,10 +168,6 @@ class TemperatureAutomationJob(AutomationJob):
     def turn_off_heater(self) -> None:
         self._update_heater(0)
         self.pwm.clean_up()
-        # we re-instantiate it as some other process may have messed with the channel.
-        self.pwm = self.setup_pwm()
-        self._update_heater(0)
-        self.pwm.clean_up()
 
     def update_heater(self, new_duty_cycle: float) -> bool:
         """
