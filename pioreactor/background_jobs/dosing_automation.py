@@ -275,7 +275,10 @@ class DosingAutomationJob(AutomationJob):
                 # there is a race condition here: self.run() will run immediately (see run_immediately), but the state of the job is not READY, since
                 # set_duration is run in the __init__ (hence the job is INIT). So we wait 2 seconds for the __init__ to finish, and then run.
                 # Later: in fact, we actually want this to run after an OD reading cycle so we have internal data, so it should wait a cycle of that.
-                run_after = 1.0 / config.getfloat("od_reading.config", "samples_per_second")
+                if is_pio_job_running("od_reading"):
+                    run_after = 1.0 / config.getfloat("od_reading.config", "samples_per_second")
+                else:
+                    run_after = 2.0
 
             self.run_thread = RepeatedTimer(
                 self.duration * 60,
@@ -416,7 +419,12 @@ class DosingAutomationJob(AutomationJob):
                     self.set_state(self.SLEEPING)
                     return volumes_moved
 
-                if (volume_ml > 0) and self.block_until_not_sleeping() and (self.state in (self.READY,)):
+                if (
+                    (volume_ml > 0)
+                    and self.block_until_not_sleeping()
+                    and (self.state in (self.READY,))
+                    and not self._blocking_event.is_set()
+                ):
                     pump_function = getattr(self, f"add_{pump.removesuffix('_ml')}_to_bioreactor")
 
                     volume_moved_ml = pump_function(
@@ -431,7 +439,13 @@ class DosingAutomationJob(AutomationJob):
                     pause_between_subdoses()  # allow time for the addition to mix, and reduce the step response that can cause ringing in the output V.
 
             # remove waste last.
-            if waste_ml > 0 and self.block_until_not_sleeping() and (self.state in (self.READY,)):
+            if (
+                waste_ml > 0
+                and self.block_until_not_sleeping()
+                and (self.state in (self.READY,))
+                and not self._blocking_event.is_set()
+            ):
+                print(waste_ml, self.state)
                 waste_moved_ml = self.remove_waste_from_bioreactor(
                     unit=self.unit,
                     experiment=self.experiment,
@@ -454,7 +468,12 @@ class DosingAutomationJob(AutomationJob):
             extra_waste_ml = waste_ml * config.getfloat(
                 "dosing_automation.config", "waste_removal_multiplier", fallback=2.0
             )
-            if extra_waste_ml > 0 and self.block_until_not_sleeping() and (self.state in (self.READY,)):
+            if (
+                extra_waste_ml > 0
+                and self.block_until_not_sleeping()
+                and (self.state in (self.READY,))
+                and not self._blocking_event.is_set()
+            ):
                 self.remove_waste_from_bioreactor(
                     unit=self.unit,
                     experiment=self.experiment,
