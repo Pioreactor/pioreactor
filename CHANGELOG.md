@@ -31,7 +31,7 @@
 - Fixed issue where dodging background jobs would run a final, incorrect `action_to_do_before_reading` after OD reading stops.
 - The OD calibration flow now correctly ignores existing calibrations when creating a new one.
 - UI page `/pioreactors/<some_unit>` now uses that unit's specific configuration from `config_<some_unit>.ini`.
-
+- Fix error "cannot schedule new futures after shutdown" when stopping a dosing automation during a pump execution.
 
 ### 25.3.5
 

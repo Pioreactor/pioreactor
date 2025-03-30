@@ -427,7 +427,7 @@ class DosingAutomationJob(AutomationJob):
                 ):
                     pump_function = getattr(self, f"add_{pump.removesuffix('_ml')}_to_bioreactor")
 
-                    volume_moved_ml = pump_function(
+                    volumes_moved[pump] += pump_function(
                         unit=self.unit,
                         experiment=self.experiment,
                         ml=volume_ml,
@@ -435,7 +435,6 @@ class DosingAutomationJob(AutomationJob):
                         mqtt_client=self.pub_client,
                         logger=self.logger,
                     )
-                    volumes_moved[pump] += volume_moved_ml
                     pause_between_subdoses()  # allow time for the addition to mix, and reduce the step response that can cause ringing in the output V.
 
             # remove waste last.
@@ -445,8 +444,7 @@ class DosingAutomationJob(AutomationJob):
                 and (self.state in (self.READY,))
                 and not self._blocking_event.is_set()
             ):
-                print(waste_ml, self.state)
-                waste_moved_ml = self.remove_waste_from_bioreactor(
+                volumes_moved["waste_ml"] += self.remove_waste_from_bioreactor(
                     unit=self.unit,
                     experiment=self.experiment,
                     ml=waste_ml,
@@ -454,13 +452,6 @@ class DosingAutomationJob(AutomationJob):
                     mqtt_client=self.pub_client,
                     logger=self.logger,
                 )
-                volumes_moved["waste_ml"] += waste_moved_ml
-
-                if waste_moved_ml < waste_ml:
-                    self.logger.warning(
-                        "Waste was under-removed. Risk of overflow. Is the waste pump working?"
-                    )
-
                 briefer_pause()
 
             # run remove_waste for an additional few seconds to keep volume constant (determined by the length of the waste tube)
@@ -483,6 +474,9 @@ class DosingAutomationJob(AutomationJob):
                     logger=self.logger,
                 )
                 briefer_pause()
+
+        if volumes_moved["waste_ml"] < waste_ml:
+            self.logger.warning("Waste was under-removed.")
 
         return volumes_moved
 
