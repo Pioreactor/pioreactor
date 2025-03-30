@@ -323,6 +323,8 @@ class DosingAutomationJob(AutomationJob):
             # we are in READY
             try:
                 event = self.execute()
+                if event:
+                    self.logger.info(event.display())
 
             except exc.JobRequiredError as e:
                 self.logger.debug(e, exc_info=True)
@@ -332,9 +334,6 @@ class DosingAutomationJob(AutomationJob):
                 self.logger.debug(e, exc_info=True)
                 self.logger.error(e)
                 event = events.ErrorOccurred(str(e))
-
-        if event:
-            self.logger.info(event.display())
 
         self.latest_event = event
         return event
