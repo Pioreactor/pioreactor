@@ -221,9 +221,7 @@ class DosingAutomationJob(AutomationJob):
         experiment: str,
         duration: Optional[float] = None,
         skip_first_run: bool = False,
-        initial_alt_media_fraction: float = config.getfloat(
-            "bioreactor", "initial_alt_media_fraction", fallback=0.0
-        ),
+        initial_alt_media_fraction: float | None = None,
         initial_liquid_volume_ml: float | None = None,
         max_volume_ml: float | None = None,
         **kwargs,
@@ -241,7 +239,7 @@ class DosingAutomationJob(AutomationJob):
 
         self.skip_first_run = skip_first_run
 
-        self._init_alt_media_fraction(float(initial_alt_media_fraction))
+        self._init_alt_media_fraction(initial_alt_media_fraction)
         self._init_volume_throughput()
         self._init_liquid_volume(initial_liquid_volume_ml, max_volume_ml)
 
@@ -418,7 +416,7 @@ class DosingAutomationJob(AutomationJob):
                     self.set_state(self.SLEEPING)
                     return volumes_moved
 
-                if (volume_ml > 0) and (self.state in (self.READY,)) and self.block_until_not_sleeping():
+                if (volume_ml > 0) and self.block_until_not_sleeping() and (self.state in (self.READY,)):
                     pump_function = getattr(self, f"add_{pump.removesuffix('_ml')}_to_bioreactor")
 
                     volume_moved_ml = pump_function(
@@ -433,7 +431,7 @@ class DosingAutomationJob(AutomationJob):
                     pause_between_subdoses()  # allow time for the addition to mix, and reduce the step response that can cause ringing in the output V.
 
             # remove waste last.
-            if waste_ml > 0 and (self.state in (self.READY,)) and self.block_until_not_sleeping():
+            if waste_ml > 0 and self.block_until_not_sleeping() and (self.state in (self.READY,)):
                 waste_moved_ml = self.remove_waste_from_bioreactor(
                     unit=self.unit,
                     experiment=self.experiment,
@@ -451,23 +449,21 @@ class DosingAutomationJob(AutomationJob):
 
                 briefer_pause()
 
+            # run remove_waste for an additional few seconds to keep volume constant (determined by the length of the waste tube)
             # check exit conditions again!
-            if waste_ml > 0 and (self.state in (self.READY,)) and self.block_until_not_sleeping():
-                # run remove_waste for an additional few seconds to keep volume constant (determined by the length of the waste tube)
-                extra_waste_ml = waste_ml * config.getfloat(
-                    "dosing_automation.config", "waste_removal_multiplier", fallback=2.0
+            extra_waste_ml = waste_ml * config.getfloat(
+                "dosing_automation.config", "waste_removal_multiplier", fallback=2.0
+            )
+            if extra_waste_ml > 0 and self.block_until_not_sleeping() and (self.state in (self.READY,)):
+                self.remove_waste_from_bioreactor(
+                    unit=self.unit,
+                    experiment=self.experiment,
+                    ml=extra_waste_ml,
+                    source_of_event=source_of_event,
+                    mqtt_client=self.pub_client,
+                    logger=self.logger,
                 )
-                # fmt: skip
-                if extra_waste_ml > 0:
-                    self.remove_waste_from_bioreactor(
-                        unit=self.unit,
-                        experiment=self.experiment,
-                        ml=extra_waste_ml,
-                        source_of_event=source_of_event,
-                        mqtt_client=self.pub_client,
-                        logger=self.logger,
-                    )
-                    briefer_pause()
+                briefer_pause()
 
         return volumes_moved
 
@@ -525,8 +521,7 @@ class DosingAutomationJob(AutomationJob):
         with local_persistent_storage("media_throughput") as cache:
             cache[self.experiment] = self.media_throughput
 
-    def _init_alt_media_fraction(self, initial_alt_media_fraction: float) -> None:
-        assert 0 <= initial_alt_media_fraction <= 1
+    def _init_alt_media_fraction(self, initial_alt_media_fraction: float | None) -> None:
         self.add_to_published_settings(
             "alt_media_fraction",
             {
@@ -535,8 +530,18 @@ class DosingAutomationJob(AutomationJob):
             },
         )
 
+        if initial_alt_media_fraction is None:
+            with local_persistent_storage("alt_media_fraction") as cache:
+                self.alt_media_fraction = cache.get(
+                    self.experiment, config.getfloat("bioreactor", "initial_alt_media_fraction", fallback=0.0)
+                )
+        else:
+            self.alt_media_fraction = float(initial_alt_media_fraction)
+
+        assert 0 <= self.alt_media_fraction <= 1
+
         with local_persistent_storage("alt_media_fraction") as cache:
-            self.alt_media_fraction = cache.get(self.experiment, initial_alt_media_fraction)
+            cache[self.experiment] = self.alt_media_fraction
 
         return
 
@@ -568,6 +573,8 @@ class DosingAutomationJob(AutomationJob):
         else:
             self.max_volume = float(max_volume_ml)
 
+        assert self.max_volume >= 0
+
         if initial_liquid_volume_ml is None:
             # look in database first, fallback to config
             with local_persistent_storage("liquid_volume") as cache:
@@ -578,7 +585,9 @@ class DosingAutomationJob(AutomationJob):
             self.liquid_volume = float(initial_liquid_volume_ml)
 
         assert self.liquid_volume >= 0
-        assert self.max_volume >= 0
+
+        with local_persistent_storage("liquid_volume") as cache:
+            cache[self.experiment] = self.liquid_volume
 
         return
 

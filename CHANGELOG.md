@@ -8,7 +8,7 @@
   - Models and versions for each Pioreactor are now stored in the `worker` table.
   We're deprecating the `[pioreactor]` section in `config.ini`. You can manage models and versions on the **Inventory** page.
 - **Improvements to dosing automation settings**:
-  - When starting a dosing automation, you can modify the initial and max culture volumes.
+  - When starting a dosing automation, you can set the initial and max culture volumes.
 - **Raw vs. calibrated OD readings now separated**
   - When a calibration is applied in the `ODReading` job:
     - New MQTT topics are published:

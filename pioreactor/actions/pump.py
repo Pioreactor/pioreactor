@@ -306,12 +306,13 @@ def _pump_action(
 
         assert duration is not None
         assert ml is not None
-        duration = float(duration)
-        ml = float(ml)
-        assert isinstance(ml, pt.mL)
-        assert isinstance(duration, pt.Seconds)
+
+        duration = pt.Seconds(duration)
+        ml = pt.mL(ml)
 
         if manually:
+            _publish_pump_action(action_name, ml, unit, experiment, mqtt_client, source_of_event)
+
             return 0.0
 
         with PWMPump(

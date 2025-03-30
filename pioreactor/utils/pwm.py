@@ -64,6 +64,8 @@ class HardwarePWMOutputDevice(HardwarePWM):
             dc = clamp(0.0, dc, 100.0)
             self.change_duty_cycle(dc)
             self._dc = dc
+        elif dc == 0:
+            pass
         else:
             raise ValueError("must call .start() first!")
 
@@ -109,7 +111,8 @@ class SoftwarePWMOutputDevice:
                 lgpio.tx_pwm(self._handle, self.pin, self.frequency, self.dc)
             except lgpio.error:
                 pass
-
+        elif dc == 0:
+            pass
         else:
             raise ValueError("must call .start() first!")
 
