@@ -276,14 +276,11 @@ class TemperatureAutomationJob(AutomationJob):
 
     def on_disconnected(self) -> None:
         with suppress(AttributeError):
-            self._update_heater(0)
+            self.turn_off_heater()
 
         with suppress(AttributeError):
             self.read_external_temperature_timer.cancel()
             self.publish_temperature_timer.cancel()
-
-        with suppress(AttributeError):
-            self.turn_off_heater()
 
     def on_sleeping(self) -> None:
         self.publish_temperature_timer.pause()

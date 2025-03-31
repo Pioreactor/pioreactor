@@ -760,9 +760,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self._log_state(self.state)
 
     def disconnected(self) -> None:
-        # we "set" the internal event, which will cause any event.waits to end blocking.
-        self._blocking_event.set()
-
         # call job specific on_disconnected to clean up subjobs, etc.
         # however, if it fails, nothing below executes, so we don't get a clean
         # disconnect, etc.
@@ -778,6 +775,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         self.state = self.DISCONNECTED
         self._log_state(self.state)
+
+        # we "set" the internal event, which will cause any event.waits to end blocking.
+        self._blocking_event.set()
 
     def _remove_from_job_manager(self) -> None:
         # TODO what happens if the job_id isn't found?
