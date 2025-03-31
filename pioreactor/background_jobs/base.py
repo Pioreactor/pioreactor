@@ -522,7 +522,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
         """
         Disconnect from brokers, set state to "disconnected", stop any activity.
         """
-        self.set_state(self.DISCONNECTED)
+        if self.state != self.DISCONNECTED:
+            self.set_state(self.DISCONNECTED)
         self._clean_up_resources()
 
     def add_to_published_settings(self, setting: str, props: pt.PublishableSetting) -> None:
