@@ -776,7 +776,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.state = self.DISCONNECTED
         self._log_state(self.state)
 
-        # we "set" the internal event, which will cause any event.waits to end blocking.
+        # we "set" the internal event, which will cause any event.waits to end blocking. This should happen last.
         self._blocking_event.set()
 
     def _remove_from_job_manager(self) -> None:

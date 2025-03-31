@@ -476,7 +476,9 @@ class DosingAutomationJob(AutomationJob):
                 briefer_pause()
 
         if volumes_moved["waste_ml"] < waste_ml:
-            self.logger.warning("Waste was under-removed.")
+            self.logger.warning(
+                f"Waste was under-removed. Expected to remove {waste_ml} ml, only removed {volumes_moved['waste_ml']} ml."
+            )
 
         return volumes_moved
 

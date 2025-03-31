@@ -1440,3 +1440,32 @@ def test_custom_class_without_duration() -> None:
     ):
         msg = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/dosing_automation/duration", timeout=1)
         assert msg is not None
+
+
+def test_dosing_automation_initial_values_for_volumes():
+    exp = "test_dosing_automation_initial_values_for_volumes"
+
+    with Silent(
+        unit=unit,
+        experiment=exp,
+        initial_alt_media_fraction=0.5,
+        initial_liquid_volume_ml=10.0,
+        max_volume_ml=15.0,
+    ) as ca:
+        assert ca.liquid_volume == 10.0
+        assert ca.max_volume == 15.0
+        assert ca.alt_media_fraction == 0.5
+        ca.execute_io_action(media_ml=1, alt_media_ml=0, waste_ml=1.0)
+        assert ca.liquid_volume == 11.0
+        assert ca.alt_media_fraction == 0.4545454545
+
+    with Silent(
+        unit=unit,
+        experiment=exp,
+        initial_alt_media_fraction=None,
+        initial_liquid_volume_ml=None,
+        max_volume_ml=16.0,
+    ) as ca:
+        assert ca.liquid_volume == 11.0
+        assert ca.max_volume == 16.0
+        assert ca.alt_media_fraction == 0.4545454545
