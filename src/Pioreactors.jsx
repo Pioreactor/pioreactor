@@ -47,6 +47,7 @@ import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material'
 import { useNavigate, Link } from 'react-router-dom'
 
 import ChangeAutomationsDialog from "./components/ChangeAutomationsDialog"
+import ChangeDosingAutomationsDialog from "./components/ChangeDosingAutomationsDialog"
 import ActionDosingForm from "./components/ActionDosingForm"
 import ActionManualDosingForm from "./components/ActionManualDosingForm"
 import ActionCirculatingForm from "./components/ActionCirculatingForm"
@@ -523,7 +524,7 @@ function AssignPioreactors({ experiment, variant="text" }) {
   );
 }
 
-function PioreactorHeader({experiment}) {
+function PioreactorHeader({experiment, config}) {
   return (
     <Box>
       <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
@@ -535,7 +536,7 @@ function PioreactorHeader({experiment}) {
         <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
           <ButtonStopProcess experiment={experiment}/>
           <AssignPioreactors experiment={experiment}/>
-          <SettingsActionsDialogAll experiment={experiment}/>
+          <SettingsActionsDialogAll experiment={experiment} config={config}/>
           <Divider orientation="vertical" flexItem variant="middle"/>
           <ManageExperimentMenu experiment={experiment}/>
         </Box>
@@ -546,16 +547,17 @@ function PioreactorHeader({experiment}) {
 }
 
 
+
 function CalibrateDialog(props) {
   const [open, setOpen] = useState(false);
   const [tabValue, setTabValue] = useState(0);
-  const [activeCalibrations, setActiveCalibrations] = useState({})
+  const [activeCalibrations, setActiveCalibrations] = useState({});
+  const [loadingCalibrations, setLoadingCalibrations] = useState(false);
 
   useEffect(() => {
+    if (!open) return;
 
-    if (!open) {
-      return;
-    }
+    setLoadingCalibrations(true)
 
     const apiUrl = `/api/workers/${props.unit}/active_calibrations`;
 
@@ -563,8 +565,9 @@ function CalibrateDialog(props) {
       try {
         const response = await fetch(apiUrl);
         const firstResponse = await response.json();
-        const data = await checkTaskCallback(firstResponse.result_url_path, {delayMs: 200})
+        const data = await checkTaskCallback(firstResponse.result_url_path, {delayMs: 2000})
         setActiveCalibrations(data.result[props.unit]);
+        setLoadingCalibrations(false)
       } catch (err) {
         console.error("Failed to fetch calibration:", err);
       }
@@ -658,14 +661,13 @@ function CalibrateDialog(props) {
             </Typography>
             <Typography variant="body2" component="p" gutterBottom>
               For more accurate growth rate and biomass inferences, the Pioreactor can subtract out the
-              media's <i>un-inoculated</i> optical density <i>per experiment</i>. Read more about <a href="https://docs.pioreactor.com/user-guide/od-normal-growth-rate#blanking">using blanks</a>.
+              media's <i>un-inoculated</i> optical density <i>per experiment</i>. Read more about <a href="https://docs.pioreactor.com/user-guide/od-normal-growth-rate#blanking">using blanks</a>. If your Pioreactor has an active OD calibration, this isn't required.
             </Typography>
             <Typography variant="body2" component="p" style={{margin: "20px 0px"}}>
-              Recorded optical densities of blank vial: <code>{props.odBlankReading ? Object.entries(JSON.parse(props.odBlankReading) || {}).map( ([k, v]) => `${k}:${v.toFixed(5)}` ).join(", ") : "—"}</code>
+              Recorded optical densities of blank vial: <code>{props.odBlankReading ? Object.entries(JSON.parse(props.odBlankReading)).map( ([k, v]) => `${k}:${v.toFixed(5)}` ).join(", ") : "—"}</code>
             </Typography>
 
             <div style={{display: "flex"}}>
-
               {hasActiveODCalibration &&
                 <UnderlineSpan title="If an active OD calibration is present, this isn't used.">
                   {blankODButton}
@@ -676,7 +678,6 @@ function CalibrateDialog(props) {
                 {blankODButton}
                 </div>
               }
-
               <div>
                 <Button size="small" sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}} color="secondary" disabled={(props.odBlankReading === null) || (isGrowRateJobRunning)} onClick={() => runPioreactorJob(props.unit, props.experiment, "od_blank", ['delete']) }> Clear </Button>
               </div>
@@ -692,10 +693,13 @@ function CalibrateDialog(props) {
               Below are the active calibrations that will be used when running devices like pumps, stirring, etc. Read more about{' '}
               <a href="https://docs.pioreactor.com/user-guide/hardware-calibrations">calibrations</a>.
             </Typography>
-
-            {Object.entries(activeCalibrations || {}).length === 0 ? (
+            {loadingCalibrations ? (
+              <Box sx={{ textAlign: 'center', marginTop: '2rem' }}>
+                <CircularProgress />
+              </Box>
+            ) : Object.entries(activeCalibrations || {}).length === 0 ? (
               // Empty state message when there are no active calibrations.
-              <Typography variant="body2" component="p" color="textSecondary" sx={{mt: 3}}>
+              <Typography variant="body2" component="p" color="textSecondary" sx={{ mt: 3 }}>
                 There are no active calibrations available.
               </Typography>
             ) : (
@@ -735,6 +739,8 @@ function CalibrateDialog(props) {
                 </TableBody>
               </Table>
             )}
+
+
           </TabPanel>
         </DialogContent>
       </Dialog>
@@ -744,8 +750,10 @@ function CalibrateDialog(props) {
 
 
 
+
 function SettingsActionsDialog(props) {
   const [open, setOpen] = useState(false);
+  const [config, setConfig] = useState({})
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [tabValue, setTabValue] = useState(0);
@@ -754,6 +762,27 @@ function SettingsActionsDialog(props) {
   const [openChangeDosingDialog, setOpenChangeDosingDialog] = useState(false);
   const [openChangeLEDDialog, setOpenChangeLEDDialog] = useState(false);
   const [openChangeTemperatureDialog, setOpenChangeTemperatureDialog] = useState(false);
+
+
+  useEffect(() => {
+    if (!open){
+      return
+    }
+
+    fetch(`/api/unit/${props.unit}/configuration`).then((response) => {
+      if (!response.ok) {
+        return response.json().then((errorData) => {
+          console.log(errorData)
+          throw new Error(errorData.error);
+        });
+      }
+      return response.json();
+    })
+    .then((data) => setConfig(data))
+    .catch((error) => {
+      console.error("Fetching configuration failed:", error);
+    });
+  }, [open]);
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
@@ -936,7 +965,7 @@ function SettingsActionsDialog(props) {
   }
 
 
-  const LEDMap = props.config['leds'] || {}
+  const LEDMap = config['leds'] || {}
   const buttons = Object.fromEntries(Object.entries(props.jobs || {}).map( ([job_key, job], _) => [job_key, createUserButtonsBasedOnState(job.state, job_key)]))
   const versionInfo = JSON.parse(props.jobs.monitor.publishedSettings.versions.value || "{}")
   const voltageInfo = JSON.parse(props.jobs.monitor.publishedSettings.voltage_on_pwm_rail.value || "{}")
@@ -1122,7 +1151,7 @@ function SettingsActionsDialog(props) {
             </div>
 
 
-            <ChangeAutomationsDialog
+            <ChangeDosingAutomationsDialog
               automationType="dosing"
               open={openChangeDosingDialog}
               onFinished={() => setOpenChangeDosingDialog(false)}
@@ -1130,6 +1159,9 @@ function SettingsActionsDialog(props) {
               label={props.label}
               experiment={props.experiment}
               no_skip_first_run={false}
+              maxVolume={parseFloat(dosingControlJob.publishedSettings.max_volume.value) || parseFloat(props.config?.bioreactor?.max_volume_ml) || 10}
+              liquidVolume={parseFloat(dosingControlJob.publishedSettings.liquid_volume.value) || parseFloat(props.config?.bioreactor?.initial_volume_ml) || 10}
+              threshold={props.modelName === "pioreactor_20ml" ? 19 : 39}
             />
           </React.Fragment>
           }
@@ -1528,7 +1560,7 @@ function SettingsActionsDialog(props) {
 }
 
 
-function SettingsActionsDialogAll({experiment}) {
+function SettingsActionsDialogAll({experiment, config}) {
   const unit = "$broadcast"
   const [open, setOpen] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -1825,13 +1857,16 @@ function SettingsActionsDialogAll({experiment}) {
               {buttons['dosing_automation']}
             </div>
 
-            <ChangeAutomationsDialog
+            <ChangeDosingAutomationsDialog
               automationType="dosing"
               open={openChangeDosingDialog}
               onFinished={() => setOpenChangeDosingDialog(false)}
               unit={unit}
               experiment={experiment}
               no_skip_first_run={false}
+              maxVolume={config?.bioreactor?.max_volume_ml || 19}
+              liquidVolume={config?.bioreactor?.initial_volume_ml || 10}
+              threshold={39}
             />
           </React.Fragment>
           }
@@ -2217,7 +2252,6 @@ function FlashLEDButton(props){
 
 
 function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, modelName}){
-  console.log(originalLabel)
   const [jobFetchComplete, setJobFetchComplete] = useState(false)
   const [label, setLabel] = useState("")
   const {client, subscribeToTopic } = useMQTT();
@@ -2460,6 +2494,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
                 experiment={experiment}
                 jobs={jobs}
                 setLabel={setLabel}
+                modelName={modelName}
               />
             </Box>
           </Box>
@@ -2631,7 +2666,7 @@ function Pioreactors({title}) {
     <MQTTProvider name="pioreactor" config={config} experiment={experimentMetadata.experiment}>
       <Grid container spacing={2} >
         <Grid item md={12} xs={12}>
-          <PioreactorHeader experiment={experimentMetadata.experiment}/>
+          <PioreactorHeader experiment={experimentMetadata.experiment} config={config}/>
 
           {(workers.length === 0 ? renderEmptyState() : renderCards())}
 

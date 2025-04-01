@@ -51,6 +51,8 @@ const Bioreactor20Diagram = ({experiment, unit, config}) => {
   const [pumps, setPumps] = useState(new Set([]));
   const [heat, setHeat] = useState(false);
   const [volume, setVolume] = useState(14);
+  const [maxVolume, setMaxVolume] = useState((config?.bioreactor?.max_volume_ml || 14));
+
   var  now, then, elapsed;
   const fps = 45;
   const fpsInterval = 1000 / fps;
@@ -134,12 +136,12 @@ const Bioreactor20Diagram = ({experiment, unit, config}) => {
       } else {
         setVolume(parseFloat(messageString))
       }
-    //} else if (topicString.endsWith("temperature_automation/automation_name")){
-      // if (messageString === "") {
-      //   setHeat(false)
-      // } else {
-      //   setHeat(messageString!=="only_record_temperature")
-      // }
+    } else if (topicString.endsWith("dosing_automation/max_volume")){
+      if (messageString === "") {
+        //
+      } else {
+        setMaxVolume(parseFloat(messageString))
+      }
     } else if (topicString.endsWith("leds/intensity")){
       if (messageString === "") {
         setLeds({A: 0, B: 0, C: 0, D: 0})
@@ -155,11 +157,13 @@ const Bioreactor20Diagram = ({experiment, unit, config}) => {
         `pioreactor/${unit}/${experiment}/growth_rate_calculating/od_filtered`,
         `pioreactor/${unit}/${experiment}/leds/intensity`,
         `pioreactor/${unit}/${experiment}/dosing_automation/liquid_volume`,
+        `pioreactor/${unit}/${experiment}/dosing_automation/max_volume`,
         `pioreactor/${unit}/${experiment}/pwms/dc`,
         `pioreactor/${unit}/_testing_${experiment}/temperature_automation/temperature`,
         `pioreactor/${unit}/_testing_${experiment}/growth_rate_calculating/od_filtered`,
         `pioreactor/${unit}/_testing_${experiment}/leds/intensity`,
         `pioreactor/${unit}/_testing_${experiment}/dosing_automation/liquid_volume`,
+        `pioreactor/${unit}/_testing_${experiment}/dosing_automation/max_volume`,
         `pioreactor/${unit}/_testing_${experiment}/pwms/dc`,
       ], onMessage, "BioreactorDiagram")
 
@@ -171,7 +175,7 @@ const Bioreactor20Diagram = ({experiment, unit, config}) => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     const liquidLevel = volume / 20 * bioreactor.height
-    const bottomOfWasteTube = bioreactor.height - (config?.bioreactor?.max_volume_ml || 14) / 20 *  bioreactor.height + 20
+    const bottomOfWasteTube = bioreactor.height - maxVolume / 20 * bioreactor.height + 20
 
     const ledsRects = [
       { text: 'B', x: 50,  y: 350, width: 40, height: 30, radius: 5 },

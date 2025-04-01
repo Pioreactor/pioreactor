@@ -20,22 +20,17 @@ import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import {runPioreactorJob} from "../utilities"
 
 import PioreactorIcon from "./PioreactorIcon"
-import AutomationForm from "./AutomationForm"
+import DosingAutomationForm from "./DosingAutomationForm"
 
 
-const defaultAutomations = {
-  temperature: "thermostat",
-  dosing: "chemostat",
-  led: "light_dark_cycle"
-}
 
-
-function ChangeAutomationsDialog(props) {
-  const automationType = props.automationType
-  const automationTypeForDisplay = (automationType === "led") ? "LED" : automationType
-  const [automationName, setAutomationName] = useState(defaultAutomations[automationType])
+function ChangeDosingAutomationsDialog(props) {
+  const automationType = "dosing"
+  const [automationName, setAutomationName] = useState("chemostat")
   const [algoSettings, setAlgoSettings] = useState({
-    skip_first_run: 0 //TODO: this should be not included if !props.no_skip_first_run
+    skip_first_run: 0,
+    max_volume_ml: props.maxVolume,
+    initial_liquid_volume_ml: props.liquidVolume,
   })
   const [automations, setAutomations] = useState({})
   const [isLoading, setIsLoading] = useState(true)
@@ -75,11 +70,15 @@ function ChangeAutomationsDialog(props) {
   }
 
   const handleAlgoSelectionChange = (e) => {
-    setAutomationName(e.target.value)
-    setAlgoSettings({
-        ...( !props.no_skip_first_run && {skip_first_run: algoSettings.skip_first_run})
-    })
-  }
+    const newAlgoName = e.target.value;
+    setAutomationName(newAlgoName);
+
+    setAlgoSettings((prev) => ({
+      ...( !props.no_skip_first_run && { skip_first_run: prev.skip_first_run }),
+      max_volume_ml: prev.maxVolume,
+      initial_liquid_volume_ml: prev.liquidVolume,
+    }));
+  };
 
   const updateFromChild = (setting) => {
     setAlgoSettings(prevState => ({...prevState, ...setting}))
@@ -111,7 +110,7 @@ function ChangeAutomationsDialog(props) {
             }
         </Typography>
         <Typography sx={{fontSize: 20, color: "rgba(0, 0, 0, 0.87)"}}>
-          Select {automationTypeForDisplay} automation
+          Select {automationType} automation
         </Typography>
         <IconButton
           aria-label="close"
@@ -128,7 +127,7 @@ function ChangeAutomationsDialog(props) {
       </DialogTitle>
       <DialogContent>
         <Typography variant="body2" component="span" gutterBottom>
-          <span style={{textTransform: "capitalize"}}>{automationTypeForDisplay}</span> automations control the {automationTypeForDisplay} in the Pioreactor's vial. Learn more about <a target="_blank" rel="noopener noreferrer" href={"https://docs.pioreactor.com/user-guide/" + automationTypeForDisplay + "-automations"}>{automationTypeForDisplay} automations</a>.
+          <span style={{textTransform: "capitalize"}}>{automationType}</span> automations control the {automationType} in the Pioreactor's vial. Learn more about <a target="_blank" rel="noopener noreferrer" href={"https://docs.pioreactor.com/user-guide/" + automationType + "-automations"}>{automationType} automations</a>.
         </Typography>
 
         {!isLoading && <form>
@@ -143,24 +142,33 @@ function ChangeAutomationsDialog(props) {
               {Object.keys(automations).map((key) => <MenuItem id={key} value={key} key={"change-io" + key}>{automations[key].display_name}</MenuItem>)}
 
             </Select>
-            {Object.keys(automations).length > 0 && <AutomationForm fields={automations[automationName].fields} description={automations[automationName].description} updateParent={updateFromChild} name={automationName}/>}
-
-            {!props.no_skip_first_run ?
-              <Box sx={{mt: 1}}>
-                <FormControlLabel
-                  control={<Checkbox checked={Boolean(algoSettings.skip_first_run)}
-                                      color="primary"
-                                      onChange={handleSkipFirstRunChange}
-                                      size="small"/>
-                          }
-                  label="Skip first run"
-                  sx={{mr: 0, mt: 0}}
+            {Object.keys(automations).length > 0 &&
+              <DosingAutomationForm
+                fields={automations[automationName].fields}
+                description={automations[automationName].description}
+                updateParent={updateFromChild}
+                name={automationName}
+                maxVolume={props.maxVolume}
+                liquidVolume={props.liquidVolume}
+                threshold={props.threshold}
                 />
-                <IconButton target="_blank" rel="noopener noreferrer" href="https://docs.pioreactor.com/user-guide/intro-to-automations#skip-first-run">
-                  <HelpOutlineIcon sx={{ fontSize: 17, verticalAlign: "middle", ml: 0 }}/>
-                </IconButton>
-              </Box>
-            : <React.Fragment/> }
+
+            }
+
+            <Box sx={{mt: 1}}>
+              <FormControlLabel
+                control={<Checkbox checked={Boolean(algoSettings.skip_first_run)}
+                                    color="primary"
+                                    onChange={handleSkipFirstRunChange}
+                                    size="small"/>
+                        }
+                label="Skip first run"
+                sx={{mr: 0, mt: 0}}
+              />
+              <IconButton target="_blank" rel="noopener noreferrer" href="https://docs.pioreactor.com/user-guide/intro-to-automations#skip-first-run">
+                <HelpOutlineIcon sx={{ fontSize: 17, verticalAlign: "middle", ml: 0 }}/>
+              </IconButton>
+            </Box>
 
           </FormControl>
         </form>}
@@ -188,7 +196,7 @@ function ChangeAutomationsDialog(props) {
       anchorOrigin={{vertical: "bottom", horizontal: "center"}}
       open={openSnackbar}
       onClose={handleSnackbarClose}
-      message={`Starting ${automationTypeForDisplay} automation ${automations[automationName]?.display_name}.`}
+      message={`Starting ${automationType} automation ${automations[automationName]?.display_name}.`}
       autoHideDuration={7000}
       key={"snackbar-change-" + automationType}
     />
@@ -196,4 +204,4 @@ function ChangeAutomationsDialog(props) {
   );}
 
 
-export default ChangeAutomationsDialog;
+export default ChangeDosingAutomationsDialog;

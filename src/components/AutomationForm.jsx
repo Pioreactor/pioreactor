@@ -1,6 +1,7 @@
 import React, {useEffect } from "react";
 import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
+import Typography from "@mui/material/Typography";
 
 
 function AutomationForm(props){
@@ -10,67 +11,44 @@ function AutomationForm(props){
   }, [props.fields])
 
 
-  const onSettingsChange = (e) => {
-    props.updateParent({[e.target.id]: e.target.value})
-  }
+  const onSettingsChange = (id, value) => {
+    props.updateParent({ [id]: value });
+  };
 
+  const listOfDisplayFields = props.fields.map(field => {
+    const commonProps = {
+      size: "small",
+      autoComplete: "off",
+      id: field.key,
+      label: field.label,
+      defaultValue: field.default,
+      disabled: field.disabled,
+      InputProps: {
+        endAdornment: <InputAdornment position="end">{field.unit}</InputAdornment>,
+      },
+      variant: "outlined",
+      onKeyPress: (e) => { e.key === 'Enter' && e.preventDefault(); },
+      sx: { mt: 3, mr: 2, mb: 0, width: "18ch" },
+    };
 
-  var listOfDisplayFields = props.fields.map(field => {
-      switch (field.type) {
-        case 'numeric':
-          return <TextField
-            type="number"
-            size="small"
-            autoComplete={"off"}
-            id={field.key}
-            key={field.key + props.name}
-            label={field.label}
-            defaultValue={field.default}
-            disabled={field.disabled}
-            InputProps={{
-              endAdornment: <InputAdornment position="end">{field.unit}</InputAdornment>,
-            }}
-            variant="outlined"
-            onChange={onSettingsChange}
-            onKeyPress={(e) => {e.key === 'Enter' && e.preventDefault();}}
-            sx={{
-              mt: 3,
-              mr: 2,
-              mb: 0,
-              width: "18ch"
-            }}
-          />
-        case 'string':
-        default:
-          return <TextField
-            size="small"
-            autoComplete={"off"}
-            id={field.key}
-            key={field.key + props.name}
-            label={field.label}
-            defaultValue={field.default}
-            disabled={field.disabled}
-            InputProps={{
-              endAdornment: <InputAdornment position="end">{field.unit}</InputAdornment>,
-            }}
-            variant="outlined"
-            onChange={onSettingsChange}
-            onKeyPress={(e) => {e.key === 'Enter' && e.preventDefault();}}
-            sx={{
-              mt: 3,
-              mr: 2,
-              mb: 0,
-              width: "18ch"
-            }}
-          />
-      }
-    }
-  )
+    return <TextField
+      key={field.key + props.name}
+      type={field.type === 'numeric' ? "number" : "text"}
+      onChange={field.type === 'numeric' ? (e) => onSettingsChange(e.target.id, e.target.valueAsNumber || null) : (e) => onSettingsChange((e.target.id, e.target.value))}
+      {...commonProps} />;
+  });
+
 
   return (
     <div>
-      <p style={{whiteSpace: "pre-line"}}> {props.description} </p>
+      <Typography variant="body1"
+        sx={{
+          whiteSpace: "pre-line",
+          mt: 3, mb: 1,
+          padding: "6px 6px",
+        }}> {props.description} </Typography>
       {listOfDisplayFields}
+
     </div>
 )}
 

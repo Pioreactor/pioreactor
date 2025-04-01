@@ -41,6 +41,7 @@ import {Link, useParams, useNavigate} from 'react-router-dom'
 
 import SelfTestDialog from "./components/SelfTestDialog"
 import ChangeAutomationsDialog from "./components/ChangeAutomationsDialog"
+import ChangeDosingAutomationsDialog from "./components/ChangeDosingAutomationsDialog"
 import ActionDosingForm from "./components/ActionDosingForm"
 import ActionManualDosingForm from "./components/ActionManualDosingForm"
 import ActionCirculatingForm from "./components/ActionCirculatingForm"
@@ -372,10 +373,13 @@ function PioreactorHeader({unit, assignedExperiment, isActive, selectExperiment,
 function CalibrateDialog(props) {
   const [open, setOpen] = useState(false);
   const [tabValue, setTabValue] = useState(0);
-  const [activeCalibrations, setActiveCalibrations] = useState({})
+  const [activeCalibrations, setActiveCalibrations] = useState({});
+  const [loadingCalibrations, setLoadingCalibrations] = useState(false);
 
   useEffect(() => {
     if (!open) return;
+
+    setLoadingCalibrations(true)
 
     const apiUrl = `/api/workers/${props.unit}/active_calibrations`;
 
@@ -385,6 +389,8 @@ function CalibrateDialog(props) {
         const firstResponse = await response.json();
         const data = await checkTaskCallback(firstResponse.result_url_path, {delayMs: 2000})
         setActiveCalibrations(data.result[props.unit]);
+        setLoadingCalibrations(false);
+
       } catch (err) {
         console.error("Failed to fetch calibration:", err);
       }
@@ -510,10 +516,13 @@ function CalibrateDialog(props) {
               Below are the active calibrations that will be used when running devices like pumps, stirring, etc. Read more about{' '}
               <a href="https://docs.pioreactor.com/user-guide/hardware-calibrations">calibrations</a>.
             </Typography>
-
-            {Object.entries(activeCalibrations || {}).length === 0 ? (
+            {loadingCalibrations ? (
+              <Box sx={{ textAlign: 'center', marginTop: '2rem' }}>
+                <CircularProgress />
+              </Box>
+            ) : Object.entries(activeCalibrations || {}).length === 0 ? (
               // Empty state message when there are no active calibrations.
-              <Typography variant="body2" component="p" color="textSecondary" sx={{mt: 3}}>
+              <Typography variant="body2" component="p" color="textSecondary" sx={{ mt: 3 }}>
                 There are no active calibrations available.
               </Typography>
             ) : (
@@ -541,6 +550,7 @@ function CalibrateDialog(props) {
                             label={calName}
                             clickable
                             component={Link}
+                            sx={{maxWidth:"300px"}}
                             to={`/calibrations/${props.unit}/${device}/${calName}`}
                           />
                         </TableCell>
@@ -553,6 +563,7 @@ function CalibrateDialog(props) {
                 </TableBody>
               </Table>
             )}
+
 
           </TabPanel>
         </DialogContent>
@@ -942,7 +953,7 @@ function SettingsActionsDialog(props) {
             </div>
 
 
-            <ChangeAutomationsDialog
+            <ChangeDosingAutomationsDialog
               automationType="dosing"
               open={openChangeDosingDialog}
               onFinished={() => setOpenChangeDosingDialog(false)}
@@ -950,6 +961,9 @@ function SettingsActionsDialog(props) {
               label={props.label}
               experiment={props.experiment}
               no_skip_first_run={false}
+              maxVolume={dosingControlJob.publishedSettings.max_volume.value || parseFloat(props.config?.bioreactor?.max_volume_ml) || 10.0}
+              liquidVolume={dosingControlJob.publishedSettings.liquid_volume.value || parseFloat(props.config?.bioreactor?.initial_volume_ml) || 10}
+              threshold={props.modelName === "pioreactor_20ml" ? 19 : 39}
             />
           </React.Fragment>
           }
@@ -1790,6 +1804,7 @@ function PioreactorCard(props){
                 experiment={experiment}
                 jobs={jobs}
                 setLabel={setLabel}
+                modelName={modelName}
               />
             </Box>
           </Box>

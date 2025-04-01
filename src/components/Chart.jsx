@@ -226,7 +226,6 @@ class Chart extends React.Component {
     var duration = Math.round(timestamp.diff(dayjs.utc(this.props.experimentStartTime), 'hours', true) * 1e3)/1e3
     var local_timestamp = timestamp.local()
     const x_value = this.props.byDuration ? duration : local_timestamp
-    console.log(topic)
     var unit = this.props.isPartitionedBySensor
       ? topic.split("/")[1] + "-" + (topic.split("/")[4]).replace('raw_od', '').replace('od', '')
       : topic.split("/")[1];
