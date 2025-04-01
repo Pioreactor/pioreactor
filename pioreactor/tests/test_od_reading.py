@@ -1438,8 +1438,8 @@ def test_raw_and_calibrated_data_is_published_if_calibration_is_used():
         assert isinstance(od_job.calibration_transformer, NullCalibrationTransformer)
         assert od_job.ods is not None
         assert od_job.od2 is not None
-        assert not hasattr(od_job, "calibrated_od2")
-        assert not hasattr(od_job, "raw_od2")
+        assert od_job.calibrated_od2 is None
+        assert od_job.raw_od2 is None
 
 
 def test_raw_published_even_if_calibration_is_bad():

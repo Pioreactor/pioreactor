@@ -792,13 +792,13 @@ class ODReader(BackgroundJob):
 
     _pre_read: list[Callable] = []
     _post_read: list[Callable] = []
-    od1: structs.ODReading
-    od2: structs.ODReading
-    ods: structs.ODReadings
-    raw_od1: structs.RawODReading
-    raw_od2: structs.RawODReading
-    calibrated_od1: structs.CalibratedODReading
-    calibrated_od2: structs.CalibratedODReading
+    od1: structs.ODReading | None = None
+    od2: structs.ODReading | None = None
+    ods: structs.ODReadings | None = None
+    raw_od1: structs.RawODReading | None = None
+    raw_od2: structs.RawODReading | None = None
+    calibrated_od1: structs.CalibratedODReading | None = None
+    calibrated_od2: structs.CalibratedODReading | None = None
     record_from_adc_timer: timing.RepeatedTimer
 
     def __init__(
@@ -1179,7 +1179,7 @@ class ODReader(BackgroundJob):
             self.relative_intensity_of_ir_led = {
                 # represents the relative intensity of the LED.
                 "relative_intensity_of_ir_led": 1 / self.ir_led_reference_transformer.transform(1.0),
-                "timestamp": self.ods.timestamp,
+                "timestamp": timing.current_utc_datetime(),
             }
 
     def _unblock_internal_event(self) -> None:
@@ -1194,7 +1194,8 @@ class ODReader(BackgroundJob):
     def __next__(self) -> structs.ODReadings:
         while self._set_for_iterating.wait():
             self._set_for_iterating.clear()
-            return self.ods
+            if self.ods is not None:
+                return self.ods
         assert False  # we never reach here - this is to silence mypy
 
 
