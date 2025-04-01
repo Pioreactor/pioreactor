@@ -32,7 +32,7 @@
 - The OD calibration flow now correctly ignores existing calibrations when creating a new one.
 - UI page `/pioreactors/<some_unit>` now uses that unit's specific configuration from `config_<some_unit>.ini`.
 - Fix error "cannot schedule new futures after shutdown" when stopping a dosing automation during a pump execution.
-- Reverted a change to job's exit protocol introduced in 25.3.5 that would cause on_disconnected to run twice.
+- Reverted a change to job's exit protocol introduced in 25.3.5 that would cause on_disconnected to run twice sometimes.
 
 ### 25.3.5
 

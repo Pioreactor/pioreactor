@@ -43,6 +43,7 @@ from __future__ import annotations
 
 import math
 import os
+import random
 import threading
 import types
 from copy import deepcopy as copy
@@ -699,7 +700,9 @@ class CachedCalibrationTransformer(CalibrationTransformer):
                     elif observed_voltage > max_voltage:
                         return max_OD
                     else:
-                        raise exc.NoSolutionsFoundError
+                        raise exc.NoSolutionsFoundError(
+                            f"No solution found for calibrated signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V, which would map outside the allowed values."
+                        )
                 except exc.SolutionBelowDomainError:
                     self.logger.warning(
                         f"Signal below suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V, which would map outside the allowed values."
@@ -1020,7 +1023,7 @@ class ODReader(BackgroundJob):
         else:
             return {self.ir_channel: self.ir_led_intensity}
 
-    def record_from_adc(self) -> structs.ODReadings:
+    def record_from_adc(self) -> structs.ODReadings | None:
         """
         Take a recording of the current OD of the culture.
 
@@ -1046,28 +1049,39 @@ class ODReader(BackgroundJob):
         ):
             with led_utils.lock_leds_temporarily(self.non_ir_led_channels):
                 sleep(0.125)
+                raw_od_readings = self._read_from_adc()
 
-                od_readings, raw_od_readings = self._read_from_adc_and_transform()
+        try:
+            od_readings = self.calibration_transformer(raw_od_readings)
+        except exc.NoSolutionsFoundError:
+            # some calibration error occurred
+            od_readings = None
 
-        self.ods = od_readings
-
-        for channel, _ in self.channel_angle_map.items():
-            setattr(self, f"od{channel}", od_readings.ods[channel])
-
-            if isinstance(od_readings.ods[channel], structs.CalibratedODReading):
+            # still log the raw readings
+            for channel, _ in self.channel_angle_map.items():
                 setattr(self, f"raw_od{channel}", raw_od_readings.ods[channel])
-                setattr(self, f"calibrated_od{channel}", od_readings.ods[channel])
+        else:
+            # happy path
+            assert od_readings is not None
+            self.ods = od_readings
+            assert isinstance(od_readings, structs.ODReadings)
+            for channel, _ in self.channel_angle_map.items():
+                setattr(self, f"od{channel}", od_readings.ods[channel])
+                if isinstance(od_readings.ods[channel], structs.CalibratedODReading):
+                    setattr(self, f"raw_od{channel}", raw_od_readings.ods[channel])
+                    setattr(self, f"calibrated_od{channel}", od_readings.ods[channel])
 
-        self._log_relative_intensity_of_ir_led()
-        self._unblock_internal_event()
+        finally:
+            for post_function in self.post_read_callbacks:
+                try:
+                    post_function(od_readings)
+                except Exception:
+                    self.logger.debug(f"Error in post_function={post_function.__name__}.", exc_info=True)
 
-        for post_function in self.post_read_callbacks:
-            try:
-                post_function(od_readings)
-            except Exception:
-                self.logger.debug(f"Error in post_function={post_function.__name__}.", exc_info=True)
+            self._log_relative_intensity_of_ir_led()
+            self._unblock_internal_event()
 
-        return od_readings
+            return od_readings
 
     def start_ir_led(self) -> None:
         r = led_utils.led_intensity(
@@ -1129,7 +1143,7 @@ class ODReader(BackgroundJob):
             self.clean_up()
             raise KeyError("`IR` value not found in section.")
 
-    def _read_from_adc_and_transform(self) -> tuple[structs.ODReadings, structs.ODReadings]:
+    def _read_from_adc(self) -> structs.ODReadings:
         """
         Read from the ADC. This function normalizes by the IR ref.
 
@@ -1157,12 +1171,11 @@ class ODReader(BackgroundJob):
                 for pd, raw_pd_reading in raw_pd_readings.items()
             },
         )
-        calibrated_and_or_raw_od_readings = self.calibration_transformer(raw_od_readings)
 
-        return calibrated_and_or_raw_od_readings, raw_od_readings
+        return raw_od_readings
 
     def _log_relative_intensity_of_ir_led(self) -> None:
-        if self.ods.timestamp.microsecond % 8 == 0:  # some pseudo randomness
+        if random.random() < 0.15:  # some pseudo randomness
             self.relative_intensity_of_ir_led = {
                 # represents the relative intensity of the LED.
                 "relative_intensity_of_ir_led": 1 / self.ir_led_reference_transformer.transform(1.0),
@@ -1181,7 +1194,6 @@ class ODReader(BackgroundJob):
     def __next__(self) -> structs.ODReadings:
         while self._set_for_iterating.wait():
             self._set_for_iterating.clear()
-            assert self.ods is not None
             return self.ods
         assert False  # we never reach here - this is to silence mypy
 

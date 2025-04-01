@@ -22,5 +22,6 @@ if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
 
 fi
 
+# fix any calibration / persistent cache permission issues
 sudo chown pioreactor:www-data /home/pioreactor/.pioreactor/storage
 sudo chmod g+srwx /home/pioreactor/.pioreactor/storage

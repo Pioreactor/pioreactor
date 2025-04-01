@@ -5,7 +5,6 @@ from collections import defaultdict
 from contextlib import nullcontext
 from json import dumps
 from json import loads
-from typing import cast
 from typing import Iterator
 from typing import Optional
 
@@ -24,7 +23,6 @@ from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import managed_lifecycle
 from pioreactor.utils import math_helpers
-from pioreactor.utils.timing import current_utc_datetime
 
 
 def od_statistics(
@@ -159,7 +157,7 @@ def od_blank(
 
     if is_pio_job_running("od_reading"):
         logger.error("OD Reading should be off. Perform OD Blanking _before_ OD Reading.")
-        raise click.Abort()
+        raise click.Abort
 
     with managed_lifecycle(unit, experiment, action_name):
         try:

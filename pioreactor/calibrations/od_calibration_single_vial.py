@@ -217,6 +217,8 @@ def start_recording_and_diluting(
         def get_voltage_from_adc() -> pt.Voltage:
             od_readings1 = od_reader.record_from_adc()
             od_readings2 = od_reader.record_from_adc()
+            assert od_readings1 is not None
+            assert od_readings2 is not None
             return 0.5 * (od_readings1.ods[pd_channel].od + od_readings2.ods[pd_channel].od)
 
         for _ in range(4):

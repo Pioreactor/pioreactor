@@ -602,6 +602,7 @@ def test_simple_API() -> None:
         od_job.start_ir_led()
         assert od_job.ir_led_intensity == led_int
         results = od_job.record_from_adc()
+        assert results is not None
         assert list(results.ods.keys()) == ["1"]
 
     od_job.clean_up()
@@ -1439,3 +1440,27 @@ def test_raw_and_calibrated_data_is_published_if_calibration_is_used():
         assert od_job.od2 is not None
         assert not hasattr(od_job, "calibrated_od2")
         assert not hasattr(od_job, "raw_od2")
+
+
+def test_raw_published_even_if_calibration_is_bad():
+    experiment = "test_raw_and_calibrated_data_is_published_if_calibration_is_used"
+
+    calibration = structs.ODCalibration(
+        angle="90",
+        calibration_name="test_raw_and_calibrated_data_is_published_if_calibration_is_used",
+        curve_type="poly",
+        curve_data_=[0],  # bad!
+        ir_led_intensity=50,
+        pd_channel="2",
+        created_at=current_utc_datetime(),
+        calibrated_on_pioreactor_unit="pio1",
+        recorded_data={"y": [0, 1], "x": [0, 1]},
+    )
+
+    with start_od_reading(
+        "REF", "90", interval=2, fake_data=True, experiment=experiment, calibration=calibration
+    ) as od_job:
+        next(od_job)
+        assert isinstance(od_job.calibration_transformer, CachedCalibrationTransformer)
+        assert od_job.ods is None
+        assert od_job.raw_od2 is not None  # here!

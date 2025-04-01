@@ -193,6 +193,8 @@ def start_recording_standards(st: Stirrer, signal_channel):
         def get_voltage_from_adc() -> float:
             od_readings1 = od_reader.record_from_adc()
             od_readings2 = od_reader.record_from_adc()
+            assert od_readings1 is not None
+            assert od_readings2 is not None
             return 0.5 * (od_readings1.ods[signal_channel].od + od_readings2.ods[signal_channel].od)
 
         for _ in range(3):
