@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from copy import deepcopy as copy
+
 import click
 from msgspec.yaml import decode as yaml_decode
 from msgspec.yaml import encode as yaml_encode
@@ -245,5 +247,14 @@ def analyze_calibration(device: str, calibration_name: str) -> None:
         raise click.Abort()
 
     calibration = load_calibration(device, calibration_name)
-    calibration = crunch_data_and_confirm_with_user(calibration)
-    calibration.save_to_disk_for_device(device)
+
+    if device == "od":
+        n = len(calibration.recorded_data["x"])
+        weights = [1.0] * n
+        weights[0] = n / 2
+    else:
+        weights = None
+
+    new_calibration = crunch_data_and_confirm_with_user(copy(calibration), initial_degree=3, weights=weights)
+    if new_calibration != calibration:
+        new_calibration.save_to_disk_for_device(device)

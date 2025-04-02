@@ -109,6 +109,8 @@ class Monitor(LongRunningBackgroundJob):
         def pretty_version(info: tuple) -> str:
             return ".".join((str(x) for x in info))
 
+        # previously I had pioreactor_version and model name here, but this starts before the webserver is online, and it
+        # would crash this job.
         self.versions = {
             "app": pretty_version(version.software_version_info),
             "hat": pretty_version(version.hardware_version_info),
@@ -116,8 +118,6 @@ class Monitor(LongRunningBackgroundJob):
             "hat_serial": version.serial_number,
             "rpi_machine": version.rpi_version_info,
             "timestamp": current_utc_timestamp(),
-            "pioreactor_version": version.tuple_to_text(whoami.get_pioreactor_version()),
-            "pioreactor_model": whoami.get_pioreactor_model() or None,
             "ui": None,
         }
 

@@ -685,11 +685,13 @@ class CachedCalibrationTransformer(CalibrationTransformer):
             """
 
             def calibration(observed_voltage: pt.Voltage) -> pt.OD:
-                min_OD, max_OD = min(calibration_data.recorded_data["y"]), max(
-                    calibration_data.recorded_data["y"]
-                )
-                min_voltage, max_voltage = min(calibration_data.recorded_data["x"]), max(
+                assert calibration_data.x == "OD600", "calibration is wrong"
+                assert calibration_data.y == "Voltage", "calibration is wrong"
+                min_OD, max_OD = min(calibration_data.recorded_data["x"]), max(
                     calibration_data.recorded_data["x"]
+                )
+                min_voltage, max_voltage = min(calibration_data.recorded_data["y"]), max(
+                    calibration_data.recorded_data["y"]
                 )
 
                 try:

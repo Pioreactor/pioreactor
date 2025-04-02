@@ -5,7 +5,7 @@
 - **Support for Pioreactor 40mL**
   - UI and backend now accommodates the new Pioreactor 40mL. Change the Pioreactor model on the Inventory page.
 - **Device models and versions now tracked in the database**
-  - Models and versions for each Pioreactor are now stored in the `worker` table.
+  - Models and versions for each Pioreactor are now stored in the `workers` database table.
   We're deprecating the `[pioreactor]` section in `config.ini`. You can manage models and versions on the **Inventory** page.
 - **Improvements to dosing automation settings**:
   - When starting a dosing automation, you can set the initial and max culture volumes.
@@ -33,6 +33,9 @@
 - UI page `/pioreactors/<some_unit>` now uses that unit's specific configuration from `config_<some_unit>.ini`.
 - Fix error "cannot schedule new futures after shutdown" when stopping a dosing automation during a pump execution.
 - Reverted a change to job's exit protocol introduced in 25.3.5 that would cause on_disconnected to run twice sometimes.
+- Fixed "manual adjustments" pump actions not firing an MQTT event.
+- Fixed OD calibrations using the wrong min, max thresholds.
+- `pio calibrations analyze --device od` will use regression weights for OD calibrations (like they do _during_ the OD calibration)
 
 ### 25.3.5
 

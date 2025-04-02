@@ -31,7 +31,8 @@ def calculate_poly_curve_of_best_fit(
 
     assert len(weights) == len(x) == len(y)
 
-    x, y = zip(*sorted(zip(x, y), key=lambda t: t[0]))  # type: ignore
+    # sort by y, since we want calibrations to be easily solvable from y to x (this mostly applies to OD cal with weights.)
+    y, x = zip(*sorted(zip(y, x), key=lambda t: t[0]))  # type: ignore
 
     try:
         coefs = np.polyfit(x, y, deg=degree, w=weights)
