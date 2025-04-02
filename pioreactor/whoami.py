@@ -164,7 +164,7 @@ def get_pioreactor_version() -> tuple[int, int]:
         result = get_from_leader(f"/api/workers/{get_unit_name()}")
         result.raise_for_status()
         data = result.json()
-        return data["model_version"]
+        return version_text_to_tuple(data["model_version"])
     except mureq.HTTPErrorStatus as e:
         if e.status_code == 404:
             raise NoWorkerFoundError(f"Worker {get_unit_name()} is not present in leader's inventory")
@@ -175,12 +175,12 @@ def get_pioreactor_version() -> tuple[int, int]:
 
 
 @cache
-def get_pioreactor_model() -> str | None:
+def get_pioreactor_model() -> str:
     # pioreactor model name
     if os.environ.get("MODEL_NAME"):
         return os.environ["MODEL_NAME"]
     elif is_testing_env():
-        return "Pioreactor 40ml"
+        return "pioreactor_40ml"
 
     from pioreactor.pubsub import get_from_leader
 

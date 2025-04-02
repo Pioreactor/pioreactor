@@ -239,9 +239,10 @@ class Monitor(LongRunningBackgroundJob):
         self.logger.debug(f"Ethernet MAC address: {self.eth_mac_address}")
 
     def self_checks(self) -> None:
-        # check active network connection
+        self.button_down = False  # reset this.
         sleep(0 if whoami.is_testing_env() else 5)  # wait for other processes to catch up
 
+        # check active network connection
         self.check_for_network()
         # report on CPU usage, memory, disk space
         self.check_and_publish_self_statistics()
