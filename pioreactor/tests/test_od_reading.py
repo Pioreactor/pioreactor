@@ -876,7 +876,7 @@ def test_calibration_simple_linear_calibration_positive_slope() -> None:
             pause()
             pause()
             voltage = 10.0
-            assert od.calibration_transformer.models["2"](voltage) == 1.0
+            assert od.calibration_transformer.models["2"](voltage) == max(cal.recorded_data["x"])
             pause()
             pause()
             pause()
@@ -1055,7 +1055,7 @@ def test_calibration_with_irl_data1() -> None:
             ods={ch: structs.RawODReading(od=v, angle="90", channel=ch, timestamp=current_utc_datetime())},
         )
 
-    assert cc(float_to_od_readings_struct("2", 0.001)).ods["2"].od == 0
+    assert cc(float_to_od_readings_struct("2", 0.001)).ods["2"].od == min(cal.recorded_data["x"])
     assert cc(float_to_od_readings_struct("2", 0.002)).ods["2"].od == 0
     assert abs(cc(float_to_od_readings_struct("2", 0.004)).ods["2"].od - 0.0032975807375385234) < 1e-5
     assert abs(cc(float_to_od_readings_struct("2", 0.02)).ods["2"].od - 0.03639585015289039) < 1e-5

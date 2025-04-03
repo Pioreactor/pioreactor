@@ -665,55 +665,43 @@ class CachedCalibrationTransformer(CalibrationTransformer):
         )
 
     def _hydrate_model(self, calibration_data: structs.ODCalibration) -> Callable[[pt.Voltage], pt.OD]:
-        if calibration_data.curve_type == "poly":
-            """
-            Finds the smallest root in the range [minOD, maxOD] calibrated against.
+        if (calibration_data.x != "OD600") or (calibration_data.y != "Voltage"):
+            self.logger.error(f"Calibration {calibration_data.calibration_name} is not for OD600.")
+            raise exc.CalibrationError(f"Calibration {calibration_data.calibration_name} is not for OD600.")
 
-            Note: if the calibration curve is non-monotonic, ie. has a maximum not on the boundary of the range,
-            this procedure effectively ignores it.
+        def _calibrate_signal(observed_voltage: pt.Voltage) -> pt.OD:
+            min_OD, max_OD = min(calibration_data.recorded_data["x"]), max(
+                calibration_data.recorded_data["x"]
+            )
+            min_voltage, max_voltage = min(calibration_data.recorded_data["y"]), max(
+                calibration_data.recorded_data["y"]
+            )
 
-            """
-
-            def calibration(observed_voltage: pt.Voltage) -> pt.OD:
-                assert calibration_data.x == "OD600", "calibration is wrong"
-                assert calibration_data.y == "Voltage", "calibration is wrong"
-                min_OD, max_OD = min(calibration_data.recorded_data["x"]), max(
-                    calibration_data.recorded_data["x"]
-                )
-                min_voltage, max_voltage = min(calibration_data.recorded_data["y"]), max(
-                    calibration_data.recorded_data["y"]
-                )
-
-                try:
-                    return calibration_data.y_to_x(observed_voltage, enforce_bounds=True)
-                except exc.NoSolutionsFoundError:
-                    if observed_voltage <= min_voltage:
-                        return min_OD
-                    elif observed_voltage > max_voltage:
-                        return max_OD
-                    else:
-                        raise exc.NoSolutionsFoundError(
-                            f"No solution found for calibrated signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V, which would map outside the allowed values."
-                        )
-                except exc.SolutionBelowDomainError:
-                    self.logger.warning(
-                        f"Signal below suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V, which would map outside the allowed values."
-                    )
-                    self.has_logged_warning = True
+            try:
+                return calibration_data.y_to_x(observed_voltage, enforce_bounds=True)
+            except exc.NoSolutionsFoundError:
+                if observed_voltage <= min_voltage:
                     return min_OD
-                except exc.SolutionAboveDomainError:
-                    self.logger.warning(
-                        f"Signal above suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V."
-                    )
-                    self.has_logged_warning = True
+                elif observed_voltage > max_voltage:
                     return max_OD
+                else:
+                    raise exc.NoSolutionsFoundError(
+                        f"No solution found for calibrated signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V, which would map outside the allowed values."
+                    )
+            except exc.SolutionBelowDomainError:
+                self.logger.warning(
+                    f"Signal below suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V, which would map outside the allowed values."
+                )
+                self.has_logged_warning = True
+                return min_OD
+            except exc.SolutionAboveDomainError:
+                self.logger.warning(
+                    f"Signal above suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V."
+                )
+                self.has_logged_warning = True
+                return max_OD
 
-        else:
-
-            def calibration(observed_voltage: pt.Voltage) -> pt.OD:
-                return observed_voltage
-
-        return calibration
+        return _calibrate_signal
 
     def __call__(self, od_readings: structs.ODReadings) -> structs.ODReadings:
         od_readings = copy(od_readings)
@@ -1045,7 +1033,7 @@ class ODReader(BackgroundJob):
 
         try:
             od_readings = self.calibration_transformer(raw_od_readings)
-        except exc.NoSolutionsFoundError:
+        except (exc.NoSolutionsFoundError, exc.CalibrationError):
             # some calibration error occurred
             od_readings = None
 
