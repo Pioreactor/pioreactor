@@ -153,7 +153,7 @@ def am_I_a_worker() -> bool:
 
 
 @cache
-def get_pioreactor_version() -> tuple[int, int, *tuple[int, ...]]:
+def get_pioreactor_version() -> tuple[int, int]:
     # pioreactor model version
     if os.environ.get("MODEL_VERSION"):
         return version_text_to_tuple(os.environ["MODEL_VERSION"])
