@@ -5,8 +5,7 @@
 - **Support for Pioreactor 40mL**
   - UI and backend now accommodates the new Pioreactor 40mL. Change the Pioreactor model on the Inventory page.
 - **Device models and versions now tracked in the database**
-  - Models and versions for each Pioreactor are now stored in the `workers` database table.
-  We're deprecating the `[pioreactor]` section in `config.ini`. You can manage models and versions on the **Inventory** page.
+  - Models and versions for each Pioreactor are now stored in the `workers` database table. We're deprecating the `[pioreactor]` section in `config.ini`. You can manage models and versions on the **Inventory** page.
 - **Improvements to dosing automation settings**:
   - When starting a dosing automation, you can set the initial and max culture volumes.
 - **Raw vs. calibrated OD readings now separated**
@@ -16,12 +15,14 @@
       - `od_reading/calibrated_od1` and `od_reading/calibrated_od2` for **calibrated** values
   - The raw readings will be stored in new database tables, `raw_od_readings`. The calibrated values still occupy the table `od_readings`.
   - Existing topics like `od_reading/od1`, `od_reading/od2`, and `od_reading/ods` remain unchanged, but note they may contain either calibrated or raw data depending on calibration status.
-  - To display the raw OD readings when a calibration is being used, switch the config entry `raw_od_reading` from `0` to `1`.
+  - To display a chart of the raw OD readings when a calibration is being used, switch the config entry `raw_optical_density` from `0` to `1` in the section `[ui.overview.charts]`
 
 #### Breaking changes
 
 - **Changes to `pio workers add`**
-  - This command has been updated to better reflect the new model/version management.
+    - This command has been updated to better reflect the new model/version management.
+- **Removed config parameter `max_volume_to_stop`.**
+    - This is now hardcoded into the software. For 20ml, it's 18ml, and for 40ml, it's 38ml.
 
 #### Bug Fixes
 

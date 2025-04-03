@@ -81,9 +81,13 @@ def tuple_to_text(t: tuple) -> str:
     return ".".join(map(str, t))
 
 
-def version_text_to_tuple(s: str) -> tuple[int, int]:
-    major, minor = map(int, s.split("."))
-    return (major, minor)
+def version_text_to_tuple(s: str) -> tuple[int, int] | tuple[int, int, int]:
+    if len(s.split(".")) == 3:
+        major, minor, patch = map(int, s.split("."))
+        return (major, minor, patch)
+    else:
+        major, minor = map(int, s.split("."))
+        return (major, minor)
 
 
 hardware_version_info = get_hardware_version()

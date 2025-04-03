@@ -20,6 +20,9 @@ if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
     crudini --set /home/pioreactor/.pioreactor/config.ini ui.overview.charts optical_density 1
     crudini --set /home/pioreactor/.pioreactor/config.ini ui.overview.charts raw_optical_density 0
 
+    # remove unused config
+    crudini --del /home/pioreactor/.pioreactor/config.ini dosing_automation.config max_volume_to_stop
+
 fi
 
 # fix any calibration / persistent cache permission issues

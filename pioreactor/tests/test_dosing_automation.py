@@ -22,7 +22,6 @@ from pioreactor.automations.dosing.pid_morbidostat import PIDMorbidostat
 from pioreactor.automations.dosing.silent import Silent
 from pioreactor.automations.dosing.turbidostat import Turbidostat
 from pioreactor.background_jobs.dosing_automation import AltMediaFractionCalculator
-from pioreactor.background_jobs.dosing_automation import close
 from pioreactor.background_jobs.dosing_automation import DosingAutomationJob
 from pioreactor.background_jobs.dosing_automation import LiquidVolumeCalculator
 from pioreactor.background_jobs.dosing_automation import start_dosing_automation
@@ -31,6 +30,10 @@ from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import default_datetime_for_pioreactor
 from pioreactor.whoami import get_unit_name
+
+
+def close(x: float, y: float) -> bool:
+    return abs(x - y) < 1e-9
 
 
 unit = get_unit_name()
@@ -1343,7 +1346,7 @@ def test_automation_will_pause_itself_if_pumping_goes_above_safety_threshold() -
         experiment=experiment,
         duration=0.05,
         volume=0.5,
-        initial_liquid_volume_ml=17.95,
+        initial_liquid_volume_ml=Chemostat.MAX_VIAL_VOLUME_TO_STOP - 0.05,
     ) as job:
         while job.state == "ready":
             pause()
@@ -1355,7 +1358,7 @@ def test_automation_will_pause_itself_if_pumping_goes_above_safety_threshold() -
         job.remove_waste_from_bioreactor(job.unit, job.experiment, ml=5.0, source_of_event="manual")
 
         pause()
-        assert job.liquid_volume <= 17.95
+        assert job.liquid_volume < Chemostat.MAX_VIAL_VOLUME_TO_STOP
 
         job.set_state("ready")
         assert job.state == "ready"

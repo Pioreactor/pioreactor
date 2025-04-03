@@ -44,8 +44,8 @@ def get_active_workers_in_experiment(experiment: str) -> tuple[str, ...]:
 @click.command(name="add", short_help="add a pioreactor worker")
 @click.argument("hostname")
 @click.option("--password", "-p", default="raspberry")
-@click.option("--model-version", "-v", default="1.1")
-@click.option("--model-name", "-m", default="pioreactor_20ml")
+@click.option("--model-version", "-v", required=True, type=click.STRING)
+@click.option("--model-name", "-m", type=click.Choice(["pioreactor_20ml", "pioreactor_40ml"]), required=True)
 @click.option("--address", "-a")
 def add_worker(
     hostname: str, password: str, model_version: str, model_name: str, address: str | None

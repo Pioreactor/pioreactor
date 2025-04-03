@@ -390,15 +390,6 @@ class ADCReader(LoggerMixin):
     def take_reading(self) -> RawPDReadings:
         """
         Sample from the ADS - likely this has been optimized for use for optical density in the Pioreactor system.
-
-
-        Returns
-        ---------
-        readings: dict
-            a dict with specified channels and their reading
-            Ex: {"1": 0.10240, "2": 0.1023459}
-
-
         """
         if not self._setup_complete:
             raise ValueError("Must call tune_adc() first.")
@@ -577,7 +568,7 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
     downstream. Note too that as we are normalizing OD readings, the output has arbitrary units.
     """
 
-    INITIAL = 1.0  # TODO: is this the same for version 1.0 HATs and version 1.0+ HATs???
+    INITIAL = 1.0
 
     def __init__(self, channel: pt.PdChannel) -> None:
         super().__init__()
@@ -586,7 +577,6 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
         )
         self.led_output_emstd = ExponentialMovingStd(alpha=0.95, ema_alpha=0.8, initial_std_value=0.001)
         self.channel = channel
-        # self.logger.debug(f"Using PD channel {channel} as IR LED reference.")
 
     def update(self, ir_output_reading: pt.Voltage) -> None:
         # check if funky things are happening by std. banding

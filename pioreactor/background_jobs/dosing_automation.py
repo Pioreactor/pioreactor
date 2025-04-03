@@ -14,6 +14,7 @@ from msgspec.json import decode
 from pioreactor import exc
 from pioreactor import structs
 from pioreactor import types as pt
+from pioreactor import whoami
 from pioreactor.actions.pump import add_alt_media
 from pioreactor.actions.pump import add_media
 from pioreactor.actions.pump import remove_waste
@@ -24,13 +25,13 @@ from pioreactor.logging import create_logger
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import SummableDict
-from pioreactor.utils import whoami
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import RepeatedTimer
 
 
-def close(x: float, y: float) -> bool:
-    return abs(x - y) < 1e-9
+class classproperty(property):
+    def __get__(self, obj, objtype=None):
+        return self.fget(objtype)
 
 
 def brief_pause() -> float:
@@ -49,6 +50,10 @@ def pause_between_subdoses() -> float:
     d = float(config.get("dosing_automation.config", "pause_between_subdoses_seconds", fallback=5.0))
     time.sleep(d)
     return d
+
+
+def is_20ml() -> bool:
+    return whoami.get_pioreactor_model() == "pioreactor_20ml"
 
 
 """
@@ -199,10 +204,14 @@ class DosingAutomationJob(AutomationJob):
     media_throughput: float  # amount of media that has been expelled
     alt_media_throughput: float  # amount of alt-media that has been expelled
     liquid_volume: float  # amount in the vial
-    MAX_VIAL_VOLUME_TO_STOP: float = config.getfloat(
-        "dosing_automation.config", "max_volume_to_stop", fallback=18.0
-    )
-    MAX_VIAL_VOLUME_TO_WARN: float = 0.95 * MAX_VIAL_VOLUME_TO_STOP
+
+    @classproperty
+    def MAX_VIAL_VOLUME_TO_STOP(cls) -> float:
+        return 18.0 if is_20ml() else 38.0
+
+    @classproperty
+    def MAX_VIAL_VOLUME_TO_WARN(cls) -> float:
+        return 0.95 * cls.MAX_VIAL_VOLUME_TO_STOP
 
     MAX_SUBDOSE = config.getfloat(
         "dosing_automation.config", "max_subdose", fallback=1.0
@@ -274,11 +283,7 @@ class DosingAutomationJob(AutomationJob):
             else:
                 # there is a race condition here: self.run() will run immediately (see run_immediately), but the state of the job is not READY, since
                 # set_duration is run in the __init__ (hence the job is INIT). So we wait 2 seconds for the __init__ to finish, and then run.
-                # Later: in fact, we actually want this to run after an OD reading cycle so we have internal data, so it should wait a cycle of that.
-                if is_pio_job_running("od_reading"):
-                    run_after = 1.0 / config.getfloat("od_reading.config", "samples_per_second")
-                else:
-                    run_after = 2.0
+                run_after = 2.0
 
             self.run_thread = RepeatedTimer(
                 self.duration * 60,
