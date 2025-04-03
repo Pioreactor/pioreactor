@@ -1028,7 +1028,7 @@ def test_calibration_with_irl_data1() -> None:
         ir_led_intensity=70.0,
         angle="90",
         recorded_data={
-            "x": [
+            "y": [
                 0.030373011520747333,
                 0.0678711757682291,
                 0.12972798681328354,
@@ -1038,7 +1038,7 @@ def test_calibration_with_irl_data1() -> None:
                 0.8995772568778957,
                 0.001996680972202709,
             ],
-            "y": [0.042, 0.108, 0.237, 0.392, 0.585, 0.781, MAX_OD, 0.0],
+            "x": [0.042, 0.108, 0.237, 0.392, 0.585, 0.781, 1.131, 0.0],
         },
         pd_channel="2",
         calibrated_on_pioreactor_unit=get_unit_name(),
@@ -1056,10 +1056,10 @@ def test_calibration_with_irl_data1() -> None:
         )
 
     assert cc(float_to_od_readings_struct("2", 0.001)).ods["2"].od == min(cal.recorded_data["x"])
-    assert cc(float_to_od_readings_struct("2", 0.002)).ods["2"].od == 0
+    assert cc(float_to_od_readings_struct("2", 0.002)).ods["2"].od == min(cal.recorded_data["x"])
     assert abs(cc(float_to_od_readings_struct("2", 0.004)).ods["2"].od - 0.0032975807375385234) < 1e-5
     assert abs(cc(float_to_od_readings_struct("2", 0.02)).ods["2"].od - 0.03639585015289039) < 1e-5
-    assert cc(float_to_od_readings_struct("2", 1.0)).ods["2"].od == MAX_OD
+    assert cc(float_to_od_readings_struct("2", 1.5)).ods["2"].od == MAX_OD
 
 
 def test_PhotodiodeIrLedReferenceTrackerStaticInit() -> None:

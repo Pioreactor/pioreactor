@@ -126,9 +126,6 @@ class Monitor(LongRunningBackgroundJob):
         self.logger.debug(f"Pioreactor HAT version: {self.versions['hat']}")
         self.logger.debug(f"Pioreactor firmware version: {self.versions['firmware']}")
         self.logger.debug(f"Pioreactor HAT serial number: {self.versions['hat_serial']}")
-        self.logger.debug(
-            f"Pioreactor: {self.versions['pioreactor_model']} v{self.versions['pioreactor_version']}"
-        )
 
         self.button_down = False
 
