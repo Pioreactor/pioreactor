@@ -25,7 +25,7 @@ const PioreactorIconWithModel = ({ model }) => {
           right: "20%",
         },
       }}
-      max="9999"
+      max={9999}
       badgeContent={badgeContent}
       overlap="circular"
       color="primary"

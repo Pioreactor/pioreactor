@@ -75,8 +75,7 @@ function Header(props) {
 function AddNewPioreactor(props){
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [model, setModel] = useState("pioreactor_20ml"); // setModel isn't used yet
-  const [version, setVersion] = useState("");
+  const [model, setModel] = React.useState(["pioreactor_40ml", "1.0"])
 
   const [isError, setIsError] = useState(false)
   const [errorMsg, setErrorMsg] = useState("")
@@ -98,8 +97,9 @@ function AddNewPioreactor(props){
   const handleNameChange = evt => {
     setName(evt.target.value)
   }
-  const handleVersionChange = evt => {
-    setVersion(evt.target.value)
+  const handleModelVersionChange = evt => {
+    const { modelName, modelVersion } = modelNameAndModelVersionFromModelString(evt.target.value);
+    setModel([modelName, modelVersion]);
   }
 
 
@@ -110,7 +110,7 @@ function AddNewPioreactor(props){
       setErrorMsg("Provide the hostname for the new Pioreactor worker")
       return
     }
-    else if (!version) {
+    else if (!model) {
       setIsError(true)
       setErrorMsg("Provide the model for the new Pioreactor worker. You can change the model later, too.")
       return
@@ -121,7 +121,7 @@ function AddNewPioreactor(props){
     setExpectedPathMsg("Setting up your new Pioreactor...")
     fetch('/api/workers/setup', {
         method: "POST",
-        body: JSON.stringify({name: name, model: model, version: version}),
+        body: JSON.stringify({name: name, model: model[0], version: model[1]}),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
@@ -189,14 +189,14 @@ function AddNewPioreactor(props){
         <FormControl required sx={{mt: "15px", ml: "10px", minWidth: "195px"}} variant="outlined" size="small">
           <InputLabel >Pioreactor model</InputLabel>
           <Select
-            value={version}
-            onChange={handleVersionChange}
+            value={modelStringFromModelNameAndModelVersion(model[0], model[1])}
+            onChange={handleModelVersionChange}
             label="Pioreactor model"
           >
-            <MenuItem value={"pioreactor_40ml|1.0"}>Pioreactor 40ml, v1.0</MenuItem>
+            <MenuItem value={"Pioreactor 40ml, v1.0"}>Pioreactor 40ml, v1.0</MenuItem>
             <Divider/>
-            <MenuItem value={"pioreactor_20ml|1.1"}>Pioreactor 20ml, v1.1</MenuItem>
-            <MenuItem value={"pioreactor_20ml|1.0"}>Pioreactor 20ml, v1.0</MenuItem>
+            <MenuItem value={"Pioreactor 20ml, v1.1"}>Pioreactor 20ml, v1.1</MenuItem>
+            <MenuItem value={"Pioreactor 20ml, v1.0"}>Pioreactor 20ml, v1.0</MenuItem>
           </Select>
         </FormControl>
 
@@ -216,7 +216,7 @@ function AddNewPioreactor(props){
             onClick={onSubmit}
             type="submit"
             loading={isRunning}
-            disabled={!name || !version}
+            disabled={!name || !model}
             endIcon={ <PioreactorIcon /> }
 
           >

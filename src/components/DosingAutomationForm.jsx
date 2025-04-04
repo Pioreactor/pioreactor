@@ -70,7 +70,7 @@ function DosingAutomationForm(props) {
         size="small"
         autoComplete="off"
         id="initial_liquid_volume_ml"
-        label="Initial culture volume"
+        label="Initial vial volume"
         defaultValue={props.liquidVolume}
         InputProps={{
           endAdornment: <InputAdornment position="end">ml</InputAdornment>,
@@ -86,7 +86,7 @@ function DosingAutomationForm(props) {
         size="small"
         autoComplete="off"
         id="max_volume_ml"
-        label={<UnderlineSpan title="Determined by the height of your waste/efflux tube.">Max culture volume</UnderlineSpan>}
+        label={<UnderlineSpan title="Determined by the height of your waste/efflux tube.">Max vial volume</UnderlineSpan>}
         InputProps={{
           endAdornment: <InputAdornment position="end">ml</InputAdornment>,
         }}

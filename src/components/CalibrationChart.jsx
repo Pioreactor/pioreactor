@@ -66,7 +66,10 @@ function generatePolynomialData(calibration, stepCount = 50) {
  * @param {String} deviceName  - optional device name for display
  */
 function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlightedModel, title }) {
-  if (!calibrations || calibrations.length === 0) {
+  if (!deviceName){
+    return <div>No calibrations exist. Try creating a calibration from the command line.</div>
+  }
+  else if (!calibrations || calibrations.length === 0) {
     return <div>No calibrations to plot for {deviceName}.</div>;
   }
 

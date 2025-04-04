@@ -1432,14 +1432,6 @@ function SettingsActionsDialog(props) {
             <table style={{borderCollapse: "separate", borderSpacing: "5px", fontSize: "0.90rem"}}>
               <tr>
                 <td style={{textAlign: "right", minWidth: "120px", color: ""}}>
-                    Pioreactor model
-                </td>
-                <td >
-                  <StylizedCode>{("Pioreactor " + versionInfo.pioreactor_model?.substring(11) + ", v" + versionInfo.pioreactor_version) || "-"}</StylizedCode>
-                </td>
-              </tr>
-              <tr>
-                <td style={{textAlign: "right", minWidth: "120px", color: ""}}>
                     Software version
                 </td>
                 <td >
