@@ -1234,14 +1234,6 @@ function SettingsActionsDialog(props) {
             <table style={{borderCollapse: "separate", borderSpacing: "5px", fontSize: "0.90rem"}}>
               <tr>
                 <td style={{textAlign: "right", minWidth: "120px", color: ""}}>
-                    Pioreactor model
-                </td>
-                <td >
-                  <StylizedCode>{("Pioreactor " + versionInfo.pioreactor_model?.substring(11) + ", v" + versionInfo.pioreactor_version) || "-"}</StylizedCode>
-                </td>
-              </tr>
-              <tr>
-                <td style={{textAlign: "right", minWidth: "120px", color: ""}}>
                     Software version
                 </td>
                 <td >
@@ -1935,7 +1927,7 @@ function Charts(props) {
                   relabelMap={props.relabelMap}
                   yTransformation={eval(chart.y_transformation || "(y) => y")}
                   dataSourceColumn={chart.data_source_column}
-                  isPartitionedBySensor={chart_key === "raw_optical_density"}
+                  isPartitionedBySensor={["raw_optical_density", 'optical_density'].includes(chart_key)}
                   isLiveChart={true}
                   byDuration={props.timeScale === "hours"}
                   client={client}
@@ -1955,7 +1947,9 @@ function Charts(props) {
 
 function Pioreactor({title}) {
   const { experimentMetadata, selectExperiment } = useExperiment();
+  const [unitConfig, setUnitConfig] = useState({})
   const [config, setConfig] = useState({})
+
   const {pioreactorUnit} = useParams();
   const unit = pioreactorUnit
   const [assignedExperiment, setAssignedExperiment] = useState(null)
@@ -1972,6 +1966,8 @@ function Pioreactor({title}) {
 
   useEffect(() => {
     document.title = title;
+    getConfig(setConfig)
+
   }, [title]);
 
   useEffect(() => {
@@ -1984,7 +1980,7 @@ function Pioreactor({title}) {
       }
       return response.json();
     })
-    .then((data) => setConfig(data))
+    .then((data) => setUnitConfig(data))
     .catch((error) => {
       console.error("Fetching configuration failed:", error);
     });
@@ -2040,19 +2036,19 @@ function Pioreactor({title}) {
           }
           </Grid>
           <Grid item lg={8} md={12} xs={12}>
-            <UnitCard modelName={modelName} isActive={isActive} isAssignedToExperiment={experimentMetadata.experiment === assignedExperiment} unit={unit} experiment={experimentMetadata.experiment} config={config}/>
+            <UnitCard modelName={modelName} isActive={isActive} isAssignedToExperiment={experimentMetadata.experiment === assignedExperiment} unit={unit} experiment={experimentMetadata.experiment} config={unitConfig}/>
           </Grid>
           <Grid item lg={4} md={12} xs={12}>
             {modelName === "pioreactor_20ml" &&
-            <Bioreactor20Diagram  experiment={experimentMetadata.experiment} unit={unit} config={config}/>
+            <Bioreactor20Diagram  experiment={experimentMetadata.experiment} unit={unit} config={unitConfig}/>
             }
             {modelName === "pioreactor_40ml" &&
-            <Bioreactor40Diagram  experiment={experimentMetadata.experiment} unit={unit} config={config}/>
+            <Bioreactor40Diagram  experiment={experimentMetadata.experiment} unit={unit} config={unitConfig}/>
             }
           </Grid>
 
           <Grid item xs={12} md={7} container spacing={2} justifyContent="flex-start" style={{height: "100%"}}>
-            <Charts unit={unit} unitsColorMap={{[unit]: colors[0]}} config={config} timeScale={"clock_time"} timeWindow={10000000} experimentMetadata={experimentMetadata}/>
+            <Charts unit={unit} unitsColorMap={{[unit]: colors[0]}} config={unitConfig} timeScale={"clock_time"} timeWindow={10000000} experimentMetadata={experimentMetadata}/>
           </Grid>
           <Grid item xs={12} md={5} container spacing={1} justifyContent="flex-end" style={{height: "100%"}}>
             <Grid item xs={12}>
