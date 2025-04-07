@@ -318,7 +318,7 @@ def test_REF_is_lower_than_0_dot_256_volts(
         samples = []
 
         for i in range(6):
-            samples.append(adc_reader.take_reading()[reference_channel])
+            samples.append(adc_reader.take_reading()[reference_channel].reading)
 
         assert (
             0.02 < mean(samples) < 0.500

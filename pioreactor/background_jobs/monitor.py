@@ -357,6 +357,17 @@ class Monitor(LongRunningBackgroundJob):
             )
 
             subprocess.call("sudo shutdown now --poweroff", shell=True)
+
+        if not utils.is_pio_job_running("temperature_automation") and observed_tmp >= 65:
+            # errant PWM?
+            # small chance this is in an incubator?
+
+            self.logger.error(
+                f"Detected an extremely high temperature but heating is turned off, {observed_tmp} ℃ on the heating PCB - shutting down for safety."
+            )
+
+            subprocess.call("sudo shutdown now --poweroff", shell=True)
+
         self.logger.debug(f"Heating PCB temperature at {round(observed_tmp)} ℃.")
 
     def check_for_mqtt_connection_to_leader(self) -> None:

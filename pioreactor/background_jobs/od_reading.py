@@ -665,9 +665,11 @@ class CachedCalibrationTransformer(CalibrationTransformer):
         )
 
     def _hydrate_model(self, calibration_data: structs.ODCalibration) -> Callable[[pt.Voltage], pt.OD]:
-        if (calibration_data.x != "OD600") or (calibration_data.y != "Voltage"):
-            self.logger.error(f"Calibration {calibration_data.calibration_name} is not for OD600.")
-            raise exc.CalibrationError(f"Calibration {calibration_data.calibration_name} is not for OD600.")
+        if (
+            calibration_data.y != "Voltage"
+        ):  # don't check for OD600 - we can allow other non-OD600 calibrations
+            self.logger.error(f"Calibration {calibration_data.calibration_name} has wrong type.")
+            raise exc.CalibrationError(f"Calibration {calibration_data.calibration_name} has wrong type.")
 
         def _calibrate_signal(observed_voltage: pt.Voltage) -> pt.OD:
             min_OD, max_OD = min(calibration_data.recorded_data["x"]), max(

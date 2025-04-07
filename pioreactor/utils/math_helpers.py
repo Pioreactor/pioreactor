@@ -5,28 +5,33 @@ from typing import Sequence
 
 from pioreactor.utils import argextrema
 
+Number = float | int | bool
 
-def variance(x: Sequence):
+
+def variance(x: Sequence[Number]) -> float:
     from statistics import variance
 
     return variance(x)
 
 
-def mean(x: Sequence):
+def mean(x: Sequence[Number]) -> float:
     from statistics import mean
 
     return mean(x)
 
 
-def trimmed_variance(x: Sequence, cut_off_n=1) -> float:
+def trimmed_variance(x: Sequence[Number], cut_off_n=1) -> float:
     from statistics import variance
+
+    if cut_off_n >= len(x) / 2:
+        raise ValueError("cut_off_n must be less than half the length of x.")
 
     x = list(x)  # copy it
     x.sort()
     return variance(x[cut_off_n:-cut_off_n])
 
 
-def trimmed_mean(x: Sequence, cut_off_n=1) -> float:
+def trimmed_mean(x: Sequence[Number], cut_off_n=1) -> float:
     from statistics import mean
 
     x = list(x)  # copy it
@@ -34,7 +39,9 @@ def trimmed_mean(x: Sequence, cut_off_n=1) -> float:
     return mean(x[cut_off_n:-cut_off_n])
 
 
-def simple_linear_regression(x: Sequence, y: Sequence) -> tuple[tuple[float, float], tuple[float, float]]:
+def simple_linear_regression(
+    x: Sequence[Number], y: Sequence[Number]
+) -> tuple[tuple[float, float], tuple[float, float]]:
     from statistics import linear_regression
 
     n = len(x)
@@ -60,7 +67,7 @@ def simple_linear_regression(x: Sequence, y: Sequence) -> tuple[tuple[float, flo
 
 
 def simple_linear_regression_with_forced_nil_intercept(
-    x: Sequence, y: Sequence
+    x: Sequence[Number], y: Sequence[Number]
 ) -> tuple[tuple[float, float], tuple[float, float]]:
     from statistics import linear_regression
 
@@ -82,7 +89,9 @@ def simple_linear_regression_with_forced_nil_intercept(
     return (slope, std_error_slope), (0, 0.0)
 
 
-def residuals_of_simple_linear_regression(x: Sequence, y: Sequence, trimmed=False) -> list[float]:
+def residuals_of_simple_linear_regression(
+    x: Sequence[Number], y: Sequence[Number], trimmed=False
+) -> list[float]:
     if trimmed:
         argmin_y_, argmax_y_ = argextrema(y)
         x = [v for (i, v) in enumerate(x) if (i != argmin_y_) and (i != argmax_y_)]
@@ -92,7 +101,7 @@ def residuals_of_simple_linear_regression(x: Sequence, y: Sequence, trimmed=Fals
     return [y_ - (slope * x_ + bias) for (x_, y_) in zip(x, y)]
 
 
-def correlation(x: Sequence, y: Sequence) -> float:
+def correlation(x: Sequence[Number], y: Sequence[Number]) -> float:
     from statistics import correlation, StatisticsError
 
     try:
@@ -102,7 +111,7 @@ def correlation(x: Sequence, y: Sequence) -> float:
         raise StatisticsError(f"{e}. x: {x}, y: {y}") from e
 
 
-def closest_point_to_domain(P: list[float], D: tuple[float, float]) -> float:
+def closest_point_to_domain(P: list[Number], D: tuple[Number, Number]) -> float:
     # Note: this function returns the _minimal_ found solution, if there are multiple
     a, b = D
 
