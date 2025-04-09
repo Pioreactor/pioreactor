@@ -1,4 +1,4 @@
-### Upcoming
+### 25.4.9
 
 #### Bug fixes
  - Fix OD Reading not displaying correctly on Pioreactor pages
