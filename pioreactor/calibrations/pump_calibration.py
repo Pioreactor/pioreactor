@@ -267,8 +267,8 @@ def run_tests(
             echo(red("Not a number - retrying."))
 
     # calculate min and max duration based on tracer_ml
-    min_duration = min(mls_to_calibrate_for) * 0.75 / tracer_ml * tracer_duration
-    max_duration = max(mls_to_calibrate_for) * 1.333 / tracer_ml * tracer_duration
+    min_duration = min(mls_to_calibrate_for) * 0.9 / tracer_ml * tracer_duration
+    max_duration = max(mls_to_calibrate_for) * 1.1 / tracer_ml * tracer_duration
 
     results: list[float] = []
     durations_to_test = [min_duration] * 4 + [(min_duration + max_duration) / 2] * 2 + [max_duration] * 4
@@ -302,7 +302,7 @@ def run_tests(
                     )
                 )
             )
-            while not confirm(style(green(f"Ready to test {duration:.2f}s?"))):
+            while not confirm(style(green(f"Ready to test {duration:.1f}s?"))):
                 pass
 
             execute_pump(
