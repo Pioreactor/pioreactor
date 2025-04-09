@@ -1,3 +1,11 @@
+### Upcoming
+
+#### Bug fixes
+ - Fix OD Reading not displaying correctly on Pioreactor pages
+ - Fix duplicates in Raw OD Reading chart's legend
+ - Fix self-test "REF is correct magnitude"
+ - Add back min-duration and max-duration to pump calibrations.
+
 ### 25.4.3
 
 #### Enhancements

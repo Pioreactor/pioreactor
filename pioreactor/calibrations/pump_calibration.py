@@ -52,16 +52,26 @@ def introduction(pump_device) -> None:
 
     logging.disable(logging.WARNING)
 
+    try:
+        channel_pump_is_configured_for = config.get("PWM_reverse", pump_device.removesuffix("_pump"))
+    except KeyError:
+        echo(
+            red(
+                f"❌ {pump_device} is not present in config.ini. Please add it to the [PWM] section and try again."
+            )
+        )
+        raise Abort()
+
     echo(
         f"""This routine will calibrate the {pump_device} on your current Pioreactor. You'll need:
 
     1. A Pioreactor
-    2. A vial placed on a scale with accuracy at least 0.1g
+    2. A vial is placed on a scale that measures weight with a minimum resolution of 0.1 grams.
        OR an accurate graduated cylinder.
     3. A larger container filled with water
-    4. {pump_device} connected to the correct PWM channel (1, 2, 3, or 4) as determined in your configuration.
+    4. {pump_device} connected to the correct PWM channel {channel_pump_is_configured_for}.
 
-We will dose for a set duration, you'll measure how much volume was expelled, and then record it back here. After doing this a few times, we can construct a calibration line for this pump.
+We will dose for a set duration, you'll measure how much volume was expelled, and then record it back here. After doing this a few times, we can construct a calibration curve for this pump.
 """
     )
     confirm(green("Proceed?"), abort=True, default=True)
@@ -100,15 +110,8 @@ def setup(
     pump_device: PumpCalibrationDevices, execute_pump: Callable, hz: float, dc: float, unit: str
 ) -> None:
     # set up...
-    try:
-        channel_pump_is_configured_for = config.get("PWM_reverse", pump_device.removesuffix("_pump"))
-    except KeyError:
-        echo(
-            red(
-                f"❌ {pump_device} is not present in config.ini. Please add it to the [PWM] section and try again."
-            )
-        )
-        raise Abort()
+    channel_pump_is_configured_for = config.get("PWM_reverse", pump_device.removesuffix("_pump"))
+
     clear()
     echo()
     echo(green(bold("Step 2")))
@@ -128,7 +131,7 @@ def setup(
 
     while not confirm(green("Ready to start pumping?")):
         pass
-
+    echo()
     echo(
         bold(
             "Press CTRL+C when the tubes are completely filled with water and there are no air pockets in the tubes."
@@ -163,6 +166,7 @@ def setup(
 
 
 def choose_settings() -> tuple[float, float]:
+    clear()
     hz = prompt(
         style(green("Optional: Enter frequency of PWM. [enter] for default 250 hz")),
         type=click.FloatRange(0.1, 10000),
@@ -207,14 +211,8 @@ def plot_data(x, y, title, x_min=None, x_max=None, interpolation_curve=None, hig
 
 
 def run_tests(
-    execute_pump: Callable,
-    hz: float,
-    dc: float,
-    min_duration: float,
-    max_duration: float,
-    pump_device: PumpCalibrationDevices,
-    unit: str,
-) -> tuple[list[float], list[float]]:
+    execute_pump: Callable, hz: float, dc: float, unit: str, mls_to_calibrate_for: list[float]
+) -> tuple[list[float], list[float], float, float]:
     clear()
     echo()
     echo(green(bold("Step 3")))
@@ -231,6 +229,46 @@ def run_tests(
         calibrated_on_pioreactor_unit=unit,
         recorded_data={"x": [], "y": []},
     )
+
+    tracer_duration = 1.0
+
+    echo("We will run the pump for a set amount of time, and you will measure how much liquid is expelled.")
+    echo("Use a small container placed on top of an accurate weighing scale.")
+    echo("Hold the end of the outflow tube above so the container catches the expelled liquid.")
+    echo()
+
+    while not confirm(style(green(f"Ready to test {tracer_duration:.2f}s?"))):
+        pass
+
+    execute_pump(
+        duration=tracer_duration,
+        source_of_event="pump_calibration",
+        unit=get_unit_name(),
+        experiment=get_testing_experiment_name(),
+        calibration=empty_calibration,
+    )
+
+    while True:
+        r = prompt(
+            style(green("Enter amount of water expelled (g or ml), or REDO")),
+            confirmation_prompt=style(green("Repeat for confirmation")),
+        )
+        if r == "REDO":
+            clear()
+            echo()
+            continue
+
+        try:
+            tracer_ml = float(r)
+            clear()
+            echo()
+            break
+        except ValueError:
+            echo(red("Not a number - retrying."))
+
+    # calculate min and max duration based on tracer_ml
+    min_duration = min(mls_to_calibrate_for) * 0.75 / tracer_ml * tracer_duration
+    max_duration = max(mls_to_calibrate_for) * 1.333 / tracer_ml * tracer_duration
 
     results: list[float] = []
     durations_to_test = [min_duration] * 4 + [(min_duration + max_duration) / 2] * 2 + [max_duration] * 4
@@ -292,7 +330,7 @@ def run_tests(
             except ValueError:
                 echo(red("Not a number - retrying."))
 
-    return durations_to_test, results
+    return durations_to_test, results, min_duration, max_duration
 
 
 def save_results(
@@ -322,8 +360,28 @@ def save_results(
     return pump_calibration_result
 
 
+def get_user_calibrations() -> list[float]:
+    clear()
+    mls = []
+    r = prompt(
+        green("Enter the volume you wish to calibrate around (mL). [enter] to use default 1.0 ml"),
+        default=1.0,
+        type=float,
+    )
+    mls.append(float(r))
+    while click.confirm(green("Do you want to add another value?")):
+        r = prompt(
+            green("Enter another volume you wish to calibrate around (mL)"),
+            default=1.0,
+            type=float,
+        )
+        mls.append(float(r))
+
+    return mls
+
+
 def run_pump_calibration(
-    pump_device, min_duration: float = 0.40, max_duration: float = 1.5
+    pump_device,
 ) -> structs.SimplePeristalticPumpCalibration:
     unit = get_unit_name()
     experiment = get_assigned_experiment_name(unit)
@@ -345,19 +403,22 @@ def run_pump_calibration(
             raise ValueError()
 
         name = get_metadata_from_user(pump_device)
+        mls_to_calibrate_for = get_user_calibrations()
 
-        is_ready = True
-        while is_ready:
+        settings_are_correct = False
+        while not settings_are_correct:
             hz, dc = choose_settings()
             setup(pump_device, execute_pump, hz, dc, unit)
 
-            is_ready = confirm(
+            settings_are_correct = not confirm(
                 style(green("Do you want to change the frequency or duty cycle?")),
                 prompt_suffix=" ",
                 default=False,
             )
 
-        durations, volumes = run_tests(execute_pump, hz, dc, min_duration, max_duration, pump_device, unit)
+        durations, volumes, min_duration, max_duration = run_tests(
+            execute_pump, hz, dc, unit, mls_to_calibrate_for
+        )
 
         (slope, std_slope), (
             bias,

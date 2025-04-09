@@ -88,6 +88,10 @@ class Monitor(LongRunningBackgroundJob):
         )
         return 66.0 if is_20ml_v1 else 85.0
 
+    @classproperty
+    def MAX_TEMP_TO_SHUTDOWN_IF_NO_TEMP_AUTOMATION(cls) -> float:
+        return 65.0
+
     job_name = "monitor"
     published_settings = {
         "computer_statistics": {"datatype": "json", "settable": False},
@@ -358,9 +362,11 @@ class Monitor(LongRunningBackgroundJob):
 
             subprocess.call("sudo shutdown now --poweroff", shell=True)
 
-        if not utils.is_pio_job_running("temperature_automation") and observed_tmp >= 65:
+        elif observed_tmp >= self.MAX_TEMP_TO_SHUTDOWN_IF_NO_TEMP_AUTOMATION and not utils.is_pio_job_running(
+            "temperature_automation"
+        ):
             # errant PWM?
-            # small chance this is in an incubator?
+            # false positive: small chance this is in an incubator?
 
             self.logger.error(
                 f"Detected an extremely high temperature but heating is turned off, {observed_tmp} ℃ on the heating PCB - shutting down for safety."
