@@ -1,3 +1,12 @@
+### 25.4.9
+
+#### Bug fixes
+ - Fix OD Reading not displaying correctly on Pioreactor pages
+ - Fix duplicates in Raw OD Reading chart's legend
+ - Improvements to pump calibration flow that will ask user what volumes they wish to calibrate for.
+ - Fix self-test "REF is correct magnitude"
+ - self-tests don't use calibrated OD readings anymore.
+
 ### 25.4.3
 
 #### Enhancements

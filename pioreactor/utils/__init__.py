@@ -174,7 +174,7 @@ class managed_lifecycle:
             # this only works on the main thread.
             append_signal_handlers(signal.SIGTERM, [self._exit])
             append_signal_handlers(
-                signal.SIGINT, [self._exit, lambda *args: signal.signal(signal.SIGINT, signal.SIG_IGN)]
+                signal.SIGINT, [self._exit]
             )  # ignore future sigints so we clean up properly.
         except ValueError:
             pass

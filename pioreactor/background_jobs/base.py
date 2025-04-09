@@ -691,11 +691,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             # keyboard interrupt
             append_signal_handlers(
                 signal.SIGINT,
-                [
-                    exit_gracefully,
-                    # add a "ignore all future SIGINTs" onto the top of the stack.
-                    lambda *args: signal.signal(signal.SIGINT, signal.SIG_IGN),
-                ],
+                [exit_gracefully],
             )
 
             try:

@@ -38,8 +38,6 @@ def test_save_and_load_calibration(temp_calibration_dir) -> None:
         created_at=datetime.now(timezone.utc),
         curve_data_=[1.0, 2.0, 3.0],
         curve_type="poly",
-        x="voltage",
-        y="od600",
         recorded_data={"x": [0.1, 0.2], "y": [0.3, 0.4]},
         ir_led_intensity=1.23,
         angle="90",
