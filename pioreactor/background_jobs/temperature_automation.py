@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from contextlib import suppress
+from threading import Event
 from time import sleep
 from typing import Any
 from typing import Optional
@@ -125,6 +126,7 @@ class TemperatureAutomationJob(AutomationJob):
 
         self.heater_duty_cycle = 0.0
         self.pwm = self.setup_pwm()
+        self._exit_event = Event()
 
         self.heating_pcb_tmp_driver = TMP1075(address=hardware.TEMP)
 
@@ -167,6 +169,11 @@ class TemperatureAutomationJob(AutomationJob):
 
     def turn_off_heater(self) -> None:
         self._update_heater(0)
+        self.pwm.clean_up()
+
+        # we re-instantiate it as some other process may have messed with the channel.
+        self.pwm = self.setup_pwm()
+        self.pwm.change_duty_cycle(0)
         self.pwm.clean_up()
 
     def update_heater(self, new_duty_cycle: float) -> bool:
@@ -221,11 +228,6 @@ class TemperatureAutomationJob(AutomationJob):
             )
 
         averaged_temp = running_sum / running_count
-        if averaged_temp == 0.0 and self.automation_name != "only_record_temperature":
-            # this is a hardware fluke, not sure why, see #308. We will return something very high to make it shutdown
-            # todo: still needed? last observed on  July 18, 2022
-            self.logger.error("Temp sensor failure. Switching off. See issue #308")
-            self._update_heater(0.0)
 
         with local_intermittent_storage("temperature_and_heating") as cache:
             cache["heating_pcb_temperature"] = averaged_temp
@@ -275,12 +277,15 @@ class TemperatureAutomationJob(AutomationJob):
         return temp
 
     def on_disconnected(self) -> None:
-        with suppress(AttributeError):
-            self.turn_off_heater()
+        self._exit_event.set()
 
         with suppress(AttributeError):
-            self.read_external_temperature_timer.cancel()
             self.publish_temperature_timer.cancel()
+            self.read_external_temperature_timer.cancel()
+
+        # this comes after, in case the automation changes dc after publishing the temp.
+        with suppress(AttributeError):
+            self.turn_off_heater()
 
     def on_sleeping(self) -> None:
         self.publish_temperature_timer.pause()
@@ -347,9 +352,9 @@ class TemperatureAutomationJob(AutomationJob):
                     time_series_of_temp.append(self.read_external_temperature())
                     sleep(time_between_samples)
 
-                    if self.state != self.READY:
-                        # TODO: does this
+                    if self._exit_event.is_set():
                         # if our state changes in this loop, exit. Note that the finally block is still called.
+                        previous_heater_dc = 0
                         return
 
             except exc.HardwareNotFoundError as e:
@@ -357,8 +362,6 @@ class TemperatureAutomationJob(AutomationJob):
                 self.logger.error(e)
                 raise e
             finally:
-                # we turned off the heater above - we should always turn if back on if there is an error.
-
                 # update heater first before publishing the temperature. Why? A downstream process
                 # might listen for the updating temperature, and update the heater (pid_thermostat),
                 # and if we update here too late, we may overwrite their changes.
