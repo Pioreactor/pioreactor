@@ -70,6 +70,7 @@ class HardwarePWMOutputDevice(HardwarePWM):
             raise ValueError("must call .start() first!")
 
     def close(self) -> None:
+        self._started = False
         pass
 
 
@@ -119,6 +120,7 @@ class SoftwarePWMOutputDevice:
     def close(self):
         import lgpio
 
+        self._started = False
         try:
             lgpio.gpiochip_close(self._handle)
         except lgpio.error:

@@ -322,13 +322,18 @@ class Stirrer(BackgroundJobWithDodging):
 
         if calibration is True:
             possible_calibration = load_active_calibration("stirring")
-        elif isinstance(calibration, structs.SimpleStirringCalibration):
+        elif isinstance(calibration, structs.CalibrationBase):
             possible_calibration = calibration
         else:
             possible_calibration = None
 
         if possible_calibration is not None:
             cal = possible_calibration
+
+            if cal.y != "RPM":
+                self.logger.error(f"Calibration {cal.calibration_name} has wrong type.")
+                raise exc.CalibrationError(f"Calibration {cal.calibration_name} has wrong type.")
+
             self.logger.debug(f"Found stirring calibration: {cal.calibration_name}.")
 
             # since we have calibration data, and the initial_duty_cycle could be

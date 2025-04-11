@@ -1,3 +1,8 @@
+### 25.4.11
+
+#### Bug fixes
+ - Fix for heater PCB not shutting down correctly.
+
 ### 25.4.9
 
 #### Bug fixes

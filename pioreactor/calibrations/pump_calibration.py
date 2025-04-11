@@ -267,7 +267,7 @@ def run_tests(
             echo(red("Not a number - retrying."))
 
     # calculate min and max duration based on tracer_ml
-    min_duration = min(mls_to_calibrate_for) * 0.9 / tracer_ml * tracer_duration
+    min_duration = min(mls_to_calibrate_for) * 0.8 / tracer_ml * tracer_duration
     max_duration = max(mls_to_calibrate_for) * 1.1 / tracer_ml * tracer_duration
 
     results: list[float] = []

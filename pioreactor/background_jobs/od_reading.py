@@ -1267,7 +1267,7 @@ def start_od_reading(
     if calibration is True:
         calibration_transformer = CachedCalibrationTransformer()
         calibration_transformer.hydate_models(load_active_calibration("od"))
-    elif isinstance(calibration, structs.ODCalibration):
+    elif isinstance(calibration, structs.CalibrationBase):
         calibration_transformer = CachedCalibrationTransformer()
         calibration_transformer.hydate_models(calibration)
     else:

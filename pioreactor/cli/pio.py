@@ -385,7 +385,7 @@ def update_app(
             if whoami.am_I_leader():
                 commands_and_priority.extend([
                     (f"sudo pip install --no-index --find-links={tmp_rls_dir}/wheels/ {tmp_rls_dir}/pioreactor-{version_installed}-py3-none-any.whl[leader,worker]", 3),
-                    (f'sudo sqlite3 {config.get("storage", "database")} < {tmp_rls_dir}/update.sql', 10),
+                    (f'sudo sqlite3 {config.get("storage", "database")} < {tmp_rls_dir}/update.sql || :', 10),
                 ])
             else:
                 commands_and_priority.extend([
@@ -429,8 +429,8 @@ def update_app(
         # BETTER TODO: just download the release archive and run the script above.....
         tmp_dir = tempfile.gettempdir()
         tmp_rls_dir = f"{tmp_dir}/release_{version_installed}"
-        commands_and_priority.append((f"rm -rf {tmp_rls_dir}", -10))
         commands_and_priority.append((f"mkdir {tmp_rls_dir}", -9))
+        commands_and_priority.append((f"rm -rf {tmp_rls_dir}", -10))
 
         for asset in release_metadata["assets"]:
             # add the following files to the release. They should ideally be idempotent!
