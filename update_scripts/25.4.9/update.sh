@@ -23,6 +23,28 @@ if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
     # remove unused config
     crudini --del /home/pioreactor/.pioreactor/config.ini dosing_automation.config max_volume_to_stop
 
+    DB_PATH=$(crudini --get /home/pioreactor/.pioreactor/config.ini storage database)
+
+    sqlite3 "$DB_PATH" <<EOF
+CREATE TABLE IF NOT EXISTS raw_od_readings (
+    experiment TEXT NOT NULL,
+    pioreactor_unit TEXT NOT NULL,
+    timestamp TEXT NOT NULL,
+    od_reading REAL NOT NULL,
+    channel INTEGER CHECK (channel IN (1, 2)) NOT NULL,
+    FOREIGN KEY (experiment) REFERENCES experiments (
+        experiment
+    ) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS raw_od_readings_ix
+ON raw_od_readings (experiment, pioreactor_unit, timestamp);
+EOF
+
+    sqlite3 "$DB_PATH" "ALTER TABLE workers ADD COLUMN model_version TEXT;" || true
+    sqlite3 "$DB_PATH" "ALTER TABLE workers ADD COLUMN model_name TEXT;" || true
+
+
 fi
 
 # fix any calibration / persistent cache permission issues
