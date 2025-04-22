@@ -18,7 +18,7 @@ import ListItemAvatar from '@mui/material/ListItemAvatar';
 import ListItemSecondaryAction from '@mui/material/ListItemSecondaryAction';
 import ListItemText from '@mui/material/ListItemText';
 import DeleteIcon from '@mui/icons-material/Delete';
-import GetAppIcon from '@mui/icons-material/GetApp';
+import DownloadIcon from '@mui/icons-material/Download';
 import CircularProgress from '@mui/material/CircularProgress';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import Dialog from '@mui/material/Dialog';
@@ -77,7 +77,7 @@ function InstallByNameDialog(props){
     <React.Fragment>
 
     <Button style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="primary" onClick={handleClickOpen}>
-      <GetAppIcon fontSize="15"/> Install plugin by name
+      <DownloadIcon fontSize="small"/> Install plugin by name
     </Button>
     <Dialog open={open} onClose={handleClose} aria-labelledby="form-dialog-title">
       <DialogTitle>
@@ -117,7 +117,7 @@ function InstallByNameDialog(props){
             style={{marginTop: "20px", textTransform: 'none'}}
             onClick={onSubmit}
             type="submit"
-            endIcon={<GetAppIcon />}
+            endIcon={<DownloadIcon />}
           >
             Install
           </Button>
@@ -235,7 +235,7 @@ function ListSuggestedPlugins({selectedUnit, installedPlugins}){
                   aria-label="install"
                   value={selectedUnit}
                   onClick={(e) => installPlugin(e.target.value, plugin.name)}
-                  //endIcon={<GetAppIcon />}
+                  //endIcon={<DownloadIcon />}
                   style={{textTransform: 'none'}}
                   sx={{ml: "5px"}}
                   disabled={installedPlugins.includes(plugin.name)}

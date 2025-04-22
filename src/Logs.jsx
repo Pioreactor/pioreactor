@@ -6,7 +6,7 @@ import MenuItem from "@mui/material/MenuItem";
 import Button from "@mui/material/Button";
 import Divider from "@mui/material/Divider";
 import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
-import GetAppIcon from '@mui/icons-material/GetApp';
+import DownloadIcon from '@mui/icons-material/Download';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import PaginatedLogsTable from "./components/PaginatedLogsTable";
@@ -135,7 +135,7 @@ function Logs(props) {
                 {assignedUnits.map((unit) => (
                   <MenuItem key={unit} value={unit}>{unit}</MenuItem>
                 ))}
-                <MenuItem value="$broadcast"><PioreactorsIcon fontSize="15" sx={{verticalAlign: "middle", margin: "0px 4px"}} />All assigned Pioreactors</MenuItem>
+                <MenuItem value="$broadcast"><PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 4px"}} />All assigned Pioreactors</MenuItem>
               </Select>
             </Typography>
             <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
@@ -146,7 +146,7 @@ function Logs(props) {
                 onSubmit={handleSubmitDialog}
               />
               <Button to={`/export-data`} component={Link} style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="primary">
-                <GetAppIcon fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Export logs
+                <DownloadIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Export logs
               </Button>
               <Divider orientation="vertical" flexItem variant="middle"/>
               <ManageExperimentMenu experiment={experimentMetadata.experiment}/>

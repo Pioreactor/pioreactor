@@ -163,6 +163,7 @@ function UploadArchiveAndConfirm(props) {
             <p>To avoid possible data interruptions, we suggest updating between running experiments.
             Learn more about <a href="https://docs.pioreactor.com/user-guide/updating-software#method-2-update-using-a-zip-file-and-the-ui" target="_blank" rel="noopener noreferrer">updating from a zip file</a>.</p>
 
+            {units.length > 1 &&
             <Box sx={{my: 2}}>
               <FormControl sx={{mt: 2, minWidth: "195px"}} variant="outlined" size="small">
                 <InputLabel >Units to update</InputLabel>
@@ -175,12 +176,11 @@ function UploadArchiveAndConfirm(props) {
                   {units.map((unit) => (
                     <MenuItem key={unit} value={unit}>{unit}</MenuItem>
                   ))}
-                  {units.length > 1 &&
-                  <MenuItem value="$broadcast"><PioreactorsIcon fontSize="15" sx={{verticalAlign: "middle", margin: "0px 4px"}} />All Pioreactors</MenuItem>
-                  }
+                  <MenuItem value="$broadcast"><PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 4px"}} />All Pioreactors</MenuItem>
                 </Select>
               </FormControl>
             </Box>
+          }
 
 
             <Box sx={{display: "flex", justifyContent: "start", mt: 3}}>
@@ -374,7 +374,7 @@ function PageHeader(props) {
           </Box>
           <Link color="inherit" underline="none" href={`https://github.com/Pioreactor/pioreactor/releases/tag/${latestVersion}`} target="_blank" rel="noopener noreferrer">
             <Button sx={{textTransform: 'none', float: "right", marginRight: "0px"}} color="primary">
-              <OpenInNewIcon fontSize="15" sx={{fontSize: 15, verticalAlign: "middle", margin: "0px 3px"}}/> View latest release
+              <OpenInNewIcon fontSize="small" sx={{fontSize: 15, verticalAlign: "middle", margin: "0px 3px"}}/> View latest release
             </Button>
           </Link>
         </Box>

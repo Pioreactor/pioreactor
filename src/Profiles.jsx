@@ -134,8 +134,8 @@ function RunExperimentProfilesContent({
           </FormControl>
         </Box>
       </Grid>
-      <Grid item xs={2} />
-      <Grid container item xs={4} direction="column" alignItems="flex-end">
+      <Grid item xs={1} />
+      <Grid container item xs={5} direction="column" alignItems="flex-end">
         <Grid item xs={4} />
         <Grid item xs={8} >
           <Button
@@ -148,7 +148,7 @@ function RunExperimentProfilesContent({
             component={Link}
             disabled={ selectedExperimentProfile === ''}
           >
-            <EditIcon fontSize="15" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
+            <EditIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
             Edit
           </Button>
           <Button
@@ -160,7 +160,7 @@ function RunExperimentProfilesContent({
             onClick={getSourceAndView}
             style={{ textTransform: "none" }}
           >
-            <CodeIcon fontSize="15" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
+            <CodeIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
             {viewSource ? "View preview" : "View source"}
           </Button>
           <Button
@@ -172,7 +172,7 @@ function RunExperimentProfilesContent({
             style={{ marginRight: "5px", textTransform: "none" }}
             disabled={selectedExperimentProfile === ''}
           >
-            <DeleteIcon fontSize="15" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
+            <DeleteIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
             Delete
           </Button>
         </Grid>
@@ -364,7 +364,7 @@ function Profiles(props) {
                   style={{ textTransform: 'none', marginRight: "0px", float: "right" }}
                   color="primary"
                 >
-                  <AddIcon fontSize="15" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
+                  <AddIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
                   Create new profile
                 </Button>
                 <Divider orientation="vertical" flexItem variant="middle" />

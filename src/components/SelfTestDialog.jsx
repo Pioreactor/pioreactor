@@ -99,10 +99,10 @@ export default function SelfTestDialog({client, disabled, experiment, unit, labe
 
   function Icon(){
     if (selfTestTests == null){
-      return <IndeterminateCheckBoxOutlinedIcon color={colorOfIcon()} fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/>
+      return <IndeterminateCheckBoxOutlinedIcon color={colorOfIcon()} fontSize="small" sx={{verticalAlign: "middle", margin: "0px 3px"}}/>
     }
     else {
-      return selfTestTests.publishedSettings["all_tests_passed"].value ? <CheckBoxOutlinedIcon color={colorOfIcon()} fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> : <IndeterminateCheckBoxOutlinedIcon color={colorOfIcon()} fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/>
+      return selfTestTests.publishedSettings["all_tests_passed"].value ? <CheckBoxOutlinedIcon color={colorOfIcon()} fontSize="small" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> : <IndeterminateCheckBoxOutlinedIcon color={colorOfIcon()} fontSize="small" sx={{verticalAlign: "middle", margin: "0px 3px"}}/>
     }
   }
 

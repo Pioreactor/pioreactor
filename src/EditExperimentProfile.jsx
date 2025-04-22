@@ -15,7 +15,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import Snackbar from '@mui/material/Snackbar';
 import Editor from 'react-simple-code-editor';
 import { highlight, languages } from 'prismjs';
-import 'prismjs/components/prism-yaml'; // You can add more languages or change it
+import 'prismjs/components/prism-yaml';
 import {DisplayProfile, DisplayProfileError} from "./components/DisplayProfile"
 
 function addQuotesToBrackets(input) {

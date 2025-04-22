@@ -16,7 +16,7 @@ import Checkbox from '@mui/material/Checkbox';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/Card';
 import {getConfig, getRelabelMap, colors, DefaultDict} from "./utilities"
-import GetAppIcon from '@mui/icons-material/GetApp';
+import DownloadIcon from '@mui/icons-material/Download';
 import { Link } from 'react-router-dom';
 
 // TODO:
@@ -191,7 +191,7 @@ function ExperimentsContainer(props) {
           </Typography>
           <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
             <Button to={`/export-data?experiment=${experimentSelection}&experiments=1${additionalQueryString}`} component={Link} style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="primary">
-              <GetAppIcon fontSize="15" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Export experiment data
+              <DownloadIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Export experiment data
             </Button>
           </Box>
         </Box>

@@ -144,7 +144,7 @@ function AddNewPioreactor(props){
   return (
     <React.Fragment>
     <Button onClick={handleClickOpen} style={{textTransform: 'none', float: "right", marginRight: "0px"}} color="primary">
-      <AddIcon fontSize="15" sx={textIcon}/> Add new Pioreactor
+      <AddIcon fontSize="small" sx={textIcon}/> Add new Pioreactor
     </Button>
     <Dialog open={open} onClose={handleClose} aria-labelledby="form-dialog-title">
       <DialogTitle>
@@ -576,7 +576,7 @@ function Blink({unit}){
 
   return (
     <Button style={{textTransform: 'none'}} className={flashing ? 'blinkled' : ''}  onClick={onClick} color="primary">
-      <FlareIcon color="primary" fontSize="15" sx={textIcon}/> Identify
+      <FlareIcon color="primary" fontSize="small" sx={textIcon}/> Identify
     </Button>
 )}
 

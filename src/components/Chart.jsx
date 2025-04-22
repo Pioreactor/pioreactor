@@ -499,7 +499,6 @@ ${this.relabelAndFormatSeries(seriesLabel)}: ${Math.round(this.yTransformation(d
             }}
             data={this.state.names.map(this.selectLegendData).filter(item => item && item.name)}
           />
-          {console.log(Object.keys(this.state.seriesMap))}
           {Object.keys(this.state.seriesMap).map(this.selectVictoryLines)}
         </VictoryChart>
     );

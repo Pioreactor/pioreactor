@@ -400,14 +400,6 @@ function LeaderCard({leaderHostname}) {
           </tr>
           <tr>
             <td style={{textAlign: "left", minWidth: "120px", color: ""}}>
-                UI version
-            </td>
-            <td >
-              <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{uiVersion()}</code>
-            </td>
-          </tr>
-          <tr>
-            <td style={{textAlign: "left", minWidth: "120px", color: ""}}>
                 IPv4
             </td>
             <td>

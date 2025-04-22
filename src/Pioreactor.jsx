@@ -289,7 +289,7 @@ function ButtonStopProcess({experiment, unit}) {
 
   return (
     <Button style={{textTransform: 'none', float: "right" }} color="secondary" onClick={handleClick}>
-      <ClearIcon fontSize="15" sx={textIcon}/> Stop all activity
+      <ClearIcon fontSize="small" sx={textIcon}/> Stop all activity
     </Button>
   );
 }
@@ -448,7 +448,7 @@ function CalibrateDialog(props) {
   return (
     <React.Fragment>
       <Button style={{textTransform: 'none', float: "right" }} color="primary" disabled={props.disabled} onClick={handleClickOpen}>
-        <TuneIcon color={props.disabled ? "disabled" : "primary"} fontSize="15" sx={textIcon}/> Calibrate
+        <TuneIcon color={props.disabled ? "disabled" : "primary"} fontSize="small" sx={textIcon}/> Calibrate
       </Button>
       <Dialog open={open} onClose={handleClose} aria-labelledby="form-dialog-title">
         <DialogTitle>
@@ -783,7 +783,7 @@ function SettingsActionsDialog(props) {
   return (
     <div>
     <Button style={{textTransform: 'none', float: "right" }} disabled={props.disabled} onClick={handleClickOpen} color="primary">
-      <SettingsIcon color={props.disabled ? "disabled" : "primary"} fontSize="15" sx={textIcon}/> Manage
+      <SettingsIcon color={props.disabled ? "disabled" : "primary"} fontSize="small" sx={textIcon}/> Manage
     </Button>
     <Dialog maxWidth={isLargeScreen ? "sm" : "md"} fullWidth={true} open={open} onClose={handleClose} PaperProps={{
       sx: {
@@ -1547,7 +1547,7 @@ function FlashLEDButton(props){
 
   return (
     <Button style={{textTransform: 'none', float: "right"}} className={flashing ? 'blinkled' : ''}  disabled={props.disabled} onClick={onClick} color="primary">
-      <FlareIcon color={props.disabled ? "disabled" : "primary"} fontSize="15" sx={textIcon}/> <span > Identify </span>
+      <FlareIcon color={props.disabled ? "disabled" : "primary"} fontSize="small" sx={textIcon}/> <span > Identify </span>
     </Button>
 )}
 

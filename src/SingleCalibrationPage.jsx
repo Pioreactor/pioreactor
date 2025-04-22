@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { useParams,  Link as RouterLink } from "react-router-dom";
+import { useParams,  useNavigate,  Link as RouterLink } from "react-router-dom";
+import { useConfirm } from 'material-ui-confirm';
 import { CircularProgress, Button, Typography, Box } from "@mui/material";
 import {checkTaskCallback, colors, DefaultDict} from "./utilities"
 import Link from '@mui/material/Link';
@@ -18,6 +19,7 @@ import PioreactorIcon from "./components/PioreactorIcon"
 import dayjs from 'dayjs';
 import Snackbar from '@mui/material/Snackbar';
 import TuneIcon from '@mui/icons-material/Tune';
+import DeleteIcon from '@mui/icons-material/Delete';
 import Chip from '@mui/material/Chip';
 import DoNotDisturbOnOutlinedIcon from '@mui/icons-material/DoNotDisturbOnOutlined';
 import CheckCircleOutlineOutlinedIcon from '@mui/icons-material/CheckCircleOutlineOutlined';
@@ -80,7 +82,38 @@ function formatPolynomial(coefficients) {
 
 
 
+function Delete({ pioreactorUnit, device, calibrationName }) {
+  const navigate = useNavigate()
+  const confirm = useConfirm();
+
+  const deleteCalibration = () => {
+    confirm({
+      description: 'Deleting this calibration will remove it from disk. This is irreversible. Do you wish to continue?',
+      title: `Delete calibration ${calibrationName}?`,
+      confirmationText: "Confirm",
+      confirmationButtonProps: {color: "primary"},
+      cancellationButtonProps: {color: "secondary"},
+    }).then(() => {
+      fetch(`/api/workers/${pioreactorUnit}/calibrations/${device}/${calibrationName}`,
+        {method: "DELETE"})
+      .then((response) => {
+        if (response.ok){
+           navigate(`/calibrations/${pioreactorUnit}/${device}`, {replace: true})
+        }
+      })
+    }).catch(() => {});
+  };
+
+  return (
+    <Button style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="secondary" onClick={deleteCalibration}>
+       <DeleteIcon fontSize="small"/> Delete
+    </Button>
+)}
+
+
+
 function SingleCalibrationPage(props) {
+  const { pioreactorUnit, device, calibrationName } = useParams();
 
   React.useEffect(() => {
     document.title = props.title;
@@ -96,17 +129,17 @@ function SingleCalibrationPage(props) {
             </Box>
           </Typography>
           <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
+            <Delete pioreactorUnit={pioreactorUnit} device={device} calibrationName={calibrationName} />
           </Box>
         </Box>
       </Box>
-      <SingleCalibrationPageCard />
+      <SingleCalibrationPageCard pioreactorUnit={pioreactorUnit} device={device} calibrationName={calibrationName}  />
       </>
   )
 }
 
 
-function SingleCalibrationPageCard() {
-  const { pioreactorUnit, device, calibrationName } = useParams();
+function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } ) {
   const unitsColorMap = new DefaultDict(colors)
 
   const [calibration, setCalibration] = useState(null);
