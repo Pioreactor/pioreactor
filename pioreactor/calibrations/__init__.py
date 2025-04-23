@@ -44,7 +44,7 @@ class CalibrationProtocol:
         else:
             raise ValueError("target_device must be a string or a list of strings")
 
-    def run(self, *args, **kwargs):
+    def run(self, *args, **kwargs) -> structs.CalibrationBase:
         raise NotImplementedError("Subclasses must implement this method.")
 
 
@@ -128,6 +128,8 @@ def load_calibration(device: Device, calibration_name: str) -> structs.AnyCalibr
         raise FileNotFoundError(
             f"Calibration {calibration_name} was not found in {CALIBRATION_PATH / device}"
         )
+    elif target_file.stat().st_size == 0:
+        raise FileNotFoundError(f"Calibration {calibration_name} is empty")
 
     try:
         data = yaml_decode(target_file.read_bytes(), type=structs.subclass_union(structs.CalibrationBase))

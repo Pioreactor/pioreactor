@@ -31,7 +31,7 @@ def run_stirring_calibration(
     if max_dc is None and min_dc is None:
         # seed with initial_duty_cycle
         config_initial_duty_cycle = config.getfloat("stirring.config", "initial_duty_cycle", fallback=30)
-        min_dc, max_dc = config_initial_duty_cycle * 0.5, clamp(0, config_initial_duty_cycle * 1.5, 100)
+        min_dc, max_dc = config_initial_duty_cycle * 0.66, clamp(0, config_initial_duty_cycle * 1.33, 100)
     elif (max_dc is not None) and (min_dc is not None):
         assert min_dc < max_dc, "min_dc >= max_dc"
     else:
@@ -52,7 +52,7 @@ def run_stirring_calibration(
         measured_rpms = []
 
         # go up and down to observe any hysteresis.
-        dcs = linspace(max_dc, min_dc, 5) + linspace(min_dc, min_dc, 5) + linspace(max_dc, min_dc, 5)
+        dcs = linspace(max_dc, min_dc, 5) + linspace(min_dc, max_dc, 5) + linspace(max_dc, min_dc, 5)
         n_samples = len(dcs)
 
         with temporary_config_change(config, "stirring.config", "enable_dodging_od", "False"):

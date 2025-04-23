@@ -1,3 +1,12 @@
+### Upcoming
+
+ - new upload calibration dialog
+
+#### Bug fixes
+ - stirring calibration was using too many points from the lower bound, this is fixed.
+ - fix for stirring calibration in the self-test creating an empty file
+ - Fix custom charts that were not fetching from the database correctly due to the backend table being a sqlite3 view (VIEWs don't have ROWID, which was breaking a filter).
+
 ### 25.4.11
 
 #### Bug fixes

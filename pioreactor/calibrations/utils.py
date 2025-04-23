@@ -67,6 +67,9 @@ def curve_to_callable(curve_type: str, curve_data: list[float]) -> Callable:
 
 
 def linspace(start: float, stop: float, num: int = 50) -> list[float]:
+    assert start < stop
+    assert num > 0
+
     def linspace_(start: float, stop: float, num: int = 50):
         num = int(num)
         start = start * 1.0

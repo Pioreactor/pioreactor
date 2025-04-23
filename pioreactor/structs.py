@@ -304,8 +304,8 @@ class ODCalibration(CalibrationBase, kw_only=True, tag="od"):
     ir_led_intensity: float
     angle: t.Literal["45", "90", "135", "180"]
     pd_channel: t.Literal["1", "2"]
-    x: str = "OD600"
     y: str = "Voltage"
+    x: str = "OD600"
 
 
 class SimplePeristalticPumpCalibration(CalibrationBase, kw_only=True, tag="simple_peristaltic_pump"):

@@ -120,7 +120,7 @@ class MqttToDBStreamer(LongRunningBackgroundJob):
             except Exception as e:
                 self.logger.warning(f"Encountered error in saving to DB: {e}. See logs.")
                 self.logger.debug(
-                    f"Error in {parser.__name__}. Payload that caused error: `{message.payload.decode()}`",
+                    f"Error in {parser.__name__}. Payload that caused error: `{message.payload.decode()}`. Topic: `{message.topic}`",
                     exc_info=True,
                 )
                 return
@@ -178,7 +178,7 @@ def parse_od(topic: str, payload: pt.MQTTMessagePayload) -> dict:
 
 def parse_raw_od(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     metadata = produce_metadata(topic)
-    od_reading = msgspec_loads(payload, type=structs.ODReading)
+    od_reading = msgspec_loads(payload, type=structs.RawODReading)
     return {
         "experiment": metadata.experiment,
         "pioreactor_unit": metadata.pioreactor_unit,
