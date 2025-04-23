@@ -47,7 +47,7 @@ export function sanitizeDeviceName(raw) {
   const cleaned = raw
     .trim()
     .replace(/\s+/g, "_")          // spaces, tabs, line‑breaks → “_”
-    .replace(/[^A-Za-z0-9._-]/g, "") // drop everything else
+    .replace(/[^A-Za-z0-9.]/g, "") // drop everything else
     .replace(/[_\.]+/, "")        // no leading “.” or “_”
     .slice(0, 255);                // extra‑long names are sliced
 
@@ -118,7 +118,7 @@ function UploadCalibrationDialog({
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth aria-labelledby="form-dialog-title">
       <DialogTitle>
-      Upload calibration from a YAML file
+      Upload calibration from a YAML description
 
         <IconButton
           aria-label="close"
@@ -147,9 +147,11 @@ function UploadCalibrationDialog({
                   {worker}
                 </MenuItem>
               ))}
+              {workers.length > 1 &&
               <MenuItem  value={"$broadcast"}>
                 <PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 4px"}} /> All Pioreactors
               </MenuItem>
+              }
             </Select>
           </FormControl>
 
@@ -165,7 +167,7 @@ function UploadCalibrationDialog({
           </FormControl>
         </Box>
 
-        <FormLabel component="legend">YAML</FormLabel>
+        <FormLabel component="legend">YAML description of calibration</FormLabel>
         <Box sx={{
             tabSize: "4ch",
             border: "1px solid #ccc",
@@ -194,6 +196,7 @@ function UploadCalibrationDialog({
 
 
         <Box sx={{display: "flex", justifyContent: "space-between"}}>
+          <Box>
           {error && <Box color="error.main">
           {error}
           </Box>
@@ -202,7 +205,8 @@ function UploadCalibrationDialog({
           <CheckIcon sx={{verticalAlign: "middle", margin: "0px 3px", color: readyGreen}}/> {success}
           </Box>
           }
-          <Button onClick={handleUploadCalibration} variant="contained" sx={{marginTop: "10px", textTransform: 'none'}} disabled={!selectedDevice}>
+          </Box>
+          <Button onClick={handleUploadCalibration} variant="contained" sx={{marginTop: "10px", textTransform: 'none'}} disabled={!selectedDevice || !calibrationYaml}>
             Upload
           </Button>
         </Box>

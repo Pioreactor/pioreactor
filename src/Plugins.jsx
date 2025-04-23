@@ -237,7 +237,7 @@ function ListSuggestedPlugins({selectedUnit, installedPlugins}){
                   onClick={(e) => installPlugin(e.target.value, plugin.name)}
                   //endIcon={<DownloadIcon />}
                   style={{textTransform: 'none'}}
-                  sx={{ml: "5px"}}
+                  sx={{ml: "3px"}}
                   disabled={installedPlugins.includes(plugin.name)}
                 >
                   <MenuItem value={selectedUnit}>{installedPlugins.includes(plugin.name) ? `Installed on ${selectedUnit}` :  `Install on ${selectedUnit}` }</MenuItem>
@@ -336,11 +336,11 @@ function ListInstalledPlugins({selectedUnit, installedPlugins}){
                   onClick={uninstallPlugin(plugin.source.startsWith("plugins/") ? plugin.source.slice(8, -3) : plugin.name)}
                   variant="text"
                   size="small"
-                  color="primary"
+                  color="secondary"
                   aria-label="delete"
                   style={{textTransform: 'none'}}
                   endIcon={<DeleteIcon />}
-                  sx={{ml: "5px"}}
+                  sx={{ml: "3px"}}
                 >
                   Uninstall
                 </Button>
