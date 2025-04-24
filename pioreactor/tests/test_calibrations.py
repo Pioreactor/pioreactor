@@ -17,7 +17,7 @@ from pioreactor.calibrations import load_calibration
 from pioreactor.calibrations.utils import calculate_poly_curve_of_best_fit
 from pioreactor.calibrations.utils import curve_to_callable
 from pioreactor.structs import CalibrationBase
-from pioreactor.structs import ODCalibration
+from pioreactor.structs import OD600Calibration
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.timing import current_utc_datetime
 
@@ -31,8 +31,8 @@ def temp_calibration_dir():
 
 
 def test_save_and_load_calibration(temp_calibration_dir) -> None:
-    # 1. Create an ODCalibration object (fully valid).
-    od_cal = ODCalibration(
+    # 1. Create an OD600Calibration object (fully valid).
+    od_cal = OD600Calibration(
         calibration_name="my_test_cal",
         calibrated_on_pioreactor_unit="unitA",
         created_at=datetime.now(timezone.utc),
@@ -50,7 +50,7 @@ def test_save_and_load_calibration(temp_calibration_dir) -> None:
 
     # 3. Load from disk
     loaded_cal = load_calibration("od", "my_test_cal")
-    assert isinstance(loaded_cal, ODCalibration)
+    assert isinstance(loaded_cal, OD600Calibration)
     assert loaded_cal.calibration_name == "my_test_cal"
     assert loaded_cal.angle == "90"
     assert loaded_cal.curve_data_ == [1.0, 2.0, 3.0]
@@ -60,7 +60,7 @@ def test_save_and_load_calibration(temp_calibration_dir) -> None:
 
     # 5. Load via load_active_calibration
     active_cal = load_active_calibration("od")
-    assert isinstance(active_cal, ODCalibration)
+    assert isinstance(active_cal, OD600Calibration)
     assert active_cal.calibration_name == "my_test_cal"
 
 
@@ -219,7 +219,7 @@ def test_mandys_data_for_pathological_poly() -> None:
     curve_callable = curve_to_callable("poly", curve_data_)
     assert abs(curve_callable(0.002) - 0.002) < 0.1
 
-    mcal = ODCalibration(
+    mcal = OD600Calibration(
         calibration_name="mandy",
         calibrated_on_pioreactor_unit="pio1",
         created_at=current_utc_datetime(),
@@ -236,7 +236,7 @@ def test_mandys_data_for_pathological_poly() -> None:
 
 
 def test_custom_protocol():
-    class CustomODCalibrationProtocol(CalibrationProtocol):
+    class CustomOD600CalibrationProtocol(CalibrationProtocol):
         protocol_name = "custom"
         target_device = "od"
 
@@ -244,7 +244,7 @@ def test_custom_protocol():
         def run(target_device, **kwargs):
             pass
 
-    assert calibration_protocols["od"]["custom"].__name__ == "CustomODCalibrationProtocol"
+    assert calibration_protocols["od"]["custom"].__name__ == "CustomOD600CalibrationProtocol"
 
     class CustomCalibrationProtocolWithList(CalibrationProtocol):
         protocol_name = "custom"

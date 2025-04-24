@@ -305,6 +305,9 @@ class ODCalibration(CalibrationBase, kw_only=True, tag="od"):
     angle: t.Literal["45", "90", "135", "180"]
     pd_channel: t.Literal["1", "2"]
     y: str = "Voltage"
+
+
+class OD600Calibration(ODCalibration, kw_only=True, tag="od600"):
     x: str = "OD600"
 
 
@@ -330,7 +333,11 @@ class SimpleStirringCalibration(CalibrationBase, kw_only=True, tag="simple_stirr
 
 
 AnyCalibration = t.Union[
-    SimpleStirringCalibration, SimplePeristalticPumpCalibration, ODCalibration, CalibrationBase
+    SimpleStirringCalibration,
+    SimplePeristalticPumpCalibration,
+    ODCalibration,
+    OD600Calibration,
+    CalibrationBase,
 ]
 
 

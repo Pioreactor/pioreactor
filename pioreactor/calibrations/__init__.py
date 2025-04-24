@@ -53,7 +53,7 @@ class SingleVialODProtocol(CalibrationProtocol):
     protocol_name = "single_vial"
     description = "Calibrate OD using a single vial"
 
-    def run(self, *args, **kwargs) -> structs.ODCalibration:
+    def run(self, *args, **kwargs) -> structs.OD600Calibration:
         from pioreactor.calibrations.od_calibration_single_vial import run_od_calibration
 
         return run_od_calibration()
@@ -64,7 +64,7 @@ class StandardsODProtocol(CalibrationProtocol):
     protocol_name = "standards"
     description = "Calibrate OD using standards. Requires multiple vials"
 
-    def run(self, *args, **kwargs) -> structs.ODCalibration:
+    def run(self, *args, **kwargs) -> structs.OD600Calibration:
         from pioreactor.calibrations.od_calibration_using_standards import run_od_calibration
 
         return run_od_calibration()

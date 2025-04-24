@@ -159,8 +159,8 @@ def to_struct(
     name: str,
     pd_channel: pt.PdChannel,
     unit: str,
-) -> structs.ODCalibration:
-    data_blob = structs.ODCalibration(
+) -> structs.OD600Calibration:
+    data_blob = structs.OD600Calibration(
         created_at=current_utc_datetime(),
         calibrated_on_pioreactor_unit=unit,
         calibration_name=name,
@@ -267,7 +267,7 @@ def start_recording_standards(st: Stirrer, signal_channel):
     return od600_values, voltages
 
 
-def run_od_calibration() -> structs.ODCalibration:
+def run_od_calibration() -> structs.OD600Calibration:
     unit = get_unit_name()
     experiment = get_testing_experiment_name()
     curve_data_: list[float] = []

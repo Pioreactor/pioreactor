@@ -838,7 +838,7 @@ def test_calibration_not_present() -> None:
 def test_calibration_simple_linear_calibration_positive_slope() -> None:
     experiment = "test_calibration_simple_linear_calibration_positive_slope"
 
-    cal = structs.ODCalibration(
+    cal = structs.OD600Calibration(
         created_at=current_utc_datetime(),
         curve_type="poly",
         curve_data_=[2.0, 0.0],
@@ -886,7 +886,7 @@ def test_calibration_simple_linear_calibration_positive_slope() -> None:
 def test_calibration_simple_linear_calibration_negative_slope() -> None:
     experiment = "test_calibration_simple_linear_calibration_negative_slope"
     maximum_voltage = 5.0
-    cal = structs.ODCalibration(
+    cal = structs.OD600Calibration(
         created_at=current_utc_datetime(),
         curve_type="poly",
         curve_data_=[-0.1, 2],
@@ -931,7 +931,7 @@ def test_calibration_simple_linear_calibration_negative_slope() -> None:
 def test_calibration_simple_quadratic_calibration() -> None:
     experiment = "test_calibration_simple_quadratic_calibration"
 
-    cal = structs.ODCalibration(
+    cal = structs.OD600Calibration(
         created_at=current_utc_datetime(),
         curve_type="poly",
         curve_data_=[1.0, 0, -0.1],
@@ -964,7 +964,7 @@ def test_calibration_multi_modal() -> None:
     # note: not a realistic calibration curve, using only because it's unimodal
     poly = [0.2983, -0.585, 0.146, 0.261, 0.0]  # unimodal, peak near ~(0.74, 0.120)
 
-    cal = structs.ODCalibration(
+    cal = structs.OD600Calibration(
         created_at=current_utc_datetime(),
         curve_type="poly",
         curve_data_=poly,
@@ -991,7 +991,7 @@ def test_calibration_errors_when_ir_led_differs() -> None:
     experiment = "test_calibration_errors_when_ir_led_differs"
 
     with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "100"):
-        cal = structs.ODCalibration(
+        cal = structs.OD600Calibration(
             created_at=current_utc_datetime(),
             curve_type="poly",
             curve_data_=[1.0, 0, -0.1],
@@ -1014,7 +1014,7 @@ def test_calibration_errors_when_ir_led_differs() -> None:
 
 def test_calibration_with_irl_data1() -> None:
     MAX_OD = 1.131
-    cal = structs.ODCalibration(
+    cal = structs.OD600Calibration(
         created_at=current_utc_datetime(),
         curve_type="poly",
         curve_data_=[
@@ -1116,7 +1116,7 @@ def test_calibration_data_from_user1() -> None:
     experiment = "test_calibration_data_from_user1"
     poly = [2.583, -3.447, 1.531, 0.223, 0.017]  # email correspondence
 
-    calibration = structs.ODCalibration(
+    calibration = structs.OD600Calibration(
         created_at=current_utc_datetime(),
         curve_type="poly",
         curve_data_=poly,
@@ -1156,7 +1156,7 @@ def test_calibration_data_from_user2() -> None:
         -0.01770485,
     ]  # looks like the degree 4 above: https://chat.openai.com/share/2ef30900-22ef-4a7f-8f34-14a88ffc65a8
 
-    cal = structs.ODCalibration(
+    cal = structs.OD600Calibration(
         created_at=current_utc_datetime(),
         curve_type="poly",
         curve_data_=poly,
@@ -1230,7 +1230,7 @@ def test_at_least_one_signal_channel() -> None:
 
 
 def test_CachedCalibrationTransformer_with_real_calibration() -> None:
-    calibration = structs.ODCalibration(
+    calibration = structs.OD600Calibration(
         angle="90",
         curve_type="poly",
         curve_data_=[
@@ -1349,7 +1349,7 @@ def test_CachedCalibrationTransformer_with_real_calibration() -> None:
 
 
 def test_mandys_calibration():
-    mcal = structs.ODCalibration(
+    mcal = structs.OD600Calibration(
         calibration_name="mandy",
         calibrated_on_pioreactor_unit="pio1",
         created_at=current_utc_datetime(),
@@ -1408,7 +1408,7 @@ def test_setting_interval_after_starting():
 def test_raw_and_calibrated_data_is_published_if_calibration_is_used():
     experiment = "test_raw_and_calibrated_data_is_published_if_calibration_is_used"
 
-    calibration = structs.ODCalibration(
+    calibration = structs.OD600Calibration(
         angle="90",
         calibration_name="test_raw_and_calibrated_data_is_published_if_calibration_is_used",
         curve_type="poly",
@@ -1445,7 +1445,7 @@ def test_raw_and_calibrated_data_is_published_if_calibration_is_used():
 def test_raw_published_even_if_calibration_is_bad():
     experiment = "test_raw_and_calibrated_data_is_published_if_calibration_is_used"
 
-    calibration = structs.ODCalibration(
+    calibration = structs.OD600Calibration(
         angle="90",
         calibration_name="test_raw_and_calibrated_data_is_published_if_calibration_is_used",
         curve_type="poly",
