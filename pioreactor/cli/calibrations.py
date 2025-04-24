@@ -42,7 +42,7 @@ def list_calibrations(device: str | None) -> None:
     List existing calibrations for the given device if provided, else all.
     """
 
-    header = f"{'Device':<25}{'Name':<50}{'Created At':<25}{'Active?':<10}"
+    header = f"{'Device':<25}{'Name':<50}{'Calibration type':<50}{'Created at':<25}{'Active?':<10}"
     click.echo(header)
     click.echo("-" * len(header))
 
@@ -68,7 +68,7 @@ def _display_calibrations_by_device(device: str) -> None:
         try:
             location = (calibration_dir / name).with_suffix(".yaml")
             data = yaml_decode(location.read_bytes(), type=structs.subclass_union(structs.CalibrationBase))
-            row = f"{device:<25}{data.calibration_name:<50}{data.created_at.strftime('%Y-%m-%d %H:%M:%S'):<25}{'✅' if data.is_active(device) else '':<10}"
+            row = f"{device:<25}{data.calibration_name:<50}{data.calibration_type:<50}{data.created_at.strftime('%Y-%m-%d %H:%M:%S'):<25}{'✅' if data.is_active(device) else '':<10}"
             click.echo(row)
         except Exception:
             pass
