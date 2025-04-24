@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import typing as t
 from datetime import datetime
+from pathlib import Path
 
 from msgspec import Meta
 from msgspec import Struct
@@ -179,15 +180,19 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
     def calibration_type(self):
         return self.__struct_config__.tag
 
-    def save_to_disk_for_device(self, device: str) -> str:
+    def path_on_disk_for_device(self, device: str) -> Path:
         from pioreactor.calibrations import CALIBRATION_PATH
 
+        calibration_dir = CALIBRATION_PATH / device
+        out_file = calibration_dir / f"{self.calibration_name}.yaml"
+        return out_file
+
+    def save_to_disk_for_device(self, device: str) -> str:
         logger = create_logger("calibrations")
 
-        calibration_dir = CALIBRATION_PATH / device
-        calibration_dir.mkdir(parents=True, exist_ok=True)
-
-        out_file = calibration_dir / f"{self.calibration_name}.yaml"
+        out_file = self.path_on_disk_for_device(device)
+        device_dir = out_file.parent
+        device_dir.mkdir(parents=True, exist_ok=True)
 
         # Serialize to YAML
         with out_file.open("wb") as f:
