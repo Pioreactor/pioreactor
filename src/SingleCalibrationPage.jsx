@@ -8,6 +8,8 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/Card';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import CalibrationChart from "./components/CalibrationChart";
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+
 import CableIcon from '@mui/icons-material/Cable';
 import {
   Table,
@@ -123,11 +125,15 @@ function SingleCalibrationPage(props) {
       <>
       <Box>
         <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-          <Typography variant="h5" component="h2">
-            <Box fontWeight="fontWeightBold">
-              Calibrations
+
+          <Typography variant="h5" component="h1">
+            <Box sx={{display:"inline"}}>
+              <Button to={`/calibrations`} component={RouterLink} sx={{ textTransform: 'none' }}>
+                <ArrowBackIcon sx={{ verticalAlign: "middle", mr: 0.5 }} fontSize="small"/> All calibrations
+              </Button>
             </Box>
           </Typography>
+
           <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
             <Delete pioreactorUnit={pioreactorUnit} device={device} calibrationName={calibrationName} />
           </Box>

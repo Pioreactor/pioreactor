@@ -200,7 +200,7 @@ function Overview(props) {
           <Charts unitsColorMap={unitsColorMap} config={config} timeScale={timeScale} timeWindow={timeWindow} experimentMetadata={experimentMetadata} relabelMap={relabelMap}/>
         </Grid>
 
-        <Grid item xs={12} md={5} container spacing={1} justifyContent="flex-end" style={{height: "100%"}}>
+        <Grid item xs={12} md={5} container spacing={2} justifyContent="flex-end" style={{height: "100%"}}>
 
           <Grid item xs={7} md={7}>
             <Stack direction="row" justifyContent="start">

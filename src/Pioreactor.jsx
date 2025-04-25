@@ -319,11 +319,11 @@ function PioreactorHeader({unit, assignedExperiment, isActive, selectExperiment,
     <Box>
       <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
         <Typography variant="h5" component="h1">
-        <Box sx={{display:"inline"}}>
-          <Button to={`/pioreactors`} component={Link} sx={{ textTransform: 'none' }}>
-            <ArrowBackIcon sx={{ verticalAlign: "middle", mr: 0.5 }} fontSize="small"/> All assigned Pioreactors
-          </Button>
-        </Box>
+          <Box sx={{display:"inline"}}>
+            <Button to={`/pioreactors`} component={Link} sx={{ textTransform: 'none' }}>
+              <ArrowBackIcon sx={{ verticalAlign: "middle", mr: 0.5 }} fontSize="small"/> All assigned Pioreactors
+            </Button>
+          </Box>
         </Typography>
         <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
           <ButtonStopProcess experiment={assignedExperiment} unit={unit}/>

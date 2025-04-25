@@ -92,7 +92,7 @@ function UploadCalibrationDialog({
 
       // Optionally clear fields so user can enter another calibration easily:
       setCalibrationYaml('');
-      setSuccess("Calibration sent to Pioreactor(s). Add another calibration, or refresh the page to see updates.");
+      setSuccess(<span>Calibration sent to Pioreactor(s). Add another calibration, or <a href=".">refresh</a> the page to see updates.</span>);
     } catch (err) {
       setError(err.message);
     }
@@ -167,7 +167,7 @@ function UploadCalibrationDialog({
           </FormControl>
         </Box>
 
-        <FormLabel component="legend">YAML description of calibration</FormLabel>
+        <FormLabel component="legend">YAML description</FormLabel>
         <Box sx={{
             tabSize: "4ch",
             border: "1px solid #ccc",

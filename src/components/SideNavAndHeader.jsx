@@ -223,7 +223,11 @@ export default function SideNavAndHeader() {
   };
 
   function isSelected(path) {
-    return (location.pathname === path)
+    return (location.pathname.startsWith(path))
+  }
+
+  function isOpen(path) {
+    return (openSubmenu.startsWith(path))
   }
 
 
@@ -271,18 +275,17 @@ export default function SideNavAndHeader() {
               <MenuItem
                 icon={<DashboardOutlinedIcon sx={{fontSize: "23px"}}/>}
                 component={<Link to="/overview" className="link" />}
-                active={(isSelected("/") || isSelected("/overview"))}
+                active={(location.pathname === "/" || isSelected("/overview"))}
 
                 >
                 Overview
               </MenuItem>
 
               <SubMenu
-                open={openSubmenu==="pioreactors" || openSubmenu==="logs"}
+                open={isOpen("pioreactors") || isOpen("logs")}
                 icon={<PioreactorIcon  sx={{fontSize: "23px"}}/>}
                 component={<Link to="/pioreactors" className="link" />}
                 active={isSelected("/pioreactors")}
-
                 label={"Pioreactors"}
                 >
                 <MenuItem
@@ -342,17 +345,16 @@ export default function SideNavAndHeader() {
             >
 
                 <MenuItem
-                  open={openSubmenu==="config"}
                   icon={<SettingsOutlinedIcon sx={{fontSize: "23px"}}/> }
                   component={<Link to="/config" className="link" />}
                   active={isSelected("/config")}
 
                 >
-                Configuration
+                  Configuration
                 </MenuItem>
 
                 <SubMenu label="Inventory"
-                  open={openSubmenu==="inventory" || openSubmenu==="leader"}
+                  open={isOpen("inventory") || isOpen("leader")}
                   icon={<PioreactorsIcon sx={{fontSize: "23px"}} />}
                   component={<Link to="/inventory" className="link" />}
                   active={isSelected("/inventory")}
