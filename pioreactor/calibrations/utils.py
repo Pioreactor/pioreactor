@@ -66,21 +66,18 @@ def curve_to_callable(curve_type: str, curve_data: list[float]) -> Callable:
         raise NotImplementedError()
 
 
-def linspace(start: float, stop: float, num: int = 50) -> list[float]:
-    assert start != stop
-    assert num > 0
+def linspace(start: float, stop: float, num: int = 50, *, precision: int = 3) -> list[float]:
+    """
+    Return ``num`` evenly-spaced values from *start* to *stop*, rounded to *precision*
+    decimal places (default = 3).
+    """
+    if num <= 0:
+        raise ValueError("num must be > 0")
+    if num == 1:  # avoid division-by-zero
+        return [round(start, precision)]
 
-    def linspace_(start: float, stop: float, num: int = 50):
-        num = int(num)
-        start = start * 1.0
-        stop = stop * 1.0
-
-        step = (stop - start) / (num - 1)
-
-        for i in range(num):
-            yield start + step * i
-
-    return list(linspace_(start, stop, num))
+    step = (stop - start) / (num - 1)
+    return [round(start + step * i, precision) for i in range(num)]
 
 
 def plot_data(

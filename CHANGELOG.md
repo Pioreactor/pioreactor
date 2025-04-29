@@ -1,6 +1,8 @@
 ### Upcoming
 
  - new upload calibration dialog
+ - new OD calibrations are of type `od600` (instead of `od`). Nothing needs to change for the user.
+
 
 #### Bug fixes
  - stirring calibration was using too many points from the lower bound, this is fixed.
