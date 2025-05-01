@@ -42,7 +42,6 @@ def backup_database(output_file: str, force: bool = False, backup_to_workers: in
 
     unit = get_unit_name()
     experiment = UNIVERSAL_EXPERIMENT
-    dump_output_file = output_file + ".txt"
 
     with long_running_managed_lifecycle(unit, experiment, "backup_database") as mj:
         logger = create_logger(
@@ -69,19 +68,12 @@ def backup_database(output_file: str, force: bool = False, backup_to_workers: in
             con.backup(bck, pages=page_size)
 
         bck.close()
-        logger.info(f"Completed backup of database to {output_file}.")
-
-        # let's also dump the data for sharing to other workers as an additional backup
-        with open(dump_output_file, "w") as f:
-            for line in con.iterdump():
-                f.write("%s\n" % line)
-
-        logger.info(f"Completed dumping of database to {dump_output_file}.")
-
         con.close()
 
         with local_persistent_storage("database_backups") as cache:
             cache["latest_backup_timestamp"] = current_time
+
+        logger.info("Completed backup of database.")
 
         # back up to workers, if available
         backups_complete = 0
@@ -94,30 +86,29 @@ def backup_database(output_file: str, force: bool = False, backup_to_workers: in
         while (backups_complete < backup_to_workers) and (len(available_workers) > 0):
             backup_unit = available_workers.pop()
             if backup_unit == unit:
-                # skip self
                 continue
 
-            logger.debug(f"Attempting sending database dump to {backup_unit}.")
+            logger.debug(f"Attempting backing up database to {backup_unit}.")
             try:
                 rsync(
                     "-hz",
                     "--partial",
                     "--inplace",
-                    dump_output_file,
-                    f"{resolve_to_address(backup_unit)}:{dump_output_file}",
+                    output_file,
+                    f"{resolve_to_address(backup_unit)}:{output_file}",
                 )
             except RsyncError:
                 logger.debug(
-                    f"Unable to send db dump to {backup_unit}. Is it online?",
+                    f"Unable to backup database to {backup_unit}. Is it online?",
                     exc_info=True,
                 )
-                logger.warning(f"Unable to send db dump to {backup_unit}. Is it online?")
+                logger.warning(f"Unable to backup database to {backup_unit}. Is it online?")
             else:
-                logger.debug(f"Sent db dump to {backup_unit}:{dump_output_file}.")
+                logger.debug(f"Backed up database to {backup_unit}:{output_file}.")
                 backups_complete += 1
 
                 with local_persistent_storage("database_backups") as cache:
-                    cache[f"latest_dump_in_{backup_unit}_timestamp"] = current_time
+                    cache[f"latest_backup_in_{backup_unit}_timestamp"] = current_time
 
         return
 
