@@ -16,7 +16,7 @@ from pioreactor.whoami import get_unit_name
 
 
 def test_analyze():
-    cal = structs.ODCalibration(
+    cal = structs.OD600Calibration(
         created_at=current_utc_datetime(),
         curve_type="poly",
         curve_data_=[2.0, 0.0],
