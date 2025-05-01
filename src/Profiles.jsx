@@ -111,7 +111,7 @@ function RunExperimentProfilesContent({
 
   return (
     <Grid container spacing={1}>
-      <Grid item xs={6}>
+      <Grid size={4}>
         <Box sx={{ width: "100%", marginTop: 2,  display: "flex", justifyContent: "space-between" }}>
           <FormControl style={{ minWidth: "300px" }}>
             <FormLabel component="legend">Experiment profile</FormLabel>
@@ -134,10 +134,9 @@ function RunExperimentProfilesContent({
           </FormControl>
         </Box>
       </Grid>
-      <Grid item xs={1} />
-      <Grid container item xs={5} direction="column" alignItems="flex-end">
-        <Grid item xs={4} />
-        <Grid item xs={8} >
+      <Grid size={2} />
+      <Grid size={6}>
+        <Box sx={{justifyContent: "flex-end", display: "flex", width: "98%", alignSelf: "flex-end"}}>
           <Button
             variant="text"
             size="small"
@@ -175,10 +174,9 @@ function RunExperimentProfilesContent({
             <DeleteIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
             Delete
           </Button>
-        </Grid>
+        </Box>
       </Grid>
-
-      <Grid item xs={12}>
+      <Grid size={12}>
         {selectedExperimentProfile !== "" && !viewSource &&
           <DisplayProfile data={experimentProfilesAvailable[selectedExperimentProfile].profile} />
         }
@@ -186,7 +184,6 @@ function RunExperimentProfilesContent({
           <DisplaySourceCode sourceCode={source} />
         }
       </Grid>
-
       <Box sx={{ display: "flex", justifyContent: "flex-end", marginLeft: 1 }}>
         <SelectButton
           variant="contained"
@@ -252,7 +249,7 @@ function RunningProfilesContainer() {
     <React.Fragment>
       <Card>
         <CardContent sx={{ p: 2 }}>
-          <Typography variant="h6" component="h2">
+          <Typography variant="h6" component="h2" gutterBottom>
             <Box fontWeight="fontWeightRegular">Profiles Running</Box>
           </Typography>
           {loading && (
@@ -261,7 +258,7 @@ function RunningProfilesContainer() {
             </Box>
           )}
           {!loading && runningProfiles.length === 0 && (
-            <p>No profiles are currently running.</p>
+            <Typography variant="body2" component="p">No profiles are currently running.</Typography>
           )}
           {!loading && runningProfiles.length > 0 && (
             <Table size="small" sx={{ mt: 0 }}>
@@ -349,7 +346,11 @@ function Profiles(props) {
   return (
     <RunningProfilesProvider experiment={experimentMetadata.experiment}>
       <Grid container spacing={2}>
-        <Grid item md={12} xs={12}>
+        <Grid
+          size={{
+            md: 12,
+            xs: 12
+          }}>
           <Box>
             <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
               <Typography variant="h5" component="h2">
@@ -376,7 +377,11 @@ function Profiles(props) {
         </Grid>
 
         {/* Left side: For selecting a profile or running a new profile */}
-        <Grid item md={8} xs={12}>
+        <Grid
+          size={{
+            md: 8,
+            xs: 12
+          }}>
           <RunProfilesContainer
             experiment={experimentMetadata.experiment}
             // Pass all the “lifted” states + setters
@@ -394,11 +399,15 @@ function Profiles(props) {
         </Grid>
 
         {/* Right side: The table of running profiles with clickable Chips */}
-        <Grid item md={4} xs={12}>
+        <Grid
+          size={{
+            md: 4,
+            xs: 12
+          }}>
           <RunningProfilesContainer />
         </Grid>
 
-        <Grid item xs={12}>
+        <Grid size={12}>
           <p style={{ textAlign: "center", marginTop: "20px" }}>
             Learn more about{" "}
             <a href="https://docs.pioreactor.com/user-guide/experiment-profiles" target="_blank" rel="noopener noreferrer">

@@ -72,7 +72,7 @@ function Header(props) {
 
 
 
-function AddNewPioreactor(props){
+function AddNewPioreactor({setWorkers}){
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [model, setModel] = React.useState(["pioreactor_40ml", "1.0"])
@@ -135,7 +135,7 @@ function AddNewPioreactor(props){
           response.json().then(data => setErrorMsg(`Unable to complete connection. The following error occurred: ${data.error}`))
         } else {
           setIsSuccess(true)
-          props.setWorkers((prevWorkers) => [...prevWorkers, {pioreactor_unit: name, is_active: true}])
+          setWorkers((prevWorkers) => [...prevWorkers, {pioreactor_unit: name, is_active: true, model_name: model[0], model_version: model[1]}].sort((a, b) => (a.pioreactor_unit > b.pioreactor_unit) ? 1 : -1))
           setSuccessMsg(`Success! Rebooting ${name} now. Add another?`)
         }
     })
@@ -608,7 +608,7 @@ function Shutdown({unit}) {
 
   const confirm = useConfirm();
 
-  const shworker = () => {
+  const shutdownWorker = () => {
     confirm({
       description: 'Shutting down this Pioreactor will halt all activity and require a power-cycle to bring it back up.',
       title: `Shutdown ${unit}?`,
@@ -621,7 +621,7 @@ function Shutdown({unit}) {
   };
 
   return (
-      <Button style={{textTransform: "none"}} size="small" onClick={shworker}>
+      <Button style={{textTransform: "none"}} size="small" onClick={shutdownWorker}>
         <PowerSettingsNewIcon fontSize="small" sx={textIcon} />Shutdown
       </Button>
 )}
@@ -693,14 +693,20 @@ function InventoryDisplay({isLoading, workers, config}){
       {isLoading ? <div style={{textAlign: "center", margin: 'auto', marginTop: "50px"}}><CircularProgress /> </div>: (
         <>
           {workers.map(worker =>
-          <Grid key={worker.pioreactor_unit} item md={6} xs={12} sm={12}>
+          <Grid
+            key={worker.pioreactor_unit}
+            size={{
+              md: 6,
+              xs: 12,
+              sm: 12
+            }}>
             <WorkerCard worker={worker} config={config} leaderVersion={leaderVersion}/>
           </Grid>
           )}
         </>
       )}
     </Grid>
-)}
+  );}
 
 
 
@@ -738,16 +744,20 @@ function Inventory({title}) {
   return (
     <MQTTProvider name="cluster" config={config}>
       <Grid container spacing={2} >
-        <Grid item md={12} xs={12}>
+        <Grid
+          size={{
+            md: 12,
+            xs: 12
+          }}>
           <Header setWorkers={setWorkers}/>
           <InventoryDisplay isLoading={isLoading} workers={workers} config={config} />
-          <Grid item xs={12}>
+          <Grid size={12}>
             <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/create-cluster" target="_blank" rel="noopener noreferrer">inventory and cluster management</a>.</p>
           </Grid>
         </Grid>
       </Grid>
     </MQTTProvider>
-  )
+  );
 }
 
 export default Inventory;

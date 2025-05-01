@@ -50,7 +50,7 @@ function ChangeDosingAutomationsDialog(props) {
           setIsLoading(false)
           setAutomations(Object.assign({}, ...listOfAuto.map(auto => ({ [auto.automation_name]: auto}))))
         })
-        .catch((error) => {})
+        .catch((error) => {console.error(error)})
     }
     fetchAutomations();
   }, [automationType])

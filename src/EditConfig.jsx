@@ -251,12 +251,16 @@ function EditConfig(props) {
       document.title = props.title;
     }, [props.title])
     return (
-        <Grid container spacing={2} >
-          <Grid item md={12} xs={12}>
-             <EditConfigContainer/>
-          </Grid>
+      <Grid container spacing={2} >
+        <Grid
+          size={{
+            md: 12,
+            xs: 12
+          }}>
+           <EditConfigContainer/>
         </Grid>
-    )
+      </Grid>
+    );
 }
 
 export default EditConfig;

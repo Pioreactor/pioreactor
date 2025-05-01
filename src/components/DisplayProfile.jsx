@@ -244,13 +244,13 @@ const ActionDetails = ({ action, jobName, index }) => {
         if (typeof optionValue === 'object') {
           return (
             <Typography key={`option-${idx}`} variant="body2" sx={level3}>
-              — set {displayVariable(option)} to <UnderlineSpan title="Requires value or expression ${{..}}">??</UnderlineSpan>
+              — set {displayVariable(option)} → <UnderlineSpan title="Requires value or expression ${{..}}">??</UnderlineSpan>
             </Typography>
           ); // intermediate state when typing
         }
         return (
           <Typography key={`option-${idx}`} variant="body2" sx={level3}>
-            — set {displayVariable(option)} to {processBracketedExpression(optionValue)}
+            — set {displayVariable(option)} → {processBracketedExpression(optionValue)}
           </Typography>
         );
       });
@@ -514,7 +514,7 @@ export const DisplayProfile = ({ data }) => {
         <ParametersSection parameters={data?.inputs} />
 
         {data?.common?.jobs && (Object.keys(data?.common?.jobs).length > 0) && <>
-          <Typography variant="subtitle2">All assigned Pioreactors <PioreactorsIcon fontSize="15" sx={{verticalAlign: "middle", margin: "0px 2px 0px 0px"}} /> do:</Typography>
+          <Typography variant="subtitle2">All assigned Pioreactors <PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 2px 0px 0px"}} /> do:</Typography>
           <JobSection jobs={data?.common?.jobs} />
           </>
         }

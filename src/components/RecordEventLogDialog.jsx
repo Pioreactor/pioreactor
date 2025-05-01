@@ -69,7 +69,7 @@ function RecordEventLogDialog({
       color="primary"
       onClick={handleOpenDialog}
     >
-      <AddIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 3px"}} /> Record a new event
+      <AddIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 3px"}} /> Record new event
     </Button>
     <Dialog open={openDialog} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle sx={{ mb: 2 }}>

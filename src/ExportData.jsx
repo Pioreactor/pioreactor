@@ -460,13 +460,21 @@ function ExportDataContainer() {
 
           <form>
             <Grid container spacing={0}>
-              <Grid item xs={6} md={6}>
+              <Grid
+                size={{
+                  xs: 6,
+                  md: 6
+                }}>
                 <ExperimentSelection
                   experimentSelection={state.experimentSelection}
                   handleChange={handleExperimentSelectionChange}
                 />
               </Grid>
-              <Grid item xs={6} md={6}>
+              <Grid
+                size={{
+                  xs: 6,
+                  md: 6
+                }}>
                 <Typography variant="h6">
                   <Box fontWeight="fontWeightRegular">Export options</Box>
                 </Typography>
@@ -476,7 +484,11 @@ function ExportDataContainer() {
                   handleChange={handlePartitionByChange}
                 />
               </Grid>
-              <Grid item xs={12} md={12}>
+              <Grid
+                size={{
+                  xs: 12,
+                  md: 12
+                }}>
                 <Datasets
                 selectedDatasets={state.selectedDatasets}
                 handleChange={handleCheckboxChange}
@@ -484,16 +496,16 @@ function ExportDataContainer() {
                 />
               </Grid>
 
-              <Grid item xs={0}/>
+              <Grid size={0} />
             </Grid>
           </form>
         </CardContent>
       </Card>
-      <Grid item xs={12}>
+      <Grid size={12}>
         <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/export-data" target="_blank" rel="noopener noreferrer">data exporting</a>.</p>
       </Grid>
-  </React.Fragment>
-  )
+    </React.Fragment>
+  );
 }
 
 
@@ -502,12 +514,16 @@ function ExportData(props) {
       document.title = props.title;
     }, [props.title]);
     return (
-        <Grid container spacing={2} >
-          <Grid item md={12} xs={12}>
-            <ExportDataContainer/>
-          </Grid>
+      <Grid container spacing={2} >
+        <Grid
+          size={{
+            md: 12,
+            xs: 12
+          }}>
+          <ExportDataContainer/>
         </Grid>
-    )
+      </Grid>
+    );
 }
 
 export default ExportData;

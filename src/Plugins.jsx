@@ -306,74 +306,74 @@ function ListInstalledPlugins({selectedUnit, installedPlugins}){
   if (installedPlugins.length > 0) {
     return (
       <React.Fragment>
-      <Box sx={{m: "auto", mb: "15px", width: "92%"}}>
-       <List >
-          {installedPlugins.map(( plugin, i) =>
-            <ListItem key={plugin.name}>
-              <ListItemAvatar>
-                  <Avatar name={plugin.name + "seed1"} size={40} colors={["#5332ca", "#94ccc1", "#d8535e", "#f0b250", "#e5e5e5"]} variant="bauhaus"/>
-              </ListItemAvatar>
-              <ListItemText
-                primary={`${plugin.name} ${(plugin.version === "Unknown")  ? "" : "(" + plugin.version + ")"}`}
-                primaryTypographyProps={{style: {fontSize: '0.95rem'}}}
-                secondary={
-                 <>
-                  <Typography
-                    sx={{ display: 'block', fontStyle: "italic" }}
-                    component="span"
-                    variant="body2"
-                    color="text.primary"
-                  >
-                    {plugin.author || "unknown author"}
-                  </Typography>
-                  <span>{`${plugin.description === "Unknown" ? "No description provided." : plugin.description}`}</span>
-                 </>
-                }
-                style={{maxWidth: "525px"}}
-              />
-              <ListItemSecondaryAction sx={{display: {xs: 'contents', md: 'block'}}}>
-                <Button
-                  onClick={uninstallPlugin(plugin.source.startsWith("plugins/") ? plugin.source.slice(8, -3) : plugin.name)}
-                  variant="text"
-                  size="small"
-                  color="secondary"
-                  aria-label="delete"
-                  style={{textTransform: 'none'}}
-                  endIcon={<DeleteIcon />}
-                  sx={{ml: "3px"}}
-                >
-                  Uninstall
-                </Button>
+        <Box sx={{m: "auto", mb: "15px", width: "92%"}}>
+         <List >
+            {installedPlugins.map(( plugin, i) =>
+              <ListItem key={plugin.name}>
+                <ListItemAvatar>
+                    <Avatar name={plugin.name + "seed1"} size={40} colors={["#5332ca", "#94ccc1", "#d8535e", "#f0b250", "#e5e5e5"]} variant="bauhaus"/>
+                </ListItemAvatar>
+                <ListItemText
+                  primary={`${plugin.name} ${(plugin.version === "Unknown")  ? "" : "(" + plugin.version + ")"}`}
+                  primaryTypographyProps={{style: {fontSize: '0.95rem'}}}
+                  secondary={
+                   <>
+                    <Typography
+                      sx={{ display: 'block', fontStyle: "italic" }}
+                      component="span"
+                      variant="body2"
+                      color="text.primary"
+                    >
+                      {plugin.author || "unknown author"}
+                    </Typography>
+                    <span>{`${plugin.description === "Unknown" ? "No description provided." : plugin.description}`}</span>
+                   </>
+                  }
+                  style={{maxWidth: "525px"}}
+                />
+                <ListItemSecondaryAction sx={{display: {xs: 'contents', md: 'block'}}}>
                   <Button
-                    component={Link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    to={plugin.homepage.replace(/^https?:\/\/127\.0\.0\.1(?::\d+)?/, '')} // this is a hack since the leader will produce a homepage with it's leader_address which is 127.0.0.1.
+                    onClick={uninstallPlugin(plugin.source.startsWith("plugins/") ? plugin.source.slice(8, -3) : plugin.name)}
                     variant="text"
                     size="small"
-                    color="primary"
-                    aria-label="view homepage"
-                    disabled={!plugin.homepage || (plugin.homepage === "Unknown")}
-                    endIcon={<OpenInNewIcon />}
-                    sx={{ml: "15px", textTransform: 'none'}}
+                    color="secondary"
+                    aria-label="delete"
+                    style={{textTransform: 'none'}}
+                    endIcon={<DeleteIcon />}
+                    sx={{ml: "3px"}}
                   >
-                    View
+                    Uninstall
                   </Button>
-              </ListItemSecondaryAction>
-            </ListItem>,
-          )}
-        </List>
-      </Box>
-      <Snackbar
-        anchorOrigin={{vertical: "bottom", horizontal: "center"}}
-        open={snackbarOpen}
-        onClose={handleSnackbarClose}
-        message={snackbarMsg}
-        autoHideDuration={7000}
-        key="snackbar-installation"
-      />
+                    <Button
+                      component={Link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      to={plugin.homepage.replace(/^https?:\/\/127\.0\.0\.1(?::\d+)?/, '')} // this is a hack since the leader will produce a homepage with it's leader_address which is 127.0.0.1.
+                      variant="text"
+                      size="small"
+                      color="primary"
+                      aria-label="view homepage"
+                      disabled={!plugin.homepage || (plugin.homepage === "Unknown")}
+                      endIcon={<OpenInNewIcon />}
+                      sx={{ml: "15px", textTransform: 'none'}}
+                    >
+                      View
+                    </Button>
+                </ListItemSecondaryAction>
+              </ListItem>,
+            )}
+          </List>
+        </Box>
+        <Snackbar
+          anchorOrigin={{vertical: "bottom", horizontal: "center"}}
+          open={snackbarOpen}
+          onClose={handleSnackbarClose}
+          message={snackbarMsg}
+          autoHideDuration={7000}
+          key="snackbar-installation"
+        />
       </React.Fragment>
-    )
+    );
   }
   else {
     return (
@@ -514,13 +514,17 @@ function Plugins(props) {
     document.title = props.title;
   }, [props.title])
     return (
-        <Grid container spacing={2} >
-          <Grid item md={12} xs={12}>
-            <PageHeader/>
-            <PluginContainer/>
-          </Grid>
+      <Grid container spacing={2} >
+        <Grid
+          size={{
+            md: 12,
+            xs: 12
+          }}>
+          <PageHeader/>
+          <PluginContainer/>
         </Grid>
-    )
+      </Grid>
+    );
 }
 
 

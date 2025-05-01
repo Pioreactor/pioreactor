@@ -15,7 +15,6 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions
 } from '@mui/material';
 import Grid from "@mui/material/Grid";
 import Box from '@mui/material/Box';
@@ -26,7 +25,7 @@ import CalibrationChart from "./components/CalibrationChart"
 import FormLabel from '@mui/material/FormLabel';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Switch from '@mui/material/Switch';
-import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
+import { Table, TableBody, TableCell, TableHead, TableRow, TableContainer } from '@mui/material';
 import Chip from '@mui/material/Chip';
 import Button from '@mui/material/Button';
 import UploadIcon from '@mui/icons-material/Upload';
@@ -45,10 +44,9 @@ import CheckIcon from '@mui/icons-material/Check';
 
 export function sanitizeDeviceName(raw) {
   const cleaned = raw
-    .trim()
     .replace(/\s+/g, "_")          // spaces, tabs, line‑breaks → “_”
-    .replace(/[^A-Za-z0-9.]/g, "") // drop everything else
-    .replace(/[_\.]+/, "")        // no leading “.” or “_”
+    .replace(/[^A-Za-z0-9_-]/g, "") // drop everything else (only allow these chars)
+    .replace(/^[_\.]+/, "")        // no leading “.” or “_”
     .slice(0, 255);                // extra‑long names are sliced
 
   return cleaned;
@@ -92,7 +90,7 @@ function UploadCalibrationDialog({
 
       // Optionally clear fields so user can enter another calibration easily:
       setCalibrationYaml('');
-      setSuccess(<span>Calibration sent to Pioreactor(s). Add another calibration, or <a href=".">refresh</a> the page to see updates.</span>);
+      setSuccess(<span>Calibration sent to Pioreactor(s). Add another calibration, or <a href="">refresh</a> the page to see updates.</span>);
     } catch (err) {
       setError(err.message);
     }
@@ -182,7 +180,7 @@ function UploadCalibrationDialog({
           <Editor
             value={calibrationYaml}
             onValueChange={setCalibrationYaml}
-            highlight={code => highlight(calibrationYaml, languages.yaml)}
+            highlight={_ => highlight(calibrationYaml, languages.yaml)}
             padding={10}
             style={{
               fontSize: "14px",
@@ -362,7 +360,7 @@ function CalibrationData() {
       // Case 4: Selected unit, regardless of activity
       return cal.pioreactor_unit === selectedUnit;
     }
-    return
+    return false
   }).sort((a, b) => {
   // Compare `is_active` (true first, false later)
   if (a.is_active !== b.is_active) {
@@ -440,7 +438,7 @@ function CalibrationData() {
         </Box>
       </Box>
 
-      <Box sx={{px: 5, mt: 1, mb: 1}}>
+      <TableContainer sx={{px: 5, mt: 1, mb: 1,  width: "100%", overflowY: "auto", overflowX: 'auto',}}>
         <Table size="small">
           <TableHead>
             <TableRow>
@@ -497,13 +495,13 @@ function CalibrationData() {
             })}
           </TableBody>
         </Table>
-      </Box>
+      </TableContainer>
     </Box>
   );
 }
 
 
-function CalibrationsContainer(props) {
+function CalibrationsContainer() {
 
   const [openUploadDialog, setOpenUploadDialog] = useState(false);
 
@@ -537,7 +535,6 @@ function CalibrationsContainer(props) {
 
   return (
     <React.Fragment>
-
       <Box>
         <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
           <Typography variant="h5" component="h2">
@@ -560,18 +557,20 @@ function CalibrationsContainer(props) {
         <Divider sx={{marginTop: "0px", marginBottom: "15px"}} />
 
       </Box>
-
       <UploadCalibrationDialog
         open={openUploadDialog}
         onClose={() => setOpenUploadDialog(false)}
       />
-
       <Grid container spacing={2} >
-        <Grid item xs={12} sm={12}>
+        <Grid
+          size={{
+            xs: 12,
+            sm: 12
+          }}>
           <CalibrationCard/>
         </Grid>
       </Grid>
-      <Grid item xs={12}>
+      <Grid size={12}>
         <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/hardware-calibrations" target="_blank" rel="noopener noreferrer">calibrations</a>.</p>
       </Grid>
     </React.Fragment>
@@ -583,12 +582,16 @@ function Calibrations(props) {
       document.title = props.title;
     }, [props.title]);
     return (
-        <Grid container spacing={2} >
-          <Grid item md={12} xs={12}>
-            <CalibrationsContainer/>
-          </Grid>
+      <Grid container spacing={2} >
+        <Grid
+          size={{
+            md: 12,
+            xs: 12
+          }}>
+          <CalibrationsContainer/>
         </Grid>
-    )
+      </Grid>
+    );
 }
 
 export default Calibrations;

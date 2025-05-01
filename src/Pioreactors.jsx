@@ -699,12 +699,11 @@ function CalibrateDialog(props) {
               </Box>
             ) : Object.entries(activeCalibrations || {}).length === 0 ? (
               // Empty state message when there are no active calibrations.
-              <Typography variant="body2" component="p" color="textSecondary" sx={{ mt: 3 }}>
-                There are no active calibrations available.
-              </Typography>
+              (<Typography variant="body2" component="p" color="textSecondary" sx={{ mt: 3 }}>There are no active calibrations available.
+                              </Typography>)
             ) : (
               // Table rendering when active calibrations exist.
-              <Table size="small">
+              (<Table size="small">
                 <TableHead>
                   <TableRow>
                     <TableCell align="left" sx={{ padding: '6px 0px' }}>Device</TableCell>
@@ -737,14 +736,14 @@ function CalibrateDialog(props) {
                     );
                   })}
                 </TableBody>
-              </Table>
+              </Table>)
             )}
 
 
           </TabPanel>
         </DialogContent>
       </Dialog>
-  </React.Fragment>
+    </React.Fragment>
   );
 }
 
@@ -2657,7 +2656,11 @@ function Pioreactors({title}) {
   return (
     <MQTTProvider name="pioreactor" config={config} experiment={experimentMetadata.experiment}>
       <Grid container spacing={2} >
-        <Grid item md={12} xs={12}>
+        <Grid
+          size={{
+            md: 12,
+            xs: 12
+          }}>
           <PioreactorHeader experiment={experimentMetadata.experiment} config={config}/>
 
           {(workers.length === 0 ? renderEmptyState() : renderCards())}
@@ -2665,7 +2668,7 @@ function Pioreactors({title}) {
         </Grid>
       </Grid>
     </MQTTProvider>
-  )
+  );
 }
 
 export default Pioreactors;

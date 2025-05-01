@@ -238,7 +238,11 @@ function ExperimentSummaryForm(props) {
     <Box sx={{mt: "15px"}}>
       <FormGroup>
         <Grid container spacing={1}>
-          <Grid item xs={12} md={8}>
+          <Grid
+            size={{
+              xs: 12,
+              md: 8
+            }}>
             <TextField
               error={formError}
               id="expName"
@@ -250,9 +254,17 @@ function ExperimentSummaryForm(props) {
               helperText={helperText}
               />
           </Grid>
-          <Grid item xs={12} md={6}>
+          <Grid
+            size={{
+              xs: 12,
+              md: 6
+            }}>
           </Grid>
-          <Grid item xs={12} md={12}>
+          <Grid
+            size={{
+              xs: 12,
+              md: 12
+            }}>
             <TextField
               label="Description (optional)"
               rows={2}
@@ -265,7 +277,11 @@ function ExperimentSummaryForm(props) {
             />
           </Grid>
 
-          <Grid item xs={12} md={6}>
+          <Grid
+            size={{
+              xs: 12,
+              md: 6
+            }}>
             <FreeSoloCreateOption
               options={historicalOrganismUsed}
               label="Organism / strain (optional)"
@@ -273,7 +289,11 @@ function ExperimentSummaryForm(props) {
               value={organismUsed}
             />
           </Grid>
-          <Grid item xs={12} md={6}>
+          <Grid
+            size={{
+              xs: 12,
+              md: 6
+            }}>
             <FreeSoloCreateOption
               options={historicalMediaUsed}
               label="Media (optional)"
@@ -282,8 +302,16 @@ function ExperimentSummaryForm(props) {
             />
           </Grid>
 
-          <Grid item xs={12} md={4}/>
-          <Grid item xs={12} md={8}>
+          <Grid
+            size={{
+              xs: 12,
+              md: 4
+            }} />
+          <Grid
+            size={{
+              xs: 12,
+              md: 8
+            }}>
             <Box style={{display: "flex", justifyContent: "flex-end"}}>
               <Button style={{marginRight: "10px", textTransform: "none"}} size="small" color="primary" onClick={populateFields}>Populate with previous experiment</Button>
               <LoadingButton
@@ -378,12 +406,16 @@ function StartNewExperiment(props) {
     document.title = props.title;
   }, [props.title])
   return (
-      <Grid container spacing={2} >
-        <Grid item xs={12} md={12}>
-          <StartNewExperimentContainer />
-        </Grid>
+    <Grid container spacing={2} >
+      <Grid
+        size={{
+          xs: 12,
+          md: 12
+        }}>
+        <StartNewExperimentContainer />
       </Grid>
-  )
+    </Grid>
+  );
 }
 
 export default StartNewExperiment;

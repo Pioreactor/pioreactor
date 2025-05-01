@@ -686,25 +686,58 @@ function LeaderContainer({config}) {
         <Divider sx={{marginTop: "0px", marginBottom: "15px"}} />
 
       </Box>
-
       <Grid container spacing={2} justifyContent="flex-start" alignItems="flex-start">
-        <Grid item md={5} xs={12} sm={12} container spacing={2}>
-          <Grid item xs={12} sm={12}>
+        <Grid
+          container
+          spacing={2}
+          size={{
+            md: 5,
+            xs: 12,
+            sm: 12
+          }}>
+          <Grid
+            size={{
+              xs: 12,
+              sm: 12
+            }}>
             <LeaderCard leaderHostname={leaderHostname}/>
           </Grid>
-          <Grid item xs={12} sm={12}>
+          <Grid
+            size={{
+              xs: 12,
+              sm: 12
+            }}>
             <LeaderJobs/>
           </Grid>
-          <Grid item xs={12} sm={12}>
+          <Grid
+            size={{
+              xs: 12,
+              sm: 12
+            }}>
             <ClusterClockCard leaderHostname={leaderHostname}/>
           </Grid>
         </Grid>
 
-        <Grid item md={7} xs={12} sm={12} container spacing={2}  >
-          <Grid item xs={12} sm={12}>
+        <Grid
+          container
+          spacing={2}
+          size={{
+            md: 7,
+            xs: 12,
+            sm: 12
+          }}>
+          <Grid
+            size={{
+              xs: 12,
+              sm: 12
+            }}>
             <DirectoryNavigatorCard/>
           </Grid>
-          <Grid item xs={12} sm={12}>
+          <Grid
+            size={{
+              xs: 12,
+              sm: 12
+            }}>
             <LogTableByUnit experiment="$experiment" unit={leaderHostname} level="debug"/>
           </Grid>
         </Grid>
@@ -728,7 +761,11 @@ function Leader({title}) {
   return (
     <MQTTProvider name="leader" config={config}>
       <Grid container spacing={2}>
-        <Grid item md={12} xs={12}>
+        <Grid
+          size={{
+            md: 12,
+            xs: 12
+          }}>
           <LeaderContainer config={config}/>
         </Grid>
       </Grid>

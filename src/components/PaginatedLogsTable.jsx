@@ -195,55 +195,54 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
 
   return (
     <>
-    <Card>
-      <CardContent>
+      <Card>
+        <CardContent>
 
-        <TableContainer sx={{ maxHeight: "500px", minHeight: "200px", width: "100%", overflowY: "auto" }}>
-          <Table sx={{'tableLayout': "fixed"}} stickyHeader size="small" aria-label="log table">
-            <colgroup>
-              <col style={{width:'15%'}}/>
-              <col style={{width:'10%'}}/>
-              <col style={{width:'10%'}}/>
-              <col style={{width:'55%'}}/>
-            </colgroup>
-            <TableHead>
-              <TableRow >
-                <TableCell sx={{"backgroundColor": "white"}}>Time</TableCell>
-                <TableCell sx={{"backgroundColor": "white"}}>Pioreactor</TableCell>
-                <TableCell sx={{"backgroundColor": "white"}}>Source</TableCell>
-                <TableCell sx={{"backgroundColor": "white"}}>Message</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {listOfLogs.map((log) => (
-                <TableRowStyled key={log.key}>
-                  <StyledTimeTableCell level={log.level}>
-                    {timestampCell(log.timestamp)}
-                  </StyledTimeTableCell>
-                  <StyledTableCell level={log.level}><Chip size="small" icon={<PioreactorIcon/>} label={relabelUnit(log.pioreactor_unit)} clickable component={Link} to={"/pioreactors/" + log.pioreactor_unit} /></StyledTableCell>
-                  <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
-                  <StyledTableCell level={log.level}>{log.message}</StyledTableCell>
-                </TableRowStyled>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        <Box display="flex" justifyContent="space-between" mt={2}>
-          <Box sx={{width: 300}}/>
-          <Button onClick={loadMoreLogs} disabled={loading || (skip % 50 !== 0) || (skip === 0) } style={{textTransform: 'none'}}>
-            {loading ? "Loading..." : "More"}
-          </Button>
-          <FormControlLabel
-            checked={!onlyAssignedLogs}
-            control={<Switch color="primary"  onChange={handleSwitchChange}  size="small" />}
-            label="Include logs from other experiments"
-            labelPlacement="start"
-          />
-        </Box>
-      </CardContent>
-    </Card>
-
-  </>
+          <TableContainer sx={{ maxHeight: "500px", minHeight: "200px", width: "100%", overflowY: "auto", overflowX: 'auto', }}>
+            <Table sx={{tableLayout: { xs: 'auto', lg: 'fixed' }, minWidth: 600}} stickyHeader size="small" aria-label="log table">
+              <colgroup>
+                <col style={{width:'15%'}}/>
+                <col style={{width:'10%'}}/>
+                <col style={{width:'10%'}}/>
+                <col style={{width:'55%'}}/>
+              </colgroup>
+              <TableHead>
+                <TableRow >
+                  <TableCell sx={{"backgroundColor": "white"}}>Time</TableCell>
+                  <TableCell sx={{"backgroundColor": "white"}}>Pioreactor</TableCell>
+                  <TableCell sx={{"backgroundColor": "white"}}>Source</TableCell>
+                  <TableCell sx={{"backgroundColor": "white"}}>Message</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {listOfLogs.map((log) => (
+                  <TableRowStyled key={log.key}>
+                    <StyledTimeTableCell level={log.level}>
+                      {timestampCell(log.timestamp)}
+                    </StyledTimeTableCell>
+                    <StyledTableCell level={log.level}><Chip size="small" icon={<PioreactorIcon/>} label={relabelUnit(log.pioreactor_unit)} clickable component={Link} to={"/pioreactors/" + log.pioreactor_unit} /></StyledTableCell>
+                    <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
+                    <StyledTableCell level={log.level}>{log.message}</StyledTableCell>
+                  </TableRowStyled>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <Box display="flex" justifyContent="space-between" mt={2}>
+            <Box sx={{width: 300}}/>
+            <Button onClick={loadMoreLogs} disabled={loading || (skip % 50 !== 0) || (skip === 0) } style={{textTransform: 'none'}}>
+              {loading ? "Loading..." : "More"}
+            </Button>
+            <FormControlLabel
+              checked={!onlyAssignedLogs}
+              control={<Switch color="primary"  onChange={handleSwitchChange}  size="small" />}
+              label="Include logs from other experiments"
+              labelPlacement="start"
+            />
+          </Box>
+        </CardContent>
+      </Card>
+    </>
   );
 }
 

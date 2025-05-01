@@ -522,12 +522,11 @@ function CalibrateDialog(props) {
               </Box>
             ) : Object.entries(activeCalibrations || {}).length === 0 ? (
               // Empty state message when there are no active calibrations.
-              <Typography variant="body2" component="p" color="textSecondary" sx={{ mt: 3 }}>
-                There are no active calibrations available.
-              </Typography>
+              (<Typography variant="body2" component="p" color="textSecondary" sx={{ mt: 3 }}>There are no active calibrations available.
+                              </Typography>)
             ) : (
               // Table rendering when active calibrations exist.
-              <Table size="small">
+              (<Table size="small">
                 <TableHead>
                   <TableRow>
                     <TableCell align="left" sx={{ padding: '6px 0px' }}>Device</TableCell>
@@ -561,14 +560,14 @@ function CalibrateDialog(props) {
                     );
                   })}
                 </TableBody>
-              </Table>
+              </Table>)
             )}
 
 
           </TabPanel>
         </DialogContent>
       </Dialog>
-  </React.Fragment>
+    </React.Fragment>
   );
 }
 
@@ -1904,7 +1903,7 @@ function Charts(props) {
         .filter(([chart_key, _]) => config['ui.overview.charts'] && (config['ui.overview.charts'][chart_key] === "1"))
         .map(([chart_key, chart]) =>
           <React.Fragment key={`grid-chart-${chart_key}`}>
-            <Grid item xs={12}>
+            <Grid size={12}>
               <Card sx={{ maxHeight: "100%"}}>
                 <Chart
                   unit={props.unit}
@@ -1940,7 +1939,7 @@ function Charts(props) {
           </React.Fragment>
      )}
     </React.Fragment>
-)}
+  );}
 
 
 
@@ -2027,7 +2026,11 @@ function Pioreactor({title}) {
     return (
       <MQTTProvider name={unit} config={config} experiment={experimentMetadata.experiment}>
         <Grid container rowSpacing={1} columnSpacing={2} justifyContent="space-between">
-          <Grid item md={12} xs={12}>
+          <Grid
+            size={{
+              md: 12,
+              xs: 12
+            }}>
             <PioreactorHeader unit={unit} assignedExperiment={assignedExperiment} isActive={isActive} selectExperiment={selectExperiment} modelName={modelName} modelVersion={modelVersion}/>
             {experimentMetadata.experiment && assignedExperiment && experimentMetadata.experiment !== assignedExperiment &&
             <Box>
@@ -2035,10 +2038,20 @@ function Pioreactor({title}) {
             </Box>
           }
           </Grid>
-          <Grid item lg={8} md={12} xs={12}>
+          <Grid
+            size={{
+              lg: 8,
+              md: 12,
+              xs: 12
+            }}>
             <UnitCard modelName={modelName} isActive={isActive} isAssignedToExperiment={experimentMetadata.experiment === assignedExperiment} unit={unit} experiment={experimentMetadata.experiment} config={unitConfig}/>
           </Grid>
-          <Grid item lg={4} md={12} xs={12}>
+          <Grid
+            size={{
+              lg: 4,
+              md: 12,
+              xs: 12
+            }}>
             {modelName === "pioreactor_20ml" &&
             <Bioreactor20Diagram  experiment={experimentMetadata.experiment} unit={unit} config={unitConfig}/>
             }
@@ -2047,17 +2060,33 @@ function Pioreactor({title}) {
             }
           </Grid>
 
-          <Grid item xs={12} md={7} container spacing={2} justifyContent="flex-start" style={{height: "100%"}}>
+          <Grid
+            container
+            spacing={2}
+            justifyContent="flex-start"
+            style={{height: "100%"}}
+            size={{
+              xs: 12,
+              md: 7
+            }}>
             <Charts unit={unit} unitsColorMap={{[unit]: colors[0]}} config={unitConfig} timeScale={"clock_time"} timeWindow={10000000} experimentMetadata={experimentMetadata}/>
           </Grid>
-          <Grid item xs={12} md={5} container spacing={1} justifyContent="flex-end" style={{height: "100%"}}>
-            <Grid item xs={12}>
+          <Grid
+            container
+            spacing={1}
+            justifyContent="flex-end"
+            style={{height: "100%"}}
+            size={{
+              xs: 12,
+              md: 5
+            }}>
+            <Grid size={12}>
               <LogTableByUnit experiment={experimentMetadata.experiment} unit={unit}/>
             </Grid>
           </Grid>
         </Grid>
       </MQTTProvider>
-    )
+    );
   }
 }
 

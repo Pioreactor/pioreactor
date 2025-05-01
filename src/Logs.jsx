@@ -89,56 +89,56 @@ function Logs(props) {
   return (
     <Fragment>
       <Grid container spacing={2} >
-        <Grid item xs={12} md={12}>
+        <Grid size={{lg: 12, xl: 7}}>
+            <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+              <Typography variant="h5" component="h2" sx={{ fontWeight: "bold" }}>
 
-        <Box>
-          <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-            <Typography variant="h5" component="h2" sx={{ fontWeight: "bold" }}>
+                <Select
+                  labelId="levelSelect"
+                  variant="standard"
+                  value={logLevel}
+                  onChange={(e) => setLogLevel(e.target.value)}
 
-              <Select
-                labelId="levelSelect"
-                variant="standard"
-                value={logLevel}
-                onChange={(e) => setLogLevel(e.target.value)}
+                  sx={{
+                    "& .MuiSelect-select": {
+                      paddingY: 0,
+                    },
+                    mr: 1,
+                    fontWeight: "bold", // Matches the title font weight
+                    fontSize: "inherit", // Inherits the Typography's font size
+                    fontFamily: "inherit", // Inherits the Typography's font family
+                  }}
+                >
+                  <MenuItem value="NOTICE">− Only important </MenuItem>
+                  <MenuItem value="INFO" >= Standard </MenuItem>
+                  <MenuItem value="DEBUG">≡ Detailed </MenuItem>
+                </Select>
+                <span style={{marginRight: "8px"}}> event logs for</span>
+                <Select
+                  labelId="configSelect"
+                  variant="standard"
+                  value={pioreactorUnit ? pioreactorUnit : "$broadcast"}
+                  onChange={onSelectionChange}
 
-                sx={{
-                  "& .MuiSelect-select": {
-                    paddingY: 0,
-                  },
-                  mr: 1,
-                  fontWeight: "bold", // Matches the title font weight
-                  fontSize: "inherit", // Inherits the Typography's font size
-                  fontFamily: "inherit", // Inherits the Typography's font family
-                }}
-              >
-                <MenuItem value="NOTICE">− Only important </MenuItem>
-                <MenuItem value="INFO" >= Standard </MenuItem>
-                <MenuItem value="DEBUG">≡ Detailed </MenuItem>
-              </Select>
-              event logs for
-              <Select
-                labelId="configSelect"
-                variant="standard"
-                value={pioreactorUnit ? pioreactorUnit : "$broadcast"}
-                onChange={onSelectionChange}
-
-                sx={{
-                  "& .MuiSelect-select": {
-                    paddingY: 0,
-                  },
-                  ml: 1,
-                  fontWeight: "bold", // Matches the title font weight
-                  fontSize: "inherit", // Inherits the Typography's font size
-                  fontFamily: "inherit", // Inherits the Typography's font family
-                }}
-              >
-                {assignedUnits.map((unit) => (
-                  <MenuItem key={unit} value={unit}>{unit}</MenuItem>
-                ))}
-                <MenuItem value="$broadcast"><PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 4px"}} />All assigned Pioreactors</MenuItem>
-              </Select>
-            </Typography>
-            <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
+                  sx={{
+                    "& .MuiSelect-select": {
+                      paddingY: 0,
+                    },
+                    fontWeight: "bold", // Matches the title font weight
+                    fontSize: "inherit", // Inherits the Typography's font size
+                    fontFamily: "inherit", // Inherits the Typography's font family
+                  }}
+                >
+                  {assignedUnits.map((unit) => (
+                    <MenuItem key={unit} value={unit}>{unit}</MenuItem>
+                  ))}
+                  <MenuItem value="$broadcast"><PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 4px"}} />All assigned Pioreactors</MenuItem>
+                </Select>
+              </Typography>
+            </Box>
+          </Grid>
+          <Grid size={{ lg: 12, xl: 5}}>
+            <Box sx={{display: "flex", justifyContent: "flex-end", flexFlow: "wrap"}}>
               <RecordEventLogDialog
                 defaultPioreactor={pioreactorUnit || ''}
                 defaultExperiment={experimentMetadata.experiment}
@@ -151,11 +151,10 @@ function Logs(props) {
               <Divider orientation="vertical" flexItem variant="middle"/>
               <ManageExperimentMenu experiment={experimentMetadata.experiment}/>
             </Box>
-          </Box>
-        </Box>
-
-          <PaginatedLogsTable pioreactorUnit={pioreactorUnit} experiment={experimentMetadata.experiment} relabelMap={relabelMap} logLevel={logLevel} />
-        </Grid>
+          </Grid>
+          <Grid>
+            <PaginatedLogsTable pioreactorUnit={pioreactorUnit} experiment={experimentMetadata.experiment} relabelMap={relabelMap} logLevel={logLevel} />
+          </Grid>
 
       </Grid>
     </Fragment>

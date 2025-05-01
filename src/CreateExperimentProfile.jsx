@@ -122,7 +122,7 @@ metadata:
   return (
     <>
       <Grid container spacing={0}>
-        <Grid item xs={12}>
+        <Grid size={12}>
           <div style={{ width: "100%", margin: "10px", display: "flex", justifyContent: "space-between" }}>
             <FormControl>
               <TextField
@@ -138,7 +138,7 @@ metadata:
             </FormControl>
           </div>
         </Grid>
-        <Grid item xs={6}>
+        <Grid size={6}>
           <div style={{
             tabSize: "4ch",
             border: "1px solid #ccc",
@@ -166,11 +166,11 @@ metadata:
           </div>
         </Grid>
 
-        <Grid item xs={6}>
+        <Grid size={6}>
           {code && displayedProfile()}
         </Grid>
 
-        <Grid item xs={12}>
+        <Grid size={12}>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <div>
               <Button
@@ -228,12 +228,16 @@ function CreateNewProfile(props) {
       document.title = props.title;
     }, [props.title]);
     return (
-        <Grid container spacing={2} >
-          <Grid item md={12} xs={12}>
-            <ProfilesContainer />
-          </Grid>
+      <Grid container spacing={2} >
+        <Grid
+          size={{
+            md: 12,
+            xs: 12
+          }}>
+          <ProfilesContainer />
         </Grid>
-    )
+      </Grid>
+    );
 }
 
 export default CreateNewProfile;
