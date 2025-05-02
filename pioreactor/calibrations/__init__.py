@@ -44,7 +44,7 @@ class CalibrationProtocol:
         else:
             raise ValueError("target_device must be a string or a list of strings")
 
-    def run(self, *args, **kwargs):
+    def run(self, *args, **kwargs) -> structs.CalibrationBase:
         raise NotImplementedError("Subclasses must implement this method.")
 
 
@@ -53,7 +53,7 @@ class SingleVialODProtocol(CalibrationProtocol):
     protocol_name = "single_vial"
     description = "Calibrate OD using a single vial"
 
-    def run(self, *args, **kwargs) -> structs.ODCalibration:
+    def run(self, *args, **kwargs) -> structs.OD600Calibration:
         from pioreactor.calibrations.od_calibration_single_vial import run_od_calibration
 
         return run_od_calibration()
@@ -64,7 +64,7 @@ class StandardsODProtocol(CalibrationProtocol):
     protocol_name = "standards"
     description = "Calibrate OD using standards. Requires multiple vials"
 
-    def run(self, *args, **kwargs) -> structs.ODCalibration:
+    def run(self, *args, **kwargs) -> structs.OD600Calibration:
         from pioreactor.calibrations.od_calibration_using_standards import run_od_calibration
 
         return run_od_calibration()
@@ -128,6 +128,8 @@ def load_calibration(device: Device, calibration_name: str) -> structs.AnyCalibr
         raise FileNotFoundError(
             f"Calibration {calibration_name} was not found in {CALIBRATION_PATH / device}"
         )
+    elif target_file.stat().st_size == 0:
+        raise FileNotFoundError(f"Calibration {calibration_name} is empty")
 
     try:
         data = yaml_decode(target_file.read_bytes(), type=structs.subclass_union(structs.CalibrationBase))

@@ -649,6 +649,7 @@ class CachedCalibrationTransformer(CalibrationTransformer):
 
         name = calibration_data.calibration_name
         channel = calibration_data.pd_channel
+        cal_type = calibration_data.calibration_type
 
         if config.get("od_reading.config", "ir_led_intensity") != "auto" and (
             calibration_data.ir_led_intensity != config.getfloat("od_reading.config", "ir_led_intensity")
@@ -661,7 +662,7 @@ class CachedCalibrationTransformer(CalibrationTransformer):
         self.models[channel].name = name  # type: ignore
         self.logger.info(f"Using OD calibration `{name}` for channel {channel}.")
         self.logger.debug(
-            f"Using OD calibration `{name}` for channel {channel}, {calibration_data.curve_type=}, {calibration_data.curve_data_=}"
+            f"Using OD calibration `{name}` of type `{cal_type}` for PD channel {channel}, {calibration_data.curve_type=}, {calibration_data.curve_data_=}"
         )
 
     def _hydrate_model(self, calibration_data: structs.ODCalibration) -> Callable[[pt.Voltage], pt.OD]:

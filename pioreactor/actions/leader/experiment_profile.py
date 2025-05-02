@@ -378,6 +378,11 @@ def when(
                 condition_met = evaluate_bool_expression(condition, env)
             except MQTTValueError:
                 condition_met = False
+                # log randomly.
+                if random.random() < 1 / 45.0:  # on average, once every 15min.
+                    logger.warning(
+                        f"Data not found in MQTT for condition `{condition}`. Double check the fields and that the required jobs are running"
+                    )
 
             if condition_met:
                 for action in actions:

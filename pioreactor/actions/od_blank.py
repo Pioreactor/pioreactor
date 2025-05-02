@@ -80,7 +80,6 @@ def od_statistics(
 
         means = {}
         variances = {}
-        autocorrelations = {}  # lag 1
 
         for channel, od_reading_series in readings.items():
             # measure the mean and publish. The mean will be used to normalize the readings in downstream jobs
@@ -92,9 +91,6 @@ def od_statistics(
                 ),
                 cut_off_n=2,
             )  # see issue #206
-            autocorrelations[channel] = math_helpers.correlation(
-                od_reading_series[:-1], od_reading_series[1:]
-            )
 
             # warn users that a blank is 0 - maybe this should be an error instead? TODO: link this to a docs page.
             if means[channel] == 0.0:
@@ -105,7 +101,6 @@ def od_statistics(
         logger.debug(f"observed data: {od_reading_series}")
         logger.debug(f"measured mean: {means}")
         logger.debug(f"measured variances: {variances}")
-        logger.debug(f"measured autocorrelations: {autocorrelations}")
 
         return means, variances
 

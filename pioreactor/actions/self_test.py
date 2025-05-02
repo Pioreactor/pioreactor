@@ -101,6 +101,8 @@ def test_REF_is_in_correct_position(managed_state, logger: CustomLogger, unit: s
             if i == 25:
                 break
 
+    logger.debug(f"{signal1=}, {signal2=}")
+
     norm_variance_per_channel = {
         "1": variance(signal1) / trimmed_mean(signal1) ** 2,
         "2": variance(signal2) / trimmed_mean(signal2) ** 2,
@@ -375,7 +377,9 @@ def test_run_stirring_calibration(managed_state, logger: CustomLogger, unit: str
     from pioreactor.calibrations.stirring_calibration import run_stirring_calibration
 
     cal = run_stirring_calibration()
+    cal.save_to_disk_for_device("stirring")
     cal.set_as_active_calibration_for_device("stirring")
+    return
 
 
 def test_positive_correlation_between_temperature_and_heating(

@@ -55,7 +55,6 @@ EOF
         fi
     done
 
-
     sudo -u pioreactor pios sync-configs || :
 
     # restart mqtt to db
