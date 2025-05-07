@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from json import dumps
 from math import sqrt
-from threading import Timer
 from typing import Optional
 
 from pioreactor.pubsub import create_client
@@ -106,27 +105,25 @@ class CultureGrowthEKF:
     m_{2,t} = g2(OD_{t-1}) + σ0A*noise
 
     OD_t = OD_{t-1} * exp(r_{t-1} * Δt) + σ1*noise
-    r_t = r_{t-1} + a_{t-1} * Δt + σ2*noise         => r_t = sum(a_{i}) + sum(σ2*noise_i)
-    a_t = a_{t-1} + σ3*noise
+    r_t = r_{t-1} + σ2*noise         => r_t = sum(sum(σ2*noise_i)
 
     # g1 and g2 are generic functions. Often they are the identity functions in OD,
     # but if using a 180deg sensor then it would be the inverse function, like exp(-OD)
     # they could also be functions that model saturation.
 
-    Let X = [OD, r, a]
+    Let X = [OD, r]
 
-    f([OD, r, a], Δt) = [OD * exp(r Δt), r + a Δt, a]
-    h([OD, r, a], Δt) = [g1(OD), g2(OD)]   # recall: this is a function of the number of sensor, here we are using two sensors.
+    f([OD, r], Δt) = [OD * exp(r Δt), r]
+    h([OD, r], Δt) = [g1(OD), g2(OD)]   # recall: this is a function of the number of sensor, here we are using two sensors.
 
     jac(f) = [
-        [exp(r Δt),  OD * exp(r Δt) * Δt,  0],
-        [0,          1,                    Δt],
-        [0,          0,                    1],
+        [exp(r Δt),  OD * exp(r Δt) * Δt, ],
+        [0,          1,                   ],
     ]
 
     jac(h) = [
-        [1, 0, 0],  # because d(identity)/dOD = 1, d(identity)/dr = 0, d(identity)/da = 0,
-        [1, 0, 0],
+        [1, 0],  # because d(identity)/dOD = 1, d(identity)/dr = 0,
+        [1, 0],
         ...
     ]
 
@@ -138,7 +135,7 @@ class CultureGrowthEKF:
         initial_state = np.array([obs.iloc[0], 0.0])
         initial_covariance = np.eye(2)
         process_noise_covariance = np.array([[0.00001, 0], [0, 1e-13]])
-        observation_noise_covariance = 0.2
+        observation_noise_covariance = np.array([[0.2]])
         ekf = CultureGrowthEKF(initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance)
 
         ekf.update(...)
@@ -209,7 +206,7 @@ class CultureGrowthEKF:
 
         initial_state = np.asarray(initial_state)
 
-        assert initial_state.shape[0] == 3
+        assert initial_state.shape[0] == 2
         assert (
             initial_state.shape[0] == initial_covariance.shape[0] == initial_covariance.shape[1]
         ), f"Shapes are not correct,{initial_state.shape[0]=}, {initial_covariance.shape[0]=}, {initial_covariance.shape[1]=}"
@@ -227,15 +224,11 @@ class CultureGrowthEKF:
         self.angles = angles
         self.outlier_std_threshold = outlier_std_threshold
 
-        self._currently_scaling_covariance = False
-        self._currently_scaling_process_covariance = False
-        self._scale_covariance_timer: Optional[Timer] = None
-        self._covariance_pre_scale = None
         self.ems = ExponentialMovingStd(
             0.975, 0.90, initial_std_value=np.sqrt(observation_noise_covariance[0][0])
         )
 
-    def update(self, observation_: list[float], dt: float):
+    def update(self, observation_: list[float], dt: float, recent_dilution=False):
         import numpy as np
 
         observation = np.asarray(observation_)
@@ -243,7 +236,10 @@ class CultureGrowthEKF:
 
         # Predict
         state_prediction = self.update_state_from_previous_state(self.state_, dt)
-        covariance_prediction = self.update_covariance_from_old_covariance(self.state_, self.covariance_, dt)
+
+        covariance_prediction = self.update_covariance_from_old_covariance(
+            self.state_, self.covariance_, dt, recent_dilution=recent_dilution
+        )
 
         # Update
         ### innovation
@@ -251,26 +247,31 @@ class CultureGrowthEKF:
 
         H = self._J_update_observations_from_state(state_prediction)
 
+        # outlier test
+        huber_threshold = self.outlier_std_threshold * (self.ems.value or 10_000)
+        currently_is_outlier = abs(residual_state[0]) > huber_threshold
+
+        if recent_dilution:
+            covariance_prediction[0, 1] = 0.0
+            covariance_prediction[1, 0] = 0.0
+        elif self.handle_outliers and (currently_is_outlier):
+            covariance_prediction[0, 0] = 2 * covariance_prediction[0, 0]
+        else:
+            self.ems.update(residual_state[0])
+
         ### optimal gain
         residual_covariance = (
             # see Scaling note above for why we multiple by state_[0]
             H @ covariance_prediction @ H.T
-            + self.state_[0] * self.observation_noise_covariance
+            + state_prediction[0] * self.observation_noise_covariance
         )
 
-        huber_threshold = self.outlier_std_threshold * (self.ems.value or 10_000)
-        currently_is_outlier = abs(residual_state[0]) > huber_threshold
+        kalman_gain_ = np.linalg.solve(residual_covariance.T, (H @ covariance_prediction.T)).T
 
         if self.handle_outliers and (currently_is_outlier):
-            covariance_prediction[0, 0] = 2 * covariance_prediction[0, 0]
-            kalman_gain_ = np.linalg.solve(residual_covariance.T, (H @ covariance_prediction.T)).T
-
-            # adjust the gain s.t. we freeze acc and gr, and scale the nOD inversely by the size of the outlier.
-            kalman_gain_[0, 0] *= huber_threshold / abs(residual_state[0])
+            # adjust the gain s.t. we freeze gr, and scale the nOD inversely by the size of the outlier.
+            kalman_gain_[0, 0] *= huber_threshold / max(abs(residual_state[0]), 1e-20)
             kalman_gain_[1:, 0] = 0
-        else:
-            self.ems.update(residual_state[0])
-            kalman_gain_ = np.linalg.solve(residual_covariance.T, (H @ covariance_prediction.T)).T
 
         ### update estimates
         self.state_ = state_prediction + kalman_gain_ @ residual_state
@@ -278,58 +279,20 @@ class CultureGrowthEKF:
 
         return self.state_, self.covariance_
 
-    def scale_OD_variance_for_next_n_seconds(self, factor: float, seconds: float):
-        """
-        This is a bit tricky: we do some state handling here (eg: keeping track of the previous covariance matrix)
-        but we will be invoking this function multiple times. So we start a Timer but cancel it
-        if we invoke this function again (i.e. a new dosing event). When the Timer successfully
-        executes its function, then we restore state (add back the covariance matrix.)
-
-        TODO: this should be decoupled from the EKF class.
-
-        """
-        import numpy as np
-
-        def reverse_scale_covariance() -> None:
-            self._currently_scaling_covariance = False
-            self.covariance_ = self._covariance_pre_scale
-            self._covariance_pre_scale = None
-            self.handle_outliers = True
-
-        def forward_scale_covariance():
-            if not self._currently_scaling_covariance:
-                self._covariance_pre_scale = self.covariance_.copy()
-
-            self._currently_scaling_covariance = True
-            self.covariance_ = np.diag(self._covariance_pre_scale.diagonal())
-            self.covariance_[0, 0] *= factor
-            self.handle_outliers = False
-
-        if self._currently_scaling_covariance:
-            assert self._scale_covariance_timer is not None
-            self._scale_covariance_timer.cancel()
-
-        self._scale_covariance_timer = Timer(seconds, reverse_scale_covariance)
-        self._scale_covariance_timer.daemon = True
-        self._scale_covariance_timer.start()
-
-        forward_scale_covariance()
-
     def update_state_from_previous_state(self, state, dt: float):
         """
         Denoted "f" in literature, x_{k} = f(x_{k-1})
 
-        state = [OD, r, a]
+        state = [OD, r]
 
         OD_t = OD_{t-1}·exp(r_{t-1}·Δt)
-        r_t  = r_{t-1} + a_{t-1}·Δt
-        a_t  = a_{t-1}
+        r_t  = r_{t-1}
 
         """
         import numpy as np
 
-        od, rate, acc = state
-        return np.array([od * np.exp(rate * dt), rate + acc * dt, acc])
+        od, rate = state
+        return np.array([od * np.exp(rate * dt), rate])
 
     def _J_update_observations_from_state(self, state_prediction):
         """
@@ -355,15 +318,19 @@ class CultureGrowthEKF:
         from numpy import zeros
 
         od = state_prediction[0]
-        J = zeros((self.n_sensors, 3))
+        J = zeros((self.n_sensors, 2))
         for i in range(self.n_sensors):
             angle = self.angles[i]
             J[i, 0] = 1.0 if (angle != "180") else -exp(-(od - 1))
         return J
 
-    def update_covariance_from_old_covariance(self, state, covariance, dt: float):
+    def update_covariance_from_old_covariance(self, state, covariance, dt: float, recent_dilution: bool):
+        Q = self.process_noise_covariance.copy().astype(float)
+        if recent_dilution:
+            jump_var = max(1e-12, 0.25 * state[0] ** 2)  # keep strictly >0 for Cholesky safety
+            Q[0, 0] += jump_var
         jacobian = self._J_update_state_from_previous_state(state, dt)
-        return jacobian @ covariance @ jacobian.T + self.process_noise_covariance
+        return jacobian @ covariance @ jacobian.T + Q
 
     def update_observations_from_state(self, state_predictions):
         """
@@ -388,30 +355,26 @@ class CultureGrowthEKF:
             state = [OD, r, a]
 
             OD_t = OD_{t-1} * exp(r_{t-1} * Δt)
-            r_t = r_{t-1} + a_{t-1}Δt
-            a_t = a_{t-1}
+            r_t = r_{t-1}
 
         So jacobian should look like:
 
         [
-            [exp(r Δt),  OD * exp(r Δt) * Δt,  0],
-            [0,          1,                    Δt],
-            [0,          0,                    1],
+            [exp(r Δt),  OD * exp(r Δt) * Δt, ],
+            [0,          1,                   ],
         ]
 
 
         """
         import numpy as np
 
-        J = np.zeros((3, 3))
+        J = np.zeros((2, 2))
 
-        od, rate, acc = state
+        od, rate = state
         J[0, 0] = np.exp(rate * dt)
         J[1, 1] = 1
-        J[2, 2] = 1
 
         J[0, 1] = od * np.exp(rate * dt) * dt
-        J[1, 2] = dt
 
         return J
 

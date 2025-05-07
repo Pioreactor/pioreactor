@@ -926,13 +926,13 @@ class ODReader(BackgroundJob):
 
         _, REF_on_signal = on_reading.popitem()
 
-        ir_intensity_argmax_REF_can_be = initial_ir_intensity / REF_on_signal.reading * 0.240
+        ir_intensity_argmax_REF_can_be = initial_ir_intensity / REF_on_signal.reading * 0.250
 
         ir_intensity_argmax_ANGLE_can_be = (
             initial_ir_intensity / culture_on_signal.reading * 3.0
         ) / 50  # divide by N since the culture is unlikely to Nx.
 
-        ir_intensity_max = 80.0
+        ir_intensity_max = 85.0
 
         return round(
             max(

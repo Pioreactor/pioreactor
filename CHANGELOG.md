@@ -1,3 +1,7 @@
+### Upcoming
+
+ - adding dirs to exported data zips
+
 ### 25.5.1
 
 #### Enhancements

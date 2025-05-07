@@ -98,7 +98,14 @@ class GrowthRateCalculator(BackgroundJob):
         self.source_obs_from_mqtt = source_obs_from_mqtt
         self.ignore_cache = ignore_cache
         self.time_of_previous_observation: datetime | None = None
-        self.expected_dt = 1 / (60 * 60 * config.getfloat("od_reading.config", "samples_per_second"))
+        self.expected_dt = 1 / (
+            60 * 60 * config.getfloat("od_reading.config", "samples_per_second")
+        )  # in hours
+
+        # ekf parameters for when a dosing event occurs
+        self._obs_since_last_dose: int | None = None
+        self._obs_required_to_reset: int | None = None
+        self._recent_dilution = False
 
     def on_ready(self) -> None:
         # this is here since the below is long running, and if kept in the init(), there is a large window where
@@ -133,7 +140,6 @@ class GrowthRateCalculator(BackgroundJob):
         self.logger.debug(f"od_normalization_mean={self.od_normalization_factors}")
         self.logger.debug(f"od_normalization_variance={self.od_variances}")
         self.ekf = self.initialize_extended_kalman_filter(
-            acc_std=config.getfloat("growth_rate_kalman", "acc_std"),
             od_std=config.getfloat("growth_rate_kalman", "od_std"),
             rate_std=config.getfloat("growth_rate_kalman", "rate_std"),
             obs_std=config.getfloat("growth_rate_kalman", "obs_std"),
@@ -143,7 +149,7 @@ class GrowthRateCalculator(BackgroundJob):
             self.start_passive_listeners()
 
     def initialize_extended_kalman_filter(
-        self, acc_std: float, od_std: float, rate_std: float, obs_std: float
+        self, od_std: float, rate_std: float, obs_std: float
     ) -> CultureGrowthEKF:
         import numpy as np
 
@@ -151,24 +157,21 @@ class GrowthRateCalculator(BackgroundJob):
             [
                 self.initial_nOD,
                 self.initial_growth_rate,
-                self.initial_acc,
             ]
         )
         self.logger.debug(f"Initial state: {repr(initial_state)}")
 
         initial_covariance = 1e-4 * np.eye(
-            3
+            2
         )  # empirically selected - TODO: this should probably scale with `expected_dt`
         self.logger.debug(f"Initial covariance matrix:\n{repr(initial_covariance)}")
 
-        acc_process_variance = (acc_std * self.expected_dt) ** 2
         od_process_variance = (od_std * self.expected_dt) ** 2
         rate_process_variance = (rate_std * self.expected_dt) ** 2
 
-        process_noise_covariance = np.zeros((3, 3))
+        process_noise_covariance = np.zeros((2, 2))
         process_noise_covariance[0, 0] = od_process_variance
         process_noise_covariance[1, 1] = rate_process_variance
-        process_noise_covariance[2, 2] = acc_process_variance
         self.logger.debug(f"Process noise covariance matrix:\n{repr(process_noise_covariance)}")
 
         observation_noise_covariance = self.create_obs_noise_covariance(obs_std)
@@ -371,21 +374,6 @@ class GrowthRateCalculator(BackgroundJob):
 
         return variances
 
-    def update_ekf_variance_after_event(self, minutes: float, factor: float) -> None:
-        if whoami.is_testing_env():
-            # TODO: replace with jobmanager
-            msg = subscribe(  # needs to be pubsub.subscribe (ie not sub_client.subscribe) since this is called in a callback
-                f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval",
-                timeout=1.0,
-            )
-            if msg:
-                interval = float(msg.payload)
-            else:
-                interval = 5
-            self.ekf.scale_OD_variance_for_next_n_seconds(factor, minutes * (12 * interval))
-        else:
-            self.ekf.scale_OD_variance_for_next_n_seconds(factor, minutes * 60)
-
     def scale_raw_observations(self, observations: dict[pt.PdChannel, float]) -> dict[pt.PdChannel, float]:
         def _scale_and_shift(obs, shift, scale) -> float:
             return (obs - shift) / (scale - shift)
@@ -474,8 +462,18 @@ class GrowthRateCalculator(BackgroundJob):
 
             self.time_of_previous_observation = timestamp
 
-        updated_state_, covariance_ = self.ekf.update(list(scaled_observations.values()), dt)
+        updated_state_, covariance_ = self.ekf.update(
+            list(scaled_observations.values()), dt, self._recent_dilution
+        )
         latest_od_filtered, latest_growth_rate = float(updated_state_[0]), float(updated_state_[1])
+
+        if self._obs_since_last_dose is not None and self._obs_required_to_reset is not None:
+            self._obs_since_last_dose += 1
+
+            if self._obs_since_last_dose >= self._obs_required_to_reset:
+                self._obs_since_last_dose = None
+                self._obs_required_to_reset = None
+                self._recent_dilution = False
 
         growth_rate = structs.GrowthRate(
             growth_rate=latest_growth_rate,
@@ -499,21 +497,9 @@ class GrowthRateCalculator(BackgroundJob):
         return self.respond_to_dosing_event(dosing_event)
 
     def respond_to_dosing_event(self, dosing_event: structs.DosingEvent) -> None:
-        # here we can add custom logic to handle dosing events.
-        # an improvement to this: the variance factor is proportional to the amount exchanged.
-        if dosing_event.event != "remove_waste":
-            self.update_ekf_variance_after_event(
-                minutes=config.getfloat(
-                    "growth_rate_calculating.config",
-                    "ekf_variance_shift_post_dosing_minutes",
-                    fallback=0.40,
-                ),
-                factor=config.getfloat(
-                    "growth_rate_calculating.config",
-                    "ekf_variance_shift_post_dosing_factor",
-                    fallback=2500,
-                ),
-            )
+        self._obs_since_last_dose = 0
+        self._obs_required_to_reset = 1
+        self._recent_dilution = True
 
     def start_passive_listeners(self) -> None:
         # process incoming data

@@ -359,6 +359,7 @@ def conform_and_validate_api_endpoint(endpoint: str) -> str:
 
 
 def create_webserver_path(address: str, endpoint: str) -> str:
+    # pioreactor cluster specific (note the use of protocol and ports from our config!)
     # Most commonly, address can be an mdns name (test.local), or an IP address.
     port = config.getint("ui", "port", fallback=80)
     proto = config.get("ui", "proto", fallback="http")
@@ -367,6 +368,7 @@ def create_webserver_path(address: str, endpoint: str) -> str:
 
 
 def get_from(address: str, endpoint: str, **kwargs) -> mureq.Response:
+    # pioreactor cluster specific
     return mureq.get(create_webserver_path(address, endpoint), **kwargs)
 
 
@@ -377,6 +379,7 @@ def get_from_leader(endpoint: str, **kwargs) -> mureq.Response:
 def put_into(
     address: str, endpoint: str, body: bytes | None = None, json: dict | Struct | None = None, **kwargs
 ) -> mureq.Response:
+    # pioreactor cluster specific
     return mureq.put(create_webserver_path(address, endpoint), body=body, json=json, **kwargs)
 
 
@@ -389,6 +392,7 @@ def put_into_leader(
 def patch_into(
     address: str, endpoint: str, body: bytes | None = None, json: dict | Struct | None = None, **kwargs
 ) -> mureq.Response:
+    # pioreactor cluster specific
     return mureq.patch(create_webserver_path(address, endpoint), body=body, json=json, **kwargs)
 
 
@@ -401,6 +405,7 @@ def patch_into_leader(
 def post_into(
     address: str, endpoint: str, body: bytes | None = None, json: dict | Struct | None = None, **kwargs
 ) -> mureq.Response:
+    # pioreactor cluster specific
     return mureq.post(create_webserver_path(address, endpoint), body=body, json=json, **kwargs)
 
 
@@ -411,6 +416,7 @@ def post_into_leader(
 
 
 def delete_from(address: str, endpoint: str, **kwargs) -> mureq.Response:
+    # pioreactor cluster specific
     return mureq.delete(create_webserver_path(address, endpoint), **kwargs)
 
 

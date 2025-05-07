@@ -6,7 +6,6 @@ import time
 
 import numpy as np
 from msgspec.json import encode
-from numpy.testing import assert_array_equal
 
 from pioreactor import structs
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
@@ -16,7 +15,7 @@ from pioreactor.config import config
 from pioreactor.config import temporary_config_changes
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
-from pioreactor.tests.conftest import StreamODReadingsFromExport
+from pioreactor.tests.utils import StreamODReadingsFromExport
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import default_datetime_for_pioreactor
@@ -357,27 +356,11 @@ class TestGrowthRateCalculating:
             )
             pause()
 
-            previous_covariance_matrix = calc.ekf.covariance_.copy()
-
-            # trigger dosing events, which change the "regime"
-            publish(
-                f"pioreactor/{unit}/{experiment}/dosing_events",
-                encode(
-                    structs.DosingEvent(
-                        volume_change=1.0,
-                        event="add_media",
-                        source_of_event="algo",
-                        timestamp=to_datetime("2010-01-01T12:00:48.000Z"),
-                    )
-                ),
-            )
-            pause()
-
             publish(
                 f"pioreactor/{unit}/{experiment}/od_reading/ods",
                 create_encoded_od_raw_batched(
                     ["1"],
-                    [0.49],
+                    [0.52],
                     ["90"],
                     timestamp="2010-01-01T12:00:50.000Z",
                 ),
@@ -387,14 +370,12 @@ class TestGrowthRateCalculating:
                 f"pioreactor/{unit}/{experiment}/od_reading/ods",
                 create_encoded_od_raw_batched(
                     ["1"],
-                    [0.48],
+                    [0.52],
                     ["90"],
                     timestamp="2010-01-01T12:00:55.000Z",
                 ),
             )
             pause()
-
-            assert not np.array_equal(previous_covariance_matrix, calc.ekf.covariance_)
 
             publish(
                 f"pioreactor/{unit}/{experiment}/dosing_events",
@@ -408,6 +389,8 @@ class TestGrowthRateCalculating:
                 ),
             )
             pause()
+            assert calc._recent_dilution
+
             publish(
                 f"pioreactor/{unit}/{experiment}/od_reading/ods",
                 create_encoded_od_raw_batched(
@@ -418,20 +401,7 @@ class TestGrowthRateCalculating:
                 ),
             )
             pause()
-
-            time.sleep(8)
-            assert calc.ekf._currently_scaling_covariance
-            assert not np.array_equal(previous_covariance_matrix, calc.ekf.covariance_)
-
-            time.sleep(10)
-            pause()
-
-            # should revert back
-            while calc.ekf._currently_scaling_covariance:
-                pass
-
-            assert_array_equal(calc.ekf.covariance_, previous_covariance_matrix)
-            calc.clean_up()
+            assert not calc._recent_dilution
 
     def test_end_to_end(self) -> None:
         with temporary_config_changes(

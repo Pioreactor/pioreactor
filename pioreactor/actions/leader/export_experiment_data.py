@@ -261,9 +261,10 @@ def export_experiment_data(
             if count == 0:
                 logger.warning(f"No data present in {dataset_name}. Check database?")
 
+            zf.mkdir(dataset_name)
             for filename in filenames:
-                path_to_file = Path(Path(output).parent / filename)
-                zf.write(path_to_file, arcname=filename)
+                path_to_file = Path(output, filename)
+                zf.write(path_to_file, arcname=f"{dataset_name}/{filename}")
                 Path(path_to_file).unlink()
 
     logger.info("Finished export.")
