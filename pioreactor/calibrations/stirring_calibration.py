@@ -40,7 +40,7 @@ def run_stirring_calibration(
     unit = get_unit_name()
     experiment = get_testing_experiment_name()
     action_name = "stirring_calibration"
-    logger = create_logger(action_name)
+    logger = create_logger(action_name, experiment="$experiment")
 
     with managed_lifecycle(unit, experiment, action_name) as lc:
         logger.info("Starting stirring calibration.")

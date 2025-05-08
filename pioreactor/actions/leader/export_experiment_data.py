@@ -143,7 +143,7 @@ def export_experiment_data(
         click.echo("At least one dataset name must be provided.")
         sys.exit(1)
 
-    logger = create_logger("export_experiment_data")
+    logger = create_logger("export_experiment_data", experiment="$experiment")
     logger.info(
         f"Starting export of dataset{'s' if len(dataset_names) > 1 else ''}: {', '.join(dataset_names)}."
     )
@@ -159,8 +159,6 @@ def export_experiment_data(
             "BASE64", 1, decode_base64
         )  # TODO: until next OS release which implements a native sqlite3 base64 function
 
-        con.set_trace_callback(logger.debug)
-
         cursor = con.cursor()
         cursor.executescript(
             """
@@ -171,6 +169,8 @@ def export_experiment_data(
             PRAGMA cache_size = -4000;
         """
         )
+
+        con.set_trace_callback(logger.debug)
 
         for dataset_name in dataset_names:
             try:

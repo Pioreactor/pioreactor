@@ -30,7 +30,6 @@ from pioreactor.utils.math_helpers import correlation
 from pioreactor.utils.math_helpers import simple_linear_regression_with_forced_nil_intercept
 from pioreactor.utils.timing import current_utc_datestamp
 from pioreactor.utils.timing import current_utc_datetime
-from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_testing_experiment_name
 from pioreactor.whoami import get_unit_name
 
@@ -384,7 +383,7 @@ def run_pump_calibration(
     pump_device,
 ) -> structs.SimplePeristalticPumpCalibration:
     unit = get_unit_name()
-    experiment = get_assigned_experiment_name(unit)
+    experiment = "$experiment"
 
     logger = create_logger("pump_calibration", unit=unit, experiment=experiment)
     logger.info("Starting pump calibration.")

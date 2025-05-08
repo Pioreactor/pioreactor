@@ -188,7 +188,7 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         return out_file
 
     def save_to_disk_for_device(self, device: str) -> str:
-        logger = create_logger("calibrations")
+        logger = create_logger("calibrations", experiment="$experiment")
 
         out_file = self.path_on_disk_for_device(device)
         device_dir = out_file.parent
@@ -204,7 +204,7 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
     def set_as_active_calibration_for_device(self, device: str) -> None:
         from pioreactor.utils import local_persistent_storage
 
-        logger = create_logger("calibrations")
+        logger = create_logger("calibrations", experiment="$experiment")
 
         if not self.exists_on_disk_for_device(device):
             self.save_to_disk_for_device(device)
@@ -217,7 +217,7 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
     def remove_as_active_calibration_for_device(self, device: str) -> None:
         from pioreactor.utils import local_persistent_storage
 
-        logger = create_logger("calibrations")
+        logger = create_logger("calibrations", experiment="$experiment")
 
         with local_persistent_storage("active_calibrations") as c:
             if c.get(device) == self.calibration_name:
