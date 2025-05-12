@@ -566,12 +566,12 @@ def click_growth_rate_calculating(ctx, ignore_cache):
         unit = whoami.get_unit_name()
         experiment = whoami.get_assigned_experiment_name(unit)
 
-        calculator = GrowthRateCalculator(  # noqa: F841
+        with GrowthRateCalculator(  # noqa: F841
             ignore_cache=ignore_cache,
             unit=unit,
             experiment=experiment,
-        )
-        calculator.block_until_disconnected()
+        ) as g:
+            g.block_until_disconnected()
 
 
 @click_growth_rate_calculating.command(name="clear_cache")

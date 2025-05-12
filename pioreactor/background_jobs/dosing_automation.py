@@ -701,11 +701,10 @@ def click_dosing_automation(ctx, automation_name, duration, skip_first_run):
     Start an Dosing automation
     """
 
-    la = start_dosing_automation(
+    with start_dosing_automation(
         automation_name=automation_name,
         duration=float(duration),
         skip_first_run=bool(skip_first_run),
         **{ctx.args[i][2:].replace("-", "_"): ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},
-    )
-
-    la.block_until_disconnected()
+    ) as da:
+        da.block_until_disconnected()

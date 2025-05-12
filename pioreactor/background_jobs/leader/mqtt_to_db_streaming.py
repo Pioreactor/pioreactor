@@ -526,5 +526,5 @@ def click_mqtt_to_db_streaming() -> None:
 
     os.nice(1)
 
-    job = start_mqtt_to_db_streaming()
-    job.block_until_disconnected()
+    with start_mqtt_to_db_streaming() as job:
+        job.block_until_disconnected()
