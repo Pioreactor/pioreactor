@@ -185,7 +185,7 @@ def export_experiment_data(
 
             _partition_by_unit = dataset.has_unit and (partition_by_unit or dataset.always_partition_by_unit)
             _partition_by_experiment = dataset.has_experiment and partition_by_experiment
-            filenames: list[str] = []
+            path_to_files: list[Path] = []
             placeholders: dict[str, str] = {}
 
             order_by_col = dataset.default_order_by
@@ -243,14 +243,16 @@ def export_experiment_data(
                     )
 
                     if rows_partition not in parition_to_writer_map:
+                        # create a new csv writer for this partition since it doesn't exist yet
                         filename = f"{dataset_name}-" + "-".join(rows_partition) + f"-{time}.csv"
                         filename = filename.replace(" ", "_")
-                        filenames.append(filename)
-                        path_to_file = Path(Path(output).parent / filename)
+                        path_to_file = Path(output).parent / filename
                         parition_to_writer_map[rows_partition] = csv.writer(
                             stack.enter_context(open(path_to_file, "w")), delimiter=","
                         )
                         parition_to_writer_map[rows_partition].writerow(headers)
+
+                        path_to_files.append(path_to_file)
 
                     parition_to_writer_map[rows_partition].writerow(row)
 
@@ -262,10 +264,9 @@ def export_experiment_data(
                 logger.warning(f"No data present in {dataset_name}. Check database?")
 
             zf.mkdir(dataset_name)
-            for filename in filenames:
-                path_to_file = Path(output, filename)
+            for path_to_file in path_to_files:
                 zf.write(path_to_file, arcname=f"{dataset_name}/{filename}")
-                Path(path_to_file).unlink()
+                path_to_file.unlink()
 
     logger.info("Finished export.")
     return

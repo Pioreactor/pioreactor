@@ -19,7 +19,6 @@ from pioreactor.pubsub import create_client
 from pioreactor.types import GpioPin
 from pioreactor.utils import clamp
 from pioreactor.utils import local_intermittent_storage
-from pioreactor.version import rpi_version_info
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
@@ -29,6 +28,7 @@ if is_testing_env():
     from pioreactor.utils.mock import MockHardwarePWM as HardwarePWM
 else:
     from rpi_hardware_pwm import HardwarePWM  # type: ignore
+    from rpi_hardware_pwm import HardwarePWMException  # type: ignore
 
 
 class HardwarePWMOutputDevice(HardwarePWM):
@@ -41,10 +41,12 @@ class HardwarePWMOutputDevice(HardwarePWM):
 
         pwm_channel = self.HARDWARE_PWM_CHANNELS[pin]
 
-        if rpi_version_info.startswith("Raspberry Pi 5"):
+        try:
+            super().__init__(
+                pwm_channel, hz=frequency
+            )  # default is chip=0 for all except RPi5 on Kernel 6.6 (which is 2)
+        except HardwarePWMException:
             super().__init__(pwm_channel, hz=frequency, chip=2)
-        else:
-            super().__init__(pwm_channel, hz=frequency)  # default is chip=0
 
     def start(self, initial_dc: pt.FloatBetween0and100) -> None:
         self._started = True
