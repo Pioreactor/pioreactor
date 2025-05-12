@@ -1,6 +1,9 @@
 ### Upcoming
 
  - adding dirs to exported data zips
+ - new kalman filter
+ - new system logs
+ - fixed stirrer not spinning on Pioreactor page (UI)
 
 ### 25.5.1
 

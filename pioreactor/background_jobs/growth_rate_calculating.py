@@ -299,6 +299,13 @@ class GrowthRateCalculator(BackgroundJob):
 
         od_blank = self.get_od_blank_from_cache()
 
+        # check that od_variances is not zero:
+        # this means that the sensor is not working properly.
+        if any(v == 0.0 for v in od_variances.values()):
+            raise ValueError(
+                "OD variance is zero - this means that the sensor is not working properly. Please check the sensor."
+            )
+
         # what happens if od_blank is near / less than od_normalization_factors?
         # this means that the inoculant had near 0 impact on the turbidity => very dilute.
         # I think we should not use od_blank if so

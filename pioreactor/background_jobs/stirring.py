@@ -596,6 +596,6 @@ def click_stirring(target_rpm: float, use_rpm: bool) -> None:
     """
     Start the stirring of the Pioreactor.
     """
-    st = start_stirring(target_rpm=target_rpm, use_rpm=use_rpm)
-    st.block_until_rpm_is_close_to_target()
-    st.block_until_disconnected()
+    with start_stirring(target_rpm=target_rpm, use_rpm=use_rpm) as st:
+        st.block_until_rpm_is_close_to_target()
+        st.block_until_disconnected()

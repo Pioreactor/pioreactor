@@ -1317,19 +1317,18 @@ def click_od_reading(
     """
 
     if snapshot:
-        od = start_od_reading(
+        with start_od_reading(
             od_angle_channel1,
             od_angle_channel2,
             fake_data=fake_data or whoami.is_testing_env(),
             interval=None,
-        )
-        od.logger.debug(od.record_from_adc())
-        # end early
-        return
+        ) as od:
+            od.logger.debug(od.record_from_adc())
+            # end early
     else:
-        od = start_od_reading(
+        with start_od_reading(
             od_angle_channel1,
             od_angle_channel2,
             fake_data=fake_data or whoami.is_testing_env(),
-        )
-        od.block_until_disconnected()
+        ) as od:
+            od.block_until_disconnected()

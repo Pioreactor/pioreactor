@@ -274,8 +274,14 @@ class CultureGrowthEKF:
             kalman_gain_[1:, 0] = 0
 
         ### update estimates
-        self.state_ = state_prediction + kalman_gain_ @ residual_state
-        self.covariance_ = (np.eye(self.n_states) - kalman_gain_ @ H) @ covariance_prediction
+        state_ = state_prediction + kalman_gain_ @ residual_state
+        covariance_ = (np.eye(self.n_states) - kalman_gain_ @ H) @ covariance_prediction
+
+        if np.isnan(state_).any():
+            raise ValueError("NaNs detected after calculation.")
+
+        self.state_ = state_
+        self.covariance_ = covariance_
 
         return self.state_, self.covariance_
 

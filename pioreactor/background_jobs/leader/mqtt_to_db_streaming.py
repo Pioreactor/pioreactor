@@ -120,7 +120,7 @@ class MqttToDBStreamer(LongRunningBackgroundJob):
             except Exception as e:
                 self.logger.warning(f"Encountered error in saving to DB: {e}. See logs.")
                 self.logger.debug(
-                    f"Error in {parser.__name__}. Payload that caused error: `{message.payload.decode()}`. Topic: `{message.topic}`",
+                    f"Error in {parser.__name__}. Payload: `{message.payload.decode()}`. Topic: `{message.topic}`",
                     exc_info=True,
                 )
                 return
