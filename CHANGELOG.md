@@ -1,9 +1,28 @@
 ### Upcoming
 
- - adding dirs to exported data zips
- - new kalman filter
- - new system logs
- - fixed stirrer not spinning on Pioreactor page (UI)
+#### Enhancements
+ - new _System logs_ under _Inventory_ to track logs happening outside of experiments in your cluster.
+ - Exported data zips have folders for each dataset requested.
+ - Improvements to the Kalman filter. For users using the growth-rate model with dosing, you should see improvements to your growth-rate time series. We recommend the following configuration:
+ ```
+[growth_rate_kalman]
+# obs_std ↑ smooths growth rate, rate_std ↑ more responsive growth rate
+obs_std=1.5
+od_std=0.0025
+rate_std=0.25
+ ```
+ - New image installs only:
+   - updated base OS to the latest 25-05-06 Raspberry Pi OS. The big change is using Linux kernel 6.12.
+
+
+#### Bug fixes
+ - fixed stirrer not spinning on Pioreactor page (UI) in some cases
+ - alert user if their OD reading is constant before starting the growth-rate calculator, which would break things.
+ - alert user if their software is installed in a non-standard location. If so, try `pio uninstall pioreactor -y`.
+ - Better organization of logs in the UI.
+
+
+
 
 ### 25.5.1
 
