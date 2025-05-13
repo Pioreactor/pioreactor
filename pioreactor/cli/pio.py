@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from os import geteuid
 from shlex import quote
 from typing import Optional
 
@@ -10,6 +11,7 @@ import click
 from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
 
+import pioreactor
 from pioreactor import exc
 from pioreactor import plugin_management
 from pioreactor import whoami
@@ -54,21 +56,24 @@ def pio(ctx) -> None:
     Report errors or feedback: https://github.com/Pioreactor/pioreactor/issues
     """
 
-    # if a user runs `pio`, we want the check_firstboot_successful to run, hence the invoke_without_command
+    if not whoami.is_testing_env():
+        # this check could go somewhere else. TODO This check won't execute if calling pioreactor from a script.
+        if not whoami.check_firstboot_successful():
+            raise SystemError(
+                "/usr/local/bin/firstboot.sh found on disk. firstboot.sh likely failed. Try looking for errors in `sudo systemctl status firstboot.service`."
+            )
+
+        # running as root can cause problems as files created by the software are owned by root
+        if geteuid() == 0:
+            raise SystemError("Don't run as root!")
+
+        # user-installs of pioreactor are not the norm and cause problems. This may change in the future.
+        if pioreactor.__file__ != "/usr/local/lib/python3.11/dist-packages/pioreactor/__init__.py":
+            raise SystemError("Pioreactor installed in a non-standard location. Please re-install.")
+
     # https://click.palletsprojects.com/en/8.1.x/commands/#group-invocation-without-command
     if ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
-
-    # this check could go somewhere else. TODO This check won't execute if calling pioreactor from a script.
-    if not whoami.check_firstboot_successful():
-        raise SystemError(
-            "/usr/local/bin/firstboot.sh found on disk. firstboot.sh likely failed. Try looking for errors in `sudo systemctl status firstboot.service`."
-        )
-
-    from os import geteuid
-
-    if geteuid() == 0:
-        raise SystemError("Don't run as root!")
 
     # load plugins
     plugin_management.get_plugins()
