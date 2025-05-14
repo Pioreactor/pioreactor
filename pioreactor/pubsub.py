@@ -331,7 +331,9 @@ class collect_all_logs_of_level:
         self.client: Client = subscribe_and_callback(
             self._collect_logs_into_bucket,
             f"pioreactor/{self.unit}/{self.experiment}/logs/app/{self.log_level.lower()}",
+            allow_retained=False,
         )
+        assert self.client.is_connected
 
     def _collect_logs_into_bucket(self, message):
         # load the message

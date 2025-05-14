@@ -70,7 +70,7 @@ jobs:
 
       - name: Run tests
         run:  |
-          pytest pioreactor/tests/ -vv --timeout 600 --random-order --durations 15
+          pytest pioreactor/tests/ -vv --timeout 600 --random-order --durations 15 --log-level DEBUG
           pytest pioreactor/tests/test_automation_imports.py
         env:
           TESTING: 1
