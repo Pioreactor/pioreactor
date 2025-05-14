@@ -11,39 +11,43 @@ import pytest
 
 from pioreactor.mureq import Response
 from pioreactor.pubsub import publish
+from pioreactor.utils import JobManager
 
 
 @pytest.fixture(autouse=True)
-def run_around_tests(request):
+def run_around_tests():
     from pioreactor.utils import local_intermittent_storage
     from pioreactor.utils import local_persistent_storage
 
-    test_name = request.node.name
-
     with local_intermittent_storage("pwm_dc") as cache:
-        for key in cache.iterkeys():
-            del cache[key]
+        cache.empty()
 
     with local_intermittent_storage("led_locks") as cache:
-        for key in cache.iterkeys():
-            del cache[key]
+        cache.empty()
 
     with local_intermittent_storage("pwm_locks") as cache:
-        for key in cache.iterkeys():
-            del cache[key]
+        cache.empty()
 
     with local_intermittent_storage("leds") as cache:
-        for key in cache.iterkeys():
-            del cache[key]
+        cache.empty()
 
     with local_persistent_storage("media_throughput") as c:
-        c.pop(test_name)
+        c.empty()
+
     with local_persistent_storage("alt_media_throughput") as c:
-        c.pop(test_name)
+        c.empty()
+
     with local_persistent_storage("alt_media_fraction") as c:
-        c.pop(test_name)
+        c.empty()
+
     with local_persistent_storage("liquid_volume") as c:
-        c.pop(test_name)
+        c.empty()
+
+    with local_persistent_storage("active_calibrations") as c:
+        c.empty()
+
+    with JobManager() as jm:
+        jm._empty()
 
     yield
 

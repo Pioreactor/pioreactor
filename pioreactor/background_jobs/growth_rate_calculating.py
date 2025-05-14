@@ -302,6 +302,9 @@ class GrowthRateCalculator(BackgroundJob):
         # check that od_variances is not zero:
         # this means that the sensor is not working properly.
         if any(v == 0.0 for v in od_variances.values()):
+            self.logger.error(
+                "OD variance is zero - this means that the sensor is not working properly. Please check the sensor."
+            )
             raise ValueError(
                 "OD variance is zero - this means that the sensor is not working properly. Please check the sensor."
             )

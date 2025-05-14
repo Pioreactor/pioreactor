@@ -5,6 +5,7 @@ import json
 import time
 
 import numpy as np
+import pytest
 from msgspec.json import encode
 
 from pioreactor import structs

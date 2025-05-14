@@ -398,6 +398,9 @@ class cache:
         else:
             return result[0]
 
+    def empty(self):
+        self.cursor.execute(f"DELETE FROM {self.table_name}")
+
     def __contains__(self, key):
         self.cursor.execute(f"SELECT 1 FROM {self.table_name} WHERE key = ?", (key,))
         return self.cursor.fetchone() is not None
@@ -835,6 +838,10 @@ class JobManager:
 
     def close(self):
         self.conn.close()
+
+    def _empty(self):
+        self.cursor.execute("DELETE FROM pio_job_published_settings")
+        self.cursor.execute("DELETE FROM pio_job_metadata")
 
     def __enter__(self) -> JobManager:
         return self
