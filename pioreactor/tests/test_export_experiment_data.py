@@ -101,7 +101,7 @@ def test_export_experiment_data(temp_zipfile, mock_load_exportable_datasets) -> 
         # Find the file with a matching pattern
         csv_filename = None
         for filename in zf.namelist():
-            if re.match(r"test_table-all_experiments-all_units-\d{14}\.csv", filename):
+            if re.match(r"test_table/test_table-all_experiments-all_units-\d{14}\.csv", filename):
                 csv_filename = filename
                 break
 
@@ -145,7 +145,7 @@ def test_export_experiment_data_with_base64_data(temp_zipfile, mock_load_exporta
         # Find the file with a matching pattern
         csv_filename = None
         for filename in zf.namelist():
-            if re.match(r"test_base64-all_experiments-all_units-\d{14}\.csv", filename):
+            if re.match(r"test_base64/test_base64-all_experiments-all_units-\d{14}\.csv", filename):
                 csv_filename = filename
                 break
 
@@ -185,9 +185,8 @@ def test_export_experiment_data_with_experiment(temp_zipfile, mock_load_exportab
         # Find the file with a matching pattern
         csv_filename = None
         for filename in zf.namelist():
-            print(filename)
             if re.match(
-                r"test_table_with_experiment-test_export_experiment_data_with_experiment-all_units-\d{14}\.csv",
+                r"test_table_with_experiment/test_table_with_experiment-test_export_experiment_data_with_experiment-all_units-\d{14}\.csv",
                 filename,
             ):
                 csv_filename = filename
@@ -242,9 +241,9 @@ def test_export_experiment_data_with_partition_by_unit(temp_zipfile, mock_load_e
     # Check if the exported data is correct
     with zipfile.ZipFile(temp_zipfile.strpath, mode="r") as zf:
         # Find the file with a matching pattern
-        assert len(zf.namelist()) == 2
-        assert "od_readings-exp1-pio01" in sorted(zf.namelist())[0]
-        assert "od_readings-exp1-pio02" in sorted(zf.namelist())[1]
+        assert len(zf.namelist()) == 3
+        assert "od_readings/od_readings-exp1-pio01" in sorted(zf.namelist())[1]
+        assert "od_readings/od_readings-exp1-pio02" in sorted(zf.namelist())[2]
 
 
 def test_export_experiment_data_with_partition_by_unit_if_pioreactor_unit_col_doesnt_exist(
@@ -281,5 +280,5 @@ def test_export_experiment_data_with_partition_by_unit_if_pioreactor_unit_col_do
     # Check if the exported data is correct
     with zipfile.ZipFile(temp_zipfile.strpath, mode="r") as zf:
         # Find the file with a matching pattern
-        assert len(zf.namelist()) == 1
-        assert zf.namelist()[0].startswith("od_readings-exp1-all_units")
+        assert len(zf.namelist()) == 2
+        assert zf.namelist()[1].startswith("od_readings/od_readings-exp1-all_units")

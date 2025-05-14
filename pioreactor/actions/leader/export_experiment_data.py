@@ -265,7 +265,7 @@ def export_experiment_data(
 
             zf.mkdir(dataset_name)
             for path_to_file in path_to_files:
-                zf.write(path_to_file, arcname=f"{dataset_name}/{filename}")
+                zf.write(path_to_file, arcname=f"{dataset_name}/{path_to_file.name}")
                 path_to_file.unlink()
 
     logger.info("Finished export.")
