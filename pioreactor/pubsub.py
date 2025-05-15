@@ -64,6 +64,7 @@ def create_client(
     clean_session=None,
     on_connect: Optional[Callable] = None,
     on_disconnect: Optional[Callable] = None,
+    on_subscribe: Optional[Callable] = None,
     on_message: Optional[Callable] = None,
     userdata: Optional[dict] = None,
     port: int = config.getint("mqtt", "broker_port", fallback=1883),
@@ -112,6 +113,9 @@ def create_client(
 
     if on_disconnect:
         client.on_disconnect = on_disconnect
+
+    if on_subscribe:
+        client.on_subscribe = on_subscribe
 
     if last_will is not None:
         client.will_set(**last_will)
@@ -277,6 +281,11 @@ def subscribe_and_callback(
         def on_connect(client: Client, userdata: dict, *args):
             client.subscribe(userdata["topics"])
 
+        def on_subscribe(client, userdata, mid, granted_qos, properties=None):
+            sub_ready.set()
+
+        sub_ready = threading.Event()
+
         userdata = {
             "topics": [(topic, mqtt_kwargs.pop("qos", QOS.EXACTLY_ONCE)) for topic in topics],
             "name": name,
@@ -286,10 +295,13 @@ def subscribe_and_callback(
             last_will=last_will,
             on_connect=on_connect,
             on_message=wrap_callback(callback),
+            on_subscribe=on_subscribe,
             userdata=userdata,
             **mqtt_kwargs,
         )
 
+        if not sub_ready.wait(timeout=5):
+            raise RuntimeError("MQTT subscribe timeout")
     else:
         # user provided a client
         for topic in topics:
