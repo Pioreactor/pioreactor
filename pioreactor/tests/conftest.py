@@ -31,20 +31,20 @@ def run_around_tests():
     with local_intermittent_storage("leds") as cache:
         cache.empty()
 
-    with local_persistent_storage("media_throughput") as c:
-        c.empty()
+    with local_persistent_storage("media_throughput") as cache:
+        cache.empty()
 
-    with local_persistent_storage("alt_media_throughput") as c:
-        c.empty()
+    with local_persistent_storage("alt_media_throughput") as cache:
+        cache.empty()
 
-    with local_persistent_storage("alt_media_fraction") as c:
-        c.empty()
+    with local_persistent_storage("alt_media_fraction") as cache:
+        cache.empty()
 
-    with local_persistent_storage("liquid_volume") as c:
-        c.empty()
+    with local_persistent_storage("liquid_volume") as cache:
+        cache.empty()
 
-    with local_persistent_storage("active_calibrations") as c:
-        c.empty()
+    with local_persistent_storage("active_calibrations") as cache:
+        cache.empty()
 
     with JobManager() as jm:
         jm._empty()

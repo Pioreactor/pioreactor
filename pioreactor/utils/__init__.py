@@ -661,7 +661,7 @@ class JobManager:
             value          BLOB,
             proposed_value BLOB,
             job_id         INTEGER NOT NULL,
-            FOREIGN KEY(job_id) REFERENCES pio_job_metadata(job_id),
+            FOREIGN KEY(job_id) REFERENCES pio_job_metadata(job_id) ON DELETE CASCADE,
             UNIQUE(setting, job_id)
         );
 

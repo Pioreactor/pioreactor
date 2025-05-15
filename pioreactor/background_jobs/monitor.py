@@ -318,6 +318,7 @@ class Monitor(LongRunningBackgroundJob):
     def check_for_required_jobs_running(self) -> None:
         # we put this in a while loop since if mqtt_to_db_streaming is not working, the warning is not saved to disk,
         # and the user may never a notification every N hours. So we just spam the user.
+        sleep(5)  # give it a moment to start.
         while not utils.is_pio_job_running("mqtt_to_db_streaming"):
             self.logger.warning(
                 "mqtt_to_db_streaming should be running on leader. Check `sudo systemctl status pioreactor_startup_run@mqtt_to_db_streaming.service`, or try restarting."
