@@ -166,7 +166,7 @@ def test_export_experiment_data_with_experiment(temp_zipfile, mock_load_exportab
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE test_table_with_experiment (id INTEGER, experiment TEXT, timestamp TEXT)")
     conn.execute(
-        "INSERT INTO test_table_with_experiment (id, experiment, timestamp) VALUES (1, 'test_export_experiment_data_with_experiment', '2021-09-01 00:00:00')"
+        "INSERT INTO test_table_with_experiment (id, experiment, timestamp) VALUES (1, 'test_export_experiment_data_with_experiment', '2021-09-02 00:00:00')"
     )
 
     conn.execute("CREATE TABLE experiments (experiment TEXT, created_at TEXT)")
@@ -207,10 +207,11 @@ def test_export_experiment_data_with_experiment(temp_zipfile, mock_load_exportab
             values = rows.split(",")
             assert values[0] == "1"
             assert values[1] == "test_export_experiment_data_with_experiment"
-            assert values[2] == "2021-09-01 00:00:00"
+            assert values[2] == "2021-09-02 00:00:00"
             assert (
                 values[3][:4] == "2021"
             )  # can't compare exactly since it uses datetime(ts, 'locatime') in sqlite3, and the localtime will vary between CI servers.
+            assert values[4] == "24.0"
 
 
 def test_export_experiment_data_with_partition_by_unit(temp_zipfile, mock_load_exportable_datasets) -> None:
