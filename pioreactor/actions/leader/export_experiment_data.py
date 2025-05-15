@@ -26,11 +26,24 @@ def source_exists(cursor, table_name_to_check: str) -> bool:
     return cursor.execute(query, (table_name_to_check,)).fetchone() is not None
 
 
-def generate_timestamp_to_localtimestamp_clause(timestamp_columns) -> str:
+def generate_timestamp_to_localtimestamp_clause(timestamp_columns: list[str]) -> str:
     if not timestamp_columns:
         return ""
 
-    clause = ",".join([f"datetime({c}, 'localtime') as {c}_localtime" for c in timestamp_columns])
+    clause = ",".join([f"datetime(T.{c}, 'localtime') as {c}_localtime" for c in timestamp_columns])
+
+    return clause
+
+
+def generate_timestamp_to_relative_time_clause(default_order_by: str) -> str:
+    if not default_order_by:
+        return ""
+
+    START_TIME = "E.created_at"
+
+    clause = (
+        f"(unixepoch({default_order_by}) - unixepoch({START_TIME}))/3600.0 as hours_since_experiment_started"
+    )
 
     return clause
 
@@ -73,7 +86,7 @@ def create_experiment_clause(
         existing_placeholders = existing_placeholders | {
             f"experiment{i}": experiment for i, experiment in enumerate(experiments)
         }
-        return f"experiment IN ({quoted_experiments})", existing_placeholders
+        return f"T.experiment IN ({quoted_experiments})", existing_placeholders
 
 
 def create_timespan_clause(
@@ -82,15 +95,15 @@ def create_timespan_clause(
     if start_time is not None and end_time is not None:
         existing_placeholders["start_time"] = start_time
         existing_placeholders["end_time"] = end_time
-        return f"{time_column} >= :start_time AND {time_column} <= :end_time", existing_placeholders
+        return f"T.{time_column} >= :start_time AND {time_column} <= :end_time", existing_placeholders
 
     elif start_time is not None:
         existing_placeholders["start_time"] = start_time
-        return f"{time_column} >= :start_time", existing_placeholders
+        return f"T.{time_column} >= :start_time", existing_placeholders
 
     elif end_time is not None:
         existing_placeholders["end_time"] = end_time
-        return f"{time_column} <= :end_time", existing_placeholders
+        return f"T.{time_column} <= :end_time", existing_placeholders
     else:
         raise ValueError
 
@@ -101,12 +114,16 @@ def create_sql_query(
     existing_placeholders: dict[str, str],
     where_clauses: list[str] | None = None,
     order_by_col: str | None = None,
+    has_experiment: bool = False,
 ) -> tuple[str, dict[str, str]]:
     """
     Constructs an SQL query with SELECT, FROM, WHERE, and ORDER BY clauses.
     """
     # Base SELECT and FROM clause
-    query = f"SELECT {', '.join(selects)} FROM ({table_or_subquery})"
+    query = f"SELECT {', '.join(selects)} FROM ({table_or_subquery}) T"
+
+    if has_experiment:
+        query += "JOIN experiment E ON E.experiment = T.experiment"
 
     # Add WHERE clause if provided
     if where_clauses:
@@ -114,7 +131,7 @@ def create_sql_query(
 
     # Add ORDER BY clause if provided
     if order_by_col:
-        query += f' ORDER BY "{order_by_col}"'
+        query += f' ORDER BY "T.{order_by_col}"'
 
     return query, existing_placeholders
 
@@ -201,6 +218,9 @@ def export_experiment_data(
             if dataset.has_experiment:
                 experiment_clause, placeholders = create_experiment_clause(experiments, placeholders)
                 where_clauses.append(experiment_clause)
+
+            if dataset.has_experiment and dataset.default_order_by:
+                selects.append(generate_timestamp_to_relative_time_clause(dataset.default_order_by))
 
             if dataset.timestamp_columns and (start_time or end_time):
                 assert dataset.default_order_by is not None
