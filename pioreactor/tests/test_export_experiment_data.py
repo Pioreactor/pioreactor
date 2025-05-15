@@ -127,6 +127,7 @@ def test_export_experiment_data_with_base64_data(temp_zipfile, mock_load_exporta
     conn.execute(
         "INSERT INTO test_base64 (id, data) VALUES (1, 'eyJ2b2x1bWUiOjAuNSwiZHVyYXRpb24iOjIwLjAsInN0YXRlIjoiaW5pdCJ9')"
     )
+
     conn.commit()
 
     # Mock the connection and logger objects
@@ -163,9 +164,14 @@ def test_export_experiment_data_with_base64_data(temp_zipfile, mock_load_exporta
 def test_export_experiment_data_with_experiment(temp_zipfile, mock_load_exportable_datasets) -> None:
     # Set up a temporary SQLite database with sample data
     conn = sqlite3.connect(":memory:")
-    conn.execute("CREATE TABLE test_table_with_experiment (id INTEGER, experiment TEXT, timestamp DATETIME)")
+    conn.execute("CREATE TABLE test_table_with_experiment (id INTEGER, experiment TEXT, timestamp TEXT)")
     conn.execute(
         "INSERT INTO test_table_with_experiment (id, experiment, timestamp) VALUES (1, 'test_export_experiment_data_with_experiment', '2021-09-01 00:00:00')"
+    )
+
+    conn.execute("CREATE TABLE experiments (experiment TEXT, created_at TEXT)")
+    conn.execute(
+        "INSERT INTO experiments (experiment, created_at) VALUES ('test_export_experiment_data_with_experiment', '2021-09-01 00:00:00')"
     )
     conn.commit()
 
@@ -197,7 +203,7 @@ def test_export_experiment_data_with_experiment(temp_zipfile, mock_load_exportab
         with zf.open(csv_filename) as csv_file:
             content = csv_file.read().decode("utf-8").strip()
             headers, rows = content.split("\r\n")
-            assert headers == "id,experiment,timestamp,timestamp_localtime"
+            assert headers == "id,experiment,timestamp,timestamp_localtime,hours_since_experiment_created"
             values = rows.split(",")
             assert values[0] == "1"
             assert values[1] == "test_export_experiment_data_with_experiment"
@@ -225,6 +231,9 @@ def test_export_experiment_data_with_partition_by_unit(temp_zipfile, mock_load_e
                                                                              ('pio02', 'exp2', 0.1, '2021-10-01 00:00:15');
     """
     )
+    conn.execute("CREATE TABLE experiments (experiment TEXT, created_at TEXT)")
+    conn.execute("INSERT INTO experiments (experiment, created_at) VALUES ('exp2', '2021-09-01 00:00:00')")
+    conn.execute("INSERT INTO experiments (experiment, created_at) VALUES ('exp1', '2021-09-01 00:00:00')")
     conn.commit()
 
     # Mock the connection and logger objects
@@ -264,6 +273,9 @@ def test_export_experiment_data_with_partition_by_unit_if_pioreactor_unit_col_do
                                                                        ('exp2', 0.1, '2021-10-01 00:00:15');
     """
     )
+    conn.execute("CREATE TABLE experiments (experiment TEXT, created_at TEXT)")
+    conn.execute("INSERT INTO experiments (experiment, created_at) VALUES ('exp2', '2021-09-01 00:00:00')")
+    conn.execute("INSERT INTO experiments (experiment, created_at) VALUES ('exp1', '2021-09-01 00:00:00')")
     conn.commit()
 
     # Mock the connection and logger objects
