@@ -229,7 +229,7 @@ def export_experiment_data(
                 where_clauses.append(timespan_clause)
 
             query, placeholders = create_sql_query(
-                selects, table_or_subquery, placeholders, where_clauses, order_by_col
+                selects, table_or_subquery, placeholders, where_clauses, order_by_col, dataset.has_experiment
             )
             print(query)
             cursor.execute(query, placeholders)
