@@ -123,7 +123,7 @@ def create_sql_query(
     query = f"SELECT {', '.join(selects)} FROM ({table_or_subquery}) T"
 
     if has_experiment:
-        query += "JOIN experiment E ON E.experiment = T.experiment"
+        query += " JOIN experiment E ON E.experiment = T.experiment"
 
     # Add WHERE clause if provided
     if where_clauses:
