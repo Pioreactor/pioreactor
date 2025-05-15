@@ -172,6 +172,7 @@ def export_experiment_data(
     with zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED) as zf, closing(
         sqlite3.connect(f"file:{config.get('storage', 'database')}?mode=ro", uri=True)
     ) as con:
+        con.set_trace_callback(logger.debug)
         con.create_function(
             "BASE64", 1, decode_base64
         )  # TODO: until next OS release which implements a native sqlite3 base64 function
@@ -186,8 +187,6 @@ def export_experiment_data(
             PRAGMA cache_size = -4000;
         """
         )
-
-        con.set_trace_callback(logger.debug)
 
         for dataset_name in dataset_names:
             try:
@@ -232,6 +231,7 @@ def export_experiment_data(
             query, placeholders = create_sql_query(
                 selects, table_or_subquery, placeholders, where_clauses, order_by_col
             )
+            print(query)
             cursor.execute(query, placeholders)
 
             headers = [_[0] for _ in cursor.description]
