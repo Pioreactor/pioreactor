@@ -337,24 +337,29 @@ class cache:
         sqlite3.register_adapter(tuple, self.adapt_key)
         # sqlite3.register_converter("_key_BLOB", self.convert_key)
 
-        self.conn = sqlite3.connect(
-            self.db_path, isolation_level=None, detect_types=sqlite3.PARSE_DECLTYPES, timeout=10
-        )
+        self.conn = sqlite3.connect(self.db_path, detect_types=sqlite3.PARSE_DECLTYPES, timeout=10)
         self.cursor = self.conn.cursor()
         self.cursor.executescript(
             """
-            PRAGMA busy_timeout = 15000;
+            PRAGMA busy_timeout = 30000;
             PRAGMA synchronous = 1; -- aka NORMAL, recommended when using WAL
             PRAGMA temp_store = 2;  -- stop writing small files to disk, use mem
             PRAGMA foreign_keys = ON;
             PRAGMA cache_size = -4000;
         """
         )
+        self.cursor.execute("BEGIN")
         self._initialize_table()
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.conn.close()
+    def __exit__(self, exc_type, exc_val, tb):
+        try:
+            if exc_type is None:
+                self.conn.commit()  # everything wrote successfully
+            else:
+                self.conn.rollback()  # abort on error
+        finally:
+            self.conn.close()
 
     def _initialize_table(self):
         self.cursor.execute(
@@ -630,12 +635,16 @@ class LEDKill:
 class JobManager:
     def __init__(self) -> None:
         db_path = config.get("storage", "temporary_cache")
-        self.conn = sqlite3.connect(db_path, isolation_level=None)
-        self.conn.execute("PRAGMA busy_timeout = 15000;")
-        self.conn.execute("PRAGMA synchronous = NORMAL;")
-        self.conn.execute("PRAGMA temp_store = 2;")
-        self.conn.execute("PRAGMA foreign_keys = ON;")
-        self.conn.execute("PRAGMA cache_size = -4000;")
+        self.conn = sqlite3.connect(db_path)
+        self.conn.executescript(
+            """
+            PRAGMA busy_timeout = 30000;
+            PRAGMA synchronous = NORMAL;
+            PRAGMA temp_store = 2;
+            PRAGMA foreign_keys = ON;
+            PRAGMA cache_size = -4000;
+        """
+        )
         self.cursor = self.conn.cursor()
         self._create_tables()
 
@@ -758,7 +767,9 @@ class JobManager:
                     return result[0]
 
                 if (timeout and timer() > timeout) or (timeout is None):
-                    raise NameError(f"Setting {setting} was not found.")
+                    raise NameError(
+                        f"Setting `{setting}` was not found in published settings of `{job_name}`."
+                    )
 
     def set_not_running(self, job_id: JobMetadataKey) -> None:
         update_query = "UPDATE pio_job_metadata SET is_running=0, ended_at=STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW') WHERE job_id=(?)"
@@ -839,9 +850,6 @@ class JobManager:
 
         return count
 
-    def close(self):
-        self.conn.close()
-
     def _empty(self):
         self.cursor.execute("DELETE FROM pio_job_published_settings")
         self.cursor.execute("DELETE FROM pio_job_metadata")
@@ -849,9 +857,14 @@ class JobManager:
     def __enter__(self) -> JobManager:
         return self
 
-    def __exit__(self, *args) -> None:
-        self.close()
-        return
+    def __exit__(self, exc_type, exc_val, tb) -> None:
+        try:
+            if exc_type is None:
+                self.conn.commit()  # everything wrote successfully
+            else:
+                self.conn.rollback()  # abort on error
+        finally:
+            self.conn.close()
 
 
 class ClusterJobManager:

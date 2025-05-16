@@ -14,12 +14,12 @@ rate_std=0.25
  - New image installs only:
    - updated base OS to the latest 25-05-06 Raspberry Pi OS. The big change is using Linux kernel 6.12.
  - Added the column `hours_since_experiment_created` to dataset exports that details hours since experiment was created.
+ - Better organization of logs in the UI.
 
 #### Bug fixes
  - fixed stirrer not spinning on Pioreactor page (UI) in some cases
  - alert user if their OD reading is constant before starting the growth-rate calculator, which would break things.
  - alert user if their software is installed in a non-standard location. If so, try `pio uninstall pioreactor -y`.
- - Better organization of logs in the UI.
  - Added a warning if the OD calibration is invalid (constant)
 
 
