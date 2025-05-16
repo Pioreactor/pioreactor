@@ -337,7 +337,9 @@ class cache:
         sqlite3.register_adapter(tuple, self.adapt_key)
         # sqlite3.register_converter("_key_BLOB", self.convert_key)
 
-        self.conn = sqlite3.connect(self.db_path, detect_types=sqlite3.PARSE_DECLTYPES, timeout=10)
+        self.conn = sqlite3.connect(
+            self.db_path, detect_types=sqlite3.PARSE_DECLTYPES, isolation_level=None, timeout=10
+        )
         self.cursor = self.conn.cursor()
         self.cursor.executescript(
             """
@@ -348,18 +350,11 @@ class cache:
             PRAGMA cache_size = -4000;
         """
         )
-        self.cursor.execute("BEGIN IMMEDIATE")
         self._initialize_table()
         return self
 
     def __exit__(self, exc_type, exc_val, tb):
-        try:
-            if exc_type is None:
-                self.conn.commit()  # everything wrote successfully
-            else:
-                self.conn.rollback()  # abort on error
-        finally:
-            self.conn.close()
+        self.conn.close()
 
     def _initialize_table(self):
         self.cursor.execute(
@@ -634,7 +629,7 @@ class LEDKill:
 class JobManager:
     def __init__(self) -> None:
         db_path = config.get("storage", "temporary_cache")
-        self.conn = sqlite3.connect(db_path)
+        self.conn = sqlite3.connect(db_path, isolation_level=None)
         self.conn.executescript(
             """
             PRAGMA busy_timeout = 30000;
@@ -646,7 +641,6 @@ class JobManager:
         )
         self.cursor = self.conn.cursor()
         self._create_tables()
-        self.cursor.execute("BEGIN IMMEDIATE")
 
     def _create_tables(self) -> None:
         # TODO: add a created_at, updated_at to pio_job_published_settings
@@ -858,13 +852,7 @@ class JobManager:
         return self
 
     def __exit__(self, exc_type, exc_val, tb) -> None:
-        try:
-            if exc_type is None:
-                self.conn.commit()  # everything wrote successfully
-            else:
-                self.conn.rollback()  # abort on error
-        finally:
-            self.conn.close()
+        self.conn.close()
 
 
 class ClusterJobManager:
