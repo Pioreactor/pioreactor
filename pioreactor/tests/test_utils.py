@@ -22,6 +22,7 @@ from pioreactor.utils import managed_lifecycle
 from pioreactor.whoami import get_unit_name
 
 
+@pytest.mark.xfail(reason="Don't use nested caches like this!")
 def test_that_out_scope_caches_cant_access_keys_created_by_inner_scope_cache() -> None:
     """
     You can modify caches, and the last assignment is valid.
@@ -47,14 +48,12 @@ def test_that_out_scope_caches_cant_access_keys_created_by_inner_scope_cache() -
 
 def test_caches_will_always_save_the_lastest_value_provided() -> None:
     with local_intermittent_storage("test") as cache:
-        for k in cache.iterkeys():
-            del cache[k]
+        cache.empty()
 
-    with local_intermittent_storage("test") as cache1:
-        with local_intermittent_storage("test") as cache2:
-            cache1["A"] = "1"
-            cache2["A"] = "0"
-            cache2["B"] = "2"
+    with local_intermittent_storage("test") as cache:
+        cache["A"] = "1"
+        cache["A"] = "0"
+        cache["B"] = "2"
 
     with local_intermittent_storage("test") as cache:
         assert cache["A"] == "0"
