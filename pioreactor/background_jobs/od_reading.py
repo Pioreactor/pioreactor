@@ -660,7 +660,6 @@ class CachedCalibrationTransformer(CalibrationTransformer):
 
         self.models[channel] = self._hydrate_model(calibration_data)
         self.models[channel].name = name  # type: ignore
-        self.logger.info(f"Using OD calibration `{name}` for channel {channel}.")
         self.logger.debug(
             f"Using OD calibration `{name}` of type `{cal_type}` for PD channel {channel}, {calibration_data.curve_type=}, {calibration_data.curve_data_=}"
         )

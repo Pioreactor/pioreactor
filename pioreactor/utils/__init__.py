@@ -707,33 +707,36 @@ class JobManager:
         return self.cursor.fetchone() is not None
 
     def upsert_setting(self, job_id: JobMetadataKey, setting: str, value: Any) -> None:
-        if value is None:
-            # delete
-            delete_query = """
-            DELETE FROM pio_job_published_settings WHERE setting = :setting and job_id = :job_id
-            """
-            self.cursor.execute(delete_query, {"setting": setting, "job_id": job_id})
-        else:
-            # upsert
-            update_query = """
-            INSERT INTO pio_job_published_settings (setting, value, job_id)
-            VALUES (:setting, :value, :job_id)
-                ON CONFLICT (setting, job_id) DO
-                UPDATE SET value = :value
-            """
-            if isinstance(value, dict):
-                value = dumps(value).decode()  # back to string, not bytes
-            elif isinstance(value, Struct):
-                value = str(value)  # complex type
+        try:
+            if value is None:
+                # delete
+                delete_query = """
+                DELETE FROM pio_job_published_settings WHERE setting = :setting and job_id = :job_id
+                """
+                self.cursor.execute(delete_query, {"setting": setting, "job_id": job_id})
+            else:
+                # upsert
+                update_query = """
+                INSERT INTO pio_job_published_settings (setting, value, job_id)
+                VALUES (:setting, :value, :job_id)
+                    ON CONFLICT (setting, job_id) DO
+                    UPDATE SET value = :value
+                """
+                if isinstance(value, dict):
+                    value = dumps(value).decode()  # back to string, not bytes
+                elif isinstance(value, Struct):
+                    value = str(value)  # complex type
 
-            self.cursor.execute(
-                update_query,
-                {
-                    "setting": setting,
-                    "value": value,
-                    "job_id": job_id,
-                },
-            )
+                self.cursor.execute(
+                    update_query,
+                    {
+                        "setting": setting,
+                        "value": value,
+                        "job_id": job_id,
+                    },
+                )
+        except sqlite3.IntegrityError:
+            raise sqlite3.IntegrityError(f"Integrity error for {job_id=}, {setting=} and {value=}.")
 
         return
 
@@ -840,7 +843,6 @@ class JobManager:
         self.conn.close()
 
     def _empty(self):
-        self.cursor.execute("DELETE FROM pio_job_published_settings")
         self.cursor.execute("DELETE FROM pio_job_metadata")
 
     def __enter__(self) -> JobManager:
