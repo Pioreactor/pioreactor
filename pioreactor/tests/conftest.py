@@ -15,6 +15,8 @@ from pioreactor.pubsub import publish
 
 @pytest.fixture(autouse=True)
 def run_around_tests():
+    yield
+
     from pioreactor.utils import local_intermittent_storage
     from pioreactor.utils import local_persistent_storage
 
@@ -44,8 +46,6 @@ def run_around_tests():
 
     with local_persistent_storage("active_calibrations") as cache:
         cache.empty()
-
-    yield
 
 
 @pytest.fixture()
