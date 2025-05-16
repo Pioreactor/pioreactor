@@ -348,7 +348,7 @@ class cache:
             PRAGMA cache_size = -4000;
         """
         )
-        self.cursor.execute("BEGIN")
+        self.cursor.execute("BEGIN IMMEDIATE")
         self._initialize_table()
         return self
 
@@ -394,9 +394,8 @@ class cache:
         return (self.convert_key(row[0]) for row in self.cursor.fetchall())
 
     def pop(self, key, default=None):
-        self.cursor.execute(f"SELECT value FROM {self.table_name} WHERE key = ?", (key,))
+        self.cursor.execute(f"DELETE FROM {self.table_name} WHERE key = ? RETURNING value", (key,))
         result = self.cursor.fetchone()
-        self.cursor.execute(f"DELETE FROM {self.table_name} WHERE key = ?", (key,))
 
         if result is None:
             return default
@@ -647,6 +646,7 @@ class JobManager:
         )
         self.cursor = self.conn.cursor()
         self._create_tables()
+        self.cursor.execute("BEGIN IMMEDIATE")
 
     def _create_tables(self) -> None:
         # TODO: add a created_at, updated_at to pio_job_published_settings

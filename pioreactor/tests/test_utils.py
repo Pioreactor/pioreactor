@@ -74,6 +74,19 @@ def test_caches_will_delete_when_asked() -> None:
         assert "test" not in cache
 
 
+def test_caches_pop() -> None:
+    with local_intermittent_storage("test") as cache:
+        cache.empty()
+
+    with local_intermittent_storage("test") as cache:
+        cache["A"] = "1"
+
+    with local_intermittent_storage("test") as cache:
+        assert cache.pop("A") == "1"
+        assert cache.pop("B") is None
+        assert cache.pop("C", default=3) == 3
+
+
 def test_caches_can_have_tuple_or_singleton_keys() -> None:
     with local_persistent_storage("test_caches_can_have_tuple_keys") as c:
         c[(1, 2)] = 1
