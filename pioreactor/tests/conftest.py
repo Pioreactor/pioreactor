@@ -11,41 +11,48 @@ import pytest
 
 from pioreactor.mureq import Response
 from pioreactor.pubsub import publish
+from pioreactor.structs import ODReadings
+from pioreactor.structs import RawODReading
+from pioreactor.utils.timing import to_datetime
 
 
 @pytest.fixture(autouse=True)
-def run_around_tests():
+def run_around_tests(request):
     yield
 
     from pioreactor.utils import local_intermittent_storage
     from pioreactor.utils import local_persistent_storage
 
+    test_name = request.node.name
+
     with local_intermittent_storage("pwm_dc") as cache:
-        cache.empty()
+        for key in cache.iterkeys():
+            del cache[key]
 
     with local_intermittent_storage("led_locks") as cache:
-        cache.empty()
+        for key in cache.iterkeys():
+            del cache[key]
 
     with local_intermittent_storage("pwm_locks") as cache:
-        cache.empty()
+        for key in cache.iterkeys():
+            del cache[key]
 
     with local_intermittent_storage("leds") as cache:
-        cache.empty()
+        for key in cache.iterkeys():
+            del cache[key]
 
-    with local_persistent_storage("media_throughput") as cache:
-        cache.empty()
+    with local_intermittent_storage("active_calibrations") as cache:
+        for key in cache.iterkeys():
+            del cache[key]
 
-    with local_persistent_storage("alt_media_throughput") as cache:
-        cache.empty()
-
-    with local_persistent_storage("alt_media_fraction") as cache:
-        cache.empty()
-
-    with local_persistent_storage("liquid_volume") as cache:
-        cache.empty()
-
-    with local_persistent_storage("active_calibrations") as cache:
-        cache.empty()
+    with local_persistent_storage("media_throughput") as c:
+        c.pop(test_name)
+    with local_persistent_storage("alt_media_throughput") as c:
+        c.pop(test_name)
+    with local_persistent_storage("alt_media_fraction") as c:
+        c.pop(test_name)
+    with local_persistent_storage("liquid_volume") as c:
+        c.pop(test_name)
 
 
 @pytest.fixture()
@@ -120,3 +127,30 @@ def capture_requests():
     # Patch the mureq.request method
     with patch("pioreactor.mureq.request", side_effect=mock_request):
         yield bucket
+
+
+class StreamODReadingsFromExport:
+    def __init__(self, filename: str, skip_first_n_rows=0):
+        self.filename = filename
+        self.skip_first_n_rows = skip_first_n_rows
+
+    def __enter__(self, *args, **kwargs):
+        import csv
+
+        self.file_instance = open(self.filename, "r")
+        self.csv_reader = csv.DictReader(self.file_instance, quoting=csv.QUOTE_MINIMAL)
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        self.file_instance.close()
+
+    def __iter__(self):
+        for i, line in enumerate(self.csv_reader):
+            if i <= self.skip_first_n_rows:
+                continue
+            dt = to_datetime(line["timestamp"])
+            od = RawODReading(
+                angle=line["angle"], channel=line["channel"], timestamp=dt, od=float(line["od_reading"])
+            )
+            ods = ODReadings(timestamp=dt, ods={"2": od})
+            yield ods
