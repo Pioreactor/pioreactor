@@ -1044,6 +1044,9 @@ class BackgroundJobWithDodging(_BackgroundJob):
         super().__init__(*args, source=source, **kwargs)  # type: ignore
 
         if not config.has_section(f"{self.job_name}.config"):
+            self.logger.error(
+                f"Required section '{self.job_name}.config' does not exist in the configuration."
+            )
             raise ValueError(
                 f"Required section '{self.job_name}.config' does not exist in the configuration."
             )
