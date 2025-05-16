@@ -671,6 +671,11 @@ class CachedCalibrationTransformer(CalibrationTransformer):
             self.logger.error(f"Calibration {calibration_data.calibration_name} has wrong type.")
             raise exc.CalibrationError(f"Calibration {calibration_data.calibration_name} has wrong type.")
 
+        if len(calibration_data.curve_data_) <= 1:
+            self.logger.warning(
+                "Calibration curve is y(x)=constant. This is probably wrong. Check the calibration YAML file's curve_data_."
+            )
+
         def _calibrate_signal(observed_voltage: pt.Voltage) -> pt.OD:
             min_OD, max_OD = min(calibration_data.recorded_data["x"]), max(
                 calibration_data.recorded_data["x"]

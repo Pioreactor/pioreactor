@@ -550,6 +550,7 @@ def log(
                 "level": options.level,
                 "source": parent_job.job_key,
                 "task": parent_job.job_key,
+                "_souce": "app",
             }
             post_into_leader(
                 f"/api/workers/{unit}/experiments/{experiment}/logs", json=body

@@ -843,6 +843,7 @@ class JobManager:
         self.conn.close()
 
     def _empty(self):
+        self.cursor.execute("DELETE FROM pio_job_published_settings")
         self.cursor.execute("DELETE FROM pio_job_metadata")
 
     def __enter__(self) -> JobManager:

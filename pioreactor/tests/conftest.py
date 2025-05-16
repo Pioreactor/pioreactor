@@ -11,7 +11,6 @@ import pytest
 
 from pioreactor.mureq import Response
 from pioreactor.pubsub import publish
-from pioreactor.utils import JobManager
 
 
 @pytest.fixture(autouse=True)
@@ -45,9 +44,6 @@ def run_around_tests():
 
     with local_persistent_storage("active_calibrations") as cache:
         cache.empty()
-
-    with JobManager() as jm:
-        jm._empty()
 
     yield
 
