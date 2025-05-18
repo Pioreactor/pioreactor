@@ -131,7 +131,7 @@ def test_publish_measured_rpm() -> None:
 
 
 def test_rpm_isnt_updated_if_there_is_no_rpm_measurement() -> None:
-    exp = "test_publish_measured_rpm"
+    exp = "test_rpm_isnt_updated_if_there_is_no_rpm_measurement"
 
     publish(f"pioreactor/{unit}/{exp}/stirring/measured_rpm", None, retain=True)
     pause()

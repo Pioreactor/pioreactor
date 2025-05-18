@@ -101,15 +101,7 @@ class LoggerMixin:
 
     def __del__(self):
         if self._logger:
-            for handler in self._logger.handlers[:]:
-                try:
-                    handler.close()
-                except Exception:
-                    pass  # Don't raise in destructor
-                try:
-                    self._logger.removeHandler(handler)
-                except Exception:
-                    pass
+            self._logger.clean_up()
 
 
 class PostInitCaller(type):

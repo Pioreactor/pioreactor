@@ -343,7 +343,7 @@ class cache:
         self.cursor = self.conn.cursor()
         self.cursor.executescript(
             """
-            PRAGMA busy_timeout = 30000;
+            PRAGMA busy_timeout = 5000;
             PRAGMA synchronous = 1; -- aka NORMAL, recommended when using WAL
             PRAGMA temp_store = 2;  -- stop writing small files to disk, use mem
             PRAGMA foreign_keys = ON;
@@ -632,7 +632,7 @@ class JobManager:
         self.conn = sqlite3.connect(db_path, isolation_level=None)
         self.conn.executescript(
             """
-            PRAGMA busy_timeout = 30000;
+            PRAGMA busy_timeout = 5000;
             PRAGMA synchronous = NORMAL;
             PRAGMA temp_store = 2;
             PRAGMA foreign_keys = ON;
