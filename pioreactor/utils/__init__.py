@@ -344,9 +344,7 @@ class cache:
         self.cursor.executescript(
             """
             PRAGMA busy_timeout = 5000;
-            PRAGMA synchronous = 1; -- aka NORMAL, recommended when using WAL
             PRAGMA temp_store = 2;  -- stop writing small files to disk, use mem
-            PRAGMA foreign_keys = ON;
             PRAGMA cache_size = -4000;
         """
         )
@@ -633,7 +631,6 @@ class JobManager:
         self.conn.executescript(
             """
             PRAGMA busy_timeout = 5000;
-            PRAGMA synchronous = NORMAL;
             PRAGMA temp_store = 2;
             PRAGMA foreign_keys = ON;
             PRAGMA cache_size = -4000;

@@ -219,7 +219,7 @@ def test_stirring_wont_fire_last_100dc_on_od_reading_end() -> None:
     assert bucket == []
 
 
-def test_stirring_dodge_od_reading() -> None:
+def test_stirring_will_try_to_restart_and_dodge_od_reading() -> None:
     from pioreactor.background_jobs.od_reading import start_od_reading
 
     exp = "test_stirring_will_try_to_restart_and_dodge_od_reading"
