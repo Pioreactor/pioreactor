@@ -249,6 +249,22 @@ class _BackgroundJob(metaclass=PostInitCaller):
     # See pt.PublishableSetting type
     published_settings: dict[str, pt.PublishableSetting] = dict()
 
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        orig_init = cls.__init__
+
+        def wrapped_init(self, *args, **kwargs):
+            try:
+                orig_init(self, *args, **kwargs)
+            except Exception:
+                try:
+                    self.clean_up()
+                except Exception:
+                    pass
+                raise
+
+        cls.__init__ = wrapped_init
+
     def __init__(self, unit: str, experiment: str, source: str = "app") -> None:
         if self.job_name in DISALLOWED_JOB_NAMES:
             raise ValueError("Job name not allowed.")

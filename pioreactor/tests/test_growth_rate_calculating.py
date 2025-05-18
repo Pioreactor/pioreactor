@@ -5,7 +5,6 @@ import json
 import time
 
 import numpy as np
-import pytest
 from msgspec.json import encode
 
 from pioreactor import structs
@@ -408,7 +407,7 @@ class TestGrowthRateCalculating:
         with temporary_config_changes(
             config,
             [
-                ("od_config.photodiode_channel", "1", "90"),
+                ("od_config.photodiode_channel", "1", "REF"),
                 ("od_config.photodiode_channel", "2", "90"),
                 ("od_reading.config", "samples_per_second", "0.2"),
             ],

@@ -77,7 +77,7 @@ class PWMPump:
             self.calibration.hz,
             experiment=experiment,
             unit=unit,
-            pubsub_client=mqtt_client,
+            pub_client=mqtt_client,
             logger=logger,
         )
         self.pwm.lock()

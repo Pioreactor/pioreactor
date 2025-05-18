@@ -299,7 +299,14 @@ class TemperatureAutomationJob(AutomationJob):
         # impact (mainly: current sink), over the second. Ex: imagine freq=1hz, dc=40%, and the pump needs to run for
         # 0.3s. The influence of when the heat is one on the pump can be significant in a power-constrained system.
         pin = hardware.PWM_TO_PIN[hardware.HEATER_PWM_TO_PIN]
-        pwm = PWM(pin, hertz, unit=self.unit, experiment=self.experiment, pubsub_client=self.pub_client)
+        pwm = PWM(
+            pin,
+            hertz,
+            unit=self.unit,
+            experiment=self.experiment,
+            pub_client=self.pub_client,
+            logger=self.logger,
+        )
         pwm.start(0)
         return pwm
 

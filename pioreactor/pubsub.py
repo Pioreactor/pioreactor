@@ -346,7 +346,6 @@ class collect_all_logs_of_level:
             allow_retained=False,
             client_id=f"{self.unit}_{self.experiment}_{self.log_level}_log_collector",
         )
-        assert self.client.is_connected
 
     def _collect_logs_into_bucket(self, message):
         # load the message

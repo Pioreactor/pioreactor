@@ -55,6 +55,7 @@ class PIDMorbidostat(DosingAutomationJob):
             experiment=self.experiment,
             job_name=self.job_name,
             target_name="growth_rate",
+            pub_client=self.pub_client,
         )
 
         assert isinstance(self.duration, float)

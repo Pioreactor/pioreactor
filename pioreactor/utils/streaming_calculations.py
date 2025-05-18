@@ -5,6 +5,7 @@ from json import dumps
 from math import sqrt
 from typing import Optional
 
+from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 
 
@@ -411,6 +412,7 @@ class PID:
         job_name: Optional[str] = None,
         target_name: Optional[str] = None,
         derivative_smoothing=0.0,
+        pub_client: Optional[Client] = None,
     ) -> None:
         # PID coefficients
         self.Kp = Kp
@@ -435,7 +437,13 @@ class PID:
         self.experiment = experiment
         self.target_name = target_name
         self.job_name = job_name
-        self.client = create_client(client_id=f"pid-{self.unit}-{self.experiment}-{self.target_name}")
+
+        if pub_client is None:
+            self._external_client = False
+            self.pub_client = create_client(client_id=f"pid-{self.unit}-{self.experiment}-{self.target_name}")
+        else:
+            self._external_client = True
+            self.pub_client = pub_client
 
     def reset(self) -> None:
         """
@@ -489,6 +497,11 @@ class PID:
         self.publish_pid_stats()
         return output
 
+    def clean_up(self):
+        if not self._external_client:
+            self.pub_client.loop_stop()
+            self.pub_client.disconnect()
+
     def publish_pid_stats(self) -> None:
         # not currently being saved in database. You could by adding a table and listener to mqtt_to_db_streaming
         to_send = {
@@ -506,6 +519,6 @@ class PID:
             "job_name": self.job_name,
             "target_name": self.target_name,
         }
-        self.client.publish(
+        self.pub_client.publish(
             f"pioreactor/{self.unit}/{self.experiment}/pid_log/{self.target_name}", dumps(to_send)
         )

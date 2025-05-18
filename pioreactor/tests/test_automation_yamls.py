@@ -13,7 +13,9 @@ from pioreactor.mureq import get
 
 
 def get_specific_yaml(path):
-    data = get(f"https://raw.githubusercontent.com/Pioreactor/pioreactorui/master/{path}")
+    r = get(f"https://raw.githubusercontent.com/Pioreactor/pioreactorui/master/{path}")
+    r.raise_for_status()
+    data = r.content
     return load(data.content, Loader=Loader)
 
 
