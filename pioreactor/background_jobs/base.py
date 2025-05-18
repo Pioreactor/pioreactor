@@ -99,6 +99,18 @@ class LoggerMixin:
             self._logger = create_logger(name=self._logger_name or self.__class__.__name__)
         return self._logger
 
+    def __del__(self):
+        if self._logger:
+            for handler in self._logger.handlers[:]:
+                try:
+                    handler.close()
+                except Exception:
+                    pass  # Don't raise in destructor
+                try:
+                    self._logger.removeHandler(handler)
+                except Exception:
+                    pass
+
 
 class PostInitCaller(type):
     def __call__(cls, *args, **kwargs):
