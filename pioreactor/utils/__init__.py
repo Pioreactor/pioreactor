@@ -664,7 +664,7 @@ class JobManager:
             value          BLOB,
             proposed_value BLOB,
             job_id         INTEGER NOT NULL,
-            FOREIGN KEY(job_id) REFERENCES pio_job_metadata(job_id) ON DELETE CASCADE,
+            FOREIGN KEY(job_id) REFERENCES pio_job_metadata(job_id),
             UNIQUE(setting, job_id)
         );
 
@@ -844,6 +844,9 @@ class JobManager:
 
         return count
 
+    def close(self):
+        self.conn.close()
+
     def _empty(self):
         self.cursor.execute("DELETE FROM pio_job_published_settings")
         self.cursor.execute("DELETE FROM pio_job_metadata")
@@ -852,7 +855,8 @@ class JobManager:
         return self
 
     def __exit__(self, exc_type, exc_val, tb) -> None:
-        self.conn.close()
+        self.close()
+        return
 
 
 class ClusterJobManager:
