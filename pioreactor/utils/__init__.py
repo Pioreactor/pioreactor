@@ -344,7 +344,7 @@ class cache:
         self.cursor.executescript(
             """
             PRAGMA busy_timeout = 5000;
-            PRAGMA temp_store = 2;  -- stop writing small files to disk, use mem
+            PRAGMA temp_store = 2;
             PRAGMA cache_size = -4000;
         """
         )

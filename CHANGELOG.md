@@ -2,8 +2,9 @@
 
 #### Enhancements
  - new _System logs_ under _Inventory_ to track logs happening outside of experiments in your cluster.
+  - Better organization of logs in the UI. System logs, like calibrations, worker additions, etc. won't show up on the Overview page.
  - Exported data zips have folders for each dataset requested.
- - Improvements to the Kalman filter. For users using the growth-rate model with dosing, you should see improvements to your growth-rate time series. We recommend the following configuration:
+ - Improvements to the Kalman filter. For users using the growth-rate model with media dosing, you should see improvements to your growth-rate time series. We recommend the following configuration:
  ```
 [growth_rate_kalman]
 # obs_std ↑ smooths growth rate, rate_std ↑ more responsive growth rate
@@ -14,13 +15,13 @@ rate_std=0.25
  - New image installs only:
    - updated base OS to the latest 25-05-06 Raspberry Pi OS. The big change is using Linux kernel 6.12.
  - Added the column `hours_since_experiment_created` to dataset exports that details hours since experiment was created.
- - Better organization of logs in the UI.
+ - Performance optimizations
 
 #### Bug fixes
  - fixed stirrer not spinning on Pioreactor page (UI) in some cases
  - alert user if their OD reading is constant before starting the growth-rate calculator, which would break things.
  - alert user if their software is installed in a non-standard location. If so, try `pio uninstall pioreactor -y`.
- - Added a warning if the OD calibration is invalid (constant)
+ - Added a warning if the OD calibration is invalid (ex: a constant line)
 
 
 
