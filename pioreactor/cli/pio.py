@@ -382,6 +382,7 @@ def update_app(
                     (f"sudo bash {tmp_rls_dir}/pre_update.sh", 2),
                     (f"sudo bash {tmp_rls_dir}/update.sh", 4),
                     (f"sudo bash {tmp_rls_dir}/post_update.sh", 20),
+                    (f'echo "moving {tmp_rls_dir}/pioreactorui_*.tar.gz to {tmp_dir}/pioreactorui_archive.tar.gz"', 97),
                     (f"mv {tmp_rls_dir}/pioreactorui_*.tar.gz {tmp_dir}/pioreactorui_archive.tar.gz", 98),  # move ui folder to be accessed by a `pio update ui`
                     (f"sudo rm -rf {tmp_rls_dir}", 99),
                 ]

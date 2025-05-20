@@ -12,6 +12,7 @@ obs_std=1.5
 od_std=0.0025
 rate_std=0.25
  ```
+  **Note: the acceleration term is removed**
  - New image installs only:
    - updated base OS to the latest 25-05-06 Raspberry Pi OS. The big change is using Linux kernel 6.12.
  - Added the column `hours_since_experiment_created` to dataset exports that details hours since experiment was created.
@@ -22,7 +23,7 @@ rate_std=0.25
  - alert user if their OD reading is constant before starting the growth-rate calculator, which would break things.
  - alert user if their software is installed in a non-standard location. If so, try `pio uninstall pioreactor -y`.
  - Added a warning if the OD calibration is invalid (ex: a constant line)
-
+ - Fix for Raspberry Pi 5 using upstream Adafruit libraries.
 
 
 
