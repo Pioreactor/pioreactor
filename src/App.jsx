@@ -22,6 +22,7 @@ import {Profiles} from "./Profiles";
 import Inventory from "./Inventory";
 import Leader from "./Leader";
 import Logs from "./Logs";
+import SystemLogs from "./SystemLogs";
 //import Analysis from "./Analysis";
 import Experiments from "./Experiments";
 import Calibrations from "./Calibrations";
@@ -133,6 +134,8 @@ function MainSite() {
                   <Route path="/inventory" element={<Inventory title="Pioreactor ~ Inventory"/>}/>
                   <Route path="/logs" element={<Logs title="Pioreactor ~ Logs"/>}/>
                   <Route path="/logs/:pioreactorUnit" element={<Logs title="Pioreactor ~ Logs"/>}/>
+                  <Route path="/system-logs" element={<SystemLogs title="Pioreactor ~ System Logs"/>}/>
+                  <Route path="/system-logs/:pioreactorUnit" element={<SystemLogs title="Pioreactor ~ System Logs"/>}/>
                   <Route path="/" element={<ExperimentOverview title="Pioreactor ~ Overview"/>}/>
                   <Route path="*" element={<NotFound />} />
                 </Routes>

@@ -204,7 +204,7 @@ function UploadCalibrationDialog({
           </Box>
           }
           </Box>
-          <Button onClick={handleUploadCalibration} variant="contained" sx={{marginTop: "10px", textTransform: 'none'}} disabled={!selectedDevice || !calibrationYaml}>
+          <Button onClick={handleUploadCalibration} variant="contained" sx={{marginTop: "10px", textTransform: 'none'}} disabled={!selectedDevice || !calibrationYaml || !selectedWorker}>
             Upload
           </Button>
         </Box>

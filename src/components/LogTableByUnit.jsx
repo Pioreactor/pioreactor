@@ -214,14 +214,15 @@ function LogTableByUnit({ experiment, unit, level="info" }) {
         </TableContainer>
         <Divider />
         <CardActions sx={{ justifyContent: 'right' }}>
-        <RecordEventLogDialog
-          defaultPioreactor={unit}
-          defaultExperiment={experiment || '<All experiments>'}
-          availableUnits={[unit]}
-          onSubmit={handleSubmitDialog}
-        />
+          {(experiment !== "$experiment") &&
+          <RecordEventLogDialog
+            defaultPioreactor={unit}
+            defaultExperiment={experiment || '<All experiments>'}
+            availableUnits={[unit]}
+            onSubmit={handleSubmitDialog}
+          />}
           <Button
-            to={`/logs/${unit}`}
+            to={(experiment == "$experiment") ? `/system-logs/${unit}` :  `/logs/${unit}`}
             component={Link}
             color="primary"
             style={{ textTransform: 'none', verticalAlign: 'middle', margin: '0px 3px' }}

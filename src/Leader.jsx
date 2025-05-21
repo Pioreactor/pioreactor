@@ -202,12 +202,12 @@ function DirectoryNavigatorCard() {
   };
 
   return (
-    <Card sx={{minHeight: "300px", maxHeight: "600px", overflowY: "scroll"}}>
+    <Card sx={{minHeight: "300px"}}>
       <CardContent sx={{p:2}}>
-         <Typography variant="h6" component="h2">
+        <Typography variant="h6" component="h2">
           <Box fontWeight="fontWeightRegular">File browser</Box>
         </Typography>
-
+        <Box sx={{maxHeight: "450px", overflowY: "scroll"}}>
           <PathViewer path=
           {
           currentPath
@@ -257,7 +257,7 @@ function DirectoryNavigatorCard() {
             ))}
           </List>
         )}
-
+        </Box>
       </CardContent>
     </Card>
   );

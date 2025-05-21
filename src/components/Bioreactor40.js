@@ -95,7 +95,7 @@ const Bioreactor40Diagram = ({experiment, unit, config}) => {
         switch (load){
           case "stirring":
             const rpm_estimate = parseFloat(dcs[pin]) * 26.66666667
-            rpm_ = Math.max(Math.min(100, rpm_estimate), 600)//
+            rpm_ = Math.min(Math.max(rpm_estimate, 100), 800)
             break
           case "media":
             pumps_.add('media')
@@ -151,7 +151,7 @@ const Bioreactor40Diagram = ({experiment, unit, config}) => {
   }
 
   useEffect(() => {
-    if (client && experiment){
+    if (client && experiment && config && Object.keys(config).length > 0){
       subscribeToTopic([`pioreactor/${unit}/${experiment}/temperature_automation/temperature`,
         `pioreactor/${unit}/${experiment}/growth_rate_calculating/od_filtered`,
         `pioreactor/${unit}/${experiment}/leds/intensity`,
@@ -167,7 +167,7 @@ const Bioreactor40Diagram = ({experiment, unit, config}) => {
       ], onMessage, "BioreactorDiagram")
 
     }
-  }, [client, experiment])
+  }, [client, experiment, config])
 
   useEffect(() => {
     let animationFrameId;
@@ -396,7 +396,7 @@ const Bioreactor40Diagram = ({experiment, unit, config}) => {
       drawTurbidLiquid(bioreactor.x, Math.max(bioreactor.y + bioreactor.height - liquidLevel, bioreactor.y), bioreactor.width, Math.min(liquidLevel,  bioreactor.height), bioreactor.cornerRadius, nOD);
 
       // Draw stir bar
-      const angle = (2 * Math.PI / (200 * fps / (rpm) ) ) * stirBarFrame.current;
+      const angle = (2 * Math.PI / (130 * fps / (rpm) ) ) * stirBarFrame.current;
       const width = bioreactor.stirBar.maxWidth * Math.abs(Math.cos(angle)) + 10;
       drawRoundedRect(bioreactor.stirBar.x + (bioreactor.stirBar.maxWidth - width) / 2, bioreactor.stirBar.y, width, bioreactor.stirBar.height, bioreactor.stirBar.radius, '#fff', '#000');
 
@@ -428,7 +428,7 @@ const Bioreactor40Diagram = ({experiment, unit, config}) => {
           // specified fpsInterval not being a multiple of RAF's interval (16.7ms)
           then = now - (elapsed % fpsInterval);
 
-          stirBarFrame.current = (stirBarFrame.current + 1)  % Math.round(200 * fps / (rpm) );
+          stirBarFrame.current = (stirBarFrame.current + 1)  % Math.round(130 * fps / (rpm) );
 
           drawBioreactor();
 

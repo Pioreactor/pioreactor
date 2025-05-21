@@ -250,7 +250,7 @@ export default function SideNavAndHeader() {
                     fontWeight: active ? 500 : 450,
                   };
                   if (level === 1){
-                    sx.paddingLeft = "58px"
+                    sx.paddingLeft = "27px"
                     sx.color = disabled ? '#00000050' : (active ? '#5331ca' : 'rgb(75, 75, 75)')
                     sx.fontWeight = active ? 500 : 400
                   }
@@ -261,7 +261,8 @@ export default function SideNavAndHeader() {
                     color: disabled ? '#00000050' : (active ? '#5331ca' : 'rgba(0,0,0, 0.6)'),
                     marginRight: "8px",
                     minWidth: "30px",
-                    width: "30px"
+                    width: "30px",
+                    visibility: (( (level===1 && active) || level===0)  ? "visible" : "hidden")
                   };
                 }
               }}
@@ -327,7 +328,7 @@ export default function SideNavAndHeader() {
                     fontWeight: active ? 500 : 400,
                   };
                   if (level === 1){
-                    sx.paddingLeft = "58px"
+                    sx.paddingLeft = "27px"
                     sx.color = disabled ? '#00000050' : (active ? '#5331ca' : 'rgb(75, 75, 75)')
                     sx.fontWeight = active ? 500 : 400
                   }
@@ -338,7 +339,9 @@ export default function SideNavAndHeader() {
                     color: disabled ? '#00000050' : (active ? '#5331ca' : 'rgba(0,0,0, 0.6)'),
                     marginRight: "8px",
                     minWidth: "30px",
-                    width: "30px"
+                    width: "30px",
+                    visibility: (( (level===1 && active) || level===0)  ? "visible" : "hidden")
+
                   };
                 }
               }}
@@ -354,7 +357,7 @@ export default function SideNavAndHeader() {
                 </MenuItem>
 
                 <SubMenu label="Inventory"
-                  open={isOpen("inventory") || isOpen("leader")}
+                  open={isOpen("inventory") || isOpen("leader") || isOpen("system-logs")}
                   icon={<PioreactorsIcon sx={{fontSize: "23px"}} />}
                   component={<Link to="/inventory" className="link" />}
                   active={isSelected("/inventory")}
@@ -366,6 +369,13 @@ export default function SideNavAndHeader() {
                     icon={<SubdirectoryArrowRightIcon  sx={{fontSize: "23px"}}/>}
                     >
                     Leader
+                  </MenuItem>
+                  <MenuItem
+                    component={<Link to="/system-logs" className="link" />}
+                    active={isSelected("/system-logs")}
+                    icon={<SubdirectoryArrowRightIcon  sx={{fontSize: "23px"}}/>}
+                    >
+                    System logs
                   </MenuItem>
 
                 </SubMenu>

@@ -96,7 +96,7 @@ const Bioreactor20Diagram = ({experiment, unit, config}) => {
         switch (load){
           case "stirring":
             const rpm_estimate = parseFloat(dcs[pin]) * 26.66666667
-            rpm_ = Math.max(Math.min(100, rpm_estimate), 600)//
+            rpm_ = Math.min(Math.max(rpm_estimate, 100), 600)
             break
           case "media":
             pumps_.add('media')
@@ -152,7 +152,7 @@ const Bioreactor20Diagram = ({experiment, unit, config}) => {
   }
 
   useEffect(() => {
-    if (client && experiment){
+    if (client && experiment && config && Object.keys(config).length > 0){
       subscribeToTopic([`pioreactor/${unit}/${experiment}/temperature_automation/temperature`,
         `pioreactor/${unit}/${experiment}/growth_rate_calculating/od_filtered`,
         `pioreactor/${unit}/${experiment}/leds/intensity`,
@@ -168,7 +168,7 @@ const Bioreactor20Diagram = ({experiment, unit, config}) => {
       ], onMessage, "BioreactorDiagram")
 
     }
-  }, [client, experiment])
+  }, [client, experiment, config]) // config is needed for the onmessage
 
   useEffect(() => {
     let animationFrameId;

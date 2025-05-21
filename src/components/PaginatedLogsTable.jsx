@@ -74,8 +74,10 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
   const [onlyAssignedLogs, setOnlyAssignedLogs] = useState(true);
   const { client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
 
-  const getAPIURL = (unit, onlyAssignedLogs) => {
-    if (unit && onlyAssignedLogs){
+  const getAPIURL = (unit, onlyAssignedLogs, experiment) => {
+    if (unit && experiment == "$experiment"){
+      return `/api/units/${unit}/system_logs`;
+    } else if (unit && onlyAssignedLogs){
       return `/api/workers/${unit}/experiments/${experiment}/logs`;
     } else if (!unit && onlyAssignedLogs) {
       return `/api/experiments/${experiment}/logs`
@@ -91,7 +93,7 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
       if (!experiment) return;
       setLoading(true);
       try {
-        const response = await fetch(getAPIURL(pioreactorUnit, onlyAssignedLogs) + "?min_level=" + logLevel);
+        const response = await fetch(getAPIURL(pioreactorUnit, onlyAssignedLogs, experiment) + "?min_level=" + logLevel);
         const logs = await response.json();
         setListOfLogs(
           logs.map((log, index) => ({
@@ -115,7 +117,7 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
   const loadMoreLogs = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${getAPIURL(pioreactorUnit, onlyAssignedLogs)}?skip=${skip}&min_level=${logLevel}`);
+      const response = await fetch(`${getAPIURL(pioreactorUnit, onlyAssignedLogs, experiment)}?skip=${skip}&min_level=${logLevel}`);
       const logs = await response.json();
       if (logs.length > 0) {
         setListOfLogs((prevLogs) => [
