@@ -99,7 +99,7 @@ class DosingEvent(JSONPrintedStruct):
     Output of a pump action
     """
 
-    volume_change: t.Annotated[float, Meta(ge=0)]
+    volume_change: float  # can be negative!
     event: str
     source_of_event: t.Optional[str]
     timestamp: t.Annotated[datetime, Meta(tz=True)]
