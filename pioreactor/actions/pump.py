@@ -299,7 +299,7 @@ def _pump_action(
 
             logger.info(_to_human_readable_action(None, duration, pump_device))
         elif continuously:
-            duration = 2.5
+            duration = 1.0
             ml = calibration.duration_to_ml(duration)  # can be wrong if calibration is not defined
 
             logger.info(f"Running {pump_device} continuously.")
@@ -328,11 +328,13 @@ def _pump_action(
             if not continuously:
                 pump.by_duration(duration, block=False)
                 # how does this work? What's up with the (or True)?
-                # exit_event.wait returns True iff the event is set, i.e by an interrupt. If we timeout (good path)
-                # then we eval (False or True), hence we break out of this while loop.
+                # exit_event.wait returns True iff the event is set, i.e by an interrupt.
+                # If we timeout (good path), then we eval (False or True), hence we break out of this while loop.
+
                 while not (state.exit_event.wait(duration) or True):
                     pump.interrupt.set()
             else:
+                # continously path
                 pump.continuously(block=False)
 
                 # we only break out of this while loop via a interrupt or MQTT signal => event.set()
@@ -348,9 +350,16 @@ def _pump_action(
                 logger.info(f"Stopped {pump_device}.")
 
         if state.exit_event.is_set():
-            # ended early
+            # ended early. We should calculate how much _wasnt_ added, and update that.
             shortened_duration = time.monotonic() - pump_start_time
-            return pump.duration_to_ml(shortened_duration)
+            actually_dosed = pump.duration_to_ml(shortened_duration)
+            logger.info(f"Stopped {pump_device} early.")
+
+            # need to reverse the data that was fired, dosing _can_ be negative, so we publish actually_dosed - ml s.t. ml + (actually_dosed - ml) = actually_dosed.
+            _publish_pump_action(
+                action_name, actually_dosed - ml, unit, experiment, mqtt_client, source_of_event
+            )
+            return actually_dosed
         return ml
 
 

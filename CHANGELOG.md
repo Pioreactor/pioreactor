@@ -16,10 +16,11 @@ rate_std=0.25
  - New image installs only:
    - updated base OS to the latest 25-05-06 Raspberry Pi OS. The big change is using Linux kernel 6.12.
  - Added the column `hours_since_experiment_created` to dataset exports that details hours since experiment was created.
+ - When a pump runs, it _first_ fires off a dosing_event, which stores information about how much liquid is moved. However, if the pump is stopped early, there was no correction issued to the amount of liquid actually moved. Now, when a pump is stopped early, a _negative_ volume is sent s.t. the delta between the initial amount and new amount is equal to the dosed amount (so when you sum up the volume changes, you get the actual change, as expected).
  - Performance optimizations
 
 #### Bug fixes
- - fixed stirrer not spinning on Pioreactor page (UI) in some cases
+ - fixed stir bar not spinning on Pioreactor page (UI) in some cases
  - alert user if their OD reading is constant before starting the growth-rate calculator, which would break things.
  - alert user if their software is installed in a non-standard location. If so, try `pio uninstall pioreactor -y`.
  - Added a warning if the OD calibration is invalid (ex: a constant line)

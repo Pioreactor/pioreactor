@@ -238,6 +238,7 @@ class managed_lifecycle:
 
     def __exit__(self, *args) -> None:
         self.state = "disconnected"
+        self._exit()
         self.publish_setting("$state", self.state)
         if not self._externally_provided_client:
             assert self.mqtt_client is not None

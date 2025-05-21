@@ -113,9 +113,14 @@ class Pico_ADC(_ADC):
             )
 
     def get_firmware_version(self) -> tuple[int, int]:
-        result = bytearray(2)
-        self.i2c.writeto_then_readfrom(hardware.ADC, bytes([0x08]), result)
-        return (result[1], result[0])
+        try:
+            result = bytearray(2)
+            self.i2c.writeto_then_readfrom(hardware.ADC, bytes([0x08]), result)
+            return (result[1], result[0])
+        except OSError:
+            raise exc.HardwareNotFoundError(
+                f"Unable to find i2c channel {hardware.ADC}. Is the HAT attached? Is the firmware loaded?"
+            )
 
     def from_voltage_to_raw(self, voltage: pt.Voltage) -> pt.AnalogValue:
         return int((voltage / 3.3) * 4095 * self.scale)

@@ -34,7 +34,7 @@ Entry Points
 
 Adding to ~/.pioreactor/plugins
 
-   1. Scripts placed in ~/.pioreactor/plugins are automagically loaded.
+   1. Scripts placed in ~/.pioreactor/plugins are automagically loaded in lexicographical order.
      The authors can add metadata to their file with the following variables at the
      highest level in the file:
 

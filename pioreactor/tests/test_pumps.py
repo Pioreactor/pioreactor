@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import json
 import threading
 import time
 from datetime import datetime
@@ -126,6 +127,13 @@ def test_pump_will_disconnect_via_mqtt() -> None:
             threading.Thread.join(self)
             return self._return
 
+    volume_updates = []
+
+    def collect_updates(msg):
+        volume_updates.append(json.loads(msg.payload.decode()))
+
+    subscribe_and_callback(collect_updates, f"pioreactor/{unit}/{exp}/dosing_events", allow_retained=False)
+
     expected_ml = 20
     t = ThreadWithReturnValue(target=add_media, args=(unit, exp, expected_ml), daemon=True)
     t.start()
@@ -141,6 +149,10 @@ def test_pump_will_disconnect_via_mqtt() -> None:
     resulting_ml = t.join()
 
     assert resulting_ml < expected_ml
+    assert len(volume_updates) == 2
+    print(volume_updates[0])
+    assert volume_updates[0]["volume_change"] == expected_ml
+    assert -expected_ml < volume_updates[1]["volume_change"] < 0  # fire off a negative volume change
 
 
 def test_continuously_running_pump_will_disconnect_via_mqtt() -> None:
