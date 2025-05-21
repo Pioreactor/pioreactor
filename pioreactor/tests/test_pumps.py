@@ -134,12 +134,13 @@ def test_pump_will_disconnect_via_mqtt() -> None:
 
     subscribe_and_callback(collect_updates, f"pioreactor/{unit}/{exp}/dosing_events", allow_retained=False)
 
-    expected_ml = 20
+    expected_ml = 10
     t = ThreadWithReturnValue(target=add_media, args=(unit, exp, expected_ml), daemon=True)
     t.start()
 
     pause()
     pause()
+    time.sleep(0.1)
     publish(f"pioreactor/{unit}/{exp}/add_media/$state/set", b"disconnected", qos=1)
     pause()
     pause()

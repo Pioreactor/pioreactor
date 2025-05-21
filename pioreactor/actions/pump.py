@@ -169,7 +169,6 @@ def _publish_pump_action(
     mqtt_client.publish(
         f"pioreactor/{unit}/{experiment}/dosing_events",
         encode(dosing_event),
-        qos=QOS.EXACTLY_ONCE,
     )
     return dosing_event
 
@@ -310,29 +309,79 @@ def _pump_action(
         duration = pt.Seconds(duration)
         ml = pt.mL(ml)
 
+        dosing_event = structs.DosingEvent(
+            volume_change=0.0,
+            event=action_name,
+            source_of_event=source_of_event,
+            timestamp=current_utc_datetime(),
+        )
+
         if manually:
-            _publish_pump_action(action_name, ml, unit, experiment, mqtt_client, source_of_event)
+            dosing_event = replace(dosing_event, volume_change=ml)
 
             return 0.0
 
         with PWMPump(
             unit, experiment, pin, calibration=calibration, mqtt_client=mqtt_client, logger=logger
         ) as pump:
-            # publish this first, as downstream jobs need to know about it.
-            dosing_event = _publish_pump_action(
-                action_name, ml, unit, experiment, mqtt_client, source_of_event
-            )
-
             pump_start_time = time.monotonic()
 
             if not continuously:
-                pump.by_duration(duration, block=False)
-                # how does this work? What's up with the (or True)?
-                # exit_event.wait returns True iff the event is set, i.e by an interrupt.
-                # If we timeout (good path), then we eval (False or True), hence we break out of this while loop.
+                sub_duration = 1.0
+                volume_moved_ml = 0.0
 
-                while not (state.exit_event.wait(duration) or True):
-                    pump.interrupt.set()
+                pump.by_duration(duration, block=False)  # start pump
+
+                while not pump.interrupt.is_set():
+                    sub_volume_moved_ml = 0.0
+                    time_left = duration - (time.monotonic() - pump_start_time)
+
+                    if time_left < 0:
+                        pump.interrupt.wait()
+                        break
+
+                    elif time_left >= sub_duration > 0:
+                        sub_volume_moved_ml = pump.duration_to_ml(sub_duration)
+                        dosing_event = replace(
+                            dosing_event, timestamp=current_utc_datetime(), volume_change=sub_volume_moved_ml
+                        )
+                        volume_moved_ml += sub_volume_moved_ml
+
+                    elif sub_duration > time_left > 0:
+                        sub_volume_moved_ml = ml - volume_moved_ml
+                        dosing_event = replace(
+                            dosing_event, timestamp=current_utc_datetime(), volume_change=sub_volume_moved_ml
+                        )
+                        volume_moved_ml += sub_volume_moved_ml
+
+                    mqtt_client.publish(
+                        f"pioreactor/{unit}/{experiment}/dosing_events",
+                        encode(dosing_event),
+                    )
+
+                    if state.exit_event.wait(min(sub_duration, time_left)):
+                        pump.interrupt.set()
+                        pump_stop_time = time.monotonic()
+
+                        # ended early. We should calculate how much _wasnt_ added, and update that.
+                        logger.info(f"Stopped {pump_device} early.")
+                        actual_volume_moved_ml = pump.duration_to_ml(pump_stop_time - pump_start_time)
+                        correction_factor = (
+                            actual_volume_moved_ml - volume_moved_ml
+                        )  # reported too much since we log first before dosing
+
+                        dosing_event = replace(
+                            dosing_event, timestamp=current_utc_datetime(), volume_change=correction_factor
+                        )
+                        mqtt_client.publish(
+                            f"pioreactor/{unit}/{experiment}/dosing_events",
+                            encode(dosing_event),
+                        )
+
+                        return actual_volume_moved_ml
+
+                return volume_moved_ml
+
             else:
                 # continously path
                 pump.continuously(block=False)
@@ -344,23 +393,11 @@ def _pump_action(
                     mqtt_client.publish(
                         f"pioreactor/{unit}/{experiment}/dosing_events",
                         encode(dosing_event),
-                        qos=QOS.AT_MOST_ONCE,  # we don't need the same level of accuracy here
                     )
                 pump.stop()
                 logger.info(f"Stopped {pump_device}.")
 
-        if state.exit_event.is_set():
-            # ended early. We should calculate how much _wasnt_ added, and update that.
-            shortened_duration = time.monotonic() - pump_start_time
-            actually_dosed = pump.duration_to_ml(shortened_duration)
-            logger.info(f"Stopped {pump_device} early.")
-
-            # need to reverse the data that was fired, dosing _can_ be negative, so we publish actually_dosed - ml s.t. ml + (actually_dosed - ml) = actually_dosed.
-            _publish_pump_action(
-                action_name, actually_dosed - ml, unit, experiment, mqtt_client, source_of_event
-            )
-            return actually_dosed
-        return ml
+                return ml
 
 
 def _liquid_circulation(

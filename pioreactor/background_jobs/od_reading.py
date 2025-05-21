@@ -671,7 +671,8 @@ class CachedCalibrationTransformer(CalibrationTransformer):
             self.logger.error(f"Calibration {calibration_data.calibration_name} has wrong type.")
             raise exc.CalibrationError(f"Calibration {calibration_data.calibration_name} has wrong type.")
 
-        if len(calibration_data.curve_data_) <= 1:
+        higher_order_terms = calibration_data.curve_data_[:-1]
+        if len(higher_order_terms) == 0 or all(c == 0.0 for c in higher_order_terms):
             self.logger.warning(
                 "Calibration curve is y(x)=constant. This is probably wrong. Check the calibration YAML file's curve_data_."
             )
