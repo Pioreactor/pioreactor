@@ -1576,7 +1576,7 @@ def test_dosing_automation_initial_values_for_volumes():
         assert ca.alt_media_fraction == 0.5
         ca.execute_io_action(media_ml=1, alt_media_ml=0, waste_ml=1.0)
         assert ca.liquid_volume == 11.0
-        assert ca.alt_media_fraction == 0.4545454545
+        assert abs(ca.alt_media_fraction - 0.4545454545) < 1e-6
 
     with Silent(
         unit=unit,

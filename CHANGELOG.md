@@ -23,7 +23,7 @@ rate_std=0.25
 #### Bug fixes
  - fixed stir bar not spinning on Pioreactor page (UI) in some cases
  - alert user if their OD reading is constant before starting the growth-rate calculator, which would break things.
- - alert user if their software is installed in a non-standard location. If so, try `pio uninstall pioreactor -y`.
+ - alert user if their software is installed in a non-standard location. If so, try `pip uninstall pioreactor -y`.
  - Added a warning if the OD calibration is invalid (ex: a constant line)
  - Fix for Raspberry Pi 5 using upstream Adafruit libraries.
 

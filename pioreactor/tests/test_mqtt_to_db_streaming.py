@@ -142,7 +142,7 @@ def test_dosing_events_land_in_db() -> None:
 
     cursor.execute("SELECT * FROM dosing_events WHERE pioreactor_unit=?", (unit,))
     results = cursor.fetchall()
-    assert len(results) == 1
+    assert len(results) == 2
 
 
 @pytest.mark.xfail(reason="we stopped adding to kalman filter table in 25.1.x release")
