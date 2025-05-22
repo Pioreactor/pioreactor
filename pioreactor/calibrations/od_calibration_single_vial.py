@@ -352,16 +352,6 @@ def start_recording_and_diluting(
         echo("Reading blank...")
 
         value = get_voltage_from_adc()
-        for i in range(5):
-            if value > min(voltages):
-                echo("Reading is too high, trying again...")
-                value = get_voltage_from_adc()
-            else:
-                break
-        else:
-            echo(red(f"Why is the blank reading, {value}V, higher than everything else: {voltages}V?"))
-            raise click.Abort()
-
         voltages.append(value)
         inferred_od600s.append(od600_of_blank)
 

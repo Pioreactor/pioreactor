@@ -458,7 +458,7 @@ class ADCReader(LoggerMixin):
                 )
 
                 # convert to voltage
-                best_estimate_of_signal_v = self.adc.from_raw_to_voltage(best_estimate_of_signal_)
+                best_estimate_of_signal_v = round(self.adc.from_raw_to_voltage(best_estimate_of_signal_), 6)
 
                 # force value to be non-negative. Negative values can still occur due to the IR LED reference
                 batched_estimates_[channel] = max(best_estimate_of_signal_v, 0)
