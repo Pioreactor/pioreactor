@@ -150,10 +150,9 @@ def test_pump_will_disconnect_via_mqtt() -> None:
     resulting_ml = t.join()
 
     assert resulting_ml < expected_ml
-    assert len(volume_updates) == 2
-    print(volume_updates[0])
-    assert volume_updates[0]["volume_change"] == expected_ml
-    assert -expected_ml < volume_updates[1]["volume_change"] < 0  # fire off a negative volume change
+
+    assert volume_updates[0]["volume_change"] > 0
+    assert -expected_ml < volume_updates[-1]["volume_change"] < 0  # fire off a negative volume change
 
 
 def test_continuously_running_pump_will_disconnect_via_mqtt() -> None:

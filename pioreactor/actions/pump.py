@@ -23,7 +23,6 @@ from pioreactor.hardware import PWM_TO_PIN
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
 from pioreactor.pubsub import Client
-from pioreactor.pubsub import QOS
 from pioreactor.types import PumpCalibrationDevices
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import catchtime
@@ -53,7 +52,7 @@ def is_default_calibration(cal: structs.SimplePeristalticPumpCalibration):
 
 # Initialize the thread pool with a worker threads.
 # a pool is needed to avoid eventual memory overflow when multiple threads are created and allocated over time.
-_thread_pool = ThreadPoolExecutor(max_workers=3)  # one for each pump
+_thread_pool = ThreadPoolExecutor(max_workers=3)
 
 
 class PWMPump:
@@ -105,6 +104,7 @@ class PWMPump:
         if ml < 0:
             raise ValueError("ml must be greater than or equal to 0")
         if ml == 0:
+            self.stop()
             return
         seconds = self.ml_to_duration(ml)
         self.by_duration(seconds, block=block)
@@ -113,6 +113,7 @@ class PWMPump:
         if seconds < 0:
             raise ValueError("seconds must be >= 0")
         if seconds == 0:
+            self.stop()  # need to set the interrupt!
             return
         if block:
             self.start(self.calibration.dc)
@@ -151,26 +152,8 @@ def _get_calibration(pump_device: PumpCalibrationDevices) -> structs.SimplePeris
         return cal
 
 
-def _publish_pump_action(
-    pump_action: str,
-    ml: pt.mL,
-    unit: str,
-    experiment: str,
-    mqtt_client: Client,
-    source_of_event: Optional[str] = None,
-) -> structs.DosingEvent:
-    dosing_event = structs.DosingEvent(
-        volume_change=ml,
-        event=pump_action,
-        source_of_event=source_of_event,
-        timestamp=current_utc_datetime(),
-    )
-
-    mqtt_client.publish(
-        f"pioreactor/{unit}/{experiment}/dosing_events",
-        encode(dosing_event),
-    )
-    return dosing_event
+def publish_async(client, topic, payload, **kwargs):
+    _thread_pool.submit(client.publish, topic, payload, **kwargs)
 
 
 def _to_human_readable_action(
@@ -309,7 +292,7 @@ def _pump_action(
         duration = pt.Seconds(duration)
         ml = pt.mL(ml)
 
-        dosing_event = structs.DosingEvent(
+        empty_dosing_event = structs.DosingEvent(
             volume_change=0.0,
             event=action_name,
             source_of_event=source_of_event,
@@ -317,44 +300,48 @@ def _pump_action(
         )
 
         if manually:
-            dosing_event = replace(dosing_event, volume_change=ml)
-
+            publish_async(
+                mqtt_client,
+                f"pioreactor/{unit}/{experiment}/dosing_events",
+                encode(replace(empty_dosing_event, volume_change=ml)),
+            )
             return 0.0
 
         with PWMPump(
             unit, experiment, pin, calibration=calibration, mqtt_client=mqtt_client, logger=logger
         ) as pump:
+            sub_duration = 1.0
+            volume_moved_ml = 0.0
+
             pump_start_time = time.monotonic()
 
             if not continuously:
-                sub_duration = 1.0
-                volume_moved_ml = 0.0
-
                 pump.by_duration(duration, block=False)  # start pump
 
                 while not pump.interrupt.is_set():
                     sub_volume_moved_ml = 0.0
                     time_left = duration - (time.monotonic() - pump_start_time)
-
-                    if time_left < 0:
+                    if time_left <= 0:
+                        # this is an edge case where the time has surpassed, but the interrupt isn't set yet.
                         pump.interrupt.wait()
                         break
 
-                    elif time_left >= sub_duration > 0:
+                    elif time_left >= sub_duration:
                         sub_volume_moved_ml = pump.duration_to_ml(sub_duration)
-                        dosing_event = replace(
-                            dosing_event, timestamp=current_utc_datetime(), volume_change=sub_volume_moved_ml
-                        )
-                        volume_moved_ml += sub_volume_moved_ml
 
-                    elif sub_duration > time_left > 0:
+                    elif sub_duration > time_left:
+                        # last remaining bit.
                         sub_volume_moved_ml = ml - volume_moved_ml
-                        dosing_event = replace(
-                            dosing_event, timestamp=current_utc_datetime(), volume_change=sub_volume_moved_ml
-                        )
-                        volume_moved_ml += sub_volume_moved_ml
 
-                    mqtt_client.publish(
+                    dosing_event = replace(
+                        empty_dosing_event,
+                        timestamp=current_utc_datetime(),
+                        volume_change=sub_volume_moved_ml,
+                    )
+                    volume_moved_ml += sub_volume_moved_ml
+
+                    publish_async(
+                        mqtt_client,
                         f"pioreactor/{unit}/{experiment}/dosing_events",
                         encode(dosing_event),
                     )
@@ -364,40 +351,70 @@ def _pump_action(
                         pump_stop_time = time.monotonic()
 
                         # ended early. We should calculate how much _wasnt_ added, and update that.
-                        logger.info(f"Stopped {pump_device} early.")
                         actual_volume_moved_ml = pump.duration_to_ml(pump_stop_time - pump_start_time)
                         correction_factor = (
                             actual_volume_moved_ml - volume_moved_ml
                         )  # reported too much since we log first before dosing
 
                         dosing_event = replace(
-                            dosing_event, timestamp=current_utc_datetime(), volume_change=correction_factor
+                            empty_dosing_event,
+                            timestamp=current_utc_datetime(),
+                            volume_change=correction_factor,
                         )
-                        mqtt_client.publish(
+                        publish_async(
+                            mqtt_client,
                             f"pioreactor/{unit}/{experiment}/dosing_events",
                             encode(dosing_event),
                         )
 
+                        logger.info(f"Stopped {pump_device} early.")
                         return actual_volume_moved_ml
 
                 return volume_moved_ml
 
             else:
-                # continously path
-                pump.continuously(block=False)
+                pump.continuously(block=False)  # start pump
 
-                # we only break out of this while loop via a interrupt or MQTT signal => event.set()
-                while not state.exit_event.wait(duration):
-                    # republish information
-                    dosing_event = replace(dosing_event, timestamp=current_utc_datetime())
-                    mqtt_client.publish(
+                while True:
+                    sub_volume_moved_ml = pump.duration_to_ml(sub_duration)
+
+                    dosing_event = replace(
+                        empty_dosing_event,
+                        timestamp=current_utc_datetime(),
+                        volume_change=sub_volume_moved_ml,
+                    )
+                    volume_moved_ml += sub_volume_moved_ml
+
+                    publish_async(
+                        mqtt_client,
                         f"pioreactor/{unit}/{experiment}/dosing_events",
                         encode(dosing_event),
                     )
-                pump.stop()
-                logger.info(f"Stopped {pump_device}.")
 
-                return ml
+                    if state.exit_event.wait(sub_duration):
+                        # this is the only way it stops?
+                        pump.interrupt.set()
+                        pump_stop_time = time.monotonic()
+
+                        actual_volume_moved_ml = pump.duration_to_ml(pump_stop_time - pump_start_time)
+
+                        correction_factor = (
+                            actual_volume_moved_ml - volume_moved_ml
+                        )  # reported too much since we log first before dosing
+
+                        dosing_event = replace(
+                            empty_dosing_event,
+                            timestamp=current_utc_datetime(),
+                            volume_change=correction_factor,
+                        )
+                        publish_async(
+                            mqtt_client,
+                            f"pioreactor/{unit}/{experiment}/dosing_events",
+                            encode(dosing_event),
+                        )
+
+                        logger.info(f"Stopped {pump_device}.")
+                        return actual_volume_moved_ml
 
 
 def _liquid_circulation(
@@ -485,7 +502,17 @@ def _liquid_circulation(
             logger.info("Running waste continuously.")
 
             # assume they run it long enough such that the waste efflux position is reached.
-            _publish_pump_action("remove_waste", 20, unit, experiment, mqtt_client, source_of_event)
+            dosing_event = structs.DosingEvent(
+                volume_change=20,
+                event="remove_waste",
+                source_of_event=source_of_event,
+                timestamp=current_utc_datetime(),
+            )
+            publish_async(
+                mqtt_client,
+                f"pioreactor/{unit}/{experiment}/dosing_events",
+                encode(dosing_event),
+            )
 
             with catchtime() as running_waste_duration:
                 waste_pump.continuously(block=False)
