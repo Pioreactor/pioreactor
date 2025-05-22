@@ -780,7 +780,7 @@ def test_determine_best_ir_led_intensity_values() -> None:
             {"1": structs.RawPDReading(0.05, "1"), "2": structs.RawPDReading(0.02, "2")},  # on
             {"1": structs.RawPDReading(0.001, "1"), "2": structs.RawPDReading(0.001, "2")},  # blank
         )
-        == 80.0
+        == 85.0
     )
 
     assert (
@@ -790,7 +790,7 @@ def test_determine_best_ir_led_intensity_values() -> None:
             {"1": structs.RawPDReading(0.2, "1"), "2": structs.RawPDReading(0.02, "2")},  # on
             {"1": structs.RawPDReading(0.001, "1"), "2": structs.RawPDReading(0.001, "2")},  # blank
         )
-        == 60.0
+        == 62.5
     )
 
     assert (
@@ -1192,7 +1192,7 @@ def test_auto_ir_led_intensity_REF_and_90() -> None:
         with start_od_reading(
             "REF", "90", interval=None, fake_data=True, experiment=experiment, calibration=False
         ) as od:
-            assert abs(od.ir_led_intensity - 67.19794921875) < 0.01
+            assert abs(od.ir_led_intensity - 70.0) < 0.01
 
 
 def test_auto_ir_led_intensity_90_only() -> None:

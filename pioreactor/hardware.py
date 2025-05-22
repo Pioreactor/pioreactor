@@ -45,8 +45,8 @@ SCL: I2CPin
 
 if rpi_version_info.startswith("Raspberry Pi 5"):
     GPIOCHIP = 4
-    SDA = (4, 2)
-    SCL = (4, 3)
+    SDA = 2
+    SCL = 3
 else:
     GPIOCHIP = 0
     SDA = 2

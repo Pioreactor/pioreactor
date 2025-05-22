@@ -458,7 +458,7 @@ class ADCReader(LoggerMixin):
                 )
 
                 # convert to voltage
-                best_estimate_of_signal_v = self.adc.from_raw_to_voltage(best_estimate_of_signal_)
+                best_estimate_of_signal_v = round(self.adc.from_raw_to_voltage(best_estimate_of_signal_), 6)
 
                 # force value to be non-negative. Negative values can still occur due to the IR LED reference
                 batched_estimates_[channel] = max(best_estimate_of_signal_v, 0)
@@ -660,7 +660,6 @@ class CachedCalibrationTransformer(CalibrationTransformer):
 
         self.models[channel] = self._hydrate_model(calibration_data)
         self.models[channel].name = name  # type: ignore
-        self.logger.info(f"Using OD calibration `{name}` for channel {channel}.")
         self.logger.debug(
             f"Using OD calibration `{name}` of type `{cal_type}` for PD channel {channel}, {calibration_data.curve_type=}, {calibration_data.curve_data_=}"
         )
@@ -671,6 +670,12 @@ class CachedCalibrationTransformer(CalibrationTransformer):
         ):  # don't check for OD600 - we can allow other non-OD600 calibrations
             self.logger.error(f"Calibration {calibration_data.calibration_name} has wrong type.")
             raise exc.CalibrationError(f"Calibration {calibration_data.calibration_name} has wrong type.")
+
+        higher_order_terms = calibration_data.curve_data_[:-1]
+        if len(higher_order_terms) == 0 or all(c == 0.0 for c in higher_order_terms):
+            self.logger.warning(
+                "Calibration curve is y(x)=constant. This is probably wrong. Check the calibration YAML file's curve_data_."
+            )
 
         def _calibrate_signal(observed_voltage: pt.Voltage) -> pt.OD:
             min_OD, max_OD = min(calibration_data.recorded_data["x"]), max(
@@ -926,13 +931,13 @@ class ODReader(BackgroundJob):
 
         _, REF_on_signal = on_reading.popitem()
 
-        ir_intensity_argmax_REF_can_be = initial_ir_intensity / REF_on_signal.reading * 0.240
+        ir_intensity_argmax_REF_can_be = initial_ir_intensity / REF_on_signal.reading * 0.250
 
         ir_intensity_argmax_ANGLE_can_be = (
             initial_ir_intensity / culture_on_signal.reading * 3.0
         ) / 50  # divide by N since the culture is unlikely to Nx.
 
-        ir_intensity_max = 80.0
+        ir_intensity_max = 85.0
 
         return round(
             max(
@@ -1317,19 +1322,18 @@ def click_od_reading(
     """
 
     if snapshot:
-        od = start_od_reading(
+        with start_od_reading(
             od_angle_channel1,
             od_angle_channel2,
             fake_data=fake_data or whoami.is_testing_env(),
             interval=None,
-        )
-        od.logger.debug(od.record_from_adc())
-        # end early
-        return
+        ) as od:
+            od.logger.debug(od.record_from_adc())
+            # end early
     else:
-        od = start_od_reading(
+        with start_od_reading(
             od_angle_channel1,
             od_angle_channel2,
             fake_data=fake_data or whoami.is_testing_env(),
-        )
-        od.block_until_disconnected()
+        ) as od:
+            od.block_until_disconnected()

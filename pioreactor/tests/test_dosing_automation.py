@@ -1214,6 +1214,53 @@ def test_liquid_volume_calculator() -> None:
     assert current_volume == 5
 
 
+def test_liquid_volume_calculator_with_negative_values() -> None:
+    # let's start from 0 volume, and start adding.
+    vc = LiquidVolumeCalculator
+    current_volume = 0.0
+    max_volume = 14
+
+    # adding 6ml of media
+    event = DosingEvent(
+        volume_change=6,
+        event="add_media",
+        timestamp=default_datetime_for_pioreactor(0),
+        source_of_event="test",
+    )
+    current_volume = vc.update(event, current_volume, max_volume)
+    assert current_volume == 6
+
+    # testing if we can "back track" the volume if we underdose /  stop early.
+    event = DosingEvent(
+        volume_change=-3,  # test stopping early half-way through, should we report -2?
+        event="add_media",
+        timestamp=default_datetime_for_pioreactor(1),
+        source_of_event="test",
+    )
+    current_volume = vc.update(event, current_volume, max_volume)
+    assert current_volume == 3
+
+    #  okay keep removing?
+    event = DosingEvent(
+        volume_change=-3,
+        event="add_media",
+        timestamp=default_datetime_for_pioreactor(2),
+        source_of_event="test",
+    )
+    current_volume = vc.update(event, current_volume, max_volume)
+    assert current_volume == 0
+
+    #  okay keep removing? Shouldn't go negative!
+    event = DosingEvent(
+        volume_change=-3,
+        event="add_media",
+        timestamp=default_datetime_for_pioreactor(3),
+        source_of_event="test",
+    )
+    current_volume = vc.update(event, current_volume, max_volume)
+    assert current_volume == 0
+
+
 def test_alt_media_calculator_from_0_volume() -> None:
     # let's start from 0, and start adding.
     ac = AltMediaFractionCalculator
@@ -1266,6 +1313,76 @@ def test_alt_media_calculator_from_0_volume() -> None:
     current_alt_media_fraction = ac.update(event, current_alt_media_fraction, current_volume)
     current_volume = vc.update(event, current_volume, max_volume)
     assert current_alt_media_fraction == 0.6
+
+
+def test_alt_media_calculator_from_0_volume_with_negative_doses() -> None:
+    # let's start from 0, and start adding.
+    ac = AltMediaFractionCalculator
+    vc = LiquidVolumeCalculator
+
+    current_volume = 0.0
+    max_volume = 14
+    current_alt_media_fraction = 0.0  # this value doesn't matter, could be anything since volume = 0.
+
+    # adding 6ml of media
+    event = DosingEvent(
+        volume_change=6,
+        event="add_media",
+        timestamp=default_datetime_for_pioreactor(0),
+        source_of_event="test",
+    )
+    current_alt_media_fraction = ac.update(event, current_alt_media_fraction, current_volume)
+    current_volume = vc.update(event, current_volume, max_volume)
+    assert current_alt_media_fraction == 0.0
+
+    # add 6ml alt_media
+    event = DosingEvent(
+        volume_change=6,
+        event="add_alt_media",
+        timestamp=default_datetime_for_pioreactor(1),
+        source_of_event="test",
+    )
+    current_alt_media_fraction = ac.update(event, current_alt_media_fraction, current_volume)
+    current_volume = vc.update(event, current_volume, max_volume)
+    assert current_alt_media_fraction == 0.5
+
+    # two counterfactuals:
+    # A. We added 3ml more alt-media.
+    # B. We added 6ml more alt-media, but stop half way through. => +6ml + -3ml
+
+    # A. add 3ml alt_media
+    event = DosingEvent(
+        volume_change=3,
+        event="add_alt_media",
+        timestamp=default_datetime_for_pioreactor(2),
+        source_of_event="test",
+    )
+    A_current_alt_media_fraction = ac.update(event, current_alt_media_fraction, current_volume)
+    A_current_volume = vc.update(event, current_volume, max_volume)
+    assert A_current_alt_media_fraction == 0.6
+
+    # B. We added 6ml more alt-media, but stop half way through. => +6ml + -3ml
+    event = DosingEvent(
+        volume_change=6,
+        event="add_alt_media",
+        timestamp=default_datetime_for_pioreactor(2),
+        source_of_event="test",
+    )
+    B_current_alt_media_fraction = ac.update(event, current_alt_media_fraction, current_volume)
+    B_current_volume = vc.update(event, current_volume, max_volume)
+
+    event = DosingEvent(
+        volume_change=-3,
+        event="add_alt_media",
+        timestamp=default_datetime_for_pioreactor(2),
+        source_of_event="test",
+    )
+    B_current_alt_media_fraction = ac.update(event, B_current_alt_media_fraction, B_current_volume)
+    B_current_volume = vc.update(event, B_current_volume, max_volume)
+    assert B_current_alt_media_fraction == 0.6
+
+    assert B_current_alt_media_fraction == A_current_alt_media_fraction
+    assert B_current_volume == A_current_volume
 
 
 def test_adding_pumps_and_calling_them_from_execute_io_action() -> None:
@@ -1391,9 +1508,8 @@ def test_warning_is_logged_if_under_remove_waste() -> None:
         assert len(bucket) >= 1
 
 
-@pytest.mark.xfail
 def test_a_failing_automation_cleans_duration_attr_in_mqtt_up() -> None:
-    experiment = "test_a_failing_automation_cleans_itself_up"
+    experiment = "test_a_failing_automation_cleans_duration_attr_in_mqtt_up"
 
     pubsub.publish(f"pioreactor/{get_unit_name()}/{experiment}/dosing_automation/duration", None, retain=True)
 

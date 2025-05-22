@@ -1,3 +1,34 @@
+### 25.5.22
+
+#### Enhancements
+ - new _System logs_ under _Inventory_ to track logs happening outside of experiments in your cluster.
+  - Better organization of logs in the UI. System logs, like calibrations, worker additions, etc. won't show up on the Overview page.
+ - Exported data zips have folders for each dataset requested.
+ - Improvements to the Kalman filter. For users using the growth-rate model with media dosing, you should see improvements to your growth-rate time series. We recommend the following configuration:
+ ```
+[growth_rate_kalman]
+# obs_std ↑ smooths growth rate, rate_std ↑ more responsive growth rate
+obs_std=1.5
+od_std=0.0025
+rate_std=0.25
+ ```
+  **Note: the acceleration term is removed**
+ - Added the column `hours_since_experiment_created` to dataset exports that details hours since experiment was created.
+ - A running pump now fires off an incremental dosing event every N seconds (N=0.5 currently) to tell the software its progress. Previously, we would fire off a single event that represented the total amount moved. This is most noticeable when watching the vial volume change over time (looks more accurate over a short period).
+ - When a pump runs, it _first_ fires off a dosing_event, which stores information about how much liquid is moved. However, if the pump is stopped early, there was no correction issued to the amount of liquid actually moved. Now, when a pump is stopped early, a _negative_ volume is sent s.t. the delta between the initial amount and new amount is equal to the dosed amount (so when you sum up the volume changes, you get the actual change, as expected).
+ - Performance optimizations
+ - New image installs only:
+   - updated base OS to the latest 25-05-06 Raspberry Pi OS. The big change is using Linux kernel 6.12.
+
+#### Bug fixes
+ - fixed stir bar not spinning on Pioreactor page (UI) in some cases
+ - alert user if their OD reading is constant before starting the growth-rate calculator, which would break things.
+ - alert user if their software is installed in a non-standard location. If so, try `pio uninstall pioreactor -y`.
+ - Added a warning if the OD calibration is invalid (ex: a constant line)
+ - Fix for Raspberry Pi 5 using upstream Adafruit libraries.
+
+
+
 ### 25.5.1
 
 #### Enhancements

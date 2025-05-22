@@ -162,6 +162,32 @@ def test_what_happens_when_an_error_occurs_in_init_but_we_catch_and_disconnect()
     assert not is_pio_job_running("testjob")
 
 
+def test_what_happens_when_an_error_occurs_in_init_but_we_dont_catch() -> None:
+    class TestJob(BackgroundJob):
+        job_name = "testjob"
+
+        def __init__(self, unit: str, experiment: str) -> None:
+            super(TestJob, self).__init__(unit=unit, experiment=experiment)
+            raise ZeroDivisionError()
+
+    exp = "test_what_happens_when_an_error_occurs_in_init_but_we_dont_catch"
+    publish(f"pioreactor/unit/{exp}/testjob/$state", None, retain=True)
+    state = []
+
+    def update_state(msg: MQTTMessage) -> None:
+        state.append(msg.payload.decode())
+
+    subscribe_and_callback(update_state, f"pioreactor/unit/{exp}/testjob/$state")
+
+    with pytest.raises(ZeroDivisionError):
+        with TestJob(unit="unit", experiment=exp):
+            pass
+
+    pause()
+    assert state[-1] == "disconnected"
+    assert not is_pio_job_running("testjob")
+
+
 def test_state_transition_callbacks() -> None:
     class TestJob(BackgroundJob):
         job_name = "testjob"
@@ -416,6 +442,7 @@ def test_dodging_order() -> None:
                     assert len(bucket) > 4, bucket
 
         ODReader._pre_read = []
+        ODReader._post_read = []
 
 
 def test_dodging_when_od_reading_stops_first() -> None:

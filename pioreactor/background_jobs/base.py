@@ -99,6 +99,10 @@ class LoggerMixin:
             self._logger = create_logger(name=self._logger_name or self.__class__.__name__)
         return self._logger
 
+    def __del__(self):
+        if self._logger:
+            self._logger.clean_up()
+
 
 class PostInitCaller(type):
     def __call__(cls, *args, **kwargs):
@@ -248,6 +252,22 @@ class _BackgroundJob(metaclass=PostInitCaller):
     # {'datatype', 'unit', 'settable', 'persist'}
     # See pt.PublishableSetting type
     published_settings: dict[str, pt.PublishableSetting] = dict()
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        orig_init = cls.__init__
+
+        def wrapped_init(self, *args, **kwargs):
+            try:
+                orig_init(self, *args, **kwargs)
+            except Exception:
+                try:
+                    self.clean_up()
+                except Exception:
+                    pass
+                raise
+
+        cls.__init__ = wrapped_init
 
     def __init__(self, unit: str, experiment: str, source: str = "app") -> None:
         if self.job_name in DISALLOWED_JOB_NAMES:
@@ -1044,6 +1064,9 @@ class BackgroundJobWithDodging(_BackgroundJob):
         super().__init__(*args, source=source, **kwargs)  # type: ignore
 
         if not config.has_section(f"{self.job_name}.config"):
+            self.logger.error(
+                f"Required section '{self.job_name}.config' does not exist in the configuration."
+            )
             raise ValueError(
                 f"Required section '{self.job_name}.config' does not exist in the configuration."
             )

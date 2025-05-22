@@ -238,6 +238,7 @@ class managed_lifecycle:
 
     def __exit__(self, *args) -> None:
         self.state = "disconnected"
+        self._exit()
         self.publish_setting("$state", self.state)
         if not self._externally_provided_client:
             assert self.mqtt_client is not None
@@ -338,22 +339,20 @@ class cache:
         # sqlite3.register_converter("_key_BLOB", self.convert_key)
 
         self.conn = sqlite3.connect(
-            self.db_path, isolation_level=None, detect_types=sqlite3.PARSE_DECLTYPES, timeout=10
+            self.db_path, detect_types=sqlite3.PARSE_DECLTYPES, isolation_level=None, timeout=10
         )
         self.cursor = self.conn.cursor()
         self.cursor.executescript(
             """
-            PRAGMA busy_timeout = 15000;
-            PRAGMA synchronous = 1; -- aka NORMAL, recommended when using WAL
-            PRAGMA temp_store = 2;  -- stop writing small files to disk, use mem
-            PRAGMA foreign_keys = ON;
+            PRAGMA busy_timeout = 5000;
+            PRAGMA temp_store = 2;
             PRAGMA cache_size = -4000;
         """
         )
         self._initialize_table()
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(self, exc_type, exc_val, tb):
         self.conn.close()
 
     def _initialize_table(self):
@@ -389,14 +388,16 @@ class cache:
         return (self.convert_key(row[0]) for row in self.cursor.fetchall())
 
     def pop(self, key, default=None):
-        self.cursor.execute(f"SELECT value FROM {self.table_name} WHERE key = ?", (key,))
+        self.cursor.execute(f"DELETE FROM {self.table_name} WHERE key = ? RETURNING value", (key,))
         result = self.cursor.fetchone()
-        self.cursor.execute(f"DELETE FROM {self.table_name} WHERE key = ?", (key,))
 
         if result is None:
             return default
         else:
             return result[0]
+
+    def empty(self):
+        self.cursor.execute(f"DELETE FROM {self.table_name}")
 
     def __contains__(self, key):
         self.cursor.execute(f"SELECT 1 FROM {self.table_name} WHERE key = ?", (key,))
@@ -628,11 +629,14 @@ class JobManager:
     def __init__(self) -> None:
         db_path = config.get("storage", "temporary_cache")
         self.conn = sqlite3.connect(db_path, isolation_level=None)
-        self.conn.execute("PRAGMA busy_timeout = 15000;")
-        self.conn.execute("PRAGMA synchronous = NORMAL;")
-        self.conn.execute("PRAGMA temp_store = 2;")
-        self.conn.execute("PRAGMA foreign_keys = ON;")
-        self.conn.execute("PRAGMA cache_size = -4000;")
+        self.conn.executescript(
+            """
+            PRAGMA busy_timeout = 5000;
+            PRAGMA temp_store = 2;
+            PRAGMA foreign_keys = ON;
+            PRAGMA cache_size = -4000;
+        """
+        )
         self.cursor = self.conn.cursor()
         self._create_tables()
 
@@ -704,33 +708,36 @@ class JobManager:
         return self.cursor.fetchone() is not None
 
     def upsert_setting(self, job_id: JobMetadataKey, setting: str, value: Any) -> None:
-        if value is None:
-            # delete
-            delete_query = """
-            DELETE FROM pio_job_published_settings WHERE setting = :setting and job_id = :job_id
-            """
-            self.cursor.execute(delete_query, {"setting": setting, "job_id": job_id})
-        else:
-            # upsert
-            update_query = """
-            INSERT INTO pio_job_published_settings (setting, value, job_id)
-            VALUES (:setting, :value, :job_id)
-                ON CONFLICT (setting, job_id) DO
-                UPDATE SET value = :value
-            """
-            if isinstance(value, dict):
-                value = dumps(value).decode()  # back to string, not bytes
-            elif isinstance(value, Struct):
-                value = str(value)  # complex type
+        try:
+            if value is None:
+                # delete
+                delete_query = """
+                DELETE FROM pio_job_published_settings WHERE setting = :setting and job_id = :job_id
+                """
+                self.cursor.execute(delete_query, {"setting": setting, "job_id": job_id})
+            else:
+                # upsert
+                update_query = """
+                INSERT INTO pio_job_published_settings (setting, value, job_id)
+                VALUES (:setting, :value, :job_id)
+                    ON CONFLICT (setting, job_id) DO
+                    UPDATE SET value = :value
+                """
+                if isinstance(value, dict):
+                    value = dumps(value).decode()  # back to string, not bytes
+                elif isinstance(value, Struct):
+                    value = str(value)  # complex type
 
-            self.cursor.execute(
-                update_query,
-                {
-                    "setting": setting,
-                    "value": value,
-                    "job_id": job_id,
-                },
-            )
+                self.cursor.execute(
+                    update_query,
+                    {
+                        "setting": setting,
+                        "value": value,
+                        "job_id": job_id,
+                    },
+                )
+        except sqlite3.IntegrityError:
+            raise sqlite3.IntegrityError(f"Integrity error for {job_id=}, {setting=} and {value=}.")
 
         return
 
@@ -752,7 +759,9 @@ class JobManager:
                     return result[0]
 
                 if (timeout and timer() > timeout) or (timeout is None):
-                    raise NameError(f"Setting {setting} was not found.")
+                    raise NameError(
+                        f"Setting `{setting}` was not found in published settings of `{job_name}`."
+                    )
 
     def set_not_running(self, job_id: JobMetadataKey) -> None:
         update_query = "UPDATE pio_job_metadata SET is_running=0, ended_at=STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW') WHERE job_id=(?)"
@@ -839,7 +848,7 @@ class JobManager:
     def __enter__(self) -> JobManager:
         return self
 
-    def __exit__(self, *args) -> None:
+    def __exit__(self, exc_type, exc_val, tb) -> None:
         self.close()
         return
 

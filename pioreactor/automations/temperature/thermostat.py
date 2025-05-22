@@ -33,6 +33,7 @@ class Thermostat(TemperatureAutomationJob):
             job_name=self.job_name,
             target_name="temperature",
             output_limits=(-25, 25),  # avoid whiplashing
+            pub_client=self.pub_client,
         )
 
         self.set_target_temperature(target_temperature)
@@ -49,6 +50,10 @@ class Thermostat(TemperatureAutomationJob):
             )
 
         return clamp(0.0, target_temperature, self.MAX_TARGET_TEMP)
+
+    def on_disconnected(self) -> None:
+        super().on_disconnected()
+        self.pid.clean_up()
 
     def execute(self) -> UpdatedHeaterDC:
         while not hasattr(self, "pid"):

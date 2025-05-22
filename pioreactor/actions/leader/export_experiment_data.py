@@ -26,11 +26,24 @@ def source_exists(cursor, table_name_to_check: str) -> bool:
     return cursor.execute(query, (table_name_to_check,)).fetchone() is not None
 
 
-def generate_timestamp_to_localtimestamp_clause(timestamp_columns) -> str:
+def generate_timestamp_to_localtimestamp_clause(timestamp_columns: list[str]) -> str:
     if not timestamp_columns:
         return ""
 
-    clause = ",".join([f"datetime({c}, 'localtime') as {c}_localtime" for c in timestamp_columns])
+    clause = ",".join([f"datetime(T.{c}, 'localtime') as {c}_localtime" for c in timestamp_columns])
+
+    return clause
+
+
+def generate_timestamp_to_relative_time_clause(default_order_by: str) -> str:
+    if not default_order_by:
+        return ""
+
+    START_TIME = "E.created_at"
+
+    clause = (
+        f"(unixepoch({default_order_by}) - unixepoch({START_TIME}))/3600.0 as hours_since_experiment_created"
+    )
 
     return clause
 
@@ -73,7 +86,7 @@ def create_experiment_clause(
         existing_placeholders = existing_placeholders | {
             f"experiment{i}": experiment for i, experiment in enumerate(experiments)
         }
-        return f"experiment IN ({quoted_experiments})", existing_placeholders
+        return f"T.experiment IN ({quoted_experiments})", existing_placeholders
 
 
 def create_timespan_clause(
@@ -82,15 +95,15 @@ def create_timespan_clause(
     if start_time is not None and end_time is not None:
         existing_placeholders["start_time"] = start_time
         existing_placeholders["end_time"] = end_time
-        return f"{time_column} >= :start_time AND {time_column} <= :end_time", existing_placeholders
+        return f"T.{time_column} >= :start_time AND {time_column} <= :end_time", existing_placeholders
 
     elif start_time is not None:
         existing_placeholders["start_time"] = start_time
-        return f"{time_column} >= :start_time", existing_placeholders
+        return f"T.{time_column} >= :start_time", existing_placeholders
 
     elif end_time is not None:
         existing_placeholders["end_time"] = end_time
-        return f"{time_column} <= :end_time", existing_placeholders
+        return f"T.{time_column} <= :end_time", existing_placeholders
     else:
         raise ValueError
 
@@ -101,12 +114,16 @@ def create_sql_query(
     existing_placeholders: dict[str, str],
     where_clauses: list[str] | None = None,
     order_by_col: str | None = None,
+    has_experiment: bool = False,
 ) -> tuple[str, dict[str, str]]:
     """
     Constructs an SQL query with SELECT, FROM, WHERE, and ORDER BY clauses.
     """
     # Base SELECT and FROM clause
-    query = f"SELECT {', '.join(selects)} FROM ({table_or_subquery})"
+    query = f"SELECT {', '.join(selects)} FROM ({table_or_subquery}) T"
+
+    if has_experiment:
+        query += " JOIN experiments E ON E.experiment = T.experiment"
 
     # Add WHERE clause if provided
     if where_clauses:
@@ -114,7 +131,7 @@ def create_sql_query(
 
     # Add ORDER BY clause if provided
     if order_by_col:
-        query += f' ORDER BY "{order_by_col}"'
+        query += f' ORDER BY "T.{order_by_col}"'
 
     return query, existing_placeholders
 
@@ -143,7 +160,7 @@ def export_experiment_data(
         click.echo("At least one dataset name must be provided.")
         sys.exit(1)
 
-    logger = create_logger("export_experiment_data")
+    logger = create_logger("export_experiment_data", experiment="$experiment")
     logger.info(
         f"Starting export of dataset{'s' if len(dataset_names) > 1 else ''}: {', '.join(dataset_names)}."
     )
@@ -159,8 +176,6 @@ def export_experiment_data(
             "BASE64", 1, decode_base64
         )  # TODO: until next OS release which implements a native sqlite3 base64 function
 
-        con.set_trace_callback(logger.debug)
-
         cursor = con.cursor()
         cursor.executescript(
             """
@@ -171,6 +186,7 @@ def export_experiment_data(
             PRAGMA cache_size = -4000;
         """
         )
+        con.set_trace_callback(logger.debug)
 
         for dataset_name in dataset_names:
             try:
@@ -185,7 +201,7 @@ def export_experiment_data(
 
             _partition_by_unit = dataset.has_unit and (partition_by_unit or dataset.always_partition_by_unit)
             _partition_by_experiment = dataset.has_experiment and partition_by_experiment
-            filenames: list[str] = []
+            path_to_files: list[Path] = []
             placeholders: dict[str, str] = {}
 
             order_by_col = dataset.default_order_by
@@ -193,7 +209,7 @@ def export_experiment_data(
             assert table_or_subquery is not None
 
             where_clauses: list[str] = []
-            selects = ["*"]
+            selects = ["T.*"]
 
             if dataset.timestamp_columns:
                 selects.append(generate_timestamp_to_localtimestamp_clause(dataset.timestamp_columns))
@@ -201,6 +217,9 @@ def export_experiment_data(
             if dataset.has_experiment:
                 experiment_clause, placeholders = create_experiment_clause(experiments, placeholders)
                 where_clauses.append(experiment_clause)
+
+            if dataset.has_experiment and dataset.default_order_by:
+                selects.append(generate_timestamp_to_relative_time_clause(dataset.default_order_by))
 
             if dataset.timestamp_columns and (start_time or end_time):
                 assert dataset.default_order_by is not None
@@ -210,7 +229,7 @@ def export_experiment_data(
                 where_clauses.append(timespan_clause)
 
             query, placeholders = create_sql_query(
-                selects, table_or_subquery, placeholders, where_clauses, order_by_col
+                selects, table_or_subquery, placeholders, where_clauses, order_by_col, dataset.has_experiment
             )
             cursor.execute(query, placeholders)
 
@@ -243,14 +262,16 @@ def export_experiment_data(
                     )
 
                     if rows_partition not in parition_to_writer_map:
+                        # create a new csv writer for this partition since it doesn't exist yet
                         filename = f"{dataset_name}-" + "-".join(rows_partition) + f"-{time}.csv"
                         filename = filename.replace(" ", "_")
-                        filenames.append(filename)
-                        path_to_file = Path(Path(output).parent / filename)
+                        path_to_file = Path(output).parent / filename
                         parition_to_writer_map[rows_partition] = csv.writer(
                             stack.enter_context(open(path_to_file, "w")), delimiter=","
                         )
                         parition_to_writer_map[rows_partition].writerow(headers)
+
+                        path_to_files.append(path_to_file)
 
                     parition_to_writer_map[rows_partition].writerow(row)
 
@@ -261,10 +282,10 @@ def export_experiment_data(
             if count == 0:
                 logger.warning(f"No data present in {dataset_name}. Check database?")
 
-            for filename in filenames:
-                path_to_file = Path(Path(output).parent / filename)
-                zf.write(path_to_file, arcname=filename)
-                Path(path_to_file).unlink()
+            zf.mkdir(dataset_name)
+            for path_to_file in path_to_files:
+                zf.write(path_to_file, arcname=f"{dataset_name}/{path_to_file.name}")
+                path_to_file.unlink()
 
     logger.info("Finished export.")
     return

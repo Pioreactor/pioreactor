@@ -101,7 +101,7 @@ def test_export_experiment_data(temp_zipfile, mock_load_exportable_datasets) -> 
         # Find the file with a matching pattern
         csv_filename = None
         for filename in zf.namelist():
-            if re.match(r"test_table-all_experiments-all_units-\d{14}\.csv", filename):
+            if re.match(r"test_table/test_table-all_experiments-all_units-\d{14}\.csv", filename):
                 csv_filename = filename
                 break
 
@@ -127,6 +127,7 @@ def test_export_experiment_data_with_base64_data(temp_zipfile, mock_load_exporta
     conn.execute(
         "INSERT INTO test_base64 (id, data) VALUES (1, 'eyJ2b2x1bWUiOjAuNSwiZHVyYXRpb24iOjIwLjAsInN0YXRlIjoiaW5pdCJ9')"
     )
+
     conn.commit()
 
     # Mock the connection and logger objects
@@ -145,7 +146,7 @@ def test_export_experiment_data_with_base64_data(temp_zipfile, mock_load_exporta
         # Find the file with a matching pattern
         csv_filename = None
         for filename in zf.namelist():
-            if re.match(r"test_base64-all_experiments-all_units-\d{14}\.csv", filename):
+            if re.match(r"test_base64/test_base64-all_experiments-all_units-\d{14}\.csv", filename):
                 csv_filename = filename
                 break
 
@@ -163,9 +164,14 @@ def test_export_experiment_data_with_base64_data(temp_zipfile, mock_load_exporta
 def test_export_experiment_data_with_experiment(temp_zipfile, mock_load_exportable_datasets) -> None:
     # Set up a temporary SQLite database with sample data
     conn = sqlite3.connect(":memory:")
-    conn.execute("CREATE TABLE test_table_with_experiment (id INTEGER, experiment TEXT, timestamp DATETIME)")
+    conn.execute("CREATE TABLE test_table_with_experiment (id INTEGER, experiment TEXT, timestamp TEXT)")
     conn.execute(
-        "INSERT INTO test_table_with_experiment (id, experiment, timestamp) VALUES (1, 'test_export_experiment_data_with_experiment', '2021-09-01 00:00:00')"
+        "INSERT INTO test_table_with_experiment (id, experiment, timestamp) VALUES (1, 'test_export_experiment_data_with_experiment', '2021-09-02 00:00:00')"
+    )
+
+    conn.execute("CREATE TABLE experiments (experiment TEXT, created_at TEXT)")
+    conn.execute(
+        "INSERT INTO experiments (experiment, created_at) VALUES ('test_export_experiment_data_with_experiment', '2021-09-01 00:00:00')"
     )
     conn.commit()
 
@@ -185,9 +191,8 @@ def test_export_experiment_data_with_experiment(temp_zipfile, mock_load_exportab
         # Find the file with a matching pattern
         csv_filename = None
         for filename in zf.namelist():
-            print(filename)
             if re.match(
-                r"test_table_with_experiment-test_export_experiment_data_with_experiment-all_units-\d{14}\.csv",
+                r"test_table_with_experiment/test_table_with_experiment-test_export_experiment_data_with_experiment-all_units-\d{14}\.csv",
                 filename,
             ):
                 csv_filename = filename
@@ -198,14 +203,15 @@ def test_export_experiment_data_with_experiment(temp_zipfile, mock_load_exportab
         with zf.open(csv_filename) as csv_file:
             content = csv_file.read().decode("utf-8").strip()
             headers, rows = content.split("\r\n")
-            assert headers == "id,experiment,timestamp,timestamp_localtime"
+            assert headers == "id,experiment,timestamp,timestamp_localtime,hours_since_experiment_created"
             values = rows.split(",")
             assert values[0] == "1"
             assert values[1] == "test_export_experiment_data_with_experiment"
-            assert values[2] == "2021-09-01 00:00:00"
+            assert values[2] == "2021-09-02 00:00:00"
             assert (
                 values[3][:4] == "2021"
             )  # can't compare exactly since it uses datetime(ts, 'locatime') in sqlite3, and the localtime will vary between CI servers.
+            assert values[4] == "24.0"
 
 
 def test_export_experiment_data_with_partition_by_unit(temp_zipfile, mock_load_exportable_datasets) -> None:
@@ -226,6 +232,9 @@ def test_export_experiment_data_with_partition_by_unit(temp_zipfile, mock_load_e
                                                                              ('pio02', 'exp2', 0.1, '2021-10-01 00:00:15');
     """
     )
+    conn.execute("CREATE TABLE experiments (experiment TEXT, created_at TEXT)")
+    conn.execute("INSERT INTO experiments (experiment, created_at) VALUES ('exp2', '2021-09-01 00:00:00')")
+    conn.execute("INSERT INTO experiments (experiment, created_at) VALUES ('exp1', '2021-09-01 00:00:00')")
     conn.commit()
 
     # Mock the connection and logger objects
@@ -242,9 +251,9 @@ def test_export_experiment_data_with_partition_by_unit(temp_zipfile, mock_load_e
     # Check if the exported data is correct
     with zipfile.ZipFile(temp_zipfile.strpath, mode="r") as zf:
         # Find the file with a matching pattern
-        assert len(zf.namelist()) == 2
-        assert "od_readings-exp1-pio01" in sorted(zf.namelist())[0]
-        assert "od_readings-exp1-pio02" in sorted(zf.namelist())[1]
+        assert len(zf.namelist()) == 3
+        assert "od_readings/od_readings-exp1-pio01" in sorted(zf.namelist())[1]
+        assert "od_readings/od_readings-exp1-pio02" in sorted(zf.namelist())[2]
 
 
 def test_export_experiment_data_with_partition_by_unit_if_pioreactor_unit_col_doesnt_exist(
@@ -265,6 +274,9 @@ def test_export_experiment_data_with_partition_by_unit_if_pioreactor_unit_col_do
                                                                        ('exp2', 0.1, '2021-10-01 00:00:15');
     """
     )
+    conn.execute("CREATE TABLE experiments (experiment TEXT, created_at TEXT)")
+    conn.execute("INSERT INTO experiments (experiment, created_at) VALUES ('exp2', '2021-09-01 00:00:00')")
+    conn.execute("INSERT INTO experiments (experiment, created_at) VALUES ('exp1', '2021-09-01 00:00:00')")
     conn.commit()
 
     # Mock the connection and logger objects
@@ -281,5 +293,5 @@ def test_export_experiment_data_with_partition_by_unit_if_pioreactor_unit_col_do
     # Check if the exported data is correct
     with zipfile.ZipFile(temp_zipfile.strpath, mode="r") as zf:
         # Find the file with a matching pattern
-        assert len(zf.namelist()) == 1
-        assert zf.namelist()[0].startswith("od_readings-exp1-all_units")
+        assert len(zf.namelist()) == 2
+        assert zf.namelist()[1].startswith("od_readings/od_readings-exp1-all_units")

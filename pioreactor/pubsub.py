@@ -64,6 +64,7 @@ def create_client(
     clean_session=None,
     on_connect: Optional[Callable] = None,
     on_disconnect: Optional[Callable] = None,
+    on_subscribe: Optional[Callable] = None,
     on_message: Optional[Callable] = None,
     userdata: Optional[dict] = None,
     port: int = config.getint("mqtt", "broker_port", fallback=1883),
@@ -112,6 +113,9 @@ def create_client(
 
     if on_disconnect:
         client.on_disconnect = on_disconnect
+
+    if on_subscribe:
+        client.on_subscribe = on_subscribe
 
     if last_will is not None:
         client.will_set(**last_will)
@@ -277,6 +281,11 @@ def subscribe_and_callback(
         def on_connect(client: Client, userdata: dict, *args):
             client.subscribe(userdata["topics"])
 
+        def on_subscribe(client, userdata, mid, granted_qos, properties=None):
+            sub_ready.set()
+
+        sub_ready = threading.Event()
+
         userdata = {
             "topics": [(topic, mqtt_kwargs.pop("qos", QOS.EXACTLY_ONCE)) for topic in topics],
             "name": name,
@@ -286,10 +295,13 @@ def subscribe_and_callback(
             last_will=last_will,
             on_connect=on_connect,
             on_message=wrap_callback(callback),
+            on_subscribe=on_subscribe,
             userdata=userdata,
             **mqtt_kwargs,
         )
 
+        if not sub_ready.wait(timeout=5):
+            raise RuntimeError("MQTT subscribe timeout")
     else:
         # user provided a client
         for topic in topics:
@@ -330,7 +342,9 @@ class collect_all_logs_of_level:
 
         self.client: Client = subscribe_and_callback(
             self._collect_logs_into_bucket,
-            f"pioreactor/{self.unit}/{self.experiment}/logs/app/{self.log_level.lower()}",
+            f"pioreactor/{self.unit}/{self.experiment}/logs/+/{self.log_level.lower()}",
+            allow_retained=False,
+            client_id=f"{self.unit}_{self.experiment}_{self.log_level}_log_collector",
         )
 
     def _collect_logs_into_bucket(self, message):
@@ -359,6 +373,7 @@ def conform_and_validate_api_endpoint(endpoint: str) -> str:
 
 
 def create_webserver_path(address: str, endpoint: str) -> str:
+    # pioreactor cluster specific (note the use of protocol and ports from our config!)
     # Most commonly, address can be an mdns name (test.local), or an IP address.
     port = config.getint("ui", "port", fallback=80)
     proto = config.get("ui", "proto", fallback="http")
@@ -367,6 +382,7 @@ def create_webserver_path(address: str, endpoint: str) -> str:
 
 
 def get_from(address: str, endpoint: str, **kwargs) -> mureq.Response:
+    # pioreactor cluster specific
     return mureq.get(create_webserver_path(address, endpoint), **kwargs)
 
 
@@ -377,6 +393,7 @@ def get_from_leader(endpoint: str, **kwargs) -> mureq.Response:
 def put_into(
     address: str, endpoint: str, body: bytes | None = None, json: dict | Struct | None = None, **kwargs
 ) -> mureq.Response:
+    # pioreactor cluster specific
     return mureq.put(create_webserver_path(address, endpoint), body=body, json=json, **kwargs)
 
 
@@ -389,6 +406,7 @@ def put_into_leader(
 def patch_into(
     address: str, endpoint: str, body: bytes | None = None, json: dict | Struct | None = None, **kwargs
 ) -> mureq.Response:
+    # pioreactor cluster specific
     return mureq.patch(create_webserver_path(address, endpoint), body=body, json=json, **kwargs)
 
 
@@ -401,6 +419,7 @@ def patch_into_leader(
 def post_into(
     address: str, endpoint: str, body: bytes | None = None, json: dict | Struct | None = None, **kwargs
 ) -> mureq.Response:
+    # pioreactor cluster specific
     return mureq.post(create_webserver_path(address, endpoint), body=body, json=json, **kwargs)
 
 
@@ -411,6 +430,7 @@ def post_into_leader(
 
 
 def delete_from(address: str, endpoint: str, **kwargs) -> mureq.Response:
+    # pioreactor cluster specific
     return mureq.delete(create_webserver_path(address, endpoint), **kwargs)
 
 

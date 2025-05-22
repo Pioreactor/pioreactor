@@ -18,6 +18,8 @@ from pioreactor.utils.timing import to_datetime
 
 @pytest.fixture(autouse=True)
 def run_around_tests(request):
+    yield
+
     from pioreactor.utils import local_intermittent_storage
     from pioreactor.utils import local_persistent_storage
 
@@ -39,6 +41,10 @@ def run_around_tests(request):
         for key in cache.iterkeys():
             del cache[key]
 
+    with local_intermittent_storage("active_calibrations") as cache:
+        for key in cache.iterkeys():
+            del cache[key]
+
     with local_persistent_storage("media_throughput") as c:
         c.pop(test_name)
     with local_persistent_storage("alt_media_throughput") as c:
@@ -47,8 +53,6 @@ def run_around_tests(request):
         c.pop(test_name)
     with local_persistent_storage("liquid_volume") as c:
         c.pop(test_name)
-
-    yield
 
 
 @pytest.fixture()

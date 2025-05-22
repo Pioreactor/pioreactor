@@ -13,8 +13,10 @@ from pioreactor.mureq import get
 
 
 def get_specific_yaml(path):
-    data = get(f"https://raw.githubusercontent.com/Pioreactor/pioreactorui/master/{path}")
-    return load(data.content, Loader=Loader)
+    r = get(f"https://raw.githubusercontent.com/Pioreactor/pioreactorui/master/{path}")
+    r.raise_for_status()
+    data = r.content
+    return load(data, Loader=Loader)
 
 
 def test_automations_and_their_yamls_have_the_same_data() -> None:

@@ -19,7 +19,6 @@ from pioreactor.pubsub import create_client
 from pioreactor.types import GpioPin
 from pioreactor.utils import clamp
 from pioreactor.utils import local_intermittent_storage
-from pioreactor.version import rpi_version_info
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
@@ -29,6 +28,7 @@ if is_testing_env():
     from pioreactor.utils.mock import MockHardwarePWM as HardwarePWM
 else:
     from rpi_hardware_pwm import HardwarePWM  # type: ignore
+    from rpi_hardware_pwm import HardwarePWMException  # type: ignore
 
 
 class HardwarePWMOutputDevice(HardwarePWM):
@@ -41,10 +41,12 @@ class HardwarePWMOutputDevice(HardwarePWM):
 
         pwm_channel = self.HARDWARE_PWM_CHANNELS[pin]
 
-        if rpi_version_info.startswith("Raspberry Pi 5"):
+        try:
+            super().__init__(
+                pwm_channel, hz=frequency
+            )  # default is chip=0 for all except RPi5 on Kernel 6.6 (which is 2)
+        except HardwarePWMException:
             super().__init__(pwm_channel, hz=frequency, chip=2)
-        else:
-            super().__init__(pwm_channel, hz=frequency)  # default is chip=0
 
     def start(self, initial_dc: pt.FloatBetween0and100) -> None:
         self._started = True
@@ -179,18 +181,18 @@ class PWM:
         unit: Optional[str] = None,
         experiment: Optional[str] = None,
         always_use_software: bool = False,
-        pubsub_client: Optional[Client] = None,
+        pub_client: Optional[Client] = None,
         logger: Optional[CustomLogger] = None,
     ) -> None:
         self.unit = unit or get_unit_name()
         self.experiment = experiment or get_assigned_experiment_name(self.unit)
 
-        if pubsub_client is None:
+        if pub_client is None:
             self._external_client = False
-            self.pubsub_client = create_client(client_id=f"pwm-{self.unit}-{experiment}-{pin}")
+            self.pub_client = create_client(client_id=f"pwm-{self.unit}-{experiment}-{pin}")
         else:
             self._external_client = True
-            self.pubsub_client = pubsub_client
+            self.pub_client = pub_client
 
         if logger is None:
             self.logger = create_logger(f"PWM@GPIO-{pin}", experiment=self.experiment, unit=self.unit)
@@ -255,7 +257,7 @@ class PWM:
                 if value != 0:
                     current_values[k] = value
 
-        self.pubsub_client.publish(
+        self.pub_client.publish(
             f"pioreactor/{self.unit}/{self.experiment}/pwms/dc", dumps(current_values), retain=True
         )
 
@@ -296,8 +298,8 @@ class PWM:
         self.logger.debug(f"Cleaned up GPIO-{self.pin}.")
 
         if not self._external_client:
-            self.pubsub_client.loop_stop()
-            self.pubsub_client.disconnect()
+            self.pub_client.loop_stop()
+            self.pub_client.disconnect()
 
     def is_locked(self) -> bool:
         with local_intermittent_storage("pwm_locks") as pwm_locks:

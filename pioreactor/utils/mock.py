@@ -76,7 +76,7 @@ class Mock_ADC(_ADC):
             self._counter += 1.0 / 40  # divide by N from oversampling_count
 
             return self.from_voltage_to_raw(
-                self.state + random.normalvariate(0, sigma=self.state * 0.04) + self.OFFSET
+                self.state + random.normalvariate(0, sigma=self.state * 0.05) + self.OFFSET
             )
 
     def growth_rate(self, duration_as_seconds: float, am_i_REF: bool) -> float:

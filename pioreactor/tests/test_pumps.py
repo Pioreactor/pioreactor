@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import json
 import threading
 import time
 from datetime import datetime
@@ -126,12 +127,20 @@ def test_pump_will_disconnect_via_mqtt() -> None:
             threading.Thread.join(self)
             return self._return
 
-    expected_ml = 20
+    volume_updates = []
+
+    def collect_updates(msg):
+        volume_updates.append(json.loads(msg.payload.decode()))
+
+    subscribe_and_callback(collect_updates, f"pioreactor/{unit}/{exp}/dosing_events", allow_retained=False)
+
+    expected_ml = 10
     t = ThreadWithReturnValue(target=add_media, args=(unit, exp, expected_ml), daemon=True)
     t.start()
 
     pause()
     pause()
+    time.sleep(0.1)
     publish(f"pioreactor/{unit}/{exp}/add_media/$state/set", b"disconnected", qos=1)
     pause()
     pause()
@@ -141,6 +150,9 @@ def test_pump_will_disconnect_via_mqtt() -> None:
     resulting_ml = t.join()
 
     assert resulting_ml < expected_ml
+
+    assert volume_updates[0]["volume_change"] > 0
+    assert -expected_ml < volume_updates[-1]["volume_change"] < 0  # fire off a negative volume change
 
 
 def test_continuously_running_pump_will_disconnect_via_mqtt() -> None:
@@ -380,6 +392,30 @@ def test_manually_doesnt_trigger_pwm_dcs() -> None:
 
     for update in pwm_updates:
         assert update == r"{}"
+
+
+def test_published_mqtt_data_is_the_same_as_requested() -> None:
+    exp = "test_manually_doesnt_trigger_pwm_dcs"
+
+    dosing_events = []
+
+    def collect_dosing_events(msg):
+        dosing_events.append(json.loads(msg.payload.decode())["volume_change"])
+
+    subscribe_and_callback(
+        collect_dosing_events, f"pioreactor/{unit}/{exp}/dosing_events", allow_retained=False
+    )
+
+    vol = 5.12314
+    assert add_media(unit=unit, experiment=exp, ml=vol) == vol
+    assert sum(dosing_events) == vol
+
+    # try remove waste too
+    dosing_events = []
+
+    vol = 5.12314
+    assert remove_waste(unit=unit, experiment=exp, ml=vol) == vol
+    assert sum(dosing_events) == vol
 
 
 def test_can_provide_mqtt_client() -> None:

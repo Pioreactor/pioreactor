@@ -131,7 +131,7 @@ def test_publish_measured_rpm() -> None:
 
 
 def test_rpm_isnt_updated_if_there_is_no_rpm_measurement() -> None:
-    exp = "test_publish_measured_rpm"
+    exp = "test_rpm_isnt_updated_if_there_is_no_rpm_measurement"
 
     publish(f"pioreactor/{unit}/{exp}/stirring/measured_rpm", None, retain=True)
     pause()
@@ -219,7 +219,7 @@ def test_stirring_wont_fire_last_100dc_on_od_reading_end() -> None:
     assert bucket == []
 
 
-def test_stirring_dodge_od_reading() -> None:
+def test_stirring_will_try_to_restart_and_dodge_od_reading() -> None:
     from pioreactor.background_jobs.od_reading import start_od_reading
 
     exp = "test_stirring_will_try_to_restart_and_dodge_od_reading"

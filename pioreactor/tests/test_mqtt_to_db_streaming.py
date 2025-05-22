@@ -173,19 +173,6 @@ def test_kalman_filter_entries() -> None:
     with local_persistent_storage("od_normalization_variance") as cache:
         cache[exp] = json.dumps({"1": 1e-6, "2": 1e-4})
 
-    # turn on data collection
-    interval = 0.5
-    od = start_od_reading(
-        od_angle_channel1="135",
-        od_angle_channel2="90",
-        interval=interval,
-        fake_data=True,
-        unit=unit,
-        experiment=exp,
-    )
-
-    gr = GrowthRateCalculator(unit=unit, experiment=exp)
-
     # turn on our mqtt to db
     parsers = [
         m2db.TopicToParserToTable(
@@ -195,37 +182,46 @@ def test_kalman_filter_entries() -> None:
         )
     ]
 
-    m = m2db.MqttToDBStreamer(unit, exp, parsers)
+    # turn on data collection
+    interval = 0.5
 
-    # let data collect
-    sleep(10)
+    with (
+        start_od_reading(
+            od_angle_channel1="135",
+            od_angle_channel2="90",
+            interval=interval,
+            fake_data=True,
+            unit=unit,
+            experiment=exp,
+        ),
+        GrowthRateCalculator(unit=unit, experiment=exp),
+        m2db.MqttToDBStreamer(unit, exp, parsers),
+    ):
+        # let data collect
+        sleep(10)
 
-    cursor.execute("SELECT * FROM kalman_filter_outputs WHERE experiment = ?", (exp,))
-    results = cursor.fetchall()
-    assert len(results) > 0
+        cursor.execute("SELECT * FROM kalman_filter_outputs WHERE experiment = ?", (exp,))
+        results = cursor.fetchall()
+        assert len(results) > 0
 
-    cursor.execute(
-        "SELECT state_0, state_1, state_2 FROM kalman_filter_outputs WHERE experiment = ? ORDER BY timestamp DESC LIMIT 1",
-        (exp,),
-    )
-    results = cursor.fetchone()
-    assert results[0] != 0.0
-    assert results[1] != 0.0
-    assert results[2] != 0.0
+        cursor.execute(
+            "SELECT state_0, state_1, state_2 FROM kalman_filter_outputs WHERE experiment = ? ORDER BY timestamp DESC LIMIT 1",
+            (exp,),
+        )
+        results = cursor.fetchone()
+        assert results[0] != 0.0
+        assert results[1] != 0.0
+        assert results[2] != 0.0
 
-    cursor.execute(
-        "SELECT cov_00, cov_11, cov_22 FROM kalman_filter_outputs WHERE experiment = ? ORDER BY timestamp DESC LIMIT 1",
-        (exp,),
-    )
-    results = cursor.fetchone()
+        cursor.execute(
+            "SELECT cov_00, cov_11, cov_22 FROM kalman_filter_outputs WHERE experiment = ? ORDER BY timestamp DESC LIMIT 1",
+            (exp,),
+        )
+        results = cursor.fetchone()
 
-    assert results[0] != 0.0
-    assert results[1] != 0.0
-    assert results[2] != 0.0
-
-    od.clean_up()
-    gr.clean_up()
-    m.clean_up()
+        assert results[0] != 0.0
+        assert results[1] != 0.0
+        assert results[2] != 0.0
 
 
 def test_empty_payload_is_filtered_early() -> None:

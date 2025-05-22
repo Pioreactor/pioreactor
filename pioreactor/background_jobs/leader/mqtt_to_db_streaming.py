@@ -120,7 +120,7 @@ class MqttToDBStreamer(LongRunningBackgroundJob):
             except Exception as e:
                 self.logger.warning(f"Encountered error in saving to DB: {e}. See logs.")
                 self.logger.debug(
-                    f"Error in {parser.__name__}. Payload that caused error: `{message.payload.decode()}`. Topic: `{message.topic}`",
+                    f"Error in {parser.__name__}. Payload: `{message.payload.decode()}`. Topic: `{message.topic}`",
                     exc_info=True,
                 )
                 return
@@ -349,13 +349,13 @@ def parse_kalman_filter_outputs(topic: str, payload: pt.MQTTMessagePayload) -> d
         "timestamp": kf_output.timestamp,
         "state_0": kf_output.state[0],
         "state_1": kf_output.state[1],
-        "state_2": kf_output.state[2],
+        "state_2": 0.0,  # prev acc
         "cov_00": kf_output.covariance_matrix[0][0],
         "cov_01": kf_output.covariance_matrix[0][1],
-        "cov_02": kf_output.covariance_matrix[0][2],
+        "cov_02": 0.0,
         "cov_11": kf_output.covariance_matrix[1][1],
-        "cov_12": kf_output.covariance_matrix[1][2],
-        "cov_22": kf_output.covariance_matrix[2][2],
+        "cov_12": 0.0,
+        "cov_22": 0.0,
     }
 
 
@@ -526,5 +526,5 @@ def click_mqtt_to_db_streaming() -> None:
 
     os.nice(1)
 
-    job = start_mqtt_to_db_streaming()
-    job.block_until_disconnected()
+    with start_mqtt_to_db_streaming() as job:
+        job.block_until_disconnected()

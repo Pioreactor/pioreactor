@@ -22,6 +22,7 @@ from pioreactor.automations import events
 from pioreactor.automations.base import AutomationJob
 from pioreactor.config import config
 from pioreactor.logging import create_logger
+from pioreactor.utils import clamp
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import SummableDict
@@ -92,23 +93,24 @@ class LiquidVolumeCalculator:
         cls, new_dosing_event: structs.DosingEvent, current_liquid_volume: float, max_volume: float
     ) -> float:
         assert current_liquid_volume >= 0
+        assert max_volume >= 0
         volume, event = float(new_dosing_event.volume_change), new_dosing_event.event
         if event == "add_media":
-            return current_liquid_volume + volume
+            return max(current_liquid_volume + volume, 0)
         elif event == "add_alt_media":
-            return current_liquid_volume + volume
+            return max(current_liquid_volume + volume, 0)
         elif event == "remove_waste":
             if new_dosing_event.source_of_event == "manually":
                 # we assume the user has extracted what they want, regardless of level or tube height.
                 return max(current_liquid_volume - volume, 0.0)
             elif current_liquid_volume <= max_volume:
                 # if the current volume is less than the outflow tube, no liquid is removed
-                return current_liquid_volume
+                return max(current_liquid_volume, 0)
             else:
                 # since we do some additional "removing" after adding, we don't want to
                 # count that as being removed (total volume is limited by position of outflow tube).
                 # hence we keep an lowerbound here.
-                return max(current_liquid_volume - volume, max_volume)
+                return max(current_liquid_volume - volume, max_volume, 0)
         else:
             raise ValueError("Unknown event type")
 
@@ -127,6 +129,7 @@ class AltMediaFractionCalculator:
         current_liquid_volume: float,
     ) -> float:
         assert 0.0 <= current_alt_media_fraction <= 1.0
+        assert current_liquid_volume >= 0
         volume, event = float(new_dosing_event.volume_change), new_dosing_event.event
 
         if event == "add_media":
@@ -153,14 +156,16 @@ class AltMediaFractionCalculator:
         alt_media_delta: float,
         current_liquid_volume: float,
     ) -> float:
-        assert media_delta >= 0
-        assert alt_media_delta >= 0
         total_addition = media_delta + alt_media_delta
 
-        return round(
-            (current_alt_media_fraction * current_liquid_volume + alt_media_delta)
-            / (current_liquid_volume + total_addition),
-            10,
+        return clamp(
+            0.0,
+            round(
+                (current_alt_media_fraction * current_liquid_volume + alt_media_delta)
+                / (current_liquid_volume + total_addition),
+                10,
+            ),
+            1.0,
         )
 
 
@@ -257,12 +262,6 @@ class DosingAutomationJob(AutomationJob):
         if not is_pio_job_running("stirring"):
             self.logger.warning(
                 "It's recommended to have stirring on to improve mixing during dosing events."
-            )
-
-        if self.max_volume >= self.MAX_VIAL_VOLUME_TO_STOP:
-            # possibly the user messed up their configuration. We warn them.
-            self.logger.warning(
-                "The parameter max_volume_ml should be less than max_volume_to_stop (otherwise your pumping will stop too soon)."
             )
 
     def set_duration(self, duration: Optional[float]) -> None:
@@ -701,11 +700,10 @@ def click_dosing_automation(ctx, automation_name, duration, skip_first_run):
     Start an Dosing automation
     """
 
-    la = start_dosing_automation(
+    with start_dosing_automation(
         automation_name=automation_name,
         duration=float(duration),
         skip_first_run=bool(skip_first_run),
         **{ctx.args[i][2:].replace("-", "_"): ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},
-    )
-
-    la.block_until_disconnected()
+    ) as da:
+        da.block_until_disconnected()

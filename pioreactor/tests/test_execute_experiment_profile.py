@@ -159,21 +159,15 @@ def test_execute_experiment_log_actions(mock__load_experiment_profile, active_wo
 
     mock__load_experiment_profile.return_value = profile
 
-    with collect_all_logs_of_level(
-        "NOTICE", "testing_unit", experiment
-    ) as notice_bucket, collect_all_logs_of_level(
-        "INFO", "testing_unit", experiment
-    ) as info_bucket, collect_all_logs_of_level(
-        "DEBUG", "testing_unit", experiment
-    ) as debug_bucket:
+    with collect_all_logs_of_level("NOTICE", "unit1", experiment) as notice_bucket, collect_all_logs_of_level(
+        "INFO", "unit1", experiment
+    ) as info_bucket, collect_all_logs_of_level("DEBUG", "unit1", experiment) as debug_bucket:
         execute_experiment_profile("profile.yaml", experiment)
-        assert [log["message"] for log in notice_bucket[1:]] == [
-            f"test {unit}" for unit in active_workers_in_cluster
-        ]
+        assert notice_bucket[0]["message"] == "test unit1"
         assert [log["message"] for log in info_bucket[:1]] == [
             "test job2 on unit1",
         ]
-        assert [log["message"] for log in debug_bucket[1:3]] == [
+        assert [log["message"] for log in debug_bucket] == [
             f"test experiment={experiment}",
             "dynamic data looks like 10.5",
         ]

@@ -242,7 +242,8 @@ class Stirrer(BackgroundJobWithDodging):
             config.getfloat("stirring.config", "pwm_hz"),
             unit=self.unit,
             experiment=self.experiment,
-            pubsub_client=self.pub_client,
+            pub_client=self.pub_client,
+            logger=self.logger,
         )
         self.pwm.start(0)
         self.pwm.lock()
@@ -268,6 +269,7 @@ class Stirrer(BackgroundJobWithDodging):
             job_name=self.job_name,
             target_name="rpm",
             output_limits=(-7.5, 7.5),  # avoid whiplashing
+            pub_client=self.pub_client,
         )
 
     def action_to_do_before_od_reading(self):
@@ -355,6 +357,8 @@ class Stirrer(BackgroundJobWithDodging):
             self.rpm_check_repeated_timer.cancel()
         with suppress(AttributeError):
             self.pwm.clean_up()
+        with suppress(AttributeError):
+            self.pid.clean_up()
         with suppress(AttributeError):
             if self.rpm_calculator:
                 self.rpm_calculator.clean_up()
@@ -596,6 +600,6 @@ def click_stirring(target_rpm: float, use_rpm: bool) -> None:
     """
     Start the stirring of the Pioreactor.
     """
-    st = start_stirring(target_rpm=target_rpm, use_rpm=use_rpm)
-    st.block_until_rpm_is_close_to_target()
-    st.block_until_disconnected()
+    with start_stirring(target_rpm=target_rpm, use_rpm=use_rpm) as st:
+        st.block_until_rpm_is_close_to_target()
+        st.block_until_disconnected()
