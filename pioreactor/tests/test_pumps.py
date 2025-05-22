@@ -394,6 +394,30 @@ def test_manually_doesnt_trigger_pwm_dcs() -> None:
         assert update == r"{}"
 
 
+def test_published_mqtt_data_is_the_same_as_requested() -> None:
+    exp = "test_manually_doesnt_trigger_pwm_dcs"
+
+    dosing_events = []
+
+    def collect_dosing_events(msg):
+        dosing_events.append(json.loads(msg.payload.decode())["volume_change"])
+
+    subscribe_and_callback(
+        collect_dosing_events, f"pioreactor/{unit}/{exp}/dosing_events", allow_retained=False
+    )
+
+    vol = 5.12314
+    assert add_media(unit=unit, experiment=exp, ml=vol) == vol
+    assert sum(dosing_events) == vol
+
+    # try remove waste too
+    dosing_events = []
+
+    vol = 5.12314
+    assert remove_waste(unit=unit, experiment=exp, ml=vol) == vol
+    assert sum(dosing_events) == vol
+
+
 def test_can_provide_mqtt_client() -> None:
     experiment = "test_can_provide_mqtt_client"
     client = create_client(hostname="localhost")
