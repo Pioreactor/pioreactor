@@ -1,4 +1,4 @@
-### Upcoming
+### 25.5.22
 
 #### Enhancements
  - new _System logs_ under _Inventory_ to track logs happening outside of experiments in your cluster.
