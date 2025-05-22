@@ -264,12 +264,6 @@ class DosingAutomationJob(AutomationJob):
                 "It's recommended to have stirring on to improve mixing during dosing events."
             )
 
-        if self.max_volume >= self.MAX_VIAL_VOLUME_TO_STOP:
-            # possibly the user messed up their configuration. We warn them.
-            self.logger.warning(
-                "The parameter max_volume_ml should be less than max_volume_to_stop (otherwise your pumping will stop too soon)."
-            )
-
     def set_duration(self, duration: Optional[float]) -> None:
         if duration:
             self.duration = float(duration)

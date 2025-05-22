@@ -16,6 +16,7 @@ rate_std=0.25
  - New image installs only:
    - updated base OS to the latest 25-05-06 Raspberry Pi OS. The big change is using Linux kernel 6.12.
  - Added the column `hours_since_experiment_created` to dataset exports that details hours since experiment was created.
+ - A running pump now fires off an incremental dosing event every N seconds (N=0.5 currently) to tell the software its progress. Previously, we would fire off a single event that represented the total amount moved. This is most noticeable when watching the vial volume change over time (looks more accurate over a short period).
  - When a pump runs, it _first_ fires off a dosing_event, which stores information about how much liquid is moved. However, if the pump is stopped early, there was no correction issued to the amount of liquid actually moved. Now, when a pump is stopped early, a _negative_ volume is sent s.t. the delta between the initial amount and new amount is equal to the dosed amount (so when you sum up the volume changes, you get the actual change, as expected).
  - Performance optimizations
 

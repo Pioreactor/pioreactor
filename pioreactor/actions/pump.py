@@ -310,7 +310,7 @@ def _pump_action(
         with PWMPump(
             unit, experiment, pin, calibration=calibration, mqtt_client=mqtt_client, logger=logger
         ) as pump:
-            sub_duration = 1.0
+            sub_duration = 0.5
             volume_moved_ml = 0.0
 
             pump_start_time = time.monotonic()
