@@ -32,7 +32,7 @@ LEADER_REQUIREMENTS: list[str] = []
 
 
 WORKER_REQUIREMENTS = [
-    "Adafruit-Blinka==8.57.0",
+    "Adafruit-Blinka==8.58.1",
     "adafruit-circuitpython-ads1x15==2.2.23",
     "adafruit-circuitpython-busdevice==5.2.9",
     "adafruit-circuitpython-connectionmanager==3.1.1",
@@ -40,12 +40,11 @@ WORKER_REQUIREMENTS = [
     "adafruit-circuitpython-typing==1.10.3",
     "Adafruit-PlatformDetect==3.78.0",
     "Adafruit-PureIO==1.1.11",
-    "DAC43608==0.2.7",
     "plotext==5.2.8",
     "pyftdi==0.55.4",
     "pyserial==3.5",
     "pyusb==1.2.1",
-    "rpi_hardware_pwm==0.2.1",
+    "rpi_hardware_pwm==0.3.0",
 ]
 
 

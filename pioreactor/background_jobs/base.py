@@ -843,7 +843,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
                 self._publish_setting(name)
 
     def _log_state(self, state: pt.JobState) -> None:
-        if state == self.READY or state == self.DISCONNECTED:
+        if state in (self.READY, self.DISCONNECTED, self.LOST):
             self.logger.info(state.capitalize() + ".")
         else:
             self.logger.debug(state.capitalize() + ".")
@@ -903,6 +903,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def _confirm_state_in_broker(self, message: pt.MQTTMessage) -> None:
         if message.payload is None:
+            return
+        elif self.state == self.INIT:
             return
 
         state_in_broker = message.payload.decode()

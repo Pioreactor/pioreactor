@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import heapq
+import io
 from typing import Any
 from typing import Callable
 from typing import Iterable
@@ -104,7 +105,7 @@ class StreamODReadingsFromExport:
 class StreamDosingEventsFromExport:
     def __init__(
         self,
-        filename: str,
+        filename: str | None,
         skip_first_n_rows: int = 0,
         pioreactor_unit: str = "$broadcast",
         experiment="$experiment",
@@ -117,7 +118,13 @@ class StreamDosingEventsFromExport:
     def __enter__(self, *args, **kwargs):
         import csv
 
-        self.file_instance = open(self.filename, "r")
+        if self.filename is None:
+            # No file?  Give the reader an **empty CSV with headers only**.
+            # This satisfies csv.DictReader and still closes cleanly later.
+            headers = "timestamp,volume_change_ml,event," "source_of_event,pioreactor_unit,experiment\n"
+            self.file_instance = io.StringIO(headers)
+        else:
+            self.file_instance = open(self.filename, "r")
         self.csv_reader = csv.DictReader(self.file_instance, quoting=csv.QUOTE_MINIMAL)
         return self
 

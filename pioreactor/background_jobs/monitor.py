@@ -292,6 +292,10 @@ class Monitor(LongRunningBackgroundJob):
                 )
                 break
 
+        # some users have the wrong permissions on their .pioreactor/storage folder. www-data is needed to write to the folder.
+        if storage_path.owner() != "pioreactor" and storage_path.group() != "www-data":
+            self.logger.warning("Pioreactor storage folder has the wrong permissions.")
+
         return
 
     def check_for_webserver(self) -> None:
