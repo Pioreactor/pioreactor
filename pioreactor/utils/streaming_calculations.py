@@ -229,7 +229,7 @@ class CultureGrowthEKF:
         self.n_states = initial_state.shape[0]
         self.angles = angles
         self.outlier_std_threshold = outlier_std_threshold
-
+        self._sigma2_gr_baseline = self.process_noise_covariance[1, 1]
         self.ems = ExponentialMovingStd(
             0.975, 0.80, initial_std_value=np.sqrt(observation_noise_covariance[0][0])
         )
@@ -248,7 +248,7 @@ class CultureGrowthEKF:
         )
 
         # Update
-        ### innovation
+        # innovation
         residual_state = observation - self.update_observations_from_state(state_prediction)
 
         H = self._J_update_observations_from_state(state_prediction)
@@ -264,13 +264,12 @@ class CultureGrowthEKF:
 
         self.ems.update(residual_state[0])
 
-        # update observation noise covariance
+        # update observation noise covariance to handle increasing noise levels with culture OD
         if (not currently_is_outlier) and (not recent_dilution):
             self.observation_noise_covariance = self.update_observation_noise_cov(residual_state)
 
-        ### optimal gain
+        # optimal gain
         residual_covariance = H @ covariance_prediction @ H.T + self.observation_noise_covariance
-
         kalman_gain_ = np.linalg.solve(residual_covariance.T, (H @ covariance_prediction.T)).T
 
         if self.handle_outliers and (currently_is_outlier):
@@ -278,7 +277,7 @@ class CultureGrowthEKF:
             kalman_gain_[0, 0] *= huber_threshold / max(abs(residual_state[0]), 1e-20)
             kalman_gain_[1:, 0] = 0
 
-        ### update estimates
+        # update state estimates
         state_ = state_prediction + kalman_gain_ @ residual_state
         covariance_ = (np.eye(self.n_states) - kalman_gain_ @ H) @ covariance_prediction
 
@@ -287,6 +286,23 @@ class CultureGrowthEKF:
 
         self.state_ = state_
         self.covariance_ = covariance_
+
+        # update growth rate variance if it's too low (culture growing too fast)
+        # Normalised innovation squared
+        _NIS_THRESHOLD = 9.0  # ~3-sigma rule for 1 dof
+
+        # update gr process covariance if required
+        nis = (residual_state[0] ** 2) / residual_covariance[0, 0]
+
+        if nis > _NIS_THRESHOLD:
+            self.process_noise_covariance[1, 1] *= 2
+        else:
+            # decay is back to config value
+            factor = 0.95
+            baseline = self._sigma2_gr_baseline
+            self.process_noise_covariance[1, 1] = (
+                1 - factor
+            ) * baseline + factor * self.process_noise_covariance[1, 1]
 
         return self.state_, self.covariance_
 
@@ -303,7 +319,7 @@ class CultureGrowthEKF:
 
         # keep a floor on the diagonal to avoid numerical issues
         diag = np.diag_indices_from(observation_noise_covariance)
-        observation_noise_covariance[diag] = np.maximum(observation_noise_covariance[diag], 1e-8)
+        observation_noise_covariance[diag] = np.maximum(observation_noise_covariance[diag], 1e-10)
 
         return observation_noise_covariance
 
@@ -354,9 +370,11 @@ class CultureGrowthEKF:
 
     def update_covariance_from_old_covariance(self, state, covariance, dt: float, recent_dilution: bool):
         Q = self.process_noise_covariance.copy().astype(float)
+
         if recent_dilution:
             jump_var = max(1e-12, 0.25 * state[0] ** 2)  # keep strictly >0 for Cholesky safety
             Q[0, 0] += jump_var
+
         jacobian = self._J_update_state_from_previous_state(state, dt)
         return jacobian @ covariance @ jacobian.T + Q
 

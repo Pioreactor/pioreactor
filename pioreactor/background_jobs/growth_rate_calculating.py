@@ -124,7 +124,6 @@ class GrowthRateCalculator(BackgroundJob):
         self.logger.debug(f"Initial covariance matrix:\n{repr(initial_covariance)}")
         od_process_variance = (od_std * self.expected_dt) ** 2
         rate_process_variance = (rate_std * self.expected_dt) ** 2
-
         process_noise_covariance = np.zeros((2, 2))
         process_noise_covariance[0, 0] = od_process_variance
         process_noise_covariance[1, 1] = rate_process_variance
