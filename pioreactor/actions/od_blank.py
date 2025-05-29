@@ -48,7 +48,7 @@ def od_statistics(
     )
 
     # turn on stirring if not already on
-    if not is_pio_job_running("stirring"):
+    if not whoami.is_testing_env() and not is_pio_job_running("stirring"):
         from pioreactor.background_jobs.stirring import start_stirring
 
         logger.info("Starting stirring.")
@@ -65,16 +65,12 @@ def od_statistics(
         readings = defaultdict(list)
 
         # okay now start collecting
+
         for count, batched_reading in enumerate(od_stream, start=1):
             for channel, reading in batched_reading.ods.items():
                 readings[channel].append(reading.od)
 
-            pubsub.publish(
-                f"pioreactor/{unit}/{experiment}/{action_name}/percent_progress",
-                int(count / n_samples * 100),
-            )
             logger.debug(f"Progress: {count/n_samples:.0%}")
-
             if count == n_samples:
                 break
 

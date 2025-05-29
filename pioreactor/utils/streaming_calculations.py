@@ -19,6 +19,8 @@ class ExponentialMovingAverage:
     """
 
     def __init__(self, alpha: float):
+        if alpha < 0 or alpha > 1:
+            raise ValueError
         self.value: Optional[float] = None
         self.alpha = alpha
 
@@ -50,12 +52,18 @@ class ExponentialMovingStd:
     """
 
     def __init__(
-        self, alpha: float, ema_alpha: Optional[float] = None, initial_std_value: Optional[float] = None
+        self,
+        alpha: float,
+        ema_alpha: Optional[float] = None,
+        initial_std_value: Optional[float] = None,
+        initial_mean_value: Optional[float] = None,
     ):
         self._var_value = initial_std_value**2 if initial_std_value is not None else None
-        self.value: Optional[float] = None
+        self.value: Optional[float] = initial_std_value if initial_std_value is not None else None
         self.alpha = alpha
         self.ema = ExponentialMovingAverage(ema_alpha or self.alpha)
+        if initial_mean_value is not None:
+            self.ema.update(initial_mean_value)
 
     def update(self, new_value: float) -> Optional[float]:
         if self.ema.value is None:
@@ -145,10 +153,7 @@ class CultureGrowthEKF:
 
     Scaling
     ---------
-    1. Because our OD measurements are non-stationary (we expect them to increase), the process covariance matrix needs
-       to be scaled by an appropriate amount.
-
-    2. Part of https://github.com/Pioreactor/pioreactor/issues/74
+    1. Obs. covariance matrix is dynamic, as the sensor noise scales with OD increasing.
 
 
     Note on 180°
@@ -226,13 +231,13 @@ class CultureGrowthEKF:
         self.outlier_std_threshold = outlier_std_threshold
 
         self.ems = ExponentialMovingStd(
-            0.975, 0.90, initial_std_value=np.sqrt(observation_noise_covariance[0][0])
+            0.975, 0.80, initial_std_value=np.sqrt(observation_noise_covariance[0][0])
         )
 
-    def update(self, observation_: list[float], dt: float, recent_dilution=False):
+    def update(self, obs: list[float], dt: float, recent_dilution=False):
         import numpy as np
 
-        observation = np.asarray(observation_)
+        observation = np.asarray(obs)
         assert observation.shape[0] == self.n_sensors, (observation, self.n_sensors)
 
         # Predict
@@ -251,21 +256,20 @@ class CultureGrowthEKF:
         # outlier test
         huber_threshold = self.outlier_std_threshold * (self.ems.value or 10_000)
         currently_is_outlier = abs(residual_state[0]) > huber_threshold
-
         if recent_dilution:
             covariance_prediction[0, 1] = 0.0
             covariance_prediction[1, 0] = 0.0
         elif self.handle_outliers and (currently_is_outlier):
             covariance_prediction[0, 0] = 2 * covariance_prediction[0, 0]
-        else:
-            self.ems.update(residual_state[0])
+
+        self.ems.update(residual_state[0])
+
+        # update observation noise covariance
+        if (not currently_is_outlier) and (not recent_dilution):
+            self.observation_noise_covariance = self.update_observation_noise_cov(residual_state)
 
         ### optimal gain
-        residual_covariance = (
-            # see Scaling note above for why we multiple by state_[0]
-            H @ covariance_prediction @ H.T
-            + state_prediction[0] * self.observation_noise_covariance
-        )
+        residual_covariance = H @ covariance_prediction @ H.T + self.observation_noise_covariance
 
         kalman_gain_ = np.linalg.solve(residual_covariance.T, (H @ covariance_prediction.T)).T
 
@@ -285,6 +289,23 @@ class CultureGrowthEKF:
         self.covariance_ = covariance_
 
         return self.state_, self.covariance_
+
+    def update_observation_noise_cov(self, residual_state):
+        """
+        Exponentially-weighted measurement noise covariance.
+        """
+        import numpy as np
+
+        lambda_ = 0.97  # controls the “memory” of the estimator. 0.97 means the filter effectively averages the last ≈ 1 / (1-0.97) ≈ 33 timesteps.
+        rrT = np.outer(residual_state, residual_state)
+
+        observation_noise_covariance = lambda_ * self.observation_noise_covariance + (1.0 - lambda_) * rrT
+
+        # keep a floor on the diagonal to avoid numerical issues
+        diag = np.diag_indices_from(observation_noise_covariance)
+        observation_noise_covariance[diag] = np.maximum(observation_noise_covariance[diag], 1e-8)
+
+        return observation_noise_covariance
 
     def update_state_from_previous_state(self, state, dt: float):
         """

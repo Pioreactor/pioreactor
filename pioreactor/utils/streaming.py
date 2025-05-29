@@ -1,0 +1,260 @@
+# -*- coding: utf-8 -*-
+# streaming_utils.py
+# -*- coding: utf-8 -*-
+# utils.py
+from __future__ import annotations
+
+import heapq
+import io
+from queue import Empty
+from queue import Queue
+from threading import Event
+from threading import Thread
+from typing import Any
+from typing import Callable
+from typing import Iterable
+from typing import Iterator
+from typing import Protocol
+from typing import TypeVar
+
+from msgspec import DecodeError
+from msgspec.json import decode
+
+from pioreactor.pubsub import subscribe
+from pioreactor.structs import DosingEvent
+from pioreactor.structs import ODReadings
+from pioreactor.structs import RawODReading
+from pioreactor.utils.timing import to_datetime
+
+
+class ODObservationSource(Protocol):
+    """Anything that can be iterated to yield ODReadings objects."""
+
+    def __iter__(self) -> Iterator[ODReadings]:
+        ...
+
+
+class DosingObservationSource(Protocol):
+    """Anything that can be iterated to yield ODReadings objects."""
+
+    def __iter__(self) -> Iterator[DosingEvent]:
+        ...
+
+
+class ExportODSource(ODObservationSource):
+    def __init__(
+        self,
+        filename: str,
+        skip_first: int = 0,
+        pioreactor_unit: str = "$broadcast",
+        experiment="$experiment",
+    ):
+        self.filename = filename
+        self.skip_first = skip_first
+        self.pioreactor_unit = pioreactor_unit
+        self.experiment = experiment
+
+    def __enter__(self, *args, **kwargs):
+        import csv
+
+        self.file_instance = open(self.filename, "r")
+        self.csv_reader = csv.DictReader(self.file_instance, quoting=csv.QUOTE_MINIMAL)
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        self.file_instance.close()
+
+    def __iter__(self):
+        for i, line in enumerate(self.csv_reader):
+            if i <= self.skip_first:
+                continue
+            if self.pioreactor_unit != "$broadcast" and self.pioreactor_unit != line["pioreactor_unit"]:
+                continue
+            if self.experiment != "$experiment" and self.experiment != line["experiment"]:
+                continue
+            dt = to_datetime(line["timestamp"])
+            od = RawODReading(
+                angle=line["angle"], channel=line["channel"], timestamp=dt, od=float(line["od_reading"])
+            )
+            ods = ODReadings(timestamp=dt, ods={"2": od})
+            yield ods
+
+
+class EmptyDosingSource(DosingObservationSource):
+    """An empty source that yields no dosing events."""
+
+    def __iter__(self) -> Iterator[DosingEvent]:
+        return iter([])
+
+
+class ExportDosingSource(DosingObservationSource):
+    def __init__(
+        self,
+        filename: str | None,
+        skip_first: int = 0,
+        pioreactor_unit: str = "$broadcast",
+        experiment="$experiment",
+    ):
+        self.filename = filename
+        self.skip_first = skip_first
+        self.experiment = experiment
+        self.pioreactor_unit = pioreactor_unit
+
+    def __enter__(self, *args, **kwargs):
+        import csv
+
+        if self.filename is None:
+            # No file?  Give the reader an **empty CSV with headers only**.
+            # This satisfies csv.DictReader and still closes cleanly later.
+            headers = "timestamp,volume_change_ml,event," "source_of_event,pioreactor_unit,experiment\n"
+            self.file_instance = io.StringIO(headers)
+        else:
+            self.file_instance = open(self.filename, "r")
+        self.csv_reader = csv.DictReader(self.file_instance, quoting=csv.QUOTE_MINIMAL)
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        self.file_instance.close()
+
+    def __iter__(self):
+        for i, line in enumerate(self.csv_reader):
+            if i <= self.skip_first:
+                continue
+            if self.pioreactor_unit != "$broadcast" and self.pioreactor_unit != line["pioreactor_unit"]:
+                continue
+            if self.experiment != "$experiment" and self.experiment != line["experiment"]:
+                continue
+            dt = to_datetime(line["timestamp"])
+            event = DosingEvent(
+                volume_change=float(line["volume_change_ml"]),
+                timestamp=dt,
+                event=line["event"],
+                source_of_event=line["source_of_event"],
+            )
+            yield event
+
+
+class MqttODSource(ODObservationSource):
+    def __init__(self, unit: str, experiment: str, *, skip_first: int = 0):
+        self.unit, self.experiment, self.skip_first = unit, experiment, skip_first
+
+    def __iter__(self):
+        counter = 0
+        while True:
+            msg = subscribe(f"pioreactor/{self.unit}/{self.experiment}/od_reading/ods", allow_retained=False)
+            if msg is None:
+                continue
+            counter += 1
+            if counter <= self.skip_first:
+                continue
+            try:
+                yield decode(msg.payload, type=ODReadings)
+            except DecodeError as e:
+                print(f"Failed to decode message: {e}")
+                continue
+
+
+class MqttDosingSource(DosingObservationSource):
+    def __init__(self, unit: str, experiment: str):
+        self.unit, self.experiment = unit, experiment
+
+    def __iter__(self):
+        while True:
+            msg = subscribe(f"pioreactor/{self.unit}/{self.experiment}/dosing_events", allow_retained=False)
+            if msg is None:
+                continue
+            try:
+                yield decode(msg.payload, type=DosingEvent)
+            except DecodeError as e:
+                print(f"Failed to decode message: {e}")
+                continue
+
+
+T = TypeVar("T")
+
+_SENTINEL = -1  # needed?
+
+
+def merge_live_streams(
+    *iterables: Iterable[T],
+    stop_event: Event | None = None,
+    poll_interval: float = 0.5,  # seconds to wait before re-checking the flag
+    **kwargs,
+) -> Iterator[T]:
+    """
+    Yield the next value that shows up in *any* iterable, but stop as soon as
+    `stop_event.set()` is called (or when every iterable is exhausted).
+    """
+    stop_event = stop_event or Event()
+    q: Queue = Queue()
+
+    def _drain(it: Iterable[T]) -> None:
+        for item in it:
+            if stop_event.is_set():
+                break
+            q.put(item)
+        q.put(_SENTINEL)  # tell the main loop this source is done
+
+    for it in iterables:
+        Thread(target=_drain, args=(iter(it),), daemon=True).start()
+
+    finished = 0
+    while finished < len(iterables):
+        # leave promptly if someone called stop_event.set()
+        if stop_event.is_set():
+            break
+        try:
+            item = q.get(timeout=poll_interval)
+        except Empty:  # nothing yet → loop back & re-check flag
+            continue
+        if item is _SENTINEL:
+            finished += 1
+        else:
+            yield item
+
+    # optional: make sure the producer threads see the flag, too
+    stop_event.set()
+
+
+def merge_historical_streams(
+    *iterables: Iterable[T], key: Callable[[T], Any] = lambda x: x, **kwargs
+) -> Iterator[T]:
+    """
+    Yield items from multiple pre‑sorted streams in ascending order
+    according to `key(item)`.
+
+    Parameters
+    ----------
+    *iterables : Iterable[T]
+        Any number of iterables / generators whose items are already
+        sorted by `key`.
+    key : Callable[[T], Any], optional
+        Function that returns the sort key for each item.  Defaults to
+        the identity function.
+
+    Yields
+    ------
+    T
+        The next smallest item across all input streams.
+    """
+    # Build an iterator for each stream
+    iters = [iter(s) for s in iterables]
+
+    # Prime the priority queue with the first element from each stream
+    # The queue holds tuples: (sort_key, stream_index, item)
+    pq: list[tuple[Any, int, T]] = []
+    for idx, it in enumerate(iters):
+        try:
+            first = next(it)
+            heapq.heappush(pq, (key(first), idx, first))
+        except StopIteration:
+            pass  # this stream was empty
+
+    while pq:
+        k, idx, item = heapq.heappop(pq)
+        yield item  # hand the smallest out
+        try:
+            nxt = next(iters[idx])  # fetch the next from that stream
+            heapq.heappush(pq, (key(nxt), idx, nxt))
+        except StopIteration:
+            pass  # that stream exhausted → drop it
