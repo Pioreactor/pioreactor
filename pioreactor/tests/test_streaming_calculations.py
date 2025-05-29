@@ -8,7 +8,7 @@ from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 from pioreactor.utils.streaming_calculations import ExponentialMovingStd
 
 
-def test_ema_get_latest_and_clear():
+def test_ema_get_latest_and_clear() -> None:
     ema = ExponentialMovingAverage(alpha=0.3)
     with pytest.raises(ValueError):
         ema.get_latest()
@@ -22,7 +22,7 @@ def test_ema_get_latest_and_clear():
 
 
 @pytest.mark.parametrize("bad_alpha", [-0.1, 1.1, 2.0])
-def test_alpha_out_of_range(bad_alpha):
+def test_alpha_out_of_range(bad_alpha) -> None:
     with pytest.raises(ValueError):
         ExponentialMovingAverage(bad_alpha)
 
@@ -33,12 +33,12 @@ def test_alpha_out_of_range(bad_alpha):
 # -----------------  ExponentialMovingStd  ----------------- #
 
 
-def test_std_first_point_returns_none():
+def test_std_first_point_returns_none() -> None:
     std = ExponentialMovingStd(alpha=0.5)
     assert std.update(10) is None  # first sample: no std yet
 
 
-def test_std_constant_stream_zero_variance():
+def test_std_constant_stream_zero_variance() -> None:
     std = ExponentialMovingStd(alpha=0.2)
     for _ in range(5):
         out = std.update(42.0)
@@ -54,7 +54,7 @@ def test_std_constant_stream_zero_variance():
         (10.0, 3.0),
     ],
 )
-def test_known_distribution(mu, sigma):
+def test_known_distribution(mu, sigma) -> None:
     import random
 
     std = ExponentialMovingStd(alpha=0.999)
@@ -65,12 +65,13 @@ def test_known_distribution(mu, sigma):
     assert std.value == pytest.approx(sigma, abs=0.2)  # allow some tolerance due to randomness
 
 
-def test_std_with_initial_values():
+def test_std_with_initial_values() -> None:
     std0 = 3.0
     std = ExponentialMovingStd(alpha=0.3, initial_std_value=std0, initial_mean_value=10.0)
     assert std.get_latest() == pytest.approx(std0)
 
     # next update should move a little, but not blow up
     new = std.update(10.0)
+    assert isinstance(new, float)
     assert new >= 0.0
     assert abs(new - std0) < 5.0  # arbitrary sanity bound

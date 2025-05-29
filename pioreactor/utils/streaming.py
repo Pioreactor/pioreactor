@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
-# streaming_utils.py
-# -*- coding: utf-8 -*-
-# utils.py
+# streaming.py
 from __future__ import annotations
 
 import heapq
@@ -172,8 +170,6 @@ class MqttDosingSource(DosingObservationSource):
 
 T = TypeVar("T")
 
-_SENTINEL = -1  # needed?
-
 
 def merge_live_streams(
     *iterables: Iterable[T],
@@ -193,13 +189,11 @@ def merge_live_streams(
             if stop_event.is_set():
                 break
             q.put(item)
-        q.put(_SENTINEL)  # tell the main loop this source is done
 
     for it in iterables:
         Thread(target=_drain, args=(iter(it),), daemon=True).start()
 
-    finished = 0
-    while finished < len(iterables):
+    while True:
         # leave promptly if someone called stop_event.set()
         if stop_event.is_set():
             break
@@ -207,13 +201,8 @@ def merge_live_streams(
             item = q.get(timeout=poll_interval)
         except Empty:  # nothing yet → loop back & re-check flag
             continue
-        if item is _SENTINEL:
-            finished += 1
         else:
             yield item
-
-    # optional: make sure the producer threads see the flag, too
-    stop_event.set()
 
 
 def merge_historical_streams(
