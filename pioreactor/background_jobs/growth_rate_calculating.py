@@ -108,10 +108,12 @@ class GrowthRateCalculator(BackgroundJob):
     ) -> CultureGrowthEKF:
         import numpy as np
 
+        initial_nOD, initial_growth_rate = self.get_initial_values()
+
         initial_state = np.array(
             [
-                self.initial_nOD,
-                self.initial_growth_rate,
+                initial_nOD,
+                initial_growth_rate,
             ]
         )
         self.logger.debug(f"Initial state: {repr(initial_state)}")
@@ -219,6 +221,7 @@ class GrowthRateCalculator(BackgroundJob):
             unit=self.unit,
             experiment=self.experiment,
             logger=self.logger,
+            skip_stirring=not isinstance(od_stream, MqttODSource),  # skip stirring if not using MqttODSource
         )
         self.logger.info("Completed OD normalization metrics.")
 
@@ -454,11 +457,6 @@ class GrowthRateCalculator(BackgroundJob):
         self.logger.debug(f"od_normalization_mean={self.od_normalization_factors}")
         self.logger.debug(f"od_normalization_variance={self.od_variances}")
         self.logger.debug(f"od_blank={dict(self.od_blank)}")
-
-        (
-            self.initial_nOD,
-            self.initial_growth_rate,
-        ) = self.get_initial_values()
 
         # create kalman filter
         self.ekf = self.initialize_extended_kalman_filter(

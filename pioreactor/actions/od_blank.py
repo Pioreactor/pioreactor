@@ -32,6 +32,7 @@ def od_statistics(
     unit: Optional[str] = None,
     n_samples: int = 30,
     logger=None,
+    skip_stirring: bool = False,
 ) -> tuple[dict[pt.PdChannel, pt.OD], dict[pt.PdChannel, pt.OD]]:
     """
     Compute a sample statistics of the photodiodes attached.
@@ -48,7 +49,7 @@ def od_statistics(
     )
 
     # turn on stirring if not already on
-    if not whoami.is_testing_env() and not is_pio_job_running("stirring"):
+    if not (whoami.is_testing_env() or skip_stirring or is_pio_job_running("stirring")):
         from pioreactor.background_jobs.stirring import start_stirring
 
         logger.info("Starting stirring.")

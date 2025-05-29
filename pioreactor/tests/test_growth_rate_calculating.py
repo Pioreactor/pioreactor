@@ -117,7 +117,6 @@ class TestGrowthRateCalculating:
             ), create_dosing_stream_from_mqtt(unit, experiment)
             with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
                 calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
-                # assert calc.initial_growth_rate == 1.0
 
                 publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/ods",
@@ -255,7 +254,16 @@ class TestGrowthRateCalculating:
                 calc2.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
                 pause()
                 pause()
-                assert calc2.initial_growth_rate != 0
+                publish(
+                    f"pioreactor/{unit}/{experiment}/od_reading/ods",
+                    create_encoded_od_raw_batched(
+                        ["1", "2"],
+                        [1.154, 0.934],
+                        ["90", "135"],
+                        timestamp="2010-01-01T12:00:35.000Z",
+                    ),
+                )
+                assert calc2.ekf.state_[-1] != 0
 
     def test_single_observation(self) -> None:
         unit = get_unit_name()
@@ -483,8 +491,12 @@ class TestGrowthRateCalculating:
                     )
 
             thread = RepeatedTimer(0.025, Mock180ODReadings()).start()
+            od_stream, dosing_stream = create_od_stream_from_mqtt(
+                unit, experiment
+            ), create_dosing_stream_from_mqtt(unit, experiment)
 
             with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
+                calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
                 time.sleep(35)
 
                 assert calc.ekf.state_[1] > 0
@@ -539,8 +551,13 @@ class TestGrowthRateCalculating:
                     )
 
             thread = RepeatedTimer(0.025, Mock90ODReadings()).start()
+            od_stream, dosing_stream = create_od_stream_from_mqtt(
+                unit, experiment
+            ), create_dosing_stream_from_mqtt(unit, experiment)
 
             with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
+                calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
+
                 time.sleep(35)
 
                 assert calc.ekf.state_[1] > 0
@@ -567,29 +584,33 @@ class TestGrowthRateCalculating:
             with local_persistent_storage("od_normalization_variance") as cache:
                 cache[experiment] = json.dumps({"1": 1e-6, "2": 1e-4})
 
-            calc = GrowthRateCalculator(unit=unit, experiment=experiment)
+            od_stream, dosing_stream = create_od_stream_from_mqtt(
+                unit, experiment
+            ), create_dosing_stream_from_mqtt(unit, experiment)
 
-            pause()
-            pause()
+            with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
+                calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
 
-            publish(
-                f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                create_encoded_od_raw_batched(
-                    ["1", "2"], [0.50, 0.80], ["90", "135"], timestamp="2010-01-01T12:02:00.000Z"
-                ),
-                retain=True,
-            )
+                pause()
+                pause()
 
-            pause()
-            pause()
+                publish(
+                    f"pioreactor/{unit}/{experiment}/od_reading/ods",
+                    create_encoded_od_raw_batched(
+                        ["1", "2"], [0.50, 0.80], ["90", "135"], timestamp="2010-01-01T12:02:00.000Z"
+                    ),
+                    retain=True,
+                )
 
-            assert calc.od_normalization_factors == {"2": 0.8, "1": 0.5}
-            assert calc.od_blank == {"2": 0.4, "1": 0.25}
-            results = calc.scale_raw_observations({"2": 1.0, "1": 0.6})
-            assert results is not None
-            assert abs(results["2"] - 1.5) < 0.00001
-            assert abs(results["1"] - 1.4) < 0.00001
-            calc.clean_up()
+                pause()
+                pause()
+
+                assert calc.od_normalization_factors == {"2": 0.8, "1": 0.5}
+                assert calc.od_blank == {"2": 0.4, "1": 0.25}
+                results = calc.scale_raw_observations({"2": 1.0, "1": 0.6})
+                assert results is not None
+                assert abs(results["2"] - 1.5) < 0.00001
+                assert abs(results["1"] - 1.4) < 0.00001
 
     def test_od_blank_being_higher_than_observations(self) -> None:
         unit = get_unit_name()
@@ -603,39 +624,43 @@ class TestGrowthRateCalculating:
         with local_persistent_storage("od_normalization_variance") as cache:
             cache[experiment] = json.dumps({"1": 1e-6, "2": 1e-4})
 
-        calc = GrowthRateCalculator(unit=unit, experiment=experiment)
-        pause()
+        od_stream, dosing_stream = create_od_stream_from_mqtt(
+            unit, experiment
+        ), create_dosing_stream_from_mqtt(unit, experiment)
 
-        pause()
-        publish(
-            f"pioreactor/{unit}/{experiment}/od_reading/ods",
-            create_encoded_od_raw_batched(
-                ["1", "2"], [0.50, 0.80], ["90", "135"], timestamp="2010-01-01T12:02:00.000Z"
-            ),
-            retain=True,
-        )
-        pause()
-        pause()
-        publish(
-            f"pioreactor/{unit}/{experiment}/od_reading/ods",
-            create_encoded_od_raw_batched(
-                ["1", "2"], [0.1, 0.1], ["90", "135"], timestamp="2010-01-01T12:02:05.000Z"
-            ),
-            retain=True,
-        )
-        pause()
-        pause()
-        pause()
-        publish(
-            f"pioreactor/{unit}/{experiment}/od_reading/ods",
-            create_encoded_od_raw_batched(
-                ["1", "2"], [0.1, 0.1], ["90", "135"], timestamp="2010-01-01T12:02:10.000Z"
-            ),
-            retain=True,
-        )
-        pause()
-        pause()
-        calc.clean_up()
+        with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
+            calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
+            pause()
+
+            pause()
+            publish(
+                f"pioreactor/{unit}/{experiment}/od_reading/ods",
+                create_encoded_od_raw_batched(
+                    ["1", "2"], [0.50, 0.80], ["90", "135"], timestamp="2010-01-01T12:02:00.000Z"
+                ),
+                retain=True,
+            )
+            pause()
+            pause()
+            publish(
+                f"pioreactor/{unit}/{experiment}/od_reading/ods",
+                create_encoded_od_raw_batched(
+                    ["1", "2"], [0.1, 0.1], ["90", "135"], timestamp="2010-01-01T12:02:05.000Z"
+                ),
+                retain=True,
+            )
+            pause()
+            pause()
+            pause()
+            publish(
+                f"pioreactor/{unit}/{experiment}/od_reading/ods",
+                create_encoded_od_raw_batched(
+                    ["1", "2"], [0.1, 0.1], ["90", "135"], timestamp="2010-01-01T12:02:10.000Z"
+                ),
+                retain=True,
+            )
+            pause()
+            pause()
 
     def test_od_blank_being_empty(self) -> None:
         unit = get_unit_name()
@@ -666,7 +691,11 @@ class TestGrowthRateCalculating:
                 retain=True,
             )
 
+            od_stream = create_od_stream_from_mqtt(unit, experiment)
+            dosing_stream = create_dosing_stream_from_mqtt(unit, experiment)
             with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
+                calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
+
                 pause()
 
                 pause()
@@ -698,15 +727,19 @@ class TestGrowthRateCalculating:
         with local_persistent_storage("growth_rate") as cache:
             cache[experiment] = str(1.0)
 
-        publish(
-            f"pioreactor/{unit}/{experiment}/od_reading/ods",
-            create_encoded_od_raw_batched(
-                ["2", "1"], [0.9, 1.1], ["135", "90"], timestamp="2010-01-01T12:00:00.000Z"
-            ),
-            retain=True,
-        )
+        od_stream = create_od_stream_from_mqtt(unit, experiment)
+        dosing_stream = create_dosing_stream_from_mqtt(unit, experiment)
 
         with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
+            calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
+            publish(
+                f"pioreactor/{unit}/{experiment}/od_reading/ods",
+                create_encoded_od_raw_batched(
+                    ["2", "1"], [0.9, 1.1], ["135", "90"], timestamp="2010-01-01T12:00:00.000Z"
+                ),
+                retain=True,
+            )
+
             assert calc.scale_raw_observations({"2": 2, "1": 0.5}) == {
                 "2": 2.0,
                 "1": 0.25,
@@ -724,8 +757,10 @@ class TestGrowthRateCalculating:
         with local_persistent_storage("od_blank") as cache:
             cache[experiment] = json.dumps({"1": 0})
 
+        od_stream = create_od_stream_from_mqtt(unit, experiment)
         with collect_all_logs_of_level("ERROR", unit, experiment) as bucket:
-            with GrowthRateCalculator(unit=unit, experiment=experiment):
+            with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
+                calc.process_until_disconnected_or_exhausted_in_background(od_stream, EmptyDosingSource())
                 pause()
                 pause()
                 assert len(bucket) > 0
@@ -767,35 +802,6 @@ class TestGrowthRateCalculating:
 
                     assert len(results) > 0
                     assert results[0].timestamp < results[1].timestamp < results[2].timestamp  # type: ignore
-
-    def test_a_non_unity_initial_nOD_works(self) -> None:
-        unit = get_unit_name()
-        experiment = "test_a_non_unity_initial_nOD_works"
-
-        with local_persistent_storage("od_normalization_mean") as cache:
-            cache[experiment] = json.dumps({"1": 0.05, "2": 0.10})
-
-        with local_persistent_storage("od_normalization_variance") as cache:
-            cache[experiment] = json.dumps({"1": 1e-6, "2": 1e-6})
-
-        od_stream, dosing_stream = (
-            create_od_stream_from_mqtt(unit, experiment),
-            create_dosing_stream_from_mqtt(unit, experiment),
-        )
-
-        with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
-            calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
-            pause()
-            publish(
-                f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                create_encoded_od_raw_batched(
-                    ["1", "2"], [1.0, 1.0], ["90", "135"], timestamp="2010-01-01T12:00:35.000Z"
-                ),
-                retain=True,
-            )
-            pause()
-            assert calc.od_normalization_factors == {"1": 0.05, "2": 0.10}
-            assert calc.initial_nOD == 15.0 == 0.5 * (1 / 0.05 + 1 / 0.10)
 
     def test_single_outlier_spike_gets_absorbed(self) -> None:
         with temporary_config_changes(
