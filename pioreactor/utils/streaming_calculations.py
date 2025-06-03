@@ -1,13 +1,20 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from msgspec.json import encode as dumps
-from typing import TYPE_CHECKING
 from math import sqrt
 from typing import Optional
-from grpredict import ExponentialMovingAverage # previously, this was part of this library. It's moved to another library. Here for bc reasons.
-from grpredict import ExponentialMovingStd # previously, this was part of this library. It's moved to another library. Here for bc reasons.
-from grpredict import CultureGrowthEKF # previously, this was part of this library. It's moved to another library. Here for bc reasons.
+from typing import TYPE_CHECKING
+
+from grpredict import (
+    CultureGrowthEKF,
+)  # previously, this was part of this library. It's moved to another library. Here for bc reasons.
+from grpredict import (
+    ExponentialMovingAverage,
+)  # previously, this was part of this library. It's moved to another library. Here for bc reasons.
+from grpredict import (
+    ExponentialMovingStd,
+)  # previously, this was part of this library. It's moved to another library. Here for bc reasons.
+from msgspec.json import encode as dumps
 
 if TYPE_CHECKING:
     from pioreactor.pubsub import Client

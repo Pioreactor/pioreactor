@@ -44,7 +44,6 @@ class DosingObservationSource(Protocol):
 
 
 class ExportODSource(ODObservationSource):
-
     is_live = False
 
     def __init__(
@@ -87,6 +86,7 @@ class ExportODSource(ODObservationSource):
 
 class EmptyDosingSource(DosingObservationSource):
     """An empty source that yields no dosing events."""
+
     is_live = False
 
     def __iter__(self) -> Iterator[DosingEvent]:
@@ -94,7 +94,6 @@ class EmptyDosingSource(DosingObservationSource):
 
 
 class ExportDosingSource(DosingObservationSource):
-
     is_live = False
 
     def __init__(
@@ -144,9 +143,7 @@ class ExportDosingSource(DosingObservationSource):
 
 
 class MqttODSource(ODObservationSource):
-
     is_live = True
-
 
     def __init__(self, unit: str, experiment: str, *, skip_first: int = 0):
         self.unit, self.experiment, self.skip_first = unit, experiment, skip_first

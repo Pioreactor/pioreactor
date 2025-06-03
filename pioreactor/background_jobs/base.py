@@ -96,7 +96,9 @@ class LoggerMixin:
     @property
     def logger(self):
         if self._logger is None:
-            self._logger = create_logger(name=self._logger_name if hasattr(self, "_logger_name") else self.__class__.__name__)
+            self._logger = create_logger(
+                name=self._logger_name if hasattr(self, "_logger_name") else self.__class__.__name__
+            )
         return self._logger
 
     def __del__(self):

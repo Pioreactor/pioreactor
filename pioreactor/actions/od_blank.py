@@ -163,7 +163,6 @@ def od_blank(
                     fake_data=whoami.is_testing_env(),
                     calibration=True,
                 ) as od_stream:
-
                     means, _ = od_statistics(
                         od_stream,
                         action_name,

@@ -38,11 +38,11 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import datetime
+from statistics import mean
+from threading import Event
+from threading import Thread
 from time import sleep
 from typing import Generator
-from threading import Thread
-from threading import Event
-from statistics import mean
 
 import click
 from msgspec.json import decode as loads
@@ -67,12 +67,7 @@ from pioreactor.utils.streaming_calculations import CultureGrowthEKF
 
 
 class GrowthRateProcessor(LoggerMixin):
-
-    def __init__(
-        self,
-        ignore_cache: bool = False,
-        stopping_event: Event | None = None
-    ):
+    def __init__(self, ignore_cache: bool = False, stopping_event: Event | None = None):
         super().__init__()
 
         self.ignore_cache = ignore_cache
@@ -91,6 +86,7 @@ class GrowthRateProcessor(LoggerMixin):
         self, od_std: float, rate_std: float, obs_std: float, od_stream: ODObservationSource
     ) -> CultureGrowthEKF:
         import numpy as np
+
         self.logger.debug(f"{od_std=}, {rate_std=}, {obs_std=}")
 
         initial_nOD, initial_growth_rate = self.get_initial_values(od_stream)
@@ -105,8 +101,8 @@ class GrowthRateProcessor(LoggerMixin):
 
         initial_covariance = np.array(
             [
-                [1.**2, 0],   # 1 and 0.25 are approx errors in the initial state.
-                [0, 0.25**2],
+                [0.04**2, 0],
+                [0, 0.01**2],
             ]
         )
         self.logger.debug(f"Initial covariance matrix:\n{repr(initial_covariance)}")
@@ -311,11 +307,10 @@ class GrowthRateProcessor(LoggerMixin):
             return loads(result)
 
     @staticmethod
-    def _scale_and_shift(obs:float, shift:float, scale:float) -> float:
+    def _scale_and_shift(obs: float, shift: float, scale: float) -> float:
         return (obs - shift) / (scale - shift)
 
     def scale_raw_observations(self, od_readings: structs.ODReadings) -> dict[pt.PdChannel, float]:
-
         scaled_signals = {
             channel: self._scale_and_shift(
                 od_readings.ods[channel].od,
@@ -399,7 +394,6 @@ class GrowthRateProcessor(LoggerMixin):
         self._obs_required_to_reset = 1
         self._recent_dilution = True
 
-
     def process_until_disconnected_or_exhausted_in_background(
         self, od_stream: ODObservationSource, dosing_stream: DosingObservationSource
     ) -> None:
@@ -412,7 +406,6 @@ class GrowthRateProcessor(LoggerMixin):
                 pass
 
         Thread(target=consume, args=(od_stream, dosing_stream), daemon=True).start()
-
 
     def process_until_disconnected_or_exhausted(
         self, od_stream: ODObservationSource, dosing_stream: DosingObservationSource
@@ -437,7 +430,7 @@ class GrowthRateProcessor(LoggerMixin):
             od_std=config.getfloat("growth_rate_kalman", "od_std"),
             rate_std=config.getfloat("growth_rate_kalman", "rate_std"),
             obs_std=config.getfloat("growth_rate_kalman", "obs_std"),
-            od_stream=od_stream
+            od_stream=od_stream,
         )
 
         # how should we merge streams?
@@ -493,7 +486,9 @@ class GrowthRateCalculator(BackgroundJob):
         self.processor = GrowthRateProcessor(ignore_cache=ignore_cache, stopping_event=self._blocking_event)
         self.processor.add_external_logger(self.logger)
 
-    def process_until_disconnected_or_exhausted_in_background(self, od_stream: ODObservationSource, dosing_stream: DosingObservationSource) -> None:
+    def process_until_disconnected_or_exhausted_in_background(
+        self, od_stream: ODObservationSource, dosing_stream: DosingObservationSource
+    ) -> None:
         """
         This is function that will wrap process_until_disconnected_or_exhausted in a thread so the main thread can still do work (like publishing) - useful in tests.
         """
@@ -515,7 +510,6 @@ class GrowthRateCalculator(BackgroundJob):
                 cache[self.experiment] = self.od_filtered.od_filtered
 
             yield self.growth_rate, self.od_filtered, self.kalman_filter_outputs
-
 
 
 @click.group(invoke_without_command=True, name="growth_rate_calculating")

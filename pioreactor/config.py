@@ -175,8 +175,6 @@ def get_config() -> ConfigParserMod:
     return config
 
 
-
-
 @cache
 def get_leader_hostname() -> str:
     return get_config().get("cluster.topology", "leader_hostname", fallback="localhost")
