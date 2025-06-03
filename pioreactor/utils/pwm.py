@@ -28,7 +28,6 @@ if is_testing_env():
     from pioreactor.utils.mock import MockHardwarePWM as HardwarePWM
 else:
     from rpi_hardware_pwm import HardwarePWM  # type: ignore
-    from rpi_hardware_pwm import HardwarePWMException  # type: ignore
 
 
 class HardwarePWMOutputDevice(HardwarePWM):
@@ -41,12 +40,14 @@ class HardwarePWMOutputDevice(HardwarePWM):
 
         pwm_channel = self.HARDWARE_PWM_CHANNELS[pin]
 
-        try:
-            super().__init__(
-                pwm_channel, hz=frequency
-            )  # default is chip=0 for all except RPi5 on Kernel 6.6 (which is 2)
-        except HardwarePWMException:
+        import platform
+        from pioreactor.version import rpi_version_info
+
+        if rpi_version_info.startswith("Raspberry Pi 5") and "Linux-6.6" in platform.platform():
+            # default is chip=0 for all except RPi5 on Kernel 6.6 (which is 2)
             super().__init__(pwm_channel, hz=frequency, chip=2)
+        else:
+            super().__init__(pwm_channel, hz=frequency, chip=0)
 
     def start(self, initial_dc: pt.FloatBetween0and100) -> None:
         self._started = True
