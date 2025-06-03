@@ -1,5 +1,5 @@
 -r requirements.txt
-Adafruit-Blinka==8.57.0
+Adafruit-Blinka==8.58.1
 adafruit-circuitpython-ads1x15==2.2.23
 adafruit-circuitpython-busdevice==5.2.9
 adafruit-circuitpython-connectionmanager==3.1.1
