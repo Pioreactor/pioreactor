@@ -43,7 +43,7 @@ class HardwarePWMOutputDevice(HardwarePWM):
         import platform
         from pioreactor.version import rpi_version_info
 
-        if rpi_version_info.startswith("Raspberry Pi 5") and "6.6" in platform.platform():
+        if rpi_version_info.startswith("Raspberry Pi 5") and "Linux-6.6" in platform.platform():
             # default is chip=0 for all except RPi5 on Kernel 6.6 (which is 2)
             super().__init__(pwm_channel, hz=frequency, chip=2)
         else:

@@ -1,3 +1,11 @@
+### 25.6.3
+(hotfix patch)
+
+#### Bug fixes
+ - update Adafruit-Blinka to fix USB issue.
+ - Fix for HardwarePWM on RPi5 on linux kernel 6.6
+
+
 ### 25.5.22
 
 #### Enhancements
