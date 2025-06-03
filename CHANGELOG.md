@@ -1,3 +1,9 @@
+### Upcoming
+
+ - move KF to grpredict
+ - sorting calibrations by unit
+
+
 ### 25.5.22
 
 #### Enhancements

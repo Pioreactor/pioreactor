@@ -200,7 +200,12 @@ def get_pioreactor_model() -> str:
 
 @cache
 def get_pioreactor_model_and_version() -> str:
-    maybe_model = get_pioreactor_model()
+    try:
+        maybe_model = get_pioreactor_model()
+    except NoWorkerFoundError:
+        # possibly it's the leader-only?
+        return ""
+
     if maybe_model:
         return f"{maybe_model} v{'.'.join(map(str, get_pioreactor_version()))}"
     else:

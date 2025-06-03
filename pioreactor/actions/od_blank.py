@@ -163,10 +163,6 @@ def od_blank(
                     fake_data=whoami.is_testing_env(),
                     calibration=True,
                 ) as od_stream:
-                    # warm up OD reader
-                    for count, _ in enumerate(od_stream, start=0):
-                        if count == 5:
-                            break
 
                     means, _ = od_statistics(
                         od_stream,

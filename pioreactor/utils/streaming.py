@@ -28,6 +28,8 @@ from pioreactor.utils.timing import to_datetime
 class ODObservationSource(Protocol):
     """Anything that can be iterated to yield ODReadings objects."""
 
+    is_live: bool
+
     def __iter__(self) -> Iterator[ODReadings]:
         ...
 
@@ -35,11 +37,16 @@ class ODObservationSource(Protocol):
 class DosingObservationSource(Protocol):
     """Anything that can be iterated to yield ODReadings objects."""
 
+    is_live: bool
+
     def __iter__(self) -> Iterator[DosingEvent]:
         ...
 
 
 class ExportODSource(ODObservationSource):
+
+    is_live = False
+
     def __init__(
         self,
         filename: str,
@@ -63,7 +70,7 @@ class ExportODSource(ODObservationSource):
         self.file_instance.close()
 
     def __iter__(self):
-        for i, line in enumerate(self.csv_reader):
+        for i, line in enumerate(self.csv_reader, start=1):
             if i <= self.skip_first:
                 continue
             if self.pioreactor_unit != "$broadcast" and self.pioreactor_unit != line["pioreactor_unit"]:
@@ -80,12 +87,16 @@ class ExportODSource(ODObservationSource):
 
 class EmptyDosingSource(DosingObservationSource):
     """An empty source that yields no dosing events."""
+    is_live = False
 
     def __iter__(self) -> Iterator[DosingEvent]:
         return iter([])
 
 
 class ExportDosingSource(DosingObservationSource):
+
+    is_live = False
+
     def __init__(
         self,
         filename: str | None,
@@ -133,6 +144,10 @@ class ExportDosingSource(DosingObservationSource):
 
 
 class MqttODSource(ODObservationSource):
+
+    is_live = True
+
+
     def __init__(self, unit: str, experiment: str, *, skip_first: int = 0):
         self.unit, self.experiment, self.skip_first = unit, experiment, skip_first
 
@@ -153,6 +168,8 @@ class MqttODSource(ODObservationSource):
 
 
 class MqttDosingSource(DosingObservationSource):
+    is_live = True
+
     def __init__(self, unit: str, experiment: str):
         self.unit, self.experiment = unit, experiment
 

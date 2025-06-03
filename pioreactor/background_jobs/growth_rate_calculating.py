@@ -40,6 +40,9 @@ from collections import defaultdict
 from datetime import datetime
 from time import sleep
 from typing import Generator
+from threading import Thread
+from threading import Event
+from statistics import mean
 
 import click
 from msgspec.json import decode as loads
@@ -50,6 +53,7 @@ from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.actions.od_blank import od_statistics
 from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.background_jobs.base import LoggerMixin
 from pioreactor.background_jobs.od_reading import VALID_PD_ANGLES
 from pioreactor.config import config
 from pioreactor.utils import local_persistent_storage
@@ -62,37 +66,17 @@ from pioreactor.utils.streaming import ODObservationSource
 from pioreactor.utils.streaming_calculations import CultureGrowthEKF
 
 
-class GrowthRateCalculator(BackgroundJob):
-    """
-    Parameters
-    -----------
-    ignore_cache: bool
-        ignore any cached calculated statistics from this experiment.
-    """
-
-    job_name = "growth_rate_calculating"
-    published_settings = {
-        "growth_rate": {
-            "datatype": "GrowthRate",
-            "settable": False,
-            "unit": "h⁻¹",
-        },
-        "od_filtered": {"datatype": "ODFiltered", "settable": False},
-        "kalman_filter_outputs": {
-            "datatype": "KalmanFilterOutput",
-            "settable": False,
-        },
-    }
+class GrowthRateProcessor(LoggerMixin):
 
     def __init__(
         self,
-        unit: str,
-        experiment: str,
         ignore_cache: bool = False,
+        stopping_event: Event | None = None
     ):
-        super(GrowthRateCalculator, self).__init__(unit=unit, experiment=experiment)
+        super().__init__()
 
         self.ignore_cache = ignore_cache
+        self.stopping_event = stopping_event
         self.time_of_previous_observation: datetime | None = None
         self.expected_dt = 1 / (
             60 * 60 * config.getfloat("od_reading.config", "samples_per_second")
@@ -104,11 +88,12 @@ class GrowthRateCalculator(BackgroundJob):
         self._recent_dilution = False
 
     def initialize_extended_kalman_filter(
-        self, od_std: float, rate_std: float, obs_std: float
+        self, od_std: float, rate_std: float, obs_std: float, od_stream: ODObservationSource
     ) -> CultureGrowthEKF:
         import numpy as np
+        self.logger.debug(f"{od_std=}, {rate_std=}, {obs_std=}")
 
-        initial_nOD, initial_growth_rate = self.get_initial_values()
+        initial_nOD, initial_growth_rate = self.get_initial_values(od_stream)
 
         initial_state = np.array(
             [
@@ -118,11 +103,12 @@ class GrowthRateCalculator(BackgroundJob):
         )
         self.logger.debug(f"Initial state: {repr(initial_state)}")
 
-        self.logger.debug(f"{od_std=}, {rate_std=}, {obs_std=}")
-
-        initial_covariance = 1e-4 * np.eye(
-            2
-        )  # empirically selected - TODO: this should probably scale with `expected_dt`
+        initial_covariance = np.array(
+            [
+                [1.**2, 0],   # 1 and 0.25 are approx errors in the initial state.
+                [0, 0.25**2],
+            ]
+        )
         self.logger.debug(f"Initial covariance matrix:\n{repr(initial_covariance)}")
         od_process_variance = (od_std * self.expected_dt) ** 2
         rate_process_variance = (rate_std * self.expected_dt) ** 2
@@ -183,7 +169,6 @@ class GrowthRateCalculator(BackgroundJob):
                     for channel in self.od_normalization_factors
                 ]
             )
-
             obs_variances = obs_std**2 * np.diag(scaling_obs_variances)
             return obs_variances
         except ZeroDivisionError:
@@ -218,30 +203,29 @@ class GrowthRateCalculator(BackgroundJob):
             n_samples=config.getint(
                 "growth_rate_calculating.config", "samples_for_od_statistics", fallback=35
             ),
-            unit=self.unit,
-            experiment=self.experiment,
             logger=self.logger,
-            skip_stirring=not isinstance(od_stream, MqttODSource),  # skip stirring if not using MqttODSource
+            skip_stirring=od_stream.is_live,  # skip stirring if not using MqttODSource
         )
         self.logger.info("Completed OD normalization metrics.")
 
-        with local_persistent_storage("od_normalization_mean") as cache:
-            if self.experiment not in cache:
-                cache[self.experiment] = dumps(means)
+        if not self.ignore_cache:
+            with local_persistent_storage("od_normalization_mean") as cache:
+                if self.experiment not in cache:
+                    cache[self.experiment] = dumps(means)
 
-        with local_persistent_storage("od_normalization_variance") as cache:
-            if self.experiment not in cache:
-                cache[self.experiment] = dumps(variances)
+            with local_persistent_storage("od_normalization_variance") as cache:
+                if self.experiment not in cache:
+                    cache[self.experiment] = dumps(variances)
 
         return means, variances
 
-    def get_initial_values(self) -> tuple[float, float]:
+    def get_initial_values(self, od_stream: ODObservationSource) -> tuple[float, float]:
         if self.ignore_cache:
             initial_growth_rate = 0.0
-            initial_nOD = 1.0
+            initial_nOD = self.get_filtered_od_from_stream(od_stream)
         else:
             initial_growth_rate = self.get_growth_rate_from_cache()
-            initial_nOD = self.get_filtered_od_from_cache()
+            initial_nOD = self.get_filtered_od_from_cache_or_stream()
         return (initial_nOD, initial_growth_rate)
 
     def get_precomputed_values(
@@ -259,7 +243,10 @@ class GrowthRateCalculator(BackgroundJob):
                 )
                 od_normalization_factors, od_variances = self._compute_and_cache_od_statistics(od_stream)
 
-        od_blank = self.get_od_blank_from_cache()
+        if not self.ignore_cache:
+            od_blank = self.get_od_blank_from_cache()
+        else:
+            od_blank = defaultdict(lambda: 0.0)
 
         # check that od_variances is not zero:
         # this means that the sensor is not working properly.
@@ -299,9 +286,17 @@ class GrowthRateCalculator(BackgroundJob):
         with local_persistent_storage("growth_rate") as cache:
             return cache.get(self.experiment, 0.0)
 
-    def get_filtered_od_from_cache(self) -> float:
+    def get_filtered_od_from_cache_or_stream(self, od_stream: ODObservationSource) -> float:
         with local_persistent_storage("od_filtered") as cache:
-            return cache.get(self.experiment, 1.0)
+            value = cache.get(self.experiment)
+        if value:
+            return value
+        else:
+            return self.get_filtered_od_from_stream(od_stream)
+
+    def get_filtered_od_from_stream(self, od_stream: ODObservationSource) -> float:
+        scaled_od_readings = self.scale_raw_observations(next(iter(od_stream)))
+        return mean(scaled_od_readings[channel] for channel in scaled_od_readings.keys())
 
     def get_od_normalization_from_cache(self) -> dict[pt.PdChannel, float]:
         # we check if we've computed mean stats
@@ -315,15 +310,19 @@ class GrowthRateCalculator(BackgroundJob):
             result = cache[self.experiment]
             return loads(result)
 
-    def scale_raw_observations(self, observations: dict[pt.PdChannel, float]) -> dict[pt.PdChannel, float]:
-        def _scale_and_shift(obs, shift, scale) -> float:
-            return (obs - shift) / (scale - shift)
+    @staticmethod
+    def _scale_and_shift(obs:float, shift:float, scale:float) -> float:
+        return (obs - shift) / (scale - shift)
+
+    def scale_raw_observations(self, od_readings: structs.ODReadings) -> dict[pt.PdChannel, float]:
 
         scaled_signals = {
-            channel: _scale_and_shift(
-                raw_signal, self.od_blank[channel], self.od_normalization_factors[channel]
+            channel: self._scale_and_shift(
+                od_readings.ods[channel].od,
+                self.od_blank[channel],
+                self.od_normalization_factors[channel],
             )
-            for channel, raw_signal in observations.items()
+            for channel in sorted(od_readings.ods, reverse=True)
         }
 
         if any(v < 0.0 for v in scaled_signals.values()):
@@ -342,7 +341,7 @@ class GrowthRateCalculator(BackgroundJob):
     ) -> tuple[structs.ODReadings, tuple[structs.GrowthRate, structs.ODFiltered, structs.KalmanFilterOutput]]:
         timestamp = od_readings.timestamp
 
-        scaled_observations = self.scale_raw_observations(self._batched_od_readings_to_dict(od_readings.ods))
+        scaled_observations = self.scale_raw_observations(od_readings)
 
         if whoami.is_testing_env():
             # when running a mock script, we run at an accelerated rate, but want to mimic
@@ -400,14 +399,6 @@ class GrowthRateCalculator(BackgroundJob):
         self._obs_required_to_reset = 1
         self._recent_dilution = True
 
-    @staticmethod
-    def _batched_od_readings_to_dict(
-        raw_od_readings: dict[pt.PdChannel, structs.ODReading]
-    ) -> dict[pt.PdChannel, pt.OD]:
-        """
-        Extract the od floats from ODReading but keep the same keys
-        """
-        return {channel: raw_od_readings[channel].od for channel in sorted(raw_od_readings, reverse=True)}
 
     def process_until_disconnected_or_exhausted_in_background(
         self, od_stream: ODObservationSource, dosing_stream: DosingObservationSource
@@ -415,7 +406,6 @@ class GrowthRateCalculator(BackgroundJob):
         """
         This is function that will wrap process_until_disconnected_or_exhausted in a thread so the main thread can still do work (like publishing) - useful in tests.
         """
-        from threading import Thread
 
         def consume(od_stream, dosing_stream):
             for _ in self.process_until_disconnected_or_exhausted(od_stream, dosing_stream):
@@ -423,24 +413,8 @@ class GrowthRateCalculator(BackgroundJob):
 
         Thread(target=consume, args=(od_stream, dosing_stream), daemon=True).start()
 
+
     def process_until_disconnected_or_exhausted(
-        self, od_stream: ODObservationSource, dosing_stream: DosingObservationSource
-    ) -> Generator[tuple[structs.GrowthRate, structs.ODFiltered, structs.KalmanFilterOutput], None, None]:
-        for _, (
-            self.growth_rate,
-            self.od_filtered,
-            self.kalman_filter_outputs,
-        ) in self._process_until_disconnected_or_exhausted(od_stream, dosing_stream):
-            # save to cache
-            with local_persistent_storage("growth_rate") as cache:
-                cache[self.experiment] = self.growth_rate.growth_rate
-
-            with local_persistent_storage("od_filtered") as cache:
-                cache[self.experiment] = self.od_filtered.od_filtered
-
-            yield self.growth_rate, self.od_filtered, self.kalman_filter_outputs
-
-    def _process_until_disconnected_or_exhausted(
         self, od_stream: ODObservationSource, dosing_stream: DosingObservationSource
     ) -> Generator[
         tuple[structs.ODReadings, tuple[structs.GrowthRate, structs.ODFiltered, structs.KalmanFilterOutput]],
@@ -463,11 +437,12 @@ class GrowthRateCalculator(BackgroundJob):
             od_std=config.getfloat("growth_rate_kalman", "od_std"),
             rate_std=config.getfloat("growth_rate_kalman", "rate_std"),
             obs_std=config.getfloat("growth_rate_kalman", "obs_std"),
+            od_stream=od_stream
         )
 
         # how should we merge streams?
         if isinstance(od_stream, MqttODSource) and isinstance(dosing_stream, MqttDosingSource):
-            merged_streams = merge_live_streams(od_stream, dosing_stream, stop_event=self._blocking_event)
+            merged_streams = merge_live_streams(od_stream, dosing_stream, stop_event=self.stopping_event)
         else:
             merged_streams = merge_historical_streams(od_stream, dosing_stream, key=lambda t: t.timestamp)
 
@@ -484,6 +459,63 @@ class GrowthRateCalculator(BackgroundJob):
                 continue
             else:
                 raise ValueError(f"Unexpected event type: {type(event)}. Expected ODReadings or DosingEvent.")
+
+
+class GrowthRateCalculator(BackgroundJob):
+    """
+    Parameters
+    -----------
+    ignore_cache: bool
+        ignore any cached calculated statistics from this experiment. Use if running a replay.
+    """
+
+    job_name = "growth_rate_calculating"
+    published_settings = {
+        "growth_rate": {
+            "datatype": "GrowthRate",
+            "settable": False,
+            "unit": "h⁻¹",
+        },
+        "od_filtered": {"datatype": "ODFiltered", "settable": False},
+        "kalman_filter_outputs": {
+            "datatype": "KalmanFilterOutput",
+            "settable": False,
+        },
+    }
+
+    def __init__(
+        self,
+        unit: str,
+        experiment: str,
+        ignore_cache: bool = False,
+    ):
+        super(GrowthRateCalculator, self).__init__(unit=unit, experiment=experiment)
+        self.processor = GrowthRateProcessor(ignore_cache=ignore_cache, stopping_event=self._blocking_event)
+        self.processor.add_external_logger(self.logger)
+
+    def process_until_disconnected_or_exhausted_in_background(self, od_stream: ODObservationSource, dosing_stream: DosingObservationSource) -> None:
+        """
+        This is function that will wrap process_until_disconnected_or_exhausted in a thread so the main thread can still do work (like publishing) - useful in tests.
+        """
+        self.processor.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
+
+    def process_until_disconnected_or_exhausted(
+        self, od_stream: ODObservationSource, dosing_stream: DosingObservationSource
+    ) -> Generator[tuple[structs.GrowthRate, structs.ODFiltered, structs.KalmanFilterOutput], None, None]:
+        for _, (
+            self.growth_rate,
+            self.od_filtered,
+            self.kalman_filter_outputs,
+        ) in self.processor.process_until_disconnected_or_exhausted(od_stream, dosing_stream):
+            # save to cache
+            with local_persistent_storage("growth_rate") as cache:
+                cache[self.experiment] = self.growth_rate.growth_rate
+
+            with local_persistent_storage("od_filtered") as cache:
+                cache[self.experiment] = self.od_filtered.od_filtered
+
+            yield self.growth_rate, self.od_filtered, self.kalman_filter_outputs
+
 
 
 @click.group(invoke_without_command=True, name="growth_rate_calculating")

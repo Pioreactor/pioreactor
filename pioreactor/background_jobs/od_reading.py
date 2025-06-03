@@ -761,7 +761,7 @@ class ODReader(BackgroundJob):
     >> od_reading = od_reader.record_from_adc()
 
     """
-
+    is_live = True # part of streaming to growth-rate protocol
     job_name = "od_reading"
     published_settings = {
         "first_od_obs_time": {"datatype": "float", "settable": False},
