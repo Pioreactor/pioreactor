@@ -81,8 +81,10 @@ def temp_zipfile(tmpdir):
 def test_export_experiment_data(temp_zipfile, mock_load_exportable_datasets) -> None:
     # Set up a temporary SQLite database with sample data
     conn = sqlite3.connect(":memory:")
-    conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp DATETIME)")
-    conn.execute("INSERT INTO test_table (id, name, timestamp) VALUES (1, 'John', '2021-09-01 00:00:00')")
+    conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp DATETIME, reading FLOAT)")
+    conn.execute(
+        "INSERT INTO test_table (id, name, timestamp, reading) VALUES (1, 'John', '2025-04-16T04:51:12.858Z', 0.04742762498678758)"
+    )
     conn.commit()
 
     # Mock the connection and logger objects
@@ -110,14 +112,16 @@ def test_export_experiment_data(temp_zipfile, mock_load_exportable_datasets) -> 
         with zf.open(csv_filename) as csv_file:
             content = csv_file.read().decode("utf-8").strip()
             headers, rows = content.split("\r\n")
-            assert headers == "id,name,timestamp,timestamp_localtime"
+            assert headers == "id,name,timestamp,reading,timestamp_localtime"
             values = rows.split(",")
             assert values[0] == "1"
             assert values[1] == "John"
-            assert values[2] == "2021-09-01 00:00:00"
+            assert values[2] == "2025-04-16T04:51:12.858Z"
+            assert values[3] == "0.047427624987"
             assert (
-                values[3][:4] == "2021"
+                values[4][:4] == "2025"
             )  # can't compare exactly since it uses datetime(ts, 'locatime') in sqlite3, and the localtime will vary between CI servers.
+            assert "12.858" in values[4]
 
 
 def test_export_experiment_data_with_base64_data(temp_zipfile, mock_load_exportable_datasets) -> None:

@@ -21,6 +21,22 @@ from pioreactor.logging import create_logger
 from pioreactor.structs import Dataset
 
 
+def rounded_row_factory(cursor, row):
+    """
+    For each value in row, if it's a Python float, round it to N decimals.
+    Otherwise, leave it alone.
+    Returns a tuple (you could also return a namedtuple or dict if you prefer).
+    """
+    rounded = []
+    for value in row:
+        if isinstance(value, float):
+            # round(..., N) returns a float with N decimals
+            rounded.append(round(value, 12))
+        else:
+            rounded.append(value)
+    return tuple(rounded)
+
+
 def source_exists(cursor, table_name_to_check: str) -> bool:
     query = "SELECT 1 FROM sqlite_master WHERE (type='table' or type='view') and name = ?"
     return cursor.execute(query, (table_name_to_check,)).fetchone() is not None
@@ -30,7 +46,9 @@ def generate_timestamp_to_localtimestamp_clause(timestamp_columns: list[str]) ->
     if not timestamp_columns:
         return ""
 
-    clause = ",".join([f"datetime(T.{c}, 'localtime') as {c}_localtime" for c in timestamp_columns])
+    clause = ",".join(
+        [f"strftime('%Y-%m-%d %H:%M:%f', T.{c}, 'localtime') as {c}_localtime" for c in timestamp_columns]
+    )
 
     return clause
 
@@ -175,6 +193,8 @@ def export_experiment_data(
         con.create_function(
             "BASE64", 1, decode_base64
         )  # TODO: until next OS release which implements a native sqlite3 base64 function
+
+        con.row_factory = rounded_row_factory
 
         cursor = con.cursor()
         cursor.executescript(

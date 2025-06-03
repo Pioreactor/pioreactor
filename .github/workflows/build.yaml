@@ -121,7 +121,6 @@ jobs:
         run: |
           cd release_assets
           zip -r ../release_${{ github.event.release.tag_name }}.zip .
-          sha256sum ../release_${{ github.event.release.tag_name }}.zip > ../release_${{ github.event.release.tag_name }}.zip.sha256
       - name: Upload zipped assets
         uses: svenstaro/upload-release-action@v2
         with:
@@ -129,13 +128,7 @@ jobs:
           file: release_${{ github.event.release.tag_name }}.zip
           tag: ${{ github.event.release.tag_name }}
           overwrite: true
-      - name: Upload hash
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: release_${{ github.event.release.tag_name }}.zip.sha256
-          tag: ${{ github.event.release.tag_name }}
-          overwrite: true
+
 
   publish-on-pypi:
     name: 📦 Publish tagged releases to PyPI

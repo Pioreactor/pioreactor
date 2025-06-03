@@ -1,8 +1,9 @@
-<<<<<<< HEAD
 ### Upcoming
 
  - move KF to grpredict
  - sorting calibrations by unit
+ - localtime in exports has subsecond precision.
+ - floats are round to 12 decimals points in exports.
 
 
 ### 25.6.3
