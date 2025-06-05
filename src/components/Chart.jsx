@@ -108,7 +108,15 @@ class Chart extends React.Component {
       transformX = (x) => dayjs.utc(x, 'YYYY-MM-DDTHH:mm:ss.SSS').local()
     }
 
-    await fetch(`/api/experiments/${this.props.experiment}/time_series/${this.props.dataSource}${this.props.dataSourceColumn ? "/" + this.props.dataSourceColumn : ""}?${queryParams}`)
+    var url;
+    if (this.props.unit){
+      url = `/api/workers/${this.props.unit}/experiments/${this.props.experiment}/time_series/${this.props.dataSource}${this.props.dataSourceColumn ? "/" + this.props.dataSourceColumn : ""}?${queryParams}`
+    }
+    else {
+      url = `/api/experiments/${this.props.experiment}/time_series/${this.props.dataSource}${this.props.dataSourceColumn ? "/" + this.props.dataSourceColumn : ""}?${queryParams}`
+    }
+
+    await fetch(url)
       .then((response) => {
         return response.json();
       })

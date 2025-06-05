@@ -293,7 +293,7 @@ function ButtonStopProcess({experiment}) {
   };
 
   return (
-    <Button style={{textTransform: 'none', float: "right" }} color="secondary" onClick={handleClick}>
+    <Button sx={{textTransform: 'none', float: "right" }} color="secondary" onClick={handleClick}>
       <ClearIcon fontSize="small" sx={textIcon}/> Stop all activity
     </Button>
   );
@@ -2429,6 +2429,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
               <Tooltip title={indicatorLabel} placement="left">
                 <div className="indicator-dot-beside-button" style={{boxShadow: `0 0 ${indicatorDotShadow}px ${indicatorDotColor}, inset 0 0 12px  ${indicatorDotColor}`}}/>
               </Tooltip>
+              <PioreactorIconWithModel model={modelName} />
               <Typography sx={{
                   fontSize: 20,
                   color: "rgba(0, 0, 0, 0.87)",
@@ -2436,7 +2437,6 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
                   ...(isUnitActive ? {} : { color: disabledColor }),
                 }}
                 gutterBottom>
-                <PioreactorIconWithModel model={modelName} />
                 {(label ) ? label : unit }
               </Typography>
               <Button disabled={!isUnitActive} component={Link} to={`/pioreactors/${unit}`} sx={{padding: "0px 8px", marginBottom: "7px", ml: 1, textTransform: "none", ...(isUnitActive ? {} : { color: disabledColor }),}}>

@@ -62,7 +62,7 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
   useEffect(() => {
     const getData = async () => {
       const response = await fetch(
-        `/api/experiments/${experiment}/logs?` +
+        `/api/experiments/${experiment}/recent_logs?` +
           new URLSearchParams({
             min_level: config.logging.ui_log_level,
           })

@@ -36,6 +36,7 @@ const DisplaySourceCode = ({ sourceCode }) => {
           highlight={(code) => highlight(code, languages.yaml)}
           padding={0}
           className={'readonlyEditor'}
+          onFocus={(e) => e.target.select()}
           readOnly={"readonly"}
           style={{
             fontSize: "14px",

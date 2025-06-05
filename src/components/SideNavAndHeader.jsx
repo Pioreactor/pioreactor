@@ -449,8 +449,8 @@ export default function SideNavAndHeader() {
 
               <Typography variant="h6"  sx={{ flexGrow: 1 }}>
                 <Link color="inherit" underline="none" to="/" >
-                  <img alt="pioreactor logo" src="/white_colour.png" style={{width: "120px", height: "29px"}}/> <
-                /Link>
+                  <img alt="pioreactor logo" src="/white_colour.png" style={{width: "120px", height: "29px"}}/>
+                </Link>
               </Typography>
 
 
