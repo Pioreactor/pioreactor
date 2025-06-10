@@ -201,7 +201,9 @@ class Stirrer(BackgroundJobWithDodging):
     # the _estimate_duty_cycle parameter is like the unrealized DC, and the duty_cycle is the realized DC.
     _estimate_duty_cycle: float = config.getfloat("stirring.config", "initial_duty_cycle", fallback=30)
     duty_cycle: float = 0
-    _measured_rpm: Optional[float] = None
+    _measured_rpm: float | None = None
+    target_rpm_during_od_reading: float | None = None
+    target_rpm_outside_od_reading: float | None = None
 
     def __init__(
         self,
@@ -273,11 +275,15 @@ class Stirrer(BackgroundJobWithDodging):
         )
 
     def action_to_do_before_od_reading(self):
-        self.stop_stirring()
+        assert self.target_rpm_during_od_reading is not None
+        self.set_target_rpm(self.target_rpm_during_od_reading)
+        sleep(0.15)
+        self.poll_and_update_dc()
 
     def action_to_do_after_od_reading(self):
-        self.start_stirring()
-        sleep(1)
+        assert self.target_rpm_outside_od_reading is not None
+        self.set_target_rpm(self.target_rpm_outside_od_reading)
+        sleep(0.15)
         self.poll_and_update_dc()
 
     def initialize_dodging_operation(self):
@@ -298,6 +304,22 @@ class Stirrer(BackgroundJobWithDodging):
         with self.duty_cycle_lock:
             self.stop_stirring()  # we'll start it again in action_to_do_after_od_reading
 
+        # publish the target_rpm_during_od_reading:
+        self.add_to_published_settings(
+            "target_rpm_during_od_reading", {"datatype": "float", "settable": True, "unit": "RPM"}
+        )
+        # publish the target_rpm_during_od_reading:
+        self.add_to_published_settings(
+            "target_rpm_outside_od_reading", {"datatype": "float", "settable": True, "unit": "RPM"}
+        )
+
+        self.target_rpm_during_od_reading = config.getfloat(
+            "stirring.config", "target_rpm_during_od_reading", fallback=0.0
+        )
+        self.target_rpm_outside_od_reading = config.getfloat(
+            "stirring.config", "target_rpm_outside_od_reading", fallback=self.target_rpm
+        )
+
     def initialize_continuous_operation(self):
         # set up thread to periodically check the rpm
         self.rpm_check_repeated_timer = RepeatedTimer(
@@ -311,6 +333,10 @@ class Stirrer(BackgroundJobWithDodging):
 
         if self.duty_cycle == 0:
             self.start_stirring()
+
+        # remmove the target_rpm_during_od_reading, no error if not present.
+        self.remove_from_published_settings("target_rpm_during_od_reading")
+        self.remove_from_published_settings("target_rpm_outside_od_reading")
 
     def initialize_rpm_to_dc_lookup(
         self, calibration: bool | structs.SimpleStirringCalibration | None
@@ -449,7 +475,7 @@ class Stirrer(BackgroundJobWithDodging):
             return
 
         if poll_for_seconds is None:
-            target_n_data_points = 12
+            target_n_data_points = 10
             rps = self.target_rpm / 60.0
             poll_for_seconds = max(
                 1, min(target_n_data_points / rps, 5)
@@ -484,6 +510,11 @@ class Stirrer(BackgroundJobWithDodging):
             self._estimate_duty_cycle = 0
         else:
             self._estimate_duty_cycle = self.rpm_to_dc_lookup(self.target_rpm)
+
+        if self.duty_cycle == 0:
+            # we are currently _not_ moving, need to kick for a moment.
+            self.set_duty_cycle(100)  # get momentum to start
+            sleep(0.35)
 
         self.set_duty_cycle(self._estimate_duty_cycle)
         self.pid.set_setpoint(self.target_rpm)

@@ -557,6 +557,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # we need create a new dict (versus just a key update), since published_settings is a class level prop, and editing this would have effects for other BackgroundJob classes.
         self.published_settings = self.published_settings | new_setting_pair
 
+    def remove_from_published_settings(self, setting: str) -> None:
+        self.published_settings.pop(setting, None)
+
     ########### Private #############
 
     @staticmethod
