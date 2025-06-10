@@ -31,7 +31,6 @@ from pioreactor.background_jobs.od_reading import IR_keyword
 from pioreactor.background_jobs.od_reading import REF_keyword
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.config import config
-from pioreactor.config import temporary_config_change
 from pioreactor.hardware import is_HAT_present
 from pioreactor.hardware import is_heating_pcb_present
 from pioreactor.hardware import voltage_in_aux
@@ -75,9 +74,7 @@ def test_REF_is_in_correct_position(managed_state, logger: CustomLogger, unit: s
     signal2 = []
 
     with stirring.start_stirring(
-        target_rpm=1250,
-        unit=unit,
-        experiment=experiment,
+        target_rpm=1250, unit=unit, experiment=experiment, enable_dodging_od=False
     ) as st, start_od_reading(
         od_angle_channel1="90",
         od_angle_channel2="90",
@@ -158,9 +155,7 @@ def test_all_positive_correlations_between_pds_and_leds(
     # TODO: should we remove blank? Technically correlation is invariant to location.
 
     with stirring.start_stirring(
-        target_rpm=500,
-        unit=unit,
-        experiment=experiment,
+        target_rpm=500, unit=unit, experiment=experiment, enable_dodging_od=False
     ) as st:
         st.block_until_rpm_is_close_to_target(abs_tolerance=150, timeout=10)
         # for led_channel in ALL_LED_CHANNELS: # we use to check all LED channels, but most users don't need to check all, also https://github.com/Pioreactor/pioreactor/issues/445
@@ -428,7 +423,12 @@ def test_positive_correlation_between_rpm_and_stirring(
     with stirring.RpmFromFrequency() as rpm_calc:
         rpm_calc.setup()
         with stirring.Stirrer(
-            target_rpm=None, unit=unit, experiment=experiment, rpm_calculator=None, calibration=False
+            target_rpm=None,
+            unit=unit,
+            experiment=experiment,
+            rpm_calculator=None,
+            calibration=False,
+            enable_dodging_od=False,
         ) as st:
             st.set_duty_cycle(initial_dc)
             sleep(0.75)
@@ -527,9 +527,7 @@ def click_self_test(k: Optional[str], retry_failed: bool) -> int:
         test_run_stirring_calibration,
     )
 
-    with managed_lifecycle(unit, experiment, "self_test") as managed_state, temporary_config_change(
-        config, "stirring.config", "enable_dodging_od", "false"
-    ):
+    with managed_lifecycle(unit, experiment, "self_test") as managed_state:
         if any(
             is_pio_job_running(
                 ["od_reading", "temperature_automation", "stirring", "dosing_automation", "led_automation"]

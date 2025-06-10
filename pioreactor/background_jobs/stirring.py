@@ -212,8 +212,9 @@ class Stirrer(BackgroundJobWithDodging):
         experiment: str,
         rpm_calculator: Optional[RpmCalculator] = None,
         calibration: bool | structs.SimpleStirringCalibration | None = True,
+        enable_dodging_od: bool = False,
     ) -> None:
-        super(Stirrer, self).__init__(unit=unit, experiment=experiment)
+        super(Stirrer, self).__init__(unit=unit, experiment=experiment, enable_dodging_od=enable_dodging_od)
         self.rpm_calculator = rpm_calculator
 
         if not hardware.is_HAT_present():
@@ -593,6 +594,7 @@ def start_stirring(
     experiment: Optional[str] = None,
     use_rpm: bool = config.getboolean("stirring.config", "use_rpm", fallback="true"),
     calibration: bool | structs.SimpleStirringCalibration | None = True,
+    enable_dodging_od: bool = config.getboolean("stirring.config", "enable_dodging_od", fallback="false"),
 ) -> Stirrer:
     unit = unit or get_unit_name()
     experiment = experiment or get_assigned_experiment_name(unit)
@@ -612,6 +614,7 @@ def start_stirring(
         experiment=experiment,
         rpm_calculator=rpm_calculator,
         calibration=calibration,
+        enable_dodging_od=enable_dodging_od,
     )
     return stirrer
 

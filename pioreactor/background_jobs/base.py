@@ -556,6 +556,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self._check_published_settings(new_setting_pair)
         # we need create a new dict (versus just a key update), since published_settings is a class level prop, and editing this would have effects for other BackgroundJob classes.
         self.published_settings = self.published_settings | new_setting_pair
+        # let's publish it too
+        if hasattr(self, setting):
+            self._publish_setting(setting)
 
     def remove_from_published_settings(self, setting: str) -> None:
         self.published_settings.pop(setting, None)
@@ -1067,7 +1070,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
     sneak_in_timer: RepeatedTimer
     currently_dodging_od = False
 
-    def __init__(self, *args, source="app", **kwargs) -> None:
+    def __init__(self, *args, source="app", enable_dodging_od=False, **kwargs) -> None:
         super().__init__(*args, source=source, **kwargs)  # type: ignore
 
         if not config.has_section(f"{self.job_name}.config"):
@@ -1084,12 +1087,11 @@ class BackgroundJobWithDodging(_BackgroundJob):
         self.add_to_published_settings("enable_dodging_od", {"datatype": "boolean", "settable": True})
         self.add_to_published_settings("currently_dodging_od", {"datatype": "boolean", "settable": False})
         self._event_is_dodging_od = threading.Event()
+        self.enable_dodging_od = enable_dodging_od  # temp variable for __post__init__
 
     def __post__init__(self):
-        # this method runs after the subclasses init
-        self.set_enable_dodging_od(
-            config.getboolean(f"{self.job_name}.config", "enable_dodging_od", fallback="False")
-        )
+        # this method runs after the subclass' init
+        self.set_enable_dodging_od(self.enable_dodging_od)
         # now that `enable_dodging_od` is set, we can check for OD changes
         self.subscribe_and_callback(
             self._od_reading_changed_status,
