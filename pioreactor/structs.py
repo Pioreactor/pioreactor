@@ -25,7 +25,7 @@ T = t.TypeVar("T")
 def subclass_union(cls: t.Type[T]) -> t.Type[T]:
     """
     Returns a Union of all subclasses of `cls` (excluding `cls` itself)
-    Note: this can't be used in type inference...
+    Note: this can't be used in static type inference...
     """
 
     classes = set()
@@ -240,7 +240,7 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         if len(self.curve_data_) == 0:
             raise exc.NoSolutionsFoundError(f"calibration {self}'s curve_data_ is empty")
 
-        return sum([c * x**i for i, c in enumerate(reversed(self.curve_data_))])
+        return round(sum([c * x**i for i, c in enumerate(reversed(self.curve_data_))]), 10)
 
     def y_to_x(self, y: Y, enforce_bounds=False) -> X:
         """
@@ -276,11 +276,11 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
             sol = plausible_sols_[0]
 
             if not enforce_bounds:
-                return sol
+                return round(sol, 10)
 
             # if we are here, we let the downstream user decide how to proceed
             if min_X <= sol <= max_X:
-                return sol
+                return round(sol, 10)
             elif sol < min_X:
                 raise exc.SolutionBelowDomainError(f"Solution below domain [{min_X}, {max_X}]")
             else:
@@ -290,7 +290,7 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         closest_sol = closest_point_to_domain(plausible_sols_, (min_X, max_X))
         # closet sol can be inside or outside domain. If inside, happy path:
         if (min_X <= closest_sol <= max_X) or not enforce_bounds:
-            return closest_sol
+            return round(closest_sol, 10)
 
         # if we are here, we let the downstream user decide how to proceed
         elif closest_sol < min_X:

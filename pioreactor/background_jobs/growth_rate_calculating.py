@@ -67,11 +67,14 @@ from pioreactor.utils.streaming_calculations import CultureGrowthEKF
 
 
 class GrowthRateProcessor(LoggerMixin):
-    def __init__(self, ignore_cache: bool = False, stopping_event: Event | None = None):
+    def __init__(
+        self, ignore_cache: bool = False, cache_key: str | None = None, stopping_event: Event | None = None
+    ):
         super().__init__()
 
         self.ignore_cache = ignore_cache
         self.stopping_event = stopping_event
+        self.cache_key = cache_key
         self.time_of_previous_observation: datetime | None = None
         self.expected_dt = 1 / (
             60 * 60 * config.getfloat("od_reading.config", "samples_per_second")
@@ -91,12 +94,7 @@ class GrowthRateProcessor(LoggerMixin):
 
         initial_nOD, initial_growth_rate = self.get_initial_values(od_stream)
 
-        initial_state = np.array(
-            [
-                initial_nOD,
-                initial_growth_rate,
-            ]
-        )
+        initial_state = np.array([initial_nOD, initial_growth_rate])
         self.logger.debug(f"Initial state: {repr(initial_state)}")
 
         initial_covariance = np.array(
@@ -172,10 +170,10 @@ class GrowthRateProcessor(LoggerMixin):
             # we should clear the cache here...
 
             with local_persistent_storage("od_normalization_mean") as cache:
-                del cache[self.experiment]
+                del cache[self.cache_key]
 
             with local_persistent_storage("od_normalization_variance") as cache:
-                del cache[self.experiment]
+                del cache[self.cache_key]
 
             raise ZeroDivisionError(
                 "Is there an OD Reading that is 0? Maybe there's a loose photodiode connection?"
@@ -206,12 +204,12 @@ class GrowthRateProcessor(LoggerMixin):
 
         if not self.ignore_cache:
             with local_persistent_storage("od_normalization_mean") as cache:
-                if self.experiment not in cache:
-                    cache[self.experiment] = dumps(means)
+                if self.cache_key not in cache:
+                    cache[self.cache_key] = dumps(means)
 
             with local_persistent_storage("od_normalization_variance") as cache:
-                if self.experiment not in cache:
-                    cache[self.experiment] = dumps(variances)
+                if self.cache_key not in cache:
+                    cache[self.cache_key] = dumps(variances)
 
         return means, variances
 
@@ -221,7 +219,7 @@ class GrowthRateProcessor(LoggerMixin):
             initial_nOD = self.get_filtered_od_from_stream(od_stream)
         else:
             initial_growth_rate = self.get_growth_rate_from_cache()
-            initial_nOD = self.get_filtered_od_from_cache_or_stream()
+            initial_nOD = self.get_filtered_od_from_cache_or_stream(od_stream)
         return (initial_nOD, initial_growth_rate)
 
     def get_precomputed_values(
@@ -270,7 +268,7 @@ class GrowthRateProcessor(LoggerMixin):
 
     def get_od_blank_from_cache(self) -> dict[pt.PdChannel, float]:
         with local_persistent_storage("od_blank") as cache:
-            result = cache.get(self.experiment)
+            result = cache.get(self.cache_key)
 
         if result is not None:
             od_blanks = result
@@ -280,11 +278,11 @@ class GrowthRateProcessor(LoggerMixin):
 
     def get_growth_rate_from_cache(self) -> float:
         with local_persistent_storage("growth_rate") as cache:
-            return cache.get(self.experiment, 0.0)
+            return cache.get(self.cache_key, 0.0)
 
     def get_filtered_od_from_cache_or_stream(self, od_stream: ODObservationSource) -> float:
         with local_persistent_storage("od_filtered") as cache:
-            value = cache.get(self.experiment)
+            value = cache.get(self.cache_key)
         if value:
             return value
         else:
@@ -297,13 +295,13 @@ class GrowthRateProcessor(LoggerMixin):
     def get_od_normalization_from_cache(self) -> dict[pt.PdChannel, float]:
         # we check if we've computed mean stats
         with local_persistent_storage("od_normalization_mean") as cache:
-            result = cache[self.experiment]
+            result = cache[self.cache_key]
             return loads(result)
 
     def get_od_variances_from_cache(self) -> dict[pt.PdChannel, float]:
         # we check if we've computed variance stats
         with local_persistent_storage("od_normalization_variance") as cache:
-            result = cache[self.experiment]
+            result = cache[self.cache_key]
             return loads(result)
 
     @staticmethod
@@ -483,7 +481,9 @@ class GrowthRateCalculator(BackgroundJob):
         ignore_cache: bool = False,
     ):
         super(GrowthRateCalculator, self).__init__(unit=unit, experiment=experiment)
-        self.processor = GrowthRateProcessor(ignore_cache=ignore_cache, stopping_event=self._blocking_event)
+        self.processor = GrowthRateProcessor(
+            ignore_cache=ignore_cache, stopping_event=self._blocking_event, cache_key=self.experiment
+        )
         self.processor.add_external_logger(self.logger)
 
     def process_until_disconnected_or_exhausted_in_background(

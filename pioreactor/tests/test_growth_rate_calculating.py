@@ -149,7 +149,7 @@ class TestGrowthRateCalculating:
                 )
                 pause()
 
-                assert calc.ekf is not None
+                assert calc.processor.ekf is not None
 
                 publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/ods",
@@ -183,7 +183,7 @@ class TestGrowthRateCalculating:
 
                 pause()
 
-                assert calc.ekf.state_ is not None
+                assert calc.processor.ekf.state_ is not None
 
     def test_restart(self) -> None:
         unit = get_unit_name()
@@ -248,7 +248,7 @@ class TestGrowthRateCalculating:
                 )
                 pause()
 
-                assert calc1.ekf.state_[-1] != 0
+                assert calc1.processor.ekf.state_[-1] != 0
 
             with GrowthRateCalculator(unit=unit, experiment=experiment) as calc2:
                 calc2.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
@@ -263,7 +263,7 @@ class TestGrowthRateCalculating:
                         timestamp="2010-01-01T12:00:35.000Z",
                     ),
                 )
-                assert calc2.ekf.state_[-1] != 0
+                assert calc2.processor.ekf.state_[-1] != 0
 
     def test_single_observation(self) -> None:
         unit = get_unit_name()
@@ -313,7 +313,7 @@ class TestGrowthRateCalculating:
                 retain=True,
             )
             pause()
-            assert calc.od_normalization_factors == {"2": 0.8, "1": 0.5}
+            assert calc.processor.od_normalization_factors == {"2": 0.8, "1": 0.5}
 
     def test_shock_from_dosing_works(self) -> None:
         unit = get_unit_name()
@@ -391,7 +391,7 @@ class TestGrowthRateCalculating:
                     ),
                 )
                 pause()
-                assert calc._recent_dilution
+                assert calc.processor._recent_dilution
 
                 publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/ods",
@@ -403,7 +403,7 @@ class TestGrowthRateCalculating:
                     ),
                 )
                 pause()
-                assert not calc._recent_dilution
+                assert not calc.processor._recent_dilution
 
     def test_end_to_end(self) -> None:
         with temporary_config_changes(
@@ -435,7 +435,7 @@ class TestGrowthRateCalculating:
             ) as calc:
                 calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
                 time.sleep(35)
-                assert calc.ekf.state_[-2] != 1.0
+                assert calc.processor.ekf.state_[-2] != 1.0
 
     def test_180_angle(self) -> None:
         import json
@@ -499,7 +499,7 @@ class TestGrowthRateCalculating:
                 calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
                 time.sleep(35)
 
-                assert calc.ekf.state_[1] > 0
+                assert calc.processor.ekf.state_[1] > 0
                 thread.cancel()
 
     def test_90_angle(self) -> None:
@@ -560,7 +560,7 @@ class TestGrowthRateCalculating:
 
                 time.sleep(35)
 
-                assert calc.ekf.state_[1] > 0
+                assert calc.processor.ekf.state_[1] > 0
 
             thread.cancel()
 
@@ -605,9 +605,13 @@ class TestGrowthRateCalculating:
                 pause()
                 pause()
 
-                assert calc.od_normalization_factors == {"2": 0.8, "1": 0.5}
-                assert calc.od_blank == {"2": 0.4, "1": 0.25}
-                results = calc.scale_raw_observations({"2": 1.0, "1": 0.6})
+                assert calc.processor.od_normalization_factors == {"2": 0.8, "1": 0.5}
+                assert calc.processor.od_blank == {"2": 0.4, "1": 0.25}
+                results = calc.processor.scale_raw_observations(
+                    create_od_raw_batched(
+                        ["1", "2"], [0.6, 1.0], ["90", "90"], timestamp="2010-01-01T12:03:00.000Z"
+                    )
+                )
                 assert results is not None
                 assert abs(results["2"] - 1.5) < 0.00001
                 assert abs(results["1"] - 1.4) < 0.00001
@@ -708,9 +712,13 @@ class TestGrowthRateCalculating:
                 )
                 pause()
                 pause()
-                assert calc.od_normalization_factors == {"2": 0.8, "1": 0.5}
-                assert calc.od_blank == {"2": 0.0, "1": 0.0}
-                results = calc.scale_raw_observations({"2": 1.0, "1": 0.6})
+                assert calc.processor.od_normalization_factors == {"2": 0.8, "1": 0.5}
+                assert calc.processor.od_blank == {"2": 0.0, "1": 0.0}
+                results = calc.processor.scale_raw_observations(
+                    create_od_raw_batched(
+                        ["1", "2"], [0.6, 1.0], ["90", "90"], timestamp="2010-01-01T12:02:16.000Z"
+                    )
+                )
                 assert results is not None
                 assert abs(results["2"] - 1.25) < 0.00001
                 assert abs(results["1"] - 1.2) < 0.00001
@@ -740,9 +748,13 @@ class TestGrowthRateCalculating:
                 retain=True,
             )
 
-            assert calc.scale_raw_observations({"2": 2, "1": 0.5}) == {
-                "2": 2.0,
+            assert calc.processor.scale_raw_observations(
+                create_od_raw_batched(
+                    ["1", "2"], [0.5, 2.0], ["90", "90"], timestamp="2010-01-01T12:03:00.000Z"
+                )
+            ) == {
                 "1": 0.25,
+                "2": 2.0,
             }
 
     def test_zero_blank_and_zero_od_coming_in(self) -> None:

@@ -553,7 +553,7 @@ def test_execute_experiment_profile_when_action_simple(mock__load_experiment_pro
     experiment = "_testing_experiment"
     action = When(
         hours_elapsed=0.0005,
-        condition="${{unit1:od_reading:od1.od > 2.0}}",
+        condition_="${{unit1:od_reading:od1.od > 2.0}}",
         actions=[
             Log(hours_elapsed=0, options=_LogOptions(message="OD exceeded threshold")),
             Start(hours_elapsed=0, options={"target_rpm": 500}),
@@ -596,7 +596,7 @@ def test_execute_experiment_profile_when_action_with_if(mock__load_experiment_pr
     action = When(
         hours_elapsed=0.0005,
         if_="1 == 1",
-        condition="${{unit1:od_reading:od1.od > 2.0}}",
+        condition_="${{unit1:od_reading:od1.od > 2.0}}",
         actions=[
             Start(hours_elapsed=0, options={"target_rpm": 500}),
             Update(hours_elapsed=0.001, options={"target_rpm": 600}),
@@ -641,7 +641,7 @@ def test_execute_experiment_profile_when_action_condition_eventually_met(
 
     when = When(
         hours_elapsed=0.00,
-        condition="${{unit1:stirring:target_rpm > 800}}",
+        condition_="${{unit1:stirring:target_rpm > 800}}",
         actions=[
             Update(hours_elapsed=0, options={"target_rpm": 200}),
         ],
@@ -688,7 +688,7 @@ def test_execute_experiment_profile_when_action_nested(
 
     when_inner = When(
         hours_elapsed=0.0001,
-        condition="${{unit1:stirring:target_rpm <= 200}}",
+        condition_="${{unit1:stirring:target_rpm <= 200}}",
         actions=[
             Update(hours_elapsed=0, options={"target_rpm": 400}),
         ],
@@ -696,7 +696,7 @@ def test_execute_experiment_profile_when_action_nested(
 
     when_outer = When(
         hours_elapsed=0.0,
-        condition="${{unit1:stirring:target_rpm > 800}}",
+        condition_="${{unit1:stirring:target_rpm > 800}}",
         actions=[Update(hours_elapsed=0, options={"target_rpm": 200}), when_inner],
     )
     update = Update(hours_elapsed=0.001, options={"target_rpm": 1000})
@@ -844,3 +844,35 @@ def test_plugin_version_checks(
     )
     mock__load_experiment_profile.return_value = profile_with_nontrivial_version
     execute_experiment_profile("profile.yaml", experiment)
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_repeat_actions_can_fail_syntax(mock__load_experiment_profile) -> None:
+    repeat_num = 6
+    repeat_every_hours = 0.001
+    start = Start(hours_elapsed=0)
+    repeat = Repeat(
+        hours_elapsed=0,
+        repeat_every_hours=repeat_every_hours,
+        max_hours=repeat_every_hours * repeat_num,
+        actions=[Update(hours_elapsed=0.0, if_=r"${wrong syntax}", options={"setting": "1"})],
+    )
+
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        plugins=[],
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(
+                jobs={
+                    "jobbing": Job(actions=[start, repeat]),
+                }
+            ),
+        },
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    with pytest.raises(SyntaxError):
+        # This should raise a SyntaxError because of the invalid if_ syntax
+        execute_experiment_profile("profile.yaml", "_testing_experiment")

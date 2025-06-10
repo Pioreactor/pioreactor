@@ -24,6 +24,7 @@ from pioreactor.pubsub import get_from
 from pioreactor.pubsub import patch_into
 from pioreactor.pubsub import patch_into_leader
 from pioreactor.pubsub import post_into_leader
+from pioreactor.structs import subclass_union
 from pioreactor.utils import ClusterJobManager
 from pioreactor.utils import long_running_managed_lifecycle
 from pioreactor.utils.networking import resolve_to_address
@@ -57,7 +58,7 @@ def wrap_in_try_except(func, logger: CustomLogger) -> Callable:
         try:
             func(*args, **kwargs)
         except Exception as e:
-            logger.warning(f"Error in action: {e}")
+            logger.error(f"Error in action: {e}")
 
     return inner_function
 
@@ -289,7 +290,7 @@ def wrapped_execute_action(
                 schedule,
             )
 
-        case struct.When(_, if_, condition, actions):
+        case struct.When(_, if_, condition_, actions):
             return when(
                 unit,
                 experiment,
@@ -300,7 +301,7 @@ def wrapped_execute_action(
                 env,
                 logger,
                 action_metrics,
-                condition,
+                condition_,
                 action,
                 actions,
                 schedule,
@@ -360,7 +361,7 @@ def when(
     env: dict,
     logger: CustomLogger,
     action_metrics: ActionMetrics,
-    condition: BoolExpression,
+    condition_: BoolExpression,
     when_action: struct.When,
     actions: list[struct.Action],
     schedule: scheduler,
@@ -375,13 +376,13 @@ def when(
 
         if (if_ is None) or evaluate_bool_expression(if_, env):
             try:
-                condition_met = evaluate_bool_expression(condition, env)
+                condition_met = evaluate_bool_expression(condition_, env)
             except MQTTValueError:
                 condition_met = False
                 # log randomly.
                 if random.random() < 1 / 45.0:  # on average, once every 15min.
                     logger.warning(
-                        f"Data not found in MQTT for condition `{condition}`. Double check the fields and that the required jobs are running"
+                        f"Data not found in MQTT for condition `{condition_}`. Double check the fields and that the required jobs are running"
                     )
 
             if condition_met:
@@ -811,23 +812,25 @@ def _verify_experiment_profile(profile: struct.Profile) -> bool:
         for job in unit.jobs.keys():
             for action in unit.jobs[job].actions:
                 actions_per_job[job].append(action)
+                if isinstance(action, subclass_union(struct._ContainerAction)):  # repeat, when
+                    actions_per_job[f"{job}.{action}"].extend(action.actions)
 
     for job in profile.common.jobs.keys():
         for action in profile.common.jobs[job].actions:
             actions_per_job[job].append(action)
+            if isinstance(action, subclass_union(struct._ContainerAction)):  # repeat, when
+                actions_per_job[f"{job}.{action}"].extend(action.actions)
 
-    # 1.
     for job in actions_per_job:
         for action in actions_per_job[job]:
-            if action.if_ and not check_syntax_of_bool_expression(action.if_):
-                raise SyntaxError(f"Syntax error in {action}: `{action.if_}`")
+            if hasattr(action, "if_") and action.if_ and not check_syntax_of_bool_expression(action.if_):  # type: ignore
+                raise SyntaxError(f"Syntax error in {job}.{action}: `{action.if_}`")
 
-            if (
-                isinstance(action, struct.Repeat)
-                and action.while_
-                and not check_syntax_of_bool_expression(action.while_)
-            ):
-                raise SyntaxError(f"Syntax error in {action}: `{action.while_}`")
+            if hasattr(action, "condition_") and action.condition_ and not check_syntax_of_bool_expression(action.condition_):  # type: ignore
+                raise SyntaxError(f"Syntax error in {job}.{action}: `{action.condition_}`")
+
+            if hasattr(action, "while_") and action.while_ and not check_syntax_of_bool_expression(action.while_):  # type: ignore
+                raise SyntaxError(f"Syntax error in {job}.{action}: `{action.while_}`")
 
     return True
 

@@ -44,7 +44,11 @@ class _Action(Struct, tag=str.lower, forbid_unknown_fields=True):
     if_: t.Optional[bool_expression] = field(name="if", default=None)
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}(hours_elapsed={self.hours_elapsed:.5f})"
+        return f"{self.__class__.__name__.lower()}"
+
+
+class _ContainerAction(_Action):
+    pass
 
 
 class Start(_Action):
@@ -68,24 +72,22 @@ class Resume(_Action):
     pass
 
 
-class When(_Action):
-    condition: str = ""
+class When(_ContainerAction):
+    condition_: str = ""
     actions: list[Action] = []
 
 
-class Repeat(_Action):
+class Repeat(_ContainerAction):
     repeat_every_hours: float = 1.0
     while_: t.Optional[str | bool] = field(name="while", default=None)
     max_hours: t.Optional[float] = None
     actions: list[BasicAction] = []
     _completed_loops: int = 0
 
-    def __str__(self) -> str:
-        return f"{self.__class__.__name__}({self.hours_elapsed=:.5f}, {self.repeat_every_hours=}, {self.max_hours=}, {self.while_=})"
-
 
 BasicAction = Log | Start | Pause | Stop | Update | Resume
-Action = BasicAction | Repeat | When
+ContainerAction = Repeat | When
+Action = BasicAction | ContainerAction
 
 #######
 
