@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from contextlib import ExitStack
+
 import click
 
 from pioreactor import plugin_management
@@ -27,14 +29,27 @@ from pioreactor.background_jobs.monitor import click_monitor
 from pioreactor.background_jobs.od_reading import click_od_reading
 from pioreactor.background_jobs.stirring import click_stirring
 from pioreactor.background_jobs.temperature_automation import click_temperature_automation
+from pioreactor.config import config
+from pioreactor.config import temporary_config_changes
 from pioreactor.whoami import am_I_leader
 
-# required to "discover" automations
 
+@click.group(short_help="run a job", invoke_without_command=True)
+@click.option("--config-override", help="set temp config", multiple=True)
+@click.pass_context
+def run(ctx, config_override: list[str]) -> None:
+    """
+    Run a job. Override the config with, example:
 
-@click.group(short_help="run a job")
-def run() -> None:
-    pass
+    pio run --config-override stirring.config,pwm_hz,100
+    """
+    stack = ExitStack()
+    stack.enter_context(temporary_config_changes(config, [tuple(x.split(",", 3)) for x in config_override]))  # type: ignore
+    ctx.call_on_close(stack.close)
+
+    # https://click.palletsprojects.com/en/8.1.x/commands/#group-invocation-without-command
+    if ctx.invoked_subcommand is None:
+        click.echo(ctx.get_help())
 
 
 # this runs on both leader and workers

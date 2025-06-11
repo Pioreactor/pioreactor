@@ -4,7 +4,9 @@
  - sorting calibrations by unit
  - localtime in exports has subsecond precision.
  - floats are round to 12 decimals points in exports.
-
+ - changes to BackgroundJobWithDodging
+ - changes to stirring dodging!
+ - use `--config-override` to override config options in `pio run --config-override x,y,z JOB`
 
 ### 25.6.3
 (hotfix patch)
