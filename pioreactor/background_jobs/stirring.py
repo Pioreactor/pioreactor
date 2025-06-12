@@ -622,7 +622,7 @@ def start_stirring(
 @click.command(name="stirring")
 @click.option(
     "--target-rpm",
-    default=config.getfloat("stirring.config", "target_rpm", fallback=400),
+    default=config.getfloat("stirring.config", "initial_target_rpm", fallback=400),
     help="set the target RPM",
     show_default=True,
     type=click.FloatRange(0, 1500, clamp=True),

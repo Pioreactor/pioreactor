@@ -11,7 +11,6 @@ from time import sleep
 from pioreactor.background_jobs import stirring
 from pioreactor.calibrations.utils import linspace
 from pioreactor.config import config
-from pioreactor.config import temporary_config_change
 from pioreactor.exc import JobPresentError
 from pioreactor.hardware import voltage_in_aux
 from pioreactor.logging import create_logger
@@ -55,30 +54,34 @@ def run_stirring_calibration(
         dcs = linspace(max_dc, min_dc, 5) + linspace(min_dc, max_dc, 5) + linspace(max_dc, min_dc, 5)
         n_samples = len(dcs)
 
-        with temporary_config_change(config, "stirring.config", "enable_dodging_od", "False"):
-            with stirring.RpmFromFrequency() as rpm_calc, stirring.Stirrer(
-                target_rpm=0, unit=unit, experiment=experiment, rpm_calculator=None, calibration=False
-            ) as st:
-                rpm_calc.setup()
-                st.duty_cycle = (
-                    max_dc + min_dc
-                ) / 2  # we start with a somewhat low value, s.t. the stir bar is caught.
-                st.start_stirring()
-                sleep(3)
+        with stirring.RpmFromFrequency() as rpm_calc, stirring.Stirrer(
+            target_rpm=0,
+            unit=unit,
+            experiment=experiment,
+            rpm_calculator=None,
+            calibration=False,
+            enable_dodging_od=False,
+        ) as st:
+            rpm_calc.setup()
+            st.duty_cycle = (
+                max_dc + min_dc
+            ) / 2  # we start with a somewhat low value, s.t. the stir bar is caught.
+            st.start_stirring()
+            sleep(3)
 
-                for count, dc in enumerate(dcs, start=1):
-                    st.set_duty_cycle(dc)
-                    sleep(2.0)
-                    rpm = rpm_calc.estimate(2)
-                    measured_rpms.append(rpm)
-                    logger.debug(f"Detected {rpm=:.1f} RPM @ {dc=}%")
+            for count, dc in enumerate(dcs, start=1):
+                st.set_duty_cycle(dc)
+                sleep(2.0)
+                rpm = rpm_calc.estimate(2)
+                measured_rpms.append(rpm)
+                logger.debug(f"Detected {rpm=:.1f} RPM @ {dc=}%")
 
-                    # log progress
-                    lc.mqtt_client.publish(
-                        f"pioreactor/{unit}/{experiment}/{action_name}/percent_progress",
-                        count / n_samples * 100,
-                    )
-                    logger.debug(f"Progress: {count/n_samples:.0%}")
+                # log progress
+                lc.mqtt_client.publish(
+                    f"pioreactor/{unit}/{experiment}/{action_name}/percent_progress",
+                    count / n_samples * 100,
+                )
+                logger.debug(f"Progress: {count/n_samples:.0%}")
 
         # drop any 0 in RPM, too little DC
         try:

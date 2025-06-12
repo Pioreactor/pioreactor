@@ -7,6 +7,7 @@
  - changes to BackgroundJobWithDodging
  - changes to stirring dodging!
  - use `--config-override` to override config options in `pio run --config-override x,y,z JOB`
+ - included new export dataset yaml for raw OD readings
 
 ### 25.6.3
 (hotfix patch)
