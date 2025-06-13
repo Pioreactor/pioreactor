@@ -171,7 +171,7 @@ def start_stirring():
     echo("Starting stirring and blocking until near target RPM.")
 
     st = stirring(
-        target_rpm=config.getfloat("stirring.config", "target_rpm"),
+        target_rpm=config.getfloat("stirring.config", "initial_target_rpm"),
         unit=get_unit_name(),
         experiment=get_testing_experiment_name(),
     )

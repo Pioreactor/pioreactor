@@ -1223,11 +1223,9 @@ def create_channel_angle_map(
 
 
 def start_od_reading(
-    od_angle_channel1: pt.PdAngleOrREF
-    | None = cast(pt.PdAngleOrREF, config.get("od_config.photodiode_channel", "1", fallback=None)),
-    od_angle_channel2: pt.PdAngleOrREF
-    | None = cast(pt.PdAngleOrREF, config.get("od_config.photodiode_channel", "2", fallback=None)),
-    interval: float | None = 1 / config.getfloat("od_reading.config", "samples_per_second", fallback=0.2),
+    od_angle_channel1: pt.PdAngleOrREF | None,
+    od_angle_channel2: pt.PdAngleOrREF | None,
+    interval: float | None = None,
     fake_data: bool = False,
     unit: str | None = None,
     experiment: str | None = None,
@@ -1301,14 +1299,12 @@ def start_od_reading(
 @click.command(name="od_reading")
 @click.option(
     "--od-angle-channel1",
-    default=config.get("od_config.photodiode_channel", "1", fallback=None),
     type=click.STRING,
     show_default=True,
     help="specify the angle(s) between the IR LED(s) and the PD in channel 1, separated by commas. Don't specify if channel is empty.",
 )
 @click.option(
     "--od-angle-channel2",
-    default=config.get("od_config.photodiode_channel", "2", fallback=None),
     type=click.STRING,
     show_default=True,
     help="specify the angle(s) between the IR LED(s) and the PD in channel 2, separated by commas. Don't specify if channel is empty.",
@@ -1316,11 +1312,16 @@ def start_od_reading(
 @click.option("--fake-data", is_flag=True, help="produce fake data (for testing)")
 @click.option("--snapshot", is_flag=True, help="take one reading and exit")
 def click_od_reading(
-    od_angle_channel1: pt.PdAngleOrREF, od_angle_channel2: pt.PdAngleOrREF, fake_data: bool, snapshot: bool
+    od_angle_channel1: pt.PdAngleOrREF | None,
+    od_angle_channel2: pt.PdAngleOrREF | None,
+    fake_data: bool,
+    snapshot: bool,
 ) -> None:
     """
     Start the optical density reading job
     """
+    od_angle_channel1 = od_angle_channel1 or config.get("od_config.photodiode_channel", "1", fallback=None)
+    od_angle_channel2 = od_angle_channel2 or config.get("od_config.photodiode_channel", "2", fallback=None)
 
     if snapshot:
         with start_od_reading(
@@ -1336,5 +1337,6 @@ def click_od_reading(
             od_angle_channel1,
             od_angle_channel2,
             fake_data=fake_data or whoami.is_testing_env(),
+            interval=config.getfloat("od_reading.config", "samples_per_second", fallback=0.2),
         ) as od:
             od.block_until_disconnected()

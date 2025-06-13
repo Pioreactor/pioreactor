@@ -170,7 +170,7 @@ class MockHandle:
 
 
 class MockRpmCalculator:
-    ALWAYS_RETURN_RPM = config.getfloat("stirring.config", "target_rpm")
+    ALWAYS_RETURN_RPM = config.getfloat("stirring.config", "initial_target_rpm")
 
     def setup(self):
         pass

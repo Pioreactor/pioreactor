@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import time
 
+from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.stirring import RpmCalculator
 from pioreactor.background_jobs.stirring import RpmFromFrequency
 from pioreactor.background_jobs.stirring import start_stirring
@@ -190,7 +191,6 @@ def test_stirring_with_calibration() -> None:
 
 def test_stirring_wont_fire_last_100dc_on_od_reading_end() -> None:
     # regression test for BackgroundJobWithDodging, but first observed in stirring job
-    from pioreactor.background_jobs.od_reading import start_od_reading
 
     exp = "test_stirring_wont_fire_last_100dc_on_od_reading_end"
 
@@ -205,7 +205,7 @@ def test_stirring_wont_fire_last_100dc_on_od_reading_end() -> None:
         target_rpm=500, unit=unit, experiment=exp, use_rpm=True, enable_dodging_od=True
     ) as st:
         with start_od_reading(
-            "90", interval=10.0, unit=unit, experiment=exp, fake_data=True, calibration=False
+            "90", None, interval=10.0, unit=unit, experiment=exp, fake_data=True, calibration=False
         ):
             assert st._estimate_duty_cycle > 0
             assert st.currently_dodging_od
@@ -219,11 +219,9 @@ def test_stirring_wont_fire_last_100dc_on_od_reading_end() -> None:
 
 
 def test_stirring_will_try_to_restart_and_dodge_od_reading() -> None:
-    from pioreactor.background_jobs.od_reading import start_od_reading
-
     exp = "test_stirring_will_try_to_restart_and_dodge_od_reading"
 
-    with start_od_reading("90", interval=10.0, unit=unit, experiment=exp, fake_data=True):
+    with start_od_reading("90", None, interval=10.0, unit=unit, experiment=exp, fake_data=True):
         with start_stirring(500, unit, exp, use_rpm=True, enable_dodging_od=True) as st:
             assert st.duty_cycle == 0
             assert st._estimate_duty_cycle > 0

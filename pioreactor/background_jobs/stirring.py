@@ -589,12 +589,12 @@ class Stirrer(BackgroundJobWithDodging):
 
 
 def start_stirring(
-    target_rpm: Optional[float] = config.getfloat("stirring.config", "target_rpm", fallback=400),
-    unit: Optional[str] = None,
-    experiment: Optional[str] = None,
-    use_rpm: bool = config.getboolean("stirring.config", "use_rpm", fallback="true"),
+    target_rpm: float | None = 500,
+    unit: str | None = None,
+    experiment: str | None = None,
+    use_rpm: bool = True,
     calibration: bool | structs.SimpleStirringCalibration | None = True,
-    enable_dodging_od: bool = config.getboolean("stirring.config", "enable_dodging_od", fallback="false"),
+    enable_dodging_od: bool = False,
 ) -> Stirrer:
     unit = unit or get_unit_name()
     experiment = experiment or get_assigned_experiment_name(unit)
@@ -622,18 +622,21 @@ def start_stirring(
 @click.command(name="stirring")
 @click.option(
     "--target-rpm",
-    default=config.getfloat("stirring.config", "initial_target_rpm", fallback=400),
     help="set the target RPM",
     show_default=True,
     type=click.FloatRange(0, 1500, clamp=True),
 )
 @click.option(
-    "--use-rpm/--ignore-rpm", default=config.getboolean("stirring.config", "use_rpm", fallback="true")
+    "--use-rpm/--ignore-rpm",
 )
-def click_stirring(target_rpm: float, use_rpm: bool) -> None:
+def click_stirring(target_rpm: float | None, use_rpm: bool | None) -> None:
     """
     Start the stirring of the Pioreactor.
     """
-    with start_stirring(target_rpm=target_rpm, use_rpm=use_rpm) as st:
+    target_rpm = target_rpm or config.getfloat("stirring.config", "initial_target_rpm")
+    use_rpm = use_rpm or config.getboolean("stirring.config", "use_rpm", fallback="true")
+    enable_dodging_od = config.getboolean("stirring.config", "enable_dodging_od", fallback="false")
+
+    with start_stirring(target_rpm=target_rpm, use_rpm=use_rpm, enable_dodging_od=enable_dodging_od) as st:
         st.block_until_rpm_is_close_to_target()
         st.block_until_disconnected()
