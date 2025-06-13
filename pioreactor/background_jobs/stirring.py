@@ -627,9 +627,7 @@ def start_stirring(
     show_default=True,
     type=click.FloatRange(0, 1500, clamp=True),
 )
-@click.option(
-    "--use-rpm/--ignore-rpm",
-)
+@click.option("--use-rpm", type=click.BOOL, default=None, show_default=True, help="Use RPM feedback loop.")
 def click_stirring(target_rpm: float | None, use_rpm: bool | None) -> None:
     """
     Start the stirring of the Pioreactor.
