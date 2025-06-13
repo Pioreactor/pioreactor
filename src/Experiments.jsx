@@ -15,7 +15,7 @@ import MenuItem from '@mui/material/MenuItem';
 import Checkbox from '@mui/material/Checkbox';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/Card';
-import {getConfig, getRelabelMap, colors, DefaultDict} from "./utilities"
+import {getConfig, getRelabelMap, colors, ColorCycler} from "./utilities"
 import DownloadIcon from '@mui/icons-material/Download';
 import { Link } from 'react-router-dom';
 
@@ -134,7 +134,7 @@ function ExperimentsContainer(props) {
   const [chartSelection, setChartSelection] = React.useState({})
   const [config, setConfig] = React.useState({})
   const [relabelMap, setRelabelMap] = React.useState({})
-  const unitsColorMap = new DefaultDict(colors)
+  const unitsColorMap = new ColorCycler(colors)
 
 
   React.useEffect(() => {

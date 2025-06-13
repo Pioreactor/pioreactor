@@ -20,7 +20,7 @@ import Grid from "@mui/material/Grid";
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/Card';
-import {checkTaskCallback, colors, DefaultDict} from "./utilities"
+import {checkTaskCallback, colors, ColorCycler} from "./utilities"
 import CalibrationChart from "./components/CalibrationChart"
 import FormLabel from '@mui/material/FormLabel';
 import FormControlLabel from '@mui/material/FormControlLabel';
@@ -251,7 +251,7 @@ function CalibrationData() {
   const [selectedUnit, setSelectedUnit] = useState(pioreactorUnit || '$broadcast');
   const [onlyActive, setOnlyActive] = useState(false);
   const [highlightedModel, setHighlightedModel] = useState({pioreactorUnit: null, calibrationName: null});
-  const unitsColorMap = new DefaultDict(colors)
+  const unitsColorMap = new ColorCycler(colors)
   const navigate = useNavigate()
 
   useEffect(() => {

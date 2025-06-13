@@ -42,6 +42,7 @@ import {Link, useParams, useNavigate} from 'react-router-dom'
 import SelfTestDialog from "./components/SelfTestDialog"
 import ChangeAutomationsDialog from "./components/ChangeAutomationsDialog"
 import ChangeDosingAutomationsDialog from "./components/ChangeDosingAutomationsDialog"
+import AdvancedConfigButton from "./components/AdvancedConfigDialog"
 import ActionDosingForm from "./components/ActionDosingForm"
 import ActionManualDosingForm from "./components/ActionManualDosingForm"
 import ActionCirculatingForm from "./components/ActionCirculatingForm"
@@ -843,8 +844,11 @@ function SettingsActionsDialog(props) {
                 <div dangerouslySetInnerHTML={{__html: job.metadata.description}}/>
               </Typography>
 
-              {buttons[job_key]}
+              <Box sx={{justifyContent:"space-between", display:"flex"}}>
+                {buttons[job_key]}
 
+                <AdvancedConfigButton jobName={job_key} displayName={job.metadata.display_name} unit={props.unit} experiment={props.experiment} config={props.config[`${job_key}.config`]} disabled={job.state=="ready"} />
+              </Box>
               <ManageDivider/>
             </div>
           )}
@@ -1970,7 +1974,7 @@ function Pioreactor({title}) {
   }, [title]);
 
   useEffect(() => {
-    fetch(`/api/unit/${unit}/configuration`).then((response) => {
+    fetch(`/api/units/${unit}/configuration`).then((response) => {
       if (!response.ok) {
         return response.json().then((errorData) => {
           console.log(errorData)

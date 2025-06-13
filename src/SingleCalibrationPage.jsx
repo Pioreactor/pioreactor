@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams,  useNavigate,  Link as RouterLink } from "react-router-dom";
 import { useConfirm } from 'material-ui-confirm';
 import { CircularProgress, Button, Typography, Box } from "@mui/material";
-import {checkTaskCallback, colors, DefaultDict} from "./utilities"
+import {checkTaskCallback, colors, ColorCycler} from "./utilities"
 import Link from '@mui/material/Link';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/Card';
@@ -146,7 +146,7 @@ function SingleCalibrationPage(props) {
 
 
 function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } ) {
-  const unitsColorMap = new DefaultDict(colors)
+  const unitsColorMap = new ColorCycler(colors)
 
   const [calibration, setCalibration] = useState(null);
   const [loading, setLoading] = useState(true);

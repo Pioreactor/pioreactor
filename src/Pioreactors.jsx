@@ -6,6 +6,8 @@ import Grid from '@mui/material/Grid';
 import { useMediaQuery } from "@mui/material";
 import { styled } from '@mui/material/styles';
 
+
+
 import Chip from '@mui/material/Chip';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/Card';
@@ -46,6 +48,7 @@ import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material'
 
 import { useNavigate, Link } from 'react-router-dom'
 
+import AdvancedConfigButton from "./components/AdvancedConfigDialog"
 import ChangeAutomationsDialog from "./components/ChangeAutomationsDialog"
 import ChangeDosingAutomationsDialog from "./components/ChangeDosingAutomationsDialog"
 import ActionDosingForm from "./components/ActionDosingForm"
@@ -61,7 +64,7 @@ import ManageExperimentMenu from "./components/ManageExperimentMenu";
 import { MQTTProvider, useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 import PatientButton from './components/PatientButton';
-import {getConfig, getRelabelMap, runPioreactorJob, disconnectedGrey, lostRed, disabledColor, stateDisplay, checkTaskCallback} from "./utilities"
+import {getConfig, objectWithDefaultEmpty, getRelabelMap, runPioreactorJob, disconnectedGrey, lostRed, disabledColor, stateDisplay, checkTaskCallback} from "./utilities"
 
 
 
@@ -762,13 +765,12 @@ function SettingsActionsDialog(props) {
   const [openChangeLEDDialog, setOpenChangeLEDDialog] = useState(false);
   const [openChangeTemperatureDialog, setOpenChangeTemperatureDialog] = useState(false);
 
-
   useEffect(() => {
     if (!open){
       return
     }
 
-    fetch(`/api/unit/${props.unit}/configuration`).then((response) => {
+    fetch(`/api/units/${props.unit}/configuration`).then((response) => {
       if (!response.ok) {
         return response.json().then((errorData) => {
           console.log(errorData)
@@ -1040,9 +1042,11 @@ function SettingsActionsDialog(props) {
               <Typography variant="body2" component="p" gutterBottom>
                 <div dangerouslySetInnerHTML={{__html: job.metadata.description}}/>
               </Typography>
+              <Box sx={{justifyContent:"space-between", display:"flex"}}>
+                {buttons[job_key]}
 
-              {buttons[job_key]}
-
+                <AdvancedConfigButton jobName={job_key} displayName={job.metadata.display_name} unit={props.unit} experiment={props.experiment} config={config[`${job_key}.config`]} disabled={job.state=="ready"} />
+              </Box>
               <ManageDivider/>
             </div>
           )}
@@ -1158,8 +1162,8 @@ function SettingsActionsDialog(props) {
               label={props.label}
               experiment={props.experiment}
               no_skip_first_run={false}
-              maxVolume={parseFloat(dosingControlJob.publishedSettings.max_volume.value) || parseFloat(props.config?.bioreactor?.max_volume_ml) || 10}
-              liquidVolume={parseFloat(dosingControlJob.publishedSettings.liquid_volume.value) || parseFloat(props.config?.bioreactor?.initial_volume_ml) || 10}
+              maxVolume={parseFloat(dosingControlJob.publishedSettings.max_volume.value) || parseFloat(config?.bioreactor?.max_volume_ml) || 10}
+              liquidVolume={parseFloat(dosingControlJob.publishedSettings.liquid_volume.value) || parseFloat(config?.bioreactor?.initial_volume_ml) || 10}
               threshold={props.modelName === "pioreactor_20ml" ? 19 : 39}
             />
           </React.Fragment>
@@ -2477,7 +2481,6 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
                 />
               </div>
               <SettingsActionsDialog
-                config={config}
                 client={client}
                 unit={unit}
                 label={label}

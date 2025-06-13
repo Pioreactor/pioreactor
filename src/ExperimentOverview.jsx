@@ -7,7 +7,7 @@ import Chart from "./components/Chart";
 import MediaCard from "./components/MediaCard";
 import {RunningProfilesContainer} from "./Profiles";
 import { RunningProfilesProvider} from './providers/RunningProfilesContext';
-import {getConfig, getRelabelMap, colors, DefaultDict} from "./utilities"
+import {getConfig, getRelabelMap, colors, ColorCycler} from "./utilities"
 import Card from "@mui/material/Card";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
@@ -155,7 +155,7 @@ function Overview(props) {
   const [timeScale, setTimeScale] = useState(initialTimeScale);
   const [timeWindow, setTimeWindow] = useState(initialTimeWindow);
   const [units, setUnits] = useState([])
-  const unitsColorMap = new DefaultDict(colors)
+  const unitsColorMap = new ColorCycler(colors)
 
 
   useEffect(() => {
