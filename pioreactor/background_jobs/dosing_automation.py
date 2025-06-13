@@ -218,9 +218,11 @@ class DosingAutomationJob(AutomationJob):
     def MAX_VIAL_VOLUME_TO_WARN(cls) -> float:
         return 0.95 * cls.MAX_VIAL_VOLUME_TO_STOP
 
-    MAX_SUBDOSE = config.getfloat(
-        "dosing_automation.config", "max_subdose", fallback=1.0
-    )  # arbitrary, but should be some value that the pump is well calibrated for.
+    @classproperty
+    def MAX_SUBDOSE(cls) -> float:
+        return config.getfloat(
+            "dosing_automation.config", "max_subdose", fallback=1.0
+        )  # arbitrary, but should be some value that the pump is well calibrated for.
 
     def __init_subclass__(cls, **kwargs) -> None:
         super().__init_subclass__(**kwargs)

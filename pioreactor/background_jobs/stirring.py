@@ -199,7 +199,7 @@ class Stirrer(BackgroundJobWithDodging):
         "duty_cycle": {"datatype": "float", "settable": True, "unit": "%"},
     }
     # the _estimate_duty_cycle parameter is like the unrealized DC, and the duty_cycle is the realized DC.
-    _estimate_duty_cycle: float = config.getfloat("stirring.config", "initial_duty_cycle", fallback=30)
+    _estimate_duty_cycle: float
     duty_cycle: float = 0
     _measured_rpm: float | None = None
     target_rpm_during_od_reading: float | None = None
@@ -258,6 +258,7 @@ class Stirrer(BackgroundJobWithDodging):
             self.target_rpm = None
 
         # initialize DC with initial_duty_cycle, however we can update it with a lookup (if it exists)
+        self._estimate_duty_cycle = config.getfloat("stirring.config", "initial_duty_cycle", fallback=30)
         self.rpm_to_dc_lookup = self.initialize_rpm_to_dc_lookup(calibration)
         self._estimate_duty_cycle = self.rpm_to_dc_lookup(self.target_rpm)
 
@@ -633,8 +634,10 @@ def click_stirring(target_rpm: float | None, use_rpm: bool | None) -> None:
     """
     Start the stirring of the Pioreactor.
     """
-    target_rpm = target_rpm or config.getfloat("stirring.config", "initial_target_rpm")
-    use_rpm = use_rpm or config.getboolean("stirring.config", "use_rpm", fallback="true")
+    target_rpm = target_rpm or config.getfloat("stirring.config", "initial_target_rpm", fallback=500)
+    use_rpm = (
+        use_rpm if use_rpm is not None else config.getboolean("stirring.config", "use_rpm", fallback="true")
+    )
     enable_dodging_od = config.getboolean("stirring.config", "enable_dodging_od", fallback="false")
 
     with start_stirring(target_rpm=target_rpm, use_rpm=use_rpm, enable_dodging_od=enable_dodging_od) as st:

@@ -28,5 +28,20 @@ if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
     su -u pioreactor cp "$SCRIPT_DIR"/27_raw_od_readings.yaml "$EXPORTABLE_DATASETS"
     echo "Added new 27_raw_od_readings.yaml"
 
+    # Define the config file path
+    LIGHTTPD_CONF="/etc/lighttpd/lighttpd.conf"
+
+    # Define the block you want to add
+    read -r -d '' SNIPPET <<'EOF'
+# Serve *.map source map files as JSON
+mimetype.assign += (
+  ".map" => "application/json"
+)
+EOF
+
+    # Check if the snippet is already present to avoid duplicate entries
+    if ! grep -q '"\.map"\s*=>\s*"application/json"' "$LIGHTTPD_CONF"; then
+      echo -e "\n$SNIPPET" | sudo tee -a "$LIGHTTPD_CONF" > /dev/null
+    fi
 
 fi
