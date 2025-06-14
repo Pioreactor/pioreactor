@@ -107,8 +107,7 @@ const RowOfUnitSettingDisplayBox  = styled(Box)(({ theme }) => ({
 }));
 
 
-function TabPanel(props) {
-  const { children, value, index, ...other } = props;
+function TabPanel({ children, value, index, ...other }) {
 
   return (
     <div
@@ -126,14 +125,11 @@ function TabPanel(props) {
   );
 }
 
-function UnitSettingDisplaySubtext(props){
-
-  if (props.subtext){
-    return <Chip size="small" sx={{fontSize: "11px", wordBreak: "break-word", padding: "5px 0px"}} label={props.subtext.replaceAll("_", " ")} />
+function UnitSettingDisplaySubtext({ subtext }) {
+  if (subtext) {
+    return <Chip size="small" sx={{fontSize: "11px", wordBreak: "break-word", padding: "5px 0px"}} label={subtext.replaceAll("_", " ")} />;
   }
-  else{
-    return <Box sx={{minHeight: "15px"}}></Box>
-  };
+  return <Box sx={{minHeight: "15px"}} />;
 }
 
 
@@ -371,7 +367,7 @@ function PioreactorHeader({unit, assignedExperiment, isActive, selectExperiment,
 
 
 
-function CalibrateDialog(props) {
+function CalibrateDialog({ unit, experiment, odBlankReading, odBlankJobState, growthRateJobState, disabled, label }) {
   const [open, setOpen] = useState(false);
   const [tabValue, setTabValue] = useState(0);
   const [activeCalibrations, setActiveCalibrations] = useState({});
@@ -382,14 +378,14 @@ function CalibrateDialog(props) {
 
     setLoadingCalibrations(true)
 
-    const apiUrl = `/api/workers/${props.unit}/active_calibrations`;
+    const apiUrl = `/api/workers/${unit}/active_calibrations`;
 
     const fetchCalibrations = async () => {
       try {
         const response = await fetch(apiUrl);
         const firstResponse = await response.json();
         const data = await checkTaskCallback(firstResponse.result_url_path, {delayMs: 2000})
-        setActiveCalibrations(data.result[props.unit]);
+        setActiveCalibrations(data.result[unit]);
         setLoadingCalibrations(false);
 
       } catch (err) {
@@ -398,7 +394,7 @@ function CalibrateDialog(props) {
     };
 
     fetchCalibrations();
-  }, [open, props.unit] )
+  }, [open, unit] )
 
 
   const handleTabChange = (event, newValue) => {
@@ -434,7 +430,7 @@ function CalibrateDialog(props) {
                <PatientButton
                 color="primary"
                 variant="contained"
-                onClick={() => runPioreactorJob(props.unit, props.experiment, job)}
+                onClick={() => runPioreactorJob(unit, experiment, job)}
                 buttonText="Start"
                 disabled={always_disable}
                />
@@ -442,19 +438,19 @@ function CalibrateDialog(props) {
     }
    }
 
-  const isGrowRateJobRunning = props.growthRateJobState === "ready"
+  const isGrowRateJobRunning = growthRateJobState === "ready"
   const hasActiveODCalibration = "od" in (activeCalibrations || {})
-  const blankODButton = createUserButtonsBasedOnState(props.odBlankJobState, "od_blank", (isGrowRateJobRunning || hasActiveODCalibration))
+  const blankODButton = createUserButtonsBasedOnState(odBlankJobState, "od_blank", (isGrowRateJobRunning || hasActiveODCalibration))
 
   return (
     <React.Fragment>
-      <Button style={{textTransform: 'none', float: "right" }} color="primary" disabled={props.disabled} onClick={handleClickOpen}>
-        <TuneIcon color={props.disabled ? "disabled" : "primary"} fontSize="small" sx={textIcon}/> Calibrate
+      <Button style={{textTransform: 'none', float: "right" }} color="primary" disabled={disabled} onClick={handleClickOpen}>
+        <TuneIcon color={disabled ? "disabled" : "primary"} fontSize="small" sx={textIcon}/> Calibrate
       </Button>
       <Dialog open={open} onClose={handleClose} aria-labelledby="form-dialog-title">
         <DialogTitle>
           <Typography sx={{fontSize: "13px", color: "rgba(0, 0, 0, 0.60)",}}>
-            <PioreactorIcon style={{verticalAlign: "middle", fontSize: "1.2em"}}/> {(props.label) ? `${props.label} / ${props.unit}` : `${props.unit}`}
+            <PioreactorIcon style={{verticalAlign: "middle", fontSize: "1.2em"}}/> {(label) ? `${label} / ${unit}` : `${unit}`}
           </Typography>
           <Tabs
             value={tabValue}
@@ -488,7 +484,7 @@ function CalibrateDialog(props) {
               media's <i>un-inoculated</i> optical density <i>per experiment</i>. Read more about <a href="https://docs.pioreactor.com/user-guide/od-normal-growth-rate#blanking">using blanks</a>. If your Pioreactor has an active OD calibration, this isn't required.
             </Typography>
             <Typography variant="body2" component="p" style={{margin: "20px 0px"}}>
-              Recorded optical densities of blank vial: <code>{props.odBlankReading ? Object.entries(JSON.parse(props.odBlankReading)).map( ([k, v]) => `${k}:${v.toFixed(5)}` ).join(", ") : "—"}</code>
+            Recorded optical densities of blank vial: <code>{odBlankReading ? Object.entries(JSON.parse(odBlankReading)).map( ([k, v]) => `${k}:${v.toFixed(5)}` ).join(", ") : "—"}</code>
             </Typography>
 
             <div style={{display: "flex"}}>
@@ -503,7 +499,7 @@ function CalibrateDialog(props) {
                 </div>
               }
               <div>
-                <Button size="small" sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}} color="secondary" disabled={(props.odBlankReading === null) || (isGrowRateJobRunning)} onClick={() => runPioreactorJob(props.unit, props.experiment, "od_blank", ['delete']) }> Clear </Button>
+                <Button size="small" sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}} color="secondary" disabled={(odBlankReading === null) || (isGrowRateJobRunning)} onClick={() => runPioreactorJob(unit, experiment, "od_blank", ['delete']) }> Clear </Button>
               </div>
             </div>
             <ManageDivider/>
@@ -551,7 +547,7 @@ function CalibrateDialog(props) {
                             clickable
                             component={Link}
                             sx={{maxWidth:"300px"}}
-                            to={`/calibrations/${props.unit}/${device}/${calName}`}
+                            to={`/calibrations/${unit}/${device}/${calName}`}
                           />
                         </TableCell>
                         <TableCell align="left" sx={{ padding: '6px 0px' }}>
@@ -1357,16 +1353,16 @@ function SettingsActionsDialog(props) {
 }
 
 
-function SettingTextField(props){
+function SettingTextField({ value: initialValue, onUpdate, setSnackbarMessage, setSnackbarOpen, units, disabled, job, setting, id }) {
 
-    const [value, setValue] = useState(props.value || "")
+    const [value, setValue] = useState(initialValue || "")
     const [activeSubmit, setActiveSumbit] = useState(false)
 
     useEffect(() => {
-      if (props.value !== value) {
-        setValue(props.value || "");
+      if (initialValue !== value) {
+        setValue(initialValue || "");
       }
-    }, [props.value]);
+    }, [initialValue]);
 
 
     const onChange = (e) => {
@@ -1381,13 +1377,13 @@ function SettingTextField(props){
     }
 
     const onSubmit = () => {
-        props.onUpdate(props.job, props.setting, value);
+        onUpdate(job, setting, value);
         if (value !== "") {
-          props.setSnackbarMessage(`Updating to ${value}${(!props.units) ? "" : (" "+props.units)}.`)
+          setSnackbarMessage(`Updating to ${value}${(!units) ? "" : (" "+units)}.`)
         } else {
-          props.setSnackbarMessage("Updating.")
+          setSnackbarMessage("Updating.")
         }
-        props.setSnackbarOpen(true)
+        setSnackbarOpen(true)
         setActiveSumbit(false)
     }
 
@@ -1396,10 +1392,10 @@ function SettingTextField(props){
         <TextField
           size="small"
           autoComplete="off"
-          disabled={props.disabled}
+          disabled={disabled}
           value={value}
           InputProps={{
-            endAdornment: <InputAdornment position="end">{props.units}</InputAdornment>,
+            endAdornment: <InputAdornment position="end">{units}</InputAdornment>,
             autoComplete: 'new-password',
           }}
           variant="outlined"
@@ -1412,7 +1408,7 @@ function SettingTextField(props){
           color="primary"
           disabled={!activeSubmit}
           onClick={onSubmit}
-          style={{textTransform: 'none', marginTop: "15px", marginLeft: "7px", display: (props.disabled ? "None" : "") }}
+          style={{textTransform: 'none', marginTop: "15px", marginLeft: "7px", display: (disabled ? "None" : "") }}
         >
           Update
         </Button>
@@ -1421,26 +1417,27 @@ function SettingTextField(props){
 }
 
 
-function SettingSwitchField(props){
-    const [value, setValue] = useState(props.value || false)
+function SettingSwitchField({ value: initialValue, onUpdate, setSnackbarMessage, setSnackbarOpen, job, setting, disabled, id }) {
+  const [value, setValue] = useState(initialValue || false)
 
     useEffect(() => {
-      if (props.value !== value) {
-        setValue(props.value|| false);
+      if (initialValue !== value) {
+        setValue(initialValue || false);
       }
-    }, [props.value]); //TODO: this use to be [props]
+    }, [initialValue]);
 
     const onChange = (e) => {
-      setValue(e.target.checked)
-      props.onUpdate(props.job, props.setting,  e.target.checked ? 1 : 0);
-      props.setSnackbarMessage(`Updating to ${e.target.checked ? "on" : "off"}.`)
-      props.setSnackbarOpen(true)
+      const checked = e.target.checked;
+      setValue(checked)
+      onUpdate(job, setting, checked ? 1 : 0);
+      setSnackbarMessage(`Updating to ${checked ? "on" : "off"}.`)
+      setSnackbarOpen(true)
     }
 
     return (
       <Switch
         checked={value}
-        disabled={props.disabled}
+        disabled={disabled}
         onChange={onChange}
       />
     )
@@ -1555,14 +1552,9 @@ function FlashLEDButton(props){
 )}
 
 
-function PioreactorCard(props){
-  const unit = props.unit
-  const modelName = props.modelName
-  const isUnitActive = props.isUnitActive
-  const experiment = props.experiment
-  const config = props.config
+function PioreactorCard({ unit, modelName, isUnitActive, experiment, config, label: initialLabel }){
   const [jobFetchComplete, setJobFetchComplete] = useState(false)
-  const [label, setLabel] = useState("")
+  const [label, setLabel] = useState(initialLabel || "")
   const {client, subscribeToTopic } = useMQTT();
 
   const [jobs, setJobs] = useState({
@@ -1590,8 +1582,8 @@ function PioreactorCard(props){
   })
 
   useEffect(() => {
-    setLabel(props.label)
-  }, [props.label])
+    setLabel(initialLabel)
+  }, [initialLabel])
 
 
   useEffect(() => {
@@ -1813,7 +1805,7 @@ function PioreactorCard(props){
         }}>
         <Box sx={{width: "100px", mt: "10px", mr: "5px"}}>
           <Typography variant="body2">
-            <Box fontWeight="fontWeightBold" sx={{ color: !props.isUnitActive ? disabledColor : 'inherit' }}>
+          <Box fontWeight="fontWeightBold" sx={{ color: !isUnitActive ? disabledColor : 'inherit' }}>
               Activities:
             </Box>
           </Typography>
@@ -1823,7 +1815,7 @@ function PioreactorCard(props){
               .filter(job => job.metadata.display)
               .map(job => (
             <Box sx={{width: "130px", mt: "10px", mr: "2px", px: "3px"}} key={job.metadata.key}>
-              <Typography variant="body2" style={{fontSize: "0.84rem"}} sx={{ color: !props.isUnitActive ? disabledColor : 'inherit' }}>
+              <Typography variant="body2" style={{fontSize: "0.84rem"}} sx={{ color: !isUnitActive ? disabledColor : 'inherit' }}>
                 {job.metadata.display_name}
               </Typography>
               <UnitSettingDisplay
@@ -1848,7 +1840,7 @@ function PioreactorCard(props){
         }}>
         <Box sx={{width: "100px", mt: "10px"}}>
           <Typography variant="body2">
-            <Box fontWeight="fontWeightBold" sx={{ color: !props.isUnitActive ? disabledColor : 'inherit' }}>
+            <Box fontWeight="fontWeightBold" sx={{ color: !isUnitActive ? disabledColor : 'inherit' }}>
               Settings:
             </Box>
           </Typography>
@@ -1862,7 +1854,7 @@ function PioreactorCard(props){
                 .filter(([setting_key, setting], _) => setting.display)
                 .map(([setting_key, setting], _) =>
                   <Box sx={{width: "130px", mt: "10px", mr: "2px", px: "3px"}} key={job_key + setting_key}>
-                    <Typography variant="body2" style={{fontSize: "0.84rem"}} sx={{ color: !props.isUnitActive ? disabledColor : 'inherit' }}>
+                    <Typography variant="body2" style={{fontSize: "0.84rem"}} sx={{ color: !isUnitActive ? disabledColor : 'inherit' }}>
                       {setting.label}
                     </Typography>
                     <UnitSettingDisplay
