@@ -172,12 +172,12 @@ export async function checkTaskCallback(callbackURL, {maxRetries = 100, delayMs 
     }
     // If not 200, wait, decrement retry count, try again
     await new Promise((resolve) => setTimeout(resolve, delayMs));
-    return checkTaskCallback(callbackURL, maxRetries - 1, delayMs);
+    return checkTaskCallback(callbackURL, {maxRetries: maxRetries - 1, delayMs});
   } catch (err) {
     console.error('Error fetching callback:', err);
     // Wait, decrement retry count, try again
     await new Promise((resolve) => setTimeout(resolve, delayMs));
-    return checkTaskCallback(callbackURL, maxRetries - 1, delayMs);
+    return checkTaskCallback(callbackURL, {maxRetries: maxRetries - 1, delayMs});
   }
 }
 
