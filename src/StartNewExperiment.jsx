@@ -204,7 +204,7 @@ function ExperimentSummaryForm(props) {
         }
         else {
           setFormError(true);
-          setHelperText("Sever error. See UI logs.")
+          setHelperText("Server error. See UI logs.")
         }
         setLoading(false)
       }
