@@ -8,7 +8,7 @@ import { styled } from '@mui/material/styles';
 
 import Chip from '@mui/material/Chip';
 import Card from '@mui/material/Card';
-import CardContent from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
 import {Typography} from '@mui/material';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';

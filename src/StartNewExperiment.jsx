@@ -6,7 +6,7 @@ import Grid from '@mui/material/Grid';
 import FormGroup from '@mui/material/FormGroup';
 import Card from '@mui/material/Card';
 import Box from '@mui/material/Box';
-import CardContent from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
 import {Typography} from '@mui/material';
 import Button from "@mui/material/Button";
 import TextField from '@mui/material/TextField';

@@ -2,7 +2,7 @@ import React from 'react'
 import dayjs from "dayjs";
 //import dayjs from "dayjs";
 import Card from '@mui/material/Card';
-import CardContent from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
 import {Typography} from '@mui/material';
 import Box from '@mui/material/Box';
 import OutlinedInput from '@mui/material/OutlinedInput';

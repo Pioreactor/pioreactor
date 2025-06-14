@@ -9,7 +9,7 @@ import {Typography} from '@mui/material';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Divider from '@mui/material/Divider';
-import CardContent from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
 import {getConfig} from "./utilities"
 import FormLabel from '@mui/material/FormLabel';
 import MenuItem from '@mui/material/MenuItem';

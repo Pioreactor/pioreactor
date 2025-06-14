@@ -7,7 +7,7 @@ import Button from "@mui/material/Button";
 import {Typography} from '@mui/material';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
-import CardContent from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
 import SaveIcon from '@mui/icons-material/Save';
 import TextField from '@mui/material/TextField';
 import { Link, useParams } from 'react-router-dom';
