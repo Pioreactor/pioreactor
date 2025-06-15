@@ -5,7 +5,7 @@ import { CircularProgress, Button, Typography, Box } from "@mui/material";
 import {checkTaskCallback, colors, ColorCycler} from "./utilities"
 import Link from '@mui/material/Link';
 import Card from '@mui/material/Card';
-import CardContent from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import CalibrationChart from "./components/CalibrationChart";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';

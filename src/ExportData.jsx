@@ -7,7 +7,7 @@ import FormGroup from '@mui/material/FormGroup';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Checkbox from '@mui/material/Checkbox';
 import Card from '@mui/material/Card';
-import CardContent from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
 import MenuItem from '@mui/material/MenuItem';
 import {Typography} from '@mui/material';
 import Select from '@mui/material/Select';

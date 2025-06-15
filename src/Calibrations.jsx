@@ -19,7 +19,7 @@ import {
 import Grid from "@mui/material/Grid";
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
-import CardContent from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
 import {checkTaskCallback, colors, ColorCycler} from "./utilities"
 import CalibrationChart from "./components/CalibrationChart"
 import FormLabel from '@mui/material/FormLabel';
