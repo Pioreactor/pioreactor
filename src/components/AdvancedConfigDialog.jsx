@@ -10,6 +10,7 @@ import {
   Typography,
   TextField,
   IconButton,
+  InputAdornment,
   Box,
   FormControl,
   FormLabel,
@@ -20,19 +21,8 @@ import PioreactorIcon from "./PioreactorIcon";
 import { runPioreactorJob } from "../utilities";
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
-/**
- * AdvancedConfigDialog
- * --------------------
- * A reusable MUI dialog that lets a user review & override values from
- * `{jobName}.config` **before** launching a Pioreactor job.
- *
- * Behaviour
- * ---------
- * • Text inputs are pre‑filled with the current values found in `config`.
- * • When the user edits a value we keep it in local state.  “Start” submits **only**
- *   the parameters whose value changed, keeping the PATCH payload small.
- * • Success feedback is delivered with a centred snackbar.
- */
+import ReplayIcon from '@mui/icons-material/Replay';
+
 function AdvancedConfigDialog({ open, onFinished, jobName, displayName, unit, experiment, config = {} }) {
   const [values, setValues] = useState({});              // local, editable copy
   const [original, setOriginal] = useState({});          // immutable reference
@@ -50,6 +40,10 @@ function AdvancedConfigDialog({ open, onFinished, jobName, displayName, unit, ex
 
   const handleFieldChange = (param) => (e) => {
     setValues((prev) => ({ ...prev, [param]: e.target.value }));
+  };
+
+  const handleReset = (param) => () => {
+    setValues((prev) => ({ ...prev, [param]: original[param] }));
   };
 
   const handleStart = (e) => {
@@ -99,19 +93,31 @@ function AdvancedConfigDialog({ open, onFinished, jobName, displayName, unit, ex
           <FormControl component="fieldset" sx={{mt: 2}}>
           <FormLabel component="legend">Configuration</FormLabel>
             <div>
-            {Object.entries(values).map(([param, value]) => (
-              <TextField
-                label={param}
-                size="small"
-                autoComplete="off"
-                variant="outlined"
-                value={value}
-                //color="warning" focused={values[param] !== original[param]}
-                onChange={handleFieldChange(param)}
-                InputLabelProps={{ shrink: true }}
-                sx={{ mt: 2, mr: 2, mb: 0, width: "25ch" }}
-              />
-            ))}
+            {Object.entries(values).map(([param, value]) => {
+              const isModified = original[param] !== value;
+              return (
+                <TextField
+                  key={param}
+                  label={param}
+                  size="small"
+                  autoComplete="off"
+                  variant="outlined"
+                  value={value}
+                  onChange={handleFieldChange(param)}
+                  InputLabelProps={{ shrink: true }}
+                  InputProps={{
+                    endAdornment: isModified && (
+                      <InputAdornment position="end">
+                        <IconButton size="small" onClick={handleReset(param)}>
+                          <ReplayIcon sx={{ color: (theme) => theme.palette.warning.main }} fontSize="small" />
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{ mt: 2, mr: 2, mb: 0, width: "25ch" }}
+                />
+              );
+            })}
             </div>
           </FormControl>
           </form>
