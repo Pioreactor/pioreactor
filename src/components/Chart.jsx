@@ -40,6 +40,7 @@ class Chart extends React.Component {
     };
 
     this.topics = toArray(this.props.topic)
+    this.subscribedTopics = []
     this.onMessage = this.onMessage.bind(this);
     this.selectLegendData = this.selectLegendData.bind(this);
     this.selectVictoryLines = this.selectVictoryLines.bind(this);
@@ -49,16 +50,22 @@ class Chart extends React.Component {
   }
 
   componentDidUpdate(prevProps) {
-    if (prevProps.experiment !== this.props.experiment) {
+    const experimentChanged = prevProps.experiment !== this.props.experiment
+    const topicChanged = prevProps.topic !== this.props.topic
+
+    if (experimentChanged || topicChanged) {
       this.getHistoricalDataFromServer()
       if (this.props.isLiveChart && this.props.client){
-          toArray(prevProps.topic).forEach(topic => {
-            this.props.unsubscribeFromTopic(`pioreactor/+/${prevProps.experiment}/${topic}`, "Chart")
-          });
+        this.subscribedTopics.forEach(topic => {
+          this.props.unsubscribeFromTopic(topic, "Chart")
+        })
 
-          this.topics.forEach(topic => {
-            this.props.subscribeToTopic(`pioreactor/+/${this.props.experiment}/${topic}`, this.onMessage, "Chart")
-          });
+        this.topics = toArray(this.props.topic)
+        const newTopics = this.topics.map(topic => `pioreactor/+/${this.props.experiment}/${topic}`)
+        newTopics.forEach(topic => {
+          this.props.subscribeToTopic(topic, this.onMessage, "Chart")
+        })
+        this.subscribedTopics = newTopics
       }
     }
 
@@ -70,20 +77,24 @@ class Chart extends React.Component {
       this.getHistoricalDataFromServer()
     }
 
-    if (this.props.isLiveChart && this.props.client){
-      this.topics.forEach(topic => {
-        this.props.subscribeToTopic(`pioreactor/+/${this.props.experiment}/${topic}`, this.onMessage, "Chart")
-      });
-    }
-
   }
 
   componentDidMount() {
     this.getHistoricalDataFromServer()
     if (this.props.client && this.props.isLiveChart) {
-      this.topics.forEach(topic => {
-        this.props.subscribeToTopic(`pioreactor/+/${this.props.experiment}/${topic}`, this.onMessage, "Chart")
-      });
+      const topicPaths = this.topics.map(topic => `pioreactor/+/${this.props.experiment}/${topic}`)
+      topicPaths.forEach(topic => {
+        this.props.subscribeToTopic(topic, this.onMessage, "Chart")
+      })
+      this.subscribedTopics = topicPaths
+    }
+  }
+
+  componentWillUnmount() {
+    if (this.props.client) {
+      this.subscribedTopics.forEach(topic => {
+        this.props.unsubscribeFromTopic(topic, "Chart")
+      })
     }
   }
 
