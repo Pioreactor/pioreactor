@@ -1,15 +1,31 @@
 ### Upcoming
 
- - move KF to grpredict
- - sorting calibrations by unit
- - localtime in exports has subsecond precision.
- - floats are round to 12 decimals points in exports.
- - changes to BackgroundJobWithDodging
- - changes to stirring dodging!
- - use `--config-override` to override config options in `pio run --config-override x,y,z JOB`
- - included new export dataset yaml for raw OD readings
- - Advanced options in the UI to start a job with configuration changes
+#### Enhancements
+ - We previously introduced the ability for stirring to "dodge" OD reading by turning itself off during an OD snapshot. This proved useful, but users wanted the generalized ability modify the RPM during a snapshot. For example, slow it down during a snapshot. Another use case is to set the RPM during a snapshot to be equal to the RPM when an OD calibration was performed. We've introduced two new stirring configuration parameters, only used when dodging is one:
+  1. `target_rpm_during_od_reading`: the RPM when an OD snapshot is performed.
+  2. `target_rpm_outside_od_reading`: the RPM outside a snapshot.
+
+   We highly recommend having a stirring calibration active while using these.
+ - There's a new "Advanced" start option in the UI to modify configuration temporarily when starting a job. The options shown are from the section `[<job_name>.config]`. This is useful for testing different configurations without changing the config files.
+ - The above uses a new convention in `pio run` CLI command. You can provide configuration overrides with the `--config-override` option. Example:
+   ```
+   pio run --config-override od_reading.config,interval,0.1 od_reading
+   ```
+   or
+   ```
+   pio run --config-override stirring.config,initial_duty_cycle,25 --config-override mqtt,username,test stirring
+   ```
+ - We moved our Extended Kalman Filter code out of this repo into it's own Python library: grpredict.
  - Performance improvements
+
+#### Breaking changes
+ - In configuration, `[stirring.config]` parameter `target_rpm` is renamed to `initial_target_rpm`. This is better for letting user know that the RPM can be changed during a run.
+ - floats are round to 12 decimals points in data exports.
+ - localtime in data exports has subsecond precision.
+
+#### Bug fixes
+ - included new export dataset yaml for raw OD readings. This was missed in a previous release.
+ - experiment profiles now check the syntax of nested actions before starting the execution.
 
 ### 25.6.3
 (hotfix patch)
