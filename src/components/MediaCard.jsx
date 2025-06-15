@@ -102,7 +102,7 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
         )}
 
         {activeUnits.length > 0 && (
-        <TableContainer sx={{ maxHeight: '400px', width: '100%', overflowY: 'auto' }}>
+        <TableContainer sx={{ maxHeight: '300px', width: '100%', overflowY: 'auto' }}>
           <Table size="small" aria-label="media throughput">
             <TableHead>
               <TableRow>

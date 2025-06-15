@@ -251,7 +251,10 @@ function CalibrationData() {
   const [selectedUnit, setSelectedUnit] = useState(pioreactorUnit || '$broadcast');
   const [onlyActive, setOnlyActive] = useState(false);
   const [highlightedModel, setHighlightedModel] = useState({pioreactorUnit: null, calibrationName: null});
-  const unitsColorMap = new ColorCycler(colors)
+  const unitsColorMap = React.useMemo(
+    () => new ColorCycler(colors),
+    []
+  );
   const navigate = useNavigate()
 
   useEffect(() => {

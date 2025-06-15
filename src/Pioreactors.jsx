@@ -465,7 +465,7 @@ function AssignPioreactors({ experiment, variant="text" }) {
                   onChange={handleSelectAllChange}
                 />
               }
-              label={<span><i>Select all</i></span>}
+              label={<span><i>Select all available</i></span>}
               sx={{mb: 1}}
             />
             }

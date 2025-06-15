@@ -8,14 +8,15 @@ import Snackbar from '@mui/material/Snackbar';
 function TactileButtonNotification() {
   const [unit, setUnit] = React.useState("")
   const [open, setOpen] = React.useState(false)
-  const {client, subscribeToTopic } = useMQTT();
-
+  const {client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
+  const topic = "pioreactor/+/$experiment/monitor/button_down"
 
   React.useEffect(() => {
     if (client) {
-      subscribeToTopic("pioreactor/+/$experiment/monitor/button_down", onMessage, "TactileButtonNotification")
+      subscribeToTopic(topic, onMessage, "TactileButtonNotification");
+      return () => unsubscribeFromTopic(topic, "TactileButtonNotification");
     }
-  },[client])
+  }, [client]);
 
   const onMessage = (topic, msg) => {
     if (msg.toString() === "True"){

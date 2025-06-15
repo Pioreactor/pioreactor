@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useMemo, useCallback } from 'react';
 
 const ExperimentContext = createContext();
 
@@ -81,43 +81,46 @@ export const ExperimentProvider = ({ children }) => {
       });
   }, []);
 
-  const selectExperiment = (newExperimentName) => {
-    const foundExperiment = allExperiments.findIndex(exp => exp.experiment === newExperimentName);
-    if (foundExperiment < 0){
-      return
-    }
-    setExperimentMetadata(allExperiments[foundExperiment])
-    window.localStorage.setItem("experimentMetadata", JSON.stringify(allExperiments[foundExperiment]))
-  }
+  const selectExperiment = useCallback((newName) => {
+    const idx = allExperiments.findIndex(e => e.experiment === newName);
+    if (idx < 0) return;
+    const exp = { ...allExperiments[idx], _createdAt: Date.now() };
+    setExperimentMetadata(exp);
+    window.localStorage.setItem("experimentMetadata", JSON.stringify(exp));
+  }, [allExperiments]);
 
-  const updateExperiment = (newExperimentObject, put=false) => {
-    const now = Date.now()
-    newExperimentObject._createdAt = now
+  const updateExperiment = useCallback((newExp, put = false) => {
+    const exp = { ...newExp, _createdAt: Date.now() };
+    setExperimentMetadata(exp);
+    window.localStorage.setItem("experimentMetadata", JSON.stringify(exp));
 
-    setExperimentMetadata(newExperimentObject);
-
-
-    if (newExperimentObject){
-      window.localStorage.setItem("experimentMetadata", JSON.stringify(newExperimentObject))
-    }
-
-    if (put){
-      // PUT
-      setAllExperiments((prevExperiment) => [newExperimentObject, ...prevExperiment])
+    if (put) {
+      setAllExperiments(prev => [exp, ...prev]);
     } else {
-      // PATCH
-      setAllExperiments((prevExperiments) => {
-        const updatedExperiments = [...prevExperiments];
-        const index = updatedExperiments.findIndex(exp => exp.experiment === newExperimentObject.experiment);
-        updatedExperiments[index] = newExperimentObject;
-        return updatedExperiments;
+      setAllExperiments(prev => {
+        const updated = [...prev];
+        const i = updated.findIndex(e => e.experiment === exp.experiment);
+        if (i >= 0) updated[i] = exp;
+        return updated;
       });
     }
+  }, []);
 
-  };
+  const contextValue = useMemo(() => ({
+    experimentMetadata,
+    allExperiments,
+    selectExperiment,
+    updateExperiment,
+    // you almost never need to expose setAllExperiments directly
+  }), [
+    experimentMetadata,
+    allExperiments,
+    selectExperiment,
+    updateExperiment
+  ]);
 
   return (
-    <ExperimentContext.Provider value={{ experimentMetadata, updateExperiment, allExperiments, setAllExperiments, selectExperiment}}>
+    <ExperimentContext.Provider value={contextValue}>
       {children}
     </ExperimentContext.Provider>
   );

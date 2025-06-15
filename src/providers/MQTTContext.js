@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import mqtt from 'mqtt'
 import Alert from '@mui/material/Alert';
 import Snackbar from '@mui/material/Snackbar';
@@ -138,23 +138,29 @@ export const MQTTProvider = ({ name, config, children, experiment }) => {
     }
   }, [config, name, experiment]);
 
-  const subscribeToTopic = (topic_or_topics, messageHandler, key) => {
-    // use the `key`` to provide unique handlers per topic (else it's overwritten)
+  // 1. Memoize subscribe/unsubscribe so they don't get recreated every render
+  const subscribeToTopic = useCallback((topic_or_topics, messageHandler, key) => {
     addHandlerToTrie(topicTrie.current, topic_or_topics, messageHandler, key);
-    client.subscribe(topic_or_topics, { qos: 0 });
-  };
+    client?.subscribe(topic_or_topics, { qos: 0 });
+  }, [client]);
 
-  const unsubscribeFromTopic = (topic, key) => {
+  const unsubscribeFromTopic = useCallback((topic, key) => {
     removeHandlersFromTrie(topicTrie.current, topic, key);
     client?.unsubscribe(topic);
-  };
+  }, [client]);
 
-  const handleCloseSnackbar = () => {
+  const handleCloseSnackbar = useCallback(() => {
     setError(null);
-  };
+  }, []);
+
+  const contextValue = useMemo(() => ({
+    client,
+    subscribeToTopic,
+    unsubscribeFromTopic
+  }), [client, subscribeToTopic, unsubscribeFromTopic]);
 
   return (
-    <MQTTContext.Provider value={{ client, subscribeToTopic, unsubscribeFromTopic }}>
+    <MQTTContext.Provider value={contextValue}>
       {children}
       <Snackbar anchorOrigin={{ vertical: "bottom", horizontal: "right" }} style={{ maxWidth: "500px" }} open={!!error} autoHideDuration={6000} onClose={handleCloseSnackbar}>
         <Alert onClose={handleCloseSnackbar} severity="error" variant="filled">
