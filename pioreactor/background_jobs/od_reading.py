@@ -1337,6 +1337,6 @@ def click_od_reading(
             od_angle_channel1,
             od_angle_channel2,
             fake_data=fake_data or whoami.is_testing_env(),
-            interval=config.getfloat("od_reading.config", "samples_per_second", fallback=0.2),
+            interval=1 / config.getfloat("od_reading.config", "samples_per_second", fallback=0.2),
         ) as od:
             od.block_until_disconnected()

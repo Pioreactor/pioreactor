@@ -92,7 +92,7 @@ def get_metadata_from_user() -> tuple[pt.CalibratedOD, pt.CalibratedOD, pt.mL, p
     if config.get("od_reading.config", "ir_led_intensity") == "auto":
         echo(
             red(
-                "Can't use ir_led_intensity=auto with OD calibrations. Change ir_led_intensity in your config.ini to a numeric value (70 is good default). Aborting!"
+                "Can't use ir_led_intensity=auto with OD calibrations. Change ir_led_intensity in your config.ini to a numeric value (80 is good default). Aborting!"
             )
         )
         raise click.Abort()

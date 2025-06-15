@@ -215,7 +215,7 @@ def wrapped_execute_action(
     env = global_env | {"unit": unit, "experiment": experiment, "job_name": job_name}
 
     match action:
-        case struct.Start(_, if_, options, args):
+        case struct.Start(_, if_, options, args, config_overrides):
             return start_job(
                 unit,
                 experiment,
@@ -228,6 +228,7 @@ def wrapped_execute_action(
                 action_metrics,
                 options,
                 args,
+                config_overrides,
             )
 
         case struct.Pause(_, if_):
@@ -575,6 +576,7 @@ def start_job(
     action_metrics: ActionMetrics,
     options: dict,
     args: list,
+    config_overrides: dict[str, str],
 ) -> Callable[..., None]:
     def _callable() -> None:
         action_count = action_metrics.increment()
@@ -597,20 +599,27 @@ def start_job(
                 )
             else:
                 logger.debug(
-                    f"{action_count}. Starting {job_name} on {unit} with options {options} and args {args}."
+                    f"{action_count}. Starting {job_name} on {unit} with options {options}, args {args}, and overrides {config_overrides}."
                 )
-                patch_into(
-                    resolve_to_address(unit),
-                    f"/unit_api/jobs/run/job_name/{job_name}",
-                    json={
-                        "options": evaluate_options(options, env),
-                        "env": {
-                            "JOB_SOURCE": parent_job.job_key,
-                            "EXPERIMENT": experiment,
+                try:
+                    patch_into(
+                        resolve_to_address(unit),
+                        f"/unit_api/jobs/run/job_name/{job_name}",
+                        json={
+                            "options": evaluate_options(options, env),
+                            "env": {
+                                "JOB_SOURCE": parent_job.job_key,
+                                "EXPERIMENT": experiment,
+                            },
+                            "args": args,
+                            "config_overrides": [
+                                f"{parent_job.job_key}.config,{key},{value}"
+                                for (key, value) in config_overrides.items()
+                            ],
                         },
-                        "args": args,
-                    },
-                ).raise_for_status()
+                    ).raise_for_status()
+                except HTTPException:
+                    raise HTTPException(f"Unable to post to {unit}. Is it online?")
         else:
             logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
 

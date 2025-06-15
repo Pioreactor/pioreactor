@@ -1587,4 +1587,4 @@ def test_dosing_automation_initial_values_for_volumes():
     ) as ca:
         assert ca.liquid_volume == 11.0
         assert ca.max_volume == 16.0
-        assert ca.alt_media_fraction == 0.4545454545
+        assert abs(ca.alt_media_fraction - 0.4545454545) < 1e-6

@@ -92,7 +92,7 @@ def get_metadata_from_user() -> tuple[pt.PdAngle, pt.PdChannel]:
     if config.get("od_reading.config", "ir_led_intensity") == "auto":
         echo(
             red(
-                "Can't use ir_led_intensity=auto with OD calibrations. Change ir_led_intensity in your config.ini to a numeric value (70 is good default). Aborting!"
+                "Can't use ir_led_intensity=auto with OD calibrations. Change ir_led_intensity in your config.ini to a numeric value (80 is good default). Aborting!"
             )
         )
         raise click.Abort()
@@ -127,7 +127,7 @@ def start_stirring():
     echo("Starting stirring and blocking until near target RPM.")
 
     st = stirring(
-        target_rpm=config.getfloat("stirring.config", "target_rpm"),
+        target_rpm=config.getfloat("stirring.config", "initial_target_rpm"),
         unit=get_unit_name(),
         experiment=get_testing_experiment_name(),
     )
@@ -136,7 +136,7 @@ def start_stirring():
 
 
 def choose_settings() -> float:
-    config_rpm = config.getfloat("stirring", "target_rpm")
+    config_rpm = config.getfloat("stirring", "initial_target_rpm")
 
     rpm = click.prompt(
         click.style(

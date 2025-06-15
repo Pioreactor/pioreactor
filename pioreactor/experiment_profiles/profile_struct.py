@@ -54,6 +54,7 @@ class _ContainerAction(_Action):
 class Start(_Action):
     options: dict[str, t.Any] = {}
     args: list[str] = []
+    config_overrides: dict[str, t.Any] = {}
 
 
 class Pause(_Action):
@@ -73,7 +74,7 @@ class Resume(_Action):
 
 
 class When(_ContainerAction):
-    condition_: str = ""
+    condition_: str = field(name="condition", default="")
     actions: list[Action] = []
 
 
