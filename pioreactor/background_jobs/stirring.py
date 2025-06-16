@@ -56,7 +56,7 @@ class RpmCalculator:
         pass
 
     def setup(self) -> None:
-        import lgpio
+        import lgpio  # type: ignore
 
         # we delay the setup so that when all other checks are done (like in stirring's uniqueness), we can start to
         # use the GPIO for this.
@@ -80,7 +80,7 @@ class RpmCalculator:
         self._edge_callback.cancel()
 
     def turn_on_collection(self) -> None:
-        import lgpio
+        import lgpio  # type: ignore
 
         self.collecting = True
 
@@ -90,7 +90,7 @@ class RpmCalculator:
             )
 
     def clean_up(self) -> None:
-        import lgpio
+        import lgpio  # type: ignore
 
         with suppress(AttributeError):
             self._edge_callback.cancel()

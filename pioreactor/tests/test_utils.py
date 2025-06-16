@@ -386,10 +386,10 @@ def test_retrieve_setting(job_manager, job_id) -> None:
         "test_unit", "test_experiment", "test_name", "test_source", 12345, "test_leader", False
     )
 
-    setting = "my_setting"
+    setting = "my_setting_str"
     initial_value_str = "initial_value"
     job_manager.upsert_setting(job_key, setting, initial_value_str)
-    assert job_manager.get_setting_from_running_job("test_name", "my_setting") == initial_value_str
+    assert job_manager.get_setting_from_running_job("test_name", "my_setting_str") == initial_value_str
 
     setting = "my_setting_int"
     initial_value_int = 1

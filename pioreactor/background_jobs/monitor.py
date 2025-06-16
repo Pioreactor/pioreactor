@@ -162,7 +162,7 @@ class Monitor(LongRunningBackgroundJob):
         cls._post_button.append(function)
 
     def _setup_GPIO(self) -> None:
-        import lgpio
+        import lgpio  # type: ignore
 
         if not whoami.is_testing_env():
             self._handle = lgpio.gpiochip_open(GPIOCHIP)
@@ -434,7 +434,7 @@ class Monitor(LongRunningBackgroundJob):
             Thread(target=self.announce_new_workers, daemon=True).start()
 
     def on_disconnected(self) -> None:
-        import lgpio
+        import lgpio  # type: ignore
 
         self.led_off()
         with suppress(AttributeError):
@@ -442,13 +442,13 @@ class Monitor(LongRunningBackgroundJob):
             lgpio.gpiochip_close(self._handle)
 
     def led_on(self) -> None:
-        import lgpio
+        import lgpio  # type: ignore
 
         if not whoami.is_testing_env():
             lgpio.gpio_write(self._handle, LED_PIN, 1)
 
     def led_off(self) -> None:
-        import lgpio
+        import lgpio  # type: ignore
 
         if not whoami.is_testing_env():
             lgpio.gpio_write(self._handle, LED_PIN, 0)

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from adafruit_bus_device.i2c_device import I2CDevice
+from adafruit_bus_device.i2c_device import I2CDevice  # type: ignore
 from busio import I2C  # type: ignore
 
 from pioreactor import hardware
