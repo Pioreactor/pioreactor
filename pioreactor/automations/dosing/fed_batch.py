@@ -18,7 +18,7 @@ class FedBatch(DosingAutomationJob):
         "volume": {"datatype": "float", "unit": "mL", "settable": True},
     }
 
-    def __init__(self, volume, **kwargs):
+    def __init__(self, volume, **kwargs) -> None:
         super().__init__(**kwargs)
 
         with local_persistent_storage("active_calibrations") as cache:

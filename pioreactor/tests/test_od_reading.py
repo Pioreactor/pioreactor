@@ -1348,7 +1348,7 @@ def test_CachedCalibrationTransformer_with_real_calibration() -> None:
     assert abs(cal_transformer(float_to_od_readings_struct("2", 0.096)).ods["2"].od - 0.06) < 0.01
 
 
-def test_mandys_calibration():
+def test_mandys_calibration() -> None:
     mcal = structs.OD600Calibration(
         calibration_name="mandy",
         calibrated_on_pioreactor_unit="pio1",
@@ -1377,7 +1377,7 @@ def test_mandys_calibration():
     assert 0.0 < mcal.y_to_x(0.002, enforce_bounds=True) < 1.0
 
 
-def test_setting_interval_after_starting():
+def test_setting_interval_after_starting() -> None:
     initial_interval = 2
     with start_od_reading("90", "REF", interval=initial_interval, fake_data=True) as od:
         next(od)
@@ -1405,7 +1405,7 @@ def test_setting_interval_after_starting():
         assert od.interval is None
 
 
-def test_raw_and_calibrated_data_is_published_if_calibration_is_used():
+def test_raw_and_calibrated_data_is_published_if_calibration_is_used() -> None:
     experiment = "test_raw_and_calibrated_data_is_published_if_calibration_is_used"
 
     calibration = structs.OD600Calibration(
@@ -1442,7 +1442,7 @@ def test_raw_and_calibrated_data_is_published_if_calibration_is_used():
         assert od_job.raw_od2 is None
 
 
-def test_raw_published_even_if_calibration_is_bad():
+def test_raw_published_even_if_calibration_is_bad() -> None:
     experiment = "test_raw_and_calibrated_data_is_published_if_calibration_is_used"
 
     calibration = structs.OD600Calibration(

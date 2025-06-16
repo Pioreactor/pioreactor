@@ -91,7 +91,7 @@ class CalcLexer(Lexer):
         if hasattr(self, "return_error"):
             return t
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.errors = []
 
 
@@ -200,7 +200,7 @@ class ModernCalcLexer(Lexer):
         if hasattr(self, "return_error"):
             return t
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.errors = []
 
 

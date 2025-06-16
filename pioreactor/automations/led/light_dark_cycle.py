@@ -31,7 +31,7 @@ class LightDarkCycle(LEDAutomationJob):
         light_duration_minutes: int | str,
         dark_duration_minutes: int | str,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.minutes_online: int = -1
         self.light_active: bool = False

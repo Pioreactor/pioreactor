@@ -102,7 +102,7 @@ class ProfileParser(Parser):
 
     """
 
-    def __init__(self, env=None):
+    def __init__(self, env=None) -> None:
         if env:
             self.ENV = env
         else:

@@ -88,7 +88,7 @@ def mock_external_leader_webserver_apis(mocker, active_workers_in_cluster):
 
 
 class CapturedRequest:
-    def __init__(self, method, url, headers, body, json, params):
+    def __init__(self, method, url, headers, body, json, params) -> None:
         self.method = method
         self.url = url
         self.headers = headers
@@ -130,7 +130,7 @@ def capture_requests():
 
 
 class StreamODReadingsFromExport:
-    def __init__(self, filename: str, skip_first_n_rows=0):
+    def __init__(self, filename: str, skip_first_n_rows=0) -> None:
         self.filename = filename
         self.skip_first_n_rows = skip_first_n_rows
 

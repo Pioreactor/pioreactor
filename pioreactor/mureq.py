@@ -6,19 +6,24 @@ in-tree by Linux systems software and other lightweight applications.
 mureq is copyright 2021 by its contributors and is released under the
 0BSD ("zero-clause BSD") license.
 """
-# mypy: ignore-errors
+# typed module with type hints
 from __future__ import annotations
 
 import contextlib
 import io
 import os.path
+import ssl
 import urllib.parse
 from http.client import HTTPConnection
 from http.client import HTTPException
 from http.client import HTTPMessage
 from http.client import HTTPResponse
 from http.client import HTTPSConnection
+from typing import Any
 from typing import Generator
+from typing import Iterable
+from typing import Mapping
+from typing import Tuple
 
 from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
@@ -36,7 +41,13 @@ def basic_auth(username: str, password: str) -> str:
     return token
 
 
-def request(method, url, *, read_limit=None, **kwargs) -> Response:
+def request(
+    method: str,
+    url: str,
+    *,
+    read_limit: int | None = None,
+    **kwargs: Any,
+) -> Response:
     """request performs an HTTP request and reads the entire response body.
 
     :param str method: HTTP method to request (e.g. 'GET', 'POST')
@@ -63,52 +74,64 @@ def request(method, url, *, read_limit=None, **kwargs) -> Response:
         )
 
 
-def get(url, **kwargs) -> Response:
+def get(url: str, **kwargs: Any) -> Response:
     """get performs an HTTP GET request."""
     return request("GET", url=url, **kwargs)
 
 
-def post(url, body: bytes | None = None, **kwargs) -> Response:
+def post(
+    url: str,
+    body: bytes | None = None,
+    **kwargs: Any,
+) -> Response:
     """post performs an HTTP POST request."""
     return request("POST", url=url, body=body, **kwargs)
 
 
-def head(url, **kwargs) -> Response:
+def head(url: str, **kwargs: Any) -> Response:
     """head performs an HTTP HEAD request."""
     return request("HEAD", url=url, **kwargs)
 
 
-def put(url, body: bytes | None = None, **kwargs) -> Response:
+def put(
+    url: str,
+    body: bytes | None = None,
+    **kwargs: Any,
+) -> Response:
     """put performs an HTTP PUT request."""
     return request("PUT", url=url, body=body, **kwargs)
 
 
-def patch(url, body: bytes | None = None, **kwargs) -> Response:
+def patch(
+    url: str,
+    body: bytes | None = None,
+    **kwargs: Any,
+) -> Response:
     """patch performs an HTTP PATCH request."""
     return request("PATCH", url=url, body=body, **kwargs)
 
 
-def delete(url, **kwargs) -> Response:
+def delete(url: str, **kwargs: Any) -> Response:
     """delete performs an HTTP DELETE request."""
     return request("DELETE", url=url, **kwargs)
 
 
 @contextlib.contextmanager
 def yield_response(
-    method,
-    url,
+    method: str,
+    url: str,
     *,
-    unix_socket=None,
-    timeout=DEFAULT_TIMEOUT,
-    headers=None,
-    params: dict | None = None,
-    body=None,
-    form=None,
-    json=None,
-    verify=True,
-    source_address=None,
-    max_redirects=None,
-    ssl_context=None,
+    unix_socket: str | None = None,
+    timeout: float | None = DEFAULT_TIMEOUT,
+    headers: HTTPMessage | Mapping[str, str] | Iterable[Tuple[str, str]] | None = None,
+    params: dict[str, Any] | None = None,
+    body: bytes | None = None,
+    form: dict[str, Any] | None = None,
+    json: Any = None,
+    verify: bool = True,
+    source_address: str | Tuple[str, int] | None = None,
+    max_redirects: int | None = None,
+    ssl_context: ssl.SSLContext | None = None,
 ) -> Generator[HTTPResponse, None, None]:
     """yield_response is a low-level API that exposes the actual
     http.client.HTTPResponse via a contextmanager.
@@ -164,7 +187,7 @@ def yield_response(
         visited_urls.append(url)
         try:
             try:
-                conn.request(method, path, headers=headers, body=body)
+                conn.request(method, path, headers=dict(headers), body=body)
                 response = conn.getresponse()
             except HTTPException:
                 raise
@@ -199,7 +222,7 @@ class Response:
 
     __slots__ = ("url", "status_code", "headers", "body")
 
-    def __init__(self, url, status_code, headers, body):
+    def __init__(self, url: str, status_code: int, headers: HTTPMessage, body: bytes) -> None:
         self.url, self.status_code, self.headers, self.body = (
             url,
             status_code,
@@ -207,17 +230,17 @@ class Response:
             body,
         )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Response(status_code={self.status_code:d})"
 
     @property
-    def ok(self):
+    def ok(self) -> bool:
         """ok returns whether the response had a successful status code
         (anything other than a 40x or 50x)."""
         return not (400 <= self.status_code < 600)
 
     @property
-    def content(self):
+    def content(self) -> bytes:
         """content returns the response body (the `body` member). This is an
         alias for compatibility with requests.Response."""
         return self.body
@@ -228,11 +251,11 @@ class Response:
         if not self.ok:
             raise HTTPErrorStatus(self.status_code)
 
-    def json(self) -> dict:
+    def json(self) -> Any:
         """Attempts to deserialize the response body as UTF-8 encoded JSON."""
         return loads(self.body)
 
-    def _debugstr(self):
+    def _debugstr(self) -> str:
         buf = io.StringIO()
         print("HTTP", self.status_code, file=buf)
         for k, v in self.headers.items():
@@ -259,10 +282,10 @@ class HTTPErrorStatus(HTTPException):
     called explicitly.
     """
 
-    def __init__(self, status_code: int):
+    def __init__(self, status_code: int) -> None:
         self.status_code = status_code
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"HTTP response returned error code {self.status_code:d}"
 
 
@@ -272,7 +295,11 @@ _JSON_CONTENTTYPE = "application/json"
 _FORM_CONTENTTYPE = "application/x-www-form-urlencoded"
 
 
-def _check_redirect(url, status, response_headers):
+def _check_redirect(
+    url: str,
+    status: int,
+    response_headers: HTTPMessage,
+) -> str | None:
     """Return the URL to redirect to, or None for no redirection."""
     if status not in (301, 302, 303, 307, 308):
         return None
@@ -313,7 +340,9 @@ def _check_redirect(url, status, response_headers):
     )
 
 
-def _prepare_outgoing_headers(headers):
+def _prepare_outgoing_headers(
+    headers: HTTPMessage | Mapping[str, str] | Iterable[Tuple[str, str]] | None
+) -> HTTPMessage:
     from pioreactor.config import config
 
     DEFAULT_AUTH = f'Basic {config.get("ui_basic_auth", "api_key", fallback="")}'
@@ -336,8 +365,10 @@ def _prepare_outgoing_headers(headers):
 
 # XXX join multi-headers together so that get(), __getitem__(),
 # etc. behave intuitively, then stuff them back in an HTTPMessage.
-def _prepare_incoming_headers(headers):
-    headers_dict = {}
+# XXX join multi-headers together so that get(), __getitem__(),
+# etc. behave intuitively, then stuff them back in an HTTPMessage.
+def _prepare_incoming_headers(headers: HTTPMessage) -> HTTPMessage:
+    headers_dict: dict[str, Any] = {}
     for k, v in headers.items():
         headers_dict.setdefault(k, []).append(v)
     result = HTTPMessage()
@@ -348,7 +379,7 @@ def _prepare_incoming_headers(headers):
     return result
 
 
-def _setdefault_header(headers, name, value):
+def _setdefault_header(headers: HTTPMessage, name: str, value: str) -> None:
     if name not in headers:
         headers[name] = value
 
@@ -386,7 +417,7 @@ def _prepare_request(
     unix_socket=None,
     verify=True,
     ssl_context=None,
-):
+) -> tuple[str, HTTPConnection | HTTPSConnection, str]:
     import ssl
 
     """Parses the URL, returns the path and the right HTTPConnection subclass."""
@@ -427,6 +458,7 @@ def _prepare_request(
     if isinstance(source_address, str):
         source_address = (source_address, 0)
 
+    conn: HTTPMessage | HTTPConnection
     if is_unix:
         raise NotImplementedError("Need this? Get it from https://github.com/slingamn/mureq")
     elif is_https:

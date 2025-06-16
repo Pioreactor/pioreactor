@@ -73,7 +73,7 @@ class CalcLexer(Lexer):
         self.errors.append(t.value[0])
         self.index += 1
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.errors = []
 
 
@@ -86,7 +86,7 @@ class CalcParser(Parser):
         ("right", UMINUS),
     )
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.names = {}
         self.errors = []
 
@@ -147,7 +147,7 @@ class CalcParser(Parser):
 
 
 # Test basic recognition of various tokens and literals
-def test_simple():
+def test_simple() -> None:
     lexer = CalcLexer()
     parser = CalcParser()
 
@@ -159,7 +159,7 @@ def test_simple():
     assert result == 47
 
 
-def test_ebnf():
+def test_ebnf() -> None:
     lexer = CalcLexer()
     parser = CalcParser()
     result = parser.parse(lexer.tokenize("a()"))
@@ -172,7 +172,7 @@ def test_ebnf():
     assert result == ("a", [5, 9])
 
 
-def test_parse_error():
+def test_parse_error() -> None:
     lexer = CalcLexer()
     parser = CalcParser()
 

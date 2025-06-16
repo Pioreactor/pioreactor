@@ -1091,7 +1091,7 @@ class TestGrowthRateCalculating:
                 assert abs(previous_nOD.od_filtered - current_nOD.od_filtered) < 0.05
                 assert abs(previous_gr.growth_rate - current_gr.growth_rate) < 0.01
 
-    def test_abnormal_kf_caused_by_previous_outlier_algo(self):
+    def test_abnormal_kf_caused_by_previous_outlier_algo(self) -> None:
         experiment = "test_abnormal_kf_caused_by_previous_outlier_algo"
         unit = "wk3"
 

@@ -131,7 +131,7 @@ class MockTMP1075:
 
 
 class MockPWMOutputDevice:
-    def __init__(self, pin: pt.GpioPin, initial_dc: float = 0.0, frequency=100):
+    def __init__(self, pin: pt.GpioPin, initial_dc: float = 0.0, frequency=100) -> None:
         self.pin = pin
         self._dc = initial_dc
         self.frequency = frequency

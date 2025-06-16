@@ -24,7 +24,7 @@ class PIDMorbidostat(DosingAutomationJob):
         "target_growth_rate": {"datatype": "float", "settable": True, "unit": "h⁻¹"},
     }
 
-    def __init__(self, target_growth_rate: float | str, target_normalized_od: float | str, **kwargs):
+    def __init__(self, target_growth_rate: float | str, target_normalized_od: float | str, **kwargs) -> None:
         super(PIDMorbidostat, self).__init__(**kwargs)
         assert target_normalized_od is not None, "`target_normalized_od` must be set"
         assert target_growth_rate is not None, "`target_growth_rate` must be set"

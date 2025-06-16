@@ -95,7 +95,7 @@ def test_local_cache_is_updated() -> None:
         assert float(cache[channel]) == 20
 
 
-def test_led_intensity_can_be_killed_by_pio_kill():
+def test_led_intensity_can_be_killed_by_pio_kill() -> None:
     from pioreactor.actions.led_intensity import click_led_intensity
     from pioreactor.cli.pio import kill
 

@@ -33,7 +33,7 @@ class ConfigParserMod(configparser.ConfigParser):
         **{k: True for k in ("1", "yes", "true", "on")},
     }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, allow_no_value=True, **kwargs)
 
     def invert_section(self, section: str) -> dict[str, str]:

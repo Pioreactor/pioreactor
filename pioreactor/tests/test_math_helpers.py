@@ -46,23 +46,23 @@ def test_trimmed_mean() -> None:
     assert trimmed_mean([100, -50, -1, 0, 1, -50, 10], cut_off_n=2) == 0
 
 
-def test_closest_point_single_point_in_domain():
+def test_closest_point_single_point_in_domain() -> None:
     assert closest_point_to_domain([1.0], (0.5, 1.5)) == 1.0
 
 
-def test_closest_point_multiple_points_in_domain():
+def test_closest_point_multiple_points_in_domain() -> None:
     assert closest_point_to_domain([0.6, 0.8, 1.2], (0.5, 1.5)) == 0.6
 
 
-def test_closest_point_all_outside_domain():
+def test_closest_point_all_outside_domain() -> None:
     assert closest_point_to_domain([2.0, 3.0], (0.5, 1.5)) == 2.0
     assert closest_point_to_domain([-1.0, -2.0], (0.5, 1.5)) == -1.0
 
 
-def test_closest_point_empty_list():
+def test_closest_point_empty_list() -> None:
     with pytest.raises(AssertionError):
         closest_point_to_domain([], (0.5, 1.5))
 
 
-def test_closest_point_on_boundaries():
+def test_closest_point_on_boundaries() -> None:
     assert closest_point_to_domain([0.5, 1.5], (0.5, 1.5)) == 0.5

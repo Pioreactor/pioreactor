@@ -48,7 +48,7 @@ class LexError(Exception):
     location of the error.
     """
 
-    def __init__(self, message, text, error_index):
+    def __init__(self, message, text, error_index) -> None:
         self.args = (message,)
         self.text = text
         self.error_index = error_index
@@ -76,7 +76,7 @@ class LexerStateChange(Exception):
     Exception raised to force a lexing state change
     """
 
-    def __init__(self, newstate, tok=None):
+    def __init__(self, newstate, tok=None) -> None:
         self.newstate = newstate
         self.tok = tok
 
@@ -112,7 +112,7 @@ class TokenStr(str):
 
 
 class _Before:
-    def __init__(self, tok, pattern):
+    def __init__(self, tok, pattern) -> None:
         self.tok = tok
         self.pattern = pattern
 
@@ -122,7 +122,7 @@ class LexerMetaDict(dict):
     Special dictionary that prohibits duplicate definitions in lexer specifications.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.before = {}
         self.delete = []
         self.remap = {}

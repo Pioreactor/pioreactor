@@ -52,7 +52,7 @@ class ExportODSource(ODObservationSource):
         skip_first: int = 0,
         pioreactor_unit: str = "$broadcast",
         experiment="$experiment",
-    ):
+    ) -> None:
         self.filename = filename
         self.skip_first = skip_first
         self.pioreactor_unit = pioreactor_unit
@@ -102,7 +102,7 @@ class ExportDosingSource(DosingObservationSource):
         skip_first: int = 0,
         pioreactor_unit: str = "$broadcast",
         experiment="$experiment",
-    ):
+    ) -> None:
         self.filename = filename
         self.skip_first = skip_first
         self.experiment = experiment
@@ -145,7 +145,7 @@ class ExportDosingSource(DosingObservationSource):
 class MqttODSource(ODObservationSource):
     is_live = True
 
-    def __init__(self, unit: str, experiment: str, *, skip_first: int = 0):
+    def __init__(self, unit: str, experiment: str, *, skip_first: int = 0) -> None:
         self.unit, self.experiment, self.skip_first = unit, experiment, skip_first
 
     def __iter__(self):
@@ -167,7 +167,7 @@ class MqttODSource(ODObservationSource):
 class MqttDosingSource(DosingObservationSource):
     is_live = True
 
-    def __init__(self, unit: str, experiment: str):
+    def __init__(self, unit: str, experiment: str) -> None:
         self.unit, self.experiment = unit, experiment
 
     def __iter__(self):

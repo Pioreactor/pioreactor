@@ -317,7 +317,7 @@ def test_empty_ClusterJobManager() -> None:
     assert len(bucket) == len(workers)
 
 
-def test_upsert_setting_insert(job_manager, job_id):
+def test_upsert_setting_insert(job_manager, job_id) -> None:
     # Test inserting a new setting-value pair for a job
     setting = "setting1"
     value1 = "value1"
@@ -346,7 +346,7 @@ def test_upsert_setting_insert(job_manager, job_id):
     assert result[0] == value2
 
 
-def test_upsert_setting_insert_complex_types(job_manager, job_id):
+def test_upsert_setting_insert_complex_types(job_manager, job_id) -> None:
     setting = "settingDict"
     value = {"A": 1, "B": {"C": 2}}
 
@@ -362,7 +362,7 @@ def test_upsert_setting_insert_complex_types(job_manager, job_id):
     assert result[0] == dumps(value).decode() == r'{"A":1,"B":{"C":2}}'
 
 
-def test_upsert_setting_update(job_manager, job_id):
+def test_upsert_setting_update(job_manager, job_id) -> None:
     # First insert a setting-value pair
     setting = "setting1"
     initial_value = "initial_value"
@@ -381,20 +381,20 @@ def test_upsert_setting_update(job_manager, job_id):
     assert result[0] == updated_value
 
 
-def test_retrieve_setting(job_manager, job_id):
+def test_retrieve_setting(job_manager, job_id) -> None:
     job_key = job_manager.register_and_set_running(
         "test_unit", "test_experiment", "test_name", "test_source", 12345, "test_leader", False
     )
 
     setting = "my_setting"
-    initial_value = "initial_value"
-    job_manager.upsert_setting(job_key, setting, initial_value)
-    assert job_manager.get_setting_from_running_job("test_name", "my_setting") == "initial_value"
+    initial_value_str = "initial_value"
+    job_manager.upsert_setting(job_key, setting, initial_value_str)
+    assert job_manager.get_setting_from_running_job("test_name", "my_setting") == initial_value_str
 
     setting = "my_setting_int"
-    initial_value = 1
-    job_manager.upsert_setting(job_key, setting, initial_value)
-    assert job_manager.get_setting_from_running_job("test_name", "my_setting_int") == 1
+    initial_value_int = 1
+    job_manager.upsert_setting(job_key, setting, initial_value_int)
+    assert job_manager.get_setting_from_running_job("test_name", "my_setting_int") == initial_value_int
 
     # turn off
     job_manager.set_not_running(job_key)

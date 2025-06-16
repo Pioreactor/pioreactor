@@ -330,7 +330,7 @@ class cache:
         else:
             return s
 
-    def __init__(self, table_name, db_path):
+    def __init__(self, table_name, db_path) -> None:
         self.table_name = f"cache_{table_name}"
         self.db_path = db_path
 

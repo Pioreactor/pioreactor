@@ -1,12 +1,12 @@
 ### Upcoming
 
 #### Enhancements
- - We previously introduced the ability for stirring to "dodge" OD reading by turning itself off during an OD snapshot. This proved useful, but users wanted the generalized ability modify the RPM during a snapshot. For example, slow it down during a snapshot. Another use case is to set the RPM during a snapshot to be equal to the RPM when an OD calibration was performed. We've introduced two new stirring configuration parameters, only used when dodging is one:
+ - We previously introduced the ability for stirring to "dodge" OD reading by turning itself off during an OD snapshot. This proved useful, but users wanted the generalized ability to modify the RPM to any value during a snapshot. For example, slow down the RPM during a snapshot, instead of stopping stirring. Another use case is to set the RPM during a snapshot to be equal to the RPM when an OD calibration was performed. We've introduced two new stirring configuration parameters, only used when dodging is active:
   1. `target_rpm_during_od_reading`: the RPM when an OD snapshot is performed.
   2. `target_rpm_outside_od_reading`: the RPM outside a snapshot.
 
    We highly recommend having a stirring calibration active while using these.
- - There's a new "Advanced" start option in the UI to modify configuration temporarily when starting a job. The options shown are from the section `[<job_name>.config]`. This is useful for testing different configurations without changing the config files.
+ - There's a new "Advanced" start option in the UI to modify configuration temporarily when starting a job. The options shown are from the section `[<job_name>.config]`. This is useful for changing different configurations without changing the config files.
  - The above uses a new convention in `pio run` CLI command. You can provide configuration overrides with the `--config-override` option. Example:
    ```
    pio run --config-override od_reading.config,interval,0.1 od_reading

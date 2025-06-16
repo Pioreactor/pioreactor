@@ -15,7 +15,7 @@ from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
 
 
-def test_analyze():
+def test_analyze() -> None:
     cal = structs.OD600Calibration(
         created_at=current_utc_datetime(),
         curve_type="poly",
@@ -33,11 +33,11 @@ def test_analyze():
     result = runner.invoke(analyze_calibration, ["--device", "od", "--name", "test_analyze"], input="d\n2\ny")
     assert not result.exception
 
-    cal = load_calibration("od", "test_analyze")
-    assert len(cal.curve_data_) == 3
+    loaded_cal = load_calibration("od", "test_analyze")
+    assert len(loaded_cal.curve_data_) == 3
 
 
-def test_run_od_standards():
+def test_run_od_standards() -> None:
     with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "70"):
         runner = CliRunner()
         result = runner.invoke(
@@ -52,4 +52,6 @@ def test_run_od_standards():
         assert cal.y == "Voltage"
         assert len(cal.recorded_data["x"]) == 4
 
-    assert load_active_calibration("od").calibration_name == "od-cal-2025-02-23"
+    active_cal = load_active_calibration("od")
+    assert active_cal is not None
+    assert active_cal.calibration_name == "od-cal-2025-02-23"

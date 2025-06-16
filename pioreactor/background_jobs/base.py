@@ -56,7 +56,7 @@ def cast_bytes_to_type(value: bytes, type_: str) -> t.Any:
         elif type_ == "integer":
             return int(value)
         elif type_ == "boolean":
-            return value.decode().lower() in ("true", "1", "y", "on", "yes")
+            return value.decode().lower() in ("true", "1", "y", "on", "yes", "t")
         elif type_ == "json":
             return loads(value)
         elif type_ == "Automation":
@@ -614,11 +614,11 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # also reconnect to our old topics (see reconnect_protocol)
         # before we connect, we also want to set a new last_will (in case the existing one
         # was exhausted), so we reset the last will in the pre_connect callback.
-        def set_last_will(client: Client, userdata) -> None:
+        def set_last_will(client: Client, userdata: t.Any) -> None:
             # we can only set last wills _before_ connecting, so we put this here.
             client.will_set(**last_will)  # type: ignore
 
-        def reconnect_protocol(client: Client, userdata, flags, rc: int, properties=None) -> None:
+        def reconnect_protocol(client: Client, userdata: t.Any, flags, rc: int, properties=None) -> None:
             self.logger.info("Sub client reconnected to the MQTT broker on leader.")
             self._publish_defined_settings_to_broker(self.published_settings)
             self._start_general_passive_listeners()
@@ -645,8 +645,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
                 break
 
         # these all are assigned _after_ connection is made:
-        client.on_pre_connect = set_last_will
-        client.on_connect = reconnect_protocol
+        client.on_pre_connect = set_last_will  # type: ignore
+        client.on_connect = reconnect_protocol  # type: ignore
         client.on_disconnect = on_disconnect
         return client
 
@@ -1048,7 +1048,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
         class JustPause(BackgroundJobWithDodging):
             job_name="just_pause"
 
-            def __init__(self, unit, experiment):
+            def __init__(self, unit, experiment) -> None:
                 super().__init__(unit=unit, experiment=experiment)
 
             def action_to_do_before_od_reading(self):

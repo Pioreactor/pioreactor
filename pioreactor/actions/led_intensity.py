@@ -153,7 +153,7 @@ def led_intensity(
         mqtt_publishing = create_client(client_id=f"led_intensity-{unit}-{experiment}")
         mqtt_publish = mqtt_publishing.publish
     else:
-        mqtt_publishing = nullcontext()
+        mqtt_publishing = nullcontext()  # type: ignore
         mqtt_publish = pubsub_client.publish
 
     with mqtt_publishing:

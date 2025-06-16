@@ -235,7 +235,7 @@ def test_mandys_data_for_pathological_poly() -> None:
     assert abs(mcal.y_to_x(0.002) - 0.002) < 0.1
 
 
-def test_custom_protocol():
+def test_custom_protocol() -> None:
     class CustomOD600CalibrationProtocol(CalibrationProtocol):
         protocol_name = "custom"
         target_device = "od"

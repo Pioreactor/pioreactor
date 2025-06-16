@@ -16,7 +16,7 @@ if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
     crudini --set /home/pioreactor/.pioreactor/config.ini growth_rate_kalman od_std 0.0025
     crudini --set /home/pioreactor/.pioreactor/config.ini growth_rate_kalman rate_std 0.25
 
-    # change config's to add new stirring dodging behaviour
+    # change configs to add new stirring dodging behaviour
     crudini --set /home/pioreactor/.pioreactor/config.ini stirring.config target_rpm_during_od_reading 0
     crudini --set /home/pioreactor/.pioreactor/config.ini stirring.config target_rpm_outside_od_reading $(crudini --get /home/pioreactor/.pioreactor/config.ini stirring.config target_rpm)
     crudini --set /home/pioreactor/.pioreactor/config.ini stirring.config initial_target_rpm $(crudini --get /home/pioreactor/.pioreactor/config.ini stirring.config target_rpm)
@@ -31,7 +31,6 @@ if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
     # Define the config file path
     LIGHTTPD_CONF="/etc/lighttpd/lighttpd.conf"
 
-    # Define the block you want to add
     read -r -d '' SNIPPET <<'EOF'
 # Serve *.map source map files as JSON
 mimetype.assign += (

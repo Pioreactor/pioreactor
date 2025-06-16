@@ -92,7 +92,7 @@ class YaccSymbol:
 class YaccProduction:
     __slots__ = ("_slice", "_namemap", "_stack")
 
-    def __init__(self, s, stack=None):
+    def __init__(self, s, stack=None) -> None:
         self._slice = s
         self._namemap = {}
         self._stack = stack
@@ -186,7 +186,7 @@ class YaccProduction:
 class Production:
     reduced = 0
 
-    def __init__(self, number, name, prod, precedence=("right", 0), func=None, file="", line=0):
+    def __init__(self, number, name, prod, precedence=("right", 0), func=None, file="", line=0) -> None:
         self.name = name
         self.prod = tuple(prod)
         self.number = number
@@ -312,7 +312,7 @@ class Production:
 
 
 class LRItem:
-    def __init__(self, p, n):
+    def __init__(self, p, n) -> None:
         self.name = p.name
         self.prod = list(p.prod)
         self.number = p.number
@@ -362,7 +362,7 @@ class GrammarError(YaccError):
 
 
 class Grammar:
-    def __init__(self, terminals):
+    def __init__(self, terminals) -> None:
         self.Productions = [None]  # A list of all of the productions.  The first
         # entry is always reserved for the purpose of
         # building an augmented grammar
@@ -945,7 +945,7 @@ class LALRError(YaccError):
 
 
 class LRTable:
-    def __init__(self, grammar):
+    def __init__(self, grammar) -> None:
         self.grammar = grammar
 
         # Internal attributes

@@ -116,7 +116,7 @@ def test_pump_will_disconnect_via_mqtt() -> None:
     exp = "test_pump_will_disconnect_via_mqtt"
 
     class ThreadWithReturnValue(threading.Thread):
-        def __init__(self, *init_args, **init_kwargs):
+        def __init__(self, *init_args, **init_kwargs) -> None:
             threading.Thread.__init__(self, *init_args, **init_kwargs)
             self._return = None
 
@@ -159,7 +159,7 @@ def test_continuously_running_pump_will_disconnect_via_mqtt() -> None:
     exp = "test_continuously_running_pump_will_disconnect_via_mqtt"
 
     class ThreadWithReturnValue(threading.Thread):
-        def __init__(self, *init_args, **init_kwargs):
+        def __init__(self, *init_args, **init_kwargs) -> None:
             threading.Thread.__init__(self, *init_args, **init_kwargs)
             self._return = None
 

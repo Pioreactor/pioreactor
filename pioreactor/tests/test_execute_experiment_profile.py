@@ -238,7 +238,7 @@ def test_execute_experiment_start_automation_succeeds(
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
-def test_label_fires_a_relabel_to_leader_endpoint(mock__load_experiment_profile):
+def test_label_fires_a_relabel_to_leader_endpoint(mock__load_experiment_profile) -> None:
     experiment = "_testing_experiment"
 
     profile = Profile(

@@ -70,7 +70,7 @@ def create_client(
     port: int = config.getint("mqtt", "broker_port", fallback=1883),
     tls: bool = config.getboolean("mqtt", "use_tls", fallback="0"),
     skip_loop: bool = False,
-):
+) -> Client:
     """
     Create a MQTT client and connect to a host.
     """
