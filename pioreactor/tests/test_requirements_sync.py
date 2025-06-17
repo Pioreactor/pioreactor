@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import ast
 from pathlib import Path
 
@@ -8,7 +11,12 @@ def parse_setup_list(path: Path, name: str) -> list[str]:
     for node in ast.walk(tree):
         if isinstance(node, ast.Assign):
             if any(isinstance(t, ast.Name) and t.id == name for t in node.targets):
-                return [ast.literal_eval(elt) for elt in node.value.elts]
+                return [ast.literal_eval(elt) for elt in node.value.elts]  # type: ignore
+        elif isinstance(node, ast.AnnAssign):
+            # variable with type annotation
+            t = node.target
+            if isinstance(t, ast.Name) and t.id == name:
+                return [ast.literal_eval(elt) for elt in node.value.elts]  # type: ignore
     raise AssertionError(f"{name} not found")
 
 

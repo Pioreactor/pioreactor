@@ -6,3 +6,13 @@ msgspec==0.19.0
 crudini==0.9.5
 iniparse==0.5
 # lgpio; platform_machine!='armv7l' and platform_machine!='armv6l' # preinstalled on base image
+packaging==24.1
+Flask==3.1.0
+Jinja2==3.1.4
+MarkupSafe==2.1.5
+flup6==1.1.1
+huey==2.5.2
+python-dotenv==1.0.1
+Werkzeug==3.1.0
+itsdangerous==2.2.0
+blinker==1.9.0
