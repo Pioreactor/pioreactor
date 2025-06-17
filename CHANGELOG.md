@@ -9,11 +9,11 @@
  - There's a new "Advanced" start option in the UI to modify configuration temporarily when starting a job. The options shown are from the section `[<job_name>.config]`. This is useful for changing different configurations without changing the config files.
  - The above uses a new convention in `pio run` CLI command. You can provide configuration overrides with the `--config-override` option. Example:
    ```
-   pio run --config-override od_reading.config,interval,0.1 od_reading
+   pio run --config-override od_reading.config interval 0.1 od_reading
    ```
    or
    ```
-   pio run --config-override stirring.config,initial_duty_cycle,25 --config-override mqtt,username,test stirring
+   pio run --config-override stirring.config initial_duty_cycle 25 --config-override mqtt username pp stirring
    ```
  - You can even use config overrides in experiment profiles (must be applied to the `start` action.)
    ```yaml
@@ -29,12 +29,13 @@
             ...
    ```
  - We moved our Extended Kalman Filter code out of this repo into it's own Python library: grpredict.
- - Automation Chemostat modal now shows the computed dilution rate
+ - Chemostat modal in the UI now shows the computed dilution rate
+ - Calibration charts have new crosshairs
  - Performance improvements
 
 #### Breaking changes
- - In configuration, `[stirring.config]` parameter `target_rpm` is renamed to `initial_target_rpm`. This is better for letting user know that the RPM can be changed during a run.
- - floats are round to 12 decimals points in data exports.
+ - In configuration, `[stirring.config]` parameter `target_rpm` is renamed to `initial_target_rpm`. This is better for letting users know that the RPM can be changed during a run.
+ - floats are rounded to 12 decimals points in data exports.
  - localtime in data exports have subsecond precision.
 
 #### Bug fixes

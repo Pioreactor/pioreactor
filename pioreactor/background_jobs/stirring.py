@@ -306,6 +306,13 @@ class Stirrer(BackgroundJobWithDodging):
         with self.duty_cycle_lock:
             self.stop_stirring()  # we'll start it again in action_to_do_after_od_reading
 
+        self.target_rpm_during_od_reading = config.getfloat(
+            "stirring.config", "target_rpm_during_od_reading", fallback=0.0
+        )
+        self.target_rpm_outside_od_reading = config.getfloat(
+            "stirring.config", "target_rpm_outside_od_reading", fallback=self.target_rpm
+        )
+
         # publish the target_rpm_during_od_reading:
         self.add_to_published_settings(
             "target_rpm_during_od_reading", {"datatype": "float", "settable": True, "unit": "RPM"}
@@ -313,13 +320,6 @@ class Stirrer(BackgroundJobWithDodging):
         # publish the target_rpm_during_od_reading:
         self.add_to_published_settings(
             "target_rpm_outside_od_reading", {"datatype": "float", "settable": True, "unit": "RPM"}
-        )
-
-        self.target_rpm_during_od_reading = config.getfloat(
-            "stirring.config", "target_rpm_during_od_reading", fallback=0.0
-        )
-        self.target_rpm_outside_od_reading = config.getfloat(
-            "stirring.config", "target_rpm_outside_od_reading", fallback=self.target_rpm
         )
 
     def initialize_continuous_operation(self):
@@ -337,6 +337,8 @@ class Stirrer(BackgroundJobWithDodging):
             self.start_stirring()
 
         # remmove the target_rpm_during_od_reading, no error if not present.
+        self.target_rpm_during_od_reading = None
+        self.target_rpm_outside_od_reading = None
         self.remove_from_published_settings("target_rpm_during_od_reading")
         self.remove_from_published_settings("target_rpm_outside_od_reading")
 

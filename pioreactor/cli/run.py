@@ -35,16 +35,22 @@ from pioreactor.whoami import am_I_leader
 
 
 @click.group(short_help="run a job", invoke_without_command=True)
-@click.option("--config-override", help="set temp config", multiple=True)
+@click.option(
+    "--config-override",
+    nargs=3,
+    multiple=True,
+    metavar="<section> <param> <value>",
+    help="Temporarily override a config value",
+)
 @click.pass_context
-def run(ctx, config_override: list[str]) -> None:
+def run(ctx, config_override: list[tuple[str, str, str | None]]) -> None:
     """
     Run a job. Override the config with, example:
 
     pio run --config-override stirring.config,pwm_hz,100
     """
     stack = ExitStack()
-    stack.enter_context(temporary_config_changes(config, [tuple(x.split(",", 3)) for x in config_override]))  # type: ignore
+    stack.enter_context(temporary_config_changes(config, config_override))
     ctx.call_on_close(stack.close)
 
     # https://click.palletsprojects.com/en/8.1.x/commands/#group-invocation-without-command

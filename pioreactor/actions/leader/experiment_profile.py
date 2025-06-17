@@ -613,7 +613,7 @@ def start_job(
                             },
                             "args": args,
                             "config_overrides": [
-                                f"{job_name}.config,{key},{value}"
+                                [f"{job_name}.config", key, value]
                                 for (key, value) in config_overrides.items()
                             ],
                         },

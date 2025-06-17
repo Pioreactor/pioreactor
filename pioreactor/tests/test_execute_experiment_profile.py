@@ -919,5 +919,8 @@ def test_execute_experiment_profile_with_config_overrides(mock__load_experiment_
         "options": {"target": 11.0, "dont_eval": "1.0 + 1.0"},
         "env": {"EXPERIMENT": "_testing_experiment", "JOB_SOURCE": "experiment_profile/1"},
         "args": [],
-        "config_overrides": ["jobbing.config,option1,value1", "jobbing.config,option2,value2"],
+        "config_overrides": [
+            ["jobbing.config", "option1", "value1"],
+            ["jobbing.config", "option2", "value2"],
+        ],
     }
