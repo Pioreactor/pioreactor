@@ -42,6 +42,29 @@ common:
     assert decode(file, type=structs.Profile) is not None
 
 
+def test_config_overrides_in_start() -> None:
+    file = """
+experiment_profile_name: demo_stirring_example
+
+metadata:
+  author: Cam Davidson-Pilon
+  description: A simple profile to start stirring in your Pioreactor(s), update RPM at 90 seconds, and turn off after 180 seconds.
+
+common:
+  jobs:
+    stirring:
+      actions:
+        - type: start
+          hours_elapsed: 0.0
+          config_overrides:
+            initial_target_rpm: 400.0
+            initial_duty_cycle: 60
+        - type: stop
+          hours_elapsed: 0.05
+"""
+    assert decode(file, type=structs.Profile) is not None
+
+
 def test_simple2() -> None:
     file = """
 experiment_profile_name: plugin_version_example

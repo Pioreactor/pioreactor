@@ -15,6 +15,7 @@ class Chemostat(DosingAutomationJob):
     automation_name = "chemostat"
     published_settings = {
         "volume": {"datatype": "float", "settable": True, "unit": "mL"},
+        #    "dilution_rate": {"datatype": "float", "settable": False, "unit": "h⁻¹"},
     }
 
     def __init__(self, volume: float | str, **kwargs) -> None:

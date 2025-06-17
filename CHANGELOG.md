@@ -15,13 +15,27 @@
    ```
    pio run --config-override stirring.config,initial_duty_cycle,25 --config-override mqtt,username,test stirring
    ```
+ - You can even use config overrides in experiment profiles (must be applied to the `start` action.)
+   ```yaml
+   common:
+     jobs:
+       od_reading:
+         actions:
+            - type: start
+              hours_elapsed: 0.5
+              config_overrides:
+                samples_per_second: 0.1
+                ir_led_intensity: 70
+            ...
+   ```
  - We moved our Extended Kalman Filter code out of this repo into it's own Python library: grpredict.
+ - Automation Chemostat modal now shows the computed dilution rate
  - Performance improvements
 
 #### Breaking changes
  - In configuration, `[stirring.config]` parameter `target_rpm` is renamed to `initial_target_rpm`. This is better for letting user know that the RPM can be changed during a run.
  - floats are round to 12 decimals points in data exports.
- - localtime in data exports has subsecond precision.
+ - localtime in data exports have subsecond precision.
 
 #### Bug fixes
  - included new export dataset yaml for raw OD readings. This was missed in a previous release.

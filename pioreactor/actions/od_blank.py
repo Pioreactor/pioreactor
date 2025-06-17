@@ -97,7 +97,7 @@ def od_statistics(
         return means, variances
 
 
-def delete_od_blank(unit=None, experiment=None):
+def delete_od_blank(unit: str | None = None, experiment: str | None = None):
     action_name = "od_blank"
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_assigned_experiment_name(unit)
@@ -129,8 +129,8 @@ def od_blank(
     od_angle_channel1: pt.PdAngleOrREF,
     od_angle_channel2: pt.PdAngleOrREF,
     n_samples: int = 20,
-    unit=None,
-    experiment=None,
+    unit: str | None = None,
+    experiment: str | None = None,
 ) -> dict[pt.PdChannel, pt.OD]:
     from pioreactor.background_jobs.od_reading import start_od_reading
 

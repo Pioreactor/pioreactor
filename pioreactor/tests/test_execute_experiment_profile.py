@@ -104,6 +104,7 @@ def test_execute_experiment_profile_hack_for_led_intensity(mock__load_experiment
         "options": {"A": 50},
         "args": [],
         "env": {"JOB_SOURCE": "experiment_profile/1", "EXPERIMENT": "_testing_experiment"},
+        "config_overrides": [],
     }
 
     assert bucket[1].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/led_intensity"
@@ -111,6 +112,7 @@ def test_execute_experiment_profile_hack_for_led_intensity(mock__load_experiment
         "options": {"A": 40, "B": 22.5},
         "args": [],
         "env": {"JOB_SOURCE": "experiment_profile/1", "EXPERIMENT": "_testing_experiment"},
+        "config_overrides": [],
     }
 
     assert bucket[2].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/led_intensity"
@@ -118,6 +120,7 @@ def test_execute_experiment_profile_hack_for_led_intensity(mock__load_experiment
         "options": {"A": 0, "B": 0, "C": 0, "D": 0},
         "env": {"JOB_SOURCE": "experiment_profile/1", "EXPERIMENT": "_testing_experiment"},
         "args": [],
+        "config_overrides": [],
     }
 
 
@@ -402,6 +405,7 @@ def test_execute_experiment_profile_expression(mock__load_experiment_profile) ->
         "options": {"target": 11.0, "dont_eval": "1.0 + 1.0"},
         "env": {"EXPERIMENT": "_testing_experiment", "JOB_SOURCE": "experiment_profile/1"},
         "args": [],
+        "config_overrides": [],
     }
 
 
@@ -505,6 +509,7 @@ def test_execute_experiment_profile_expression_in_common(
             "options": {
                 "target": 11.0,
             },
+            "config_overrides": [],
         }
 
 
@@ -545,6 +550,7 @@ def test_execute_experiment_profile_expression_in_common_also_works_with_unit_fu
             "options": {
                 "target": 11.0,
             },
+            "config_overrides": [],
         }
 
 
@@ -876,3 +882,42 @@ def test_repeat_actions_can_fail_syntax(mock__load_experiment_profile) -> None:
     with pytest.raises(SyntaxError):
         # This should raise a SyntaxError because of the invalid if_ syntax
         execute_experiment_profile("profile.yaml", "_testing_experiment")
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_execute_experiment_profile_with_config_overrides(mock__load_experiment_profile) -> None:
+    experiment = "_testing_experiment"
+    unit = "unit1"
+    job_name = "jobbing"
+    publish(f"pioreactor/{unit}/{experiment}/{job_name}/target", 10, retain=True)
+
+    action = Start(
+        hours_elapsed=0,
+        options={"target": "${{unit1:jobbing:target + 1}}", "dont_eval": "1.0 + 1.0"},
+        config_overrides={"option1": "value1", "option2": "value2"},
+    )
+
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        plugins=[],
+        pioreactors={
+            unit: PioreactorSpecificBlock(
+                jobs={
+                    job_name: Job(actions=[action]),
+                }
+            ),
+        },
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    with capture_requests() as bucket:
+        execute_experiment_profile("profile.yaml", experiment)
+
+    assert bucket[0].json == {
+        "options": {"target": 11.0, "dont_eval": "1.0 + 1.0"},
+        "env": {"EXPERIMENT": "_testing_experiment", "JOB_SOURCE": "experiment_profile/1"},
+        "args": [],
+        "config_overrides": ["jobbing.config,option1,value1", "jobbing.config,option2,value2"],
+    }

@@ -28,16 +28,19 @@ from pioreactor.utils.timing import catchtime
 
 def get_workers_in_inventory() -> tuple[str, ...]:
     result = get_from_leader("/api/workers")
+    result.raise_for_status()
     return tuple(worker["pioreactor_unit"] for worker in result.json())
 
 
 def get_active_workers_in_inventory() -> tuple[str, ...]:
     result = get_from_leader("/api/workers")
+    result.raise_for_status()
     return tuple(worker["pioreactor_unit"] for worker in result.json() if bool(worker["is_active"]))
 
 
 def get_active_workers_in_experiment(experiment: str) -> tuple[str, ...]:
     result = get_from_leader(f"/api/experiments/{experiment}/workers")
+    result.raise_for_status()
     return tuple(worker["pioreactor_unit"] for worker in result.json() if bool(worker["is_active"]))
 
 
@@ -53,9 +56,27 @@ def add_worker(
     """
     Add a new pioreactor worker to the cluster. The pioreactor should already have the worker image installed and is turned on.
     """
+    VALID_MODELS = {
+        ("pioreactor_20ml", "1.0"),
+        ("pioreactor_20ml", "1.1"),
+        ("pioreactor_40ml", "1.0"),
+    }
+
+    if (model_name, model_version) not in VALID_MODELS:
+        click.echo(
+            f"Invalid model name and version combination: {model_name} {model_version}. Valid combinations are: {VALID_MODELS}"
+        )
+        raise click.Abort()
+
     if hostname.endswith(".local"):
         # exit with message
         click.echo("Please provide the hostname without the `.local` suffix.")
+        raise click.Abort()
+
+    if hostname == whoami.get_unit_name():
+        click.echo(
+            "You cannot add the current leader Pioreactor as a worker this way. Email us at support@pioreactor.com"
+        )
         raise click.Abort()
 
     import socket
