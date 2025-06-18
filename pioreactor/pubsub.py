@@ -20,6 +20,7 @@ from pioreactor.config import config
 from pioreactor.config import leader_address
 from pioreactor.config import mqtt_address
 from pioreactor.types import MQTTMessage
+from pioreactor.types import Unit
 
 
 def add_hash_suffix(s: str) -> str:
@@ -330,7 +331,7 @@ class collect_all_logs_of_level:
     # We can use this to check that the logs are actually being published as we expect
     # We can also use this to check that the log levels are being set as we expect
 
-    def __init__(self, log_level: str, unit: str, experiment: str) -> None:
+    def __init__(self, log_level: str, unit: Unit, experiment: str) -> None:
         # set the log level we are looking for
         self.log_level = log_level.upper()
         # set the unit and experiment we are looking for

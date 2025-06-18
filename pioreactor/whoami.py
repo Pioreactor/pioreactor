@@ -11,6 +11,7 @@ from pioreactor import mureq
 from pioreactor.exc import NotAssignedAnExperimentError
 from pioreactor.exc import NoWorkerFoundError
 from pioreactor.version import version_text_to_tuple
+from pioreactor.types import Unit
 
 
 UNIVERSAL_IDENTIFIER = "$broadcast"
@@ -31,11 +32,11 @@ def get_testing_experiment_name() -> str:
         return f"_testing_{NO_EXPERIMENT}"
 
 
-def get_assigned_experiment_name(unit_name: str) -> str:
+def get_assigned_experiment_name(unit_name: Unit) -> str:
     return _get_assigned_experiment_name(unit_name)
 
 
-def _get_assigned_experiment_name(unit_name: str) -> str:
+def _get_assigned_experiment_name(unit_name: Unit) -> str:
     from pioreactor.pubsub import get_from_leader
     from pioreactor.config import leader_address
 
@@ -75,7 +76,7 @@ def _get_assigned_experiment_name(unit_name: str) -> str:
         )
 
 
-def is_active(unit_name: str) -> bool:
+def is_active(unit_name: Unit) -> bool:
     if os.environ.get("ACTIVE") == "1" or is_testing_env():
         return True
     elif os.environ.get("ACTIVE") == "0":
@@ -115,7 +116,7 @@ def get_hostname() -> str:
 
 
 @cache
-def get_unit_name() -> str:
+def get_unit_name() -> Unit:
     hostname = get_hostname()
 
     if hostname == "raspberrypi":

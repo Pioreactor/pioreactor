@@ -18,6 +18,7 @@ from pioreactor.config import config
 from pioreactor.logging import create_logger
 from pioreactor.utils import whoami
 from pioreactor.utils.timing import current_utc_datetime
+from pioreactor.types import Unit
 from pioreactor.utils.timing import RepeatedTimer
 
 
@@ -52,7 +53,7 @@ class LEDAutomationJob(AutomationJob):
 
     def __init__(
         self,
-        unit: str,
+        unit: Unit,
         experiment: str,
         duration: float,
         skip_first_run: bool = False,

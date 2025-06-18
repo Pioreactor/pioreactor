@@ -30,6 +30,7 @@ from pioreactor.pubsub import get_from
 from pioreactor.pubsub import QOS
 from pioreactor.structs import Voltage
 from pioreactor.types import MQTTMessage
+from pioreactor.types import Unit
 from pioreactor.utils.networking import discover_workers_on_network
 from pioreactor.utils.networking import get_ip
 from pioreactor.utils.timing import current_utc_datetime
@@ -107,7 +108,7 @@ class Monitor(LongRunningBackgroundJob):
     _pre_button: list[Callable] = []
     _post_button: list[Callable] = []
 
-    def __init__(self, unit: str, experiment: str) -> None:
+    def __init__(self, unit: Unit, experiment: str) -> None:
         super().__init__(unit=unit, experiment=experiment)
 
         def pretty_version(info: tuple) -> str:

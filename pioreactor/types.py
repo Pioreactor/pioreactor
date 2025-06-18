@@ -6,6 +6,8 @@ import typing as t
 
 from msgspec import Meta
 
+Unit = str
+
 if t.TYPE_CHECKING:
     from pioreactor.pubsub import Client
     from pioreactor.logging import CustomLogger
@@ -18,7 +20,7 @@ class DosingProgram(t.Protocol):
 
     def __call__(
         self,
-        unit: str,
+        unit: Unit,
         experiment: str,
         ml: float,
         source_of_event: str,

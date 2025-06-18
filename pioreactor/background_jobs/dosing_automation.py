@@ -14,6 +14,7 @@ from msgspec.json import decode
 from pioreactor import exc
 from pioreactor import structs
 from pioreactor import types as pt
+from pioreactor.types import Unit
 from pioreactor import whoami
 from pioreactor.actions.pump import add_alt_media
 from pioreactor.actions.pump import add_media
@@ -231,7 +232,7 @@ class DosingAutomationJob(AutomationJob):
 
     def __init__(
         self,
-        unit: str,
+        unit: Unit,
         experiment: str,
         duration: Optional[float] = None,
         skip_first_run: bool = False,

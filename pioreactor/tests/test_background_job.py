@@ -17,6 +17,7 @@ from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.types import MQTTMessage
+from pioreactor.types import Unit
 from pioreactor.utils import is_pio_job_running
 from pioreactor.whoami import get_unit_name
 
@@ -135,7 +136,7 @@ def test_what_happens_when_an_error_occurs_in_init_but_we_catch_and_disconnect()
     class TestJob(BackgroundJob):
         job_name = "testjob"
 
-        def __init__(self, unit: str, experiment: str) -> None:
+        def __init__(self, unit: Unit, experiment: str) -> None:
             super(TestJob, self).__init__(unit=unit, experiment=experiment)
             try:
                 raise ZeroDivisionError()
@@ -166,7 +167,7 @@ def test_what_happens_when_an_error_occurs_in_init_but_we_dont_catch() -> None:
     class TestJob(BackgroundJob):
         job_name = "testjob"
 
-        def __init__(self, unit: str, experiment: str) -> None:
+        def __init__(self, unit: Unit, experiment: str) -> None:
             super(TestJob, self).__init__(unit=unit, experiment=experiment)
             raise ZeroDivisionError()
 
@@ -198,7 +199,7 @@ def test_state_transition_callbacks() -> None:
         called_on_sleeping_to_ready = False
         called_on_init_to_ready = False
 
-        def __init__(self, unit: str, experiment: str) -> None:
+        def __init__(self, unit: Unit, experiment: str) -> None:
             super(TestJob, self).__init__(unit=unit, experiment=experiment)
 
         def on_init(self) -> None:
@@ -586,11 +587,11 @@ def test_subclasses_provide_a_unique_job_name_for_contrib():
     with pytest.raises(NameError):
 
         class TestJobBad(BackgroundJobContrib):
-            def __init__(self, unit: str, experiment: str) -> None:
+            def __init__(self, unit: Unit, experiment: str) -> None:
                 super(TestJobBad, self).__init__(unit=unit, experiment=experiment, plugin_name="test")
 
     class TestJobOkay(BackgroundJobContrib):
         job_name = "test_job"
 
-        def __init__(self, unit: str, experiment: str) -> None:
+        def __init__(self, unit: Unit, experiment: str) -> None:
             super(TestJobOkay, self).__init__(unit=unit, experiment=experiment, plugin_name="test")

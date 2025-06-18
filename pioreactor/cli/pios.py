@@ -21,6 +21,7 @@ from pioreactor.exc import SSHError
 from pioreactor.logging import create_logger
 from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import post_into
+from pioreactor.types import Unit
 from pioreactor.utils import ClusterJobManager
 from pioreactor.utils.networking import cp_file_across_cluster
 from pioreactor.utils.networking import resolve_to_address
@@ -158,7 +159,7 @@ if am_I_leader() or is_testing_env():
         conn.commit()
         conn.close()
 
-    def sync_config_files(unit: str, shared: bool, specific: bool) -> None:
+    def sync_config_files(unit: Unit, shared: bool, specific: bool) -> None:
         """
         Moves
 
@@ -208,7 +209,7 @@ if am_I_leader() or is_testing_env():
 
         logger = create_logger("cp", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
-        def _thread_function(unit: str) -> bool:
+        def _thread_function(unit: Unit) -> bool:
             logger.debug(f"Copying {filepath} to {unit}:{filepath}...")
             try:
                 cp_file_across_cluster(unit, filepath, filepath, timeout=30)
@@ -242,7 +243,7 @@ if am_I_leader() or is_testing_env():
 
         logger = create_logger("rm", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
-        def _thread_function(unit: str) -> bool:
+        def _thread_function(unit: Unit) -> bool:
             try:
                 logger.debug(f"deleting {unit}:{filepath}...")
                 r = post_into(
@@ -295,7 +296,7 @@ if am_I_leader() or is_testing_env():
                 options["source"] = source
                 args = f"--source {source}"
 
-            def _thread_function(unit: str) -> tuple[bool, dict]:
+            def _thread_function(unit: Unit) -> tuple[bool, dict]:
                 try:
                     r = post_into(
                         resolve_to_address(unit), "/unit_api/system/update", json={"options": options}
@@ -375,7 +376,7 @@ if am_I_leader() or is_testing_env():
         if repo is not None:
             options["repo"] = repo
 
-        def _thread_function(unit: str) -> tuple[bool, dict]:
+        def _thread_function(unit: Unit) -> tuple[bool, dict]:
             try:
                 r = post_into(
                     resolve_to_address(unit), "/unit_api/system/update/app", json={"options": options}
@@ -452,7 +453,7 @@ if am_I_leader() or is_testing_env():
         if repo is not None:
             options["repo"] = repo
 
-        def _thread_function(unit: str) -> tuple[bool, dict]:
+        def _thread_function(unit: Unit) -> tuple[bool, dict]:
             try:
                 r = post_into(
                     resolve_to_address(unit), "/unit_api/system/update/ui", json={"options": options}
@@ -511,7 +512,7 @@ if am_I_leader() or is_testing_env():
         if source:
             commands["options"] = {"source": source}
 
-        def _thread_function(unit: str) -> tuple[bool, dict]:
+        def _thread_function(unit: Unit) -> tuple[bool, dict]:
             try:
                 r = post_into(
                     resolve_to_address(unit), "/unit_api/plugins/install", json=commands, timeout=60
@@ -553,7 +554,7 @@ if am_I_leader() or is_testing_env():
         logger = create_logger("uninstall_plugin", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
         commands = {"args": [plugin]}
 
-        def _thread_function(unit: str) -> tuple[bool, dict]:
+        def _thread_function(unit: Unit) -> tuple[bool, dict]:
             try:
                 r = post_into(
                     resolve_to_address(unit), "/unit_api/plugins/uninstall", json=commands, timeout=60
@@ -609,7 +610,7 @@ if am_I_leader() or is_testing_env():
 
         logger = create_logger("sync_configs", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
-        def _thread_function(unit: str) -> bool:
+        def _thread_function(unit: Unit) -> bool:
             logger.debug(f"Syncing configs on {unit}...")
             try:
                 sync_config_files(unit, shared, specific)
@@ -728,7 +729,7 @@ if am_I_leader() or is_testing_env():
 
         data = parse_click_arguments(extra_args)
 
-        def _thread_function(unit: str) -> tuple[bool, dict]:
+        def _thread_function(unit: Unit) -> tuple[bool, dict]:
             try:
                 r = post_into(resolve_to_address(unit), f"/unit_api/jobs/run/job_name/{job}", json=data)
                 r.raise_for_status()
@@ -768,7 +769,7 @@ if am_I_leader() or is_testing_env():
             if confirm != "Y":
                 sys.exit(1)
 
-        def _thread_function(unit: str) -> bool:
+        def _thread_function(unit: Unit) -> bool:
             try:
                 post_into(resolve_to_address(unit), "/unit_api/system/shutdown", timeout=60)
                 return True
@@ -801,7 +802,7 @@ if am_I_leader() or is_testing_env():
             if confirm != "Y":
                 sys.exit(1)
 
-        def _thread_function(unit: str) -> bool:
+        def _thread_function(unit: Unit) -> bool:
             try:
                 post_into(resolve_to_address(unit), "/unit_api/system/reboot", timeout=60)
                 return True

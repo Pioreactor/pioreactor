@@ -13,6 +13,7 @@ from typing import Optional
 import click
 
 import pioreactor.types as pt
+from pioreactor.types import Unit
 from pioreactor import error_codes
 from pioreactor import exc
 from pioreactor import hardware
@@ -206,7 +207,7 @@ class Stirrer(BackgroundJobWithDodging):
     def __init__(
         self,
         target_rpm: Optional[float],
-        unit: str,
+        unit: Unit,
         experiment: str,
         rpm_calculator: Optional[RpmCalculator] = None,
         calibration: bool | structs.SimpleStirringCalibration | None = True,

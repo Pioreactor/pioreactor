@@ -25,6 +25,7 @@ from msgspec.json import format
 
 from pioreactor import structs
 from pioreactor import types as pt
+from pioreactor.types import Unit
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.stirring import start_stirring as stirring
 from pioreactor.background_jobs.stirring import Stirrer
@@ -158,7 +159,7 @@ def to_struct(
     angle,
     name: str,
     pd_channel: pt.PdChannel,
-    unit: str,
+    unit: Unit,
 ) -> structs.OD600Calibration:
     data_blob = structs.OD600Calibration(
         created_at=current_utc_datetime(),

@@ -18,6 +18,7 @@ from pioreactor.pubsub import create_client
 from pioreactor.pubsub import QOS
 from pioreactor.types import LedChannel
 from pioreactor.types import LedIntensityValue
+from pioreactor.types import Unit
 from pioreactor.utils import JobManager
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.timing import current_utc_datetime
@@ -99,7 +100,7 @@ def _update_current_state(
 
 def led_intensity(
     desired_state: LEDsToIntensityMapping,
-    unit: str | None = None,
+    unit: Unit | None = None,
     experiment: str | None = None,
     verbose: bool = True,
     source_of_event: str | None = None,
@@ -112,7 +113,7 @@ def led_intensity(
     ------------
     desired_state: dict
         what you want the desired LED state to be. Leave keys out if you do wish to update that channel.
-    unit: str
+    unit: Unit
     experiment: str
     verbose: bool
         if True, log the change, and send event to led_event table & mqtt. This is FALSE

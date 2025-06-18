@@ -25,6 +25,7 @@ from pioreactor.config import config
 from pioreactor.hardware import voltage_in_aux
 from pioreactor.logging import create_logger
 from pioreactor.types import PumpCalibrationDevices
+from pioreactor.types import Unit
 from pioreactor.utils import managed_lifecycle
 from pioreactor.utils.math_helpers import correlation
 from pioreactor.utils.math_helpers import simple_linear_regression_with_forced_nil_intercept
@@ -106,7 +107,7 @@ def get_metadata_from_user(pump_device: PumpCalibrationDevices) -> str:
 
 
 def setup(
-    pump_device: PumpCalibrationDevices, execute_pump: Callable, hz: float, dc: float, unit: str
+    pump_device: PumpCalibrationDevices, execute_pump: Callable, hz: float, dc: float, unit: Unit
 ) -> None:
     # set up...
     channel_pump_is_configured_for = config.get("PWM_reverse", pump_device.removesuffix("_pump"))
@@ -210,7 +211,7 @@ def plot_data(x, y, title, x_min=None, x_max=None, interpolation_curve=None, hig
 
 
 def run_tests(
-    execute_pump: Callable, hz: float, dc: float, unit: str, mls_to_calibrate_for: list[float]
+    execute_pump: Callable, hz: float, dc: float, unit: Unit, mls_to_calibrate_for: list[float]
 ) -> tuple[list[float], list[float], float, float]:
     clear()
     echo()
@@ -342,7 +343,7 @@ def save_results(
     voltage: float,
     durations: list[float],
     volumes: list[float],
-    unit: str,
+    unit: Unit,
 ) -> structs.SimplePeristalticPumpCalibration:
     pump_calibration_result = structs.SimplePeristalticPumpCalibration(
         calibration_name=name,

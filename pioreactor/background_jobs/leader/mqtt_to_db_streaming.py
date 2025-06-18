@@ -14,6 +14,7 @@ from msgspec.json import decode as msgspec_loads
 
 from pioreactor import structs
 from pioreactor import types as pt
+from pioreactor.types import Unit
 from pioreactor.background_jobs.base import LongRunningBackgroundJob
 from pioreactor.config import config
 from pioreactor.hardware import PWM_TO_PIN
@@ -31,7 +32,7 @@ sqlite3.register_adapter(datetime.datetime, to_iso_format)
 
 
 class MetaData(Struct):
-    pioreactor_unit: str
+    pioreactor_unit: Unit
     experiment: str
     rest_of_topic: list[str]
 
@@ -64,7 +65,7 @@ class MqttToDBStreamer(LongRunningBackgroundJob):
 
     def __init__(
         self,
-        unit: str,
+        unit: Unit,
         experiment: str,
         topics_to_tables: list[TopicToParserToTable],
     ) -> None:

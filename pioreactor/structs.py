@@ -16,6 +16,7 @@ from msgspec.yaml import encode as yaml_encode
 
 from pioreactor import exc
 from pioreactor import types as pt
+from pioreactor.types import Unit
 from pioreactor.logging import create_logger
 
 
@@ -50,7 +51,7 @@ class AutomationSettings(JSONPrintedStruct):
     Metadata produced when settings in an automation job change
     """
 
-    pioreactor_unit: str
+    pioreactor_unit: Unit
     experiment: str
     started_at: t.Annotated[datetime, Meta(tz=True)]
     ended_at: t.Optional[t.Annotated[datetime, Meta(tz=True)]]
@@ -164,7 +165,7 @@ Y = float
 
 class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
     calibration_name: str
-    calibrated_on_pioreactor_unit: str
+    calibrated_on_pioreactor_unit: Unit
     created_at: t.Annotated[datetime, Meta(tz=True)]
     curve_data_: list[float]
     curve_type: str  # ex: "poly"

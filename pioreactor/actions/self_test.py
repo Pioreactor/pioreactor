@@ -43,6 +43,7 @@ from pioreactor.pubsub import prune_retained_messages
 from pioreactor.types import LedChannel
 from pioreactor.types import PdAngle
 from pioreactor.types import PdChannel
+from pioreactor.types import Unit
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import managed_lifecycle
@@ -58,11 +59,11 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
 
-def test_pioreactor_HAT_present(managed_state, logger: CustomLogger, unit: str, experiment: str) -> None:
+def test_pioreactor_HAT_present(managed_state, logger: CustomLogger, unit: Unit, experiment: str) -> None:
     assert is_HAT_present(), "HAT is not connected"
 
 
-def test_REF_is_in_correct_position(managed_state, logger: CustomLogger, unit: str, experiment: str) -> None:
+def test_REF_is_in_correct_position(managed_state, logger: CustomLogger, unit: Unit, experiment: str) -> None:
     # this _also_ uses stirring to increase the variance in the non-REF.
     # The idea is to trigger stirring on and off and the REF should not see a change in signal / variance, but the other PD should.
 
@@ -115,7 +116,7 @@ def test_REF_is_in_correct_position(managed_state, logger: CustomLogger, unit: s
 
 
 def test_all_positive_correlations_between_pds_and_leds(
-    managed_state, logger: CustomLogger, unit: str, experiment: str
+    managed_state, logger: CustomLogger, unit: Unit, experiment: str
 ) -> None:
     """
     This tests that there is a positive correlation between the IR LED channel, and the photodiodes
@@ -252,7 +253,7 @@ def test_all_positive_correlations_between_pds_and_leds(
         ), f"missing {ir_led_channel} ⇝ {ir_pd_channel}, correlation: {results[(ir_led_channel, ir_pd_channel)]:0.2f}"
 
 
-def test_ambient_light_interference(managed_state, logger: CustomLogger, unit: str, experiment: str) -> None:
+def test_ambient_light_interference(managed_state, logger: CustomLogger, unit: Unit, experiment: str) -> None:
     # test ambient light IR interference. With all LEDs off, and the Pioreactor not in a sunny room, we should see near 0 light.
     assert is_HAT_present(), "HAT is not detected."
     adc_reader = ADCReader(
@@ -282,7 +283,7 @@ def test_ambient_light_interference(managed_state, logger: CustomLogger, unit: s
 
 
 def test_REF_is_lower_than_0_dot_256_volts(
-    managed_state, logger: CustomLogger, unit: str, experiment: str
+    managed_state, logger: CustomLogger, unit: Unit, experiment: str
 ) -> None:
     assert is_HAT_present(), "HAT is not detected."
 
@@ -332,7 +333,7 @@ def test_REF_is_lower_than_0_dot_256_volts(
 
 
 def test_PD_is_near_0_volts_for_blank(
-    managed_state, logger: CustomLogger, unit: str, experiment: str
+    managed_state, logger: CustomLogger, unit: Unit, experiment: str
 ) -> None:
     assert is_HAT_present(), "HAT is not detected."
     reference_channel = cast(PdChannel, config.get("od_config.photodiode_channel_reverse", REF_keyword))
@@ -369,11 +370,11 @@ def test_PD_is_near_0_volts_for_blank(
     assert mean_signal <= THRESHOLD, f"Blank signal too high: {mean_signal=} > {THRESHOLD}"
 
 
-def test_detect_heating_pcb(managed_state, logger: CustomLogger, unit: str, experiment: str) -> None:
+def test_detect_heating_pcb(managed_state, logger: CustomLogger, unit: Unit, experiment: str) -> None:
     assert is_heating_pcb_present(), "Heater PCB is not connected, or i2c is not working."
 
 
-def test_run_stirring_calibration(managed_state, logger: CustomLogger, unit: str, experiment: str) -> None:
+def test_run_stirring_calibration(managed_state, logger: CustomLogger, unit: Unit, experiment: str) -> None:
     from pioreactor.calibrations.stirring_calibration import run_stirring_calibration
 
     cal = run_stirring_calibration()
@@ -383,7 +384,7 @@ def test_run_stirring_calibration(managed_state, logger: CustomLogger, unit: str
 
 
 def test_positive_correlation_between_temperature_and_heating(
-    managed_state, logger: CustomLogger, unit: str, experiment: str
+    managed_state, logger: CustomLogger, unit: Unit, experiment: str
 ) -> None:
     assert is_heating_pcb_present(), "Heater PCB is not connected, or i2c is not working."
 
@@ -405,13 +406,13 @@ def test_positive_correlation_between_temperature_and_heating(
         ), f"Temp and DC% correlation was not high enough {dcs=}, {measured_pcb_temps=}"
 
 
-def test_aux_power_is_not_too_high(client: Client, logger: CustomLogger, unit: str, experiment: str) -> None:
+def test_aux_power_is_not_too_high(client: Client, logger: CustomLogger, unit: Unit, experiment: str) -> None:
     assert is_HAT_present(), "HAT was not detected."
     assert voltage_in_aux() <= 18.0, f"Voltage measured {voltage_in_aux()} > 18.0V"
 
 
 def test_positive_correlation_between_rpm_and_stirring(
-    client, logger: CustomLogger, unit: str, experiment: str
+    client, logger: CustomLogger, unit: Unit, experiment: str
 ) -> None:
     assert is_HAT_present(), "HAT was not detected."
     assert is_heating_pcb_present(), "Heating PCB was not detected."
@@ -464,7 +465,7 @@ class BatchTestRunner:
         self._thread.join()
         return SummableDict({"count_tested": self.count_tested, "count_passed": self.count_passed})
 
-    def _run(self, managed_state, logger: CustomLogger, unit: str, testing_experiment: str) -> None:
+    def _run(self, managed_state, logger: CustomLogger, unit: Unit, testing_experiment: str) -> None:
         for test in self.tests_to_run:
             test_name = test.__name__
 

@@ -13,6 +13,7 @@ from pioreactor.structs import DosingEvent
 from pioreactor.structs import ODReadings
 from pioreactor.structs import RawODReading
 from pioreactor.utils.timing import to_datetime
+from pioreactor.types import Unit
 
 T = TypeVar("T")
 
@@ -67,7 +68,7 @@ class StreamODReadingsFromExport:
         self,
         filename: str,
         skip_first_n_rows: int = 0,
-        pioreactor_unit: str = "$broadcast",
+        pioreactor_unit: Unit = "$broadcast",
         experiment="$experiment",
     ):
         self.filename = filename
@@ -106,7 +107,7 @@ class StreamDosingEventsFromExport:
         self,
         filename: str,
         skip_first_n_rows: int = 0,
-        pioreactor_unit: str = "$broadcast",
+        pioreactor_unit: Unit = "$broadcast",
         experiment="$experiment",
     ):
         self.filename = filename

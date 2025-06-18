@@ -61,6 +61,7 @@ from pioreactor import exc
 from pioreactor import hardware
 from pioreactor import structs
 from pioreactor import types as pt
+from pioreactor.types import Unit
 from pioreactor import whoami
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.base import LoggerMixin
@@ -794,7 +795,7 @@ class ODReader(BackgroundJob):
         channel_angle_map: dict[pt.PdChannel, pt.PdAngle],
         interval: Optional[float],
         adc_reader: ADCReader,
-        unit: str,
+        unit: Unit,
         experiment: str,
         ir_led_reference_tracker: Optional[IrLedReferenceTracker] = None,
         calibration_transformer: Optional[CalibrationTransformer] = None,
@@ -1228,7 +1229,7 @@ def start_od_reading(
     | None = cast(pt.PdAngleOrREF, config.get("od_config.photodiode_channel", "2", fallback=None)),
     interval: float | None = 1 / config.getfloat("od_reading.config", "samples_per_second", fallback=0.2),
     fake_data: bool = False,
-    unit: str | None = None,
+    unit: Unit | None = None,
     experiment: str | None = None,
     calibration: bool | structs.ODCalibration | None = True,
 ) -> ODReader:

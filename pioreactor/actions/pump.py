@@ -16,6 +16,7 @@ from msgspec.structs import replace
 from pioreactor import exc
 from pioreactor import structs
 from pioreactor import types as pt
+from pioreactor.types import Unit
 from pioreactor import utils
 from pioreactor.calibrations import load_active_calibration
 from pioreactor.config import config
@@ -58,7 +59,7 @@ _thread_pool = ThreadPoolExecutor(max_workers=3)
 class PWMPump:
     def __init__(
         self,
-        unit: str,
+        unit: Unit,
         experiment: str,
         pin: pt.GpioPin,
         calibration: structs.SimplePeristalticPumpCalibration,

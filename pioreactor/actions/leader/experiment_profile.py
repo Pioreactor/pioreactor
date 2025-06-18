@@ -31,6 +31,7 @@ from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
+from pioreactor.types import Unit
 
 BoolExpression = str | bool
 Env = dict[str, Any]
@@ -134,7 +135,7 @@ def check_syntax_of_bool_expression(bool_expression: BoolExpression) -> bool:
     return check_syntax(bool_expression)
 
 
-def check_if_job_running(unit: str, job: str) -> bool:
+def check_if_job_running(unit: Unit, job: str) -> bool:
     if is_testing_env():
         return True
     try:
@@ -196,7 +197,7 @@ def get_simple_priority(action: struct.Action):
 
 
 def wrapped_execute_action(
-    unit: str,
+    unit: Unit,
     experiment: str,
     global_env: Env,
     job_name: str,
@@ -351,7 +352,7 @@ def common_wrapped_execute_action(
 
 
 def when(
-    unit: str,
+    unit: Unit,
     experiment: str,
     parent_job: long_running_managed_lifecycle,
     job_name: str,
@@ -429,7 +430,7 @@ def when(
 
 
 def repeat(
-    unit: str,
+    unit: Unit,
     experiment: str,
     parent_job: long_running_managed_lifecycle,
     job_name: str,
@@ -519,7 +520,7 @@ def repeat(
 
 
 def log(
-    unit: str,
+    unit: Unit,
     experiment: str,
     parent_job: long_running_managed_lifecycle,
     job_name: str,
@@ -563,7 +564,7 @@ def log(
 
 
 def start_job(
-    unit: str,
+    unit: Unit,
     experiment: str,
     parent_job: long_running_managed_lifecycle,
     job_name: str,
@@ -617,7 +618,7 @@ def start_job(
 
 
 def pause_job(
-    unit: str,
+    unit: Unit,
     experiment: str,
     parent_job: long_running_managed_lifecycle,
     job_name: str,
@@ -660,7 +661,7 @@ def pause_job(
 
 
 def resume_job(
-    unit: str,
+    unit: Unit,
     experiment: str,
     parent_job: long_running_managed_lifecycle,
     job_name: str,
@@ -704,7 +705,7 @@ def resume_job(
 
 
 def stop_job(
-    unit: str,
+    unit: Unit,
     experiment: str,
     parent_job: long_running_managed_lifecycle,
     job_name: str,
@@ -744,7 +745,7 @@ def stop_job(
 
 
 def update_job(
-    unit: str,
+    unit: Unit,
     experiment: str,
     parent_job: long_running_managed_lifecycle,
     job_name: str,

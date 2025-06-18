@@ -11,6 +11,7 @@ from msgspec.json import encode
 from pioreactor import exc
 from pioreactor import structs
 from pioreactor import types as pt
+from pioreactor.types import Unit
 from pioreactor.automations import events
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.pubsub import QOS
@@ -36,7 +37,7 @@ class AutomationJob(BackgroundJob):
     _latest_normalized_od: None | float = None
     _latest_od: None | dict[pt.PdChannel, float] = None
 
-    def __init__(self, unit: str, experiment: str) -> None:
+    def __init__(self, unit: Unit, experiment: str) -> None:
         super().__init__(unit, experiment)
         if self.automation_name in DISALLOWED_AUTOMATION_NAMES:
             raise NameError(f"{self.automation_name} is not allowed.")

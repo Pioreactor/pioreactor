@@ -49,6 +49,7 @@ from msgspec.json import decode
 
 from pioreactor import structs
 from pioreactor import types as pt
+from pioreactor.types import Unit
 from pioreactor import whoami
 from pioreactor.actions.od_blank import od_statistics
 from pioreactor.background_jobs.base import BackgroundJob
@@ -88,7 +89,7 @@ class GrowthRateCalculator(BackgroundJob):
 
     def __init__(
         self,
-        unit: str,
+        unit: Unit,
         experiment: str,
         ignore_cache: bool = False,
         source_obs_from_mqtt=True,

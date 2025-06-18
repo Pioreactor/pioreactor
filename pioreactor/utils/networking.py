@@ -11,6 +11,7 @@ from typing import Generator
 from pioreactor.config import config
 from pioreactor.exc import RsyncError
 from pioreactor.exc import SSHError
+from pioreactor.types import Unit
 
 
 def ssh(address: str, command: str):
@@ -40,7 +41,7 @@ def rsync(*args: str) -> None:
 
 
 def cp_file_across_cluster(
-    unit: str, localpath: str, remotepath: str, timeout: int = 5, user="pioreactor"
+    unit: Unit, localpath: str, remotepath: str, timeout: int = 5, user="pioreactor"
 ) -> None:
     try:
         rsync(

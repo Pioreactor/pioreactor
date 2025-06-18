@@ -14,6 +14,7 @@ from pioreactor import exc
 from pioreactor import hardware
 from pioreactor import structs
 from pioreactor import types as pt
+from pioreactor.types import Unit
 from pioreactor.automations.base import AutomationJob
 from pioreactor.config import config
 from pioreactor.logging import create_logger
@@ -94,7 +95,7 @@ class TemperatureAutomationJob(AutomationJob):
 
     def __init__(
         self,
-        unit: str,
+        unit: Unit,
         experiment: str,
         **kwargs,
     ) -> None:

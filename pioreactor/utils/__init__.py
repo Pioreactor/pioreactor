@@ -20,6 +20,8 @@ from typing import Self
 from typing import Sequence
 from typing import TYPE_CHECKING
 
+from pioreactor.types import Unit
+
 from msgspec import DecodeError
 from msgspec import Struct
 from msgspec.json import decode as loads
@@ -147,7 +149,7 @@ class managed_lifecycle:
 
     def __init__(
         self,
-        unit: str,
+        unit: Unit,
         experiment: str,
         name: str,
         mqtt_client: Client | None = None,
@@ -282,7 +284,7 @@ class managed_lifecycle:
 class long_running_managed_lifecycle(managed_lifecycle):
     def __init__(
         self,
-        unit: str,
+        unit: Unit,
         experiment: str,
         name: str,
         mqtt_client: Client | None = None,
@@ -677,7 +679,7 @@ class JobManager:
 
     def register_and_set_running(
         self,
-        unit: str,
+        unit: Unit,
         experiment: str,
         job_name: str,
         job_source: str | None,
@@ -887,7 +889,7 @@ class ClusterJobManager:
             if job_id:
                 params["job_id"] = job_id
 
-        def _thread_function(unit: str) -> tuple[bool, dict]:
+        def _thread_function(unit: Unit) -> tuple[bool, dict]:
             try:
                 r = patch_into(resolve_to_address(unit), endpoint, params=params)
                 r.raise_for_status()
