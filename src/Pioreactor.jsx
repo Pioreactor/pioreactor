@@ -1734,6 +1734,7 @@ function PioreactorCard({ unit, modelName, isUnitActive, experiment, config, lab
             }
           })}>
             <div style={{display: "flex", justifyContent: "left"}}>
+              <PioreactorIconWithModel badgeContent={modelName === "pioreactor_40ml" ? "40" : "20"} />
               <Typography sx={{
                   fontSize: 20,
                   color: "rgba(0, 0, 0, 0.87)",
@@ -1741,7 +1742,6 @@ function PioreactorCard({ unit, modelName, isUnitActive, experiment, config, lab
                   ...(isUnitActive ? {} : { color: disabledColor }),
                 }}
                 gutterBottom>
-                <PioreactorIconWithModel model={modelName} />
                 {(label ) ? label : unit }
               </Typography>
               <Tooltip title={indicatorLabel} placement="right">

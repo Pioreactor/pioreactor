@@ -6,6 +6,9 @@ import {
   VictoryAxis,
   VictoryTheme,
   VictoryLabel,
+  VictoryCursorContainer,
+  VictoryTooltip,
+  LineSegment
 } from "victory";
 
 /**
@@ -88,6 +91,44 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
         width={1050}
         theme={VictoryTheme.material}
         padding={{ left: 50, right: 50, bottom: 40, top: 45 }}
+        containerComponent={
+          <VictoryCursorContainer
+            // only draw a vertical line; change to "both" for cross-hairs
+
+            // supply the text but use a tooltip component for styling
+            cursorLabel={({ datum }) =>
+              `${datum.x.toFixed(2)}, ${datum.y.toFixed(2)}`
+            }
+            cursorLabelComponent={
+              <VictoryTooltip
+                dy={0}
+                dx={-5}
+                cornerRadius={0}
+                constrainToVisibleArea      // keep it on–screen
+                flyoutStyle={{
+                  fill: "white",
+                  stroke: "#90a4ae",
+                  strokeWidth: 1.0,
+                }}
+                style={{
+                  fontSize: 10,
+                  fontFamily: "inherit",
+                  fill: "#333",
+                }}
+              />
+            }
+
+            cursorComponent={
+              <LineSegment
+                  style={{
+                    strokeDasharray: [6, 6],
+                    stroke: "#888",
+                    strokeWidth: 1,
+                  }}
+              />
+            }
+          />
+        }
       >
         <VictoryLabel
             text={title}

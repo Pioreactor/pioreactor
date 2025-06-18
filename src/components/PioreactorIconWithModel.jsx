@@ -1,8 +1,7 @@
 import { Badge } from "@mui/material";
 import PioreactorIcon from "./PioreactorIcon"; // Adjust the import path as needed
 
-const PioreactorIconWithModel = ({ model }) => {
-  const badgeContent = model === "pioreactor_40ml" ? "40" : "20";
+const PioreactorIconWithModel = ({ badgeContent }) => {
 
   return (
     <Badge

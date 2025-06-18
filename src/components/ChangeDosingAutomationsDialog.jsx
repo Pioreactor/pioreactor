@@ -151,7 +151,8 @@ function ChangeDosingAutomationsDialog(props) {
                 maxVolume={props.maxVolume}
                 liquidVolume={props.liquidVolume}
                 threshold={props.threshold}
-                />
+                algoSettings={algoSettings}
+              />
 
             }
 

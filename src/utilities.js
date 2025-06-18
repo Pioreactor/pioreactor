@@ -64,7 +64,7 @@ export function runPioreactorJob(unit, experiment, job, args = [], options = {},
         args: args,
         options: options,
         env: (!skipEnv) ? {EXPERIMENT: experiment, JOB_SOURCE: "user"} : {},
-        config_overrides: Object.entries(configOverrides).map( ( [parameter, value] ) => (`${job}.config,${parameter},${value}`)),
+        config_overrides: Object.entries(configOverrides).map( ( [parameter, value] ) => [`${job}.config`, parameter, value]),
       }),
       headers: {
         'Accept': 'application/json',

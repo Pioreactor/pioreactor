@@ -258,6 +258,25 @@ const ActionDetails = ({ action, jobName, index }) => {
     return null;
   };
 
+  const renderConfigOverrides = () => {
+    if (action?.config_overrides && typeof action.config_overrides === 'object' && !Array.isArray(action.config_overrides)) {
+      return Object.keys(action.config_overrides).map((option, idx) => {
+        const optionValue = action.config_overrides[option];
+        if (typeof optionValue === 'object') {
+          return (
+            ""
+          ); // intermediate state when typing
+        }
+        return (
+          <Typography key={`option-${idx}`} variant="body2" sx={level3}>
+            — set {displayVariable(`[${jobName}.config].${option}`)} → {processBracketedExpression(optionValue)}
+          </Typography>
+        );
+      });
+    }
+    return null;
+  };
+
   const renderInvalidOptionsMessage = () => {
     if (action?.type === 'update' && action.options === undefined) {
       return (
@@ -286,6 +305,7 @@ const ActionDetails = ({ action, jobName, index }) => {
           </Typography>
           {renderOptions()}
           {renderInvalidOptionsMessage()}
+          {renderConfigOverrides()}
         </>
       );
     case 'log':

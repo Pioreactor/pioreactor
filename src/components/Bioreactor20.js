@@ -51,7 +51,7 @@ const Bioreactor20Diagram = ({experiment, unit, config}) => {
   const [pumps, setPumps] = useState(new Set([]));
   const [heat, setHeat] = useState(false);
   const [volume, setVolume] = useState(14);
-  const [maxVolume, setMaxVolume] = useState((config?.bioreactor?.max_volume_ml || 14));
+  const [maxVolume, setMaxVolume] = useState(Math.min(20, (config?.bioreactor?.max_volume_ml || 14)));
 
   var  now, then, elapsed;
   const fps = 45;
@@ -60,7 +60,7 @@ const Bioreactor20Diagram = ({experiment, unit, config}) => {
 
   useEffect(() => {
     if (Object.keys(config).length){
-      setVolume(config?.bioreactor?.initial_volume_ml)
+      setVolume(Math.min(config?.bioreactor?.initial_volume_ml, 20))
     }
   }, [config])
 
@@ -134,13 +134,13 @@ const Bioreactor20Diagram = ({experiment, unit, config}) => {
       if (messageString === "") {
         //
       } else {
-        setVolume(parseFloat(messageString))
+        setVolume(Math.min(20, parseFloat(messageString)))
       }
     } else if (topicString.endsWith("dosing_automation/max_volume")){
       if (messageString === "") {
         //
       } else {
-        setMaxVolume(parseFloat(messageString))
+        setMaxVolume(Math.min(parseFloat(messageString), 20))
       }
     } else if (topicString.endsWith("leds/intensity")){
       if (messageString === "") {

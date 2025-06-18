@@ -19,9 +19,9 @@ function DosingAutomationForm(props) {
 
   const checkForWarnings = (id, value) => {
     if (id === "initial_liquid_volume_ml" && value > threshold) {
-      setWarning(`⚠️ Initial culture volume exceeds safe threshold of ${threshold} mL.`);
+      setWarning(`⚠️ Initial liquid volume exceeds safe threshold of ${threshold} mL.`);
     } else if (id === "max_volume_ml" && value > threshold) {
-      setWarning(`⚠️ Max culture volume exceeds safe threshold of ${threshold} mL.`);
+      setWarning(`⚠️ Max liquid volume exceeds safe threshold of ${threshold} mL.`);
     } else {
       setWarning(""); // clear warning
     }
@@ -60,8 +60,14 @@ function DosingAutomationForm(props) {
       <Typography variant="body1" sx={{ whiteSpace: "pre-line", mt: 3, mb: 1, padding: "6px 6px" }}>
         {props.description}
       </Typography>
+      {props.name === "chemostat" &&
+        <Typography variant="body1" sx={{ whiteSpace: "pre-line", mt: 0, mb: 1, padding: "6px 6px" }}>
+          The current computed <UnderlineSpan title="Volume per dose * (60 / Time between dosing) / (Max liquid volume)">dilution rate</UnderlineSpan> is <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{(props.algoSettings.volume * (60/props.algoSettings.duration) / props.algoSettings.max_volume_ml).toFixed(2)} h⁻¹</code>.
+        </Typography>
+      }
 
       {listOfDisplayFields}
+
 
       <Divider sx={{ mt: 2, mb: 0 }} />
 

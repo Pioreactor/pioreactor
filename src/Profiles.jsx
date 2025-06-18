@@ -219,7 +219,6 @@ function RunProfilesContainer(props) {
           <Typography variant="h6" component="h2">
             <Box fontWeight="fontWeightRegular">Available profiles</Box>
           </Typography>
-          {/* Pass all relevant props through */}
           <RunExperimentProfilesContent {...props} experiment={experiment} />
         </CardContent>
       </Card>

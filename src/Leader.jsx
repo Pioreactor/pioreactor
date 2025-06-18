@@ -36,6 +36,7 @@ import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutl
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { styled } from '@mui/material/styles';
 import Chip from '@mui/material/Chip';
+import PioreactorIconWithModel from "./components/PioreactorIconWithModel"
 import PioreactorIcon from "./components/PioreactorIcon"
 
 // Activate the UTC plugin
@@ -372,7 +373,7 @@ function LeaderCard({leaderHostname}) {
                 fontWeight: 500,
               }}
               gutterBottom>
-              <PioreactorIcon  sx={{verticalAlign: "middle", mr: "3px", mb: "2px"}} />
+              <PioreactorIconWithModel badgeContent={"★"}  sx={{verticalAlign: "middle", mr: "3px", mb: "2px"}} />
               {unit}
             </Typography>
             <Tooltip title={indicatorLabel} placement="right">

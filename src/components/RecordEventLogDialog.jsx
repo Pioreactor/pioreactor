@@ -117,7 +117,6 @@ function RecordEventLogDialog({
               onChange={(e) => setSelectedExperiment(e.target.value)}
             >
               <MenuItem value={defaultExperiment}>{defaultExperiment}</MenuItem>
-              <MenuItem value="$experiment">&lt;All experiments&gt;</MenuItem>
             </Select>
           </FormControl>
         </Box>

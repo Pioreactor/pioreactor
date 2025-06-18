@@ -424,6 +424,7 @@ function WorkerCard({worker, config, leaderVersion}) {
         <div style={{display: "flex", justifyContent: "space-between"}}>
 
           <div style={{display: "flex", justifyContent: "left"}}>
+            <PioreactorIconWithModel badgeContent={model[0] === "pioreactor_40ml" ? "40" : "20"} />
             <Typography sx={{
                 fontSize: 20,
                 color: "rgba(0, 0, 0, 0.87)",
@@ -431,8 +432,6 @@ function WorkerCard({worker, config, leaderVersion}) {
                 ...(isActive() ? {} : { color: inactiveGrey }),
               }}
               gutterBottom>
-
-              <PioreactorIconWithModel model={model[0]} />
 
               {unit}
 
