@@ -237,11 +237,6 @@ class GrowthRateProcessor(LoggerMixin):
                 )
                 od_normalization_factors, od_variances = self._compute_and_cache_od_statistics(od_stream)
 
-        if not self.ignore_cache:
-            od_blank = self.get_od_blank_from_cache()
-        else:
-            od_blank = defaultdict(lambda: 0.0)
-
         # check that od_variances is not zero:
         # this means that the sensor is not working properly.
         if any(v == 0.0 for v in od_variances.values()):
@@ -251,6 +246,11 @@ class GrowthRateProcessor(LoggerMixin):
             raise ValueError(
                 "OD variance is zero - this means that the sensor is not working properly. Please check the sensor."
             )
+
+        if not self.ignore_cache:
+            od_blank = self.get_od_blank_from_cache()
+        else:
+            od_blank = defaultdict(lambda: 0.0)
 
         # what happens if od_blank is near / less than od_normalization_factors?
         # this means that the inoculant had near 0 impact on the turbidity => very dilute.
