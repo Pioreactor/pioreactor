@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import typing as t
 
+# alias types
+Unit = str
+Experiment = str
+
 from msgspec import Meta
 
 if t.TYPE_CHECKING:
