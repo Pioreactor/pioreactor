@@ -16,8 +16,10 @@ from pioreactor.logging import create_logger
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import QOS
+from pioreactor.types import Experiment
 from pioreactor.types import LedChannel
 from pioreactor.types import LedIntensityValue
+from pioreactor.types import Unit
 from pioreactor.utils import JobManager
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.timing import current_utc_datetime
@@ -99,8 +101,8 @@ def _update_current_state(
 
 def led_intensity(
     desired_state: LEDsToIntensityMapping,
-    unit: pt.Unit | None = None,
-    experiment: pt.Experiment | None = None,
+    unit: Unit | None = None,
+    experiment: Experiment | None = None,
     verbose: bool = True,
     source_of_event: str | None = None,
     pubsub_client: Client | None = None,

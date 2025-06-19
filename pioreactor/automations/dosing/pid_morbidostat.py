@@ -16,7 +16,6 @@ class PIDMorbidostat(DosingAutomationJob):
     As defined in Zhong 2020
     """
 
-    VIAL_VOLUME = config.getfloat("bioreactor", "max_volume_ml", fallback=14)
     automation_name = "pid_morbidostat"
     published_settings = {
         "volume": {"datatype": "float", "settable": True, "unit": "mL"},
@@ -59,7 +58,7 @@ class PIDMorbidostat(DosingAutomationJob):
         )
 
         assert isinstance(self.duration, float)
-        self.volume = round(self.target_growth_rate * self.VIAL_VOLUME * (self.duration / 60), 4)
+        self.volume = round(self.target_growth_rate * self.max_volume * (self.duration / 60), 4)
 
     def execute(self) -> events.AutomationEvent:
         if self.latest_normalized_od <= self.min_od:
