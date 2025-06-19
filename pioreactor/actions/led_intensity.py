@@ -52,7 +52,7 @@ def change_leds_intensities_temporarily(
         yield
     finally:
         if not led_intensity(old_state, **kwargs):
-            raise ValueError("Unable to update LED.")
+            raise ValueError("Unable to reset LED.")
 
 
 @contextmanager

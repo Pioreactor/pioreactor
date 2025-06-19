@@ -162,16 +162,16 @@ def discover_workers_on_network(terminate: bool = False) -> Generator[str, None,
 
 
 def resolve_to_address(hostname: str) -> str:
-    # TODO: make this more fleshed out: resolve to IP, etc.
-    # add_local assumes a working mDNS.
     address_in_config = config.get("cluster.addresses", hostname, fallback=None)
     if address_in_config is not None:
         return address_in_config
     else:
+        # add_local assumes a working mDNS.
         return add_local(hostname)
 
 
 def add_local(hostname: str) -> str:
+    # add_local assumes a working mDNS.
     hostname_lower = hostname.lower()
 
     # Check if it's localhost first
@@ -188,7 +188,7 @@ def add_local(hostname: str) -> str:
         pass
 
     # Add .local if not already present
-    if not hostname_lower.endswith(".local"):
-        return hostname + ".local"
+    if hostname_lower.endswith(".local"):
+        return hostname
 
-    return hostname
+    return hostname.strip() + ".local"

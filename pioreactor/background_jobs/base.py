@@ -561,7 +561,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self._publish_setting(setting)
 
     def remove_from_published_settings(self, setting: str) -> None:
-        self.published_settings.pop(setting, None)
+        if self.published_settings.pop(setting, None):
+            self._unpublish_setting(setting)
 
     ########### Private #############
 
@@ -585,7 +586,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             if not all(ss.isalnum() for ss in setting.split("_")):
                 # only alphanumeric separated by _ is allowed.
                 raise ValueError(
-                    f"setting {setting} has bad characters - must be alphanumeric, and only separated by underscore."
+                    f"setting {setting} has a bad name - must be alphanumeric, and only separated by underscore."
                 )
 
     def _create_pub_client(self) -> Client:
@@ -928,6 +929,13 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # not used...yet
         return self.job_name + "/" + self.job_id
 
+    def _unpublish_setting(self, setting: str) -> None:
+        self.publish(
+            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting}",
+            None,
+            retain=True,
+        )
+
     def _clear_caches(self) -> None:
         """
         From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
@@ -937,11 +945,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # iterate twice since publish and upsert_setting are slow, and I don't want to block the db.
         for setting, metadata_on_attr in self.published_settings.items():
             if not metadata_on_attr.get("persist", False):
-                self.publish(
-                    f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting}",
-                    None,
-                    retain=True,
-                )
+                self._unpublish_setting(setting)
 
         with JobManager() as jm:
             for setting, metadata_on_attr in self.published_settings.items():

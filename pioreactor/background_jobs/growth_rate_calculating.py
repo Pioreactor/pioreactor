@@ -241,10 +241,10 @@ class GrowthRateProcessor(LoggerMixin):
         # this means that the sensor is not working properly.
         if any(v == 0.0 for v in od_variances.values()):
             self.logger.error(
-                "OD variance is zero - this means that the sensor is not working properly. Please check the sensor."
+                "OD variance is zero - this suggests that the OD sensor is not working properly, or a calibration is wrong."
             )
             raise ValueError(
-                "OD variance is zero - this means that the sensor is not working properly. Please check the sensor."
+                "OD variance is zero - this suggests that the OD sensor is not working properly, or a calibration is wrong."
             )
 
         if not self.ignore_cache:
@@ -257,7 +257,7 @@ class GrowthRateProcessor(LoggerMixin):
         # I think we should not use od_blank if so
         for channel in od_normalization_factors.keys():
             if od_normalization_factors[channel] * 0.90 < od_blank[channel]:
-                self.logger.debug("Resetting od_blank because it is too close to current observations.")
+                self.logger.info("Resetting od_blank because it is too close to current observations.")
                 od_blank[channel] = 0
 
         return (
