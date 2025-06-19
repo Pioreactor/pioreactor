@@ -13,6 +13,7 @@ from pioreactor.exc import NotAssignedAnExperimentError
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
+from pioreactor import types as pt
 
 if TYPE_CHECKING:
     from pioreactor.pubsub import Client
@@ -141,8 +142,8 @@ class MQTTHandler(logging.Handler):
 
 def create_logger(
     name: str,
-    unit: str | None = None,
-    experiment: str | None = None,
+    unit: pt.Unit | None = None,
+    experiment: pt.Experiment | None = None,
     source: str = "app",
     to_mqtt: bool = True,
     pub_client: Client | None = None,

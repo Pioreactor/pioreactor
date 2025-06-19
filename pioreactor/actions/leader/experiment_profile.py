@@ -19,6 +19,7 @@ from pioreactor.exc import NotAssignedAnExperimentError
 from pioreactor.experiment_profiles import profile_struct as struct
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
+from pioreactor import types as pt
 from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import get_from
 from pioreactor.pubsub import patch_into
@@ -135,7 +136,7 @@ def check_syntax_of_bool_expression(bool_expression: BoolExpression) -> bool:
     return check_syntax(bool_expression)
 
 
-def check_if_job_running(unit: str, job: str) -> bool:
+def check_if_job_running(unit: pt.Unit, job: str) -> bool:
     if is_testing_env():
         return True
     try:
@@ -197,8 +198,8 @@ def get_simple_priority(action: struct.Action):
 
 
 def wrapped_execute_action(
-    unit: str,
-    experiment: str,
+    unit: pt.Unit,
+    experiment: pt.Experiment,
     global_env: Env,
     job_name: str,
     logger: CustomLogger,
@@ -322,7 +323,7 @@ def chain_functions(*funcs: Callable[[], None]) -> Callable[[], None]:
 
 
 def common_wrapped_execute_action(
-    experiment: str,
+    experiment: pt.Experiment,
     job_name: str,
     global_env: Env,
     logger: CustomLogger,
@@ -353,8 +354,8 @@ def common_wrapped_execute_action(
 
 
 def when(
-    unit: str,
-    experiment: str,
+    unit: pt.Unit,
+    experiment: pt.Experiment,
     parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
@@ -431,8 +432,8 @@ def when(
 
 
 def repeat(
-    unit: str,
-    experiment: str,
+    unit: pt.Unit,
+    experiment: pt.Experiment,
     parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
@@ -521,8 +522,8 @@ def repeat(
 
 
 def log(
-    unit: str,
-    experiment: str,
+    unit: pt.Unit,
+    experiment: pt.Experiment,
     parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
@@ -565,8 +566,8 @@ def log(
 
 
 def start_job(
-    unit: str,
-    experiment: str,
+    unit: pt.Unit,
+    experiment: pt.Experiment,
     parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
@@ -627,8 +628,8 @@ def start_job(
 
 
 def pause_job(
-    unit: str,
-    experiment: str,
+    unit: pt.Unit,
+    experiment: pt.Experiment,
     parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
@@ -670,8 +671,8 @@ def pause_job(
 
 
 def resume_job(
-    unit: str,
-    experiment: str,
+    unit: pt.Unit,
+    experiment: pt.Experiment,
     parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
@@ -714,8 +715,8 @@ def resume_job(
 
 
 def stop_job(
-    unit: str,
-    experiment: str,
+    unit: pt.Unit,
+    experiment: pt.Experiment,
     parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
@@ -754,8 +755,8 @@ def stop_job(
 
 
 def update_job(
-    unit: str,
-    experiment: str,
+    unit: pt.Unit,
+    experiment: pt.Experiment,
     parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
@@ -855,7 +856,7 @@ def load_and_verify_profile(profile_filename: str) -> struct.Profile:
     return profile
 
 
-def push_labels_to_ui(experiment, labels_map: dict[str, str]) -> None:
+def push_labels_to_ui(experiment: pt.Experiment, labels_map: dict[str, str]) -> None:
     try:
         for unit_name, label in labels_map.items():
             patch_into_leader(
@@ -912,7 +913,7 @@ def check_plugins(required_plugins: list[struct.Plugin]) -> None:
         raise ImportError(f"Missing plugins: {not_installed}")
 
 
-def execute_experiment_profile(profile_filename: str, experiment: str, dry_run: bool = False) -> None:
+def execute_experiment_profile(profile_filename: str, experiment: pt.Experiment, dry_run: bool = False) -> None:
     unit = get_unit_name()
     action_name = "experiment_profile"
     with long_running_managed_lifecycle(unit, experiment, action_name) as mananged_job:
@@ -1065,7 +1066,7 @@ def click_experiment_profile():
 @click.argument("filename", type=click.Path())
 @click.argument("experiment", type=str)
 @click.option("--dry-run", is_flag=True, help="Don't actually execute, just print to screen")
-def click_execute_experiment_profile(filename: str, experiment: str, dry_run: bool) -> None:
+def click_execute_experiment_profile(filename: str, experiment: pt.Experiment, dry_run: bool) -> None:
     """
     (leader only) Run an experiment profile.
     """

@@ -10,6 +10,8 @@ from typing import Any
 from typing import Callable
 from typing import Optional
 
+from pioreactor import types as pt
+
 from msgspec import Struct
 from msgspec.json import decode as loads
 from paho.mqtt.client import Client as PahoClient
@@ -330,7 +332,7 @@ class collect_all_logs_of_level:
     # We can use this to check that the logs are actually being published as we expect
     # We can also use this to check that the log levels are being set as we expect
 
-    def __init__(self, log_level: str, unit: str, experiment: str) -> None:
+    def __init__(self, log_level: str, unit: pt.Unit, experiment: pt.Experiment) -> None:
         # set the log level we are looking for
         self.log_level = log_level.upper()
         # set the unit and experiment we are looking for

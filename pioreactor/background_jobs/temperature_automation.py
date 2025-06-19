@@ -94,8 +94,8 @@ class TemperatureAutomationJob(AutomationJob):
 
     def __init__(
         self,
-        unit: str,
-        experiment: str,
+        unit: pt.Unit,
+        experiment: pt.Experiment,
         **kwargs,
     ) -> None:
         super(TemperatureAutomationJob, self).__init__(unit, experiment)

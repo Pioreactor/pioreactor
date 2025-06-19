@@ -36,7 +36,7 @@ class AutomationJob(BackgroundJob):
     _latest_normalized_od: None | float = None
     _latest_od: None | dict[pt.PdChannel, float] = None
 
-    def __init__(self, unit: str, experiment: str) -> None:
+    def __init__(self, unit: pt.Unit, experiment: pt.Experiment) -> None:
         super().__init__(unit, experiment)
         if self.automation_name in DISALLOWED_AUTOMATION_NAMES:
             raise NameError(f"{self.automation_name} is not allowed.")

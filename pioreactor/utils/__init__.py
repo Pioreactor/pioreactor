@@ -147,8 +147,8 @@ class managed_lifecycle:
 
     def __init__(
         self,
-        unit: str,
-        experiment: str,
+        unit: pt.Unit,
+        experiment: pt.Experiment,
         name: str,
         mqtt_client: Client | None = None,
         exit_on_mqtt_disconnect: bool = False,
@@ -282,8 +282,8 @@ class managed_lifecycle:
 class long_running_managed_lifecycle(managed_lifecycle):
     def __init__(
         self,
-        unit: str,
-        experiment: str,
+        unit: pt.Unit,
+        experiment: pt.Experiment,
         name: str,
         mqtt_client: Client | None = None,
         exit_on_mqtt_disconnect: bool = False,
@@ -677,8 +677,8 @@ class JobManager:
 
     def register_and_set_running(
         self,
-        unit: str,
-        experiment: str,
+        unit: pt.Unit,
+        experiment: pt.Experiment,
         job_name: str,
         job_source: str | None,
         pid: int,
@@ -861,9 +861,9 @@ class ClusterJobManager:
 
     @staticmethod
     def kill_jobs(
-        units: tuple[str, ...],
+        units: tuple[pt.Unit, ...],
         all_jobs: bool = False,
-        experiment: str | None = None,
+        experiment: pt.Experiment | None = None,
         job_name: str | None = None,
         job_source: str | None = None,
         job_id: int | None = None,
@@ -887,7 +887,7 @@ class ClusterJobManager:
             if job_id:
                 params["job_id"] = job_id
 
-        def _thread_function(unit: str) -> tuple[bool, dict]:
+        def _thread_function(unit: pt.Unit) -> tuple[bool, dict]:
             try:
                 r = patch_into(resolve_to_address(unit), endpoint, params=params)
                 r.raise_for_status()

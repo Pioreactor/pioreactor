@@ -50,8 +50,8 @@ class AutomationSettings(JSONPrintedStruct):
     Metadata produced when settings in an automation job change
     """
 
-    pioreactor_unit: str
-    experiment: str
+    pioreactor_unit: pt.Unit
+    experiment: pt.Experiment
     started_at: t.Annotated[datetime, Meta(tz=True)]
     ended_at: t.Optional[t.Annotated[datetime, Meta(tz=True)]]
     automation_name: str
@@ -164,7 +164,7 @@ Y = float
 
 class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
     calibration_name: str
-    calibrated_on_pioreactor_unit: str
+    calibrated_on_pioreactor_unit: pt.Unit
     created_at: t.Annotated[datetime, Meta(tz=True)]
     curve_data_: list[float]
     curve_type: str  # ex: "poly"
