@@ -233,8 +233,8 @@ class DosingAutomationJob(AutomationJob):
 
     def __init__(
         self,
-        unit: str,
-        experiment: str,
+        unit: pt.Unit,
+        experiment: pt.Experiment,
         duration: Optional[float] = None,
         skip_first_run: bool = False,
         initial_alt_media_fraction: float | None = None,

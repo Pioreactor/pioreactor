@@ -7,6 +7,8 @@ from msgspec import field
 from msgspec import Struct
 from pioreactor import types as pt
 
+from pioreactor import types as pt
+
 
 bool_expression = str | bool
 
