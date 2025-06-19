@@ -17,6 +17,7 @@ from pioreactor.exc import BashScriptError
 from pioreactor.logging import create_logger
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
+from pioreactor import types as pt
 from pioreactor.pubsub import delete_from_leader
 from pioreactor.pubsub import get_from
 from pioreactor.pubsub import get_from_leader
@@ -26,19 +27,19 @@ from pioreactor.utils import networking
 from pioreactor.utils.timing import catchtime
 
 
-def get_workers_in_inventory() -> tuple[str, ...]:
+def get_workers_in_inventory() -> tuple[pt.Unit, ...]:
     result = get_from_leader("/api/workers")
     result.raise_for_status()
     return tuple(worker["pioreactor_unit"] for worker in result.json())
 
 
-def get_active_workers_in_inventory() -> tuple[str, ...]:
+def get_active_workers_in_inventory() -> tuple[pt.Unit, ...]:
     result = get_from_leader("/api/workers")
     result.raise_for_status()
     return tuple(worker["pioreactor_unit"] for worker in result.json() if bool(worker["is_active"]))
 
 
-def get_active_workers_in_experiment(experiment: str) -> tuple[str, ...]:
+def get_active_workers_in_experiment(experiment: pt.Experiment) -> tuple[pt.Unit, ...]:
     result = get_from_leader(f"/api/experiments/{experiment}/workers")
     result.raise_for_status()
     return tuple(worker["pioreactor_unit"] for worker in result.json() if bool(worker["is_active"]))
@@ -142,7 +143,7 @@ def add_worker(
 
 @click.command(name="remove", short_help="remove a pioreactor worker")
 @click.argument("worker")
-def remove_worker(worker: str) -> None:
+def remove_worker(worker: pt.Unit) -> None:
     try:
         r = delete_from_leader(f"/api/workers/{worker}")
         r.raise_for_status()
@@ -162,7 +163,7 @@ def remove_worker(worker: str) -> None:
 @click.command(name="assign", short_help="assign a pioreactor worker")
 @click.argument("worker")
 @click.argument("experiment")
-def assign_worker_to_experiment(worker: str, experiment: str) -> None:
+def assign_worker_to_experiment(worker: pt.Unit, experiment: pt.Experiment) -> None:
     try:
         r = put_into_leader(
             f"/api/experiments/{experiment}/workers",
@@ -185,7 +186,7 @@ def assign_worker_to_experiment(worker: str, experiment: str) -> None:
 @click.command(name="unassign", short_help="unassign a pioreactor worker")
 @click.argument("worker")
 @click.argument("experiment")
-def unassign_worker_from_experiment(worker: str, experiment: str) -> None:
+def unassign_worker_from_experiment(worker: pt.Unit, experiment: pt.Experiment) -> None:
     try:
         r = delete_from_leader(
             f"/api/experiments/{experiment}/workers/{worker}",
@@ -204,7 +205,7 @@ def unassign_worker_from_experiment(worker: str, experiment: str) -> None:
 @click.command(name="update-active", short_help="change active of worker")
 @click.argument("hostname")
 @click.argument("active", type=click.IntRange(0, 1))
-def update_active(worker: str, active: int) -> None:
+def update_active(worker: pt.Unit, active: int) -> None:
     try:
         r = put_into_leader(
             f"/api/workers/{worker}/is_active",

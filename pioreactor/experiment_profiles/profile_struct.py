@@ -6,6 +6,8 @@ import typing as t
 from msgspec import field
 from msgspec import Struct
 
+from pioreactor import types as pt
+
 
 bool_expression = str | bool
 
@@ -102,7 +104,7 @@ class Job(Struct, forbid_unknown_fields=True):
     # logging?
 
 
-PioreactorUnitName = str
+PioreactorUnitName = pt.Unit
 PioreactorLabel = str
 JobName = str
 Jobs = dict[JobName, Job]

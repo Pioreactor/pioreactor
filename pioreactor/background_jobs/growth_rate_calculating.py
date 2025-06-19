@@ -476,8 +476,8 @@ class GrowthRateCalculator(BackgroundJob):
 
     def __init__(
         self,
-        unit: str,
-        experiment: str,
+        unit: pt.Unit,
+        experiment: pt.Experiment,
         ignore_cache: bool = False,
     ):
         super(GrowthRateCalculator, self).__init__(unit=unit, experiment=experiment)

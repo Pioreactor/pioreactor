@@ -58,8 +58,8 @@ _thread_pool = ThreadPoolExecutor(max_workers=3)
 class PWMPump:
     def __init__(
         self,
-        unit: str,
-        experiment: str,
+        unit: pt.Unit,
+        experiment: pt.Experiment,
         pin: pt.GpioPin,
         calibration: structs.SimplePeristalticPumpCalibration,
         mqtt_client: Optional[Client] = None,

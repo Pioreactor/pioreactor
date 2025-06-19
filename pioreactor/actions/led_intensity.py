@@ -99,8 +99,8 @@ def _update_current_state(
 
 def led_intensity(
     desired_state: LEDsToIntensityMapping,
-    unit: str | None = None,
-    experiment: str | None = None,
+    unit: pt.Unit | None = None,
+    experiment: pt.Experiment | None = None,
     verbose: bool = True,
     source_of_event: str | None = None,
     pubsub_client: Client | None = None,
@@ -112,8 +112,8 @@ def led_intensity(
     ------------
     desired_state: dict
         what you want the desired LED state to be. Leave keys out if you do wish to update that channel.
-    unit: str
-    experiment: str
+    unit: Unit
+    experiment: Experiment
     verbose: bool
         if True, log the change, and send event to led_event table & mqtt. This is FALSE
         in od_reading job, so as to not create spam.

@@ -31,8 +31,8 @@ sqlite3.register_adapter(datetime.datetime, to_iso_format)
 
 
 class MetaData(Struct):
-    pioreactor_unit: str
-    experiment: str
+    pioreactor_unit: pt.Unit
+    experiment: pt.Experiment
     rest_of_topic: list[str]
 
 
@@ -64,8 +64,8 @@ class MqttToDBStreamer(LongRunningBackgroundJob):
 
     def __init__(
         self,
-        unit: str,
-        experiment: str,
+        unit: pt.Unit,
+        experiment: pt.Experiment,
         topics_to_tables: list[TopicToParserToTable],
     ) -> None:
         super().__init__(unit, experiment)

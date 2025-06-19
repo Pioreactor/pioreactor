@@ -15,6 +15,7 @@ from pioreactor import error_codes
 from pioreactor import utils
 from pioreactor import version
 from pioreactor import whoami
+from pioreactor import types as pt
 from pioreactor.background_jobs.base import LongRunningBackgroundJob
 from pioreactor.cluster_management import get_workers_in_inventory
 from pioreactor.config import config
@@ -107,7 +108,7 @@ class Monitor(LongRunningBackgroundJob):
     _pre_button: list[Callable] = []
     _post_button: list[Callable] = []
 
-    def __init__(self, unit: str, experiment: str) -> None:
+    def __init__(self, unit: pt.Unit, experiment: pt.Experiment) -> None:
         super().__init__(unit=unit, experiment=experiment)
 
         def pretty_version(info: tuple) -> str:
