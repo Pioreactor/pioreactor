@@ -271,7 +271,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         cls.__init__ = wrapped_init
 
-    def __init__(self, unit: str, experiment: str, source: str = "app") -> None:
+    def __init__(self, unit: pt.Unit, experiment: pt.Experiment, source: str = "app") -> None:
         if self.job_name in DISALLOWED_JOB_NAMES:
             raise ValueError("Job name not allowed.")
         if not self.job_name.islower():
@@ -976,7 +976,7 @@ class LongRunningBackgroundJob(_BackgroundJob):
 
     _IS_LONG_RUNNING = True
 
-    def __init__(self, unit: str, experiment: str) -> None:
+    def __init__(self, unit: pt.Unit, experiment: pt.Experiment) -> None:
         super().__init__(unit, experiment, source="app")
 
 
@@ -987,7 +987,7 @@ class LongRunningBackgroundJobContrib(_BackgroundJob):
 
     _IS_LONG_RUNNING = True
 
-    def __init__(self, unit: str, experiment: str, plugin_name: str) -> None:
+    def __init__(self, unit: pt.Unit, experiment: pt.Experiment, plugin_name: str) -> None:
         super().__init__(unit, experiment, source=plugin_name)
 
 
@@ -996,7 +996,7 @@ class BackgroundJob(_BackgroundJob):
     Worker jobs should inherit from this class.
     """
 
-    def __init__(self, unit: str, experiment: str) -> None:
+    def __init__(self, unit: pt.Unit, experiment: pt.Experiment) -> None:
         if not is_active(unit):
             raise NotActiveWorkerError(
                 f"{unit} is not active. Make active in leader, or set ACTIVE=1 in the environment: ACTIVE=1 pio run ... "
@@ -1014,7 +1014,7 @@ class BackgroundJobContrib(_BackgroundJob):
         if cls.job_name == "background_job":
             raise NameError(f"must provide a job_name property to this BackgroundJob class {cls}.")
 
-    def __init__(self, unit: str, experiment: str, plugin_name: str) -> None:
+    def __init__(self, unit: pt.Unit, experiment: pt.Experiment, plugin_name: str) -> None:
         super().__init__(unit, experiment, source=plugin_name)
 
 
@@ -1259,5 +1259,5 @@ class BackgroundJobWithDodgingContrib(BackgroundJobWithDodging):
         if cls.job_name == "background_job":
             raise NameError(f"must provide a job_name property to this BackgroundJob class {cls}.")
 
-    def __init__(self, unit: str, experiment: str, plugin_name: str) -> None:
+    def __init__(self, unit: pt.Unit, experiment: pt.Experiment, plugin_name: str) -> None:
         super().__init__(unit=unit, experiment=experiment, source=plugin_name)

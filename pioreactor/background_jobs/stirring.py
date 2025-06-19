@@ -208,8 +208,8 @@ class Stirrer(BackgroundJobWithDodging):
     def __init__(
         self,
         target_rpm: Optional[float],
-        unit: str,
-        experiment: str,
+        unit: pt.Unit,
+        experiment: pt.Experiment,
         rpm_calculator: Optional[RpmCalculator] = None,
         calibration: bool | structs.SimpleStirringCalibration | None = True,
         enable_dodging_od: bool = False,
@@ -593,8 +593,8 @@ class Stirrer(BackgroundJobWithDodging):
 
 def start_stirring(
     target_rpm: float | None = 500,
-    unit: str | None = None,
-    experiment: str | None = None,
+    unit: pt.Unit | None = None,
+    experiment: pt.Experiment | None = None,
     use_rpm: bool = True,
     calibration: bool | structs.SimpleStirringCalibration | None = True,
     enable_dodging_od: bool = False,

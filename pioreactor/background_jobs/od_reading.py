@@ -795,8 +795,8 @@ class ODReader(BackgroundJob):
         channel_angle_map: dict[pt.PdChannel, pt.PdAngle],
         interval: Optional[float],
         adc_reader: ADCReader,
-        unit: str,
-        experiment: str,
+        unit: pt.Unit,
+        experiment: pt.Experiment,
         ir_led_reference_tracker: Optional[IrLedReferenceTracker] = None,
         calibration_transformer: Optional[CalibrationTransformer] = None,
     ) -> None:
@@ -1227,8 +1227,8 @@ def start_od_reading(
     od_angle_channel2: pt.PdAngleOrREF | None,
     interval: float | None = None,
     fake_data: bool = False,
-    unit: str | None = None,
-    experiment: str | None = None,
+    unit: pt.Unit | None = None,
+    experiment: pt.Experiment | None = None,
     calibration: bool | structs.ODCalibration | None = True,
 ) -> ODReader:
     """

@@ -23,6 +23,7 @@ from pioreactor.structs import DosingEvent
 from pioreactor.structs import ODReadings
 from pioreactor.structs import RawODReading
 from pioreactor.utils.timing import to_datetime
+from pioreactor import types as pt
 
 
 class ODObservationSource(Protocol):
@@ -50,8 +51,8 @@ class ExportODSource(ODObservationSource):
         self,
         filename: str,
         skip_first: int = 0,
-        pioreactor_unit: str = "$broadcast",
-        experiment="$experiment",
+        pioreactor_unit: pt.Unit = "$broadcast",
+        experiment: pt.Experiment = "$experiment",
     ) -> None:
         self.filename = filename
         self.skip_first = skip_first
@@ -100,8 +101,8 @@ class ExportDosingSource(DosingObservationSource):
         self,
         filename: str | None,
         skip_first: int = 0,
-        pioreactor_unit: str = "$broadcast",
-        experiment="$experiment",
+        pioreactor_unit: pt.Unit = "$broadcast",
+        experiment: pt.Experiment = "$experiment",
     ) -> None:
         self.filename = filename
         self.skip_first = skip_first
@@ -145,7 +146,7 @@ class ExportDosingSource(DosingObservationSource):
 class MqttODSource(ODObservationSource):
     is_live = True
 
-    def __init__(self, unit: str, experiment: str, *, skip_first: int = 0) -> None:
+    def __init__(self, unit: pt.Unit, experiment: pt.Experiment, *, skip_first: int = 0) -> None:
         self.unit, self.experiment, self.skip_first = unit, experiment, skip_first
 
     def __iter__(self):
@@ -167,7 +168,7 @@ class MqttODSource(ODObservationSource):
 class MqttDosingSource(DosingObservationSource):
     is_live = True
 
-    def __init__(self, unit: str, experiment: str) -> None:
+    def __init__(self, unit: pt.Unit, experiment: pt.Experiment) -> None:
         self.unit, self.experiment = unit, experiment
 
     def __iter__(self):

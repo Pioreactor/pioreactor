@@ -52,8 +52,8 @@ class LEDAutomationJob(AutomationJob):
 
     def __init__(
         self,
-        unit: str,
-        experiment: str,
+        unit: pt.Unit,
+        experiment: pt.Experiment,
         duration: float,
         skip_first_run: bool = False,
         **kwargs,
