@@ -30,8 +30,14 @@
    ```
  - We moved our Extended Kalman Filter code out of this repo into it's own Python library: grpredict.
  - Chemostat modal in the UI now shows the computed dilution rate
+ - New "Duplicate" profiles button.
  - Calibration charts have new crosshairs
  - Performance improvements
+ - The config `[mqtt]`  `[broker_address` can now be a list of addresses, separated by `;`. Example:
+ ```
+ [mqtt]
+ broker_address=pio01.local;100.119.150.2;localhost
+ ```
 
 #### Breaking changes
  - In configuration, `[stirring.config]` parameter `target_rpm` is renamed to `initial_target_rpm`. This is better for letting users know that the RPM can be changed during a run.

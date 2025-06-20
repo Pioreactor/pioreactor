@@ -1586,7 +1586,7 @@ def test_dosing_automation_initial_values_for_volumes():
         max_working_volume_ml=15.0,
     ) as ca:
         assert ca.current_volume_ml == 10.0
-        assert ca.max_volume == 15.0
+        assert ca.max_working_volume_ml == 15.0
         assert ca.alt_media_fraction == 0.5
         ca.execute_io_action(media_ml=1, alt_media_ml=0, waste_ml=1.0)
         assert ca.current_volume_ml == 11.0

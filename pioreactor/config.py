@@ -16,9 +16,9 @@ def __getattr__(attr):  # type: ignore
     if attr == "leader_hostname":
         return get_leader_hostname()
     elif attr == "leader_address":
-        return get_leader_address()
+        return _get_leader_address()
     elif attr == "mqtt_address":
-        return get_mqtt_address()
+        return _get_mqtt_address()
     elif attr == "config":
         return get_config()
     else:
@@ -181,16 +181,15 @@ def get_leader_hostname() -> str:
 
 
 @cache
-def get_leader_address() -> str:
+def _get_leader_address() -> str:
     return get_config().get("cluster.topology", "leader_address", fallback="localhost")
 
 
 @cache
-def get_mqtt_address() -> str:
-    return get_config().get("mqtt", "broker_address", fallback=get_leader_address())
+def _get_mqtt_address() -> str:
+    return get_config().get("mqtt", "broker_address", fallback=_get_leader_address()).split(";")[0]
 
 
-# @contextmanager
 def temporary_config_change(config: ConfigParserMod, section: str, parameter: str, new_value: str):
     """
     A context manager to temporarily change a value in a ConfigParser object.

@@ -12,15 +12,15 @@ from typing import Optional
 import click
 
 from pioreactor import error_codes
+from pioreactor import types as pt
 from pioreactor import utils
 from pioreactor import version
 from pioreactor import whoami
-from pioreactor import types as pt
 from pioreactor.background_jobs.base import LongRunningBackgroundJob
 from pioreactor.cluster_management import get_workers_in_inventory
 from pioreactor.config import config
-from pioreactor.config import get_leader_hostname
-from pioreactor.config import get_mqtt_address
+from pioreactor.config import leader_hostname
+from pioreactor.config import mqtt_adress
 from pioreactor.hardware import GPIOCHIP
 from pioreactor.hardware import is_HAT_present
 from pioreactor.hardware import PCB_BUTTON_PIN as BUTTON_PIN
@@ -386,7 +386,7 @@ class Monitor(LongRunningBackgroundJob):
         while (not self.pub_client.is_connected()) or (not self.sub_client.is_connected()):
             self.logger.warning(
                 f"""Not able to connect MQTT clients to leader.
-1. Is the mqtt_adress={get_mqtt_address()} in configuration correct?
+1. Is the mqtt_adress={mqtt_adress} in configuration correct?
 2. Is the Pioreactor leader online and responsive?
 """
             )  # remember, this doesn't get published to leader...
@@ -612,7 +612,7 @@ class Monitor(LongRunningBackgroundJob):
         sleep(10)  # wait for the web server to be available
         for worker in discover_workers_on_network():
             # not in current cluster, and not leader
-            if (worker not in get_workers_in_inventory()) and (worker != get_leader_hostname()):
+            if (worker not in get_workers_in_inventory()) and (worker != leader_hostname):
                 self.logger.notice(  # type: ignore
                     f"Pioreactor worker, {worker}, is available to be added to your cluster."
                 )
