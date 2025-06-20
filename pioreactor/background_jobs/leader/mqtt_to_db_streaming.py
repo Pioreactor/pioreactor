@@ -433,7 +433,7 @@ def add_default_source_to_sinks() -> list[TopicToParserToTable]:
                 "alt_media_fractions",
             ),
             TopicToParserToTable(
-                "pioreactor/+/+/dosing_automation/liquid_volume",
+                "pioreactor/+/+/dosing_automation/current_volume_ml",
                 parse_liquid_volume,
                 "liquid_volumes",
             ),

@@ -347,7 +347,7 @@ class TemperatureAutomationJob(AutomationJob):
             # the amount of liquid in the vial is a factor!
             features["volume"] = 0.5 * (
                 config.getfloat("bioreactor", "initial_volume_ml")
-                + config.getfloat("bioreactor", "max_volume_ml")
+                + config.getfloat("bioreactor", "max_working_volume_ml")
             )
 
             # turn off active heating, and start recording decay

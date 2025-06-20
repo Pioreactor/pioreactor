@@ -23,8 +23,8 @@ from pioreactor.automations.dosing.silent import Silent
 from pioreactor.automations.dosing.turbidostat import Turbidostat
 from pioreactor.background_jobs.dosing_automation import AltMediaFractionCalculator
 from pioreactor.background_jobs.dosing_automation import DosingAutomationJob
-from pioreactor.background_jobs.dosing_automation import LiquidVolumeCalculator
 from pioreactor.background_jobs.dosing_automation import start_dosing_automation
+from pioreactor.background_jobs.dosing_automation import VolumeCalculator
 from pioreactor.structs import DosingEvent
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.timing import current_utc_datetime
@@ -63,7 +63,7 @@ def setup_function() -> None:
 
 def test_silent_automation() -> None:
     experiment = "test_silent_automation"
-    with Silent(volume=None, duration=60, unit=unit, experiment=experiment) as algo:
+    with Silent(exchange_volume_ml=None, duration=60, unit=unit, experiment=experiment) as algo:
         pause()
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/od_reading/ods",
@@ -131,7 +131,7 @@ def test_turbidostat_automation() -> None:
     with Turbidostat(
         target_normalized_od=target_od,
         duration=60,
-        volume=0.25,
+        exchange_volume_ml=0.25,
         unit=unit,
         experiment=experiment,
         skip_first_run=True,
@@ -188,7 +188,7 @@ def test_cant_target_both_in_turbidostat() -> None:
             target_od=0.5,
             target_normalized_od=2.0,
             duration=60,
-            volume=0.25,
+            exchange_volume_ml=0.25,
             unit=unit,
             experiment=experiment,
             skip_first_run=True,
@@ -202,7 +202,7 @@ def test_cant_change_target_in_turbidostat() -> None:
     with Turbidostat(
         target_od=0.5,
         duration=60,
-        volume=0.25,
+        exchange_volume_ml=0.25,
         unit=unit,
         experiment=experiment,
         skip_first_run=True,
@@ -225,7 +225,7 @@ def test_turbidostat_targeting_od() -> None:
     with Turbidostat(
         target_od=target_od,
         duration=60,
-        volume=0.25,
+        exchange_volume_ml=0.25,
         unit=unit,
         experiment=experiment,
         skip_first_run=True,
@@ -378,14 +378,14 @@ def test_changing_turbidostat_params_over_mqtt() -> None:
     og_volume = 0.5
     og_target_od = 1.0
     algo = Turbidostat(
-        volume=og_volume,
+        exchange_volume_ml=og_volume,
         target_normalized_od=og_target_od,
         duration=60,
         unit=unit,
         experiment=experiment,
         skip_first_run=True,
     )
-    assert algo.volume == og_volume
+    assert algo.exchange_volume_ml == og_volume
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
@@ -398,7 +398,7 @@ def test_changing_turbidostat_params_over_mqtt() -> None:
     pause()
     algo.run()
 
-    pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/volume/set", 1.0)
+    pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/exchange_volume_ml/set", 1.0)
     pause()
 
     pubsub.publish(
@@ -411,7 +411,7 @@ def test_changing_turbidostat_params_over_mqtt() -> None:
     )
     algo.run()
 
-    assert algo.volume == 1.0
+    assert algo.exchange_volume_ml == 1.0
 
     new_od = 1.5
     pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/target_normalized_od/set", new_od)
@@ -537,7 +537,7 @@ def test_throughput_calculator_restart() -> None:
         experiment=experiment,
         target_normalized_od=1.0,
         duration=5 / 60,
-        volume=1.0,
+        exchange_volume_ml=1.0,
     ) as automation_job:
         pause()
         assert automation_job.media_throughput == 1.0
@@ -558,7 +558,7 @@ def test_throughput_calculator_manual_set() -> None:
         experiment=experiment,
         target_normalized_od=1.0,
         duration=5 / 60,
-        volume=1.0,
+        exchange_volume_ml=1.0,
     ) as automation_job:
         pause()
         assert automation_job.media_throughput == 1.0
@@ -578,42 +578,42 @@ def test_throughput_calculator_manual_set() -> None:
 def test_execute_io_action() -> None:
     experiment = "test_execute_io_action"
 
-    with Silent(unit=unit, experiment=experiment, initial_liquid_volume_ml=15.0, max_volume_ml=15.0) as ca:
+    with Silent(unit=unit, experiment=experiment, initial_volume_ml=15.0, max_working_volume_ml=15.0) as ca:
         ca.execute_io_action(media_ml=0.50, alt_media_ml=0.35, waste_ml=0.50 + 0.35)
         pause()
         assert ca.media_throughput == 0.50
         assert ca.alt_media_throughput == 0.35
-        assert ca.liquid_volume == 15.0
+        assert ca.current_volume_ml == 15.0
 
         ca.execute_io_action(media_ml=0.15, alt_media_ml=0.15, waste_ml=0.3)
         pause()
         assert ca.media_throughput == 0.65
         assert ca.alt_media_throughput == 0.50
-        assert ca.liquid_volume == 15.0
+        assert ca.current_volume_ml == 15.0
 
         ca.execute_io_action(media_ml=0.6, alt_media_ml=0, waste_ml=0.6)
         pause()
         assert ca.media_throughput == 1.25
         assert ca.alt_media_throughput == 0.50
-        assert ca.liquid_volume == 15.0
+        assert ca.current_volume_ml == 15.0
 
         ca.execute_io_action(media_ml=0.0, alt_media_ml=0.6, waste_ml=0.6)
         pause()
         assert ca.media_throughput == 1.25
         assert ca.alt_media_throughput == 1.1
-        assert ca.liquid_volume == 15.0
+        assert ca.current_volume_ml == 15.0
 
         ca.execute_io_action(media_ml=0.0, alt_media_ml=0.0, waste_ml=0.0)
         pause()
         assert ca.media_throughput == 1.25
         assert ca.alt_media_throughput == 1.1
-        assert ca.liquid_volume == 15.0
+        assert ca.current_volume_ml == 15.0
 
 
 def test_execute_io_action2() -> None:
     experiment = "test_execute_io_action2"
 
-    with Silent(unit=unit, experiment=experiment, initial_liquid_volume_ml=14.0) as ca:
+    with Silent(unit=unit, experiment=experiment, initial_volume_ml=14.0) as ca:
         results = ca.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
         pause()
         assert results["media_ml"] == 1.25
@@ -621,7 +621,7 @@ def test_execute_io_action2() -> None:
         assert results["waste_ml"] == 1.26
         assert ca.media_throughput == 1.25
         assert ca.alt_media_throughput == 0.01
-        assert ca.liquid_volume == 14.0
+        assert ca.current_volume_ml == 14.0
         assert close(ca.alt_media_fraction, 0.0006688099108144436)
 
 
@@ -816,7 +816,7 @@ def test_disconnect_cleanly() -> None:
         experiment=experiment,
         target_normalized_od=1.0,
         duration=50,
-        volume=1.0,
+        exchange_volume_ml=1.0,
     )
     assert algo.automation_name == "turbidostat"
     assert isinstance(algo, Turbidostat)
@@ -830,7 +830,7 @@ def test_disconnect_cleanly_during_pumping_execution() -> None:
     algo = Chemostat(
         unit=unit,
         experiment=experiment,
-        volume=5.0,
+        exchange_volume_ml=5.0,
         duration=10,
     )
     assert algo.automation_name == "chemostat"
@@ -881,7 +881,7 @@ def test_what_happens_when_no_od_data_is_coming_in() -> None:
     )
 
     with Turbidostat(
-        target_normalized_od=0.1, duration=40 / 60, volume=0.25, unit=unit, experiment=experiment
+        target_normalized_od=0.1, duration=40 / 60, exchange_volume_ml=0.25, unit=unit, experiment=experiment
     ) as algo:
         pause()
         event = algo.run()
@@ -890,7 +890,7 @@ def test_what_happens_when_no_od_data_is_coming_in() -> None:
 
 def test_AltMediaFractionCalculator() -> None:
     ac = AltMediaFractionCalculator()
-    liquid_volume = 14
+    current_volume_ml = 14
 
     media_added = 1.0
     add_media_event = DosingEvent(
@@ -899,9 +899,9 @@ def test_AltMediaFractionCalculator() -> None:
         timestamp=default_datetime_for_pioreactor(0),
         source_of_event="test",
     )
-    assert ac.update(add_media_event, 0.0, liquid_volume) == 0.0
-    assert close(ac.update(add_media_event, 0.20, liquid_volume), 0.18666666666666668)
-    assert close(ac.update(add_media_event, 1.0, liquid_volume), 0.9333333333333333)
+    assert ac.update(add_media_event, 0.0, current_volume_ml) == 0.0
+    assert close(ac.update(add_media_event, 0.20, current_volume_ml), 0.18666666666666668)
+    assert close(ac.update(add_media_event, 1.0, current_volume_ml), 0.9333333333333333)
 
     alt_media_added = 1.0
     add_alt_media_event = DosingEvent(
@@ -910,7 +910,7 @@ def test_AltMediaFractionCalculator() -> None:
         timestamp=default_datetime_for_pioreactor(1),
         source_of_event="test",
     )
-    assert ac.update(add_alt_media_event, 0.0, liquid_volume) == round(1 / (liquid_volume + 1), 10)
+    assert ac.update(add_alt_media_event, 0.0, current_volume_ml) == round(1 / (current_volume_ml + 1), 10)
 
     alt_media_added = 2.0
     add_alt_media_event = DosingEvent(
@@ -919,16 +919,16 @@ def test_AltMediaFractionCalculator() -> None:
         timestamp=default_datetime_for_pioreactor(2),
         source_of_event="test",
     )
-    assert ac.update(add_alt_media_event, 0.0, liquid_volume) == 2 / (liquid_volume + 2)
+    assert ac.update(add_alt_media_event, 0.0, current_volume_ml) == 2 / (current_volume_ml + 2)
 
-    alt_media_added = liquid_volume
+    alt_media_added = current_volume_ml
     add_alt_media_event = DosingEvent(
         volume_change=alt_media_added,
         event="add_alt_media",
         timestamp=default_datetime_for_pioreactor(3),
         source_of_event="test",
     )
-    assert ac.update(add_alt_media_event, 0, liquid_volume) == 0.5
+    assert ac.update(add_alt_media_event, 0, current_volume_ml) == 0.5
 
     add_alt_media_event = DosingEvent(
         volume_change=alt_media_added,
@@ -936,7 +936,7 @@ def test_AltMediaFractionCalculator() -> None:
         timestamp=default_datetime_for_pioreactor(4),
         source_of_event="test",
     )
-    assert ac.update(add_alt_media_event, 0.5, liquid_volume) == 0.75
+    assert ac.update(add_alt_media_event, 0.5, current_volume_ml) == 0.75
 
 
 def test_latest_event_goes_to_mqtt() -> None:
@@ -965,6 +965,7 @@ def test_latest_event_goes_to_mqtt() -> None:
 
         msg = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/dosing_automation/latest_event")
         assert msg is not None
+        assert msg.payload is not None
 
         latest_event_from_mqtt = json.loads(msg.payload)
         assert latest_event_from_mqtt["event_name"] == "NoEvent"
@@ -977,8 +978,8 @@ def test_strings_are_okay_for_chemostat() -> None:
     unit = get_unit_name()
     experiment = "test_strings_are_okay_for_chemostat"
 
-    with start_dosing_automation("chemostat", "20", False, unit, experiment, volume="0.7") as chemostat:  # type: ignore
-        assert chemostat.volume == 0.7  # type: ignore
+    with start_dosing_automation("chemostat", "20", False, unit, experiment, exchange_volume_ml="0.7") as chemostat:  # type: ignore
+        assert chemostat.exchange_volume_ml == 0.7  # type: ignore
         pause(n=35)
         assert chemostat.media_throughput == 0.7
 
@@ -999,7 +1000,7 @@ def test_chemostat_from_cli() -> None:
     with pubsub.collect_all_logs_of_level("ERROR", "testing_unit", "_testing_experiment") as errors:
         runner = CliRunner()
         result = runner.invoke(
-            pio, ["run", "dosing_automation", "--automation-name", "chemostat", "--volume", "1.5"]
+            pio, ["run", "dosing_automation", "--automation-name", "chemostat", "--exchange-volume-ml", "1.5"]
         )
 
     assert result.exit_code == 0
@@ -1011,11 +1012,11 @@ def test_pass_in_initial_alt_media_fraction() -> None:
     unit = get_unit_name()
 
     with start_dosing_automation(
-        "chemostat", 20, False, unit, experiment, volume=0.25, initial_alt_media_fraction=0.5
+        "chemostat", 20, False, unit, experiment, exchange_volume_ml=0.25, initial_alt_media_fraction=0.5
     ) as chemostat:
         assert chemostat.alt_media_fraction == 0.5
         pause(n=35)
-        alt_media_fraction_post_dosing = 0.5 / (1 + 0.25 / chemostat.liquid_volume)
+        alt_media_fraction_post_dosing = 0.5 / (1 + 0.25 / chemostat.current_volume_ml)
         assert chemostat.media_throughput == 0.25
         assert chemostat.alt_media_throughput == 0.0
         assert close(chemostat.alt_media_fraction, alt_media_fraction_post_dosing)
@@ -1027,7 +1028,7 @@ def test_pass_in_initial_alt_media_fraction() -> None:
         False,
         unit,
         experiment,
-        volume=0.35,
+        exchange_volume_ml=0.35,
     ) as chemostat:
         assert close(chemostat.alt_media_fraction, alt_media_fraction_post_dosing)
         pause(n=35)
@@ -1047,15 +1048,15 @@ def test_chemostat_from_0_volume() -> None:
         False,
         unit,
         experiment,
-        volume=0.5,
-        initial_liquid_volume_ml=0,
+        exchange_volume_ml=0.5,
+        initial_volume_ml=0,
     ) as chemostat:
         pause(n=25)
         assert chemostat.media_throughput == 0.5
-        assert chemostat.liquid_volume == 0.5
+        assert chemostat.current_volume_ml == 0.5
         pause(n=25)
         assert chemostat.media_throughput == 1.0
-        assert chemostat.liquid_volume == 1.0
+        assert chemostat.current_volume_ml == 1.0
 
 
 def test_execute_io_respects_dilutions_ratios() -> None:
@@ -1067,22 +1068,22 @@ def test_execute_io_respects_dilutions_ratios() -> None:
     class ChemostatAltMedia(DosingAutomationJob):
         automation_name = "_test_chemostat_alt_media"
         published_settings = {
-            "volume": {"datatype": "float", "settable": True, "unit": "mL"},
+            "exchange_volume_ml": {"datatype": "float", "settable": True, "unit": "mL"},
             "duration": {"datatype": "float", "settable": True, "unit": "min"},
         }
 
-        def __init__(self, volume: float, fraction_alt_media: float, **kwargs):
+        def __init__(self, exchange_volume_ml: float, fraction_alt_media: float, **kwargs):
             super(ChemostatAltMedia, self).__init__(**kwargs)
 
-            self.volume = float(volume)
+            self.exchange_volume_ml = float(exchange_volume_ml)
             self.fraction_alt_media = float(fraction_alt_media)
 
         def execute(self) -> events.DilutionEvent:
-            alt_media_ml = self.fraction_alt_media * self.volume
-            media_ml = (1 - self.fraction_alt_media) * self.volume
+            alt_media_ml = self.fraction_alt_media * self.exchange_volume_ml
+            media_ml = (1 - self.fraction_alt_media) * self.exchange_volume_ml
 
             cycled = self.execute_io_action(
-                alt_media_ml=alt_media_ml, media_ml=media_ml, waste_ml=self.volume
+                alt_media_ml=alt_media_ml, media_ml=media_ml, waste_ml=self.exchange_volume_ml
             )
             return events.DilutionEvent(data=cycled)
 
@@ -1092,7 +1093,7 @@ def test_execute_io_respects_dilutions_ratios() -> None:
         False,
         unit,
         experiment,
-        volume=2.0,
+        exchange_volume_ml=2.0,
         initial_alt_media_fraction=0.5,
         fraction_alt_media=0.5,
     ) as automation_job:
@@ -1102,33 +1103,44 @@ def test_execute_io_respects_dilutions_ratios() -> None:
 
     # change fraction_alt_media to increase alt_media being added
     with start_dosing_automation(
-        "_test_chemostat_alt_media", 2, False, unit, experiment, volume=2.0, fraction_alt_media=1.0
+        "_test_chemostat_alt_media",
+        2,
+        False,
+        unit,
+        experiment,
+        exchange_volume_ml=2.0,
+        fraction_alt_media=1.0,
     ) as automation_job:
         assert automation_job.alt_media_fraction == 0.5
         pause(n=20)
         assert automation_job.alt_media_fraction > 0.5
 
 
-def test_liquid_volume_is_published() -> None:
+def test_current_volume_ml_is_published() -> None:
     unit = get_unit_name()
-    experiment = "test_liquid_volume_is_published"
+    experiment = "test_current_volume_ml_is_published"
 
     with start_dosing_automation(
-        "chemostat", duration=2, skip_first_run=False, unit=unit, experiment=experiment, volume=2.0
+        "chemostat",
+        duration=2,
+        skip_first_run=False,
+        unit=unit,
+        experiment=experiment,
+        exchange_volume_ml=2.0,
     ) as chemostat:
-        assert chemostat.liquid_volume == 14
+        assert chemostat.current_volume_ml == 14
         pause(60)
-        result = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/dosing_automation/liquid_volume")
+        result = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/dosing_automation/current_volume_ml")
         if result:
             assert float(result.payload) == 14
 
         assert chemostat.media_throughput > 0
-        assert chemostat.liquid_volume == 14
+        assert chemostat.current_volume_ml == 14
 
 
-def test_liquid_volume_calculator() -> None:
+def test_current_volume_ml_calculator() -> None:
     # let's start from 0 volume, and start adding.
-    vc = LiquidVolumeCalculator
+    vc = VolumeCalculator
     current_volume = 0.0
     max_volume = 14
 
@@ -1181,7 +1193,7 @@ def test_liquid_volume_calculator() -> None:
     )
     current_volume = vc.update(event, current_volume, max_volume)
     assert current_volume != 12
-    assert current_volume == 14  # TODO: this is equal to [bioreactor].max_volume_ml
+    assert current_volume == 14  # TODO: this is equal to [bioreactor].max_working_volume_ml
 
     # add 2 more
     event = DosingEvent(
@@ -1214,9 +1226,9 @@ def test_liquid_volume_calculator() -> None:
     assert current_volume == 5
 
 
-def test_liquid_volume_calculator_with_negative_values() -> None:
+def test_current_volume_ml_calculator_with_negative_values() -> None:
     # let's start from 0 volume, and start adding.
-    vc = LiquidVolumeCalculator
+    vc = VolumeCalculator
     current_volume = 0.0
     max_volume = 14
 
@@ -1264,7 +1276,7 @@ def test_liquid_volume_calculator_with_negative_values() -> None:
 def test_alt_media_calculator_from_0_volume() -> None:
     # let's start from 0, and start adding.
     ac = AltMediaFractionCalculator
-    vc = LiquidVolumeCalculator
+    vc = VolumeCalculator
 
     current_volume = 0.0
     max_volume = 14
@@ -1318,7 +1330,7 @@ def test_alt_media_calculator_from_0_volume() -> None:
 def test_alt_media_calculator_from_0_volume_with_negative_doses() -> None:
     # let's start from 0, and start adding.
     ac = AltMediaFractionCalculator
-    vc = LiquidVolumeCalculator
+    vc = VolumeCalculator
 
     current_volume = 0.0
     max_volume = 14
@@ -1462,8 +1474,8 @@ def test_automation_will_pause_itself_if_pumping_goes_above_safety_threshold() -
         unit=unit,
         experiment=experiment,
         duration=0.05,
-        volume=0.5,
-        initial_liquid_volume_ml=Chemostat.MAX_VIAL_VOLUME_TO_STOP - 0.05,
+        exchange_volume_ml=0.5,
+        initial_volume_ml=Chemostat.MAX_VIAL_VOLUME_TO_STOP - 0.05,
     ) as job:
         while job.state == "ready":
             pause()
@@ -1475,7 +1487,7 @@ def test_automation_will_pause_itself_if_pumping_goes_above_safety_threshold() -
         job.remove_waste_from_bioreactor(job.unit, job.experiment, ml=5.0, source_of_event="manual")
 
         pause()
-        assert job.liquid_volume < Chemostat.MAX_VIAL_VOLUME_TO_STOP
+        assert job.current_volume_ml < Chemostat.MAX_VIAL_VOLUME_TO_STOP
 
         job.set_state("ready")
         assert job.state == "ready"
@@ -1520,12 +1532,14 @@ def test_a_failing_automation_cleans_duration_attr_in_mqtt_up() -> None:
             "duration": {"datatype": "float", "settable": True, "unit": "min"},
         }
 
-        def __init__(self, volume: float | str, **kwargs) -> None:
+        def __init__(self, exchange_volume_ml: float | str, **kwargs) -> None:
             super().__init__(**kwargs)
             raise exc.CalibrationError("Media pump calibration must be performed first.")
 
     with pytest.raises(exc.CalibrationError):
-        with start_dosing_automation("_test_failure", 60, False, get_unit_name(), experiment, volume=10):
+        with start_dosing_automation(
+            "_test_failure", 60, False, get_unit_name(), experiment, exchange_volume_ml=10
+        ):
             pass
 
     result = pubsub.subscribe(
@@ -1568,23 +1582,23 @@ def test_dosing_automation_initial_values_for_volumes():
         unit=unit,
         experiment=exp,
         initial_alt_media_fraction=0.5,
-        initial_liquid_volume_ml=10.0,
-        max_volume_ml=15.0,
+        initial_volume_ml=10.0,
+        max_working_volume_ml=15.0,
     ) as ca:
-        assert ca.liquid_volume == 10.0
+        assert ca.current_volume_ml == 10.0
         assert ca.max_volume == 15.0
         assert ca.alt_media_fraction == 0.5
         ca.execute_io_action(media_ml=1, alt_media_ml=0, waste_ml=1.0)
-        assert ca.liquid_volume == 11.0
+        assert ca.current_volume_ml == 11.0
         assert abs(ca.alt_media_fraction - 0.4545454545) < 1e-6
 
     with Silent(
         unit=unit,
         experiment=exp,
         initial_alt_media_fraction=None,
-        initial_liquid_volume_ml=None,
-        max_volume_ml=16.0,
+        initial_volume_ml=None,
+        max_working_volume_ml=16.0,
     ) as ca:
-        assert ca.liquid_volume == 11.0
-        assert ca.max_volume == 16.0
+        assert ca.current_volume_ml == 11.0
+        assert ca.max_working_volume_ml == 16.0
         assert abs(ca.alt_media_fraction - 0.4545454545) < 1e-6

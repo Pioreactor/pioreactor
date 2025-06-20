@@ -87,30 +87,30 @@ class ThroughputCalculator:
         return (current_media_throughput, current_alt_media_throughput)
 
 
-class LiquidVolumeCalculator:
+class VolumeCalculator:
     @classmethod
     def update(
-        cls, new_dosing_event: structs.DosingEvent, current_liquid_volume: float, max_volume: float
+        cls, new_dosing_event: structs.DosingEvent, current_volume_ml: float, max_working_volume_ml: float
     ) -> float:
-        assert current_liquid_volume >= 0
-        assert max_volume >= 0
+        assert current_volume_ml >= 0
+        assert max_working_volume_ml >= 0
         volume, event = float(new_dosing_event.volume_change), new_dosing_event.event
         if event == "add_media":
-            return max(current_liquid_volume + volume, 0)
+            return max(current_volume_ml + volume, 0)
         elif event == "add_alt_media":
-            return max(current_liquid_volume + volume, 0)
+            return max(current_volume_ml + volume, 0)
         elif event == "remove_waste":
             if new_dosing_event.source_of_event == "manually":
                 # we assume the user has extracted what they want, regardless of level or tube height.
-                return max(current_liquid_volume - volume, 0.0)
-            elif current_liquid_volume <= max_volume:
+                return max(current_volume_ml - volume, 0.0)
+            elif current_volume_ml <= max_working_volume_ml:
                 # if the current volume is less than the outflow tube, no liquid is removed
-                return max(current_liquid_volume, 0)
+                return max(current_volume_ml, 0)
             else:
                 # since we do some additional "removing" after adding, we don't want to
                 # count that as being removed (total volume is limited by position of outflow tube).
                 # hence we keep an lowerbound here.
-                return max(current_liquid_volume - volume, max_volume, 0)
+                return max(current_volume_ml - volume, max_working_volume_ml, 0)
         else:
             raise ValueError("Unknown event type")
 
@@ -126,27 +126,21 @@ class AltMediaFractionCalculator:
         cls,
         new_dosing_event: structs.DosingEvent,
         current_alt_media_fraction: float,
-        current_liquid_volume: float,
+        current_volume_ml: float,
     ) -> float:
         assert 0.0 <= current_alt_media_fraction <= 1.0
-        assert current_liquid_volume >= 0
+        assert current_volume_ml >= 0
         volume, event = float(new_dosing_event.volume_change), new_dosing_event.event
 
         if event == "add_media":
-            return cls._update_alt_media_fraction(
-                current_alt_media_fraction, volume, 0, current_liquid_volume
-            )
+            return cls._update_alt_media_fraction(current_alt_media_fraction, volume, 0, current_volume_ml)
         elif event == "add_alt_media":
-            return cls._update_alt_media_fraction(
-                current_alt_media_fraction, 0, volume, current_liquid_volume
-            )
+            return cls._update_alt_media_fraction(current_alt_media_fraction, 0, volume, current_volume_ml)
         elif event == "remove_waste":
             return current_alt_media_fraction
         else:
             # if the users added, ex, "add_salty_media", well this is the same as adding media (from the POV of alt_media_fraction)
-            return cls._update_alt_media_fraction(
-                current_alt_media_fraction, volume, 0, current_liquid_volume
-            )
+            return cls._update_alt_media_fraction(current_alt_media_fraction, volume, 0, current_volume_ml)
 
     @classmethod
     def _update_alt_media_fraction(
@@ -154,15 +148,15 @@ class AltMediaFractionCalculator:
         current_alt_media_fraction: float,
         media_delta: float,
         alt_media_delta: float,
-        current_liquid_volume: float,
+        current_volume_ml: float,
     ) -> float:
         total_addition = media_delta + alt_media_delta
 
         return clamp(
             0.0,
             round(
-                (current_alt_media_fraction * current_liquid_volume + alt_media_delta)
-                / (current_liquid_volume + total_addition),
+                (current_alt_media_fraction * current_volume_ml + alt_media_delta)
+                / (current_volume_ml + total_addition),
                 10,
             ),
             1.0,
@@ -185,7 +179,7 @@ class DosingAutomationJob(AutomationJob):
     job_name = "dosing_automation"
     published_settings: dict[
         str, pt.PublishableSetting
-    ] = {}  # see methods in init for dynamic additions, like liquid_volume
+    ] = {}  # see methods in init for dynamic additions, like current_volume_ml
 
     latest_event: Optional[events.AutomationEvent] = None
     _latest_run_at: Optional[datetime] = None
@@ -208,7 +202,7 @@ class DosingAutomationJob(AutomationJob):
     alt_media_fraction: float  # fraction of the vial that is alt-media (vs regular media).
     media_throughput: float  # amount of media that has been expelled
     alt_media_throughput: float  # amount of alt-media that has been expelled
-    liquid_volume: float  # amount in the vial
+    current_volume_ml: float  # amount in the vial
 
     @classproperty
     def MAX_VIAL_VOLUME_TO_STOP(cls) -> float:
@@ -238,8 +232,8 @@ class DosingAutomationJob(AutomationJob):
         duration: Optional[float] = None,
         skip_first_run: bool = False,
         initial_alt_media_fraction: float | None = None,
-        initial_liquid_volume_ml: float | None = None,
-        max_volume_ml: float | None = None,
+        initial_volume_ml: float | None = None,
+        max_working_volume_ml: float | None = None,
         **kwargs,
     ) -> None:
         super(DosingAutomationJob, self).__init__(unit, experiment)
@@ -257,7 +251,7 @@ class DosingAutomationJob(AutomationJob):
 
         self._init_alt_media_fraction(initial_alt_media_fraction)
         self._init_volume_throughput()
-        self._init_liquid_volume(initial_liquid_volume_ml, max_volume_ml)
+        self._init_liquid_volume(initial_volume_ml, max_working_volume_ml)
 
         self.set_duration(duration)
 
@@ -418,9 +412,9 @@ class DosingAutomationJob(AutomationJob):
         else:
             # iterate through pumps, and dose required amount. First *_media, then waste.
             for pump, volume_ml in all_pumps_ml.items():
-                if (self.liquid_volume + volume_ml) >= self.MAX_VIAL_VOLUME_TO_STOP:
+                if (self.current_volume_ml + volume_ml) >= self.MAX_VIAL_VOLUME_TO_STOP:
                     self.logger.error(
-                        f"Pausing all pumping since {self.liquid_volume} + {volume_ml} mL is beyond safety threshold {self.MAX_VIAL_VOLUME_TO_STOP} mL."
+                        f"Pausing all pumping since {self.current_volume_ml} + {volume_ml} mL is beyond safety threshold {self.MAX_VIAL_VOLUME_TO_STOP} mL."
                     )
                     self.set_state(self.SLEEPING)
                     return volumes_moved
@@ -506,7 +500,7 @@ class DosingAutomationJob(AutomationJob):
 
     def _update_alt_media_fraction(self, dosing_event: structs.DosingEvent) -> None:
         self.alt_media_fraction = AltMediaFractionCalculator.update(
-            dosing_event, self.alt_media_fraction, self.liquid_volume
+            dosing_event, self.alt_media_fraction, self.current_volume_ml
         )
 
         # add to cache
@@ -514,17 +508,19 @@ class DosingAutomationJob(AutomationJob):
             cache[self.experiment] = self.alt_media_fraction
 
     def _update_liquid_volume(self, dosing_event: structs.DosingEvent) -> None:
-        self.liquid_volume = LiquidVolumeCalculator.update(dosing_event, self.liquid_volume, self.max_volume)
+        self.current_volume_ml = VolumeCalculator.update(
+            dosing_event, self.current_volume_ml, self.max_working_volume_ml
+        )
 
         # add to cache
-        with local_persistent_storage("liquid_volume") as cache:
-            cache[self.experiment] = self.liquid_volume
+        with local_persistent_storage("current_volume_ml") as cache:
+            cache[self.experiment] = self.current_volume_ml
 
-        if self.liquid_volume >= self.MAX_VIAL_VOLUME_TO_WARN:
+        if self.current_volume_ml >= self.MAX_VIAL_VOLUME_TO_WARN:
             self.logger.warning(
-                f"Vial is calculated to have a volume of {self.liquid_volume:.2f} mL. Is this expected?"
+                f"Vial is calculated to have a volume of {self.current_volume_ml:.2f} mL. Is this expected?"
             )
-        elif self.liquid_volume >= self.MAX_VIAL_VOLUME_TO_STOP:
+        elif self.current_volume_ml >= self.MAX_VIAL_VOLUME_TO_STOP:
             pass
             # TODO: this should publish to pumps to stop them.
             # but it is checked elsewhere
@@ -567,10 +563,10 @@ class DosingAutomationJob(AutomationJob):
         return
 
     def _init_liquid_volume(
-        self, initial_liquid_volume_ml: float | None, max_volume_ml: float | None
+        self, initial_volume_ml: float | None, max_working_volume_ml: float | None
     ) -> None:
         self.add_to_published_settings(
-            "liquid_volume",
+            "current_volume_ml",
             {
                 "datatype": "float",
                 "settable": False,  # modify using dosing_events, ex: pio run add_media --ml 1 --manually
@@ -580,7 +576,7 @@ class DosingAutomationJob(AutomationJob):
         )
 
         self.add_to_published_settings(
-            "max_volume",
+            "max_working_volume_ml",
             {
                 "datatype": "float",
                 "settable": True,  # modify using dosing_events, ex: pio run add_media --ml 1 --manually
@@ -589,26 +585,26 @@ class DosingAutomationJob(AutomationJob):
             },
         )
 
-        if max_volume_ml is None:
-            self.max_volume = config.getfloat("bioreactor", "max_volume_ml", fallback=14)
+        if max_working_volume_ml is None:
+            self.max_working_volume_ml = config.getfloat("bioreactor", "max_working_volume_ml", fallback=14)
         else:
-            self.max_volume = float(max_volume_ml)
+            self.max_working_volume_ml = float(max_working_volume_ml)
 
-        assert self.max_volume >= 0
+        assert self.max_working_volume_ml >= 0
 
-        if initial_liquid_volume_ml is None:
+        if initial_volume_ml is None:
             # look in database first, fallback to config
-            with local_persistent_storage("liquid_volume") as cache:
-                self.liquid_volume = cache.get(
+            with local_persistent_storage("current_volume_ml") as cache:
+                self.current_volume_ml = cache.get(
                     self.experiment, config.getfloat("bioreactor", "initial_volume_ml", fallback=14)
                 )
         else:
-            self.liquid_volume = float(initial_liquid_volume_ml)
+            self.current_volume_ml = float(initial_volume_ml)
 
-        assert self.liquid_volume >= 0
+        assert self.current_volume_ml >= 0
 
-        with local_persistent_storage("liquid_volume") as cache:
-            cache[self.experiment] = self.liquid_volume
+        with local_persistent_storage("current_volume_ml") as cache:
+            cache[self.experiment] = self.current_volume_ml
 
         return
 

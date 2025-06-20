@@ -20,7 +20,7 @@ class Turbidostat(DosingAutomationJob):
 
     automation_name = "turbidostat"
     published_settings = {
-        "volume": {"datatype": "float", "settable": True, "unit": "mL"},
+        "exchange_volume_ml": {"datatype": "float", "settable": True, "unit": "mL"},
         "target_normalized_od": {"datatype": "float", "settable": True, "unit": "AU"},
         "target_od": {"datatype": "float", "settable": True, "unit": "OD"},
     }
@@ -29,7 +29,7 @@ class Turbidostat(DosingAutomationJob):
 
     def __init__(
         self,
-        volume: float | str,
+        exchange_volume_ml: float | str,
         target_normalized_od: Optional[float | str] = None,
         target_od: Optional[float | str] = None,
         **kwargs,
@@ -52,7 +52,7 @@ class Turbidostat(DosingAutomationJob):
         elif target_od is not None:
             self.target_od = float(target_od)
 
-        self.volume = float(volume)
+        self.exchange_volume_ml = float(exchange_volume_ml)
         self.ema_od = ExponentialMovingAverage(
             config.getfloat("turbidostat.config", "od_smoothing_ema", fallback=0.5)
         )
@@ -90,14 +90,16 @@ class Turbidostat(DosingAutomationJob):
             self.ema_od.clear()  # clear the ema so that we don't cause a second dosing to occur right after.
             latest_od_before_dosing = smoothed_od
             target_od_before_dosing = self.target_od
-            results = self.execute_io_action(media_ml=self.volume, waste_ml=self.volume)
+            results = self.execute_io_action(
+                media_ml=self.exchange_volume_ml, waste_ml=self.exchange_volume_ml
+            )
             media_moved = results["media_ml"]
             return events.DilutionEvent(
                 f"Latest OD = {latest_od_before_dosing:.2f} ≥ Target OD = {target_od_before_dosing:.2f}; cycled {media_moved:.2f} mL",
                 {
                     "latest_od": latest_od_before_dosing,
                     "target_od": target_od_before_dosing,
-                    "volume": media_moved,
+                    "exchange_volume_ml": media_moved,
                 },
             )
         else:
@@ -108,14 +110,16 @@ class Turbidostat(DosingAutomationJob):
         if self.latest_normalized_od >= self.target_normalized_od:
             latest_normalized_od_before_dosing = self.latest_normalized_od
             target_normalized_od_before_dosing = self.target_normalized_od
-            results = self.execute_io_action(media_ml=self.volume, waste_ml=self.volume)
+            results = self.execute_io_action(
+                media_ml=self.exchange_volume_ml, waste_ml=self.exchange_volume_ml
+            )
             media_moved = results["media_ml"]
             return events.DilutionEvent(
                 f"Latest Normalized OD = {latest_normalized_od_before_dosing:.2f} ≥ Target  nOD = {target_normalized_od_before_dosing:.2f}; cycled {media_moved:.2f} mL",
                 {
                     "latest_normalized_od": latest_normalized_od_before_dosing,
                     "target_normalized_od": target_normalized_od_before_dosing,
-                    "volume": media_moved,
+                    "exchange_volume_ml": media_moved,
                 },
             )
         else:

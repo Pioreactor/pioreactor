@@ -37,6 +37,10 @@
  - In configuration, `[stirring.config]` parameter `target_rpm` is renamed to `initial_target_rpm`. This is better for letting users know that the RPM can be changed during a run.
  - floats are rounded to 12 decimals points in data exports.
  - localtime in data exports have subsecond precision.
+ - Changed dosing automation variables names:
+  - `max_volume` to `max_working_volume_ml`,
+  - `liquid_volume` to `current_volume_ml`
+  - Chemostat and Turbidostat automations stopped using `volume` kwarg and now use `exchange_volume_ml`.
 
 #### Bug fixes
  - included new export dataset yaml for raw OD readings. This was missed in a previous release.

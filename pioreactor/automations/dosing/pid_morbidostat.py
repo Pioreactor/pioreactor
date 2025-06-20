@@ -18,7 +18,7 @@ class PIDMorbidostat(DosingAutomationJob):
 
     automation_name = "pid_morbidostat"
     published_settings = {
-        "volume": {"datatype": "float", "settable": True, "unit": "mL"},
+        "exchange_volume_ml": {"datatype": "float", "settable": True, "unit": "mL"},
         "target_normalized_od": {"datatype": "float", "settable": True, "unit": "AU"},
         "target_growth_rate": {"datatype": "float", "settable": True, "unit": "h⁻¹"},
     }
@@ -58,7 +58,9 @@ class PIDMorbidostat(DosingAutomationJob):
         )
 
         assert isinstance(self.duration, float)
-        self.volume = round(self.target_growth_rate * self.max_volume * (self.duration / 60), 4)
+        self.exchange_volume_ml = round(
+            self.target_growth_rate * self.max_working_volume_ml * (self.duration / 60), 4
+        )  # ???
 
     def execute(self) -> events.AutomationEvent:
         if self.latest_normalized_od <= self.min_od:
@@ -72,9 +74,9 @@ class PIDMorbidostat(DosingAutomationJob):
             # dilute more if our OD keeps creeping up - we want to stay in the linear range.
             if self.latest_normalized_od > self.max_od:
                 self.logger.info(f"executing larger dilution since we are above max OD, {self.max_od:.2f}AU.")
-                volume_ml = 2.5 * self.volume
+                volume_ml = 2.5 * self.exchange_volume_ml
             else:
-                volume_ml = self.volume
+                volume_ml = self.exchange_volume_ml
 
             alt_media_ml = fraction_of_alt_media_to_add * volume_ml
             media_ml = (1 - fraction_of_alt_media_to_add) * volume_ml

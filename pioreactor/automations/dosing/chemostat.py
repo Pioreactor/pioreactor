@@ -14,11 +14,10 @@ class Chemostat(DosingAutomationJob):
 
     automation_name = "chemostat"
     published_settings = {
-        "volume": {"datatype": "float", "settable": True, "unit": "mL"},
-        #    "dilution_rate": {"datatype": "float", "settable": False, "unit": "h⁻¹"},
+        "exchange_volume_ml": {"datatype": "float", "settable": True, "unit": "mL"},
     }
 
-    def __init__(self, volume: float | str, **kwargs) -> None:
+    def __init__(self, exchange_volume_ml: float | str, **kwargs) -> None:
         super().__init__(**kwargs)
 
         with local_persistent_storage("active_calibrations") as cache:
@@ -27,11 +26,13 @@ class Chemostat(DosingAutomationJob):
             elif "waste_pump" not in cache:
                 raise CalibrationError("Media and waste pump calibration must be performed first.")
 
-        self.volume = float(volume)
+        self.exchange_volume_ml = float(exchange_volume_ml)
 
     def execute(self) -> events.DilutionEvent:
-        volume_actually_cycled = self.execute_io_action(media_ml=self.volume, waste_ml=self.volume)
+        volume_actually_cycled = self.execute_io_action(
+            media_ml=self.exchange_volume_ml, waste_ml=self.exchange_volume_ml
+        )
         return events.DilutionEvent(
-            f"exchanged {volume_actually_cycled['waste_ml']}mL",
+            f"exchanged {volume_actually_cycled['media_ml']}mL",
             data={"volume_actually_cycled": volume_actually_cycled["waste_ml"]},
         )

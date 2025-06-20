@@ -15,10 +15,10 @@ class FedBatch(DosingAutomationJob):
 
     automation_name = "fed_batch"
     published_settings = {
-        "volume": {"datatype": "float", "unit": "mL", "settable": True},
+        "dosing_volume_ml": {"datatype": "float", "unit": "mL", "settable": True},
     }
 
-    def __init__(self, volume, **kwargs) -> None:
+    def __init__(self, dosing_volume_ml, **kwargs) -> None:
         super().__init__(**kwargs)
 
         with local_persistent_storage("active_calibrations") as cache:
@@ -28,16 +28,16 @@ class FedBatch(DosingAutomationJob):
         self.logger.warning(
             "When using the fed-batch automation, no liquid is removed. Carefully monitor the level of liquid to avoid overflow!"
         )
-        self.volume = float(volume)
+        self.dosing_volume_ml = float(dosing_volume_ml)
 
     def execute(self):
         vol = self.add_media_to_bioreactor(
-            ml=self.volume,
+            ml=self.dosing_volume_ml,
             source_of_event=f"{self.job_name}:{self.automation_name}",
             unit=self.unit,
             experiment=self.experiment,
         )
-        if vol != self.volume:
+        if vol != self.dosing_volume_ml:
             self.logger.warning("Under-dosed!")
 
         return events.AddMediaEvent(f"Added {vol} mL")
