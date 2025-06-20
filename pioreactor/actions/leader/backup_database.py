@@ -3,6 +3,9 @@ from __future__ import annotations
 
 import click
 
+from pathlib import Path
+import subprocess
+
 from pioreactor.cluster_management import get_active_workers_in_inventory
 from pioreactor.config import config
 from pioreactor.exc import RsyncError
@@ -16,6 +19,29 @@ from pioreactor.utils.networking import rsync
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
+
+
+def _remote_available_space(address: str, path: str) -> int | None:
+    """Return available bytes on remote machine or ``None`` on failure."""
+    try:
+        result = subprocess.run(
+            ["ssh", "-o", "ConnectTimeout=5", address, "df", "-PB1", path],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+    except subprocess.CalledProcessError:
+        return None
+
+    try:
+        lines = result.stdout.strip().splitlines()
+        if len(lines) >= 2:
+            return int(lines[1].split()[3])
+    except Exception:
+        return None
+
+    return None
 
 
 def count_writes_occurring() -> int:
@@ -89,6 +115,17 @@ def backup_database(output_file: str, force: bool = False, backup_to_workers: in
                 continue
 
             logger.debug(f"Attempting backing up database to {backup_unit}.")
+            available = _remote_available_space(
+                resolve_to_address(backup_unit), str(Path(output_file).parent)
+            )
+            if available is not None and available < Path(output_file).stat().st_size:
+                logger.debug(
+                    f"Skipping backup to {backup_unit}. Not enough disk space."
+                )
+                logger.warning(
+                    f"Unable to backup database to {backup_unit}. Not enough disk space."
+                )
+                continue
             try:
                 rsync(
                     "-hz",
