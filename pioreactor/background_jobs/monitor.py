@@ -20,7 +20,7 @@ from pioreactor.background_jobs.base import LongRunningBackgroundJob
 from pioreactor.cluster_management import get_workers_in_inventory
 from pioreactor.config import config
 from pioreactor.config import leader_hostname
-from pioreactor.config import mqtt_adress
+from pioreactor.config import mqtt_address
 from pioreactor.hardware import GPIOCHIP
 from pioreactor.hardware import is_HAT_present
 from pioreactor.hardware import PCB_BUTTON_PIN as BUTTON_PIN
@@ -386,7 +386,7 @@ class Monitor(LongRunningBackgroundJob):
         while (not self.pub_client.is_connected()) or (not self.sub_client.is_connected()):
             self.logger.warning(
                 f"""Not able to connect MQTT clients to leader.
-1. Is the mqtt_adress={mqtt_adress} in configuration correct?
+1. Is the mqtt_address={mqtt_address} in configuration correct?
 2. Is the Pioreactor leader online and responsive?
 """
             )  # remember, this doesn't get published to leader...

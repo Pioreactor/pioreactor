@@ -33,7 +33,7 @@
  - New "Duplicate" profiles button.
  - Calibration charts have new crosshairs
  - Performance improvements
- - The config `[mqtt]`  `[broker_address` can now be a list of addresses, separated by `;`. Example:
+ - The config `[mqtt]`  `broker_address` can now be a list of addresses, separated by `;`. Example:
  ```
  [mqtt]
  broker_address=pio01.local;100.119.150.2;localhost
