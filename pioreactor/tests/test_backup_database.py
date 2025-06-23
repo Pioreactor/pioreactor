@@ -46,3 +46,35 @@ def test_skip_backup_when_worker_has_no_space(tmp_path):
     ):
         backup_database(str(output), force=True, backup_to_workers=1)
         mock_rsync.assert_not_called()
+
+
+def test_skip_backup_when_local_has_no_space(tmp_path):
+    db_path = tmp_path / "db.sqlite"
+    config["storage"]["database"] = str(db_path)
+
+    conn = sqlite3.connect(db_path)
+    conn.execute("CREATE TABLE t(id INTEGER)")
+    conn.commit()
+    conn.close()
+
+    output = tmp_path / "backup.sqlite"
+
+    with (
+        patch(
+            "pioreactor.actions.leader.backup_database.long_running_managed_lifecycle",
+            dummy_lifecycle,
+        ),
+        patch(
+            "pioreactor.actions.leader.backup_database.create_logger",
+            return_value=MagicMock(),
+        ),
+        patch(
+            "pioreactor.actions.leader.backup_database._local_available_space",
+            return_value=0,
+        ),
+        patch(
+            "sqlite3.connect",
+        ) as mock_connect,
+    ):
+        backup_database(str(output), force=True, backup_to_workers=0)
+        mock_connect.assert_not_called()
