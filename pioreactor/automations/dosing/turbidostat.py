@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from datetime import datetime
 from typing import cast
 from typing import Optional
 
@@ -61,6 +62,38 @@ class Turbidostat(DosingAutomationJob):
     def is_targeting_nOD(self) -> bool:
         return self.target_normalized_od is not None
 
+    @property
+    def _od_channel(self) -> pt.PdChannel:
+        return cast(
+            pt.PdChannel,
+            config.get("turbidostat.config", "signal_channel", fallback="2"),
+        )
+
+    def _handle_pump_malfunction(self, od_pre_timestamp: datetime, od_pre: float) -> None:
+        """Detects pump malfunction by comparing the post-dosing OD to its predicted value."""
+        if not config.getboolean(
+            "dosing_automation.config", "experimental_detect_pump_malfunction", fallback=False
+        ):
+            return
+        od_channel = self._od_channel
+        od_post_timestamp = self.latest_od_at
+        od_post = self.latest_od[od_channel]
+
+        # only check if new OD reading seen
+        if od_post_timestamp != od_pre_timestamp:
+            tol = config.getfloat(
+                "dosing_automation.config", "experimental_pump_malfunction_tolerance", fallback=0.2
+            )
+            predicted_od_post = od_pre * self.exchange_volume_ml / self.current_volume_ml
+            lower_bound = (1.0 - tol) * predicted_od_post
+            upper_bound = (1.0 + tol) * predicted_od_post
+            if not (lower_bound <= od_post <= upper_bound):
+                pct = int(tol * 100)
+                self.logger.info(
+                    f"OD after dosing is not within ±{pct}% of predicted: {od_post} vs {predicted_od_post}"
+                )
+                self.set_state(self.SLEEPING)
+
     def execute(self) -> Optional[events.DilutionEvent]:
         if self.is_targeting_nOD:
             return self._execute_target_nod()
@@ -81,42 +114,19 @@ class Turbidostat(DosingAutomationJob):
 
     def _execute_target_od(self) -> Optional[events.DilutionEvent]:
         assert self.target_od is not None
-        smoothed_od = self.ema_od.update(
-            self.latest_od[
-                cast(pt.PdChannel, config.get("turbidostat.config", "signal_channel", fallback="2"))
-            ]
-        )
+        smoothed_od = self.ema_od.update(self.latest_od[self._od_channel])
         if smoothed_od >= self.target_od:
             self.ema_od.clear()  # clear the ema so that we don't cause a second dosing to occur right after.
             latest_od_before_dosing = smoothed_od
             target_od_before_dosing = self.target_od
-            detect = config.getboolean(
-                "dosing_automation.config", "experimental_detect_pump_malfunction", fallback=False
-            )
-            if detect:
-                od_channel = cast(
-                    pt.PdChannel,
-                    config.get("turbidostat.config", "signal_channel", fallback="2"),
-                )
-                od_pre_timestamp = self.latest_od_at
-                od_pre = self.latest_od[od_channel]
+            od_pre_timestamp, od_pre = self.latest_od_at, self.latest_od[self._od_channel]
 
             results = self.execute_io_action(
                 media_ml=self.exchange_volume_ml, waste_ml=self.exchange_volume_ml
             )
             media_moved = results["media_ml"]
 
-            if detect:
-                od_post_timestamp = self.latest_od_at
-                od_post = self.latest_od[od_channel]
-                # only check if new OD reading seen
-                if od_post_timestamp != od_pre_timestamp:
-                    predicted_od_post = od_pre * self.exchange_volume_ml / self.current_volume_ml
-                    if not (0.80 * predicted_od_post <= od_post <= 1.20 * predicted_od_post):
-                        self.logger.info(
-                            f"OD after dosing is not within 20% of predicted: {od_post} vs {predicted_od_post}"
-                        )
-                        self.set_state(self.SLEEPING)
+            self._handle_pump_malfunction(od_pre_timestamp, od_pre)
 
             return events.DilutionEvent(
                 f"Latest OD = {latest_od_before_dosing:.2f} ≥ Target OD = {target_od_before_dosing:.2f}; cycled {media_moved:.2f} mL",
@@ -134,33 +144,14 @@ class Turbidostat(DosingAutomationJob):
         if self.latest_normalized_od >= self.target_normalized_od:
             latest_normalized_od_before_dosing = self.latest_normalized_od
             target_normalized_od_before_dosing = self.target_normalized_od
-            detect = config.getboolean(
-                "dosing_automation.config", "experimental_detect_pump_malfunction", fallback=False
-            )
-            if detect:
-                od_channel = cast(
-                    pt.PdChannel,
-                    config.get("turbidostat.config", "signal_channel", fallback="2"),
-                )
-                od_pre_timestamp = self.latest_od_at
-                od_pre = self.latest_od[od_channel]
+            od_pre_timestamp, od_pre = self.latest_od_at, self.latest_od[self._od_channel]
 
             results = self.execute_io_action(
                 media_ml=self.exchange_volume_ml, waste_ml=self.exchange_volume_ml
             )
             media_moved = results["media_ml"]
 
-            if detect:
-                od_post_timestamp = self.latest_od_at
-                od_post = self.latest_od[od_channel]
-                # only check if new OD reading seen
-                if od_post_timestamp != od_pre_timestamp:
-                    predicted_od_post = od_pre * self.exchange_volume_ml / self.current_volume_ml
-                    if not (0.80 * predicted_od_post <= od_post <= 1.20 * predicted_od_post):
-                        self.logger.info(
-                            f"OD after dosing is not within 20% of predicted: {od_post} vs {predicted_od_post}"
-                        )
-                        self.set_state(self.SLEEPING)
+            self._handle_pump_malfunction(od_pre_timestamp, od_pre)
 
             return events.DilutionEvent(
                 f"Latest Normalized OD = {latest_normalized_od_before_dosing:.2f} ≥ Target  nOD = {target_normalized_od_before_dosing:.2f}; cycled {media_moved:.2f} mL",

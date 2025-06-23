@@ -140,6 +140,19 @@ def test_turbidostat_automation() -> None:
         skip_first_run=True,
     ) as algo:
         pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/od_reading/ods",
+            encode(
+                structs.ODReadings(
+                    timestamp=current_utc_datetime(),
+                    ods={
+                        "2": structs.RawODReading(
+                            timestamp=current_utc_datetime(), angle="45", od=0.05, channel="2"
+                        )
+                    },
+                )
+            ),
+        )
+        pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
             encode(structs.GrowthRate(growth_rate=0.01, timestamp=current_utc_datetime())),
         )
@@ -149,6 +162,19 @@ def test_turbidostat_automation() -> None:
         )
         pause()
 
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/od_reading/ods",
+            encode(
+                structs.ODReadings(
+                    timestamp=current_utc_datetime(),
+                    ods={
+                        "2": structs.RawODReading(
+                            timestamp=current_utc_datetime(), angle="45", od=0.06, channel="2"
+                        )
+                    },
+                )
+            ),
+        )
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
             encode(structs.GrowthRate(growth_rate=0.01, timestamp=current_utc_datetime())),
@@ -161,6 +187,19 @@ def test_turbidostat_automation() -> None:
         assert isinstance(algo.run(), events.DilutionEvent)
 
         pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/od_reading/ods",
+            encode(
+                structs.ODReadings(
+                    timestamp=current_utc_datetime(),
+                    ods={
+                        "2": structs.RawODReading(
+                            timestamp=current_utc_datetime(), angle="45", od=0.065, channel="2"
+                        )
+                    },
+                )
+            ),
+        )
+        pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
             encode(structs.GrowthRate(growth_rate=0.01, timestamp=current_utc_datetime())),
         )
@@ -171,6 +210,19 @@ def test_turbidostat_automation() -> None:
         pause()
         assert isinstance(algo.run(), events.DilutionEvent)
 
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/od_reading/ods",
+            encode(
+                structs.ODReadings(
+                    timestamp=current_utc_datetime(),
+                    ods={
+                        "2": structs.RawODReading(
+                            timestamp=current_utc_datetime(), angle="45", od=0.04, channel="2"
+                        )
+                    },
+                )
+            ),
+        )
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
             encode(structs.GrowthRate(growth_rate=0.01, timestamp=current_utc_datetime())),

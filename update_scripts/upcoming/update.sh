@@ -26,6 +26,11 @@ if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
     crudini --set /home/pioreactor/.pioreactor/config.ini bioreactor max_working_volume_ml $(crudini --get /home/pioreactor/.pioreactor/config.ini bioreactor max_volume_ml)
     crudini --del /home/pioreactor/.pioreactor/config.ini bioreactor max_volume_ml
 
+    # experimental pump malfunction
+    crudini --set /home/pioreactor/.pioreactor/config.ini dosing_automation.config experimental_detect_pump_malfunction true
+    crudini --set /home/pioreactor/.pioreactor/config.ini dosing_automation.config experimental_pump_malfunction_tolerance true
+
+
     # add raw od readings to export
     EXPORTABLE_DATASETS="/home/pioreactor/.pioreactor/exportable_datasets"
     su -u pioreactor cp "$SCRIPT_DIR"/27_raw_od_readings.yaml "$EXPORTABLE_DATASETS"

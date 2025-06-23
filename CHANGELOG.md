@@ -30,13 +30,15 @@
  - We moved our Extended Kalman Filter code out of this repo into it's own Python library: [grpredict](https://github.com/Pioreactor/grpredict).
  - Chemostat modal in the UI now shows the computed dilution rate
  - New "Duplicate" profiles button.
+ - **Experimental**: Adding an experimental new feature that will detect when a pump malfunctions by comparing the OD before and after dosing. If the post-OD falls outside some threshold (default is 20%), the dosing is paused until a user comes to check. This only applies the current implementations of `turbidostat` and `chemostat`. To enable this feature, set `dosing_automation.config` parameter `experimental_detect_pump_malfunction` to `True`. This relies on 1) Accurate initial volume (inputted when you start the automation), and 2) accurate pump calibrations.
  - Calibration charts have new crosshairs
- - Performance improvements
  - The config `[mqtt]`  `broker_address` can now be a list of addresses, separated by `;`. Example:
    ```
    [mqtt]
    broker_address=pio01.local;100.119.150.2;localhost
    ```
+ - Performance improvements
+ - Backing up database now checks if the worker has enough disk space, and skips if not.
 
 #### Breaking changes
  - In configuration, `[stirring.config]` parameter `target_rpm` is renamed to `initial_target_rpm`. This is better for letting users know that the RPM can be changed during a run.
