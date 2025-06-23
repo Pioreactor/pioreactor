@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import subprocess
+import shlex
 from pathlib import Path
 from queue import Empty
 from queue import Queue
@@ -55,6 +56,26 @@ def cp_file_across_cluster(
         )
     except RsyncError:
         raise RsyncError(f"Error moving file {localpath} to {unit}:{remotepath}.")
+
+
+def get_available_disk_space(unit: pt.Unit, directory: str) -> int:
+    """Return available disk space in bytes on ``unit`` in ``directory``."""
+    command = f"df -B1 --output=avail {shlex.quote(directory)} | tail -n 1"
+    try:
+        result = subprocess.run(
+            ["ssh", "-o", "ConnectTimeout=5", resolve_to_address(unit), command],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True,
+        )
+    except subprocess.CalledProcessError as e:
+        raise SSHError(f"SSH command failed: {e.stderr}") from e
+
+    try:
+        return int(result.stdout.strip())
+    except ValueError as e:
+        raise SSHError(f"Unable to parse df output: {result.stdout}") from e
 
 
 def is_using_local_access_point() -> bool:

@@ -3,16 +3,18 @@ from __future__ import annotations
 
 import click
 
+from pathlib import Path
+
 from pioreactor.cluster_management import get_active_workers_in_inventory
 from pioreactor.config import config
-from pioreactor.exc import RsyncError
+from pioreactor.exc import RsyncError, SSHError
 from pioreactor.logging import create_logger
 from pioreactor.mureq import HTTPException
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import long_running_managed_lifecycle
 from pioreactor.utils.networking import resolve_to_address
-from pioreactor.utils.networking import rsync
+from pioreactor.utils.networking import rsync, get_available_disk_space
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
@@ -77,6 +79,7 @@ def backup_database(output_file: str, force: bool = False, backup_to_workers: in
 
         # back up to workers, if available
         backups_complete = 0
+        backup_file_size = Path(output_file).stat().st_size
         try:
             available_workers = list(get_active_workers_in_inventory())
         except HTTPException:
@@ -90,6 +93,12 @@ def backup_database(output_file: str, force: bool = False, backup_to_workers: in
 
             logger.debug(f"Attempting backing up database to {backup_unit}.")
             try:
+                available = get_available_disk_space(backup_unit, str(Path(output_file).parent))
+                if available < backup_file_size:
+                    logger.debug(
+                        f"Skipping backup to {backup_unit} due to insufficient space."
+                    )
+                    continue
                 rsync(
                     "-hz",
                     "--partial",
@@ -97,7 +106,7 @@ def backup_database(output_file: str, force: bool = False, backup_to_workers: in
                     output_file,
                     f"{resolve_to_address(backup_unit)}:{output_file}",
                 )
-            except RsyncError:
+            except (RsyncError, SSHError):
                 logger.debug(
                     f"Unable to backup database to {backup_unit}. Is it online?",
                     exc_info=True,
