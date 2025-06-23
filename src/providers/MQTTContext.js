@@ -92,50 +92,98 @@ const findHandlersInTrie = (root, topic) => {
   return handlers;
 };
 
+
+const CONNECT_TIMEOUT_MS = 1000;
+
+
 export const MQTTProvider = ({ name, config, children, experiment }) => {
   const [client, setClient] = useState(null);
   const topicTrie = useRef(new TrieNode());
   const [error, setError] = useState(null);
 
+
   useEffect(() => {
-    if (Object.keys(config).length) {
-      const { username, password, ws_protocol, broker_address, broker_ws_port } = config.mqtt ?? {};
-      const mqttClient = mqtt.connect(`${ws_protocol ?? 'ws'}://${broker_address ?? 'localhost'}:${broker_ws_port ?? 9001}/mqtt`, {
-        username,
-        password,
-        keepalive: 120,
-        clean: true
+    if (!Object.keys(config).length) return;
+
+    const {
+      username,
+      password,
+      ws_protocol = 'ws',
+      broker_address = 'localhost',   // may be "addr1;addr2;addr3"
+      broker_ws_port = 9001,
+    } = config.mqtt ?? {};
+
+    /** try a single URI, resolve on 'connect', reject on 'error' or timeout */
+    const tryUri = (uri, opts) =>
+      new Promise((resolve, reject) => {
+        const c = mqtt.connect(uri, opts);
+        const timer = setTimeout(() => {
+          c.end(true);
+          reject(new Error('timeout'));
+        }, CONNECT_TIMEOUT_MS);
+
+        c.once('connect', () => {
+          clearTimeout(timer);
+          resolve(c);       // <- SUCCESS
+        });
+        c.once('error', err => {
+          clearTimeout(timer);
+          c.end(true);
+          reject(err);      // <- FAIL, will fall through to next host
+        });
       });
 
-      mqttClient.on('connect', () => {
-        console.log(`Connected to MQTT broker for ${name}.`);
-      });
+    /** sequential fallback */
+    const connectWithFallback = async () => {
+      const hosts = broker_address.split(';').map(h => h.trim()).filter(Boolean);
+      const opts  = { username, password, keepalive: 120, clean: true };
 
-      mqttClient.on('message', (topic, message, packet) => {
-        const handlers = findHandlersInTrie(topicTrie.current, topic);
-        handlers.forEach(handler => handler(topic, message, packet));
-      });
-
-      mqttClient.on('error', error => {
-        if (error.message === 'client disconnecting') {
-          return;
+      for (const host of hosts) {
+        const uri = `${ws_protocol}://${host}:${broker_ws_port}/mqtt`;
+        try {
+          console.log(`MQTT trying ${uri} …`);
+          return await tryUri(uri, opts);        // first one that works wins
+        } catch (e) {
+          console.warn(`MQTT could not connect to ${uri}: ${e.message}`);
         }
-        console.log(`MQTT ${name} connection error: ${error}`);
-        setError(`MQTT connection error: ${error}`);
+      }
+      throw new Error('Unable to reach any MQTT broker');
+    };
+
+    let mqttClient;
+
+    connectWithFallback()
+      .then(c => {
+        mqttClient = c;
+        console.log(`Connected to MQTT broker for ${name}.`);
+
+        mqttClient.on('message', (topic, message, packet) => {
+          const handlers = findHandlersInTrie(topicTrie.current, topic);
+          handlers.forEach(h => h(topic, message, packet));
+        });
+
+        mqttClient.on('error', err => {
+          if (err?.message === 'client disconnecting') return;
+          console.error(`MQTT ${name} connection error:`, err);
+          setError(`MQTT connection error: ${err}`);
+        });
+
+        mqttClient.on('close', () => {
+          console.warn(`MQTT ${name} client connection closed`);
+        });
+
+        setClient(mqttClient);
+      })
+      .catch(err => {
+        console.error(err);
+        setError(err.message);
       });
 
-      mqttClient.on('close', () => {
-        // this doesn't get logged (not sure why, rc?) but you can watch mosquitto logs and see they are disconnecting
-        console.warn(`MQTT ${name} client connection closed`);
-      });
-
-      setClient(mqttClient);
-
-      return () => {
-        clearTrie(topicTrie.current);
-        mqttClient.end(true);
-      };
-    }
+    // ----------------- cleanup -----------------
+    return () => {
+      clearTrie(topicTrie.current);
+      mqttClient?.end(true);
+    };
   }, [config, name, experiment]);
 
   // 1. Memoize subscribe/unsubscribe so they don't get recreated every render

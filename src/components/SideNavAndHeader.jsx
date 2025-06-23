@@ -74,7 +74,7 @@ const SelectableMenuItem = ({experiment, availableExperiments, selectExperiment}
           setActiveExperiments(new Set(data.map(item => item.experiment)))
         })
       }
-    getActiveExperiments()
+    setTimeout(getActiveExperiments, 100)
   }, [])
 
   const handleMenuItemClick = (e) => {
@@ -196,21 +196,22 @@ export default function SideNavAndHeader() {
       }
 
     async function getLatestVersion() {
-         // TODO: what happens when there is not internet connection?
-         await fetch("https://api.github.com/repos/pioreactor/pioreactor/releases/latest")
-        .then((response) => {
-          return response.json();
-        })
-        .then((data) => {
-          setLatestVersion(data['tag_name'])
-        }).catch(e => {
-          // no internet?
-        });
-      }
+       // TODO: what happens when there is not internet connection?
+       await fetch("https://api.github.com/repos/pioreactor/pioreactor/releases/latest")
+      .then((response) => {
+        return response.json();
+      })
+      .then((data) => {
+        setLatestVersion(data['tag_name'])
+      }).catch(e => {
+        // no internet?
+      });
+    }
 
-    getCurrentApp()
-    getLatestVersion()
-    getLAP()
+     // ping these later, it's not important on render
+    setTimeout(getLAP, 500)
+    setTimeout(getCurrentApp, 1500)
+    setTimeout(getLatestVersion, 2000)
 
   }, [])
 

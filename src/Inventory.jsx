@@ -22,7 +22,6 @@ import Switch from '@mui/material/Switch';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import FlareIcon from '@mui/icons-material/Flare';
-import DeleteIcon from '@mui/icons-material/Delete';
 import IconButton from '@mui/material/IconButton';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
@@ -40,7 +39,7 @@ import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
 import {getConfig, disconnectedGrey, lostRed, inactiveGrey, readyGreen} from "./utilities"
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 import Snackbar from '@mui/material/Snackbar';
-import Badge from '@mui/material/Badge';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 
 
 import { useExperiment } from './providers/ExperimentContext';
@@ -667,7 +666,7 @@ function Remove({unit, isLeader}) {
 
   return (
     <Button color="secondary" style={{textTransform: "none"}} disabled={isLeader} size="small" onClick={removeWorker}>
-       <DeleteIcon  disabled={isLeader} color={isLeader ? "text.disabled" : "secondary"} fontSize="small" sx={textIcon}/> Remove
+       <DeleteOutlineIcon  disabled={isLeader} color={isLeader ? "text.disabled" : "secondary"} fontSize="small" sx={textIcon}/> Remove
     </Button>
 )}
 

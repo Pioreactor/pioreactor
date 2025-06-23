@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 
 import {
   Dialog,
@@ -11,7 +10,6 @@ import {
   TextField,
   IconButton,
   InputAdornment,
-  Box,
   FormControl,
   FormLabel,
   Snackbar,
@@ -20,7 +18,6 @@ import CloseIcon from "@mui/icons-material/Close";
 import PioreactorIcon from "./PioreactorIcon";
 import { runPioreactorJob } from "../utilities";
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
 import ReplayIcon from '@mui/icons-material/Replay';
 
 function AdvancedConfigDialog({ open, onFinished, jobName, displayName, unit, experiment, config = {} }) {
@@ -108,8 +105,15 @@ function AdvancedConfigDialog({ open, onFinished, jobName, displayName, unit, ex
                   InputProps={{
                     endAdornment: isModified && (
                       <InputAdornment position="end">
-                        <IconButton size="small" onClick={handleReset(param)}>
-                          <ReplayIcon sx={{ color: (theme) => theme.palette.warning.main }} fontSize="small" />
+                        <IconButton
+                          size="small"
+                          aria-label={`Reset ${param}`}
+                          onClick={handleReset(param)}
+                        >
+                          <ReplayIcon
+                            sx={{ color: (theme) => theme.palette.warning.main }}
+                            fontSize="small"
+                          />
                         </IconButton>
                       </InputAdornment>
                     ),

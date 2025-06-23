@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment, Component } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 
 import Grid from "@mui/material/Grid";
 import LogTable from "./components/LogTable";

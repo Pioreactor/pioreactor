@@ -8,7 +8,6 @@ import IconButton from '@mui/material/IconButton';
 import UnderlineSpan from "./UnderlineSpan";
 
 function DosingAutomationForm(props) {
-  const config = props.config;
   const threshold = props.threshold;
   const [warning, setWarning] = useState("");
 
@@ -18,10 +17,10 @@ function DosingAutomationForm(props) {
   }, [props.fields]);
 
   const checkForWarnings = (id, value) => {
-    if (id === "initial_liquid_volume_ml" && value > threshold) {
-      setWarning(`⚠️ Initial liquid volume exceeds safe threshold of ${threshold} mL.`);
-    } else if (id === "max_volume_ml" && value > threshold) {
-      setWarning(`⚠️ Max liquid volume exceeds safe threshold of ${threshold} mL.`);
+    if (id === "initial_volume_ml" && value > threshold) {
+      setWarning(`⚠️ Initial volume exceeds safe threshold of ${threshold} mL.`);
+    } else if (id === "max_working_volume_ml" && value > threshold) {
+      setWarning(`⚠️ Max working volume exceeds safe threshold of ${threshold} mL.`);
     } else {
       setWarning(""); // clear warning
     }
@@ -62,7 +61,7 @@ function DosingAutomationForm(props) {
       </Typography>
       {props.name === "chemostat" &&
         <Typography variant="body1" sx={{ whiteSpace: "pre-line", mt: 0, mb: 1, padding: "6px 6px" }}>
-          The current computed <UnderlineSpan title="Volume per dose * (60 / Time between dosing) / (Max liquid volume)">dilution rate</UnderlineSpan> is <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{(props.algoSettings.volume * (60/props.algoSettings.duration) / props.algoSettings.max_volume_ml).toFixed(2)} h⁻¹</code>.
+          The current computed <UnderlineSpan title="Exchange volume * (60 / Time between dosing) / (Max working volume)">dilution rate</UnderlineSpan> is <code style={{backgroundColor: "rgba(0, 0, 0, 0.07)", padding: "1px 4px"}}>{(props.algoSettings.exchange_volume_ml * (60/props.algoSettings.duration) / props.algoSettings.max_working_volume_ml).toFixed(2)} h⁻¹</code>.
         </Typography>
       }
 
@@ -75,8 +74,8 @@ function DosingAutomationForm(props) {
         type="number"
         size="small"
         autoComplete="off"
-        id="initial_liquid_volume_ml"
-        label="Initial liquid volume"
+        id="initial_volume_ml"
+        label="Initial volume"
         defaultValue={props.liquidVolume}
         InputProps={{
           endAdornment: <InputAdornment position="end">ml</InputAdornment>,
@@ -91,8 +90,8 @@ function DosingAutomationForm(props) {
         type="number"
         size="small"
         autoComplete="off"
-        id="max_volume_ml"
-        label={<UnderlineSpan title="Determined by the height of your waste/efflux tube.">Max liquid volume</UnderlineSpan>}
+        id="max_working_volume_ml"
+        label={<UnderlineSpan title="Determined by the height of your waste/efflux tube.">Max working volume</UnderlineSpan>}
         InputProps={{
           endAdornment: <InputAdornment position="end">ml</InputAdornment>,
         }}
@@ -103,7 +102,13 @@ function DosingAutomationForm(props) {
         sx={{ mt: 3, mr: 1, mb: 0, width: "18ch" }}
       />
 
-      <IconButton sx={{ mt: 3 }} target="_blank" rel="noopener noreferrer" href="https://docs.pioreactor.com/user-guide/dosing-automations#volume-parameters">
+      <IconButton
+        sx={{ mt: 3 }}
+        aria-label="Learn more about volume parameters"
+        target="_blank"
+        rel="noopener noreferrer"
+        href="https://docs.pioreactor.com/user-guide/dosing-automations#volume-parameters"
+      >
         <HelpOutlineIcon sx={{ fontSize: 17, verticalAlign: "middle", ml: 0 }} />
       </IconButton>
 

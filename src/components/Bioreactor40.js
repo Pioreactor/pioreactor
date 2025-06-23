@@ -51,7 +51,7 @@ const Bioreactor40Diagram = ({experiment, unit, config}) => {
   const [pumps, setPumps] = useState(new Set([]));
   const [heat, setHeat] = useState(false);
   const [volume, setVolume] = useState(20);
-  const [maxVolume, setMaxVolume] = useState((config?.bioreactor?.max_volume_ml || 14));
+  const [maxVolume, setMaxVolume] = useState((config?.bioreactor?.max_working_volume_ml || 14));
   var  now, then, elapsed;
   const fps = 45;
   const fpsInterval = 1000 / fps;
@@ -129,13 +129,13 @@ const Bioreactor40Diagram = ({experiment, unit, config}) => {
       } else {
         setNOD(JSON.parse(messageString).od_filtered)
       }
-    } else if (topicString.endsWith("dosing_automation/liquid_volume")){
+    } else if (topicString.endsWith("dosing_automation/current_volume_ml")){
       if (messageString === "") {
         //
       } else {
         setVolume(parseFloat(messageString))
       }
-    } else if (topicString.endsWith("dosing_automation/max_volume")){
+    } else if (topicString.endsWith("dosing_automation/max_working_volume_ml")){
       if (messageString === "") {
         //
       } else {
@@ -155,14 +155,14 @@ const Bioreactor40Diagram = ({experiment, unit, config}) => {
       subscribeToTopic([`pioreactor/${unit}/${experiment}/temperature_automation/temperature`,
         `pioreactor/${unit}/${experiment}/growth_rate_calculating/od_filtered`,
         `pioreactor/${unit}/${experiment}/leds/intensity`,
-        `pioreactor/${unit}/${experiment}/dosing_automation/liquid_volume`,
-        `pioreactor/${unit}/${experiment}/dosing_automation/max_volume`,
+        `pioreactor/${unit}/${experiment}/dosing_automation/current_volume_ml`,
+        `pioreactor/${unit}/${experiment}/dosing_automation/max_working_volume_ml`,
         `pioreactor/${unit}/${experiment}/pwms/dc`,
         `pioreactor/${unit}/_testing_${experiment}/temperature_automation/temperature`,
         `pioreactor/${unit}/_testing_${experiment}/growth_rate_calculating/od_filtered`,
         `pioreactor/${unit}/_testing_${experiment}/leds/intensity`,
-        `pioreactor/${unit}/_testing_${experiment}/dosing_automation/liquid_volume`,
-        `pioreactor/${unit}/_testing_${experiment}/dosing_automation/max_volume`,
+        `pioreactor/${unit}/_testing_${experiment}/dosing_automation/current_volume_ml`,
+        `pioreactor/${unit}/_testing_${experiment}/dosing_automation/max_working_volume_ml`,
         `pioreactor/${unit}/_testing_${experiment}/pwms/dc`,
       ], onMessage, "BioreactorDiagram")
 

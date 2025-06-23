@@ -109,7 +109,7 @@ export default function ActionPumpForm(props) {
     <div id={props.action} style={{padding: "10px 0px 0px 0px"}}>
       <FormControl>
         <RadioGroup
-          aria-labelledby="how to dose"
+          aria-label="how to dose"
           name="how-to-dose-media"
           value={dosingMethod}
           onChange={handleRadioChange}

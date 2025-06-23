@@ -155,8 +155,8 @@ export const colors = [
 
 ];
 
-export const ERROR_COLOR = "#ff7961"
-export const WARNING_COLOR = "#FFEA8A"
+export const ERROR_COLOR = "#FF8F7B"
+export const WARNING_COLOR = "#ffefa4"
 export const NOTICE_COLOR = "#addcaf"
 
 

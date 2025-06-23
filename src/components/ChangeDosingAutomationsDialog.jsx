@@ -29,8 +29,8 @@ function ChangeDosingAutomationsDialog(props) {
   const [automationName, setAutomationName] = useState("chemostat")
   const [algoSettings, setAlgoSettings] = useState({
     skip_first_run: 0,
-    max_volume_ml: props.maxVolume,
-    initial_liquid_volume_ml: props.liquidVolume,
+    max_working_volume_ml: props.maxVolume,
+    initial_volume_ml: props.liquidVolume,
   })
   const [automations, setAutomations] = useState({})
   const [isLoading, setIsLoading] = useState(true)
@@ -75,8 +75,8 @@ function ChangeDosingAutomationsDialog(props) {
 
     setAlgoSettings((prev) => ({
       ...( !props.no_skip_first_run && { skip_first_run: prev.skip_first_run }),
-      max_volume_ml: prev.maxVolume,
-      initial_liquid_volume_ml: prev.liquidVolume,
+      max_working_volume_ml: prev.maxVolume,
+      initial_volume_ml: prev.liquidVolume,
     }));
   };
 
@@ -166,7 +166,12 @@ function ChangeDosingAutomationsDialog(props) {
                 label="Skip first run"
                 sx={{mr: 0, mt: 0}}
               />
-              <IconButton target="_blank" rel="noopener noreferrer" href="https://docs.pioreactor.com/user-guide/intro-to-automations#skip-first-run">
+                <IconButton
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Learn more about skip first run"
+                  href="https://docs.pioreactor.com/user-guide/intro-to-automations#skip-first-run"
+                >
                 <HelpOutlineIcon sx={{ fontSize: 17, verticalAlign: "middle", ml: 0 }}/>
               </IconButton>
             </Box>

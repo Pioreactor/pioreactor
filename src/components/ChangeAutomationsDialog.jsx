@@ -156,7 +156,12 @@ function ChangeAutomationsDialog(props) {
                   label="Skip first run"
                   sx={{mr: 0, mt: 0}}
                 />
-                <IconButton target="_blank" rel="noopener noreferrer" href="https://docs.pioreactor.com/user-guide/intro-to-automations#skip-first-run">
+                <IconButton
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Learn more about skip first run"
+                  href="https://docs.pioreactor.com/user-guide/intro-to-automations#skip-first-run"
+                >
                   <HelpOutlineIcon sx={{ fontSize: 17, verticalAlign: "middle", ml: 0 }}/>
                 </IconButton>
               </Box>

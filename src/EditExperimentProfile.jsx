@@ -78,25 +78,28 @@ const EditExperimentProfilesContent = ({ initialCode, profileFilename }) => {
   const saveCurrentCode = () => {
 
     setIsError(false);
-    setIsChanged(false);
     fetch("/api/contrib/experiment_profiles", {
       method: "PATCH",
-      body: JSON.stringify({ body: code, filename: profileFilename  }),
+      body: JSON.stringify({ body: code, filename: profileFilename }),
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json'
       }
     })
       .then(res => {
-        if (res.ok) {
-          setOpenSnackbar(true);
-          setSnackbarMsg(`Experiment profile ${profileFilename} saved.`);
-        } else {
-          res.json().then(parsedJson => {
-            setIsError(true);
-            setErrorMsg(parsedJson.error);
+        if (!res.ok) {
+          return res.json().then(parsedJson => {
+            throw new Error(parsedJson.error || 'Failed to save profile');
           });
         }
+        setIsChanged(false);
+        setOpenSnackbar(true);
+        setSnackbarMsg(`Experiment profile ${profileFilename} saved.`);
+      })
+      .catch(err => {
+        setIsError(true);
+        setErrorMsg(err.message || 'Network error: failed to save profile');
+        setIsChanged(true);
       });
   };
 

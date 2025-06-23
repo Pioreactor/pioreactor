@@ -690,13 +690,13 @@ function SettingsActionsDialog(props) {
           <div key={"patient_buttons_init" + job}>
             <PatientButton
               color="primary"
-              variant="contained"
               onClick={()=>(false)}
               buttonText=<CircularProgress color="inherit" size={22}/>
               disabled={true}
             />
             <PatientButton
               color="secondary"
+              variant="contained"
               onClick={stopPioreactorJob(job)}
               buttonText="Stop"
             />
@@ -707,11 +707,11 @@ function SettingsActionsDialog(props) {
           <div key={"patient_buttons_ready" + job}>
             <PatientButton
               color="secondary"
-              variant="contained"
               onClick={setPioreactorJobState(job, "sleeping")}
               buttonText="Pause"
             />
             <PatientButton
+              variant="contained"
               color="secondary"
               onClick={stopPioreactorJob(job)}
               buttonText="Stop"
@@ -723,11 +723,11 @@ function SettingsActionsDialog(props) {
           <div key={"patient_buttons_sleeping" + job}>
             <PatientButton
               color="primary"
-              variant="contained"
               onClick={setPioreactorJobState(job, "ready")}
               buttonText="Resume"
             />
             <PatientButton
+              variant="contained"
               color="secondary"
               onClick={stopPioreactorJob(job)}
               buttonText="Stop"
@@ -843,7 +843,7 @@ function SettingsActionsDialog(props) {
               <Box sx={{justifyContent:"space-between", display:"flex"}}>
                 {buttons[job_key]}
 
-                <AdvancedConfigButton jobName={job_key} displayName={job.metadata.display_name} unit={props.unit} experiment={props.experiment} config={props.config[`${job_key}.config`]} disabled={job.state=="ready"} />
+                <AdvancedConfigButton jobName={job_key} displayName={job.metadata.display_name} unit={props.unit} experiment={props.experiment} config={props.config[`${job_key}.config`]} disabled={job.state !== "disconnected"} />
               </Box>
               <ManageDivider/>
             </div>
@@ -960,9 +960,9 @@ function SettingsActionsDialog(props) {
               label={props.label}
               experiment={props.experiment}
               no_skip_first_run={false}
-              maxVolume={dosingControlJob.publishedSettings.max_volume.value || parseFloat(props.config?.bioreactor?.max_volume_ml) || 10.0}
-              liquidVolume={dosingControlJob.publishedSettings.liquid_volume.value || parseFloat(props.config?.bioreactor?.initial_volume_ml) || 10}
-              threshold={props.modelName === "pioreactor_20ml" ? 19 : 39}
+              maxVolume={dosingControlJob.publishedSettings.max_working_volume_ml.value || parseFloat(props.config?.bioreactor?.max_working_volume_ml) || 10.0}
+              liquidVolume={dosingControlJob.publishedSettings.current_volume_ml.value || parseFloat(props.config?.bioreactor?.initial_volume_ml) || 10}
+              threshold={props.modelName === "pioreactor_20ml" ? 18 : 38}
             />
           </React.Fragment>
           }

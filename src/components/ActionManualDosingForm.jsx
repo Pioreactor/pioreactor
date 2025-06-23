@@ -81,7 +81,7 @@ export default function ActionPumpForm(props) {
     <div id={props.action} style={{padding: "10px 0px 0px 0px"}}>
       <FormControl>
         <RadioGroup
-          aria-labelledby="what action"
+          aria-label="what action"
           name="what action"
           value={manualAction}
           onChange={handleRadioChange}

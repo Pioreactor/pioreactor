@@ -10,7 +10,6 @@ import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import CalibrationChart from "./components/CalibrationChart";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
-import CableIcon from '@mui/icons-material/Cable';
 import {
   Table,
   TableBody,

@@ -46,7 +46,7 @@ export function sanitizeDeviceName(raw) {
   const cleaned = raw
     .replace(/\s+/g, "_")          // spaces, tabs, line‑breaks → “_”
     .replace(/[^A-Za-z0-9_-]/g, "") // drop everything else (only allow these chars)
-    .replace(/^[_\.]+/, "")        // no leading “.” or “_”
+    .replace(/^[_.]+/, "")           // no leading “.” or “_”
     .slice(0, 255);                // extra‑long names are sliced
 
   return cleaned;
@@ -90,7 +90,26 @@ function UploadCalibrationDialog({
 
       // Optionally clear fields so user can enter another calibration easily:
       setCalibrationYaml('');
-      setSuccess(<span>Calibration sent to Pioreactor(s). Add another calibration, or <a href="">refresh</a> the page to see updates.</span>);
+      setSuccess(
+        <span>
+          Calibration sent to Pioreactor(s). Add another calibration, or{' '}
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              color: 'inherit',
+              textDecoration: 'underline',
+              cursor: 'pointer',
+            }}
+          >
+            refresh
+          </button>{' '}
+          the page to see updates.
+        </span>
+      );
     } catch (err) {
       setError(err.message);
     }

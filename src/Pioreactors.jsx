@@ -64,7 +64,7 @@ import ManageExperimentMenu from "./components/ManageExperimentMenu";
 import { MQTTProvider, useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 import PatientButton from './components/PatientButton';
-import {getConfig, objectWithDefaultEmpty, getRelabelMap, runPioreactorJob, disconnectedGrey, lostRed, disabledColor, stateDisplay, checkTaskCallback} from "./utilities"
+import {getConfig, getRelabelMap, runPioreactorJob, disconnectedGrey, lostRed, disabledColor, stateDisplay, checkTaskCallback} from "./utilities"
 
 
 
@@ -889,7 +889,6 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
           <div key={"patient_buttons_init" + job}>
             <PatientButton
               color="primary"
-              variant="contained"
               onClick={()=>(false)}
               buttonText=<CircularProgress color="inherit" size={22}/>
               disabled={true}
@@ -898,6 +897,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
               color="secondary"
               onClick={stopPioreactorJob(job)}
               buttonText="Stop"
+              variant="contained"
             />
           </div>
         )
@@ -906,11 +906,11 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
           <div key={"patient_buttons_ready" + job}>
             <PatientButton
               color="secondary"
-              variant="contained"
               onClick={setPioreactorJobState(job, "sleeping")}
               buttonText="Pause"
             />
             <PatientButton
+              variant="contained"
               color="secondary"
               onClick={stopPioreactorJob(job)}
               buttonText="Stop"
@@ -922,11 +922,11 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
           <div key={"patient_buttons_sleeping" + job}>
             <PatientButton
               color="primary"
-              variant="contained"
               onClick={setPioreactorJobState(job, "ready")}
               buttonText="Resume"
             />
             <PatientButton
+              variant="contained"
               color="secondary"
               onClick={stopPioreactorJob(job)}
               buttonText="Stop"
@@ -1041,7 +1041,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
               <Box sx={{justifyContent:"space-between", display:"flex"}}>
                 {buttons[job_key]}
 
-                <AdvancedConfigButton jobName={job_key} displayName={job.metadata.display_name} unit={unit} experiment={experiment} config={config[`${job_key}.config`]} disabled={job.state === "ready"} />
+                <AdvancedConfigButton jobName={job_key} displayName={job.metadata.display_name} unit={unit} experiment={experiment} config={config[`${job_key}.config`]} disabled={job.state !== "disconnected"} />
               </Box>
               <ManageDivider/>
             </div>
@@ -1158,9 +1158,9 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
               label={label}
               experiment={experiment}
               no_skip_first_run={false}
-              maxVolume={parseFloat(dosingControlJob.publishedSettings.max_volume.value) || parseFloat(config?.bioreactor?.max_volume_ml) || 10}
-              liquidVolume={parseFloat(dosingControlJob.publishedSettings.liquid_volume.value) || parseFloat(config?.bioreactor?.initial_volume_ml) || 10}
-              threshold={modelName === "pioreactor_20ml" ? 19 : 39}
+              maxVolume={parseFloat(dosingControlJob.publishedSettings.max_working_volume_ml.value) || parseFloat(config?.bioreactor?.max_working_volume_ml) || 10}
+              liquidVolume={parseFloat(dosingControlJob.publishedSettings.current_volume_ml.value) || parseFloat(config?.bioreactor?.current_volume_ml) || 10}
+              threshold={modelName === "pioreactor_20ml" ? 18 : 38}
             />
           </React.Fragment>
           }
@@ -1855,7 +1855,7 @@ function SettingsActionsDialogAll({experiment, config}) {
               unit={unit}
               experiment={experiment}
               no_skip_first_run={false}
-              maxVolume={config?.bioreactor?.max_volume_ml || 19}
+              maxVolume={config?.bioreactor?.max_working_volume_ml || 19}
               liquidVolume={config?.bioreactor?.initial_volume_ml || 10}
               threshold={39}
             />

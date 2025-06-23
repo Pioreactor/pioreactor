@@ -10,35 +10,28 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Divider from '@mui/material/Divider';
 import CardContent from '@mui/material/CardContent';
-import {getConfig} from "./utilities"
 import FormLabel from '@mui/material/FormLabel';
 import MenuItem from '@mui/material/MenuItem';
-import IconButton from '@mui/material/IconButton';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import {DisplayProfile} from "./components/DisplayProfile"
 import DisplaySourceCode from "./components/DisplaySourceCode"
-import CloseIcon from '@mui/icons-material/Close';
 import CodeIcon from '@mui/icons-material/Code';
 import AddIcon from '@mui/icons-material/Add';
+import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
-import UnderlineSpan from "./components/UnderlineSpan";
 import { RunningProfilesProvider, useRunningProfiles } from './providers/RunningProfilesContext';
 
 import EditIcon from '@mui/icons-material/Edit';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import SelectButton from "./components/SelectButton";
-import DeleteIcon from '@mui/icons-material/Delete';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ViewTimelineOutlinedIcon from '@mui/icons-material/ViewTimelineOutlined';
 import PlayDisabledIcon from '@mui/icons-material/PlayDisabled';
 import { useConfirm } from 'material-ui-confirm';
-import { MQTTProvider, useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 import ManageExperimentMenu from "./components/ManageExperimentMenu";
-import StopIcon from '@mui/icons-material/Stop';
 import CircularProgress from '@mui/material/CircularProgress';
 import Chip from '@mui/material/Chip';
-
 
 /**
  * 1) Child component that displays the experiment profile dropdown,
@@ -109,6 +102,26 @@ function RunExperimentProfilesContent({
     setViewSource(!viewSource)
   };
 
+  const duplicate = () => {
+    if (!selectedExperimentProfile) {
+      return;
+    }
+    fetch(`/api/contrib/experiment_profiles/${selectedExperimentProfile}`, { method: 'GET' })
+      .then(res => {
+        if (!res.ok) {
+          throw new Error('Failed to fetch profile');
+        }
+        return res.text();
+      })
+      .then(text => {
+        const baseName = selectedExperimentProfile.replace(/\.ya?ml$/i, '');
+        navigate('/experiment-profiles/new', { state: { initialCode: text, initialFilename: `${baseName}_copy` } });
+      })
+      .catch(err => {
+        console.error('Error duplicating profile:', err);
+      });
+  };
+
   return (
     <Grid container spacing={1}>
       <Grid size={4}>
@@ -141,6 +154,18 @@ function RunExperimentProfilesContent({
             variant="text"
             size="small"
             color="primary"
+            aria-label="view source code"
+            disabled={selectedExperimentProfile === ""}
+            onClick={getSourceAndView}
+            style={{ textTransform: "none" }}
+          >
+            <CodeIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
+            {viewSource ? "View preview" : "View source"}
+          </Button>
+          <Button
+            variant="text"
+            size="small"
+            color="primary"
             aria-label="edit source code"
             style={{ textTransform: "none" }}
             to={`/experiment-profiles/${(selectedExperimentProfile || "")}/edit`}
@@ -154,13 +179,13 @@ function RunExperimentProfilesContent({
             variant="text"
             size="small"
             color="primary"
-            aria-label="view source code"
-            disabled={selectedExperimentProfile === ""}
-            onClick={getSourceAndView}
-            style={{ textTransform: "none" }}
+            aria-label="duplicate profile"
+            onClick={duplicate}
+            style={{ marginRight: "5px", textTransform: "none" }}
+            disabled={selectedExperimentProfile === ''}
           >
-            <CodeIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
-            {viewSource ? "View preview" : "View source"}
+            <ContentCopyOutlinedIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
+            Duplicate
           </Button>
           <Button
             variant="text"
@@ -171,7 +196,7 @@ function RunExperimentProfilesContent({
             style={{ marginRight: "5px", textTransform: "none" }}
             disabled={selectedExperimentProfile === ''}
           >
-            <DeleteIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
+            <DeleteOutlineIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
             Delete
           </Button>
         </Box>
@@ -315,6 +340,7 @@ function Profiles(props) {
   const [viewSource, setViewSource] = React.useState(false);
   const [source, setSource] = React.useState("Loading...");
   const [dryRun, setDryRun] = React.useState(false);
+
 
   React.useEffect(() => {
     document.title = props.title;
