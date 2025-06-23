@@ -26,8 +26,6 @@ if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
     crudini --set /home/pioreactor/.pioreactor/config.ini bioreactor max_working_volume_ml $(crudini --get /home/pioreactor/.pioreactor/config.ini bioreactor max_volume_ml)
     crudini --del /home/pioreactor/.pioreactor/config.ini bioreactor max_volume_ml
 
-    # TODO: confirm I don't need to update 04_dosing_automation.yaml, and the 08_liquid_volume.yaml chart
-
     # add raw od readings to export
     EXPORTABLE_DATASETS="/home/pioreactor/.pioreactor/exportable_datasets"
     su -u pioreactor cp "$SCRIPT_DIR"/27_raw_od_readings.yaml "$EXPORTABLE_DATASETS"

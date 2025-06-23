@@ -44,7 +44,7 @@
  - floats are rounded to 12 decimals points in data exports.
  - localtime in data exports have subsecond precision.
  - Changed dosing automation variables names:
-  - `max_volume` to `max_working_volume_ml`,
+  - `max_volume` to `max_working_volume_ml` (also changed in config.ini)
   - `liquid_volume` to `current_volume_ml`
   - Chemostat and Turbidostat automations stopped using `volume` kwarg and now use `exchange_volume_ml`.
 
