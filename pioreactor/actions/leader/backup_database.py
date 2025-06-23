@@ -5,6 +5,7 @@ import click
 
 from pathlib import Path
 import subprocess
+import os
 
 from pioreactor.cluster_management import get_active_workers_in_inventory
 from pioreactor.config import config
@@ -44,6 +45,12 @@ def _remote_available_space(address: str, path: str) -> int | None:
     return None
 
 
+def _local_available_space(path: str) -> int:
+    """Return available bytes on the local filesystem."""
+    statvfs = os.statvfs(path)
+    return statvfs.f_frsize * statvfs.f_bavail
+
+
 def count_writes_occurring() -> int:
     with local_intermittent_storage("mqtt_to_db_streaming") as c:
         return c.get("inserts_in_last_60s", 0)
@@ -75,6 +82,15 @@ def backup_database(output_file: str, force: bool = False, backup_to_workers: in
         )  # the backup would take so long that the mqtt client would disconnect. We also don't want to write to the db.
 
         logger.debug(f"Starting backup of database to {output_file}")
+
+        db_path = config.get("storage", "database")
+        db_size = Path(db_path).stat().st_size
+        available = _local_available_space(str(Path(output_file).parent))
+        margin = 1.1
+        if available < db_size * margin:
+            logger.debug("Skipping backup. Not enough disk space on local machine.")
+            logger.warning("Unable to backup database locally. Not enough disk space.")
+            return
 
         if not force and count_writes_occurring() >= 10:
             logger.debug("Too many writes to proceed with backup. Exiting. Use --force to force backing up.")
