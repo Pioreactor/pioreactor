@@ -7,6 +7,7 @@ This document provides guidelines and useful information for AI agents contribut
 - **Always use `rg`** for searching and grepping instead of `grep` or `ls -R`. It is much faster and respects `.gitignore`.
 - **Ignore** the `migration_scripts/` and `update_scripts/` directories when searching.
 - **Use `pytest`** to run the test suite.
+- We use Python 3.11.
 - The Pioreactor CLI is invoked via `pio`. For example:
   ```bash
   pio run stirring

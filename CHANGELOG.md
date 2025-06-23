@@ -2,9 +2,8 @@
 
 #### Enhancements
  - We previously introduced the ability for stirring to "dodge" OD reading by turning itself off during an OD snapshot. This proved useful, but users wanted the generalized ability to modify the RPM to any value during a snapshot. For example, slow down the RPM during a snapshot, instead of stopping stirring. Another use case is to set the RPM during a snapshot to be equal to the RPM when an OD calibration was performed. We've introduced two new stirring configuration parameters, only used when dodging is active:
-  1. `target_rpm_during_od_reading`: the RPM when an OD snapshot is performed.
-  2. `target_rpm_outside_od_reading`: the RPM outside a snapshot.
-
+   1. `target_rpm_during_od_reading`: the RPM when an OD snapshot is performed.
+   2. `target_rpm_outside_od_reading`: the RPM outside a snapshot.
    We highly recommend having a stirring calibration active while using these.
  - There's a new "Advanced" start option in the UI to modify configuration temporarily when starting a job. The options shown are from the section `[<job_name>.config]`. This is useful for changing different configurations without changing the config files.
  - The above uses a new convention in `pio run` CLI command. You can provide configuration overrides with the `--config-override` option. Example:
@@ -28,16 +27,16 @@
                 ir_led_intensity: 70
             ...
    ```
- - We moved our Extended Kalman Filter code out of this repo into it's own Python library: grpredict.
+ - We moved our Extended Kalman Filter code out of this repo into it's own Python library: [grpredict](https://github.com/Pioreactor/grpredict).
  - Chemostat modal in the UI now shows the computed dilution rate
  - New "Duplicate" profiles button.
  - Calibration charts have new crosshairs
  - Performance improvements
  - The config `[mqtt]`  `broker_address` can now be a list of addresses, separated by `;`. Example:
- ```
- [mqtt]
- broker_address=pio01.local;100.119.150.2;localhost
- ```
+   ```
+   [mqtt]
+   broker_address=pio01.local;100.119.150.2;localhost
+   ```
 
 #### Breaking changes
  - In configuration, `[stirring.config]` parameter `target_rpm` is renamed to `initial_target_rpm`. This is better for letting users know that the RPM can be changed during a run.
