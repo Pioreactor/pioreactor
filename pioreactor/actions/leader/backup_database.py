@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import click
-
-from pathlib import Path
-import subprocess
 import os
+import subprocess
+from pathlib import Path
+
+import click
 
 from pioreactor.cluster_management import get_active_workers_in_inventory
 from pioreactor.config import config
@@ -131,16 +131,12 @@ def backup_database(output_file: str, force: bool = False, backup_to_workers: in
                 continue
 
             logger.debug(f"Attempting backing up database to {backup_unit}.")
-            available = _remote_available_space(
+            available_on_remote = _remote_available_space(
                 resolve_to_address(backup_unit), str(Path(output_file).parent)
             )
-            if available is not None and available < Path(output_file).stat().st_size:
-                logger.debug(
-                    f"Skipping backup to {backup_unit}. Not enough disk space."
-                )
-                logger.warning(
-                    f"Unable to backup database to {backup_unit}. Not enough disk space."
-                )
+            if available_on_remote is not None and available_on_remote < Path(output_file).stat().st_size:
+                logger.debug(f"Skipping backup to {backup_unit}. Not enough disk space.")
+                logger.warning(f"Unable to backup database to {backup_unit}. Not enough disk space.")
                 continue
             try:
                 rsync(

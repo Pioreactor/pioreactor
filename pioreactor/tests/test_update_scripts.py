@@ -33,7 +33,7 @@ def test_pio_commands() -> None:
                 if line.lstrip().startswith("#"):  # comment
                     continue
 
-                # Checking for 'pio' not preceded by 'su -u pioreactor'
+                # Checking for 'pio' not preceded by 'sudo -u pioreactor'
                 if (" pio " in line or line.strip().startswith("pio ")) and "sudo -u pioreactor" not in line:
                     error_msgs.append(
                         f"Error in {script} at line {line_number}: 'pio' command must be prefixed with 'sudo -u pioreactor'."

@@ -402,7 +402,7 @@ def update_app(
         elif source.endswith(".whl"):
             # provided a whl
             version_installed = source
-            commands_and_priority.append((f"sudo pip3 install --force-reinstall --no-index {source}", 1))
+            commands_and_priority.append((f"sudo pip install --force-reinstall --no-index {source}", 1))
         else:
             click.echo("Not a valid source file. Should be either a whl or release archive.")
             sys.exit(1)
@@ -412,7 +412,7 @@ def update_app(
         cleaned_repo = quote(repo)
         version_installed = cleaned_branch
         commands_and_priority.append(
-            (f"sudo pip3 install --force-reinstall https://github.com/{cleaned_repo}/archive/{cleaned_branch}.zip", 1,)  # fmt: skip
+            (f"sudo pip install --force-reinstall https://github.com/{cleaned_repo}/archive/{cleaned_branch}.zip", 1,)  # fmt: skip
         )
 
     else:
@@ -462,7 +462,13 @@ def update_app(
                 assert (
                     version_installed in url
                 ), f"Hm, pip installing {url} but this doesn't match version specified for installing: {version_installed}"
-                commands_and_priority.extend([(f'sudo pip3 install "pioreactor @ {url}"', 2)])
+
+                if whoami.am_I_leader():
+                    commands_and_priority.extend(
+                        [(f'sudo pip install "pioreactor[worker,leader] @ {url}"', 2)]
+                    )
+                else:
+                    commands_and_priority.extend([(f'sudo pip install "pioreactor[worker] @ {url}"', 2)])
             elif asset_name == "update.sh":
                 commands_and_priority.extend(
                     [
