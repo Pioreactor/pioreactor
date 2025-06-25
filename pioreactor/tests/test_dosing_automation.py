@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import json
 import time
 from datetime import datetime
 from datetime import timedelta
@@ -11,6 +10,7 @@ from typing import Any
 
 import pytest
 from click.testing import CliRunner
+from msgspec.json import decode
 from msgspec.json import encode
 
 from pioreactor import exc
@@ -1022,7 +1022,7 @@ def test_latest_event_goes_to_mqtt() -> None:
         assert msg is not None
         assert msg.payload is not None
 
-        latest_event_from_mqtt = json.loads(msg.payload)
+        latest_event_from_mqtt = decode(msg.payload)
         assert latest_event_from_mqtt["event_name"] == "NoEvent"
         assert latest_event_from_mqtt["message"] == "demo"
         assert latest_event_from_mqtt["data"]["d"] == 1.0
