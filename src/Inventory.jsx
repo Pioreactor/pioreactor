@@ -142,7 +142,12 @@ function AddNewPioreactor({setWorkers}){
 
   return (
     <React.Fragment>
-    <Button onClick={handleClickOpen} style={{textTransform: 'none', float: "right", marginRight: "0px"}} color="primary">
+    <Button
+      id="add-new-pioreactor-button"
+      onClick={handleClickOpen}
+      style={{ textTransform: 'none', float: 'right', marginRight: 0 }}
+      color="primary"
+    >
       <AddIcon fontSize="small" sx={textIcon}/> Add new Pioreactor
     </Button>
     <Dialog open={open} onClose={handleClose} aria-labelledby="form-dialog-title">
@@ -688,21 +693,40 @@ function InventoryDisplay({isLoading, workers, config}){
 
   return (
     <Grid container spacing={2}>
-      {isLoading ? <div style={{textAlign: "center", margin: 'auto', marginTop: "50px"}}><CircularProgress /> </div>: (
-        <>
-          {workers.map(worker =>
-          <Grid
-            key={worker.pioreactor_unit}
-            size={{
-              md: 6,
-              xs: 12,
-              sm: 12
-            }}>
-            <WorkerCard worker={worker} config={config} leaderVersion={leaderVersion}/>
-          </Grid>
-          )}
-        </>
-      )}
+      {isLoading
+        ? <div style={{textAlign: "center", margin: 'auto', marginTop: "50px"}}><CircularProgress /> </div>
+        : (
+          <>
+            {workers.map(worker =>
+              <Grid
+                key={worker.pioreactor_unit}
+                size={{ md: 6, xs: 12, sm: 12 }}>
+                <WorkerCard worker={worker} config={config} leaderVersion={leaderVersion}/>
+              </Grid>
+            )}
+            <Grid key="add-new" size={{ md: 6, xs: 12, sm: 12 }}>
+              <Card
+                variant="outlined"
+                onClick={() => document.getElementById('add-new-pioreactor-button')?.click()}
+                sx={{
+                  minWidth: 275,
+                  minHeight: 360,
+                  border: '2px dashed rgb(150, 150, 150)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                }}>
+                <CardContent sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <AddIcon fontSize="small" sx={textIcon}/>
+                  <Typography color="text.secondary" align="center">
+                    Add new Pioreactor
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          </>
+        )}
     </Grid>
   );}
 
