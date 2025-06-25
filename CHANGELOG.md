@@ -40,7 +40,7 @@
    broker_address=pio01.local;100.119.150.2;localhost
    ```
  - Performance improvements
- - Backing up database now checks if the worker has enough disk space, and skips if not.
+ - Backing up database now checks if the worker and local machine have enough disk space, and skips if not.
 
 #### Breaking changes
  - In configuration, `[stirring.config]` parameter `target_rpm` is renamed to `initial_target_rpm`. This is better for letting users know that the RPM can be changed during a run.
@@ -50,6 +50,7 @@
   - `max_volume` to `max_working_volume_ml` (also changed in config.ini)
   - `liquid_volume` to `current_volume_ml`
   - Chemostat and Turbidostat automations stopped using `volume` kwarg and now use `exchange_volume_ml`.
+  - the chart `liquid_volumes` is renamed `current_volume_ml`. This should be updated in your config.ini under `[ui.overview.charts]` if you are using that chary.
 
 #### Bug fixes
  - included new export dataset yaml for raw OD readings. This was missed in a previous release.
