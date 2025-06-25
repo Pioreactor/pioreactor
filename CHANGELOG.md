@@ -1,4 +1,4 @@
-### Upcoming
+### 25.6.25
 
 #### Enhancements
  - We previously introduced the ability for stirring to "dodge" OD reading by turning itself off during an OD snapshot. This proved useful, but users wanted the generalized ability to modify the RPM to any value during a snapshot. For example, slow down the RPM during a snapshot, instead of stopping stirring. Another use case is to set the RPM during a snapshot to be equal to the RPM when an OD calibration was performed. We've introduced two new stirring configuration parameters, only used when dodging is active:
