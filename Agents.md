@@ -4,7 +4,6 @@ This document provides guidelines and useful information for AI agents contribut
 
 ## Running
 
-- **Use `pytest`** to run tests.
 - We use Python 3.11.
 - The Pioreactor CLI is invoked via `pio`. For example:
   ```bash
@@ -12,9 +11,13 @@ This document provides guidelines and useful information for AI agents contribut
   ```
   Some `pio` commands are available without a webserver running (hosted on the "leader"); these can be ignored.
 
+## Testing
+
+- **Use `pytest`** to run tests. Don't run the entire test quite unless requested. Using the `-k` command to run specific tests you think are relevant.
+
 ## Search and navigation
 
-- The `CHANGELOG.md` has changes, and should be updated when appropriate (under the `Upcoming` section, if available.)
+- The `CHANGELOG.md` has changes, and should be updated when appropriate (under the `Upcoming` section - add this section if not present.)
 - **Always use `rg`** for searching and grepping instead of `grep` or `ls -R`. It is much faster and respects `.gitignore`.
 - **Ignore** the `migration_scripts/` and `update_scripts/` directories when searching.
 
