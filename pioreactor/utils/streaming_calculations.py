@@ -1,19 +1,18 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from math import sqrt
 from typing import Optional
 from typing import TYPE_CHECKING
 
-from grpredict import (
-    CultureGrowthEKF,
-)  # previously, this was part of this library. It's moved to another library. Here for bc reasons.
-from grpredict import (
-    ExponentialMovingAverage,
-)  # previously, this was part of this library. It's moved to another library. Here for bc reasons.
-from grpredict import (
-    ExponentialMovingStd,
-)  # previously, this was part of this library. It's moved to another library. Here for bc reasons.
+try:
+    # previously, this was part of this library. It's moved to another library. Here for bc reasons.
+    from grpredict import CultureGrowthEKF  # noqa: F401
+    from grpredict import ExponentialMovingAverage  # noqa: F401
+    from grpredict import ExponentialMovingStd  # noqa: F401
+except ImportError:
+    # leader-only doesn't have this installed.
+    pass
+
 from msgspec.json import encode as dumps
 
 if TYPE_CHECKING:

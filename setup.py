@@ -25,7 +25,6 @@ CORE_REQUIREMENTS = [
     "python-dotenv==1.0.1",
     "Werkzeug==3.1.0",
     "packaging==24.1",
-    "grpredict==25.6.1",
 ]
 
 
@@ -33,6 +32,7 @@ LEADER_REQUIREMENTS: list[str] = []
 
 
 WORKER_REQUIREMENTS = [
+    "grpredict==25.6.1",
     "Adafruit-Blinka==8.58.1",
     "adafruit-circuitpython-ads1x15==2.2.23",
     "adafruit-circuitpython-busdevice==5.2.9",
