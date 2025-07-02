@@ -165,13 +165,15 @@ def backup_database(output_file: str, force: bool = False, backup_to_workers: in
 @click.command(name="backup_database")
 @click.option("--output", default="/home/pioreactor/.pioreactor/storage/pioreactor.sqlite.backup")
 @click.option("--force", is_flag=True, help="force backing up")
-@click.option(
-    "--backup-to-workers",
-    default=config.getint("storage", "number_of_backup_replicates_to_workers", fallback=0),
-    help="back up db to N workers",
-)
-def click_backup_database(output: str, force: bool, backup_to_workers: int) -> None:
+@click.option("--backup-to-workers", help="back up db to N workers", type=int)
+def click_backup_database(output: str, force: bool, backup_to_workers: int | None) -> None:
     """
     (leader only) Backup db to workers.
     """
-    return backup_database(output, force, backup_to_workers)
+    number_of_backup_replicates_to_workers = (
+        backup_to_workers
+        if backup_to_workers is not None
+        else config.getint("storage", "number_of_backup_replicates_to_workers", fallback=0)
+    )
+
+    return backup_database(output, force, number_of_backup_replicates_to_workers)

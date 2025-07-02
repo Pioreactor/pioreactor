@@ -44,14 +44,18 @@ class ConfigParserMod(configparser.ConfigParser):
         reversed_section = {v: k for k, v in section_without_empties.items()}
         return reversed_section
 
-    def _get_conv(self, section, option, conv, *, raw=False, vars=None, fallback=None, **kwargs):
+    def _get_conv(
+        self, section, option, conv, *, raw=False, vars=None, fallback=configparser._UNSET, **kwargs
+    ):
         try:
-            return self._get(section, conv, option, raw=raw, vars=vars, fallback=fallback, **kwargs)
-        except TypeError as e:
-            from pioreactor.logging import create_logger
+            return self._get(section, conv, option, raw=raw, vars=vars, **kwargs)
+        except (configparser.NoSectionError, configparser.NoOptionError, TypeError) as e:
+            if fallback is configparser._UNSET:
+                from pioreactor.logging import create_logger
 
-            create_logger("read config").error(f"Error in [{section}] parameter {option}: {e}")
-            raise e
+                create_logger("read config").error(f"Error in [{section}] parameter {option}: {e}")
+                raise e
+            return fallback
 
     def getboolean(self, section: str, option: str, *args, **kwargs) -> bool:
         try:
@@ -67,7 +71,7 @@ class ConfigParserMod(configparser.ConfigParser):
             msg = f"""Not found in configuration: '{section}.{option}'. Are you missing the following in your config?
 
 [{section}]
-{option}=some value
+{option}=some_value
 
 """
 
