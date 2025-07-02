@@ -1091,7 +1091,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
         self.add_to_published_settings("enable_dodging_od", {"datatype": "boolean", "settable": True})
         self.add_to_published_settings("currently_dodging_od", {"datatype": "boolean", "settable": False})
         self._event_is_dodging_od = threading.Event()
-        self.enable_dodging_od = enable_dodging_od  # temp variable for __post__init__
+        self.enable_dodging_od = enable_dodging_od
 
     def __post__init__(self):
         # this method runs after the subclass' init
@@ -1259,5 +1259,9 @@ class BackgroundJobWithDodgingContrib(BackgroundJobWithDodging):
         if cls.job_name == "background_job":
             raise NameError(f"must provide a job_name property to this BackgroundJob class {cls}.")
 
-    def __init__(self, unit: pt.Unit, experiment: pt.Experiment, plugin_name: str) -> None:
-        super().__init__(unit=unit, experiment=experiment, source=plugin_name)
+    def __init__(
+        self, unit: pt.Unit, experiment: pt.Experiment, plugin_name: str, enable_dodging_od: bool = True
+    ) -> None:
+        super().__init__(
+            unit=unit, experiment=experiment, source=plugin_name, enable_dodging_od=enable_dodging_od
+        )
