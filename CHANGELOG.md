@@ -1,3 +1,14 @@
+### Upcoming
+
+
+#### Bug fixes
+
+ - Fix error when `target_rpm_during_od_reading` is 0 and dodging is active.
+ - Fix exporting pioreactor unit labels dataset.
+ - Fix LED not working when booting a fresh worker.
+
+
+
 ### 25.6.25
 
 #### Enhancements

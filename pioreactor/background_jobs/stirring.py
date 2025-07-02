@@ -479,11 +479,14 @@ class Stirrer(BackgroundJobWithDodging):
             return
 
         if poll_for_seconds is None:
-            target_n_data_points = 10
-            rps = self.target_rpm / 60.0
-            poll_for_seconds = max(
-                1, min(target_n_data_points / rps, 5)
-            )  # things can break if this function takes too long, but always get _some_ data.
+            if self.target_rpm > 0:
+                target_n_data_points = 10
+                rps = self.target_rpm / 60.0
+                poll_for_seconds = max(
+                    1.0, min(target_n_data_points / rps, 5.0)
+                )  # things can break if this function takes too long, but always get _some_ data.
+            else:
+                poll_for_seconds = 1.0
 
         measured_rpm = self.poll(poll_for_seconds)
         self.update_dc_with_measured_rpm(measured_rpm)

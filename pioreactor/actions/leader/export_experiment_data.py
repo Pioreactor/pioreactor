@@ -19,6 +19,7 @@ from msgspec.yaml import decode as yaml_decode
 from pioreactor.config import config
 from pioreactor.logging import create_logger
 from pioreactor.structs import Dataset
+from pioreactor.whoami import is_testing_env
 
 
 def rounded_row_factory(cursor, row):
@@ -57,18 +58,20 @@ def generate_timestamp_to_relative_time_clause(default_order_by: str) -> str:
     if not default_order_by:
         return ""
 
-    START_TIME = "E.created_at"
+    START_TIME = "created_at"
 
-    clause = (
-        f"(unixepoch({default_order_by}) - unixepoch({START_TIME}))/3600.0 as hours_since_experiment_created"
-    )
+    clause = f"(unixepoch(T.{default_order_by}) - unixepoch(E.{START_TIME}))/3600.0 as hours_since_experiment_created"
 
     return clause
 
 
 def load_exportable_datasets() -> dict[str, Dataset]:
-    builtins = sorted(Path("/home/pioreactor/.pioreactor/exportable_datasets").glob("*.y*ml"))
-    plugins = sorted(Path("/home/pioreactor/.pioreactor/plugins/exportable_datasets").glob("*.y*ml"))
+    if is_testing_env():
+        builtins = sorted(Path(".pioreactor/exportable_datasets").glob("*.y*ml"))
+        plugins = sorted(Path(".pioreactor/plugins/exportable_datasets").glob("*.y*ml"))
+    else:
+        builtins = sorted(Path("/home/pioreactor/.pioreactor/exportable_datasets").glob("*.y*ml"))
+        plugins = sorted(Path("/home/pioreactor/.pioreactor/plugins/exportable_datasets").glob("*.y*ml"))
     parsed_yaml = {}
     for file in builtins + plugins:
         try:
