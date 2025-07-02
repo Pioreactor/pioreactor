@@ -522,7 +522,7 @@ class Monitor(LongRunningBackgroundJob):
             self.flicker_led_with_error_code(error_codes.DISK_IS_ALMOST_FULL)
 
         cpu_temperature_celcius = round(utils.get_cpu_temperature())
-        if cpu_temperature_celcius <= 70:
+        if cpu_temperature_celcius <= 80:
             self.logger.debug(f"CPU temperature at {cpu_temperature_celcius} ℃.")
         else:
             # TODO: add documentation
