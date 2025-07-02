@@ -419,8 +419,10 @@ def test_dodging_order() -> None:
         class JustPause(BackgroundJobWithDodging):
             job_name = "just_pause"
 
-            def __init__(self) -> None:
-                super().__init__(unit=get_unit_name(), experiment="test_dodging")
+            def __init__(self, enable_dodging_od) -> None:
+                super().__init__(
+                    unit=get_unit_name(), experiment="test_dodging", enable_dodging_od=enable_dodging_od
+                )
 
             def action_to_do_before_od_reading(self) -> None:
                 self.logger.notice(f"   Pausing at {time.time()} 🛑")
@@ -432,12 +434,13 @@ def test_dodging_order() -> None:
             with start_od_reading(
                 "90",
                 None,
+                interval=6,
                 unit=get_unit_name(),
                 experiment="test_dodging",
                 fake_data=True,
             ):
                 time.sleep(5)
-                with JustPause():
+                with JustPause(enable_dodging_od=config.getboolean("just_pause.config", "enable_dodging_od")):
                     time.sleep(26)
                     assert len(bucket) > 4, bucket
 
@@ -505,8 +508,8 @@ def test_disabling_dodging() -> None:
             job_name = "just_pause"
             published_settings = {"test": {"datatype": "float", "settable": True}}
 
-            def __init__(self) -> None:
-                super().__init__(unit=get_unit_name(), experiment=exp)
+            def __init__(self, enable_dodging_od) -> None:
+                super().__init__(unit=get_unit_name(), experiment=exp, enable_dodging_od=enable_dodging_od)
 
             def action_to_do_before_od_reading(self) -> None:
                 self.test = False
@@ -534,7 +537,9 @@ def test_disabling_dodging() -> None:
                 fake_data=True,
             ):
                 time.sleep(2)
-                with JustPause() as jp:
+                with JustPause(
+                    enable_dodging_od=config.getboolean("just_pause.config", "enable_dodging_od")
+                ) as jp:
                     assert set(jp.published_settings.keys()) == set(
                         ["test", "state", "enable_dodging_od", "currently_dodging_od"]
                     )
