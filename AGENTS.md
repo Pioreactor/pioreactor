@@ -2,6 +2,10 @@
 
 This document provides guidelines and useful information for AI agents contributing to the Pioreactor codebase.
 
+## Edits
+
+Don't make unnecessary formatting changes to the files you edit. We have a linter that can do that.
+
 ## Running
 
 - We use Python 3.11.
@@ -13,7 +17,7 @@ This document provides guidelines and useful information for AI agents contribut
 
 ## Testing
 
-- **Use `pytest`** to run tests. Don't run the entire test quite unless requested. Using the `-k` command to run specific tests you think are relevant.
+- **Use `python3 -m pytest`** to run tests. Don't run the entire test quite unless requested. Using the `-k` command to run specific tests you think are relevant.
 
 ## Search and navigation
 
@@ -27,8 +31,7 @@ Below is a list of important filesystem locations and files in the Pioreactor pr
 
 ### Storage
 
-- `.pioreactor/storage/` holds the main database, backups, and persistent caches.
-- `/tmp/pioreactor_cache/` holds temporary caches (cleared between reboots).
+- `.pioreactor/storage/` holds the main database, backups, and caches.
 
 ### Configuration
 

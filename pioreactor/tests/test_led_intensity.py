@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import pytest
 from click.testing import CliRunner
 
+from pioreactor.actions.led_intensity import ALL_LED_CHANNELS
 from pioreactor.actions.led_intensity import change_leds_intensities_temporarily
+from pioreactor.actions.led_intensity import is_led_channel_locked
 from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.actions.led_intensity import LedChannel
 from pioreactor.actions.led_intensity import lock_leds_temporarily
@@ -104,3 +107,68 @@ def test_led_intensity_can_be_killed_by_pio_kill() -> None:
 
     result = runner.invoke(kill, ["--job-name", "led_intensity"])
     assert result.output.strip() == "Killed 1 job."
+
+
+def test_invalid_channel_leaves_state_unchanged_and_returns_false() -> None:
+    unit = get_unit_name()
+    exp = "test_invalid_channel_leaves_state_unchanged"
+
+    # initialize a known state for channel A
+    assert led_intensity({"A": 50}, unit=unit, experiment=exp)
+    with local_intermittent_storage("leds") as cache:
+        initial_a = float(cache["A"])
+
+    # attempt to set an invalid channel
+    assert not led_intensity({"Z": 10.0}, unit=unit, experiment=exp)  # type: ignore
+    with local_intermittent_storage("leds") as cache:
+        # channel A remains unchanged, and invalid channel Z is not added
+        assert float(cache["A"]) == initial_a
+        assert "Z" not in cache
+
+
+def test_invalid_intensity_leaves_state_unchanged_and_returns_false() -> None:
+    unit = get_unit_name()
+    exp = "test_invalid_intensity_leaves_state_unchanged"
+
+    # initialize a known state for channel B
+    assert led_intensity({"B": 60}, unit=unit, experiment=exp)
+    with local_intermittent_storage("leds") as cache:
+        initial_b = float(cache["B"])
+
+    # attempt to set out-of-range intensities
+    assert not led_intensity({"B": -1}, unit=unit, experiment=exp)
+    assert not led_intensity({"B": 200}, unit=unit, experiment=exp)
+    with local_intermittent_storage("leds") as cache:
+        assert float(cache["B"]) == initial_b
+
+
+def test_is_led_channel_locked_directly() -> None:
+    # Test is_led_channel_locked and lock_leds_temporarily behavior
+    assert not is_led_channel_locked("A")
+
+    with lock_leds_temporarily(["A"]):
+        assert is_led_channel_locked("A")
+
+    assert not is_led_channel_locked("A")
+
+
+def test_change_leds_intensities_temporarily_invalid_raises_and_state_unchanged() -> None:
+    unit = get_unit_name()
+    exp = "test_change_leds_invalid"
+
+    # Initialize a valid state for channel A
+    assert led_intensity({"A": 30}, unit=unit, experiment=exp)
+
+    with local_intermittent_storage("leds") as cache:
+        before = {c: float(cache.get(c, 0.0)) for c in ALL_LED_CHANNELS}
+
+    # Attempt to use invalid intensity inside context manager
+    with pytest.raises(ValueError):
+        with change_leds_intensities_temporarily({"A": -10}, unit=unit, experiment=exp):
+            pass
+
+    # State should remain unchanged after failure
+    with local_intermittent_storage("leds") as cache:
+        after = {c: float(cache.get(c, 0.0)) for c in ALL_LED_CHANNELS}
+
+    assert after == before
