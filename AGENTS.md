@@ -18,7 +18,7 @@ Don't make unnecessary formatting changes to the files you edit. We have a linte
 ## Testing
 
 - **Use `python3 -m pytest`** to run tests. Don't run the entire test quite unless requested. Using the `-k` command to run specific tests you think are relevant.
-- Lint and check changes using `pre-commit run`
+- Lint and check changes using `pre-commit run --files [FILES]`
 
 ## Search and navigation
 

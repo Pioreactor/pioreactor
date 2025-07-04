@@ -469,7 +469,7 @@ def _prepare_request(
                 ssl_context.verify_mode = ssl.CERT_NONE
         conn = HTTPSConnection(
             host,
-            port,
+            port,  # type: ignore
             source_address=source_address,
             timeout=timeout,
             context=ssl_context,
