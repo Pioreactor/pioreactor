@@ -320,6 +320,8 @@ to recreate the calibration curves.
         ...
     ```
 
+- **Select workers by experiment** (Upcoming):
+  - Add `--experiments` option to pios commands to select all active workers assigned to the specified experiment(s).
 
 ### Bug Fixes
 

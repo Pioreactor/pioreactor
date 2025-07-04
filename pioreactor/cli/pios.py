@@ -11,6 +11,7 @@ import click
 from msgspec import DecodeError
 from msgspec.json import encode as dumps
 
+from pioreactor.cluster_management import get_active_workers_in_experiment
 from pioreactor.cluster_management import get_active_workers_in_inventory
 from pioreactor.cluster_management import get_workers_in_inventory
 from pioreactor.config import config
@@ -54,13 +55,38 @@ def pios(ctx) -> None:
 
 
 if am_I_leader() or is_testing_env():
-    which_units = click.option(
-        "--units",
-        multiple=True,
-        default=(UNIVERSAL_IDENTIFIER,),
-        type=click.STRING,
-        help="specify a worker name, default is all units",
-    )
+
+    def _resolve_experiments(ctx, param, experiments):
+        # when experiments are provided, override units to include all active workers in these experiments
+        if experiments:
+            units = []
+            for exp in experiments:
+                try:
+                    units.extend(get_active_workers_in_experiment(exp))
+                except Exception:
+                    click.echo(f"Unable to get workers for experiment '{exp}'.", err=True)
+            # dedupe and sort
+            ctx.params["units"] = tuple(sorted(set(units)))
+        return experiments
+
+    def which_units(f):
+        f = click.option(
+            "--experiments",
+            multiple=True,
+            default=(),
+            type=click.STRING,
+            help="specify experiment(s) to select active workers from",
+            callback=_resolve_experiments,
+            expose_value=False,
+        )(f)
+        f = click.option(
+            "--units",
+            multiple=True,
+            default=(UNIVERSAL_IDENTIFIER,),
+            type=click.STRING,
+            help="specify worker unit(s), default is all units",
+        )(f)
+        return f
 
     confirmation = click.option("-y", is_flag=True, help="Skip asking for confirmation.")
     json_output = click.option("--json", is_flag=True, help="output as json")

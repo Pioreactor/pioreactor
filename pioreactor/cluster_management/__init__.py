@@ -45,6 +45,12 @@ def get_active_workers_in_experiment(experiment: pt.Experiment) -> tuple[pt.Unit
     return tuple(worker["pioreactor_unit"] for worker in result.json() if bool(worker["is_active"]))
 
 
+def get_workers_in_experiment(experiment: pt.Experiment) -> tuple[pt.Unit, ...]:
+    result = get_from_leader(f"/api/experiments/{experiment}/workers")
+    result.raise_for_status()
+    return tuple(worker["pioreactor_unit"] for worker in result.json())
+
+
 @click.command(name="add", short_help="add a pioreactor worker")
 @click.argument("hostname")
 @click.option("--password", "-p", default="raspberry")
