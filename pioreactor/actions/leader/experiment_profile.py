@@ -13,13 +13,13 @@ from typing import Callable
 import click
 from msgspec.yaml import decode
 
+from pioreactor import types as pt
 from pioreactor.cluster_management import get_active_workers_in_experiment
 from pioreactor.exc import MQTTValueError
 from pioreactor.exc import NotAssignedAnExperimentError
 from pioreactor.experiment_profiles import profile_struct as struct
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
-from pioreactor import types as pt
 from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import get_from
 from pioreactor.pubsub import patch_into
@@ -913,7 +913,9 @@ def check_plugins(required_plugins: list[struct.Plugin]) -> None:
         raise ImportError(f"Missing plugins: {not_installed}")
 
 
-def execute_experiment_profile(profile_filename: str, experiment: pt.Experiment, dry_run: bool = False) -> None:
+def execute_experiment_profile(
+    profile_filename: str, experiment: pt.Experiment, dry_run: bool = False
+) -> None:
     unit = get_unit_name()
     action_name = "experiment_profile"
     with long_running_managed_lifecycle(unit, experiment, action_name) as mananged_job:

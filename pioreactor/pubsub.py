@@ -10,14 +10,13 @@ from typing import Any
 from typing import Callable
 from typing import Optional
 
-from pioreactor import types as pt
-
 from msgspec import Struct
 from msgspec.json import decode as loads
 from paho.mqtt.client import Client as PahoClient
 from paho.mqtt.enums import CallbackAPIVersion
 
 from pioreactor import mureq
+from pioreactor import types as pt
 from pioreactor.config import config
 from pioreactor.config import leader_address
 from pioreactor.config import mqtt_address

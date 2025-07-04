@@ -3,6 +3,7 @@ pytest
 pytest-timeout
 pytest-random-order
 numpy
+pre-commit
 pytest-mock
 zeroconf
 mypy

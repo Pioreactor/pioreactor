@@ -13,11 +13,12 @@ Don't make unnecessary formatting changes to the files you edit. We have a linte
   ```bash
   pio run stirring
   ```
-  Some `pio` commands are available without a webserver running (hosted on the "leader"); these can be ignored.
+  Some `pio` commands are long running and require an interrupt to end them.
 
 ## Testing
 
 - **Use `python3 -m pytest`** to run tests. Don't run the entire test quite unless requested. Using the `-k` command to run specific tests you think are relevant.
+- Lint and check changes using `pre-commit run`
 
 ## Search and navigation
 

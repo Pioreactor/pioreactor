@@ -18,12 +18,12 @@ from typing import TypeVar
 from msgspec import DecodeError
 from msgspec.json import decode
 
+from pioreactor import types as pt
 from pioreactor.pubsub import subscribe
 from pioreactor.structs import DosingEvent
 from pioreactor.structs import ODReadings
 from pioreactor.structs import RawODReading
 from pioreactor.utils.timing import to_datetime
-from pioreactor import types as pt
 
 
 class ODObservationSource(Protocol):

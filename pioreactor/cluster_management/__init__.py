@@ -10,6 +10,7 @@ import click
 from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
 
+from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.config import leader_address
 from pioreactor.config import leader_hostname
@@ -17,7 +18,6 @@ from pioreactor.exc import BashScriptError
 from pioreactor.logging import create_logger
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
-from pioreactor import types as pt
 from pioreactor.pubsub import delete_from_leader
 from pioreactor.pubsub import get_from
 from pioreactor.pubsub import get_from_leader

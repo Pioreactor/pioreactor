@@ -8,10 +8,10 @@ from queue import Queue
 from threading import Thread
 from typing import Generator
 
+from pioreactor import types as pt
 from pioreactor.config import config
 from pioreactor.exc import RsyncError
 from pioreactor.exc import SSHError
-from pioreactor import types as pt
 
 
 def ssh(address: str, command: str):

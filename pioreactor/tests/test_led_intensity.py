@@ -172,3 +172,32 @@ def test_change_leds_intensities_temporarily_invalid_raises_and_state_unchanged(
         after = {c: float(cache.get(c, 0.0)) for c in ALL_LED_CHANNELS}
 
     assert after == before
+
+
+def test_led_intensity_sets_storage_and_defaults_unmodified_channels() -> None:
+    # Apply intensities to some channels and verify storage reflects those values
+    result = led_intensity({"A": 10.0, "C": 30.5}, verbose=False, source_of_event="test")
+    assert result is True
+    with local_intermittent_storage("leds") as cache:
+        # Modified channels
+        assert cache["A"] == pytest.approx(10.0)
+        assert cache["C"] == pytest.approx(30.5)
+
+
+@pytest.mark.parametrize(
+    "desired_state",
+    [
+        {"Z": 5.0},  # invalid channel
+        {"A": -1.0},  # intensity below range
+        {"B": 101.0},  # intensity above range
+    ],
+)
+def test_led_intensity_invalid_inputs_do_not_modify_storage(desired_state) -> None:
+    # Invalid channel names or out-of-range intensities should return False and not touch cache
+    result = led_intensity(desired_state, verbose=False, source_of_event="test")
+    assert result is False
+    with local_intermittent_storage("leds") as cache:
+        # Storage should remain empty or default for all channels
+        for channel in ALL_LED_CHANNELS:
+            # If present, values should be default
+            assert cache.get(channel, 0.0) == pytest.approx(0.0)

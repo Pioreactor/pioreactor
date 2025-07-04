@@ -1,7 +1,11 @@
+# -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import sqlite3
 from contextlib import contextmanager
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 from pioreactor.actions.leader.backup_database import backup_database
 from pioreactor.config import config
