@@ -1,0 +1,82 @@
+{
+  "name": "ui",
+  "version": "0.1.0",
+  "private": true,
+  "proxy": "http://localhost:4999",
+  "dependencies": {
+    "@emotion/react": "^11.11.4",
+    "@emotion/styled": "^11.11.5",
+    "@fontsource/roboto": "^4.4.5",
+    "@mui/icons-material": "^7.1.0",
+    "@mui/lab": "^7.0.0-beta.12",
+    "@mui/material": "^7.1.0",
+    "@mui/system": "^7.1.0",
+    "@testing-library/jest-dom": "^4.2.4",
+    "@testing-library/react": "^9.5.0",
+    "@testing-library/user-event": "^7.2.1",
+    "boring-avatars": "^1.11.2",
+    "dayjs": "^1.11.13",
+    "js-yaml": "^4.1.0",
+    "material-ui-confirm": "^3.0.5",
+    "mqtt": "^5.7.3",
+    "prismjs": "^1.29.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-pro-sidebar": "^1.1.0-alpha.1",
+    "react-router-dom": "^6.23.0",
+    "react-scripts": "^5.0.1",
+    "react-showdown": "^2.3.1",
+    "react-simple-code-editor": "^0.13.1",
+    "victory": "36.9.2"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "dev": "react-scripts start",
+    "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "postbuild": "rm -rf ../pioreactorui/static rm ../pioreactorui/precache-manifest* && cp -R build/* ../pioreactorui && mkdir -p ../pioreactorui/static/exports/ && touch ../pioreactorui/static/exports/.gitignore"
+  },
+  "eslintConfig": {
+    "extends": "react-app",
+    "plugins": [
+      "unused-imports"
+    ],
+    "rules": {
+      "unused-imports/no-unused-imports": "warn",
+      "unused-imports/no-unused-vars": [
+        "warn",
+        {
+          "vars": "all",
+          "varsIgnorePattern": "^_",
+          "args": "after-used",
+          "argsIgnorePattern": "^_"
+        }
+      ]
+    }
+  },
+  "browserslist": {
+    "production": [
+      "> 0.5%",
+      "last 2 versions",
+      "Firefox ESR",
+      "not dead",
+      "safari >= 15.4",
+      "iOS >= 15.4"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
+    "css-loader": "^5.0.1",
+    "eslint-plugin-react": "^7.37.3",
+    "eslint-plugin-unused-imports": "^4.1.4",
+    "prettier": "2.1.2",
+    "style-loader": "^2.0.0"
+  }
+}

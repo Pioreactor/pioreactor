@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<svg width="640.0000000000002" height="480" xmlns="http://www.w3.org/2000/svg" stroke-width="1.9" xmlns:svg="http://www.w3.org/2000/svg">
+ <g class="layer">
+  <title>Layer 1</title>
+  <path d="m1.94,21.13l0,-4.2l-1.4,0l0,-3.5l2.8,0l0,-11.2l11.2,0l0,11.2l2.8,0l0,3.5l-1.4,0l0,4.2l-14,0z" fill="none" id="svg_1" stroke="currentColor"/>
+  <circle cx="8.94" cy="15.53" fill="none" id="svg_2" r="2.1" stroke="currentColor"/>
+  <path d="m8.55,1.92l-0.06,-1.36l11.2,0l0,11.25l2.8,0l0,3.51l-1.4,0l0,4.22l-4.92,0.01" fill="none" id="svg_3" stroke="currentColor"/>
+ </g>
+</svg>
