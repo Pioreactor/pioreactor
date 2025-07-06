@@ -1,9 +1,0 @@
----
-display_name: od blank
-job_name: od_blank
-display: false
-source: app
-published_settings:
-  - key: means
-    display: false
-    type: json

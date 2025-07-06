@@ -1,7 +1,0 @@
----
-display_name: Optical density
-display: true
-job_name: od_reading
-source: app
-description: Collect optical density measurements of the culture over time.
-published_settings: []

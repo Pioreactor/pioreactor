@@ -1,0 +1,15 @@
+[Unit]
+Description=Prepare cache for UI
+After=network.target firstboot.service
+Before=lighttpd.service huey.service
+
+[Service]
+User=pioreactor
+ExecStart=/bin/bash /usr/local/bin/create_diskcache.sh
+ExecStartPost=pio log -m "%n successful" -n systemd --local-only
+Type=oneshot
+StandardOutput=null
+StandardError=null
+
+[Install]
+WantedBy=multi-user.target

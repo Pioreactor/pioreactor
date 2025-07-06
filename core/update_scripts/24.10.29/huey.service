@@ -1,0 +1,18 @@
+[Unit]
+Description=Huey service for PioreactorUI
+After=network.target firstboot.service
+Before=lighttpd.service
+
+[Service]
+EnvironmentFile=/etc/environment
+User=pioreactor
+WorkingDirectory=/var/www/pioreactorui
+ExecStart=huey_consumer pioreactorui.tasks.huey -n -b 1.0 -w 6 -f -C -d 0.05
+ExecStartPost=pio log -m "%n successful" -n systemd --local-only
+StandardOutput=null
+StandardError=null
+KillMode=process
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
