@@ -4,7 +4,6 @@ jupyter_notebooks/
 plugins_dev
 *.sqlite3
 *.sqlite
-config*.ini
 *.log
 *.mosquitto
 .envrc

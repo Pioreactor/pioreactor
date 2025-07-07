@@ -35,6 +35,23 @@ jobs:
         with:
           version: '1.6'
 
+      - name: Install web dependencies
+        run: |
+          pip install -r ../web/requirements_dev.txt
+          pip install pyyaml
+
+      - name: Create web API folders and environment
+        run: |
+          mkdir -p ../web/.pioreactor/storage
+          mkdir -p /tmp/pioreactor_cache/
+          mv ../web/.env.example ../web/.env
+
+      - name: Start web API
+        run: |
+          cd ../web
+          FLASK_ENV=development flask --app main run --host 127.0.0.1 --port 4999 &
+          sleep 5
+
       - name: Run tests
         run: |
           pytest core/tests -vv --timeout 600 --random-order --durations 15

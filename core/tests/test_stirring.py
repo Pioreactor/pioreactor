@@ -229,6 +229,17 @@ def test_stirring_will_try_to_restart_and_dodge_od_reading() -> None:
             assert st.enable_dodging_od
 
 
+def test_target_rpm_during_od_reading_defaults_to_zero() -> None:
+    exp = "test_target_rpm_during_od_reading_defaults_to_zero"
+
+    with start_od_reading("90", None, interval=10.0, unit=unit, experiment=exp, fake_data=True):
+        with start_stirring(500, unit, exp, use_rpm=True, enable_dodging_od=True) as st:
+            # default target_rpm_during_od_reading should be 0.0 and no error occurs
+            assert st.target_rpm_during_od_reading == 0.0
+            # default target_rpm_outside_od_reading should fall back to target_rpm
+            assert st.target_rpm_outside_od_reading == 500
+
+
 def test_block_until_rpm_is_close_to_target_will_timeout() -> None:
     exp = "test_block_until_rpm_is_close_to_target_will_timeout"
     rpm_calculator = MockRpmCalculator()
