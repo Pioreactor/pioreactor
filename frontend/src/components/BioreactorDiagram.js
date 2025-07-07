@@ -76,9 +76,7 @@ const BioreactorDiagram = ({ experiment, unit, config, size }) => {
   const [heat, setHeat] = useState(false);
   const [volume, setVolume] = useState(size === 20 ? 14 : 20);
   const [maxVolume, setMaxVolume] = useState(
-    size === 20
-      ? Math.min(size, config?.bioreactor?.max_working_volume_ml || size)
-      : config?.bioreactor?.max_working_volume_ml || size
+     Math.min(size, config?.bioreactor?.max_working_volume_ml || size)
   );
 
   let now, then, elapsed;
@@ -88,9 +86,7 @@ const BioreactorDiagram = ({ experiment, unit, config, size }) => {
   useEffect(() => {
     if (Object.keys(config || {}).length) {
       setVolume(
-        size === 20
-          ? Math.min(config?.bioreactor?.initial_volume_ml, size)
-          : config?.bioreactor?.initial_volume_ml
+        Math.min(config?.bioreactor?.initial_volume_ml, size)
       );
     }
   }, [config, size]);
@@ -148,12 +144,12 @@ const BioreactorDiagram = ({ experiment, unit, config, size }) => {
     } else if (topicString.endsWith('dosing_automation/current_volume_ml')) {
       if (messageString) {
         const v = parseFloat(messageString);
-        setVolume(size === 20 ? Math.min(v, size) : v);
+        setVolume(Math.min(v, size));
       }
     } else if (topicString.endsWith('dosing_automation/max_working_volume_ml')) {
       if (messageString) {
         const m = parseFloat(messageString);
-        setMaxVolume(size === 20 ? Math.min(m, size) : m);
+        setMaxVolume(Math.min(m, size));
       }
     } else if (topicString.endsWith('leds/intensity')) {
       setLeds(messageString ? JSON.parse(messageString) : { A: 0, B: 0, C: 0, D: 0 });
@@ -188,7 +184,7 @@ const BioreactorDiagram = ({ experiment, unit, config, size }) => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     const liquidLevel = (volume / size) * bioreactor.height;
-    const bottomOfWasteTube = bioreactor.height - (maxVolume / size) * bioreactor.height + 20;
+    const bottomOfWasteTube = bioreactor.height - (maxVolume / size) * bioreactor.height + 20; // bioreactor.height - maxVolume / 40 * bioreactor.height + 20
 
     const ledsRects = [];
     const ledY = baseLow - 20;
@@ -197,7 +193,7 @@ const BioreactorDiagram = ({ experiment, unit, config, size }) => {
     ledsRects.push({ text: 'A', x: 50, y: ledY, width: 40, height: 30, radius: 5 });
     ledsRects.push({ text: 'C', x: 310, y: ledY, width: 40, height: 30, radius: 5 });
 
-    const heaterRec = [{ text: 'heat', x: 100, y: baseHigh - 50, width: 200, height: 20, radius: 3 }];
+    const heaterRec = [{ text: 'heat', x: 100, y: baseHigh - 10, width: 200, height: 20, radius: 3 }];
 
     const pumpsRects = [
       { text: 'waste', x: bioreactor.x + (bioreactor.width * 3) / 4, y: bioreactor.y - 20, width: 20, height: bottomOfWasteTube, radius: 3 },
