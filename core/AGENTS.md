@@ -47,3 +47,50 @@ make tail-mqtt      ## Tail mosquitto
 - `../.pioreactor/plugins/` is where Python plugin files (\*.py) can be added.
 - `../.pioreactor/experiment_profiles/` stores experiment profiles in YAML format.
 - `../.pioreactor/storage/calibrations/` stores calibration data.
+
+
+**Repository Summary**
+
+This repository contains the open‑source control software for the Pioreactor—a Raspberry‑Pi–based bioreactor platform. The project uses Python 3.11 and relies heavily on MQTT for communication between processes. Core functionality is organized into “background jobs” that manage hardware components such as pumps, stirrers, temperature sensors, and LEDs.
+
+**Key Components**
+
+*   **Background Jobs**
+    Long‑running tasks inherit from `BackgroundJob` in `pioreactor/background_jobs/base.py`. Examples include stirring control (`stirring.py`), optical density readings (`od_reading.py`), temperature automation, and dosing automation.
+
+*   **Automations**
+    Higher‑level automation logic derives from `AutomationJob` in `pioreactor/automations/base.py`. Dosing, temperature, and LED automations are implemented under `pioreactor/automations/`.
+
+*   **Command‑Line Interface**
+    The `pio` CLI in `pioreactor/cli/pio.py` provides commands to run jobs, adjust settings, view logs, and update software. It checks for first‑boot success and ensures the user is not running as root.
+
+*   **Configuration System**
+    Configuration is loaded through `get_config()` in `pioreactor/config.py`, which merges global and unit‑specific files and creates additional sections like `PWM_reverse`. A sample development config is provided in `config.dev.ini` with settings for PWM channels, stirring parameters, OD reading, MQTT broker, UI options, and more.
+
+*   **Hardware Utilities**
+    `pioreactor/hardware.py` defines GPIO pin mappings and I2C addresses depending on hardware version. Modules in `pioreactor/utils/` implement PWM control, ADC/DAC access, temperature sensors, and network helpers.
+
+*   **Data Structures and Messaging**
+    Typed message structures for MQTT communication—such as `ODReadings`, `DosingEvent`, and `CalibrationBase`—are defined in `pioreactor/structs.py`.
+
+*   **Version and Device Info**
+    Software version and hardware detection logic reside in `pioreactor/version.py`, exposing `__version__` and helper functions like `get_hardware_version()`.
+
+*   **Plugin System**
+    Additional functionality can be loaded via Python entry points or drop‑in `.py` files under `~/.pioreactor/plugins`. Plugins are discovered and registered in `pioreactor/plugin_management/__init__.py`.
+
+*   **Testing**
+    The `tests/` directory includes pytest-based unit tests and fixtures for simulating hardware interactions.
+
+
+**Purpose and Usage**
+
+The Pioreactor software enables users to control and monitor small-scale bioreactors. It supports features such as:
+
+*   Running stirring, optical density measurement, and dosing automatically.
+
+*   Managing a cluster of Pioreactors via MQTT and HTTP APIs.
+
+*   Applying calibrations for pumps, stirring, and OD readings.
+
+*   Scheduling complex experiment profiles that coordinate multiple jobs across workers.

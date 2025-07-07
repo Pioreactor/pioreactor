@@ -50,8 +50,7 @@ import ActionLEDForm from "./components/ActionLEDForm"
 import PioreactorIcon from "./components/PioreactorIcon"
 import PioreactorIconWithModel from "./components/PioreactorIconWithModel"
 import UnderlineSpan from "./components/UnderlineSpan";
-import Bioreactor40Diagram from "./components/Bioreactor40";
-import Bioreactor20Diagram from "./components/Bioreactor20";
+import BioreactorDiagram from "./components/BioreactorDiagram";
 import Chart from "./components/Chart";
 import LogTableByUnit from "./components/LogTableByUnit";
 import { MQTTProvider, useMQTT } from './providers/MQTTContext';
@@ -2048,11 +2047,13 @@ function Pioreactor({title}) {
               md: 12,
               xs: 12
             }}>
-            {modelName === "pioreactor_20ml" &&
-            <Bioreactor20Diagram  experiment={experimentMetadata.experiment} unit={unit} config={unitConfig}/>
-            }
-            {modelName === "pioreactor_40ml" &&
-            <Bioreactor40Diagram  experiment={experimentMetadata.experiment} unit={unit} config={unitConfig}/>
+{(modelName === "pioreactor_20ml" || modelName === "pioreactor_40ml") &&
+            <BioreactorDiagram
+              experiment={experimentMetadata.experiment}
+              unit={unit}
+              config={unitConfig}
+              size={modelName === "pioreactor_20ml" ? 20 : 40}
+            />
             }
           </Grid>
 
@@ -2087,4 +2088,3 @@ function Pioreactor({title}) {
 }
 
 export default Pioreactor;
-
