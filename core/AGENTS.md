@@ -37,8 +37,7 @@ make tail-mqtt      ## Tail mosquitto
 
 ## Search and navigation
 
-- The `CHANGELOG.md` has changes, and should be updated when appropriate (under the `Upcoming` section - add this section if not present.)
-- **Ignore** the `migration_scripts/`, `pioreactor/tests/data`, `update_scripts/`, `experiments/`, `jupyer_notebooks/` directories when searching.
+- **Ignore** the `migration_scripts/`, `tests/data`, `update_scripts/`, `experiments/`, `jupyer_notebooks/` and `CHANGELOG.md` directories when searching.
 
 ## Important filesystem locations
 

@@ -8,10 +8,9 @@ from shlex import quote
 from typing import Optional
 
 import click
+import pioreactor
 from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
-
-import pioreactor
 from pioreactor import exc
 from pioreactor import plugin_management
 from pioreactor import whoami
@@ -45,8 +44,7 @@ if whoami.am_I_leader():
     invoke_without_command=True,
 )
 @click.option(
-    '--version', 'show_version', is_flag=True,
-    help='print the Pioreactor software version and exit'
+    "--version", "show_version", is_flag=True, help="print the Pioreactor software version and exit"
 )
 @click.pass_context
 def pio(ctx, show_version: bool) -> None:
@@ -419,8 +417,13 @@ def update_app(
         cleaned_branch = quote(branch)
         cleaned_repo = quote(repo)
         version_installed = cleaned_branch
+        # install only the core/ package from the monorepo
         commands_and_priority.append(
-            (f"sudo pip install --force-reinstall https://github.com/{cleaned_repo}/archive/{cleaned_branch}.zip", 1,)  # fmt: skip
+            (
+                f"sudo pip install --force-reinstall "
+                f"git+https://github.com/{cleaned_repo}.git@{cleaned_branch}#egg=pioreactor&subdirectory=core",
+                1,
+            )
         )
 
     else:
@@ -597,7 +600,7 @@ def update_firmware(version: Optional[str]) -> None:
     "-r",
     "--repo",
     help="install from a repo on github. Format: username/project",
-    default="pioreactor/pioreactorui",
+    default="pioreactor/pioreactor",
 )
 @click.option("--source", help="use a tar.gz file")
 @click.option("-v", "--version", help="install a specific version")

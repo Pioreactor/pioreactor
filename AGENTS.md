@@ -6,7 +6,6 @@ This project contains the executable code for the Pioreactor project. There are 
 2. `web/`: this project is our web API
 3. `frontend/`: this project contains React code for our web UI frontend.
 
-
 ## Running
 
 The following is a good startup order:
@@ -45,3 +44,4 @@ make web-dev        ## Run Flask API on 127.0.0.1:4999
 
 - **Always use `rg`** for searching and grepping instead of `grep` or `ls -R`. It is much faster and respects `.gitignore`.
 - **Ignore** the `core/migration_scripts/`, `core/tests/data`, `core/update_scripts/` directories when searching.
+- **Ignore** CHANGELOG.md in any directory.

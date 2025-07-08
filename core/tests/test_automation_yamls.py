@@ -2,18 +2,17 @@
 # test automation_yamls
 from __future__ import annotations
 
-from yaml import load  # type: ignore
-from yaml import Loader  # type: ignore
-
 from pioreactor.automations import *  # noqa: F403, F401
 from pioreactor.background_jobs.dosing_automation import available_dosing_automations
 from pioreactor.background_jobs.led_automation import available_led_automations
 from pioreactor.background_jobs.temperature_automation import available_temperature_automations
 from pioreactor.mureq import get
+from yaml import load  # type: ignore
+from yaml import Loader  # type: ignore
 
 
 def get_specific_yaml(path):
-    r = get(f"https://raw.githubusercontent.com/Pioreactor/pioreactorui/master/{path}")
+    r = get(f"https://raw.githubusercontent.com/Pioreactor/pioreactor/master/web/{path}")
     r.raise_for_status()
     data = r.content
     return load(data, Loader=Loader)
