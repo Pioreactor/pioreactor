@@ -7,7 +7,6 @@ from time import sleep
 from typing import TYPE_CHECKING
 
 from json_log_formatter import JSONFormatter  # type: ignore
-
 from pioreactor import types as pt
 from pioreactor.config import config
 from pioreactor.exc import NotAssignedAnExperimentError
@@ -147,6 +146,7 @@ def create_logger(
     source: str = "app",
     to_mqtt: bool = True,
     pub_client: Client | None = None,
+    log_file_location=config["logging"]["log_file"],
 ) -> CustomLogger:
     """
 
@@ -183,7 +183,7 @@ def create_logger(
             experiment = UNIVERSAL_EXPERIMENT
 
     # file handler
-    file_handler = handlers.WatchedFileHandler(config["logging"]["log_file"])
+    file_handler = handlers.WatchedFileHandler(log_file_location)
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(PIOREACTOR_LOG_FORMAT)
     # define a Handler which writes to the sys.stderr

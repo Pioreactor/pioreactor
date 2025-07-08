@@ -21,7 +21,7 @@ The following is a good startup order:
 1. Don't make unnecessary formatting changes to the files you edit. We have a linter that can do that.
 2. If you need to write some custom code or tools, you can do so in the `scratch/` folder.
 3. Don't bother linting or running `pre-commit`.
-4. Don't use git.
+4. Don't use git - I will handle that.
 5. Don't delete files you didn't create.
 
 ## Tools

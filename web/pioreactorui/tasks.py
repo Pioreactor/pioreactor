@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import logging
 import os
-from logging import handlers
 from shlex import join
 from subprocess import check_call
 from subprocess import DEVNULL
@@ -14,7 +13,8 @@ from typing import Any
 
 from msgspec import DecodeError
 from pioreactor import whoami
-from pioreactor.config import config
+from pioreactor.config import config as pioreactor_config
+from pioreactor.logging import create_logger
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import delete_from
@@ -29,19 +29,13 @@ from .config import huey
 from .config import is_testing_env
 
 
-logger = logging.getLogger("huey.consumer")
+logger = create_logger(
+    "huey.consumer",
+    source="ui",
+    experiment="$experiment",
+    log_file_location=pioreactor_config["logging"]["ui_log_file"],
+)
 logger.setLevel(logging.INFO)
-
-file_handler = handlers.WatchedFileHandler(
-    config.get("logging", "ui_log_file", fallback="/var/log/pioreactor.log")
-)
-file_handler.setFormatter(
-    logging.Formatter(
-        "%(asctime)s [%(name)s] %(levelname)-2s %(message)s",
-        datefmt="%Y-%m-%dT%H:%M:%S%z",
-    )
-)
-logger.addHandler(file_handler)
 
 if not is_testing_env():
     PIO_EXECUTABLE = "/usr/local/bin/pio"
@@ -79,9 +73,7 @@ def pio_run(config_overrides: tuple[str], *args: str, env: dict[str, str] = {}) 
 
     env = {k: v for k, v in (env or {}).items() if k in ALLOWED_ENV}
     logger.info(f"Executing `{join(command)}`, {env=}")
-    Popen(
-        command, start_new_session=True, env=dict(os.environ) | env, stdout=DEVNULL, stderr=STDOUT
-    )
+    Popen(command, start_new_session=True, env=dict(os.environ) | env, stdout=DEVNULL, stderr=STDOUT)
     return True
 
 
@@ -197,9 +189,7 @@ def pio(*args: str, env: dict[str, str] = {}) -> bool:
 @huey.task()
 def pio_plugins_list(*args: str, env: dict[str, str] = {}) -> tuple[bool, str]:
     logger.info(f'Executing `{join(("pio",) + args)}`, {env=}')
-    result = run(
-        (PIO_EXECUTABLE,) + args, capture_output=True, text=True, env=dict(os.environ) | env
-    )
+    result = run((PIO_EXECUTABLE,) + args, capture_output=True, text=True, env=dict(os.environ) | env)
     return result.returncode == 0, result.stdout.strip()
 
 
@@ -236,6 +226,8 @@ def pio_plugins(*args: str, env: dict[str, str] = {}) -> bool:
 @huey.task()
 def update_clock(new_time: str) -> bool:
     # iso8601 format
+    if whoami.is_testing_env():
+        return True
     r = run(["sudo", "date", "-s", new_time])
     return r.returncode == 0
 
@@ -243,6 +235,8 @@ def update_clock(new_time: str) -> bool:
 @huey.task()
 def sync_clock() -> bool:
     # iso8601 format
+    if whoami.is_testing_env():
+        return True
     r = run(["sudo", "chronyc", "-a", "makestep"])
     return r.returncode == 0
 
@@ -276,6 +270,8 @@ def pio_update_ui(*args: str, env: dict[str, str] = {}) -> bool:
 @huey.task()
 def rm(path: str) -> bool:
     logger.info(f"Deleting {path}.")
+    if whoami.is_testing_env():
+        return True
     result = run(["rm", path])
     return result.returncode == 0
 
@@ -283,6 +279,8 @@ def rm(path: str) -> bool:
 @huey.task()
 def shutdown() -> bool:
     logger.info("Shutting down now")
+    if whoami.is_testing_env():
+        return True
     result = run(["sudo", "shutdown", "-h", "now"])
     return result.returncode == 0
 
@@ -290,6 +288,8 @@ def shutdown() -> bool:
 @huey.task()
 def reboot() -> bool:
     logger.info("Rebooting now")
+    if whoami.is_testing_env():
+        return True
     result = run(["sudo", "reboot"])
     return result.returncode == 0
 
@@ -323,9 +323,7 @@ def write_config_and_sync(
         with open(config_path, "w") as f:
             f.write(text)
 
-        logger.info(
-            f'Executing `{join((PIOS_EXECUTABLE, "sync-configs", "--units", units, flags))}`, {env=}'
-        )
+        logger.info(f'Executing `{join((PIOS_EXECUTABLE, "sync-configs", "--units", units, flags))}`, {env=}')
 
         result = run(
             (PIOS_EXECUTABLE, "sync-configs", "--units", units, flags),
@@ -383,9 +381,7 @@ def multicast_post_across_cluster(
     if not isinstance(params, list):
         params = [params] * len(workers)
 
-    tasks = post_to_worker.map(
-        ((workers[i], endpoint, json[i], params[i]) for i in range(len(workers)))
-    )
+    tasks = post_to_worker.map(((workers[i], endpoint, json[i], params[i]) for i in range(len(workers))))
 
     return {
         worker: response for (worker, response) in tasks.get(blocking=True, timeout=30)
@@ -438,9 +434,7 @@ def multicast_get_across_cluster(
         worker: response for (worker, response) in tasks.get(blocking=True, timeout=15)
     }  # add a timeout so that we don't hold up a thread forever.
 
-    return dict(
-        sorted(unsorted_responses.items())
-    )  # always sort alphabetically for downstream uses.
+    return dict(sorted(unsorted_responses.items()))  # always sort alphabetically for downstream uses.
 
 
 @huey.task(priority=10)

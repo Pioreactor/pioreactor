@@ -27,6 +27,7 @@ from pioreactor.structs import subclass_union
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import to_datetime
+from pioreactorui import structs
 from werkzeug.utils import safe_join
 
 from . import HOSTNAME
@@ -40,7 +41,6 @@ from .utils import attach_cache_control
 from .utils import create_task_response
 from .utils import is_rate_limited
 from .utils import is_valid_unix_filename
-from pioreactorui import structs
 
 
 AllCalibrations = subclass_union(CalibrationBase)
@@ -82,7 +82,7 @@ def task_status(task_id: str):
 @unit_api.route("/system/update/<target>", methods=["POST", "PATCH"])
 def update_target(target: str) -> ResponseReturnValue:
     if target not in ("app", "ui"):  # todo: firmware
-        abort(404, "Invalid target")
+        abort(404, description="Invalid target")
 
     body = current_app.get_json(request.data, type=structs.ArgsOptionsEnvs)
 
@@ -142,9 +142,7 @@ def remove_file() -> ResponseReturnValue:
     # use filepath in body
     body = request.get_json()
 
-    if not body["filepath"].startswith("/home/pioreactor") or not body["filepath"].startswith(
-        "/tmp"
-    ):
+    if not body["filepath"].startswith("/home/pioreactor") or not body["filepath"].startswith("/tmp"):
         raise FileNotFoundError()
 
     task = tasks.rm(body["filepath"])
@@ -164,34 +162,36 @@ def get_clock_time():
 # PATCH / POST to set clock time
 @unit_api.route("/system/utc_clock", methods=["PATCH", "POST"])
 def set_clock_time():
-    # send UTC time in ISO 8601 format
     try:
-        if HOSTNAME == get_leader_hostname() and request.json:
-            data = request.json
-            new_time = data.get("utc_clock_time")
-            if not new_time:
-                return (
-                    jsonify({"status": "error", "message": "utc_clock_time field is required"}),
-                    400,
-                )
+        if HOSTNAME == get_leader_hostname():
+            if request.json:
+                data = request.json
+                new_time = data.get("utc_clock_time")
+                if not new_time:
+                    return (
+                        jsonify({"status": "error", "message": "utc_clock_time field is required"}),
+                        400,
+                    )
 
-            # validate the timestamp
-            try:
-                to_datetime(new_time)
-            except ValueError:
-                return (
-                    jsonify(
-                        {
-                            "status": "error",
-                            "message": "Invalid utc_clock_time format. Use ISO 8601.",
-                        }
-                    ),
-                    400,
-                )
+                # validate the timestamp
+                try:
+                    to_datetime(new_time)
+                except ValueError:
+                    return (
+                        jsonify(
+                            {
+                                "status": "error",
+                                "message": "Invalid utc_clock_time format. Use ISO 8601.",
+                            }
+                        ),
+                        400,
+                    )
 
-            # Update the system clock (requires admin privileges)
-            t = tasks.update_clock(new_time)
-            return create_task_response(t)
+                # Update the system clock (requires admin privileges)
+                t = tasks.update_clock(new_time)
+                return create_task_response(t)
+            else:
+                abort(404, "utc_clock_time field required")
         else:
             # sync using chrony
             t = tasks.sync_clock()
@@ -632,11 +632,7 @@ def delete_calibration(device: str, calibration_name: str) -> ResponseReturnValu
     Delete a specific calibration for a given device.
     """
     calibration_path = (
-        Path(env["DOT_PIOREACTOR"])
-        / "storage"
-        / "calibrations"
-        / device
-        / f"{calibration_name}.yaml"
+        Path(env["DOT_PIOREACTOR"]) / "storage" / "calibrations" / device / f"{calibration_name}.yaml"
     )
 
     if not calibration_path.exists():
@@ -652,11 +648,7 @@ def delete_calibration(device: str, calibration_name: str) -> ResponseReturnValu
                 cache.pop(device)
 
         return (
-            jsonify(
-                {
-                    "msg": f"Calibration '{calibration_name}' for device '{device}' deleted successfully."
-                }
-            ),
+            jsonify({"msg": f"Calibration '{calibration_name}' for device '{device}' deleted successfully."}),
             200,
         )
 
@@ -761,18 +753,14 @@ def get_calibrations_by_device(device: str) -> ResponseReturnValue:
                 cal["is_active"] = c.get(device) == cal["calibration_name"]
                 calibrations.append(cal)
             except Exception as e:
-                publish_to_error_log(
-                    f"Error reading {file.stem}: {e}", "get_calibrations_by_device"
-                )
+                publish_to_error_log(f"Error reading {file.stem}: {e}", "get_calibrations_by_device")
 
     return attach_cache_control(jsonify(calibrations), max_age=10)
 
 
 @unit_api.route("/calibrations/<device>/<cal_name>", methods=["GET"])
 def get_calibration(device: str, cal_name: str) -> ResponseReturnValue:
-    calibration_path = (
-        Path(env["DOT_PIOREACTOR"]) / "storage" / "calibrations" / device / f"{cal_name}.yaml"
-    )
+    calibration_path = Path(env["DOT_PIOREACTOR"]) / "storage" / "calibrations" / device / f"{cal_name}.yaml"
 
     if not calibration_path.exists():
         abort(404, "Calibration file does not exist.")
@@ -806,5 +794,5 @@ def remove_active_status_calibration(device: str) -> ResponseReturnValue:
 
 @unit_api.errorhandler(404)
 def not_found(e):
-    # Return JSON for API requests
-    return jsonify({"error": "Not Found"}), 404
+    # Return JSON for API requests, using the error description
+    return jsonify({"error": e.description}), 404

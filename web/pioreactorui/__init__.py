@@ -20,6 +20,7 @@ from msgspec.json import encode as dumps
 from paho.mqtt.enums import CallbackAPIVersion
 from pioreactor.config import config as pioreactor_config
 from pioreactor.config import get_leader_hostname
+from pioreactor.logging import create_logger
 from pioreactor.plugin_management import load_plugins
 from pioreactor.whoami import am_I_leader
 from pioreactor.whoami import get_unit_name
@@ -37,23 +38,12 @@ load_plugins()
 
 
 # set up logging
-logger = logging.getLogger(NAME)
-logger.setLevel(logging.DEBUG)
-
-logs_format = logging.Formatter(
-    "%(asctime)s [%(name)s] %(levelname)-2s %(message)s",
-    datefmt="%Y-%m-%dT%H:%M:%S%z",
+logger = create_logger(
+    NAME, source="ui", experiment="$experiment", log_file_location=pioreactor_config["logging"]["ui_log_file"]
 )
-
-ui_logs = handlers.WatchedFileHandler(
-    pioreactor_config.get("logging", "ui_log_file", fallback="/var/log/pioreactor.log")
-)
-ui_logs.setFormatter(logs_format)
-logger.addHandler(ui_logs)
 
 
 logger.debug(f"Starting {NAME}={VERSION} on {HOSTNAME}...")
-logger.debug(f".env={dict(env)}")
 
 client = mqtt.Client(client_id="pioreactor_ui", callback_api_version=CallbackAPIVersion.VERSION2)
 client.username_pw_set(
@@ -71,6 +61,7 @@ def create_app():
     from .api import api
 
     app = Flask(NAME)
+    app.logger = logger
 
     app.register_blueprint(unit_api)
 
@@ -79,9 +70,7 @@ def create_app():
         # we currently only need to communicate with MQTT for the leader.
         # don't even connect if a worker - if the leader is down, this will crash and restart the server over and over.
         client.connect(
-            host=pioreactor_config.get("mqtt", "broker_address", fallback="localhost").split(";")[
-                0
-            ],
+            host=pioreactor_config.get("mqtt", "broker_address", fallback="localhost").split(";")[0],
             port=pioreactor_config.getint("mqtt", "broker_port", fallback=1883),
         )
         logger.debug("Starting MQTT client")
@@ -125,9 +114,7 @@ def create_app():
     return app
 
 
-def msg_to_JSON(
-    msg: str, task: str, level: str, timestamp: None | str = None, source: str = "ui"
-) -> bytes:
+def msg_to_JSON(msg: str, task: str, level: str, timestamp: None | str = None, source: str = "ui") -> bytes:
     if timestamp is None:
         timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     return dumps(
@@ -218,9 +205,7 @@ def _get_temp_local_metadata_db_connection():
     return db
 
 
-def query_app_db(
-    query: str, args=(), one: bool = False
-) -> dict[str, t.Any] | list[dict[str, t.Any]] | None:
+def query_app_db(query: str, args=(), one: bool = False) -> dict[str, t.Any] | list[dict[str, t.Any]] | None:
     assert am_I_leader()
     cur = _get_app_db_connection().execute(query, args)
     rv = cur.fetchall()
