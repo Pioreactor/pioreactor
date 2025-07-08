@@ -16,14 +16,13 @@ The following is a good startup order:
 3. Start the React server with `make frontend-dev` (port 3000)
 4. (optional) Run pioreactor jobs with `pio run XYZ` (example).
 
-## Edits
+## Editing rules (important)
 
-Don't make unnecessary formatting changes to the files you edit. We have a linter that can do that.
-
-If you need to write some custom code or tools, you can do so in the `scratch/` folder.
-
-Don't bother linting or running `pre-commit`.
-
+1. Don't make unnecessary formatting changes to the files you edit. We have a linter that can do that.
+2. If you need to write some custom code or tools, you can do so in the `scratch/` folder.
+3. Don't bother linting or running `pre-commit`.
+4. Don't use git.
+5. Don't delete files you didn't create.
 
 ## Tools
 
@@ -45,4 +44,4 @@ make web-dev        ## Run Flask API on 127.0.0.1:4999
 ## Search and navigation
 
 - **Always use `rg`** for searching and grepping instead of `grep` or `ls -R`. It is much faster and respects `.gitignore`.
-- **Ignore** the `migration_scripts/`, `pioreactor/tests/data`, `update_scripts/` directories when searching.
+- **Ignore** the `core/migration_scripts/`, `core/tests/data`, `core/update_scripts/` directories when searching.
