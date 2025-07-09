@@ -1,6 +1,10 @@
-name: CI Pioreactor
+name: CI Core
 
 on: [pull_request, push, workflow_dispatch]
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
   test:
