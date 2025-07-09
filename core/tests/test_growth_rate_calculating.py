@@ -6,7 +6,6 @@ import time
 
 import numpy as np
 from msgspec.json import encode
-
 from pioreactor import structs
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
 from pioreactor.background_jobs.od_reading import start_od_reading
@@ -1112,7 +1111,7 @@ class TestGrowthRateCalculating:
             ],
         ):
             with ExportODSource(
-                "./pioreactor/tests/data/od_readings_with_too_frequently_outlier_detections.csv",
+                "./core/tests/data/od_readings_with_too_frequently_outlier_detections.csv",
                 skip_first=40,
             ) as od_stream, ExportDosingSource(None) as dosing_stream, GrowthRateCalculator(
                 unit=unit, experiment=experiment

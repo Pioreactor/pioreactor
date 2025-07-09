@@ -38,7 +38,7 @@ def parse_requirements(path: Path) -> list[str]:
 def test_requirements_files_match_setup_py():
     repo_root = Path(__file__).resolve().parent.parent.parent
     req_dir = repo_root / "requirements"
-    setup_py_path = repo_root / "setup.py"
+    setup_py_path = repo_root / "core" / "setup.py"
 
     core = parse_setup_list(setup_py_path, "CORE_REQUIREMENTS")
     worker = parse_setup_list(setup_py_path, "WORKER_REQUIREMENTS")

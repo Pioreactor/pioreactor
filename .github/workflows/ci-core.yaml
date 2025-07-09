@@ -13,7 +13,7 @@ jobs:
       fail-fast: true
       matrix:
         os: ["ubuntu-latest"]
-        python-version: ["3.11"]
+        python-version: ["3.11", "3.13"]
 
     steps:
       - name: Checkout source
@@ -46,7 +46,7 @@ jobs:
 
       - name: Start web API
         run: |
-          TESTING=1 make web-dev &
+          GLOBAL_CONFIG=../.pioreactor/config.ini make web-dev &
           sleep 5
 
       - name: Run tests
