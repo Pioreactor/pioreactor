@@ -2,7 +2,7 @@
 
 This project contains the executable code for the Pioreactor project. There are three important sub-projects:
 
-1. `pioreactor/`: this project is the backend / worker code that handles the running jobs.
+1. `core/`: this project is the backend / worker code that handles the running jobs.
 2. `web/`: this project is our web API
 3. `frontend/`: this project contains React code for our web UI frontend.
 
@@ -36,12 +36,15 @@ make frontend-dev   ## Run React dev server on :3000
 make web-dev        ## Run Flask API on 127.0.0.1:4999
 ```
 
+## Testing
+
+ - Use pytest for the Python code, but always invoke it with a subfolder. Example: `pytest core/ ...` or `pytest web/ ...`
+
 ## Logging
 
  All logs are added to `pioreactor.log`. You can tail the end with `make tail-logs`.
 
 ## Search and navigation
 
-- **Always use `rg`** for searching and grepping instead of `grep` or `ls -R`. It is much faster and respects `.gitignore`.
 - **Ignore** the `core/migration_scripts/`, `core/tests/data`, `core/update_scripts/` directories when searching.
 - **Ignore** CHANGELOG.md in any directory.

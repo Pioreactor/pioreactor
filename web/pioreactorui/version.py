@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from pioreactor.version import __version__ as pioreactor_version
 
 # pioreactorui version
-__version__ = "25.6.22"
+__version__ = pioreactor_version
