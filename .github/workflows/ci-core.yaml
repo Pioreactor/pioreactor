@@ -36,11 +36,17 @@ jobs:
         with:
           version: '1.6'
 
+      - name: Create pioreactor folders and env
+        run: |
+          mkdir -p .pioreactor/storage
+          mv config.dev.ini .pioreactor/config.ini
+          mkdir -p /tmp/pioreactor_cache/
+
       - name: Create web API folders and environment
         run: |
-          mkdir -p ../web/.pioreactor/storage
           mkdir -p /tmp/pioreactor_cache/
           mv ../web/.env.example ../web/.env
+
 
       - name: Start web API
         run: |
