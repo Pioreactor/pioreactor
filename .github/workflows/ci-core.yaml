@@ -2,13 +2,13 @@ name: CI Core
 
 on: [pull_request, push, workflow_dispatch]
 
-defaults:
-  run:
-    shell: bash
-
 jobs:
   test:
     runs-on: ${{ matrix.os }}
+    env:
+      TESTING: 1
+      TMPDIR: /tmp/
+
     strategy:
       fail-fast: true
       matrix:
@@ -46,12 +46,9 @@ jobs:
 
       - name: Start web API
         run: |
-          make web-dev &
+          TESTING=1 make web-dev &
           sleep 5
 
       - name: Run tests
         run: |
           make core-test
-        env:
-          TESTING: 1
-          TMPDIR: /tmp/
