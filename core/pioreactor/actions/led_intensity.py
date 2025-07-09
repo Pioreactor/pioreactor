@@ -9,7 +9,6 @@ from typing import Iterator
 
 import click
 from msgspec.json import encode
-
 from pioreactor import structs
 from pioreactor.exc import HardwareNotFoundError
 from pioreactor.logging import create_logger
@@ -47,7 +46,6 @@ def change_leds_intensities_temporarily(
     try:
         with local_intermittent_storage("leds") as cache:
             old_state = {c: cache.get(c, 0.0) for c in desired_state.keys()}
-
         if not led_intensity(desired_state, **kwargs):
             raise ValueError("Unable to update LED.")
 

@@ -6,10 +6,10 @@ import time
 
 import numpy as np
 import pytest
-
 from pioreactor import exc
 from pioreactor import structs
 from pioreactor import types as pt
+from pioreactor.actions.led_intensity import ALL_LED_CHANNELS
 from pioreactor.background_jobs.od_reading import ADCReader
 from pioreactor.background_jobs.od_reading import CachedCalibrationTransformer
 from pioreactor.background_jobs.od_reading import NullCalibrationTransformer
@@ -20,6 +20,7 @@ from pioreactor.calibrations import load_active_calibration
 from pioreactor.config import config
 from pioreactor.config import temporary_config_change
 from pioreactor.pubsub import collect_all_logs_of_level
+from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_datetime
@@ -1464,3 +1465,37 @@ def test_raw_published_even_if_calibration_is_bad() -> None:
         assert isinstance(od_job.calibration_transformer, CachedCalibrationTransformer)
         assert od_job.ods is None
         assert od_job.raw_od2 is not None  # here!
+
+
+def test_ir_led_on_and_rest_off_state_turns_off_other_leds_by_default() -> None:
+    # By default, turn_off_leds_during_reading is True: only IR channel should be on
+    with temporary_config_change(config, "od_reading.config", "turn_off_leds_during_reading", "True"):
+        with start_od_reading("90", "REF", interval=None, fake_data=True) as od:
+            # set a custom IR intensity and verify desired state
+            od.ir_led_intensity = 42.0
+            state = od.ir_led_on_and_rest_off_state
+            # All LED channels should be present; only IR channel has intensity
+            assert set(state) == set(ALL_LED_CHANNELS)
+            for ch in ALL_LED_CHANNELS:
+                expected = od.ir_led_intensity if ch == od.ir_channel else 0.0
+                assert state[ch] == expected
+
+
+def test_ir_led_on_and_rest_off_state_leaves_other_leds_intact_when_disabled() -> None:
+    # When turn_off_leds_during_reading is False: only IR channel key is returned
+    # and other LEDs remain at their pre-read intensities during an OD reading.
+    with temporary_config_change(config, "od_reading.config", "turn_off_leds_during_reading", "False"):
+        # seed some non-zero intensities for all LEDs
+        with local_intermittent_storage("leds") as cache:
+            init_states = {ch: float(i + 1) * 5.0 for i, ch in enumerate(ALL_LED_CHANNELS)}
+            for ch, val in init_states.items():
+                cache[ch] = val
+
+        with start_od_reading("REF", "90", interval=None, fake_data=True) as od:
+            # set IR intensity and perform a single reading to exercise the LED context
+            _ = od.record_from_adc()
+
+            # after reading, non-IR LEDs should retain their original intensities
+            with local_intermittent_storage("leds") as cache_after:
+                for ch, val in init_states.items():
+                    assert cache_after[ch] == val, f"LED {ch} was modified during read"

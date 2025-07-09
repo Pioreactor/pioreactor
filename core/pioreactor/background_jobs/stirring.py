@@ -11,7 +11,6 @@ from typing import cast
 from typing import Optional
 
 import click
-
 import pioreactor.types as pt
 from pioreactor import error_codes
 from pioreactor import exc
@@ -395,12 +394,12 @@ class Stirrer(BackgroundJobWithDodging):
 
     def start_stirring(self) -> None:
         self.set_duty_cycle(100)  # get momentum to start
-        sleep(0.35)
+        sleep(0.5)
         self.set_duty_cycle(self._estimate_duty_cycle)
         self.rpm_check_repeated_timer.unpause()
 
     def stop_stirring(self) -> None:
-        self.set_duty_cycle(0)  # get momentum to start
+        self.set_duty_cycle(0)
         self.rpm_check_repeated_timer.pause()
         if self.rpm_calculator is not None:
             self.measured_rpm = structs.MeasuredRPM(timestamp=current_utc_datetime(), measured_rpm=0)
@@ -410,7 +409,7 @@ class Stirrer(BackgroundJobWithDodging):
         self.set_duty_cycle(0)
         sleep(0.75)
         self.set_duty_cycle(100)
-        sleep(0.5)
+        sleep(0.75)
         self.set_duty_cycle(
             min(1.01 * self._estimate_duty_cycle, 60)
         )  # DC should never need to be above 60 - simply not realistic. We want to avoid the death spiral to 100%.
