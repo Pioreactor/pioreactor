@@ -26,9 +26,9 @@ jobs:
 
       - name: Install python libraries
         run: |
-          pip install -r requirements_dev.txt
-          pip install pyyaml
+          pip install -r ../requirements/requirements_dev.txt
           pip install -e ../core
+          pip install pyyaml
           pip list
 
       - name: Mosquitto MQTT Broker in GitHub Actions
