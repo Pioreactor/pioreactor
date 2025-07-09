@@ -1,6 +1,6 @@
 # ──────────────────────────────────────────────────────────
 # Pioreactor mono-repo – development helpers (stage 1)
-#  * Python 3.11   (backend + Flask API)
+#  * Python 3.11   (core + Flask API)
 #  * Node 20       (React frontend)
 #  * Docker        (optional dev stack: mosquitto, sqlite viewer, etc.)
 #
@@ -15,7 +15,7 @@ VENV_DIR     ?= .venv
 PIP_FLAGS    ?=
 NODE_DIR     ?= frontend
 API_DIR      ?= web
-BACKEND_DIR  ?= core
+CORE_DIR  ?= core
 
 # --- internal helpers ---------------------------------------------------------
 ACTIVATE = source $(VENV_DIR)/bin/activate
@@ -39,7 +39,7 @@ $(VENV_DIR)/bin/activate:  ## Create virtual env + core tooling
 venv: $(VENV_DIR)/bin/activate  ## Alias – ensure venv exists
 
 install: venv  ## Install *all* python dependencies
-	@$(ACTIVATE) && pip install -r requirements/requirements_dev.txt -r requirements/requirements.txt $(PIP_FLAGS)
+	@$(ACTIVATE) && pip install -r requirements/requirements_dev.txt -r requirements/requirements.txt  -e core/ $(PIP_FLAGS)
 
 node_modules/.installed: $(NODE_DIR)/package.json  ## Install Node deps
 	cd $(NODE_DIR) && npm ci
@@ -49,28 +49,28 @@ frontend-install: node_modules/.installed ## Alias
 
 # --- quality gates ------------------------------------------------------------
 lint: venv  ## Run ruff & black in check-only mode
-	@$(ACTIVATE) && ruff check $(BACKEND_DIR) $(API_DIR)
-	@$(ACTIVATE) && black --check $(BACKEND_DIR) $(API_DIR)
+	@$(ACTIVATE) && ruff check $(CORE_DIR) $(API_DIR)
+	@$(ACTIVATE) && black --check $(CORE_DIR) $(API_DIR)
 
 format: venv  ## Reformat python code with black
-	@$(ACTIVATE) && black $(BACKEND_DIR) $(API_DIR)
+	@$(ACTIVATE) && black $(CORE_DIR) $(API_DIR)
 
 precommit: venv ## Run pre-commit on all files
 	@$(ACTIVATE) && pre-commit run --all-files
 
 # --- test ---------------------------------------------------------------------
 test: venv  ## Run all pytest suites
-	@$(ACTIVATE) && pytest $(BACKEND_DIR)/tests $(API_DIR)/tests -q
+	@$(ACTIVATE) && pytest $(CORE_DIR)/tests $(API_DIR)/tests --timeout 600 --random-order --durations 15
 
-backend-test: venv  ## Backend tests only
-	@$(ACTIVATE) && pytest $(BACKEND_DIR)/tests -q
+core-test: venv  ## Backend tests only
+	@$(ACTIVATE) && pytest $(CORE_DIR)/tests --timeout 600 --random-order --durations 15
 
 web-test: venv  ## API (Flask) tests only
-	@$(ACTIVATE) && pytest $(API_DIR)/tests -q
+	@$(ACTIVATE) && pytest $(API_DIR)/tests --timeout 600 --random-order --durations 15
 
 # --- build --------------------------------------------------------------------
-wheel: venv  ## Build backend wheel (stage 1 artifact)
-	cd $(BACKEND_DIR) && $(ACTIVATE) && python -m build
+wheel: venv  ## Build core wheel (stage 1 artifact)
+	cd $(CORE_DIR) && $(ACTIVATE) && python -m build
 
 frontend-build: frontend-install ## Build production React bundle
 	cd $(NODE_DIR) && npm run build

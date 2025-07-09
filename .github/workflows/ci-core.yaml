@@ -22,10 +22,7 @@ jobs:
 
       - name: Install python libraries
         run: |
-          pip install -e core/
-          pip install -r requirements/requirements_dev.txt
-          pip install pyyaml
-          pip list
+          make install
 
       - name: Mosquitto MQTT Broker in GitHub Actions
         uses: Namoshek/mosquitto-github-action@v1
@@ -50,7 +47,7 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest core/tests -vv --timeout 600 --random-order --durations 15
+          make core-test
         env:
           TESTING: 1
           TMPDIR: /tmp/
