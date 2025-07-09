@@ -43,7 +43,7 @@ def test_update_target_app_and_task_results(client):
     status = client.get(f"/unit_api/task_results/{task_id}")
     assert status.status_code == 200
     result = status.get_json()
-    assert result.get("status") == "pending or not present"
+    assert result.get("status") == "complete", "is web server running?"
 
 
 @pytest.mark.parametrize("endpoint", ["/unit_api/system/reboot", "/unit_api/system/shutdown"])
