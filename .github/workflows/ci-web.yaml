@@ -11,10 +11,6 @@ jobs:
         os: ["ubuntu-latest"]
         python-version: ["3.11"]
 
-    defaults:
-      run:
-        working-directory: web
-
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -26,8 +22,8 @@ jobs:
 
       - name: Install python libraries
         run: |
-          pip install -r ../requirements/requirements_dev.txt
-          pip install -e ../core
+          pip install -r requirements/requirements_dev.txt
+          pip install -e core/
           pip install pyyaml
           pip list
 
@@ -41,7 +37,7 @@ jobs:
           mkdir -p .pioreactor/storage
           mv config.dev.ini .pioreactor/config.ini
           mkdir -p /tmp/pioreactor_cache/
-          mv .env.example .env
+          mv web/.env.example web/.env
 
       - name: Run tests
         run: |

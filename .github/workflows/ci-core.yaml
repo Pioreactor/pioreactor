@@ -11,10 +11,6 @@ jobs:
         os: ["ubuntu-latest"]
         python-version: ["3.11"]
 
-    defaults:
-      run:
-        working-directory: core
-
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -26,8 +22,8 @@ jobs:
 
       - name: Install python libraries
         run: |
-          pip install -e .
-          pip install -r ../requirements/requirements_dev.txt
+          pip install -e core/
+          pip install -r requirements/requirements_dev.txt
           pip install pyyaml
           pip list
 
@@ -44,13 +40,12 @@ jobs:
 
       - name: Create web API folders and environment
         run: |
-          mkdir -p /tmp/pioreactor_cache/
-          mv ../web/.env.example ../web/.env
+          mv web/.env.example web/.env
 
 
       - name: Start web API
         run: |
-          cd ../web
+          cd web
           FLASK_ENV=development flask --app main run --host 127.0.0.1 --port 4999 &
           sleep 5
 
