@@ -18,7 +18,7 @@ API_DIR      ?= web
 CORE_DIR  ?= core
 
 # --- internal helpers ---------------------------------------------------------
-ACTIVATE = source $(VENV_DIR)/bin/activate
+ACTIVATE = . $(VENV_DIR)/bin/activate
 define newline
 
 
