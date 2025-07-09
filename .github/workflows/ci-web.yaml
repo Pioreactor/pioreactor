@@ -1,6 +1,15 @@
 name: CI Web
 
-on: [pull_request, push, workflow_dispatch]
+on:
+  pull_request:
+    paths:
+      - web/**
+  push:
+    paths:
+      - web/**
+  workflow_dispatch:
+    paths:
+      - web/**
 
 jobs:
   test:
