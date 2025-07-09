@@ -8,11 +8,18 @@ from unittest.mock import patch
 
 import pytest
 from paho.mqtt.client import Client
-
 from pioreactor.pubsub import add_hash_suffix
 from pioreactor.pubsub import create_client
+from pioreactor.pubsub import delete_from
+from pioreactor.pubsub import delete_from_leader
+from pioreactor.pubsub import get_from
+from pioreactor.pubsub import get_from_leader
+from pioreactor.pubsub import patch_into
+from pioreactor.pubsub import patch_into_leader
 from pioreactor.pubsub import post_into
 from pioreactor.pubsub import post_into_leader
+from pioreactor.pubsub import put_into
+from pioreactor.pubsub import put_into_leader
 from tests.conftest import capture_requests
 
 
@@ -118,3 +125,82 @@ def test_post_into_leader() -> None:
     assert captured_request.method == "POST"
     assert captured_request.url == "http://localhost:4999/api/my_endpoint"
     assert captured_request.body == data
+
+
+def test_get_from() -> None:
+    with capture_requests() as bucket:
+        get_from("pio01.local", "/api/my_endpoint")
+
+    assert len(bucket) == 1
+    req = bucket[0]
+    assert req.method == "GET"
+    assert req.url == "http://pio01.local:4999/api/my_endpoint"
+
+
+def test_get_from_leader() -> None:
+    with capture_requests() as bucket:
+        get_from_leader("/api/my_endpoint")
+
+    assert len(bucket) == 1
+    req = bucket[0]
+    assert req.method == "GET"
+    assert req.url == "http://localhost:4999/api/my_endpoint"
+
+
+def test_put_into() -> None:
+    data = b"payload"
+    with capture_requests() as bucket:
+        put_into("pio01.local", "/api/put_endpoint", body=data, json={"a": 1})
+
+    assert len(bucket) == 1
+    req = bucket[0]
+    assert req.method == "PUT"
+    assert req.url == "http://pio01.local:4999/api/put_endpoint"
+    assert req.body == data
+    assert req.json == {"a": 1}
+
+
+def test_put_into_leader() -> None:
+    data = b"payload"
+    with capture_requests() as bucket:
+        put_into_leader("/api/put_endpoint", body=data, json={"a": 1})
+
+    assert len(bucket) == 1
+    req = bucket[0]
+    assert req.method == "PUT"
+    assert req.url == "http://localhost:4999/api/put_endpoint"
+    assert req.body == data
+    assert req.json == {"a": 1}
+
+
+def test_patch_into_and_patch_into_leader() -> None:
+    data = b"patch"
+    with capture_requests() as bucket:
+        patch_into("piolocal", "/api/patch_endpoint", body=data, json={"b": 2})
+        patch_into_leader("/api/patch_endpoint", body=data, json={"b": 2})
+
+    assert len(bucket) == 2
+    req1, req2 = bucket
+    assert req1.method == "PATCH"
+    assert req1.url == "http://piolocal:4999/api/patch_endpoint"
+    assert req1.body == data
+    assert req1.json == {"b": 2}
+
+    assert req2.method == "PATCH"
+    assert req2.url == "http://localhost:4999/api/patch_endpoint"
+    assert req2.body == data
+    assert req2.json == {"b": 2}
+
+
+def test_delete_from_and_delete_from_leader() -> None:
+    with capture_requests() as bucket:
+        delete_from("host1", "/api/del_endpoint")
+        delete_from_leader("/api/del_endpoint")
+
+    assert len(bucket) == 2
+    req1, req2 = bucket
+    assert req1.method == "DELETE"
+    assert req1.url == "http://host1:4999/api/del_endpoint"
+
+    assert req2.method == "DELETE"
+    assert req2.url == "http://localhost:4999/api/del_endpoint"
