@@ -8,6 +8,11 @@ jobs:
     env:
       TESTING: 1
       TMPDIR: /tmp/
+      PIO_EXECUTABLE: pio
+      PIOS_EXECUTABLE: pios
+      DOT_PIOREACTOR: .pioreactor/
+      WWW: web/
+
     strategy:
       fail-fast: true
       matrix:
@@ -38,6 +43,27 @@ jobs:
           mv config.dev.ini .pioreactor/config.ini
           mkdir -p /tmp/pioreactor_cache/
           mv web/.env.example web/.env
+
+      - name: Create plugin folder and seed it
+        run: |
+           mkdir -p plugins_dev
+           cat <<EOT >> plugins_dev/example_plugin.py
+           import click
+           from pioreactor.background_jobs.base import BackgroundJob
+
+           __plugin_version__ = "0.2.0"
+           __plugin_name__ = "my-example-plugin"
+
+           class ExamplePlugin(BackgroundJob):
+              job_name="example_plugin"
+              def __init__(self):
+                  super().__init__(unit="test", experiment="test")
+
+
+           @click.command(name="example_plugin")
+           def click_example_plugin():
+              job = ExamplePlugin()
+           EOT
 
       - name: Run tests
         run: |
