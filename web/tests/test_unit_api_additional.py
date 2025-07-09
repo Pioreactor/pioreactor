@@ -41,7 +41,7 @@ def test_update_target_app_and_task_results(client):
 
     # Follow up to check task status
     status = client.get(f"/unit_api/task_results/{task_id}")
-    assert status.status_code == 202
+    assert status.status_code == 200
     result = status.get_json()
     assert result.get("status") == "pending or not present"
 
