@@ -32,13 +32,8 @@ function convertYamlToJson(yamlString){
   try{
     return yaml.load(addQuotesToBrackets(yamlString))
   } catch (error) {
-    if (["duplicated mapping key"].includes(error.reason)) {
-      console.log(error)
-      return {error: error.message}
-    }
-    else {
-      throw error
-    }
+    console.log(error)
+    return {error: error.message}
   }
 }
 

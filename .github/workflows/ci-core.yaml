@@ -34,6 +34,12 @@ jobs:
         with:
           version: '1.6'
 
+
+      - name: Install any other required linux software
+        run: |
+           sudo apt-get install avahi-daemon avahi-discover avahi-utils
+
+
       - name: Create pioreactor folders and env
         run: |
           mkdir -p .pioreactor/storage

@@ -15,7 +15,6 @@ import click
 from msgspec import DecodeError
 from msgspec import ValidationError
 from msgspec.yaml import decode as yaml_decode
-
 from pioreactor.config import config
 from pioreactor.logging import create_logger
 from pioreactor.structs import Dataset
@@ -152,7 +151,7 @@ def create_sql_query(
 
     # Add ORDER BY clause if provided
     if order_by_col:
-        query += f' ORDER BY "T.{order_by_col}"'
+        query += f" ORDER BY T.{order_by_col}"
 
     return query, existing_placeholders
 
