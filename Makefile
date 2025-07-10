@@ -72,7 +72,7 @@ web-test: venv  ## API (Flask) tests only
 wheel: venv  ## Build core wheel (stage 1 artifact)
 	cd $(CORE_DIR) && $(ACTIVATE) && python -m build
 
-frontend-build: frontend-install ## Build production React bundle
+frontend-build:
 	cd $(NODE_DIR) && npm run build
 
 # --- live dev servers ---------------------------------------------------------
