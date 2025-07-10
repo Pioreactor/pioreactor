@@ -622,13 +622,16 @@ def get_update_ui_commands(
         tmp_archive = os.path.join(tmp_dir, f"{repo_name}-{version_installed}.tar.gz")
         tmp_extract = os.path.join(tmp_dir, f"{repo_name}-{version_installed}")
         source = os.path.join(tmp_dir, "pioreactorui_archive.tar.gz")
-
+        intermediate_folder = os.path.join(tmp_dir, f"pioreactorui-{version_installed}")
         commands = [
             ["rm", "-rf", tmp_extract],
+            ["rm", "-rf", intermediate_folder],
             ["wget", archive_url, "-O", tmp_archive],
             ["mkdir", "-p", tmp_extract],
             ["tar", "-xzf", tmp_archive, "-C", tmp_dir],
-            ["tar", "czf", source, "-C", os.path.join(tmp_extract, "web"), "."],
+            ["mkdir", "-p", intermediate_folder],
+            ["cp", "-r", os.path.join(tmp_extract, "web", "."), intermediate_folder],
+            ["tar", "czf", source, "-C", tmp_dir, f"pioreactorui-{version_installed}"],
         ]
 
     assert source
