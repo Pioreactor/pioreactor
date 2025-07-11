@@ -1,0 +1,18 @@
+# Docker ignore patterns
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+
+# Node artifacts
+node_modules/
+frontend/build/
+
+# Logs and local databases
+*.log
+*.sqlite
+pioreactor.log
+test.sqlite
+
+# Git metadata
+.git

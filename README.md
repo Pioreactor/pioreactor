@@ -17,3 +17,30 @@ Purchase [on our website](https://pioreactor.com/).
 ### Documentation
 
 All the documentation is [available on our docs site](https://docs.pioreactor.com/).
+## Dockerized development (experimental)
+
+You can spin up the entire development stack—including the Huey worker (using SQLite broker), the Flask API, and the React frontend—using Docker Compose.
+
+Before first run, create a local cache directory for Huey:
+```bash
+mkdir -p pioreactor_cache
+```
+Then start everything:
+
+```bash
+docker-compose up --build
+```
+
+This will start:
+
+- **huey**: Huey consumer running background Pioreactor tasks (SQLite broker at `pioreactor_cache/huey.db`).
+- **web**: Flask API server (listening on port 4999).
+- **frontend**: React development server (listening on port 3000).
+
+Each service is defined by its own Dockerfile:
+
+* `web/Dockerfile`: builds and runs both the Huey worker and the Flask API.
+* `frontend/Dockerfile`: builds and runs the React UI.
+
+A top-level `docker-compose.yml` brings the services together and mounts the code for live development.
+Make sure you have Docker and Docker Compose installed before trying this out.

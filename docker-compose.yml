@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  huey:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    command: make huey-dev
+    env_file:
+      - .envrc
+    volumes:
+      - ./core:/app/core
+      - ./web:/app/web
+      - ./requirements:/app/requirements
+      - ./Makefile:/app/Makefile:ro
+      - ./pioreactor_cache:/tmp/pioreactor_cache  # SQLite broker storage for Huey
+
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    command: make web-dev
+    ports:
+      - '4999:4999'
+    env_file:
+      - .envrc
+    volumes:
+      - ./core:/app/core
+      - ./web:/app/web
+      - ./requirements:/app/requirements
+      - ./Makefile:/app/Makefile:ro
+      - ./config.dev.ini:/app/config.dev.ini:ro
+      - ./pioreactor_cache:/tmp/pioreactor_cache  # share Huey storage
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    command: npm start
+    working_dir: /app/frontend
+    ports:
+      - '3000:3000'
+    volumes:
+      - ./frontend:/app/frontend
+      - /app/frontend/node_modules
+    depends_on:
+      - web
