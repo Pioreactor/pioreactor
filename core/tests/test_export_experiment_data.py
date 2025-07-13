@@ -8,7 +8,6 @@ import zipfile
 from unittest.mock import patch
 
 import pytest
-
 from pioreactor.actions.leader.export_experiment_data import export_experiment_data
 from pioreactor.actions.leader.export_experiment_data import source_exists
 from pioreactor.structs import Dataset
@@ -298,4 +297,112 @@ def test_export_experiment_data_with_partition_by_unit_if_pioreactor_unit_col_do
     with zipfile.ZipFile(temp_zipfile.strpath, mode="r") as zf:
         # Find the file with a matching pattern
         assert len(zf.namelist()) == 2
-        assert zf.namelist()[1].startswith("od_readings/od_readings-exp1-all_units")
+    assert zf.namelist()[1].startswith("od_readings/od_readings-exp1-all_units")
+
+
+def test_export_experiment_data_with_start_time(temp_zipfile, mock_load_exportable_datasets):
+    # Set up a temporary SQLite database with sample data spanning two timestamps
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp TEXT, reading FLOAT)")
+    conn.execute(
+        "INSERT INTO test_table (id, name, timestamp, reading) VALUES "
+        "(1, 'A', '2021-09-01 00:00:00', 0.1),"
+        "(2, 'B', '2021-09-01 00:00:10', 0.2)"
+    )
+    conn.commit()
+
+    with patch("sqlite3.connect") as mock_connect:
+        mock_connect.return_value = conn
+        export_experiment_data(
+            experiments=[],
+            output=temp_zipfile.strpath,
+            partition_by_unit=False,
+            dataset_names=["test_table"],
+            start_time="2021-09-01 00:00:10",
+        )
+
+    with zipfile.ZipFile(temp_zipfile.strpath, mode="r") as zf:
+        # Expect only the second row (id=2) matching start_time filter
+        csv_filename = next(
+            fn for fn in zf.namelist() if fn.startswith("test_table/") and fn.endswith(".csv")
+        )
+        with zf.open(csv_filename) as csv_file:
+            content = csv_file.read().decode("utf-8").strip().splitlines()
+            assert content[0] == "id,name,timestamp,reading,timestamp_localtime"
+            # Only one data row should be present
+            assert len(content) == 2
+            values = content[1].split(",")
+            assert values[0] == "2"
+
+
+def test_export_experiment_data_with_end_time(temp_zipfile, mock_load_exportable_datasets):
+    # Set up a temporary SQLite database with sample data spanning two timestamps
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp TEXT, reading FLOAT)")
+    conn.execute(
+        "INSERT INTO test_table (id, name, timestamp, reading) VALUES "
+        "(1, 'A', '2021-09-01 00:00:00', 0.1),"
+        "(2, 'B', '2021-09-01 00:00:10', 0.2)"
+    )
+    conn.commit()
+
+    with patch("sqlite3.connect") as mock_connect:
+        mock_connect.return_value = conn
+        export_experiment_data(
+            experiments=[],
+            output=temp_zipfile.strpath,
+            partition_by_unit=False,
+            dataset_names=["test_table"],
+            end_time="2021-09-01 00:00:00",
+        )
+
+    with zipfile.ZipFile(temp_zipfile.strpath, mode="r") as zf:
+        # Expect only the first row (id=1) matching end_time filter
+        csv_filename = next(
+            fn for fn in zf.namelist() if fn.startswith("test_table/") and fn.endswith(".csv")
+        )
+        with zf.open(csv_filename) as csv_file:
+            content = csv_file.read().decode("utf-8").strip().splitlines()
+            assert content[0] == "id,name,timestamp,reading,timestamp_localtime"
+            # Only one data row should be present
+            assert len(content) == 2
+            values = content[1].split(",")
+            assert values[0] == "1"
+
+
+def test_export_experiment_data_with_start_and_end_time(temp_zipfile, mock_load_exportable_datasets):
+    # Set up a temporary SQLite database with sample data spanning two timestamps
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp TEXT, reading FLOAT)")
+    conn.execute(
+        "INSERT INTO test_table (id, name, timestamp, reading) VALUES "
+        "(1, 'A', '2021-09-01 00:00:00', 0.1),"
+        "(2, 'B', '2021-09-01 00:00:10', 0.2),"
+        "(3, 'C', '2021-09-01 00:00:20', 0.3)"
+    )
+    conn.commit()
+
+    with patch("sqlite3.connect") as mock_connect:
+        mock_connect.return_value = conn
+        export_experiment_data(
+            experiments=[],
+            output=temp_zipfile.strpath,
+            partition_by_unit=False,
+            dataset_names=["test_table"],
+            start_time="2021-09-01 00:00:10",
+            end_time="2021-09-01 00:00:20",
+        )
+
+    with zipfile.ZipFile(temp_zipfile.strpath, mode="r") as zf:
+        # Expect rows with id=2 and id=3 matching the time window
+        csv_filename = next(
+            fn for fn in zf.namelist() if fn.startswith("test_table/") and fn.endswith(".csv")
+        )
+        with zf.open(csv_filename) as csv_file:
+            content = csv_file.read().decode("utf-8").strip().splitlines()
+            assert content[0] == "id,name,timestamp,reading,timestamp_localtime"
+            # Two data rows should be present
+            rows = content[1:]
+            assert len(rows) == 2
+            ids = [row.split(",")[0] for row in rows]
+            assert ids == ["2", "3"]

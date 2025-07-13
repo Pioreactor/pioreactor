@@ -17,7 +17,8 @@ Don't make unnecessary formatting changes to the files you edit. We have a linte
 
 ## Testing and linting.
 
-- **Use `python3 -m pytest`** to run tests. Don't run the entire test quite unless requested. Using the `-k` command to run specific tests you think are relevant.
+- **Use `pytest`** to run tests.
+- Don't run the entire test suite unless requested (that is, don't run `pytest core`. Instead, either yse the `-k` command to run specific tests you think are relevant, or run an entire file.
 - Don't bother linting or running `pre-commit`.
 
 ## Tools

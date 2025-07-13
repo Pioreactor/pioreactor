@@ -1,7 +1,7 @@
 import { Badge } from "@mui/material";
 import PioreactorIcon from "./PioreactorIcon"; // Adjust the import path as needed
 
-const PioreactorIconWithModel = ({ badgeContent }) => {
+const PioreactorIconWithModel = ({ badgeContent, color }) => {
 
   return (
     <Badge
@@ -31,7 +31,7 @@ const PioreactorIconWithModel = ({ badgeContent }) => {
     >
       <PioreactorIcon
         style={{ verticalAlign: "middle" }}
-        sx={{ display: { xs: "none", sm: "none", md: "inline" } }}
+        sx={{ display: { xs: "none", sm: "none", md: "inline" }, color: color}}
       />
     </Badge>
   );

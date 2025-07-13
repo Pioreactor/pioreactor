@@ -711,14 +711,14 @@ function InventoryDisplay({isLoading, workers, config}){
                 sx={{
                   minWidth: 275,
                   minHeight: 360,
-                  border: '2px dashed rgb(150, 150, 150)',
+                  border: '2px dashed rgb(200, 200, 200)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: 'pointer',
                 }}>
                 <CardContent sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <AddIcon fontSize="small" sx={textIcon}/>
+                  <PioreactorIconWithModel badgeContent={"＋"} fontSize="small" sx={textIcon} color={'rgba(0, 0, 0, 0.6)'}/>
                   <Typography color="text.secondary" align="center">
                     Add new Pioreactor
                   </Typography>
@@ -783,4 +783,3 @@ function Inventory({title}) {
 }
 
 export default Inventory;
-
