@@ -1,3 +1,13 @@
+### Upcoming
+
+Some big changes internally
+
+ - time range filter in export data page
+ - ability to change the pause between LEDs and OD snapshot
+ - fix export data sorting
+ - fix UI profile editing crashing
+ - `pios --experiments <experiment>` can be used to select workers.
+
 ### 25.7.2
 
 🔥 hot fix release

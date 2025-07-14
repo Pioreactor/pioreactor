@@ -355,10 +355,6 @@ function LeaderCard({leaderHostname}) {
     return version || "-";
   };
 
-  const uiVersion = () => {
-    const { ui: version } = versions;
-    return version || "-";
-  };
 
   return (
     <Card sx={{ minWidth: 275 }}>

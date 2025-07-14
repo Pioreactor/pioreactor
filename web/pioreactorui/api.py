@@ -51,7 +51,6 @@ from . import query_temp_local_metadata_db
 from . import structs
 from . import tasks
 from .config import env
-from .config import is_testing_env
 from .utils import attach_cache_control
 from .utils import create_task_response
 from .utils import is_valid_unix_filename
@@ -77,9 +76,7 @@ def broadcast_post_across_cluster(
     endpoint: str, json: dict | None = None, params: dict | None = None
 ) -> Result:
     assert endpoint.startswith("/unit_api")
-    return tasks.multicast_post_across_cluster(
-        endpoint, get_all_workers(), json=json, params=params
-    )
+    return tasks.multicast_post_across_cluster(endpoint, get_all_workers(), json=json, params=params)
 
 
 def broadcast_delete_across_cluster(endpoint: str, json: dict | None = None) -> Result:
@@ -110,9 +107,7 @@ def stop_all_jobs_in_experiment(experiment: str) -> ResponseReturnValue:
     "/workers/<pioreactor_unit>/jobs/stop/experiments/<experiment>",
     methods=["POST", "PATCH"],
 )
-def stop_all_jobs_on_worker_for_experiment(
-    pioreactor_unit: str, experiment: str
-) -> ResponseReturnValue:
+def stop_all_jobs_on_worker_for_experiment(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
     """Kills all jobs for worker assigned to experiment"""
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         broadcast_post_across_cluster("/unit_api/jobs/stop", params={"experiment": experiment})
@@ -433,9 +428,7 @@ def get_exp_logs(experiment: str) -> ResponseReturnValue:
 
 
 @api.route("/workers/<pioreactor_unit>/experiments/<experiment>/recent_logs", methods=["GET"])
-def get_recent_logs_for_unit_and_experiment(
-    pioreactor_unit: str, experiment: str
-) -> ResponseReturnValue:
+def get_recent_logs_for_unit_and_experiment(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
     """Shows event logs for a specific unit within an experiment. This is for the single-page Pioreactor ui"""
 
     min_level = request.args.get("min_level", "INFO")
@@ -726,9 +719,7 @@ def get_fallback_time_series(experiment: str, data_source: str, column: str) -> 
     return attach_cache_control(as_json_response(r["json"]))
 
 
-@api.route(
-    "/workers/<pioreactor_unit>/experiments/<experiment>/time_series/growth_rates", methods=["GET"]
-)
+@api.route("/workers/<pioreactor_unit>/experiments/<experiment>/time_series/growth_rates", methods=["GET"])
 def get_growth_rates_per_unit(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
     args = request.args
     filter_mod_n = float(args.get("filter_mod_N", 100.0))
@@ -819,9 +810,7 @@ def get_od_readings_filtered_per_unit(pioreactor_unit: str, experiment: str) -> 
     return attach_cache_control(as_json_response(filtered_od_readings["json"]))
 
 
-@api.route(
-    "/workers/<pioreactor_unit>/experiments/<experiment>/time_series/od_readings", methods=["GET"]
-)
+@api.route("/workers/<pioreactor_unit>/experiments/<experiment>/time_series/od_readings", methods=["GET"])
 def get_od_readings_per_unit(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
     args = request.args
     filter_mod_n = float(args.get("filter_mod_N", 100.0))
@@ -984,9 +973,7 @@ def get_all_active_calibrations(pioreactor_unit: str) -> ResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_get_across_cluster("/unit_api/active_calibrations")
     else:
-        task = tasks.multicast_get_across_cluster(
-            "/unit_api/active_calibrations", [pioreactor_unit]
-        )
+        task = tasks.multicast_get_across_cluster("/unit_api/active_calibrations", [pioreactor_unit])
     return create_task_response(task)
 
 
@@ -1042,9 +1029,7 @@ def get_calibrations(pioreactor_unit: str, device: str) -> ResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_get_across_cluster(f"/unit_api/calibrations/{device}")
     else:
-        task = tasks.multicast_get_across_cluster(
-            f"/unit_api/calibrations/{device}", [pioreactor_unit]
-        )
+        task = tasks.multicast_get_across_cluster(f"/unit_api/calibrations/{device}", [pioreactor_unit])
     return create_task_response(task)
 
 
@@ -1125,9 +1110,7 @@ def get_plugins_on_machine(pioreactor_unit: str) -> ResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_get_across_cluster("/unit_api/plugins/installed", timeout=5)
     else:
-        task = tasks.multicast_get_across_cluster(
-            "/unit_api/plugins/installed", [pioreactor_unit], timeout=5
-        )
+        task = tasks.multicast_get_across_cluster("/unit_api/plugins/installed", [pioreactor_unit], timeout=5)
 
     return create_task_response(task)
 
@@ -1191,9 +1174,7 @@ def get_jobs_running_across_cluster_in_experiment(experiment) -> ResponseReturnV
 
 
 @api.route("/experiments/<experiment>/jobs/settings/job_name/<job_name>", methods=["GET"])
-def get_settings_for_job_across_cluster_in_experiment(
-    experiment: str, job_name: str
-) -> ResponseReturnValue:
+def get_settings_for_job_across_cluster_in_experiment(experiment: str, job_name: str) -> ResponseReturnValue:
     list_of_assigned_workers = get_all_workers_in_experiment(experiment)
     return create_task_response(
         tasks.multicast_get_across_cluster(
@@ -1202,9 +1183,7 @@ def get_settings_for_job_across_cluster_in_experiment(
     )
 
 
-@api.route(
-    "/experiments/<experiment>/jobs/settings/job_name/<job_name>/setting/<setting>", methods=["GET"]
-)
+@api.route("/experiments/<experiment>/jobs/settings/job_name/<job_name>/setting/<setting>", methods=["GET"])
 def get_setting_for_job_across_cluster_in_experiment(
     experiment: str, job_name: str, setting: str
 ) -> ResponseReturnValue:
@@ -1232,13 +1211,9 @@ def get_job_settings_for_worker(pioreactor_unit: str, job_name: str) -> Response
     "/workers/<pioreactor_unit>/jobs/settings/job_name/<job_name>/setting/<setting>",
     methods=["GET"],
 )
-def get_job_setting_for_worker(
-    pioreactor_unit: str, job_name: str, setting: str
-) -> ResponseReturnValue:
+def get_job_setting_for_worker(pioreactor_unit: str, job_name: str, setting: str) -> ResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        task = broadcast_get_across_cluster(
-            f"/unit_api/jobs/settings/job_name/{job_name}/setting/{setting}"
-        )
+        task = broadcast_get_across_cluster(f"/unit_api/jobs/settings/job_name/{job_name}/setting/{setting}")
     else:
         task = tasks.multicast_get_across_cluster(
             f"/unit_api/jobs/settings/job_name/{job_name}/setting/{setting}", [pioreactor_unit]
@@ -1304,12 +1279,7 @@ def get_automation_contrib(automation_type: str) -> ResponseReturnValue:
     try:
         automation_path_default = Path(env["WWW"]) / "contrib" / "automations" / automation_type
         automation_path_plugins = (
-            Path(env["DOT_PIOREACTOR"])
-            / "plugins"
-            / "ui"
-            / "contrib"
-            / "automations"
-            / automation_type
+            Path(env["DOT_PIOREACTOR"]) / "plugins" / "ui" / "contrib" / "automations" / automation_type
         )
         files = sorted(automation_path_default.glob("*.y*ml")) + sorted(
             automation_path_plugins.glob("*.y*ml")
@@ -1322,9 +1292,7 @@ def get_automation_contrib(automation_type: str) -> ResponseReturnValue:
                 decoded_yaml = yaml_decode(file.read_bytes(), type=structs.AutomationDescriptor)
                 parsed_yaml[decoded_yaml.automation_name] = decoded_yaml
             except (ValidationError, DecodeError) as e:
-                publish_to_error_log(
-                    f"Yaml error in {Path(file).name}: {e}", "get_automation_contrib"
-                )
+                publish_to_error_log(f"Yaml error in {Path(file).name}: {e}", "get_automation_contrib")
 
         return attach_cache_control(jsonify(list(parsed_yaml.values())))
 
@@ -1362,9 +1330,7 @@ def get_charts_contrib() -> ResponseReturnValue:
     try:
         chart_path_default = Path(env["WWW"]) / "contrib" / "charts"
         chart_path_plugins = Path(env["DOT_PIOREACTOR"]) / "plugins" / "ui" / "contrib" / "charts"
-        files = sorted(chart_path_default.glob("*.y*ml")) + sorted(
-            chart_path_plugins.glob("*.y*ml")
-        )
+        files = sorted(chart_path_default.glob("*.y*ml")) + sorted(chart_path_plugins.glob("*.y*ml"))
 
         # we dedup based on chart 'chart_key'.
         parsed_yaml = {}
@@ -1393,9 +1359,7 @@ def update_app_from_release_archive() -> ResponseReturnValue:
     body = request.get_json()
     release_archive_location = body["release_archive_location"]
     assert release_archive_location.endswith(".zip")
-    task = tasks.update_app_from_release_archive_across_cluster(
-        release_archive_location, units=body["units"]
-    )
+    task = tasks.update_app_from_release_archive_across_cluster(release_archive_location, units=body["units"])
     return create_task_response(task)
 
 
@@ -1403,18 +1367,14 @@ def update_app_from_release_archive() -> ResponseReturnValue:
 def get_exportable_datasets() -> ResponseReturnValue:
     try:
         builtins = sorted((Path(env["DOT_PIOREACTOR"]) / "exportable_datasets").glob("*.y*ml"))
-        plugins = sorted(
-            (Path(env["DOT_PIOREACTOR"]) / "plugins" / "exportable_datasets").glob("*.y*ml")
-        )
+        plugins = sorted((Path(env["DOT_PIOREACTOR"]) / "plugins" / "exportable_datasets").glob("*.y*ml"))
         parsed_yaml = []
         for file in builtins + plugins:
             try:
                 dataset = yaml_decode(file.read_bytes(), type=Dataset)
                 parsed_yaml.append(dataset)
             except (ValidationError, DecodeError) as e:
-                publish_to_error_log(
-                    f"Yaml error in {Path(file).name}: {e}", "get_exportable_datasets"
-                )
+                publish_to_error_log(f"Yaml error in {Path(file).name}: {e}", "get_exportable_datasets")
 
         return attach_cache_control(jsonify(parsed_yaml), max_age=60)
 
@@ -1426,9 +1386,7 @@ def get_exportable_datasets() -> ResponseReturnValue:
 @api.route("/contrib/exportable_datasets/<target_dataset>/preview", methods=["GET"])
 def preview_exportable_datasets(target_dataset) -> ResponseReturnValue:
     builtins = sorted((Path(env["DOT_PIOREACTOR"]) / "exportable_datasets").glob("*.y*ml"))
-    plugins = sorted(
-        (Path(env["DOT_PIOREACTOR"]) / "plugins" / "exportable_datasets").glob("*.y*ml")
-    )
+    plugins = sorted((Path(env["DOT_PIOREACTOR"]) / "plugins" / "exportable_datasets").glob("*.y*ml"))
 
     n_rows = request.args.get("n_rows", 5)
 
@@ -1464,6 +1422,12 @@ def export_datasets() -> ResponseReturnValue:
     if partition_by_experiment:
         other_options += ["--partition-by-experiment"]
 
+    # include optional time filters (ISO8601 strings in UTC)
+    if body.get("startTime"):
+        other_options += ["--start-time", body["startTime"]]
+    if body.get("endTime"):
+        other_options += ["--end-time", body["endTime"]]
+
     timestamp = current_utc_datetime().strftime("%Y%m%d%H%M%S")
     filename = f"export_{timestamp}.zip"
 
@@ -1473,8 +1437,10 @@ def export_datasets() -> ResponseReturnValue:
         experiment_options = sum((["--experiment", experiment] for experiment in experiments), [])
 
     filename_with_path = Path("/var/www/pioreactorui/static/exports") / filename
-    result = tasks.pio_run_export_experiment_data(  # uses a lock so multiple exports can't happen simultaneously.
-        "--output", filename_with_path.as_posix(), *cmd_tables, *experiment_options, *other_options
+    result = (
+        tasks.pio_run_export_experiment_data(  # uses a lock so multiple exports can't happen simultaneously.
+            "--output", filename_with_path.as_posix(), *cmd_tables, *experiment_options, *other_options
+        )
     )
     try:
         status, msg = result(blocking=True, timeout=5 * 60)
@@ -1729,7 +1695,6 @@ def get_experiment(experiment: str) -> ResponseReturnValue:
 def get_configuration_for_pioreactor_unit(pioreactor_unit: str) -> ResponseReturnValue:
     """get configuration for a pioreactor unit"""
     try:
-
         global_config_path = Path(env["DOT_PIOREACTOR"]) / "config.ini"
 
         specific_config_path = Path(env["DOT_PIOREACTOR"]) / f"config_{pioreactor_unit}.ini"
@@ -1796,11 +1761,7 @@ def get_configs() -> ResponseReturnValue:
 
     config_path = Path(env["DOT_PIOREACTOR"])
     return jsonify(
-        [
-            file.name
-            for file in sorted(config_path.glob("config*.ini"))
-            if allow_file_through(file.name)
-        ]
+        [file.name for file in sorted(config_path.glob("config*.ini")) if allow_file_through(file.name)]
     )
 
 
@@ -1968,8 +1929,7 @@ def create_experiment_profile() -> ResponseReturnValue:
             abort(404, "Not valid unix name")
 
         if not (
-            experiment_profile_filename.endswith(".yaml")
-            or experiment_profile_filename.endswith(".yml")
+            experiment_profile_filename.endswith(".yaml") or experiment_profile_filename.endswith(".yml")
         ):
             abort(404, "must end in .yaml")
 
@@ -2012,8 +1972,7 @@ def update_experiment_profile() -> ResponseReturnValue:
             abort(404, "not valid unix filename")
 
         if not (
-            experiment_profile_filename.endswith(".yaml")
-            or experiment_profile_filename.endswith(".yml")
+            experiment_profile_filename.endswith(".yaml") or experiment_profile_filename.endswith(".yml")
         ):
             abort(404, "must end in .yaml")
 
@@ -2044,9 +2003,7 @@ def get_experiment_profiles() -> ResponseReturnValue:
             if file.stat().st_size == 0:
                 parsed_yaml.append(
                     {
-                        "experimentProfile": Profile(
-                            experiment_profile_name=f"temporary name: {file.stem}"
-                        ),
+                        "experimentProfile": Profile(experiment_profile_name=f"temporary name: {file.stem}"),
                         "file": Path(file).name,
                         "fullpath": Path(file).as_posix(),
                     }
@@ -2063,9 +2020,7 @@ def get_experiment_profiles() -> ResponseReturnValue:
                     }
                 )
             except (ValidationError, DecodeError) as e:
-                publish_to_error_log(
-                    f"Yaml error in {Path(file).name}: {e}", "get_experiment_profiles"
-                )
+                publish_to_error_log(f"Yaml error in {Path(file).name}: {e}", "get_experiment_profiles")
 
         return attach_cache_control(jsonify(parsed_yaml), max_age=5)
     except Exception as e:

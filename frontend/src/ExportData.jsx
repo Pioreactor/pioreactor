@@ -1,4 +1,5 @@
 import React from "react";
+import TextField from '@mui/material/TextField';
 import Divider from '@mui/material/Divider';
 
 import Grid from '@mui/material/Grid';
@@ -327,7 +328,12 @@ function ExportDataContainer() {
     experimentSelection: [],
     partitionByUnitSelection: false,
     partitionByExperimentSelection: true,
-    selectedDatasets: []
+    selectedDatasets: [],
+    // ISO-8601 strings in UTC
+    startTime: null,
+    endTime: null,
+    // enable time filter inputs
+    useTimeFilter: false,
   });
 
 
@@ -502,6 +508,46 @@ function ExportDataContainer() {
                   partitionByExperimentSelection={state.partitionByExperimentSelection}
                   handleChange={handlePartitionByChange}
                 />
+                {/* Time range selectors */}
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={state.useTimeFilter}
+                      onChange={(e) =>
+                        setState((prev) => ({
+                          ...prev,
+                          useTimeFilter: e.target.checked,
+                        }))
+                      }
+                      name="useTimeFilter"
+                    />
+                  }
+                  label="Filter by time "
+                />
+                <Box sx={{ display: 'flex', gap: 2, mt: 1, mb: 2 }}>
+                  <TextField
+                    label="Start time"
+                    type="datetime-local"
+                    size="small"
+                    InputLabelProps={{ shrink: true }}
+                    disabled={!state.useTimeFilter}
+                    value={state.startTime || ''}
+                    onChange={(e) =>
+                      setState((prev) => ({ ...prev, startTime: e.target.value }))
+                    }
+                  />
+                  <TextField
+                    label="End time"
+                    type="datetime-local"
+                    size="small"
+                    InputLabelProps={{ shrink: true }}
+                    disabled={!state.useTimeFilter}
+                    value={state.endTime || ''}
+                    onChange={(e) =>
+                      setState((prev) => ({ ...prev, endTime: e.target.value }))
+                    }
+                  />
+                </Box>
               </Grid>
               <Grid
                 size={{
