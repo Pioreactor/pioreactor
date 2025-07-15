@@ -18,9 +18,9 @@ function DosingAutomationForm(props) {
 
   const checkForWarnings = (id, value) => {
     if (id === "initial_volume_ml" && value > threshold) {
-      setWarning(`⚠️ Initial volume exceeds safe threshold of ${threshold} mL.`);
+      setWarning(`⚠️ Initial volume exceeds safe maximum of ${threshold} mL.`);
     } else if (id === "max_working_volume_ml" && value > threshold) {
-      setWarning(`⚠️ Max working volume exceeds safe threshold of ${threshold} mL.`);
+      setWarning(`⚠️ Max working volume exceeds safe maximum of ${threshold} mL.`);
     } else {
       setWarning(""); // clear warning
     }
