@@ -10,7 +10,6 @@ from typing import Optional
 
 import click
 from msgspec.json import decode
-
 from pioreactor import exc
 from pioreactor import structs
 from pioreactor import types as pt
@@ -414,7 +413,7 @@ class DosingAutomationJob(AutomationJob):
             for pump, volume_ml in all_pumps_ml.items():
                 if (self.current_volume_ml + volume_ml) >= self.MAX_VIAL_VOLUME_TO_STOP:
                     self.logger.error(
-                        f"Pausing all pumping since {self.current_volume_ml} + {volume_ml} mL is beyond safety threshold {self.MAX_VIAL_VOLUME_TO_STOP} mL."
+                        f"Pausing all pumping since {self.current_volume_ml:g} + {volume_ml} mL is beyond safety threshold {self.MAX_VIAL_VOLUME_TO_STOP} mL."
                     )
                     self.set_state(self.SLEEPING)
                     return volumes_moved
@@ -485,6 +484,7 @@ class DosingAutomationJob(AutomationJob):
     ########## Private & internal methods
 
     def on_disconnected(self) -> None:
+        self._blocking_event.set()  # set this early so the pumps exits.
         with suppress(AttributeError):
             self.run_thread.join(
                 timeout=5

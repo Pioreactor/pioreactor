@@ -12,7 +12,6 @@ from typing import Optional
 import click
 from msgspec.json import encode
 from msgspec.structs import replace
-
 from pioreactor import exc
 from pioreactor import structs
 from pioreactor import types as pt
@@ -24,6 +23,7 @@ from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
 from pioreactor.pubsub import Client
 from pioreactor.types import PumpCalibrationDevices
+from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_datetime
@@ -306,6 +306,14 @@ def _pump_action(
                 encode(replace(empty_dosing_event, volume_change=ml)),
             )
             return 0.0
+
+        # first check if the pin is already in use. If so, exit early.
+        with local_intermittent_storage("pwm_locks") as pwm_locks:
+            if pin in pwm_locks:
+                logger.error(
+                    f"Pump's GPIO pin is already in use by another task. Either too many jobs are trying to access this pump's pin, or a job didn't clean up properly. If your confident you can release it, use `pio cache clear pwm_locks {pin} --as-int` on the command line for {unit}"
+                )
+                return 0.0
 
         with PWMPump(
             unit, experiment, pin, calibration=calibration, mqtt_client=mqtt_client, logger=logger

@@ -237,20 +237,21 @@ const ActionDetails = ({ action, jobName, index }) => {
     if_ = <></>
   }
 
-  const renderOptions = () => {
+  const renderOptions = (start_or_update_str) => {
+    const verb = start_or_update_str === 'start' ? 'set' : 'update';
     if (action?.options && typeof action.options === 'object' && !Array.isArray(action.options)) {
       return Object.keys(action.options).map((option, idx) => {
         const optionValue = action.options[option];
         if (typeof optionValue === 'object') {
           return (
             <Typography key={`option-${idx}`} variant="body2" sx={level3}>
-              — set {displayVariable(option)} → <UnderlineSpan title="Requires value or expression ${{..}}">??</UnderlineSpan>
+              — {verb} {displayVariable(option)} → <UnderlineSpan title="Requires value or expression ${{..}}">??</UnderlineSpan>
             </Typography>
           ); // intermediate state when typing
         }
         return (
           <Typography key={`option-${idx}`} variant="body2" sx={level3}>
-            — set {displayVariable(option)} → {processBracketedExpression(optionValue)}
+            — {verb} {displayVariable(option)} → {processBracketedExpression(optionValue)}
           </Typography>
         );
       });
@@ -303,7 +304,7 @@ const ActionDetails = ({ action, jobName, index }) => {
           <Typography variant="body2" sx={level2}>
             {index + 1}. {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)}, {if_} <span style={highlightedActionType}>{action.type}</span> <span style={{ fontWeight: 500 }}>{jobName}</span>
           </Typography>
-          {renderOptions()}
+          {renderOptions(action?.type)}
           {renderInvalidOptionsMessage()}
           {renderConfigOverrides()}
         </>
@@ -348,18 +349,20 @@ const ActionDetails = ({ action, jobName, index }) => {
       return (
         <>
           <Typography variant="body2" sx={level2}>
-            {index + 1}. {if_} {after(action.hours_elapsed)} {humanReadableDurationPre(action.hours_elapsed, 'missing `hours_elapsed` field')}, <span style={highlightedActionType}>repeat</span> the following every {humanReadableDuration(action.repeat_every_hours, 'missing `repeat_every_hours` field')},
-          </Typography>
+            {index + 1}. {if_} {after(action.hours_elapsed)} {humanReadableDurationPre(action.hours_elapsed, 'missing `hours_elapsed` field')}, <span> </span>
           {action.while && (
-            <Typography variant="body2" sx={level3}>
-              while <span style={highlightedIf}>{processOptionalBracketedExpression(action.while)}</span> {action.max_hours ? "or" : ""}
-            </Typography>
+            <>
+               while <span style={highlightedIf}>{processOptionalBracketedExpression(action.while)}</span> {action.max_hours ? "or" : ""},<span> </span>
+            </>
           )}
           {action.max_hours && (
-            <Typography variant="body2" sx={level3}>
-              until {humanReadableDuration(action.max_hours, 'max_hours')} have passed
-            </Typography>
+            <>
+              until {humanReadableDuration(action.max_hours, 'max_hours')} have passed,<span> </span>
+            </>
           )}
+
+            <span style={highlightedActionType}>repeat</span> the following every {humanReadableDuration(action.repeat_every_hours, 'missing `repeat_every_hours` field')},
+          </Typography>
           <Box sx={level1}>
             {Array.isArray(action.actions) && action.actions.sort((a, b) => a?.hours_elapsed - b?.hours_elapsed).map((action, index) => (
               <ActionDetails key={index} action={action} jobName={jobName} index={index} />
@@ -556,6 +559,3 @@ export const DisplayProfileError = ({ error }) => {
     </Card>
   );
 };
-
-
-

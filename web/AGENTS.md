@@ -1,4 +1,4 @@
-**web Repository Summary**
+**web directory summary**
 
 This project is a Flask-based backend for the Pioreactor UI. The codebase exposes two main sets of REST endpoints: one for the leader node (`/api`) and one for individual workers (`/unit_api`). MQTT is used for logging and coordination, while Huey handles asynchronous tasks such as executing `pio` commands or propagating updates.
 
@@ -22,6 +22,6 @@ Key modules:
 
 
 
-The repository also includes a compiled frontend in the `static/` directory and startup scripts (`main.py`, `main.fcgi`). The version is tracked in `pioreactorui/version.py` (current version `25.6.22`).
+The repository also includes a compiled frontend in the `static/` directory and startup scripts (`main.py`, `main.fcgi`). The version is tracked in `pioreactorui/version.py`.
 
 Overall, the project provides a REST API and task queue framework to manage Pioreactor clusters, interact with hardware via CLI commands, and expose data/logs to a web UI.

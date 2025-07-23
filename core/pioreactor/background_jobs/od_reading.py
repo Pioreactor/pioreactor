@@ -54,7 +54,6 @@ from typing import cast
 from typing import Optional
 
 import click
-
 import pioreactor.actions.led_intensity as led_utils
 from pioreactor import error_codes
 from pioreactor import exc
@@ -678,16 +677,15 @@ class CachedCalibrationTransformer(CalibrationTransformer):
             )
 
         def _calibrate_signal(observed_voltage: pt.Voltage) -> pt.OD:
-            min_OD, max_OD = min(calibration_data.recorded_data["x"]), max(
-                calibration_data.recorded_data["x"]
-            )
-            min_voltage, max_voltage = min(calibration_data.recorded_data["y"]), max(
-                calibration_data.recorded_data["y"]
-            )
-
             try:
                 return calibration_data.y_to_x(observed_voltage, enforce_bounds=True)
             except exc.NoSolutionsFoundError:
+                min_OD, max_OD = min(calibration_data.recorded_data["x"]), max(
+                    calibration_data.recorded_data["x"]
+                )
+                min_voltage, max_voltage = min(calibration_data.recorded_data["y"]), max(
+                    calibration_data.recorded_data["y"]
+                )
                 if observed_voltage <= min_voltage:
                     return min_OD
                 elif observed_voltage > max_voltage:
@@ -697,15 +695,19 @@ class CachedCalibrationTransformer(CalibrationTransformer):
                         f"No solution found for calibrated signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V, which would map outside the allowed values."
                     )
             except exc.SolutionBelowDomainError:
-                self.logger.warning(
-                    f"Signal below suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V, which would map outside the allowed values."
-                )
+                min_OD = min(calibration_data.recorded_data["x"])
+                if not self.has_logged_warning:
+                    self.logger.warning(
+                        f"Signal below suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V, which would map outside the allowed values."
+                    )
                 self.has_logged_warning = True
                 return min_OD
             except exc.SolutionAboveDomainError:
-                self.logger.warning(
-                    f"Signal above suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V."
-                )
+                max_OD = max(calibration_data.recorded_data["x"])
+                if not self.has_logged_warning:
+                    self.logger.warning(
+                        f"Signal above suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V."
+                    )
                 self.has_logged_warning = True
                 return max_OD
 
@@ -1042,13 +1044,15 @@ class ODReader(BackgroundJob):
 
         try:
             od_readings = self.calibration_transformer(raw_od_readings)
-        except (exc.NoSolutionsFoundError, exc.CalibrationError):
+        except (exc.NoSolutionsFoundError, exc.CalibrationError, ValueError) as e:
             # some calibration error occurred
             od_readings = None
 
             # still log the raw readings
             for channel, _ in self.channel_angle_map.items():
                 setattr(self, f"raw_od{channel}", raw_od_readings.ods[channel])
+
+            self.logger.error(f"Error in calibration transformer: {e}")
         else:
             # happy path
             assert od_readings is not None

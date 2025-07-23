@@ -13,7 +13,6 @@ from time import time
 
 from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
-
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.config import config
@@ -1105,6 +1104,9 @@ class BackgroundJobWithDodging(_BackgroundJob):
         super().__post__init__()  # set ready
 
     def set_currently_dodging_od(self, value: bool):
+        if self.state != self.READY or self.state != self.INIT:
+            return
+
         self.currently_dodging_od = value
         if self.currently_dodging_od:
             self._event_is_dodging_od.clear()

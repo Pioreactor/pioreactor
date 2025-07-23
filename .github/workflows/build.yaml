@@ -75,7 +75,7 @@ jobs:
           tag: ${{ github.event.release.tag_name }}
           overwrite: true
 
-  fetch-pioreactorui-release:
+  bundle-pioreactorui-release:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout Repository
@@ -83,7 +83,7 @@ jobs:
 
     - name: Archive UI source
       run: |
-        tar -czf pioreactorui_${{ github.event.release.tag_name }}.tar.gz frontend
+        tar -czf pioreactorui_${{ github.event.release.tag_name }}.tar.gz web
 
     - name: Upload UI tarball
       uses: svenstaro/upload-release-action@v2

@@ -18,7 +18,7 @@ Don't make unnecessary formatting changes to the files you edit. We have a linte
 ## Testing and linting.
 
 - **Use `pytest`** to run tests.
-- Don't run the entire test suite unless requested (that is, don't run `pytest core`. Instead, either yse the `-k` command to run specific tests you think are relevant, or run an entire file.
+- Don't run the entire test suite unless requested (that is, don't run `pytest core`. Instead, either use the `-k` command to run specific tests you think are relevant, or run an entire file.
 - Don't bother linting or running `pre-commit`.
 
 ## Tools
@@ -49,7 +49,7 @@ make tail-mqtt      ## Tail mosquitto
 - `../.pioreactor/storage/calibrations/` stores calibration data.
 
 
-**Repository Summary**
+**Directory Summary**
 
 This repository contains the open‑source control software for the Pioreactor—a Raspberry‑Pi–based bioreactor platform. The project uses Python 3.11 and relies heavily on MQTT for communication between processes. Core functionality is organized into “background jobs” that manage hardware components such as pumps, stirrers, temperature sensors, and LEDs.
 

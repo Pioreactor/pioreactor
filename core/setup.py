@@ -69,7 +69,7 @@ setup(
     author_email="hello@pioreactor.com",
     install_requires=CORE_REQUIREMENTS,
     include_package_data=True,
-    packages=find_packages(exclude=["*.tests", "*.tests.*"]),
+    packages=find_packages(exclude=["tests", "tests.*"]),
     entry_points="""
         [console_scripts]
         pio=pioreactor.cli.pio:pio

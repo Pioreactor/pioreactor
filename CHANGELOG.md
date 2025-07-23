@@ -6,7 +6,7 @@ Some big changes internally
  - ability to change the pause between LEDs and OD snapshot
  - fix export data sorting
  - fix UI profile editing crashing
- - `pios --experiments <experiment>` can be used to select workers.
+ - `pios X --experiments <experiment>` can be used to select workers on the leader command line.
 
 ### 25.7.2
 

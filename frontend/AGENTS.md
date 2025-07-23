@@ -1,4 +1,4 @@
-**frontend Repository Summary**
+**frontend directory summary**
 
 *   **Purpose**: A React-based frontend for the Pioreactor system. It offers multiple pages (e.g., overview, plugins, calibrations, data export) with real-time interactions using MQTT and REST APIs.
 
