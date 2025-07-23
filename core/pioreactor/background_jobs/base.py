@@ -1104,7 +1104,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
         super().__post__init__()  # set ready
 
     def set_currently_dodging_od(self, value: bool):
-        if self.state != self.READY or self.state != self.INIT:
+        if self.state not in (self.READY, self.INIT):
             return
 
         self.currently_dodging_od = value

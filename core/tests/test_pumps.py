@@ -8,7 +8,6 @@ from datetime import datetime
 from datetime import timezone
 
 import pytest
-
 from pioreactor import structs
 from pioreactor.actions.pump import add_alt_media
 from pioreactor.actions.pump import add_media
@@ -297,8 +296,7 @@ def test_waste_pump_cant_run_when_media_circulation_is_running() -> None:
     t.start()
     time.sleep(0.1)
 
-    with pytest.raises(PWMError):
-        remove_waste(unit, exp, duration=5.0)
+    assert remove_waste(unit, exp, duration=5.0) == 0
 
     t.join()
 

@@ -26,8 +26,7 @@ def test_app_commands_with_branch() -> None:
     assert version == branch
     # Only one command: pip install from monorepo subdirectory=core
     expected = (
-        f"sudo pip install --force-reinstall git+https://github.com/{repo}.git@{branch}"
-        f"#egg=pioreactor&subdirectory=core",
+        f'sudo pip install --force-reinstall "git+https://github.com/{repo}.git@{branch}#egg=pioreactor&subdirectory=core"',
         1,
     )
     assert cmds == [expected]
@@ -83,9 +82,5 @@ def test_app_commands_branch_with_special_chars() -> None:
     cleaned_branch = quote(branch)
     cleaned_repo = quote(repo)
     assert ver == cleaned_branch
-    expected_cmd = (
-        f"sudo pip install --force-reinstall "
-        f"git+https://github.com/{cleaned_repo}.git@{cleaned_branch}"
-        f"#egg=pioreactor&subdirectory=core"
-    )
+    expected_cmd = f'sudo pip install --force-reinstall "git+https://github.com/{cleaned_repo}.git@{cleaned_branch}#egg=pioreactor&subdirectory=core"'
     assert cmds == [(expected_cmd, 1)]
