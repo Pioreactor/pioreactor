@@ -233,8 +233,8 @@ def run_job_on_unit_in_experiment(
                     json.env
                     | {"EXPERIMENT": experiment}
                     | {
-                        "MODEL_NAME": worker["model_name"],
-                        "MODEL_VERSION": worker["model_version"],
+                        "MODEL_NAME": worker["model_name"] or "Unknown",
+                        "MODEL_VERSION": worker["model_version"] or "Unknown",
                         "ACTIVE": str(worker["is_active"]),
                     }
                 ),
