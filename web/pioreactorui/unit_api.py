@@ -297,7 +297,7 @@ def run_job(job: str) -> ResponseReturnValue:
         if value is not None:
             commands += (str(value),)
 
-    task = tasks.pio_run(config_overrides_as_flags, *commands, env=env)
+    task = tasks.pio_run(*commands, env=env, config_overrides=config_overrides_as_flags)
     return create_task_response(task)
 
 
