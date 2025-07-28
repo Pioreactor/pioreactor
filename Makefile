@@ -85,13 +85,7 @@ frontend-dev:  ## Run React dev server on :3000
 # --- background task queue ----------------------------------------------------
 huey-dev: venv  ## Run the Huey consumer with sensible dev flags
 	@$(ACTIVATE) && cd $(API_DIR) && \
-	huey_consumer pioreactorui.tasks.huey \
-		-n \          # no scheduler; use cron-like periodic tasks in code
-		-b 1.0 \      # heartbeat every 1 s (good for rapid dev restarts)
-		-w 20 \       # 20 worker threads
-		-f \          # flush logs to stdout
-		-C \          # disable colored logging (optional)
-		-d 0.05       # poll interval 50 ms for snappy response
+	huey_consumer pioreactorui.tasks.huey -n -b 1.001 -w 10 -f -C -d 0.05
 
 # --- clean-up -----------------------------------------------------------------
 clean:  ## Delete bytecode, build artefacts, node deps

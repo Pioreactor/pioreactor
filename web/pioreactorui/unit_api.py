@@ -39,6 +39,7 @@ from .config import env
 from .config import huey
 from .utils import attach_cache_control
 from .utils import create_task_response
+from .utils import DelayedResponseReturnValue
 from .utils import is_rate_limited
 from .utils import is_valid_unix_filename
 
@@ -51,36 +52,37 @@ unit_api = Blueprint("unit_api", __name__, url_prefix="/unit_api")
 # Endpoint to check the status of a background task. unit_api is required to ping workers (who only expose unit_api)
 @unit_api.route("/task_results/<task_id>", methods=["GET"])
 def task_status(task_id: str):
+    blob = {"task_id": task_id, "result_url_path": "/unit_api/task_results/" + task_id}
     try:
         task = huey.result(task_id)
     except TaskLockedException:
         return (
-            jsonify({"status": "failed", "error": "could not complete task due to lock."}),
+            jsonify(blob | {"status": "failed", "error": "could not complete task due to lock."}),
             500,
         )
     except TaskException as e:
         # huey wraps the exception, so lets reraise it.
         try:
-            exec(f"raise {str(e)}")
+            exec(f"from huey.exceptions import *; raise {str(e)}")
         except Exception as ee:
             return (
-                jsonify({"status": "failed", "error": str(ee)}),
+                jsonify(blob | {"status": "failed", "error": str(ee)}),
                 500,
             )
 
     if task is None:
-        return jsonify({"status": "pending or not present"}), 202
+        return jsonify(blob | {"status": "pending or not present"}), 202
     elif isinstance(task, Exception):
-        return jsonify({"status": "failed", "error": str(task)}), 500
+        return jsonify(blob | {"status": "failed", "error": str(task)}), 500
     else:
-        return jsonify({"status": "complete", "result": task}), 200
+        return jsonify(blob | {"status": "complete", "result": task}), 200
 
 
 ### SYSTEM
 
 
 @unit_api.route("/system/update/<target>", methods=["POST", "PATCH"])
-def update_target(target: str) -> ResponseReturnValue:
+def update_target(target: str) -> DelayedResponseReturnValue:
     if target not in ("app", "ui"):  # todo: firmware
         abort(404, description="Invalid target")
 
@@ -104,7 +106,7 @@ def update_target(target: str) -> ResponseReturnValue:
 
 
 @unit_api.route("/system/update", methods=["POST", "PATCH"])
-def update_app_and_ui() -> ResponseReturnValue:
+def update_app_and_ui() -> DelayedResponseReturnValue:
     body = current_app.get_json(request.data, type=structs.ArgsOptionsEnvs)
 
     commands: tuple[str, ...] = tuple()
@@ -119,7 +121,7 @@ def update_app_and_ui() -> ResponseReturnValue:
 
 
 @unit_api.route("/system/reboot", methods=["POST", "PATCH"])
-def reboot() -> ResponseReturnValue:
+def reboot() -> DelayedResponseReturnValue:
     """Reboots unit"""
     # TODO: only let requests from the leader do this. Use lighttpd conf for this.
 
@@ -131,14 +133,14 @@ def reboot() -> ResponseReturnValue:
 
 
 @unit_api.route("/system/shutdown", methods=["POST", "PATCH"])
-def shutdown() -> ResponseReturnValue:
+def shutdown() -> DelayedResponseReturnValue:
     """Shutdown unit"""
     task = tasks.shutdown()
     return create_task_response(task)
 
 
 @unit_api.route("/system/remove_file", methods=["POST", "PATCH"])
-def remove_file() -> ResponseReturnValue:
+def remove_file() -> DelayedResponseReturnValue:
     # use filepath in body
     body = request.get_json()
 
@@ -161,31 +163,20 @@ def get_clock_time():
 
 # PATCH / POST to set clock time
 @unit_api.route("/system/utc_clock", methods=["PATCH", "POST"])
-def set_clock_time():
+def set_clock_time() -> DelayedResponseReturnValue:
     try:
         if HOSTNAME == get_leader_hostname():
             if request.json:
                 data = request.json
                 new_time = data.get("utc_clock_time")
                 if not new_time:
-                    return (
-                        jsonify({"status": "error", "message": "utc_clock_time field is required"}),
-                        400,
-                    )
+                    abort(400, "utc_clock_time field is required")
 
                 # validate the timestamp
                 try:
                     to_datetime(new_time)
                 except ValueError:
-                    return (
-                        jsonify(
-                            {
-                                "status": "error",
-                                "message": "Invalid utc_clock_time format. Use ISO 8601.",
-                            }
-                        ),
-                        400,
-                    )
+                    abort(400, "Invalid utc_clock_time format. Use ISO 8601.")
 
                 # Update the system clock (requires admin privileges)
                 t = tasks.update_clock(new_time)
@@ -198,7 +189,7 @@ def set_clock_time():
             return create_task_response(t)
 
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        abort(500, str(e))
 
 
 #### DIR
@@ -255,7 +246,7 @@ def dir_listing(req_path: str):
 
 
 @unit_api.route("/jobs/run/job_name/<job>", methods=["PATCH", "POST"])
-def run_job(job: str) -> ResponseReturnValue:
+def run_job(job: str) -> DelayedResponseReturnValue:
     """
     Body should look like (all optional)
     {
@@ -278,7 +269,7 @@ def run_job(job: str) -> ResponseReturnValue:
     }'
     """
     if is_rate_limited(job):
-        return jsonify({"error": "Too many requests, please try again later."}), 429
+        abort(429, "Too many requests, please try again later.")
 
     body = current_app.get_json(request.data, type=structs.ArgsOptionsEnvsConfigOverrides)
     args = body.args
@@ -302,13 +293,13 @@ def run_job(job: str) -> ResponseReturnValue:
 
 
 @unit_api.route("/jobs/stop/all", methods=["PATCH", "POST"])
-def stop_all_jobs() -> ResponseReturnValue:
+def stop_all_jobs() -> DelayedResponseReturnValue:
     task = tasks.pio_kill("--all-jobs")
     return create_task_response(task)
 
 
 @unit_api.route("/jobs/stop", methods=["PATCH", "POST"])
-def stop_jobs() -> ResponseReturnValue:
+def stop_jobs() -> DelayedResponseReturnValue:
     job_name = request.args.get("job_name")
     experiment = request.args.get("experiment")
     job_source = request.args.get("job_source")
@@ -332,28 +323,28 @@ def stop_jobs() -> ResponseReturnValue:
 
 
 @unit_api.route("/jobs/stop/job_name/<job_name>", methods=["PATCH", "POST"])
-def stop_job_by_name(job_name: str) -> ResponseReturnValue:
+def stop_job_by_name(job_name: str) -> DelayedResponseReturnValue:
     # deprecated, use /jobs/stop?job_name=<job_name>
     task = tasks.pio_kill("--job-name", job_name)
     return create_task_response(task)
 
 
 @unit_api.route("/jobs/stop/experiment/<experiment>", methods=["PATCH", "POST"])
-def stop_all_jobs_by_experiment(experiment: str) -> ResponseReturnValue:
+def stop_all_jobs_by_experiment(experiment: str) -> DelayedResponseReturnValue:
     # deprecated, use /jobs/stop?experiment=<experiment>
     task = tasks.pio_kill("--experiment", experiment)
     return create_task_response(task)
 
 
 @unit_api.route("/jobs/stop/job_source/<job_source>", methods=["PATCH", "POST"])
-def stop_all_jobs_by_source(job_source: str) -> ResponseReturnValue:
+def stop_all_jobs_by_source(job_source: str) -> DelayedResponseReturnValue:
     # deprecated
     task = tasks.pio_kill("--job-source", job_source)
     return create_task_response(task)
 
 
 @unit_api.route("/jobs/stop/job_id/<job_id>", methods=["PATCH", "POST"])
-def stop_all_jobs_by_id(job_id: int) -> ResponseReturnValue:
+def stop_all_jobs_by_id(job_id: int) -> DelayedResponseReturnValue:
     # deprecated
 
     task = tasks.pio_kill("--job-id", job_id)
@@ -510,7 +501,7 @@ def get_plugin(filename: str) -> ResponseReturnValue:
 
 
 @unit_api.route("/plugins/install", methods=["POST", "PATCH"])
-def install_plugin() -> ResponseReturnValue:
+def install_plugin() -> DelayedResponseReturnValue:
     """
     runs `pio plugin install ....`
     Body should look like:
@@ -550,7 +541,7 @@ def install_plugin() -> ResponseReturnValue:
 
 
 @unit_api.route("/plugins/uninstall", methods=["POST", "PATCH"])
-def uninstall_plugin() -> ResponseReturnValue:
+def uninstall_plugin() -> DelayedResponseReturnValue:
     """
     Body should look like:
     {

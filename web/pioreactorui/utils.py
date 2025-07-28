@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from time import time
+from typing import NewType
 
 from flask import jsonify
 from flask import Response
@@ -21,7 +22,10 @@ def attach_cache_control(response: Response, max_age=5) -> Response:
     return response
 
 
-def create_task_response(task) -> ResponseReturnValue:
+DelayedResponseReturnValue = NewType("DelayedResponseReturnValue", ResponseReturnValue)
+
+
+def create_task_response(task) -> DelayedResponseReturnValue:
     return (
         jsonify(
             {

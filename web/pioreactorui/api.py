@@ -53,6 +53,7 @@ from . import tasks
 from .config import env
 from .utils import attach_cache_control
 from .utils import create_task_response
+from .utils import DelayedResponseReturnValue
 from .utils import is_valid_unix_filename
 from .utils import scrub_to_valid
 
@@ -161,7 +162,7 @@ def run_job_on_unit_in_experiment(
     pioreactor_unit: str,
     job: str,
     experiment: str,
-) -> ResponseReturnValue:
+) -> DelayedResponseReturnValue:
     """
     Runs specified job on unit.
 
@@ -305,7 +306,7 @@ def update_job_on_unit(pioreactor_unit: str, job: str, experiment: str) -> Respo
 
 
 @api.route("/units/<pioreactor_unit>/system/reboot", methods=["POST"])
-def reboot_unit(pioreactor_unit: str) -> ResponseReturnValue:
+def reboot_unit(pioreactor_unit: str) -> DelayedResponseReturnValue:
     """Reboots unit"""
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_post_across_cluster("/unit_api/system/reboot")
@@ -315,7 +316,7 @@ def reboot_unit(pioreactor_unit: str) -> ResponseReturnValue:
 
 
 @api.route("/units/<pioreactor_unit>/system/shutdown", methods=["POST"])
-def shutdown_unit(pioreactor_unit: str) -> ResponseReturnValue:
+def shutdown_unit(pioreactor_unit: str) -> DelayedResponseReturnValue:
     """Shutdown unit"""
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_post_across_cluster("/unit_api/system/shutdown")
@@ -328,7 +329,7 @@ def shutdown_unit(pioreactor_unit: str) -> ResponseReturnValue:
 
 
 @api.route("/units/<pioreactor_unit>/system/utc_clock", methods=["GET"])
-def get_clocktime(pioreactor_unit: str) -> ResponseReturnValue:
+def get_clocktime(pioreactor_unit: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_get_across_cluster("/unit_api/system/utc_clock")
     else:
@@ -337,7 +338,7 @@ def get_clocktime(pioreactor_unit: str) -> ResponseReturnValue:
 
 
 @api.route("/system/utc_clock", methods=["POST"])
-def set_clocktime() -> ResponseReturnValue:
+def set_clocktime() -> DelayedResponseReturnValue:
     # first update the leader:
     task1 = tasks.multicast_post_across_cluster(
         "/unit_api/system/utc_clock", [get_leader_hostname()], request.get_json()
@@ -960,7 +961,7 @@ def get_media_rates(experiment: str) -> ResponseReturnValue:
 
 
 @api.route("/workers/<pioreactor_unit>/calibrations", methods=["GET"])
-def get_all_calibrations(pioreactor_unit: str) -> ResponseReturnValue:
+def get_all_calibrations(pioreactor_unit: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_get_across_cluster("/unit_api/calibrations")
     else:
@@ -969,7 +970,7 @@ def get_all_calibrations(pioreactor_unit: str) -> ResponseReturnValue:
 
 
 @api.route("/workers/<pioreactor_unit>/active_calibrations", methods=["GET"])
-def get_all_active_calibrations(pioreactor_unit: str) -> ResponseReturnValue:
+def get_all_active_calibrations(pioreactor_unit: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_get_across_cluster("/unit_api/active_calibrations")
     else:
@@ -1025,7 +1026,7 @@ def get_all_calibrations_as_yamls(pioreactor_unit: str) -> ResponseReturnValue:
 
 
 @api.route("/workers/<pioreactor_unit>/calibrations/<device>", methods=["GET"])
-def get_calibrations(pioreactor_unit: str, device: str) -> ResponseReturnValue:
+def get_calibrations(pioreactor_unit: str, device: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_get_across_cluster(f"/unit_api/calibrations/{device}")
     else:
@@ -1034,7 +1035,7 @@ def get_calibrations(pioreactor_unit: str, device: str) -> ResponseReturnValue:
 
 
 @api.route("/workers/<pioreactor_unit>/calibrations/<device>/<cal_name>", methods=["GET"])
-def get_calibration(pioreactor_unit: str, device: str, cal_name: str) -> ResponseReturnValue:
+def get_calibration(pioreactor_unit: str, device: str, cal_name: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_get_across_cluster(f"/unit_api/calibrations/{device}/{cal_name}")
     else:
@@ -1045,7 +1046,7 @@ def get_calibration(pioreactor_unit: str, device: str, cal_name: str) -> Respons
 
 
 @api.route("/workers/<pioreactor_unit>/calibrations/<device>", methods=["POST"])
-def create_calibration(pioreactor_unit: str, device: str) -> ResponseReturnValue:
+def create_calibration(pioreactor_unit: str, device: str) -> DelayedResponseReturnValue:
     yaml_data = request.get_json()["calibration_data"]
 
     if not yaml_data:
@@ -1070,7 +1071,7 @@ def create_calibration(pioreactor_unit: str, device: str) -> ResponseReturnValue
 
 
 @api.route("/workers/<pioreactor_unit>/active_calibrations/<device>/<cal_name>", methods=["PATCH"])
-def set_active_calibration(pioreactor_unit, device, cal_name) -> ResponseReturnValue:
+def set_active_calibration(pioreactor_unit, device, cal_name) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_patch_across_cluster(f"/unit_api/active_calibrations/{device}/{cal_name}")
     else:
@@ -1081,7 +1082,7 @@ def set_active_calibration(pioreactor_unit, device, cal_name) -> ResponseReturnV
 
 
 @api.route("/workers/<pioreactor_unit>/active_calibrations/<device>", methods=["DELETE"])
-def remove_active_status_calibration(pioreactor_unit, device) -> ResponseReturnValue:
+def remove_active_status_calibration(pioreactor_unit, device) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_delete_across_cluster(f"/unit_api/active_calibrations/{device}")
     else:
@@ -1092,7 +1093,7 @@ def remove_active_status_calibration(pioreactor_unit, device) -> ResponseReturnV
 
 
 @api.route("/workers/<pioreactor_unit>/calibrations/<device>/<cal_name>", methods=["DELETE"])
-def delete_calibration(pioreactor_unit, device, cal_name) -> ResponseReturnValue:
+def delete_calibration(pioreactor_unit, device, cal_name) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_delete_across_cluster(f"/unit_api/calibrations/{device}/{cal_name}")
     else:
@@ -1106,7 +1107,7 @@ def delete_calibration(pioreactor_unit, device, cal_name) -> ResponseReturnValue
 
 
 @api.route("/units/<pioreactor_unit>/plugins/installed", methods=["GET"])
-def get_plugins_on_machine(pioreactor_unit: str) -> ResponseReturnValue:
+def get_plugins_on_machine(pioreactor_unit: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_get_across_cluster("/unit_api/plugins/installed", timeout=5)
     else:
@@ -1116,7 +1117,7 @@ def get_plugins_on_machine(pioreactor_unit: str) -> ResponseReturnValue:
 
 
 @api.route("/units/<pioreactor_unit>/plugins/install", methods=["POST", "PATCH"])
-def install_plugin_across_cluster(pioreactor_unit: str) -> ResponseReturnValue:
+def install_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseReturnValue:
     # there is a security problem here. See https://github.com/Pioreactor/pioreactor/issues/421
     if os.path.isfile(Path(env["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS"):
         abort(403, "Not UI installed allowed.")
@@ -1134,7 +1135,7 @@ def install_plugin_across_cluster(pioreactor_unit: str) -> ResponseReturnValue:
 
 
 @api.route("/units/<pioreactor_unit>/plugins/uninstall", methods=["POST", "PATCH"])
-def uninstall_plugin_across_cluster(pioreactor_unit: str) -> ResponseReturnValue:
+def uninstall_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseReturnValue:
     if os.path.isfile(Path(env["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS"):
         abort(403, "No UI uninstall allowed")
 
@@ -1152,7 +1153,7 @@ def uninstall_plugin_across_cluster(pioreactor_unit: str) -> ResponseReturnValue
 
 @api.route("/units/<pioreactor_unit>/jobs/running", methods=["GET"])
 @api.route("/workers/<pioreactor_unit>/jobs/running", methods=["GET"])
-def get_jobs_running(pioreactor_unit: str) -> ResponseReturnValue:
+def get_jobs_running(pioreactor_unit: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         return create_task_response(broadcast_get_across_cluster("/unit_api/jobs/running"))
     else:
@@ -1162,7 +1163,7 @@ def get_jobs_running(pioreactor_unit: str) -> ResponseReturnValue:
 
 
 @api.route("/experiments/<experiment>/jobs/running", methods=["GET"])
-def get_jobs_running_across_cluster_in_experiment(experiment) -> ResponseReturnValue:
+def get_jobs_running_across_cluster_in_experiment(experiment) -> DelayedResponseReturnValue:
     list_of_assigned_workers = get_all_workers_in_experiment(experiment)
 
     return create_task_response(
@@ -1174,7 +1175,9 @@ def get_jobs_running_across_cluster_in_experiment(experiment) -> ResponseReturnV
 
 
 @api.route("/experiments/<experiment>/jobs/settings/job_name/<job_name>", methods=["GET"])
-def get_settings_for_job_across_cluster_in_experiment(experiment: str, job_name: str) -> ResponseReturnValue:
+def get_settings_for_job_across_cluster_in_experiment(
+    experiment: str, job_name: str
+) -> DelayedResponseReturnValue:
     list_of_assigned_workers = get_all_workers_in_experiment(experiment)
     return create_task_response(
         tasks.multicast_get_across_cluster(
@@ -1186,7 +1189,7 @@ def get_settings_for_job_across_cluster_in_experiment(experiment: str, job_name:
 @api.route("/experiments/<experiment>/jobs/settings/job_name/<job_name>/setting/<setting>", methods=["GET"])
 def get_setting_for_job_across_cluster_in_experiment(
     experiment: str, job_name: str, setting: str
-) -> ResponseReturnValue:
+) -> DelayedResponseReturnValue:
     list_of_assigned_workers = get_all_workers_in_experiment(experiment)
     return create_task_response(
         tasks.multicast_get_across_cluster(
@@ -1197,7 +1200,7 @@ def get_setting_for_job_across_cluster_in_experiment(
 
 
 @api.route("/workers/<pioreactor_unit>/jobs/settings/job_name/<job_name>", methods=["GET"])
-def get_job_settings_for_worker(pioreactor_unit: str, job_name: str) -> ResponseReturnValue:
+def get_job_settings_for_worker(pioreactor_unit: str, job_name: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_get_across_cluster(f"/unit_api/jobs/settings/job_name/{job_name}")
     else:
@@ -1211,7 +1214,9 @@ def get_job_settings_for_worker(pioreactor_unit: str, job_name: str) -> Response
     "/workers/<pioreactor_unit>/jobs/settings/job_name/<job_name>/setting/<setting>",
     methods=["GET"],
 )
-def get_job_setting_for_worker(pioreactor_unit: str, job_name: str, setting: str) -> ResponseReturnValue:
+def get_job_setting_for_worker(
+    pioreactor_unit: str, job_name: str, setting: str
+) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_get_across_cluster(f"/unit_api/jobs/settings/job_name/{job_name}/setting/{setting}")
     else:
@@ -1225,7 +1230,7 @@ def get_job_setting_for_worker(pioreactor_unit: str, job_name: str, setting: str
 
 
 @api.route("/units/<pioreactor_unit>/versions/app", methods=["GET"])
-def get_app_versions(pioreactor_unit: str) -> ResponseReturnValue:
+def get_app_versions(pioreactor_unit: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         return create_task_response(broadcast_get_across_cluster("/unit_api/versions/app"))
     else:
@@ -1235,7 +1240,7 @@ def get_app_versions(pioreactor_unit: str) -> ResponseReturnValue:
 
 
 @api.route("/units/<pioreactor_unit>/versions/ui", methods=["GET"])
-def get_ui_versions_across_cluster(pioreactor_unit: str) -> ResponseReturnValue:
+def get_ui_versions_across_cluster(pioreactor_unit: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         return create_task_response(broadcast_get_across_cluster("/unit_api/versions/ui"))
     else:
@@ -1349,13 +1354,13 @@ def get_charts_contrib() -> ResponseReturnValue:
 
 
 @api.route("/system/update_next_version", methods=["POST"])
-def update_app() -> ResponseReturnValue:
+def update_app() -> DelayedResponseReturnValue:
     task = tasks.update_app_across_cluster()
     return create_task_response(task)
 
 
 @api.route("/system/update_from_archive", methods=["POST"])
-def update_app_from_release_archive() -> ResponseReturnValue:
+def update_app_from_release_archive() -> DelayedResponseReturnValue:
     body = request.get_json()
     release_archive_location = body["release_archive_location"]
     assert release_archive_location.endswith(".zip")
@@ -2249,7 +2254,7 @@ def get_workers_and_experiment_assignments() -> ResponseReturnValue:
     # Get the experiment that a worker is assigned to along with its status
     result = query_app_db(
         """
-        SELECT w.pioreactor_unit, a.experiment
+        SELECT w.pioreactor_unit, a.experiment, w.is_active
         FROM workers w
         LEFT JOIN experiment_worker_assignments a
           on w.pioreactor_unit = a.pioreactor_unit
@@ -2263,7 +2268,7 @@ def get_workers_and_experiment_assignments() -> ResponseReturnValue:
 
 
 @api.route("/workers/assignments", methods=["DELETE"])
-def remove_all_workers_from_all_experiments() -> ResponseReturnValue:
+def remove_all_workers_from_all_experiments() -> DelayedResponseReturnValue:
     # unassign all
     modify_app_db(
         "DELETE FROM experiment_worker_assignments",
@@ -2407,7 +2412,7 @@ def remove_worker_from_experiment(experiment: str, pioreactor_unit: str) -> Resp
 
 
 @api.route("/experiments/<experiment>/workers", methods=["DELETE"])
-def remove_workers_from_experiment(experiment: str) -> ResponseReturnValue:
+def remove_workers_from_experiment(experiment: str) -> DelayedResponseReturnValue:
     # unassign all from specific experiment
     modify_app_db(
         "DELETE FROM experiment_worker_assignments WHERE experiment = ?",
