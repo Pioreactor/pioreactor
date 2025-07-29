@@ -23,6 +23,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
+from functools import wraps
 from queue import Empty
 from queue import Queue
 from time import sleep
@@ -47,6 +48,15 @@ handler = logging.StreamHandler(sys.stdout)
 formatter = logging.Formatter("[%(asctime)s] [%(levelname)s] %(name)s: %(message)s")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
+
+
+def wrap_result_as_dict(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        result = func(*args, **kwargs)
+        return result if isinstance(result, dict) else {"result": result}
+
+    return wrapper
 
 
 class ResponseQueue(ResponseQueueProtocol):
@@ -77,7 +87,7 @@ MCP_VERSION = "0.1.0"
 mcp = MCPServer(MCP_APP_NAME, MCP_VERSION, response_queue=ResponseQueue())
 
 
-def get_from_leader(endpoint: str) -> dict:
+def get_from_leader(endpoint: str):
     """Wrapper around `get_from_leader` to handle errors and callback checks."""
     try:
         r = _get_from_leader(endpoint)
@@ -91,7 +101,11 @@ def get_from_leader(endpoint: str) -> dict:
             return get_from_leader(content["result_url_path"])
 
         elif r.status_code == 200:
-            return r.json()
+            if "task_id" in r.json():
+                # result of a delayed response - just provide the result to reduce noise.
+                return r.json()["result"]
+            else:
+                return r.json()
         else:
             raise HTTPException(f"Unexpected status code {r.status_code} for GET {endpoint}: {r.content}")
     except HTTPException as e:
@@ -99,7 +113,7 @@ def get_from_leader(endpoint: str) -> dict:
         raise
 
 
-def post_into_leader(endpoint: str, json: dict | None = None) -> dict:
+def post_into_leader(endpoint: str, json: dict | None = None):
     """Wrapper around `post_into_leader` to handle errors."""
     try:
         r = _post_into_leader(endpoint, json=json)
@@ -138,26 +152,30 @@ def patch_into_leader(endpoint: str, json: dict | None = None) -> dict:
 # MCP **tools** (thin wrappers around existing REST routes)
 # ---------------------------------------------------------------------------
 @mcp.tool()
+@wrap_result_as_dict
 def list_experiments() -> dict:
     """List all experiments (name, creation timestamp, description, hours since creation)."""
     return get_from_leader("/api/experiments")
 
 
 @mcp.tool()
-def list_workers(active_only: bool) -> dict:
+@wrap_result_as_dict
+def list_workers(active_only: bool) -> list:
     """Return the cluster inventory (aka workers). If *active_only*, filter by `is_active`."""
     workers = get_from_leader("/api/workers")
-    return {"workers": [w for w in workers if w.get("is_active")] if active_only else workers}
+    return [w for w in workers if w.get("is_active")] if active_only else workers
 
 
 @mcp.tool()
-def list_workers_experiment_assignments(active_only: bool) -> dict:
+@wrap_result_as_dict
+def list_workers_experiment_assignments(active_only: bool) -> list:
     """Return the cluster inventory with experiment assignments. If *active_only*, filter by `is_active`."""
     workers = get_from_leader("/api/workers/assignments")
-    return {"workers": [w for w in workers if w.get("is_active")] if active_only else workers}
+    return [w for w in workers if w.get("is_active")] if active_only else workers
 
 
 @mcp.tool()
+@wrap_result_as_dict
 def list_jobs_available(unit: str) -> dict:
     """Return the unit/worker's available jobs that can be run and settings that can be viewed or changed. Can use "$broadcast" for all units."""
     return get_from_leader(f"/api/units/{unit}/jobs/discover")
@@ -215,12 +233,14 @@ def stop_all_jobs_on_unit(unit: str, experiment: str) -> dict:
 
 
 @mcp.tool()
+@wrap_result_as_dict
 def running_jobs(unit: str) -> dict:
     """Return list of running jobs on *unit/worker*. Can use "$broadcast" for all units."""
     return get_from_leader(f"/api/workers/{unit}/jobs/running")
 
 
 @mcp.tool()
+@wrap_result_as_dict
 def get_recent_experiment_logs(experiment: str, lines: int = 50) -> dict:
     """Tail the last `lines` of logs for a given experiment."""
     return get_from_leader(f"/api/experiments/{experiment}/recent_logs?lines={lines}")
@@ -245,18 +265,51 @@ def shutdown_unit(unit: str) -> dict:
 
 
 @mcp.tool()
+@wrap_result_as_dict
 def running_jobs_experiment(experiment: str) -> dict:
     """List running jobs for a given experiment across all units."""
     return get_from_leader(f"/api/experiments/{experiment}/jobs/running")
 
 
 @mcp.tool()
+@wrap_result_as_dict
 def running_jobs_unit_experiment(unit: str, experiment: str) -> dict:
     """List running jobs on a specific unit within an experiment. Can use "$broadcast" for all units."""
     return get_from_leader(f"/api/workers/{unit}/experiments/{experiment}/jobs/running")
 
 
 @mcp.tool()
+@wrap_result_as_dict
+def get_job_settings_for_worker(unit: str, job_name: str) -> dict:
+    """List settings for a job on a unit/worker. Can use "$broadcast" for all units."""
+    return get_from_leader(f"/api/workers/{unit}/jobs/settings/job_name/{job_name}")
+
+
+@mcp.tool()
+@wrap_result_as_dict
+def get_job_setting_for_worker(unit: str, job_name: str, setting: str) -> dict:
+    """Get a specific setting for a job on a unit/worker. Can use "$broadcast" for all units."""
+    return get_from_leader(f"/api/workers/{unit}/jobs/settings/job_name/{job_name}/setting/{setting}")
+
+
+@mcp.tool()
+@wrap_result_as_dict
+def get_settings_for_job_across_cluster_in_experiment(experiment: str, job_name: str) -> dict:
+    """List settings for a job across the cluster within a given experiment."""
+    return get_from_leader(f"/api/experiments/{experiment}/jobs/settings/job_name/{job_name}")
+
+
+@mcp.tool()
+@wrap_result_as_dict
+def get_setting_for_job_across_cluster_in_experiment(experiment: str, job_name: str, setting: str) -> dict:
+    """Get a specific setting for a job across the cluster within a given experiment."""
+    return get_from_leader(
+        f"/api/experiments/{experiment}/jobs/settings/job_name/{job_name}/setting/{setting}"
+    )
+
+
+@mcp.tool()
+@wrap_result_as_dict
 def get_od_readings(experiment: str, filter_mod_N: float = 100.0, lookback: float = 4.0) -> dict:
     """Get filtered OD vs time readings for all units in an experiment."""
     return get_from_leader(
@@ -265,6 +318,7 @@ def get_od_readings(experiment: str, filter_mod_N: float = 100.0, lookback: floa
 
 
 @mcp.tool()
+@wrap_result_as_dict
 def get_growth_rates(experiment: str, filter_mod_N: float = 100.0, lookback: float = 4.0) -> dict:
     """Get filtered growth rate vs time readings for all units in an experiment."""
     return get_from_leader(
@@ -273,6 +327,7 @@ def get_growth_rates(experiment: str, filter_mod_N: float = 100.0, lookback: flo
 
 
 @mcp.tool()
+@wrap_result_as_dict
 def get_temperature_readings(experiment: str, lookback: float = 4.0) -> dict:
     """Get temperature vs time readings for all units in an experiment."""
     return get_from_leader(
@@ -281,6 +336,7 @@ def get_temperature_readings(experiment: str, lookback: float = 4.0) -> dict:
 
 
 @mcp.tool()
+@wrap_result_as_dict
 def get_od_readings_filtered(experiment: str, filter_mod_N: float = 100.0, lookback: float = 4.0) -> dict:
     """Get filtered OD vs time readings for all units in an experiment."""
     return get_from_leader(
@@ -289,20 +345,14 @@ def get_od_readings_filtered(experiment: str, filter_mod_N: float = 100.0, lookb
 
 
 @mcp.tool()
+@wrap_result_as_dict
 def get_raw_od_readings(experiment: str, lookback: float = 4.0) -> dict:
     """Get raw OD vs time readings for all units in an experiment."""
     return get_from_leader(f"/api/experiments/{experiment}/time_series/raw_od_readings?lookback={lookback}")
 
 
 @mcp.tool()
-def get_time_series_column(experiment: str, data_source: str, column: str, lookback: float = 4.0) -> dict:
-    """Get a specific time-series column for all units in an experiment."""
-    return get_from_leader(
-        f"/api/experiments/{experiment}/time_series/{data_source}/{column}?lookback={lookback}"
-    )
-
-
-@mcp.tool()
+@wrap_result_as_dict
 def list_experiment_profiles() -> dict:
     """List available experiment profiles (filename, fullpath, and parsed metadata)."""
     return get_from_leader("/api/contrib/experiment_profiles")
