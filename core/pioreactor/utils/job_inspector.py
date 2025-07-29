@@ -12,7 +12,6 @@ from typing import Dict
 from typing import List
 
 import click
-
 import pioreactor
 from pioreactor.automations.base import AutomationJob
 from pioreactor.background_jobs.base import _BackgroundJob
@@ -90,11 +89,17 @@ def collect_background_jobs() -> List[Dict[str, Any]]:
             if not automation_name or automation_name.endswith("_base"):
                 continue
             job_entry = merged.setdefault(job_name, {"automations": {}})
+            # add a CLI usage example for this job
+            job_entry[
+                "cli_example"
+            ] = f"pio run {job_name} --automation-name {automation_name} --<param> <value>"
             auto_entry = job_entry["automations"].setdefault(automation_name, {})
             for key, meta in settings.items():
                 auto_entry.setdefault(key, meta)
         else:
             job_entry = merged.setdefault(job_name, {"published_settings": {}})
+            # add a CLI usage example for this job
+            job_entry["cli_example"] = f"pio run {job_name} --<param> <value>"
             pub = job_entry["published_settings"]
             for key, meta in settings.items():
                 pub.setdefault(key, meta)
@@ -109,9 +114,13 @@ def collect_background_jobs() -> List[Dict[str, Any]]:
                 }
                 for auto_name, settings in info["automations"].items()
             ]
-            output.append({"job_name": name, "automations": automations})
+            entry: Dict[str, Any] = {"job_name": name, "automations": automations}
         else:
-            output.append({"job_name": name, "published_settings": info["published_settings"]})
+            entry = {"job_name": name, "published_settings": info["published_settings"]}
+        # include cli_example if available
+        if "cli_example" in info:
+            entry["cli_example"] = info["cli_example"]
+        output.append(entry)
 
     return output
 
