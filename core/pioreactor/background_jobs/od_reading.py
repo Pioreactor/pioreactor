@@ -804,6 +804,7 @@ class ODReader(BackgroundJob):
         experiment: pt.Experiment,
         ir_led_reference_tracker: Optional[IrLedReferenceTracker] = None,
         calibration_transformer: Optional[CalibrationTransformer] = None,
+        ir_led_intensity: float | None = None,
     ) -> None:
         super(ODReader, self).__init__(unit=unit, experiment=experiment)
 
@@ -840,15 +841,18 @@ class ODReader(BackgroundJob):
         self._set_for_iterating = threading.Event()
 
         self.ir_channel: pt.LedChannel = self._get_ir_led_channel_from_configuration()
-        config_ir_led_intensity = config.get("od_reading.config", "ir_led_intensity")
+
+        if ir_led_intensity is None:
+            ir_led_intensity = config.get("od_reading.config", "ir_led_intensity")
 
         self.ir_led_intensity: pt.LedIntensityValue
-        if config_ir_led_intensity == "auto":
+        if ir_led_intensity == "auto":
             determine_best_ir_led_intensity = True
             self.ir_led_intensity = 70.0  # start here, and we'll optimize later.
         else:
             determine_best_ir_led_intensity = False
-            self.ir_led_intensity = float(config_ir_led_intensity)
+            self.ir_led_intensity = float(ir_led_intensity)
+
             if self.ir_led_intensity > 90:
                 self.logger.warning(
                     f"The value for the IR LED, {self.ir_led_intensity}%, is very high. We suggest a value 90% or less to avoid damaging the LED."
@@ -1237,6 +1241,7 @@ def start_od_reading(
     unit: pt.Unit | None = None,
     experiment: pt.Experiment | None = None,
     calibration: bool | structs.ODCalibration | None = True,
+    ir_led_intensity: float | None = None,
 ) -> ODReader:
     """
     This function prepares ODReader and other necessary transformation objects. It's a higher level API than using ODReader.
@@ -1300,6 +1305,7 @@ def start_od_reading(
         ),
         ir_led_reference_tracker=ir_led_reference_tracker,
         calibration_transformer=calibration_transformer,
+        ir_led_intensity=ir_led_intensity,
     )
 
 
@@ -1317,11 +1323,27 @@ def start_od_reading(
     help="specify the angle(s) between the IR LED(s) and the PD in channel 2, separated by commas. Don't specify if channel is empty.",
 )
 @click.option("--fake-data", is_flag=True, help="produce fake data (for testing)")
+@click.option(
+    "--interval",
+    type=click.FLOAT,
+    default=None,
+    show_default=True,
+    help="seconds between readings",
+)
+@click.option(
+    "--ir-led-intensity",
+    type=click.FLOAT,
+    default=None,
+    show_default=True,
+    help="IR LED intensity (percent)",
+)
 @click.option("--snapshot", is_flag=True, help="take one reading and exit")
 def click_od_reading(
     od_angle_channel1: pt.PdAngleOrREF | None,
     od_angle_channel2: pt.PdAngleOrREF | None,
     fake_data: bool,
+    interval: float | None,
+    ir_led_intensity: float | None,
     snapshot: bool,
 ) -> None:
     """
@@ -1330,20 +1352,17 @@ def click_od_reading(
     od_angle_channel1 = od_angle_channel1 or config.get("od_config.photodiode_channel", "1", fallback=None)
     od_angle_channel2 = od_angle_channel2 or config.get("od_config.photodiode_channel", "2", fallback=None)
 
-    if snapshot:
-        with start_od_reading(
-            od_angle_channel1,
-            od_angle_channel2,
-            fake_data=fake_data or whoami.is_testing_env(),
-            interval=None,
-        ) as od:
+    # determine interval: override if provided, else use snapshot or config default
+    default_interval = 1 / config.getfloat("od_reading.config", "samples_per_second", fallback=0.2)
+    run_interval = interval if interval is not None else (None if snapshot else default_interval)
+    with start_od_reading(
+        od_angle_channel1,
+        od_angle_channel2,
+        fake_data=fake_data or whoami.is_testing_env(),
+        interval=run_interval,
+        ir_led_intensity=ir_led_intensity,
+    ) as od:
+        if snapshot:
             od.logger.debug(od.record_from_adc())
-            # end early
-    else:
-        with start_od_reading(
-            od_angle_channel1,
-            od_angle_channel2,
-            fake_data=fake_data or whoami.is_testing_env(),
-            interval=1 / config.getfloat("od_reading.config", "samples_per_second", fallback=0.2),
-        ) as od:
+        else:
             od.block_until_disconnected()
