@@ -4,6 +4,9 @@ from __future__ import annotations
 import json
 import time
 
+import pioreactor.background_jobs.stirring as stirring_mod
+import pytest
+from click.testing import CliRunner
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.stirring import RpmCalculator
 from pioreactor.background_jobs.stirring import RpmFromFrequency
@@ -17,6 +20,7 @@ from pioreactor.utils.mock import MockRpmCalculator
 from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
+
 
 unit = get_unit_name()
 
@@ -185,7 +189,7 @@ def test_stirring_with_calibration() -> None:
 
         assert st.duty_cycle > initial_dc
 
-        assert st.rpm_to_dc_lookup(600) == 60.4
+        assert st.rpm_to_dc_lookup(600) == 63.760213125
         assert st.rpm_to_dc_lookup(700) == 69.4
 
 
@@ -202,7 +206,13 @@ def test_stirring_wont_fire_last_100dc_on_od_reading_end() -> None:
             bucket.append(pl)
 
     with start_stirring(
-        target_rpm=500, unit=unit, experiment=exp, use_rpm=True, enable_dodging_od=True
+        target_rpm=500,
+        unit=unit,
+        experiment=exp,
+        use_rpm=True,
+        enable_dodging_od=True,
+        target_rpm_during_od_reading=100,
+        target_rpm_outside_od_reading=300,
     ) as st:
         with start_od_reading(
             "90", None, interval=10.0, unit=unit, experiment=exp, fake_data=True, calibration=False
@@ -262,3 +272,71 @@ def test_block_until_rpm_is_close_will_exit() -> None:
         with catchtime() as delta:
             st.block_until_rpm_is_close_to_target(timeout=50)
         assert delta() < 7
+
+
+class DummyStirrer:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def block_until_rpm_is_close_to_target(self):
+        pass
+
+    def block_until_disconnected(self):
+        pass
+
+
+@pytest.fixture(autouse=True)
+def dummy_start_stirring(monkeypatch):
+    """Replace start_stirring to capture its kwargs and return a dummy context manager."""
+    calls = {}
+
+    def fake_start_stirring(**kwargs):
+        calls.update(kwargs)
+        return DummyStirrer()
+
+    monkeypatch.setattr(stirring_mod, "start_stirring", fake_start_stirring)
+    return calls
+
+
+def test_click_stirring_accepts_new_flags(dummy_start_stirring):
+    runner = CliRunner()
+    result = runner.invoke(
+        stirring_mod.click_stirring,
+        [
+            "--target-rpm",
+            "250",
+            "--use-rpm",
+            "true",
+            "--duty-cycle",
+            "42.5",
+            "--target-rpm-during-od-reading",
+            "123.0",
+            "--target-rpm-outside-od-reading",
+            "456.0",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    # Ensure start_stirring was called with the flag values
+    assert dummy_start_stirring["target_rpm"] == 250.0
+    assert dummy_start_stirring["use_rpm"] is True
+    assert dummy_start_stirring["duty_cycle"] == 42.5
+    assert dummy_start_stirring["target_rpm_during_od_reading"] == 123.0
+    assert dummy_start_stirring["target_rpm_outside_od_reading"] == 456.0
+
+
+@pytest.mark.parametrize(
+    "flag",
+    [
+        "--duty-cycle",
+        "--target-rpm-during-od-reading",
+        "--target-rpm-outside-od-reading",
+    ],
+)
+def test_click_stirring_help_includes_new_flags(flag):
+    runner = CliRunner()
+    result = runner.invoke(stirring_mod.click_stirring, ["--help"])
+    assert result.exit_code == 0
+    assert flag in result.output

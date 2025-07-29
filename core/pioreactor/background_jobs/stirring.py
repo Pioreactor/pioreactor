@@ -212,6 +212,9 @@ class Stirrer(BackgroundJobWithDodging):
         rpm_calculator: Optional[RpmCalculator] = None,
         calibration: bool | structs.SimpleStirringCalibration | None = True,
         enable_dodging_od: bool = False,
+        duty_cycle: float | None = None,
+        target_rpm_during_od_reading: float | None = None,
+        target_rpm_outside_od_reading: float | None = None,
     ) -> None:
         super(Stirrer, self).__init__(unit=unit, experiment=experiment, enable_dodging_od=enable_dodging_od)
         self.rpm_calculator = rpm_calculator
@@ -257,9 +260,26 @@ class Stirrer(BackgroundJobWithDodging):
             self.target_rpm = None
 
         # initialize DC with initial_duty_cycle, however we can update it with a lookup (if it exists)
-        self._estimate_duty_cycle = config.getfloat("stirring.config", "initial_duty_cycle", fallback=30)
+        if duty_cycle is None:
+            self._estimate_duty_cycle = config.getfloat("stirring.config", "initial_duty_cycle", fallback=30)
+        else:
+            self._estimate_duty_cycle = duty_cycle
+
         self.rpm_to_dc_lookup = self.initialize_rpm_to_dc_lookup(calibration)
         self._estimate_duty_cycle = self.rpm_to_dc_lookup(self.target_rpm)
+
+        if target_rpm_during_od_reading is not None:
+            self.target_rpm_during_od_reading = target_rpm_during_od_reading
+        else:
+            self.target_rpm_during_od_reading = config.getfloat(
+                "stirring.config", "target_rpm_during_od_reading", fallback=0.0
+            )
+        if target_rpm_outside_od_reading is not None:
+            self.target_rpm_outside_od_reading = target_rpm_outside_od_reading
+        else:
+            self.target_rpm_outside_od_reading = config.getfloat(
+                "stirring.config", "target_rpm_outside_od_reading", fallback=self.target_rpm
+            )
 
         # set up PID
         self.pid = PID(
@@ -276,12 +296,17 @@ class Stirrer(BackgroundJobWithDodging):
         )
 
     def action_to_do_before_od_reading(self):
+        if self.rpm_calculator is None:
+            return
         assert self.target_rpm_during_od_reading is not None
         self.set_target_rpm(self.target_rpm_during_od_reading)
         sleep(0.15)
         self.poll_and_update_dc()
 
     def action_to_do_after_od_reading(self):
+        if self.rpm_calculator is None:
+            return
+
         assert self.target_rpm_outside_od_reading is not None
         self.set_target_rpm(self.target_rpm_outside_od_reading)
         sleep(0.15)
@@ -304,13 +329,6 @@ class Stirrer(BackgroundJobWithDodging):
         )
         with self.duty_cycle_lock:
             self.stop_stirring()  # we'll start it again in action_to_do_after_od_reading
-
-        self.target_rpm_during_od_reading = config.getfloat(
-            "stirring.config", "target_rpm_during_od_reading", fallback=0.0
-        )
-        self.target_rpm_outside_od_reading = config.getfloat(
-            "stirring.config", "target_rpm_outside_od_reading", fallback=self.target_rpm
-        )
 
         # publish the target_rpm_during_od_reading:
         self.add_to_published_settings(
@@ -335,9 +353,6 @@ class Stirrer(BackgroundJobWithDodging):
         if self.duty_cycle == 0:
             self.start_stirring()
 
-        # remmove the target_rpm_during_od_reading, no error if not present.
-        self.target_rpm_during_od_reading = None
-        self.target_rpm_outside_od_reading = None
         self.remove_from_published_settings("target_rpm_during_od_reading")
         self.remove_from_published_settings("target_rpm_outside_od_reading")
 
@@ -602,6 +617,9 @@ def start_stirring(
     use_rpm: bool = True,
     calibration: bool | structs.SimpleStirringCalibration | None = True,
     enable_dodging_od: bool = False,
+    duty_cycle: float | None = None,
+    target_rpm_during_od_reading: float | None = None,
+    target_rpm_outside_od_reading: float | None = None,
 ) -> Stirrer:
     unit = unit or get_unit_name()
     experiment = experiment or get_assigned_experiment_name(unit)
@@ -622,6 +640,9 @@ def start_stirring(
         rpm_calculator=rpm_calculator,
         calibration=calibration,
         enable_dodging_od=enable_dodging_od,
+        duty_cycle=duty_cycle,
+        target_rpm_during_od_reading=target_rpm_during_od_reading,
+        target_rpm_outside_od_reading=target_rpm_outside_od_reading,
     )
     return stirrer
 
@@ -634,7 +655,41 @@ def start_stirring(
     type=click.FloatRange(0, 1500, clamp=True),
 )
 @click.option("--use-rpm", type=click.BOOL, default=None, show_default=True, help="Use RPM feedback loop.")
-def click_stirring(target_rpm: float | None, use_rpm: bool | None) -> None:
+@click.option(
+    "--duty-cycle",
+    type=click.FloatRange(0, 100),
+    default=None,
+    show_default=True,
+    help="initial duty cycle (%)",
+)
+@click.option(
+    "--target-rpm-during-od-reading",
+    type=click.FLOAT,
+    default=None,
+    show_default=True,
+    help="override RPM during OD readings",
+)
+@click.option(
+    "--target-rpm-outside-od-reading",
+    type=click.FLOAT,
+    default=None,
+    show_default=True,
+    help="override RPM outside OD readings",
+)
+@click.option(
+    "--enable-dodging-od",
+    type=click.BOOL,
+    default=False,
+    show_default=True,
+)
+def click_stirring(
+    target_rpm: float | None,
+    use_rpm: bool | None,
+    duty_cycle: float | None,
+    target_rpm_during_od_reading: float | None,
+    target_rpm_outside_od_reading: float | None,
+    enable_dodging_od: bool | None,
+) -> None:
     """
     Start the stirring of the Pioreactor.
     """
@@ -642,8 +697,19 @@ def click_stirring(target_rpm: float | None, use_rpm: bool | None) -> None:
     use_rpm = (
         use_rpm if use_rpm is not None else config.getboolean("stirring.config", "use_rpm", fallback="true")
     )
-    enable_dodging_od = config.getboolean("stirring.config", "enable_dodging_od", fallback="false")
+    enable_dodging_od = (
+        enable_dodging_od
+        if enable_dodging_od is not None
+        else config.getboolean("stirring.config", "enable_dodging_od", fallback="false")
+    )
 
-    with start_stirring(target_rpm=target_rpm, use_rpm=use_rpm, enable_dodging_od=enable_dodging_od) as st:
+    with start_stirring(
+        target_rpm=target_rpm,
+        use_rpm=use_rpm,
+        enable_dodging_od=enable_dodging_od,
+        duty_cycle=duty_cycle,
+        target_rpm_during_od_reading=target_rpm_during_od_reading,
+        target_rpm_outside_od_reading=target_rpm_outside_od_reading,
+    ) as st:
         st.block_until_rpm_is_close_to_target()
         st.block_until_disconnected()

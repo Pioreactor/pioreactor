@@ -650,13 +650,6 @@ class CachedCalibrationTransformer(CalibrationTransformer):
         channel = calibration_data.pd_channel
         cal_type = calibration_data.calibration_type
 
-        if config.get("od_reading.config", "ir_led_intensity") != "auto" and (
-            calibration_data.ir_led_intensity != config.getfloat("od_reading.config", "ir_led_intensity")
-        ):
-            msg = f"The calibration `{name}` was calibrated with a different IR LED intensity ({calibration_data.ir_led_intensity} vs current: {config.getfloat('od_reading.config', 'ir_led_intensity')}). Either re-calibrate, turn off calibration, or change the ir_led_intensity in the config.ini."
-            self.logger.error(msg)
-            raise exc.CalibrationError(msg)
-
         self.models[channel] = self._hydrate_model(calibration_data)
         self.models[channel].name = name  # type: ignore
         self.logger.debug(
