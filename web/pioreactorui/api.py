@@ -1171,6 +1171,17 @@ def get_jobs_running_across_cluster_in_experiment(experiment) -> DelayedResponse
     )
 
 
+@api.route("/units/<pioreactor_unit>/jobs/discover", methods=["GET"])
+@api.route("/workers/<pioreactor_unit>/jobs/discover", methods=["GET"])
+def discover_jobs_and_settings_available(pioreactor_unit) -> ResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        return create_task_response(broadcast_get_across_cluster("/unit_api/jobs/discover"))
+    else:
+        return create_task_response(
+            tasks.multicast_get_across_cluster("/unit_api/jobs/discover", [pioreactor_unit])
+        )
+
+
 ### SETTINGS
 
 

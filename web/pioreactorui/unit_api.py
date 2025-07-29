@@ -163,7 +163,7 @@ def get_clock_time():
 
 # PATCH / POST to set clock time
 @unit_api.route("/system/utc_clock", methods=["PATCH", "POST"])
-def set_clock_time() -> DelayedResponseReturnValue:
+def set_clock_time() -> DelayedResponseReturnValue:  # type: ignore[return]
     try:
         if HOSTNAME == get_leader_hostname():
             if request.json:
@@ -373,7 +373,6 @@ def get_running_job(job: str) -> ResponseReturnValue:
     jobs = query_temp_local_metadata_db(
         "SELECT * FROM pio_job_metadata where is_running=1 and job_name=?", (job,)
     )
-
     return jsonify(jobs)
 
 
@@ -449,6 +448,13 @@ def update_job(job_name: str) -> ResponseReturnValue:
     """
     # body = request.get_json()
     abort(503, "Not implemented.")
+
+
+@unit_api.route("/jobs/discover", methods=["GET"])
+def discover_jobs_and_settings_available() -> ResponseReturnValue:
+    from pioreactor.utils.job_inspector import collect_background_jobs
+
+    return jsonify(collect_background_jobs())
 
 
 ### PLUGINS

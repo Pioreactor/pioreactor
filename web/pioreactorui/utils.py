@@ -22,11 +22,11 @@ def attach_cache_control(response: Response, max_age=5) -> Response:
     return response
 
 
-DelayedResponseReturnValue = NewType("DelayedResponseReturnValue", ResponseReturnValue)
+DelayedResponseReturnValue = NewType("DelayedResponseReturnValue", ResponseReturnValue)  # type: ignore
 
 
 def create_task_response(task) -> DelayedResponseReturnValue:
-    return (
+    return (  # type: ignore
         jsonify(
             {
                 "unit": get_unit_name(),
