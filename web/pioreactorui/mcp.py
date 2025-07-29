@@ -79,7 +79,6 @@ mcp = MCPServer(MCP_APP_NAME, MCP_VERSION, response_queue=ResponseQueue())
 
 def get_from_leader(endpoint: str) -> dict:
     """Wrapper around `get_from_leader` to handle errors and callback checks."""
-    logger.debug(endpoint)
     try:
         r = _get_from_leader(endpoint)
         r.raise_for_status()
@@ -102,7 +101,6 @@ def get_from_leader(endpoint: str) -> dict:
 
 def post_into_leader(endpoint: str, json: dict | None = None) -> dict:
     """Wrapper around `post_into_leader` to handle errors."""
-    logger.debug(endpoint, json)
     try:
         r = _post_into_leader(endpoint, json=json)
         r.raise_for_status()
@@ -139,8 +137,6 @@ def patch_into_leader(endpoint: str, json: dict | None = None) -> dict:
 # ---------------------------------------------------------------------------
 # MCP **tools** (thin wrappers around existing REST routes)
 # ---------------------------------------------------------------------------
-
-
 @mcp.tool()
 def list_experiments() -> dict:
     """List all experiments (name, creation timestamp, description, hours since creation)."""
@@ -149,7 +145,7 @@ def list_experiments() -> dict:
 
 @mcp.tool()
 def list_workers(active_only: bool) -> dict:
-    """Return the cluster inventory. If *active_only*, filter by `is_active`."""
+    """Return the cluster inventory (aka workers). If *active_only*, filter by `is_active`."""
     workers = get_from_leader("/api/workers")
     return {"workers": [w for w in workers if w.get("is_active")] if active_only else workers}
 
@@ -163,7 +159,7 @@ def list_workers_experiment_assignments(active_only: bool) -> dict:
 
 @mcp.tool()
 def list_jobs_available(unit: str) -> dict:
-    """Return the unit's available jobs that can be run and settings that can be viewed or changed. Can use "$broadcast" for all units."""
+    """Return the unit/worker's available jobs that can be run and settings that can be viewed or changed. Can use "$broadcast" for all units."""
     return get_from_leader(f"/api/units/{unit}/jobs/discover")
 
 
@@ -177,7 +173,7 @@ def run_job(
     env: Dict[str, str] | None = None,
     config_overrides: List[List[str]] | None = None,
 ) -> dict:
-    """Launch *job* on *unit* within *experiment* via leader REST API. Can use "$broadcast" for all units."""
+    """Launch *job* on *unit/worker* within *experiment* via leader REST API. Can use "$broadcast" for all units."""
     payload = {
         "options": options or {},
         "args": args or [],
@@ -192,7 +188,7 @@ def run_job(
 
 @mcp.tool()
 def update_job(unit: str, job: str, experiment: str, settings: dict[str, Any]) -> dict:
-    """Update settings for a job on a unit within an experiment.  Can use "$broadcast" for all units."""
+    """Update settings for a job on a unit/worker within an experiment.  Can use "$broadcast" for all units."""
     return patch_into_leader(
         f"/api/workers/{unit}/jobs/update/job_name/{job}/experiments/{experiment}",
         json={"settings": settings},
@@ -201,7 +197,7 @@ def update_job(unit: str, job: str, experiment: str, settings: dict[str, Any]) -
 
 @mcp.tool()
 def stop_job(unit: str, job: str, experiment: str) -> dict:
-    """Stop *job* on *unit*; optionally scope to *experiment*. Can use "$broadcast" for all units."""
+    """Stop *job* on *unit/worker*; optionally scope to *experiment*. Can use "$broadcast" for all units."""
     endpoint = f"/api/workers/{unit}/jobs/stop/job_name/{job}/experiments/{experiment}"
     return post_into_leader(endpoint)
 
@@ -214,13 +210,13 @@ def stop_all_jobs_in_experiment(experiment: str) -> dict:
 
 @mcp.tool()
 def stop_all_jobs_on_unit(unit: str, experiment: str) -> dict:
-    """Stop all jobs on a specific unit for a given experiment. Can use "$broadcast" for all units."""
+    """Stop all jobs on a specific unit/worker for a given experiment. Can use "$broadcast" for all units."""
     return post_into_leader(f"/api/workers/{unit}/jobs/stop/experiments/{experiment}")
 
 
 @mcp.tool()
 def running_jobs(unit: str) -> dict:
-    """Return list of running jobs on *unit*. Can use "$broadcast" for all units."""
+    """Return list of running jobs on *unit/worker*. Can use "$broadcast" for all units."""
     return get_from_leader(f"/api/workers/{unit}/jobs/running")
 
 
@@ -238,13 +234,13 @@ def blink(unit: str) -> dict:
 
 @mcp.tool()
 def reboot_unit(unit: str) -> dict:
-    """Reboot a specific unit. Can use "$broadcast" for all units."""
+    """Reboot a specific unit/worker. Can use "$broadcast" for all units."""
     return post_into_leader(f"/api/units/{unit}/system/reboot")
 
 
 @mcp.tool()
 def shutdown_unit(unit: str) -> dict:
-    """Shutdown a specific unit. Can use "$broadcast" for all units."""
+    """Shutdown a specific unit/worker. Can use "$broadcast" for all units."""
     return post_into_leader(f"/api/units/{unit}/system/shutdown")
 
 
@@ -307,18 +303,39 @@ def get_time_series_column(experiment: str, data_source: str, column: str, lookb
 
 
 @mcp.tool()
+def list_experiment_profiles() -> dict:
+    """List available experiment profiles (filename, fullpath, and parsed metadata)."""
+    return get_from_leader("/api/contrib/experiment_profiles")
+
+
+@mcp.tool()
+def run_experiment_profile(
+    unit: str,
+    profile: str,
+    experiment: str,
+    dry_run: bool = False,
+) -> dict:
+    """Execute an experiment profile on a unit/worker within an experiment. Can use "$broadcast" for all units. Optionally dry-run."""
+    options = {"dry-run": None} if dry_run else {}
+    args = ["execute", profile, experiment]
+    return run_job(unit, "experiment_profile", experiment, options=options, args=args)
+
+
+# MCP **resources** for config: list of config.ini files, config contents, and unit configuration
+# ---------------------------------------------------------------------------
+@mcp.resource(path="configs", name="list_config_inis")
 def list_config_inis() -> dict:
     """List available config.ini files (global and unit-specific)."""
     return get_from_leader("/api/configs")
 
 
-@mcp.tool()
+@mcp.resource(path="configs/{filename}", name="get_config_ini")
 def get_config_ini(filename: str) -> dict:
     """Retrieve the contents of a specific config.ini file."""
     return get_from_leader(f"/api/configs/{filename}")
 
 
-@mcp.tool()
+@mcp.resource(path="units/{unit}/configuration", name="get_unit_configuration")
 def get_unit_configuration(unit: str) -> dict:
     """Get merged configuration for a given unit (global and unit-specific)."""
     return get_from_leader(f"/api/units/{unit}/configuration")
