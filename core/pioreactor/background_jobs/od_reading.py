@@ -958,7 +958,7 @@ class ODReader(BackgroundJob):
         if self.interval is not None:
             if self.interval <= 1.0:
                 self.logger.warning(
-                    f"Recommended to have the interval between readings be larger than 1.0 second. Currently {self.interval} s."
+                    f"Recommended to have the interval between readings be larger than 1.0 sec. Currently {self.interval} sec."
                 )
 
             if hasattr(self, "record_from_adc_timer"):

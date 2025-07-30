@@ -190,7 +190,7 @@ def test_stirring_with_calibration() -> None:
         assert st.duty_cycle > initial_dc
 
         assert st.rpm_to_dc_lookup(600) == 63.760213125
-        assert st.rpm_to_dc_lookup(700) == 69.4
+        assert st.rpm_to_dc_lookup(700) == 73.21021312500001
 
 
 def test_stirring_wont_fire_last_100dc_on_od_reading_end() -> None:

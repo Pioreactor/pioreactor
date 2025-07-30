@@ -7,6 +7,7 @@ Some big changes internally
  - fix export data sorting
  - fix UI profile editing crashing
  - `pios X --experiments <experiment>` can be used to select workers on the leader command line.
+ - ideally, if a published setting is settable: true, there should be a cli option to set it.
 
 ### 25.7.2
 
