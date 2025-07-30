@@ -9,6 +9,7 @@ Some big changes internally
  - `pios X --experiments <experiment>` can be used to select workers on the leader command line.
  - ideally, if a published setting is settable: true, there should be a cli option to set it.
  - adding mcp server
+ - removed `/api/workers/jobs/stop/experiments/<exp>`, use `/api/workers/$broadcast/jobs/stop/experiments/<exp>` instead.
 
 ### 25.7.2
 

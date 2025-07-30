@@ -421,18 +421,11 @@ def update_job(job_name: str) -> ResponseReturnValue:
     abort(503, "Not implemented.")
 
 
-@unit_api.route("/jobs/discover", methods=["GET"])
+@unit_api.route("/capabilities", methods=["GET"])
 def discover_jobs_and_settings_available() -> ResponseReturnValue:
-    from pioreactor.utils.job_inspector import collect_background_jobs
+    from pioreactor.utils.capabilities import collect_capabilities
 
-    return jsonify(collect_background_jobs())
-
-
-@unit_api.route("/actions/discover", methods=["GET"])
-def discover_actions_available() -> ResponseReturnValue:
-    from pioreactor.utils.action_inspector import collect_actions
-
-    return jsonify(collect_actions())
+    return jsonify(collect_capabilities())
 
 
 ### PLUGINS

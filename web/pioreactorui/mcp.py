@@ -42,6 +42,9 @@ from pioreactor.pubsub import get_from_leader as _get_from_leader
 from pioreactor.pubsub import patch_into_leader as _patch_into_leader
 from pioreactor.pubsub import post_into_leader as _post_into_leader
 
+from . import query_app_db
+
+
 logger = logging.getLogger("mcp_utils")
 logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler(sys.stdout)
@@ -152,47 +155,28 @@ def patch_into_leader(endpoint: str, json: dict | None = None) -> dict:
 # ---------------------------------------------------------------------------
 @mcp.tool()
 @wrap_result_as_dict
-def list_experiments() -> dict:
+def get_experiments(active_only: bool) -> dict:
     """
-    List all experiments (name, creation timestamp, description, hours since creation).
+    List experiments (name, creation timestamp, description, hours since creation).
+
+    If active_only, list experiments with at least one active worker assigned.
 
     Users may ask for this tool with phrases like "list experiments", "show experiments",
     or "get experiments" when interacting via MCP.
     """
-    return get_from_leader("/api/experiments")
+    if active_only:
+        return get_from_leader("/api/experiments/active")
+    else:
+        return get_from_leader("/api/experiments")
 
 
 @mcp.tool()
 @wrap_result_as_dict
-def list_active_experiments() -> list:
+def get_workers(active_only: bool) -> list:
     """
-    List experiments with at least one active worker assigned.
+    Return the worker inventory with experiment assignments. If *active_only*, filter by `is_active`.
 
-    Users may ask "list active experiments", "get experiments", etc.
-    """
-    return get_from_leader("/api/experiments/active")
-
-
-@mcp.tool()
-@wrap_result_as_dict
-def list_workers(active_only: bool) -> list:
-    """
-    Return the cluster inventory (aka workers). If *active_only*, filter by `is_active`.
-
-    Users might phrase this as "list pioreactors", "show units", "get worker list",
-    or ask "which units are active" through the MCP interface.
-    """
-    workers = get_from_leader("/api/workers")
-    return [w for w in workers if w.get("is_active")] if active_only else workers
-
-
-@mcp.tool()
-@wrap_result_as_dict
-def list_workers_experiment_assignments(active_only: bool) -> list:
-    """
-    Return the cluster inventory with experiment assignments. If *active_only*, filter by `is_active`.
-
-    Common requests include "list worker assignments", "show experiment assignments",
+    Common requests include "list worker assignments", "list pioreactors", "list cluster inventory"
     or "which pioreactors are running experiments" via MCP.
     """
     workers = get_from_leader("/api/workers/assignments")
@@ -201,43 +185,31 @@ def list_workers_experiment_assignments(active_only: bool) -> list:
 
 @mcp.tool()
 @wrap_result_as_dict
-def discover_actions_available(unit: str) -> list:
+def get_unit_capabilties(unit: str) -> list:
     """
-    List all `pio run` subcommands and their args/options via the leader API.
+    List all `pio run` subcommands and their args/options, and published settings
     """
-    return get_from_leader(f"/api/units/{unit}/actions/discover")
+    return get_from_leader(f"/api/units/{unit}/capabilities")
 
 
 @mcp.tool()
-@wrap_result_as_dict
-def discover_published_settings_in_jobs(unit: str) -> dict:
-    """
-    Return the unit/worker's jobs that can be run and settings that can be viewed or changed.
-
-    Users may ask "what jobs can I run" or "list available jobs and settings", optionally using
-    "$broadcast" to query all units at once.
-    """
-    return get_from_leader(f"/api/units/{unit}/jobs/discover")
-
-
-@mcp.tool()
-def run_job(
+def run_job_or_action(
     unit: str,
-    job: str,
+    job_or_action: str,
     experiment: str,
     options: Dict[str, Any] | None = None,
     args: List[str] | None = None,
     config_overrides: List[List[str]] | None = None,
 ) -> dict:
     """
-    Launch *job* on a *unit/worker* within *experiment* via the leader REST API.
+    Launch an action or job on a *unit/worker* within *experiment* via the leader REST API.
 
     Users might say "run job", "start <job> on worker <unit>".
     Use "$broadcast" to start jobs across all units simultaneously in that experiment.
 
     Parameters:
         unit: target unit name (or "$broadcast" to address all units).
-        job: name of the job to run. See `list_jobs_available` for options.
+        job_or_action: name of the job to run. See `discover_actions_available` for options.
         experiment: experiment identifier under which to launch the job.
         options: dict of job-specific options for the job entrypoint.
         args: list of positional arguments for the job entrypoint.
@@ -250,7 +222,7 @@ def run_job(
         "config_overrides": config_overrides or [],
     }
     return post_into_leader(
-        f"/api/workers/{unit}/jobs/run/job_name/{job}/experiments/{experiment}",
+        f"/api/workers/{unit}/jobs/run/job_name/{job_or_action}/experiments/{experiment}",
         json=payload,
     )
 
@@ -261,9 +233,9 @@ def update_job_settings(unit: str, job: str, experiment: str, settings: dict[str
     Update the active job settings for a job on a unit/worker within an experiment.
 
     Common phrases include "update job <job> to <settings>", "change <setting> in <job>",
-    or "set parameters of <job>", with "$broadcast" supported for all units.
+    or "set parameters of <job>".
 
-    See `list_jobs_available` for jobs and their settings.
+    Target all units with "$broadcast".
     """
     return patch_into_leader(
         f"/api/workers/{unit}/jobs/update/job_name/{job}/experiments/{experiment}",
@@ -272,47 +244,29 @@ def update_job_settings(unit: str, job: str, experiment: str, settings: dict[str
 
 
 @mcp.tool()
-def stop_job(unit: str, job: str, experiment: str) -> dict:
+def stop_job(experiment: str, job: str | None, unit: str = "$broadcast") -> dict:
     """
-    Stop *job* on *unit/worker*; optionally scope to *experiment*.
+    Stop jobs based on provided parameters. If no parameters are given, stop all jobs.
 
-    Users may request "stop job", "kill <job>", or "end job",
-    with "$broadcast" available to stop jobs on all units.
+    Users may say "stop all jobs", "stop job <job>", "stop unit <unit> jobs",
+    or "stop all jobs in experiment <experiment>".
     """
-    endpoint = f"/api/workers/{unit}/jobs/stop/job_name/{job}/experiments/{experiment}"
-    return post_into_leader(endpoint)
-
-
-@mcp.tool()
-def stop_all_jobs_in_experiment(experiment: str) -> dict:
-    """
-    Stop all jobs across the cluster for a given experiment.
-
-    This tool may be invoked as "stop all jobs", "abort experiment jobs",
-    or "terminate experiment <name>"; "$broadcast" works for all units.
-    """
-    return post_into_leader(f"/api/workers/jobs/stop/experiments/{experiment}")
-
-
-@mcp.tool()
-def stop_all_jobs_on_unit(unit: str, experiment: str) -> dict:
-    """
-    Stop all jobs on a specific unit/worker for a given experiment.
-
-    Users might say "stop unit jobs", "end all jobs on <unit>",
-    or target all units with "$broadcast".
-    """
-    return post_into_leader(f"/api/workers/{unit}/jobs/stop/experiments/{experiment}")
+    if job is None:
+        return post_into_leader(f"/api/workers/{unit}/jobs/stop/experiments/{experiment}")
+    elif job is not None:
+        return post_into_leader(f"/api/workers/{unit}/jobs/stop/job_name/{job}/experiments/{experiment}")
 
 
 @mcp.tool()
 @wrap_result_as_dict
-def running_jobs(unit: str) -> dict:
+def get_running_jobs(unit: str) -> dict:
     """
-    Return list of running jobs on *unit/worker*.
+        Return list of running jobs on *unit/worker*.
 
-    Common queries include "what jobs are running", "list active jobs",
-    or using "$broadcast" to see jobs on all units.
+        Common queries include "what jobs are running", "list active jobs".
+    e
+        Target all units with "$broadcast".
+
     """
     return get_from_leader(f"/api/workers/{unit}/jobs/running")
 
@@ -332,10 +286,9 @@ def get_recent_experiment_logs(experiment: str, lines: int = 50) -> dict:
 @mcp.tool()
 def blink(unit: str) -> dict:
     """
-    Blink the LED of a specific unit.
+    Blink the onboard blue LED of a specific unit.
+    Target all units with "$broadcast".
 
-    Common phrases include "blink unit", "flash LED", or "show light",
-    with "$broadcast" supported to blink all units.
     """
     return post_into_leader(f"/api/workers/{unit}/blink")
 
@@ -345,8 +298,10 @@ def reboot_unit(unit: str) -> dict:
     """
     Reboot a specific unit/worker.
 
-    Users may command "reboot unit", "restart device", or "restart unit",
-    and can use "$broadcast" to reboot all units.
+    Users may command "reboot unit", "restart device", or "restart unit".
+
+    Target all units with "$broadcast".
+
     """
     return post_into_leader(f"/api/units/{unit}/system/reboot")
 
@@ -356,8 +311,9 @@ def shutdown_unit(unit: str) -> dict:
     """
     Shutdown a specific unit/worker.
 
-    Common commands include "shutdown unit", "power off device", or "stop unit",
-    with "$broadcast" to shutdown all units if needed.
+    Common commands include "shutdown unit", "power off device", or "stop unit".
+
+    Target all units with "$broadcast".
     """
     return post_into_leader(f"/api/units/{unit}/system/shutdown")
 
@@ -368,8 +324,11 @@ def get_active_job_settings_for_worker(unit: str, job_name: str) -> dict:
     """
     List settings for a job on a unit/worker.
 
-    Users often ask "show job settings", "get settings for <job>",
-    or include "$broadcast" to retrieve settings cluster-wide.
+    Users often ask "show job settings", "get settings for <job>".
+
+    Target all units with "$broadcast".
+
+
     """
     return get_from_leader(f"/api/workers/{unit}/jobs/settings/job_name/{job_name}")
 
@@ -388,76 +347,10 @@ def get_active_settings_for_job_across_cluster_in_experiment(experiment: str, jo
 
 @mcp.tool()
 @wrap_result_as_dict
-def get_od_readings(experiment: str, filter_mod_N: float = 100.0, lookback: float = 4.0) -> dict:
+def get_experiment_profiles() -> dict:
     """
-    Get filtered OD vs time readings for all units in an experiment.
+    Profiles are pre-defined "scripts" that execute commands as certain times (like a recipe.)
 
-    Users may request "get OD readings", "show optical density data",
-    or "plot OD vs time" with parameters filter_mod_N and lookback.
-    """
-    return get_from_leader(
-        f"/api/experiments/{experiment}/time_series/od_readings?filter_mod_N={filter_mod_N}&lookback={lookback}"
-    )
-
-
-@mcp.tool()
-@wrap_result_as_dict
-def get_growth_rates(experiment: str, filter_mod_N: float = 100.0, lookback: float = 4.0) -> dict:
-    """
-    Get filtered growth rate vs time readings for all units in an experiment.
-
-    Common phrases include "get growth rates", "show growth rate data",
-    or "plot growth vs time" using filter_mod_N and lookback parameters.
-    """
-    return get_from_leader(
-        f"/api/experiments/{experiment}/time_series/growth_rates?filter_mod_N={filter_mod_N}&lookback={lookback}"
-    )
-
-
-@mcp.tool()
-@wrap_result_as_dict
-def get_temperature_readings(experiment: str, lookback: float = 4.0) -> dict:
-    """
-    Get temperature vs time readings for all units in an experiment.
-
-    Users may ask "get temperature readings", "show temperature data",
-    or "plot temperature vs time" with a specified lookback period.
-    """
-    return get_from_leader(
-        f"/api/experiments/{experiment}/time_series/temperature_readings?lookback={lookback}"
-    )
-
-
-@mcp.tool()
-@wrap_result_as_dict
-def get_od_readings_filtered(experiment: str, filter_mod_N: float = 100.0, lookback: float = 4.0) -> dict:
-    """
-    Get filtered OD vs time readings for all units in an experiment.
-
-    Similar to get_od_readings but explicitly named 'filtered', users may
-    request "filtered OD readings" or "get OD data filtered" by lookback and mod parameters.
-    """
-    return get_from_leader(
-        f"/api/experiments/{experiment}/time_series/od_readings_filtered?filter_mod_N={filter_mod_N}&lookback={lookback}"
-    )
-
-
-@mcp.tool()
-@wrap_result_as_dict
-def get_raw_od_readings(experiment: str, lookback: float = 4.0) -> dict:
-    """
-    Get raw OD vs time readings for all units in an experiment.
-
-    Users may ask "get raw OD readings" or "show unfiltered optical density data"
-    specifying a lookback period.
-    """
-    return get_from_leader(f"/api/experiments/{experiment}/time_series/raw_od_readings?lookback={lookback}")
-
-
-@mcp.tool()
-@wrap_result_as_dict
-def list_experiment_profiles() -> dict:
-    """
     List available experiment profiles (filename, fullpath, and parsed metadata).
 
     Users may request "list profiles", "show experiment templates",
@@ -474,74 +367,58 @@ def run_experiment_profile(
     dry_run: bool = False,
 ) -> dict:
     """
+    Profiles are pre-defined "scripts" that execute commands as certain times (like a recipe.)
+
     Execute an experiment profile on a unit/worker within an experiment.
 
-    Common commands include "run profile <profile>", "execute experiment template",
-    or "apply profile to <unit>", with a "dry-run" option for simulation.
+    Common commands include "run profile <profile>", "execute experiment profile X",
     """
     options = {"dry-run": None} if dry_run else {}
     args = ["execute", profile, experiment]
-    return run_job(unit, "experiment_profile", experiment, options=options, args=args)
-
-
-# ---------------------------------------------------------------------------
-# MCP **tools** for exportable datasets
-# ---------------------------------------------------------------------------
-@mcp.tool()
-@wrap_result_as_dict
-def list_exportable_datasets() -> dict:
-    """
-    List available exportable datasets (dataset_name, description, display_name, etc.).
-
-    Users may ask "list exportable datasets", "show datasets", or "get exportable datasets".
-    """
-    return get_from_leader("/api/contrib/exportable_datasets")
+    return run_job_or_action(unit, "experiment_profile", experiment, options=options, args=args)
 
 
 @mcp.tool()
 @wrap_result_as_dict
-def preview_exportable_datasets(dataset_name: str, n_rows: int = 5) -> dict:
-    """
-    Preview rows of an exportable dataset.
-
-    Users may request this tool to see a sample of an exportable dataset, specifying
-    the dataset name and number of rows.
-    """
-    return get_from_leader(f"/api/contrib/exportable_datasets/{dataset_name}/preview?n_rows={n_rows}")
+def db_get_tables() -> list:
+    """List tables in the application database."""
+    tables = query_app_db(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;"
+    )
+    assert isinstance(tables, list)
+    return tables
 
 
 @mcp.tool()
 @wrap_result_as_dict
-def query_dataset(
-    dataset_name: str,
-    experiment: str | None = None,
-    start_time: str | None = None,
-    end_time: str | None = None,
-) -> dict:
-    """
-    Query a dataset with optional filters. This returns a JSON object with a path to download the csv/zip.
+def db_get_table_schema(table_name: str) -> list:
+    """Get schema for the specified table."""
+    exists = query_app_db("SELECT name FROM sqlite_master WHERE type='table' AND name=?;", (table_name,))
+    if not exists:
+        raise ValueError(f"Table '{table_name}' does not exist in the database.")
+    schema = query_app_db(f"PRAGMA table_info('{table_name}');")
+    assert isinstance(schema, list)
+    return schema
 
-    Users may specify experiment, time bounds (iso 8601) to filter the dataset.
-    """
-    payload: Dict[str, list[str] | str | bool] = {"datasets": [dataset_name]}
-    if experiment:
-        payload["experiments"] = [experiment]
-    if start_time:
-        payload["start_time"] = start_time
-    if end_time:
-        payload["end_time"] = end_time
 
-    payload["partition_by_unit"] = False
-    payload["partition_by_experiment"] = False
+@mcp.tool()
+@wrap_result_as_dict
+def db_query_table(table_name: str, limit: int = 100, offset: int = 0) -> list:
+    """Query rows from the specified table, with optional limit and offset."""
+    exists = query_app_db("SELECT name FROM sqlite_master WHERE type='table' AND name=?;", (table_name,))
+    if not exists:
+        raise ValueError(f"Table {table_name} not found")
 
-    # ask leader to export datasets (returns JSON with `filename` and `msg`)
-    return post_into_leader("/api/contrib/exportable_datasets/export_datasets", json=payload)
+    rows = query_app_db(f'SELECT * FROM "{table_name}" LIMIT ? OFFSET ?;', (limit, offset))
+    assert isinstance(rows, list)
+
+    return rows
 
 
 # MCP **resources** for config: list of config.ini files, config contents, and unit configuration
 # ---------------------------------------------------------------------------
-@mcp.resource(path="configs", name="list_config_inis")
-def list_config_inis() -> dict:
+@mcp.resource(path="configs", name="get_config_inis")
+def get_config_inis() -> dict:
     """List available config.ini files (global and unit-specific)."""
     return get_from_leader("/api/configs")
 

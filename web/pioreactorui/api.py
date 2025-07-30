@@ -1151,23 +1151,12 @@ def uninstall_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseRetu
 
 @api.route("/units/<pioreactor_unit>/actions/discover", methods=["GET"])
 @api.route("/workers/<pioreactor_unit>/actions/discover", methods=["GET"])
-def discover_actions_available(pioreactor_unit) -> ResponseReturnValue:
+def get_capabilities(pioreactor_unit) -> ResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        return create_task_response(broadcast_get_across_cluster("/unit_api/actions/discover"))
+        return create_task_response(broadcast_get_across_cluster("/unit_api/capabilities"))
     else:
         return create_task_response(
-            tasks.multicast_get_across_cluster("/unit_api/actions/discover", [pioreactor_unit])
-        )
-
-
-@api.route("/units/<pioreactor_unit>/jobs/discover", methods=["GET"])
-@api.route("/workers/<pioreactor_unit>/jobs/discover", methods=["GET"])
-def discover_jobs_and_settings_available(pioreactor_unit) -> ResponseReturnValue:
-    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        return create_task_response(broadcast_get_across_cluster("/unit_api/jobs/discover"))
-    else:
-        return create_task_response(
-            tasks.multicast_get_across_cluster("/unit_api/jobs/discover", [pioreactor_unit])
+            tasks.multicast_get_across_cluster("/unit_api/capabilities", [pioreactor_unit])
         )
 
 
