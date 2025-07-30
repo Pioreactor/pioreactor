@@ -322,35 +322,6 @@ def stop_jobs() -> DelayedResponseReturnValue:
     return create_task_response(task)
 
 
-@unit_api.route("/jobs/stop/job_name/<job_name>", methods=["PATCH", "POST"])
-def stop_job_by_name(job_name: str) -> DelayedResponseReturnValue:
-    # deprecated, use /jobs/stop?job_name=<job_name>
-    task = tasks.pio_kill("--job-name", job_name)
-    return create_task_response(task)
-
-
-@unit_api.route("/jobs/stop/experiment/<experiment>", methods=["PATCH", "POST"])
-def stop_all_jobs_by_experiment(experiment: str) -> DelayedResponseReturnValue:
-    # deprecated, use /jobs/stop?experiment=<experiment>
-    task = tasks.pio_kill("--experiment", experiment)
-    return create_task_response(task)
-
-
-@unit_api.route("/jobs/stop/job_source/<job_source>", methods=["PATCH", "POST"])
-def stop_all_jobs_by_source(job_source: str) -> DelayedResponseReturnValue:
-    # deprecated
-    task = tasks.pio_kill("--job-source", job_source)
-    return create_task_response(task)
-
-
-@unit_api.route("/jobs/stop/job_id/<job_id>", methods=["PATCH", "POST"])
-def stop_all_jobs_by_id(job_id: int) -> DelayedResponseReturnValue:
-    # deprecated
-
-    task = tasks.pio_kill("--job-id", job_id)
-    return create_task_response(task)
-
-
 @unit_api.route("/jobs/running/experiments/<experiment>", methods=["GET"])
 def get_running_jobs_for_experiment(experiment: str) -> ResponseReturnValue:
     jobs = query_temp_local_metadata_db(

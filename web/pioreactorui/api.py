@@ -91,20 +91,6 @@ def broadcast_patch_across_cluster(endpoint: str, json: dict | None = None) -> R
     return tasks.multicast_patch_across_cluster(endpoint, get_all_workers(), json=json)
 
 
-@api.route("/workers/jobs/stop/experiments/<experiment>", methods=["POST", "PATCH"])
-def stop_all_jobs_in_experiment(experiment: str) -> ResponseReturnValue:
-    """Kills all jobs for workers assigned to experiment"""
-    workers_in_experiment = get_all_workers_in_experiment(experiment)
-    tasks.multicast_post_across_cluster(
-        "/unit_api/jobs/stop", workers_in_experiment, params={"experiment": experiment}
-    )
-
-    # sometimes the leader isn't part of the experiment, but a profile associated with the experiment is running:
-    tasks.pio_kill("--experiment", experiment)
-
-    return {"status": "success"}, 202
-
-
 @api.route(
     "/workers/<pioreactor_unit>/jobs/stop/experiments/<experiment>",
     methods=["POST", "PATCH"],
@@ -129,7 +115,7 @@ def stop_all_jobs_on_worker_for_experiment(pioreactor_unit: str, experiment: str
     "/units/<pioreactor_unit>/jobs/stop/job_name/<job_name>/experiments/<experiment>",
     methods=["PATCH", "POST"],
 )
-def stop_job_on_unit(
+def stop_specific_job_on_unit(
     pioreactor_unit: str,
     job_name: str,
     experiment: str,
