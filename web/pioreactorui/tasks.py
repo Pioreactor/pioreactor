@@ -61,6 +61,23 @@ ALLOWED_ENV = (
 )
 
 
+def _process_delayed_json_response(worker: str, r: Any) -> tuple[str, Any]:
+    """
+    Handle delayed HTTP responses (202 with result_url_path) and immediate 200 responses.
+    Returns the worker and the appropriate JSON data or result value.
+    """
+    data = r.json()
+    if r.status_code == 202 and "result_url_path" in data:
+        sleep(0.1)
+        return _get_from_worker(worker, data["result_url_path"])
+    if r.status_code == 200:
+        if "task_id" in data:
+            return worker, data["result"]
+        else:
+            return worker, data
+    return worker, None
+
+
 @huey.on_startup()
 def initialized():
     logger.info("Starting Huey consumer...")
@@ -355,20 +372,8 @@ def post_into_worker(
         if r.content is None:
             return worker, None
 
-        # delayed result
-        if r.status_code == 202 and "result_url_path" in r.json():
-            sleep(0.1)
-            return _get_from_worker(worker, r.json()["result_url_path"])
-
-        elif r.status_code == 200:
-            if "task_id" in r.json():
-                # result of a delayed response - just provide the result to reduce noise.
-                return worker, r.json()["result"]
-            else:
-                return worker, r.json()
-
-        else:
-            return worker, None
+        # delayed or immediate JSON response
+        return _process_delayed_json_response(worker, r)
 
     except (HTTPErrorStatus, HTTPException) as e:
         logger.error(
@@ -426,19 +431,8 @@ def _get_from_worker(
         if return_raw:
             return worker, r.content or None
 
-        # delayed result
-        if r.status_code == 202 and "result_url_path" in r.json():
-            sleep(0.1)
-            return _get_from_worker(worker, r.json()["result_url_path"])
-
-        elif r.status_code == 200:
-            if "task_id" in r.json():
-                # result of a delayed response - just provide the result to reduce noise.
-                return worker, r.json()["result"]
-            else:
-                return worker, r.json()
-        else:
-            return worker, None
+        # delayed or immediate JSON response
+        return _process_delayed_json_response(worker, r)
 
     except (HTTPErrorStatus, HTTPException) as e:
         logger.error(
@@ -486,19 +480,8 @@ def patch_into_worker(worker: str, endpoint: str, json: dict | None = None) -> t
         if r.content is None:
             return worker, None
 
-        # delayed result
-        if r.status_code == 202 and "result_url_path" in r.json():
-            sleep(0.1)
-            return _get_from_worker(worker, r.json()["result_url_path"])
-
-        elif r.status_code == 200:
-            if "task_id" in r.json():
-                # result of a delayed response - just provide the result to reduce noise.
-                return worker, r.json()["result"]
-            else:
-                return worker, r.json()
-        else:
-            return worker, None
+        # delayed or immediate JSON response
+        return _process_delayed_json_response(worker, r)
 
     except (HTTPErrorStatus, HTTPException) as e:
         logger.error(
