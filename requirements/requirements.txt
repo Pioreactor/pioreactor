@@ -16,3 +16,5 @@ python-dotenv==1.0.1
 Werkzeug==3.1.0
 itsdangerous==2.2.0
 blinker==1.9.0
+pydantic==2.0.0
+mcp-utils=1.0.0

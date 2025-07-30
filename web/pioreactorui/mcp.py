@@ -107,7 +107,7 @@ def get_from_leader(endpoint: str):
             else:
                 return r.json()
         else:
-            raise HTTPException(f"Unexpected status code {r.status_code} for GET {endpoint}: {r.content}")
+            raise HTTPException(f"Unexpected status code {r.status_code} for GET {endpoint}.")
     except HTTPException as e:
         logger.error(f"Failed to GET from leader: {e}")
         raise
@@ -154,14 +154,24 @@ def patch_into_leader(endpoint: str, json: dict | None = None) -> dict:
 @mcp.tool()
 @wrap_result_as_dict
 def list_experiments() -> dict:
-    """List all experiments (name, creation timestamp, description, hours since creation)."""
+    """
+    List all experiments (name, creation timestamp, description, hours since creation).
+
+    Users may ask for this tool with phrases like "list experiments", "show experiments",
+    or "get experiments" when interacting via MCP.
+    """
     return get_from_leader("/api/experiments")
 
 
 @mcp.tool()
 @wrap_result_as_dict
 def list_workers(active_only: bool) -> list:
-    """Return the cluster inventory (aka workers). If *active_only*, filter by `is_active`."""
+    """
+    Return the cluster inventory (aka workers). If *active_only*, filter by `is_active`.
+
+    Users might phrase this as "list workers", "show units", "get worker list",
+    or ask "which units are active" through the MCP interface.
+    """
     workers = get_from_leader("/api/workers")
     return [w for w in workers if w.get("is_active")] if active_only else workers
 
@@ -169,7 +179,12 @@ def list_workers(active_only: bool) -> list:
 @mcp.tool()
 @wrap_result_as_dict
 def list_workers_experiment_assignments(active_only: bool) -> list:
-    """Return the cluster inventory with experiment assignments. If *active_only*, filter by `is_active`."""
+    """
+    Return the cluster inventory with experiment assignments. If *active_only*, filter by `is_active`.
+
+    Common requests include "list worker assignments", "show experiment assignments",
+    or "which units are running experiments" via MCP.
+    """
     workers = get_from_leader("/api/workers/assignments")
     return [w for w in workers if w.get("is_active")] if active_only else workers
 
@@ -177,7 +192,12 @@ def list_workers_experiment_assignments(active_only: bool) -> list:
 @mcp.tool()
 @wrap_result_as_dict
 def list_jobs_available(unit: str) -> dict:
-    """Return the unit/worker's available jobs that can be run and settings that can be viewed or changed. Can use "$broadcast" for all units."""
+    """
+    Return the unit/worker's available jobs that can be run and settings that can be viewed or changed.
+
+    Users may ask "what jobs can I run" or "list available jobs", optionally using
+    "$broadcast" to query all units at once.
+    """
     return get_from_leader(f"/api/units/{unit}/jobs/discover")
 
 
@@ -188,14 +208,26 @@ def run_job(
     experiment: str,
     options: Dict[str, Any] | None = None,
     args: List[str] | None = None,
-    env: Dict[str, str] | None = None,
     config_overrides: List[List[str]] | None = None,
 ) -> dict:
-    """Launch *job* on *unit/worker* within *experiment* via leader REST API. Can use "$broadcast" for all units."""
+    """
+    Launch *job* on a *unit/worker* within *experiment* via the leader REST API.
+
+    Users might say "run job", "start <job> on worker <unit>".
+    Use "$broadcast" to start jobs across all units simultaneously in that experiment.
+
+    Parameters:
+        unit: target unit name (or "$broadcast" to address all units).
+        job: name of the job to run. See `list_jobs_available` for options.
+        experiment: experiment identifier under which to launch the job.
+        options: dict of job-specific options for the job entrypoint.
+        args: list of positional arguments for the job entrypoint.
+        config_overrides: list of [<section.key>, <value>] pairs to override config settings.
+    """
     payload = {
         "options": options or {},
         "args": args or [],
-        "env": env or {},
+        "env": {"JOB_SOURCE": "mcp"},
         "config_overrides": config_overrides or [],
     }
     return post_into_leader(
@@ -206,7 +238,14 @@ def run_job(
 
 @mcp.tool()
 def update_job(unit: str, job: str, experiment: str, settings: dict[str, Any]) -> dict:
-    """Update settings for a job on a unit/worker within an experiment.  Can use "$broadcast" for all units."""
+    """
+    Update settings for a job on a unit/worker within an experiment.
+
+    Common phrases include "update job settings", "configure <job>",
+    or "set parameters", with "$broadcast" supported for all units.
+
+    See `list_jobs_available` for jobs and their settings.
+    """
     return patch_into_leader(
         f"/api/workers/{unit}/jobs/update/job_name/{job}/experiments/{experiment}",
         json={"settings": settings},
@@ -215,103 +254,140 @@ def update_job(unit: str, job: str, experiment: str, settings: dict[str, Any]) -
 
 @mcp.tool()
 def stop_job(unit: str, job: str, experiment: str) -> dict:
-    """Stop *job* on *unit/worker*; optionally scope to *experiment*. Can use "$broadcast" for all units."""
+    """
+    Stop *job* on *unit/worker*; optionally scope to *experiment*.
+
+    Users may request "stop job", "kill <job>", or "end job",
+    with "$broadcast" available to stop jobs on all units.
+    """
     endpoint = f"/api/workers/{unit}/jobs/stop/job_name/{job}/experiments/{experiment}"
     return post_into_leader(endpoint)
 
 
 @mcp.tool()
 def stop_all_jobs_in_experiment(experiment: str) -> dict:
-    """Stop all jobs across the cluster for a given experiment. Can use "$broadcast" for all units."""
+    """
+    Stop all jobs across the cluster for a given experiment.
+
+    This tool may be invoked as "stop all jobs", "abort experiment jobs",
+    or "terminate experiment <name>"; "$broadcast" works for all units.
+    """
     return post_into_leader(f"/api/workers/jobs/stop/experiments/{experiment}")
 
 
 @mcp.tool()
 def stop_all_jobs_on_unit(unit: str, experiment: str) -> dict:
-    """Stop all jobs on a specific unit/worker for a given experiment. Can use "$broadcast" for all units."""
+    """
+    Stop all jobs on a specific unit/worker for a given experiment.
+
+    Users might say "stop unit jobs", "end all jobs on <unit>",
+    or target all units with "$broadcast".
+    """
     return post_into_leader(f"/api/workers/{unit}/jobs/stop/experiments/{experiment}")
 
 
 @mcp.tool()
 @wrap_result_as_dict
 def running_jobs(unit: str) -> dict:
-    """Return list of running jobs on *unit/worker*. Can use "$broadcast" for all units."""
+    """
+    Return list of running jobs on *unit/worker*.
+
+    Common queries include "what jobs are running", "list active jobs",
+    or using "$broadcast" to see jobs on all units.
+    """
     return get_from_leader(f"/api/workers/{unit}/jobs/running")
 
 
 @mcp.tool()
 @wrap_result_as_dict
 def get_recent_experiment_logs(experiment: str, lines: int = 50) -> dict:
-    """Tail the last `lines` of logs for a given experiment."""
+    """
+    Tail the last `lines` of logs for a given experiment.
+
+    Users may request "show logs", "tail logs", or "get recent logs",
+    specifying the number of lines to retrieve.
+    """
     return get_from_leader(f"/api/experiments/{experiment}/recent_logs?lines={lines}")
 
 
 @mcp.tool()
 def blink(unit: str) -> dict:
-    """Blink the LED of a specific unit. Can use "$broadcast" for all units."""
+    """
+    Blink the LED of a specific unit.
+
+    Common phrases include "blink unit", "flash LED", or "show light",
+    with "$broadcast" supported to blink all units.
+    """
     return post_into_leader(f"/api/workers/{unit}/blink")
 
 
 @mcp.tool()
 def reboot_unit(unit: str) -> dict:
-    """Reboot a specific unit/worker. Can use "$broadcast" for all units."""
+    """
+    Reboot a specific unit/worker.
+
+    Users may command "reboot unit", "restart device", or "restart unit",
+    and can use "$broadcast" to reboot all units.
+    """
     return post_into_leader(f"/api/units/{unit}/system/reboot")
 
 
 @mcp.tool()
 def shutdown_unit(unit: str) -> dict:
-    """Shutdown a specific unit/worker. Can use "$broadcast" for all units."""
+    """
+    Shutdown a specific unit/worker.
+
+    Common commands include "shutdown unit", "power off device", or "stop unit",
+    with "$broadcast" to shutdown all units if needed.
+    """
     return post_into_leader(f"/api/units/{unit}/system/shutdown")
 
 
 @mcp.tool()
 @wrap_result_as_dict
-def running_jobs_experiment(experiment: str) -> dict:
-    """List running jobs for a given experiment across all units."""
-    return get_from_leader(f"/api/experiments/{experiment}/jobs/running")
-
-
-@mcp.tool()
-@wrap_result_as_dict
 def running_jobs_unit_experiment(unit: str, experiment: str) -> dict:
-    """List running jobs on a specific unit within an experiment. Can use "$broadcast" for all units."""
+    """
+    List running jobs on a specific unit within an experiment.
+
+    Common prompts include "list worker jobs for <experiment>",
+    "show running jobs on <unit>", or using "$broadcast" to get all units.
+    """
     return get_from_leader(f"/api/workers/{unit}/experiments/{experiment}/jobs/running")
 
 
 @mcp.tool()
 @wrap_result_as_dict
 def get_job_settings_for_worker(unit: str, job_name: str) -> dict:
-    """List settings for a job on a unit/worker. Can use "$broadcast" for all units."""
+    """
+    List settings for a job on a unit/worker.
+
+    Users often ask "show job settings", "get settings for <job>",
+    or include "$broadcast" to retrieve settings cluster-wide.
+    """
     return get_from_leader(f"/api/workers/{unit}/jobs/settings/job_name/{job_name}")
 
 
 @mcp.tool()
 @wrap_result_as_dict
-def get_job_setting_for_worker(unit: str, job_name: str, setting: str) -> dict:
-    """Get a specific setting for a job on a unit/worker. Can use "$broadcast" for all units."""
-    return get_from_leader(f"/api/workers/{unit}/jobs/settings/job_name/{job_name}/setting/{setting}")
-
-
-@mcp.tool()
-@wrap_result_as_dict
 def get_settings_for_job_across_cluster_in_experiment(experiment: str, job_name: str) -> dict:
-    """List settings for a job across the cluster within a given experiment."""
+    """
+    List settings for a job across the cluster within a given experiment.
+
+    Users may ask "list worker settings for <job>",
+    "show global <job> settings", or "get settings for <job> in <experiment>".
+    """
     return get_from_leader(f"/api/experiments/{experiment}/jobs/settings/job_name/{job_name}")
 
 
 @mcp.tool()
 @wrap_result_as_dict
-def get_setting_for_job_across_cluster_in_experiment(experiment: str, job_name: str, setting: str) -> dict:
-    """Get a specific setting for a job across the cluster within a given experiment."""
-    return get_from_leader(
-        f"/api/experiments/{experiment}/jobs/settings/job_name/{job_name}/setting/{setting}"
-    )
-
-
-@mcp.tool()
-@wrap_result_as_dict
 def get_od_readings(experiment: str, filter_mod_N: float = 100.0, lookback: float = 4.0) -> dict:
-    """Get filtered OD vs time readings for all units in an experiment."""
+    """
+    Get filtered OD vs time readings for all units in an experiment.
+
+    Users may request "get OD readings", "show optical density data",
+    or "plot OD vs time" with parameters filter_mod_N and lookback.
+    """
     return get_from_leader(
         f"/api/experiments/{experiment}/time_series/od_readings?filter_mod_N={filter_mod_N}&lookback={lookback}"
     )
@@ -320,7 +396,12 @@ def get_od_readings(experiment: str, filter_mod_N: float = 100.0, lookback: floa
 @mcp.tool()
 @wrap_result_as_dict
 def get_growth_rates(experiment: str, filter_mod_N: float = 100.0, lookback: float = 4.0) -> dict:
-    """Get filtered growth rate vs time readings for all units in an experiment."""
+    """
+    Get filtered growth rate vs time readings for all units in an experiment.
+
+    Common phrases include "get growth rates", "show growth rate data",
+    or "plot growth vs time" using filter_mod_N and lookback parameters.
+    """
     return get_from_leader(
         f"/api/experiments/{experiment}/time_series/growth_rates?filter_mod_N={filter_mod_N}&lookback={lookback}"
     )
@@ -329,7 +410,12 @@ def get_growth_rates(experiment: str, filter_mod_N: float = 100.0, lookback: flo
 @mcp.tool()
 @wrap_result_as_dict
 def get_temperature_readings(experiment: str, lookback: float = 4.0) -> dict:
-    """Get temperature vs time readings for all units in an experiment."""
+    """
+    Get temperature vs time readings for all units in an experiment.
+
+    Users may ask "get temperature readings", "show temperature data",
+    or "plot temperature vs time" with a specified lookback period.
+    """
     return get_from_leader(
         f"/api/experiments/{experiment}/time_series/temperature_readings?lookback={lookback}"
     )
@@ -338,7 +424,12 @@ def get_temperature_readings(experiment: str, lookback: float = 4.0) -> dict:
 @mcp.tool()
 @wrap_result_as_dict
 def get_od_readings_filtered(experiment: str, filter_mod_N: float = 100.0, lookback: float = 4.0) -> dict:
-    """Get filtered OD vs time readings for all units in an experiment."""
+    """
+    Get filtered OD vs time readings for all units in an experiment.
+
+    Similar to get_od_readings but explicitly named 'filtered', users may
+    request "filtered OD readings" or "get OD data filtered" by lookback and mod parameters.
+    """
     return get_from_leader(
         f"/api/experiments/{experiment}/time_series/od_readings_filtered?filter_mod_N={filter_mod_N}&lookback={lookback}"
     )
@@ -347,14 +438,24 @@ def get_od_readings_filtered(experiment: str, filter_mod_N: float = 100.0, lookb
 @mcp.tool()
 @wrap_result_as_dict
 def get_raw_od_readings(experiment: str, lookback: float = 4.0) -> dict:
-    """Get raw OD vs time readings for all units in an experiment."""
+    """
+    Get raw OD vs time readings for all units in an experiment.
+
+    Users may ask "get raw OD readings" or "show unfiltered optical density data"
+    specifying a lookback period.
+    """
     return get_from_leader(f"/api/experiments/{experiment}/time_series/raw_od_readings?lookback={lookback}")
 
 
 @mcp.tool()
 @wrap_result_as_dict
 def list_experiment_profiles() -> dict:
-    """List available experiment profiles (filename, fullpath, and parsed metadata)."""
+    """
+    List available experiment profiles (filename, fullpath, and parsed metadata).
+
+    Users may request "list profiles", "show experiment templates",
+    or "get profile metadata" when preparing experiments.
+    """
     return get_from_leader("/api/contrib/experiment_profiles")
 
 
@@ -365,7 +466,12 @@ def run_experiment_profile(
     experiment: str,
     dry_run: bool = False,
 ) -> dict:
-    """Execute an experiment profile on a unit/worker within an experiment. Can use "$broadcast" for all units. Optionally dry-run."""
+    """
+    Execute an experiment profile on a unit/worker within an experiment.
+
+    Common commands include "run profile <profile>", "execute experiment template",
+    or "apply profile to <unit>", with a "dry-run" option for simulation.
+    """
     options = {"dry-run": None} if dry_run else {}
     args = ["execute", profile, experiment]
     return run_job(unit, "experiment_profile", experiment, options=options, args=args)

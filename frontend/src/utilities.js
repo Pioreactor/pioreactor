@@ -57,13 +57,13 @@ export function getRelabelMap(setCallback, experiment="current") {
 
 
 
-export function runPioreactorJob(unit, experiment, job, args = [], options = {}, configOverrides={}, skipEnv=false) {
+export function runPioreactorJob(unit, experiment, job, args = [], options = {}, configOverrides={}) {
     return fetch(`/api/workers/${unit}/jobs/run/job_name/${job}/experiments/${experiment}`, {
       method: "PATCH",
       body: JSON.stringify({
         args: args,
         options: options,
-        env: (!skipEnv) ? {EXPERIMENT: experiment, JOB_SOURCE: "user"} : {},
+        env: {EXPERIMENT: experiment, JOB_SOURCE: "user"},
         config_overrides: Object.entries(configOverrides).map( ( [parameter, value] ) => [`${job}.config`, parameter, value]),
       }),
       headers: {
@@ -216,4 +216,3 @@ export function objectWithDefaultEmpty(obj) {
     }
   });
 }
-

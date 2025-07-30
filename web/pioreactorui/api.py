@@ -236,7 +236,7 @@ def run_job_on_unit_in_experiment(
                     | {
                         "MODEL_NAME": worker["model_name"] or "Unknown",
                         "MODEL_VERSION": worker["model_version"] or "Unknown",
-                        "ACTIVE": str(worker["is_active"]),
+                        "ACTIVE": str(int(worker["is_active"])),
                     }
                 ),
             }
@@ -1160,15 +1160,6 @@ def get_jobs_running(pioreactor_unit: str) -> DelayedResponseReturnValue:
         return create_task_response(
             tasks.multicast_get_across_cluster("/unit_api/jobs/running", [pioreactor_unit])
         )
-
-
-@api.route("/experiments/<experiment>/jobs/running", methods=["GET"])
-def get_jobs_running_across_cluster_in_experiment(experiment) -> DelayedResponseReturnValue:
-    list_of_assigned_workers = get_all_workers_in_experiment(experiment)
-
-    return create_task_response(
-        tasks.multicast_get_across_cluster("/unit_api/jobs/running", list_of_assigned_workers)
-    )
 
 
 @api.route("/units/<pioreactor_unit>/jobs/discover", methods=["GET"])

@@ -75,7 +75,7 @@ def _extract_additional_settings(cls: type) -> Dict[str, Dict[str, Any]]:
 
 def collect_background_jobs() -> List[Dict[str, Any]]:
     _load_all_modules()
-    merged: Dict[str, Any] = {}
+    entries: List[Dict[str, Any]] = []
     for cls in _all_subclasses(_BackgroundJob):
         job_name = getattr(cls, "job_name", None)
         if not job_name or job_name == "background_job":
@@ -88,41 +88,25 @@ def collect_background_jobs() -> List[Dict[str, Any]]:
             automation_name = getattr(cls, "automation_name", None)
             if not automation_name or automation_name.endswith("_base"):
                 continue
-            job_entry = merged.setdefault(job_name, {"automations": {}})
-            # add a CLI usage example for this job
-            job_entry[
-                "cli_example"
-            ] = f"pio run {job_name} --automation-name {automation_name} --<param> <value>"
-            auto_entry = job_entry["automations"].setdefault(automation_name, {})
-            for key, meta in settings.items():
-                auto_entry.setdefault(key, meta)
+            cli_example = f"pio run {job_name} --automation-name {automation_name} --<settable param> <value>"
+            entry: Dict[str, Any] = {
+                "job_name": job_name,
+                "automation_name": automation_name,
+                "published_settings": settings,
+                "cli_example": cli_example,
+            }
         else:
-            job_entry = merged.setdefault(job_name, {"published_settings": {}})
-            # add a CLI usage example for this job
-            job_entry["cli_example"] = f"pio run {job_name} --<param> <value>"
-            pub = job_entry["published_settings"]
-            for key, meta in settings.items():
-                pub.setdefault(key, meta)
+            cli_example = f"pio run {job_name} --<settable param> <value>"
+            entry = {
+                "job_name": job_name,
+                "published_settings": settings,
+                "cli_example": cli_example,
+            }
+        entries.append(entry)
 
-    output: List[Dict[str, Any]] = []
-    for name, info in merged.items():
-        if "automations" in info:
-            automations = [
-                {
-                    "automation_name": auto_name,
-                    "published_settings": settings,
-                }
-                for auto_name, settings in info["automations"].items()
-            ]
-            entry: Dict[str, Any] = {"job_name": name, "automations": automations}
-        else:
-            entry = {"job_name": name, "published_settings": info["published_settings"]}
-        # include cli_example if available
-        if "cli_example" in info:
-            entry["cli_example"] = info["cli_example"]
-        output.append(entry)
-
-    return output
+    # sort for consistent output
+    entries.sort(key=lambda x: (x["job_name"], x.get("automation_name") or ""))
+    return entries
 
 
 @click.command()
@@ -136,15 +120,14 @@ def main(json_output: bool) -> None:
         click.echo(json.dumps(info, indent=2))
     else:
         for job in info:
-            click.echo(job["job_name"])
-            if "automations" in job:
-                for auto in job["automations"]:
-                    click.echo(f"  automation: {auto['automation_name']}")
-                    for setting, meta in auto["published_settings"].items():
-                        click.echo(f"    - {setting}: {meta}")
-            else:
+            click.echo(f"Job: {job['job_name']}")
+            if job.get("automation_name"):
+                click.echo(f"  Automation: {job['automation_name']}")
+            click.echo(f"  CLI example: {job['cli_example']}")
+            if job.get("published_settings"):
+                click.echo("  Published settings:")
                 for setting, meta in job["published_settings"].items():
-                    click.echo(f"  - {setting}: {meta}")
+                    click.echo(f"    - {setting}: {meta}")
             click.echo()
 
 

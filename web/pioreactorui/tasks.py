@@ -67,7 +67,7 @@ def initialized():
 
 
 @huey.task(priority=10)
-def pio_run(*args: str, env: dict[str, str] = {}, config_overrides: tuple[str] = tuple()) -> bool:
+def pio_run(*args: str, env: dict[str, str] = {}, config_overrides: tuple[str, ...] = tuple()) -> bool:
     # for long running pio run jobs where we don't care about the output / status
     command = ("nohup", PIO_EXECUTABLE, "run") + config_overrides + args
 

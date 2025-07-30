@@ -13,7 +13,6 @@ from time import time
 
 from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
-from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.config import config
 from pioreactor.config import leader_hostname
@@ -58,8 +57,6 @@ def cast_bytes_to_type(value: bytes, type_: str) -> t.Any:
             return value.decode().lower() in ("true", "1", "y", "on", "yes", "t")
         elif type_ == "json":
             return loads(value)
-        elif type_ == "Automation":
-            return loads(value, type=structs.AnyAutomation)  # type: ignore
         raise TypeError(f"{type_} not found.")
     except Exception as e:
         raise e
@@ -864,7 +861,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
         attr = get_attr_from_topic(message.topic)
 
         if attr not in self.published_settings:
-            self.logger.debug(f"Unable to set `{attr}` in {self.job_name}.")
+            self.logger.debug(
+                f"Unable to set `{attr}` in {self.job_name}. `{attr}` is not a published_setting."
+            )
             return
         elif not self.published_settings[attr]["settable"]:
             self.logger.warning(f"Unable to set `{attr}` in {self.job_name}. `{attr}` is read-only.")

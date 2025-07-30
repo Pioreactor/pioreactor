@@ -78,7 +78,6 @@ class PublishableSetting(t.TypedDict, total=False):
             "integer",
             "json",
             "boolean",
-            "Automation",
             "GrowthRate",
             "ODFiltered",
             "Temperature",
