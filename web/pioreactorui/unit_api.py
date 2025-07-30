@@ -457,6 +457,13 @@ def discover_jobs_and_settings_available() -> ResponseReturnValue:
     return jsonify(collect_background_jobs())
 
 
+@unit_api.route("/actions/discover", methods=["GET"])
+def discover_actions_available() -> ResponseReturnValue:
+    from pioreactor.utils.action_inspector import collect_actions
+
+    return jsonify(collect_actions())
+
+
 ### PLUGINS
 
 

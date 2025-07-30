@@ -132,7 +132,6 @@ def post_into_leader(endpoint: str, json: dict | None = None):
 
 def patch_into_leader(endpoint: str, json: dict | None = None) -> dict:
     """Wrapper around `patch_into_leader` to handle errors."""
-    logger.debug(endpoint, json)
     try:
         r = _patch_into_leader(endpoint, json=json)
         r.raise_for_status()
@@ -165,11 +164,22 @@ def list_experiments() -> dict:
 
 @mcp.tool()
 @wrap_result_as_dict
+def list_active_experiments() -> list:
+    """
+    List experiments with at least one active worker assigned.
+
+    Users may ask "list active experiments", "get experiments", etc.
+    """
+    return get_from_leader("/api/experiments/active")
+
+
+@mcp.tool()
+@wrap_result_as_dict
 def list_workers(active_only: bool) -> list:
     """
     Return the cluster inventory (aka workers). If *active_only*, filter by `is_active`.
 
-    Users might phrase this as "list workers", "show units", "get worker list",
+    Users might phrase this as "list pioreactors", "show units", "get worker list",
     or ask "which units are active" through the MCP interface.
     """
     workers = get_from_leader("/api/workers")
@@ -183,10 +193,19 @@ def list_workers_experiment_assignments(active_only: bool) -> list:
     Return the cluster inventory with experiment assignments. If *active_only*, filter by `is_active`.
 
     Common requests include "list worker assignments", "show experiment assignments",
-    or "which units are running experiments" via MCP.
+    or "which pioreactors are running experiments" via MCP.
     """
     workers = get_from_leader("/api/workers/assignments")
     return [w for w in workers if w.get("is_active")] if active_only else workers
+
+
+@mcp.tool()
+@wrap_result_as_dict
+def discover_run_commands() -> list:
+    """
+    List all `pio run` subcommands and their args/options via the leader API.
+    """
+    return get_from_leader("/api/discover")
 
 
 @mcp.tool()
@@ -345,18 +364,6 @@ def shutdown_unit(unit: str) -> dict:
 
 @mcp.tool()
 @wrap_result_as_dict
-def running_jobs_unit_experiment(unit: str, experiment: str) -> dict:
-    """
-    List running jobs on a specific unit within an experiment.
-
-    Common prompts include "list worker jobs for <experiment>",
-    "show running jobs on <unit>", or using "$broadcast" to get all units.
-    """
-    return get_from_leader(f"/api/workers/{unit}/experiments/{experiment}/jobs/running")
-
-
-@mcp.tool()
-@wrap_result_as_dict
 def get_job_settings_for_worker(unit: str, job_name: str) -> dict:
     """
     List settings for a job on a unit/worker.
@@ -475,6 +482,60 @@ def run_experiment_profile(
     options = {"dry-run": None} if dry_run else {}
     args = ["execute", profile, experiment]
     return run_job(unit, "experiment_profile", experiment, options=options, args=args)
+
+
+# ---------------------------------------------------------------------------
+# MCP **tools** for exportable datasets
+# ---------------------------------------------------------------------------
+@mcp.tool()
+@wrap_result_as_dict
+def list_exportable_datasets() -> dict:
+    """
+    List available exportable datasets (dataset_name, description, display_name, etc.).
+
+    Users may ask "list exportable datasets", "show datasets", or "get exportable datasets".
+    """
+    return get_from_leader("/api/contrib/exportable_datasets")
+
+
+@mcp.tool()
+@wrap_result_as_dict
+def preview_exportable_datasets(dataset_name: str, n_rows: int = 5) -> dict:
+    """
+    Preview rows of an exportable dataset.
+
+    Users may request this tool to see a sample of an exportable dataset, specifying
+    the dataset name and number of rows.
+    """
+    return get_from_leader(f"/api/contrib/exportable_datasets/{dataset_name}/preview?n_rows={n_rows}")
+
+
+@mcp.tool()
+@wrap_result_as_dict
+def query_dataset(
+    dataset_name: str,
+    unit: str | None = None,
+    experiment: str | None = None,
+    start_time: str | None = None,
+    end_time: str | None = None,
+) -> dict:
+    """
+    Query a dataset with optional filters. This returns a JSON object with a path to download the csv/zip.
+
+    Users may specify unit, experiment, time bounds to filter the dataset.
+    """
+    payload: Dict[str, Any] = {"dataset_name": dataset_name}
+    if unit:
+        payload["unit"] = unit
+    if experiment:
+        payload["experiment"] = experiment
+    if start_time:
+        payload["start_time"] = start_time
+    if end_time:
+        payload["end_time"] = end_time
+
+    # ask leader to export datasets (returns JSON with `filename` and `msg`)
+    return post_into_leader("/api/contrib/exportable_datasets/export_datasets", json=payload)
 
 
 # MCP **resources** for config: list of config.ini files, config contents, and unit configuration

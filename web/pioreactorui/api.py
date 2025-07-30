@@ -57,6 +57,8 @@ from .utils import DelayedResponseReturnValue
 from .utils import is_valid_unix_filename
 from .utils import scrub_to_valid
 
+# expose discovery of `pio run` commands for automation/agents
+
 AllCalibrations = subclass_union(CalibrationBase)
 
 api = Blueprint("api", __name__, url_prefix="/api")
@@ -88,6 +90,17 @@ def broadcast_delete_across_cluster(endpoint: str, json: dict | None = None) -> 
 def broadcast_patch_across_cluster(endpoint: str, json: dict | None = None) -> Result:
     assert endpoint.startswith("/unit_api")
     return tasks.multicast_patch_across_cluster(endpoint, get_all_workers(), json=json)
+
+
+@api.route("/units/<pioreactor_unit>/actions/discover", methods=["GET"])
+@api.route("/workers/<pioreactor_unit>/actions/discover", methods=["GET"])
+def discover_actions_available(pioreactor_unit) -> ResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        return create_task_response(broadcast_get_across_cluster("/unit_api/actions/discover"))
+    else:
+        return create_task_response(
+            tasks.multicast_get_across_cluster("/unit_api/actions/discover", [pioreactor_unit])
+        )
 
 
 @api.route("/workers/jobs/stop/experiments/<experiment>", methods=["POST", "PATCH"])
@@ -244,6 +257,17 @@ def run_job_on_unit_in_experiment(
         ],
     )
     return create_task_response(t)
+
+
+@api.route("/units/<pioreactor_unit>/jobs/running", methods=["GET"])
+@api.route("/workers/<pioreactor_unit>/jobs/running", methods=["GET"])
+def get_jobs_running(pioreactor_unit: str) -> DelayedResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        return create_task_response(broadcast_get_across_cluster("/unit_api/jobs/running"))
+    else:
+        return create_task_response(
+            tasks.multicast_get_across_cluster("/unit_api/jobs/running", [pioreactor_unit])
+        )
 
 
 @api.route("/workers/<pioreactor_unit>/blink", methods=["POST"])
@@ -1151,17 +1175,6 @@ def uninstall_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseRetu
         )
 
 
-@api.route("/units/<pioreactor_unit>/jobs/running", methods=["GET"])
-@api.route("/workers/<pioreactor_unit>/jobs/running", methods=["GET"])
-def get_jobs_running(pioreactor_unit: str) -> DelayedResponseReturnValue:
-    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        return create_task_response(broadcast_get_across_cluster("/unit_api/jobs/running"))
-    else:
-        return create_task_response(
-            tasks.multicast_get_across_cluster("/unit_api/jobs/running", [pioreactor_unit])
-        )
-
-
 @api.route("/units/<pioreactor_unit>/jobs/discover", methods=["GET"])
 @api.route("/workers/<pioreactor_unit>/jobs/discover", methods=["GET"])
 def discover_jobs_and_settings_available(pioreactor_unit) -> ResponseReturnValue:
@@ -1409,7 +1422,7 @@ def preview_exportable_datasets(target_dataset) -> ResponseReturnValue:
     abort(404, f"{target_dataset} not found")
 
 
-@api.route("/export_datasets", methods=["POST"])
+@api.route("/contrib/exportable_datasets/export_datasets", methods=["POST"])
 def export_datasets() -> ResponseReturnValue:
     body = request.get_json()
 
@@ -2267,6 +2280,34 @@ def get_workers_and_experiment_assignments() -> ResponseReturnValue:
         return attach_cache_control(jsonify(result), max_age=2)
     else:
         return attach_cache_control(jsonify([]), max_age=2)
+
+
+@api.route("/experiments/active", methods=["GET"])
+def get_active_experiments() -> ResponseReturnValue:
+    """Get list of experiments with at least one active worker assigned"""
+    try:
+        # same columns as GET /api/experiments, filtered to experiments with ≥1 active worker
+        result = query_app_db(
+            """
+            SELECT
+              e.experiment,
+              e.created_at,
+              e.description,
+              round((strftime('%s','now') - strftime('%s', e.created_at))/60/60, 0) AS delta_hours
+            FROM experiments e
+            JOIN experiment_worker_assignments a
+              ON e.experiment = a.experiment
+            JOIN workers w
+              ON a.pioreactor_unit = w.pioreactor_unit
+            WHERE w.is_active = 1
+            GROUP BY e.experiment, e.created_at, e.description
+            ORDER BY e.created_at DESC
+            """,
+        )
+        return attach_cache_control(jsonify(result or []), max_age=2)
+    except Exception as e:
+        publish_to_error_log(str(e), "get_active_experiments")
+        abort(500, str(e))
 
 
 @api.route("/workers/assignments", methods=["DELETE"])

@@ -366,7 +366,7 @@ function ExportDataContainer() {
 
     setIsRunning(true)
     setErrorMsg("")
-    fetch('/api/export_datasets',{
+    fetch('/api/contrib/exportable_datasets/export_datasets',{
         method: "POST",
         body: JSON.stringify(state),
         headers: {

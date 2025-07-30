@@ -577,7 +577,7 @@ def click_add_alt_media(
     manually: bool,
 ) -> pt.mL:
     """
-    Remove waste/media from unit
+    Add alt-media from unit
     """
     unit = get_unit_name()
     experiment = get_assigned_experiment_name(unit)
@@ -672,7 +672,7 @@ def click_add_media(
     help="who is calling this function - data goes into database and MQTT",
 )
 def click_circulate_media(
-    duration: Optional[pt.Seconds],
+    duration: pt.Seconds,
     source_of_event: Optional[str],
 ) -> tuple[pt.mL, pt.mL]:
     """
@@ -695,7 +695,7 @@ def click_circulate_media(
     help="who is calling this function - data goes into database and MQTT",
 )
 def click_circulate_alt_media(
-    duration: Optional[pt.Seconds],
+    duration: pt.Seconds,
     source_of_event: Optional[str],
 ) -> tuple[pt.mL, pt.mL]:
     """

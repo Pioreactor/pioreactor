@@ -9,6 +9,7 @@ from subprocess import DEVNULL
 from subprocess import Popen
 from subprocess import run
 from subprocess import STDOUT
+from time import sleep
 from typing import Any
 
 from msgspec import DecodeError
@@ -343,14 +344,32 @@ def write_config_and_sync(
 
 
 @huey.task(priority=10)
-def post_to_worker(
+def post_into_worker(
     worker: str, endpoint: str, json: dict | None = None, params: dict | None = None
 ) -> tuple[str, Any]:
     try:
         address = resolve_to_address(worker)
         r = post_into(address, endpoint, json=json, params=params, timeout=1)
         r.raise_for_status()
-        return worker, r.json() if r.content else None
+
+        if r.content is None:
+            return worker, None
+
+        # delayed result
+        if r.status_code == 202 and "result_url_path" in r.json():
+            sleep(0.1)
+            return _get_from_worker(worker, r.json()["result_url_path"])
+
+        elif r.status_code == 200:
+            if "task_id" in r.json():
+                # result of a delayed response - just provide the result to reduce noise.
+                return worker, r.json()["result"]
+            else:
+                return worker, r.json()
+
+        else:
+            return worker, None
+
     except (HTTPErrorStatus, HTTPException) as e:
         logger.error(
             f"Could not post to {worker}'s {address=}/{endpoint=}, sent {json=} and returned {e}. Check connection? Check port?"
@@ -381,7 +400,7 @@ def multicast_post_across_cluster(
     if not isinstance(params, list):
         params = [params] * len(workers)
 
-    tasks = post_to_worker.map(((workers[i], endpoint, json[i], params[i]) for i in range(len(workers))))
+    tasks = post_into_worker.map(((workers[i], endpoint, json[i], params[i]) for i in range(len(workers))))
 
     return {
         worker: response for (worker, response) in tasks.get(blocking=True, timeout=30)
@@ -392,15 +411,35 @@ def multicast_post_across_cluster(
 def get_from_worker(
     worker: str, endpoint: str, json: dict | None = None, timeout=5.0, return_raw=False
 ) -> tuple[str, Any]:
+    return _get_from_worker(worker, endpoint, json=json, timeout=timeout, return_raw=return_raw)
+
+
+def _get_from_worker(
+    worker: str, endpoint: str, json: dict | None = None, timeout=5.0, return_raw=False
+) -> tuple[str, Any]:
     try:
         address = resolve_to_address(worker)
 
         r = get_from(address, endpoint, json=json, timeout=timeout)
         r.raise_for_status()
-        if not return_raw:
-            return worker, r.json() if r.content else None
-        else:
+
+        if return_raw:
             return worker, r.content or None
+
+        # delayed result
+        if r.status_code == 202 and "result_url_path" in r.json():
+            sleep(0.1)
+            return _get_from_worker(worker, r.json()["result_url_path"])
+
+        elif r.status_code == 200:
+            if "task_id" in r.json():
+                # result of a delayed response - just provide the result to reduce noise.
+                return worker, r.json()["result"]
+            else:
+                return worker, r.json()
+        else:
+            return worker, None
+
     except (HTTPErrorStatus, HTTPException) as e:
         logger.error(
             f"Could not get from {worker}'s {address=}/{endpoint=}, sent {json=} and returned {e}. Check connection? Check port?"
@@ -438,12 +477,29 @@ def multicast_get_across_cluster(
 
 
 @huey.task(priority=10)
-def patch_to_worker(worker: str, endpoint: str, json: dict | None = None) -> tuple[str, Any]:
+def patch_into_worker(worker: str, endpoint: str, json: dict | None = None) -> tuple[str, Any]:
     try:
         address = resolve_to_address(worker)
         r = patch_into(address, endpoint, json=json, timeout=1)
         r.raise_for_status()
-        return worker, r.json() if r.content else None
+
+        if r.content is None:
+            return worker, None
+
+        # delayed result
+        if r.status_code == 202 and "result_url_path" in r.json():
+            sleep(0.1)
+            return _get_from_worker(worker, r.json()["result_url_path"])
+
+        elif r.status_code == 200:
+            if "task_id" in r.json():
+                # result of a delayed response - just provide the result to reduce noise.
+                return worker, r.json()["result"]
+            else:
+                return worker, r.json()
+        else:
+            return worker, None
+
     except (HTTPErrorStatus, HTTPException) as e:
         logger.error(
             f"Could not PATCH to {worker}'s {address=}/{endpoint=}, sent {json=} and returned {e}. Check connection? Check port?"
@@ -463,7 +519,7 @@ def multicast_patch_across_cluster(
     # this function "consumes" one huey thread waiting fyi
     assert endpoint.startswith("/unit_api")
 
-    tasks = patch_to_worker.map(((worker, endpoint, json) for worker in workers))
+    tasks = patch_into_worker.map(((worker, endpoint, json) for worker in workers))
 
     return {
         worker: response for (worker, response) in tasks.get(blocking=True, timeout=30)
