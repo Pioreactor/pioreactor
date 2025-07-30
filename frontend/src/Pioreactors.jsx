@@ -286,7 +286,7 @@ function ButtonStopProcess({experiment}) {
       cancellationButtonProps: {color: "secondary"},
 
       }).then(() =>
-        fetch(`/api/workers/jobs/stop/experiments/${experiment}`, {method: "POST"})
+        fetch(`/api/workers/$broadcast/jobs/stop/experiments/${experiment}`, {method: "POST"})
     ).catch(() => {});
 
   };
@@ -2671,4 +2671,3 @@ function Pioreactors({title}) {
 }
 
 export default Pioreactors;
-
