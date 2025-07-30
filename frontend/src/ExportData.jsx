@@ -368,7 +368,14 @@ function ExportDataContainer() {
     setErrorMsg("")
     fetch('/api/contrib/exportable_datasets/export_datasets',{
         method: "POST",
-        body: JSON.stringify(state),
+        body: JSON.stringify({
+          experiments: state.experimentSelection,
+          partition_by_unit: state.partition_by_unit,
+          partition_by_experiment: state.partitionByExperimentSelection,
+          datasets: state.selectedDatasets,
+          start_time: state.startTime,
+          end_time: state.endTime,
+        }),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'

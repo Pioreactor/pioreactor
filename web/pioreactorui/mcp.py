@@ -201,20 +201,20 @@ def list_workers_experiment_assignments(active_only: bool) -> list:
 
 @mcp.tool()
 @wrap_result_as_dict
-def discover_run_commands() -> list:
+def discover_actions_available(unit: str) -> list:
     """
     List all `pio run` subcommands and their args/options via the leader API.
     """
-    return get_from_leader("/api/discover")
+    return get_from_leader(f"/api/units/{unit}/actions/discover")
 
 
 @mcp.tool()
 @wrap_result_as_dict
-def list_jobs_available(unit: str) -> dict:
+def discover_published_settings_in_jobs(unit: str) -> dict:
     """
-    Return the unit/worker's available jobs that can be run and settings that can be viewed or changed.
+    Return the unit/worker's jobs that can be run and settings that can be viewed or changed.
 
-    Users may ask "what jobs can I run" or "list available jobs", optionally using
+    Users may ask "what jobs can I run" or "list available jobs and settings", optionally using
     "$broadcast" to query all units at once.
     """
     return get_from_leader(f"/api/units/{unit}/jobs/discover")
@@ -256,9 +256,9 @@ def run_job(
 
 
 @mcp.tool()
-def update_job(unit: str, job: str, experiment: str, settings: dict[str, Any]) -> dict:
+def update_job_settings(unit: str, job: str, experiment: str, settings: dict[str, Any]) -> dict:
     """
-    Update settings for a job on a unit/worker within an experiment.
+    Update the active job settings for a job on a unit/worker within an experiment.
 
     Common phrases include "update job <job> to <settings>", "change <setting> in <job>",
     or "set parameters of <job>", with "$broadcast" supported for all units.
@@ -364,7 +364,7 @@ def shutdown_unit(unit: str) -> dict:
 
 @mcp.tool()
 @wrap_result_as_dict
-def get_job_settings_for_worker(unit: str, job_name: str) -> dict:
+def get_active_job_settings_for_worker(unit: str, job_name: str) -> dict:
     """
     List settings for a job on a unit/worker.
 
@@ -376,7 +376,7 @@ def get_job_settings_for_worker(unit: str, job_name: str) -> dict:
 
 @mcp.tool()
 @wrap_result_as_dict
-def get_settings_for_job_across_cluster_in_experiment(experiment: str, job_name: str) -> dict:
+def get_active_settings_for_job_across_cluster_in_experiment(experiment: str, job_name: str) -> dict:
     """
     List settings for a job across the cluster within a given experiment.
 
@@ -514,7 +514,6 @@ def preview_exportable_datasets(dataset_name: str, n_rows: int = 5) -> dict:
 @wrap_result_as_dict
 def query_dataset(
     dataset_name: str,
-    unit: str | None = None,
     experiment: str | None = None,
     start_time: str | None = None,
     end_time: str | None = None,
@@ -522,17 +521,18 @@ def query_dataset(
     """
     Query a dataset with optional filters. This returns a JSON object with a path to download the csv/zip.
 
-    Users may specify unit, experiment, time bounds to filter the dataset.
+    Users may specify experiment, time bounds (iso 8601) to filter the dataset.
     """
-    payload: Dict[str, Any] = {"dataset_name": dataset_name}
-    if unit:
-        payload["unit"] = unit
+    payload: Dict[str, list[str] | str | bool] = {"datasets": [dataset_name]}
     if experiment:
-        payload["experiment"] = experiment
+        payload["experiments"] = [experiment]
     if start_time:
         payload["start_time"] = start_time
     if end_time:
         payload["end_time"] = end_time
+
+    payload["partition_by_unit"] = False
+    payload["partition_by_experiment"] = False
 
     # ask leader to export datasets (returns JSON with `filename` and `msg`)
     return post_into_leader("/api/contrib/exportable_datasets/export_datasets", json=payload)

@@ -57,7 +57,6 @@ from .utils import DelayedResponseReturnValue
 from .utils import is_valid_unix_filename
 from .utils import scrub_to_valid
 
-# expose discovery of `pio run` commands for automation/agents
 
 AllCalibrations = subclass_union(CalibrationBase)
 
@@ -90,17 +89,6 @@ def broadcast_delete_across_cluster(endpoint: str, json: dict | None = None) -> 
 def broadcast_patch_across_cluster(endpoint: str, json: dict | None = None) -> Result:
     assert endpoint.startswith("/unit_api")
     return tasks.multicast_patch_across_cluster(endpoint, get_all_workers(), json=json)
-
-
-@api.route("/units/<pioreactor_unit>/actions/discover", methods=["GET"])
-@api.route("/workers/<pioreactor_unit>/actions/discover", methods=["GET"])
-def discover_actions_available(pioreactor_unit) -> ResponseReturnValue:
-    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        return create_task_response(broadcast_get_across_cluster("/unit_api/actions/discover"))
-    else:
-        return create_task_response(
-            tasks.multicast_get_across_cluster("/unit_api/actions/discover", [pioreactor_unit])
-        )
 
 
 @api.route("/workers/jobs/stop/experiments/<experiment>", methods=["POST", "PATCH"])
@@ -1175,6 +1163,17 @@ def uninstall_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseRetu
         )
 
 
+@api.route("/units/<pioreactor_unit>/actions/discover", methods=["GET"])
+@api.route("/workers/<pioreactor_unit>/actions/discover", methods=["GET"])
+def discover_actions_available(pioreactor_unit) -> ResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        return create_task_response(broadcast_get_across_cluster("/unit_api/actions/discover"))
+    else:
+        return create_task_response(
+            tasks.multicast_get_across_cluster("/unit_api/actions/discover", [pioreactor_unit])
+        )
+
+
 @api.route("/units/<pioreactor_unit>/jobs/discover", methods=["GET"])
 @api.route("/workers/<pioreactor_unit>/jobs/discover", methods=["GET"])
 def discover_jobs_and_settings_available(pioreactor_unit) -> ResponseReturnValue:
@@ -1428,13 +1427,13 @@ def export_datasets() -> ResponseReturnValue:
 
     other_options: list[str] = []
     cmd_tables: list[str] = sum(
-        [["--dataset-name", dataset_name] for dataset_name in body["selectedDatasets"]],
+        [["--dataset-name", dataset_name] for dataset_name in body["datasets"]],
         [],
     )
 
-    experiments: list[str] = body["experimentSelection"]
-    partition_by_unit: bool = body["partitionByUnitSelection"]
-    partition_by_experiment: bool = body["partitionByExperimentSelection"]
+    experiments: list[str] = body["experiments"]
+    partition_by_unit: bool = body["partition_by_unit"]
+    partition_by_experiment: bool = body["partition_by_experiment"]
 
     if partition_by_unit:
         other_options += ["--partition-by-unit"]
@@ -1443,10 +1442,10 @@ def export_datasets() -> ResponseReturnValue:
         other_options += ["--partition-by-experiment"]
 
     # include optional time filters (ISO8601 strings in UTC)
-    if body.get("startTime"):
-        other_options += ["--start-time", body["startTime"]]
-    if body.get("endTime"):
-        other_options += ["--end-time", body["endTime"]]
+    if body.get("start_time"):
+        other_options += ["--start-time", body["start_time"]]
+    if body.get("end_time"):
+        other_options += ["--end-time", body["end_time"]]
 
     timestamp = current_utc_datetime().strftime("%Y%m%d%H%M%S")
     filename = f"export_{timestamp}.zip"
