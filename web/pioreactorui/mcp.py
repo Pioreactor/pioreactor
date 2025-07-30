@@ -260,8 +260,8 @@ def update_job(unit: str, job: str, experiment: str, settings: dict[str, Any]) -
     """
     Update settings for a job on a unit/worker within an experiment.
 
-    Common phrases include "update job settings", "configure <job>",
-    or "set parameters", with "$broadcast" supported for all units.
+    Common phrases include "update job <job> to <settings>", "change <setting> in <job>",
+    or "set parameters of <job>", with "$broadcast" supported for all units.
 
     See `list_jobs_available` for jobs and their settings.
     """
