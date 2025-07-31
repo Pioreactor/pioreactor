@@ -1196,22 +1196,17 @@ def get_job_setting_for_worker(
     pioreactor_unit: str,
     job_name: str,
     setting: str,
-    experiment: str | None = None,
+    experiment: str,
 ) -> DelayedResponseReturnValue:
     endpoint = f"/unit_api/jobs/settings/job_name/{job_name}/setting/{setting}"
-    if experiment is not None:
-        workers = get_all_workers_in_experiment(experiment)
-        if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-            task = tasks.multicast_get_across_cluster(endpoint, workers)
-        else:
-            if pioreactor_unit not in workers:
-                abort(404, f"{pioreactor_unit} not in experiment {experiment}")
-            task = tasks.multicast_get_across_cluster(endpoint, [pioreactor_unit])
+    workers = get_all_workers_in_experiment(experiment)
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        task = tasks.multicast_get_across_cluster(endpoint, workers)
     else:
-        if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-            task = broadcast_get_across_cluster(endpoint)
-        else:
-            task = tasks.multicast_get_across_cluster(endpoint, [pioreactor_unit])
+        if pioreactor_unit not in workers:
+            abort(404, f"{pioreactor_unit} not in experiment {experiment}")
+        task = tasks.multicast_get_across_cluster(endpoint, [pioreactor_unit])
+
     return create_task_response(task)
 
 

@@ -224,39 +224,5 @@ def collect_capabilities() -> list[dict[str, Any]]:
     return caps
 
 
-@click.command()
-@click.option("--json", "json_output", is_flag=True, help="output as JSON")
-def main(json_output: bool) -> None:
-    """List combined job capabilities (help, args, options, settings)."""
-    info = collect_capabilities()
-    if json_output:
-        click.echo(json.dumps(info, indent=2))
-    else:
-        for cap in info:
-            click.echo(f"Job: {cap['job_name']}")
-            if cap.get("automation_name"):
-                click.echo(f"  Automation: {cap['automation_name']}")
-            if cap.get("help"):
-                click.echo(f"  Help: {cap['help']}")
-            click.echo(f"  CLI example: {cap['cli_example']}")
-            if cap.get("arguments"):
-                click.echo("  Arguments:")
-                for arg in cap["arguments"]:
-                    click.echo(
-                        f"    - name: {arg['name']}, nargs: {arg['nargs']}, required: {arg['required']}, type: {arg['type']}"
-                    )
-            if cap.get("options"):
-                click.echo("  Options:")
-                for opt in cap["options"]:
-                    click.echo(
-                        f"    - name: {opt['name']}, opts: {opt['opts']}, required: {opt['required']}, multiple: {opt['multiple']}, default: {opt['default']}, type: {opt['type']}, help: {opt['help']}"
-                    )
-            if cap.get("published_settings"):
-                click.echo("  Published settings:")
-                for setting, meta in cap["published_settings"].items():
-                    click.echo(f"    - {setting}: {meta}")
-            click.echo()
-
-
 if __name__ == "__main__":
-    main()
+    json.dumps(collect_capabilities(), indent=2)
