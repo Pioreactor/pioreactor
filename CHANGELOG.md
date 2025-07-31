@@ -10,6 +10,7 @@ Some big changes internally
  - ideally, if a published setting is settable: true, there should be a cli option to set it.
  - adding mcp server
  - removed `/api/workers/jobs/stop/experiments/<exp>`, use `/api/workers/$broadcast/jobs/stop/experiments/<exp>` instead.
+ - removed `/api/experiments/<experiment>/jobs/settings/job_name/<job_name>`, use `/workers/$broadcast/jobs/settings/job_name/<job_name>/experiments/<experiment>`
 
 ### 25.7.2
 

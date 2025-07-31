@@ -1149,8 +1149,8 @@ def uninstall_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseRetu
         )
 
 
-@api.route("/units/<pioreactor_unit>/actions/discover", methods=["GET"])
-@api.route("/workers/<pioreactor_unit>/actions/discover", methods=["GET"])
+@api.route("/units/<pioreactor_unit>/capabilities", methods=["GET"])
+@api.route("/workers/<pioreactor_unit>/capabilities", methods=["GET"])
 def get_capabilities(pioreactor_unit) -> ResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         return create_task_response(broadcast_get_across_cluster("/unit_api/capabilities"))
@@ -1163,39 +1163,24 @@ def get_capabilities(pioreactor_unit) -> ResponseReturnValue:
 ### SETTINGS
 
 
-@api.route("/experiments/<experiment>/jobs/settings/job_name/<job_name>", methods=["GET"])
-def get_settings_for_job_across_cluster_in_experiment(
-    experiment: str, job_name: str
+@api.route(
+    "/workers/<pioreactor_unit>/jobs/settings/job_name/<job_name>/experiments/<experiment>", methods=["GET"]
+)
+def get_job_settings_for_worker(
+    pioreactor_unit: str,
+    job_name: str,
+    experiment: str,
 ) -> DelayedResponseReturnValue:
-    list_of_assigned_workers = get_all_workers_in_experiment(experiment)
-    return create_task_response(
-        tasks.multicast_get_across_cluster(
-            f"/unit_api/jobs/settings/job_name/{job_name}", list_of_assigned_workers
-        )
-    )
+    endpoint = f"/unit_api/jobs/settings/job_name/{job_name}"
 
-
-@api.route("/experiments/<experiment>/jobs/settings/job_name/<job_name>/setting/<setting>", methods=["GET"])
-def get_setting_for_job_across_cluster_in_experiment(
-    experiment: str, job_name: str, setting: str
-) -> DelayedResponseReturnValue:
-    list_of_assigned_workers = get_all_workers_in_experiment(experiment)
-    return create_task_response(
-        tasks.multicast_get_across_cluster(
-            f"/unit_api/jobs/settings/job_name/{job_name}/setting/{setting}",
-            list_of_assigned_workers,
-        )
-    )
-
-
-@api.route("/workers/<pioreactor_unit>/jobs/settings/job_name/<job_name>", methods=["GET"])
-def get_job_settings_for_worker(pioreactor_unit: str, job_name: str) -> DelayedResponseReturnValue:
+    workers = get_all_workers_in_experiment(experiment)
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        task = broadcast_get_across_cluster(f"/unit_api/jobs/settings/job_name/{job_name}")
+        task = tasks.multicast_get_across_cluster(endpoint, workers)
     else:
-        task = tasks.multicast_get_across_cluster(
-            f"/unit_api/jobs/settings/job_name/{job_name}", [pioreactor_unit]
-        )
+        if pioreactor_unit not in workers:
+            abort(404, f"{pioreactor_unit} not in experiment {experiment}")
+        task = tasks.multicast_get_across_cluster(endpoint, [pioreactor_unit])
+
     return create_task_response(task)
 
 
@@ -1203,15 +1188,30 @@ def get_job_settings_for_worker(pioreactor_unit: str, job_name: str) -> DelayedR
     "/workers/<pioreactor_unit>/jobs/settings/job_name/<job_name>/setting/<setting>",
     methods=["GET"],
 )
+@api.route(
+    "/workers/<pioreactor_unit>/jobs/settings/job_name/<job_name>/setting/<setting>/experiments/<experiment>",
+    methods=["GET"],
+)
 def get_job_setting_for_worker(
-    pioreactor_unit: str, job_name: str, setting: str
+    pioreactor_unit: str,
+    job_name: str,
+    setting: str,
+    experiment: str | None = None,
 ) -> DelayedResponseReturnValue:
-    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        task = broadcast_get_across_cluster(f"/unit_api/jobs/settings/job_name/{job_name}/setting/{setting}")
+    endpoint = f"/unit_api/jobs/settings/job_name/{job_name}/setting/{setting}"
+    if experiment is not None:
+        workers = get_all_workers_in_experiment(experiment)
+        if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+            task = tasks.multicast_get_across_cluster(endpoint, workers)
+        else:
+            if pioreactor_unit not in workers:
+                abort(404, f"{pioreactor_unit} not in experiment {experiment}")
+            task = tasks.multicast_get_across_cluster(endpoint, [pioreactor_unit])
     else:
-        task = tasks.multicast_get_across_cluster(
-            f"/unit_api/jobs/settings/job_name/{job_name}/setting/{setting}", [pioreactor_unit]
-        )
+        if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+            task = broadcast_get_across_cluster(endpoint)
+        else:
+            task = tasks.multicast_get_across_cluster(endpoint, [pioreactor_unit])
     return create_task_response(task)
 
 

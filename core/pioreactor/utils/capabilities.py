@@ -115,41 +115,50 @@ def collect_background_jobs() -> List[Dict[str, Any]]:
     return entries
 
 
+def generate_command_metadata(cmd, name):
+    entry: Dict[str, Any] = {
+        "name": name,
+        "help": (cmd.help or "").strip(),
+        "arguments": [],
+        "options": [],
+    }
+
+    for param in cmd.params:
+        if isinstance(param, click.Argument):
+            entry["arguments"].append(
+                {
+                    "name": param.name,
+                    "nargs": param.nargs,
+                    "required": param.required,
+                    "type": getattr(param.type, "name", str(param.type)),
+                }
+            )
+        elif isinstance(param, click.Option):
+            entry["options"].append(
+                {
+                    "name": param.name,
+                    "opts": param.opts,
+                    "help": param.help or "",
+                    "required": param.required,
+                    "multiple": param.multiple,
+                    # avoid click.get_default needing a Context (ctx=None would break)
+                    "default": param.default,
+                    "type": getattr(param.type, "name", str(param.type)),
+                }
+            )
+    return entry
+
+
 def collect_actions() -> List[Dict[str, Any]]:
     """Collect all subcommands under `pio run` and their parameters."""
     entries: List[Dict[str, Any]] = []
-    for name, cmd in sorted(run.commands.items(), key=lambda x: x[0]):
-        entry: Dict[str, Any] = {
-            "name": name,
-            "help": (cmd.help or "").strip(),
-            "arguments": [],
-            "options": [],
-        }
-        for param in cmd.params:
-            if isinstance(param, click.Argument):
-                entry["arguments"].append(
-                    {
-                        "name": param.name,
-                        "nargs": param.nargs,
-                        "required": param.required,
-                        "type": getattr(param.type, "name", str(param.type)),
-                    }
-                )
-            elif isinstance(param, click.Option):
-                entry["options"].append(
-                    {
-                        "name": param.name,
-                        "opts": param.opts,
-                        "help": param.help or "",
-                        "required": param.required,
-                        "multiple": param.multiple,
-                        # avoid click.get_default needing a Context (ctx=None would break)
-                        "default": param.default,
-                        "type": getattr(param.type, "name", str(param.type)),
-                    }
-                )
+    for name, cmd in run.commands.items():
+        if isinstance(cmd, click.Group):
+            for sub_name, sub_cmd in cmd.commands.items():
+                entries.append(generate_command_metadata(sub_cmd, name + " " + sub_name))
+        else:
+            entries.append(generate_command_metadata(cmd, name))
 
-        entries.append(entry)
     return entries
 
 

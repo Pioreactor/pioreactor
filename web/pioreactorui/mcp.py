@@ -160,9 +160,6 @@ def get_experiments(active_only: bool) -> dict:
     List experiments (name, creation timestamp, description, hours since creation).
 
     If active_only, list experiments with at least one active worker assigned.
-
-    Users may ask for this tool with phrases like "list experiments", "show experiments",
-    or "get experiments" when interacting via MCP.
     """
     if active_only:
         return get_from_leader("/api/experiments/active")
@@ -177,7 +174,7 @@ def get_workers(active_only: bool) -> list:
     Return the worker inventory with experiment assignments. If *active_only*, filter by `is_active`.
 
     Common requests include "list worker assignments", "list pioreactors", "list cluster inventory"
-    or "which pioreactors are running experiments" via MCP.
+    or "which pioreactors are running experiments".
     """
     workers = get_from_leader("/api/workers/assignments")
     return [w for w in workers if w.get("is_active")] if active_only else workers
@@ -185,11 +182,25 @@ def get_workers(active_only: bool) -> list:
 
 @mcp.tool()
 @wrap_result_as_dict
-def get_unit_capabilties(unit: str) -> list:
+def get_unit_capabilties(unit: str, condensed: bool = False) -> list:
     """
-    List all `pio run` subcommands and their args/options, and published settings
+    List all `pio run` subcommands and their args/options, and published settings.
+
+    If condensed is True, return a summary of each capability including only
+    the job name, automation name (if any), and lists of argument and option names.
     """
-    return get_from_leader(f"/api/units/{unit}/capabilities")
+    caps = get_from_leader(f"/api/units/{unit}/capabilities")
+    if condensed:
+        condensed_caps: list[dict[str, Any]] = []
+        for cap in caps:
+            entry: dict[str, Any] = {"job_name": cap.get("job_name")}
+            if cap.get("automation_name"):
+                entry["automation_name"] = cap["automation_name"]
+            entry["arguments"] = [arg.get("name") for arg in cap.get("arguments", [])]
+            entry["options"] = [opt.get("name") for opt in cap.get("options", [])]
+            condensed_caps.append(entry)
+        return condensed_caps
+    return caps
 
 
 @mcp.tool()
@@ -202,9 +213,8 @@ def run_job_or_action(
     config_overrides: List[List[str]] | None = None,
 ) -> dict:
     """
-    Launch an action or job on a *unit/worker* within *experiment* via the leader REST API.
+    Launch an action or job on a *unit/worker* within *experiment*.
 
-    Users might say "run job", "start <job> on worker <unit>".
     Use "$broadcast" to start jobs across all units simultaneously in that experiment.
 
     Parameters:
@@ -230,11 +240,7 @@ def run_job_or_action(
 @mcp.tool()
 def update_job_settings(unit: str, job: str, experiment: str, settings: dict[str, Any]) -> dict:
     """
-    Update the active job settings for a job on a unit/worker within an experiment.
-
-    Common phrases include "update job <job> to <settings>", "change <setting> in <job>",
-    or "set parameters of <job>".
-
+    Update the current settings for a job on a unit/worker within an experiment.
     Target all units with "$broadcast".
     """
     return patch_into_leader(
@@ -246,9 +252,9 @@ def update_job_settings(unit: str, job: str, experiment: str, settings: dict[str
 @mcp.tool()
 def stop_job(experiment: str, job: str | None, unit: str = "$broadcast") -> dict:
     """
-    Stop jobs based on provided parameters. If no parameters are given, stop all jobs.
+    Stop running jobs. If `job` parameter is None, stop all jobs in the experiment.
 
-    Users may say "stop all jobs", "stop job <job>", "stop unit <unit> jobs",
+    Users may say "stop all jobs", "stop job <job> in <experiment>", "stop unit <unit> jobs",
     or "stop all jobs in experiment <experiment>".
     """
     if job is None:
@@ -259,14 +265,10 @@ def stop_job(experiment: str, job: str | None, unit: str = "$broadcast") -> dict
 
 @mcp.tool()
 @wrap_result_as_dict
-def get_running_jobs(unit: str) -> dict:
+def get_jobs_running(unit: str) -> dict:
     """
-        Return list of running jobs on *unit/worker*.
-
-        Common queries include "what jobs are running", "list active jobs".
-    e
-        Target all units with "$broadcast".
-
+    Return list of running jobs on *unit/worker*.
+    Target all units with "$broadcast".
     """
     return get_from_leader(f"/api/workers/{unit}/jobs/running")
 
@@ -276,9 +278,6 @@ def get_running_jobs(unit: str) -> dict:
 def get_recent_experiment_logs(experiment: str, lines: int = 50) -> dict:
     """
     Tail the last `lines` of logs for a given experiment.
-
-    Users may request "show logs", "tail logs", or "get recent logs",
-    specifying the number of lines to retrieve.
     """
     return get_from_leader(f"/api/experiments/{experiment}/recent_logs?lines={lines}")
 
@@ -288,7 +287,6 @@ def blink(unit: str) -> dict:
     """
     Blink the onboard blue LED of a specific unit.
     Target all units with "$broadcast".
-
     """
     return post_into_leader(f"/api/workers/{unit}/blink")
 
@@ -296,10 +294,7 @@ def blink(unit: str) -> dict:
 @mcp.tool()
 def reboot_unit(unit: str) -> dict:
     """
-    Reboot a specific unit/worker.
-
-    Users may command "reboot unit", "restart device", or "restart unit".
-
+    Reboot/restart a specific unit/worker.
     Target all units with "$broadcast".
 
     """
@@ -310,9 +305,6 @@ def reboot_unit(unit: str) -> dict:
 def shutdown_unit(unit: str) -> dict:
     """
     Shutdown a specific unit/worker.
-
-    Common commands include "shutdown unit", "power off device", or "stop unit".
-
     Target all units with "$broadcast".
     """
     return post_into_leader(f"/api/units/{unit}/system/shutdown")
@@ -320,29 +312,13 @@ def shutdown_unit(unit: str) -> dict:
 
 @mcp.tool()
 @wrap_result_as_dict
-def get_active_job_settings_for_worker(unit: str, job_name: str) -> dict:
+def get_current_job_settings_for_worker(unit: str, job_name: str, experiment: str) -> dict:
     """
     List settings for a job on a unit/worker.
 
-    Users often ask "show job settings", "get settings for <job>".
-
     Target all units with "$broadcast".
-
-
     """
-    return get_from_leader(f"/api/workers/{unit}/jobs/settings/job_name/{job_name}")
-
-
-@mcp.tool()
-@wrap_result_as_dict
-def get_active_settings_for_job_across_cluster_in_experiment(experiment: str, job_name: str) -> dict:
-    """
-    List settings for a job across the cluster within a given experiment.
-
-    Users may ask "list worker settings for <job>",
-    "show global <job> settings", or "get settings for <job> in <experiment>".
-    """
-    return get_from_leader(f"/api/experiments/{experiment}/jobs/settings/job_name/{job_name}")
+    return get_from_leader(f"/api/workers/{unit}/jobs/settings/job_name/{job_name}/experiments/{experiment}")
 
 
 @mcp.tool()
@@ -352,9 +328,6 @@ def get_experiment_profiles() -> dict:
     Profiles are pre-defined "scripts" that execute commands as certain times (like a recipe.)
 
     List available experiment profiles (filename, fullpath, and parsed metadata).
-
-    Users may request "list profiles", "show experiment templates",
-    or "get profile metadata" when preparing experiments.
     """
     return get_from_leader("/api/contrib/experiment_profiles")
 
@@ -370,8 +343,6 @@ def run_experiment_profile(
     Profiles are pre-defined "scripts" that execute commands as certain times (like a recipe.)
 
     Execute an experiment profile on a unit/worker within an experiment.
-
-    Common commands include "run profile <profile>", "execute experiment profile X",
     """
     options = {"dry-run": None} if dry_run else {}
     args = ["execute", profile, experiment]
