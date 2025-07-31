@@ -21,7 +21,6 @@ Running it standalone for local testing is still possible (`python mcp_blueprint
 from __future__ import annotations
 
 import logging
-import os
 import sys
 from functools import wraps
 from queue import Empty
@@ -32,7 +31,6 @@ from typing import Dict
 from typing import List
 
 from flask import Blueprint
-from flask import Flask
 from flask import jsonify
 from flask import request
 from mcp_utils.core import MCPServer
@@ -414,13 +412,3 @@ def handle_mcp():
     payload = request.get_json(force=True, silent=False)
     result = mcp.handle_message(payload)
     return jsonify(result.model_dump(exclude_none=True))
-
-
-if __name__ == "__main__":
-
-    def _create_dev_app() -> Flask:
-        app = Flask(__name__)
-        app.register_blueprint(mcp_bp)
-        return app
-
-    _create_dev_app().run(host="0.0.0.0", port=int(os.getenv("MCP_PORT", "9040")))
