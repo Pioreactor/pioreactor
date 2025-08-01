@@ -84,6 +84,7 @@ def initialized():
     logger.info(f"Cache directory = {CACHE_DIR}")
 
 
+@huey.task()
 def pio_run(
     *args: str,
     env: dict[str, str] | None = None,
@@ -92,15 +93,15 @@ def pio_run(
 ) -> bool:
     command = (PIO_EXECUTABLE, "run") + config_overrides + args
 
-    # only allow whitelisted env vars
-    safe_env = {k: v for k, v in (env or {}).items() if k in ALLOWED_ENV}
+    env = {k: v for k, v in (env or {}).items() if k in ALLOWED_ENV}
 
-    logger.info("Executing %r, env=%r", command, safe_env)
+    logger.info(f"Executing `{join(command)}`, {env=}")
+
     try:
         proc = Popen(
             command,
             start_new_session=True,  # detach from our session
-            env=(dict(os.environ) | safe_env),
+            env=(dict(os.environ) | env),
             stdin=DEVNULL,
             stdout=DEVNULL,
             stderr=DEVNULL,
