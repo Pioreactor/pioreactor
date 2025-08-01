@@ -189,6 +189,7 @@ def _condense_capabilities(capabilities: list[dict[str, Any]] | None) -> list[di
     if capabilities is None:
         return condensed_caps
 
+    print(capabilities)
     for cap in capabilities:
         entry: dict[str, Any] = {"job_name": cap.get("job_name")}
         if cap.get("automation_name"):
@@ -209,12 +210,7 @@ def get_unit_capabilties(unit: str, condensed: bool = False) -> list:
     the job name, automation name (if any), and lists of argument and option names.
     """
     caps = get_from_leader(f"/api/units/{unit}/capabilities")
-    if unit == UNIVERSAL_IDENTIFIER:
-        return (
-            caps if not condensed else {unit: _condense_capabilities(_caps) for unit, _caps in caps.items()}
-        )
-    else:
-        return caps if not condensed else _condense_capabilities(caps)
+    return caps if not condensed else {unit: _condense_capabilities(_caps) for unit, _caps in caps.items()}
 
 
 @mcp.tool()
