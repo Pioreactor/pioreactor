@@ -11,7 +11,6 @@ import importlib
 import inspect
 import json
 import pkgutil
-from pathlib import Path
 from typing import Any
 from typing import Dict
 from typing import List
@@ -26,13 +25,7 @@ from pioreactor.cli.run import run  # noqa: ensure commands and plugins are load
 def _load_all_modules() -> None:
     """Import all modules under the ``pioreactor`` package."""
 
-    plugins_dev = Path("plugins_dev").resolve()
-
     for module in pkgutil.walk_packages(pioreactor.__path__, pioreactor.__name__ + "."):  # type: ignore
-        # skip any modules that originate from plugins_dev
-        if plugins_dev in Path(module.module_finder.path).resolve().parents:  # type: ignore
-            continue
-
         try:
             importlib.import_module(module.name)
         except Exception:
@@ -43,9 +36,6 @@ def _load_all_modules() -> None:
 def _all_subclasses(cls: type) -> set[type]:
     subclasses = set()
     for sub in cls.__subclasses__():
-        if sub.__qualname__.endswith("Contrib"):
-            continue
-        # print(sub.__qualname__)
         subclasses.add(sub)
         subclasses.update(_all_subclasses(sub))
     return subclasses
@@ -208,14 +198,15 @@ def collect_capabilities() -> list[dict[str, Any]]:
     for act in actions:
         name = act.get("name")
         if name not in job_names:
+            arguments = act.get("arguments", [])
             caps.append(
                 {
                     "job_name": name,
                     "help": act.get("help", ""),
-                    "arguments": act.get("arguments", []),
+                    "arguments": arguments,
                     "options": act.get("options", []),
                     "published_settings": {},
-                    "cli_example": f"pio run {name} [OPTIONS]",
+                    "cli_example": f"pio run {name} {' '.join([a['name'].upper() for a in arguments]) } [OPTIONS]",
                 }
             )
 
@@ -225,4 +216,4 @@ def collect_capabilities() -> list[dict[str, Any]]:
 
 
 if __name__ == "__main__":
-    json.dumps(collect_capabilities(), indent=2)
+    click.echo(json.dumps(collect_capabilities(), indent=2))

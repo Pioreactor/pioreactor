@@ -182,7 +182,7 @@ def export_experiment_data(
 
     logger = create_logger("export_experiment_data", experiment="$experiment")
     logger.info(
-        f"Starting export of dataset{'s' if len(dataset_names) > 1 else ''}: {', '.join(dataset_names)}."
+        f"Starting export of dataset{'s' if len(dataset_names) > 1 else ''}: {', '.join(dataset_names)} to {output}."
     )
 
     time = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -309,7 +309,7 @@ def export_experiment_data(
                 zf.write(path_to_file, arcname=f"{dataset_name}/{path_to_file.name}")
                 path_to_file.unlink()
 
-    logger.info("Finished export.")
+    logger.info(f"Finished export to {output}.")
     return
 
 
