@@ -39,6 +39,7 @@ from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import get_from_leader as _get_from_leader
 from pioreactor.pubsub import patch_into_leader as _patch_into_leader
 from pioreactor.pubsub import post_into_leader as _post_into_leader
+from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 from . import query_app_db
 
@@ -178,6 +179,26 @@ def get_workers(active_only: bool) -> list:
     return [w for w in workers if w.get("is_active")] if active_only else workers
 
 
+def _condense_capabilities(capabilities: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+    """
+    Condense capabilities to a summary format with job name, automation name (if any),
+    and lists of argument and option names.
+    """
+    condensed_caps: list[dict[str, Any]] = []
+
+    if capabilities is None:
+        return condensed_caps
+
+    for cap in capabilities:
+        entry: dict[str, Any] = {"job_name": cap.get("job_name")}
+        if cap.get("automation_name"):
+            entry["automation_name"] = cap["automation_name"]
+        entry["arguments"] = [arg.get("name") for arg in cap.get("arguments", [])]
+        entry["options"] = [opt.get("name") for opt in cap.get("options", [])]
+        condensed_caps.append(entry)
+    return condensed_caps
+
+
 @mcp.tool()
 @wrap_result_as_dict
 def get_unit_capabilties(unit: str, condensed: bool = False) -> list:
@@ -188,17 +209,12 @@ def get_unit_capabilties(unit: str, condensed: bool = False) -> list:
     the job name, automation name (if any), and lists of argument and option names.
     """
     caps = get_from_leader(f"/api/units/{unit}/capabilities")
-    if condensed:
-        condensed_caps: list[dict[str, Any]] = []
-        for cap in caps:
-            entry: dict[str, Any] = {"job_name": cap.get("job_name")}
-            if cap.get("automation_name"):
-                entry["automation_name"] = cap["automation_name"]
-            entry["arguments"] = [arg.get("name") for arg in cap.get("arguments", [])]
-            entry["options"] = [opt.get("name") for opt in cap.get("options", [])]
-            condensed_caps.append(entry)
-        return condensed_caps
-    return caps
+    if unit == UNIVERSAL_IDENTIFIER:
+        return (
+            caps if not condensed else {unit: _condense_capabilities(_caps) for unit, _caps in caps.items()}
+        )
+    else:
+        return caps if not condensed else _condense_capabilities(caps)
 
 
 @mcp.tool()
@@ -248,9 +264,10 @@ def update_job_settings(unit: str, job: str, experiment: str, settings: dict[str
 
 
 @mcp.tool()
-def stop_job(experiment: str, job: str | None, unit: str = "$broadcast") -> dict:
+def stop_job(experiment: str, job: str | None, unit: str = UNIVERSAL_IDENTIFIER) -> dict:
     """
-    Stop running jobs. If `job` parameter is None, stop all jobs in the experiment.
+    Stop running jobs. If `job` parameter is None, stop all jobs associated the experiment for the unit.
+    Use the unit param to scope to individual units, or all units in the experiment.
 
     Users may say "stop all jobs", "stop job <job> in <experiment>", "stop unit <unit> jobs",
     or "stop all jobs in experiment <experiment>".
