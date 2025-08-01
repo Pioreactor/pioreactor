@@ -384,21 +384,21 @@ def db_query_table(table_name: str, limit: int = 100, offset: int = 0) -> list:
     return rows
 
 
-# MCP **resources** for config: list of config.ini files, config contents, and unit configuration
-# ---------------------------------------------------------------------------
-@mcp.resource(path="configs", name="get_config_inis")
+@mcp.tool()
+@wrap_result_as_dict
 def get_config_inis() -> dict:
     """List available config.ini files (global and unit-specific)."""
     return get_from_leader("/api/configs")
 
 
-@mcp.resource(path="configs/{filename}", name="get_config_ini")
+@mcp.tool()
+@wrap_result_as_dict
 def get_config_ini(filename: str) -> dict:
     """Retrieve the contents of a specific config.ini file."""
     return get_from_leader(f"/api/configs/{filename}")
 
 
-@mcp.resource(path="units/{unit}/configuration", name="get_unit_configuration")
+@mcp.tool()
 def get_unit_configuration(unit: str) -> dict:
     """Get merged configuration for a given unit (global and unit-specific)."""
     return get_from_leader(f"/api/units/{unit}/configuration")
