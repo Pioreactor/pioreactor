@@ -189,13 +189,14 @@ def _condense_capabilities(capabilities: list[dict[str, Any]] | None) -> list[di
     if capabilities is None:
         return condensed_caps
 
-    print(capabilities)
     for cap in capabilities:
-        entry: dict[str, Any] = {"job_name": cap.get("job_name")}
+        entry: dict[str, Any] = {"job_name": cap["job_name"]}
         if cap.get("automation_name"):
             entry["automation_name"] = cap["automation_name"]
-        entry["arguments"] = [arg.get("name") for arg in cap.get("arguments", [])]
-        entry["options"] = [opt.get("name") for opt in cap.get("options", [])]
+        entry["arguments"] = [arg["name"] for arg in cap.get("arguments", [])]
+        entry["options"] = [
+            opt["opts"][0].rstrip("-") for opt in cap.get("options", [])
+        ]  # don't use name, it is not case-sensitive
         condensed_caps.append(entry)
     return condensed_caps
 

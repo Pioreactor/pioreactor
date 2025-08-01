@@ -8,7 +8,7 @@ from subprocess import check_call
 from subprocess import DEVNULL
 from subprocess import Popen
 from subprocess import run
-from subprocess import STDOUT
+from subprocess import TimeoutExpired
 from time import sleep
 from typing import Any
 
@@ -84,15 +84,41 @@ def initialized():
     logger.info(f"Cache directory = {CACHE_DIR}")
 
 
-@huey.task(priority=10)
-def pio_run(*args: str, env: dict[str, str] = {}, config_overrides: tuple[str, ...] = tuple()) -> bool:
-    # for long running pio run jobs where we don't care about the output / status
-    command = ("nohup", PIO_EXECUTABLE, "run") + config_overrides + args
+def pio_run(
+    *args: str,
+    env: dict[str, str] | None = None,
+    config_overrides: tuple[str, ...] = (),
+    grace_s: float = 0.75,  # how long to watch for "fast-fail"
+) -> bool:
+    command = (PIO_EXECUTABLE, "run") + config_overrides + args
 
-    env = {k: v for k, v in (env or {}).items() if k in ALLOWED_ENV}
-    logger.info(f"Executing `{join(command)}`, {env=}")
-    Popen(command, start_new_session=True, env=dict(os.environ) | env, stdout=DEVNULL, stderr=STDOUT)
-    return True
+    # only allow whitelisted env vars
+    safe_env = {k: v for k, v in (env or {}).items() if k in ALLOWED_ENV}
+
+    logger.info("Executing %r, env=%r", command, safe_env)
+    try:
+        proc = Popen(
+            command,
+            start_new_session=True,  # detach from our session
+            env=(dict(os.environ) | safe_env),
+            stdin=DEVNULL,
+            stdout=DEVNULL,
+            stderr=DEVNULL,
+            close_fds=True,
+        )
+    except Exception:
+        logger.exception("Failed to spawn %r", command)
+        return False
+
+    # If it exits during the grace window, it probably failed fast (e.g., bad args).
+    try:
+        rc = proc.wait(timeout=grace_s)
+    except TimeoutExpired:
+        # Still running after the grace window: treat as "started successfully".
+        return True
+    else:
+        logger.warning("Process exited early (rc=%s) for %r", rc, command)
+        return False
 
 
 @huey.task()
