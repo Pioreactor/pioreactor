@@ -63,7 +63,7 @@ def test_generate_command_metadata():
     assert entry["options"] == [
         {
             "name": "opt",
-            "opts": ["--opt", "-o"],
+            "long_flag": "--opt",
             "help": "option help",
             "required": False,
             "multiple": True,

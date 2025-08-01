@@ -2,7 +2,7 @@
 """Utility for introspecting combined job and action capabilities.
 
 Example:
-    python -m core.pioreactor.utils.capabilities --json
+    python -m core.pioreactor.utils.capabilities
 """
 from __future__ import annotations
 
@@ -127,7 +127,7 @@ def generate_command_metadata(cmd, name):
             entry["options"].append(
                 {
                     "name": param.name,
-                    "long_flag": param.opts[0],
+                    "long_flag": param.opts[0].lstrip("-"),
                     "help": param.help or "",
                     "required": param.required,
                     "multiple": param.multiple,
@@ -174,7 +174,7 @@ def collect_capabilities() -> list[dict[str, Any]]:
                     options.append(
                         {
                             "name": setting,
-                            "long_flag": f"--{flag}",
+                            "long_flag": f"{flag}",
                             "help": "",
                             "required": False,
                             "multiple": False,
@@ -206,7 +206,7 @@ def collect_capabilities() -> list[dict[str, Any]]:
                     "arguments": arguments,
                     "options": act.get("options", []),
                     "published_settings": {},
-                    "cli_example": f"pio run {name} {' '.join([a['name'].upper() for a in arguments]) } [OPTIONS]",
+                    "cli_example": f"pio run {name} {' '.join([a['name'].upper() for a in arguments]) }[OPTIONS]",
                 }
             )
 
