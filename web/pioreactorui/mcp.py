@@ -149,9 +149,6 @@ def patch_into_leader(endpoint: str, json: dict | None = None) -> dict:
         raise
 
 
-# ---------------------------------------------------------------------------
-# MCP **tools** (thin wrappers around existing REST routes)
-# ---------------------------------------------------------------------------
 @mcp.tool()
 @wrap_result_as_dict
 def get_experiments(active_only: bool) -> dict:
@@ -195,7 +192,7 @@ def _condense_capabilities(capabilities: list[dict[str, Any]] | None) -> list[di
             entry["automation_name"] = cap["automation_name"]
         entry["arguments"] = [arg["name"] for arg in cap.get("arguments", [])]
         entry["options"] = [
-            opt["opts"][0].rstrip("-") for opt in cap.get("options", [])
+            opt["long_flag"] for opt in cap.get("options", [])
         ]  # don't use name, it is not case-sensitive
         condensed_caps.append(entry)
     return condensed_caps
@@ -230,10 +227,10 @@ def run_job_or_action(
 
     Parameters:
         unit: target unit name (or "$broadcast" to address all units).
-        job_or_action: name of the job to run. See `discover_actions_available` for options.
+        job_or_action: name of the job to run. See `get_unit_capabilties` for all jobs and moreHo .
         experiment: experiment identifier under which to launch the job.
-        options: dict of job-specific options for the job entrypoint.
-        args: list of positional arguments for the job entrypoint.
+        options: dict of job-specific options, flags, or selectors for the job entry-point.
+        args: list of required positional arguments for the job entry-point.
         config_overrides: list of [<section.key>, <value>] pairs to override config settings.
     """
     payload = {

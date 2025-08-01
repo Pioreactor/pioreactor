@@ -84,7 +84,7 @@ def collect_background_jobs() -> List[Dict[str, Any]]:
             automation_name = getattr(cls, "automation_name", None)
             if not automation_name or automation_name.endswith("_base"):
                 continue
-            cli_example = f"pio run {job_name} --automation-name {automation_name} --<settable param> <value>"
+            cli_example = f"pio run {job_name} --automation-name {automation_name} [OPTIONS]"
             entry: Dict[str, Any] = {
                 "job_name": job_name,
                 "automation_name": automation_name,
@@ -92,7 +92,7 @@ def collect_background_jobs() -> List[Dict[str, Any]]:
                 "cli_example": cli_example,
             }
         else:
-            cli_example = f"pio run {job_name} --<settable param> <value>"
+            cli_example = f"pio run {job_name} [OPTIONS]"
             entry = {
                 "job_name": job_name,
                 "published_settings": settings,
@@ -127,7 +127,7 @@ def generate_command_metadata(cmd, name):
             entry["options"].append(
                 {
                     "name": param.name,
-                    "opts": param.opts,
+                    "long_flag": param.opts[0],
                     "help": param.help or "",
                     "required": param.required,
                     "multiple": param.multiple,
@@ -165,16 +165,16 @@ def collect_capabilities() -> list[dict[str, Any]]:
         act = actions_map.get(name, {})
         # merge action metadata; for automations, filter out the automation_name option
         # start with declared options; for automations, strip --automation-name and add settable settings as flags
-        opts = list(act.get("options", []))
+        options = list(act.get("options", []))
         if job.get("automation_name"):
-            opts = [o for o in opts if o.get("name") != "automation_name"]
+            options = [o for o in options if o.get("name") != "automation_name"]
             for setting, meta in job.get("published_settings", {}).items():
                 if meta.get("settable"):
                     flag = setting.replace("_", "-")
-                    opts.append(
+                    options.append(
                         {
                             "name": setting,
-                            "opts": [f"--{flag}"],
+                            "long_flag": f"--{flag}",
                             "help": "",
                             "required": False,
                             "multiple": False,
@@ -187,7 +187,7 @@ def collect_capabilities() -> list[dict[str, Any]]:
             **({"automation_name": job["automation_name"]} if job.get("automation_name") else {}),
             "help": act.get("help", ""),
             "arguments": act.get("arguments", []),
-            "options": opts,
+            "options": options,
             "published_settings": job.get("published_settings", {}),
             "cli_example": job.get("cli_example", ""),
         }
