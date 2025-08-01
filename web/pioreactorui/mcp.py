@@ -216,28 +216,23 @@ def run_job_or_action(
     unit: str,
     job_or_action: str,
     experiment: str,
-    options: Dict[str, Any] | None = None,
-    args: List[str] | None = None,
-    config_overrides: List[List[str]] | None = None,
+    job_options: Dict[str, Any] | None = None,
+    job_args: List[str] | None = None,
 ) -> dict:
     """
     Launch an action or job on a *unit/worker* within *experiment*.
-
-    Use "$broadcast" to start jobs across all units simultaneously in that experiment.
-
     Parameters:
         unit: target unit name (or "$broadcast" to address all units).
         job_or_action: name of the job to run. See `get_unit_capabilties` for all jobs and moreHo .
         experiment: experiment identifier under which to launch the job.
         options: dict of job-specific options, flags, or selectors for the job entry-point.
         args: list of required positional arguments for the job entry-point.
-        config_overrides: list of [<section.key>, <value>] pairs to override config settings.
     """
     payload = {
-        "options": options or {},
-        "args": args or [],
+        "options": job_options or {},
+        "args": job_args or [],
         "env": {"JOB_SOURCE": "mcp"},
-        "config_overrides": config_overrides or [],
+        "config_overrides": [],
     }
     return post_into_leader(
         f"/api/workers/{unit}/jobs/run/job_name/{job_or_action}/experiments/{experiment}",
