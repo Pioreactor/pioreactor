@@ -382,8 +382,10 @@ def get_recent_logs(experiment: str) -> ResponseReturnValue:
             FROM logs AS l
             WHERE (l.experiment=?)
                 AND ({get_level_string(min_level)})
-                AND l.timestamp >= MAX( STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW', '-24 hours'), (SELECT created_at FROM experiments where experiment=?) )
-            ORDER BY l.timestamp DESC LIMIT 50;""",
+                AND l.timestamp >= MAX(
+                    STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW', '-24 hours'),
+                    COALESCE((SELECT created_at FROM experiments WHERE experiment=?), STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW', '-24 hours'))
+                )            ORDER BY l.timestamp DESC LIMIT 50;""",
         (experiment, experiment),
     )
 

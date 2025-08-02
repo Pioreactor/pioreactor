@@ -216,21 +216,24 @@ def run_job_or_action(
     unit: str,
     job_or_action: str,
     experiment: str,
-    job_options: Dict[str, Any] | None = None,
-    job_args: List[str] | None = None,
+    options: Dict[str, Any] | None = None,
+    args: List[str] | None = None,
 ) -> dict:
     """
     Launch an action or job on a *unit/worker* within *experiment*.
+
+    This runs `pio run` with the specified job or action name, options, and arguments on the unit(s).
+
     Parameters:
-        unit: target unit name (or "$broadcast" to address all units).
+        unit: target unit name (or "$broadcast" to address all units assigned to the experiment).
         job_or_action: name of the job to run. See `get_unit_capabilties` for all jobs and moreHo .
         experiment: experiment identifier under which to launch the job.
         options: dict of job-specific options, flags, or selectors for the job entry-point.
         args: list of required positional arguments for the job entry-point.
     """
     payload = {
-        "options": job_options or {},
-        "args": job_args or [],
+        "options": options or {},
+        "args": args or [],
         "env": {"JOB_SOURCE": "mcp"},
         "config_overrides": [],
     }
