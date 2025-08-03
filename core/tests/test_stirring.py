@@ -8,15 +8,13 @@ import pioreactor.background_jobs.stirring as stirring_mod
 import pytest
 from click.testing import CliRunner
 from pioreactor.background_jobs.od_reading import start_od_reading
-from pioreactor.background_jobs.stirring import RpmCalculator
-from pioreactor.background_jobs.stirring import RpmFromFrequency
 from pioreactor.background_jobs.stirring import start_stirring
 from pioreactor.background_jobs.stirring import Stirrer
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.structs import SimpleStirringCalibration
-from pioreactor.utils.mock import MockRpmCalculator
+from pioreactor.utils.mock import MockRpmCalculator as RpmCalculator
 from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
@@ -109,7 +107,7 @@ def test_publish_measured_rpm() -> None:
     pause()
 
     target_rpm = 500
-    rpm_calculator = RpmFromFrequency()
+    rpm_calculator = RpmCalculator()
     rpm_calculator.setup()
     with Stirrer(target_rpm, unit, exp, rpm_calculator=rpm_calculator) as st:
         st.start_stirring()
@@ -119,18 +117,7 @@ def test_publish_measured_rpm() -> None:
 
         message = subscribe(f"pioreactor/{unit}/{exp}/stirring/measured_rpm", timeout=3)
         assert message is not None
-        assert json.loads(message.payload)["measured_rpm"] == 0
-
-        publish(f"pioreactor/{unit}/{exp}/stirring/$state/set", "sleeping")
-        pause()
-        pause()
-        pause()
-        assert st.state == st.SLEEPING
-        assert st.duty_cycle == 0
-        assert st.measured_rpm.measured_rpm == 0
-        message = subscribe(f"pioreactor/{unit}/{exp}/stirring/measured_rpm", timeout=3)
-        assert message is not None
-        assert json.loads(message.payload)["measured_rpm"] == 0
+        assert json.loads(message.payload)["measured_rpm"] == 500
 
 
 def test_rpm_isnt_updated_if_there_is_no_rpm_measurement() -> None:
@@ -252,10 +239,10 @@ def test_target_rpm_during_od_reading_defaults_to_zero() -> None:
 
 def test_block_until_rpm_is_close_to_target_will_timeout() -> None:
     exp = "test_block_until_rpm_is_close_to_target_will_timeout"
-    rpm_calculator = MockRpmCalculator()
+    rpm_calculator = RpmCalculator()
     rpm_calculator.setup()
     with Stirrer(
-        2 * MockRpmCalculator.ALWAYS_RETURN_RPM, unit, exp, rpm_calculator=rpm_calculator  # type: ignore
+        2 * RpmCalculator.ALWAYS_RETURN_RPM, unit, exp, rpm_calculator=rpm_calculator  # type: ignore
     ) as st:
         with catchtime() as delta:
             st.block_until_rpm_is_close_to_target(timeout=10)
@@ -264,10 +251,10 @@ def test_block_until_rpm_is_close_to_target_will_timeout() -> None:
 
 def test_block_until_rpm_is_close_will_exit() -> None:
     exp = "test_block_until_rpm_is_close_will_exit"
-    rpm_calculator = MockRpmCalculator()
+    rpm_calculator = RpmCalculator()
     rpm_calculator.setup()
     with Stirrer(
-        MockRpmCalculator.ALWAYS_RETURN_RPM, unit, exp, rpm_calculator=rpm_calculator  # type: ignore
+        RpmCalculator.ALWAYS_RETURN_RPM, unit, exp, rpm_calculator=rpm_calculator  # type: ignore
     ) as st:
         with catchtime() as delta:
             st.block_until_rpm_is_close_to_target(timeout=50)

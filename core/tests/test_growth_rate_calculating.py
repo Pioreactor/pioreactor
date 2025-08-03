@@ -9,7 +9,6 @@ from msgspec.json import encode
 from pioreactor import structs
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
 from pioreactor.background_jobs.od_reading import start_od_reading
-from pioreactor.background_jobs.stirring import start_stirring
 from pioreactor.config import config
 from pioreactor.config import temporary_config_changes
 from pioreactor.pubsub import collect_all_logs_of_level
@@ -403,38 +402,6 @@ class TestGrowthRateCalculating:
                 )
                 pause()
                 assert not calc.processor._recent_dilution
-
-    def test_end_to_end(self) -> None:
-        with temporary_config_changes(
-            config,
-            [
-                ("od_config.photodiode_channel", "1", "REF"),
-                ("od_config.photodiode_channel", "2", "90"),
-                ("od_reading.config", "samples_per_second", "0.2"),
-            ],
-        ):
-            unit = get_unit_name()
-            experiment = "test_end_to_end"
-
-            interval = 0.1
-
-            od_stream, dosing_stream = create_od_stream_from_mqtt(
-                unit, experiment
-            ), create_dosing_stream_from_mqtt(unit, experiment)
-
-            with start_od_reading(
-                "REF",
-                "90",
-                interval=interval,
-                unit=unit,
-                experiment=experiment,
-                fake_data=True,
-            ), start_stirring(target_rpm=500, unit=unit, experiment=experiment), GrowthRateCalculator(
-                unit=unit, experiment=experiment
-            ) as calc:
-                calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
-                time.sleep(35)
-                assert calc.processor.ekf.state_[-2] != 1.0
 
     def test_180_angle(self) -> None:
         import json

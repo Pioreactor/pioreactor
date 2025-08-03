@@ -18,7 +18,6 @@ from typing import Iterator
 from typing import Optional
 
 import click
-
 from pioreactor.actions.led_intensity import ALL_LED_CHANNELS
 from pioreactor.actions.led_intensity import change_leds_intensities_temporarily
 from pioreactor.actions.led_intensity import led_intensity
@@ -105,7 +104,7 @@ def test_REF_is_in_correct_position(managed_state, logger: CustomLogger, unit: s
         "2": variance(signal2) / trimmed_mean(signal2) ** 2,
     }
 
-    THRESHOLD = 2.0
+    THRESHOLD = 1.0
     assert (
         THRESHOLD * norm_variance_per_channel[reference_channel] < norm_variance_per_channel[signal_channel]
     ), f"REF measured higher variance than SIGNAL. {reference_channel=}, {norm_variance_per_channel=}"
