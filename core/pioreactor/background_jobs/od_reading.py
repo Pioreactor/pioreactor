@@ -52,6 +52,7 @@ from time import time
 from typing import Callable
 from typing import cast
 from typing import Optional
+from typing import Protocol
 
 import click
 import pioreactor.actions.led_intensity as led_utils
@@ -612,18 +613,19 @@ class NullIrLedReferenceTracker(IrLedReferenceTracker):
         return 1.0, raw_readings
 
 
-class CalibrationTransformer(LoggerMixin):
-    _logger_name = "calibration_transformer"
+class CalibrationTransformerProtocol(Protocol):
+    models: dict[pt.PdChannel, Callable]
 
-    def __init__(self) -> None:
-        super().__init__()
-        self.models: dict[pt.PdChannel, Callable] = {}
+    def hydate_models(self, calibration_data: structs.ODCalibration | None) -> None:
+        ...
 
     def __call__(self, batched_readings: structs.ODReadings) -> structs.ODReadings:
-        return batched_readings
+        ...
 
 
-class NullCalibrationTransformer(CalibrationTransformer):
+class NullCalibrationTransformer(LoggerMixin):
+    _logger_name = "calibration_transformer"
+
     def __init__(self) -> None:
         super().__init__()
         self.models: dict[pt.PdChannel, Callable] = {}
@@ -635,7 +637,9 @@ class NullCalibrationTransformer(CalibrationTransformer):
         return batched_readings
 
 
-class CachedCalibrationTransformer(CalibrationTransformer):
+class CachedCalibrationTransformer(LoggerMixin):
+    _logger_name = "calibration_transformer"
+
     def __init__(self) -> None:
         super().__init__()
         self.models: dict[pt.PdChannel, Callable] = {}
@@ -710,11 +714,11 @@ class CachedCalibrationTransformer(CalibrationTransformer):
         return _calibrate_signal
 
     def __call__(self, od_readings: structs.ODReadings) -> structs.ODReadings:
-        od_readings = copy(od_readings)
+        calibrated_od_readings = copy(od_readings)
         for channel in self.models:
-            if channel in od_readings.ods:
-                raw_od = od_readings.ods[channel]
-                od_readings.ods[channel] = structs.CalibratedODReading(
+            if channel in calibrated_od_readings.ods:
+                raw_od = calibrated_od_readings.ods[channel]
+                calibrated_od_readings.ods[channel] = structs.CalibratedODReading(
                     timestamp=raw_od.timestamp,
                     angle=raw_od.angle,
                     od=self.models[channel](raw_od.od),
@@ -722,7 +726,7 @@ class CachedCalibrationTransformer(CalibrationTransformer):
                     calibration_name=self.models[channel].name,  # type: ignore
                 )
 
-        return od_readings
+        return calibrated_od_readings
 
 
 class ODReader(BackgroundJob):
@@ -796,7 +800,7 @@ class ODReader(BackgroundJob):
         unit: pt.Unit,
         experiment: pt.Experiment,
         ir_led_reference_tracker: Optional[IrLedReferenceTracker] = None,
-        calibration_transformer: Optional[CalibrationTransformer] = None,
+        calibration_transformer: Optional[CalibrationTransformerProtocol] = None,
         ir_led_intensity: float | None = None,
     ) -> None:
         super(ODReader, self).__init__(unit=unit, experiment=experiment)
@@ -1274,14 +1278,15 @@ def start_od_reading(
         ir_led_reference_tracker = NullIrLedReferenceTracker()  # type: ignore
 
     # use an OD calibration?
+    calibration_transformer: CalibrationTransformerProtocol
     if calibration is True:
-        calibration_transformer = CachedCalibrationTransformer()
+        calibration_transformer = cast(CalibrationTransformerProtocol, CachedCalibrationTransformer())
         calibration_transformer.hydate_models(load_active_calibration("od"))
     elif isinstance(calibration, structs.CalibrationBase):
-        calibration_transformer = CachedCalibrationTransformer()
+        calibration_transformer = cast(CalibrationTransformerProtocol, CachedCalibrationTransformer())
         calibration_transformer.hydate_models(calibration)
     else:
-        calibration_transformer = NullCalibrationTransformer()  # type: ignore
+        calibration_transformer = NullCalibrationTransformer()
 
     if interval is not None:
         penalizer = config.getfloat("od_reading.config", "smoothing_penalizer", fallback=700.0) / interval

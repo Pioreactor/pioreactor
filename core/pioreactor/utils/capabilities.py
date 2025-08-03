@@ -105,7 +105,7 @@ def collect_background_jobs() -> List[Dict[str, Any]]:
     return entries
 
 
-def generate_command_metadata(cmd, name):
+def generate_command_metadata(cmd, name: str) -> Dict[str, Any]:
     entry: Dict[str, Any] = {
         "name": name,
         "help": (cmd.help or "").strip(),
