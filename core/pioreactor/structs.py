@@ -13,7 +13,6 @@ from msgspec import Meta
 from msgspec import Struct
 from msgspec.json import encode
 from msgspec.yaml import encode as yaml_encode
-
 from pioreactor import exc
 from pioreactor import types as pt
 from pioreactor.logging import create_logger
@@ -130,6 +129,7 @@ class CalibratedODReading(JSONPrintedStruct, tag=1, tag_field="calibrated"):
     angle: pt.PdAngle
     od: pt.CalibratedOD
     channel: pt.PdChannel
+    ir_led_intensity: float
     calibration_name: str
 
 
@@ -138,9 +138,15 @@ class RawODReading(JSONPrintedStruct, tag=0, tag_field="calibrated"):
     angle: pt.PdAngle
     od: pt.RawOD
     channel: pt.PdChannel
+    ir_led_intensity: float
 
 
 ODReading = RawODReading | CalibratedODReading
+
+
+class CalibratedODReadings(JSONPrintedStruct):
+    timestamp: t.Annotated[datetime, Meta(tz=True)]
+    ods: dict[pt.PdChannel, CalibratedODReading]
 
 
 class ODReadings(JSONPrintedStruct):

@@ -62,12 +62,6 @@ function generatePolynomialData(calibration, stepCount = 50) {
   return points;
 }
 
-/**
- * Renders a single VictoryChart for the calibrations of one device.
- * @param {Array} calibrations - array of calibration objects
- *   (each containing recorded_data.x, recorded_data.y, curve_data_, etc.)
- * @param {String} deviceName  - optional device name for display
- */
 function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlightedModel, title }) {
   if (!deviceName){
     return <div>No calibrations exist. Try creating a calibration from the command line.</div>

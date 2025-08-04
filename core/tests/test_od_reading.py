@@ -810,15 +810,20 @@ def test_calibration_not_requested() -> None:
         assert isinstance(od.calibration_transformer, NullCalibrationTransformer)
         ts = current_utc_datetime()
         x = structs.ODReadings(
-            timestamp=ts, ods={"2": structs.RawODReading(od=0.1, angle="90", channel="2", timestamp=ts)}
+            timestamp=ts,
+            ods={
+                "2": structs.RawODReading(ir_led_intensity=80, od=0.1, angle="90", channel="2", timestamp=ts)
+            },
         )
         assert od.calibration_transformer(x) == x
 
         y = structs.ODReadings(
             timestamp=ts,
             ods={
-                "1": structs.RawODReading(od=0.5, angle="90", channel="1", timestamp=ts),
-                "2": structs.RawODReading(od=0.23, angle="90", channel="2", timestamp=ts),
+                "1": structs.RawODReading(ir_led_intensity=80, od=0.5, angle="90", channel="1", timestamp=ts),
+                "2": structs.RawODReading(
+                    ir_led_intensity=80, od=0.23, angle="90", channel="2", timestamp=ts
+                ),
             },
         )
         assert od.calibration_transformer(y) == y
@@ -1005,12 +1010,12 @@ def test_calibration_errors_when_ir_led_differs() -> None:
         )
 
         cal.set_as_active_calibration_for_device("od")
-        with pytest.raises(exc.CalibrationError) as error:
+        with collect_all_logs_of_level("ERROR", unit=get_unit_name(), experiment=experiment) as bucket:
             with start_od_reading(
                 "REF", "90", interval=1, fake_data=True, experiment=experiment, calibration=cal
             ):
                 pass
-        assert "LED intensity" in str(error.value)
+            assert "LED intensity" in bucket[0]["message"]
 
 
 def test_calibration_with_irl_data1() -> None:
@@ -1053,7 +1058,11 @@ def test_calibration_with_irl_data1() -> None:
     def float_to_od_readings_struct(ch: pt.PdChannel, v: float) -> structs.ODReadings:
         return structs.ODReadings(
             timestamp=current_utc_datetime(),
-            ods={ch: structs.RawODReading(od=v, angle="90", channel=ch, timestamp=current_utc_datetime())},
+            ods={
+                ch: structs.RawODReading(
+                    ir_led_intensity=80, od=v, angle="90", channel=ch, timestamp=current_utc_datetime()
+                )
+            },
         )
 
     assert cc(float_to_od_readings_struct("2", 0.001)).ods["2"].od == min(cal.recorded_data["x"])
@@ -1343,7 +1352,11 @@ def test_CachedCalibrationTransformer_with_real_calibration() -> None:
     def float_to_od_readings_struct(ch: pt.PdChannel, v: float) -> structs.ODReadings:
         return structs.ODReadings(
             timestamp=current_utc_datetime(),
-            ods={ch: structs.RawODReading(od=v, angle="90", channel=ch, timestamp=current_utc_datetime())},
+            ods={
+                ch: structs.RawODReading(
+                    ir_led_intensity=80, od=v, angle="90", channel=ch, timestamp=current_utc_datetime()
+                )
+            },
         )
 
     assert abs(cal_transformer(float_to_od_readings_struct("2", 0.096)).ods["2"].od - 0.06) < 0.01

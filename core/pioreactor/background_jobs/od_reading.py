@@ -643,6 +643,7 @@ class CachedCalibrationTransformer(LoggerMixin):
     def __init__(self) -> None:
         super().__init__()
         self.models: dict[pt.PdChannel, Callable] = {}
+        self.verifiers: dict[pt.PdChannel, Callable] = {}
         self.has_logged_warning = False
 
     def hydate_models(self, calibration_data: structs.ODCalibration | None) -> None:
@@ -654,13 +655,15 @@ class CachedCalibrationTransformer(LoggerMixin):
         channel = calibration_data.pd_channel
         cal_type = calibration_data.calibration_type
 
-        self.models[channel] = self._hydrate_model(calibration_data)
+        self.models[channel], self.verifiers[channel] = self._hydrate_model(calibration_data)
         self.models[channel].name = name  # type: ignore
         self.logger.debug(
             f"Using OD calibration `{name}` of type `{cal_type}` for PD channel {channel}, {calibration_data.curve_type=}, {calibration_data.curve_data_=}"
         )
 
-    def _hydrate_model(self, calibration_data: structs.ODCalibration) -> Callable[[pt.Voltage], pt.OD]:
+    def _hydrate_model(
+        self, calibration_data: structs.ODCalibration
+    ) -> tuple[Callable[[pt.Voltage], pt.OD], Callable[[structs.ODReading], bool]]:
         if (
             calibration_data.y != "Voltage"
         ):  # don't check for OD600 - we can allow other non-OD600 calibrations
@@ -672,6 +675,20 @@ class CachedCalibrationTransformer(LoggerMixin):
             self.logger.warning(
                 "Calibration curve is y(x)=constant. This is probably wrong. Check the calibration YAML file's curve_data_."
             )
+
+        def _verify(od_reading: structs.ODReading) -> bool:
+            """
+            Verify that the OD reading is within the expected bounds of the calibration.
+            """
+            if od_reading.od < 0.0:
+                raise exc.CalibrationError(
+                    f"OD reading {od_reading.od} is below 0.0, which is not allowed for channel {od_reading.channel}."
+                )
+            if od_reading.ir_led_intensity != calibration_data.ir_led_intensity:
+                raise exc.CalibrationError(
+                    f"IR LED intensity {od_reading.ir_led_intensity} does not match calibration {calibration_data.ir_led_intensity} for channel {od_reading.channel}."
+                )
+            return True
 
         def _calibrate_signal(observed_voltage: pt.Voltage) -> pt.OD:
             try:
@@ -711,22 +728,24 @@ class CachedCalibrationTransformer(LoggerMixin):
                 self.has_logged_warning = True
                 return max_OD
 
-        return _calibrate_signal
+        return _calibrate_signal, _verify
 
-    def __call__(self, od_readings: structs.ODReadings) -> structs.ODReadings:
-        calibrated_od_readings = copy(od_readings)
+    def __call__(self, od_readings: structs.ODReadings) -> structs.CalibratedODReadings:
+        od_readings = copy(od_readings)
         for channel in self.models:
-            if channel in calibrated_od_readings.ods:
-                raw_od = calibrated_od_readings.ods[channel]
-                calibrated_od_readings.ods[channel] = structs.CalibratedODReading(
-                    timestamp=raw_od.timestamp,
-                    angle=raw_od.angle,
+            if channel in od_readings.ods:
+                raw_od = od_readings.ods[channel]
+
+                # check if everything is okay
+                self.verifiers[channel](raw_od)
+
+                od_readings.ods[channel] = structs.CalibratedODReading(
+                    **raw_od,
                     od=self.models[channel](raw_od.od),
-                    channel=raw_od.channel,
                     calibration_name=self.models[channel].name,  # type: ignore
                 )
-
-        return calibrated_od_readings
+        assert isinstance(od_readings, structs.CalibratedODReadings)
+        return od_readings
 
 
 class ODReader(BackgroundJob):
@@ -839,21 +858,10 @@ class ODReader(BackgroundJob):
 
         self.ir_channel: pt.LedChannel = self._get_ir_led_channel_from_configuration()
 
-        if ir_led_intensity is None:
-            ir_led_intensity = config.get("od_reading.config", "ir_led_intensity")
-
-        self.ir_led_intensity: pt.LedIntensityValue
-        if ir_led_intensity == "auto":
-            determine_best_ir_led_intensity = True
-            self.ir_led_intensity = 70.0  # start here, and we'll optimize later.
-        else:
-            determine_best_ir_led_intensity = False
-            self.ir_led_intensity = float(ir_led_intensity)
-
-            if self.ir_led_intensity > 90:
-                self.logger.warning(
-                    f"The value for the IR LED, {self.ir_led_intensity}%, is very high. We suggest a value 90% or less to avoid damaging the LED."
-                )
+        # determine initial IR LED intensity and whether to auto-adjust it later
+        should_auto_adjust_ir_led, self.ir_led_intensity = self._determine_initial_ir_led_intensity(
+            ir_led_intensity
+        )
 
         self.non_ir_led_channels: list[pt.LedChannel] = [
             ch for ch in led_utils.ALL_LED_CHANNELS if ch != self.ir_channel
@@ -896,7 +904,7 @@ class ODReader(BackgroundJob):
                 # clear the history in adc_reader, so that we don't blank readings in later inference.
                 self.adc_reader.clear_batched_readings()
 
-        if determine_best_ir_led_intensity:
+        if should_auto_adjust_ir_led:
             self.ir_led_intensity = self._determine_best_ir_led_intensity(
                 self.channel_angle_map, self.ir_led_intensity, on_reading, blank_reading
             )
@@ -906,6 +914,26 @@ class ODReader(BackgroundJob):
         self.logger.debug(
             f"Starting od_reading with PD channels {channel_angle_map}, with IR LED intensity {self.ir_led_intensity}% from channel {self.ir_channel}, every {self.interval} seconds"
         )
+
+    def _determine_initial_ir_led_intensity(self, ir_led_intensity: float | str | None) -> tuple[bool, float]:
+        """
+        Determine whether to auto adjust IR LED intensity and return initial intensity.
+        """
+        if ir_led_intensity is None:
+            ir_intensity_cfg = config.get("od_reading.config", "ir_led_intensity")
+        else:
+            ir_intensity_cfg = ir_led_intensity
+
+        if ir_intensity_cfg == "auto":
+            return True, 70.0
+
+        intensity_value = float(ir_intensity_cfg)
+        if intensity_value > 90:
+            self.logger.warning(
+                f"The value for the IR LED, {intensity_value}%, is very high. "
+                "We suggest a value 90% or less to avoid damaging the LED."
+            )
+        return False, intensity_value
 
     @staticmethod
     def _determine_best_ir_led_intensity(
@@ -1052,16 +1080,16 @@ class ODReader(BackgroundJob):
             # some calibration error occurred
             od_readings = None
 
-            # still log the raw readings
+            # still publish the raw readings
             for channel, _ in self.channel_angle_map.items():
                 setattr(self, f"raw_od{channel}", raw_od_readings.ods[channel])
 
             self.logger.error(f"Error in calibration transformer: {e}")
+            raise e
         else:
             # happy path
             assert od_readings is not None
             self.ods = od_readings
-            assert isinstance(od_readings, structs.ODReadings)
             for channel, _ in self.channel_angle_map.items():
                 setattr(self, f"od{channel}", od_readings.ods[channel])
                 if isinstance(od_readings.ods[channel], structs.CalibratedODReading):
@@ -1161,6 +1189,7 @@ class ODReader(BackgroundJob):
             ods={
                 pd: structs.RawODReading(
                     od=self.ir_led_reference_transformer.transform(raw_pd_reading.reading),
+                    ir_led_intensity=self.ir_led_intensity,
                     angle=self.channel_angle_map[pd],
                     channel=pd,
                     timestamp=ts,
