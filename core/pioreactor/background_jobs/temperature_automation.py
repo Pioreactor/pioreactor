@@ -8,7 +8,6 @@ from typing import Any
 from typing import Optional
 
 import click
-
 from pioreactor import error_codes
 from pioreactor import exc
 from pioreactor import hardware
@@ -17,6 +16,7 @@ from pioreactor import types as pt
 from pioreactor.automations.base import AutomationJob
 from pioreactor.config import config
 from pioreactor.logging import create_logger
+from pioreactor.models import get_current_model
 from pioreactor.structs import Temperature
 from pioreactor.utils import clamp
 from pioreactor.utils import local_intermittent_storage
@@ -56,15 +56,15 @@ class TemperatureAutomationJob(AutomationJob):
 
     @classproperty
     def MAX_TEMP_TO_REDUCE_HEATING(cls) -> float:
-        return 63.0 if is_20ml_v1() else 78.0
+        return get_current_model().max_temp_to_reduce_heating
 
     @classproperty
     def MAX_TEMP_TO_DISABLE_HEATING(cls) -> float:
-        return 65.0 if is_20ml_v1() else 80.0
+        return get_current_model().max_temp_to_disable_heating
 
     @classproperty
     def MAX_TEMP_TO_SHUTDOWN(cls) -> float:
-        return 66.0 if is_20ml_v1() else 85.0
+        return get_current_model().max_temp_to_shutdown
 
     @classproperty
     def INFERENCE_N_SAMPLES(cls) -> int:

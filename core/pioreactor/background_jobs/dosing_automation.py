@@ -230,8 +230,8 @@ class DosingAutomationJob(AutomationJob):
         experiment: pt.Experiment,
         duration: Optional[float] = None,
         skip_first_run: bool = False,
-        initial_alt_media_fraction: float | None = None,
-        initial_volume_ml: float | None = None,
+        alt_media_fraction: float | None = None,
+        current_volume_ml: float | None = None,
         max_working_volume_ml: float | None = None,
         **kwargs,
     ) -> None:
@@ -248,9 +248,9 @@ class DosingAutomationJob(AutomationJob):
 
         self.skip_first_run = skip_first_run
 
-        self._init_alt_media_fraction(initial_alt_media_fraction)
+        self._init_alt_media_fraction(alt_media_fraction)
         self._init_volume_throughput()
-        self._init_liquid_volume(initial_volume_ml, max_working_volume_ml)
+        self._init_liquid_volume(current_volume_ml, max_working_volume_ml)
 
         self.set_duration(duration)
 
@@ -538,22 +538,22 @@ class DosingAutomationJob(AutomationJob):
         with local_persistent_storage("media_throughput") as cache:
             cache[self.experiment] = self.media_throughput
 
-    def _init_alt_media_fraction(self, initial_alt_media_fraction: float | None) -> None:
+    def _init_alt_media_fraction(self, alt_media_fraction: float | None) -> None:
         self.add_to_published_settings(
             "alt_media_fraction",
             {
                 "datatype": "float",
-                "settable": False,
+                "settable": True,
             },
         )
 
-        if initial_alt_media_fraction is None:
+        if alt_media_fraction is None:
             with local_persistent_storage("alt_media_fraction") as cache:
                 self.alt_media_fraction = cache.get(
-                    self.experiment, config.getfloat("bioreactor", "initial_alt_media_fraction", fallback=0.0)
+                    self.experiment, config.getfloat("bioreactor", "alt_media_fraction", fallback=0.0)
                 )
         else:
-            self.alt_media_fraction = float(initial_alt_media_fraction)
+            self.alt_media_fraction = float(alt_media_fraction)
 
         assert 0 <= self.alt_media_fraction <= 1
 
@@ -563,13 +563,13 @@ class DosingAutomationJob(AutomationJob):
         return
 
     def _init_liquid_volume(
-        self, initial_volume_ml: float | None, max_working_volume_ml: float | None
+        self, current_volume_ml: float | None, max_working_volume_ml: float | None
     ) -> None:
         self.add_to_published_settings(
             "current_volume_ml",
             {
                 "datatype": "float",
-                "settable": False,  # modify using dosing_events, ex: pio run add_media --ml 1 --manually
+                "settable": True,  # allow initial volume override via CLI or settings
                 "unit": "mL",
                 "persist": True,  # keep around so the UI can see it
             },
@@ -592,14 +592,14 @@ class DosingAutomationJob(AutomationJob):
 
         assert self.max_working_volume_ml >= 0
 
-        if initial_volume_ml is None:
+        if current_volume_ml is None:
             # look in database first, fallback to config
             with local_persistent_storage("current_volume_ml") as cache:
                 self.current_volume_ml = cache.get(
-                    self.experiment, config.getfloat("bioreactor", "initial_volume_ml", fallback=14)
+                    self.experiment, config.getfloat("bioreactor", "current_volume_ml", fallback=14)
                 )
         else:
-            self.current_volume_ml = float(initial_volume_ml)
+            self.current_volume_ml = float(current_volume_ml)
 
         assert self.current_volume_ml >= 0
 

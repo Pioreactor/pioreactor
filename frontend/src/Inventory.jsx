@@ -14,7 +14,6 @@ import Typography from '@mui/material/Typography';
 import { MQTTProvider, useMQTT } from './providers/MQTTContext';
 import ManageInventoryMenu from './components/ManageInventoryMenu';
 import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import FormControl from '@mui/material/FormControl';
 import Button from '@mui/material/Button';
@@ -27,6 +26,7 @@ import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import LoadingButton from '@mui/lab/LoadingButton';
 import CheckIcon from '@mui/icons-material/Check';
+import Divider from '@mui/material/Divider';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import RemoveCircleOutlineRoundedIcon from '@mui/icons-material/RemoveCircleOutlineRounded';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -43,6 +43,17 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 
 
 import { useExperiment } from './providers/ExperimentContext';
+
+// Hook to fetch available models from backend
+const useAvailableModels = () => {
+  const [models, setModels] = useState([]);
+  useEffect(() => {
+    fetch('/api/models')
+      .then((r) => r.json())
+      .then((data) => setModels(data.models || []));
+  }, []);
+  return models;
+};
 
 const textIcon = {verticalAlign: "middle", margin: "0px 3px"}
 
@@ -97,7 +108,7 @@ function AddNewPioreactor({setWorkers}){
     setName(evt.target.value)
   }
   const handleModelVersionChange = evt => {
-    const { modelName, modelVersion } = modelNameAndModelVersionFromModelString(evt.target.value);
+    const [modelName, modelVersion] = evt.target.value.split(',');
     setModel([modelName, modelVersion]);
   }
 
@@ -191,16 +202,17 @@ function AddNewPioreactor({setWorkers}){
             value={name}
           />
         <FormControl required sx={{mt: "15px", ml: "10px", minWidth: "195px"}} variant="outlined" size="small">
-          <InputLabel >Pioreactor model</InputLabel>
+          <InputLabel>Pioreactor model</InputLabel>
           <Select
-            value={modelStringFromModelNameAndModelVersion(model[0], model[1])}
+            value={`${model[0]},${model[1]}`}
             onChange={handleModelVersionChange}
             label="Pioreactor model"
           >
-            <MenuItem value={"Pioreactor 40ml, v1.0"}>Pioreactor 40ml, v1.0</MenuItem>
-            <Divider/>
-            <MenuItem value={"Pioreactor 20ml, v1.1"}>Pioreactor 20ml, v1.1</MenuItem>
-            <MenuItem value={"Pioreactor 20ml, v1.0"}>Pioreactor 20ml, v1.0</MenuItem>
+            {useAvailableModels().map(({ model_name, model_version, display_name }) => (
+              <MenuItem key={`${model_name}-${model_version}`} value={`${model_name},${model_version}`}>
+                {display_name}
+              </MenuItem>
+            ))}
           </Select>
         </FormControl>
 
@@ -233,33 +245,17 @@ function AddNewPioreactor({setWorkers}){
     </React.Fragment>
   );}
 
-function modelStringFromModelNameAndModelVersion(modelName, modelVersion){
-  if (modelName === "pioreactor_20ml"){
-    return `Pioreactor 20ml, v${modelVersion}`
-  } else if (modelName === "pioreactor_40ml"){
-    return `Pioreactor 40ml, v${modelVersion}`
-  } else {
-    return "Unknown model"
-  }
-}
-
-function modelNameAndModelVersionFromModelString(modelString) {
-  const match = modelString.match(/^Pioreactor (\d+ml), v(.+)$/);
-
-  if (match) {
-    const modelName = `pioreactor_${match[1]}`;
-    const modelVersion = match[2];
-    return { modelName, modelVersion };
-  }
-
-  return { modelName: "unknown", modelVersion: null };
-}
 
 function WorkerCard({worker, config, leaderVersion}) {
   const unit = worker.pioreactor_unit
   const isLeader = (config['cluster.topology']?.leader_hostname === unit)
   const [activeStatus, setActiveStatus] = React.useState(worker.is_active ? "active" : "inactive")
   const [model, setModel] = React.useState([worker.model_name, worker.model_version])
+  const availableModels = useAvailableModels();
+  const currentModelDisplayName =
+    availableModels.find(
+      ({model_name, model_version}) => model_name === model[0] && model_version === model[1]
+    )?.display_name || '';
   const [experimentAssigned, setExperimentAssigned] = React.useState(null)
   const {client, subscribeToTopic} = useMQTT();
   const [state, setState] = React.useState(null)
@@ -346,9 +342,9 @@ function WorkerCard({worker, config, leaderVersion}) {
   }
 
   const handleModelChange = (event) => {
-    const { modelName, modelVersion } = modelNameAndModelVersionFromModelString(event.target.value);
+    const [modelName, modelVersion] = event.target.value.split(',');
     setModel([modelName, modelVersion]);
-    setSnackbarOpen(true)
+    setSnackbarOpen(true);
     fetch(`/api/workers/${unit}/model`, {
       method: "PUT",
       body: JSON.stringify({model_name: modelName, model_version: modelVersion}),
@@ -356,7 +352,7 @@ function WorkerCard({worker, config, leaderVersion}) {
         'Accept': 'application/json',
         'Content-Type': 'application/json'
       }
-    })
+    });
   }
 
   const indicatorDotColor = getIndicatorDotColor(state)
@@ -482,20 +478,21 @@ function WorkerCard({worker, config, leaderVersion}) {
               <Select
                 labelId="modelSelect"
                 variant="standard"
-                value={modelStringFromModelNameAndModelVersion(model[0], model[1])}
+                value={`${model[0]},${model[1]}`}
                 onChange={handleModelChange}
                 label="Model"
                 disableUnderline={true}
                 sx={{
                   "& .MuiSelect-standard": {
                     color: isActive() ? "inherit" : inactiveGrey
-                }
+                  }
                 }}
               >
-                <MenuItem value={"Pioreactor 40ml, v1.0"}>Pioreactor 40ml, v1.0</MenuItem>
-                <Divider/>
-                <MenuItem value={"Pioreactor 20ml, v1.1"}>Pioreactor 20ml, v1.1</MenuItem>
-                <MenuItem value={"Pioreactor 20ml, v1.0"}>Pioreactor 20ml, v1.0</MenuItem>
+                {availableModels.map(({ model_name, model_version, display_name }) => (
+                  <MenuItem key={`${model_name}-${model_version}`} value={`${model_name},${model_version}`}>
+                    {display_name}
+                  </MenuItem>
+                ))}
               </Select>
             </td>
           </tr>
@@ -559,7 +556,7 @@ function WorkerCard({worker, config, leaderVersion}) {
       anchorOrigin={{vertical: "bottom", horizontal: "center"}}
       open={snackbarOpen}
       onClose={handleSnackbarClose}
-      message={`Updated ${unit} to ${modelStringFromModelNameAndModelVersion(model[0], model[1])}`}
+      message={`Updated ${unit} to ${currentModelDisplayName}`}
       autoHideDuration={2500}
       key={"snackbar" + unit + "model"}
     />

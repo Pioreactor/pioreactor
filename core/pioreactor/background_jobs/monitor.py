@@ -10,7 +10,6 @@ from typing import Callable
 from typing import Optional
 
 import click
-
 from pioreactor import error_codes
 from pioreactor import types as pt
 from pioreactor import utils
@@ -26,6 +25,7 @@ from pioreactor.hardware import is_HAT_present
 from pioreactor.hardware import PCB_BUTTON_PIN as BUTTON_PIN
 from pioreactor.hardware import PCB_LED_PIN as LED_PIN
 from pioreactor.hardware import TEMP
+from pioreactor.models import get_current_model
 from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import get_from
 from pioreactor.pubsub import QOS
@@ -84,10 +84,7 @@ class Monitor(LongRunningBackgroundJob):
 
     @classproperty
     def MAX_TEMP_TO_SHUTDOWN(cls) -> float:
-        is_20ml_v1 = (
-            whoami.get_pioreactor_model() == "pioreactor_20ml" and whoami.get_pioreactor_version() == (1, 0)
-        )
-        return 66.0 if is_20ml_v1 else 85.0
+        return get_current_model().max_temp_to_shutdown
 
     @classproperty
     def MAX_TEMP_TO_SHUTDOWN_IF_NO_TEMP_AUTOMATION(cls) -> float:

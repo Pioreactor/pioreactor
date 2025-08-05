@@ -378,3 +378,22 @@ class Dataset(JSONPrintedStruct):
     source: str = "app"
     timestamp_columns: list[str] = []
     always_partition_by_unit: bool = False
+
+
+class Model(Struct):
+    """Defines a Pioreactor model with its physical and automation parameters."""
+
+    model_name: str
+    model_version: str
+    display_name: str
+    # reactor capacity (e.g. 20 or 40 mL)
+    reactor_capacity_ml: float
+    # maximum fill volume before headspace (e.g. 18 or 38 mL)
+    reactor_max_fill_volume_ml: float
+    # physical diameter of the reactor (for UI diagrams)
+    reactor_diameter_mm: float
+
+    # temperature automation parameters:
+    max_temp_to_reduce_heating: float
+    max_temp_to_disable_heating: float
+    max_temp_to_shutdown: float

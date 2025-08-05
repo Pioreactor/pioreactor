@@ -91,6 +91,20 @@ def broadcast_patch_across_cluster(endpoint: str, json: dict | None = None) -> R
     return tasks.multicast_patch_across_cluster(endpoint, get_all_workers(), json=json)
 
 
+@api.route("/models", methods=["GET"])
+def get_models() -> tuple[dict[str, list[dict[str, str]]], int]:
+    """
+    Return the list of supported Pioreactor models (name, version, display_name).
+    """
+    from pioreactor.models import registered_models
+
+    models = [
+        {"model_name": name, "model_version": version, "display_name": m.display_name}
+        for (name, version), m in registered_models.items()
+    ]
+    return {"models": models}, 200
+
+
 @api.route(
     "/workers/<pioreactor_unit>/jobs/stop/experiments/<experiment>",
     methods=["POST", "PATCH"],
@@ -221,8 +235,8 @@ def run_job_on_unit_in_experiment(
                     json.env
                     | {"EXPERIMENT": experiment}
                     | {
-                        "MODEL_NAME": worker["model_name"] or "Unknown",
-                        "MODEL_VERSION": worker["model_version"] or "Unknown",
+                        "MODEL_NAME": worker["model_name"],
+                        "MODEL_VERSION": worker["model_version"],
                         "ACTIVE": str(int(worker["is_active"])),
                     }
                 ),

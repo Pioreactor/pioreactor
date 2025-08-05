@@ -11,6 +11,7 @@ Some big changes internally
  - adding mcp server
  - removed `/api/workers/jobs/stop/experiments/<exp>`, use `/api/workers/$broadcast/jobs/stop/experiments/<exp>` instead.
  - removed `/api/experiments/<experiment>/jobs/settings/job_name/<job_name>`, use `/workers/$broadcast/jobs/settings/job_name/<job_name>/experiments/<experiment>`
+ - external models in .pioreactor/models
 
 ### 25.7.2
 

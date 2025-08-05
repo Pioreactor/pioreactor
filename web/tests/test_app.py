@@ -4,9 +4,9 @@ from __future__ import annotations
 import os
 
 import pytest
+from pioreactorui.config import huey
 
 from .conftest import capture_requests
-from pioreactorui.config import huey
 
 IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
 
@@ -278,6 +278,9 @@ def test_broadcast_in_manage_all(client):
         )
     assert len(bucket) == 2
     assert bucket[0].path == "/unit_api/jobs/run/job_name/stirring"
+    from pioreactor.models import get_current_model
+
+    m = get_current_model()
     assert bucket[0].json == {
         "args": [],
         "options": {"target_rpm": 10},
@@ -285,8 +288,8 @@ def test_broadcast_in_manage_all(client):
         "env": {
             "EXPERIMENT": "exp1",
             "ACTIVE": "1",
-            "MODEL_NAME": "pioreactor_20ml",
-            "MODEL_VERSION": "1.1",
+            "MODEL_NAME": m.model_name,
+            "MODEL_VERSION": m.model_version,
         },
     }
 
@@ -307,6 +310,9 @@ def test_run_job(client):
         )
     assert len(bucket) == 1
     assert bucket[0].path == "/unit_api/jobs/run/job_name/stirring"
+    from pioreactor.models import get_current_model
+
+    m = get_current_model()
     assert bucket[0].json == {
         "args": [],
         "options": {"target_rpm": 10},
@@ -314,8 +320,8 @@ def test_run_job(client):
         "env": {
             "EXPERIMENT": "exp1",
             "ACTIVE": "1",
-            "MODEL_NAME": "pioreactor_20ml",
-            "MODEL_VERSION": "1.1",
+            "MODEL_NAME": m.model_name,
+            "MODEL_VERSION": m.model_version,
         },
     }
 
@@ -345,6 +351,9 @@ def test_run_job_with_job_source(client):
         )
     assert len(bucket) == 1
     assert bucket[0].path == "/unit_api/jobs/run/job_name/stirring"
+    from pioreactor.models import get_current_model
+
+    m = get_current_model()
     assert bucket[0].json == {
         "args": [],
         "options": {"target_rpm": 10},
@@ -353,8 +362,8 @@ def test_run_job_with_job_source(client):
             "EXPERIMENT": "exp1",
             "ACTIVE": "1",
             "JOB_SOURCE": "experiment_profile",
-            "MODEL_NAME": "pioreactor_20ml",
-            "MODEL_VERSION": "1.1",
+            "MODEL_NAME": m.model_name,
+            "MODEL_VERSION": m.model_version,
         },
     }
 

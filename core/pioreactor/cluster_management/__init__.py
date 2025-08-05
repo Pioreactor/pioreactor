@@ -9,13 +9,13 @@ from time import sleep
 import click
 from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
-
 from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.config import leader_address
 from pioreactor.config import leader_hostname
 from pioreactor.exc import BashScriptError
 from pioreactor.logging import create_logger
+from pioreactor.models import registered_models
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import delete_from_leader
@@ -54,8 +54,16 @@ def get_workers_in_experiment(experiment: pt.Experiment) -> tuple[pt.Unit, ...]:
 @click.command(name="add", short_help="add a pioreactor worker")
 @click.argument("hostname")
 @click.option("--password", "-p", default="raspberry")
-@click.option("--model-name", "-m", type=click.Choice(["pioreactor_20ml", "pioreactor_40ml"]), required=True)
-@click.option("--model-version", "-v", required=True, type=click.Choice(["1.0", "1.1"]))
+@click.option(
+    "--model-name",
+    "-m",
+    required=True,
+)
+@click.option(
+    "--model-version",
+    "-v",
+    required=True,
+)
 @click.option("--address", "-a")
 def add_worker(
     hostname: str, password: str, model_name: str, model_version: str, address: str | None
@@ -63,15 +71,11 @@ def add_worker(
     """
     Add a new pioreactor worker to the cluster. The pioreactor should already have the worker image installed and is turned on.
     """
-    VALID_MODELS = {
-        ("pioreactor_20ml", "1.0"),
-        ("pioreactor_20ml", "1.1"),
-        ("pioreactor_40ml", "1.0"),
-    }
-
-    if (model_name, model_version) not in VALID_MODELS:
+    # validate combo against registry
+    if (model_name, model_version) not in registered_models:
         click.echo(
-            f"Invalid model name and version combination: {model_name} {model_version}. Valid combinations are: {VALID_MODELS}"
+            f"Invalid model/version: {model_name} v{model_version}."
+            f" Valid options: {sorted(registered_models.keys())}"
         )
         raise click.Abort()
 

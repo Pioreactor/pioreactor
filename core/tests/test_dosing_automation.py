@@ -12,7 +12,6 @@ import pytest
 from click.testing import CliRunner
 from msgspec.json import decode
 from msgspec.json import encode
-
 from pioreactor import exc
 from pioreactor import pubsub
 from pioreactor import structs
@@ -75,7 +74,11 @@ def test_silent_automation() -> None:
                     timestamp=current_utc_datetime(),
                     ods={
                         "2": structs.RawODReading(
-                            timestamp=current_utc_datetime(), angle="45", od=0.05, channel="2"
+                            ir_led_intensity=80.0,
+                            timestamp=current_utc_datetime(),
+                            angle="45",
+                            od=0.05,
+                            channel="2",
                         )
                     },
                 )
@@ -102,7 +105,11 @@ def test_silent_automation() -> None:
                     timestamp=current_utc_datetime(),
                     ods={
                         "2": structs.RawODReading(
-                            timestamp=current_utc_datetime(), angle="45", od=0.06, channel="2"
+                            ir_led_intensity=80.0,
+                            timestamp=current_utc_datetime(),
+                            angle="45",
+                            od=0.06,
+                            channel="2",
                         )
                     },
                 )
@@ -146,7 +153,11 @@ def test_turbidostat_automation() -> None:
                     timestamp=current_utc_datetime(),
                     ods={
                         "2": structs.RawODReading(
-                            timestamp=current_utc_datetime(), angle="45", od=0.05, channel="2"
+                            ir_led_intensity=80.0,
+                            timestamp=current_utc_datetime(),
+                            angle="45",
+                            od=0.05,
+                            channel="2",
                         )
                     },
                 )
@@ -169,7 +180,11 @@ def test_turbidostat_automation() -> None:
                     timestamp=current_utc_datetime(),
                     ods={
                         "2": structs.RawODReading(
-                            timestamp=current_utc_datetime(), angle="45", od=0.06, channel="2"
+                            ir_led_intensity=80.0,
+                            timestamp=current_utc_datetime(),
+                            angle="45",
+                            od=0.06,
+                            channel="2",
                         )
                     },
                 )
@@ -193,7 +208,11 @@ def test_turbidostat_automation() -> None:
                     timestamp=current_utc_datetime(),
                     ods={
                         "2": structs.RawODReading(
-                            timestamp=current_utc_datetime(), angle="45", od=0.065, channel="2"
+                            ir_led_intensity=80.0,
+                            timestamp=current_utc_datetime(),
+                            angle="45",
+                            od=0.065,
+                            channel="2",
                         )
                     },
                 )
@@ -217,7 +236,11 @@ def test_turbidostat_automation() -> None:
                     timestamp=current_utc_datetime(),
                     ods={
                         "2": structs.RawODReading(
-                            timestamp=current_utc_datetime(), angle="45", od=0.04, channel="2"
+                            ir_led_intensity=80.0,
+                            timestamp=current_utc_datetime(),
+                            angle="45",
+                            od=0.04,
+                            channel="2",
                         )
                     },
                 )
@@ -293,7 +316,11 @@ def test_turbidostat_targeting_od() -> None:
                     timestamp=current_utc_datetime(),
                     ods={
                         "2": structs.RawODReading(
-                            timestamp=current_utc_datetime(), angle="45", od=0.05, channel="2"
+                            ir_led_intensity=80.0,
+                            timestamp=current_utc_datetime(),
+                            angle="45",
+                            od=0.05,
+                            channel="2",
                         )
                     },
                 )
@@ -308,23 +335,11 @@ def test_turbidostat_targeting_od() -> None:
                     timestamp=current_utc_datetime(),
                     ods={
                         "2": structs.RawODReading(
-                            timestamp=current_utc_datetime(), angle="45", od=0.250, channel="2"
-                        )
-                    },
-                )
-            ),
-        )
-        pause()
-        assert isinstance(algo.run(), events.DilutionEvent)
-
-        pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/od_reading/ods",
-            encode(
-                structs.ODReadings(
-                    timestamp=current_utc_datetime(),
-                    ods={
-                        "2": structs.RawODReading(
-                            timestamp=current_utc_datetime(), angle="45", od=0.500, channel="2"
+                            ir_led_intensity=80.0,
+                            timestamp=current_utc_datetime(),
+                            angle="45",
+                            od=0.250,
+                            channel="2",
                         )
                     },
                 )
@@ -340,7 +355,31 @@ def test_turbidostat_targeting_od() -> None:
                     timestamp=current_utc_datetime(),
                     ods={
                         "2": structs.RawODReading(
-                            timestamp=current_utc_datetime(), angle="45", od=0.100, channel="2"
+                            ir_led_intensity=80.0,
+                            timestamp=current_utc_datetime(),
+                            angle="45",
+                            od=0.500,
+                            channel="2",
+                        )
+                    },
+                )
+            ),
+        )
+        pause()
+        assert isinstance(algo.run(), events.DilutionEvent)
+
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/od_reading/ods",
+            encode(
+                structs.ODReadings(
+                    timestamp=current_utc_datetime(),
+                    ods={
+                        "2": structs.RawODReading(
+                            ir_led_intensity=80.0,
+                            timestamp=current_utc_datetime(),
+                            angle="45",
+                            od=0.100,
+                            channel="2",
                         )
                     },
                 )
@@ -633,7 +672,7 @@ def test_throughput_calculator_manual_set() -> None:
 def test_execute_io_action() -> None:
     experiment = "test_execute_io_action"
 
-    with Silent(unit=unit, experiment=experiment, initial_volume_ml=15.0, max_working_volume_ml=15.0) as ca:
+    with Silent(unit=unit, experiment=experiment, volume_ml=15.0, max_working_volume_ml=15.0) as ca:
         ca.execute_io_action(media_ml=0.50, alt_media_ml=0.35, waste_ml=0.50 + 0.35)
         pause()
         assert ca.media_throughput == 0.50
@@ -668,7 +707,7 @@ def test_execute_io_action() -> None:
 def test_execute_io_action2() -> None:
     experiment = "test_execute_io_action2"
 
-    with Silent(unit=unit, experiment=experiment, initial_volume_ml=14.0) as ca:
+    with Silent(unit=unit, experiment=experiment, volume_ml=14.0) as ca:
         results = ca.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
         pause()
         assert results["media_ml"] == 1.25
@@ -1062,12 +1101,12 @@ def test_chemostat_from_cli() -> None:
     assert len(errors) == 0
 
 
-def test_pass_in_initial_alt_media_fraction() -> None:
-    experiment = "test_pass_in_initial_alt_media_fraction"
+def test_pass_in_alt_media_fraction() -> None:
+    experiment = "test_pass_in_alt_media_fraction"
     unit = get_unit_name()
 
     with start_dosing_automation(
-        "chemostat", 20, False, unit, experiment, exchange_volume_ml=0.25, initial_alt_media_fraction=0.5
+        "chemostat", 20, False, unit, experiment, exchange_volume_ml=0.25, alt_media_fraction=0.5
     ) as chemostat:
         assert chemostat.alt_media_fraction == 0.5
         pause(n=35)
@@ -1104,7 +1143,7 @@ def test_chemostat_from_0_volume() -> None:
         unit,
         experiment,
         exchange_volume_ml=0.5,
-        initial_volume_ml=0,
+        volume_ml=0,
     ) as chemostat:
         pause(n=25)
         assert chemostat.media_throughput == 0.5
@@ -1149,7 +1188,7 @@ def test_execute_io_respects_dilutions_ratios() -> None:
         unit,
         experiment,
         exchange_volume_ml=2.0,
-        initial_alt_media_fraction=0.5,
+        alt_media_fraction=0.5,
         fraction_alt_media=0.5,
     ) as automation_job:
         assert automation_job.alt_media_fraction == 0.5
@@ -1220,7 +1259,11 @@ def test_chemostat_detects_pump_malfunction(monkeypatch) -> None:
                             timestamp=current_utc_datetime(),
                             ods={
                                 "2": structs.RawODReading(
-                                    timestamp=current_utc_datetime(), angle="45", od=1.0, channel="2"
+                                    ir_led_intensity=80.0,
+                                    timestamp=current_utc_datetime(),
+                                    angle="45",
+                                    od=1.0,
+                                    channel="2",
                                 )
                             },
                         )
@@ -1237,7 +1280,11 @@ def test_chemostat_detects_pump_malfunction(monkeypatch) -> None:
                                 timestamp=current_utc_datetime(),
                                 ods={
                                     "2": structs.RawODReading(
-                                        timestamp=current_utc_datetime(), angle="45", od=0.0, channel="2"
+                                        ir_led_intensity=80.0,
+                                        timestamp=current_utc_datetime(),
+                                        angle="45",
+                                        od=0.0,
+                                        channel="2",
                                     )
                                 },
                             )
@@ -1276,7 +1323,11 @@ def test_chemostat_no_false_positive_pump_detection(monkeypatch) -> None:
                         timestamp=current_utc_datetime(),
                         ods={
                             "2": structs.RawODReading(
-                                timestamp=current_utc_datetime(), angle="45", od=1.0, channel="2"
+                                ir_led_intensity=80.0,
+                                timestamp=current_utc_datetime(),
+                                angle="45",
+                                od=1.0,
+                                channel="2",
                             )
                         },
                     )
@@ -1295,7 +1346,11 @@ def test_chemostat_no_false_positive_pump_detection(monkeypatch) -> None:
                             timestamp=current_utc_datetime(),
                             ods={
                                 "2": structs.RawODReading(
-                                    timestamp=current_utc_datetime(), angle="45", od=predicted, channel="2"
+                                    ir_led_intensity=80.0,
+                                    timestamp=current_utc_datetime(),
+                                    angle="45",
+                                    od=predicted,
+                                    channel="2",
                                 )
                             },
                         )
@@ -1645,7 +1700,7 @@ def test_automation_will_pause_itself_if_pumping_goes_above_safety_threshold() -
         experiment=experiment,
         duration=0.05,
         exchange_volume_ml=0.5,
-        initial_volume_ml=Chemostat.MAX_VIAL_VOLUME_TO_STOP - 0.05,
+        volume_ml=Chemostat.MAX_VIAL_VOLUME_TO_STOP - 0.05,
     ) as job:
         while job.state == "ready":
             pause()
@@ -1751,8 +1806,8 @@ def test_dosing_automation_initial_values_for_volumes():
     with Silent(
         unit=unit,
         experiment=exp,
-        initial_alt_media_fraction=0.5,
-        initial_volume_ml=10.0,
+        alt_media_fraction=0.5,
+        volume_ml=10.0,
         max_working_volume_ml=15.0,
     ) as ca:
         assert ca.current_volume_ml == 10.0
@@ -1765,8 +1820,8 @@ def test_dosing_automation_initial_values_for_volumes():
     with Silent(
         unit=unit,
         experiment=exp,
-        initial_alt_media_fraction=None,
-        initial_volume_ml=None,
+        alt_media_fraction=None,
+        volume_ml=None,
         max_working_volume_ml=16.0,
     ) as ca:
         assert ca.current_volume_ml == 11.0
