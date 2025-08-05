@@ -278,9 +278,7 @@ def test_broadcast_in_manage_all(client):
         )
     assert len(bucket) == 2
     assert bucket[0].path == "/unit_api/jobs/run/job_name/stirring"
-    from pioreactor.models import get_current_model
 
-    m = get_current_model()
     assert bucket[0].json == {
         "args": [],
         "options": {"target_rpm": 10},
@@ -288,8 +286,8 @@ def test_broadcast_in_manage_all(client):
         "env": {
             "EXPERIMENT": "exp1",
             "ACTIVE": "1",
-            "MODEL_NAME": m.model_name,
-            "MODEL_VERSION": m.model_version,
+            "MODEL_NAME": "pioreactor_20ml",
+            "MODEL_VERSION": "1.1",
         },
     }
 
@@ -310,9 +308,7 @@ def test_run_job(client):
         )
     assert len(bucket) == 1
     assert bucket[0].path == "/unit_api/jobs/run/job_name/stirring"
-    from pioreactor.models import get_current_model
 
-    m = get_current_model()
     assert bucket[0].json == {
         "args": [],
         "options": {"target_rpm": 10},
@@ -320,8 +316,8 @@ def test_run_job(client):
         "env": {
             "EXPERIMENT": "exp1",
             "ACTIVE": "1",
-            "MODEL_NAME": m.model_name,
-            "MODEL_VERSION": m.model_version,
+            "MODEL_NAME": "pioreactor_20ml",
+            "MODEL_VERSION": "1.1",
         },
     }
 
@@ -351,9 +347,7 @@ def test_run_job_with_job_source(client):
         )
     assert len(bucket) == 1
     assert bucket[0].path == "/unit_api/jobs/run/job_name/stirring"
-    from pioreactor.models import get_current_model
 
-    m = get_current_model()
     assert bucket[0].json == {
         "args": [],
         "options": {"target_rpm": 10},
@@ -362,8 +356,8 @@ def test_run_job_with_job_source(client):
             "EXPERIMENT": "exp1",
             "ACTIVE": "1",
             "JOB_SOURCE": "experiment_profile",
-            "MODEL_NAME": m.model_name,
-            "MODEL_VERSION": m.model_version,
+            "MODEL_NAME": "pioreactor_20ml",
+            "MODEL_VERSION": "1.1",
         },
     }
 
@@ -405,18 +399,18 @@ def test_get_settings_api(client):
     from pioreactor.background_jobs.stirring import start_stirring
 
     with start_stirring(unit="unit1", experiment="exp1"):
-        r = client.get(
-            "/api/experiments/exp1/jobs/settings/job_name/stirring",
-        )
+        r = client.get("/api/workers/$broadcast/jobs/settings/job_name/stirring/experiments/exp1")
         # follow the task
+        print(r.json)
         r = client.get(r.json["result_url_path"])
         settings_per_unit = r.json["result"]
         assert settings_per_unit["unit2"] is None
         assert settings_per_unit["unit1"]["settings"]["target_rpm"] == 500.0
 
         # next api
-        r = client.get("/api/workers/unit1/jobs/settings/job_name/stirring")
+        r = client.get("/api/workers/unit1/jobs/settings/job_name/stirring/experiments/exp1")
         # follow the task
+        print(r.json)
         r = client.get(r.json["result_url_path"])
         settings_per_unit = r.json["result"]
         assert settings_per_unit["unit1"]["settings"]["target_rpm"] == 500.0
