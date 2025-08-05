@@ -749,9 +749,10 @@ function CalibrateDialog({ unit, experiment, odBlankReading, odBlankJobState, gr
 
 
 
-function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabled, modelName }) {
+function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabled }) {
   const [open, setOpen] = useState(false);
   const [config, setConfig] = useState({})
+  const [modelDetails, setModelDetails] = useState({})
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [tabValue, setTabValue] = useState(0);
@@ -766,7 +767,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
       return
     }
 
-    fetch(`/api/units/${unit}/configuration`).then((response) => {
+    fetch(`/api/workers/${unit}/configuration`).then((response) => {
       if (!response.ok) {
         return response.json().then((errorData) => {
           console.log(errorData)
@@ -779,6 +780,24 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
     .catch((error) => {
       console.error("Fetching configuration failed:", error);
     });
+
+    fetch(`/api/workers/${unit}/model`).then((response) => {
+      if (!response.ok) {
+        return response.json().then((errorData) => {
+          console.log(errorData)
+          throw new Error(errorData.error);
+        });
+      }
+      return response.json();
+    })
+    .then((data) => setModelDetails(data))
+    .catch((error) => {
+      console.error("Fetching model details failed:", error);
+    });
+
+
+
+
   }, [open]);
 
   const handleTabChange = (event, newValue) => {
@@ -1160,7 +1179,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
               no_skip_first_run={false}
               maxVolume={parseFloat(dosingControlJob.publishedSettings.max_working_volume_ml.value) || parseFloat(config?.bioreactor?.max_working_volume_ml) || 10}
               liquidVolume={parseFloat(dosingControlJob.publishedSettings.current_volume_ml.value) || parseFloat(config?.bioreactor?.current_volume_ml) || 10}
-              threshold={modelName === "pioreactor_20ml" ? 18 : 38}
+              threshold={modelDetails.reactor_max_fill_volume_ml}
             />
           </React.Fragment>
           }

@@ -111,3 +111,25 @@ def test_chemostat_inherits_parent_settings_and_options():
     option_names = set(o["name"] for o in chemo.get("options", []))
     for key in ("alt_media_fraction", "current_volume_ml", "max_working_volume_ml", "exchange_volume_ml"):
         assert key in option_names, f"{key} missing in CLI options for chemostat"
+
+
+def test_state_published_setting_for_all_jobs_and_not_in_cli_flags():
+    """
+    Verify that every job includes the "$state" published_setting, but that "$state" is not exposed
+    as a CLI option for automations.
+    """
+    caps = collect_capabilities()
+    for cap in caps:
+        # Skip CLI-only actions (they have empty published_settings)
+        if not cap["published_settings"]:
+            continue
+        # $state must be present in published_settings for all BackgroundJob-based entries
+        assert (
+            "$state" in cap["published_settings"]
+        ), f"$state missing in published_settings for {cap['job_name']}"
+        # For automations, $state should not appear as a CLI flag
+        if cap.get("automation_name"):
+            option_names = {o["name"] for o in cap.get("options", [])}
+            assert (
+                "$state" not in option_names
+            ), f"$state should not be exposed as CLI option for automation {cap['automation_name']}"

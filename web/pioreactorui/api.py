@@ -22,10 +22,12 @@ from huey.api import Result
 from huey.exceptions import HueyException
 from huey.exceptions import TaskException
 from msgspec import DecodeError
+from msgspec import to_builtins
 from msgspec import ValidationError
 from msgspec.yaml import decode as yaml_decode
 from pioreactor.config import get_leader_hostname
 from pioreactor.experiment_profiles.profile_struct import Profile
+from pioreactor.models import registered_models
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import Dataset
 from pioreactor.structs import subclass_union
@@ -96,7 +98,6 @@ def get_models() -> tuple[dict[str, list[dict[str, str]]], int]:
     """
     Return the list of supported Pioreactor models (name, version, display_name).
     """
-    from pioreactor.models import registered_models
 
     models = [
         {"model_name": name, "model_version": version, "display_name": m.display_name}
@@ -1697,6 +1698,7 @@ def get_experiment(experiment: str) -> ResponseReturnValue:
 
 
 @api.route("/units/<pioreactor_unit>/configuration", methods=["GET"])
+@api.route("/workers/<pioreactor_unit>/configuration", methods=["GET"])
 def get_configuration_for_pioreactor_unit(pioreactor_unit: str) -> ResponseReturnValue:
     """get configuration for a pioreactor unit"""
     try:
@@ -2207,7 +2209,10 @@ def change_worker_model(pioreactor_unit: str) -> ResponseReturnValue:
     model_version, model_name = data.get("model_version"), data.get("model_name")
 
     if not model_version or not model_name:
-        return jsonify({"error": "Missing model_version or model_name"}), 400
+        abort(400, "Missing model_version or model_name")
+
+    if (model_name, model_version) not in registered_models:
+        abort(400, "Model name or version not found in available models.")
 
     # Update the status of the worker in the database
     row_count = modify_app_db(
@@ -2224,6 +2229,37 @@ def change_worker_model(pioreactor_unit: str) -> ResponseReturnValue:
         return {"status": "success"}, 200
     else:
         abort(404, f"Worker {pioreactor_unit} not found")
+
+
+@api.route("/workers/<pioreactor_unit>/model", methods=["GET"])
+def get_worker_model_and_metadata(pioreactor_unit: str) -> ResponseReturnValue:
+    # Query the database for a worker's model and metadata
+    result = query_app_db(
+        """
+        SELECT pioreactor_unit, model_name, model_version
+        FROM workers
+        WHERE pioreactor_unit = ?
+        """,
+        (pioreactor_unit,),
+        one=True,
+    )
+    assert isinstance(result, dict)
+    if result is None:
+        # If the worker is not found, return an error
+        return abort(404, "Worker not found")
+    elif (result["model_name"], result["model_version"]) not in registered_models:
+        # If the model is not found in the available models, return an error
+        return abort(404, "Model not found")
+    else:
+        # If the worker is found, return the model and metadata
+        return jsonify(
+            {
+                "pioreactor_unit": result["pioreactor_unit"],
+                "model_name": result["model_name"],
+                "model_version": result["model_version"],
+                **to_builtins(registered_models[(result["model_name"], result["model_version"])]),
+            }
+        )
 
 
 @api.route("/workers/<pioreactor_unit>", methods=["GET"])

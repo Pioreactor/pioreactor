@@ -21,3 +21,8 @@
 
 
 This repository presents a modern React single-page application tailored to manage and monitor Pioreactor devices, leveraging MQTT for realtime communication and Material-UI for interface components.
+
+Rules
+-------
+
+1. Keep imports at the top of the file

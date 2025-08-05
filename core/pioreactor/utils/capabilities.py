@@ -3,6 +3,16 @@
 
 Example:
     python -m core.pioreactor.utils.capabilities
+
+Rules summary for capability collection:
+1. Discover all BackgroundJob subclasses (skip those without a valid job_name).
+2. Merge each job class's static published_settings and dynamic add_to_published_settings calls across its MRO.
+3. Always include a "$state" published setting (settable) for every BackgroundJob, but never expose it as a CLI flag.
+4. Treat AutomationJob subclasses specially: skip base automations, require an automation_name, and build a dedicated CLI example with --automation-name.
+5. Collect all `pio run` commands and subcommands, recording their arguments and options.
+6. Merge background job metadata with CLI action metadata; for automations, strip the --automation-name option and add flags for settable settings.
+7. Include any CLI-only actions (e.g. leader commands) even if no BackgroundJob exists, with empty published_settings.
+8. Sort the final capabilities list by (job_name, automation_name) for consistent output.
 """
 from __future__ import annotations
 
@@ -86,6 +96,8 @@ def collect_background_jobs() -> List[Dict[str, Any]]:
             settings.update(ancestor_settings)
             # dynamic settings added via add_to_published_settings in class source
             settings.update(_extract_additional_settings(ancestor))
+        # always include the "$state" setting (settable) for every BackgroundJob, but never expose as CLI
+        settings["$state"] = {"datatype": "text", "settable": True}
 
         if issubclass(cls, AutomationJob):
             automation_name = getattr(cls, "automation_name", None)
@@ -176,6 +188,9 @@ def collect_capabilities() -> list[dict[str, Any]]:
         if job.get("automation_name"):
             options = [o for o in options if o.get("name") != "automation_name"]
             for setting, meta in job.get("published_settings", {}).items():
+                # skip internal $state even though it's settable
+                if setting == "$state":
+                    continue
                 if meta.get("settable"):
                     flag = setting.replace("_", "-")
                     options.append(

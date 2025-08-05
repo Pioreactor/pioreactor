@@ -291,19 +291,7 @@ function ButtonStopProcess({experiment, unit}) {
 }
 
 
-function modelStringFromModelNameAndModelVersion(modelName, modelVersion){
-  if (modelName === "pioreactor_20ml"){
-    return `Pioreactor 20ml, v${modelVersion}`
-  } else if (modelName === "pioreactor_40ml"){
-    return `Pioreactor 40ml, v${modelVersion}`
-  } else {
-    return "Unknown model"
-  }
-}
-
-
-
-function PioreactorHeader({unit, assignedExperiment, isActive, selectExperiment, modelName, modelVersion}) {
+function PioreactorHeader({unit, assignedExperiment, isActive, selectExperiment, modelDisplayName}) {
   const navigate = useNavigate()
 
   const onExperimentClick = () => {
@@ -352,7 +340,7 @@ function PioreactorHeader({unit, assignedExperiment, isActive, selectExperiment,
                 <PioreactorIcon sx={{ fontSize: 14, verticalAlign: "-2px" }}/> Model:&nbsp;
               </Box>
               <Box fontWeight="fontWeightRegular" sx={{mr: "1%", display:"inline-block"}}>
-                {modelStringFromModelNameAndModelVersion(modelName, modelVersion)}
+                {modelDisplayName}
               </Box>
             </Box>
 
@@ -961,7 +949,7 @@ function SettingsActionsDialog(props) {
               no_skip_first_run={false}
               maxVolume={dosingControlJob.publishedSettings.max_working_volume_ml.value || parseFloat(props.config?.bioreactor?.max_working_volume_ml) || 10.0}
               liquidVolume={dosingControlJob.publishedSettings.current_volume_ml.value || parseFloat(props.config?.bioreactor?.initial_volume_ml) || 10}
-              threshold={props.modelName === "pioreactor_20ml" ? 18 : 38}
+              threshold={props.modelDetails.reactor_max_fill_volume_ml}
             />
           </React.Fragment>
           }
@@ -1517,7 +1505,7 @@ function SettingNumericField(props) {
 
 
 
-function UnitCard({unit, experiment, config, isAssignedToExperiment, isActive, modelName}){
+function UnitCard({unit, experiment, config, isAssignedToExperiment, isActive, modelDetails}){
   const [relabelMap, setRelabelMap] = useState({})
   useEffect(() => {
 
@@ -1529,7 +1517,7 @@ function UnitCard({unit, experiment, config, isAssignedToExperiment, isActive, m
   return (
     <React.Fragment>
       <div>
-         <PioreactorCard modelName={modelName} isUnitActive={isAssignedToExperiment && isActive} unit={unit} config={config} experiment={experiment} label={relabelMap[unit]}/>
+         <PioreactorCard modelDetails={modelDetails} isUnitActive={isAssignedToExperiment && isActive} unit={unit} config={config} experiment={experiment} label={relabelMap[unit]}/>
       </div>
     </React.Fragment>
 )}
@@ -1551,7 +1539,7 @@ function FlashLEDButton(props){
 )}
 
 
-function PioreactorCard({ unit, modelName, isUnitActive, experiment, config, label: initialLabel }){
+function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, label: initialLabel }){
   const [jobFetchComplete, setJobFetchComplete] = useState(false)
   const [label, setLabel] = useState(initialLabel || "")
   const {client, subscribeToTopic } = useMQTT();
@@ -1733,7 +1721,7 @@ function PioreactorCard({ unit, modelName, isUnitActive, experiment, config, lab
             }
           })}>
             <div style={{display: "flex", justifyContent: "left"}}>
-              <PioreactorIconWithModel badgeContent={modelName === "pioreactor_40ml" ? "40" : "20"} />
+              <PioreactorIconWithModel badgeContent={modelDetails.reactor_capacity_ml} />
               <Typography sx={{
                   fontSize: 20,
                   color: "rgba(0, 0, 0, 0.87)",
@@ -1790,7 +1778,7 @@ function PioreactorCard({ unit, modelName, isUnitActive, experiment, config, lab
                 experiment={experiment}
                 jobs={jobs}
                 setLabel={setLabel}
-                modelName={modelName}
+                modelDetails={modelDetails}
               />
             </Box>
           </Box>
@@ -1948,8 +1936,7 @@ function Pioreactor({title}) {
   const unit = pioreactorUnit
   const [assignedExperiment, setAssignedExperiment] = useState(null)
   const [isActive, setIsActive] = useState(true)
-  const [modelName, setModelName] = useState("")
-  const [modelVersion, setModelVersion] = useState("")
+  const [modelDetails, setModelDetails] = useState({})
   const [error, setError] = useState(null)
   const navigate = useNavigate()
 
@@ -1995,8 +1982,6 @@ function Pioreactor({title}) {
         .then((json) => {
         setAssignedExperiment(json['experiment'])
         setIsActive(json['is_active'])
-        setModelName(json['model_name'])
-        setModelVersion(json['model_version'])
       })
       .catch((error) => {
         setError(error.message);
@@ -2007,6 +1992,30 @@ function Pioreactor({title}) {
       getWorkerAssignment()
     }
   }, [experimentMetadata])
+
+  useEffect(() => {
+    function getModelDetails() {
+      fetch(`/api/workers/${unit}/model`)
+        .then((response) => {
+          if (!response.ok) {
+            return response.json().then((errorData) => {
+              console.log(errorData)
+              throw new Error(errorData.error);
+            });
+          }
+          return response.json();
+        })
+        .then((json) => {
+        setModelDetails(json)
+      })
+      .catch((error) => {
+        setError(error.message);
+      });
+    }
+    getModelDetails()
+  }, [])
+
+
 
 
   if (error) {
@@ -2026,7 +2035,7 @@ function Pioreactor({title}) {
               md: 12,
               xs: 12
             }}>
-            <PioreactorHeader unit={unit} assignedExperiment={assignedExperiment} isActive={isActive} selectExperiment={selectExperiment} modelName={modelName} modelVersion={modelVersion}/>
+            <PioreactorHeader unit={unit} assignedExperiment={assignedExperiment} isActive={isActive} selectExperiment={selectExperiment} modelDisplayName={modelDetails.display_name} />
             {experimentMetadata.experiment && assignedExperiment && experimentMetadata.experiment !== assignedExperiment &&
             <Box>
               <Alert severity="info" style={{marginBottom: '10px', marginTop: '10px'}}>This worker is part of different experiment. Switch to experiment <Chip icon=<PlayCircleOutlinedIcon/> size="small" label={assignedExperiment} clickable onClick={onExperimentClick}/> to control this worker.</Alert>
@@ -2039,7 +2048,7 @@ function Pioreactor({title}) {
               md: 12,
               xs: 12
             }}>
-            <UnitCard modelName={modelName} isActive={isActive} isAssignedToExperiment={experimentMetadata.experiment === assignedExperiment} unit={unit} experiment={experimentMetadata.experiment} config={unitConfig}/>
+            <UnitCard modelDetails={modelDetails} isActive={isActive} isAssignedToExperiment={experimentMetadata.experiment === assignedExperiment} unit={unit} experiment={experimentMetadata.experiment} config={unitConfig}/>
           </Grid>
           <Grid
             size={{
@@ -2047,12 +2056,12 @@ function Pioreactor({title}) {
               md: 12,
               xs: 12
             }}>
-{(modelName === "pioreactor_20ml" || modelName === "pioreactor_40ml") &&
+            {(modelDetails.model_name === "pioreactor_20ml" || modelDetails.model_name === "pioreactor_40ml") &&
             <BioreactorDiagram
               experiment={experimentMetadata.experiment}
               unit={unit}
               config={unitConfig}
-              size={modelName === "pioreactor_20ml" ? 20 : 40}
+              size={modelDetails.reactor_capacity_ml}
             />
             }
           </Grid>
