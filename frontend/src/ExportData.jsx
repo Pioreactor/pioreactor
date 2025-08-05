@@ -133,11 +133,11 @@ const PartitionBySelection = (props) => {
         <Box>
           <FormControlLabel
             control={<Checkbox checked={props.partitionByExperimentSelection} onChange={props.handleChange} name="partition_by_experiment" />}
-            label="Partition output files by Experiment"
+            label="Partition output csvs by Experiment"
           /><br/>
           <FormControlLabel
             control={<Checkbox checked={props.partitionByUnitSelection} onChange={props.handleChange} name="partition_by_unit" />}
-            label="Partition output files by Pioreactor"
+            label="Partition output csvs by Pioreactor"
           />
         </Box>
       </FormControl>
@@ -486,12 +486,12 @@ function ExportDataContainer() {
         </Box>
       <Divider sx={{marginTop: "0px", marginBottom: "15px"}} />
       </Box>
-      <Card >
-        <CardContent sx={{p: 1}}>
-          <p style={{marginLeft: 10}}>{errorFeedbackOrDefault}</p>
+      <Card>
+        <CardContent sx={{ p: 1 }}>
+          <p style={{ marginLeft: 10 }}>{errorFeedbackOrDefault}</p>
 
           <form>
-            <Grid container spacing={0}>
+            <Grid container spacing={2}>
               <Grid
                 size={{
                   xs: 6,
@@ -502,59 +502,74 @@ function ExportDataContainer() {
                   handleChange={handleExperimentSelectionChange}
                 />
               </Grid>
+              <Grid  size={{
+                  xs: 2,
+                  md: 2
+                }}/>
               <Grid
                 size={{
-                  xs: 6,
-                  md: 6
+                  xs: 4,
+                  md: 4
                 }}>
-                <Typography variant="h6">
-                  <Box fontWeight="fontWeightRegular">Export options</Box>
-                </Typography>
-                <PartitionBySelection
-                  partitionByUnitSelection={state.partitionByUnitSelection}
-                  partitionByExperimentSelection={state.partitionByExperimentSelection}
-                  handleChange={handlePartitionByChange}
-                />
-                {/* Time range selectors */}
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={state.useTimeFilter}
-                      onChange={(e) =>
-                        setState((prev) => ({
-                          ...prev,
-                          useTimeFilter: e.target.checked,
-                        }))
-                      }
-                      name="useTimeFilter"
+                <Accordion square disableGutters elevation={0} sx={{ '&::before': { display: 'none' }, backgroundColor: 'transparent', boxShadow: 'none', margin: 0 }}>
+                  <AccordionSummary
+                    sx={{
+                      flexDirection: 'row-reverse',
+                    }}
+                    expandIcon={<ArrowDropDownIcon />}
+                  >
+                    <Typography variant="h6">
+                      <Box fontWeight="fontWeightRegular">Export options</Box>
+                    </Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <PartitionBySelection
+                      partitionByUnitSelection={state.partitionByUnitSelection}
+                      partitionByExperimentSelection={state.partitionByExperimentSelection}
+                      handleChange={handlePartitionByChange}
                     />
-                  }
-                  label="Filter by time "
-                />
-                <Box sx={{ display: 'flex', gap: 2, mt: 1, mb: 2 }}>
-                  <TextField
-                    label="Start time"
-                    type="datetime-local"
-                    size="small"
-                    InputLabelProps={{ shrink: true }}
-                    disabled={!state.useTimeFilter}
-                    value={state.startTime || ''}
-                    onChange={(e) =>
-                      setState((prev) => ({ ...prev, startTime: e.target.value }))
-                    }
-                  />
-                  <TextField
-                    label="End time"
-                    type="datetime-local"
-                    size="small"
-                    InputLabelProps={{ shrink: true }}
-                    disabled={!state.useTimeFilter}
-                    value={state.endTime || ''}
-                    onChange={(e) =>
-                      setState((prev) => ({ ...prev, endTime: e.target.value }))
-                    }
-                  />
-                </Box>
+                    {/* Time range selectors */}
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={state.useTimeFilter}
+                          onChange={(e) =>
+                            setState((prev) => ({
+                              ...prev,
+                              useTimeFilter: e.target.checked,
+                            }))
+                          }
+                          name="useTimeFilter"
+                        />
+                      }
+                      label="Filter by time "
+                    />
+                    <Box sx={{ display: 'flex', gap: 2, mt: 1, mb: 2 }}>
+                      <TextField
+                        label="Start time"
+                        type="datetime-local"
+                        size="small"
+                        InputLabelProps={{ shrink: true }}
+                        disabled={!state.useTimeFilter}
+                        value={state.startTime || ''}
+                        onChange={(e) =>
+                          setState((prev) => ({ ...prev, startTime: e.target.value }))
+                        }
+                      />
+                      <TextField
+                        label="End time"
+                        type="datetime-local"
+                        size="small"
+                        InputLabelProps={{ shrink: true }}
+                        disabled={!state.useTimeFilter}
+                        value={state.endTime || ''}
+                        onChange={(e) =>
+                          setState((prev) => ({ ...prev, endTime: e.target.value }))
+                        }
+                      />
+                    </Box>
+                  </AccordionDetails>
+                </Accordion>
               </Grid>
               <Grid
                 size={{

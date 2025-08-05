@@ -46,7 +46,8 @@ def _extract_additional_settings(cls: type) -> Dict[str, Dict[str, Any]]:
     settings: Dict[str, Dict[str, Any]] = {}
     try:
         source = inspect.getsource(cls)
-    except OSError:
+    except (OSError, TypeError):
+        # no source available (e.g., built-in or dynamically generated classes)
         return settings
 
     tree = ast.parse(source)
@@ -77,8 +78,14 @@ def collect_background_jobs() -> List[Dict[str, Any]]:
         if not job_name or job_name == "background_job":
             continue
 
-        settings = getattr(cls, "published_settings", {}).copy()
-        settings.update(_extract_additional_settings(cls))
+        # merge published_settings and add_to_published_settings calls from all ancestor classes
+        settings: Dict[str, Dict[str, Any]] = {}
+        for ancestor in reversed(cls.mro()):
+            # static published_settings attr (may be None or empty)
+            ancestor_settings = getattr(ancestor, "published_settings", {}) or {}
+            settings.update(ancestor_settings)
+            # dynamic settings added via add_to_published_settings in class source
+            settings.update(_extract_additional_settings(ancestor))
 
         if issubclass(cls, AutomationJob):
             automation_name = getattr(cls, "automation_name", None)

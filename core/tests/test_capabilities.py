@@ -8,6 +8,7 @@ import click
 from pioreactor.utils.capabilities import _all_subclasses
 from pioreactor.utils.capabilities import _extract_additional_settings
 from pioreactor.utils.capabilities import collect_actions
+from pioreactor.utils.capabilities import collect_capabilities
 from pioreactor.utils.capabilities import generate_command_metadata
 
 
@@ -95,3 +96,18 @@ def test_collect_actions(monkeypatch):
     assert foo["help"] == "foo help"
     assert foo["arguments"][0]["name"] == "arg"
     assert foo["options"][0]["name"] == "opt"
+
+
+def test_chemostat_inherits_parent_settings_and_options():
+    # The 'chemostat' automation should include settings from its base class
+    caps = collect_capabilities()
+    chemo = next(c for c in caps if c.get("automation_name") == "chemostat")
+    settings = set(chemo["published_settings"].keys())
+    # parent settings from DosingAutomationJob base should be present
+    for key in ("alt_media_fraction", "current_volume_ml", "max_working_volume_ml"):
+        assert key in settings, f"{key} missing in published_settings for chemostat"
+
+    # CLI options should also expose these settings as flags
+    option_names = set(o["name"] for o in chemo.get("options", []))
+    for key in ("alt_media_fraction", "current_volume_ml", "max_working_volume_ml", "exchange_volume_ml"):
+        assert key in option_names, f"{key} missing in CLI options for chemostat"

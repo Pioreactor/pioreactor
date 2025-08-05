@@ -166,14 +166,18 @@ class _BackgroundJob(metaclass=PostInitCaller):
     and  going from sleeping to ready should restart the motor.)
 
 
-    Editing properties
+    Published settings
     ---------------------
-
-    This class handles the fanning out of class attributes, and the setting of those attributes. Use
+    This class handles the fanning out of specific class attributes, called `published_settings`, and the setting of those attributes. Use
     `pioreactor/<unit>/<experiment>/<job_name>/<attr>/set` to set an attribute remotely.
 
     Hooks can be set up when property `p` changes. The function `set_p(self, new_value)`
     will be called (if defined) whenever `p` changes over MQTT.
+
+    See `PublishableSetting` for typing.
+
+    Ideally the CLI of the job should allow setting SETTABLE: TRUE attributes.
+
 
     Best code practices of background jobs
     ---------------------------------------
