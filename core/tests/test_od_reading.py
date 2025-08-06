@@ -595,7 +595,7 @@ def test_sin_regression_all_negative() -> None:
 
 
 def test_simple_API() -> None:
-    od_job = start_od_reading("90", "REF", interval=100_000, fake_data=True)
+    od_job = start_od_reading("90", "REF", interval=100_000, fake_data=True, calibration=False)
 
     for led_int in range(5, 70, 15):
         time.sleep(2)
@@ -1060,7 +1060,7 @@ def test_calibration_with_irl_data1() -> None:
             timestamp=current_utc_datetime(),
             ods={
                 ch: structs.RawODReading(
-                    ir_led_intensity=80, od=v, angle="90", channel=ch, timestamp=current_utc_datetime()
+                    ir_led_intensity=70.0, od=v, angle="90", channel=ch, timestamp=current_utc_datetime()
                 )
             },
         )
@@ -1393,7 +1393,7 @@ def test_mandys_calibration() -> None:
 
 def test_setting_interval_after_starting() -> None:
     initial_interval = 2
-    with start_od_reading("90", "REF", interval=initial_interval, fake_data=True) as od:
+    with start_od_reading("90", "REF", interval=initial_interval, fake_data=True, calibration=False) as od:
         next(od)
         with catchtime() as c:
             next(od)

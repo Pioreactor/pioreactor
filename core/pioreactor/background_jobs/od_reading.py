@@ -732,20 +732,25 @@ class CachedCalibrationTransformer(LoggerMixin):
 
     def __call__(self, od_readings: structs.ODReadings) -> structs.CalibratedODReadings:
         od_readings = copy(od_readings)
+        calibrated_od_readings = structs.CalibratedODReadings(ods={}, timestamp=od_readings.timestamp)
+
         for channel in self.models:
             if channel in od_readings.ods:
                 raw_od = od_readings.ods[channel]
 
-                # check if everything is okay
+                # check if everything is okay - blows up if not.
                 self.verifiers[channel](raw_od)
 
-                od_readings.ods[channel] = structs.CalibratedODReading(
-                    **raw_od,
+                calibrated_od_readings.ods[channel] = structs.CalibratedODReading(
                     od=self.models[channel](raw_od.od),
                     calibration_name=self.models[channel].name,  # type: ignore
+                    channel=raw_od.channel,
+                    angle=raw_od.angle,
+                    timestamp=raw_od.timestamp,
+                    ir_led_intensity=raw_od.ir_led_intensity,
                 )
-        assert isinstance(od_readings, structs.CalibratedODReadings)
-        return od_readings
+        assert isinstance(calibrated_od_readings, structs.CalibratedODReadings)
+        return calibrated_od_readings
 
 
 class ODReader(BackgroundJob):

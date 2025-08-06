@@ -401,7 +401,6 @@ def test_get_settings_api(client):
     with start_stirring(unit="unit1", experiment="exp1"):
         r = client.get("/api/workers/$broadcast/jobs/settings/job_name/stirring/experiments/exp1")
         # follow the task
-        print(r.json)
         r = client.get(r.json["result_url_path"])
         settings_per_unit = r.json["result"]
         assert settings_per_unit["unit2"] is None
@@ -410,7 +409,6 @@ def test_get_settings_api(client):
         # next api
         r = client.get("/api/workers/unit1/jobs/settings/job_name/stirring/experiments/exp1")
         # follow the task
-        print(r.json)
         r = client.get(r.json["result_url_path"])
         settings_per_unit = r.json["result"]
         assert settings_per_unit["unit1"]["settings"]["target_rpm"] == 500.0

@@ -41,7 +41,7 @@ def create_od_raw_batched(channels, voltages: list[float], angles, timestamp: st
     for channel, voltage, angle in zip(channels, voltages, angles):
         assert int(channel) in (1, 2)
         readings.ods[channel] = structs.RawODReading(
-            od=voltage, angle=angle, timestamp=to_datetime(timestamp), channel=channel
+            od=voltage, angle=angle, timestamp=to_datetime(timestamp), channel=channel, ir_led_intensity=80
         )
 
     return readings
@@ -937,7 +937,11 @@ class TestGrowthRateCalculating:
                     )
                     publish(
                         f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                        encode(structs.RawODReading(od=v, angle="90", timestamp=to_datetime(t), channel="2")),
+                        encode(
+                            structs.RawODReading(
+                                od=v, angle="90", timestamp=to_datetime(t), channel="2", ir_led_intensity=80
+                            )
+                        ),
                         retain=True,
                     )
                     time.sleep(0.5)
@@ -957,7 +961,11 @@ class TestGrowthRateCalculating:
                     )
                     publish(
                         f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                        encode(structs.RawODReading(od=v, angle="90", timestamp=to_datetime(t), channel="2")),
+                        encode(
+                            structs.RawODReading(
+                                od=v, angle="90", timestamp=to_datetime(t), channel="2", ir_led_intensity=80
+                            )
+                        ),
                         retain=True,
                     )
                     time.sleep(0.5)
@@ -1006,7 +1014,11 @@ class TestGrowthRateCalculating:
                     )
                     publish(
                         f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                        encode(structs.RawODReading(od=v, angle="90", timestamp=to_datetime(t), channel="2")),
+                        encode(
+                            structs.RawODReading(
+                                od=v, angle="90", timestamp=to_datetime(t), channel="2", ir_led_intensity=80
+                            )
+                        ),
                         retain=True,
                     )
                     time.sleep(0.5)
@@ -1024,7 +1036,11 @@ class TestGrowthRateCalculating:
                 )
                 publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                    encode(structs.RawODReading(od=v, angle="90", timestamp=to_datetime(t), channel="2")),
+                    encode(
+                        structs.RawODReading(
+                            od=v, angle="90", timestamp=to_datetime(t), channel="2", ir_led_intensity=80
+                        )
+                    ),
                     retain=True,
                 )
                 time.sleep(0.5)
@@ -1046,7 +1062,11 @@ class TestGrowthRateCalculating:
                     )
                     publish(
                         f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                        encode(structs.RawODReading(od=v, angle="90", timestamp=to_datetime(t), channel="2")),
+                        encode(
+                            structs.RawODReading(
+                                od=v, angle="90", timestamp=to_datetime(t), channel="2", ir_led_intensity=80
+                            )
+                        ),
                         retain=True,
                     )
                     time.sleep(0.5)

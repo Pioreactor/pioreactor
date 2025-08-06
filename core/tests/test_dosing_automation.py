@@ -672,7 +672,7 @@ def test_throughput_calculator_manual_set() -> None:
 def test_execute_io_action() -> None:
     experiment = "test_execute_io_action"
 
-    with Silent(unit=unit, experiment=experiment, volume_ml=15.0, max_working_volume_ml=15.0) as ca:
+    with Silent(unit=unit, experiment=experiment, current_volume_ml=15.0, max_working_volume_ml=15.0) as ca:
         ca.execute_io_action(media_ml=0.50, alt_media_ml=0.35, waste_ml=0.50 + 0.35)
         pause()
         assert ca.media_throughput == 0.50
@@ -707,7 +707,7 @@ def test_execute_io_action() -> None:
 def test_execute_io_action2() -> None:
     experiment = "test_execute_io_action2"
 
-    with Silent(unit=unit, experiment=experiment, volume_ml=14.0) as ca:
+    with Silent(unit=unit, experiment=experiment, current_volume_ml=14.0) as ca:
         results = ca.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
         pause()
         assert results["media_ml"] == 1.25
@@ -1143,7 +1143,7 @@ def test_chemostat_from_0_volume() -> None:
         unit,
         experiment,
         exchange_volume_ml=0.5,
-        volume_ml=0,
+        current_volume_ml=0,
     ) as chemostat:
         pause(n=25)
         assert chemostat.media_throughput == 0.5
@@ -1700,7 +1700,7 @@ def test_automation_will_pause_itself_if_pumping_goes_above_safety_threshold() -
         experiment=experiment,
         duration=0.05,
         exchange_volume_ml=0.5,
-        volume_ml=Chemostat.MAX_VIAL_VOLUME_TO_STOP - 0.05,
+        current_volume_ml=Chemostat.MAX_VIAL_VOLUME_TO_STOP - 0.05,
     ) as job:
         while job.state == "ready":
             pause()
@@ -1807,7 +1807,7 @@ def test_dosing_automation_initial_values_for_volumes():
         unit=unit,
         experiment=exp,
         alt_media_fraction=0.5,
-        volume_ml=10.0,
+        current_volume_ml=10.0,
         max_working_volume_ml=15.0,
     ) as ca:
         assert ca.current_volume_ml == 10.0
@@ -1821,7 +1821,7 @@ def test_dosing_automation_initial_values_for_volumes():
         unit=unit,
         experiment=exp,
         alt_media_fraction=None,
-        volume_ml=None,
+        current_volume_ml=None,
         max_working_volume_ml=16.0,
     ) as ca:
         assert ca.current_volume_ml == 11.0
