@@ -18,6 +18,7 @@ from pioreactor.config import config as pioreactor_config
 from pioreactor.logging import create_logger
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
+from pioreactor.mureq import Response
 from pioreactor.pubsub import delete_from
 from pioreactor.pubsub import get_from
 from pioreactor.pubsub import patch_into
@@ -61,16 +62,16 @@ ALLOWED_ENV = (
 )
 
 
-def _process_delayed_json_response(worker: str, r: Any) -> tuple[str, Any]:
+def _process_delayed_json_response(worker: str, response: Response) -> tuple[str, Any]:
     """
     Handle delayed HTTP responses (202 with result_url_path) and immediate 200 responses.
     Returns the worker and the appropriate JSON data or result value.
     """
-    data = r.json()
-    if r.status_code == 202 and "result_url_path" in data:
+    data = response.json()
+    if response.status_code == 202 and "result_url_path" in data:
         sleep(0.1)
         return _get_from_worker(worker, data["result_url_path"])
-    if r.status_code == 200:
+    if response.status_code == 200:
         if "task_id" in data:
             return worker, data["result"]
         else:
@@ -462,7 +463,7 @@ def _get_from_worker(
 
     except (HTTPErrorStatus, HTTPException) as e:
         logger.error(
-            f"Could not get from {worker}'s {address=}/{endpoint=}, sent {json=} and returned {e}. Check connection? Check port?"
+            f"Could not get from {worker}'s {address=}, {endpoint=}, sent {json=} and returned {e}. Check connection? Check port?"
         )
         return worker, None
     except DecodeError:

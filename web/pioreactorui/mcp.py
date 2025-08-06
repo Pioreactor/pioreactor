@@ -208,7 +208,7 @@ def get_unit_capabilties(unit: str, condensed: bool = False) -> list:
     the job name, automation name (if any), and lists of argument and option names.
     """
     caps = get_from_leader(f"/api/units/{unit}/capabilities")
-    return caps if not condensed else {unit: _condense_capabilities(_caps) for unit, _caps in caps.items()}
+    return caps if not condensed else {unit_: _condense_capabilities(caps_) for unit_, caps_ in caps.items()}
 
 
 @mcp.tool()
@@ -266,7 +266,7 @@ def stop_job(experiment: str, job: str | None, unit: str = UNIVERSAL_IDENTIFIER)
     """
     if job is None:
         return post_into_leader(f"/api/workers/{unit}/jobs/stop/experiments/{experiment}")
-    elif job is not None:
+    else:
         return post_into_leader(f"/api/workers/{unit}/jobs/stop/job_name/{job}/experiments/{experiment}")
 
 

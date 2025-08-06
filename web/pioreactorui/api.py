@@ -69,7 +69,7 @@ def as_json_response(json: str) -> ResponseReturnValue:
     return Response(json, mimetype="application/json")
 
 
-def broadcast_get_across_cluster(endpoint: str, timeout: float = 1.0, return_raw=False) -> Result:
+def broadcast_get_across_cluster(endpoint: str, timeout: float = 5.0, return_raw=False) -> Result:
     assert endpoint.startswith("/unit_api")
     return tasks.multicast_get_across_cluster(
         endpoint=endpoint, workers=get_all_workers(), timeout=timeout, return_raw=return_raw
@@ -1163,7 +1163,7 @@ def uninstall_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseRetu
 
 @api.route("/units/<pioreactor_unit>/capabilities", methods=["GET"])
 @api.route("/workers/<pioreactor_unit>/capabilities", methods=["GET"])
-def get_capabilities(pioreactor_unit) -> ResponseReturnValue:
+def get_capabilities(pioreactor_unit: str) -> ResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         return create_task_response(broadcast_get_across_cluster("/unit_api/capabilities"))
     else:
