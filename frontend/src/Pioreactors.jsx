@@ -98,7 +98,7 @@ const DisplaySettingsTable = styled('span')(({ theme }) => ({
   display: "inline-block"
 }));
 
-const ManageDivider = styled(Divider)(({ theme }) => ({
+const ControlDivider = styled(Divider)(({ theme }) => ({
   marginTop: theme.spacing(2), // equivalent to 16px if the default spacing unit is 8px
   marginBottom: theme.spacing(1.25) // equivalent to 10px
 }));
@@ -636,9 +636,10 @@ function CalibrateDialog({ unit, experiment, odBlankReading, odBlankJobState, gr
             onChange={handleTabChange}
             indicatorColor="primary"
             textColor="primary"
+
             >
-            <Tab label="Calibrations"/>
-            <Tab label="Blanks"/>
+            <Tab sx={{textTransform: 'none'}} label="Calibrations"/>
+            <Tab sx={{textTransform: 'none'}} label="Blanks"/>
           </Tabs>
           <IconButton
             aria-label="close"
@@ -681,7 +682,7 @@ function CalibrateDialog({ unit, experiment, odBlankReading, odBlankJobState, gr
               <Button size="small" sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}} color="secondary" disabled={(odBlankReading === null) || (isGrowRateJobRunning)} onClick={() => runPioreactorJob(unit, experiment, "od_blank", ['delete']) }> Clear </Button>
               </div>
             </div>
-            <ManageDivider/>
+            <ControlDivider/>
 
           </TabPanel>
           <TabPanel value={tabValue} index={0}>
@@ -749,10 +750,9 @@ function CalibrateDialog({ unit, experiment, odBlankReading, odBlankJobState, gr
 
 
 
-function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabled }) {
+function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabled, modelDetails }) {
   const [open, setOpen] = useState(false);
   const [config, setConfig] = useState({})
-  const [modelDetails, setModelDetails] = useState({})
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [tabValue, setTabValue] = useState(0);
@@ -761,7 +761,6 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
   const [openChangeDosingDialog, setOpenChangeDosingDialog] = useState(false);
   const [openChangeLEDDialog, setOpenChangeLEDDialog] = useState(false);
   const [openChangeTemperatureDialog, setOpenChangeTemperatureDialog] = useState(false);
-
   useEffect(() => {
     if (!open){
       return
@@ -780,22 +779,6 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
     .catch((error) => {
       console.error("Fetching configuration failed:", error);
     });
-
-    fetch(`/api/workers/${unit}/model`).then((response) => {
-      if (!response.ok) {
-        return response.json().then((errorData) => {
-          console.log(errorData)
-          throw new Error(errorData.error);
-        });
-      }
-      return response.json();
-    })
-    .then((data) => setModelDetails(data))
-    .catch((error) => {
-      console.error("Fetching model details failed:", error);
-    });
-
-
 
 
   }, [open]);
@@ -997,7 +980,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
   return (
     <div>
     <Button style={{textTransform: 'none', float: "right" }} disabled={disabled} onClick={handleClickOpen} color="primary">
-      <SettingsIcon color={disabled ? "disabled" : "primary"} fontSize="small" sx={textIcon}/> Manage
+      <SettingsIcon color={disabled ? "disabled" : "primary"} fontSize="small" sx={textIcon}/> Control
     </Button>
     <Dialog maxWidth={isLargeScreen ? "sm" : "md"} fullWidth={true} open={open} onClose={handleClose} PaperProps={{
       sx: {
@@ -1030,11 +1013,11 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
         scrollButtons
         allowScrollButtonsMobile
         >
-        <Tab label="Activities"/>
-        <Tab label="Settings"/>
-        <Tab label="Dosing"/>
-        <Tab label="LEDs"/>
-        <Tab label="System"/>
+        <Tab sx={{textTransform: 'none'}} label="Activities"/>
+        <Tab sx={{textTransform: 'none'}} label="Settings"/>
+        <Tab sx={{textTransform: 'none'}} label="Dosing"/>
+        <Tab sx={{textTransform: 'none'}} label="LEDs"/>
+        <Tab sx={{textTransform: 'none'}} label="System"/>
       </Tabs>
       </DialogTitle>
       <DialogContent>
@@ -1062,7 +1045,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
 
                 <AdvancedConfigButton jobName={job_key} displayName={job.metadata.display_name} unit={unit} experiment={experiment} config={config[`${job_key}.config`]} disabled={job.state !== "disconnected"} />
               </Box>
-              <ManageDivider/>
+              <ControlDivider/>
             </div>
           )}
 
@@ -1124,7 +1107,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
           </React.Fragment>
           }
 
-          <ManageDivider/>
+          <ControlDivider/>
 
           {dosingControlJob &&
           <React.Fragment>
@@ -1184,7 +1167,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
           </React.Fragment>
           }
 
-          <ManageDivider/>
+          <ControlDivider/>
 
 
           {ledControlJob &&
@@ -1242,7 +1225,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
           </React.Fragment>
           }
 
-          <ManageDivider/>
+          <ControlDivider/>
 
 
         </TabPanel>
@@ -1262,7 +1245,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
             setSnackbarOpen={setSnackbarOpen}
             disabled={false}
           />
-          <ManageDivider/>
+          <ControlDivider/>
 
           {Object.values(jobs)
             .filter(job => job.metadata.display)
@@ -1282,7 +1265,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
 
                           {renderSettingComponent(setting, job_key, setting_key, state)}
 
-                          <ManageDivider/>
+                          <ControlDivider/>
                         </React.Fragment>
           )))}
         </TabPanel>
@@ -1297,7 +1280,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
 
           <ActionCirculatingForm action="circulate_media" unit={unit} experiment={experiment} job={jobs.circulate_media} />
 
-          <ManageDivider/>
+          <ControlDivider/>
 
           <Typography  gutterBottom>
             Cycle alternative media
@@ -1308,7 +1291,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
 
           <ActionCirculatingForm action="circulate_alt_media" unit={unit} experiment={experiment} job={jobs.circulate_alt_media} />
 
-          <ManageDivider/>
+          <ControlDivider/>
 
           <Alert severity="warning" style={{marginBottom: '10px', marginTop: '10px'}}>It's easy to overflow your vial. Make sure you don't add too much media.</Alert>
 
@@ -1322,7 +1305,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
             Specify how you’d like to add media:
           </Typography>
           <ActionDosingForm action="add_media" unit={unit} experiment={experiment} job={jobs.add_media} />
-          <ManageDivider/>
+          <ControlDivider/>
           <Typography  gutterBottom>
             Remove waste
           </Typography>
@@ -1333,7 +1316,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
             Specify how you’d like to remove waste:
           </Typography>
           <ActionDosingForm action="remove_waste" unit={unit} experiment={experiment} job={jobs.remove_waste} />
-          <ManageDivider/>
+          <ControlDivider/>
           <Typography gutterBottom>
             Add alternative media
           </Typography>
@@ -1344,7 +1327,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
             Specify how you’d like to add alt-media:
           </Typography>
           <ActionDosingForm action="add_alt_media" unit={unit} experiment={experiment} job={jobs.add_alt_media} />
-          <ManageDivider/>
+          <ControlDivider/>
           <Typography gutterBottom>
             Manual adjustments
           </Typography>
@@ -1364,7 +1347,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
             {(LEDMap['A']) ? "Channel A" : ""}
           </Typography>
           <ActionLEDForm experiment={experiment} channel="A" unit={unit} />
-          <ManageDivider/>
+          <ControlDivider/>
 
           <Typography style={{textTransform: "capitalize"}}>
             {(LEDMap['B']) ? (LEDMap['B'].replace("_", " ").replace("led", "LED")) : "Channel B" }
@@ -1373,7 +1356,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
             {(LEDMap['B']) ? "Channel B" : ""}
           </Typography>
           <ActionLEDForm experiment={experiment} channel="B" unit={unit} />
-          <ManageDivider/>
+          <ControlDivider/>
 
           <Typography style={{textTransform: "capitalize"}}>
             {(LEDMap['C']) ? (LEDMap['C'].replace("_", " ").replace("led", "LED")) : "Channel C" }
@@ -1383,7 +1366,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
           </Typography>
 
           <ActionLEDForm experiment={experiment} channel="C" unit={unit} />
-          <ManageDivider/>
+          <ControlDivider/>
 
           <Typography style={{textTransform: "capitalize"}}>
             {(LEDMap['D']) ? (LEDMap['D'].replace("_", " ").replace("led", "LED")) : "Channel D" }
@@ -1392,7 +1375,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
             {(LEDMap['D']) ? "Channel D" : ""}
           </Typography>
           <ActionLEDForm experiment={experiment} channel="D" unit={unit} />
-          <ManageDivider/>
+          <ControlDivider/>
         </TabPanel>
         <TabPanel value={tabValue} index={4}>
 
@@ -1440,7 +1423,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
             </table>
 
 
-          <ManageDivider/>
+          <ControlDivider/>
 
           <Typography  gutterBottom>
             Version information
@@ -1483,7 +1466,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
             </table>
 
 
-          <ManageDivider/>
+          <ControlDivider/>
 
           <Typography  gutterBottom>
             Voltage on PWM rail
@@ -1509,7 +1492,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
             </table>
 
 
-          <ManageDivider/>
+          <ControlDivider/>
 
           <Typography  gutterBottom>
             Reboot
@@ -1529,7 +1512,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
             Reboot RPi
           </LoadingButton>
 
-          <ManageDivider/>
+          <ControlDivider/>
 
           <Typography  gutterBottom>
             Shut down
@@ -1548,7 +1531,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
             Shut down
           </LoadingButton>
 
-          <ManageDivider/>
+          <ControlDivider/>
 
 
 
@@ -1762,7 +1745,7 @@ function SettingsActionsDialogAll({experiment, config}) {
   return (
     <React.Fragment>
     <Button style={{textTransform: 'none', float: "right" }} onClick={handleClickOpen} color="primary">
-      <SettingsIcon fontSize="small" sx={textIcon}/> Manage Pioreactors
+      <SettingsIcon fontSize="small" sx={textIcon}/> Control Pioreactors
     </Button>
     <Dialog  maxWidth={isLargeScreen ? "sm" : "md"} fullWidth={true}  open={open} onClose={handleClose} aria-labelledby="form-dialog-title"  PaperProps={{
       sx: {
@@ -1794,10 +1777,10 @@ function SettingsActionsDialogAll({experiment, config}) {
         scrollButtons
         allowScrollButtonsMobile
       >
-        <Tab label="Activities"/>
-        <Tab label="Settings"/>
-        <Tab label="Dosing"/>
-        <Tab label="LEDs"/>
+        <Tab sx={{textTransform: 'none'}} label="Activities"/>
+        <Tab sx={{textTransform: 'none'}} label="Settings"/>
+        <Tab sx={{textTransform: 'none'}} label="Dosing"/>
+        <Tab sx={{textTransform: 'none'}} label="LEDs"/>
       </Tabs>
       </DialogTitle>
       <DialogContent>
@@ -1817,7 +1800,7 @@ function SettingsActionsDialogAll({experiment, config}) {
 
               {buttons[job_key]}
 
-              <ManageDivider/>
+              <ControlDivider/>
             </div>
           )}
 
@@ -1848,7 +1831,7 @@ function SettingsActionsDialogAll({experiment, config}) {
           </React.Fragment>
           }
 
-          <ManageDivider/>
+          <ControlDivider/>
 
 
 
@@ -1881,7 +1864,7 @@ function SettingsActionsDialogAll({experiment, config}) {
           </React.Fragment>
           }
 
-          <ManageDivider/>
+          <ControlDivider/>
 
 
           {ledControlJob &&
@@ -1910,7 +1893,7 @@ function SettingsActionsDialogAll({experiment, config}) {
           </React.Fragment>
           }
 
-          <ManageDivider/>
+          <ControlDivider/>
 
         </TabPanel>
 
@@ -1931,7 +1914,7 @@ function SettingsActionsDialogAll({experiment, config}) {
                 </Typography>
                 {renderSettingComponent(setting, job_key, setting_key, state)}
 
-                <ManageDivider/>
+                <ControlDivider/>
               </React.Fragment>
 
           )))}
@@ -1947,7 +1930,7 @@ function SettingsActionsDialogAll({experiment, config}) {
 
           <ActionCirculatingForm action="circulate_media" unit={unit} experiment={experiment} />
 
-          <ManageDivider/>
+          <ControlDivider/>
 
           <Typography  gutterBottom>
             Cycle alternative media
@@ -1958,7 +1941,7 @@ function SettingsActionsDialogAll({experiment, config}) {
 
           <ActionCirculatingForm action="circulate_alt_media" unit={unit} experiment={experiment} />
 
-          <ManageDivider/>
+          <ControlDivider/>
 
           <Alert severity="warning" style={{marginBottom: '10px', marginTop: '10px'}}>It's easy to overflow your vial. Make sure you don't add too much media.</Alert>
 
@@ -1972,7 +1955,7 @@ function SettingsActionsDialogAll({experiment, config}) {
             Specify how you’d like to add media:
           </Typography>
           <ActionDosingForm experiment={experiment} action="add_media" unit={unit} />
-          <ManageDivider/>
+          <ControlDivider/>
           <Typography  gutterBottom>
             Remove waste
           </Typography>
@@ -1983,7 +1966,7 @@ function SettingsActionsDialogAll({experiment, config}) {
             Specify how you’d like to remove media:
           </Typography>
           <ActionDosingForm  experiment={experiment} action="remove_waste" unit={unit} />
-          <ManageDivider/>
+          <ControlDivider/>
           <Typography gutterBottom>
             Add alternative media
           </Typography>
@@ -1995,7 +1978,7 @@ function SettingsActionsDialogAll({experiment, config}) {
             Specify how you’d like to add alt-media:
           </Typography>
           <ActionDosingForm  experiment={experiment} action="add_alt_media" unit={unit} />
-          <ManageDivider/>
+          <ControlDivider/>
           <Typography gutterBottom>
             Manual adjustments
           </Typography>
@@ -2011,26 +1994,26 @@ function SettingsActionsDialogAll({experiment, config}) {
             Channel A
           </Typography>
           <ActionLEDForm experiment={experiment} channel="A" unit={unit} />
-          <ManageDivider/>
+          <ControlDivider/>
 
           <Typography style={{textTransform: "capitalize"}}>
             Channel B
           </Typography>
           <ActionLEDForm experiment={experiment} channel="B" unit={unit} />
-          <ManageDivider/>
+          <ControlDivider/>
 
           <Typography style={{textTransform: "capitalize"}}>
             Channel C
           </Typography>
           <ActionLEDForm experiment={experiment} channel="C" unit={unit} />
 
-          <ManageDivider/>
+          <ControlDivider/>
           <Typography style={{textTransform: "capitalize"}}>
             Channel D
           </Typography>
           <ActionLEDForm experiment={experiment} channel="D" unit={unit} />
 
-          <ManageDivider/>
+          <ControlDivider/>
         </TabPanel>
 
 
@@ -2216,7 +2199,7 @@ function SettingNumericField({ value: initialValue, units, onUpdate, setSnackbar
 
 
 
-function ActiveUnits({experiment, config, units}){
+function ActiveUnits({experiment, config, units, availableModels}){
   const [relabelMap, setRelabelMap] = useState({})
 
   useEffect(() => {
@@ -2225,9 +2208,12 @@ function ActiveUnits({experiment, config, units}){
     }
   }, [experiment])
 
-  const renderCards = () => (units || []).map(unit =>
-      <PioreactorCard  key={unit.pioreactor_unit} isUnitActive={true} unit={unit.pioreactor_unit} modelName={unit.model_name} config={config} experiment={experiment} originalLabel={relabelMap[unit.pioreactor_unit]}/>
-  )
+  const renderCards = () => (units || []).map(unit =>{
+    const modelDetails = availableModels.find(
+      ({model_name, model_version}) => model_name === unit.model_name && unit.model_version === model_version
+    );
+    return <PioreactorCard  key={unit.pioreactor_unit} isUnitActive={true} unit={unit.pioreactor_unit} modelDetails={modelDetails || {}} config={config} experiment={experiment} originalLabel={relabelMap[unit.pioreactor_unit]}/>
+  })
 
   return (
     <React.Fragment>
@@ -2261,7 +2247,7 @@ function FlashLEDButton({ unit, disabled }){
 )}
 
 
-function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, modelName}){
+function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, modelDetails}){
   const [jobFetchComplete, setJobFetchComplete] = useState(false)
   const [label, setLabel] = useState("")
   const {client, subscribeToTopic } = useMQTT();
@@ -2448,7 +2434,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
               <Tooltip title={indicatorLabel} placement="left">
                 <div className="indicator-dot-beside-button" style={{boxShadow: `0 0 ${indicatorDotShadow}px ${indicatorDotColor}, inset 0 0 12px  ${indicatorDotColor}`}}/>
               </Tooltip>
-              <PioreactorIconWithModel badgeContent={modelName === "pioreactor_40ml" ? "40" : "20"} />
+              <PioreactorIconWithModel badgeContent={modelDetails.reactor_capacity_ml} />
               <Typography sx={{
                   fontSize: 20,
                   color: "rgba(0, 0, 0, 0.87)",
@@ -2503,7 +2489,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
                 experiment={experiment}
                 jobs={jobs}
                 setLabel={setLabel}
-                modelName={modelName}
+                modelDetails={modelDetails}
               />
             </Box>
           </Box>
@@ -2601,7 +2587,7 @@ function InactiveUnits({ units, config, experiment }){
       </Typography>
     </div>
     {(units || []).map(unit =>
-      <PioreactorCard key={unit.pioreactor_name} isUnitActive={false} unit={unit.pioreactor_name} modelName={unit.model_name} config={config} experiment={experiment} />
+      <PioreactorCard key={unit.pioreactor_name} isUnitActive={false} unit={unit.pioreactor_name} modelName={unit.model_name} modelVersion={unit.model_version} config={config} experiment={experiment} />
   )}
     </React.Fragment>
 )}
@@ -2611,6 +2597,7 @@ function Pioreactors({title}) {
   const [workers, setWorkers] = useState([]);
   const [config, setConfig] = useState({})
   const [isLoading, setIsLoading] = useState(true);
+  const [availableModels, setAvailableModels] = useState([]);
 
   useEffect(() => {
     document.title = title;
@@ -2622,6 +2609,12 @@ function Pioreactors({title}) {
       fetchWorkers();
     }
   }, [experimentMetadata.experiment]);
+
+  useEffect(() => {
+    fetch('/api/models')
+      .then((r) => r.json())
+      .then((data) => setAvailableModels(data.models))
+  }, []);
 
 
   const fetchWorkers = async () => {
@@ -2647,9 +2640,9 @@ function Pioreactors({title}) {
       const inactiveUnits = workers.filter(worker => worker.is_active === 0);
       return (
       <>
-      <ActiveUnits experiment={experimentMetadata.experiment} config={config} units={activeUnits} />
+      <ActiveUnits experiment={experimentMetadata.experiment} config={config} availableModels={availableModels} units={activeUnits} />
       { (inactiveUnits.length > 0) &&
-      <InactiveUnits experiment={experimentMetadata.experiment} config={config} units={inactiveUnits}/>
+      <InactiveUnits experiment={experimentMetadata.experiment} config={config} availableModels={availableModels} units={inactiveUnits}/>
       }
       </>
     )

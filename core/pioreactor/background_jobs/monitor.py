@@ -25,7 +25,6 @@ from pioreactor.hardware import is_HAT_present
 from pioreactor.hardware import PCB_BUTTON_PIN as BUTTON_PIN
 from pioreactor.hardware import PCB_LED_PIN as LED_PIN
 from pioreactor.hardware import TEMP
-from pioreactor.models import get_current_model
 from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import get_from
 from pioreactor.pubsub import QOS
@@ -37,6 +36,7 @@ from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.utils.timing import to_datetime
+from pioreactor.whoami import get_pioreactor_model
 
 if whoami.is_testing_env():
     from pioreactor.utils.mock import MockCallback
@@ -84,7 +84,7 @@ class Monitor(LongRunningBackgroundJob):
 
     @classproperty
     def MAX_TEMP_TO_SHUTDOWN(cls) -> float:
-        return get_current_model().max_temp_to_shutdown
+        return get_pioreactor_model().max_temp_to_shutdown
 
     @classproperty
     def MAX_TEMP_TO_SHUTDOWN_IF_NO_TEMP_AUTOMATION(cls) -> float:

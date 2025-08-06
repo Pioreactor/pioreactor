@@ -98,12 +98,7 @@ def get_models() -> tuple[dict[str, list[dict[str, str]]], int]:
     """
     Return the list of supported Pioreactor models (name, version, display_name).
     """
-
-    models = [
-        {"model_name": name, "model_version": version, "display_name": m.display_name}
-        for (name, version), m in registered_models.items()
-    ]
-    return {"models": models}, 200
+    return attach_cache_control(jsonify({"models": list(registered_models.values())}))
 
 
 @api.route(

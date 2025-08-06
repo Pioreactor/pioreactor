@@ -5,10 +5,10 @@ from pioreactor.automations.events import UpdatedHeaterDC
 from pioreactor.background_jobs.temperature_automation import classproperty
 from pioreactor.background_jobs.temperature_automation import TemperatureAutomationJob
 from pioreactor.config import config
-from pioreactor.models import get_current_model
 from pioreactor.utils import clamp
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils.streaming_calculations import PID
+from pioreactor.whoami import get_pioreactor_model
 
 
 class Thermostat(TemperatureAutomationJob):
@@ -92,4 +92,4 @@ class Thermostat(TemperatureAutomationJob):
 
     @classproperty
     def MAX_TARGET_TEMP(cls) -> float:
-        return get_current_model().max_temp_to_reduce_heating
+        return get_pioreactor_model().max_temp_to_reduce_heating

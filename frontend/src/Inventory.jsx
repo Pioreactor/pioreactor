@@ -204,12 +204,12 @@ function AddNewPioreactor({setWorkers}){
         <FormControl required sx={{mt: "15px", ml: "10px", minWidth: "195px"}} variant="outlined" size="small">
           <InputLabel>Pioreactor model</InputLabel>
           <Select
-            value={`${model[0]},${model[1]}`}
+            value={`${model[0]}-${model[1]}`}
             onChange={handleModelVersionChange}
             label="Pioreactor model"
           >
             {useAvailableModels().map(({ model_name, model_version, display_name }) => (
-              <MenuItem key={`${model_name}-${model_version}`} value={`${model_name},${model_version}`}>
+              <MenuItem key={`${model_name}-${model_version}`} value={`${model_name}-${model_version}`}>
                 {display_name}
               </MenuItem>
             ))}
@@ -247,15 +247,21 @@ function AddNewPioreactor({setWorkers}){
 
 
 function WorkerCard({worker, config, leaderVersion}) {
+
+  const availableModels = useAvailableModels();
   const unit = worker.pioreactor_unit
   const isLeader = (config['cluster.topology']?.leader_hostname === unit)
   const [activeStatus, setActiveStatus] = React.useState(worker.is_active ? "active" : "inactive")
   const [model, setModel] = React.useState([worker.model_name, worker.model_version])
-  const availableModels = useAvailableModels();
-  const currentModelDisplayName =
+
+  const currentModelDetails =
     availableModels.find(
       ({model_name, model_version}) => model_name === model[0] && model_version === model[1]
-    )?.display_name || '';
+    );
+  const currentModelDisplayName = currentModelDetails ? currentModelDetails.display_name : "Unknown Model";
+  const currentModelCapacity = currentModelDetails ? currentModelDetails.reactor_capacity_ml : "";
+
+
   const [experimentAssigned, setExperimentAssigned] = React.useState(null)
   const {client, subscribeToTopic} = useMQTT();
   const [state, setState] = React.useState(null)
@@ -424,7 +430,7 @@ function WorkerCard({worker, config, leaderVersion}) {
         <div style={{display: "flex", justifyContent: "space-between"}}>
 
           <div style={{display: "flex", justifyContent: "left"}}>
-            <PioreactorIconWithModel badgeContent={model[0] === "pioreactor_40ml" ? "40" : "20"} />
+            <PioreactorIconWithModel badgeContent={currentModelCapacity} />
             <Typography sx={{
                 fontSize: 20,
                 color: "rgba(0, 0, 0, 0.87)",

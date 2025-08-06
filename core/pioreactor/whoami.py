@@ -6,12 +6,15 @@ import sys
 import time
 import warnings
 from functools import cache
+from typing import TYPE_CHECKING
 
 from pioreactor import mureq
-from pioreactor import types as pt
 from pioreactor.exc import NotAssignedAnExperimentError
 from pioreactor.exc import NoWorkerFoundError
-from pioreactor.version import version_text_to_tuple
+
+if TYPE_CHECKING:
+    from pioreactor import types as pt
+    from pioreactor.structs import Model
 
 
 UNIVERSAL_IDENTIFIER = "$broadcast"
@@ -154,10 +157,24 @@ def am_I_a_worker() -> bool:
 
 
 @cache
-def get_pioreactor_version() -> tuple[int, int]:
+def get_pioreactor_model() -> Model:
+    """Return the Model struct for this Pioreactor (by env/EERPOM/HARDWARE env).
+    Falls back to the 20ml v1.0 factory default if unrecognized.
+    """
+    from pioreactor.models import registered_models
+
+    name = _get_pioreactor_model_name()
+    version = _get_pioreactor_model_version()
+    try:
+        return registered_models[(name, version)]
+    except KeyError:
+        raise ValueError(f"Unknown Pioreactor model {name} v{version}.")
+
+
+def _get_pioreactor_model_version() -> str:
     # pioreactor model version
     if os.environ.get("MODEL_VERSION"):
-        return version_text_to_tuple(os.environ["MODEL_VERSION"])
+        return os.environ["MODEL_VERSION"]
 
     from pioreactor.pubsub import get_from_leader
 
@@ -165,7 +182,7 @@ def get_pioreactor_version() -> tuple[int, int]:
         result = get_from_leader(f"/api/workers/{get_unit_name()}")
         result.raise_for_status()
         data = result.json()
-        return version_text_to_tuple(data["model_version"])
+        return data["model_version"]
     except mureq.HTTPErrorStatus as e:
         if e.status_code == 404:
             raise NoWorkerFoundError(f"Worker {get_unit_name()} is not present in leader's inventory")
@@ -175,8 +192,7 @@ def get_pioreactor_version() -> tuple[int, int]:
         raise e
 
 
-@cache
-def get_pioreactor_model() -> str:
+def _get_pioreactor_model_name() -> str:
     # pioreactor model name
     if os.environ.get("MODEL_NAME"):
         return os.environ["MODEL_NAME"]
@@ -197,20 +213,6 @@ def get_pioreactor_model() -> str:
             raise e
     except mureq.HTTPException as e:
         raise e
-
-
-@cache
-def get_pioreactor_model_and_version() -> str:
-    try:
-        maybe_model = get_pioreactor_model()
-    except NoWorkerFoundError:
-        # possibly it's the leader-only?
-        return ""
-
-    if maybe_model:
-        return f"{maybe_model} v{'.'.join(map(str, get_pioreactor_version()))}"
-    else:
-        return ""
 
 
 @cache

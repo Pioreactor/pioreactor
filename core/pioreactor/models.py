@@ -4,22 +4,13 @@ Registry of built-in and user-provided Pioreactor models.
 """
 from __future__ import annotations
 
-import logging
+import os
 from pathlib import Path
 
 from msgspec import ValidationError
 from msgspec.yaml import decode as yaml_decode
-from pioreactor.logging import create_logger
 from pioreactor.structs import Model
-from pioreactor.whoami import get_pioreactor_model
-from pioreactor.whoami import get_pioreactor_version
 from pioreactor.whoami import is_testing_env
-
-
-if not is_testing_env():
-    MODEL_DEFINITIONS_PATH = Path("/home") / "pioreactor" / ".pioreactor" / "models"
-else:
-    MODEL_DEFINITIONS_PATH = Path(".pioreactor") / "models"
 
 
 ## Built-in Pioreactor models with hard-coded defaults
@@ -30,7 +21,7 @@ CORE_MODELS = {
         display_name="Pioreactor 20ml, v1.0",
         reactor_capacity_ml=20.0,
         reactor_max_fill_volume_ml=18.0,
-        reactor_diameter_mm=20.0,
+        reactor_diameter_mm=27.0,
         max_temp_to_reduce_heating=63.0,
         max_temp_to_disable_heating=65.0,
         max_temp_to_shutdown=66.0,
@@ -41,10 +32,10 @@ CORE_MODELS = {
         display_name="Pioreactor 20ml, v1.1",
         reactor_capacity_ml=20.0,
         reactor_max_fill_volume_ml=18.0,
-        reactor_diameter_mm=20.0,
-        max_temp_to_reduce_heating=63.0,
-        max_temp_to_disable_heating=65.0,
-        max_temp_to_shutdown=66.0,
+        reactor_diameter_mm=27.0,
+        max_temp_to_reduce_heating=78.0,
+        max_temp_to_disable_heating=80.0,
+        max_temp_to_shutdown=85.0,
     ),
     ("pioreactor_40ml", "1.0"): Model(
         model_name="pioreactor_40ml",
@@ -52,7 +43,7 @@ CORE_MODELS = {
         display_name="Pioreactor 40ml, v1.0",
         reactor_capacity_ml=40.0,
         reactor_max_fill_volume_ml=38.0,
-        reactor_diameter_mm=40.0,
+        reactor_diameter_mm=27.0,
         max_temp_to_reduce_heating=78.0,
         max_temp_to_disable_heating=80.0,
         max_temp_to_shutdown=85.0,
@@ -62,6 +53,12 @@ CORE_MODELS = {
 
 def load_contrib_model_definitions() -> list[Model]:
     """Load all model definitions from YAML files under MODEL_DEFINITIONS_PATH."""
+
+    if not is_testing_env():
+        MODEL_DEFINITIONS_PATH = Path("/home") / "pioreactor" / ".pioreactor" / "models"
+    else:
+        MODEL_DEFINITIONS_PATH = Path(os.environ["DOT_PIOREACTOR"]) / "models"
+
     models: list[Model] = []
     if not MODEL_DEFINITIONS_PATH.exists():
         return models
@@ -70,6 +67,8 @@ def load_contrib_model_definitions() -> list[Model]:
             m = yaml_decode(file.read_bytes(), type=Model)
             models.append(m)
         except ValidationError as e:
+            from pioreactor.logging import create_logger
+
             create_logger("models", experiment="$experiment").error(
                 f"Error loading model definition {file}: {e}"
             )
@@ -81,16 +80,3 @@ registered_models: dict[tuple[str, str], Model] = {
     **CORE_MODELS,
     **{(m.model_name, m.model_version): m for m in load_contrib_model_definitions()},
 }
-
-
-def get_current_model() -> Model:
-    """Return the Model struct for this Pioreactor (by env/EERPOM/HARDWARE env).
-    Falls back to the 20ml v1.0 factory default if unrecognized.
-    """
-    name = get_pioreactor_model()
-    version = ".".join(map(str, get_pioreactor_version()))
-    try:
-        return registered_models[(name, version)]
-    except KeyError:
-        logging.getLogger("pioreactor.models").error(f"Unknown Pioreactor model {name} v{version}")
-        raise ValueError(f"Unknown Pioreactor model {name} v{version}.")

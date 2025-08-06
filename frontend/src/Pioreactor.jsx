@@ -91,7 +91,7 @@ const DisplaySettingsTable = styled('span')(({ theme }) => ({
   display: "inline-block"
 }));
 
-const ManageDivider = styled(Divider)(({ theme }) => ({
+const ControlDivider = styled(Divider)(({ theme }) => ({
   marginTop: theme.spacing(2), // equivalent to 16px if the default spacing unit is 8px
   marginBottom: theme.spacing(1.25) // equivalent to 10px
 }));
@@ -312,7 +312,7 @@ function PioreactorHeader({unit, assignedExperiment, isActive, selectExperiment,
         <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
           <ButtonStopProcess experiment={assignedExperiment} unit={unit}/>
           {/* <Divider orientation="vertical" flexItem variant="middle"/> */}
-          {/* <ManagePioreactorMenu experiment={experiment} unit={unit}/> */}
+          {/* <ControlPioreactorMenu experiment={experiment} unit={unit}/> */}
         </Box>
       </Box>
      <Divider />
@@ -445,8 +445,8 @@ function CalibrateDialog({ unit, experiment, odBlankReading, odBlankJobState, gr
             indicatorColor="primary"
             textColor="primary"
             >
-            <Tab label="Calibrations"/>
-            <Tab label="Blanks"/>
+            <Tab sx={{textTransform: 'none'}} label="Calibrations"/>
+            <Tab sx={{textTransform: 'none'}} label="Blanks"/>
           </Tabs>
           <IconButton
             aria-label="close"
@@ -489,7 +489,7 @@ function CalibrateDialog({ unit, experiment, odBlankReading, odBlankJobState, gr
                 <Button size="small" sx={{width: "70px", mt: "5px", height: "31px", mr: '3px'}} color="secondary" disabled={(odBlankReading === null) || (isGrowRateJobRunning)} onClick={() => runPioreactorJob(unit, experiment, "od_blank", ['delete']) }> Clear </Button>
               </div>
             </div>
-            <ManageDivider/>
+            <ControlDivider/>
 
           </TabPanel>
           <TabPanel value={tabValue} index={0}>
@@ -766,7 +766,7 @@ function SettingsActionsDialog(props) {
   return (
     <div>
     <Button style={{textTransform: 'none', float: "right" }} disabled={props.disabled} onClick={handleClickOpen} color="primary">
-      <SettingsIcon color={props.disabled ? "disabled" : "primary"} fontSize="small" sx={textIcon}/> Manage
+      <SettingsIcon color={props.disabled ? "disabled" : "primary"} fontSize="small" sx={textIcon}/> Control
     </Button>
     <Dialog maxWidth={isLargeScreen ? "sm" : "md"} fullWidth={true} open={open} onClose={handleClose} PaperProps={{
       sx: {
@@ -799,11 +799,11 @@ function SettingsActionsDialog(props) {
         scrollButtons
         allowScrollButtonsMobile
         >
-        <Tab label="Activities"/>
-        <Tab label="Settings"/>
-        <Tab label="Dosing"/>
-        <Tab label="LEDs"/>
-        <Tab label="System"/>
+        <Tab sx={{textTransform: 'none'}} label="Activities"/>
+        <Tab sx={{textTransform: 'none'}} label="Settings"/>
+        <Tab sx={{textTransform: 'none'}} label="Dosing"/>
+        <Tab sx={{textTransform: 'none'}} label="LEDs"/>
+        <Tab sx={{textTransform: 'none'}} label="System"/>
       </Tabs>
       </DialogTitle>
       <DialogContent>
@@ -832,7 +832,7 @@ function SettingsActionsDialog(props) {
 
                 <AdvancedConfigButton jobName={job_key} displayName={job.metadata.display_name} unit={props.unit} experiment={props.experiment} config={props.config[`${job_key}.config`]} disabled={job.state !== "disconnected"} />
               </Box>
-              <ManageDivider/>
+              <ControlDivider/>
             </div>
           )}
 
@@ -894,7 +894,7 @@ function SettingsActionsDialog(props) {
           </React.Fragment>
           }
 
-          <ManageDivider/>
+          <ControlDivider/>
 
           {dosingControlJob &&
           <React.Fragment>
@@ -954,7 +954,7 @@ function SettingsActionsDialog(props) {
           </React.Fragment>
           }
 
-          <ManageDivider/>
+          <ControlDivider/>
 
 
           {ledControlJob &&
@@ -1012,7 +1012,7 @@ function SettingsActionsDialog(props) {
           </React.Fragment>
           }
 
-          <ManageDivider/>
+          <ControlDivider/>
 
 
         </TabPanel>
@@ -1032,7 +1032,7 @@ function SettingsActionsDialog(props) {
             setSnackbarOpen={setSnackbarOpen}
             disabled={false}
           />
-          <ManageDivider/>
+          <ControlDivider/>
 
           {Object.values(props.jobs)
             .filter(job => job.metadata.display)
@@ -1052,7 +1052,7 @@ function SettingsActionsDialog(props) {
 
                           {renderSettingComponent(setting, job_key, setting_key, state)}
 
-                          <ManageDivider/>
+                          <ControlDivider/>
                         </React.Fragment>
           )))}
         </TabPanel>
@@ -1067,7 +1067,7 @@ function SettingsActionsDialog(props) {
 
           <ActionCirculatingForm action="circulate_media" unit={props.unit} experiment={props.experiment} job={props.jobs.circulate_media} />
 
-          <ManageDivider/>
+          <ControlDivider/>
 
           <Typography  gutterBottom>
             Cycle alternative media
@@ -1078,7 +1078,7 @@ function SettingsActionsDialog(props) {
 
           <ActionCirculatingForm action="circulate_alt_media" unit={props.unit} experiment={props.experiment} job={props.jobs.circulate_alt_media} />
 
-          <ManageDivider/>
+          <ControlDivider/>
 
           <Alert severity="warning" style={{marginBottom: '10px', marginTop: '10px'}}>It's easy to overflow your vial. Make sure you don't add too much media.</Alert>
 
@@ -1092,7 +1092,7 @@ function SettingsActionsDialog(props) {
             Specify how you’d like to add media:
           </Typography>
           <ActionDosingForm action="add_media" unit={props.unit} experiment={props.experiment} job={props.jobs.add_media} />
-          <ManageDivider/>
+          <ControlDivider/>
           <Typography  gutterBottom>
             Remove waste
           </Typography>
@@ -1103,7 +1103,7 @@ function SettingsActionsDialog(props) {
             Specify how you’d like to remove waste:
           </Typography>
           <ActionDosingForm action="remove_waste" unit={props.unit} experiment={props.experiment} job={props.jobs.remove_waste} />
-          <ManageDivider/>
+          <ControlDivider/>
           <Typography gutterBottom>
             Add alternative media
           </Typography>
@@ -1114,7 +1114,7 @@ function SettingsActionsDialog(props) {
             Specify how you’d like to add alt-media:
           </Typography>
           <ActionDosingForm action="add_alt_media" unit={props.unit} experiment={props.experiment} job={props.jobs.add_alt_media} />
-          <ManageDivider/>
+          <ControlDivider/>
           <Typography gutterBottom>
             Manual adjustments
           </Typography>
@@ -1134,7 +1134,7 @@ function SettingsActionsDialog(props) {
             {(LEDMap['A']) ? "Channel A" : ""}
           </Typography>
           <ActionLEDForm experiment={props.experiment} channel="A" unit={props.unit} />
-          <ManageDivider/>
+          <ControlDivider/>
 
           <Typography style={{textTransform: "capitalize"}}>
             {(LEDMap['B']) ? (LEDMap['B'].replace("_", " ").replace("led", "LED")) : "Channel B" }
@@ -1143,7 +1143,7 @@ function SettingsActionsDialog(props) {
             {(LEDMap['B']) ? "Channel B" : ""}
           </Typography>
           <ActionLEDForm experiment={props.experiment} channel="B" unit={props.unit} />
-          <ManageDivider/>
+          <ControlDivider/>
 
           <Typography style={{textTransform: "capitalize"}}>
             {(LEDMap['C']) ? (LEDMap['C'].replace("_", " ").replace("led", "LED")) : "Channel C" }
@@ -1153,7 +1153,7 @@ function SettingsActionsDialog(props) {
           </Typography>
 
           <ActionLEDForm experiment={props.experiment} channel="C" unit={props.unit} />
-          <ManageDivider/>
+          <ControlDivider/>
 
           <Typography style={{textTransform: "capitalize"}}>
             {(LEDMap['D']) ? (LEDMap['D'].replace("_", " ").replace("led", "LED")) : "Channel D" }
@@ -1162,7 +1162,7 @@ function SettingsActionsDialog(props) {
             {(LEDMap['D']) ? "Channel D" : ""}
           </Typography>
           <ActionLEDForm experiment={props.experiment} channel="D" unit={props.unit} />
-          <ManageDivider/>
+          <ControlDivider/>
         </TabPanel>
         <TabPanel value={tabValue} index={4}>
 
@@ -1210,7 +1210,7 @@ function SettingsActionsDialog(props) {
             </table>
 
 
-          <ManageDivider/>
+          <ControlDivider/>
 
           <Typography  gutterBottom>
             Version information
@@ -1253,7 +1253,7 @@ function SettingsActionsDialog(props) {
             </table>
 
 
-          <ManageDivider/>
+          <ControlDivider/>
 
           <Typography  gutterBottom>
             Voltage on PWM rail
@@ -1279,7 +1279,7 @@ function SettingsActionsDialog(props) {
             </table>
 
 
-          <ManageDivider/>
+          <ControlDivider/>
 
           <Typography  gutterBottom>
             Reboot
@@ -1299,7 +1299,7 @@ function SettingsActionsDialog(props) {
             Reboot RPi
           </LoadingButton>
 
-          <ManageDivider/>
+          <ControlDivider/>
 
           <Typography  gutterBottom>
             Shut down
@@ -1318,7 +1318,7 @@ function SettingsActionsDialog(props) {
             Shut down
           </LoadingButton>
 
-          <ManageDivider/>
+          <ControlDivider/>
 
 
 

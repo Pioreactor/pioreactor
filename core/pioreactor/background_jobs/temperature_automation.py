@@ -16,7 +16,6 @@ from pioreactor import types as pt
 from pioreactor.automations.base import AutomationJob
 from pioreactor.config import config
 from pioreactor.logging import create_logger
-from pioreactor.models import get_current_model
 from pioreactor.structs import Temperature
 from pioreactor.utils import clamp
 from pioreactor.utils import local_intermittent_storage
@@ -27,6 +26,7 @@ from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.utils.timing import to_datetime
 from pioreactor.version import rpi_version_info
+from pioreactor.whoami import get_pioreactor_model
 
 
 class classproperty(property):
@@ -35,7 +35,10 @@ class classproperty(property):
 
 
 def is_20ml_v1() -> bool:
-    return whoami.get_pioreactor_model() == "pioreactor_20ml" and whoami.get_pioreactor_version() == (1, 0)
+    return (
+        get_pioreactor_model().model_name == "pioreactor_20ml"
+        and get_pioreactor_model().model_version == (1, 0)
+    )
 
 
 class TemperatureAutomationJob(AutomationJob):
@@ -56,15 +59,15 @@ class TemperatureAutomationJob(AutomationJob):
 
     @classproperty
     def MAX_TEMP_TO_REDUCE_HEATING(cls) -> float:
-        return get_current_model().max_temp_to_reduce_heating
+        return get_pioreactor_model().max_temp_to_reduce_heating
 
     @classproperty
     def MAX_TEMP_TO_DISABLE_HEATING(cls) -> float:
-        return get_current_model().max_temp_to_disable_heating
+        return get_pioreactor_model().max_temp_to_disable_heating
 
     @classproperty
     def MAX_TEMP_TO_SHUTDOWN(cls) -> float:
-        return get_current_model().max_temp_to_shutdown
+        return get_pioreactor_model().max_temp_to_shutdown
 
     @classproperty
     def INFERENCE_N_SAMPLES(cls) -> int:
@@ -378,13 +381,14 @@ class TemperatureAutomationJob(AutomationJob):
         features["time_series_of_temp"] = time_series_of_temp
         self.logger.debug(f"{features=}")
 
+        hardware_model = get_pioreactor_model()
         try:
-            if whoami.get_pioreactor_model() == "pioreactor_20ml":
-                if whoami.get_pioreactor_version() == (1, 0):
+            if hardware_model.model_name == "pioreactor_20ml":
+                if hardware_model.model_version == "1.0":
                     inferred_temperature = self.approximate_temperature_20_1_0(features)
-                elif whoami.get_pioreactor_version() >= (1, 1):
+                elif hardware_model.model_version >= "1.1":
                     inferred_temperature = self.approximate_temperature_20_2_0(features)
-            elif whoami.get_pioreactor_model() == "pioreactor_40ml":
+            elif hardware_model.model_name == "pioreactor_40ml":
                 inferred_temperature = self.approximate_temperature_20_2_0(features)  # TODO: change me back
             else:
                 raise ValueError("Unknown Pioreactor model.")

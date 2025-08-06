@@ -381,10 +381,10 @@ class Dataset(JSONPrintedStruct):
 
 
 class Model(Struct):
-    """Defines a Pioreactor model with its physical and automation parameters."""
+    """Defines a Pioreactor hardware model with its physical and automation parameters."""
 
-    model_name: str
-    model_version: str
+    model_name: str  # this in combination with model_version should form a unique pair
+    model_version: str  # this in combination with model_name should form a unique pair
     display_name: str
     # reactor capacity (e.g. 20 or 40 mL)
     reactor_capacity_ml: float

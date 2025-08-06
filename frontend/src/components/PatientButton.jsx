@@ -28,7 +28,7 @@ export default function PatientButton({buttonText, onClick, color, variant, disa
     {error && <p style={{color: lostRed}}>{error}</p>}
     <Button
       disableElevation
-      sx={{width: "70px", mt: "5px", height: "31px"}}
+      sx={{width: "70px", mt: "5px", height: "31px",}}
       color={color}
       variant={variant}
       disabled={disabled}
@@ -40,4 +40,3 @@ export default function PatientButton({buttonText, onClick, color, variant, disa
     </>
   )
 }
-
