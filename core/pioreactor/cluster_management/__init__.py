@@ -15,7 +15,6 @@ from pioreactor.config import leader_address
 from pioreactor.config import leader_hostname
 from pioreactor.exc import BashScriptError
 from pioreactor.logging import create_logger
-from pioreactor.models import registered_models
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import delete_from_leader
@@ -72,6 +71,8 @@ def add_worker(
     Add a new pioreactor worker to the cluster. The pioreactor should already have the worker image installed and is turned on.
     """
     # validate combo against registry
+    from pioreactor.models import registered_models
+
     if (model_name, model_version) not in registered_models:
         click.echo(
             f"Invalid model/version: {model_name} v{model_version}."

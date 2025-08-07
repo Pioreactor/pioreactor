@@ -1354,7 +1354,7 @@ def test_CachedCalibrationTransformer_with_real_calibration() -> None:
             timestamp=current_utc_datetime(),
             ods={
                 ch: structs.RawODReading(
-                    ir_led_intensity=80, od=v, angle="90", channel=ch, timestamp=current_utc_datetime()
+                    ir_led_intensity=50, od=v, angle="90", channel=ch, timestamp=current_utc_datetime()
                 )
             },
         )

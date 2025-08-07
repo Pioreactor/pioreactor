@@ -10,7 +10,6 @@ from typing import Optional
 
 import click
 from msgspec.json import encode
-
 from pioreactor import pubsub
 from pioreactor import structs
 from pioreactor import types as pt
@@ -90,7 +89,7 @@ def od_statistics(
                     f"OD reading for PD Channel {channel} is 0.0 - that shouldn't be. Is there a loose connection, or an extra channel in the configuration's [od_config.photodiode_channel] section?"
                 )
 
-        logger.debug(f"observed data: {od_reading_series}")
+        logger.debug(f"observed data: {readings}")
         logger.debug(f"measured mean: {means}")
         logger.debug(f"measured variances: {variances}")
 

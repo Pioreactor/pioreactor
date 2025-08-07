@@ -52,10 +52,6 @@ def pause_between_subdoses() -> float:
     return d
 
 
-def is_20ml() -> bool:
-    return whoami.get_pioreactor_model() == "pioreactor_20ml"
-
-
 """
 Calculators should ideally be state-less
 """
@@ -205,7 +201,7 @@ class DosingAutomationJob(AutomationJob):
 
     @classproperty
     def MAX_VIAL_VOLUME_TO_STOP(cls) -> float:
-        return 18.0 if is_20ml() else 38.0
+        return whoami.get_pioreactor_model().reactor_max_fill_volume_ml
 
     @classproperty
     def MAX_VIAL_VOLUME_TO_WARN(cls) -> float:
@@ -550,7 +546,7 @@ class DosingAutomationJob(AutomationJob):
         if alt_media_fraction is None:
             with local_persistent_storage("alt_media_fraction") as cache:
                 self.alt_media_fraction = cache.get(
-                    self.experiment, config.getfloat("bioreactor", "alt_media_fraction", fallback=0.0)
+                    self.experiment, config.getfloat("bioreactor", "initial_alt_media_fraction", fallback=0.0)
                 )
         else:
             self.alt_media_fraction = float(alt_media_fraction)
@@ -596,7 +592,7 @@ class DosingAutomationJob(AutomationJob):
             # look in database first, fallback to config
             with local_persistent_storage("current_volume_ml") as cache:
                 self.current_volume_ml = cache.get(
-                    self.experiment, config.getfloat("bioreactor", "current_volume_ml", fallback=14)
+                    self.experiment, config.getfloat("bioreactor", "initial_volume_ml", fallback=14)
                 )
         else:
             self.current_volume_ml = float(current_volume_ml)

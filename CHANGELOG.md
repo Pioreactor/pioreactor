@@ -2,17 +2,41 @@
 
 Some big changes internally
 
+#### Highlights
+
+ - Users have been very creative in adapting the Pioreactor hardware and software to different bioreactors. We have a new tool you can use: adding custom bioreactors models to incorporate into the Pioreactor software! There is a new `.pioreactor/models/` directory where you can place custom bioreactors. For example:
+
+   ```
+   model_name: custom_100ml
+   model_version: "1.0"
+   display_name: "Custom 100 mL, v1.0"
+   reactor_capacity_ml: 100.0
+   reactor_max_fill_volume_ml: 95.0
+   reactor_diameter_mm: 50.0
+   max_temp_to_reduce_heating: 80.0
+   max_temp_to_disable_heating: 85.0
+   max_temp_to_shutdown: 90.0
+   ```
+
+   This data will be used throughout the software (including in the UI) to support other bioreactor shapes and sizes. Let us know what else you would like to see!
+
+ - adding mcp server
+
+#### Enhancements
  - time range filter in export data page
  - ability to change the pause between LEDs and OD snapshot
- - fix export data sorting
- - fix UI profile editing crashing
  - `pios X --experiments <experiment>` can be used to select workers on the leader command line.
- - ideally, if a published setting is settable: true, there should be a cli option to set it.
- - adding mcp server
+ - ideally, if a `published_setting` is `settable: True`, there should be a CLI option to set it. We've added a bunch of new CLI options to existing jobs.
+ - new `/unit_api/capabilities` and `/api/units/<name>/capabilities` to get lots of details about what a Pioreactor can run.
+
+#### Breaking changes
  - adding `/experiments/<exp>` to the end of endpoint `/api/workers/unit1/jobs/settings/job_name/stirring/`
  - removed `/api/workers/jobs/stop/experiments/<exp>`, use `/api/workers/$broadcast/jobs/stop/experiments/<exp>` instead.
  - removed `/api/experiments/<experiment>/jobs/settings/job_name/<job_name>`, use `/workers/$broadcast/jobs/settings/job_name/<job_name>/experiments/<experiment>`
- - New external models in .pioreactor/models
+
+#### Bug fixes
+ - fix export data sorting
+ - fix UI profile editing crashing
 
 ### 25.7.2
 

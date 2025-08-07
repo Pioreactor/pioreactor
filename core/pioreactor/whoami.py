@@ -238,3 +238,5 @@ if is_testing_env():
     os.environ["BLINKA_FORCEBOARD"] = "RASPBERRY_PI_3A_PLUS"  # Raspberry Pi 3 Model A Plus Rev 1.0
     os.environ["FIRMWARE"] = "1.0"
     os.environ["HARDWARE"] = "1.2"
+    os.environ["MODEL_NAME"] = "pioreactor_40ml"
+    os.environ["MODEL_VERSION"] = "1.0"

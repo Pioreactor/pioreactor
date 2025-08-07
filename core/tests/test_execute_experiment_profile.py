@@ -7,7 +7,6 @@ from unittest.mock import patch
 import pytest
 from msgspec.json import encode
 from msgspec.yaml import decode
-
 from pioreactor.actions.leader.experiment_profile import _verify_experiment_profile
 from pioreactor.actions.leader.experiment_profile import execute_experiment_profile
 from pioreactor.actions.leader.experiment_profile import hours_to_seconds
@@ -30,8 +29,8 @@ from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.structs import RawODReading
-from tests.conftest import capture_requests
 from pioreactor.utils.timing import current_utc_datetime
+from tests.conftest import capture_requests
 
 
 def test_hours_to_seconds() -> None:
@@ -583,7 +582,11 @@ def test_execute_experiment_profile_when_action_simple(mock__load_experiment_pro
     # Simulate OD value
     publish(
         f"pioreactor/unit1/{experiment}/od_reading/od1",
-        encode(RawODReading(od=2.5, angle="90", timestamp=current_utc_datetime(), channel="1")),
+        encode(
+            RawODReading(
+                od=2.5, angle="90", timestamp=current_utc_datetime(), channel="1", ir_led_intensity=80
+            )
+        ),
         retain=True,
     )
 
@@ -625,7 +628,11 @@ def test_execute_experiment_profile_when_action_with_if(mock__load_experiment_pr
     # Simulate OD value
     publish(
         f"pioreactor/unit1/{experiment}/od_reading/od1",
-        encode(RawODReading(od=2.5, angle="90", timestamp=current_utc_datetime(), channel="1")),
+        encode(
+            RawODReading(
+                od=2.5, angle="90", timestamp=current_utc_datetime(), channel="1", ir_led_intensity=80
+            )
+        ),
         retain=True,
     )
 

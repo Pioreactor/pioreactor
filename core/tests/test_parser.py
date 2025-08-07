@@ -6,7 +6,6 @@ from math import sqrt
 
 import pytest
 from msgspec.json import encode
-
 from pioreactor import structs
 from pioreactor.experiment_profiles.parser import parse_profile_expression
 from pioreactor.experiment_profiles.parser import parse_profile_expression_to_bool
@@ -66,7 +65,11 @@ def test_mqtt_fetches() -> None:
 
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od1",
-        encode(structs.RawODReading(timestamp=datetime.utcnow(), angle="90", od=1.2, channel="2")),
+        encode(
+            structs.RawODReading(
+                timestamp=datetime.utcnow(), angle="90", od=1.2, channel="2", ir_led_intensity=90
+            )
+        ),
         retain=True,
     )
 
@@ -107,7 +110,11 @@ def test_mqtt_fetches_with_env() -> None:
 
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od1",
-        encode(structs.RawODReading(timestamp=datetime.utcnow(), angle="90", od=1.2, channel="2")),
+        encode(
+            structs.RawODReading(
+                timestamp=datetime.utcnow(), angle="90", od=1.2, channel="2", ir_led_intensity=80
+            )
+        ),
         retain=True,
     )
 
@@ -174,7 +181,11 @@ def test_mqtt_fetches_with_calculations() -> None:
     experiment = "_testing_experiment"
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od1",
-        encode(structs.RawODReading(timestamp=datetime.utcnow(), angle="90", od=1.2, channel="2")),
+        encode(
+            structs.RawODReading(
+                timestamp=datetime.utcnow(), angle="90", od=1.2, channel="2", ir_led_intensity=80
+            )
+        ),
         retain=True,
     )
 

@@ -446,6 +446,7 @@ class TestGrowthRateCalculating:
                                 "timestamp": "2021-06-06T15:08:12.081153Z",
                                 "channel": "1",
                                 "calibrated": 0,
+                                "ir_led_intensity": 80,
                             }
                         },
                         "timestamp": "2021-06-06T15:08:12.081153Z",
@@ -507,6 +508,7 @@ class TestGrowthRateCalculating:
                                 "timestamp": "2021-06-06T15:08:12.081153Z",
                                 "channel": "1",
                                 "calibrated": 0,
+                                "ir_led_intensity": 80,
                             }
                         },
                         "timestamp": "2021-06-06T15:08:12.081153Z",
