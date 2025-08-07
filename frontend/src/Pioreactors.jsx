@@ -1745,7 +1745,7 @@ function SettingsActionsDialogAll({experiment, config}) {
   return (
     <React.Fragment>
     <Button style={{textTransform: 'none', float: "right" }} onClick={handleClickOpen} color="primary">
-      <SettingsIcon fontSize="small" sx={textIcon}/> Control Pioreactors
+      <SettingsIcon fontSize="small" sx={textIcon}/> Control all Pioreactors
     </Button>
     <Dialog  maxWidth={isLargeScreen ? "sm" : "md"} fullWidth={true}  open={open} onClose={handleClose} aria-labelledby="form-dialog-title"  PaperProps={{
       sx: {

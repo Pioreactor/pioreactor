@@ -228,7 +228,7 @@ def run_job_or_action(
         unit: target unit name (or "$broadcast" to address all units assigned to the experiment).
         job_or_action: name of the job to run. See `get_unit_capabilties` for all jobs and moreHo .
         experiment: experiment identifier under which to launch the job.
-        options: dict of job-specific options, flags, or selectors for the job entry-point.
+        options: dict of job-specific options, flags, or selectors for the job entry-point. You probably want to use this over args.
         args: list of required positional arguments for the job entry-point.
     """
     payload = {

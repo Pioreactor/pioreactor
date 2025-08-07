@@ -8,6 +8,7 @@ jobs:
     env:
       TESTING: 1
       TMPDIR: /tmp/
+      DOT_PIOREACTOR: .pioreactor/
 
     strategy:
       fail-fast: true
