@@ -763,12 +763,7 @@ class TestGrowthRateCalculating:
                 cache[experiment] = json.dumps({2: 1e-5})
 
             with start_od_reading(
-                "REF",
-                "90",
-                interval=1.0,
-                fake_data=True,
-                unit=unit,
-                experiment=experiment,
+                "REF", "90", interval=1.0, fake_data=True, unit=unit, experiment=experiment, calibration=False
             ) as od_stream:
                 with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
                     results = []
