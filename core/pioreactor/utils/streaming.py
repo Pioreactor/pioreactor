@@ -17,7 +17,6 @@ from typing import TypeVar
 
 from msgspec import DecodeError
 from msgspec.json import decode
-
 from pioreactor import types as pt
 from pioreactor.pubsub import subscribe
 from pioreactor.structs import DosingEvent
@@ -79,7 +78,11 @@ class ExportODSource(ODObservationSource):
                 continue
             dt = to_datetime(line["timestamp"])
             od = RawODReading(
-                angle=line["angle"], channel=line["channel"], timestamp=dt, od=float(line["od_reading"])
+                angle=line["angle"],
+                channel=line["channel"],
+                timestamp=dt,
+                od=float(line["od_reading"]),
+                ir_led_intensity=80,
             )
             ods = ODReadings(timestamp=dt, ods={"2": od})
             yield ods

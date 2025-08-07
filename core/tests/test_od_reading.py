@@ -611,11 +611,7 @@ def test_simple_API() -> None:
 
 def test_ability_to_be_iterated() -> None:
     od_stream = start_od_reading(
-        "90",
-        "REF",
-        interval=1.0,
-        fake_data=True,
-        experiment="test_ability_to_be_iterated",
+        "90", "REF", interval=1.0, fake_data=True, experiment="test_ability_to_be_iterated", calibration=False
     )
     results = []
 
@@ -1427,7 +1423,7 @@ def test_raw_and_calibrated_data_is_published_if_calibration_is_used() -> None:
         calibration_name="test_raw_and_calibrated_data_is_published_if_calibration_is_used",
         curve_type="poly",
         curve_data_=[1, 0],
-        ir_led_intensity=50,
+        ir_led_intensity=70,
         pd_channel="2",
         created_at=current_utc_datetime(),
         calibrated_on_pioreactor_unit="pio1",
@@ -1483,7 +1479,7 @@ def test_raw_published_even_if_calibration_is_bad() -> None:
 def test_ir_led_on_and_rest_off_state_turns_off_other_leds_by_default() -> None:
     # By default, turn_off_leds_during_reading is True: only IR channel should be on
     with temporary_config_change(config, "od_reading.config", "turn_off_leds_during_reading", "True"):
-        with start_od_reading("90", "REF", interval=None, fake_data=True) as od:
+        with start_od_reading("90", "REF", interval=None, fake_data=True, calibration=False) as od:
             # set a custom IR intensity and verify desired state
             od.ir_led_intensity = 42.0
             state = od.ir_led_on_and_rest_off_state
@@ -1504,7 +1500,7 @@ def test_ir_led_on_and_rest_off_state_leaves_other_leds_intact_when_disabled() -
             for ch, val in init_states.items():
                 cache[ch] = val
 
-        with start_od_reading("REF", "90", interval=None, fake_data=True) as od:
+        with start_od_reading("REF", "90", interval=None, fake_data=True, calibration=False) as od:
             # set IR intensity and perform a single reading to exercise the LED context
             _ = od.record_from_adc()
 

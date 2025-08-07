@@ -46,7 +46,6 @@ import os
 import random
 import threading
 import types
-from copy import deepcopy as copy
 from time import sleep
 from time import time
 from typing import Callable
@@ -731,9 +730,7 @@ class CachedCalibrationTransformer(LoggerMixin):
         return _calibrate_signal, _verify
 
     def __call__(self, od_readings: structs.ODReadings) -> structs.CalibratedODReadings:
-        od_readings = copy(od_readings)
         calibrated_od_readings = structs.CalibratedODReadings(ods={}, timestamp=od_readings.timestamp)
-
         for channel in self.models:
             if channel in od_readings.ods:
                 raw_od = od_readings.ods[channel]
