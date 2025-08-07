@@ -96,7 +96,7 @@ jobs:
   zip-asset-upload:
     name: 🤐 Zip assets and upload
     runs-on: ubuntu-latest
-    needs: [build, build-deps, fetch-pioreactorui-release]
+    needs: [build, build-deps, bundle-pioreactorui-release]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
