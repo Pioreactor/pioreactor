@@ -5,7 +5,7 @@ set -xeu
 
 export LC_ALL=C
 
-
+CONFIG=/home/pioreactor/.pioreactor/config.ini
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LEADER_HOSTNAME=$(crudini --get "$CONFIG" cluster.topology leader_hostname)
 

@@ -161,12 +161,12 @@ def get_pioreactor_model() -> Model:
     """Return the Model struct for this Pioreactor (by env/EERPOM/HARDWARE env).
     Falls back to the 20ml v1.0 factory default if unrecognized.
     """
-    from pioreactor.models import registered_models
+    from pioreactor.models import get_registered_models
 
     name = _get_pioreactor_model_name()
     version = _get_pioreactor_model_version()
     try:
-        return registered_models[(name, version)]
+        return get_registered_models()[(name, version)]
     except KeyError:
         raise ValueError(f"Unknown Pioreactor model {name} v{version}.")
 

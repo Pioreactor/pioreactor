@@ -82,8 +82,10 @@ def load_contrib_model_definitions() -> list[Model]:
     return models
 
 
-# Merge built-in and user models, user overrides take priority
-registered_models: dict[tuple[str, str], Model] = {
-    **CORE_MODELS,
-    **{(m.model_name, m.model_version): m for m in load_contrib_model_definitions()},
-}
+def get_registered_models() -> dict[tuple[str, str], Model]:
+    # Merge built-in and user models, user overrides take priority
+    registered_models = {
+        **CORE_MODELS,
+        **{(m.model_name, m.model_version): m for m in load_contrib_model_definitions()},
+    }
+    return registered_models

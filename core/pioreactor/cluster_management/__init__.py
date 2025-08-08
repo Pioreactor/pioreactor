@@ -71,7 +71,9 @@ def add_worker(
     Add a new pioreactor worker to the cluster. The pioreactor should already have the worker image installed and is turned on.
     """
     # validate combo against registry
-    from pioreactor.models import registered_models
+    from pioreactor.models import get_registered_models
+
+    registered_models = get_registered_models()
 
     if (model_name, model_version) not in registered_models:
         click.echo(

@@ -27,7 +27,7 @@ from msgspec import ValidationError
 from msgspec.yaml import decode as yaml_decode
 from pioreactor.config import get_leader_hostname
 from pioreactor.experiment_profiles.profile_struct import Profile
-from pioreactor.models import registered_models
+from pioreactor.models import get_registered_models
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import Dataset
 from pioreactor.structs import subclass_union
@@ -98,7 +98,7 @@ def get_models() -> tuple[dict[str, list[dict[str, str]]], int]:
     """
     Return the list of supported Pioreactor models (name, version, display_name).
     """
-    return attach_cache_control(jsonify({"models": list(registered_models.values())}))
+    return attach_cache_control(jsonify({"models": list(get_registered_models().values())}))
 
 
 @api.route(
@@ -2225,7 +2225,7 @@ def change_worker_model(pioreactor_unit: str) -> ResponseReturnValue:
     if not model_version or not model_name:
         abort(400, "Missing model_version or model_name")
 
-    if (model_name, model_version) not in registered_models:
+    if (model_name, model_version) not in get_registered_models():
         abort(400, "Model name or version not found in available models.")
 
     # Update the status of the worker in the database
@@ -2261,18 +2261,17 @@ def get_worker_model_and_metadata(pioreactor_unit: str) -> ResponseReturnValue:
     if result is None:
         # If the worker is not found, return an error
         return abort(404, "Worker not found")
-    elif (result["model_name"], result["model_version"]) not in registered_models:
-        # If the model is not found in the available models, return an error
-        return abort(404, "Model not found")
     else:
         # If the worker is found, return the model and metadata
-        return jsonify(
-            {
-                "pioreactor_unit": result["pioreactor_unit"],
-                "model_name": result["model_name"],
-                "model_version": result["model_version"],
-                **to_builtins(registered_models[(result["model_name"], result["model_version"])]),
-            }
+        return attach_cache_control(
+            jsonify(
+                {
+                    "pioreactor_unit": result["pioreactor_unit"],
+                    "model_name": result["model_name"],
+                    "model_version": result["model_version"],
+                    **to_builtins(get_registered_models()[(result["model_name"], result["model_version"])]),
+                }
+            )
         )
 
 
