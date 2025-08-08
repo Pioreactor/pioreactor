@@ -370,7 +370,7 @@ function ExportDataContainer() {
         method: "POST",
         body: JSON.stringify({
           experiments: state.experimentSelection,
-          partition_by_unit: state.partition_by_unit,
+          partition_by_unit: state.partitionByUnitSelection,
           partition_by_experiment: state.partitionByExperimentSelection,
           datasets: state.selectedDatasets,
           start_time: state.startTime,
