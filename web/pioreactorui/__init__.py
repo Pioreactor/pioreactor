@@ -26,7 +26,6 @@ from pioreactor.whoami import am_I_leader
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
-from .config import env
 from .version import __version__
 
 VERSION = __version__

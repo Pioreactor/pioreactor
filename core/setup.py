@@ -25,7 +25,8 @@ CORE_REQUIREMENTS = [
     "python-dotenv==1.0.1",
     "Werkzeug==3.1.0",
     "packaging==24.1",
-    "pydantic==2.11.7",
+    "pydantic==2.10.6",
+    "pydantic-core==2.27.2",
     "mcp-utils==1.0.0",
 ]
 

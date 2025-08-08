@@ -33,6 +33,7 @@ from pioreactor.structs import Dataset
 from pioreactor.structs import subclass_union
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import current_utc_timestamp
+from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 from werkzeug.utils import safe_join
@@ -52,7 +53,6 @@ from . import query_app_db
 from . import query_temp_local_metadata_db
 from . import structs
 from . import tasks
-from .config import env
 from .utils import attach_cache_control
 from .utils import create_task_response
 from .utils import DelayedResponseReturnValue
@@ -217,7 +217,6 @@ def run_job_on_unit_in_experiment(
         )
 
     # and we can include experiment in the env since we know these workers are in the experiment!
-    # json.env = json.env | {"EXPERIMENT": experiment, "ACTIVE": "1"}
 
     t = tasks.multicast_post_across_cluster(
         f"/unit_api/jobs/run/job_name/{job}",
@@ -229,11 +228,14 @@ def run_job_on_unit_in_experiment(
                 "config_overrides": json.config_overrides,
                 "env": (
                     json.env
-                    | {"EXPERIMENT": experiment}
                     | {
+                        "EXPERIMENT": experiment,
                         "MODEL_NAME": worker["model_name"],
                         "MODEL_VERSION": worker["model_version"],
+                        "HOSTNAME": worker["pioreactor_unit"],
                         "ACTIVE": str(int(worker["is_active"])),
+                        "TESTING": str(int(is_testing_env())),
+                        "GLOBAL_CONFIG": os.environ["GLOBAL_CONFIG"],
                     }
                 ),
             }
@@ -1129,7 +1131,7 @@ def get_plugins_on_machine(pioreactor_unit: str) -> DelayedResponseReturnValue:
 @api.route("/units/<pioreactor_unit>/plugins/install", methods=["POST", "PATCH"])
 def install_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseReturnValue:
     # there is a security problem here. See https://github.com/Pioreactor/pioreactor/issues/421
-    if os.path.isfile(Path(env["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS"):
+    if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS"):
         abort(403, "Not UI installed allowed.")
 
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
@@ -1146,7 +1148,7 @@ def install_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseReturn
 
 @api.route("/units/<pioreactor_unit>/plugins/uninstall", methods=["POST", "PATCH"])
 def uninstall_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseReturnValue:
-    if os.path.isfile(Path(env["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS"):
+    if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS"):
         abort(403, "No UI uninstall allowed")
 
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
@@ -1250,7 +1252,7 @@ def get_ui_versions_across_cluster(pioreactor_unit: str) -> DelayedResponseRetur
 
 @api.route("/system/upload", methods=["POST"])
 def upload() -> ResponseReturnValue:
-    if os.path.isfile(Path(env["DOT_PIOREACTOR"]) / "DISALLOW_UI_UPLOADS"):
+    if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_UPLOADS"):
         abort(403, "No UI uploads allowed")
 
     if "file" not in request.files:
@@ -1278,9 +1280,14 @@ def get_automation_contrib(automation_type: str) -> ResponseReturnValue:
         abort(400, "Not a valid automation type")
 
     try:
-        automation_path_default = Path(env["WWW"]) / "contrib" / "automations" / automation_type
+        automation_path_default = Path(os.environ["WWW"]) / "contrib" / "automations" / automation_type
         automation_path_plugins = (
-            Path(env["DOT_PIOREACTOR"]) / "plugins" / "ui" / "contrib" / "automations" / automation_type
+            Path(os.environ["DOT_PIOREACTOR"])
+            / "plugins"
+            / "ui"
+            / "contrib"
+            / "automations"
+            / automation_type
         )
         files = sorted(automation_path_default.glob("*.y*ml")) + sorted(
             automation_path_plugins.glob("*.y*ml")
@@ -1305,8 +1312,8 @@ def get_automation_contrib(automation_type: str) -> ResponseReturnValue:
 @api.route("/contrib/jobs", methods=["GET"])
 def get_job_contrib() -> ResponseReturnValue:
     try:
-        job_path_default = Path(env["WWW"]) / "contrib" / "jobs"
-        job_path_plugins = Path(env["DOT_PIOREACTOR"]) / "plugins" / "ui" / "contrib" / "jobs"
+        job_path_default = Path(os.environ["WWW"]) / "contrib" / "jobs"
+        job_path_plugins = Path(os.environ["DOT_PIOREACTOR"]) / "plugins" / "ui" / "contrib" / "jobs"
         files = sorted(job_path_default.glob("*.y*ml")) + sorted(job_path_plugins.glob("*.y*ml"))
 
         # we dedup based on 'job_name'.
@@ -1329,8 +1336,8 @@ def get_job_contrib() -> ResponseReturnValue:
 @api.route("/contrib/charts", methods=["GET"])
 def get_charts_contrib() -> ResponseReturnValue:
     try:
-        chart_path_default = Path(env["WWW"]) / "contrib" / "charts"
-        chart_path_plugins = Path(env["DOT_PIOREACTOR"]) / "plugins" / "ui" / "contrib" / "charts"
+        chart_path_default = Path(os.environ["WWW"]) / "contrib" / "charts"
+        chart_path_plugins = Path(os.environ["DOT_PIOREACTOR"]) / "plugins" / "ui" / "contrib" / "charts"
         files = sorted(chart_path_default.glob("*.y*ml")) + sorted(chart_path_plugins.glob("*.y*ml"))
 
         # we dedup based on chart 'chart_key'.
@@ -1367,8 +1374,10 @@ def update_app_from_release_archive() -> DelayedResponseReturnValue:
 @api.route("/contrib/exportable_datasets", methods=["GET"])
 def get_exportable_datasets() -> ResponseReturnValue:
     try:
-        builtins = sorted((Path(env["DOT_PIOREACTOR"]) / "exportable_datasets").glob("*.y*ml"))
-        plugins = sorted((Path(env["DOT_PIOREACTOR"]) / "plugins" / "exportable_datasets").glob("*.y*ml"))
+        builtins = sorted((Path(os.environ["DOT_PIOREACTOR"]) / "exportable_datasets").glob("*.y*ml"))
+        plugins = sorted(
+            (Path(os.environ["DOT_PIOREACTOR"]) / "plugins" / "exportable_datasets").glob("*.y*ml")
+        )
         parsed_yaml = []
         for file in builtins + plugins:
             try:
@@ -1386,8 +1395,8 @@ def get_exportable_datasets() -> ResponseReturnValue:
 
 @api.route("/contrib/exportable_datasets/<target_dataset>/preview", methods=["GET"])
 def preview_exportable_datasets(target_dataset) -> ResponseReturnValue:
-    builtins = sorted((Path(env["DOT_PIOREACTOR"]) / "exportable_datasets").glob("*.y*ml"))
-    plugins = sorted((Path(env["DOT_PIOREACTOR"]) / "plugins" / "exportable_datasets").glob("*.y*ml"))
+    builtins = sorted((Path(os.environ["DOT_PIOREACTOR"]) / "exportable_datasets").glob("*.y*ml"))
+    plugins = sorted((Path(os.environ["DOT_PIOREACTOR"]) / "plugins" / "exportable_datasets").glob("*.y*ml"))
 
     n_rows = request.args.get("n_rows", 5)
 
@@ -1696,20 +1705,30 @@ def get_experiment(experiment: str) -> ResponseReturnValue:
 @api.route("/workers/<pioreactor_unit>/configuration", methods=["GET"])
 def get_configuration_for_pioreactor_unit(pioreactor_unit: str) -> ResponseReturnValue:
     """get configuration for a pioreactor unit"""
-    try:
-        global_config_path = Path(env["DOT_PIOREACTOR"]) / "config.ini"
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        pioreactor_units = get_all_units()
+    else:
+        pioreactor_units = [pioreactor_unit]
 
-        specific_config_path = Path(env["DOT_PIOREACTOR"]) / f"config_{pioreactor_unit}.ini"
+    result: dict[str, dict[str, dict]] = {}
 
-        config_files = [global_config_path, specific_config_path]
-        config = configparser.ConfigParser(strict=False)
-        config.read(config_files)
+    for unit in pioreactor_units:
+        try:
+            global_config_path = Path(os.environ["DOT_PIOREACTOR"]) / "config.ini"
 
-        return {section: dict(config[section]) for section in config.sections()}
+            specific_config_path = Path(os.environ["DOT_PIOREACTOR"]) / f"config_{pioreactor_unit}.ini"
 
-    except Exception as e:
-        publish_to_error_log(str(e), "get_configuration_for_pioreactor_unit")
-        abort(400, str(e))
+            config_files = [global_config_path, specific_config_path]
+            config = configparser.ConfigParser(strict=False)
+            config.read(config_files)
+
+            result[unit] = {section: dict(config[section]) for section in config.sections()}
+
+        except Exception as e:
+            publish_to_error_log(str(e), "get_configuration_for_pioreactor_unit")
+            abort(400, str(e))
+
+    return result
 
 
 @api.route("/configs/<filename>", methods=["GET"])
@@ -1723,7 +1742,7 @@ def get_config(filename: str) -> ResponseReturnValue:
         if Path(filename).suffix != ".ini":
             abort(404, "Must be a .ini file")
 
-        specific_config_path = Path(env["DOT_PIOREACTOR"]) / filename
+        specific_config_path = Path(os.environ["DOT_PIOREACTOR"]) / filename
 
         return attach_cache_control(
             Response(
@@ -1761,7 +1780,7 @@ def get_configs() -> ResponseReturnValue:
             # return True
             return strip_worker_name_from_config(file_name) in pioreactors_bucket
 
-    config_path = Path(env["DOT_PIOREACTOR"])
+    config_path = Path(os.environ["DOT_PIOREACTOR"])
     return jsonify(
         [file.name for file in sorted(config_path.glob("config*.ini")) if allow_file_through(file.name)]
     )
@@ -1794,7 +1813,7 @@ def update_config(filename: str) -> ResponseReturnValue:
         flags = "--shared"
 
     # General security risk here to save arbitrary file to OS.
-    config_path = Path(env["DOT_PIOREACTOR"]) / filename
+    config_path = Path(os.environ["DOT_PIOREACTOR"]) / filename
 
     # can the config actually be read? ex. no repeating sections, typos, etc.
     # filename is a string
@@ -1940,7 +1959,7 @@ def create_experiment_profile() -> ResponseReturnValue:
         # publish_to_error_log(msg, "create_experiment_profile")
         abort(400, msg)
 
-    filepath = Path(env["DOT_PIOREACTOR"]) / "experiment_profiles" / experiment_profile_filename
+    filepath = Path(os.environ["DOT_PIOREACTOR"]) / "experiment_profiles" / experiment_profile_filename
 
     # check if exists
     if filepath.exists():
@@ -1982,7 +2001,7 @@ def update_experiment_profile() -> ResponseReturnValue:
         # publish_to_error_log(msg, "create_experiment_profile")
         abort(400, str(e))
 
-    filepath = Path(env["DOT_PIOREACTOR"]) / "experiment_profiles" / experiment_profile_filename
+    filepath = Path(os.environ["DOT_PIOREACTOR"]) / "experiment_profiles" / experiment_profile_filename
 
     # save file to disk
     tasks.save_file(
@@ -1996,7 +2015,7 @@ def update_experiment_profile() -> ResponseReturnValue:
 @api.route("/contrib/experiment_profiles", methods=["GET"])
 def get_experiment_profiles() -> ResponseReturnValue:
     try:
-        profile_path = Path(env["DOT_PIOREACTOR"]) / "experiment_profiles"
+        profile_path = Path(os.environ["DOT_PIOREACTOR"]) / "experiment_profiles"
         files = sorted(profile_path.glob("*.y*ml"), key=lambda f: f.stat().st_mtime, reverse=True)
 
         parsed_yaml = []
@@ -2037,7 +2056,7 @@ def get_experiment_profile(filename: str) -> ResponseReturnValue:
         if not (Path(file).suffix == ".yaml" or Path(file).suffix == ".yml"):
             raise IOError("must provide a YAML file")
 
-        specific_profile_path = Path(env["DOT_PIOREACTOR"]) / "experiment_profiles" / file
+        specific_profile_path = Path(os.environ["DOT_PIOREACTOR"]) / "experiment_profiles" / file
         return Response(
             response=specific_profile_path.read_text(),
             status=200,
@@ -2055,7 +2074,7 @@ def delete_experiment_profile(filename: str) -> ResponseReturnValue:
         if Path(file).suffix not in (".yaml", ".yml"):
             raise IOError("must provide a YAML file")
 
-        specific_profile_path = Path(env["DOT_PIOREACTOR"]) / "experiment_profiles" / file
+        specific_profile_path = Path(os.environ["DOT_PIOREACTOR"]) / "experiment_profiles" / file
         tasks.rm(specific_profile_path)
         publish_to_log(f"Deleted profile {filename}.", "delete_experiment_profile")
         return {"status": "success"}, 200
@@ -2140,7 +2159,7 @@ def delete_worker(pioreactor_unit: str) -> ResponseReturnValue:
             unit_config = f"config_{pioreactor_unit}.ini"
 
             # delete config on disk
-            config_path = Path(env["DOT_PIOREACTOR"]) / unit_config
+            config_path = Path(os.environ["DOT_PIOREACTOR"]) / unit_config
             tasks.rm(config_path)
 
             # delete from histories
@@ -2150,12 +2169,12 @@ def delete_worker(pioreactor_unit: str) -> ResponseReturnValue:
             tasks.multicast_post_across_cluster(
                 "/unit_api/system/remove_file",
                 [pioreactor_unit],
-                json={"filepath": str(Path(env["DOT_PIOREACTOR"]) / "config.ini")},
+                json={"filepath": str(Path(os.environ["DOT_PIOREACTOR"]) / "config.ini")},
             )
             tasks.multicast_post_across_cluster(
                 "/unit_api/system/remove_file",
                 [pioreactor_unit],
-                json={"filepath": str(Path(env["DOT_PIOREACTOR"]) / "unit_config.ini")},
+                json={"filepath": str(Path(os.environ["DOT_PIOREACTOR"]) / "unit_config.ini")},
             )
 
         publish_to_log(

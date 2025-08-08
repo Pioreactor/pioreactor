@@ -35,6 +35,7 @@ from flask import jsonify
 from flask import request
 from mcp_utils.core import MCPServer
 from mcp_utils.queue import ResponseQueueProtocol
+from pioreactor.config import get_leader_hostname
 from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import get_from_leader as _get_from_leader
 from pioreactor.pubsub import patch_into_leader as _patch_into_leader
@@ -45,7 +46,7 @@ from . import query_app_db
 
 
 logger = logging.getLogger("mcp_utils")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 handler = logging.StreamHandler(sys.stdout)
 formatter = logging.Formatter("[%(asctime)s] [%(levelname)s] %(name)s: %(message)s")
 handler.setFormatter(formatter)
@@ -165,7 +166,7 @@ def get_experiments(active_only: bool) -> dict:
 
 @mcp.tool()
 @wrap_result_as_dict
-def get_workers(active_only: bool) -> list:
+def get_pioreactor_workers(active_only: bool) -> list:
     """
     Return the worker inventory with experiment assignments. If *active_only*, filter by `is_active`.
 
@@ -200,32 +201,32 @@ def _condense_capabilities(capabilities: list[dict[str, Any]] | None) -> list[di
 
 @mcp.tool()
 @wrap_result_as_dict
-def get_unit_capabilties(unit: str, condensed: bool = False) -> list:
+def get_pioreactor_unit_capabilties(pioreactor_unit: str, condensed: bool = False) -> list:
     """
     List all `pio run` subcommands and their args/options, and published settings.
 
     If condensed is True, return a summary of each capability including only
     the job name, automation name (if any), and lists of argument and option names.
     """
-    caps = get_from_leader(f"/api/units/{unit}/capabilities")
+    caps = get_from_leader(f"/api/units/{pioreactor_unit}/capabilities")
     return caps if not condensed else {unit_: _condense_capabilities(caps_) for unit_, caps_ in caps.items()}
 
 
 @mcp.tool()
-def run_job_or_action(
-    unit: str,
+def run_job_or_action_on_pioreactor_unit(
+    pioreactor_unit: str,
     job_or_action: str,
     experiment: str,
     options: Dict[str, Any] | None = None,
     args: List[str] | None = None,
 ) -> dict:
     """
-    Launch an action or job on a *unit/worker* within *experiment*.
+    Launch an action or job on a *pioreactor_unit/worker* within *experiment*.
 
     This runs `pio run` with the specified job or action name, options, and arguments on the unit(s).
 
     Parameters:
-        unit: target unit name (or "$broadcast" to address all units assigned to the experiment).
+        pioreactor_unit: target unit name (or "$broadcast" to address all units assigned to the experiment).
         job_or_action: name of the job to run. See `get_unit_capabilties` for all jobs and moreHo .
         experiment: experiment identifier under which to launch the job.
         options: dict of job-specific options, flags, or selectors for the job entry-point. You probably want to use this over args.
@@ -238,25 +239,29 @@ def run_job_or_action(
         "config_overrides": [],
     }
     return post_into_leader(
-        f"/api/workers/{unit}/jobs/run/job_name/{job_or_action}/experiments/{experiment}",
+        f"/api/workers/{pioreactor_unit}/jobs/run/job_name/{job_or_action}/experiments/{experiment}",
         json=payload,
     )
 
 
 @mcp.tool()
-def update_job_settings(unit: str, job: str, experiment: str, settings: dict[str, Any]) -> dict:
+def update_pioreactor_unit_job_settings(
+    pioreactor_unit: str, job: str, experiment: str, settings: dict[str, Any]
+) -> dict:
     """
     Update the current settings for a job on a unit/worker within an experiment.
     Target all units with "$broadcast".
     """
     return patch_into_leader(
-        f"/api/workers/{unit}/jobs/update/job_name/{job}/experiments/{experiment}",
+        f"/api/workers/{pioreactor_unit}/jobs/update/job_name/{job}/experiments/{experiment}",
         json={"settings": settings},
     )
 
 
 @mcp.tool()
-def stop_job(experiment: str, job: str | None, unit: str = UNIVERSAL_IDENTIFIER) -> dict:
+def stop_job_on_pioreactor_unit(
+    experiment: str, job: str | None, pioreactor_unit: str = UNIVERSAL_IDENTIFIER
+) -> dict:
     """
     Stop running jobs. If `job` parameter is None, stop all jobs associated the experiment for the unit.
     Use the unit param to scope to individual units, or all units in the experiment.
@@ -265,19 +270,21 @@ def stop_job(experiment: str, job: str | None, unit: str = UNIVERSAL_IDENTIFIER)
     or "stop all jobs in experiment <experiment>".
     """
     if job is None:
-        return post_into_leader(f"/api/workers/{unit}/jobs/stop/experiments/{experiment}")
+        return post_into_leader(f"/api/workers/{pioreactor_unit}/jobs/stop/experiments/{experiment}")
     else:
-        return post_into_leader(f"/api/workers/{unit}/jobs/stop/job_name/{job}/experiments/{experiment}")
+        return post_into_leader(
+            f"/api/workers/{pioreactor_unit}/jobs/stop/job_name/{job}/experiments/{experiment}"
+        )
 
 
 @mcp.tool()
 @wrap_result_as_dict
-def get_jobs_running(unit: str) -> dict:
+def get_jobs_running_on_pioreactor_unit(pioreactor_unit: str) -> dict:
     """
     Return list of running jobs on *unit/worker*.
     Target all units with "$broadcast".
     """
-    return get_from_leader(f"/api/workers/{unit}/jobs/running")
+    return get_from_leader(f"/api/workers/{pioreactor_unit}/jobs/running")
 
 
 @mcp.tool()
@@ -290,42 +297,46 @@ def get_recent_experiment_logs(experiment: str, lines: int = 50) -> dict:
 
 
 @mcp.tool()
-def blink(unit: str) -> dict:
+def blink_pioreactor_unit(pioreactor_unit: str) -> dict:
     """
     Blink the onboard blue LED of a specific unit.
     Target all units with "$broadcast".
     """
-    return post_into_leader(f"/api/workers/{unit}/blink")
+    return post_into_leader(f"/api/workers/{pioreactor_unit}/blink")
 
 
 @mcp.tool()
-def reboot_unit(unit: str) -> dict:
+def reboot_pioreactor_unit(pioreactor_unit: str) -> dict:
     """
     Reboot/restart a specific unit/worker.
     Target all units with "$broadcast".
 
     """
-    return post_into_leader(f"/api/units/{unit}/system/reboot")
+    return post_into_leader(f"/api/units/{pioreactor_unit}/system/reboot")
 
 
 @mcp.tool()
-def shutdown_unit(unit: str) -> dict:
+def shutdown_pioreactor_unit(pioreactor_unit: str) -> dict:
     """
     Shutdown a specific unit/worker.
     Target all units with "$broadcast".
     """
-    return post_into_leader(f"/api/units/{unit}/system/shutdown")
+    return post_into_leader(f"/api/units/{pioreactor_unit}/system/shutdown")
 
 
 @mcp.tool()
 @wrap_result_as_dict
-def get_current_job_settings_for_worker(unit: str, job_name: str, experiment: str) -> dict:
+def get_current_job_settings_for_pioreactor_unit(
+    pioreactor_unit: str, job_name: str, experiment: str
+) -> dict:
     """
     List settings for a job on a unit/worker.
 
     Target all units with "$broadcast".
     """
-    return get_from_leader(f"/api/workers/{unit}/jobs/settings/job_name/{job_name}/experiments/{experiment}")
+    return get_from_leader(
+        f"/api/workers/{pioreactor_unit}/jobs/settings/job_name/{job_name}/experiments/{experiment}"
+    )
 
 
 @mcp.tool()
@@ -341,7 +352,6 @@ def get_experiment_profiles() -> dict:
 
 @mcp.tool()
 def run_experiment_profile(
-    unit: str,
     profile: str,
     experiment: str,
     dry_run: bool = False,
@@ -353,7 +363,9 @@ def run_experiment_profile(
     """
     options = {"dry-run": None} if dry_run else {}
     args = ["execute", profile, experiment]
-    return run_job_or_action(unit, "experiment_profile", experiment, options=options, args=args)
+    return run_job_or_action_on_pioreactor_unit(
+        get_leader_hostname(), "experiment_profile", experiment, options=options, args=args
+    )
 
 
 @mcp.tool()
@@ -394,23 +406,9 @@ def db_query_table(table_name: str, limit: int = 100, offset: int = 0) -> list:
 
 
 @mcp.tool()
-@wrap_result_as_dict
-def get_config_inis() -> dict:
-    """List available config.ini files (global and unit-specific)."""
-    return get_from_leader("/api/configs")
-
-
-@mcp.tool()
-@wrap_result_as_dict
-def get_config_ini(filename: str) -> dict:
-    """Retrieve the contents of a specific config.ini file."""
-    return get_from_leader(f"/api/configs/{filename}")
-
-
-@mcp.tool()
-def get_unit_configuration(unit: str) -> dict:
-    """Get merged configuration for a given unit (global and unit-specific)."""
-    return get_from_leader(f"/api/units/{unit}/configuration")
+def get_pioreactor_unit_configuration(pioreactor_unit: str) -> dict:
+    """Get merged configuration for a given unit (global config.ini and unit-specific unit_config.ini)."""
+    return get_from_leader(f"/api/units/{pioreactor_unit}/configuration")
 
 
 mcp_bp = Blueprint("mcp", __name__, url_prefix="/mcp")

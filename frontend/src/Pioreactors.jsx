@@ -775,7 +775,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
       }
       return response.json();
     })
-    .then((data) => setConfig(data))
+    .then((data) => setConfig(data[unit]))
     .catch((error) => {
       console.error("Fetching configuration failed:", error);
     });

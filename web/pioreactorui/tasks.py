@@ -26,7 +26,6 @@ from pioreactor.pubsub import post_into
 from pioreactor.utils.networking import resolve_to_address
 
 from .config import CACHE_DIR
-from .config import env
 from .config import huey
 from .config import is_testing_env
 
@@ -43,8 +42,8 @@ if not is_testing_env():
     PIO_EXECUTABLE = "/usr/local/bin/pio"
     PIOS_EXECUTABLE = "/usr/local/bin/pios"
 else:
-    PIO_EXECUTABLE = env["PIO_EXECUTABLE"]
-    PIOS_EXECUTABLE = env["PIOS_EXECUTABLE"]
+    PIO_EXECUTABLE = os.environ["PIO_EXECUTABLE"]
+    PIOS_EXECUTABLE = os.environ["PIOS_EXECUTABLE"]
 
 ALLOWED_ENV = (
     "EXPERIMENT",
@@ -59,7 +58,17 @@ ALLOWED_ENV = (
     "MODEL_NAME",
     "MODEL_VERSION",
     "SKIP_PLUGINS",
+    "GLOBAL_CONFIG",
+    "LOCAL_CONFIG",
 )
+
+
+def filter_to_allowed_env(env: dict):
+    """
+    Filter the environment dictionary to only include allowed keys.
+    This is used to prevent passing sensitive or unnecessary environment variables.
+    """
+    return {k: v for k, v in env.items() if k in ALLOWED_ENV and v is not None and v != "" and v != "None"}
 
 
 def _process_delayed_json_response(worker: str, response: Response) -> tuple[str, Any]:
@@ -102,7 +111,7 @@ def pio_run(
         proc = Popen(
             command,
             start_new_session=True,  # detach from our session
-            env=(dict(os.environ) | env),
+            env=env,
             stdin=DEVNULL,
             stdout=DEVNULL,
             stderr=DEVNULL,
@@ -226,35 +235,39 @@ def update_app_from_release_archive_on_specific_pioreactors(
 
 @huey.task()
 def pio(*args: str, env: dict[str, str] = {}) -> bool:
+    env = filter_to_allowed_env(env or {})
     logger.info(f'Executing `{join(("pio",) + args)}`, {env=}')
-    result = run((PIO_EXECUTABLE,) + args, env=dict(os.environ) | env)
+    result = run((PIO_EXECUTABLE,) + args, env=env)
     return result.returncode == 0
 
 
 @huey.task()
 def pio_plugins_list(*args: str, env: dict[str, str] = {}) -> tuple[bool, str]:
+    env = filter_to_allowed_env(env or {})
     logger.info(f'Executing `{join(("pio",) + args)}`, {env=}')
-    result = run((PIO_EXECUTABLE,) + args, capture_output=True, text=True, env=dict(os.environ) | env)
+    result = run((PIO_EXECUTABLE,) + args, capture_output=True, text=True, env=env)
     return result.returncode == 0, result.stdout.strip()
 
 
 @huey.task()
 @huey.lock_task("export-data-lock")
 def pio_run_export_experiment_data(*args: str, env: dict[str, str] = {}) -> tuple[bool, str]:
+    env = filter_to_allowed_env(env or {})
     logger.info(f'Executing `{join(("pio", "run", "export_experiment_data") + args)}`, {env=}')
     result = run(
         (PIO_EXECUTABLE, "run", "export_experiment_data") + args,
         capture_output=True,
         text=True,
-        env=dict(os.environ) | env,
+        env=env,
     )
     return result.returncode == 0, result.stdout.strip()
 
 
 @huey.task(priority=100)
 def pio_kill(*args: str, env: dict[str, str] = {}) -> bool:
+    env = filter_to_allowed_env(env or {})
     logger.info(f'Executing `{join(("pio", "kill") + args)}`, {env=}')
-    result = run((PIO_EXECUTABLE, "kill") + args, env=dict(os.environ) | env)
+    result = run((PIO_EXECUTABLE, "kill") + args, env=env)
     return result.returncode == 0
 
 
@@ -262,9 +275,10 @@ def pio_kill(*args: str, env: dict[str, str] = {}) -> bool:
 @huey.lock_task("plugins-lock")
 def pio_plugins(*args: str, env: dict[str, str] = {}) -> bool:
     # install / uninstall only
+    env = filter_to_allowed_env(env or {})
     assert args[0] in ("install", "uninstall")
     logger.info(f'Executing `{join(("pio", "plugins") + args)}`, {env=}')
-    result = run((PIO_EXECUTABLE, "plugins") + args, env=dict(os.environ) | env)
+    result = run((PIO_EXECUTABLE, "plugins") + args, env=env)
     return result.returncode == 0
 
 
@@ -289,16 +303,18 @@ def sync_clock() -> bool:
 @huey.task()
 @huey.lock_task("update-lock")
 def pio_update_app(*args: str, env: dict[str, str] = {}) -> bool:
+    env = filter_to_allowed_env(env or {})
     logger.info(f'Executing `{join(("pio", "update", "app") + args)}`, {env=}')
-    result = run((PIO_EXECUTABLE, "update", "app") + args, env=dict(os.environ) | env)
+    result = run((PIO_EXECUTABLE, "update", "app") + args, env=env)
     return result.returncode == 0
 
 
 @huey.task()
 @huey.lock_task("update-lock")
 def pio_update(*args: str, env: dict[str, str] = {}) -> bool:
+    env = filter_to_allowed_env(env or {})
     logger.info(f'Executing `{join(("pio", "update") + args)}`, {env=}')
-    run((PIO_EXECUTABLE, "update") + args, env=dict(os.environ) | env)
+    run((PIO_EXECUTABLE, "update") + args, env=env)
     # HACK: this always returns >0 because it kills huey, I think, so just return true
     return True
 
@@ -306,8 +322,9 @@ def pio_update(*args: str, env: dict[str, str] = {}) -> bool:
 @huey.task()
 @huey.lock_task("update-lock")
 def pio_update_ui(*args: str, env: dict[str, str] = {}) -> bool:
+    env = filter_to_allowed_env(env or {})
     logger.info(f'Executing `{join(("pio", "update", "ui") + args)}`, {env=}')
-    run((PIO_EXECUTABLE, "update", "ui") + args, env=dict(os.environ) | env)
+    run((PIO_EXECUTABLE, "update", "ui") + args, env=env)
     # this always returns >0 because it kills huey, I think, so just return true
     return True
 
@@ -341,10 +358,11 @@ def reboot() -> bool:
 
 @huey.task()
 def pios(*args: str, env: dict[str, str] = {}) -> bool:
+    env = filter_to_allowed_env(env or {})
     logger.info(f'Executing `{join(("pios",) + args + ("-y",))}`, {env=}')
     result = run(
         (PIOS_EXECUTABLE,) + args + ("-y",),
-        env=dict(os.environ) | env,
+        env=env,
     )
     return result.returncode == 0
 
@@ -364,6 +382,7 @@ def save_file(path: str, content: str) -> bool:
 def write_config_and_sync(
     config_path: str, text: str, units: str, flags: str, env: dict[str, str] = {}
 ) -> tuple[bool, str]:
+    env = filter_to_allowed_env(env or {})
     try:
         with open(config_path, "w") as f:
             f.write(text)

@@ -35,7 +35,6 @@ from . import publish_to_error_log
 from . import query_temp_local_metadata_db
 from . import tasks
 from . import VERSION
-from .config import env
 from .config import huey
 from .utils import attach_cache_control
 from .utils import create_task_response
@@ -196,10 +195,10 @@ def set_clock_time() -> DelayedResponseReturnValue:  # type: ignore[return]
 @unit_api.route("/system/path/", defaults={"req_path": ""})
 @unit_api.route("/system/path/<path:req_path>")
 def dir_listing(req_path: str):
-    if os.path.isfile(Path(env["DOT_PIOREACTOR"]) / "DISALLOW_UI_FILE_SYSTEM"):
+    if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_FILE_SYSTEM"):
         abort(403, "DISALLOW_UI_FILE_SYSTEM is present")
 
-    BASE_DIR = env["DOT_PIOREACTOR"]
+    BASE_DIR = os.environ["DOT_PIOREACTOR"]
 
     # Safely join to prevent directory traversal
     safe_path = safe_join(BASE_DIR, req_path)
@@ -463,7 +462,7 @@ def get_plugin(filename: str) -> ResponseReturnValue:
         if Path(file).suffix != ".py":
             raise IOError("must provide a .py file")
 
-        specific_plugin_path = Path(env["DOT_PIOREACTOR"]) / "plugins" / file
+        specific_plugin_path = Path(os.environ["DOT_PIOREACTOR"]) / "plugins" / file
         return attach_cache_control(
             Response(
                 response=specific_plugin_path.read_text(),
@@ -501,7 +500,7 @@ def install_plugin() -> DelayedResponseReturnValue:
     """
 
     # there is a security problem here. See https://github.com/Pioreactor/pioreactor/issues/421
-    if os.path.isfile(Path(env["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS"):
+    if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS"):
         abort(403, "DISALLOW_UI_INSTALLS is present")
 
     body = current_app.get_json(request.data, type=structs.ArgsOptionsEnvs)
@@ -570,7 +569,7 @@ def create_calibration(device: str) -> ResponseReturnValue:
     """
     Create a new calibration for the specified device.
     """
-    # calibration_dir = Path(env["DOT_PIOREACTOR"]) / "storage" / "calibrations" / device
+    # calibration_dir = Path(os.environ["DOT_PIOREACTOR"]) / "storage" / "calibrations" / device
     # if folder does not exist, users should make it with mkdir -p ... && chown -R pioreactor:www-data ...
 
     try:
@@ -600,7 +599,7 @@ def delete_calibration(device: str, calibration_name: str) -> ResponseReturnValu
     Delete a specific calibration for a given device.
     """
     calibration_path = (
-        Path(env["DOT_PIOREACTOR"]) / "storage" / "calibrations" / device / f"{calibration_name}.yaml"
+        Path(os.environ["DOT_PIOREACTOR"]) / "storage" / "calibrations" / device / f"{calibration_name}.yaml"
     )
 
     if not calibration_path.exists():
@@ -627,7 +626,7 @@ def delete_calibration(device: str, calibration_name: str) -> ResponseReturnValu
 
 @unit_api.route("/calibrations", methods=["GET"])
 def get_all_calibrations() -> ResponseReturnValue:
-    calibration_dir = Path(env["DOT_PIOREACTOR"]) / "storage" / "calibrations"
+    calibration_dir = Path(os.environ["DOT_PIOREACTOR"]) / "storage" / "calibrations"
 
     if not calibration_dir.exists():
         abort(404, "Calibration directory does not exist.")
@@ -653,7 +652,7 @@ def get_all_calibrations() -> ResponseReturnValue:
 
 @unit_api.route("/active_calibrations", methods=["GET"])
 def get_all_active_calibrations() -> ResponseReturnValue:
-    calibration_dir = Path(env["DOT_PIOREACTOR"]) / "storage" / "calibrations"
+    calibration_dir = Path(os.environ["DOT_PIOREACTOR"]) / "storage" / "calibrations"
 
     if not calibration_dir.exists():
         abort(404, "Calibration directory does not exist.")
@@ -679,7 +678,7 @@ def get_all_active_calibrations() -> ResponseReturnValue:
 
 @unit_api.route("/zipped_calibrations", methods=["GET"])
 def get_all_calibrations_as_zipped_yaml() -> ResponseReturnValue:
-    calibration_dir = Path(env["DOT_PIOREACTOR"]) / "storage" / "calibrations"
+    calibration_dir = Path(os.environ["DOT_PIOREACTOR"]) / "storage" / "calibrations"
 
     if not calibration_dir.exists():
         abort(404, "Calibration directory does not exist.")
@@ -706,7 +705,7 @@ def get_all_calibrations_as_zipped_yaml() -> ResponseReturnValue:
 
 @unit_api.route("/calibrations/<device>", methods=["GET"])
 def get_calibrations_by_device(device: str) -> ResponseReturnValue:
-    calibration_dir = Path(env["DOT_PIOREACTOR"]) / "storage" / "calibrations" / device
+    calibration_dir = Path(os.environ["DOT_PIOREACTOR"]) / "storage" / "calibrations" / device
 
     if not calibration_dir.exists():
         abort(404, "Calibration directory does not exist.")
@@ -728,7 +727,9 @@ def get_calibrations_by_device(device: str) -> ResponseReturnValue:
 
 @unit_api.route("/calibrations/<device>/<cal_name>", methods=["GET"])
 def get_calibration(device: str, cal_name: str) -> ResponseReturnValue:
-    calibration_path = Path(env["DOT_PIOREACTOR"]) / "storage" / "calibrations" / device / f"{cal_name}.yaml"
+    calibration_path = (
+        Path(os.environ["DOT_PIOREACTOR"]) / "storage" / "calibrations" / device / f"{cal_name}.yaml"
+    )
 
     if not calibration_path.exists():
         abort(404, "Calibration file does not exist.")
