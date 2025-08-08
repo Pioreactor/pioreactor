@@ -36,7 +36,7 @@ logger = create_logger(
     experiment="$experiment",
     log_file_location=pioreactor_config["logging"]["ui_log_file"],
 )
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.WARNING)
 
 if not is_testing_env():
     PIO_EXECUTABLE = "/usr/local/bin/pio"
@@ -58,6 +58,7 @@ ALLOWED_ENV = (
     "MODEL_NAME",
     "MODEL_VERSION",
     "SKIP_PLUGINS",
+    "DOT_PIOREACTOR",
     "GLOBAL_CONFIG",
     "LOCAL_CONFIG",
 )

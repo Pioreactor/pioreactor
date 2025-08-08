@@ -103,7 +103,7 @@ def is_active(unit_name: pt.Unit) -> bool:
 
 @cache
 def is_testing_env() -> bool:
-    return ("pytest" in sys.modules) or (os.environ.get("TESTING") is not None)
+    return ("pytest" in sys.modules) or (os.environ.get("TESTING", "") == "1")
 
 
 @cache
