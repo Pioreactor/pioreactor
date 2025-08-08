@@ -679,7 +679,7 @@ def start_stirring(
 @click.option(
     "--enable-dodging-od",
     type=click.BOOL,
-    default=False,
+    default=None,
     show_default=True,
 )
 def click_stirring(
