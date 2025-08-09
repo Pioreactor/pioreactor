@@ -28,16 +28,18 @@
  - new `/unit_api/capabilities` and `/api/units/<pioreactor name>/capabilities` to get lots of details about what a Pioreactor can run.
 
 #### Breaking changes
+ - changed API for `api/units/<unit>/configuration`.
  - adding `/experiments/<exp>` to the end of endpoint `/api/workers/unit1/jobs/settings/job_name/stirring/` to scope it to just an experiment.
  - removed `/api/workers/jobs/stop/experiments/<exp>`, use `/api/workers/$broadcast/jobs/stop/experiments/<exp>` instead.
  - removed `/api/experiments/<experiment>/jobs/settings/job_name/<job_name>`, use `/workers/$broadcast/jobs/settings/job_name/<job_name>/experiments/<experiment>`
+ - `pio logs` no long "follows" automatically. Use the `-f` to follow again.
  - Developers: we've converted our three main repositories: `pioreactor`, `pioreactorui`, and `pioreactorui_frontend` in to a single monorepo under `pioreactor`. The old repos `pioreactorui` and `pioreactorui_frontend` will be archived. The core pioreactor update code in `pio.py`, after this release, will point to our new repository (by default). If you have a branch against of the existing repos, we suggest branching from the `pioreactor` codebase, and applying your new changes onto that branch. You can follow along here: https://github.com/Pioreactor/pioreactor/issues/576
 
 #### Bug fixes
  - fix export csv sorting by default
  - fix UI profile editor crashing
  - fix pump not cleaning itself up properly if it was active when the dosing_automation was stopped.
-
+ - fix growth rate calculating
 
 ### 25.7.2
 

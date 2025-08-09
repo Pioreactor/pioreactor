@@ -97,7 +97,7 @@ reinstall: clean install frontend-install  ## Freshen everything
 
 
 # --- logs ---------------------------------------------------------------------
-LOG_FILE ?= ../pioreactor.log   # change if you ever relocate the master log
+LOG_FILE ?= pioreactor.log   # change if you ever relocate the master log
 LINES    ?= 10              # default lines to display
 
 

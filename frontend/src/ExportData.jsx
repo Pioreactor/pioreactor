@@ -133,11 +133,11 @@ const PartitionBySelection = (props) => {
         <Box>
           <FormControlLabel
             control={<Checkbox checked={props.partitionByExperimentSelection} onChange={props.handleChange} name="partition_by_experiment" />}
-            label="Partition output csvs by Experiment"
+            label="Partition output CSVs by Experiment"
           /><br/>
           <FormControlLabel
             control={<Checkbox checked={props.partitionByUnitSelection} onChange={props.handleChange} name="partition_by_unit" />}
-            label="Partition output csvs by Pioreactor"
+            label="Partition output CSVs by Pioreactor"
           />
         </Box>
       </FormControl>
@@ -503,13 +503,13 @@ function ExportDataContainer() {
                 />
               </Grid>
               <Grid  size={{
-                  xs: 2,
-                  md: 2
+                  xs: 1,
+                  md: 1
                 }}/>
               <Grid
                 size={{
-                  xs: 4,
-                  md: 4
+                  xs: 5,
+                  md: 5
                 }}>
                 <Accordion square disableGutters elevation={0} sx={{ '&::before': { display: 'none' }, backgroundColor: 'transparent', boxShadow: 'none', margin: 0 }}>
                   <AccordionSummary
@@ -542,7 +542,7 @@ function ExportDataContainer() {
                           name="useTimeFilter"
                         />
                       }
-                      label="Filter by time "
+                      label="Filter by UTC time range"
                     />
                     <Box sx={{ display: 'flex', gap: 2, mt: 1, mb: 2 }}>
                       <TextField

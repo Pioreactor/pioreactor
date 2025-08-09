@@ -1201,10 +1201,6 @@ def get_job_settings_for_worker(
 
 
 @api.route(
-    "/workers/<pioreactor_unit>/jobs/settings/job_name/<job_name>/setting/<setting>",
-    methods=["GET"],
-)
-@api.route(
     "/workers/<pioreactor_unit>/jobs/settings/job_name/<job_name>/setting/<setting>/experiments/<experiment>",
     methods=["GET"],
 )
