@@ -47,7 +47,6 @@ from typing import Generator
 import click
 from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
-
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor import whoami
@@ -412,6 +411,11 @@ class GrowthRateProcessor(LoggerMixin):
         None,
         None,
     ]:
+        if od_stream.is_live and dosing_stream.is_live:
+            assert self.stopping_event is not None, "Stopping event must be set for live streams."
+            od_stream.set_stop_event(self.stopping_event)
+            dosing_stream.set_stop_event(self.stopping_event)
+
         # initialize metrics from stream
         (
             self.od_normalization_factors,
@@ -432,10 +436,12 @@ class GrowthRateProcessor(LoggerMixin):
         )
 
         # how should we merge streams?
-        if isinstance(od_stream, MqttODSource) and isinstance(dosing_stream, MqttDosingSource):
+        if od_stream.is_live and dosing_stream.is_live:
             merged_streams = merge_live_streams(od_stream, dosing_stream, stop_event=self.stopping_event)
-        else:
+        elif not od_stream.is_live and not dosing_stream.is_live:
             merged_streams = merge_historical_streams(od_stream, dosing_stream, key=lambda t: t.timestamp)
+        else:
+            raise ValueError("Both streams must be live or both must be historical.")
 
         # iterate over stream
         for event in merged_streams:
@@ -536,8 +542,8 @@ def click_growth_rate_calculating(ctx, ignore_cache):
             unit=unit,
             experiment=experiment,
             ignore_cache=ignore_cache,
-        ) as calc:
-            for _ in calc.process_until_disconnected_or_exhausted(
+        ) as job:
+            for _ in job.process_until_disconnected_or_exhausted(
                 od_stream=od_stream, dosing_stream=dosing_stream
             ):
                 continue

@@ -227,12 +227,13 @@ def pio(ctx, show_version: bool) -> None:
 
 
 @pio.command(name="logs", short_help="show recent logs")
+@click.option("-n", default=100, type=int)
 @click.option(
-    "-n",
-    default=100,
-    type=int,
+    "-f",
+    is_flag=True,
+    help="follow the logs, like tail -f",
 )
-def logs(n: int) -> None:
+def logs(n: int, f: bool) -> None:
     """
     Tail & stream the logs from this unit to the terminal. CTRL-C to exit.
     """
@@ -245,7 +246,9 @@ def logs(n: int) -> None:
         log_files = [log_file]
 
     with subprocess.Popen(
-        ["tail", "-fqn", str(n)] + log_files, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+        ["tail", "-qn", "-f" if f else "", str(n)] + log_files,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
     ) as process:
         assert process.stdout is not None
         for line in process.stdout:

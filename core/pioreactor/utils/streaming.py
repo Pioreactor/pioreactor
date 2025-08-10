@@ -13,7 +13,6 @@ from typing import Callable
 from typing import Iterable
 from typing import Iterator
 from typing import Protocol
-from typing import TypeVar
 
 from msgspec import DecodeError
 from msgspec.json import decode
@@ -33,6 +32,9 @@ class ODObservationSource(Protocol):
     def __iter__(self) -> Iterator[ODReadings]:
         ...
 
+    def set_stop_event(self, ev: Event) -> None:
+        ...
+
 
 class DosingObservationSource(Protocol):
     """Anything that can be iterated to yield ODReadings objects."""
@@ -40,6 +42,9 @@ class DosingObservationSource(Protocol):
     is_live: bool
 
     def __iter__(self) -> Iterator[DosingEvent]:
+        ...
+
+    def set_stop_event(self, ev: Event) -> None:
         ...
 
 
@@ -57,6 +62,9 @@ class ExportODSource(ODObservationSource):
         self.skip_first = skip_first
         self.pioreactor_unit = pioreactor_unit
         self.experiment = experiment
+
+    def set_stop_event(self, ev: Event) -> None:
+        raise NotImplementedError("Does not support live streaming.")
 
     def __enter__(self, *args, **kwargs):
         import csv
@@ -96,6 +104,9 @@ class EmptyDosingSource(DosingObservationSource):
     def __iter__(self) -> Iterator[DosingEvent]:
         return iter([])
 
+    def set_stop_event(self, ev: Event) -> None:
+        raise NotImplementedError("Does not support live streaming.")
+
 
 class ExportDosingSource(DosingObservationSource):
     is_live = False
@@ -111,6 +122,9 @@ class ExportDosingSource(DosingObservationSource):
         self.skip_first = skip_first
         self.experiment = experiment
         self.pioreactor_unit = pioreactor_unit
+
+    def set_stop_event(self, ev: Event) -> None:
+        raise NotImplementedError("ExportDosingSource does not support live streaming.")
 
     def __enter__(self, *args, **kwargs):
         import csv
@@ -152,10 +166,15 @@ class MqttODSource(ODObservationSource):
     def __init__(self, unit: pt.Unit, experiment: pt.Experiment, *, skip_first: int = 0) -> None:
         self.unit, self.experiment, self.skip_first = unit, experiment, skip_first
 
+    def set_stop_event(self, ev: Event) -> None:
+        self._stop_event = ev
+
     def __iter__(self):
         counter = 0
-        while True:
-            msg = subscribe(f"pioreactor/{self.unit}/{self.experiment}/od_reading/ods", allow_retained=False)
+        while not self._stop_event.is_set():
+            msg = subscribe(
+                f"pioreactor/{self.unit}/{self.experiment}/od_reading/ods", allow_retained=False, timeout=1
+            )
             if msg is None:
                 continue
             counter += 1
@@ -172,11 +191,17 @@ class MqttDosingSource(DosingObservationSource):
     is_live = True
 
     def __init__(self, unit: pt.Unit, experiment: pt.Experiment) -> None:
-        self.unit, self.experiment = unit, experiment
+        self.unit = unit
+        self.experiment = experiment
+
+    def set_stop_event(self, ev: Event) -> None:
+        self._stop_event = ev
 
     def __iter__(self):
-        while True:
-            msg = subscribe(f"pioreactor/{self.unit}/{self.experiment}/dosing_events", allow_retained=False)
+        while not self._stop_event.is_set():
+            msg = subscribe(
+                f"pioreactor/{self.unit}/{self.experiment}/dosing_events", allow_retained=False, timeout=1
+            )
             if msg is None:
                 continue
             try:
@@ -186,11 +211,12 @@ class MqttDosingSource(DosingObservationSource):
                 continue
 
 
-T = TypeVar("T")
+T = ODReadings | DosingEvent
+S = ODObservationSource | DosingObservationSource
 
 
 def merge_live_streams(
-    *iterables: Iterable[T],
+    *iterables: S,
     stop_event: Event | None = None,
     poll_interval: float = 0.5,  # seconds to wait before re-checking the flag
     **kwargs,
@@ -202,13 +228,14 @@ def merge_live_streams(
     stop_event = stop_event or Event()
     q: Queue = Queue()
 
-    def _drain(it: Iterable[T]) -> None:
+    def _drain(it: S) -> None:
         for item in it:
             if stop_event.is_set():
                 break
             q.put(item)
 
     for it in iterables:
+        it.set_stop_event(stop_event)
         Thread(target=_drain, args=(iter(it),), daemon=True).start()
 
     while True:

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import os
 from collections import defaultdict
 from pathlib import Path
 from typing import Callable
@@ -11,7 +12,6 @@ from typing import Type
 from msgspec import ValidationError
 from msgspec.yaml import decode as yaml_decode
 from msgspec.yaml import encode as yaml_encode
-
 from pioreactor import structs
 from pioreactor.types import PumpCalibrationDevices
 from pioreactor.utils import local_persistent_storage
@@ -20,7 +20,7 @@ from pioreactor.whoami import is_testing_env
 if not is_testing_env():
     CALIBRATION_PATH = Path("/home/pioreactor/.pioreactor/storage/calibrations/")
 else:
-    CALIBRATION_PATH = Path(".pioreactor/storage/calibrations/")
+    CALIBRATION_PATH = Path(os.environ["DOT_PIOREACTOR"]) / "storage" / "calibrations"
 
 # Lookup table for different calibration protocols
 Device = str

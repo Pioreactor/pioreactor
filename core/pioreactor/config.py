@@ -133,8 +133,14 @@ def get_config() -> ConfigParserMod:
     from pioreactor.whoami import is_testing_env
 
     if is_testing_env():
-        global_config_path = os.environ.get("GLOBAL_CONFIG", "./.pioreactor/config.ini")
         local_config_path = os.environ.get("LOCAL_CONFIG", "")
+
+        if os.environ.get("GLOBAL_CONFIG") is not None:
+            global_config_path = os.environ["GLOBAL_CONFIG"]
+        elif os.environ.get("DOT_PIOREACTOR") is not None:
+            global_config_path = os.environ["DOT_PIOREACTOR"] + "/config.ini"
+        else:
+            global_config_path = "./.pioreactor/config.ini"
     else:
         global_config_path = "/home/pioreactor/.pioreactor/config.ini"
         local_config_path = "/home/pioreactor/.pioreactor/unit_config.ini"

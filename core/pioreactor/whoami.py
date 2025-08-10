@@ -158,9 +158,6 @@ def am_I_a_worker() -> bool:
 
 @cache
 def get_pioreactor_model() -> Model:
-    """Return the Model struct for this Pioreactor (by env/EERPOM/HARDWARE env).
-    Falls back to the 20ml v1.0 factory default if unrecognized.
-    """
     from pioreactor.models import get_registered_models
 
     name = _get_pioreactor_model_name()

@@ -235,9 +235,7 @@ def run_job_on_unit_in_experiment(
                         "HOSTNAME": worker["pioreactor_unit"],
                         "ACTIVE": str(int(worker["is_active"])),
                         "TESTING": str(int(is_testing_env())),
-                        "GLOBAL_CONFIG": os.environ.get(
-                            "GLOBAL_CONFIG", (os.environ["DOT_PIOREACTOR"] + "/config.ini")
-                        ),
+                        "DOT_PIOREACTOR": os.environ["DOT_PIOREACTOR"],
                     }
                 ),
             }
