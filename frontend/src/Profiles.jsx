@@ -304,6 +304,7 @@ function RunningProfilesContainer() {
                           label={element.settings.experiment_profile_name}
                           sx={{maxWidth: "210px"}}
                           clickable
+                          component={Link}
                           onClick={() => {
                             navigate(`/experiment-profiles/${element.settings.profile_filename}`);
                           }}

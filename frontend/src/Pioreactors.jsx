@@ -452,7 +452,7 @@ function AssignPioreactors({ experiment, variant="text" }) {
         <DialogContent>
           <p>
             Assign and unassign Pioreactors to experiment{" "}
-            <Chip icon=<PlayCircleOutlinedIcon/>  size="small" label={experiment} clickable onClick={() => selectExperiment(experiment)} data-experiment-name={experiment}/>.
+            <Chip icon={<PlayCircleOutlinedIcon/>} size="small" label={experiment} clickable component={Link} onClick={() => selectExperiment(experiment)} data-experiment-name={experiment} />.
           </p>
           <FormControl sx={{ m: "auto" }} component="fieldset" variant="standard">
             <FormLabel component="legend">Pioreactors</FormLabel>
@@ -485,7 +485,7 @@ function AssignPioreactors({ experiment, variant="text" }) {
                 const exp = worker.experiment;
                 const disabled = exp !== null && exp !== experiment;
                 const sublabel = disabled ?
-                  <>assigned to <Chip icon=<PlayCircleOutlinedIcon/> size="small" label={exp} clickable onClick={() => selectExperiment(exp)} data-experiment-name={exp} /> </>
+                  <>assigned to <Chip icon={<PlayCircleOutlinedIcon/>} size="small" label={exp} clickable component={Link} onClick={() => selectExperiment(exp)} data-experiment-name={exp} /> </>
                   : null;
 
                 return (

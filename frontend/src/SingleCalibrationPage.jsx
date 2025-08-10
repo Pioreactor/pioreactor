@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { useParams,  useNavigate,  Link as RouterLink } from "react-router-dom";
+import { useParams,  useNavigate,  Link } from "react-router-dom";
 import { useConfirm } from 'material-ui-confirm';
 import { CircularProgress, Button, Typography, Box } from "@mui/material";
 import {checkTaskCallback, colors, ColorCycler} from "./utilities"
-import Link from '@mui/material/Link';
+import MuiLink from '@mui/material/Link';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
@@ -127,7 +127,7 @@ function SingleCalibrationPage(props) {
 
           <Typography variant="h5" component="h1">
             <Box sx={{display:"inline"}}>
-              <Button to={`/calibrations`} component={RouterLink} sx={{ textTransform: 'none' }}>
+              <Button to={`/calibrations`} component={Link} sx={{ textTransform: 'none' }}>
                 <ArrowBackIcon sx={{ verticalAlign: "middle", mr: 0.5 }} fontSize="small"/> All calibrations
               </Button>
             </Box>
@@ -235,9 +235,9 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } )
     <Card>
       <CardContent sx={{p: 2}}>
           <Typography variant="h6" mb={2}>
-            <Link component={RouterLink} to={`/calibrations/${pioreactorUnit}`} color="inherit"  underline="hover" sx={{cursor: "pointer"}} > <PioreactorIcon sx={{verticalAlign: "middle", marginRight: "1px"}} /> {pioreactorUnit} </Link>
+            <MuiLink component={Link} to={`/calibrations/${pioreactorUnit}`} color="inherit" underline="hover" sx={{cursor: "pointer"}} > <PioreactorIcon sx={{verticalAlign: "middle", marginRight: "1px"}} /> {pioreactorUnit} </MuiLink>
               <NavigateNextIcon sx={{verticalAlign: "middle", marginRight: "3px"}}/>
-            <Link component={RouterLink} to={`/calibrations/${pioreactorUnit}/${device}`} color="inherit"  underline="hover" sx={{cursor: "pointer"}} >  {device} </Link>
+            <MuiLink component={Link} to={`/calibrations/${pioreactorUnit}/${device}`} color="inherit" underline="hover" sx={{cursor: "pointer"}} >  {device} </MuiLink>
               <NavigateNextIcon sx={{verticalAlign: "middle", marginRight: "3px"}}/>
              {calibrationName}
           </Typography>
@@ -266,8 +266,8 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } )
                         icon={<PioreactorIcon/>}
                         label={pioreactorUnit}
                         clickable
-                        component={RouterLink}
-                        to={`/calibrations/${pioreactorUnit}`}
+                          component={Link}
+                          to={`/calibrations/${pioreactorUnit}`}
                         data-pioreactor-unit={pioreactorUnit}
                         />
                     </TableCell>

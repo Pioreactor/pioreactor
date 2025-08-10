@@ -324,7 +324,7 @@ function PioreactorHeader({unit, assignedExperiment, isActive, selectExperiment,
                 <PlayCircleOutlinedIcon sx={{ fontSize: 14, verticalAlign: "-2px" }}/> Experiment assigned:&nbsp;
               </Box>
                 <Box fontWeight="fontWeightRegular" sx={{mr: "1%", display:"inline-block"}}>
-                <Chip icon=<PlayCircleOutlinedIcon/> size="small" label={assignedExperiment} clickable onClick={onExperimentClick} data-experiment-name={assignedExperiment} />
+                <Chip icon={<PlayCircleOutlinedIcon/>} size="small" label={assignedExperiment} clickable component={Link} onClick={onExperimentClick} data-experiment-name={assignedExperiment} />
               </Box>
             </Box>
             <Box sx={{display:"inline"}}>
@@ -2040,7 +2040,7 @@ function Pioreactor({title}) {
             <PioreactorHeader unit={unit} assignedExperiment={assignedExperiment} isActive={isActive} selectExperiment={selectExperiment} modelDisplayName={modelDetails.display_name} />
             {experimentMetadata.experiment && assignedExperiment && experimentMetadata.experiment !== assignedExperiment &&
             <Box>
-              <Alert severity="info" style={{marginBottom: '10px', marginTop: '10px'}}>This worker is part of different experiment. Switch to experiment <Chip icon=<PlayCircleOutlinedIcon/> size="small" label={assignedExperiment} clickable onClick={onExperimentClick} data-experiment-name={assignedExperiment}/> to control this worker.</Alert>
+            <Alert severity="info" style={{marginBottom: '10px', marginTop: '10px'}}>This worker is part of different experiment. Switch to experiment <Chip icon={<PlayCircleOutlinedIcon/>} size="small" label={assignedExperiment} clickable component={Link} onClick={onExperimentClick} data-experiment-name={assignedExperiment}/> to control this worker.</Alert>
             </Box>
           }
           </Grid>
