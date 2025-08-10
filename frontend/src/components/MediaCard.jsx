@@ -120,7 +120,7 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
               {activeUnits.map((unit) => (
                 <TableRow key={unit}>
                   <TableCell style={{ padding: '6px 0px' }} component="th" scope="row">
-                    <Chip size="small" icon={<PioreactorIcon/>} label={relabelUnit(unit)} clickable component={Link} to={"/pioreactors/" + unit} />
+                    <Chip size="small" icon={<PioreactorIcon/>} label={relabelUnit(unit)} clickable component={Link} to={"/pioreactors/" + unit} data-pioreactor-unit={unit} />
                   </TableCell>
                   <TableCell align="right" style={{ fontSize: 13, padding: '6px 0px' }}>
                     {(mediaThroughputPerUnit[unit] || 0).toFixed(1)}mL ({(rates[unit] ? rates[unit].mediaRate.toFixed(1) : '0.0')}mL/h)

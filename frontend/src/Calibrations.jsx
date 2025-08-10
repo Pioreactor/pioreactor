@@ -496,6 +496,7 @@ function CalibrationData() {
                       size="small"
                       icon={<PioreactorIcon/>}
                       label={unitName}
+                      data-pioreactor-unit={unitName}
                       // clickable
                       // component={Link}
                       // to={leaderHostname === unitName ? "/leader" : "/pioreactors/" + unitName}
@@ -508,6 +509,7 @@ function CalibrationData() {
                         size="small"
                         icon={<TuneIcon/>}
                         label={calName}
+                        data-calibration-name={calName}
                         />
                   </TableCell>
                   <TableCell align="left" sx={{padding: "6px 0px"}}>{cal.is_active ?  <><Chip size="small" label={"Active"} icon={<CheckCircleOutlineOutlinedIcon />} sx={{backgroundColor: "inherit"}}  /></> : ""}</TableCell>

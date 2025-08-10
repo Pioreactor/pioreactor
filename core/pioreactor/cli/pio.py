@@ -333,7 +333,7 @@ def version(verbose: bool) -> None:
         click.echo(f"Pioreactor app:         {tuple_to_text(software_version_info)}")
         click.echo(f"Pioreactor HAT:         {tuple_to_text(hardware_version_info)}")
         click.echo(f"Pioreactor firmware:    {tuple_to_text(get_firmware_version())}")
-        click.echo(f"Model name:             {get_pioreactor_model().display_name}")
+        click.echo(f"Bioreactor model name:  {get_pioreactor_model().display_name}")
         click.echo(f"HAT serial number:      {serial_number}")
         click.echo(f"Operating system:       {platform.platform()}")
         click.echo(f"Raspberry Pi:           {rpi_version_info}")

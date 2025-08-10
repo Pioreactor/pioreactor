@@ -381,19 +381,22 @@ class Dataset(JSONPrintedStruct):
 
 
 class Model(Struct):
-    """Defines a Pioreactor hardware model with its physical and automation parameters."""
+    """Defines a bioreactor hardware model with its physical and automation parameters."""
 
     model_name: str  # this in combination with model_version should form a unique pair
     model_version: str  # this in combination with model_name should form a unique pair
-    display_name: str
-    # reactor capacity (e.g. 20 or 40 mL)
+    display_name: str  # for UI and such
+
+    # reactor vessel capacity (e.g. 20 or 40 mL)
     reactor_capacity_ml: float
-    # maximum fill volume before headspace (e.g. 18 or 38 mL)
-    reactor_max_fill_volume_ml: float
-    # physical diameter of the reactor (for UI diagrams)
+
+    # physical diameter of the reactor
     reactor_diameter_mm: float
 
-    # temperature automation parameters:
+    # maximum safe fill volume of the reactor
+    reactor_max_fill_volume_ml: float
+
+    # temperature and safety parameters:
     max_temp_to_reduce_heating: float
     max_temp_to_disable_heating: float
     max_temp_to_shutdown: float

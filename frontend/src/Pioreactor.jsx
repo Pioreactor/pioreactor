@@ -323,8 +323,8 @@ function PioreactorHeader({unit, assignedExperiment, isActive, selectExperiment,
               <Box fontWeight="fontWeightBold" sx={{display:"inline-block"}}>
                 <PlayCircleOutlinedIcon sx={{ fontSize: 14, verticalAlign: "-2px" }}/> Experiment assigned:&nbsp;
               </Box>
-              <Box fontWeight="fontWeightRegular" sx={{mr: "1%", display:"inline-block"}}>
-                <Chip icon=<PlayCircleOutlinedIcon/> size="small" label={assignedExperiment} clickable onClick={onExperimentClick} />
+                <Box fontWeight="fontWeightRegular" sx={{mr: "1%", display:"inline-block"}}>
+                <Chip icon=<PlayCircleOutlinedIcon/> size="small" label={assignedExperiment} clickable onClick={onExperimentClick} data-experiment-name={assignedExperiment} />
               </Box>
             </Box>
             <Box sx={{display:"inline"}}>
@@ -531,6 +531,8 @@ function CalibrateDialog({ unit, experiment, odBlankReading, odBlankJobState, gr
                             size="small"
                             icon={<TuneIcon />}
                             label={calName}
+                            data-calibration-name={calName}
+                            data-device={device}
                             clickable
                             component={Link}
                             sx={{maxWidth:"300px"}}
@@ -2038,7 +2040,7 @@ function Pioreactor({title}) {
             <PioreactorHeader unit={unit} assignedExperiment={assignedExperiment} isActive={isActive} selectExperiment={selectExperiment} modelDisplayName={modelDetails.display_name} />
             {experimentMetadata.experiment && assignedExperiment && experimentMetadata.experiment !== assignedExperiment &&
             <Box>
-              <Alert severity="info" style={{marginBottom: '10px', marginTop: '10px'}}>This worker is part of different experiment. Switch to experiment <Chip icon=<PlayCircleOutlinedIcon/> size="small" label={assignedExperiment} clickable onClick={onExperimentClick}/> to control this worker.</Alert>
+              <Alert severity="info" style={{marginBottom: '10px', marginTop: '10px'}}>This worker is part of different experiment. Switch to experiment <Chip icon=<PlayCircleOutlinedIcon/> size="small" label={assignedExperiment} clickable onClick={onExperimentClick} data-experiment-name={assignedExperiment}/> to control this worker.</Alert>
             </Box>
           }
           </Grid>

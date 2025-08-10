@@ -254,6 +254,7 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } )
                         size="small"
                         icon={<TuneIcon/>}
                         label={calibrationName}
+                        data-calibration-name={calibrationName}
                         />
                     </TableCell>
                   </TableRow>
@@ -267,6 +268,7 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } )
                         clickable
                         component={RouterLink}
                         to={`/calibrations/${pioreactorUnit}`}
+                        data-pioreactor-unit={pioreactorUnit}
                         />
                     </TableCell>
                   </TableRow>

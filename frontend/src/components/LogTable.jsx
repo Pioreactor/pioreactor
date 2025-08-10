@@ -190,7 +190,7 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
                   <TableRow>
                     <StyledTimeTableCell level={log.level}>{timestampCell(log.timestamp)}</StyledTimeTableCell>
                     <StyledTableCell level={log.level}>
-                      <Chip size="small" icon={<PioreactorIcon/>} label={relabelUnit(log.pioreactor_unit)} clickable component={Link} to={"/pioreactors/" + log.pioreactor_unit}/>
+                      <Chip size="small" icon={<PioreactorIcon/>} label={relabelUnit(log.pioreactor_unit)} clickable component={Link} to={"/pioreactors/" + log.pioreactor_unit} data-pioreactor-unit={log.pioreactor_unit}/>
                     </StyledTableCell>
                     <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
                     <StyledTableCell level={log.level}>{log.message}</StyledTableCell>

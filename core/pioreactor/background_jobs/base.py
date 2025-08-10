@@ -176,7 +176,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     See `PublishableSetting` for typing.
 
-    Ideally the CLI of the job should allow setting SETTABLE: TRUE attributes.
+    Ideally the CLI of the job should allow setting SETTABLE: TRUE attributes at start time (expect for $state setting).
 
 
     Best code practices of background jobs

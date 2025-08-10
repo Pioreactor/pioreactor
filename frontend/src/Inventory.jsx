@@ -31,7 +31,7 @@ import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import RemoveCircleOutlineRoundedIcon from '@mui/icons-material/RemoveCircleOutlineRounded';
 import CircularProgress from '@mui/material/CircularProgress';
 import { useConfirm } from 'material-ui-confirm';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import UnderlineSpan from "./components/UnderlineSpan";
 import PioreactorIcon from "./components/PioreactorIcon";
 import PioreactorIconWithModel from "./components/PioreactorIconWithModel";
@@ -466,7 +466,7 @@ function WorkerCard({worker, config, leaderVersion}) {
         <Box sx={{display: "flex", justifyContent: "left", ml: .5}}>
           {experimentAssigned ? (
             <>
-            <Typography variant="subtitle2" color={isActive() ? "inherit" : inactiveGrey}> Assigned to <Chip icon=<PlayCircleOutlinedIcon/> disabled={!isActive()} size="small" label={experimentAssigned} clickable onClick={onExperimentClick} /> </Typography>
+            <Typography variant="subtitle2" color={isActive() ? "inherit" : inactiveGrey}> Assigned to <Chip icon=<PlayCircleOutlinedIcon/> disabled={!isActive()} size="small" label={experimentAssigned} component={Link} clickable onClick={onExperimentClick} data-experiment-name={experimentAssigned} /> </Typography>
             </>)
           : <Typography variant="subtitle2" color={isActive() ? "inherit" : inactiveGrey}> Unassigned </Typography>
         }
