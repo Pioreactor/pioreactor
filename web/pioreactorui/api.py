@@ -532,17 +532,34 @@ def publish_new_log(pioreactor_unit: str, experiment: str) -> ResponseReturnValu
     body = request.get_json()
     source_ = body.get("source_", "ui")
 
-    topic = f"pioreactor/{pioreactor_unit}/{experiment}/logs/{source_}/{body['level'].lower()}"
-    client.publish(
-        topic,
-        msg_to_JSON(
-            msg=body["message"],
-            source=body["source"],
-            level=body["level"].upper(),
-            timestamp=body["timestamp"],
-            task=body["task"] or "",
-        ),
-    )
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        assigned_units = get_all_workers_in_experiment(experiment)
+        for assigned_pioreactor_unit in assigned_units:
+            topic = (
+                f"pioreactor/{assigned_pioreactor_unit}/{experiment}/logs/{source_}/{body['level'].lower()}"
+            )
+            client.publish(
+                topic,
+                msg_to_JSON(
+                    msg=body["message"],
+                    source=body["source"],
+                    level=body["level"].upper(),
+                    timestamp=body["timestamp"],
+                    task=body["task"] or "",
+                ),
+            )
+    else:
+        topic = f"pioreactor/{pioreactor_unit}/{experiment}/logs/{source_}/{body['level'].lower()}"
+        client.publish(
+            topic,
+            msg_to_JSON(
+                msg=body["message"],
+                source=body["source"],
+                level=body["level"].upper(),
+                timestamp=body["timestamp"],
+                task=body["task"] or "",
+            ),
+        )
     return {"status": "success"}, 202
 
 

@@ -403,7 +403,6 @@ function AssignPioreactors({ experiment, variant="text" }) {
         newAssigned[worker.pioreactor_unit] = newValue;
       }
     });
-
     setAssigned(newAssigned);
     setSelectAll(newValue);
   };
@@ -415,7 +414,7 @@ function AssignPioreactors({ experiment, variant="text" }) {
     const noneSelected = workers.every(
       (worker) => (worker.experiment && worker.experiment !== experiment) || !assigned[worker.pioreactor_unit]
     );
-    setSelectAll(allSelected ? true : noneSelected ? false : null);
+    setSelectAll(allSelected ? true : (noneSelected ? false : null));
   }, [assigned, workers, experiment]);
 
   return (

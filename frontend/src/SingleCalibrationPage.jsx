@@ -14,9 +14,14 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableHead,
   TableRow,
+  IconButton,
 } from "@mui/material";
 import PioreactorIcon from "./components/PioreactorIcon"
+import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
+import yaml from "js-yaml";
+import UnderlineSpan from "./components/UnderlineSpan";
 import dayjs from 'dayjs';
 import Snackbar from '@mui/material/Snackbar';
 import TuneIcon from '@mui/icons-material/Tune';
@@ -200,7 +205,40 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } )
     }
     setSnackbarMessage("Calibration removed as Active")
     setSnackbarOpen(true);
-    setTimeout(fetchSingleCalibration, 200);
+  setTimeout(fetchSingleCalibration, 200);
+};
+
+  const copyCalibrationYamlToClipboard = () => {
+    const yamlObj = {
+      calibration_type,
+      calibration_name: calibrationName,
+      calibrated_on_pioreactor_unit: pioreactorUnit,
+      created_at,
+      curve_data_,
+      x,
+      y,
+      recorded_data,
+      ...calibration,
+    };
+    const text = yaml.dump(yamlObj);
+    navigator.clipboard.writeText(text)
+      .then(() => {
+        setSnackbarMessage('YAML copied to clipboard');
+        setSnackbarOpen(true);
+      })
+      .catch(err => console.error('YAML copy failed', err));
+  };
+
+  const copyRecordedDataCsvToClipboard = () => {
+    const header = `${x},${y}`;
+    const rows = recorded_data.x.map((xVal, idx) => `${xVal},${recorded_data.y[idx]}`);
+    const csv = [header, ...rows].join('\n');
+    navigator.clipboard.writeText(csv).then(() => {
+      setSnackbarMessage('CSV copied to clipboard');
+      setSnackbarOpen(true);
+    }).catch(err => {
+      console.error('Failed to copy CSV', err);
+    });
   };
 
   if (loading) {
@@ -244,9 +282,17 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } )
 
           <CalibrationChart calibrations={[calibration]} deviceName={device} unitsColorMap={unitsColorMap} highlightedModel={{pioreactorUnit: null, calbrationName: null}} title={`Calibration curve for ${calibrationName}`} />
 
-          <Box sx={{px: 5, mt: 1}} >
+          <Box sx={{px: 5, mt: 1}}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+              <Typography variant="h6">Calibration data</Typography>
+              <UnderlineSpan title="Copy as YAML to clipboard">
+                <IconButton size="small" onClick={copyCalibrationYamlToClipboard}>
+                  <ContentCopyOutlinedIcon fontSize="small" />
+                </IconButton>
+              </UnderlineSpan>
+            </Box>
             <Table size="small">
-                <TableBody>
+              <TableBody>
                   <TableRow>
                     <TableCell><strong>Calibration name</strong></TableCell>
                     <TableCell>
@@ -294,22 +340,38 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } )
                       y={formatPolynomial(curve_data_)}
                     </TableCell>
                   </TableRow>
-                  <TableRow >
-                    <TableCell ><strong>Recorded data - {x}</strong></TableCell>
-                    <TableCell sx={{maxWidth: "600px", whiteSpace: "pre-line", wordWrap: "break-word"}}>
-                      <code>{JSON.stringify(recorded_data['x'])}</code><br/>
-                    </TableCell>
-                  </TableRow>
-                  <TableRow >
-                    <TableCell ><strong>Recorded data - {y}</strong></TableCell>
-                    <TableCell sx={{maxWidth: "600px", whiteSpace: "pre-line", wordWrap: "break-word"}}>
-                      <code>{JSON.stringify(recorded_data['y'])}</code><br/>
-                    </TableCell>
-                  </TableRow>
                 </TableBody>
               </Table>
           </Box>
 
+          <Box sx={{ px: 5, mt: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+              <Typography variant="h6">Recorded data</Typography>
+              <UnderlineSpan title="Copy as CSV to clipboard">
+                <IconButton size="small" onClick={copyRecordedDataCsvToClipboard}>
+                  <ContentCopyOutlinedIcon fontSize="small" />
+                </IconButton>
+              </UnderlineSpan>
+            </Box>
+            <Box sx={{ maxHeight: 150, overflowY: 'auto' }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>{x}</TableCell>
+                    <TableCell>{y}</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {recorded_data.x.map((xVal, idx) => (
+                    <TableRow key={idx}>
+                      <TableCell>{xVal}</TableCell>
+                      <TableCell>{recorded_data.y[idx]}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Box>
+          </Box>
 
           <Box mt={2}>
             <Button

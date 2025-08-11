@@ -94,6 +94,12 @@ const findHandlersInTrie = (root, topic) => {
 
 
 const CONNECT_TIMEOUT_MS = 1000;
+// Retry settings for MQTT fallback connections
+const RETRY_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 100;
+
+// Simple sleep helper for retries
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 
 export const MQTTProvider = ({ name, config, children, experiment }) => {
@@ -133,18 +139,24 @@ export const MQTTProvider = ({ name, config, children, experiment }) => {
         });
       });
 
-    /** sequential fallback */
+    /** retrying sequential fallback */
     const connectWithFallback = async () => {
       const hosts = broker_address.split(';').map(h => h.trim()).filter(Boolean);
       const opts  = { username, password, keepalive: 120, clean: true };
 
-      for (const host of hosts) {
-        const uri = `${ws_protocol}://${host}:${broker_ws_port}/mqtt`;
-        try {
-          console.log(`MQTT trying ${uri} …`);
-          return await tryUri(uri, opts);        // first one that works wins
-        } catch (e) {
-          console.warn(`MQTT could not connect to ${uri}: ${e.message}`);
+      for (let attempt = 1; attempt <= RETRY_ATTEMPTS; attempt++) {
+        for (const host of hosts) {
+          const uri = `${ws_protocol}://${host}:${broker_ws_port}/mqtt`;
+          try {
+            console.log(`MQTT trying ${uri} (attempt ${attempt}) …`);
+            return await tryUri(uri, opts); // first successful connection wins
+          } catch (e) {
+            console.warn(`MQTT could not connect to ${uri} (attempt ${attempt}): ${e.message}`);
+          }
+        }
+        if (attempt < RETRY_ATTEMPTS) {
+          console.log(`MQTT retrying all hosts in ${RETRY_DELAY_MS}ms...`);
+          await sleep(RETRY_DELAY_MS);
         }
       }
       throw new Error('Unable to reach any MQTT broker');

@@ -19,11 +19,11 @@ import CloseIcon from '@mui/icons-material/Close';
 import PioreactorsIcon from './PioreactorsIcon';
 import dayjs from 'dayjs';
 
-function RecordEventLogDialog({ 
-  defaultPioreactor = "", 
-  defaultExperiment = "", 
-  availableUnits = [], 
-  onSubmit, 
+function RecordEventLogDialog({
+  defaultPioreactor = "",
+  defaultExperiment = "",
+  availableUnits = [],
+  onSubmit,
 }) {
   const [selectedPioreactor, setSelectedPioreactor] = useState(defaultPioreactor);
   const [selectedExperiment, setSelectedExperiment] = useState(defaultExperiment);
@@ -105,7 +105,7 @@ function RecordEventLogDialog({
               {availableUnits.map((unit) => (
                 <MenuItem key={unit} value={unit}>{unit}</MenuItem>
               ))}
-              <MenuItem value="$broadcast"><PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 4px"}} /> All Pioreactors </MenuItem>
+              <MenuItem value="$broadcast"><PioreactorsIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 4px"}} /> All assigned Pioreactors </MenuItem>
             </Select>
           </FormControl>
           <FormControl required size="small" variant="outlined" sx={{ flex: 1 }}>
