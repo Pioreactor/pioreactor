@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import logging
 import os
 from shlex import join
 from subprocess import check_call
@@ -24,17 +25,18 @@ from pioreactor.pubsub import patch_into
 from pioreactor.pubsub import post_into
 from pioreactor.utils.networking import resolve_to_address
 
-from .config import CACHE_DIR
 from .config import huey
 from .config import is_testing_env
 
 
 logger = create_logger(
-    "huey",
+    "tasks",
     source="huey",
     experiment="$experiment",
     log_file_location=pioreactor_config["logging"]["ui_log_file"],
 )
+
+logger.setLevel(logging.DEBUG)
 
 if not is_testing_env():
     PIO_EXECUTABLE = "/usr/local/bin/pio"
@@ -90,7 +92,6 @@ def _process_delayed_json_response(worker: str, response: Response) -> tuple[str
 @huey.on_startup()
 def initialized():
     logger.debug("Starting Huey consumer...")
-    logger.debug(f"Cache directory = {CACHE_DIR}")
 
 
 @huey.task()
