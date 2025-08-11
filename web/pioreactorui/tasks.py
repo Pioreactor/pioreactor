@@ -30,7 +30,7 @@ from .config import is_testing_env
 
 
 logger = create_logger(
-    "huey.consumer",
+    "huey",
     source="huey",
     experiment="$experiment",
     log_file_location=pioreactor_config["logging"]["ui_log_file"],

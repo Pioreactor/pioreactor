@@ -246,7 +246,7 @@ def logs(n: int, f: bool) -> None:
         log_files = [log_file]
 
     with subprocess.Popen(
-        ["tail", "-qn", "-f" if f else "", str(n)] + log_files,
+        ["tail", "-qn", str(n), "-f" if f else ""] + log_files,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
     ) as process:
