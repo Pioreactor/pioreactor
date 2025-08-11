@@ -21,7 +21,7 @@ load_dotenv()
 
 CACHE_DIR = (
     Path("/tmp") / "pioreactor_cache"
-)  # sucks that is hardcoded - I don't have a config for this location.
+)  # sucks that is hardcoded - I don't have a config for this location. TODO: make it an env!
 
 try:
     huey = SqliteHuey(filename=CACHE_DIR / "huey.db")

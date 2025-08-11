@@ -149,7 +149,7 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
     return () => {
       LEVELS.map((level) => unsubscribeFromTopic(`pioreactor/${pioreactorUnit || '+'}/${experiment}/logs/+/${level.toLowerCase()}`, 'PagLogTable'))
     };
-  }, [client, experiment, pioreactorUnit]);
+  }, [client, experiment, pioreactorUnit, logLevel]);
 
 
   const handleSwitchChange = (event) => {
