@@ -218,9 +218,12 @@ const Dataset = ({ dataset, isSelected, handleChange }) => {
           marginLeft: "20px",
           backgroundColor: isSelected ? "#f6f4fa" : "white",
           marginTop: "8px",
+          maxWidth: "70vw",
           "&.Mui-expanded": {
             backgroundColor: isSelected ? "#f6f4fa" : "#f9f9f9",
             marginLeft: "20px",
+            width: "70vw",
+            overflow: "scroll",
             minHeight: 0,
           },
           "&.Mui-expanded:first-of-type": {

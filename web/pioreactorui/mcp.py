@@ -218,7 +218,7 @@ def run_job_or_action_on_pioreactor_unit(
     job_or_action: str,
     experiment: str,
     options: Dict[str, Any] | None = None,
-    args: List[str] | None = None,
+    arguments: List[str] | None = None,
 ) -> dict:
     """
     Launch an action or job on a *pioreactor_unit/worker* within *experiment*.
@@ -234,7 +234,7 @@ def run_job_or_action_on_pioreactor_unit(
     """
     payload = {
         "options": options or {},
-        "args": args or [],
+        "args": arguments or [],
         "env": {"JOB_SOURCE": "mcp"},
         "config_overrides": [],
     }

@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import logging
 import os
 from shlex import join
 from subprocess import check_call
@@ -32,11 +31,10 @@ from .config import is_testing_env
 
 logger = create_logger(
     "huey.consumer",
-    source="ui",
+    source="huey",
     experiment="$experiment",
     log_file_location=pioreactor_config["logging"]["ui_log_file"],
 )
-logger.setLevel(logging.INFO)
 
 if not is_testing_env():
     PIO_EXECUTABLE = "/usr/local/bin/pio"
@@ -91,8 +89,8 @@ def _process_delayed_json_response(worker: str, response: Response) -> tuple[str
 
 @huey.on_startup()
 def initialized():
-    logger.info("Starting Huey consumer...")
-    logger.info(f"Cache directory = {CACHE_DIR}")
+    logger.debug("Starting Huey consumer...")
+    logger.debug(f"Cache directory = {CACHE_DIR}")
 
 
 @huey.task()
@@ -106,7 +104,7 @@ def pio_run(
 
     env = {k: v for k, v in (env or {}).items() if k in ALLOWED_ENV}
 
-    logger.info(f"Executing `{join(command)}`, {env=}")
+    logger.debug(f"Executing `{join(command)}`, {env=}")
 
     try:
         proc = Popen(
@@ -135,7 +133,7 @@ def pio_run(
 @huey.task()
 def add_new_pioreactor(new_pioreactor_name: str, version: str, model: str) -> bool:
     command = [PIO_EXECUTABLE, "workers", "add", new_pioreactor_name, "-v", version, "-m", model]
-    logger.info(f"Executing `{join(command)}`")
+    logger.debug(f"Executing `{join(command)}`")
     check_call(command)
     return True
 
@@ -143,11 +141,11 @@ def add_new_pioreactor(new_pioreactor_name: str, version: str, model: str) -> bo
 @huey.task()
 def update_app_across_cluster() -> bool:
     # CPU heavy / IO heavy
-    logger.info("Updating app on leader")
+    logger.debug("Updating app on leader")
     update_app_on_leader = ["pio", "update", "app"]
     check_call(update_app_on_leader)
 
-    logger.info("Updating app and ui on workers")
+    logger.debug("Updating app and ui on workers")
     update_app_across_all_workers = [PIOS_EXECUTABLE, "update", "-y"]
     run(update_app_across_all_workers)
     return True
@@ -156,11 +154,11 @@ def update_app_across_cluster() -> bool:
 @huey.task()
 def update_app_from_release_archive_across_cluster(archive_location: str, units: str) -> bool:
     if units == "$broadcast":
-        logger.info(f"Updating app on leader from {archive_location}")
+        logger.debug(f"Updating app on leader from {archive_location}")
         update_app_on_leader = ["pio", "update", "app", "--source", archive_location]
         check_call(update_app_on_leader)
 
-        logger.info(f"Updating app and ui on workers from {archive_location}")
+        logger.debug(f"Updating app and ui on workers from {archive_location}")
         distribute_archive_to_workers = [PIOS_EXECUTABLE, "cp", archive_location, "-y"]
         run(distribute_archive_to_workers)
 
@@ -187,7 +185,7 @@ def update_app_from_release_archive_across_cluster(archive_location: str, units:
 
         return True
     else:
-        logger.info(f"Updating app and ui on unit {units} from {archive_location}")
+        logger.debug(f"Updating app and ui on unit {units} from {archive_location}")
         distribute_archive_to_workers = [
             PIOS_EXECUTABLE,
             "cp",
@@ -217,7 +215,7 @@ def update_app_from_release_archive_on_specific_pioreactors(
 ) -> bool:
     units_cli: tuple[str, ...] = sum((("--units", p) for p in pioreactors), tuple())
 
-    logger.info(f"Updating app and ui on unit {pioreactors} from {archive_location}")
+    logger.debug(f"Updating app and ui on unit {pioreactors} from {archive_location}")
     distribute_archive_to_workers = [PIOS_EXECUTABLE, "cp", archive_location, "-y", *units_cli]
     run(distribute_archive_to_workers)
 
@@ -237,7 +235,7 @@ def update_app_from_release_archive_on_specific_pioreactors(
 @huey.task()
 def pio(*args: str, env: dict[str, str] = {}) -> bool:
     env = filter_to_allowed_env(env or {})
-    logger.info(f'Executing `{join(("pio",) + args)}`, {env=}')
+    logger.debug(f'Executing `{join(("pio",) + args)}`, {env=}')
     result = run((PIO_EXECUTABLE,) + args, env=env)
     return result.returncode == 0
 
@@ -245,7 +243,7 @@ def pio(*args: str, env: dict[str, str] = {}) -> bool:
 @huey.task()
 def pio_plugins_list(*args: str, env: dict[str, str] = {}) -> tuple[bool, str]:
     env = filter_to_allowed_env(env or {})
-    logger.info(f'Executing `{join(("pio",) + args)}`, {env=}')
+    logger.debug(f'Executing `{join(("pio",) + args)}`, {env=}')
     result = run((PIO_EXECUTABLE,) + args, capture_output=True, text=True, env=env)
     return result.returncode == 0, result.stdout.strip()
 
@@ -254,7 +252,7 @@ def pio_plugins_list(*args: str, env: dict[str, str] = {}) -> tuple[bool, str]:
 @huey.lock_task("export-data-lock")
 def pio_run_export_experiment_data(*args: str, env: dict[str, str] = {}) -> tuple[bool, str]:
     env = filter_to_allowed_env(env or {})
-    logger.info(f'Executing `{join(("pio", "run", "export_experiment_data") + args)}`, {env=}')
+    logger.debug(f'Executing `{join(("pio", "run", "export_experiment_data") + args)}`, {env=}')
     result = run(
         (PIO_EXECUTABLE, "run", "export_experiment_data") + args,
         capture_output=True,
@@ -267,7 +265,7 @@ def pio_run_export_experiment_data(*args: str, env: dict[str, str] = {}) -> tupl
 @huey.task(priority=100)
 def pio_kill(*args: str, env: dict[str, str] = {}) -> bool:
     env = filter_to_allowed_env(env or {})
-    logger.info(f'Executing `{join(("pio", "kill") + args)}`, {env=}')
+    logger.debug(f'Executing `{join(("pio", "kill") + args)}`, {env=}')
     result = run((PIO_EXECUTABLE, "kill") + args, env=env)
     return result.returncode == 0
 
@@ -278,7 +276,7 @@ def pio_plugins(*args: str, env: dict[str, str] = {}) -> bool:
     # install / uninstall only
     env = filter_to_allowed_env(env or {})
     assert args[0] in ("install", "uninstall")
-    logger.info(f'Executing `{join(("pio", "plugins") + args)}`, {env=}')
+    logger.debug(f'Executing `{join(("pio", "plugins") + args)}`, {env=}')
     result = run((PIO_EXECUTABLE, "plugins") + args, env=env)
     return result.returncode == 0
 
@@ -305,7 +303,7 @@ def sync_clock() -> bool:
 @huey.lock_task("update-lock")
 def pio_update_app(*args: str, env: dict[str, str] = {}) -> bool:
     env = filter_to_allowed_env(env or {})
-    logger.info(f'Executing `{join(("pio", "update", "app") + args)}`, {env=}')
+    logger.debug(f'Executing `{join(("pio", "update", "app") + args)}`, {env=}')
     result = run((PIO_EXECUTABLE, "update", "app") + args, env=env)
     return result.returncode == 0
 
@@ -314,7 +312,7 @@ def pio_update_app(*args: str, env: dict[str, str] = {}) -> bool:
 @huey.lock_task("update-lock")
 def pio_update(*args: str, env: dict[str, str] = {}) -> bool:
     env = filter_to_allowed_env(env or {})
-    logger.info(f'Executing `{join(("pio", "update") + args)}`, {env=}')
+    logger.debug(f'Executing `{join(("pio", "update") + args)}`, {env=}')
     run((PIO_EXECUTABLE, "update") + args, env=env)
     # HACK: this always returns >0 because it kills huey, I think, so just return true
     return True
@@ -324,7 +322,7 @@ def pio_update(*args: str, env: dict[str, str] = {}) -> bool:
 @huey.lock_task("update-lock")
 def pio_update_ui(*args: str, env: dict[str, str] = {}) -> bool:
     env = filter_to_allowed_env(env or {})
-    logger.info(f'Executing `{join(("pio", "update", "ui") + args)}`, {env=}')
+    logger.debug(f'Executing `{join(("pio", "update", "ui") + args)}`, {env=}')
     run((PIO_EXECUTABLE, "update", "ui") + args, env=env)
     # this always returns >0 because it kills huey, I think, so just return true
     return True
@@ -332,7 +330,7 @@ def pio_update_ui(*args: str, env: dict[str, str] = {}) -> bool:
 
 @huey.task()
 def rm(path: str) -> bool:
-    logger.info(f"Deleting {path}.")
+    logger.debug(f"Deleting {path}.")
     if whoami.is_testing_env():
         return True
     result = run(["rm", path])
@@ -341,7 +339,7 @@ def rm(path: str) -> bool:
 
 @huey.task()
 def shutdown() -> bool:
-    logger.info("Shutting down now")
+    logger.debug("Shutting down now")
     if whoami.is_testing_env():
         return True
     result = run(["sudo", "shutdown", "-h", "now"])
@@ -350,7 +348,7 @@ def shutdown() -> bool:
 
 @huey.task()
 def reboot() -> bool:
-    logger.info("Rebooting now")
+    logger.debug("Rebooting now")
     if whoami.is_testing_env():
         return True
     result = run(["sudo", "reboot"])
@@ -360,7 +358,7 @@ def reboot() -> bool:
 @huey.task()
 def pios(*args: str, env: dict[str, str] = {}) -> bool:
     env = filter_to_allowed_env(env or {})
-    logger.info(f'Executing `{join(("pios",) + args + ("-y",))}`, {env=}')
+    logger.debug(f'Executing `{join(("pios",) + args + ("-y",))}`, {env=}')
     result = run(
         (PIOS_EXECUTABLE,) + args + ("-y",),
         env=env,
@@ -388,7 +386,9 @@ def write_config_and_sync(
         with open(config_path, "w") as f:
             f.write(text)
 
-        logger.info(f'Executing `{join((PIOS_EXECUTABLE, "sync-configs", "--units", units, flags))}`, {env=}')
+        logger.debug(
+            f'Executing `{join((PIOS_EXECUTABLE, "sync-configs", "--units", units, flags))}`, {env=}'
+        )
 
         result = run(
             (PIOS_EXECUTABLE, "sync-configs", "--units", units, flags),

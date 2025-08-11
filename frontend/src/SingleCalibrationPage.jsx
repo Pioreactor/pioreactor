@@ -9,6 +9,8 @@ import CardContent from '@mui/material/CardContent';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import CalibrationChart from "./components/CalibrationChart";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import Grid from "@mui/material/Grid";
+import CardActions from '@mui/material/CardActions';
 
 import {
   Table,
@@ -220,7 +222,7 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } )
       recorded_data,
       ...calibration,
     };
-    const text = yaml.dump(yamlObj);
+    const text = yaml.dump(yamlObj, { schema: yaml.JSON_SCHEMA }).replace(/^(\s*)'y':/gm, '$1y:');
     navigator.clipboard.writeText(text)
       .then(() => {
         setSnackbarMessage('YAML copied to clipboard');
@@ -270,117 +272,115 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } )
   } = calibration;
 
   return (
-    <Card>
-      <CardContent sx={{p: 2}}>
-          <Typography variant="h6" mb={2}>
-            <MuiLink component={Link} to={`/calibrations/${pioreactorUnit}`} color="inherit" underline="hover" sx={{cursor: "pointer"}} > <PioreactorIcon sx={{verticalAlign: "middle", marginRight: "1px"}} /> {pioreactorUnit} </MuiLink>
-              <NavigateNextIcon sx={{verticalAlign: "middle", marginRight: "3px"}}/>
-            <MuiLink component={Link} to={`/calibrations/${pioreactorUnit}/${device}`} color="inherit" underline="hover" sx={{cursor: "pointer"}} >  {device} </MuiLink>
-              <NavigateNextIcon sx={{verticalAlign: "middle", marginRight: "3px"}}/>
-             {calibrationName}
-          </Typography>
+    <Grid container spacing={0}>
+      <Grid size={12} sx={{mb: 2}}>
+        <Card>
+          <CardContent sx={{p: 2}}>
+              <Typography variant="h6" mb={2}>
+                <MuiLink component={Link} to={`/calibrations/${pioreactorUnit}`} color="inherit" underline="hover" sx={{cursor: "pointer"}} > <PioreactorIcon sx={{verticalAlign: "middle", marginRight: "1px"}} /> {pioreactorUnit} </MuiLink>
+                  <NavigateNextIcon sx={{verticalAlign: "middle", marginRight: "3px"}}/>
+                <MuiLink component={Link} to={`/calibrations/${pioreactorUnit}/${device}`} color="inherit" underline="hover" sx={{cursor: "pointer"}} >  {device} </MuiLink>
+                  <NavigateNextIcon sx={{verticalAlign: "middle", marginRight: "3px"}}/>
+                 {calibrationName}
+              </Typography>
 
-          <CalibrationChart calibrations={[calibration]} deviceName={device} unitsColorMap={unitsColorMap} highlightedModel={{pioreactorUnit: null, calbrationName: null}} title={`Calibration curve for ${calibrationName}`} />
+              <CalibrationChart calibrations={[calibration]} deviceName={device} unitsColorMap={unitsColorMap} highlightedModel={{pioreactorUnit: null, calbrationName: null}} title={`Calibration curve for ${calibrationName}`} />
 
-          <Box sx={{px: 5, mt: 1}}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-              <Typography variant="h6">Calibration data</Typography>
-              <UnderlineSpan title="Copy as YAML to clipboard">
-                <IconButton size="small" onClick={copyCalibrationYamlToClipboard}>
-                  <ContentCopyOutlinedIcon fontSize="small" />
-                </IconButton>
-              </UnderlineSpan>
-            </Box>
-            <Table size="small">
-              <TableBody>
-                  <TableRow>
-                    <TableCell><strong>Calibration name</strong></TableCell>
-                    <TableCell>
-                      <Chip
-                        size="small"
-                        icon={<TuneIcon/>}
-                        label={calibrationName}
-                        data-calibration-name={calibrationName}
-                        />
-                    </TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell><strong>Pioreactor</strong></TableCell>
-                    <TableCell>
-                      <Chip
-                        size="small"
-                        icon={<PioreactorIcon/>}
-                        label={pioreactorUnit}
-                        clickable
-                          component={Link}
-                          to={`/calibrations/${pioreactorUnit}`}
-                        data-pioreactor-unit={pioreactorUnit}
-                        />
-                    </TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell><strong>Active</strong></TableCell>
-                    <TableCell>{is_active ? <><Chip size="small" label={"Active"} icon={<CheckCircleOutlineOutlinedIcon />} sx={{backgroundColor: "white"}}  /></>: ""}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell><strong>Device</strong></TableCell>
-                    <TableCell>{device}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell><strong>Calibration type</strong></TableCell>
-                    <TableCell>{calibration_type}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell><strong>Calibrated on</strong></TableCell>
-                    <TableCell>{dayjs(created_at).format('YYYY-MM-DD') }</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell><strong>Fit polynomial</strong></TableCell>
-                    <TableCell>
-                      y={formatPolynomial(curve_data_)}
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-          </Box>
+              <Box sx={{px: 5, mt: 1}}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="h6">Calibration data</Typography>
+                  <Button style={{textTransform: 'none', float: "right" }} onClick={copyCalibrationYamlToClipboard}>
+                    <ContentCopyOutlinedIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Copy as YAML
+                  </Button>
+                </Box>
+                <Table size="small">
+                  <TableBody>
+                      <TableRow>
+                        <TableCell><strong>Calibration name</strong></TableCell>
+                        <TableCell>
+                          <Chip
+                            size="small"
+                            icon={<TuneIcon/>}
+                            label={calibrationName}
+                            data-calibration-name={calibrationName}
+                            />
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell><strong>Pioreactor</strong></TableCell>
+                        <TableCell>
+                          <Chip
+                            size="small"
+                            icon={<PioreactorIcon/>}
+                            label={pioreactorUnit}
+                            clickable
+                              component={Link}
+                              to={`/calibrations/${pioreactorUnit}`}
+                            data-pioreactor-unit={pioreactorUnit}
+                            />
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell><strong>Active</strong></TableCell>
+                        <TableCell>{is_active ? <><Chip size="small" label={"Active"} icon={<CheckCircleOutlineOutlinedIcon />} sx={{backgroundColor: "white"}}  /></>: ""}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell><strong>Device</strong></TableCell>
+                        <TableCell>{device}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell><strong>Calibration type</strong></TableCell>
+                        <TableCell>{calibration_type}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell><strong>Calibrated on</strong></TableCell>
+                        <TableCell>{dayjs(created_at).format('YYYY-MM-DD') }</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell><strong>Fit polynomial</strong></TableCell>
+                        <TableCell>
+                          y={formatPolynomial(curve_data_)}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+              </Box>
 
-          <Box sx={{ px: 5, mt: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-              <Typography variant="h6">Recorded data</Typography>
-              <UnderlineSpan title="Copy as CSV to clipboard">
-                <IconButton size="small" onClick={copyRecordedDataCsvToClipboard}>
-                  <ContentCopyOutlinedIcon fontSize="small" />
-                </IconButton>
-              </UnderlineSpan>
-            </Box>
-            <Box sx={{ maxHeight: 150, overflowY: 'auto' }}>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>{x}</TableCell>
-                    <TableCell>{y}</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {recorded_data.x.map((xVal, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell>{xVal}</TableCell>
-                      <TableCell>{recorded_data.y[idx]}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Box>
-          </Box>
-
-          <Box mt={2}>
+              <Box sx={{ px: 5, mt: 5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="h6">Recorded data</Typography>
+                  <Button style={{textTransform: 'none', float: "right" }} onClick={copyRecordedDataCsvToClipboard}>
+                    <ContentCopyOutlinedIcon fontSize="small" sx={{verticalAlign: "middle", margin: "0px 3px"}}/> Copy as CSV
+                  </Button>
+                </Box>
+                <Box sx={{ maxHeight: 150, overflowY: 'auto' }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>{x}</TableCell>
+                        <TableCell>{y}</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {recorded_data.x.map((xVal, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell>{xVal}</TableCell>
+                          <TableCell>{recorded_data.y[idx]}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Box>
+              </Box>
+          </CardContent>
+          <CardActions sx={{display: 'flex', justifyContent: 'right', mb: 1 }}>
             <Button
               startIcon={<DoNotDisturbOnOutlinedIcon/>}
               variant="text"
               color="secondary"
               disabled={!is_active}
               onClick={handleRemoveActive}
-              sx={{ textTransform: "none", float: "right", ml: 1 }}
+              sx={{ textTransform: "none",  ml: 1 }}
             >
               Set inactive
             </Button>
@@ -390,24 +390,28 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } )
               color="primary"
               disabled={ is_active}
               onClick={handleSetActive}
-              sx={{ textTransform: "none", float: "right", }}
+              sx={{ textTransform: "none", mr: 6}}
             >
                Set active
             </Button>
 
-          </Box>
 
-          <Snackbar
-            anchorOrigin={{vertical: "bottom", horizontal: "center"}}
-            open={snackbarOpen}
-            onClose={handleSnackbarClose}
-            message={snackbarMessage}
-            autoHideDuration={7000}
-            resumeHideDuration={2000}
-            key={"snackbar" + pioreactorUnit + device + calibrationName}
-          />
-      </CardContent>
-  </Card>
+            <Snackbar
+              anchorOrigin={{vertical: "bottom", horizontal: "center"}}
+              open={snackbarOpen}
+              onClose={handleSnackbarClose}
+              message={snackbarMessage}
+              autoHideDuration={7000}
+              resumeHideDuration={2000}
+              key={"snackbar" + pioreactorUnit + device + calibrationName}
+            />
+        </CardActions>
+      </Card>
+    </Grid>
+    <Grid size={12}>
+      <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/hardware-calibrations" target="_blank" rel="noopener noreferrer">calibrations</a>.</p>
+    </Grid>
+  </Grid>
   );
 }
 
