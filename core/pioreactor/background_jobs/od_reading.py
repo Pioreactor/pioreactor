@@ -650,14 +650,14 @@ class CachedCalibrationTransformer(LoggerMixin):
             self.logger.debug("No calibration available for OD, skipping.")
             return
 
-        name = calibration_data.calibration_name
         channel = calibration_data.pd_channel
         cal_type = calibration_data.calibration_type
+        calibration_name = calibration_data.calibration_name
 
         self.models[channel], self.verifiers[channel] = self._hydrate_model(calibration_data)
-        self.models[channel].name = name  # type: ignore
+        self.models[channel].calibration_name = calibration_name  # type: ignore
         self.logger.debug(
-            f"Using OD calibration `{name}` of type `{cal_type}` for PD channel {channel}, {calibration_data.curve_type=}, {calibration_data.curve_data_=}"
+            f"Using OD calibration `{calibration_name}` of type `{cal_type}` for PD channel {channel}, {calibration_data.curve_type=}, {calibration_data.curve_data_=}"
         )
 
     def _hydrate_model(
@@ -729,24 +729,26 @@ class CachedCalibrationTransformer(LoggerMixin):
 
         return _calibrate_signal, _verify
 
-    def __call__(self, od_readings: structs.ODReadings) -> structs.CalibratedODReadings:
-        calibrated_od_readings = structs.CalibratedODReadings(ods={}, timestamp=od_readings.timestamp)
-        for channel in self.models:
-            if channel in od_readings.ods:
+    def __call__(self, od_readings: structs.ODReadings) -> structs.ODReadings:
+        calibrated_od_readings = structs.ODReadings(ods={}, timestamp=od_readings.timestamp)
+        for channel in od_readings.ods:
+            if channel in self.models:  # calibration exists
                 raw_od = od_readings.ods[channel]
 
                 # check if everything is okay - blows up if not.
                 self.verifiers[channel](raw_od)
 
                 calibrated_od_readings.ods[channel] = structs.CalibratedODReading(
-                    od=self.models[channel](raw_od.od),
-                    calibration_name=self.models[channel].name,  # type: ignore
                     channel=raw_od.channel,
                     angle=raw_od.angle,
                     timestamp=raw_od.timestamp,
                     ir_led_intensity=raw_od.ir_led_intensity,
+                    od=self.models[channel](raw_od.od),
+                    calibration_name=self.models[channel].calibration_name,  # type: ignore
                 )
-        assert isinstance(calibrated_od_readings, structs.CalibratedODReadings)
+            else:
+                calibrated_od_readings.ods[channel] = od_readings.ods[channel]
+
         return calibrated_od_readings
 
 

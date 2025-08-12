@@ -99,13 +99,14 @@ class ExportODSource(ODObservationSource):
 class EmptyDosingSource(DosingObservationSource):
     """An empty source that yields no dosing events."""
 
-    is_live = False
+    is_live = True
+    _stop_event = Event()
 
     def __iter__(self) -> Iterator[DosingEvent]:
         return iter([])
 
     def set_stop_event(self, ev: Event) -> None:
-        raise NotImplementedError("Does not support live streaming.")
+        self._stop_event = ev
 
 
 class ExportDosingSource(DosingObservationSource):

@@ -93,7 +93,7 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
   return (
     <Card>
       <CardContent sx={{ p: 2 }}>
-        <Typography variant="h6" component="h2">
+        <Typography variant="h6" component="h2" gutterBottom>
           <Box fontWeight="fontWeightRegular">Dosing</Box>
         </Typography>
 

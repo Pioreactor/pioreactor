@@ -144,11 +144,6 @@ class RawODReading(JSONPrintedStruct, tag=0, tag_field="calibrated"):
 ODReading = RawODReading | CalibratedODReading
 
 
-class CalibratedODReadings(JSONPrintedStruct):
-    timestamp: t.Annotated[datetime, Meta(tz=True)]
-    ods: dict[pt.PdChannel, CalibratedODReading]
-
-
 class ODReadings(JSONPrintedStruct):
     timestamp: t.Annotated[datetime, Meta(tz=True)]
     ods: dict[pt.PdChannel, ODReading]
