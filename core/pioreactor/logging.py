@@ -164,8 +164,46 @@ def create_logger(
 
     logger = logging.getLogger(name)
 
+    # If handlers already exist, ensure the MQTT handler (if any) targets
+    # the requested unit/experiment/source. In CI or long test runs, the
+    # same logger name can be reused across experiments, which would route
+    # logs to the wrong MQTT topic if we blindly reuse handlers.
     if len(logger.handlers) > 0:
-        return CustomLogger(logger, {"source": source})  # type: ignore
+        if to_mqtt:
+            desired_topic_prefix = (
+                f"pioreactor/{unit or get_unit_name()}/{experiment or UNIVERSAL_EXPERIMENT}/logs/{source}"
+            )
+            # Replace any existing MQTTHandler that points to a different topic
+            for h in list(logger.handlers):
+                if isinstance(h, MQTTHandler) and getattr(h, "topic_prefix", None) != desired_topic_prefix:
+                    try:
+                        logger.removeHandler(h)
+                        h.close()
+                    except Exception:
+                        pass
+            # If an MQTTHandler with the desired prefix exists, reuse logger as-is
+            if any(
+                isinstance(h, MQTTHandler) and getattr(h, "topic_prefix", None) == desired_topic_prefix
+                for h in logger.handlers
+            ):
+                return CustomLogger(logger, {"source": source})  # type: ignore
+            # Otherwise, add a new MQTT handler only (avoid duplicating file/console handlers)
+            if pub_client is None:
+                from pioreactor.pubsub import create_client as _create_client
+
+                pub_client = _create_client(
+                    client_id=f"{name}-logging-{unit or get_unit_name()}-{experiment or UNIVERSAL_EXPERIMENT}",
+                    max_connection_attempts=2,
+                    keepalive=15 * 60,
+                )
+            assert pub_client is not None
+            mqtt_to_db_handler = MQTTHandler(desired_topic_prefix, pub_client)
+            mqtt_to_db_handler.setLevel(logging.DEBUG)
+            mqtt_to_db_handler.setFormatter(CustomisedJSONFormatter())
+            logger.addHandler(mqtt_to_db_handler)
+            return CustomLogger(logger, {"source": source})  # type: ignore
+        else:
+            return CustomLogger(logger, {"source": source})  # type: ignore
 
     logger.setLevel(logging.DEBUG)
 

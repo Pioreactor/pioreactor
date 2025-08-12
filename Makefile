@@ -108,3 +108,8 @@ tail-log:  ## Show last $$LINES lines of the merged pioreactor log (override wit
 
 # default target ---------------------------------------------------------------
 .DEFAULT_GOAL := help
+
+# --- release helpers ----------------------------------------------------------
+.PHONY: rc
+rc: ## Create a release candidate (ARGS="--dry-run" to preview)
+	@$(PYTHON) scratch/create_rc.py $(ARGS)

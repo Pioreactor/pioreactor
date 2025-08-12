@@ -14,7 +14,6 @@ from msgspec import Struct
 from msgspec.json import decode as loads
 from paho.mqtt.client import Client as PahoClient
 from paho.mqtt.enums import CallbackAPIVersion
-
 from pioreactor import mureq
 from pioreactor import types as pt
 from pioreactor.config import config
@@ -198,7 +197,31 @@ def subscribe(
         if not allow_retained and message.retain:
             return
 
-        userdata["messages"] = message
+        # Copy payload bytes before disconnecting to avoid truncated buffers
+        # on some platforms/runtimes where the underlying buffer may be freed.
+        try:
+            payload_copy = bytes(message.payload) if message.payload is not None else None
+        except Exception:
+            payload_copy = None
+
+        # Store a shallow copy with a safe payload
+        class _Msg:
+            __slots__ = ("payload", "topic", "qos", "retain", "mid")
+
+            def __init__(self, payload, topic, qos, retain, mid):
+                self.payload = payload
+                self.topic = topic
+                self.qos = qos
+                self.retain = retain
+                self.mid = mid
+
+        userdata["messages"] = _Msg(
+            payload_copy,
+            getattr(message, "topic", ""),
+            getattr(message, "qos", 0),
+            getattr(message, "retain", False),
+            getattr(message, "mid", 0),
+        )
         client.disconnect()
 
         if userdata["lock"]:
