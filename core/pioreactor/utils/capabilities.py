@@ -21,6 +21,7 @@ import importlib
 import inspect
 import json
 import pkgutil
+import textwrap
 from typing import Any
 from typing import Dict
 from typing import List
@@ -55,7 +56,7 @@ def _extract_additional_settings(cls: type) -> Dict[str, Dict[str, Any]]:
     """Parse class source for calls to ``add_to_published_settings``."""
     settings: Dict[str, Dict[str, Any]] = {}
     try:
-        source = inspect.getsource(cls)
+        source = textwrap.dedent(inspect.getsource(cls))
     except (OSError, TypeError):
         # no source available (e.g., built-in or dynamically generated classes)
         return settings

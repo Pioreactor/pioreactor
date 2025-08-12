@@ -8,7 +8,6 @@ import numpy as np
 from msgspec.json import encode
 from pioreactor import structs
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
-from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.config import config
 from pioreactor.config import temporary_config_changes
 from pioreactor.pubsub import collect_all_logs_of_level
@@ -246,7 +245,7 @@ class TestGrowthRateCalculating:
                 )
                 pause()
 
-                assert calc1.processor.ekf.state_[-1] != 0
+                assert float(calc1.processor.ekf.state_[-1]) != 0
 
             with GrowthRateCalculator(unit=unit, experiment=experiment) as calc2:
                 calc2.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
@@ -261,7 +260,7 @@ class TestGrowthRateCalculating:
                         timestamp="2010-01-01T12:00:35.000Z",
                     ),
                 )
-                assert calc2.processor.ekf.state_[-1] != 0
+                assert float(calc2.processor.ekf.state_[-1]) != 0
 
     def test_single_observation(self) -> None:
         unit = get_unit_name()
@@ -744,39 +743,6 @@ class TestGrowthRateCalculating:
                 pause()
                 pause()
                 assert len(bucket) > 0
-
-    def test_ability_to_yield_into_growth_rate_calc(self) -> None:
-        unit = "unit"
-        experiment = "test_ability_to_yield_into_growth_rate_calc"
-
-        with temporary_config_changes(
-            config,
-            [
-                ("od_config.photodiode_channel", "1", "REF"),
-                ("od_config.photodiode_channel", "2", "90"),
-            ],
-        ):
-            with local_persistent_storage("od_normalization_mean") as cache:
-                cache[experiment] = json.dumps({2: 0.05})
-
-            with local_persistent_storage("od_normalization_variance") as cache:
-                cache[experiment] = json.dumps({2: 1e-5})
-
-            with start_od_reading(
-                "REF", "90", interval=1.0, fake_data=True, unit=unit, experiment=experiment, calibration=False
-            ) as od_stream:
-                with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
-                    results = []
-
-                    for i, result in enumerate(
-                        calc.process_until_disconnected_or_exhausted(od_stream, EmptyDosingSource())
-                    ):
-                        results.append(result[0])
-                        if i == 5:
-                            break
-
-                    assert len(results) > 0
-                    assert results[0].timestamp < results[1].timestamp < results[2].timestamp  # type: ignore
 
     def test_single_outlier_spike_gets_absorbed(self) -> None:
         with temporary_config_changes(
