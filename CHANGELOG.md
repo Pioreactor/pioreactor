@@ -36,10 +36,10 @@
  - Developers: we've converted our three main repositories: `pioreactor`, `pioreactorui`, and `pioreactorui_frontend` in to a single monorepo under `pioreactor`. The old repos `pioreactorui` and `pioreactorui_frontend` will be archived. The core pioreactor update code in `pio.py`, after this release, will point to our new repository (by default). If you have a branch against of the existing repos, we suggest branching from the `pioreactor` codebase, and applying your new changes onto that branch. You can follow along here: https://github.com/Pioreactor/pioreactor/issues/576
 
 #### Bug fixes
- - fix export csv sorting by default
+ - fix export CSV sorting by default
  - fix UI profile editor crashing
  - fix pump not cleaning itself up properly if it was active when the dosing_automation was stopped.
- - fix growth rate calculating
+ - fix growth rate calculating not cleaning up correctly
 
 ### 25.7.2
 

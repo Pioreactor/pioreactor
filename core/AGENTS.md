@@ -56,7 +56,7 @@ This repository contains the open‑source control software for the Pioreactor�
 **Key Components**
 
 *   **Background Jobs**
-    Long‑running tasks inherit from `BackgroundJob` in `pioreactor/background_jobs/base.py`. Examples include stirring control (`stirring.py`), optical density readings (`od_reading.py`), temperature automation, and dosing automation.
+    Long‑running tasks inherit from `BackgroundJob` in `pioreactor/background_jobs/base.py`. Examples include stirring control (`stirring.py`), optical density readings (`od_reading.py`), temperature automation, dosing automation, and worker message summarization via Codex (`codex_summary.py`).
 
 *   **Automations**
     Higher‑level automation logic derives from `AutomationJob` in `pioreactor/automations/base.py`. Dosing, temperature, and LED automations are implemented under `pioreactor/automations/`.
