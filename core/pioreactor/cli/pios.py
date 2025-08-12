@@ -10,7 +10,6 @@ from concurrent.futures import ThreadPoolExecutor
 import click
 from msgspec import DecodeError
 from msgspec.json import encode as dumps
-
 from pioreactor.cluster_management import get_active_workers_in_experiment
 from pioreactor.cluster_management import get_active_workers_in_inventory
 from pioreactor.cluster_management import get_workers_in_inventory
@@ -57,19 +56,32 @@ def pios(ctx) -> None:
 if am_I_leader() or is_testing_env():
 
     def _resolve_experiments(ctx, param, experiments):
-        # when experiments are provided, override units to include all active workers in these experiments
+        # when experiments are provided, override units to only active workers in these experiments
         if experiments:
-            units = []
+            units: list[str] = []
             for exp in experiments:
                 try:
                     units.extend(get_active_workers_in_experiment(exp))
                 except Exception:
                     click.echo(f"Unable to get workers for experiment '{exp}'.", err=True)
             # dedupe and sort
-            ctx.params["units"] = tuple(sorted(set(units)))
+            unique = tuple(sorted(set(units)))
+            if not unique:
+                raise click.BadParameter(
+                    f"No active workers found for experiment(s): {', '.join(experiments)}"
+                )
+            ctx.params["units"] = unique
         return experiments
 
     def which_units(f):
+        f = click.option(
+            "--units",
+            multiple=True,
+            default=(UNIVERSAL_IDENTIFIER,),
+            type=click.STRING,
+            help="specify worker unit(s), default is all units",
+        )(f)
+
         f = click.option(
             "--experiments",
             multiple=True,
@@ -78,13 +90,6 @@ if am_I_leader() or is_testing_env():
             help="specify experiment(s) to select active workers from",
             callback=_resolve_experiments,
             expose_value=False,
-        )(f)
-        f = click.option(
-            "--units",
-            multiple=True,
-            default=(UNIVERSAL_IDENTIFIER,),
-            type=click.STRING,
-            help="specify worker unit(s), default is all units",
         )(f)
         return f
 
@@ -738,6 +743,8 @@ if am_I_leader() or is_testing_env():
         > pios run stirring --units pio01 --units pio03
 
         """
+        print(units)
+
         extra_args = list(ctx.args)
 
         if "unit" in extra_args:

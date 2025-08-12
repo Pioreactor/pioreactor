@@ -17,5 +17,7 @@ if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
 
     cp -u "$SCRIPT_DIR"/50-pioreactorui.conf /etc/lighttpd/conf-available/
 
+    crudini --set "$CONFIG" od_reading.config duration_between_led_off_and_od_reading 0.125
+
 
 fi

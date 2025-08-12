@@ -2,44 +2,83 @@
 
 #### Highlights
 
- - Users have been very creative in adapting the Pioreactor hardware and software to different bioreactors. We have a new tool you can use: adding custom bioreactors models to incorporate into the Pioreactor software! There is a new `.pioreactor/models/` directory where you can place custom bioreactors. For example:
+* **Custom Bioreactor Models**
+  Our community has been incredibly creative in adapting Pioreactor hardware and software for different vessel types. Now, you can officially add your own custom bioreactor models to the Pioreactor software!
+  Place your model definitions in the new `.pioreactor/models/` directory. For example:
 
-   ```
-   model_name: custom_100ml
-   model_version: "1.0"
-   display_name: "Custom 100 mL, v1.0"
-   reactor_capacity_ml: 100.0
-   reactor_max_fill_volume_ml: 95.0
-   reactor_diameter_mm: 50.0
-   max_temp_to_reduce_heating: 80.0
-   max_temp_to_disable_heating: 85.0
-   max_temp_to_shutdown: 90.0
-   ```
+  ```yaml
+  model_name: custom_100ml
+  model_version: "1.0"
+  display_name: "Custom 100 mL, v1.0"
+  reactor_capacity_ml: 100.0
+  reactor_max_fill_volume_ml: 95.0
+  reactor_diameter_mm: 50.0
+  max_temp_to_reduce_heating: 80.0
+  max_temp_to_disable_heating: 85.0
+  max_temp_to_shutdown: 90.0
+  ```
 
-   This data will be used throughout the software (including in the UI) to support other bioreactor shapes and sizes. Let us know what else you would like to see!
+  This information is used throughout the software (including the UI) to support different shapes, sizes, and safety limits. Tell us what else you’d like supported!
 
- - adding an MCP server adjacent to your leader's existing web server. The server has a new endpoint, `http://<your leader's address>/mcp/`, that uses SSE to expose some Pioreactor tools. This is still pretty new and experimental, so let us know your feedback! Any new tools or resources you'd like exposed?
+* **New MCP Server (Experimental)**
+  You can now run an MCP server alongside your leader’s web server. It adds a new SSE-based endpoint at:
+
+  ```
+  http://<leader-address>/mcp/
+  ```
+
+  This exposes some Pioreactor tools in real time. It’s still experimental — your feedback and suggestions for additional tools/resources are welcome!
+
+
 
 #### Enhancements
- - A new Time Range filter in the Export Data UI page.
- - New config.ini entry,`duration_between_led_off_and_od_reading` in section  `[od_reading.config]` , to change the pause between turning off LEDs and taking an OD snapshot.
- - `pios X --experiments <experiment>` can be used to select workers on the leader command line.
- - Ideally, if a `published_setting` is `settable: True`, there should be a CLI option to set it. We've added a bunch of new CLI options to existing jobs.
- - new `/unit_api/capabilities` and `/api/units/<pioreactor name>/capabilities` to get lots of details about what a Pioreactor can run.
+
+* Added **Time Range filter** to the **Export Data** UI page.
+* The **“Add a new Pioreactor worker”** dialog now automatically scans for and lists local workers available to join your cluster.
+* New `config.ini` option:
+
+  ```
+  [od_reading.config]
+  duration_between_led_off_and_od_reading = <seconds>
+  ```
+
+  This adjusts the pause between turning off LEDs and taking an OD snapshot.
+* `pios X --experiments <experiment>` now lets you target workers by experiment from the leader CLI.
+* More CLI options are available for jobs with `settable: True` `published_setting`s.
+* New API endpoints:
+
+  * `/unit_api/capabilities`
+  * `/api/units/<pioreactor_name>/capabilities`
+    These provide detailed information about what each Pioreactor can run.
+
+
 
 #### Breaking changes
- - changed API for `api/units/<unit>/configuration`.
- - adding `/experiments/<exp>` to the end of endpoint `/api/workers/unit1/jobs/settings/job_name/stirring/` to scope it to just an experiment.
- - removed `/api/workers/jobs/stop/experiments/<exp>`, use `/api/workers/$broadcast/jobs/stop/experiments/<exp>` instead.
- - removed `/api/experiments/<experiment>/jobs/settings/job_name/<job_name>`, use `/workers/$broadcast/jobs/settings/job_name/<job_name>/experiments/<experiment>`
- - `pio logs` no long "follows" automatically. Use the `-f` to follow again.
- - Developers: we've converted our three main repositories: `pioreactor`, `pioreactorui`, and `pioreactorui_frontend` in to a single monorepo under `pioreactor`. The old repos `pioreactorui` and `pioreactorui_frontend` will be archived. The core pioreactor update code in `pio.py`, after this release, will point to our new repository (by default). If you have a branch against of the existing repos, we suggest branching from the `pioreactor` codebase, and applying your new changes onto that branch. You can follow along here: https://github.com/Pioreactor/pioreactor/issues/576
+
+* API changes:
+
+  * `api/units/<unit>/configuration` response format updated.
+  * Stirring settings endpoint now scoped to experiments:
+
+    ```
+    /api/workers/unit1/jobs/settings/job_name/stirring/experiments/<exp>
+    ```
+  * Removed: `/api/workers/jobs/stop/experiments/<exp>`
+    Use: `/api/workers/$broadcast/jobs/stop/experiments/<exp>`
+  * Removed: `/api/experiments/<experiment>/jobs/settings/job_name/<job_name>`
+    Use: `/workers/$broadcast/jobs/settings/job_name/<job_name>/experiments/<experiment>`
+* `pio logs` no longer follows by default — use `-f` to follow.
+* **Developers:** We’ve merged our three main repositories (`pioreactor`, `pioreactorui`, `pioreactorui_frontend`) into a single monorepo: `pioreactor`. The old repos will be archived, and update code in `pio.py` will now point to the new repo. If you have branches on the old repos, rebase onto `pioreactor`. Discussion: [GitHub issue #576](https://github.com/Pioreactor/pioreactor/issues/576).
+
+
 
 #### Bug fixes
- - fix export CSV sorting by default
- - fix UI profile editor crashing
- - fix pump not cleaning itself up properly if it was active when the dosing_automation was stopped.
- - fix growth rate calculating not cleaning up correctly
+
+* Fixed default sorting when exporting CSV.
+* Fixed crash in UI profile editor.
+* Fixed pumps not shutting down correctly if active when `dosing_automation` stopped.
+* Fixed cleanup issue in growth rate calculation.
+
 
 ### 25.7.2
 

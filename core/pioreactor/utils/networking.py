@@ -154,7 +154,7 @@ def discover_workers_on_network(terminate: bool = False) -> Generator[str, None,
     while True:
         try:
             # Wait for the next hostname, with a timeout if terminate is True
-            hostname = hostnames_queue.get(timeout=3 if terminate else None)
+            hostname = hostnames_queue.get(timeout=1.5 if terminate else None)
             yield hostname
         except Empty:
             # If the queue is empty and we're in terminate mode, stop the iteration

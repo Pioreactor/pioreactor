@@ -7,7 +7,6 @@ import time
 import click
 import pytest
 from click.testing import CliRunner
-
 from pioreactor import whoami
 from pioreactor.background_jobs.dosing_automation import start_dosing_automation
 from pioreactor.cli.pio import pio
@@ -17,9 +16,9 @@ from pioreactor.cli.pios import reboot
 from pioreactor.cli.pios import run
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import subscribe_and_callback
-from tests.conftest import capture_requests
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_intermittent_storage
+from tests.conftest import capture_requests
 
 
 def pause() -> None:
@@ -139,6 +138,18 @@ def test_pios_run_requests_dedup_and_filter_units() -> None:
     assert bucket[0].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/stirring"
 
 
+def test_pios_run_requests_with_experiments(active_workers_in_cluster):
+    runner = CliRunner()
+    with capture_requests() as bucket:
+        result = runner.invoke(pios, ["run", "--experiments", "exp1", "stirring", "-y"])
+    assert result.exit_code == 0
+
+    expected_urls = [
+        f"http://{unit}.local:4999/unit_api/jobs/run/job_name/stirring" for unit in active_workers_in_cluster
+    ]
+    assert sorted(req.url for req in bucket) == sorted(expected_urls)
+
+
 def test_pios_kill_requests() -> None:
     with capture_requests() as bucket:
         ctx = click.Context(kill, allow_extra_args=True)
@@ -149,6 +160,27 @@ def test_pios_kill_requests() -> None:
     assert bucket[0].params == {"experiment": "demo"}
     assert bucket[1].url == "http://unit2.local:4999/unit_api/jobs/stop"
     assert bucket[1].params == {"experiment": "demo"}
+
+
+def test_pios_kill_requests_with_experiments(active_workers_in_cluster):
+    runner = CliRunner()
+    with capture_requests() as bucket:
+        result = runner.invoke(pios, ["kill", "--all-jobs", "--experiments", "exp1", "-y"])
+    assert result.exit_code == 0
+
+    for req in bucket:
+        assert req.url.endswith("/unit_api/jobs/stop/all")
+        assert req.params == {}
+
+
+def test_pios_run_fails_when_no_workers_for_experiment(monkeypatch):
+    # simulate no workers assigned to experiment
+    # override callback import in CLI to simulate no experiment assignments
+    monkeypatch.setattr("pioreactor.cli.pios.get_active_workers_in_experiment", lambda exp: [])
+    runner = CliRunner()
+    result = runner.invoke(pios, ["run", "--experiments", "wrong-exp", "stirring", "-y"])
+    assert result.exit_code != 0
+    assert "No active workers found for experiment(s): wrong-exp" in result.output
 
 
 def test_pios_reboot_requests() -> None:

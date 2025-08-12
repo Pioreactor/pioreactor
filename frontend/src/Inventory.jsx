@@ -214,7 +214,7 @@ function AddNewPioreactor({setWorkers}){
           ) : discoverError ? (
             <Typography color="error">Error: {discoverError}</Typography>
           ) : discoveredWorkers.length === 0 ? (
-            <Typography>No workers found</Typography>
+            <Typography>No workers found. This discovery process isn't guaranteed however.</Typography>
           ) : (
             discoveredWorkers.map((w) => (
               <Chip
