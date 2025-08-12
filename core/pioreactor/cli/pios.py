@@ -73,6 +73,24 @@ if am_I_leader() or is_testing_env():
             ctx.params["units"] = unique
         return experiments
 
+    def _preserve_units_if_set_by_experiments(ctx, param, value):
+        """If the experiments callback has already populated ctx.params['units'],
+        preserve that selection instead of overwriting it with the default
+        broadcast sentinel.
+
+        This avoids a Click ordering quirk where option defaults can override
+        values written by another option's callback.
+        """
+        try:
+            # If experiments populated units with a concrete selection, keep it.
+            preexisting = ctx.params.get("units")
+            if preexisting and preexisting != (UNIVERSAL_IDENTIFIER,):
+                return preexisting
+        except Exception:
+            # Be conservative and just return provided value
+            pass
+        return value
+
     def which_units(f):
         f = click.option(
             "--units",
@@ -80,6 +98,7 @@ if am_I_leader() or is_testing_env():
             default=(UNIVERSAL_IDENTIFIER,),
             type=click.STRING,
             help="specify worker unit(s), default is all units",
+            callback=_preserve_units_if_set_by_experiments,
         )(f)
 
         f = click.option(
@@ -743,8 +762,6 @@ if am_I_leader() or is_testing_env():
         > pios run stirring --units pio01 --units pio03
 
         """
-        print(units)
-
         extra_args = list(ctx.args)
 
         if "unit" in extra_args:
