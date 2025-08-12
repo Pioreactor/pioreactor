@@ -2058,14 +2058,20 @@ function Pioreactor({title}) {
               md: 12,
               xs: 12
             }}>
-            {(modelDetails.model_name === "pioreactor_20ml" || modelDetails.model_name === "pioreactor_40ml") &&
-            <BioreactorDiagram
-              experiment={experimentMetadata.experiment}
-              unit={unit}
-              config={unitConfig}
-              size={modelDetails.reactor_capacity_ml}
-            />
-            }
+            {(modelDetails.model_name === "pioreactor_20ml" || modelDetails.model_name === "pioreactor_40ml") ? (
+              <BioreactorDiagram
+                experiment={experimentMetadata.experiment}
+                unit={unit}
+                config={unitConfig}
+                size={modelDetails.reactor_capacity_ml}
+              />
+            ) : (
+              <Box sx={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+                <Typography variant="body2" component="p" color="textSecondary">
+                  No diagram available for this model
+                </Typography>
+              </Box>
+            )}
           </Grid>
 
           <Grid
