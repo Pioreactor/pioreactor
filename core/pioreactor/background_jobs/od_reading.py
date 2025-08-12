@@ -679,10 +679,6 @@ class CachedCalibrationTransformer(LoggerMixin):
             """
             Verify that the OD reading is within the expected bounds of the calibration.
             """
-            if od_reading.od < 0.0:
-                raise exc.CalibrationError(
-                    f"OD reading {od_reading.od} is below 0.0, which is not allowed for channel {od_reading.channel}."
-                )
             if od_reading.ir_led_intensity != calibration_data.ir_led_intensity:
                 raise exc.CalibrationError(
                     f"IR LED intensity {od_reading.ir_led_intensity} does not match calibration {calibration_data.ir_led_intensity} for channel {od_reading.channel}."
