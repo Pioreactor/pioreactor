@@ -71,3 +71,26 @@ def test_endpoints_exist_in_api_and_unit_api(app) -> None:
     assert "/unit_api/task_results/<task_id>" in routes
     # MCP endpoint
     assert "/mcp/" in routes
+
+    # additional API routes used by MCP blueprint
+    assert "/api/workers/assignments" in routes
+    assert "/api/units/<pioreactor_unit>/capabilities" in routes
+    assert "/api/workers/<pioreactor_unit>/capabilities" in routes
+    assert "/api/workers/<pioreactor_unit>/jobs/run/job_name/<job>/experiments/<experiment>" in routes
+    assert "/api/units/<pioreactor_unit>/jobs/run/job_name/<job>/experiments/<experiment>" in routes
+    assert "/api/workers/<pioreactor_unit>/jobs/update/job_name/<job>/experiments/<experiment>" in routes
+    assert "/api/units/<pioreactor_unit>/jobs/update/job_name/<job>/experiments/<experiment>" in routes
+    assert "/api/workers/<pioreactor_unit>/jobs/stop/experiments/<experiment>" in routes
+    assert "/api/workers/<pioreactor_unit>/jobs/stop/job_name/<job_name>/experiments/<experiment>" in routes
+    assert "/api/units/<pioreactor_unit>/jobs/stop/job_name/<job_name>/experiments/<experiment>" in routes
+    assert "/api/workers/<pioreactor_unit>/jobs/running" in routes
+    assert "/api/units/<pioreactor_unit>/jobs/running" in routes
+    assert "/api/workers/<pioreactor_unit>/blink" in routes
+    assert "/api/units/<pioreactor_unit>/system/reboot" in routes
+    assert "/api/units/<pioreactor_unit>/system/shutdown" in routes
+    assert (
+        "/api/workers/<pioreactor_unit>/jobs/settings/job_name/<job_name>/experiments/<experiment>" in routes
+    )
+    assert "/api/experiments/<experiment>/recent_logs" in routes
+    assert "/api/contrib/experiment_profiles" in routes
+    assert "/api/units/<pioreactor_unit>/configuration" in routes

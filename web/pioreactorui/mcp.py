@@ -364,7 +364,7 @@ def run_experiment_profile(
     options = {"dry-run": None} if dry_run else {}
     args = ["execute", profile, experiment]
     return run_job_or_action_on_pioreactor_unit(
-        get_leader_hostname(), "experiment_profile", experiment, options=options, args=args
+        get_leader_hostname(), "experiment_profile", experiment, options=options, arguments=args
     )
 
 

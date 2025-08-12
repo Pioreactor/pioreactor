@@ -45,6 +45,20 @@ def test_get_workers(client):
     assert "unit4" in units
 
 
+def test_discover_workers_endpoint(client, monkeypatch):
+    # Mock network discovery to yield an existing and a new worker
+    monkeypatch.setattr(
+        "pioreactor.utils.networking.discover_workers_on_network",
+        lambda terminate: iter(["unit1", "new_unit"]),
+    )
+    response = client.get("/api/workers/discover")
+    assert response.status_code == 200
+    data = response.get_json()
+    units = [w["pioreactor_unit"] for w in data]
+    assert "new_unit" in units
+    assert "unit1" not in units
+
+
 def test_get_worker(client):
     response = client.get("/api/workers/unit1")
     assert response.status_code == 200
@@ -288,6 +302,9 @@ def test_broadcast_in_manage_all(client):
             "ACTIVE": "1",
             "MODEL_NAME": "pioreactor_20ml",
             "MODEL_VERSION": "1.1",
+            "HOSTNAME": "unit1",
+            "TESTING": "1",
+            "DOT_PIOREACTOR": os.environ["DOT_PIOREACTOR"],
         },
     }
 
@@ -318,6 +335,9 @@ def test_run_job(client):
             "ACTIVE": "1",
             "MODEL_NAME": "pioreactor_20ml",
             "MODEL_VERSION": "1.1",
+            "HOSTNAME": "unit1",
+            "TESTING": "1",
+            "DOT_PIOREACTOR": os.environ["DOT_PIOREACTOR"],
         },
     }
 
@@ -358,6 +378,9 @@ def test_run_job_with_job_source(client):
             "JOB_SOURCE": "experiment_profile",
             "MODEL_NAME": "pioreactor_20ml",
             "MODEL_VERSION": "1.1",
+            "HOSTNAME": "unit1",
+            "TESTING": "1",
+            "DOT_PIOREACTOR": os.environ["DOT_PIOREACTOR"],
         },
     }
 

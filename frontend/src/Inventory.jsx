@@ -96,6 +96,23 @@ function AddNewPioreactor({setWorkers}){
   const [isRunning, setIsRunning] = useState(false)
   const [expectedPathMsg, setExpectedPathMsg] = useState("")
 
+  // Discovery state for auto-detected workers
+  const [discoveredWorkers, setDiscoveredWorkers] = useState([]);
+  const [isDiscovering, setIsDiscovering] = useState(false);
+  const [discoverError, setDiscoverError] = useState(null);
+
+  useEffect(() => {
+    if (open) {
+      setIsDiscovering(true);
+      setDiscoverError(null);
+      fetch('/api/workers/discover')
+        .then((res) => res.json())
+        .then((data) => setDiscoveredWorkers(data))
+        .catch((err) => setDiscoverError(err.toString()))
+        .finally(() => setIsDiscovering(false));
+    }
+  }, [open]);
+
   const handleClickOpen = () => {
     setOpen(true);
   };
@@ -190,6 +207,25 @@ function AddNewPioreactor({setWorkers}){
 
         provide the hostname you used when installing the Pioreactor image onto the Raspberry Pi, and the Pioreactor model (this can be changed later).</p>
         <p>Your existing leader will automatically connect the new Pioreactor to the cluster. When finished, the new Pioreactor will show up on this page after a refresh.</p>
+        <Box sx={{ mt: 2, mb: 2 }}>
+          <Typography variant="subtitle1">Discovered available workers:</Typography>
+          {isDiscovering ? (
+            <CircularProgress size={20} sx={{ mt: 1 }} />
+          ) : discoverError ? (
+            <Typography color="error">Error: {discoverError}</Typography>
+          ) : discoveredWorkers.length === 0 ? (
+            <Typography>No workers found</Typography>
+          ) : (
+            discoveredWorkers.map((w) => (
+              <Chip
+                key={w.pioreactor_unit}
+                label={w.pioreactor_unit}
+                onClick={() => setName(w.pioreactor_unit)}
+                sx={{ mr: 1, mb: 1 }}
+              />
+            ))
+          )}
+        </Box>
         <div>
           <TextField
             required

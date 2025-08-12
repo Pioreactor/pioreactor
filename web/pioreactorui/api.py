@@ -94,7 +94,7 @@ def broadcast_patch_across_cluster(endpoint: str, json: dict | None = None) -> R
 
 
 @api.route("/models", methods=["GET"])
-def get_models() -> tuple[dict[str, list[dict[str, str]]], int]:
+def get_models() -> ResponseReturnValue:
     """
     Return the list of supported Pioreactor models (name, version, display_name).
     """
@@ -1184,10 +1184,10 @@ def uninstall_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseRetu
 @api.route("/workers/<pioreactor_unit>/capabilities", methods=["GET"])
 def get_capabilities(pioreactor_unit: str) -> ResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        return create_task_response(broadcast_get_across_cluster("/unit_api/capabilities"))
+        return create_task_response(broadcast_get_across_cluster("/unit_api/capabilities", timeout=15))
     else:
         return create_task_response(
-            tasks.multicast_get_across_cluster("/unit_api/capabilities", [pioreactor_unit])
+            tasks.multicast_get_across_cluster("/unit_api/capabilities", [pioreactor_unit], timeout=15)
         )
 
 
@@ -2116,6 +2116,19 @@ def get_list_of_workers() -> ResponseReturnValue:
         "SELECT pioreactor_unit, added_at, is_active, model_name, model_version FROM workers ORDER BY pioreactor_unit;"
     )
     return jsonify(all_workers)
+
+
+@api.route("/workers/discover", methods=["GET"])
+def discover_available_workers() -> ResponseReturnValue:
+    """
+    Discover available pioreactor workers on the network not already registered.
+    """
+    from pioreactor.utils.networking import discover_workers_on_network
+
+    discovered_hosts = list(discover_workers_on_network(terminate=True))
+    existing = get_all_workers()
+    available = [h for h in discovered_hosts if h not in existing]
+    return jsonify([{"pioreactor_unit": h} for h in available])
 
 
 @api.route("/workers/setup", methods=["POST"])
