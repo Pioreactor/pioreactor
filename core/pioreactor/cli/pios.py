@@ -61,7 +61,6 @@ if am_I_leader() or is_testing_env():
         *,
         active_only: bool = True,
         include_leader: bool | None = False,
-        filter_non_workers: bool = True,
         precedence: str = "intersection",  # "intersection" | "experiments" | "units"
     ) -> tuple[str, ...]:
         """Resolve the final list of target units for a `pios` command.
@@ -77,9 +76,7 @@ if am_I_leader() or is_testing_env():
           - True: always include the leader in the targets (even if not a worker).
           - False: always exclude the leader from the targets.
           - None: follow inventory (include the leader only if it is a worker).
-        - filter_non_workers: If True, filter out any unit names not present in the
-          selected inventory (active/all). If False, keep provided unit names even if
-          not present in inventory.
+
         - precedence: How to combine `--units` and `--experiments` when both are
           provided. Options:
           - "intersection": final = units ∩ experiment_units (default, safest)
@@ -124,11 +121,10 @@ if am_I_leader() or is_testing_env():
         if not units_opt:
             # Broadcast: start with all from inventory
             units_set = set(inventory)
+        elif UNIVERSAL_IDENTIFIER in units_opt:
+            units_set = set(inventory)
         else:
-            if filter_non_workers:
-                units_set = {u for u in set(units_opt) if u in inventory}
-            else:
-                units_set = set(units_opt)
+            units_set = set(units_opt)
 
         # 4) Combine with experiments based on precedence
         if experiments_opt:
@@ -320,9 +316,7 @@ if am_I_leader() or is_testing_env():
         experiments: tuple[str, ...],
         y: bool,
     ) -> None:
-        units = resolve_target_units(
-            units, experiments, active_only=False, include_leader=False, filter_non_workers=True
-        )
+        units = resolve_target_units(units, experiments, active_only=False, include_leader=False)
 
         if not y:
             confirm = input(f"Confirm copying {filepath} onto {units}? Y/n: ").strip()
@@ -357,9 +351,7 @@ if am_I_leader() or is_testing_env():
         experiments: tuple[str, ...],
         y: bool,
     ) -> None:
-        units = resolve_target_units(
-            units, experiments, active_only=False, include_leader=False, filter_non_workers=True
-        )
+        units = resolve_target_units(units, experiments, active_only=False, include_leader=False)
 
         if not y:
             confirm = input(f"Confirm deleting {filepath} on {units}? Y/n: ").strip()
@@ -404,9 +396,7 @@ if am_I_leader() or is_testing_env():
         json: bool,
     ) -> None:
         if ctx.invoked_subcommand is None:
-            units = resolve_target_units(
-                units, experiments, active_only=False, include_leader=True, filter_non_workers=True
-            )
+            units = resolve_target_units(units, experiments, active_only=False, include_leader=True)
 
             if not y:
                 confirm = input(f"Confirm updating app and ui on {units}? Y/n: ").strip()
@@ -480,9 +470,7 @@ if am_I_leader() or is_testing_env():
         Pulls and installs a Pioreactor software version across the cluster
         """
 
-        units = resolve_target_units(
-            units, experiments, active_only=False, include_leader=True, filter_non_workers=True
-        )
+        units = resolve_target_units(units, experiments, active_only=False, include_leader=True)
 
         if not y:
             confirm = input(f"Confirm updating app on {units}? Y/n: ").strip()
@@ -560,9 +548,7 @@ if am_I_leader() or is_testing_env():
         Pulls and installs the Pioreactor UI software version across the cluster
         """
 
-        units = resolve_target_units(
-            units, experiments, active_only=False, include_leader=True, filter_non_workers=True
-        )
+        units = resolve_target_units(units, experiments, active_only=False, include_leader=True)
 
         if not y:
             confirm = input(f"Confirm updating ui on {units}? Y/n: ").strip()
@@ -640,9 +626,7 @@ if am_I_leader() or is_testing_env():
         Installs a plugin to worker and leader
         """
 
-        units = resolve_target_units(
-            units, experiments, active_only=False, include_leader=True, filter_non_workers=True
-        )
+        units = resolve_target_units(units, experiments, active_only=False, include_leader=True)
 
         if not y:
             confirm = input(f"Confirm installing {plugin} on {units}? Y/n: ").strip()
@@ -689,9 +673,7 @@ if am_I_leader() or is_testing_env():
         Uninstalls a plugin from worker and leader
         """
 
-        units = resolve_target_units(
-            units, experiments, active_only=False, include_leader=True, filter_non_workers=True
-        )
+        units = resolve_target_units(units, experiments, active_only=False, include_leader=True)
 
         if not y:
             confirm = input(f"Confirm uninstalling {plugin} on {units}? Y/n: ").strip()
@@ -760,7 +742,6 @@ if am_I_leader() or is_testing_env():
             experiments,
             active_only=False,
             include_leader=True,  # maintain previous behaviour of always including leader
-            filter_non_workers=False,  # allow specific units even if not in inventory
         )
 
         if not shared and not specific:
@@ -825,9 +806,7 @@ if am_I_leader() or is_testing_env():
 
 
         """
-        units = resolve_target_units(
-            units, experiments, active_only=True, include_leader=None, filter_non_workers=True
-        )
+        units = resolve_target_units(units, experiments, active_only=True, include_leader=None)
         if not y:
             confirm = input(f"Confirm killing jobs on {units}? Y/n: ").strip()
             if confirm != "Y":
@@ -879,9 +858,7 @@ if am_I_leader() or is_testing_env():
             click.echo("Did you mean to use 'units' instead of 'unit'? Exiting.", err=True)
             sys.exit(1)
 
-        units = resolve_target_units(
-            units, experiments, active_only=True, include_leader=None, filter_non_workers=True
-        )
+        units = resolve_target_units(units, experiments, active_only=True, include_leader=None)
         assert len(units) > 0, "Empty units!"
 
         if not y:
@@ -925,9 +902,7 @@ if am_I_leader() or is_testing_env():
         targets with `include_leader=False` to avoid implicit leader inclusion.
         """
         also_shutdown_leader = get_leader_hostname() in units  # check raw CLI param
-        units = resolve_target_units(
-            units, experiments, active_only=False, include_leader=False, filter_non_workers=True
-        )
+        units = resolve_target_units(units, experiments, active_only=False, include_leader=False)
         units_san_leader = units
 
         if not y:
@@ -962,9 +937,7 @@ if am_I_leader() or is_testing_env():
         requested via `--units`.
         """
         also_reboot_leader = get_leader_hostname() in units  # check raw CLI param
-        units = resolve_target_units(
-            units, experiments, active_only=False, include_leader=False, filter_non_workers=True
-        )
+        units = resolve_target_units(units, experiments, active_only=False, include_leader=False)
         units_san_leader = units
 
         if not y:
@@ -1017,9 +990,7 @@ if am_I_leader() or is_testing_env():
             if confirm != "Y":
                 sys.exit(1)
 
-        units = resolve_target_units(
-            units, experiments, active_only=True, include_leader=None, filter_non_workers=True
-        )
+        units = resolve_target_units(units, experiments, active_only=True, include_leader=None)
 
         with create_client() as client:
             for unit in units:

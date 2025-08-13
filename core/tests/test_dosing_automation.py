@@ -1056,7 +1056,7 @@ def test_latest_event_goes_to_mqtt() -> None:
         duration=0.1,
     ) as dc:
         assert "latest_event" in dc.published_settings
-
+        pause(4)
         msg = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/dosing_automation/latest_event")
         assert msg is not None
         assert msg.payload is not None

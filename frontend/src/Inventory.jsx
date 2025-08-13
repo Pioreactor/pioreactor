@@ -206,7 +206,7 @@ function AddNewPioreactor({setWorkers}){
         </ol>
 
         provide the hostname you used when installing the Pioreactor image onto the Raspberry Pi, and the Pioreactor model (this can be changed later).</p>
-        <p>Your existing leader will automatically connect the new Pioreactor to the cluster. When finished, the new Pioreactor will show up on this page after a refresh.</p>
+        <p>Your existing leader will automatically connect the new Pioreactor to the cluster.</p>
         <Box sx={{ mt: 2, mb: 2 }}>
           <Typography variant="subtitle1">Discovered available workers:</Typography>
           {isDiscovering ? (
