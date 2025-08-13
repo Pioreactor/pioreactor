@@ -41,7 +41,7 @@ jobs:
 
       - name: Install any other required linux software
         run: |
-           sudo apt-get install avahi-daemon avahi-discover avahi-utils
+           sudo apt-get install avahi-daemon avahi-discover avahi-utils mosquitto-clients
 
 
       - name: Create pioreactor folders and env
@@ -77,6 +77,13 @@ jobs:
            EOT
 
 
+      - name: Start MQTT capture
+        run: |
+          # Subscribe to all MQTT topics and capture output; auto-restart if broker not ready
+          nohup sh -c 'while true; do mosquitto_sub -h 127.0.0.1 -p 1883 -v -t "#" >> mqtt.log 2>&1; echo "mosquitto_sub exited, retrying..." >> mqtt.log; sleep 1; done' &
+          echo $! > mqtt_sub.pid
+
+
       - name: Start web API
         run: |
           GLOBAL_CONFIG=../.pioreactor/config.ini make web-dev &
@@ -86,3 +93,15 @@ jobs:
       - name: Run tests
         run: |
           make core-test
+
+      - name: Stop MQTT capture
+        if: always()
+        run: |
+          if [ -f mqtt_sub.pid ]; then kill $(cat mqtt_sub.pid) || true; fi
+
+      - name: Upload MQTT messages artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mqtt-messages
+          path: mqtt.log
