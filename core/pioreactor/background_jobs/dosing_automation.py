@@ -5,6 +5,7 @@ import time
 from contextlib import suppress
 from datetime import datetime
 from functools import partial
+from threading import Event
 from threading import Thread
 from typing import Optional
 
@@ -249,6 +250,7 @@ class DosingAutomationJob(AutomationJob):
         self._init_liquid_volume(current_volume_ml, max_working_volume_ml)
 
         self.set_duration(duration)
+        self._continue_pumping_event = Event()
 
         if not is_pio_job_running("stirring"):
             self.logger.warning(
@@ -418,7 +420,7 @@ class DosingAutomationJob(AutomationJob):
                     (volume_ml > 0)
                     and self.block_until_not_sleeping()
                     and (self.state in (self.READY,))
-                    and not self._blocking_event.is_set()
+                    and not self._continue_pumping_event.is_set()
                 ):
                     pump_function = getattr(self, f"add_{pump.removesuffix('_ml')}_to_bioreactor")
 
@@ -437,7 +439,7 @@ class DosingAutomationJob(AutomationJob):
                 waste_ml > 0
                 and self.block_until_not_sleeping()
                 and (self.state in (self.READY,))
-                and not self._blocking_event.is_set()
+                and not self._continue_pumping_event.is_set()
             ):
                 volumes_moved["waste_ml"] += self.remove_waste_from_bioreactor(
                     unit=self.unit,
@@ -458,7 +460,7 @@ class DosingAutomationJob(AutomationJob):
                 extra_waste_ml > 0
                 and self.block_until_not_sleeping()
                 and (self.state in (self.READY,))
-                and not self._blocking_event.is_set()
+                and not self._continue_pumping_event.is_set()
             ):
                 self.remove_waste_from_bioreactor(
                     unit=self.unit,
@@ -480,10 +482,10 @@ class DosingAutomationJob(AutomationJob):
     ########## Private & internal methods
 
     def on_disconnected(self) -> None:
-        self._blocking_event.set()  # set this early so the pumps exits.
+        self._continue_pumping_event.set()  # set this early so the pumps exits.
         with suppress(AttributeError):
             self.run_thread.join(
-                timeout=5
+                timeout=10
             )  # thread has N seconds to end. If not, something is wrong, like a while loop in execute that isn't stopping.
             if self.run_thread.is_alive():
                 self.logger.debug("run_thread still alive!")
