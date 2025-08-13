@@ -106,5 +106,11 @@ tail-log:  ## Show last $$LINES lines of the merged pioreactor log (override wit
 	@tail -n $(LINES) $(LOG_FILE)
 
 
+# --- release helpers ----------------------------------------------------------
+.PHONY: create-rc
+create-rc:  ## Create release-candidate; pass args via ARGS="--dry-run --rc 1"
+	@$(PYTHON) scratch/create_rc.py $(ARGS)
+
+
 # default target ---------------------------------------------------------------
 .DEFAULT_GOAL := help

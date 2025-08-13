@@ -28,23 +28,3 @@ test: ## Run test suite
 
 type-check: ## Run mypy
 	@mypy pioreactor
-
-# GitHub CLI
-
-gh-open: ## Open the GitHub repository in the browser
-	@gh repo view pioreactor/pioreactor --web
-
-gh-issues: ## List GitHub issues for the repository
-	@gh issue list --repo pioreactor/pioreactor
-
-gh-prs: ## List open pull requests for the repository
-	@gh pr list --repo pioreactor/pioreactor
-
-gh-pr: ## Create a new pull request. Additional args passed to gh.
-	@gh pr create --repo pioreactor/pioreactor $(ARGS)
-
-gh-workflows: ## List GitHub Actions workflows for the repository
-	@gh workflow list --repo pioreactor/pioreactor
-
-gh-run-workflow: ## Run a GitHub Actions workflow. Usage: make gh-run-workflow WORKFLOW=<workflow file> [ARGS]
-	@gh workflow run $(WORKFLOW) --repo pioreactor/pioreactor $(ARGS)
