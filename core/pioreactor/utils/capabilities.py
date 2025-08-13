@@ -27,7 +27,6 @@ from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Tuple
-from functools import lru_cache
 
 import click
 import pioreactor
@@ -69,7 +68,6 @@ def _all_subclasses(cls: type) -> set[type]:
     return subclasses
 
 
-@lru_cache(maxsize=1024)
 def _extract_additional_settings(cls: type) -> Dict[str, Dict[str, Any]]:
     """Parse class source for calls to ``add_to_published_settings``.
 
@@ -109,7 +107,6 @@ def _extract_additional_settings(cls: type) -> Dict[str, Dict[str, Any]]:
     return settings
 
 
-@lru_cache(maxsize=1)
 def collect_background_jobs() -> Tuple[Dict[str, Any], ...]:
     _load_all_modules()
     entries: List[Dict[str, Any]] = []
