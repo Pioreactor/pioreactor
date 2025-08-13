@@ -22,6 +22,7 @@ import inspect
 import json
 import pkgutil
 import textwrap
+from functools import lru_cache
 from typing import Any
 from typing import Dict
 from typing import List
@@ -68,6 +69,7 @@ def _all_subclasses(cls: type) -> set[type]:
     return subclasses
 
 
+@lru_cache(maxsize=1024)
 def _extract_additional_settings(cls: type) -> Dict[str, Dict[str, Any]]:
     """Parse class source for calls to ``add_to_published_settings``.
 
