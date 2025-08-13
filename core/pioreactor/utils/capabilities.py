@@ -25,6 +25,9 @@ import textwrap
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import Optional
+from typing import Tuple
+from functools import lru_cache
 
 import click
 import pioreactor
@@ -33,8 +36,20 @@ from pioreactor.background_jobs.base import _BackgroundJob
 from pioreactor.cli.run import run  # noqa: ensure commands and plugins are loaded
 
 
+_MODULES_LOADED: bool = False
+
+
 def _load_all_modules() -> None:
-    """Import all modules under the ``pioreactor`` package."""
+    """Import all modules under the ``pioreactor`` package once per process.
+
+    Importing every module is expensive; many callers invoke capability
+    collection repeatedly during a process lifetime. Cache that we've done the
+    import sweep to avoid redundant work.
+    """
+
+    global _MODULES_LOADED
+    if _MODULES_LOADED:
+        return
 
     for module in pkgutil.walk_packages(pioreactor.__path__, pioreactor.__name__ + "."):  # type: ignore
         try:
@@ -42,6 +57,8 @@ def _load_all_modules() -> None:
         except Exception:
             # ignore modules that fail to import
             pass
+
+    _MODULES_LOADED = True
 
 
 def _all_subclasses(cls: type) -> set[type]:
@@ -52,13 +69,23 @@ def _all_subclasses(cls: type) -> set[type]:
     return subclasses
 
 
+@lru_cache(maxsize=1024)
 def _extract_additional_settings(cls: type) -> Dict[str, Dict[str, Any]]:
-    """Parse class source for calls to ``add_to_published_settings``."""
+    """Parse class source for calls to ``add_to_published_settings``.
+
+    This is relatively expensive due to ``inspect.getsource`` and AST parsing.
+    We use a simple guard and LRU caching to avoid repeating work across calls
+    and across classes encountered multiple times through MROs.
+    """
     settings: Dict[str, Dict[str, Any]] = {}
     try:
         source = textwrap.dedent(inspect.getsource(cls))
     except (OSError, TypeError):
         # no source available (e.g., built-in or dynamically generated classes)
+        return settings
+
+    # Fast path: if the marker method name isn't mentioned, skip AST work
+    if "add_to_published_settings" not in source:
         return settings
 
     tree = ast.parse(source)
@@ -77,11 +104,13 @@ def _extract_additional_settings(cls: type) -> Dict[str, Dict[str, Any]]:
                                 if isinstance(k, ast.Constant) and isinstance(k.value, str):
                                     if isinstance(v, ast.Constant):
                                         meta[k.value] = v.value
-                            settings[name] = meta
+                            if meta:
+                                settings[name] = meta
     return settings
 
 
-def collect_background_jobs() -> List[Dict[str, Any]]:
+@lru_cache(maxsize=1)
+def collect_background_jobs() -> Tuple[Dict[str, Any], ...]:
     _load_all_modules()
     entries: List[Dict[str, Any]] = []
     for cls in _all_subclasses(_BackgroundJob):
@@ -122,7 +151,8 @@ def collect_background_jobs() -> List[Dict[str, Any]]:
 
     # sort for consistent output
     entries.sort(key=lambda x: (x["job_name"], x.get("automation_name") or ""))
-    return entries
+    # Return an immutable tuple for safe caching
+    return tuple(entries)
 
 
 def generate_command_metadata(cmd, name: str) -> Dict[str, Any]:
@@ -173,7 +203,7 @@ def collect_actions() -> List[Dict[str, Any]]:
 
 
 def collect_capabilities() -> list[dict[str, Any]]:
-    jobs = collect_background_jobs()
+    jobs = list(collect_background_jobs())
     actions = collect_actions()
     actions_map = {a["name"]: a for a in actions}
 
