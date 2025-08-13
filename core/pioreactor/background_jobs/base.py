@@ -78,7 +78,7 @@ def format_with_optional_units(value: pt.PublishableSettingDataType, units: t.Op
     else:
         s = f"{value} {units}"
 
-    return s[:max_] + (s[max_:] and "..")
+    return s[:max_] + (s[max_:] and "...")
 
 
 class LoggerMixin:
@@ -435,7 +435,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         if not isinstance(payload, (str, bytearray, bytes, int, float)) and (payload is not None):
             payload = dumps(payload)
 
-        self.pub_client.publish(topic, payload=payload, **kwargs)
+        self.pub_client.publish(topic, payload=payload, qos=qos, **kwargs)
 
     def subscribe_and_callback(
         self,
@@ -568,18 +568,18 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     @staticmethod
     def _check_published_settings(published_settings: dict[str, pt.PublishableSetting]) -> None:
-        necessary_properies = {"datatype", "settable"}
+        necessary_properties = {"datatype", "settable"}
         optional_properties = {"unit", "persist"}
-        all_properties = optional_properties.union(necessary_properies)
+        all_properties = optional_properties.union(necessary_properties)
         for setting, properties in published_settings.items():
             # look for extra properties
             if not all_properties.issuperset(properties.keys()):
                 raise ValueError(f"Found extra property in setting `{setting}`.")
 
             # look for missing properties
-            if not set(properties.keys()).issuperset(necessary_properies):
+            if not set(properties.keys()).issuperset(necessary_properties):
                 raise ValueError(
-                    f"Missing necessary property in setting `{setting}`. All settings require at least {necessary_properies}"
+                    f"Missing necessary property in setting `{setting}`. All settings require at least {necessary_properties}"
                 )
 
             # correct syntax in setting name?
@@ -923,7 +923,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.debug(
                 f"Job is in state {self.state}, but in state {state_in_broker} in broker. Attempting fix by publishing {self.state}."
             )
-            sleep(5)
+            sleep(1)
             self._publish_setting("state")
 
     @property
@@ -1218,6 +1218,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
                 f"Your {pre_delay=} or {post_delay=} is too high for the samples_per_second={1/ads_interval}. Either decrease pre_delay or post_delay, or decrease samples_per_second"
             )
             self.clean_up()
+            return
 
         time_to_next_ads_reading = ads_interval - ((time() - ads_start_time) % ads_interval)
 

@@ -2,6 +2,10 @@ import React, { useEffect, useState } from "react";
 import { useParams,  useNavigate,  Link } from "react-router-dom";
 import { useConfirm } from 'material-ui-confirm';
 import { CircularProgress, Button, Typography, Box } from "@mui/material";
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 import {checkTaskCallback, colors, ColorCycler} from "./utilities"
 import MuiLink from '@mui/material/Link';
 import Card from '@mui/material/Card';
@@ -9,6 +13,7 @@ import CardContent from '@mui/material/CardContent';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import CalibrationChart from "./components/CalibrationChart";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import CodeIcon from '@mui/icons-material/Code';
 import Grid from "@mui/material/Grid";
 import CardActions from '@mui/material/CardActions';
 
@@ -31,6 +36,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import Chip from '@mui/material/Chip';
 import DoNotDisturbOnOutlinedIcon from '@mui/icons-material/DoNotDisturbOnOutlined';
 import CheckCircleOutlineOutlinedIcon from '@mui/icons-material/CheckCircleOutlineOutlined';
+import DisplaySourceCode from "./components/DisplaySourceCode";
 
 
 function formatPolynomial(coefficients) {
@@ -119,6 +125,75 @@ function Delete({ pioreactorUnit, device, calibrationName }) {
 )}
 
 
+function ViewYamlSource({ pioreactorUnit, device, calibrationName }) {
+  const [open, setOpen] = useState(false);
+  const [yamlText, setYamlText] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const openAndLoad = async () => {
+    setOpen(true);
+    setLoading(true);
+    setYamlText("");
+    try {
+      const apiUrl = `/api/workers/${pioreactorUnit}/calibrations/${device}/${calibrationName}`;
+      const response = await fetch(apiUrl);
+      const firstResponse = await response.json();
+      const data = await checkTaskCallback(firstResponse.result_url_path);
+      const calibration = data.result[pioreactorUnit];
+
+      const { calibration_type, created_at, curve_data_, x, y, recorded_data } = calibration;
+
+      const yamlObj = {
+        calibration_type,
+        calibration_name: calibrationName,
+        calibrated_on_pioreactor_unit: pioreactorUnit,
+        created_at,
+        curve_data_,
+        x,
+        y,
+        recorded_data,
+        ...calibration,
+      };
+      delete yamlObj["is_active"];
+
+      const text = yaml.dump(yamlObj, { schema: yaml.JSON_SCHEMA }).replace(/^(\s*)'y':/gm, '$1y:');
+      setYamlText(text);
+    } catch (err) {
+      console.error('Failed to load YAML', err);
+      setYamlText('# Error loading YAML');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClose = () => setOpen(false);
+
+  return (
+    <>
+      <Button
+        style={{ textTransform: 'none', marginRight: '12px', float: 'right' }}
+        onClick={openAndLoad}
+      >
+        <CodeIcon fontSize="small" sx={{ verticalAlign: "middle", margin: "0px 3px" }}/>
+        View YAML
+      </Button>
+      <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
+        <DialogTitle>YAML description for calibration {calibrationName}</DialogTitle>
+        <DialogContent>
+          {loading ? (
+            <Box textAlign="center" mt={2}><CircularProgress size={20} /></Box>
+          ) : (
+            <DisplaySourceCode sourceCode={yamlText} />
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClose} sx={{ textTransform: 'none' }} autoFocus>Close</Button>
+        </DialogActions>
+      </Dialog>
+    </>
+  );
+}
+
 
 function SingleCalibrationPage(props) {
   const { pioreactorUnit, device, calibrationName } = useParams();
@@ -141,6 +216,7 @@ function SingleCalibrationPage(props) {
           </Typography>
 
           <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
+            <ViewYamlSource pioreactorUnit={pioreactorUnit} device={device} calibrationName={calibrationName} />
             <Delete pioreactorUnit={pioreactorUnit} device={device} calibrationName={calibrationName} />
           </Box>
         </Box>
@@ -210,38 +286,6 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } )
   setTimeout(fetchSingleCalibration, 200);
 };
 
-  const copyCalibrationYamlToClipboard = () => {
-    const yamlObj = {
-      calibration_type,
-      calibration_name: calibrationName,
-      calibrated_on_pioreactor_unit: pioreactorUnit,
-      created_at,
-      curve_data_,
-      x,
-      y,
-      recorded_data,
-      ...calibration,
-    };
-    const text = yaml.dump(yamlObj, { schema: yaml.JSON_SCHEMA }).replace(/^(\s*)'y':/gm, '$1y:');
-    navigator.clipboard.writeText(text)
-      .then(() => {
-        setSnackbarMessage('YAML copied to clipboard');
-        setSnackbarOpen(true);
-      })
-      .catch(err => console.error('YAML copy failed', err));
-  };
-
-  const copyRecordedDataCsvToClipboard = () => {
-    const header = `${x},${y}`;
-    const rows = recorded_data.x.map((xVal, idx) => `${xVal},${recorded_data.y[idx]}`);
-    const csv = [header, ...rows].join('\n');
-    navigator.clipboard.writeText(csv).then(() => {
-      setSnackbarMessage('CSV copied to clipboard');
-      setSnackbarOpen(true);
-    }).catch(err => {
-      console.error('Failed to copy CSV', err);
-    });
-  };
 
   if (loading) {
     return (
