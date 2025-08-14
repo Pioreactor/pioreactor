@@ -395,8 +395,8 @@ def get_recent_logs(experiment: str) -> ResponseReturnValue:
             WHERE (l.experiment=? or l.experiment=?)
                 AND ({get_level_string(min_level)})
                 AND l.timestamp >= MAX(
-                    STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW', '-24 hours'),
-                    COALESCE((SELECT created_at FROM experiments WHERE experiment=?), STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW', '-24 hours'))
+                    STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', '-24 hours'),
+                    COALESCE((SELECT created_at FROM experiments WHERE experiment=?), STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', '-24 hours'))
                 )            ORDER BY l.timestamp DESC LIMIT 50;""",
         (UNIVERSAL_EXPERIMENT, experiment, experiment),
     )
@@ -453,8 +453,8 @@ def get_recent_logs_for_unit_and_experiment(pioreactor_unit: str, experiment: st
                 AND (l.pioreactor_unit=? or l.pioreactor_unit=?)
                 AND ({get_level_string(min_level)})
                 AND l.timestamp >= MAX(
-                    STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW', '-24 hours'),
-                    COALESCE((SELECT created_at FROM experiments WHERE experiment=?), STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW', '-24 hours'))
+                    STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', '-24 hours'),
+                    COALESCE((SELECT created_at FROM experiments WHERE experiment=?), STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', '-24 hours'))
                 )
             ORDER BY l.timestamp DESC LIMIT 50;""",
         (experiment, UNIVERSAL_EXPERIMENT, pioreactor_unit, UNIVERSAL_IDENTIFIER, experiment),
@@ -476,7 +476,7 @@ def get_logs_for_unit_and_experiment(pioreactor_unit: str, experiment: str) -> R
             JOIN experiment_worker_assignments_history h
                on h.pioreactor_unit = l.pioreactor_unit
                and h.assigned_at <= l.timestamp
-               and DATETIME(l.timestamp) <= DATETIME(coalesce(h.unassigned_at, STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW')), '+5 seconds')
+               and DATETIME(l.timestamp) <= DATETIME(coalesce(h.unassigned_at, STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW')), '+5 seconds')
             WHERE (l.experiment=?)
                 AND (l.pioreactor_unit=? or l.pioreactor_unit=?)
                 AND ({get_level_string(min_level)})
@@ -583,7 +583,7 @@ def get_growth_rates(experiment: str) -> ResponseReturnValue:
             FROM growth_rates
             WHERE experiment=? AND
                   ((ROWID * 0.61803398875) - cast(ROWID * 0.61803398875 as int) < 1.0/?) AND
-                  timestamp > STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW', ?)
+                  timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', ?)
             GROUP BY 1
             );
         """,
@@ -612,7 +612,7 @@ def get_temperature_readings(experiment: str) -> ResponseReturnValue:
             FROM temperature_readings
             WHERE experiment=? AND
                 ((ROWID * 0.61803398875) - cast(ROWID * 0.61803398875 as int) < 1.0/?) AND
-                timestamp > STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW' , ?)
+                timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW' , ?)
             GROUP BY 1
             );
         """,
@@ -642,7 +642,7 @@ def get_od_readings_filtered(experiment: str) -> ResponseReturnValue:
             FROM od_readings_filtered
             WHERE experiment=? AND
                 ((ROWID * 0.61803398875) - cast(ROWID * 0.61803398875 as int) < 1.0/?) AND
-                timestamp > STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW', ?)
+                timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', ?)
             GROUP BY 1
             );
         """,
@@ -670,7 +670,7 @@ def get_od_readings(experiment: str) -> ResponseReturnValue:
             FROM od_readings
             WHERE experiment=? AND
                 ((ROWID * 0.61803398875) - cast(ROWID * 0.61803398875 as int) < 1.0/?) AND
-                timestamp > STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW',  ?)
+                timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW',  ?)
             GROUP BY 1
             );
         """,
@@ -698,7 +698,7 @@ def get_od_raw_readings(experiment: str) -> ResponseReturnValue:
             FROM raw_od_readings
             WHERE experiment=? AND
                 ((ROWID * 0.61803398875) - cast(ROWID * 0.61803398875 as int) < 1.0/?) AND
-                timestamp > STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW',  ?)
+                timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW',  ?)
             GROUP BY 1
             );
         """,
@@ -725,7 +725,7 @@ def get_fallback_time_series(experiment: str, data_source: str, column: str) -> 
                 SELECT pioreactor_unit as unit, timestamp, {column} as data, row_number() OVER () AS row_num
                 FROM {data_source}
                 WHERE experiment=? AND
-                timestamp > STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW',?) AND
+                timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW',?) AND
                 {column} IS NOT NULL
             )
             SELECT
@@ -765,7 +765,7 @@ def get_growth_rates_per_unit(pioreactor_unit: str, experiment: str) -> Response
             FROM growth_rates
             WHERE experiment=? AND pioreactor_unit=? AND
                   ((ROWID * 0.61803398875) - cast(ROWID * 0.61803398875 as int) < 1.0/?) AND
-                  timestamp > STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW', ?)
+                  timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', ?)
             GROUP BY 1
             );
         """,
@@ -796,7 +796,7 @@ def get_temperature_readings_per_unit(pioreactor_unit: str, experiment: str) -> 
             FROM temperature_readings
             WHERE experiment=? AND pioreactor_unit=? AND
                 ((ROWID * 0.61803398875) - cast(ROWID * 0.61803398875 as int) < 1.0/?) AND
-                timestamp > STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW' , ?)
+                timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW' , ?)
             GROUP BY 1
             );
         """,
@@ -828,7 +828,7 @@ def get_od_readings_filtered_per_unit(pioreactor_unit: str, experiment: str) -> 
             FROM od_readings_filtered
             WHERE experiment=? AND pioreactor_unit=? AND
                 ((ROWID * 0.61803398875) - cast(ROWID * 0.61803398875 as int) < 1.0/?) AND
-                timestamp > STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW', ?)
+                timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', ?)
             GROUP BY 1
             );
         """,
@@ -855,7 +855,7 @@ def get_od_readings_per_unit(pioreactor_unit: str, experiment: str) -> ResponseR
             FROM od_readings
             WHERE experiment=? AND pioreactor_unit=? AND
                 ((ROWID * 0.61803398875) - cast(ROWID * 0.61803398875 as int) < 1.0/?) AND
-                timestamp > STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW',  ?)
+                timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW',  ?)
             GROUP BY 1
             );
         """,
@@ -885,7 +885,7 @@ def get_od_raw_readings_per_unit(pioreactor_unit: str, experiment: str) -> Respo
             FROM raw_od_readings
             WHERE experiment=? AND pioreactor_unit=? AND
                 ((ROWID * 0.61803398875) - cast(ROWID * 0.61803398875 as int) < 1.0/?) AND
-                timestamp > STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW',  ?)
+                timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW',  ?)
             GROUP BY 1
             );
         """,
@@ -917,7 +917,7 @@ def get_fallback_time_series_per_unit(
                 SELECT pioreactor_unit as unit, timestamp, {column} as data, row_number() OVER () AS row_num
                 FROM {data_source}
                 WHERE experiment=? AND
-                timestamp > STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW',?) AND
+                timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW',?) AND
                 pioreactor_unit=? AND
                 {column} IS NOT NULL
             )
@@ -1639,7 +1639,7 @@ def upsert_unit_labels(experiment: str) -> ResponseReturnValue:
             )
         else:
             modify_app_db(
-                "INSERT OR REPLACE INTO pioreactor_unit_labels (label, experiment, pioreactor_unit, created_at) VALUES ((?), (?), (?), STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW') ) ON CONFLICT(experiment, pioreactor_unit) DO UPDATE SET label=excluded.label, created_at=STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW')",
+                "INSERT OR REPLACE INTO pioreactor_unit_labels (label, experiment, pioreactor_unit, created_at) VALUES ((?), (?), (?), STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW') ) ON CONFLICT(experiment, pioreactor_unit) DO UPDATE SET label=excluded.label, created_at=STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW')",
                 (label, experiment, unit),
             )
 
@@ -2165,7 +2165,7 @@ def add_worker() -> ResponseReturnValue:
         return jsonify({"error": "Missing data"}), 400
 
     nrows = modify_app_db(
-        "INSERT OR REPLACE INTO workers (pioreactor_unit, added_at, is_active, model_name, model_version) VALUES (?, STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW'), 1, ?, ?);",
+        "INSERT OR REPLACE INTO workers (pioreactor_unit, added_at, is_active, model_name, model_version) VALUES (?, STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW'), 1, ?, ?);",
         (pioreactor_unit, model_name, model_version),
     )
     if nrows > 0:
@@ -2475,7 +2475,7 @@ def add_worker_to_experiment(experiment: str) -> ResponseReturnValue:
         return jsonify({"error": "Missing pioreactor_unit"}), 400
 
     row_counts = modify_app_db(
-        "INSERT OR REPLACE INTO experiment_worker_assignments (pioreactor_unit, experiment, assigned_at) VALUES (?, ?, STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW'))",
+        "INSERT OR REPLACE INTO experiment_worker_assignments (pioreactor_unit, experiment, assigned_at) VALUES (?, ?, STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW'))",
         (pioreactor_unit, experiment),
     )
     if row_counts > 0:

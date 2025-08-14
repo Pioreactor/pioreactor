@@ -112,18 +112,19 @@ def create_experiment_clause(
 def create_timespan_clause(
     start_time: str | None, end_time: str | None, time_column: str, existing_placeholders: dict[str, str]
 ) -> tuple[str, dict[str, str]]:
+    local_timetamp_clause = f"strftime('%Y-%m-%dT%H:%M:%f', T.{time_column}, 'localtime')"
     if start_time is not None and end_time is not None:
         existing_placeholders["start_time"] = start_time
         existing_placeholders["end_time"] = end_time
-        return f"T.{time_column} >= :start_time AND {time_column} <= :end_time", existing_placeholders
+        return f"{local_timetamp_clause} >= :start_time AND {local_timetamp_clause} <= :end_time", existing_placeholders
 
     elif start_time is not None:
         existing_placeholders["start_time"] = start_time
-        return f"T.{time_column} >= :start_time", existing_placeholders
+        return f"{local_timetamp_clause} >= :start_time", existing_placeholders
 
     elif end_time is not None:
         existing_placeholders["end_time"] = end_time
-        return f"T.{time_column} <= :end_time", existing_placeholders
+        return f"{local_timetamp_clause} <= :end_time", existing_placeholders
     else:
         raise ValueError
 

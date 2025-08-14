@@ -169,12 +169,12 @@ def test_export_experiment_data_with_experiment(temp_zipfile, mock_load_exportab
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE test_table_with_experiment (id INTEGER, experiment TEXT, timestamp TEXT)")
     conn.execute(
-        "INSERT INTO test_table_with_experiment (id, experiment, timestamp) VALUES (1, 'test_export_experiment_data_with_experiment', '2021-09-02 00:00:00')"
+        "INSERT INTO test_table_with_experiment (id, experiment, timestamp) VALUES (1, 'test_export_experiment_data_with_experiment', '2021-09-02T00:00:00.000Z')"
     )
 
     conn.execute("CREATE TABLE experiments (experiment TEXT, created_at TEXT)")
     conn.execute(
-        "INSERT INTO experiments (experiment, created_at) VALUES ('test_export_experiment_data_with_experiment', '2021-09-01 00:00:00')"
+        "INSERT INTO experiments (experiment, created_at) VALUES ('test_export_experiment_data_with_experiment', '2021-09-01T00:00:00.000Z')"
     )
     conn.commit()
 
@@ -210,7 +210,7 @@ def test_export_experiment_data_with_experiment(temp_zipfile, mock_load_exportab
             values = rows.split(",")
             assert values[0] == "1"
             assert values[1] == "test_export_experiment_data_with_experiment"
-            assert values[2] == "2021-09-02 00:00:00"
+            assert values[2] == "2021-09-02T00:00:00.000Z"
             assert (
                 values[3][:4] == "2021"
             )  # can't compare exactly since it uses datetime(ts, 'locatime') in sqlite3, and the localtime will vary between CI servers.
@@ -225,19 +225,19 @@ def test_export_experiment_data_with_partition_by_unit(temp_zipfile, mock_load_e
     )
     conn.execute(
         """
-    INSERT INTO od_readings (pioreactor_unit, experiment, od_reading, timestamp) VALUES ('pio01', 'exp1', 0.1, '2021-09-01 00:00:00'),
-                                                                             ('pio02', 'exp1', 0.2, '2021-09-01 00:00:00'),
-                                                                             ('pio01', 'exp1', 0.1, '2021-09-01 00:00:10'),
-                                                                             ('pio02', 'exp1', 0.21, '2021-09-01 00:00:10'),
-                                                                             ('pio01', 'exp1', 0.1, '2021-09-01 00:00:15'),
-                                                                             ('pio02', 'exp1', 0.22, '2021-09-01 00:00:15'),
-                                                                             ('pio02', 'exp2', 0.1, '2021-01-01 00:00:15'),
-                                                                             ('pio02', 'exp2', 0.1, '2021-10-01 00:00:15');
+    INSERT INTO od_readings (pioreactor_unit, experiment, od_reading, timestamp) VALUES ('pio01', 'exp1', 0.1, '2021-09-01T00:00:00.000Z'),
+                                                                             ('pio02', 'exp1', 0.2,  '2021-09-01T00:00:00.000Z'),
+                                                                             ('pio01', 'exp1', 0.1,  '2021-09-01T00:00:10.000Z'),
+                                                                             ('pio02', 'exp1', 0.21, '2021-09-01T00:00:10.000Z'),
+                                                                             ('pio01', 'exp1', 0.1,  '2021-09-01T00:00:15.000Z'),
+                                                                             ('pio02', 'exp1', 0.22, '2021-09-01T00:00:15.000Z'),
+                                                                             ('pio02', 'exp2', 0.1,  '2021-01-01T00:00:15.000Z'),
+                                                                             ('pio02', 'exp2', 0.1,  '2021-10-01T00:00:15.000Z');
     """
     )
     conn.execute("CREATE TABLE experiments (experiment TEXT, created_at TEXT)")
-    conn.execute("INSERT INTO experiments (experiment, created_at) VALUES ('exp2', '2021-09-01 00:00:00')")
-    conn.execute("INSERT INTO experiments (experiment, created_at) VALUES ('exp1', '2021-09-01 00:00:00')")
+    conn.execute("INSERT INTO experiments (experiment, created_at) VALUES ('exp2', '2021-09-01T00:00:00.000Z')")
+    conn.execute("INSERT INTO experiments (experiment, created_at) VALUES ('exp1', '2021-09-01T00:00:00.000Z')")
     conn.commit()
 
     # Mock the connection and logger objects
@@ -267,19 +267,19 @@ def test_export_experiment_data_with_partition_by_unit_if_pioreactor_unit_col_do
     conn.execute("CREATE TABLE od_readings (experiment TEXT, od_reading REAL, timestamp TEXT)")
     conn.execute(
         """
-    INSERT INTO od_readings (experiment, od_reading, timestamp) VALUES ('exp1', 0.1, '2021-09-01 00:00:00'),
-                                                                       ('exp1', 0.2, '2021-09-01 00:00:00'),
-                                                                       ('exp1', 0.1, '2021-09-01 00:00:10'),
-                                                                       ('exp1', 0.21, '2021-09-01 00:00:10'),
-                                                                       ('exp1', 0.1, '2021-09-01 00:00:15'),
-                                                                       ('exp1', 0.22, '2021-09-01 00:00:15'),
-                                                                       ('exp2', 0.1, '2021-01-01 00:00:15'),
-                                                                       ('exp2', 0.1, '2021-10-01 00:00:15');
+    INSERT INTO od_readings (experiment, od_reading, timestamp) VALUES ('exp1', 0.1,  '2021-09-01T00:00:00.000Z'),
+                                                                       ('exp1', 0.2,  '2021-09-01T00:00:00.000Z'),
+                                                                       ('exp1', 0.1,  '2021-09-01T00:00:10.000Z'),
+                                                                       ('exp1', 0.21, '2021-09-01T00:00:10.000Z'),
+                                                                       ('exp1', 0.1,  '2021-09-01T00:00:15.000Z'),
+                                                                       ('exp1', 0.22, '2021-09-01T00:00:15.000Z'),
+                                                                       ('exp2', 0.1,  '2021-01-01T00:00:15.000Z'),
+                                                                       ('exp2', 0.1,  '2021-10-01T00:00:15.000Z');
     """
     )
     conn.execute("CREATE TABLE experiments (experiment TEXT, created_at TEXT)")
-    conn.execute("INSERT INTO experiments (experiment, created_at) VALUES ('exp2', '2021-09-01 00:00:00')")
-    conn.execute("INSERT INTO experiments (experiment, created_at) VALUES ('exp1', '2021-09-01 00:00:00')")
+    conn.execute("INSERT INTO experiments (experiment, created_at) VALUES ('exp2', '2021-09-01T00:00:00.000Z')")
+    conn.execute("INSERT INTO experiments (experiment, created_at) VALUES ('exp1', '2021-09-01T00:00:00.000Z')")
     conn.commit()
 
     # Mock the connection and logger objects
@@ -306,8 +306,8 @@ def test_export_experiment_data_with_start_time(temp_zipfile, mock_load_exportab
     conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp TEXT, reading FLOAT)")
     conn.execute(
         "INSERT INTO test_table (id, name, timestamp, reading) VALUES "
-        "(1, 'A', '2021-09-01 00:00:00', 0.1),"
-        "(2, 'B', '2021-09-01 00:00:10', 0.2)"
+        "(1, 'A', '2021-09-01T00:00:00.000Z', 0.1),"
+        "(2, 'B', '2021-09-01T00:00:10.000Z', 0.2)"
     )
     conn.commit()
 
@@ -318,7 +318,7 @@ def test_export_experiment_data_with_start_time(temp_zipfile, mock_load_exportab
             output=temp_zipfile.strpath,
             partition_by_unit=False,
             dataset_names=["test_table"],
-            start_time="2021-09-01 00:00:10",
+            start_time="2021-09-01T00:00:10",
         )
 
     with zipfile.ZipFile(temp_zipfile.strpath, mode="r") as zf:
@@ -341,8 +341,8 @@ def test_export_experiment_data_with_end_time(temp_zipfile, mock_load_exportable
     conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp TEXT, reading FLOAT)")
     conn.execute(
         "INSERT INTO test_table (id, name, timestamp, reading) VALUES "
-        "(1, 'A', '2021-09-01 00:00:00', 0.1),"
-        "(2, 'B', '2021-09-01 00:00:10', 0.2)"
+        "(1, 'A', '2021-09-01T00:00:00.000Z', 0.1),"
+        "(2, 'B', '2021-09-01T00:00:10.000Z', 0.2)"
     )
     conn.commit()
 
@@ -353,7 +353,7 @@ def test_export_experiment_data_with_end_time(temp_zipfile, mock_load_exportable
             output=temp_zipfile.strpath,
             partition_by_unit=False,
             dataset_names=["test_table"],
-            end_time="2021-09-01 00:00:00",
+            end_time="2021-09-01T00:00:00",
         )
 
     with zipfile.ZipFile(temp_zipfile.strpath, mode="r") as zf:
@@ -376,9 +376,9 @@ def test_export_experiment_data_with_start_and_end_time(temp_zipfile, mock_load_
     conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp TEXT, reading FLOAT)")
     conn.execute(
         "INSERT INTO test_table (id, name, timestamp, reading) VALUES "
-        "(1, 'A', '2021-09-01 00:00:00', 0.1),"
-        "(2, 'B', '2021-09-01 00:00:10', 0.2),"
-        "(3, 'C', '2021-09-01 00:00:20', 0.3)"
+        "(1, 'A', '2021-09-01T00:00:00.000Z', 0.1),"
+        "(2, 'B', '2021-09-01T00:00:10.000Z', 0.2),"
+        "(3, 'C', '2021-09-01T00:00:20.000Z', 0.3)"
     )
     conn.commit()
 
@@ -389,8 +389,8 @@ def test_export_experiment_data_with_start_and_end_time(temp_zipfile, mock_load_
             output=temp_zipfile.strpath,
             partition_by_unit=False,
             dataset_names=["test_table"],
-            start_time="2021-09-01 00:00:10",
-            end_time="2021-09-01 00:00:20",
+            start_time="2021-09-01T00:00:10",
+            end_time="2021-09-01T00:00:20",
         )
 
     with zipfile.ZipFile(temp_zipfile.strpath, mode="r") as zf:

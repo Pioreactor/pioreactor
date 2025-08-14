@@ -319,7 +319,7 @@ if am_I_leader() or is_testing_env():
         units = resolve_target_units(units, experiments, active_only=False, include_leader=False)
 
         if not y:
-            confirm = input(f"Confirm copying {filepath} onto {units}? Y/n: ").strip()
+            confirm = input(f"Confirm copying {filepath} onto {units}? Y/n: ").strip().upper()
             if confirm != "Y":
                 sys.exit(1)
 
@@ -354,7 +354,7 @@ if am_I_leader() or is_testing_env():
         units = resolve_target_units(units, experiments, active_only=False, include_leader=False)
 
         if not y:
-            confirm = input(f"Confirm deleting {filepath} on {units}? Y/n: ").strip()
+            confirm = input(f"Confirm deleting {filepath} on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
                 sys.exit(1)
 
@@ -399,7 +399,7 @@ if am_I_leader() or is_testing_env():
             units = resolve_target_units(units, experiments, active_only=False, include_leader=True)
 
             if not y:
-                confirm = input(f"Confirm updating app and ui on {units}? Y/n: ").strip()
+                confirm = input(f"Confirm updating app and ui on {units}? Y/n: ").strip().upper()
                 if confirm != "Y":
                     sys.exit(1)
 
@@ -473,7 +473,7 @@ if am_I_leader() or is_testing_env():
         units = resolve_target_units(units, experiments, active_only=False, include_leader=True)
 
         if not y:
-            confirm = input(f"Confirm updating app on {units}? Y/n: ").strip()
+            confirm = input(f"Confirm updating app on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
                 sys.exit(1)
 
@@ -551,7 +551,7 @@ if am_I_leader() or is_testing_env():
         units = resolve_target_units(units, experiments, active_only=False, include_leader=True)
 
         if not y:
-            confirm = input(f"Confirm updating ui on {units}? Y/n: ").strip()
+            confirm = input(f"Confirm updating ui on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
                 sys.exit(1)
 
@@ -629,7 +629,7 @@ if am_I_leader() or is_testing_env():
         units = resolve_target_units(units, experiments, active_only=False, include_leader=True)
 
         if not y:
-            confirm = input(f"Confirm installing {plugin} on {units}? Y/n: ").strip()
+            confirm = input(f"Confirm installing {plugin} on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
                 sys.exit(1)
 
@@ -676,7 +676,7 @@ if am_I_leader() or is_testing_env():
         units = resolve_target_units(units, experiments, active_only=False, include_leader=True)
 
         if not y:
-            confirm = input(f"Confirm uninstalling {plugin} on {units}? Y/n: ").strip()
+            confirm = input(f"Confirm uninstalling {plugin} on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
                 sys.exit(1)
 
@@ -808,7 +808,7 @@ if am_I_leader() or is_testing_env():
         """
         units = resolve_target_units(units, experiments, active_only=True, include_leader=None)
         if not y:
-            confirm = input(f"Confirm killing jobs on {units}? Y/n: ").strip()
+            confirm = input(f"Confirm killing jobs on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
                 sys.exit(1)
 
@@ -862,7 +862,7 @@ if am_I_leader() or is_testing_env():
         assert len(units) > 0, "Empty units!"
 
         if not y:
-            confirm = input(f"Confirm running {job} on {units}? Y/n: ").strip()
+            confirm = input(f"Confirm running {job} on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
                 sys.exit(1)
 
@@ -906,7 +906,7 @@ if am_I_leader() or is_testing_env():
         units_san_leader = units
 
         if not y:
-            confirm = input(f"Confirm shutting down on {units}? Y/n: ").strip()
+            confirm = input(f"Confirm shutting down on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
                 sys.exit(1)
 
@@ -941,7 +941,7 @@ if am_I_leader() or is_testing_env():
         units_san_leader = units
 
         if not y:
-            confirm = input(f"Confirm rebooting on {units}? Y/n: ").strip()
+            confirm = input(f"Confirm rebooting on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
                 sys.exit(1)
 
@@ -986,7 +986,7 @@ if am_I_leader() or is_testing_env():
         assert len(extra_args) > 0
 
         if not y:
-            confirm = input(f"Confirm updating {job}'s {extra_args} on {units}? Y/n: ").strip()
+            confirm = input(f"Confirm updating {job}'s {extra_args} on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
                 sys.exit(1)
 

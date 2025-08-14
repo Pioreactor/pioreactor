@@ -545,7 +545,7 @@ function ExportDataContainer() {
                           name="useTimeFilter"
                         />
                       }
-                      label="Filter by UTC time range"
+                      label="Filter by time range"
                     />
                     <Box sx={{ display: 'flex', gap: 2, mt: 1, mb: 2 }}>
                       <TextField

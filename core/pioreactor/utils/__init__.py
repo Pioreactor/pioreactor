@@ -685,7 +685,7 @@ class JobManager:
         leader: str,
         is_long_running_job: bool,
     ) -> JobMetadataKey:
-        insert_query = "INSERT INTO pio_job_metadata (started_at, is_running, job_source, experiment, unit, job_name, leader, pid, is_long_running_job, ended_at) VALUES (STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW'), 1, :job_source, :experiment, :unit, :job_name, :leader, :pid, :is_long_running_job, NULL);"
+        insert_query = "INSERT INTO pio_job_metadata (started_at, is_running, job_source, experiment, unit, job_name, leader, pid, is_long_running_job, ended_at) VALUES (STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW'), 1, :job_source, :experiment, :unit, :job_name, :leader, :pid, :is_long_running_job, NULL);"
 
         self.cursor.execute(
             insert_query,
@@ -764,7 +764,7 @@ class JobManager:
                     )
 
     def set_not_running(self, job_id: JobMetadataKey) -> None:
-        update_query = "UPDATE pio_job_metadata SET is_running=0, ended_at=STRFTIME('%Y-%m-%dT%H:%M:%f000Z', 'NOW') WHERE job_id=(?)"
+        update_query = "UPDATE pio_job_metadata SET is_running=0, ended_at=STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW') WHERE job_id=(?)"
         self.cursor.execute(update_query, (job_id,))
         return
 

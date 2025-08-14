@@ -4,7 +4,7 @@
 
 * **Custom Bioreactor Models**
   Our community has been incredibly creative in adapting Pioreactor hardware and software for different vessel types. Now, you can officially add your own custom bioreactor models to the Pioreactor software!
-  Place your model definitions in the new `.pioreactor/models/` directory. For example:
+  Place your model definitions as yaml files in the new `.pioreactor/models/` directory. For example:
 
   ```yaml
   model_name: custom_100ml
@@ -17,6 +17,8 @@
   max_temp_to_disable_heating: 85.0
   max_temp_to_shutdown: 90.0
   ```
+
+  Example file name: `custom_100ml.yaml`
 
   This information is used throughout the software (including the UI) to support different shapes, sizes, and safety limits. Tell us what else you’d like supported!
 
@@ -58,7 +60,7 @@
 * API changes:
 
   * `api/units/<unit>/configuration` response format updated.
-  * Stirring settings endpoint now scoped to experiments:
+  * Settings endpoint now scoped to experiments:
 
     ```
     /api/workers/unit1/jobs/settings/job_name/stirring/experiments/<exp>
