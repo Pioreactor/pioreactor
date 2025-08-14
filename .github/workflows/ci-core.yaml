@@ -30,8 +30,9 @@ jobs:
           make install
           wget https://github.com/Gadgetoid/PY_LGPIO/releases/download/0.2.2.0/lgpio-0.2.2.0.tar.gz -O lgpio-0.2.2.0.tar.gz
           tar -xvzf lgpio-0.2.2.0.tar.gz
-          cd lgpio-0.2.2.0
-          .venv/bin/python setup.py develop
+          # Install lgpio into the venv created by `make install`.
+          # Note: keep working directory at repo root so `.venv` is resolvable.
+          .venv/bin/python -m pip install -e ./lgpio-0.2.2.0
 
           .venv/bin/pip list
 
