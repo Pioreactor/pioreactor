@@ -361,7 +361,7 @@ def test_export_experiment_data_with_end_time(temp_zipfile, mock_load_exportable
             output=temp_zipfile.strpath,
             partition_by_unit=False,
             dataset_names=["test_table"],
-            end_time="2021-09-01T00:00:00",
+            end_time="2021-09-01T00:00:05",
         )
 
     with zipfile.ZipFile(temp_zipfile.strpath, mode="r") as zf:
@@ -397,8 +397,8 @@ def test_export_experiment_data_with_start_and_end_time(temp_zipfile, mock_load_
             output=temp_zipfile.strpath,
             partition_by_unit=False,
             dataset_names=["test_table"],
-            start_time="2021-09-01T00:00:10",
-            end_time="2021-09-01T00:00:20",
+            start_time="2021-09-01T00:00:09",
+            end_time="2021-09-01T00:00:21",
         )
 
     with zipfile.ZipFile(temp_zipfile.strpath, mode="r") as zf:
