@@ -306,7 +306,7 @@ def export_experiment_data(
 
             logger.debug(f"Exported {count} rows from {dataset_name}.")
             if count == 0:
-                logger.warning(f"No data present in {dataset_name}. Check database?")
+                logger.warning(f"No data present in {dataset_name} with applied filters.")
 
             zf.mkdir(dataset_name)
             for path_to_file in path_to_files:
