@@ -76,6 +76,8 @@ def get_plugins() -> dict[str, Plugin]:
         # short circuit out
         return plugins
 
+    BLANK = "Unknown"
+
     # get entry point plugins
     # Users can use Python's entry point system to create rich plugins, see
     # example here: https://github.com/Pioreactor/pioreactor-air-bubbler
@@ -85,10 +87,10 @@ def get_plugins() -> dict[str, Plugin]:
             md = entry_point.metadata(plugin.name)
             plugins[md["Name"]] = Plugin(
                 plugin.load(),  # plugin loading and execution here.
-                md["Summary"],
-                md["Version"],
-                md["Home-page"],
-                md["Author"],
+                md["Summary"] or BLANK,
+                md["Version"] or BLANK,
+                md["Home-page"] or BLANK,
+                md["Author"] or BLANK,
                 "entry_points",
             )
         except Exception as e:
@@ -104,7 +106,6 @@ def get_plugins() -> dict[str, Plugin]:
     # __plugin_summary__
     # __plugin_version__
     # __plugin_homepage__
-    BLANK = "Unknown"
 
     for py_file in discover_plugins_in_local_folder():
         module_name = py_file.stem

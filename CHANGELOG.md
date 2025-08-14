@@ -80,7 +80,7 @@
 * Fixed crash in UI profile editor.
 * Fixed pumps not shutting down correctly if active when `dosing_automation` stopped.
 * Fixed cleanup issue in growth rate calculation.
-
+* Fixed plugins page crashing when a plugin doesn't have a homepage associated to it.
 
 ### 25.7.2
 
