@@ -307,10 +307,17 @@ class TestGrowthRateCalculating:
                 create_encoded_od_raw_batched(
                     ["1", "2"], [0.5, 0.8], ["90", "135"], timestamp="2010-01-01T12:00:35.000Z"
                 ),
-                retain=True,
             )
             pause()
             assert calc.processor.od_normalization_factors == {"2": 0.8, "1": 0.5}
+
+            # job expects one more od reading for initial values, else it WARNs.
+            publish(
+                f"pioreactor/{unit}/{experiment}/od_reading/ods",
+                create_encoded_od_raw_batched(
+                    ["1", "2"], [0.5, 0.8], ["90", "135"], timestamp="2010-01-01T12:00:35.000Z"
+                ),
+            )
 
     def test_shock_from_dosing_works(self) -> None:
         unit = get_unit_name()

@@ -18,7 +18,7 @@ fields:
     unit: h⁻¹
     label: Target growth rate
     type: numeric
-  - key: volume
+  - key: exchange_volume_ml
     default: 2.0
     unit: mL
     label: Volume (for dilution)
