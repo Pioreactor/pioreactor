@@ -12,7 +12,7 @@ from yaml import Loader  # type: ignore
 
 
 def get_specific_yaml(path):
-    r = get(f"https://raw.githubusercontent.com/Pioreactor/pioreactor/master/web/{path}")
+    r = get(f"https://raw.githubusercontent.com/Pioreactor/pioreactor/develop/web/{path}")
     r.raise_for_status()
     data = r.content
     return load(data, Loader=Loader)

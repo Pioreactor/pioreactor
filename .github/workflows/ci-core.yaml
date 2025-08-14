@@ -33,6 +33,8 @@ jobs:
           cd lgpio-0.2.2.0
           python setup.py develop
 
+          pip list
+
       - name: Mosquitto MQTT Broker in GitHub Actions
         uses: Namoshek/mosquitto-github-action@v1
         with:
