@@ -8,7 +8,6 @@ from threading import Thread
 from typing import Optional
 
 import click
-
 from pioreactor import exc
 from pioreactor import types as pt
 from pioreactor.actions.led_intensity import led_intensity

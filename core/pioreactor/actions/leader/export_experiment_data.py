@@ -116,7 +116,10 @@ def create_timespan_clause(
     if start_time is not None and end_time is not None:
         existing_placeholders["start_time"] = start_time
         existing_placeholders["end_time"] = end_time
-        return f"{local_timetamp_clause} >= :start_time AND {local_timetamp_clause} <= :end_time", existing_placeholders
+        return (
+            f"{local_timetamp_clause} >= :start_time AND {local_timetamp_clause} <= :end_time",
+            existing_placeholders,
+        )
 
     elif start_time is not None:
         existing_placeholders["start_time"] = start_time

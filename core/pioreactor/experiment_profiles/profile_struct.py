@@ -5,7 +5,6 @@ import typing as t
 
 from msgspec import field
 from msgspec import Struct
-
 from pioreactor import types as pt
 
 

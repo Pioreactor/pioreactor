@@ -5,7 +5,6 @@ import msgspec
 import pytest
 from msgspec import DecodeError
 from msgspec.yaml import decode
-
 from pioreactor.experiment_profiles import profile_struct as structs
 
 

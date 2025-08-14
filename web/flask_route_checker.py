@@ -65,9 +65,7 @@ def main(directory):
                 for m in mismatches:
                     print(f"{path}:{m['line']} → function '{m['function']}'")
                     if m["extra_placeholders"]:
-                        print(
-                            f"  Placeholders not in function signature: {sorted(m['extra_placeholders'])}"
-                        )
+                        print(f"  Placeholders not in function signature: {sorted(m['extra_placeholders'])}")
                     if m["missing_args"]:
                         print(f"  Parameters not in route pattern: {sorted(m['missing_args'])}")
                     print()

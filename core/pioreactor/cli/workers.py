@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import click
-
 from pioreactor.whoami import am_I_leader
 
 if am_I_leader():

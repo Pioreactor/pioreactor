@@ -6,7 +6,6 @@ import json
 import time
 
 import pytest
-
 from pioreactor import pubsub
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.pwm import PWM

@@ -11,7 +11,6 @@ from typing import Optional
 import click
 from msgspec import Struct
 from msgspec.json import decode as msgspec_loads
-
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.background_jobs.base import LongRunningBackgroundJob

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import contextlib
 import sqlite3
+from pathlib import Path
 from unittest.mock import patch
 from urllib.parse import urlparse
 
@@ -14,7 +15,6 @@ from pioreactor.mureq import get
 from pioreactor.mureq import Response
 from pioreactorui import _make_dicts
 from pioreactorui import create_app
-from pathlib import Path
 
 
 @pytest.fixture()

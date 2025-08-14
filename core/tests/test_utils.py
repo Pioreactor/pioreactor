@@ -7,9 +7,7 @@ from io import StringIO
 
 import pytest
 from msgspec.json import encode as dumps
-
 from pioreactor.background_jobs.stirring import start_stirring
-from tests.conftest import capture_requests
 from pioreactor.utils import argextrema
 from pioreactor.utils import callable_stack
 from pioreactor.utils import ClusterJobManager
@@ -20,6 +18,7 @@ from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import managed_lifecycle
 from pioreactor.whoami import get_unit_name
+from tests.conftest import capture_requests
 
 
 @pytest.mark.xfail(reason="Don't use nested caches like this!")

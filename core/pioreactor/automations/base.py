@@ -7,7 +7,6 @@ from typing import cast
 
 from msgspec.json import decode
 from msgspec.json import encode
-
 from pioreactor import exc
 from pioreactor import structs
 from pioreactor import types as pt

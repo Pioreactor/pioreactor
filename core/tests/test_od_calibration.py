@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from click.testing import CliRunner
-
 from pioreactor import structs
 from pioreactor.calibrations import load_active_calibration
 from pioreactor.calibrations import load_calibration

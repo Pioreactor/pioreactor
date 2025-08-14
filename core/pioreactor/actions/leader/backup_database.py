@@ -6,7 +6,6 @@ import subprocess
 from pathlib import Path
 
 import click
-
 from pioreactor.cluster_management import get_active_workers_in_inventory
 from pioreactor.config import config
 from pioreactor.exc import RsyncError

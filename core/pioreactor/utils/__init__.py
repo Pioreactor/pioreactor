@@ -24,7 +24,6 @@ from msgspec import DecodeError
 from msgspec import Struct
 from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
-
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor import whoami

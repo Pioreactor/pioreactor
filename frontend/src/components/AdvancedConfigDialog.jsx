@@ -172,5 +172,3 @@ export default function AdvancedConfigButton({ jobName, displayName, unit, exper
     </>
   );
 }
-
-

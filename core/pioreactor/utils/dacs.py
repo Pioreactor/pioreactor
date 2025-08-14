@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import cast
 
 import busio  # type: ignore
-
 from pioreactor import hardware
 from pioreactor.exc import HardwareNotFoundError
 from pioreactor.types import FloatBetween0and100

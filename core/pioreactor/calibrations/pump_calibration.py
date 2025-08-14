@@ -14,7 +14,6 @@ from click import prompt
 from click import style
 from msgspec.json import encode
 from msgspec.json import format
-
 from pioreactor import structs
 from pioreactor.actions.pump import add_alt_media
 from pioreactor.actions.pump import add_media

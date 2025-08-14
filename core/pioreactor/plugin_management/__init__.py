@@ -10,7 +10,6 @@ from typing import Any
 
 import click
 from msgspec import Struct
-
 from pioreactor import pubsub
 from pioreactor.plugin_management.install_plugin import click_install_plugin
 from pioreactor.plugin_management.list_plugins import click_list_plugins

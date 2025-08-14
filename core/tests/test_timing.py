@@ -7,7 +7,6 @@ import time
 from threading import Event
 
 import pytest
-
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.utils.timing import to_datetime

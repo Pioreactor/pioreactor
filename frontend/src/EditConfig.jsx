@@ -264,4 +264,3 @@ function EditConfig(props) {
 }
 
 export default EditConfig;
-

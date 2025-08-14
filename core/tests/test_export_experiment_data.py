@@ -236,8 +236,12 @@ def test_export_experiment_data_with_partition_by_unit(temp_zipfile, mock_load_e
     """
     )
     conn.execute("CREATE TABLE experiments (experiment TEXT, created_at TEXT)")
-    conn.execute("INSERT INTO experiments (experiment, created_at) VALUES ('exp2', '2021-09-01T00:00:00.000Z')")
-    conn.execute("INSERT INTO experiments (experiment, created_at) VALUES ('exp1', '2021-09-01T00:00:00.000Z')")
+    conn.execute(
+        "INSERT INTO experiments (experiment, created_at) VALUES ('exp2', '2021-09-01T00:00:00.000Z')"
+    )
+    conn.execute(
+        "INSERT INTO experiments (experiment, created_at) VALUES ('exp1', '2021-09-01T00:00:00.000Z')"
+    )
     conn.commit()
 
     # Mock the connection and logger objects
@@ -278,8 +282,12 @@ def test_export_experiment_data_with_partition_by_unit_if_pioreactor_unit_col_do
     """
     )
     conn.execute("CREATE TABLE experiments (experiment TEXT, created_at TEXT)")
-    conn.execute("INSERT INTO experiments (experiment, created_at) VALUES ('exp2', '2021-09-01T00:00:00.000Z')")
-    conn.execute("INSERT INTO experiments (experiment, created_at) VALUES ('exp1', '2021-09-01T00:00:00.000Z')")
+    conn.execute(
+        "INSERT INTO experiments (experiment, created_at) VALUES ('exp2', '2021-09-01T00:00:00.000Z')"
+    )
+    conn.execute(
+        "INSERT INTO experiments (experiment, created_at) VALUES ('exp1', '2021-09-01T00:00:00.000Z')"
+    )
     conn.commit()
 
     # Mock the connection and logger objects

@@ -35,7 +35,6 @@
 from __future__ import annotations
 
 import pytest
-
 from pioreactor.experiment_profiles.sly import Lexer
 from pioreactor.experiment_profiles.sly import Parser
 

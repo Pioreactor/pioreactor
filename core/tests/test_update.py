@@ -4,7 +4,6 @@ from __future__ import annotations
 from json import dumps
 
 import pytest
-
 from pioreactor.cli.pio import get_non_prerelease_tags_of_pioreactor
 from pioreactor.cli.pio import get_tag_to_install
 from pioreactor.mureq import Response

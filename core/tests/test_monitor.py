@@ -6,7 +6,6 @@ import time
 
 import pytest
 import zeroconf
-
 from pioreactor.background_jobs.monitor import Monitor
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish

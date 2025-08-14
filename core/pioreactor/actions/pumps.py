@@ -6,7 +6,6 @@ from __future__ import annotations
 from typing import Callable
 
 import click
-
 from pioreactor.actions.pump import add_alt_media
 from pioreactor.actions.pump import add_media
 from pioreactor.actions.pump import remove_waste

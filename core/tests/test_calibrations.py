@@ -7,7 +7,6 @@ from datetime import timezone
 import numpy as np
 import pytest
 from msgspec import ValidationError
-
 from pioreactor import exc
 from pioreactor.calibrations import CALIBRATION_PATH
 from pioreactor.calibrations import calibration_protocols

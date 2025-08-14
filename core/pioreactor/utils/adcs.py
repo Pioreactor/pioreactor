@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from busio import I2C  # type: ignore
-
 from pioreactor import exc
 from pioreactor import hardware
 from pioreactor import types as pt

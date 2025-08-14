@@ -4,7 +4,6 @@ from __future__ import annotations
 import time
 
 import pytest
-
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.base import BackgroundJobContrib
 from pioreactor.background_jobs.base import BackgroundJobWithDodging

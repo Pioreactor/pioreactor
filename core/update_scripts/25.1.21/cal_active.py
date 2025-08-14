@@ -5,7 +5,6 @@ import json
 import sqlite3
 
 import click
-
 from pioreactor.utils import local_persistent_storage
 
 

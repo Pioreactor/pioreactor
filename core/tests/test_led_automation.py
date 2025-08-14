@@ -5,7 +5,6 @@ import time
 
 import pytest
 from msgspec.json import encode
-
 from pioreactor import pubsub
 from pioreactor import structs
 from pioreactor.actions.led_intensity import lock_leds_temporarily

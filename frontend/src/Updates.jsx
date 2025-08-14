@@ -464,4 +464,3 @@ function Updates(props) {
 }
 
 export default Updates;
-

@@ -8,13 +8,13 @@ from random import random
 
 from msgspec import DecodeError
 from msgspec.json import decode
-
-from .sly import Lexer
-from .sly import Parser
 from pioreactor.exc import MQTTValueError
 from pioreactor.pubsub import subscribe
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import is_active
+
+from .sly import Lexer
+from .sly import Parser
 
 
 def convert_string(input_str: str) -> int | bool | float | str:

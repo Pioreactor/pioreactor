@@ -617,8 +617,10 @@ class Monitor(LongRunningBackgroundJob):
     def start_passive_listeners(self) -> None:
         self.subscribe_and_callback(
             self.flicker_led_response_okay_and_publish_state,
-            [f"pioreactor/{self.unit}/+/{self.job_name}/flicker_led_response_okay",
-            f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/+/{self.job_name}/flicker_led_response_okay"]
+            [
+                f"pioreactor/{self.unit}/+/{self.job_name}/flicker_led_response_okay",
+                f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/+/{self.job_name}/flicker_led_response_okay",
+            ],
             qos=QOS.AT_LEAST_ONCE,
         )
 

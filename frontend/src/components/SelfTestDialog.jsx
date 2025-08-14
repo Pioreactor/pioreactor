@@ -276,6 +276,3 @@ export default function SelfTestDialog({client, disabled, experiment, unit, labe
   </React.Fragment>
   );
 }
-
-
-

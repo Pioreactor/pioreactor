@@ -5,7 +5,6 @@ from typing import Callable
 from typing import TypeVar
 
 import click
-
 from pioreactor import structs
 
 

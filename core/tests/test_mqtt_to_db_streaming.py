@@ -5,9 +5,8 @@ import json
 import sqlite3
 from time import sleep
 
-import pytest
-
 import pioreactor.background_jobs.leader.mqtt_to_db_streaming as m2db
+import pytest
 from pioreactor import mureq
 from pioreactor import structs
 from pioreactor.background_jobs.base import BackgroundJob

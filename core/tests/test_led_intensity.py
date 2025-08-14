@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import pytest
 from click.testing import CliRunner
-
 from pioreactor.actions.led_intensity import ALL_LED_CHANNELS
 from pioreactor.actions.led_intensity import change_leds_intensities_temporarily
 from pioreactor.actions.led_intensity import is_led_channel_locked

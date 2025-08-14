@@ -5,7 +5,6 @@ import subprocess
 from shlex import quote
 
 import click
-
 from pioreactor.exc import BashScriptError
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
