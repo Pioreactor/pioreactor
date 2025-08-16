@@ -25,44 +25,42 @@ from msgspec import DecodeError
 from msgspec import to_builtins
 from msgspec import ValidationError
 from msgspec.yaml import decode as yaml_decode
+from pioreactor import structs
 from pioreactor.config import get_leader_hostname
 from pioreactor.experiment_profiles.profile_struct import Profile
 from pioreactor.models import get_registered_models
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import Dataset
-from pioreactor.structs import subclass_union
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import current_utc_timestamp
+from pioreactor.web.app import client
+from pioreactor.web.app import get_all_units
+from pioreactor.web.app import get_all_workers
+from pioreactor.web.app import get_all_workers_in_experiment
+from pioreactor.web.app import HOSTNAME
+from pioreactor.web.app import modify_app_db
+from pioreactor.web.app import msg_to_JSON
+from pioreactor.web.app import publish_to_error_log
+from pioreactor.web.app import publish_to_experiment_log
+from pioreactor.web.app import publish_to_log
+from pioreactor.web.app import query_app_db
+from pioreactor.web.app import query_temp_local_metadata_db
+from pioreactor.web.tasks import tasks
+from pioreactor.web.utils import attach_cache_control
+from pioreactor.web.utils import create_task_response
+from pioreactor.web.utils import DelayedResponseReturnValue
+from pioreactor.web.utils import is_valid_unix_filename
+from pioreactor.web.utils import scrub_to_valid
 from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 from werkzeug.utils import safe_join
 from werkzeug.utils import secure_filename
 
-from . import client
-from . import get_all_units
-from . import get_all_workers
-from . import get_all_workers_in_experiment
-from . import HOSTNAME
-from . import modify_app_db
-from . import msg_to_JSON
-from . import publish_to_error_log
-from . import publish_to_experiment_log
-from . import publish_to_log
-from . import query_app_db
-from . import query_temp_local_metadata_db
-from . import structs
-from . import tasks
-from .utils import attach_cache_control
-from .utils import create_task_response
-from .utils import DelayedResponseReturnValue
-from .utils import is_valid_unix_filename
-from .utils import scrub_to_valid
 
+AllCalibrations = structs.subclass_union(CalibrationBase)
 
-AllCalibrations = subclass_union(CalibrationBase)
-
-api = Blueprint("api", __name__, url_prefix="/api")
+api_bp = Blueprint("api", __name__, url_prefix="/api")
 
 
 def as_json_response(json: str) -> ResponseReturnValue:
@@ -93,7 +91,7 @@ def broadcast_patch_across_cluster(endpoint: str, json: dict | None = None) -> R
     return tasks.multicast_patch_across_cluster(endpoint, get_all_workers(), json=json)
 
 
-@api.route("/models", methods=["GET"])
+@api_bp.route("/models", methods=["GET"])
 def get_models() -> ResponseReturnValue:
     """
     Return the list of supported Pioreactor models (name, version, display_name).
@@ -101,7 +99,7 @@ def get_models() -> ResponseReturnValue:
     return attach_cache_control(jsonify({"models": list(get_registered_models().values())}))
 
 
-@api.route(
+@api_bp.route(
     "/workers/<pioreactor_unit>/jobs/stop/experiments/<experiment>",
     methods=["POST", "PATCH"],
 )
@@ -117,11 +115,11 @@ def stop_all_jobs_on_worker_for_experiment(pioreactor_unit: str, experiment: str
     return {"status": "success"}, 202
 
 
-@api.route(
+@api_bp.route(
     "/workers/<pioreactor_unit>/jobs/stop/job_name/<job_name>/experiments/<experiment>",
     methods=["PATCH", "POST"],
 )
-@api.route(
+@api_bp.route(
     "/units/<pioreactor_unit>/jobs/stop/job_name/<job_name>/experiments/<experiment>",
     methods=["PATCH", "POST"],
 )
@@ -147,11 +145,11 @@ def stop_specific_job_on_unit(
     return {"status": "success"}, 202
 
 
-@api.route(
+@api_bp.route(
     "/workers/<pioreactor_unit>/jobs/run/job_name/<job>/experiments/<experiment>",
     methods=["PATCH", "POST"],
 )
-@api.route(
+@api_bp.route(
     "/units/<pioreactor_unit>/jobs/run/job_name/<job>/experiments/<experiment>",
     methods=["PATCH", "POST"],
 )
@@ -245,8 +243,8 @@ def run_job_on_unit_in_experiment(
     return create_task_response(t)
 
 
-@api.route("/units/<pioreactor_unit>/jobs/running", methods=["GET"])
-@api.route("/workers/<pioreactor_unit>/jobs/running", methods=["GET"])
+@api_bp.route("/units/<pioreactor_unit>/jobs/running", methods=["GET"])
+@api_bp.route("/workers/<pioreactor_unit>/jobs/running", methods=["GET"])
 def get_jobs_running(pioreactor_unit: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         return create_task_response(broadcast_get_across_cluster("/unit_api/jobs/running"))
@@ -256,7 +254,7 @@ def get_jobs_running(pioreactor_unit: str) -> DelayedResponseReturnValue:
         )
 
 
-@api.route("/workers/<pioreactor_unit>/blink", methods=["POST"])
+@api_bp.route("/workers/<pioreactor_unit>/blink", methods=["POST"])
 def blink_worker(pioreactor_unit: str) -> ResponseReturnValue:
     msg = client.publish(
         f"pioreactor/{pioreactor_unit}/{UNIVERSAL_EXPERIMENT}/monitor/flicker_led_response_okay",
@@ -267,11 +265,11 @@ def blink_worker(pioreactor_unit: str) -> ResponseReturnValue:
     return {"status": "success"}, 202
 
 
-@api.route(
+@api_bp.route(
     "/workers/<pioreactor_unit>/jobs/update/job_name/<job>/experiments/<experiment>",
     methods=["PATCH"],
 )
-@api.route(
+@api_bp.route(
     "/units/<pioreactor_unit>/jobs/update/job_name/<job>/experiments/<experiment>",
     methods=["PATCH"],
 )
@@ -315,7 +313,7 @@ def update_job_on_unit(pioreactor_unit: str, job: str, experiment: str) -> Respo
     return {"status": "success"}, 202
 
 
-@api.route("/units/<pioreactor_unit>/system/reboot", methods=["POST"])
+@api_bp.route("/units/<pioreactor_unit>/system/reboot", methods=["POST"])
 def reboot_unit(pioreactor_unit: str) -> DelayedResponseReturnValue:
     """Reboots unit"""
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
@@ -325,7 +323,7 @@ def reboot_unit(pioreactor_unit: str) -> DelayedResponseReturnValue:
     return create_task_response(task)
 
 
-@api.route("/units/<pioreactor_unit>/system/shutdown", methods=["POST"])
+@api_bp.route("/units/<pioreactor_unit>/system/shutdown", methods=["POST"])
 def shutdown_unit(pioreactor_unit: str) -> DelayedResponseReturnValue:
     """Shutdown unit"""
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
@@ -338,7 +336,7 @@ def shutdown_unit(pioreactor_unit: str) -> DelayedResponseReturnValue:
 ## Clock
 
 
-@api.route("/units/<pioreactor_unit>/system/utc_clock", methods=["GET"])
+@api_bp.route("/units/<pioreactor_unit>/system/utc_clock", methods=["GET"])
 def get_clocktime(pioreactor_unit: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_get_across_cluster("/unit_api/system/utc_clock")
@@ -347,7 +345,7 @@ def get_clocktime(pioreactor_unit: str) -> DelayedResponseReturnValue:
     return create_task_response(task)
 
 
-@api.route("/system/utc_clock", methods=["POST"])
+@api_bp.route("/system/utc_clock", methods=["POST"])
 def set_clocktime() -> DelayedResponseReturnValue:
     # first update the leader:
     task1 = tasks.multicast_post_across_cluster(
@@ -383,7 +381,7 @@ def get_level_string(min_level: str) -> str:
     return " or ".join(f'level == "{level}"' for level in selected_levels)
 
 
-@api.route("/experiments/<experiment>/recent_logs", methods=["GET"])
+@api_bp.route("/experiments/<experiment>/recent_logs", methods=["GET"])
 def get_recent_logs(experiment: str) -> ResponseReturnValue:
     """Shows recent event logs from all units"""
 
@@ -404,7 +402,7 @@ def get_recent_logs(experiment: str) -> ResponseReturnValue:
     return jsonify(recent_logs)
 
 
-@api.route("/logs", methods=["GET"])
+@api_bp.route("/logs", methods=["GET"])
 def get_logs() -> ResponseReturnValue:
     """Shows event logs from all units, uses pagination."""
 
@@ -421,7 +419,7 @@ def get_logs() -> ResponseReturnValue:
     return jsonify(recent_logs)
 
 
-@api.route("/experiments/<experiment>/logs", methods=["GET"])
+@api_bp.route("/experiments/<experiment>/logs", methods=["GET"])
 def get_exp_logs(experiment: str) -> ResponseReturnValue:
     """Shows event logs from all units, uses pagination."""
 
@@ -440,7 +438,7 @@ def get_exp_logs(experiment: str) -> ResponseReturnValue:
     return jsonify(recent_logs)
 
 
-@api.route("/workers/<pioreactor_unit>/experiments/<experiment>/recent_logs", methods=["GET"])
+@api_bp.route("/workers/<pioreactor_unit>/experiments/<experiment>/recent_logs", methods=["GET"])
 def get_recent_logs_for_unit_and_experiment(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
     """Shows event logs for a specific unit within an experiment. This is for the single-page Pioreactor ui"""
 
@@ -463,7 +461,7 @@ def get_recent_logs_for_unit_and_experiment(pioreactor_unit: str, experiment: st
     return jsonify(recent_logs)
 
 
-@api.route("/workers/<pioreactor_unit>/experiments/<experiment>/logs", methods=["GET"])
+@api_bp.route("/workers/<pioreactor_unit>/experiments/<experiment>/logs", methods=["GET"])
 def get_logs_for_unit_and_experiment(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
     """Shows event logs from specific unit and experiment, uses pagination."""
 
@@ -487,7 +485,7 @@ def get_logs_for_unit_and_experiment(pioreactor_unit: str, experiment: str) -> R
     return jsonify(recent_logs)
 
 
-@api.route("/units/<pioreactor_unit>/system_logs", methods=["GET"])
+@api_bp.route("/units/<pioreactor_unit>/system_logs", methods=["GET"])
 def get_system_logs_for_unit(pioreactor_unit: str) -> ResponseReturnValue:
     """Shows system logs from specific unit uses pagination."""
 
@@ -507,7 +505,7 @@ def get_system_logs_for_unit(pioreactor_unit: str) -> ResponseReturnValue:
     return jsonify(recent_logs)
 
 
-@api.route("/units/<pioreactor_unit>/logs", methods=["GET"])
+@api_bp.route("/units/<pioreactor_unit>/logs", methods=["GET"])
 def get_logs_for_unit(pioreactor_unit: str) -> ResponseReturnValue:
     """Shows event logs from all units, uses pagination."""
 
@@ -526,8 +524,8 @@ def get_logs_for_unit(pioreactor_unit: str) -> ResponseReturnValue:
     return jsonify(recent_logs)
 
 
-@api.route("/workers/<pioreactor_unit>/experiments/<experiment>/logs", methods=["POST"])
-@api.route("/units/<pioreactor_unit>/experiments/<experiment>/logs", methods=["POST"])
+@api_bp.route("/workers/<pioreactor_unit>/experiments/<experiment>/logs", methods=["POST"])
+@api_bp.route("/units/<pioreactor_unit>/experiments/<experiment>/logs", methods=["POST"])
 def publish_new_log(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
     body = request.get_json()
     source_ = body.get("source_", "ui")
@@ -566,7 +564,7 @@ def publish_new_log(pioreactor_unit: str, experiment: str) -> ResponseReturnValu
 ## Time series data
 
 
-@api.route("/experiments/<experiment>/time_series/growth_rates", methods=["GET"])
+@api_bp.route("/experiments/<experiment>/time_series/growth_rates", methods=["GET"])
 def get_growth_rates(experiment: str) -> ResponseReturnValue:
     """Gets growth rates for all units"""
     args = request.args
@@ -595,7 +593,7 @@ def get_growth_rates(experiment: str) -> ResponseReturnValue:
     return attach_cache_control(as_json_response(growth_rates["json"]))
 
 
-@api.route("/experiments/<experiment>/time_series/temperature_readings", methods=["GET"])
+@api_bp.route("/experiments/<experiment>/time_series/temperature_readings", methods=["GET"])
 def get_temperature_readings(experiment: str) -> ResponseReturnValue:
     """Gets temperature readings for all units"""
     args = request.args
@@ -624,7 +622,7 @@ def get_temperature_readings(experiment: str) -> ResponseReturnValue:
     return attach_cache_control(as_json_response(temperature_readings["json"]))
 
 
-@api.route("/experiments/<experiment>/time_series/od_readings_filtered", methods=["GET"])
+@api_bp.route("/experiments/<experiment>/time_series/od_readings_filtered", methods=["GET"])
 def get_od_readings_filtered(experiment: str) -> ResponseReturnValue:
     """Gets normalized od for all units"""
     args = request.args
@@ -654,7 +652,7 @@ def get_od_readings_filtered(experiment: str) -> ResponseReturnValue:
     return attach_cache_control(as_json_response(filtered_od_readings["json"]))
 
 
-@api.route("/experiments/<experiment>/time_series/od_readings", methods=["GET"])
+@api_bp.route("/experiments/<experiment>/time_series/od_readings", methods=["GET"])
 def get_od_readings(experiment: str) -> ResponseReturnValue:
     """Gets raw od for all units"""
     args = request.args
@@ -682,7 +680,7 @@ def get_od_readings(experiment: str) -> ResponseReturnValue:
     return attach_cache_control(as_json_response(raw_od_readings["json"]))
 
 
-@api.route("/experiments/<experiment>/time_series/raw_od_readings", methods=["GET"])
+@api_bp.route("/experiments/<experiment>/time_series/raw_od_readings", methods=["GET"])
 def get_od_raw_readings(experiment: str) -> ResponseReturnValue:
     """Gets raw od for all units"""
     args = request.args
@@ -710,7 +708,7 @@ def get_od_raw_readings(experiment: str) -> ResponseReturnValue:
     return attach_cache_control(as_json_response(raw_od_readings["json"]))
 
 
-@api.route("/experiments/<experiment>/time_series/<data_source>/<column>", methods=["GET"])
+@api_bp.route("/experiments/<experiment>/time_series/<data_source>/<column>", methods=["GET"])
 def get_fallback_time_series(experiment: str, data_source: str, column: str) -> ResponseReturnValue:
     args = request.args
     filter_mod_n = float(args.get("filter_mod_N", 100.0))
@@ -749,7 +747,7 @@ def get_fallback_time_series(experiment: str, data_source: str, column: str) -> 
     return attach_cache_control(as_json_response(r["json"]))
 
 
-@api.route("/workers/<pioreactor_unit>/experiments/<experiment>/time_series/growth_rates", methods=["GET"])
+@api_bp.route("/workers/<pioreactor_unit>/experiments/<experiment>/time_series/growth_rates", methods=["GET"])
 def get_growth_rates_per_unit(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
     args = request.args
     filter_mod_n = float(args.get("filter_mod_N", 100.0))
@@ -777,7 +775,7 @@ def get_growth_rates_per_unit(pioreactor_unit: str, experiment: str) -> Response
     return attach_cache_control(as_json_response(growth_rates["json"]))
 
 
-@api.route(
+@api_bp.route(
     "/workers/<pioreactor_unit>/experiments/<experiment>/time_series/temperature_readings",
     methods=["GET"],
 )
@@ -808,7 +806,7 @@ def get_temperature_readings_per_unit(pioreactor_unit: str, experiment: str) -> 
     return attach_cache_control(as_json_response(temperature_readings["json"]))
 
 
-@api.route(
+@api_bp.route(
     "/workers/<pioreactor_unit>/experiments/<experiment>/time_series/od_readings_filtered",
     methods=["GET"],
 )
@@ -840,7 +838,7 @@ def get_od_readings_filtered_per_unit(pioreactor_unit: str, experiment: str) -> 
     return attach_cache_control(as_json_response(filtered_od_readings["json"]))
 
 
-@api.route("/workers/<pioreactor_unit>/experiments/<experiment>/time_series/od_readings", methods=["GET"])
+@api_bp.route("/workers/<pioreactor_unit>/experiments/<experiment>/time_series/od_readings", methods=["GET"])
 def get_od_readings_per_unit(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
     args = request.args
     filter_mod_n = float(args.get("filter_mod_N", 100.0))
@@ -867,7 +865,7 @@ def get_od_readings_per_unit(pioreactor_unit: str, experiment: str) -> ResponseR
     return attach_cache_control(as_json_response(raw_od_readings["json"]))
 
 
-@api.route(
+@api_bp.route(
     "/workers/<pioreactor_unit>/experiments/<experiment>/time_series/raw_od_readings",
     methods=["GET"],
 )
@@ -897,7 +895,7 @@ def get_od_raw_readings_per_unit(pioreactor_unit: str, experiment: str) -> Respo
     return attach_cache_control(as_json_response(raw_od_readings["json"]))
 
 
-@api.route(
+@api_bp.route(
     "/workers/<pioreactor_unit>/experiments/<experiment>/time_series/<data_source>/<column>",
     methods=["GET"],
 )
@@ -942,7 +940,7 @@ def get_fallback_time_series_per_unit(
     return attach_cache_control(as_json_response(r["json"]))
 
 
-@api.route("/experiments/<experiment>/media_rates", methods=["GET"])
+@api_bp.route("/experiments/<experiment>/media_rates", methods=["GET"])
 def get_media_rates(experiment: str) -> ResponseReturnValue:
     """
     Shows amount of added media per unit. Note that it only consider values from a dosing automation (i.e. not manual dosing, which includes continously dose)
@@ -989,7 +987,7 @@ def get_media_rates(experiment: str) -> ResponseReturnValue:
 ## CALIBRATIONS
 
 
-@api.route("/workers/<pioreactor_unit>/calibrations", methods=["GET"])
+@api_bp.route("/workers/<pioreactor_unit>/calibrations", methods=["GET"])
 def get_all_calibrations(pioreactor_unit: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_get_across_cluster("/unit_api/calibrations")
@@ -998,7 +996,7 @@ def get_all_calibrations(pioreactor_unit: str) -> DelayedResponseReturnValue:
     return create_task_response(task)
 
 
-@api.route("/workers/<pioreactor_unit>/active_calibrations", methods=["GET"])
+@api_bp.route("/workers/<pioreactor_unit>/active_calibrations", methods=["GET"])
 def get_all_active_calibrations(pioreactor_unit: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_get_across_cluster("/unit_api/active_calibrations")
@@ -1007,7 +1005,7 @@ def get_all_active_calibrations(pioreactor_unit: str) -> DelayedResponseReturnVa
     return create_task_response(task)
 
 
-@api.route("/workers/<pioreactor_unit>/zipped_calibrations", methods=["GET"])
+@api_bp.route("/workers/<pioreactor_unit>/zipped_calibrations", methods=["GET"])
 def get_all_calibrations_as_yamls(pioreactor_unit: str) -> ResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_get_across_cluster("/unit_api/zipped_calibrations", return_raw=True)
@@ -1054,7 +1052,7 @@ def get_all_calibrations_as_yamls(pioreactor_unit: str) -> ResponseReturnValue:
     )
 
 
-@api.route("/workers/<pioreactor_unit>/calibrations/<device>", methods=["GET"])
+@api_bp.route("/workers/<pioreactor_unit>/calibrations/<device>", methods=["GET"])
 def get_calibrations(pioreactor_unit: str, device: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_get_across_cluster(f"/unit_api/calibrations/{device}")
@@ -1063,7 +1061,7 @@ def get_calibrations(pioreactor_unit: str, device: str) -> DelayedResponseReturn
     return create_task_response(task)
 
 
-@api.route("/workers/<pioreactor_unit>/calibrations/<device>/<cal_name>", methods=["GET"])
+@api_bp.route("/workers/<pioreactor_unit>/calibrations/<device>/<cal_name>", methods=["GET"])
 def get_calibration(pioreactor_unit: str, device: str, cal_name: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_get_across_cluster(f"/unit_api/calibrations/{device}/{cal_name}")
@@ -1074,7 +1072,7 @@ def get_calibration(pioreactor_unit: str, device: str, cal_name: str) -> Delayed
     return create_task_response(task)
 
 
-@api.route("/workers/<pioreactor_unit>/calibrations/<device>", methods=["POST"])
+@api_bp.route("/workers/<pioreactor_unit>/calibrations/<device>", methods=["POST"])
 def create_calibration(pioreactor_unit: str, device: str) -> DelayedResponseReturnValue:
     yaml_data = request.get_json()["calibration_data"]
 
@@ -1099,7 +1097,7 @@ def create_calibration(pioreactor_unit: str, device: str) -> DelayedResponseRetu
     return create_task_response(task)
 
 
-@api.route("/workers/<pioreactor_unit>/active_calibrations/<device>/<cal_name>", methods=["PATCH"])
+@api_bp.route("/workers/<pioreactor_unit>/active_calibrations/<device>/<cal_name>", methods=["PATCH"])
 def set_active_calibration(pioreactor_unit, device, cal_name) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_patch_across_cluster(f"/unit_api/active_calibrations/{device}/{cal_name}")
@@ -1110,7 +1108,7 @@ def set_active_calibration(pioreactor_unit, device, cal_name) -> DelayedResponse
     return create_task_response(task)
 
 
-@api.route("/workers/<pioreactor_unit>/active_calibrations/<device>", methods=["DELETE"])
+@api_bp.route("/workers/<pioreactor_unit>/active_calibrations/<device>", methods=["DELETE"])
 def remove_active_status_calibration(pioreactor_unit, device) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_delete_across_cluster(f"/unit_api/active_calibrations/{device}")
@@ -1121,7 +1119,7 @@ def remove_active_status_calibration(pioreactor_unit, device) -> DelayedResponse
     return create_task_response(task)
 
 
-@api.route("/workers/<pioreactor_unit>/calibrations/<device>/<cal_name>", methods=["DELETE"])
+@api_bp.route("/workers/<pioreactor_unit>/calibrations/<device>/<cal_name>", methods=["DELETE"])
 def delete_calibration(pioreactor_unit, device, cal_name) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_delete_across_cluster(f"/unit_api/calibrations/{device}/{cal_name}")
@@ -1135,7 +1133,7 @@ def delete_calibration(pioreactor_unit, device, cal_name) -> DelayedResponseRetu
 ## PLUGINS
 
 
-@api.route("/units/<pioreactor_unit>/plugins/installed", methods=["GET"])
+@api_bp.route("/units/<pioreactor_unit>/plugins/installed", methods=["GET"])
 def get_plugins_on_machine(pioreactor_unit: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_get_across_cluster("/unit_api/plugins/installed", timeout=5)
@@ -1145,7 +1143,7 @@ def get_plugins_on_machine(pioreactor_unit: str) -> DelayedResponseReturnValue:
     return create_task_response(task)
 
 
-@api.route("/units/<pioreactor_unit>/plugins/install", methods=["POST", "PATCH"])
+@api_bp.route("/units/<pioreactor_unit>/plugins/install", methods=["POST", "PATCH"])
 def install_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseReturnValue:
     # there is a security problem here. See https://github.com/Pioreactor/pioreactor/issues/421
     if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS"):
@@ -1163,7 +1161,7 @@ def install_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseReturn
         )
 
 
-@api.route("/units/<pioreactor_unit>/plugins/uninstall", methods=["POST", "PATCH"])
+@api_bp.route("/units/<pioreactor_unit>/plugins/uninstall", methods=["POST", "PATCH"])
 def uninstall_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseReturnValue:
     if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS"):
         abort(403, "No UI uninstall allowed")
@@ -1180,8 +1178,8 @@ def uninstall_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseRetu
         )
 
 
-@api.route("/units/<pioreactor_unit>/capabilities", methods=["GET"])
-@api.route("/workers/<pioreactor_unit>/capabilities", methods=["GET"])
+@api_bp.route("/units/<pioreactor_unit>/capabilities", methods=["GET"])
+@api_bp.route("/workers/<pioreactor_unit>/capabilities", methods=["GET"])
 def get_capabilities(pioreactor_unit: str) -> ResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         return create_task_response(broadcast_get_across_cluster("/unit_api/capabilities", timeout=15))
@@ -1194,7 +1192,7 @@ def get_capabilities(pioreactor_unit: str) -> ResponseReturnValue:
 ### SETTINGS
 
 
-@api.route(
+@api_bp.route(
     "/workers/<pioreactor_unit>/jobs/settings/job_name/<job_name>/experiments/<experiment>", methods=["GET"]
 )
 def get_job_settings_for_worker(
@@ -1215,7 +1213,7 @@ def get_job_settings_for_worker(
     return create_task_response(task)
 
 
-@api.route(
+@api_bp.route(
     "/workers/<pioreactor_unit>/jobs/settings/job_name/<job_name>/setting/<setting>/experiments/<experiment>",
     methods=["GET"],
 )
@@ -1240,7 +1238,7 @@ def get_job_setting_for_worker(
 ## MISC
 
 
-@api.route("/units/<pioreactor_unit>/versions/app", methods=["GET"])
+@api_bp.route("/units/<pioreactor_unit>/versions/app", methods=["GET"])
 def get_app_versions(pioreactor_unit: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         return create_task_response(broadcast_get_across_cluster("/unit_api/versions/app"))
@@ -1250,7 +1248,7 @@ def get_app_versions(pioreactor_unit: str) -> DelayedResponseReturnValue:
         )
 
 
-@api.route("/units/<pioreactor_unit>/versions/ui", methods=["GET"])
+@api_bp.route("/units/<pioreactor_unit>/versions/ui", methods=["GET"])
 def get_ui_versions_across_cluster(pioreactor_unit: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         return create_task_response(broadcast_get_across_cluster("/unit_api/versions/ui"))
@@ -1263,7 +1261,7 @@ def get_ui_versions_across_cluster(pioreactor_unit: str) -> DelayedResponseRetur
 ## UPLOADS
 
 
-@api.route("/system/upload", methods=["POST"])
+@api_bp.route("/system/upload", methods=["POST"])
 def upload() -> ResponseReturnValue:
     if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_UPLOADS"):
         abort(403, "No UI uploads allowed")
@@ -1286,7 +1284,7 @@ def upload() -> ResponseReturnValue:
     return jsonify({"message": "File successfully uploaded", "save_path": save_path}), 200
 
 
-@api.route("/contrib/automations/<automation_type>", methods=["GET"])
+@api_bp.route("/contrib/automations/<automation_type>", methods=["GET"])
 def get_automation_contrib(automation_type: str) -> ResponseReturnValue:
     # security to prevent possibly reading arbitrary file
     if automation_type not in {"temperature", "dosing", "led"}:
@@ -1322,7 +1320,7 @@ def get_automation_contrib(automation_type: str) -> ResponseReturnValue:
         abort(400, str(e))
 
 
-@api.route("/contrib/jobs", methods=["GET"])
+@api_bp.route("/contrib/jobs", methods=["GET"])
 def get_job_contrib() -> ResponseReturnValue:
     try:
         job_path_default = Path(os.environ["WWW"]) / "contrib" / "jobs"
@@ -1346,7 +1344,7 @@ def get_job_contrib() -> ResponseReturnValue:
         abort(400, str(e))
 
 
-@api.route("/contrib/charts", methods=["GET"])
+@api_bp.route("/contrib/charts", methods=["GET"])
 def get_charts_contrib() -> ResponseReturnValue:
     try:
         chart_path_default = Path(os.environ["WWW"]) / "contrib" / "charts"
@@ -1369,13 +1367,13 @@ def get_charts_contrib() -> ResponseReturnValue:
         abort(400, str(e))
 
 
-@api.route("/system/update_next_version", methods=["POST"])
+@api_bp.route("/system/update_next_version", methods=["POST"])
 def update_app() -> DelayedResponseReturnValue:
     task = tasks.update_app_across_cluster()
     return create_task_response(task)
 
 
-@api.route("/system/update_from_archive", methods=["POST"])
+@api_bp.route("/system/update_from_archive", methods=["POST"])
 def update_app_from_release_archive() -> DelayedResponseReturnValue:
     body = request.get_json()
     release_archive_location = body["release_archive_location"]
@@ -1384,7 +1382,7 @@ def update_app_from_release_archive() -> DelayedResponseReturnValue:
     return create_task_response(task)
 
 
-@api.route("/contrib/exportable_datasets", methods=["GET"])
+@api_bp.route("/contrib/exportable_datasets", methods=["GET"])
 def get_exportable_datasets() -> ResponseReturnValue:
     try:
         builtins = sorted((Path(os.environ["DOT_PIOREACTOR"]) / "exportable_datasets").glob("*.y*ml"))
@@ -1406,7 +1404,7 @@ def get_exportable_datasets() -> ResponseReturnValue:
         abort(400, str(e))
 
 
-@api.route("/contrib/exportable_datasets/<target_dataset>/preview", methods=["GET"])
+@api_bp.route("/contrib/exportable_datasets/<target_dataset>/preview", methods=["GET"])
 def preview_exportable_datasets(target_dataset) -> ResponseReturnValue:
     builtins = sorted((Path(os.environ["DOT_PIOREACTOR"]) / "exportable_datasets").glob("*.y*ml"))
     plugins = sorted((Path(os.environ["DOT_PIOREACTOR"]) / "plugins" / "exportable_datasets").glob("*.y*ml"))
@@ -1425,7 +1423,7 @@ def preview_exportable_datasets(target_dataset) -> ResponseReturnValue:
     abort(404, f"{target_dataset} not found")
 
 
-@api.route("/contrib/exportable_datasets/export_datasets", methods=["POST"])
+@api_bp.route("/contrib/exportable_datasets/export_datasets", methods=["POST"])
 def export_datasets() -> ResponseReturnValue:
     body = request.get_json()
 
@@ -1478,7 +1476,7 @@ def export_datasets() -> ResponseReturnValue:
     return {"result": status, "filename": filename, "msg": "Finished"}, 200
 
 
-@api.route("/experiments", methods=["GET"])
+@api_bp.route("/experiments", methods=["GET"])
 def get_experiments() -> ResponseReturnValue:
     try:
         response = jsonify(
@@ -1496,7 +1494,7 @@ def get_experiments() -> ResponseReturnValue:
         abort(500, str(e))
 
 
-@api.route("/experiments", methods=["POST"])
+@api_bp.route("/experiments", methods=["POST"])
 def create_experiment() -> ResponseReturnValue:
     body = request.get_json()
     proposed_experiment_name = body.get("experiment")
@@ -1549,7 +1547,7 @@ def create_experiment() -> ResponseReturnValue:
         abort(500, str(e))
 
 
-@api.route("/experiments/<experiment>", methods=["DELETE"])
+@api_bp.route("/experiments/<experiment>", methods=["DELETE"])
 def delete_experiment(experiment: str) -> ResponseReturnValue:
     row_count = modify_app_db("DELETE FROM experiments WHERE experiment=?;", (experiment,))
     broadcast_post_across_cluster("/unit_api/jobs/stop", params={"experiment": experiment})
@@ -1561,7 +1559,7 @@ def delete_experiment(experiment: str) -> ResponseReturnValue:
     pass
 
 
-@api.route("/experiments/latest", methods=["GET"])
+@api_bp.route("/experiments/latest", methods=["GET"])
 def get_latest_experiment() -> ResponseReturnValue:
     try:
         return attach_cache_control(
@@ -1579,7 +1577,7 @@ def get_latest_experiment() -> ResponseReturnValue:
         abort(500, str(e))
 
 
-@api.route("/experiments/<experiment>/unit_labels", methods=["GET"])
+@api_bp.route("/experiments/<experiment>/unit_labels", methods=["GET"])
 def get_unit_labels(experiment: str) -> ResponseReturnValue:
     try:
         if experiment == "current":
@@ -1603,7 +1601,7 @@ def get_unit_labels(experiment: str) -> ResponseReturnValue:
         abort(500, str(e))
 
 
-@api.route("/experiments/<experiment>/unit_labels", methods=["PUT", "PATCH"])
+@api_bp.route("/experiments/<experiment>/unit_labels", methods=["PUT", "PATCH"])
 def upsert_unit_labels(experiment: str) -> ResponseReturnValue:
     """
     Update or insert a new unit label for the current experiment.
@@ -1650,7 +1648,7 @@ def upsert_unit_labels(experiment: str) -> ResponseReturnValue:
     return {"status": "success"}, 201
 
 
-@api.route("/historical_organisms", methods=["GET"])
+@api_bp.route("/historical_organisms", methods=["GET"])
 def get_historical_organisms_used() -> ResponseReturnValue:
     try:
         historical_organisms = query_app_db(
@@ -1664,7 +1662,7 @@ def get_historical_organisms_used() -> ResponseReturnValue:
     return jsonify(historical_organisms)
 
 
-@api.route("/historical_media", methods=["GET"])
+@api_bp.route("/historical_media", methods=["GET"])
 def get_historical_media_used() -> ResponseReturnValue:
     try:
         historical_media = query_app_db(
@@ -1678,7 +1676,7 @@ def get_historical_media_used() -> ResponseReturnValue:
     return jsonify(historical_media)
 
 
-@api.route("/experiments/<experiment>", methods=["PATCH"])
+@api_bp.route("/experiments/<experiment>", methods=["PATCH"])
 def update_experiment(experiment: str) -> ResponseReturnValue:
     body = request.get_json()
     if "description" in body:
@@ -1695,7 +1693,7 @@ def update_experiment(experiment: str) -> ResponseReturnValue:
         abort(400, "Missing description")
 
 
-@api.route("/experiments/<experiment>", methods=["GET"])
+@api_bp.route("/experiments/<experiment>", methods=["GET"])
 def get_experiment(experiment: str) -> ResponseReturnValue:
     result = query_app_db(
         """SELECT experiment, created_at, description, round( (strftime("%s","now") - strftime("%s", created_at))/60/60, 0) as delta_hours
@@ -1714,8 +1712,8 @@ def get_experiment(experiment: str) -> ResponseReturnValue:
 ## CONFIG CONTROL
 
 
-@api.route("/units/<pioreactor_unit>/configuration", methods=["GET"])
-@api.route("/workers/<pioreactor_unit>/configuration", methods=["GET"])
+@api_bp.route("/units/<pioreactor_unit>/configuration", methods=["GET"])
+@api_bp.route("/workers/<pioreactor_unit>/configuration", methods=["GET"])
 def get_configuration_for_pioreactor_unit(pioreactor_unit: str) -> ResponseReturnValue:
     """get configuration for a pioreactor unit"""
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
@@ -1744,7 +1742,7 @@ def get_configuration_for_pioreactor_unit(pioreactor_unit: str) -> ResponseRetur
     return result
 
 
-@api.route("/configs/<filename>", methods=["GET"])
+@api_bp.route("/configs/<filename>", methods=["GET"])
 def get_config(filename: str) -> ResponseReturnValue:
     """get a specific config.ini file in the .pioreactor folder"""
 
@@ -1771,7 +1769,7 @@ def get_config(filename: str) -> ResponseReturnValue:
         abort(400, str(e))
 
 
-@api.route("/configs", methods=["GET"])
+@api_bp.route("/configs", methods=["GET"])
 def get_configs() -> ResponseReturnValue:
     """get a list of all config.ini files in the .pioreactor folder, _and_ are part of the inventory _or_ are leader"""
 
@@ -1799,7 +1797,7 @@ def get_configs() -> ResponseReturnValue:
     )
 
 
-@api.route("/configs/<filename>", methods=["PATCH"])
+@api_bp.route("/configs/<filename>", methods=["PATCH"])
 def update_config(filename: str) -> ResponseReturnValue:
     body = request.get_json()
     code = body["code"]
@@ -1893,7 +1891,7 @@ def update_config(filename: str) -> ResponseReturnValue:
     return {"status": "success"}, 200
 
 
-@api.route("/configs/<filename>/history", methods=["GET"])
+@api_bp.route("/configs/<filename>/history", methods=["GET"])
 def get_historical_config_for(filename: str) -> ResponseReturnValue:
     configs_for_filename = query_app_db(
         "SELECT filename, timestamp, data FROM config_files_histories WHERE filename=? ORDER BY timestamp DESC",
@@ -1903,7 +1901,7 @@ def get_historical_config_for(filename: str) -> ResponseReturnValue:
     return attach_cache_control(jsonify(configs_for_filename), max_age=15)
 
 
-@api.route("/is_local_access_point_active", methods=["GET"])
+@api_bp.route("/is_local_access_point_active", methods=["GET"])
 def is_local_access_point_active() -> ResponseReturnValue:
     return attach_cache_control(
         jsonify({"result": os.path.isfile("/boot/firmware/local_access_point")}), max_age=10_000
@@ -1913,7 +1911,7 @@ def is_local_access_point_active() -> ResponseReturnValue:
 ### experiment profiles
 
 
-@api.route("/experiment_profiles/running/experiments/<experiment>", methods=["GET"])
+@api_bp.route("/experiment_profiles/running/experiments/<experiment>", methods=["GET"])
 def get_running_profiles(experiment: str) -> ResponseReturnValue:
     jobs = query_temp_local_metadata_db(
         """
@@ -1943,7 +1941,7 @@ def get_running_profiles(experiment: str) -> ResponseReturnValue:
     return as_json_response(jobs["result"])
 
 
-@api.route("/contrib/experiment_profiles", methods=["POST"])
+@api_bp.route("/contrib/experiment_profiles", methods=["POST"])
 def create_experiment_profile() -> ResponseReturnValue:
     body = request.get_json()
     experiment_profile_body = body["body"]
@@ -1987,7 +1985,7 @@ def create_experiment_profile() -> ResponseReturnValue:
     return {"status": "success"}, 200
 
 
-@api.route("/contrib/experiment_profiles", methods=["PATCH"])
+@api_bp.route("/contrib/experiment_profiles", methods=["PATCH"])
 def update_experiment_profile() -> ResponseReturnValue:
     body = request.get_json()
     experiment_profile_body = body["body"]
@@ -2025,7 +2023,7 @@ def update_experiment_profile() -> ResponseReturnValue:
     return {"status": "success"}, 200
 
 
-@api.route("/contrib/experiment_profiles", methods=["GET"])
+@api_bp.route("/contrib/experiment_profiles", methods=["GET"])
 def get_experiment_profiles() -> ResponseReturnValue:
     try:
         profile_path = Path(os.environ["DOT_PIOREACTOR"]) / "experiment_profiles"
@@ -2062,7 +2060,7 @@ def get_experiment_profiles() -> ResponseReturnValue:
         abort(400, str(e))
 
 
-@api.route("/contrib/experiment_profiles/<filename>", methods=["GET"])
+@api_bp.route("/contrib/experiment_profiles/<filename>", methods=["GET"])
 def get_experiment_profile(filename: str) -> ResponseReturnValue:
     file = Path(filename).name
     try:
@@ -2080,7 +2078,7 @@ def get_experiment_profile(filename: str) -> ResponseReturnValue:
         abort(404, str(e))
 
 
-@api.route("/contrib/experiment_profiles/<filename>", methods=["DELETE"])
+@api_bp.route("/contrib/experiment_profiles/<filename>", methods=["DELETE"])
 def delete_experiment_profile(filename: str) -> ResponseReturnValue:
     file = Path(filename).name
     try:
@@ -2102,14 +2100,14 @@ def delete_experiment_profile(filename: str) -> ResponseReturnValue:
 ##### Worker endpoints
 
 
-@api.route("/units", methods=["GET"])
+@api_bp.route("/units", methods=["GET"])
 def get_list_of_units() -> ResponseReturnValue:
     # Get a list of all units (workers + leader)
     all_units = get_all_units()
     return jsonify([{"pioreactor_unit": u} for u in all_units])
 
 
-@api.route("/workers", methods=["GET"])
+@api_bp.route("/workers", methods=["GET"])
 def get_list_of_workers() -> ResponseReturnValue:
     # Get a list of all workers
     all_workers = query_app_db(
@@ -2118,7 +2116,7 @@ def get_list_of_workers() -> ResponseReturnValue:
     return jsonify(all_workers)
 
 
-@api.route("/workers/discover", methods=["GET"])
+@api_bp.route("/workers/discover", methods=["GET"])
 def discover_available_workers() -> ResponseReturnValue:
     """
     Discover available pioreactor workers on the network not already registered.
@@ -2131,7 +2129,7 @@ def discover_available_workers() -> ResponseReturnValue:
     return jsonify([{"pioreactor_unit": h} for h in available])
 
 
-@api.route("/workers/setup", methods=["POST"])
+@api_bp.route("/workers/setup", methods=["POST"])
 def setup_worker_pioreactor() -> ResponseReturnValue:
     data = request.get_json()
     new_name = data["name"]
@@ -2154,7 +2152,7 @@ def setup_worker_pioreactor() -> ResponseReturnValue:
         abort(404, f"Failed to add worker {new_name}. See logs.")
 
 
-@api.route("/workers", methods=["PUT"])
+@api_bp.route("/workers", methods=["PUT"])
 def add_worker() -> ResponseReturnValue:
     data = request.get_json()
     pioreactor_unit = data.get("pioreactor_unit")
@@ -2174,7 +2172,7 @@ def add_worker() -> ResponseReturnValue:
         abort(500, "Failed to add worker to database.")
 
 
-@api.route("/workers/<pioreactor_unit>", methods=["DELETE"])
+@api_bp.route("/workers/<pioreactor_unit>", methods=["DELETE"])
 def delete_worker(pioreactor_unit: str) -> ResponseReturnValue:
     row_count = modify_app_db("DELETE FROM workers WHERE pioreactor_unit=?;", (pioreactor_unit,))
     if row_count > 0:
@@ -2214,7 +2212,7 @@ def delete_worker(pioreactor_unit: str) -> ResponseReturnValue:
         abort(404, f"Worker {pioreactor_unit} not found")
 
 
-@api.route("/workers/<pioreactor_unit>/is_active", methods=["PUT"])
+@api_bp.route("/workers/<pioreactor_unit>/is_active", methods=["PUT"])
 def change_worker_status(pioreactor_unit: str) -> ResponseReturnValue:
     # Get the new status from the request body
     data = request.get_json()
@@ -2242,7 +2240,7 @@ def change_worker_status(pioreactor_unit: str) -> ResponseReturnValue:
         abort(404, f"Worker {pioreactor_unit} not found")
 
 
-@api.route("/workers/<pioreactor_unit>/model", methods=["PUT"])
+@api_bp.route("/workers/<pioreactor_unit>/model", methods=["PUT"])
 def change_worker_model(pioreactor_unit: str) -> ResponseReturnValue:
     # Get the new status from the request body
     data = request.get_json()
@@ -2271,7 +2269,7 @@ def change_worker_model(pioreactor_unit: str) -> ResponseReturnValue:
         abort(404, f"Worker {pioreactor_unit} not found")
 
 
-@api.route("/workers/<pioreactor_unit>/model", methods=["GET"])
+@api_bp.route("/workers/<pioreactor_unit>/model", methods=["GET"])
 def get_worker_model_and_metadata(pioreactor_unit: str) -> ResponseReturnValue:
     # Query the database for a worker's model and metadata
     result = query_app_db(
@@ -2301,7 +2299,7 @@ def get_worker_model_and_metadata(pioreactor_unit: str) -> ResponseReturnValue:
         )
 
 
-@api.route("/workers/<pioreactor_unit>", methods=["GET"])
+@api_bp.route("/workers/<pioreactor_unit>", methods=["GET"])
 def get_worker(pioreactor_unit: str) -> ResponseReturnValue:
     # Query the database for a worker
     result = query_app_db(
@@ -2324,7 +2322,7 @@ def get_worker(pioreactor_unit: str) -> ResponseReturnValue:
 ### Experiment worker assignments
 
 
-@api.route("/workers/assignments", methods=["GET"])
+@api_bp.route("/workers/assignments", methods=["GET"])
 def get_workers_and_experiment_assignments() -> ResponseReturnValue:
     # Get the experiment that a worker is assigned to along with its status
     result = query_app_db(
@@ -2342,7 +2340,7 @@ def get_workers_and_experiment_assignments() -> ResponseReturnValue:
         return attach_cache_control(jsonify([]), max_age=2)
 
 
-@api.route("/experiments/active", methods=["GET"])
+@api_bp.route("/experiments/active", methods=["GET"])
 def get_active_experiments() -> ResponseReturnValue:
     """Get list of experiments with at least one active worker assigned"""
     try:
@@ -2370,7 +2368,7 @@ def get_active_experiments() -> ResponseReturnValue:
         abort(500, str(e))
 
 
-@api.route("/workers/assignments", methods=["DELETE"])
+@api_bp.route("/workers/assignments", methods=["DELETE"])
 def remove_all_workers_from_all_experiments() -> DelayedResponseReturnValue:
     # unassign all
     modify_app_db(
@@ -2386,7 +2384,7 @@ def remove_all_workers_from_all_experiments() -> DelayedResponseReturnValue:
     return create_task_response(task)
 
 
-@api.route("/experiments/assignment_count", methods=["GET"])
+@api_bp.route("/experiments/assignment_count", methods=["GET"])
 def get_experiments_worker_assignments() -> ResponseReturnValue:
     # Get the number of pioreactors assigned to an experiment.
     result = query_app_db(
@@ -2407,7 +2405,7 @@ def get_experiments_worker_assignments() -> ResponseReturnValue:
         return attach_cache_control(jsonify([]), max_age=2)
 
 
-@api.route("/workers/<pioreactor_unit>/experiment", methods=["GET"])
+@api_bp.route("/workers/<pioreactor_unit>/experiment", methods=["GET"])
 def get_experiment_assignment_for_worker(pioreactor_unit: str) -> ResponseReturnValue:
     # Get the experiment that a worker is assigned to along with its active status
     result = query_app_db(
@@ -2436,7 +2434,7 @@ def get_experiment_assignment_for_worker(pioreactor_unit: str) -> ResponseReturn
         return attach_cache_control(jsonify(result), max_age=2)
 
 
-@api.route("/experiments/<experiment>/workers", methods=["GET"])
+@api_bp.route("/experiments/<experiment>/workers", methods=["GET"])
 def get_list_of_workers_for_experiment(experiment: str) -> ResponseReturnValue:
     workers = query_app_db(
         """
@@ -2452,7 +2450,7 @@ def get_list_of_workers_for_experiment(experiment: str) -> ResponseReturnValue:
     return attach_cache_control(jsonify(workers), max_age=2)
 
 
-@api.route("/experiments/<experiment>/historical_worker_assignments", methods=["GET"])
+@api_bp.route("/experiments/<experiment>/historical_worker_assignments", methods=["GET"])
 def get_list_of_historical_workers_for_experiment(experiment: str) -> ResponseReturnValue:
     workers = query_app_db(
         """
@@ -2466,7 +2464,7 @@ def get_list_of_historical_workers_for_experiment(experiment: str) -> ResponseRe
     return jsonify(workers)
 
 
-@api.route("/experiments/<experiment>/workers", methods=["PUT"])
+@api_bp.route("/experiments/<experiment>/workers", methods=["PUT"])
 def add_worker_to_experiment(experiment: str) -> ResponseReturnValue:
     # assign
     data = request.get_json()
@@ -2492,7 +2490,7 @@ def add_worker_to_experiment(experiment: str) -> ResponseReturnValue:
         abort(500, "Failed to add to database.")
 
 
-@api.route("/experiments/<experiment>/workers/<pioreactor_unit>", methods=["DELETE"])
+@api_bp.route("/experiments/<experiment>/workers/<pioreactor_unit>", methods=["DELETE"])
 def remove_worker_from_experiment(experiment: str, pioreactor_unit: str) -> ResponseReturnValue:
     # unassign
     row_count = modify_app_db(
@@ -2514,7 +2512,7 @@ def remove_worker_from_experiment(experiment: str, pioreactor_unit: str) -> Resp
         abort(404, f"Worker {pioreactor_unit} not found")
 
 
-@api.route("/experiments/<experiment>/workers", methods=["DELETE"])
+@api_bp.route("/experiments/<experiment>/workers", methods=["DELETE"])
 def remove_workers_from_experiment(experiment: str) -> DelayedResponseReturnValue:
     # unassign all from specific experiment
     modify_app_db(

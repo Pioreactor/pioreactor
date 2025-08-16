@@ -1,14 +1,11 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import logging
 import sqlite3
-import tempfile
 import typing as t
 from base64 import b64decode
 from datetime import datetime
 from datetime import timezone
-from logging import handlers
 
 import paho.mqtt.client as mqtt
 from flask import Flask
@@ -56,17 +53,17 @@ def decode_base64(string: str) -> str:
 
 
 def create_app():
-    from .unit_api import unit_api
-    from .api import api
+    from .unit_api import unit_api_bp
+    from .api import api_bp
     from .mcp import mcp_bp
 
     app = Flask(NAME)
     app.logger = logger
 
-    app.register_blueprint(unit_api)
+    app.register_blueprint(unit_api_bp)
 
     if am_I_leader():
-        app.register_blueprint(api)
+        app.register_blueprint(api_bp)
         app.register_blueprint(mcp_bp)
         # we currently only need to communicate with MQTT for the leader.
         # don't even connect if a worker - if the leader is down, this will crash and restart the server over and over.
@@ -290,3 +287,7 @@ def get_all_units() -> list[str]:
     )
     assert result is not None and isinstance(result, list)
     return list(r["pioreactor_unit"] for r in result)
+
+
+if __name__ == "__main__":
+    create_app().run()

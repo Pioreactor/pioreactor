@@ -77,6 +77,7 @@ setup(
         [console_scripts]
         pio=pioreactor.cli.pio:pio
         pios=pioreactor.cli.pios:pios
+        pioreactor-fcgi=pioreactor.web.fcgi:main
     """,
     python_requires=">=3.11",
     extras_require={

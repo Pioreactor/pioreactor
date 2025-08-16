@@ -40,9 +40,8 @@ from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import get_from_leader as _get_from_leader
 from pioreactor.pubsub import patch_into_leader as _patch_into_leader
 from pioreactor.pubsub import post_into_leader as _post_into_leader
+from pioreactor.web.app import query_app_db
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
-
-from . import query_app_db
 
 
 logger = logging.getLogger("mcp_utils")
