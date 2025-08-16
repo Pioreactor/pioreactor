@@ -72,6 +72,13 @@ setup(
     author_email="hello@pioreactor.com",
     install_requires=CORE_REQUIREMENTS,
     include_package_data=True,
+    package_data={
+        "pioreactor": [
+            "web/static/*",
+            "web/static/**/*",
+        ]
+    },
+    zip_safe=False,
     packages=find_packages(exclude=["tests", "tests.*"]),
     entry_points="""
         [console_scripts]

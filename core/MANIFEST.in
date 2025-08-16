@@ -1,0 +1,4 @@
+graft pioreactor/web/static
+global-include *.html *.js *.css *.json *.map *.svg *.png *.jpg *.jpeg *.ico *.woff *.woff2 *.ttf
+prune pioreactor/web/static/node_modules
+prune pioreactor/web/static/src
