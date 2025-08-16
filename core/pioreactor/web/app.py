@@ -19,11 +19,10 @@ from pioreactor.config import config as pioreactor_config
 from pioreactor.config import get_leader_hostname
 from pioreactor.logging import create_logger
 from pioreactor.plugin_management import load_plugins
+from pioreactor.version import __version__
 from pioreactor.whoami import am_I_leader
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
-
-from .version import __version__
 
 VERSION = __version__
 HOSTNAME = get_unit_name()
@@ -53,9 +52,9 @@ def decode_base64(string: str) -> str:
 
 
 def create_app():
-    from .unit_api import unit_api_bp
-    from .api import api_bp
-    from .mcp import mcp_bp
+    from pioreactor.web.unit_api import unit_api_bp
+    from pioreactor.web.api import api_bp
+    from pioreactor.web.mcp import mcp_bp
 
     app = Flask(NAME)
     app.logger = logger

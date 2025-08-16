@@ -1,23 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Pioreactor MCP **blueprint**
-==========================
-
-This module defines a Flask *Blueprint* exposing an [Model‑Context‑Protocol](/) entry‑point that
-wraps a handful of Pioreactor operations as MCP tools. The blueprint can be
-registered inside the **leader** web app next to the existing `api` and
-`unit_api` blueprints:
-
-```python
-from pioreactorui.mcp_blueprint import mcp_bp
-
-if am_I_leader():
-    app.register_blueprint(api)
-    app.register_blueprint(mcp_bp)  # <— this file
-```
-
-Running it standalone for local testing is still possible (`python mcp_blueprint.py`).
-"""
 from __future__ import annotations
 
 import logging

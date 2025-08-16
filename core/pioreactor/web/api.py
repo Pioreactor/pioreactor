@@ -33,6 +33,7 @@ from pioreactor.structs import CalibrationBase
 from pioreactor.structs import Dataset
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import current_utc_timestamp
+from pioreactor.web import tasks
 from pioreactor.web.app import client
 from pioreactor.web.app import get_all_units
 from pioreactor.web.app import get_all_workers
@@ -45,7 +46,6 @@ from pioreactor.web.app import publish_to_experiment_log
 from pioreactor.web.app import publish_to_log
 from pioreactor.web.app import query_app_db
 from pioreactor.web.app import query_temp_local_metadata_db
-from pioreactor.web.tasks import tasks
 from pioreactor.web.utils import attach_cache_control
 from pioreactor.web.utils import create_task_response
 from pioreactor.web.utils import DelayedResponseReturnValue
@@ -1291,7 +1291,6 @@ def get_automation_contrib(automation_type: str) -> ResponseReturnValue:
         abort(400, "Not a valid automation type")
 
     try:
-        automation_path_default = Path(os.environ["WWW"]) / "contrib" / "automations" / automation_type
         automation_path_plugins = (
             Path(os.environ["DOT_PIOREACTOR"])
             / "plugins"
@@ -1300,9 +1299,7 @@ def get_automation_contrib(automation_type: str) -> ResponseReturnValue:
             / "automations"
             / automation_type
         )
-        files = sorted(automation_path_default.glob("*.y*ml")) + sorted(
-            automation_path_plugins.glob("*.y*ml")
-        )
+        files = sorted(automation_path_plugins.glob("*.y*ml"))
 
         # we dedup based on 'automation_name'.
         parsed_yaml = {}
@@ -1323,9 +1320,8 @@ def get_automation_contrib(automation_type: str) -> ResponseReturnValue:
 @api_bp.route("/contrib/jobs", methods=["GET"])
 def get_job_contrib() -> ResponseReturnValue:
     try:
-        job_path_default = Path(os.environ["WWW"]) / "contrib" / "jobs"
         job_path_plugins = Path(os.environ["DOT_PIOREACTOR"]) / "plugins" / "ui" / "contrib" / "jobs"
-        files = sorted(job_path_default.glob("*.y*ml")) + sorted(job_path_plugins.glob("*.y*ml"))
+        files = sorted(job_path_plugins.glob("*.y*ml"))
 
         # we dedup based on 'job_name'.
         parsed_yaml = {}
@@ -1347,9 +1343,8 @@ def get_job_contrib() -> ResponseReturnValue:
 @api_bp.route("/contrib/charts", methods=["GET"])
 def get_charts_contrib() -> ResponseReturnValue:
     try:
-        chart_path_default = Path(os.environ["WWW"]) / "contrib" / "charts"
         chart_path_plugins = Path(os.environ["DOT_PIOREACTOR"]) / "plugins" / "ui" / "contrib" / "charts"
-        files = sorted(chart_path_default.glob("*.y*ml")) + sorted(chart_path_plugins.glob("*.y*ml"))
+        files = sorted(chart_path_plugins.glob("*.y*ml"))
 
         # we dedup based on chart 'chart_key'.
         parsed_yaml = {}
@@ -1457,7 +1452,7 @@ def export_datasets() -> ResponseReturnValue:
     else:
         experiment_options = sum((["--experiment", experiment] for experiment in experiments), [])
 
-    filename_with_path = Path("/var/www/pioreactorui/static/exports") / filename
+    filename_with_path = Path(f"{os.environ['DOT_PIOREACTOR']}/web/exports/") / filename
     result = (
         tasks.pio_run_export_experiment_data(  # uses a lock so multiple exports can't happen simultaneously.
             "--output", filename_with_path.as_posix(), *cmd_tables, *experiment_options, *other_options

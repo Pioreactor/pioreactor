@@ -28,12 +28,12 @@ from pioreactor.structs import subclass_union
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import to_datetime
+from pioreactor.web import tasks
 from pioreactor.web.app import HOSTNAME
 from pioreactor.web.app import publish_to_error_log
 from pioreactor.web.app import query_temp_local_metadata_db
 from pioreactor.web.app import VERSION
 from pioreactor.web.config import huey
-from pioreactor.web.tasks import tasks
 from pioreactor.web.utils import attach_cache_control
 from pioreactor.web.utils import create_task_response
 from pioreactor.web.utils import DelayedResponseReturnValue
@@ -44,11 +44,11 @@ from werkzeug.utils import safe_join
 
 AllCalibrations = subclass_union(CalibrationBase)
 
-unit_api = Blueprint("unit_api", __name__, url_prefix="/unit_api")
+unit_api_bp = Blueprint("unit_api", __name__, url_prefix="/unit_api")
 
 
 # Endpoint to check the status of a background task. unit_api is required to ping workers (who only expose unit_api)
-@unit_api.route("/task_results/<task_id>", methods=["GET"])
+@unit_api_bp.route("/task_results/<task_id>", methods=["GET"])
 def task_status(task_id: str):
     blob = {"task_id": task_id, "result_url_path": "/unit_api/task_results/" + task_id}
     try:
@@ -79,7 +79,7 @@ def task_status(task_id: str):
 ### SYSTEM
 
 
-@unit_api.route("/system/update/<target>", methods=["POST", "PATCH"])
+@unit_api_bp.route("/system/update/<target>", methods=["POST", "PATCH"])
 def update_target(target: str) -> DelayedResponseReturnValue:
     if target not in ("app", "ui"):  # todo: firmware
         abort(404, description="Invalid target")
@@ -103,7 +103,7 @@ def update_target(target: str) -> DelayedResponseReturnValue:
     return create_task_response(task)
 
 
-@unit_api.route("/system/update", methods=["POST", "PATCH"])
+@unit_api_bp.route("/system/update", methods=["POST", "PATCH"])
 def update_app_and_ui() -> DelayedResponseReturnValue:
     body = current_app.get_json(request.data, type=structs.ArgsOptionsEnvs)
 
@@ -118,7 +118,7 @@ def update_app_and_ui() -> DelayedResponseReturnValue:
     return create_task_response(task)
 
 
-@unit_api.route("/system/reboot", methods=["POST", "PATCH"])
+@unit_api_bp.route("/system/reboot", methods=["POST", "PATCH"])
 def reboot() -> DelayedResponseReturnValue:
     """Reboots unit"""
     # TODO: only let requests from the leader do this. Use lighttpd conf for this.
@@ -130,14 +130,14 @@ def reboot() -> DelayedResponseReturnValue:
     return create_task_response(task)
 
 
-@unit_api.route("/system/shutdown", methods=["POST", "PATCH"])
+@unit_api_bp.route("/system/shutdown", methods=["POST", "PATCH"])
 def shutdown() -> DelayedResponseReturnValue:
     """Shutdown unit"""
     task = tasks.shutdown()
     return create_task_response(task)
 
 
-@unit_api.route("/system/remove_file", methods=["POST", "PATCH"])
+@unit_api_bp.route("/system/remove_file", methods=["POST", "PATCH"])
 def remove_file() -> DelayedResponseReturnValue:
     # use filepath in body
     body = request.get_json()
@@ -150,7 +150,7 @@ def remove_file() -> DelayedResponseReturnValue:
 
 
 # GET clock time
-@unit_api.route("/system/utc_clock", methods=["GET"])
+@unit_api_bp.route("/system/utc_clock", methods=["GET"])
 def get_clock_time():
     try:
         current_time = current_utc_timestamp()
@@ -160,7 +160,7 @@ def get_clock_time():
 
 
 # PATCH / POST to set clock time
-@unit_api.route("/system/utc_clock", methods=["PATCH", "POST"])
+@unit_api_bp.route("/system/utc_clock", methods=["PATCH", "POST"])
 def set_clock_time() -> DelayedResponseReturnValue:  # type: ignore[return]
     try:
         if HOSTNAME == get_leader_hostname():
@@ -191,8 +191,8 @@ def set_clock_time() -> DelayedResponseReturnValue:  # type: ignore[return]
 
 
 #### DIR
-@unit_api.route("/system/path/", defaults={"req_path": ""})
-@unit_api.route("/system/path/<path:req_path>")
+@unit_api_bp.route("/system/path/", defaults={"req_path": ""})
+@unit_api_bp.route("/system/path/<path:req_path>")
 def dir_listing(req_path: str):
     if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_FILE_SYSTEM"):
         abort(403, "DISALLOW_UI_FILE_SYSTEM is present")
@@ -243,7 +243,7 @@ def dir_listing(req_path: str):
 ## RUNNING JOBS CONTROL
 
 
-@unit_api.route("/jobs/run/job_name/<job>", methods=["PATCH", "POST"])
+@unit_api_bp.route("/jobs/run/job_name/<job>", methods=["PATCH", "POST"])
 def run_job(job: str) -> DelayedResponseReturnValue:
     """
     Body should look like (all optional)
@@ -290,13 +290,13 @@ def run_job(job: str) -> DelayedResponseReturnValue:
     return create_task_response(task)
 
 
-@unit_api.route("/jobs/stop/all", methods=["PATCH", "POST"])
+@unit_api_bp.route("/jobs/stop/all", methods=["PATCH", "POST"])
 def stop_all_jobs() -> DelayedResponseReturnValue:
     task = tasks.pio_kill("--all-jobs")
     return create_task_response(task)
 
 
-@unit_api.route("/jobs/stop", methods=["PATCH", "POST"])
+@unit_api_bp.route("/jobs/stop", methods=["PATCH", "POST"])
 def stop_jobs() -> DelayedResponseReturnValue:
     job_name = request.args.get("job_name")
     experiment = request.args.get("experiment")
@@ -320,7 +320,7 @@ def stop_jobs() -> DelayedResponseReturnValue:
     return create_task_response(task)
 
 
-@unit_api.route("/jobs/running/experiments/<experiment>", methods=["GET"])
+@unit_api_bp.route("/jobs/running/experiments/<experiment>", methods=["GET"])
 def get_running_jobs_for_experiment(experiment: str) -> ResponseReturnValue:
     jobs = query_temp_local_metadata_db(
         """SELECT * FROM pio_job_metadata where is_running=1 and experiment = (?)""",
@@ -330,14 +330,14 @@ def get_running_jobs_for_experiment(experiment: str) -> ResponseReturnValue:
     return jsonify(jobs)
 
 
-@unit_api.route("/jobs/running", methods=["GET"])
+@unit_api_bp.route("/jobs/running", methods=["GET"])
 def get_all_running_jobs() -> ResponseReturnValue:
     jobs = query_temp_local_metadata_db("SELECT * FROM pio_job_metadata where is_running=1")
 
     return jsonify(jobs)
 
 
-@unit_api.route("/jobs/running/<job>", methods=["GET"])
+@unit_api_bp.route("/jobs/running/<job>", methods=["GET"])
 def get_running_job(job: str) -> ResponseReturnValue:
     jobs = query_temp_local_metadata_db(
         "SELECT * FROM pio_job_metadata where is_running=1 and job_name=?", (job,)
@@ -345,7 +345,7 @@ def get_running_job(job: str) -> ResponseReturnValue:
     return jsonify(jobs)
 
 
-@unit_api.route("/long_running_jobs/running", methods=["GET"])
+@unit_api_bp.route("/long_running_jobs/running", methods=["GET"])
 def get_all_long_running_jobs() -> ResponseReturnValue:
     jobs = query_temp_local_metadata_db(
         "SELECT * FROM pio_job_metadata where is_running=1 and is_long_running_job=1"
@@ -356,7 +356,7 @@ def get_all_long_running_jobs() -> ResponseReturnValue:
 ### SETTINGS
 
 
-@unit_api.route("/jobs/settings/job_name/<job_name>", methods=["GET"])
+@unit_api_bp.route("/jobs/settings/job_name/<job_name>", methods=["GET"])
 def get_settings_for_a_specific_job(job_name: str) -> ResponseReturnValue:
     """
     {
@@ -383,7 +383,7 @@ def get_settings_for_a_specific_job(job_name: str) -> ResponseReturnValue:
         return {"status": "error"}, 404
 
 
-@unit_api.route("/jobs/settings/job_name/<job_name>/setting/<setting>", methods=["GET"])
+@unit_api_bp.route("/jobs/settings/job_name/<job_name>/setting/<setting>", methods=["GET"])
 def get_specific_setting_for_a_job(job_name: str, setting: str) -> ResponseReturnValue:
     setting_metadata = query_temp_local_metadata_db(
         """
@@ -403,7 +403,7 @@ def get_specific_setting_for_a_job(job_name: str, setting: str) -> ResponseRetur
         return {"status": "error"}, 404
 
 
-@unit_api.route("/jobs/settings/job_name/<job_name>", methods=["PATCH"])
+@unit_api_bp.route("/jobs/settings/job_name/<job_name>", methods=["PATCH"])
 def update_job(job_name: str) -> ResponseReturnValue:
     """
     The body should look like:
@@ -419,7 +419,7 @@ def update_job(job_name: str) -> ResponseReturnValue:
     abort(503, "Not implemented.")
 
 
-@unit_api.route("/capabilities", methods=["GET"])
+@unit_api_bp.route("/capabilities", methods=["GET"])
 def discover_jobs_and_settings_available() -> ResponseReturnValue:
     from pioreactor.utils.capabilities import collect_capabilities
 
@@ -429,7 +429,7 @@ def discover_jobs_and_settings_available() -> ResponseReturnValue:
 ### PLUGINS
 
 
-@unit_api.route("/plugins/installed", methods=["GET"])
+@unit_api_bp.route("/plugins/installed", methods=["GET"])
 def get_installed_plugins() -> ResponseReturnValue:
     result = tasks.pio_plugins_list("plugins", "list", "--json")
     try:
@@ -451,7 +451,7 @@ def get_installed_plugins() -> ResponseReturnValue:
         )
 
 
-@unit_api.route("/plugins/installed/<filename>", methods=["GET"])
+@unit_api_bp.route("/plugins/installed/<filename>", methods=["GET"])
 def get_plugin(filename: str) -> ResponseReturnValue:
     """get a specific Python file in the .pioreactor/plugin folder"""
     # security bit: strip out any paths that may be attached, ex: ../../../root/bad
@@ -475,7 +475,7 @@ def get_plugin(filename: str) -> ResponseReturnValue:
         abort(500, "server error")
 
 
-@unit_api.route("/plugins/install", methods=["POST", "PATCH"])
+@unit_api_bp.route("/plugins/install", methods=["POST", "PATCH"])
 def install_plugin() -> DelayedResponseReturnValue:
     """
     runs `pio plugin install ....`
@@ -515,7 +515,7 @@ def install_plugin() -> DelayedResponseReturnValue:
     return create_task_response(task)
 
 
-@unit_api.route("/plugins/uninstall", methods=["POST", "PATCH"])
+@unit_api_bp.route("/plugins/uninstall", methods=["POST", "PATCH"])
 def uninstall_plugin() -> DelayedResponseReturnValue:
     """
     Body should look like:
@@ -543,7 +543,7 @@ def uninstall_plugin() -> DelayedResponseReturnValue:
 ### VERSIONS
 
 
-@unit_api.route("/versions/app", methods=["GET"])
+@unit_api_bp.route("/versions/app", methods=["GET"])
 def get_app_version() -> ResponseReturnValue:
     result = run(
         ["python", "-c", "import pioreactor; print(pioreactor.__version__)"],
@@ -555,7 +555,7 @@ def get_app_version() -> ResponseReturnValue:
     return attach_cache_control(jsonify({"version": result.stdout.strip()}), max_age=30)
 
 
-@unit_api.route("/versions/ui", methods=["GET"])
+@unit_api_bp.route("/versions/ui", methods=["GET"])
 def get_ui_version() -> ResponseReturnValue:
     return attach_cache_control(jsonify({"version": VERSION}), max_age=30)
 
@@ -563,7 +563,7 @@ def get_ui_version() -> ResponseReturnValue:
 ### CALIBRATIONS
 
 
-@unit_api.route("/calibrations/<device>", methods=["POST"])
+@unit_api_bp.route("/calibrations/<device>", methods=["POST"])
 def create_calibration(device: str) -> ResponseReturnValue:
     """
     Create a new calibration for the specified device.
@@ -592,7 +592,7 @@ def create_calibration(device: str) -> ResponseReturnValue:
         abort(500, description="Failed to create calibration.")
 
 
-@unit_api.route("/calibrations/<device>/<calibration_name>", methods=["DELETE"])
+@unit_api_bp.route("/calibrations/<device>/<calibration_name>", methods=["DELETE"])
 def delete_calibration(device: str, calibration_name: str) -> ResponseReturnValue:
     """
     Delete a specific calibration for a given device.
@@ -623,7 +623,7 @@ def delete_calibration(device: str, calibration_name: str) -> ResponseReturnValu
         abort(500, description="Failed to delete calibration.")
 
 
-@unit_api.route("/calibrations", methods=["GET"])
+@unit_api_bp.route("/calibrations", methods=["GET"])
 def get_all_calibrations() -> ResponseReturnValue:
     calibration_dir = Path(os.environ["DOT_PIOREACTOR"]) / "storage" / "calibrations"
 
@@ -649,7 +649,7 @@ def get_all_calibrations() -> ResponseReturnValue:
     return attach_cache_control(jsonify(all_calibrations), max_age=10)
 
 
-@unit_api.route("/active_calibrations", methods=["GET"])
+@unit_api_bp.route("/active_calibrations", methods=["GET"])
 def get_all_active_calibrations() -> ResponseReturnValue:
     calibration_dir = Path(os.environ["DOT_PIOREACTOR"]) / "storage" / "calibrations"
 
@@ -675,7 +675,7 @@ def get_all_active_calibrations() -> ResponseReturnValue:
     return attach_cache_control(jsonify(all_calibrations), max_age=10)
 
 
-@unit_api.route("/zipped_calibrations", methods=["GET"])
+@unit_api_bp.route("/zipped_calibrations", methods=["GET"])
 def get_all_calibrations_as_zipped_yaml() -> ResponseReturnValue:
     calibration_dir = Path(os.environ["DOT_PIOREACTOR"]) / "storage" / "calibrations"
 
@@ -702,7 +702,7 @@ def get_all_calibrations_as_zipped_yaml() -> ResponseReturnValue:
     )
 
 
-@unit_api.route("/calibrations/<device>", methods=["GET"])
+@unit_api_bp.route("/calibrations/<device>", methods=["GET"])
 def get_calibrations_by_device(device: str) -> ResponseReturnValue:
     calibration_dir = Path(os.environ["DOT_PIOREACTOR"]) / "storage" / "calibrations" / device
 
@@ -724,7 +724,7 @@ def get_calibrations_by_device(device: str) -> ResponseReturnValue:
     return attach_cache_control(jsonify(calibrations), max_age=10)
 
 
-@unit_api.route("/calibrations/<device>/<cal_name>", methods=["GET"])
+@unit_api_bp.route("/calibrations/<device>/<cal_name>", methods=["GET"])
 def get_calibration(device: str, cal_name: str) -> ResponseReturnValue:
     calibration_path = (
         Path(os.environ["DOT_PIOREACTOR"]) / "storage" / "calibrations" / device / f"{cal_name}.yaml"
@@ -743,7 +743,7 @@ def get_calibration(device: str, cal_name: str) -> ResponseReturnValue:
             abort(500, "Failed to read calibration file.")
 
 
-@unit_api.route("/active_calibrations/<device>/<cal_name>", methods=["PATCH"])
+@unit_api_bp.route("/active_calibrations/<device>/<cal_name>", methods=["PATCH"])
 def set_active_calibration(device: str, cal_name: str) -> ResponseReturnValue:
     with local_persistent_storage("active_calibrations") as c:
         c[device] = cal_name
@@ -751,7 +751,7 @@ def set_active_calibration(device: str, cal_name: str) -> ResponseReturnValue:
     return {"status": "success"}, 200
 
 
-@unit_api.route("/active_calibrations/<device>", methods=["DELETE"])
+@unit_api_bp.route("/active_calibrations/<device>", methods=["DELETE"])
 def remove_active_status_calibration(device: str) -> ResponseReturnValue:
     with local_persistent_storage("active_calibrations") as c:
         if device in c:
@@ -760,7 +760,7 @@ def remove_active_status_calibration(device: str) -> ResponseReturnValue:
     return {"status": "success"}, 200
 
 
-@unit_api.errorhandler(404)
+@unit_api_bp.errorhandler(404)
 def not_found(e):
     # Return JSON for API requests, using the error description
     return jsonify({"error": e.description}), 404
