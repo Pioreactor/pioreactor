@@ -289,14 +289,14 @@ if am_I_leader() or is_testing_env():
         if shared and unit != get_leader_hostname():
             localpath = "/home/pioreactor/.pioreactor/config.ini"
             remotepath = "/home/pioreactor/.pioreactor/config.ini"
-            cp_file_across_cluster(unit, localpath, remotepath, timeout=30)
+            cp_file_across_cluster(unit, localpath, remotepath, timeout=15)
 
         # move the specific unit config.ini
         if specific:
             try:
                 localpath = f"/home/pioreactor/.pioreactor/config_{unit}.ini"
                 remotepath = "/home/pioreactor/.pioreactor/unit_config.ini"
-                cp_file_across_cluster(unit, localpath, remotepath, timeout=30)
+                cp_file_across_cluster(unit, localpath, remotepath, timeout=15)
 
             except Exception as e:
                 click.echo(
@@ -328,7 +328,7 @@ if am_I_leader() or is_testing_env():
         def _thread_function(unit: str) -> bool:
             logger.debug(f"Copying {filepath} to {unit}:{filepath}...")
             try:
-                cp_file_across_cluster(unit, filepath, filepath, timeout=30)
+                cp_file_across_cluster(unit, filepath, filepath, timeout=15)
                 return True
             except Exception as e:
                 logger.error(f"Error occurred copying to {unit}. See logs for more.")

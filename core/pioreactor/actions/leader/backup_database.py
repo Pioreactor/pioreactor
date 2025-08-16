@@ -84,6 +84,7 @@ def backup_database(output_file: str, force: bool = False, backup_to_workers: in
 
         db_path = config.get("storage", "database")
         db_size = Path(db_path).stat().st_size
+
         available = _local_available_space(str(Path(output_file).parent))
         margin = 1.1
         if available < db_size * margin:

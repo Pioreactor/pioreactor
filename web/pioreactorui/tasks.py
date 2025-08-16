@@ -38,6 +38,8 @@ logger = create_logger(
 
 logger.setLevel(logging.DEBUG)
 
+# NOTE: we use logger.debug here else the UI's log tables can get filled with red errors.
+
 if not is_testing_env():
     PIO_EXECUTABLE = "/usr/local/bin/pio"
     PIOS_EXECUTABLE = "/usr/local/bin/pios"
@@ -118,7 +120,7 @@ def pio_run(
             close_fds=True,
         )
     except Exception:
-        logger.exception("Failed to spawn %r", command)
+        logger.error("Failed to spawn %r", command)
         return False
 
     # If it exits during the grace window, it probably failed fast (e.g., bad args).
@@ -374,7 +376,7 @@ def save_file(path: str, content: str) -> bool:
             f.write(content)
         return True
     except Exception as e:
-        logger.error(e)
+        logger.debug(e)
         return False
 
 
@@ -404,7 +406,7 @@ def write_config_and_sync(
         return (True, "")
 
     except Exception as e:
-        logger.error(str(e))
+        logger.debug(str(e))
         return (False, "Could not sync configs to all Pioreactors.")
 
 
@@ -424,12 +426,12 @@ def post_into_worker(
         return _process_delayed_json_response(worker, r)
 
     except (HTTPErrorStatus, HTTPException) as e:
-        logger.error(
+        logger.debug(
             f"Could not post to {worker}'s {address=}/{endpoint=}, sent {json=} and returned {e}. Check connection? Check port?"
         )
         return worker, None
     except DecodeError:
-        logger.error(
+        logger.debug(
             f"Could not decode response from {worker}'s {endpoint=}, sent {json=} and returned {r.body.decode()}."
         )
         return worker, None
@@ -483,12 +485,12 @@ def _get_from_worker(
         return _process_delayed_json_response(worker, r)
 
     except (HTTPErrorStatus, HTTPException) as e:
-        logger.error(
+        logger.debug(
             f"Could not get from {worker}'s {address=}, {endpoint=}, sent {json=} and returned {e}. Check connection? Check port?"
         )
         return worker, None
     except DecodeError:
-        logger.error(
+        logger.debug(
             f"Could not decode response from {worker}'s {endpoint=}, sent {json=} and returned {r.body.decode()}."
         )
         return worker, None
@@ -532,12 +534,12 @@ def patch_into_worker(worker: str, endpoint: str, json: dict | None = None) -> t
         return _process_delayed_json_response(worker, r)
 
     except (HTTPErrorStatus, HTTPException) as e:
-        logger.error(
+        logger.debug(
             f"Could not PATCH to {worker}'s {address=}/{endpoint=}, sent {json=} and returned {e}. Check connection? Check port?"
         )
         return worker, None
     except DecodeError:
-        logger.error(
+        logger.debug(
             f"Could not decode response from {worker}'s {endpoint=}, sent {json=} and returned {r.body.decode()}."
         )
         return worker, None
@@ -564,12 +566,12 @@ def delete_from_worker(worker: str, endpoint: str, json: dict | None = None) -> 
         r.raise_for_status()
         return worker, r.json() if r.content else None
     except (HTTPErrorStatus, HTTPException) as e:
-        logger.error(
+        logger.debug(
             f"Could not DELETE {worker}'s {endpoint=}, sent {json=} and returned {e}. Check connection?"
         )
         return worker, None
     except DecodeError:
-        logger.error(
+        logger.debug(
             f"Could not decode response from {worker}'s {endpoint=}, sent {json=} and returned {r.body.decode()}."
         )
         return worker, None
