@@ -133,7 +133,7 @@ def is_i2c_device_present(channel: int | Iterable[int]) -> bool:
     with I2C(SCL, SDA) as i2c:
         for c in channel:
             try:
-                I2CDevice(i2c, channel, probe=True)
+                I2CDevice(i2c, c, probe=True)
             except ValueError:
                 return False
         return True
