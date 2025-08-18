@@ -17,7 +17,6 @@ from busio import I2C  # type: ignore
 from pioreactor import exc
 from pioreactor import hardware
 from pioreactor import types as pt
-from pioreactor.version import hardware_version_info
 
 
 class _ADC:
@@ -344,8 +343,9 @@ class MultiplexADS1114_ADC(_ADC):
         self,
     ) -> None:
         super().__init__()
-        self._adc1 = ADS1114_ADC(i2c_addr=hardware.ADC1)
-        self._adc2 = ADS1114_ADC(i2c_addr=hardware.ADC2)
+        assert isinstance(hardware.ADC, tuple)
+        self._adc1 = ADS1114_ADC(i2c_addr=hardware.ADC[0])
+        self._adc2 = ADS1114_ADC(i2c_addr=hardware.ADC[1])
         # Ensure both have identical config
         self.set_ads_gain(self.gain)
 

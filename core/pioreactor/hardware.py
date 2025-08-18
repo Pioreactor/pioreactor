@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from os import environ
+from typing import Iterable
 
 from pioreactor.types import AdcChannel
 from pioreactor.types import GpioChip
@@ -62,12 +63,13 @@ if hardware_version_info >= (1, 1):
 
 # I2C channels used
 
+ADC: int | tuple[int, ...]
 if get_pioreactor_model().model_version in ("1.0", "1.1") and hardware_version_info == (1, 1):
     ADC = 0x2C  # As of 24.8.22, =44. Prior it was 0x30=48.
 elif hardware_version_info == (1, 0):
     ADC = 0x48
 else:  # 1.5
-    ADC1, ADC2 = 0x48, 0x49
+    ADC = (0x48, 0x49)
 
 
 DAC = 0x49 if (0, 0) < hardware_version_info <= (1, 0) else 0x2C  # As of 24.8.22, =44. Prior it was 0x30=48
@@ -117,7 +119,10 @@ else:
         }
 
 
-def is_i2c_device_present(channel: int) -> bool:
+def is_i2c_device_present(channel: int | Iterable[int]) -> bool:
+    if not isinstance(channel, Iterable):
+        channel = [channel]
+
     if is_testing_env():
         from pioreactor.utils.mock import MockI2C as I2C
     else:
@@ -126,11 +131,12 @@ def is_i2c_device_present(channel: int) -> bool:
     from adafruit_bus_device.i2c_device import I2CDevice  # type: ignore
 
     with I2C(SCL, SDA) as i2c:
-        try:
-            I2CDevice(i2c, channel, probe=True)
-            return True
-        except ValueError:
-            return False
+        for c in channel:
+            try:
+                I2CDevice(i2c, channel, probe=True)
+            except ValueError:
+                return False
+        return True
 
 
 def is_DAC_present() -> bool:
