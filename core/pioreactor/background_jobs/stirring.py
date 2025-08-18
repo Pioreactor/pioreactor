@@ -310,6 +310,7 @@ class Stirrer(BackgroundJobWithDodging):
         assert self.target_rpm_outside_od_reading is not None
         self.set_target_rpm(self.target_rpm_outside_od_reading)
         sleep(0.15)
+        self.poll_and_update_dc()  # do it twice.
         self.poll_and_update_dc()
 
     def initialize_dodging_operation(self):
