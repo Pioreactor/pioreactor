@@ -180,12 +180,12 @@ class ADS1114_ADC(_ADC):
 
     # Threshold windows used by check_on_gain(): (lower_bound, upper_bound) in volts.
     ADS1X14_GAIN_THRESHOLDS: dict[float, tuple[float, float]] = {
-        2 / 3: (-6.144, 6.144),
-        1.0: (-4.096, 4.096),
-        2.0: (-2.048, 2.048),
-        4.0: (-1.024, 1.024),
-        8.0: (-0.512, 0.512),
-        16.0: (-0.256, 0.256),
+        2 / 3: (4.096, 6.144),
+        1: (2.048, 4.096),
+        2: (1.024, 2.048),
+        4: (0.512, 1.024),
+        8: (0.256, 0.512),
+        16: (-1, 0.256),
     }
 
     # Gain -> PGA bitfield (Config[11:9]) per datasheet
@@ -336,7 +336,6 @@ class MultiplexADS1114_ADC(_ADC):
     DATA_RATE = ADS1114_ADC.DATA_RATE
     ADS1X14_PGA_RANGE = ADS1114_ADC.ADS1X14_PGA_RANGE
     ADS1X14_GAIN_THRESHOLDS = ADS1114_ADC.ADS1X14_GAIN_THRESHOLDS
-    ADS1X15_GAIN_THRESHOLDS = ADS1X14_GAIN_THRESHOLDS  # compat alias
     gain: float = 1.0  # shared gain across both chips
 
     def __init__(
