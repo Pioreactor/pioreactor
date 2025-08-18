@@ -350,13 +350,12 @@ class MultiplexADS1114_ADC(_ADC):
         self.set_ads_gain(self.gain)
 
     def _pick(self, channel) -> ADS1114_ADC:
-        ch = str(channel).strip()
-        if ch == 0:
+        if channel == 0:
             return self._adc1
-        elif ch == 1:
+        elif channel == 1:
             return self._adc2
         else:
-            raise ValueError
+            raise ValueError(f"Saw {channel}")
 
     # ---- Interface required by _ADC ----
 
