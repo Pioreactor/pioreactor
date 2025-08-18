@@ -67,6 +67,7 @@ from pioreactor.calibrations import load_active_calibration
 from pioreactor.config import config
 from pioreactor.hardware import ADC_CHANNEL_FUNCS
 from pioreactor.pubsub import publish
+from pioreactor.utils import adcs
 from pioreactor.utils import argextrema
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import timing
@@ -146,6 +147,24 @@ class ADCReader(LoggerMixin):
         else:
             self.most_appropriate_AC_hz = None
 
+    def _get_ADC_based_on_hardware(self) -> adcs._ADC:
+        if self.fake_data:
+            from pioreactor.utils.mock import Mock_ADC as ADC
+
+            return ADC()
+        else:
+            from pioreactor.version import hardware_version_info
+
+            if (0, 0) < hardware_version_info <= (1, 0):
+                return adcs.ADS1115_ADC()
+            elif hardware_version_info == (1, 1) and whoami.get_pioreactor_model().model_version in (
+                "1.0",
+                "1.1",
+            ):
+                return adcs.Pico_ADC()
+            else:
+                return adcs.ADS1114_ADC()
+
     def tune_adc(self) -> RawPDReadings:
         """
         This configures the ADC for reading, performs an initial read, and sets variables based on that reading.
@@ -162,12 +181,7 @@ class ADCReader(LoggerMixin):
             self.logger.error("The internal DAC is not responding. Exiting.")
             raise exc.HardwareNotFoundError("The internal DAC is not responding. Exiting.")
 
-        if self.fake_data:
-            from pioreactor.utils.mock import Mock_ADC as ADC
-        else:
-            from pioreactor.utils.adcs import ADC  # type: ignore
-
-        self.adc = ADC()
+        self.adc = self._get_ADC_based_on_hardware()
         self.logger.debug(f"Using ADC class {self.adc.__class__.__name__}.")
 
         running_max_signal = 0.0

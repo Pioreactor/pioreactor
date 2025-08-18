@@ -35,6 +35,11 @@ class _ADC:
     def check_on_gain(self, value: pt.Voltage, tol: float = 0.85) -> None:
         raise NotImplementedError
 
+    def from_voltage_to_raw_precise(self, voltage: pt.Voltage) -> pt.AnalogValue:
+        """Convert a voltage to a raw ADC value with precision."""
+        # Default implementation; subclasses may override
+        return self.from_voltage_to_raw(voltage)
+
 
 class ADS1115_ADC(_ADC):
     DATA_RATE = 128
@@ -183,9 +188,6 @@ class ADS1114_ADC(_ADC):
         8.0: (-0.512, 0.512),
         16.0: (-0.256, 0.256),
     }
-
-    # Backward-compat alias in case other code references "15" instead of "14"
-    ADS1X15_GAIN_THRESHOLDS = ADS1X14_GAIN_THRESHOLDS
 
     # Gain -> PGA bitfield (Config[11:9]) per datasheet
     _PGA_BITS: Final[dict[float, int]] = {
