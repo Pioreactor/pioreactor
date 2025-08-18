@@ -163,7 +163,7 @@ class ADCReader(LoggerMixin):
             ):
                 return adcs.Pico_ADC()
             else:
-                return adcs.ADS1114_ADC()
+                return adcs.MultiplexADS1114_ADC()
 
     def tune_adc(self) -> RawPDReadings:
         """

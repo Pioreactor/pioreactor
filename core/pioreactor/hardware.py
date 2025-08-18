@@ -11,7 +11,9 @@ from pioreactor.types import PdChannel
 from pioreactor.types import PwmChannel
 from pioreactor.version import hardware_version_info
 from pioreactor.version import rpi_version_info
+from pioreactor.whoami import get_pioreactor_model
 from pioreactor.whoami import is_testing_env
+
 
 # All GPIO pins below are BCM numbered
 
@@ -59,7 +61,15 @@ if hardware_version_info >= (1, 1):
 
 
 # I2C channels used
-ADC = 0x48 if (0, 0) < hardware_version_info <= (1, 0) else 0x2C  # As of 24.8.22, =44. Prior it was 0x30=48.
+
+if get_pioreactor_model().model_version in ("1.0", "1.1") and hardware_version_info == (1, 1):
+    ADC = 0x2C  # As of 24.8.22, =44. Prior it was 0x30=48.
+elif hardware_version_info == (1, 0):
+    ADC = 0x48
+else:  # 1.5
+    ADC1, ADC2 = 0x48, 0x49
+
+
 DAC = 0x49 if (0, 0) < hardware_version_info <= (1, 0) else 0x2C  # As of 24.8.22, =44. Prior it was 0x30=48
 TEMP = 0x4F
 
@@ -81,20 +91,30 @@ elif hardware_version_info <= (0, 1):  # alpha
         "version": 2,
         "aux": 3,
     }
-elif hardware_version_info <= (1, 0):  # beta
+elif hardware_version_info <= (1, 0):  # v1.0 hat
     ADC_CHANNEL_FUNCS = {
         "1": 1,
         "2": 0,
         "version": 2,
         "aux": 3,
     }
-else:  # prod
-    ADC_CHANNEL_FUNCS = {
-        "1": 2,
-        "2": 3,
-        "version": 0,
-        "aux": 1,
-    }
+else:
+    # v1.1 HAT
+    if get_pioreactor_model().model_version in ("1.0", "1.1"):
+        ADC_CHANNEL_FUNCS = {
+            "1": 2,
+            "2": 3,
+            "version": 0,
+            "aux": 1,
+        }
+    else:
+        # Pioreactor v1.5 model
+        ADC_CHANNEL_FUNCS = {
+            "1": 0,
+            "2": 1,
+            "version": 0,
+            "aux": 1,
+        }
 
 
 def is_i2c_device_present(channel: int) -> bool:

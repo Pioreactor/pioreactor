@@ -216,11 +216,11 @@ class ADS1114_ADC(_ADC):
 
     gain: float = 1.0  # default to ±4.096 V
 
-    def __init__(self, i2c_bus: int = 1, i2c_addr: int = 0x48, single_shot: bool = True) -> None:
+    def __init__(self, i2c_addr: int) -> None:
         super().__init__()
+        i2c_bus = 1
         self._bus = SMBus(i2c_bus)
         self._addr = i2c_addr
-        self._single_shot = bool(single_shot)
         # Cache current DR and PGA fields
         self._dr_bits = self._DR_CODE[self.DATA_RATE]
         self.set_ads_gain(self.gain)  # also writes base config
@@ -286,7 +286,7 @@ class ADS1114_ADC(_ADC):
 
     def _build_config(self, *, start: bool) -> int:
         # Bit 15: OS (write 1 to start in single-shot, reads back 0 while converting)
-        os_bit = 1 if (start and self._single_shot) else 0
+        os_bit = 1 if start else 0
 
         # Bits 14:12 are RESERVED on ADS1114 -> write 000b
         reserved_14_12 = 0
@@ -295,7 +295,7 @@ class ADS1114_ADC(_ADC):
         pga_bits = self._PGA_BITS[self.gain] & 0b111
 
         # MODE bit [8]: 1 = single-shot, 0 = continuous
-        mode_bit = 1 if self._single_shot else 0
+        mode_bit = 1
 
         # DR bits [7:5]
         dr_bits = self._dr_bits & 0b111
@@ -324,4 +324,65 @@ class ADS1114_ADC(_ADC):
             pass
 
 
-ADC = ADS1115_ADC if (0, 0) < hardware_version_info <= (1, 0) else Pico_ADC
+class MultiplexADS1114_ADC(_ADC):
+    """
+    Wrap two ADS1114 devices (0x48 and 0x49) behind a single ADC interface.
+
+    channel:
+      "1" or 1 -> read from device at addr_ch1 (default 0x48)
+      "2" or 2 -> read from device at addr_ch2 (default 0x49)
+    """
+
+    # Keep identical constants to the single-device class
+    DATA_RATE = ADS1114_ADC.DATA_RATE
+    ADS1X14_PGA_RANGE = ADS1114_ADC.ADS1X14_PGA_RANGE
+    ADS1X14_GAIN_THRESHOLDS = ADS1114_ADC.ADS1X14_GAIN_THRESHOLDS
+    ADS1X15_GAIN_THRESHOLDS = ADS1X14_GAIN_THRESHOLDS  # compat alias
+    gain: float = 1.0  # shared gain across both chips
+
+    def __init__(
+        self,
+    ) -> None:
+        super().__init__()
+        self._adc1 = ADS1114_ADC(i2c_addr=hardware.ADC1)
+        self._adc2 = ADS1114_ADC(i2c_addr=hardware.ADC2)
+        # Ensure both have identical config
+        self.set_ads_gain(self.gain)
+
+    def _pick(self, channel) -> ADS1114_ADC:
+        ch = str(channel).strip()
+        if ch == "1":
+            return self._adc1
+        if ch == "2":
+            return self._adc2
+        raise ValueError("channel must be '1' or '2'.")
+
+    # ---- Interface required by _ADC ----
+
+    def read_from_channel(self, channel) -> int:
+        adc = self._pick(channel)
+        # Underlying ADS1114 has only one pair; its read ignores channel.
+        return adc.read_from_channel(channel)
+
+    def set_ads_gain(self, gain: float) -> None:
+        # Update both devices — they must remain identical
+        # Reuse the single-device validation
+        self._adc1.set_ads_gain(gain)
+        self._adc2.set_ads_gain(gain)
+        self.gain = gain  # keep shared state
+
+    def from_voltage_to_raw(self, voltage):
+        return int(voltage * 32767 / self.ADS1X14_PGA_RANGE[self.gain])
+
+    def from_voltage_to_raw_precise(self, voltage):
+        return voltage * 32767 / self.ADS1X14_PGA_RANGE[self.gain]
+
+    def from_raw_to_voltage(self, raw):
+        return raw / 32767 * self.ADS1X14_PGA_RANGE[self.gain]
+
+    def check_on_gain(self, value, tol: float = 0.85) -> None:
+        # Pick a gain that fits the measured value and apply to BOTH devices.
+        for gain, (lb, ub) in self.ADS1X14_GAIN_THRESHOLDS.items():
+            if (tol * lb <= value < tol * ub) and (self.gain != gain):
+                self.set_ads_gain(gain)
+                break
