@@ -50,9 +50,21 @@ class Chart extends React.Component {
   }
 
   componentDidUpdate(prevProps) {
+
+    // the client is connected async, so we need to set this up when it is connected
+    if (!prevProps.client && this.props.client && this.props.isLiveChart) {
+      const topicPaths = this.topics.map(topic =>
+        `pioreactor/+/${this.props.experiment}/${topic}`
+      )
+      topicPaths.forEach(topic => {
+        this.props.subscribeToTopic(topic, this.onMessage, "Chart")
+      })
+      this.subscribedTopics = topicPaths
+      return
+    }
+
     const experimentChanged = prevProps.experiment !== this.props.experiment
     const topicChanged = prevProps.topic !== this.props.topic
-
     if (experimentChanged || topicChanged) {
       this.getHistoricalDataFromServer()
       if (this.props.isLiveChart && this.props.client){
@@ -76,6 +88,8 @@ class Chart extends React.Component {
     if (this.props.lookback !== prevProps.lookback){
       this.getHistoricalDataFromServer()
     }
+
+
 
   }
 
