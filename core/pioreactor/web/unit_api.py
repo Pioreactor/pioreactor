@@ -47,6 +47,17 @@ AllCalibrations = subclass_union(CalibrationBase)
 unit_api_bp = Blueprint("unit_api", __name__, url_prefix="/unit_api")
 
 
+# Basic health check for workers exposing only unit_api
+@unit_api_bp.route("/health", methods=["GET"])
+def health_check() -> ResponseReturnValue:
+    payload = {
+        "status": "ok",
+        "pioreactor_unit": HOSTNAME,
+        "utc_time": current_utc_timestamp(),
+    }
+    return attach_cache_control(jsonify(payload), max_age=0)
+
+
 # Endpoint to check the status of a background task. unit_api is required to ping workers (who only expose unit_api)
 @unit_api_bp.route("/task_results/<task_id>", methods=["GET"])
 def task_status(task_id: str):

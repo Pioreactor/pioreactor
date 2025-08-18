@@ -101,7 +101,7 @@ def create_app():
     @app.errorhandler(500)
     def handle_server_error(e):
         return (
-            jsonify({"error": f"Internal server error: {e.description} - see logs for more."}),
+            jsonify({"error": f"{e.description}"}),
             500,
         )
 

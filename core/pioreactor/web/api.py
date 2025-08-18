@@ -1299,7 +1299,12 @@ def get_automation_contrib(automation_type: str) -> ResponseReturnValue:
             / "automations"
             / automation_type
         )
-        files = sorted(automation_path_plugins.glob("*.y*ml"))
+        automation_path_builtins = (
+            Path(os.environ["DOT_PIOREACTOR"]) / "ui" / "contrib" / "automations" / automation_type
+        )
+        files = sorted(automation_path_builtins.glob("*.y*ml")) + sorted(
+            automation_path_plugins.glob("*.y*ml")
+        )
 
         # we dedup based on 'automation_name'.
         parsed_yaml = {}
@@ -1320,8 +1325,9 @@ def get_automation_contrib(automation_type: str) -> ResponseReturnValue:
 @api_bp.route("/contrib/jobs", methods=["GET"])
 def get_job_contrib() -> ResponseReturnValue:
     try:
+        job_path_builtins = Path(os.environ["DOT_PIOREACTOR"]) / "ui" / "contrib" / "jobs"
         job_path_plugins = Path(os.environ["DOT_PIOREACTOR"]) / "plugins" / "ui" / "contrib" / "jobs"
-        files = sorted(job_path_plugins.glob("*.y*ml"))
+        files = sorted(job_path_builtins.glob("*.y*ml")) + sorted(job_path_plugins.glob("*.y*ml"))
 
         # we dedup based on 'job_name'.
         parsed_yaml = {}
@@ -1343,8 +1349,9 @@ def get_job_contrib() -> ResponseReturnValue:
 @api_bp.route("/contrib/charts", methods=["GET"])
 def get_charts_contrib() -> ResponseReturnValue:
     try:
+        chart_path_builtins = Path(os.environ["DOT_PIOREACTOR"]) / "ui" / "contrib" / "charts"
         chart_path_plugins = Path(os.environ["DOT_PIOREACTOR"]) / "plugins" / "ui" / "contrib" / "charts"
-        files = sorted(chart_path_plugins.glob("*.y*ml"))
+        files = sorted(chart_path_builtins.glob("*.y*ml")) + sorted(chart_path_plugins.glob("*.y*ml"))
 
         # we dedup based on chart 'chart_key'.
         parsed_yaml = {}
