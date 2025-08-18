@@ -188,6 +188,7 @@ class ADCReader(LoggerMixin):
         testing_signals: RawPDReadings = {}
         for pd_channel in self.channels:
             adc_channel = ADC_CHANNEL_FUNCS[pd_channel]
+            print(adc_channel)
             signal = self.adc.read_from_channel(adc_channel)
 
             testing_signals[pd_channel] = structs.RawPDReading(

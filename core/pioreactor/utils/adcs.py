@@ -351,11 +351,12 @@ class MultiplexADS1114_ADC(_ADC):
 
     def _pick(self, channel) -> ADS1114_ADC:
         ch = str(channel).strip()
-        if ch == "1":
+        if ch == 0:
             return self._adc1
-        if ch == "2":
+        elif ch == 1:
             return self._adc2
-        raise ValueError("channel must be '1' or '2'.")
+        else:
+            raise ValueError
 
     # ---- Interface required by _ADC ----
 
