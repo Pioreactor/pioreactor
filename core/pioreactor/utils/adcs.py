@@ -383,6 +383,9 @@ class MultiplexADS1114_ADC(_ADC):
     def check_on_gain(self, value, tol: float = 0.85) -> None:
         # Pick a gain that fits the measured value and apply to BOTH devices.
         for gain, (lb, ub) in self.ADS1X14_GAIN_THRESHOLDS.items():
+            print(
+                "Checking gain:", gain, "for value:", value, "lb:", lb, "ub:", ub, "current gain", self.gain
+            )
             if (tol * lb <= value < tol * ub) and (self.gain != gain):
                 self.set_ads_gain(gain)
                 break

@@ -115,7 +115,7 @@ RawOD = t.Annotated[float, Meta(ge=0)]
 CalibratedOD = float
 OD = RawOD | CalibratedOD
 
-AdcChannel = t.Literal[0, 1, 2, 3]
+AdcChannel = int
 
 FloatBetween0and100 = t.Annotated[float, Meta(ge=0, le=100)]
 LedIntensityValue = FloatBetween0and100

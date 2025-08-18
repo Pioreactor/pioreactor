@@ -188,7 +188,6 @@ class ADCReader(LoggerMixin):
         testing_signals: RawPDReadings = {}
         for pd_channel in self.channels:
             adc_channel = ADC_CHANNEL_FUNCS[pd_channel]
-            print(adc_channel)
             signal = self.adc.read_from_channel(adc_channel)
 
             testing_signals[pd_channel] = structs.RawPDReading(
@@ -496,6 +495,7 @@ class ADCReader(LoggerMixin):
             if self.dynamic_gain:
                 m = self.max_signal_moving_average.get_latest()
                 self.adc.check_on_gain(m)
+                print(m, self.adc.gain)
 
             return self.batched_readings
         except OSError as e:
