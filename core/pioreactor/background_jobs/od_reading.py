@@ -495,7 +495,6 @@ class ADCReader(LoggerMixin):
             if self.dynamic_gain:
                 m = self.max_signal_moving_average.get_latest()
                 self.adc.check_on_gain(m)
-                print(m, self.adc.gain)
 
             return self.batched_readings
         except OSError as e:
@@ -983,7 +982,7 @@ class ODReader(BackgroundJob):
         ir_intensity_argmax_REF_can_be = initial_ir_intensity / REF_on_signal.reading * 0.250
 
         ir_intensity_argmax_ANGLE_can_be = (
-            initial_ir_intensity / culture_on_signal.reading * 3.0
+            initial_ir_intensity / culture_on_signal.reading
         ) / 50  # divide by N since the culture is unlikely to Nx.
 
         ir_intensity_max = 85.0
