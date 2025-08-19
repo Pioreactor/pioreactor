@@ -1248,16 +1248,6 @@ def get_app_versions(pioreactor_unit: str) -> DelayedResponseReturnValue:
         )
 
 
-@api_bp.route("/units/<pioreactor_unit>/versions/ui", methods=["GET"])
-def get_ui_versions_across_cluster(pioreactor_unit: str) -> DelayedResponseReturnValue:
-    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        return create_task_response(broadcast_get_across_cluster("/unit_api/versions/ui"))
-    else:
-        return create_task_response(
-            tasks.multicast_get_across_cluster("/unit_api/versions/ui", [pioreactor_unit])
-        )
-
-
 ## UPLOADS
 
 

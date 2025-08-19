@@ -32,7 +32,6 @@ from pioreactor.web import tasks
 from pioreactor.web.app import HOSTNAME
 from pioreactor.web.app import publish_to_error_log
 from pioreactor.web.app import query_temp_local_metadata_db
-from pioreactor.web.app import VERSION
 from pioreactor.web.config import huey
 from pioreactor.web.utils import attach_cache_control
 from pioreactor.web.utils import create_task_response
@@ -564,11 +563,6 @@ def get_app_version() -> ResponseReturnValue:
     if result.returncode != 0:
         abort(500, "server error")
     return attach_cache_control(jsonify({"version": result.stdout.strip()}), max_age=30)
-
-
-@unit_api_bp.route("/versions/ui", methods=["GET"])
-def get_ui_version() -> ResponseReturnValue:
-    return attach_cache_control(jsonify({"version": VERSION}), max_age=30)
 
 
 ### CALIBRATIONS
