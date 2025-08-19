@@ -115,7 +115,7 @@ class Monitor(LongRunningBackgroundJob):
         # would crash this job.
         self.versions = {
             "app": pretty_version(version.software_version_info),
-            "hat": pretty_version(version.hardware_version_info),
+            "hat": version.hardware_version_info,
             "firmware": pretty_version(version.get_firmware_version()),
             "hat_serial": version.serial_number,
             "rpi_machine": version.rpi_version_info,

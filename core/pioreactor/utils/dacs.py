@@ -9,6 +9,7 @@ from pioreactor import hardware
 from pioreactor.exc import HardwareNotFoundError
 from pioreactor.types import FloatBetween0and100
 from pioreactor.version import hardware_version_info
+from pioreactor.version import version_text_to_tuple
 
 
 class _DAC:
@@ -69,4 +70,5 @@ class Pico_DAC(_DAC):
             )
 
 
-DAC = DAC43608_DAC if (0, 0) < hardware_version_info <= (1, 0) else Pico_DAC
+_hv = version_text_to_tuple(hardware_version_info)
+DAC = DAC43608_DAC if (0, 0) < _hv <= (1, 0) else Pico_DAC

@@ -5,6 +5,8 @@ from __future__ import annotations
 import struct
 import time
 from typing import Final
+from typing import Protocol
+from typing import runtime_checkable
 
 try:
     # Debian/Raspberry Pi: prefer smbus2
@@ -15,32 +17,37 @@ except Exception:
 
 from busio import I2C  # type: ignore
 from pioreactor import exc
-from pioreactor import hardware
 from pioreactor import types as pt
 
 
-class _ADC:
-    gain: float = 1
+@runtime_checkable
+class _I2C_ADC(Protocol):
+    """Structural protocol for I2C ADC drivers."""
 
-    def read_from_channel(self, channel: pt.AdcChannel) -> pt.AnalogValue:
-        raise NotImplementedError
+    gain: float
+
+    def __init__(
+        self, scl: pt.I2CPin, sda: pt.I2CPin, i2c_addr: pt.I2CAddress, adc_channel: pt.AdcChannel
+    ) -> None:
+        ...
+
+    def read_from_channel(self) -> pt.AnalogValue:
+        ...
 
     def from_voltage_to_raw(self, voltage: pt.Voltage) -> pt.AnalogValue:
-        raise NotImplementedError
+        ...
 
     def from_raw_to_voltage(self, raw: pt.AnalogValue) -> pt.Voltage:
-        raise NotImplementedError
+        ...
 
     def check_on_gain(self, value: pt.Voltage, tol: float = 0.85) -> None:
-        raise NotImplementedError
+        ...
 
     def from_voltage_to_raw_precise(self, voltage: pt.Voltage) -> pt.AnalogValue:
-        """Convert a voltage to a raw ADC value with precision."""
-        # Default implementation; subclasses may override
-        return self.from_voltage_to_raw(voltage)
+        ...
 
 
-class ADS1115_ADC(_ADC):
+class ADS1115_ADC:
     DATA_RATE = 128
     ADS1X15_GAIN_THRESHOLDS = {
         2 / 3: (4.096, 6.144),
@@ -61,22 +68,21 @@ class ADS1115_ADC(_ADC):
     }
     gain: float = 1.0
 
-    def __init__(self) -> None:
-        super().__init__()
-
+    def __init__(
+        self, scl: pt.I2CPin, sda: pt.I2CPin, i2c_addr: pt.I2CAddress, adc_channel: pt.AdcChannel
+    ) -> None:
         from adafruit_ads1x15.analog_in import AnalogIn  # type: ignore
         from adafruit_ads1x15.ads1115 import ADS1115 as ADS  # type: ignore
 
-        self.analog_in: dict[int, AnalogIn] = {}
-
+        assert 0 <= adc_channel <= 3
+        self.adc_channel = adc_channel
         self._ads = ADS(
-            I2C(hardware.SCL, hardware.SDA),
+            I2C(scl, sda),
             data_rate=self.DATA_RATE,
             gain=self.gain,
-            address=hardware.ADC,
+            address=i2c_addr,
         )
-        for channel in (0, 1, 2, 3):
-            self.analog_in[channel] = AnalogIn(self._ads, channel)
+        self.analog_in = AnalogIn(self._ads, self.adc_channel)
 
     def check_on_gain(self, value: pt.Voltage, tol: float = 0.85) -> None:
         for gain, (lb, ub) in self.ADS1X15_GAIN_THRESHOLDS.items():
@@ -99,41 +105,46 @@ class ADS1115_ADC(_ADC):
         # from https://github.com/adafruit/Adafruit_CircuitPython_ADS1x15/blob/e33ed60b8cc6bbd565fdf8080f0057965f816c6b/adafruit_ads1x15/analog_in.py#L61
         return raw / 32767 * self.ADS1X15_PGA_RANGE[self.gain]
 
-    def read_from_channel(self, channel: pt.AdcChannel) -> pt.AnalogValue:
-        assert 0 <= channel <= 3
-        return self.analog_in[channel].value
+    def read_from_channel(self) -> pt.AnalogValue:
+        return self.analog_in.value
 
 
-class Pico_ADC(_ADC):
-    def __init__(self) -> None:
-        # set up i2c connection to hardware.ADC
-        self.i2c = I2C(hardware.SCL, hardware.SDA)
+class Pico_ADC:
+    gain: float = 1.0  # Pico ADC has fixed range; expose for interface
+
+    def __init__(
+        self, scl: pt.I2CPin, sda: pt.I2CPin, i2c_addr: pt.I2CAddress, adc_channel: pt.AdcChannel
+    ) -> None:
+        # set up i2c connection to the Pico ADC at PD1 address (shared)
+        self.i2c = I2C(scl, sda)
+        self._i2c_addr = i2c_addr
+        assert 0 <= adc_channel <= 3
+        self.adc_channel = adc_channel
         if self.get_firmware_version() >= (0, 4):
             self.scale = 32
         else:
             self.scale = 16
 
-    def read_from_channel(self, channel: pt.AdcChannel) -> pt.AnalogValue:
-        assert 0 <= channel <= 3
+    def read_from_channel(self) -> pt.AnalogValue:
         result = bytearray(2)
         try:
             self.i2c.writeto_then_readfrom(
-                hardware.ADC, bytes([channel + 4]), result
+                self._i2c_addr, bytes([self.adc_channel + 4]), result
             )  # + 4 is the i2c pointer offset
             return int.from_bytes(result, byteorder="little", signed=False)
         except OSError:
             raise exc.HardwareNotFoundError(
-                f"Unable to find i2c channel {hardware.ADC}. Is the HAT attached? Is the firmware loaded?"
+                f"Unable to find i2c address {self._i2c_addr}. Is the HAT attached? Is the firmware loaded?"
             )
 
     def get_firmware_version(self) -> tuple[int, int]:
         try:
             result = bytearray(2)
-            self.i2c.writeto_then_readfrom(hardware.ADC, bytes([0x08]), result)
+            self.i2c.writeto_then_readfrom(self._i2c_addr, bytes([0x08]), result)
             return (result[1], result[0])
         except OSError:
             raise exc.HardwareNotFoundError(
-                f"Unable to find i2c channel {hardware.ADC}. Is the HAT attached? Is the firmware loaded?"
+                f"Unable to find i2c address {self._i2c_addr}. Is the HAT attached? Is the firmware loaded?"
             )
 
     def from_voltage_to_raw(self, voltage: pt.Voltage) -> pt.AnalogValue:
@@ -150,7 +161,7 @@ class Pico_ADC(_ADC):
         pass
 
 
-class ADS1114_ADC(_ADC):
+class ADS1114_ADC:
     """
     ADS1114 16-bit ADC over I2C.
 
@@ -215,11 +226,15 @@ class ADS1114_ADC(_ADC):
 
     gain: float = 1.0  # default to ±4.096 V
 
-    def __init__(self, i2c_addr: int) -> None:
-        super().__init__()
+    def __init__(
+        self, scl: pt.I2CPin, sda: pt.I2CPin, i2c_addr: pt.I2CAddress, adc_channel: pt.AdcChannel
+    ) -> None:
+        # SMBUS doesn't use scl or sda directly, it opens up /dev/i2c-1 in the linux space
         i2c_bus = 1
         self._bus = SMBus(i2c_bus)
-        self._addr = i2c_addr
+        self._i2c_addr = i2c_addr
+        assert adc_channel == 0
+        self.adc_channel = adc_channel
         # Cache current DR and PGA fields
         self._dr_bits = self._DR_CODE[self.DATA_RATE]
         self.set_ads_gain(self.gain)  # also writes base config
@@ -250,7 +265,7 @@ class ADS1114_ADC(_ADC):
     def from_raw_to_voltage(self, raw):
         return raw / 32767 * self.ADS1X14_PGA_RANGE[self.gain]
 
-    def read_from_channel(self, channel) -> int:
+    def read_from_channel(self) -> int:
         """
         Trigger a single conversion and return the raw 16-bit signed integer.
 
@@ -272,14 +287,14 @@ class ADS1114_ADC(_ADC):
             pass
 
         # Read conversion register (MSB first), convert to signed
-        msb, lsb = self._bus.read_i2c_block_data(self._addr, self._CONVERSION, 2)
+        msb, lsb = self._bus.read_i2c_block_data(self._i2c_addr, self._CONVERSION, 2)
         value = struct.unpack(">h", bytes((msb, lsb)))[0]
         return int(value)
 
     # --- Private helpers ---
 
     def _read_config_ready(self) -> bool:
-        msb, lsb = self._bus.read_i2c_block_data(self._addr, self._CONFIG, 2)
+        msb, lsb = self._bus.read_i2c_block_data(self._i2c_addr, self._CONFIG, 2)
         cfg = (msb << 8) | lsb
         return bool(cfg & (1 << 15))  # OS bit
 
@@ -314,7 +329,7 @@ class ADS1114_ADC(_ADC):
 
     def _write_register(self, reg: int, value: int) -> None:
         data = [(value >> 8) & 0xFF, value & 0xFF]
-        self._bus.write_i2c_block_data(self._addr, reg, data)
+        self._bus.write_i2c_block_data(self._i2c_addr, reg, data)
 
     def __del__(self) -> None:
         try:
@@ -323,65 +338,76 @@ class ADS1114_ADC(_ADC):
             pass
 
 
-class MultiplexADS1114_ADC(_ADC):
-    """
-    Wrap two ADS1114 devices (0x48 and 0x49) behind a single ADC interface.
-
-    channel:
-      "1" or 1 -> read from device at addr_ch1 (default 0x48)
-      "2" or 2 -> read from device at addr_ch2 (default 0x49)
-    """
-
-    # Keep identical constants to the single-device class
-    DATA_RATE = ADS1114_ADC.DATA_RATE
-    ADS1X14_PGA_RANGE = ADS1114_ADC.ADS1X14_PGA_RANGE
-    ADS1X14_GAIN_THRESHOLDS = ADS1114_ADC.ADS1X14_GAIN_THRESHOLDS
-    gain: float = 1.0  # shared gain across both chips
-
-    def __init__(
-        self,
-    ) -> None:
-        super().__init__()
-        assert isinstance(hardware.ADC, tuple)
-        self._adc1 = ADS1114_ADC(i2c_addr=hardware.ADC[0])
-        self._adc2 = ADS1114_ADC(i2c_addr=hardware.ADC[1])
-        # Ensure both have identical config
-        self.set_ads_gain(self.gain)
-
-    def _pick(self, channel) -> ADS1114_ADC:
-        if channel == 0:
-            return self._adc1
-        elif channel == 1:
-            return self._adc2
-        else:
-            raise ValueError(f"Saw {channel}")
-
-    # ---- Interface required by _ADC ----
-
-    def read_from_channel(self, channel) -> int:
-        adc = self._pick(channel)
-        # Underlying ADS1114 has only one pair; its read ignores channel.
-        return adc.read_from_channel(channel)
-
-    def set_ads_gain(self, gain: float) -> None:
-        # Update both devices — they must remain identical
-        # Reuse the single-device validation
-        self._adc1.set_ads_gain(gain)
-        self._adc2.set_ads_gain(gain)
-        self.gain = gain  # keep shared state
-
-    def from_voltage_to_raw(self, voltage):
-        return int(voltage * 32767 / self.ADS1X14_PGA_RANGE[self.gain])
-
-    def from_voltage_to_raw_precise(self, voltage):
-        return voltage * 32767 / self.ADS1X14_PGA_RANGE[self.gain]
-
-    def from_raw_to_voltage(self, raw):
-        return raw / 32767 * self.ADS1X14_PGA_RANGE[self.gain]
-
-    def check_on_gain(self, value, tol: float = 0.85) -> None:
-        # Pick a gain that fits the measured value and apply to BOTH devices.
-        for gain, (lb, ub) in self.ADS1X14_GAIN_THRESHOLDS.items():
-            if (tol * lb <= value < tol * ub) and (self.gain != gain):
-                self.set_ads_gain(gain)
-                break
+#
+#
+# class MultiplexADC(_I2C_ADC):
+#     """A thin wrapper that multiplexes one or more ADC drivers behind a single _ADC interface.
+#
+#     - If a single driver is provided, `read_from_channel` is forwarded directly.
+#     - If two drivers are provided (ADS1114 case), channels 1 and 2 select driver 0 and 1, respectively.
+#     - Conversion and gain helpers delegate to the first driver and mirror to others when possible.
+#     """
+#
+#     def __init__(self, drivers: Sequence[_ADC]) -> None:
+#         super().__init__()
+#         assert len(drivers) >= 1, "Must provide at least one ADC driver"
+#         self._drivers = drivers
+#
+#     def read_from_channel(self, adc_channel: pt.AdcChannel) -> pt.AnalogValue:
+#         if len(self._drivers) == 1:
+#             return self._drivers[0].read_from_channel(channel)
+#         # Two-driver case: treat channel==1/2 as device selector (ADS1114 pattern)
+#         adc = self._drivers[channel]
+#         return adc.read_from_channel(channel)
+#
+#     def set_ads_gain(self, gain: float) -> None:
+#         # try to broadcast gain to all drivers that support it
+#         for d in self._drivers:
+#             if hasattr(d, "set_ads_gain"):
+#                 try:
+#                     d.set_ads_gain(gain)  # type: ignore[attr-defined]
+#                 except Exception:
+#                     pass
+#
+#     def check_on_gain(self, value: pt.Voltage, tol: float = 0.85) -> None:
+#         # defer to first driver (which knows its own thresholds)
+#         try:
+#             self._drivers[0].check_on_gain(value, tol)
+#         except Exception:
+#             pass
+#
+#     def from_voltage_to_raw(self, voltage: pt.Voltage) -> pt.AnalogValue:
+#         return self._drivers[0].from_voltage_to_raw(voltage)
+#
+#     def from_voltage_to_raw_precise(self, voltage: pt.Voltage) -> pt.AnalogValue:
+#         return self._drivers[0].from_voltage_to_raw_precise(voltage)
+#
+#     def from_raw_to_voltage(self, raw: pt.AnalogValue) -> pt.Voltage:
+#         return self._drivers[0].from_raw_to_voltage(raw)
+#
+#
+#
+# class MultiplexADS1114_ADC(_MultiplexADCBase):
+#     """
+#     Multiplexer over two ADS1114 devices: channel 1 -> PD1 ADC, channel 2 -> PD2 ADC.
+#     """
+#
+#     def __init__(self) -> None:
+#         drivers = [
+#             ADS1114_ADC(i2c_addr=hardware.ADC_PD1_I2C),
+#             ADS1114_ADC(i2c_addr=hardware.ADC_PD2_I2C),
+#         ]
+#         super().__init__(drivers)
+#
+#
+# class MultiplexPico_ADC(_MultiplexADCBase):
+#     def __init__(self) -> None:
+#         assert hardware.ADC_PD1_I2C == hardware.ADC_PD2_I2C, "ADS1115 multiplexer requires both ADCs to share the same I2C address."
+#         super().__init__([Pico_ADC(i2c_addr=hardware.ADC_PD1_I2C)])
+#
+#
+# class MultiplexADS1115_ADC(_MultiplexADCBase):
+#     def __init__(self) -> None:
+#         assert hardware.ADC_PD1_I2C == hardware.ADC_PD2_I2C, "ADS1115 multiplexer requires both ADCs to share the same I2C address."
+#         super().__init__([ADS1115_ADC(i2c_addr=hardware.ADC_PD1_I2C)])
+#

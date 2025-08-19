@@ -2,29 +2,27 @@
 from __future__ import annotations
 
 from os import environ
-from typing import Iterable
 
-from pioreactor.types import AdcChannel
-from pioreactor.types import GpioChip
-from pioreactor.types import GpioPin
-from pioreactor.types import I2CPin
-from pioreactor.types import PdChannel
-from pioreactor.types import PwmChannel
-from pioreactor.version import hardware_version_info
+from msgspec import Struct
+from pioreactor import types as pt
+from pioreactor.exc import HardwareError
+from pioreactor.utils import adcs
+from pioreactor.version import hardware_version_tuple
 from pioreactor.version import rpi_version_info
+from pioreactor.version import version_text_to_tuple
 from pioreactor.whoami import get_pioreactor_model
 from pioreactor.whoami import is_testing_env
 
-
+#
 # All GPIO pins below are BCM numbered
 
 # PWMs
 # Heater PWM
-HEATER_PWM_TO_PIN: PwmChannel = "5"
+HEATER_PWM_TO_PIN: pt.PwmChannel = "5"
 
 # map between PWM channels and GPIO pins
-PWM_TO_PIN: dict[PwmChannel, GpioPin] = {
-    "1": 6 if hardware_version_info == (0, 1) else 17,
+PWM_TO_PIN: dict[pt.PwmChannel, pt.GpioPin] = {
+    "1": 17,
     "2": 13,  # hardware PWM1 available
     "3": 16,
     "4": 12,  # hardware PWM0 available
@@ -33,18 +31,18 @@ PWM_TO_PIN: dict[PwmChannel, GpioPin] = {
 
 
 # led and button GPIO pins
-PCB_LED_PIN: GpioPin = 23
-PCB_BUTTON_PIN: GpioPin = 24 if (0, 0) < hardware_version_info <= (1, 0) else 4
+PCB_LED_PIN: pt.GpioPin = 23
+PCB_BUTTON_PIN: pt.GpioPin = 24 if hardware_version_tuple == (1, 0) else 4
 
 
 # hall sensor
-HALL_SENSOR_PIN: GpioPin = 25 if (0, 0) < hardware_version_info <= (1, 0) else 21
+HALL_SENSOR_PIN: pt.GpioPin = 25 if hardware_version_tuple == (1, 0) else 21
 
 
 # I2C pins
-GPIOCHIP: GpioChip
-SDA: I2CPin
-SCL: I2CPin
+GPIOCHIP: pt.GpioChip
+SDA: pt.I2CPin
+SCL: pt.I2CPin
 
 if rpi_version_info.startswith("Raspberry Pi 5"):
     GPIOCHIP = 4
@@ -55,74 +53,89 @@ else:
     SDA = 2
     SCL = 3
 
-if hardware_version_info >= (1, 1):
-    # SWD, used in HAT version >= 1.1
-    SWCLK: GpioPin = 25
-    SWDIO: GpioPin = 24
+## not used in app
+# if hardware_version_info == "1.1":
+#     # SWD, used in HAT version == 1.1
+#     SWCLK: pt.GpioPin = 25
+#     SWDIO: pt.GpioPin = 24
 
 
 # I2C channels used
-
-ADC: int | tuple[int, ...]
-if get_pioreactor_model().model_version in ("1.0", "1.1") and hardware_version_info == (1, 1):
-    ADC = 0x2C  # As of 24.8.22, =44. Prior it was 0x30=48.
-elif hardware_version_info == (1, 0):
-    ADC = 0x48
-else:  # 1.5
-    ADC = (0x48, 0x49)
-
-
-DAC = 0x49 if (0, 0) < hardware_version_info <= (1, 0) else 0x2C  # As of 24.8.22, =44. Prior it was 0x30=48
 TEMP = 0x4F
 
 
-# ADC map of function to hardware ADC channel
-ADC_CHANNEL_FUNCS: dict[str | PdChannel, AdcChannel]
+# this assumes a pioreactor model!
+model_version_info = get_pioreactor_model().model_version
+model_version_tuple = version_text_to_tuple(model_version_info)
 
-if is_testing_env():
-    ADC_CHANNEL_FUNCS = {
-        "1": 2,
-        "2": 3,
-        "version": 0,
-        "aux": 1,
-    }
-elif hardware_version_info <= (0, 1):  # alpha
-    ADC_CHANNEL_FUNCS = {
-        "1": 0,
-        "2": 1,
-        "version": 2,
-        "aux": 3,
-    }
-elif hardware_version_info <= (1, 0):  # v1.0 hat
-    ADC_CHANNEL_FUNCS = {
-        "1": 1,
-        "2": 0,
-        "version": 2,
-        "aux": 3,
-    }
-else:
-    # v1.1 HAT
-    if get_pioreactor_model().model_version in ("1.0", "1.1"):
-        ADC_CHANNEL_FUNCS = {
-            "1": 2,
-            "2": 3,
-            "version": 0,
-            "aux": 1,
-        }
-    else:
-        # Pioreactor v1.5 model
-        ADC_CHANNEL_FUNCS = {
-            "1": 0,
-            "2": 1,
-            "version": -1,
-            "aux": -1,
+
+class ADCChannelConfig(Struct):
+    adc_driver: type[adcs._I2C_ADC]
+    i2c_address: pt.I2CAddress
+    adc_channel: pt.AdcChannel
+
+
+match (model_version_tuple, hardware_version_tuple):
+    # pioreactor 20 v1.0,
+    case ((1, 0), (1, 0)):
+        ADC = {
+            "aux": ADCChannelConfig(adcs.ADS1115_ADC, 0x48, 3),
+            "version": ADCChannelConfig(adcs.ADS1115_ADC, 0x48, 2),
+            "pd1": ADCChannelConfig(adcs.ADS1115_ADC, 0x48, 1),
+            "pd2": ADCChannelConfig(adcs.ADS1115_ADC, 0x48, 0),
         }
 
+        DAC = 0x49
 
-def is_i2c_device_present(channel: int | Iterable[int]) -> bool:
-    if not isinstance(channel, Iterable):
-        channel = [channel]
+    case ((1, 0), (1, 1)):
+        ADC = {
+            "aux": ADCChannelConfig(adcs.Pico_ADC, 0x2C, 1),
+            "version": ADCChannelConfig(adcs.Pico_ADC, 0x2C, 0),
+            "pd1": ADCChannelConfig(adcs.Pico_ADC, 0x2C, 2),
+            "pd2": ADCChannelConfig(adcs.Pico_ADC, 0x2C, 3),
+        }
 
+        DAC = 0x2C
+
+    # pioreactor 20/40 v1.1
+    case ((1, 1), (1, 0)):
+        ADC = {
+            "aux": ADCChannelConfig(adcs.ADS1115_ADC, 0x48, 3),
+            "version": ADCChannelConfig(adcs.ADS1115_ADC, 0x48, 2),
+            "pd1": ADCChannelConfig(adcs.ADS1115_ADC, 0x48, 1),
+            "pd2": ADCChannelConfig(adcs.ADS1115_ADC, 0x48, 0),
+        }
+
+        DAC = 0x49
+
+    case ((1, 1), (1, 1)):
+        ADC = {
+            "aux": ADCChannelConfig(adcs.Pico_ADC, 0x2C, 1),
+            "version": ADCChannelConfig(adcs.Pico_ADC, 0x2C, 0),
+            "pd1": ADCChannelConfig(adcs.Pico_ADC, 0x2C, 2),
+            "pd2": ADCChannelConfig(adcs.Pico_ADC, 0x2C, 3),
+        }
+
+        DAC = 0x2C
+
+    # pioreactor 20/40 v1.5
+    case ((1, 5), (1, 0)):
+        raise HardwareError(
+            "Can't use the current eye-spy system with 1.0 boards. The i2c addresses conflict."
+        )
+
+    case ((1, 5), (1, 1)):
+        ADC = {
+            "aux": ADCChannelConfig(adcs.Pico_ADC, 0x2C, 1),
+            "version": ADCChannelConfig(adcs.Pico_ADC, 0x2C, 0),
+            "pd1": ADCChannelConfig(adcs.ADS1114_ADC, 0x48, 0),
+            "pd2": ADCChannelConfig(adcs.ADS1114_ADC, 0x49, 0),
+        }
+
+        DAC = 0x2C
+
+
+def is_i2c_device_present(channel: int) -> bool:
     if is_testing_env():
         from pioreactor.utils.mock import MockI2C as I2C
     else:
@@ -131,12 +144,11 @@ def is_i2c_device_present(channel: int | Iterable[int]) -> bool:
     from adafruit_bus_device.i2c_device import I2CDevice  # type: ignore
 
     with I2C(SCL, SDA) as i2c:
-        for c in channel:
-            try:
-                I2CDevice(i2c, c, probe=True)
-            except ValueError:
-                return False
-        return True
+        try:
+            I2CDevice(i2c, channel, probe=True)
+            return True
+        except ValueError:
+            return False
 
 
 def is_DAC_present() -> bool:
@@ -144,7 +156,8 @@ def is_DAC_present() -> bool:
 
 
 def is_ADC_present() -> bool:
-    return is_i2c_device_present(ADC)
+    to_check = set([adc.i2c_address for adc in ADC.values()])
+    return all(is_i2c_device_present(c) for c in to_check)
 
 
 def is_heating_pcb_present() -> bool:
@@ -176,16 +189,15 @@ def round_to_precision(x: float, p: float) -> float:
 
 
 def voltage_in_aux(precision: float = 0.1) -> float:
-    # Warning: this _can_ mess with OD readings if running at the same time.
     if not is_testing_env():
-        from pioreactor.utils.adcs import ADC as ADC_class
+        ADC_class = ADC["aux"].adc_driver
     else:
         from pioreactor.utils.mock import Mock_ADC as ADC_class  # type: ignore
 
+    adc = ADC_class(SCL, SDA, ADC["aux"].i2c_address, ADC["aux"].adc_channel)
     slope = 0.134  # from schematic
 
-    adc = ADC_class()  # type: ignore
     return round_to_precision(
-        adc.from_raw_to_voltage(adc.read_from_channel(ADC_CHANNEL_FUNCS["aux"])) / slope,
+        adc.from_raw_to_voltage(adc.read_from_channel()) / slope,
         p=precision,
     )

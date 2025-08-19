@@ -8,7 +8,13 @@ class PWMError(OSError):
     """
 
 
-class HardwareNotFoundError(OSError):
+class HardwareError(OSError):
+    """
+    A hardware device error
+    """
+
+
+class HardwareNotFoundError(HardwareError):
     """
     A hardware device is missing.
     """

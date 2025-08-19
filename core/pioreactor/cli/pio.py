@@ -330,7 +330,7 @@ def version(verbose: bool) -> None:
         from pioreactor.whoami import get_pioreactor_model
 
         click.echo(f"Pioreactor app:         {tuple_to_text(software_version_info)}")
-        click.echo(f"Pioreactor HAT:         {tuple_to_text(hardware_version_info)}")
+        click.echo(f"Pioreactor HAT:         {hardware_version_info}")
         click.echo(f"Pioreactor firmware:    {tuple_to_text(get_firmware_version())}")
         click.echo(f"Bioreactor model name:  {get_pioreactor_model().display_name}")
         click.echo(f"HAT serial number:      {serial_number}")

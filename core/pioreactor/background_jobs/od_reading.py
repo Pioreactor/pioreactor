@@ -65,9 +65,8 @@ from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.base import LoggerMixin
 from pioreactor.calibrations import load_active_calibration
 from pioreactor.config import config
-from pioreactor.hardware import ADC_CHANNEL_FUNCS
 from pioreactor.pubsub import publish
-from pioreactor.utils import adcs
+from pioreactor.utils import adcs as madcs
 from pioreactor.utils import argextrema
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import timing
@@ -135,35 +134,37 @@ class ADCReader(LoggerMixin):
         super().__init__()
         self.fake_data = fake_data
         self.dynamic_gain = dynamic_gain
-        self.max_signal_moving_average = ExponentialMovingAverage(alpha=0.05)
         self.channels: list[pt.PdChannel] = channels
         self.adc_offsets: dict[pt.PdChannel, float] = {}
         self.penalizer = penalizer
         self.oversampling_count = oversampling_count
         self.batched_readings: RawPDReadings = {}
+        self.max_signal_moving_average = {c: ExponentialMovingAverage(alpha=0.05) for c in self.channels}
 
         if "local_ac_hz" in config["od_reading.config"]:
             self.most_appropriate_AC_hz: Optional[float] = config.getfloat("od_reading.config", "local_ac_hz")
         else:
             self.most_appropriate_AC_hz = None
 
-    def _get_ADC_based_on_hardware(self) -> adcs._ADC:
+    def _get_ADCs_based_on_hardware(self) -> dict[pt.PdChannel, madcs._I2C_ADC]:
         if self.fake_data:
-            from pioreactor.utils.mock import Mock_ADC as ADC
+            from pioreactor.utils.mock import Mock_ADC
 
-            return ADC()
-        else:
-            from pioreactor.version import hardware_version_info
+            return {channel: Mock_ADC(adc_channel=0) for channel in self.channels}
 
-            if (0, 0) < hardware_version_info <= (1, 0):
-                return adcs.ADS1115_ADC()
-            elif hardware_version_info == (1, 1) and whoami.get_pioreactor_model().model_version in (
-                "1.0",
-                "1.1",
-            ):
-                return adcs.Pico_ADC()
-            else:
-                return adcs.MultiplexADS1114_ADC()
+        adcs: dict[pt.PdChannel, madcs._I2C_ADC] = {}
+        if "1" in self.channels:
+            adc_location = hardware.ADC["pd1"]
+            adcs["1"] = adc_location.adc_driver(
+                hardware.SCL, hardware.SDA, adc_location.i2c_address, adc_location.adc_channel
+            )
+        if "2" in self.channels:
+            adc_location = hardware.ADC["pd2"]
+            adcs["2"] = adc_location.adc_driver(
+                hardware.SCL, hardware.SDA, adc_location.i2c_address, adc_location.adc_channel
+            )
+
+        return adcs
 
     def tune_adc(self) -> RawPDReadings:
         """
@@ -181,31 +182,32 @@ class ADCReader(LoggerMixin):
             self.logger.error("The internal DAC is not responding. Exiting.")
             raise exc.HardwareNotFoundError("The internal DAC is not responding. Exiting.")
 
-        self.adc = self._get_ADC_based_on_hardware()
-        self.logger.debug(f"Using ADC class {self.adc.__class__.__name__}.")
+        self.adcs = self._get_ADCs_based_on_hardware()
 
-        running_max_signal = 0.0
         testing_signals: RawPDReadings = {}
         for pd_channel in self.channels:
-            adc_channel = ADC_CHANNEL_FUNCS[pd_channel]
-            signal = self.adc.read_from_channel(adc_channel)
+            adc = self.adcs[pd_channel]
+            signal = adc.read_from_channel()
 
             testing_signals[pd_channel] = structs.RawPDReading(
-                reading=self.adc.from_raw_to_voltage(signal), channel=pd_channel
+                reading=adc.from_raw_to_voltage(signal), channel=pd_channel
             )
 
-            running_max_signal = max(self.adc.from_raw_to_voltage(signal), running_max_signal)
-            self.check_on_max(running_max_signal)
+            self.check_on_max(adc.from_raw_to_voltage(signal))
 
-        # we will instantiate and sweep through to set the gain
-        # check if using correct gain
-        if self.dynamic_gain:
-            self.adc.check_on_gain(running_max_signal)
+            if self.dynamic_gain:
+                adc.check_on_gain(adc.from_raw_to_voltage(signal))
+
+        if "1" in self.adcs:
+            self.logger.debug(
+                f"Using ADC class {self.adcs['1'].__class__.__name__} for pd1 with gain {self.adcs['1'].gain}."
+            )
+        if "2" in self.adcs:
+            self.logger.debug(
+                f"Using ADC class {self.adcs['2'].__class__.__name__} for pd2 with gain {self.adcs['2'].gain}."
+            )
 
         self._setup_complete = True
-        self.logger.debug(
-            f"ADC ready to read from PD channels {', '.join(map(str, self.channels))}, with gain {self.adc.gain}."
-        )
         return testing_signals
 
     def set_offsets(self, batched_readings: RawPDReadings) -> None:
@@ -213,10 +215,10 @@ class ADCReader(LoggerMixin):
         With the IR LED off, determine the offsets. These offsets are used later to shift the raw signals such that "dark" is 0.
         """
         for channel, blank_reading in batched_readings.items():
-            self.adc_offsets[channel] = self.adc.from_voltage_to_raw_precise(blank_reading.reading)
+            self.adc_offsets[channel] = self.adcs[channel].from_voltage_to_raw_precise(blank_reading.reading)
 
         self.logger.debug(
-            f"ADC offsets: {self.adc_offsets}, and in voltage: { {c: self.adc.from_raw_to_voltage(i) for c, i in  self.adc_offsets.items()}}"
+            f"ADC offsets: {self.adc_offsets}, and in voltage: { {c: self.adcs[c].from_raw_to_voltage(i) for c, i in self.adc_offsets.items()}}"
         )
 
     def check_on_max(self, value: pt.Voltage) -> None:
@@ -407,35 +409,30 @@ class ADCReader(LoggerMixin):
         if not self._setup_complete:
             raise ValueError("Must call tune_adc() first.")
 
-        max_signal = -1.0
-        oversampling_count = self.oversampling_count
-
-        channels = self.channels
-        read_from_channel = self.adc.read_from_channel
-
         # we pre-allocate these arrays to make the for loop faster => more accurate
         aggregated_signals: dict[pt.PdChannel, list[pt.AnalogValue]] = {
-            channel: [0.0] * oversampling_count for channel in channels
+            channel: [0.0] * self.oversampling_count for channel in self.channels
         }
         timestamps: dict[pt.PdChannel, list[float]] = {
-            channel: [0.0] * oversampling_count for channel in channels
+            channel: [0.0] * self.oversampling_count for channel in self.channels
         }
 
         try:
             with catchtime() as time_since_start:
-                for counter in range(oversampling_count):
+                for counter in range(self.oversampling_count):
                     with catchtime() as time_sampling_took_to_run:
-                        for pd_channel in channels:
-                            adc_channel = ADC_CHANNEL_FUNCS[pd_channel]
+                        for pd_channel in self.channels:
                             timestamps[pd_channel][counter] = time_since_start()
-                            aggregated_signals[pd_channel][counter] = read_from_channel(adc_channel)
+                            aggregated_signals[pd_channel][counter] = self.adcs[
+                                pd_channel
+                            ].read_from_channel()
 
                     sleep(
                         max(
                             0,
                             -time_sampling_took_to_run()  # the time_sampling_took_to_run() reduces the variance by accounting for the duration of each sampling.
                             + 0.85
-                            / (oversampling_count - 1)  # aim for 0.85s per read
+                            / (self.oversampling_count - 1)  # aim for 0.85s per read
                             * (
                                 (counter * 0.618034) % 1
                             ),  # this is to artificially jitter the samples, so that we observe less aliasing. That constant is phi.
@@ -464,37 +461,39 @@ class ADCReader(LoggerMixin):
                     timestamps[channel],
                     shifted_signals,
                     self.most_appropriate_AC_hz,
-                    prior_C=(self.adc.from_voltage_to_raw_precise(self.batched_readings[channel].reading))
+                    prior_C=(
+                        self.adcs[channel].from_voltage_to_raw_precise(self.batched_readings[channel].reading)
+                    )
                     if (channel in self.batched_readings)
                     else None,
-                    penalizer_C=(self.penalizer * oversampling_count),
+                    penalizer_C=(self.penalizer * self.oversampling_count),
                 )
 
                 # convert to voltage
-                best_estimate_of_signal_v = round(self.adc.from_raw_to_voltage(best_estimate_of_signal_), 10)
+                best_estimate_of_signal_v = round(
+                    self.adcs[channel].from_raw_to_voltage(best_estimate_of_signal_), 10
+                )
 
                 # force value to be non-negative. Negative values can still occur due to the IR LED reference
                 batched_estimates_[channel] = max(best_estimate_of_signal_v, 0)
 
                 # check if more than 3.x V, and shut down to prevent damage to ADC.
                 # we use max_signal to modify the PGA, too
-                max_signal = max(max_signal, best_estimate_of_signal_v)
+                self.check_on_max(best_estimate_of_signal_v)
 
-            self.check_on_max(max_signal)
+                # the max signal should determine the ADS1x15's gain
+                self.max_signal_moving_average[channel].update(best_estimate_of_signal_v)
+
+                # check if using correct gain
+                # this may need to be adjusted for higher rates of data collection
+                if self.dynamic_gain:
+                    m = self.max_signal_moving_average[channel].get_latest()
+                    self.adcs[channel].check_on_gain(m)
 
             self.batched_readings = {
                 channel: structs.RawPDReading(reading=batched_estimates_[channel], channel=channel)
                 for channel in self.channels
             }
-
-            # the max signal should determine the ADS1x15's gain
-            self.max_signal_moving_average.update(max_signal)
-
-            # check if using correct gain
-            # this may need to be adjusted for higher rates of data collection
-            if self.dynamic_gain:
-                m = self.max_signal_moving_average.get_latest()
-                self.adc.check_on_gain(m)
 
             return self.batched_readings
         except OSError as e:
@@ -562,7 +561,7 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
     The following are causes of LED output changing:
     - change in temperature of LED, caused by change in ambient temperature, or change in intensity of LED
     - LED dimming over time
-    - drop in 3.3V rail -> changes the reference voltage for LED driver -> changes the output
+    - drop in 3.3V rail -> changes the reference voltage for LED adc_driver -> changes the output
 
     Unlike other models (see git history), instead of recording the _initial_ led value, we hardcode it to something. Why?
     In PhotodiodeIrLedReferenceTracker (see git history), the transform OD reading is proportional to the initial LED value:

@@ -7,7 +7,7 @@ from typing import Any
 
 import pioreactor.types as pt
 from pioreactor.config import config
-from pioreactor.utils.adcs import _ADC
+from pioreactor.utils.adcs import _I2C_ADC
 from pioreactor.utils.dacs import _DAC
 from pioreactor.whoami import is_testing_env
 
@@ -35,18 +35,20 @@ class MockI2C:
         return
 
 
-class Mock_ADC(_ADC):
+class Mock_ADC(_I2C_ADC):
     INIT_STATE = 0.01
     OFFSET = 0.002
+    gain = 1
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, adc_channel, *args, **kwargs) -> None:
         self._counter = 0.0
         self.state = self.INIT_STATE
         self.max_gr = 0.25 + 0.1 * random.random()
         self.scale_factor = 0.00035 + 0.00005 * random.random()
         self.lag = 2 * 60 * 60 - 1 * 60 * 60 * random.random()
+        self.adc_channel = adc_channel
 
-    def read_from_channel(self, channel: pt.AdcChannel):
+    def read_from_channel(self):
         from pioreactor.utils import local_intermittent_storage
         import random
         import numpy as np
@@ -58,7 +60,7 @@ class Mock_ADC(_ADC):
             return self.OFFSET
 
         # TODO: I think this below line is wrong.
-        am_i_REF = str(channel - 1) == config.get("od_config.photodiode_channel_reverse", "REF")
+        am_i_REF = str(self.adc_channel - 1) == config.get("od_config.photodiode_channel_reverse", "REF")
 
         if am_i_REF:
             return self.from_voltage_to_raw(0.250 + random.normalvariate(0, sigma=0.001) / 2**10)

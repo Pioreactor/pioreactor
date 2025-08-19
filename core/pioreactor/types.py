@@ -115,7 +115,7 @@ RawOD = t.Annotated[float, Meta(ge=0)]
 CalibratedOD = float
 OD = RawOD | CalibratedOD
 
-AdcChannel = int
+AdcChannel = int  # non-negative
 
 FloatBetween0and100 = t.Annotated[float, Meta(ge=0, le=100)]
 LedIntensityValue = FloatBetween0and100
@@ -153,6 +153,7 @@ GpioPin = t.Literal[
 ]
 
 I2CPin = t.Union[GpioPin, tuple[int, GpioPin]]
+I2CAddress = int  # 0 <= I2CAddress <= 127
 
 GpioChip = t.Literal[0, 4]
 
