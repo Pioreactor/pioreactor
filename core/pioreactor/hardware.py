@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from os import environ
 
-from msgspec import Struct
 from pioreactor import types as pt
 from pioreactor.exc import HardwareError
 from pioreactor.utils import adcs
@@ -69,30 +68,47 @@ model_version_info = get_pioreactor_model().model_version
 model_version_tuple = version_text_to_tuple(model_version_info)
 
 
-class ADCChannelConfig(Struct):
-    adc_driver: type[adcs._I2C_ADC]
-    i2c_address: pt.I2CAddress
-    adc_channel: pt.AdcChannel
+class ADCCurrier:
+    """
+    We don't to initiate the ADCs until we need them, so we curry them using this class, and this keeps all
+    the hardware metadata nice and neat and accessible.
+
+    from pioreactor.hardware import ADC
+
+    adc = ADC['pd1']()
+    reading = adc.read_from_channel()
+
+    """
+
+    def __init__(
+        self, adc_driver: type[adcs._I2C_ADC], i2c_address: pt.I2CAddress, adc_channel: pt.AdcChannel
+    ):
+        self.adc_driver = adc_driver
+        self.i2c_address = i2c_address
+        self.adc_channel = adc_channel
+
+    def __call__(self) -> adcs._I2C_ADC:
+        return self.adc_driver(SCL, SDA, self.i2c_address, self.adc_channel)
 
 
 match (model_version_tuple, hardware_version_tuple):
     # pioreactor 20 v1.0,
     case ((1, 0), (1, 0)):
         ADC = {
-            "aux": ADCChannelConfig(adcs.ADS1115_ADC, 0x48, 3),
-            "version": ADCChannelConfig(adcs.ADS1115_ADC, 0x48, 2),
-            "pd1": ADCChannelConfig(adcs.ADS1115_ADC, 0x48, 1),
-            "pd2": ADCChannelConfig(adcs.ADS1115_ADC, 0x48, 0),
+            "aux": ADCCurrier(adcs.ADS1115_ADC, 0x48, 3),
+            "version": ADCCurrier(adcs.ADS1115_ADC, 0x48, 2),
+            "pd1": ADCCurrier(adcs.ADS1115_ADC, 0x48, 1),
+            "pd2": ADCCurrier(adcs.ADS1115_ADC, 0x48, 0),
         }
 
         DAC = 0x49
 
     case ((1, 0), (1, 1)):
         ADC = {
-            "aux": ADCChannelConfig(adcs.Pico_ADC, 0x2C, 1),
-            "version": ADCChannelConfig(adcs.Pico_ADC, 0x2C, 0),
-            "pd1": ADCChannelConfig(adcs.Pico_ADC, 0x2C, 2),
-            "pd2": ADCChannelConfig(adcs.Pico_ADC, 0x2C, 3),
+            "aux": ADCCurrier(adcs.Pico_ADC, 0x2C, 1),
+            "version": ADCCurrier(adcs.Pico_ADC, 0x2C, 0),
+            "pd1": ADCCurrier(adcs.Pico_ADC, 0x2C, 2),
+            "pd2": ADCCurrier(adcs.Pico_ADC, 0x2C, 3),
         }
 
         DAC = 0x2C
@@ -100,20 +116,20 @@ match (model_version_tuple, hardware_version_tuple):
     # pioreactor 20/40 v1.1
     case ((1, 1), (1, 0)):
         ADC = {
-            "aux": ADCChannelConfig(adcs.ADS1115_ADC, 0x48, 3),
-            "version": ADCChannelConfig(adcs.ADS1115_ADC, 0x48, 2),
-            "pd1": ADCChannelConfig(adcs.ADS1115_ADC, 0x48, 1),
-            "pd2": ADCChannelConfig(adcs.ADS1115_ADC, 0x48, 0),
+            "aux": ADCCurrier(adcs.ADS1115_ADC, 0x48, 3),
+            "version": ADCCurrier(adcs.ADS1115_ADC, 0x48, 2),
+            "pd1": ADCCurrier(adcs.ADS1115_ADC, 0x48, 1),
+            "pd2": ADCCurrier(adcs.ADS1115_ADC, 0x48, 0),
         }
 
         DAC = 0x49
 
     case ((1, 1), (1, 1)):
         ADC = {
-            "aux": ADCChannelConfig(adcs.Pico_ADC, 0x2C, 1),
-            "version": ADCChannelConfig(adcs.Pico_ADC, 0x2C, 0),
-            "pd1": ADCChannelConfig(adcs.Pico_ADC, 0x2C, 2),
-            "pd2": ADCChannelConfig(adcs.Pico_ADC, 0x2C, 3),
+            "aux": ADCCurrier(adcs.Pico_ADC, 0x2C, 1),
+            "version": ADCCurrier(adcs.Pico_ADC, 0x2C, 0),
+            "pd1": ADCCurrier(adcs.Pico_ADC, 0x2C, 2),
+            "pd2": ADCCurrier(adcs.Pico_ADC, 0x2C, 3),
         }
 
         DAC = 0x2C
@@ -126,10 +142,10 @@ match (model_version_tuple, hardware_version_tuple):
 
     case ((1, 5), (1, 1)):
         ADC = {
-            "aux": ADCChannelConfig(adcs.Pico_ADC, 0x2C, 1),
-            "version": ADCChannelConfig(adcs.Pico_ADC, 0x2C, 0),
-            "pd1": ADCChannelConfig(adcs.ADS1114_ADC, 0x48, 0),
-            "pd2": ADCChannelConfig(adcs.ADS1114_ADC, 0x49, 0),
+            "aux": ADCCurrier(adcs.Pico_ADC, 0x2C, 1),
+            "version": ADCCurrier(adcs.Pico_ADC, 0x2C, 0),
+            "pd1": ADCCurrier(adcs.ADS1114_ADC, 0x48, 0),
+            "pd2": ADCCurrier(adcs.ADS1114_ADC, 0x49, 0),
         }
 
         DAC = 0x2C
@@ -190,11 +206,13 @@ def round_to_precision(x: float, p: float) -> float:
 
 def voltage_in_aux(precision: float = 0.1) -> float:
     if not is_testing_env():
-        ADC_class = ADC["aux"].adc_driver
+        AUX_ADC = ADC["aux"]
     else:
-        from pioreactor.utils.mock import Mock_ADC as ADC_class  # type: ignore
+        from pioreactor.utils.mock import Mock_ADC  # type: ignore
 
-    adc = ADC_class(SCL, SDA, ADC["aux"].i2c_address, ADC["aux"].adc_channel)
+        AUX_ADC = ADCCurrier(Mock_ADC, 0x00, 0)
+
+    adc = AUX_ADC()
     slope = 0.134  # from schematic
 
     return round_to_precision(

@@ -40,7 +40,7 @@ def run_around_tests(request):
         for key in cache.iterkeys():
             del cache[key]
 
-    with local_intermittent_storage("active_calibrations") as cache:
+    with local_persistent_storage("active_calibrations") as cache:
         for key in cache.iterkeys():
             del cache[key]
 

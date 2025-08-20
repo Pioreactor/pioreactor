@@ -146,25 +146,13 @@ class ADCReader(LoggerMixin):
         else:
             self.most_appropriate_AC_hz = None
 
-    def _get_ADCs_based_on_hardware(self) -> dict[pt.PdChannel, madcs._I2C_ADC]:
+    def _get_ADCs(self) -> dict[pt.PdChannel, madcs._I2C_ADC]:
         if self.fake_data:
             from pioreactor.utils.mock import Mock_ADC
 
-            return {channel: Mock_ADC(adc_channel=0) for channel in self.channels}
-
-        adcs: dict[pt.PdChannel, madcs._I2C_ADC] = {}
-        if "1" in self.channels:
-            adc_location = hardware.ADC["pd1"]
-            adcs["1"] = adc_location.adc_driver(
-                hardware.SCL, hardware.SDA, adc_location.i2c_address, adc_location.adc_channel
-            )
-        if "2" in self.channels:
-            adc_location = hardware.ADC["pd2"]
-            adcs["2"] = adc_location.adc_driver(
-                hardware.SCL, hardware.SDA, adc_location.i2c_address, adc_location.adc_channel
-            )
-
-        return adcs
+            return {c: Mock_ADC(adc_channel=0) for c in self.channels}
+        else:
+            return {c: hardware.ADC[f"pd{c}"]() for c in self.channels}
 
     def tune_adc(self) -> RawPDReadings:
         """
@@ -182,29 +170,24 @@ class ADCReader(LoggerMixin):
             self.logger.error("The internal DAC is not responding. Exiting.")
             raise exc.HardwareNotFoundError("The internal DAC is not responding. Exiting.")
 
-        self.adcs = self._get_ADCs_based_on_hardware()
+        self.adcs = self._get_ADCs()
 
         testing_signals: RawPDReadings = {}
         for pd_channel in self.channels:
             adc = self.adcs[pd_channel]
             signal = adc.read_from_channel()
+            voltage = adc.from_raw_to_voltage(signal)
 
-            testing_signals[pd_channel] = structs.RawPDReading(
-                reading=adc.from_raw_to_voltage(signal), channel=pd_channel
-            )
+            testing_signals[pd_channel] = structs.RawPDReading(reading=voltage, channel=pd_channel)
 
-            self.check_on_max(adc.from_raw_to_voltage(signal))
+            self._check_if_over_max(voltage)
 
             if self.dynamic_gain:
-                adc.check_on_gain(adc.from_raw_to_voltage(signal))
+                adc.check_on_gain(voltage)
 
-        if "1" in self.adcs:
+        for channel, adc in self.adcs.items():
             self.logger.debug(
-                f"Using ADC class {self.adcs['1'].__class__.__name__} for pd1 with gain {self.adcs['1'].gain}."
-            )
-        if "2" in self.adcs:
-            self.logger.debug(
-                f"Using ADC class {self.adcs['2'].__class__.__name__} for pd2 with gain {self.adcs['2'].gain}."
+                f"Using ADC class {adc.__class__.__name__} for pd{channel} with gain {adc.gain}."
             )
 
         self._setup_complete = True
@@ -221,10 +204,8 @@ class ADCReader(LoggerMixin):
             f"ADC offsets: {self.adc_offsets}, and in voltage: { {c: self.adcs[c].from_raw_to_voltage(i) for c, i in self.adc_offsets.items()}}"
         )
 
-    def check_on_max(self, value: pt.Voltage) -> None:
-        if value <= 3.0:
-            return
-        elif value > 3.2:
+    def _check_if_over_max(self, value: pt.Voltage) -> None:
+        if value > 3.2:
             # TODO: sometimes we use ADC in self-tests or calibrations, and it might not be assigned. This will fail if that's the case.
             unit = whoami.get_unit_name()
             exp = whoami.get_assigned_experiment_name(unit)
@@ -477,17 +458,15 @@ class ADCReader(LoggerMixin):
                 # force value to be non-negative. Negative values can still occur due to the IR LED reference
                 batched_estimates_[channel] = max(best_estimate_of_signal_v, 0)
 
+                # the max signal should determine the ADS1x15's gain
+                m = self.max_signal_moving_average[channel].update(best_estimate_of_signal_v)
+
                 # check if more than 3.x V, and shut down to prevent damage to ADC.
                 # we use max_signal to modify the PGA, too
-                self.check_on_max(best_estimate_of_signal_v)
-
-                # the max signal should determine the ADS1x15's gain
-                self.max_signal_moving_average[channel].update(best_estimate_of_signal_v)
-
+                self._check_if_over_max(m)
                 # check if using correct gain
                 # this may need to be adjusted for higher rates of data collection
                 if self.dynamic_gain:
-                    m = self.max_signal_moving_average[channel].get_latest()
                     self.adcs[channel].check_on_gain(m)
 
             self.batched_readings = {
