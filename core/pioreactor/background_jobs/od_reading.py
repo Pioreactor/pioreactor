@@ -960,7 +960,7 @@ class ODReader(BackgroundJob):
         ir_intensity_argmax_REF_can_be = initial_ir_intensity / REF_on_signal.reading * 0.250
 
         ir_intensity_argmax_ANGLE_can_be = (
-            initial_ir_intensity / culture_on_signal.reading
+            initial_ir_intensity / culture_on_signal.reading * 3
         ) / 50  # divide by N since the culture is unlikely to Nx.
 
         ir_intensity_max = 85.0
