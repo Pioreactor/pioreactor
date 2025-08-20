@@ -267,9 +267,7 @@ def test_ambient_light_interference(managed_state, logger: CustomLogger, unit: s
 
     readings = adc_reader.take_reading()
 
-    from pioreactor.version import version_text_to_tuple
-
-    if version_text_to_tuple(hardware_version_info) < (1, 1):
+    if hardware_version_info < (1, 1):
         assert all([readings[pd_channel].reading < 0.005 for pd_channel in ALL_PD_CHANNELS]), readings
     else:
         assert all(

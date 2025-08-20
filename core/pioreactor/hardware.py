@@ -6,7 +6,7 @@ from os import environ
 from pioreactor import types as pt
 from pioreactor.exc import HardwareError
 from pioreactor.utils import adcs
-from pioreactor.version import hardware_version_tuple
+from pioreactor.version import hardware_version_info
 from pioreactor.version import rpi_version_info
 from pioreactor.version import version_text_to_tuple
 from pioreactor.whoami import get_pioreactor_model
@@ -31,11 +31,11 @@ PWM_TO_PIN: dict[pt.PwmChannel, pt.GpioPin] = {
 
 # led and button GPIO pins
 PCB_LED_PIN: pt.GpioPin = 23
-PCB_BUTTON_PIN: pt.GpioPin = 24 if hardware_version_tuple == (1, 0) else 4
+PCB_BUTTON_PIN: pt.GpioPin = 24 if hardware_version_info == (1, 0) else 4
 
 
 # hall sensor
-HALL_SENSOR_PIN: pt.GpioPin = 25 if hardware_version_tuple == (1, 0) else 21
+HALL_SENSOR_PIN: pt.GpioPin = 25 if hardware_version_info == (1, 0) else 21
 
 
 # I2C pins
@@ -53,7 +53,7 @@ else:
     SCL = 3
 
 ## not used in app
-# if hardware_version_info == "1.1":
+# if hardware_version_info == (1,1):
 #     # SWD, used in HAT version == 1.1
 #     SWCLK: pt.GpioPin = 25
 #     SWDIO: pt.GpioPin = 24
@@ -91,7 +91,7 @@ class ADCCurrier:
         return self.adc_driver(SCL, SDA, self.i2c_address, self.adc_channel)
 
 
-match (model_version_tuple, hardware_version_tuple):
+match (model_version_tuple, hardware_version_info):
     # pioreactor 20 v1.0,
     case ((1, 0), (1, 0)):
         ADC = {

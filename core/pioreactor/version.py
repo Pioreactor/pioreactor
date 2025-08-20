@@ -10,19 +10,19 @@ import os
 __version__ = "25.8.14.dev0"
 
 
-def get_hardware_version() -> str:
+def get_hardware_version() -> tuple[int, int] | tuple[int, int, str]:
     if os.environ.get("HARDWARE") is not None:
         # ex: > HARDWARE=1.1 pio ...
-        return os.environ["HARDWARE"]
+        return int(os.environ["HARDWARE"].split(".")[0]), int(os.environ["HARDWARE"].split(".")[1])
 
     try:
         # check version in /proc/device-tree/hat/
         with open("/proc/device-tree/hat/product_ver", "r") as f:
             text = f.read().rstrip("\x00")
-            return f"{int(text[-2])}.{int(text[-1])}"
+            return (int(text[-2]), int(text[-1]))
     except FileNotFoundError:
         # no eeprom? Probably dev board with no EEPROM, or testing env, or EEPROM not written, or cable exists between HAT and Pi -> signal degradation.
-        return "0.0"
+        return (0, 0)
 
 
 def get_product_from_id() -> str:
@@ -62,7 +62,7 @@ def get_firmware_version() -> tuple[int, int]:
         return tuple(int(_) for _ in os.environ["FIRMWARE"].split("."))  # type: ignore
 
     # Compare hardware versions using tuples to avoid lexicographic issues.
-    if version_text_to_tuple(hardware_version_info) >= (1, 1):
+    if hardware_version_info >= (1, 1):
         try:
             import busio  # type: ignore
             from pioreactor.hardware import SCL, SDA, ADC
@@ -94,8 +94,6 @@ def safe_int(s) -> int:
 
 
 hardware_version_info = get_hardware_version()
-# Provide tuple forms for safe comparisons in callers
-hardware_version_tuple = version_text_to_tuple(hardware_version_info)
 software_version_info = version_text_to_tuple(__version__)
 serial_number = get_serial_number()
 rpi_version_info = get_rpi_machine()
