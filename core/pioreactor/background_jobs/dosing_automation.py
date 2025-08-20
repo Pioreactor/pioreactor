@@ -637,7 +637,6 @@ class DosingAutomationJobContrib(DosingAutomationJob):
 
 def start_dosing_automation(
     automation_name: str,
-    duration: Optional[float] = None,
     skip_first_run: bool = False,
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
@@ -660,7 +659,6 @@ def start_dosing_automation(
             experiment=experiment,
             automation_name=automation_name,
             skip_first_run=skip_first_run,
-            duration=duration,
             **kwargs,
         )
 
@@ -684,7 +682,7 @@ available_dosing_automations: dict[str, type[DosingAutomationJob]] = {}
     show_default=True,
     required=True,
 )
-@click.option("--duration", default=60.0, help="Time, in minutes, between every monitor check")
+@click.option("--duration", default=60.0, help="Time, in minutes, between every execution of the algorithm.")
 @click.option(
     "--skip-first-run",
     type=click.IntRange(min=0, max=1),

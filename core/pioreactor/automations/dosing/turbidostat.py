@@ -16,7 +16,8 @@ from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 
 class Turbidostat(DosingAutomationJob):
     """
-    Turbidostat mode - try to keep cell density constant by dosing whenever the target is surpassed
+    Turbidostat mode - try to keep cell density constant by dosing whenever the target is surpassed.
+    Note: this has a small "duration" param to run the algorithm-check constantly.
     """
 
     automation_name = "turbidostat"
@@ -57,6 +58,10 @@ class Turbidostat(DosingAutomationJob):
         self.ema_od = ExponentialMovingAverage(
             config.getfloat("turbidostat.config", "od_smoothing_ema", fallback=0.5)
         )
+
+    def set_duration(self, value: float | None):
+        # force duration to always be 0.25 - we want to check often.
+        super().set_duration(0.25)
 
     @property
     def is_targeting_nOD(self) -> bool:
