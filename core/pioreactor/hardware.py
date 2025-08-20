@@ -63,7 +63,6 @@ TEMP_ADDRESS = 0x4F
 TEMP = TEMP_ADDRESS  # bc
 
 
-# this assumes a pioreactor model!
 od_optics_setup = get_pioreactor_model().od_optics_setup
 
 

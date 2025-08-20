@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 
 from msgspec import ValidationError
+from msgspec.structs import replace
 from msgspec.yaml import decode as yaml_decode
 from pioreactor.structs import Model
 from pioreactor.whoami import is_testing_env
@@ -54,10 +55,29 @@ PIOREACTOR_40ml__v1_0 = Model(
     od_optics_setup="on_board",
 )
 
+
+PIOREACTOR_20ml__v1_5 = replace(
+    PIOREACTOR_20ml__v1_1,
+    model_version="1.5",
+    display_name="Pioreactor 20ml, v1.5",
+    od_optics_setup="eye_spy",
+)
+
+
+PIOREACTOR_40ml__v1_5 = replace(
+    PIOREACTOR_40ml__v1_0,
+    model_version="1.5",
+    display_name="Pioreactor 40ml, v1.5",
+    od_optics_setup="eye_spy",
+)
+
+
 CORE_MODELS = {
     ("pioreactor_20ml", "1.0"): PIOREACTOR_20ml__v1_0,
     ("pioreactor_20ml", "1.1"): PIOREACTOR_20ml__v1_1,
     ("pioreactor_40ml", "1.0"): PIOREACTOR_40ml__v1_0,
+    ("pioreactor_20ml", "1.5"): PIOREACTOR_20ml__v1_5,
+    ("pioreactor_40ml", "1.5"): PIOREACTOR_40ml__v1_5,
 }
 
 
