@@ -31,11 +31,11 @@ PWM_TO_PIN: dict[pt.PwmChannel, pt.GpioPin] = {
 
 # led and button GPIO pins
 PCB_LED_PIN: pt.GpioPin = 23
-PCB_BUTTON_PIN: pt.GpioPin = 24 if hardware_version_info == (1, 0) else 4
+PCB_BUTTON_PIN: pt.GpioPin = 24 if hardware_version_info <= (1, 0) else 4
 
 
 # hall sensor
-HALL_SENSOR_PIN: pt.GpioPin = 25 if hardware_version_info == (1, 0) else 21
+HALL_SENSOR_PIN: pt.GpioPin = 25 if hardware_version_info <= (1, 0) else 21
 
 
 # I2C pins
@@ -53,7 +53,7 @@ else:
     SCL = 3
 
 ## not used in app
-# if hardware_version_info == (1,1):
+# if hardware_version_info >= (1,1):
 #     # SWD, used in HAT version == 1.1
 #     SWCLK: pt.GpioPin = 25
 #     SWDIO: pt.GpioPin = 24
@@ -103,7 +103,7 @@ match (model_version_tuple, hardware_version_info):
 
         DAC = 0x49
 
-    case ((1, 0), (1, 1)):
+    case ((1, 0), (h_major, h_minor)) if (h_major, h_minor) > (1, 0):
         ADC = {
             "aux": ADCCurrier(adcs.Pico_ADC, 0x2C, 1),
             "version": ADCCurrier(adcs.Pico_ADC, 0x2C, 0),
@@ -124,7 +124,7 @@ match (model_version_tuple, hardware_version_info):
 
         DAC = 0x49
 
-    case ((1, 1), (1, 1)):
+    case ((1, 1), (h_major, h_minor)) if (h_major, h_minor) > (1, 0):
         ADC = {
             "aux": ADCCurrier(adcs.Pico_ADC, 0x2C, 1),
             "version": ADCCurrier(adcs.Pico_ADC, 0x2C, 0),
@@ -140,7 +140,7 @@ match (model_version_tuple, hardware_version_info):
             "Can't use the current eye-spy system with 1.0 boards. The i2c addresses conflict."
         )
 
-    case ((1, 5), (1, 1)):
+    case ((1, 5), (h_major, h_minor)) if (h_major, h_minor) > (1, 0):
         ADC = {
             "aux": ADCCurrier(adcs.Pico_ADC, 0x2C, 1),
             "version": ADCCurrier(adcs.Pico_ADC, 0x2C, 0),
