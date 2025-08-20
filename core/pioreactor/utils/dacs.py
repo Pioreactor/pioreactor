@@ -31,7 +31,7 @@ class DAC43608_DAC(_DAC):
     def __init__(self) -> None:
         from DAC43608 import DAC43608
 
-        self.dac = DAC43608(address=hardware.DAC)
+        self.dac = DAC43608(address=hardware.DAC_ADDRESS)
 
     def set_intensity_to(self, channel: int, intensity: FloatBetween0and100) -> None:
         from DAC43608 import Channel
@@ -55,17 +55,17 @@ class Pico_DAC(_DAC):
     D = 3
 
     def __init__(self) -> None:
-        # set up i2c connection to hardware.DAC
+        # set up i2c connection to hardware.DAC_ADDRESS
         self.i2c = busio.I2C(hardware.SCL, hardware.SDA)
 
     def set_intensity_to(self, channel: int, intensity: FloatBetween0and100) -> None:
         try:
             # to 8 bit integer
             eight_bit = round((intensity / 100) * 255)
-            self.i2c.writeto(hardware.DAC, bytes([channel, eight_bit]))
+            self.i2c.writeto(hardware.DAC_ADDRESS, bytes([channel, eight_bit]))
         except OSError:
             raise HardwareNotFoundError(
-                f"Unable to find i2c channel {hardware.DAC}. Is the HAT attached? Is the firmware loaded?"
+                f"Unable to find i2c channel {hardware.DAC_ADDRESS}. Is the HAT attached? Is the firmware loaded?"
             )
 
 

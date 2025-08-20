@@ -152,7 +152,7 @@ class ADCReader(LoggerMixin):
 
             return {c: Mock_ADC(adc_channel=0) for c in self.channels}
         else:
-            return {c: hardware.ADC[f"pd{c}"]() for c in self.channels}
+            return {c: hardware.ADCs[f"pd{c}"]() for c in self.channels}
 
     def tune_adc(self) -> RawPDReadings:
         """

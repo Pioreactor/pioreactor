@@ -24,7 +24,7 @@ from pioreactor.hardware import GPIOCHIP
 from pioreactor.hardware import is_HAT_present
 from pioreactor.hardware import PCB_BUTTON_PIN as BUTTON_PIN
 from pioreactor.hardware import PCB_LED_PIN as LED_PIN
-from pioreactor.hardware import TEMP
+from pioreactor.hardware import TEMP_ADDRESS
 from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import get_from
 from pioreactor.pubsub import QOS
@@ -348,7 +348,7 @@ class Monitor(LongRunningBackgroundJob):
                 return
 
         try:
-            tmp_driver = TMP1075(address=TEMP)
+            tmp_driver = TMP1075(address=TEMP_ADDRESS)
         except ValueError:
             # No PCB detected using i2c - fine to exit.
             self.logger.debug("Heater PCB is not detected.")

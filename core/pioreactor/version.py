@@ -65,11 +65,11 @@ def get_firmware_version() -> tuple[int, int]:
     if hardware_version_info >= (1, 1):
         try:
             import busio  # type: ignore
-            from pioreactor.hardware import SCL, SDA, ADC
+            from pioreactor.hardware import SCL, SDA, ADCs
 
             i2c = busio.I2C(SCL, SDA)
             result = bytearray(2)
-            i2c.writeto_then_readfrom(ADC["version"].i2c_address, bytes([0x08]), result)
+            i2c.writeto_then_readfrom(ADCs["version"].i2c_address, bytes([0x08]), result)
             return (result[1], result[0])
         except Exception:
             return (0, 0)

@@ -395,3 +395,6 @@ class Model(Struct):
     max_temp_to_reduce_heating: float
     max_temp_to_disable_heating: float
     max_temp_to_shutdown: float
+
+    # optics set up
+    od_optics_setup: t.Literal["on_board", "eye_spy"] = "on_board"

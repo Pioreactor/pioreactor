@@ -25,6 +25,7 @@ PIOREACTOR_20ml__v1_0 = Model(
     max_temp_to_reduce_heating=63.0,
     max_temp_to_disable_heating=65.0,
     max_temp_to_shutdown=66.0,
+    od_optics_setup="on_board",
 )
 
 PIOREACTOR_20ml__v1_1 = Model(
@@ -37,6 +38,7 @@ PIOREACTOR_20ml__v1_1 = Model(
     max_temp_to_reduce_heating=78.0,
     max_temp_to_disable_heating=80.0,
     max_temp_to_shutdown=85.0,
+    od_optics_setup="on_board",
 )
 
 PIOREACTOR_40ml__v1_0 = Model(
@@ -49,6 +51,7 @@ PIOREACTOR_40ml__v1_0 = Model(
     max_temp_to_reduce_heating=78.0,
     max_temp_to_disable_heating=80.0,
     max_temp_to_shutdown=85.0,
+    od_optics_setup="on_board",
 )
 
 CORE_MODELS = {

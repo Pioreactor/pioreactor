@@ -131,7 +131,7 @@ class TemperatureAutomationJob(AutomationJob):
         self.pwm = self.setup_pwm()
         self._exit_event = Event()
 
-        self.heating_pcb_tmp_driver = TMP1075(address=hardware.TEMP)
+        self.heating_pcb_tmp_driver = TMP1075(address=hardware.TEMP_ADDRESS)
 
         self.read_external_temperature_timer = RepeatedTimer(
             53,
