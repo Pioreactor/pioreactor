@@ -18,6 +18,11 @@ import Editor from 'react-simple-code-editor';
 import { highlight, languages } from 'prismjs';
 import 'prismjs/components/prism-yaml'; // You can add more languages or change it
 import {DisplayProfile, DisplayProfileError} from "./components/DisplayProfile"
+import CapabilitiesPanel from './components/CapabilitiesPanel';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import SearchIcon from '@mui/icons-material/Search';
 
 function addQuotesToBrackets(input) {
     return input.replace(/(\${0}){{(.*?)}}/g, (match, p1, p2, offset, string) => {
@@ -204,22 +209,41 @@ metadata:
 };
 
 function ProfilesContainer(){
+  const [openCapabilities, setOpenCapabilities] = useState(false)
   return(
     <>
       <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
         <Typography variant="h5" component="h2" sx={{ fontWeight: "bold" }}>
           Create Experiment Profile
         </Typography>
-        <Button to={`/experiment-profiles`} component={Link} sx={{ textTransform: 'none' }}>
-          <ArrowBackIcon sx={{ verticalAlign: "middle", mr: 0.5 }} fontSize="small"/> Back
-        </Button>
+        <Box>
+          <Button sx={{ textTransform: 'none', mr: 1 }} variant="text" startIcon={<SearchIcon />} onClick={() => setOpenCapabilities(true)}>
+            Search jobs and automations
+          </Button>
+          <Button to={`/experiment-profiles`} component={Link} sx={{ textTransform: 'none' }}>
+            <ArrowBackIcon sx={{ verticalAlign: "middle", mr: 0.5 }} fontSize="small"/> Back
+          </Button>
+        </Box>
       </Box>
-      <Card sx={{marginTop: "15px"}}>
-        <CardContent sx={{padding: "10px"}}>
+      <Card sx={{mt: 2}}>
+        <CardContent sx={{p: 2}}>
           <EditExperimentProfilesContent />
-          <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about creating <a href="https://docs.pioreactor.com/user-guide/create-edit-experiment-profiles" target="_blank" rel="noopener noreferrer">experiment profile schemas</a>.</p>
+
         </CardContent>
       </Card>
+
+      <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about creating <a href="https://docs.pioreactor.com/user-guide/create-edit-experiment-profiles" target="_blank" rel="noopener noreferrer">experiment profile schemas</a>.</p>
+
+      <Dialog open={openCapabilities} onClose={() => setOpenCapabilities(false)} fullWidth maxWidth="md"
+      PaperProps={{ style: {
+        minHeight: '80%',
+        maxHeight: '80%',
+      }}}> >
+        <DialogTitle>Search jobs and automations</DialogTitle>
+        <DialogContent sx={{ height: '100%' }}>
+          <CapabilitiesPanel />
+        </DialogContent>
+      </Dialog>
     </>
 )}
 

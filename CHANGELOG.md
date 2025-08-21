@@ -1,3 +1,13 @@
+### Upcoming
+
+ - experiment profile editing in the UI has a new "search" feature to find available jobs and actions.
+
+#### Bug fixes
+
+ - real time charts in the UI again!
+ - dataset exports have a corrected timestamp on the folders
+
+
 ### 25.8.14
 
 #### Highlights

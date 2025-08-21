@@ -123,6 +123,30 @@ def test_export_experiment_data(temp_zipfile, mock_load_exportable_datasets) -> 
             assert "12.858" in values[4]
 
 
+def test_zip_directory_timestamp_not_1980(temp_zipfile, mock_load_exportable_datasets) -> None:
+    # Minimal export to produce a zip with a dataset directory entry
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp DATETIME, reading FLOAT)")
+    conn.execute(
+        "INSERT INTO test_table (id, name, timestamp, reading) VALUES (1, 'John', '2025-04-16T04:51:12.858Z', 0.1)"
+    )
+    conn.commit()
+
+    with patch("sqlite3.connect") as mock_connect:
+        mock_connect.return_value = conn
+        export_experiment_data(
+            experiments=[],
+            output=temp_zipfile.strpath,
+            partition_by_unit=False,
+            dataset_names=["test_table"],
+        )
+
+    with zipfile.ZipFile(temp_zipfile.strpath, mode="r") as zf:
+        # dataset directory entry should exist and not have 1980 year
+        info = zf.getinfo("test_table/")
+        assert info.date_time[0] != 1980
+
+
 def test_export_experiment_data_with_base64_data(temp_zipfile, mock_load_exportable_datasets) -> None:
     # Set up a temporary SQLite database with sample data
     conn = sqlite3.connect(":memory:")

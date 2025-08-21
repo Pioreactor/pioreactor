@@ -691,7 +691,7 @@ available_dosing_automations: dict[str, type[DosingAutomationJob]] = {}
 @click.pass_context
 def click_dosing_automation(ctx, automation_name, duration, skip_first_run):
     """
-    Start an Dosing automation
+    Start a dosing automation
     """
 
     with start_dosing_automation(

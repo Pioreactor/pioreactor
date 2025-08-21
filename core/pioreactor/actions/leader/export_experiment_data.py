@@ -86,6 +86,32 @@ def decode_base64(string: str) -> str:
     return b64decode(string).decode("utf-8")
 
 
+def add_directory_to_zip_with_current_timestamp(zf, dir_name: str) -> None:
+    """
+    Create a directory entry in the zip archive with a sane timestamp.
+
+    Notes
+    - zipfile.ZipFile.mkdir() creates a directory entry but leaves the
+      date_time at the ZIP format's epoch (1980-01-01) when no timestamp
+      is provided, which shows up in some tools as Jan 1, 1980.
+    - We explicitly construct a ZipInfo for the directory and set the
+      date_time to now so folder metadata looks reasonable.
+    """
+    import zipfile
+
+    # Ensure trailing slash to mark entry as a directory in ZIP
+    name = dir_name if dir_name.endswith("/") else f"{dir_name}/"
+
+    info = zipfile.ZipInfo(name)
+    # Current local time within ZIP's supported range
+    info.date_time = datetime.now().timetuple()[:6]
+    # Set POSIX permissions (rwxr-xr-x). Many tools infer directory from the trailing slash.
+    info.external_attr = 0o755 << 16
+
+    # Write an empty payload for the directory entry
+    zf.writestr(info, b"")
+
+
 def validate_dataset_information(dataset: Dataset, cursor) -> None:
     if not (dataset.table or dataset.query):
         raise ValueError("query or table must be defined.")
@@ -308,7 +334,8 @@ def export_experiment_data(
             if count == 0:
                 logger.warning(f"No data present in {dataset_name} with applied filters.")
 
-            zf.mkdir(dataset_name)
+            # Create the dataset directory entry with a sensible timestamp (not 1980-01-01)
+            add_directory_to_zip_with_current_timestamp(zf, dataset_name)
             for path_to_file in path_to_files:
                 zf.write(path_to_file, arcname=f"{dataset_name}/{path_to_file.name}")
                 path_to_file.unlink()

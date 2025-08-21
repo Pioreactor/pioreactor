@@ -26,7 +26,7 @@ registered_pumps: dict[str, Callable[..., float]] = {
 @click.pass_context
 def click_pumps(ctx):
     """
-    example: pio run pump --waste 2 --media 1 --waste 2
+    Run pumps in sequence. Accepts pairs of arguments where the first is the pump name (e.g., 'media', 'alt_media', 'waste') and the second is the volume in milliliters to pump.
     """
 
     unit = get_unit_name()

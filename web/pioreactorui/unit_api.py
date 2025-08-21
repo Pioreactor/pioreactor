@@ -439,7 +439,7 @@ def get_installed_plugins() -> ResponseReturnValue:
         status, msg = False, "Timed out."
 
     if not status:
-        return jsonify([])
+        return jsonify([]), 404
     else:
         # sometimes an error from a plugin will be printed. We just want to last line, the json bit.
         _, _, plugins_as_json = msg.rpartition("\n")
