@@ -54,11 +54,10 @@ function yamlSnippetForStart(cap) {
     optLines.push(`          ${o.long_flag.replaceAll("-", "_")}: <value>`);
   });
 
-  const argComment = reqArgs.length
-    ? `  # required args: ${reqArgs.map((a) => a.long_flag).join(', ')} (set via 'args')\n`
-    : '';
-
   const maybeOptions = optLines.length ? ['        options:', ...optLines] : [];
+  const argsLines = reqArgs.length
+    ? ['        args:', ...reqArgs.map((a) => `          - <${a.name}>`)]
+    : [];
 
   return [
     `jobs:`,
@@ -67,7 +66,7 @@ function yamlSnippetForStart(cap) {
     `      - hours_elapsed: 0`,
     `        type: start`,
     ...maybeOptions,
-    argComment ? argComment.trimEnd() : undefined,
+    ...argsLines,
   ]
     .filter(Boolean)
     .join('\n');
@@ -87,6 +86,10 @@ function yamlSnippetForStartWithOverrides(cap, overrideOptions) {
   });
 
   const maybeOptions = optLines.length ? ['        options:', ...optLines] : [];
+  const reqArgs = (cap.arguments || []).filter((a) => a.required);
+  const argsLines = reqArgs.length
+    ? ['        args:', ...reqArgs.map((a) => `          - <${a.name}>`)]
+    : [];
   return [
     `jobs:`,
     `  ${job}:`,
@@ -94,6 +97,7 @@ function yamlSnippetForStartWithOverrides(cap, overrideOptions) {
     `      - hours_elapsed: 0`,
     `        type: start`,
     ...maybeOptions,
+    ...argsLines,
   ].join('\n');
 }
 

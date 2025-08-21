@@ -225,9 +225,9 @@ function ProfilesContainer(){
       <Card sx={{marginTop: "15px"}}>
         <CardContent sx={{padding: "10px"}}>
           <EditExperimentProfilesContent initialCode={source} profileFilename={profileFilename}/>
-          <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about editing <a href="https://docs.pioreactor.com/user-guide/create-edit-experiment-profiles" target="_blank" rel="noopener noreferrer">experiment profile schemas</a>.</p>
         </CardContent>
       </Card>
+      <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about editing <a href="https://docs.pioreactor.com/user-guide/create-edit-experiment-profiles" target="_blank" rel="noopener noreferrer">experiment profile schemas</a>.</p>
 
       <Dialog
         open={openCapabilities}
