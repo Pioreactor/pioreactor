@@ -205,7 +205,7 @@ def _get_pioreactor_model_name() -> str:
         return data["model_name"]
     except mureq.HTTPErrorStatus as e:
         if e.status_code == 404:
-            raise NoWorkerFoundError(f"Worker {get_unit_name()} is not present in leader's inventory")
+            raise NoWorkerFoundError(f"Worker {get_unit_name()} is not found.")
         else:
             raise e
     except mureq.HTTPException as e:
@@ -233,7 +233,7 @@ if is_testing_env():
     # https://github.com/adafruit/Adafruit_Python_PlatformDetect/blob/75f69806222fbaf8535130ed2eacd07b06b1a298/adafruit_platformdetect/board.py
     os.environ["BLINKA_FORCECHIP"] = "BCM2XXX"  # RaspberryPi
     os.environ["BLINKA_FORCEBOARD"] = "RASPBERRY_PI_3A_PLUS"  # Raspberry Pi 3 Model A Plus Rev 1.0
-    os.environ["FIRMWARE"] = "1.0"
+    os.environ["FIRMWARE"] = "0.5"
     os.environ["HARDWARE"] = "1.2"
     os.environ["MODEL_NAME"] = "pioreactor_40ml"
-    os.environ["MODEL_VERSION"] = "1.0"
+    os.environ["MODEL_VERSION"] = "1.5"
