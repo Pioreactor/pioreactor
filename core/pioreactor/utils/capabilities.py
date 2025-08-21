@@ -192,6 +192,12 @@ def collect_actions() -> List[Dict[str, Any]]:
     entries: List[Dict[str, Any]] = []
     for name, cmd in run.commands.items():
         if isinstance(cmd, click.Group):
+            # Include the group itself if it is invokable without a subcommand
+            # or has a callback defined (so `pio run <group>` is a valid action).
+            if getattr(cmd, "invoke_without_command", False) or (getattr(cmd, "callback", None) is not None):
+                entries.append(generate_command_metadata(cmd, name))
+
+            # Also include each subcommand under the group.
             for sub_name, sub_cmd in cmd.commands.items():
                 entries.append(generate_command_metadata(sub_cmd, name + " " + sub_name))
         else:
@@ -216,9 +222,12 @@ def collect_capabilities() -> list[dict[str, Any]]:
         options = list(act.get("options", []))
         if job.get("automation_name"):
             options = [o for o in options if o.get("name") != "automation_name"]
+
             for setting, meta in job.get("published_settings", {}).items():
                 # skip internal $state even though it's settable
                 if setting == "$state":
+                    continue
+                if setting in (o["name"] for o in options):
                     continue
                 if meta.get("settable"):
                     flag = setting.replace("_", "-")

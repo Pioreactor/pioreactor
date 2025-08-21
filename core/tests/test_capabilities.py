@@ -98,6 +98,34 @@ def test_collect_actions(monkeypatch):
     assert foo["options"][0]["name"] == "opt"
 
 
+def test_collect_actions_includes_invokable_group(monkeypatch):
+    # Group that is invokable without a subcommand should be included
+    grp = click.Group("grp", help="grp help", invoke_without_command=True)
+    grp.callback = lambda: None  # ensure it has a callback
+    sub = click.Command("sub", help="sub help")
+    grp.add_command(sub, "sub")
+    monkeypatch.setattr(
+        "pioreactor.utils.capabilities.run.commands",
+        {"grp": grp},
+    )
+    actions = collect_actions()
+    names = {a["name"] for a in actions}
+    assert "grp" in names, "invokable group should be listed as an action"
+    assert "grp sub" in names, "subcommands are still listed"
+
+
+def test_capabilities_includes_od_blank_group_action():
+    # Full collection should include the top-level od_blank action alongside its delete subcommand
+    caps = collect_capabilities()
+    names = {c["job_name"] for c in caps}
+    assert "od_blank" in names, "od_blank group should be included as an action"
+    # verify expected options are present
+    odb = next(c for c in caps if c["job_name"] == "od_blank")
+    option_names = {o["name"] for o in odb.get("options", [])}
+    for expected in ("od_angle_channel1", "od_angle_channel2", "n_samples"):
+        assert expected in option_names, f"missing option {expected} on od_blank"
+
+
 def test_chemostat_inherits_parent_settings_and_options():
     # The 'chemostat' automation should include settings from its base class
     caps = collect_capabilities()
