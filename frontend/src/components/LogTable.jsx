@@ -40,7 +40,8 @@ const StyledTableCell = styled(TableCell)(({ level }) => ({
 const StyledTableCellFiller = styled(TableCell)(({ level }) => ({
   paddingTop: "25px",
   paddingBottom: "15px",
-  textAlign: "center"
+  textAlign: "center",
+  color: "text.secondary"
 }));
 
 const StyledTimeTableCell = styled(TableCell)(({ level }) => ({

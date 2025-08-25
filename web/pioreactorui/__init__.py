@@ -143,10 +143,6 @@ def publish_to_experiment_log(msg: str | t.Any, experiment: str, task: str, leve
 
     getattr(logger, level.lower())(msg)
 
-    if am_I_leader():
-        topic = f"pioreactor/{get_leader_hostname()}/{experiment}/logs/ui/{level.lower()}"
-        client.publish(topic, msg_to_JSON(msg, task, level))
-
 
 def publish_to_error_log(msg, task: str) -> None:
     publish_to_log(msg, task, "ERROR")

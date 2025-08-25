@@ -98,7 +98,7 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
         </Typography>
 
         {activeUnits.length === 0 && (
-            <Typography variant="body2" component="p">No Pioreactors are currently assigned.</Typography>
+            <Typography variant="body2" component="p" color="textSecondary">No Pioreactors are currently assigned.</Typography>
         )}
 
         {activeUnits.length > 0 && (

@@ -378,10 +378,8 @@ function ListInstalledPlugins({selectedUnit, installedPlugins}){
   else {
     return (
       <Box sx={{textAlign: "center", marginBottom: '50px', marginTop: "50px"}}>
-        <Typography>
-          <Box fontWeight="fontWeightRegular">
+        <Typography variant="body2" component="p" color="textSecondary">
             No installed plugins. Try installing one below, or read more about <a href="https://docs.pioreactor.com/user-guide/using-community-plugins" target="_blank" rel="noopener noreferrer">Pioreactor plugins</a>.
-          </Box>
         </Typography>
       </Box>
   )}

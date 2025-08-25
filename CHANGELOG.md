@@ -6,7 +6,7 @@
 
  - real time charts in the UI again!
  - dataset exports have a corrected timestamp on the folders
-
+ - remove instances of double logging from the ui
 
 ### 25.8.14
 

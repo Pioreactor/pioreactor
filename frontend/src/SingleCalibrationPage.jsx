@@ -297,9 +297,9 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } )
 
   if (!calibration) {
     return (
-      <Box mt={3}>
-        <Typography variant="body1" color="error">
-          Unable to find calibration data.
+      <Box sx={{textAlign: "center", mb: '50px', mt: "50px"}}>
+        <Typography  variant="body2" component="p" color="textSecondary">
+           Unable to find calibration data.
         </Typography>
       </Box>
     );

@@ -245,7 +245,7 @@ export default function CapabilitiesPanel() {
 
   return (
       <>
-        <Typography variant="body2" color="text.secondary" sx={{mb: 1}}>
+        <Typography variant="body2"  sx={{mb: 1}}>
           Browse jobs and automations available across your cluster.
         </Typography>
         <TextField

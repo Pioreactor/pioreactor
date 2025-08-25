@@ -282,7 +282,7 @@ function RunningProfilesContainer() {
             </Box>
           )}
           {!loading && runningProfiles.length === 0 && (
-            <Typography variant="body2" component="p">No profiles are currently running.</Typography>
+            <Typography variant="body2" component="p" color="textSecondary">No profiles are currently running.</Typography>
           )}
           {!loading && runningProfiles.length > 0 && (
             <Table size="small" sx={{ mt: 0 }}>

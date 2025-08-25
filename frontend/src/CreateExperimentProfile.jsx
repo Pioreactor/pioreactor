@@ -238,7 +238,7 @@ function ProfilesContainer(){
       PaperProps={{ style: {
         minHeight: '80%',
         maxHeight: '80%',
-      }}}> >
+      }}}>
         <DialogTitle>Search jobs and automations</DialogTitle>
         <DialogContent sx={{ height: '100%' }}>
           <CapabilitiesPanel />

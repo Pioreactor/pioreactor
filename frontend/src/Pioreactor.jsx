@@ -2023,7 +2023,7 @@ function Pioreactor({title}) {
   if (error) {
     return (
       <Box sx={{textAlign: "center", mb: '50px', mt: "50px"}}>
-        <Typography component='div' variant='body2'>
+        <Typography  variant="body2" component="p" color="textSecondary">
            {error}
         </Typography>
       </Box>
