@@ -118,7 +118,6 @@ function Charts(props) {
                   payloadKey={chart.payload_key}
                   yAxisLabel={chart.y_axis_label}
                   experiment={props.experimentMetadata.experiment}
-                  deltaHours={props.experimentMetadata.delta_hours}
                   experimentStartTime={props.experimentMetadata.created_at}
                   downSample={chart.down_sample}
                   interpolation={chart.interpolation || "stepAfter"}
