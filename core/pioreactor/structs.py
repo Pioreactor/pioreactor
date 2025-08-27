@@ -399,3 +399,7 @@ class Model(Struct):
     # hardware parameters:
     od_optics_setup: t.Literal["on_board", "eye_spy"] = "on_board"
     display: None = None
+
+    # metadata
+    is_legacy: bool = False
+    is_contrib: bool = True

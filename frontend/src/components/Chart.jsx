@@ -119,7 +119,8 @@ class Chart extends React.Component {
     }
 
     const queryParams = new URLSearchParams({
-        target_points: this.props.downSample ? 600 : 10000000, // # todo: scale with number of units
+        // 720 is equal to running od reading at 5s interval for 1 hour, a reasonable default.
+        target_points: this.props.downSample ? 720 : 10000000, // # todo: scale with number of units - however I don't know how many units until I get back the result...
         lookback: this.props.lookback
     })
 

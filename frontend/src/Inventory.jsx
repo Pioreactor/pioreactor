@@ -7,6 +7,7 @@ import Card from '@mui/material/Card';
 import CardActions from '@mui/material/CardActions';
 import CardContent from '@mui/material/CardContent';
 import MenuItem from '@mui/material/MenuItem';
+import ListSubheader from '@mui/material/ListSubheader';
 import Select from '@mui/material/Select';
 import InputLabel from '@mui/material/InputLabel';
 import Chip from '@mui/material/Chip';
@@ -100,6 +101,7 @@ function AddNewPioreactor({setWorkers}){
   const [discoveredWorkers, setDiscoveredWorkers] = useState([]);
   const [isDiscovering, setIsDiscovering] = useState(false);
   const [discoverError, setDiscoverError] = useState(null);
+  const availableModels = useAvailableModels();
 
   useEffect(() => {
     if (open) {
@@ -124,10 +126,8 @@ function AddNewPioreactor({setWorkers}){
   const handleNameChange = evt => {
     setName(evt.target.value)
   }
-  const handleModelVersionChange = evt => {
-    const [modelName, modelVersion] = evt.target.value.split(',');
-    setModel([modelName, modelVersion]);
-  }
+
+
 
 
   const onSubmit = (event) =>{
@@ -167,6 +167,10 @@ function AddNewPioreactor({setWorkers}){
         }
     })
   }
+
+  const standard = availableModels.filter(m => !(m.is_contrib) && !(m.is_legacy));
+  const contrib = availableModels.filter(m => (m.is_contrib));
+  const legacy = availableModels.filter(m => (m.is_legacy));
 
   return (
     <React.Fragment>
@@ -238,17 +242,42 @@ function AddNewPioreactor({setWorkers}){
             value={name}
           />
         <FormControl required sx={{mt: "15px", ml: "10px", minWidth: "195px"}} variant="outlined" size="small">
-          <InputLabel>Pioreactor model</InputLabel>
+          <InputLabel id="add-model-label">Pioreactor model</InputLabel>
           <Select
-            value={`${model[0]}-${model[1]}`}
-            onChange={handleModelVersionChange}
+            labelId="add-model-label"
+            value={`${model[0]}::${model[1]}`}
+            onChange={(evt) => {
+              console.log(evt)
+              const [modelName, modelVersion] = String(evt.target.value).split('::');
+              setModel([modelName, modelVersion]);
+            }}
             label="Pioreactor model"
+            MenuProps={{ disablePortal: true }}
+            renderValue={(val) => {
+              const [mn, mv] = String(val).split('::');
+              const m = availableModels.find(x => x.model_name === mn && String(x.model_version) === String(mv));
+              return m ? m.display_name : `${mn}, v${mv}`;
+            }}
           >
-            {useAvailableModels().map(({ model_name, model_version, display_name }) => (
-              <MenuItem key={`${model_name}-${model_version}`} value={`${model_name}-${model_version}`}>
+            {standard.length > 0 && <ListSubheader disableSticky>Latest</ListSubheader>}
+            {standard.map(({ model_name, model_version, display_name }) => (
+              <MenuItem key={`${model_name}-${model_version}`} value={`${model_name}::${model_version}`}>
                 {display_name}
               </MenuItem>
             ))}
+            {contrib.length > 0 && <ListSubheader disableSticky>Custom</ListSubheader>}
+            {contrib.map(({ model_name, model_version, display_name }) => (
+              <MenuItem key={`${model_name}-${model_version}`} value={`${model_name}::${model_version}`}>
+                {display_name}
+              </MenuItem>
+            ))}
+            {legacy.length > 0 && <ListSubheader disableSticky>Legacy</ListSubheader>}
+            {legacy.map(({ model_name, model_version, display_name }) => (
+              <MenuItem key={`${model_name}-${model_version}`} value={`${model_name}::${model_version}`}>
+                {display_name}
+              </MenuItem>
+            ))}
+
           </Select>
         </FormControl>
 
@@ -458,6 +487,10 @@ function WorkerCard({worker, config, leaderVersion}) {
     return workerVersion;
   };
 
+  const standard = availableModels.filter(m => !(m.is_contrib) && !(m.is_legacy));
+  const contrib = availableModels.filter(m => (m.is_contrib));
+  const legacy = availableModels.filter(m => (m.is_legacy));
+
   return (
     <>
     <Card sx={{ minWidth: 275 }}>
@@ -530,11 +563,26 @@ function WorkerCard({worker, config, leaderVersion}) {
                   }
                 }}
               >
-                {availableModels.map(({ model_name, model_version, display_name }) => (
+
+                {standard.length > 0 && <ListSubheader disableSticky>Latest</ListSubheader>}
+                {standard.map(({ model_name, model_version, display_name }) => (
                   <MenuItem key={`${model_name}-${model_version}`} value={`${model_name},${model_version}`}>
                     {display_name}
                   </MenuItem>
                 ))}
+                {contrib.length > 0 && <ListSubheader disableSticky>Custom</ListSubheader>}
+                {contrib.map(({ model_name, model_version, display_name }) => (
+                  <MenuItem key={`${model_name}-${model_version}`} value={`${model_name},${model_version}`}>
+                    {display_name}
+                  </MenuItem>
+                ))}
+                {legacy.length > 0 && <ListSubheader disableSticky>Legacy</ListSubheader>}
+                {legacy.map(({ model_name, model_version, display_name }) => (
+                  <MenuItem key={`${model_name}-${model_version}`} value={`${model_name},${model_version}`}>
+                    {display_name}
+                  </MenuItem>
+                ))}
+
               </Select>
             </td>
           </tr>

@@ -1,6 +1,8 @@
 ### Upcoming
 
- - experiment profile editing in the UI has a new "search" feature to find available jobs and actions.
+ - Experiment profile editing in the UI has a new "search" feature to find available jobs and actions.
+ - Experiment Overview page no long "hides" chart data for very old experiments. Now it will always select (up to) 600 data points for each line, regardless of the length of the experiment. For larger cluster, this might result in a slower load time - let me know!
+ - Initial support for eye-spy.
 
 #### Bug fixes
 

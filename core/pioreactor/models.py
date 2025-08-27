@@ -14,6 +14,22 @@ from pioreactor.structs import Model
 from pioreactor.whoami import is_testing_env
 
 
+def tag_latest(model: Model) -> Model:
+    model.is_legacy = False
+    return model
+
+
+def tag_legacy(model: Model) -> Model:
+    model.is_legacy = True
+    return model
+
+
+def tag_contrib(model: Model) -> Model:
+    model.is_legacy = False
+    model.is_contrib = True
+    return model
+
+
 ## Built-in Pioreactor models with hard-coded defaults
 
 PIOREACTOR_20ml__v1_0 = Model(
@@ -28,6 +44,8 @@ PIOREACTOR_20ml__v1_0 = Model(
     max_temp_to_shutdown=66.0,
     od_optics_setup="on_board",
     display=None,
+    is_legacy=True,
+    is_contrib=False,
 )
 
 PIOREACTOR_20ml__v1_1 = replace(
@@ -55,6 +73,7 @@ PIOREACTOR_20ml__v1_5 = replace(
     model_version="1.5",
     display_name="Pioreactor 20ml, v1.5",
     od_optics_setup="eye_spy",
+    is_legacy=False,
 )
 
 
@@ -63,6 +82,7 @@ PIOREACTOR_40ml__v1_5 = replace(
     model_version="1.5",
     display_name="Pioreactor 40ml, v1.5",
     od_optics_setup="eye_spy",
+    is_legacy=False,
 )
 
 
@@ -89,7 +109,7 @@ def load_contrib_model_definitions() -> list[Model]:
     for file in MODEL_DEFINITIONS_PATH.glob("*.y*ml"):
         try:
             m = yaml_decode(file.read_bytes(), type=Model)
-            models.append(m)
+            models.append(tag_contrib(m))
         except ValidationError as e:
             from pioreactor.logging import create_logger
 
