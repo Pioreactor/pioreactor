@@ -172,17 +172,6 @@ def update_app_from_release_archive_across_cluster(archive_location: str, units:
         ]
         run(update_app_across_all_workers)
 
-        if not whoami.am_I_a_worker():
-            # update the UI on the leader
-            update_ui_on_leader = [
-                "pio",
-                "update",
-                "ui",
-                "--source",
-                "/tmp/pioreactorui_archive.tar.gz",
-            ]
-            run(update_ui_on_leader)
-
         return True
     else:
         logger.debug(f"Updating app and ui on unit {units} from {archive_location}")
@@ -315,16 +304,6 @@ def pio_update(*args: str, env: dict[str, str] = {}) -> bool:
     logger.debug(f'Executing `{join(("pio", "update") + args)}`, {env=}')
     run((PIO_EXECUTABLE, "update") + args, env=env)
     # HACK: this always returns >0 because it kills huey, I think, so just return true
-    return True
-
-
-@huey.task()
-@huey.lock_task("update-lock")
-def pio_update_ui(*args: str, env: dict[str, str] = {}) -> bool:
-    env = filter_to_allowed_env(env or {})
-    logger.debug(f'Executing `{join(("pio", "update", "ui") + args)}`, {env=}')
-    run((PIO_EXECUTABLE, "update", "ui") + args, env=env)
-    # this always returns >0 because it kills huey, I think, so just return true
     return True
 
 

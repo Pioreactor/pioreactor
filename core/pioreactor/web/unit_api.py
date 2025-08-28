@@ -105,8 +105,6 @@ def update_target(target: str) -> DelayedResponseReturnValue:
 
     if target == "app":
         task = tasks.pio_update_app(*commands)
-    elif target == "ui":
-        task = tasks.pio_update_ui(*commands)
     else:
         raise ValueError()
 
