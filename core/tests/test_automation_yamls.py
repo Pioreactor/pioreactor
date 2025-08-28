@@ -12,7 +12,9 @@ from yaml import Loader  # type: ignore
 
 
 def get_specific_yaml(path):
-    r = get(f"https://raw.githubusercontent.com/Pioreactor/pioreactor/develop/web/{path}")
+    r = get(
+        f"https://raw.githubusercontent.com/Pioreactor/CustoPiZer/pioreactor/workspace/scripts/files/pioreactor/ui/{path}"
+    )
     r.raise_for_status()
     data = r.content
     return load(data, Loader=Loader)
@@ -29,7 +31,7 @@ def test_automations_and_their_yamls_have_the_same_data() -> None:
                 if automation_name.startswith("_test"):
                     continue
 
-                data = get_specific_yaml(f"contrib/automations/{type_}/{automation_name}.yaml")
+                data = get_specific_yaml(f"automations/{type_}/{automation_name}.yaml")
                 assert data["automation_name"] == automation_name, automation_name
 
                 # check yaml -> settings
