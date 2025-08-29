@@ -100,17 +100,14 @@ function AddNewPioreactor({setWorkers}){
   // Discovery state for auto-detected workers
   const [discoveredWorkers, setDiscoveredWorkers] = useState([]);
   const [isDiscovering, setIsDiscovering] = useState(false);
-  const [discoverError, setDiscoverError] = useState(null);
   const availableModels = useAvailableModels();
 
   useEffect(() => {
     if (open) {
       setIsDiscovering(true);
-      setDiscoverError(null);
       fetch('/api/workers/discover')
         .then((res) => res.json())
         .then((data) => setDiscoveredWorkers(data))
-        .catch((err) => setDiscoverError(err.toString()))
         .finally(() => setIsDiscovering(false));
     }
   }, [open]);
@@ -215,13 +212,12 @@ function AddNewPioreactor({setWorkers}){
           <Typography variant="subtitle1">Discovered available workers:</Typography>
           {isDiscovering ? (
             <CircularProgress size={20} sx={{ mt: 1 }} />
-          ) : discoverError ? (
-            <Typography color="error">Error: {discoverError}</Typography>
           ) : discoveredWorkers.length === 0 ? (
             <Typography variant="body2" component="p" color="textSecondary">No workers found. This discovery process isn't guaranteed however.</Typography>
           ) : (
             discoveredWorkers.map((w) => (
               <Chip
+                icon={<PioreactorIcon/>}
                 key={w.pioreactor_unit}
                 label={w.pioreactor_unit}
                 onClick={() => setName(w.pioreactor_unit)}

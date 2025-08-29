@@ -1,4 +1,6 @@
 import React from "react";
+import Typography from '@mui/material/Typography';
+
 import {
   VictoryChart,
   VictoryScatter,
@@ -64,10 +66,10 @@ function generatePolynomialData(calibration, stepCount = 50) {
 
 function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlightedModel, title }) {
   if (!deviceName){
-    return <div>No calibrations exist. Try creating a calibration from the command line.</div>
+    return <Typography variant="body2" component="p" color="textSecondary">No calibrations exist. Try creating a calibration from the command line.</Typography>
   }
   else if (!calibrations || calibrations.length === 0) {
-    return <div>No calibrations to plot for {deviceName}.</div>;
+    return <Typography variant="body2" component="p" color="textSecondary">No calibrations to plot for {deviceName}.</Typography>;
   }
 
   // Assume the x and y fields match across all calibrations for a device
