@@ -2,7 +2,7 @@
   "name": "ui",
   "version": "0.1.0",
   "private": true,
-  "homepage": ".",
+  "homepage": "/static",
   "proxy": "http://localhost:4999",
   "dependencies": {
     "@emotion/react": "^11.11.4",
