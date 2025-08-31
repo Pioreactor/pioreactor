@@ -13,10 +13,6 @@ from dotenv import load_dotenv
 from huey import SqliteHuey
 
 
-def is_testing_env():
-    return os.environ.get("TESTING") == "1"
-
-
 load_dotenv()
 
 CACHE_DIR = Path(os.environ["RUN_PIOREACTOR"]) / "cache"

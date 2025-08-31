@@ -18,10 +18,8 @@ Key modules:
 
 *   **`contrib/`** – YAML descriptors for default charts, background jobs, and automation templates. These files let users extend the UI by defining new automations and charts.
 
-*   **`tests/`** – Pytest suite using an in‑memory SQLite database populated from `example_data.sql`. Tests cover API endpoints such as worker management and experiment creation.
 
 
-
-The repository also includes a compiled frontend in the `static/` directory and startup scripts (`main.py`, `main.fcgi`). The version is tracked in `version.py`.
+The repository also includes a compiled frontend in the `static/` directory and startup scripts (`fcgi.py`).
 
 Overall, the project provides a REST API and task queue framework to manage Pioreactor clusters, interact with hardware via CLI commands, and expose data/logs to a web UI.
