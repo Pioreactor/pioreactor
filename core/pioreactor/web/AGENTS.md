@@ -16,7 +16,6 @@ Key modules:
 
 *   **`utils.py`** – Helper utilities for caching responses, rate limiting, and validating filenames.
 
-*   **`contrib/`** – YAML descriptors for default charts, background jobs, and automation templates. These files let users extend the UI by defining new automations and charts.
 
 
 
