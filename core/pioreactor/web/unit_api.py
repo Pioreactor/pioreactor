@@ -91,7 +91,7 @@ def task_status(task_id: str):
 
 @unit_api_bp.route("/system/update/<target>", methods=["POST", "PATCH"])
 def update_target(target: str) -> DelayedResponseReturnValue:
-    if target not in ("app", "ui"):  # todo: firmware
+    if target not in ("app",):  # todo: firmware
         abort(404, description="Invalid target")
 
     body = current_app.get_json(request.data, type=structs.ArgsOptionsEnvs)
@@ -112,7 +112,7 @@ def update_target(target: str) -> DelayedResponseReturnValue:
 
 
 @unit_api_bp.route("/system/update", methods=["POST", "PATCH"])
-def update_app_and_ui() -> DelayedResponseReturnValue:
+def update() -> DelayedResponseReturnValue:
     body = current_app.get_json(request.data, type=structs.ArgsOptionsEnvs)
 
     commands: tuple[str, ...] = tuple()

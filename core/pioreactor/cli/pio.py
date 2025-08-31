@@ -57,15 +57,15 @@ def get_update_app_commands(
                 [
                     (f"sudo rm -rf {tmp_rls_dir}", -99),
                     (f"unzip -o {source} -d {tmp_rls_dir}", 0),
-                    (f"unzip -o {tmp_rls_dir}/wheels_{version_installed}.zip -d {tmp_rls_dir}/wheels", 1),
+                    (
+                        f"unzip -o {tmp_rls_dir}/wheels_{version_installed}.zip -d {tmp_rls_dir}/wheels",
+                        1,
+                    ),  # noqa: E501
                     (f"sudo bash {tmp_rls_dir}/pre_update.sh", 2),
                     (f"sudo bash {tmp_rls_dir}/update.sh", 4),
                     (f"sudo bash {tmp_rls_dir}/post_update.sh", 20),
-                    (
-                        f'echo "moving {tmp_rls_dir}/pioreactorui_*.tar.gz to {tmp_dir}/pioreactorui_archive.tar.gz"',
-                        97,
-                    ),
-                    (f"mv {tmp_rls_dir}/pioreactorui_*.tar.gz {tmp_dir}/pioreactorui_archive.tar.gz", 98),
+                    # reboot web server and huey
+                    ("sudo systemctl restart pioreactor-web.target", 30),
                     (f"sudo rm -rf {tmp_rls_dir}", 99),
                 ]
             )
@@ -73,27 +73,26 @@ def get_update_app_commands(
                 commands_and_priority.extend(
                     [
                         (
-                            f"sudo pip install --no-index --find-links={tmp_rls_dir}/wheels/ "
-                            f"{tmp_rls_dir}/pioreactor-{version_installed}-py3-none-any.whl[leader,worker]",
+                            f"sudo pip install --no-index --find-links={tmp_rls_dir}/wheels/ {tmp_rls_dir}/pioreactor-{version_installed}-py3-none-any.whl[leader,worker]",
                             3,
-                        ),
+                        ),  # noqa: E501
                         (
                             f'sudo sqlite3 {config.get("storage","database")} < {tmp_rls_dir}/update.sql || :',
                             10,
-                        ),
+                        ),  # noqa: E501
                     ]
                 )
             else:
                 commands_and_priority.append(
                     (
-                        f"sudo pip install --no-index --find-links={tmp_rls_dir}/wheels/ "
-                        f"{tmp_rls_dir}/pioreactor-{version_installed}-py3-none-any.whl[worker]",
+                        f"sudo pip install --no-index --find-links={tmp_rls_dir}/wheels/ {tmp_rls_dir}/pioreactor-{version_installed}-py3-none-any.whl[worker]",
                         3,
-                    )
+                    )  # noqa: E501
                 )
         elif source.endswith(".whl"):
             version_installed = source
             commands_and_priority.append((f"sudo pip install --force-reinstall --no-index {source}", 1))
+            commands_and_priority.append(("sudo systemctl restart pioreactor-web.target", 30))
         else:
             click.echo("Not a valid source file. Should be either a whl or release archive.")
             sys.exit(1)
@@ -103,14 +102,13 @@ def get_update_app_commands(
         version_installed = cleaned_branch
         commands_and_priority.append(
             (
-                f"sudo pip install --force-reinstall "
-                f'"git+https://github.com/{cleaned_repo}.git@{cleaned_branch}#egg=pioreactor&subdirectory=core"',
+                f'sudo pip install --force-reinstall "git+https://github.com/{cleaned_repo}.git@{cleaned_branch}#egg=pioreactor&subdirectory=core"',
                 1,
-            )
+            )  # noqa: E501
         )
-    else:
-        from pioreactor.cli.pio import get_tag_to_install
+        commands_and_priority.append(("sudo systemctl restart pioreactor-web.target", 30))  # noqa: E501
 
+    else:
         try:
             tag = get_tag_to_install(repo, version)
         except HTTPException:

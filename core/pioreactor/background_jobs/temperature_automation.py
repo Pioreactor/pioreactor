@@ -112,6 +112,8 @@ class TemperatureAutomationJob(AutomationJob):
             {"datatype": "float", "settable": False, "unit": "%"},
         )
 
+        self._exit_event = Event()
+
         if not hardware.is_heating_pcb_present():
             self.logger.error("Heating PCB must be attached to Pioreactor HAT")
             self.clean_up()
@@ -129,7 +131,6 @@ class TemperatureAutomationJob(AutomationJob):
 
         self.heater_duty_cycle = 0.0
         self.pwm = self.setup_pwm()
-        self._exit_event = Event()
 
         self.heating_pcb_tmp_driver = TMP1075(address=hardware.TEMP)
 
