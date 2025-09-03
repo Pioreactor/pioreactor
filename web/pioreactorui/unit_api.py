@@ -6,9 +6,11 @@ import zipfile
 from io import BytesIO
 from pathlib import Path
 from subprocess import run
+from tempfile import NamedTemporaryFile
 from time import sleep
 
 from flask import abort
+from flask import after_this_request
 from flask import Blueprint
 from flask import current_app
 from flask import jsonify
@@ -701,6 +703,59 @@ def get_all_calibrations_as_zipped_yaml() -> ResponseReturnValue:
         download_name=f"{HOSTNAME}_calibrations.zip",  # Name shown to the user
         mimetype="application/zip",
     )
+
+
+@unit_api.route("/zipped_dot_pioreactor", methods=["GET"])
+def get_entire_dot_pioreactor_as_zip() -> ResponseReturnValue:
+    """Create and return a ZIP of the entire DOT_PIOREACTOR directory.
+
+    Notes:
+    - Respects DISALLOW_UI_FILE_SYSTEM flag for parity with directory browsing.
+    - Uses a temp file on disk to avoid holding large zips in memory.
+    - Zips all contents recursively with paths relative to DOT_PIOREACTOR.
+    """
+    if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_FILE_SYSTEM"):
+        abort(403, "DISALLOW_UI_FILE_SYSTEM is present")
+
+    base_dir = Path(os.environ["DOT_PIOREACTOR"]).resolve()
+    if not base_dir.exists() or not base_dir.is_dir():
+        abort(404, "DOT_PIOREACTOR directory not found.")
+
+    tmp = NamedTemporaryFile(prefix=f"{HOSTNAME}_dot_pioreactor_", suffix=".zip", delete=False)
+    tmp_path = Path(tmp.name)
+    tmp.close()  # will write to this path below
+
+    try:
+        with zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as zf:
+            skip_backup = base_dir / "storage" / "pioreactor.sqlite.backup"
+            for path in sorted(base_dir.rglob("*")):
+                if not path.exists():
+                    continue
+                if path == skip_backup:
+                    continue
+                # Store paths inside the archive relative to DOT_PIOREACTOR
+                arcname = path.relative_to(base_dir)
+                try:
+                    zf.write(str(path), arcname=str(arcname))
+                except Exception as e:
+                    publish_to_error_log(f"Failed to add {path} to zip: {e}", "zipped_dot_pioreactor")
+
+        @after_this_request
+        def cleanup_temp_file(response: Response) -> Response:
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
+            return response
+
+        return send_file(
+            str(tmp_path),
+            as_attachment=True,
+            download_name=f"{HOSTNAME}_dot_pioreactor.zip",
+            mimetype="application/zip",
+        )
+    finally:
+        pass
 
 
 @unit_api.route("/calibrations/<device>", methods=["GET"])

@@ -34,6 +34,7 @@ import {
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import DownloadIcon from '@mui/icons-material/Download';
 import { styled } from '@mui/material/styles';
 import Chip from '@mui/material/Chip';
 import PioreactorIconWithModel from "./components/PioreactorIconWithModel"
@@ -85,7 +86,7 @@ function Reboot({unit}) {
   };
 
   return (
-      <Button style={{textTransform: "none"}} size="small" onClick={rebootWorker}>
+      <Button sx={{textTransform: "none"}} size="small" onClick={rebootWorker}>
         <RestartAltIcon fontSize="small" sx={textIcon} />Reboot
       </Button>
 )}
@@ -149,11 +150,31 @@ function FileDirViewer({ filedir }) {
   );
 }
 
-function DirectoryNavigatorCard() {
+function DirectoryNavigatorCard(leaderHostname) {
   const [currentPath, setCurrentPath] = React.useState('');
   const [dirs, setDirs] = React.useState([]);
   const [files, setFiles] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
+
+  const handleExport = async () => {
+    try {
+      const response = await fetch('/unit_api/zipped_dot_pioreactor');
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${leaderHostname}_dot_pioreactor.zip`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export failed:', err);
+    }
+  };
 
   React.useEffect(() => {
     fetchDirectory(currentPath);
@@ -259,7 +280,18 @@ function DirectoryNavigatorCard() {
           </List>
         )}
         </Box>
+      <Divider sx={{margin: "5px 0px"}}/>
       </CardContent>
+      <CardActions sx={{ display: 'flex', justifyContent: 'flex-end', mr: 2}}>
+        <Button
+          size="small"
+          onClick={handleExport}
+
+          sx={{textTransform: "none"}}
+        >
+          <DownloadIcon fontSize="small" sx={textIcon} /> Export
+        </Button>
+      </CardActions>
     </Card>
   );
 }
@@ -728,7 +760,7 @@ function LeaderContainer({config}) {
               xs: 12,
               sm: 12
             }}>
-            <DirectoryNavigatorCard/>
+            <DirectoryNavigatorCard leaderHostname={leaderHostname}/>
           </Grid>
           <Grid
             size={{

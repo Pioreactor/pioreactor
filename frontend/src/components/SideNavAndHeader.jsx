@@ -31,6 +31,8 @@ import AddIcon from '@mui/icons-material/Add';
 import TuneIcon from '@mui/icons-material/Tune';
 import SubdirectoryArrowRightIcon from '@mui/icons-material/SubdirectoryArrowRight';
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
+import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
+
 
 const ExpIcon = PlayCircleOutlinedIcon
 
@@ -283,21 +285,21 @@ export default function SideNavAndHeader() {
                 Overview
               </MenuItem>
 
-              <SubMenu
-                open={isOpen("pioreactors") || isOpen("logs")}
+              <MenuItem
                 icon={<PioreactorIcon  sx={{fontSize: "23px"}}/>}
                 component={<Link to="/pioreactors" className="link" />}
                 active={isSelected("/pioreactors")}
-                label={"Pioreactors"}
                 >
-                <MenuItem
-                  component={<Link to="/logs" className="link" />}
-                  active={isSelected("/logs")}
-                  icon={<SubdirectoryArrowRightIcon  sx={{fontSize: "23px"}}/>}
-                  >
-                  Event logs
-                </MenuItem>
-              </SubMenu>
+                Pioreactors
+              </MenuItem>
+
+              <MenuItem
+                component={<Link to="/logs" className="link" />}
+                active={isSelected("/logs")}
+                icon={<ListAltOutlinedIcon  sx={{fontSize: "23px"}}/>}
+                >
+                Event logs
+              </MenuItem>
 
               <MenuItem
                 icon={

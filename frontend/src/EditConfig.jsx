@@ -17,6 +17,7 @@ import { highlight, languages } from 'prismjs';
 import 'prismjs/components/prism-ini';
 
 import dayjs from "dayjs";
+import { useParams, useNavigate } from 'react-router-dom';
 
 
 function EditableCodeDiv() {
@@ -75,7 +76,7 @@ function EditableCodeDiv() {
   useEffect(() => {
     getConfig(state.filename);
     getHistoricalConfigFiles(state.filename);
-  }, []);
+  }, [state.filename]);
 
   useEffect(() => {
     // what's up with the ignore? https://react.dev/learn/synchronizing-with-effects#fetching-data
@@ -102,11 +103,32 @@ function EditableCodeDiv() {
     };
   }, []);
 
+  // URL <-> selection sync
+  const { pioreactorUnit } = useParams();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const desired = pioreactorUnit ? `config_${pioreactorUnit}.ini` : "config.ini";
+    if (state.filename !== desired) {
+      setState(prev => ({ ...prev, filename: desired, code: "Loading..." }));
+    }
+    if (pioreactorUnit) {
+      const exists = state.availableConfigs.some((v) => v.filename === desired);
+      if (!exists) {
+        setState(prev => ({ ...prev, availableConfigs: [...prev.availableConfigs, {name: desired, filename: desired}] }));
+      }
+    }
+  }, [pioreactorUnit, state.availableConfigs]);
+
   const onSelectionChange = (e) => {
     const filename = e.target.value;
     setState(prev => ({ ...prev, filename: filename, code: "Loading..." }));
-    getConfig(filename);
-    getHistoricalConfigFiles(filename);
+    if (filename === "config.ini") {
+      navigate(`/config`);
+    } else if (filename.startsWith("config_") && filename.endsWith(".ini")) {
+      const unit = filename.replace(/^config_/, '').replace(/\.ini$/, '');
+      navigate(`/config/${unit}`);
+    }
   };
 
   const onSelectionHistoricalChange = (e) => {

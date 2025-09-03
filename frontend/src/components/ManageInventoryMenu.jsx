@@ -86,9 +86,6 @@ function ManageInventoryMenu(){
         }}
       >
         <MenuItem onClick={handleUnassign}>
-          <ListItemIcon>
-            <RemoveCircleOutlineRoundedIcon fontSize="small" />
-          </ListItemIcon>
 
           <ListItemText>Unassign all workers</ListItemText>
         </MenuItem>

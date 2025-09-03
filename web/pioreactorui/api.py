@@ -1203,6 +1203,62 @@ def get_all_calibrations_as_yamls(pioreactor_unit: str) -> ResponseReturnValue:
     )
 
 
+@api.route("/workers/<pioreactor_unit>/zipped_dot_pioreactor", methods=["GET"])
+def get_entire_dot_pioreactor(pioreactor_unit: str) -> ResponseReturnValue:
+    """Download a ZIP of ~/.pioreactor from one or all workers.
+
+    - For a specific worker, fetch raw bytes from its unit_api and proxy as a download.
+    - For "$broadcast", gather from all workers and aggregate into a single ZIP
+      with each worker's files under a prefix of its hostname.
+    """
+    endpoint = "/unit_api/zipped_dot_pioreactor"
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        task = broadcast_get_across_cluster(endpoint, return_raw=True, timeout=60)
+    else:
+        task = tasks.multicast_get_across_cluster(endpoint, [pioreactor_unit], return_raw=True, timeout=60)
+
+    try:
+        results = task.get(blocking=True, timeout=120)
+    except (HueyException, TaskException):
+        return {"result": False, "filename": None, "msg": "Timed out"}, 500
+
+    # If only one worker, proxy its ZIP directly
+    if isinstance(results, dict) and len(results) == 1:
+        content = next(iter(results.values()))
+        if content is None:
+            abort(502, "No data received from worker")
+        buf = BytesIO(content)
+        buf.seek(0)
+        return send_file(
+            buf,
+            as_attachment=True,
+            download_name="dot_pioreactor.zip",
+            mimetype="application/zip",
+        )
+
+    # Aggregate multiple zips into a single zip
+    aggregate_buffer = BytesIO()
+    with zipfile.ZipFile(aggregate_buffer, "w", zipfile.ZIP_DEFLATED) as aggregate_zip:
+        for worker, content in (results or {}).items():
+            if content is None:
+                continue
+            remote_zip_buffer = BytesIO(content)
+            with zipfile.ZipFile(remote_zip_buffer, "r") as remote_zip:
+                for file_info in remote_zip.infolist():
+                    with remote_zip.open(file_info) as file_data:
+                        contents = file_data.read()
+                    new_name = f"{worker}/{file_info.filename}"
+                    aggregate_zip.writestr(new_name, contents)
+
+    aggregate_buffer.seek(0)
+    return send_file(
+        aggregate_buffer,
+        as_attachment=True,
+        download_name="cluster_dot_pioreactor.zip",
+        mimetype="application/zip",
+    )
+
+
 @api.route("/workers/<pioreactor_unit>/calibrations/<device>", methods=["GET"])
 def get_calibrations(pioreactor_unit: str, device: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:

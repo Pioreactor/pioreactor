@@ -28,7 +28,6 @@ import Tooltip from '@mui/material/Tooltip';
 import LoadingButton from '@mui/lab/LoadingButton';
 import CheckIcon from '@mui/icons-material/Check';
 import Divider from '@mui/material/Divider';
-import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import RemoveCircleOutlineRoundedIcon from '@mui/icons-material/RemoveCircleOutlineRounded';
 import CircularProgress from '@mui/material/CircularProgress';
 import { useConfirm } from 'material-ui-confirm';
@@ -36,11 +35,13 @@ import { useNavigate, Link } from 'react-router-dom';
 import UnderlineSpan from "./components/UnderlineSpan";
 import PioreactorIcon from "./components/PioreactorIcon";
 import PioreactorIconWithModel from "./components/PioreactorIconWithModel";
-import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
 import {getConfig, disconnectedGrey, lostRed, inactiveGrey, readyGreen} from "./utilities"
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 import Snackbar from '@mui/material/Snackbar';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import Menu from "@mui/material/Menu";
+import ListItemText from "@mui/material/ListItemText";
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+// icons removed from dropdown items
 
 
 import { useExperiment } from './providers/ExperimentContext';
@@ -629,12 +630,10 @@ function WorkerCard({worker, config, leaderVersion}) {
       <CardActions sx={{display: "flex", justifyContent: "space-between"}}>
         <Box>
           <Blink unit={unit}/>
+          <Unassign unit={unit} experimentAssigned={experimentAssigned} setExperimentAssigned={setExperimentAssigned} />
         </Box>
         <Box>
-          <Unassign unit={unit} experimentAssigned={experimentAssigned} setExperimentAssigned={setExperimentAssigned} />
-          <Reboot unit={unit} />
-          <Shutdown unit={unit} />
-          <Remove unit={unit} isLeader={isLeader}/>
+          <ManagePioreactorMenu unit={unit} isLeader={isLeader} />
         </Box>
       </CardActions>
     </Card>
@@ -667,52 +666,6 @@ function Blink({unit}){
 )}
 
 
-function Reboot({unit}) {
-
-  const confirm = useConfirm();
-
-  const rebootWorker = () => {
-    confirm({
-      description: 'Rebooting this Pioreactor will halt all activity and make the Pioreactor inaccessible for a few minutes.',
-      title: `Reboot ${unit}?`,
-      confirmationText: "Confirm",
-      confirmationButtonProps: {color: "primary"},
-      cancellationButtonProps: {color: "secondary"},
-    }).then(() => {
-      fetch(`/api/units/${unit}/system/reboot`, {method: "POST"})
-    }).catch(() => {});
-  };
-
-  return (
-      <Button style={{textTransform: "none"}} size="small" onClick={rebootWorker}>
-        <RestartAltIcon fontSize="small" sx={textIcon} />Reboot
-      </Button>
-)}
-
-
-function Shutdown({unit}) {
-
-  const confirm = useConfirm();
-
-  const shutdownWorker = () => {
-    confirm({
-      description: 'Shutting down this Pioreactor will halt all activity and require a power-cycle to bring it back up.',
-      title: `Shutdown ${unit}?`,
-      confirmationText: "Confirm",
-      confirmationButtonProps: {color: "primary"},
-      cancellationButtonProps: {color: "secondary"},
-    }).then(() => {
-      fetch(`/api/units/${unit}/system/shutdown`, {method: "POST"})
-    }).catch(() => {});
-  };
-
-  return (
-      <Button style={{textTransform: "none"}} size="small" onClick={shutdownWorker}>
-        <PowerSettingsNewIcon fontSize="small" sx={textIcon} />Shutdown
-      </Button>
-)}
-
-
 function Unassign({unit, experimentAssigned, setExperimentAssigned}) {
 
   const unassignWorker = () => {
@@ -731,32 +684,6 @@ function Unassign({unit, experimentAssigned, setExperimentAssigned}) {
 )}
 
 
-function Remove({unit, isLeader}) {
-  const navigate = useNavigate()
-  const confirm = useConfirm();
-
-  const removeWorker = () => {
-    confirm({
-      description: 'Removing this Pioreactor will unassign it from any experiments, halt all activity running, and remove it from your inventory. No experiment data is removed, and calibration data still exists on the worker.',
-      title: `Remove ${unit} from inventory?`,
-      confirmationText: "Confirm",
-      confirmationButtonProps: {color: "primary"},
-      cancellationButtonProps: {color: "secondary"},
-    }).then(() => {
-      fetch(`/api/workers/${unit}`, {method: "DELETE"})
-      .then((response) => {
-        if (response.ok){
-           navigate(0)
-        }
-      })
-    }).catch(() => {});
-  };
-
-  return (
-    <Button color="secondary" style={{textTransform: "none"}} disabled={isLeader} size="small" onClick={removeWorker}>
-       <DeleteOutlineIcon  disabled={isLeader} color={isLeader ? "text.disabled" : "secondary"} fontSize="small" sx={textIcon}/> Remove
-    </Button>
-)}
 
 function InventoryDisplay({isLoading, workers, config}){
   const [leaderVersion, setLeaderVersion] = React.useState(null)
@@ -862,6 +789,118 @@ function Inventory({title}) {
         </Grid>
       </Grid>
     </MQTTProvider>
+  );
+}
+
+
+function ManagePioreactorMenu({unit, isLeader}){
+  const [anchorEl, setAnchorEl] = React.useState(null);
+  const open = Boolean(anchorEl);
+  const confirm = useConfirm();
+  const navigate = useNavigate();
+
+  const handleClick = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleReboot = () => {
+    confirm({
+      description: 'Rebooting this Pioreactor will halt all activity and make the Pioreactor inaccessible for a few minutes.',
+      title: `Reboot ${unit}?`,
+      confirmationText: "Confirm",
+      confirmationButtonProps: {color: "primary"},
+      cancellationButtonProps: {color: "secondary"},
+    }).then(() => {
+      fetch(`/api/units/${unit}/system/reboot`, {method: "POST"})
+    }).catch(() => {});
+  };
+
+  const handleShutdown = () => {
+    confirm({
+      description: 'Shutting down this Pioreactor will halt all activity and require a power-cycle to bring it back up.',
+      title: `Shutdown ${unit}?`,
+      confirmationText: "Confirm",
+      confirmationButtonProps: {color: "primary"},
+      cancellationButtonProps: {color: "secondary"},
+    }).then(() => {
+      fetch(`/api/units/${unit}/system/shutdown`, {method: "POST"})
+    }).catch(() => {});
+  };
+
+  const handleExport = async () => {
+    try {
+      const response = await fetch(`/api/workers/${unit}/zipped_dot_pioreactor`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${unit}_dot_pioreactor.zip`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export failed:', err);
+    }
+  };
+
+  const handleRemove = () => {
+    confirm({
+      description: 'Removing this Pioreactor will unassign it from any experiments, halt all activity running, and remove it from your inventory. No experiment data is removed, and calibration data still exists on the worker.',
+      title: `Remove ${unit} from inventory?`,
+      confirmationText: "Confirm",
+      confirmationButtonProps: {color: "primary"},
+      cancellationButtonProps: {color: "secondary"},
+    }).then(() => {
+      fetch(`/api/workers/${unit}`, {method: "DELETE"})
+      .then((response) => {
+        if (response.ok){
+           navigate(0)
+        }
+      })
+    }).catch(() => {});
+  };
+
+  return (
+    <div>
+      <Button
+        aria-controls={open ? 'manage-pioreactor-menu' : undefined}
+        aria-haspopup="true"
+        aria-expanded={open ? 'true' : undefined}
+        onClick={handleClick}
+        style={{textTransform: "none"}}
+      >
+        Manage Pioreactor <ArrowDropDownIcon/>
+      </Button>
+      <Menu
+        id="manage-pioreactor-menu"
+        anchorEl={anchorEl}
+        open={open}
+        onClose={handleClose}
+        MenuListProps={{
+          'aria-labelledby': 'manage-pioreactor-button',
+        }}
+      >
+        <MenuItem onClick={handleReboot}>
+          <ListItemText>Reboot</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleShutdown}>
+          <ListItemText>Shutdown</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleExport}>
+          <ListItemText>Export</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleRemove} disabled={isLeader} sx={{ color: 'secondary.main' }}>
+          <ListItemText>Remove</ListItemText>
+        </MenuItem>
+      </Menu>
+    </div>
   );
 }
 
