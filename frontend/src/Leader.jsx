@@ -150,7 +150,7 @@ function FileDirViewer({ filedir }) {
   );
 }
 
-function DirectoryNavigatorCard(leaderHostname) {
+function DirectoryNavigatorCard({leaderHostname}) {
   const [currentPath, setCurrentPath] = React.useState('');
   const [dirs, setDirs] = React.useState([]);
   const [files, setFiles] = React.useState([]);
@@ -277,6 +277,18 @@ function DirectoryNavigatorCard(leaderHostname) {
                 </ListItemButton>
               </ListItem>
             ))}
+
+            {dirs.length === 0 && files.length === 0 && (
+              <ListItem>
+                <ListItemText
+                  primary={
+                    <Typography variant="body2" component="p" color="textSecondary">
+                      Directory is empty.
+                    </Typography>
+                  }
+                />
+              </ListItem>
+            )}
           </List>
         )}
         </Box>

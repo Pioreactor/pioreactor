@@ -178,6 +178,10 @@ class ADCReader(LoggerMixin):
             signal = adc.read_from_channel()
             voltage = adc.from_raw_to_voltage(signal)
 
+            if os.environ.get("DEBUG") is not None:
+                self.logger.debug(f"{pd_channel=}")
+                self.logger.debug(f"{voltage=}")
+
             testing_signals[pd_channel] = structs.RawPDReading(reading=voltage, channel=pd_channel)
 
             self._check_if_over_max(voltage)
@@ -467,6 +471,9 @@ class ADCReader(LoggerMixin):
                 # check if using correct gain
                 # this may need to be adjusted for higher rates of data collection
                 if self.dynamic_gain:
+                    print("checking on gain")
+                    print(f"{self.adcs[channel].gain=}")
+                    print(f"{m=}")
                     self.adcs[channel].check_on_gain(m)
 
             self.batched_readings = {
