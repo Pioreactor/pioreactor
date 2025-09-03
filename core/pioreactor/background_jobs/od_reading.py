@@ -70,6 +70,7 @@ from pioreactor.utils import adcs as madcs
 from pioreactor.utils import argextrema
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import timing
+from pioreactor.utils.math_helpers import mean
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 from pioreactor.utils.streaming_calculations import ExponentialMovingStd
 from pioreactor.utils.timing import catchtime
@@ -121,7 +122,6 @@ class ADCReader(LoggerMixin):
     """
 
     _logger_name = "adc_reader"
-    _setup_complete = False
 
     def __init__(
         self,
@@ -140,6 +140,12 @@ class ADCReader(LoggerMixin):
         self.oversampling_count = oversampling_count
         self.batched_readings: RawPDReadings = {}
         self.max_signal_moving_average = {c: ExponentialMovingAverage(alpha=0.05) for c in self.channels}
+
+        self.adcs = self._get_ADCs()
+
+        if not hardware.is_ADC_present("pd1", "pd2"):
+            self.logger.error("The internal ADCs for pd1 and pd2 are not responding. Exiting.")
+            raise exc.HardwareNotFoundError("The internal ADCs for pd1 and pd2 are not responding. Exiting.")
 
         if "local_ac_hz" in config["od_reading.config"]:
             self.most_appropriate_AC_hz: Optional[float] = config.getfloat("od_reading.config", "local_ac_hz")
@@ -163,39 +169,60 @@ class ADCReader(LoggerMixin):
 
         """
 
-        if not hardware.is_ADC_present():
-            self.logger.error("The internal ADC is not responding. Exiting.")
-            raise exc.HardwareNotFoundError("The internal ADC is not responding. Exiting.")
-        elif not hardware.is_DAC_present():
-            self.logger.error("The internal DAC is not responding. Exiting.")
-            raise exc.HardwareNotFoundError("The internal DAC is not responding. Exiting.")
+        SAMPLES = 10
 
-        self.adcs = self._get_ADCs()
+        batched_readings = {}
 
-        testing_signals: RawPDReadings = {}
-        for pd_channel in self.channels:
-            adc = self.adcs[pd_channel]
-            signal = adc.read_from_channel()
-            voltage = adc.from_raw_to_voltage(signal)
+        # we pre-allocate these arrays to make the for loop faster => more accurate
+        aggregated_signals: dict[pt.PdChannel, list[pt.AnalogValue]] = {
+            channel: [0.0] * SAMPLES for channel in self.channels
+        }
+        timestamps: dict[pt.PdChannel, list[float]] = {channel: [0.0] * SAMPLES for channel in self.channels}
 
-            if os.environ.get("DEBUG") is not None:
-                self.logger.debug(f"{pd_channel=}")
-                self.logger.debug(f"{voltage=}")
+        with catchtime() as time_since_start:
+            for counter in range(SAMPLES):
+                with catchtime() as time_sampling_took_to_run:
+                    for pd_channel in self.channels:
+                        timestamps[pd_channel][counter] = time_since_start()
+                        aggregated_signals[pd_channel][counter] = self.adcs[pd_channel].read_from_channel()
 
-            testing_signals[pd_channel] = structs.RawPDReading(reading=voltage, channel=pd_channel)
+                sleep(
+                    max(
+                        0,
+                        -time_sampling_took_to_run()  # the time_sampling_took_to_run() reduces the variance by accounting for the duration of each sampling.
+                        + 0.25
+                        / (SAMPLES - 1)
+                        * (
+                            (counter * 0.618034) % 1
+                        ),  # this is to artificially jitter the samples, so that we observe less aliasing. That constant is phi.
+                    )
+                )
 
-            self._check_if_over_max(voltage)
+        if os.environ.get("DEBUG") is not None:
+            self.logger.debug(f"TUNE STEP: {timestamps=}")
+            self.logger.debug(f"TUNE STEP: {aggregated_signals=}")
+
+        for channel in self.channels:
+            if self.most_appropriate_AC_hz is None:
+                self.most_appropriate_AC_hz = self.determine_most_appropriate_AC_hz(
+                    timestamps, aggregated_signals
+                )
+
+            avg_reading_voltage = self.adcs[channel].from_raw_to_voltage(mean(aggregated_signals[channel]))
+
+            self._check_if_over_max(avg_reading_voltage)
 
             if self.dynamic_gain:
-                adc.check_on_gain(voltage)
+                self.adcs[channel].check_on_gain(avg_reading_voltage)
+
+            batched_readings[channel] = structs.RawPDReading(reading=avg_reading_voltage, channel=channel)
 
         for channel, adc in self.adcs.items():
             self.logger.debug(
-                f"Using ADC class {adc.__class__.__name__} for pd{channel} with gain {adc.gain}."
+                f"Using ADC class {adc.__class__.__name__} for pd{channel} with initial gain {adc.gain}."
             )
 
-        self._setup_complete = True
-        return testing_signals
+        return batched_readings
 
     def set_offsets(self, batched_readings: RawPDReadings) -> None:
         """
@@ -391,8 +418,6 @@ class ADCReader(LoggerMixin):
         """
         Sample from the ADS - likely this has been optimized for use for optical density in the Pioreactor system.
         """
-        if not self._setup_complete:
-            raise ValueError("Must call tune_adc() first.")
 
         # we pre-allocate these arrays to make the for loop faster => more accurate
         aggregated_signals: dict[pt.PdChannel, list[pt.AnalogValue]] = {
@@ -426,11 +451,6 @@ class ADCReader(LoggerMixin):
 
             batched_estimates_: PdChannelToVoltage = {}
 
-            if self.most_appropriate_AC_hz is None:
-                self.most_appropriate_AC_hz = self.determine_most_appropriate_AC_hz(
-                    timestamps, aggregated_signals
-                )
-
             if os.environ.get("DEBUG") is not None:
                 self.logger.debug(f"{timestamps=}")
                 self.logger.debug(f"{aggregated_signals=}")
@@ -439,20 +459,28 @@ class ADCReader(LoggerMixin):
                 shifted_signals = self._remove_offset_from_signal(
                     aggregated_signals[channel], self.adc_offsets.get(channel, 0.0)
                 )
-                (
-                    best_estimate_of_signal_,
-                    *_other_param_estimates,
-                ), _ = self._sin_regression_with_known_freq(
-                    timestamps[channel],
-                    shifted_signals,
-                    self.most_appropriate_AC_hz,
-                    prior_C=(
-                        self.adcs[channel].from_voltage_to_raw_precise(self.batched_readings[channel].reading)
+
+                if self.most_appropriate_AC_hz is not None:
+                    (
+                        best_estimate_of_signal_,
+                        *_other_param_estimates,
+                    ), _ = self._sin_regression_with_known_freq(
+                        timestamps[channel],
+                        shifted_signals,
+                        self.most_appropriate_AC_hz,
+                        prior_C=(
+                            self.adcs[channel].from_voltage_to_raw_precise(
+                                self.batched_readings[channel].reading
+                            )
+                        )
+                        if (channel in self.batched_readings)
+                        else None,
+                        penalizer_C=(self.penalizer * self.oversampling_count),
                     )
-                    if (channel in self.batched_readings)
-                    else None,
-                    penalizer_C=(self.penalizer * self.oversampling_count),
-                )
+
+                else:
+                    # fallback - just use the mean TODO: doesn't use self.penalizer yet.
+                    best_estimate_of_signal_ = mean(shifted_signals)
 
                 # convert to voltage
                 best_estimate_of_signal_v = round(
@@ -883,6 +911,9 @@ class ODReader(BackgroundJob):
             verbose=False,
         ):
             with led_utils.lock_leds_temporarily(self.non_ir_led_channels):
+                blank_reading = self.adc_reader.take_reading()
+                self.adc_reader.set_offsets(blank_reading)  # set dark offset
+
                 # IR led is on
                 self.start_ir_led()
                 sleep(0.125)
@@ -891,15 +922,8 @@ class ODReader(BackgroundJob):
 
                 # IR led is off so we can set blanks
                 self.stop_ir_led()
-                sleep(0.125)
 
-                blank_reading = average_over_raw_pd_readings(
-                    self.adc_reader.take_reading(),
-                    self.adc_reader.take_reading(),
-                )
-                self.adc_reader.set_offsets(blank_reading)  # set dark offset
-
-                # clear the history in adc_reader, so that we don't blank readings in later inference.
+                # clear the history in adc_reader, so that we don't use blank readings in later inference.
                 self.adc_reader.clear_batched_readings()
 
         if should_auto_adjust_ir_led:
