@@ -44,6 +44,9 @@ class _I2C_ADC(Protocol):
     def check_on_gain(self, value: pt.Voltage, tol: float = 0.85) -> None:
         ...
 
+    def set_ads_gain(self, gain: float) -> None:
+        ...
+
     def from_voltage_to_raw_precise(self, voltage: pt.Voltage) -> pt.AnalogValue:
         ...
 
@@ -162,6 +165,11 @@ class Pico_ADC:
         # pico has no gain.
         pass
 
+    def set_ads_gain(self, gain: float) -> None:
+        # pico has no gain.
+        if gain != 1.0:
+            raise ValueError("Pico ADC does not support gain adjustment.")
+
 
 class ADS1114_ADC:
     """
@@ -245,13 +253,12 @@ class ADS1114_ADC:
         # Auto-select gain that keeps the value inside a comfortable portion of its FSR
         for gain, (lb, ub) in self.ADS1X14_GAIN_THRESHOLDS.items():
             if (tol * lb <= value < tol * ub) and (self.gain != gain):
-                print(f"ADS1114: changing gain from {self.gain} to {gain}")
-                self.gain = gain
                 self.set_ads_gain(gain)
                 break
 
     def set_ads_gain(self, gain: float) -> None:
         """Apply a new PGA gain (updates device CONFIG)."""
+        gain = float(gain)
         if gain not in self._PGA_BITS:
             raise ValueError(f"Unsupported ADS1114 gain: {gain}")
         self.gain = gain

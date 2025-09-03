@@ -97,6 +97,9 @@ class Mock_ADC(_I2C_ADC):
     def check_on_gain(self, *args, **kwargs) -> None:
         pass
 
+    def set_ads_gain(self, gain: float) -> None:
+        pass
+
     def from_voltage_to_raw(self, voltage) -> int:
         return round(voltage * 32767 / 4.096)
 

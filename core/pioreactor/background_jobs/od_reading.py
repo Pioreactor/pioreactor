@@ -169,6 +169,10 @@ class ADCReader(LoggerMixin):
 
         """
 
+        # reset gain
+        for adc in self.adcs.values():
+            adc.set_ads_gain(1.0)
+
         SAMPLES = 10
 
         batched_readings = {}
