@@ -245,6 +245,7 @@ class ADS1114_ADC:
         # Auto-select gain that keeps the value inside a comfortable portion of its FSR
         for gain, (lb, ub) in self.ADS1X14_GAIN_THRESHOLDS.items():
             if (tol * lb <= value < tol * ub) and (self.gain != gain):
+                print(f"ADS1114: changing gain from {self.gain} to {gain}")
                 self.gain = gain
                 self.set_ads_gain(gain)
                 break

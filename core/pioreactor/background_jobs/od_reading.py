@@ -499,9 +499,6 @@ class ADCReader(LoggerMixin):
                 # check if using correct gain
                 # this may need to be adjusted for higher rates of data collection
                 if self.dynamic_gain:
-                    print("checking on gain")
-                    print(f"{self.adcs[channel].gain=}")
-                    print(f"{m=}")
                     self.adcs[channel].check_on_gain(m)
 
             self.batched_readings = {
