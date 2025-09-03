@@ -40,13 +40,14 @@ class Mock_ADC(_I2C_ADC):
     OFFSET = 0.002
     gain = 1
 
-    def __init__(self, adc_channel, *args, **kwargs) -> None:
+    def __init__(self, adc_channel, i2c_addr, *args, **kwargs) -> None:
         self._counter = 0.0
         self.state = self.INIT_STATE
         self.max_gr = 0.25 + 0.1 * random.random()
         self.scale_factor = 0.00035 + 0.00005 * random.random()
         self.lag = 2 * 60 * 60 - 1 * 60 * 60 * random.random()
         self.adc_channel = adc_channel
+        self.i2c_addr = i2c_addr
 
     def read_from_channel(self):
         from pioreactor.utils import local_intermittent_storage

@@ -138,7 +138,7 @@ def is_DAC_present() -> bool:
     return is_i2c_device_present(DAC_ADDRESS)
 
 
-def is_ADC_present(*args) -> bool:
+def is_ADC_present(*args: int) -> bool:
     if args:
         to_check = set(args)
     else:

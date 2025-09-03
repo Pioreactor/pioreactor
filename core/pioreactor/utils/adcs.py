@@ -25,6 +25,7 @@ class _I2C_ADC(Protocol):
     """Structural protocol for I2C ADC drivers."""
 
     gain: float
+    i2c_addr: int
 
     def __init__(
         self, scl: pt.I2CPin, sda: pt.I2CPin, i2c_addr: pt.I2CAddress, adc_channel: pt.AdcChannel
@@ -76,11 +77,12 @@ class ADS1115_ADC:
 
         assert 0 <= adc_channel <= 3
         self.adc_channel = adc_channel
+        self.i2c_addr = i2c_addr
         self._ads = ADS(
             I2C(scl, sda),
             data_rate=self.DATA_RATE,
             gain=self.gain,
-            address=i2c_addr,
+            address=self.i2c_addr,
         )
         self.analog_in = AnalogIn(self._ads, self.adc_channel)
 
@@ -117,7 +119,7 @@ class Pico_ADC:
     ) -> None:
         # set up i2c connection to the Pico ADC at PD1 address (shared)
         self.i2c = I2C(scl, sda)
-        self._i2c_addr = i2c_addr
+        self.i2c_addr = i2c_addr
         assert 0 <= adc_channel <= 3
         self.adc_channel = adc_channel
         if self.get_firmware_version() >= (0, 4):
@@ -129,22 +131,22 @@ class Pico_ADC:
         result = bytearray(2)
         try:
             self.i2c.writeto_then_readfrom(
-                self._i2c_addr, bytes([self.adc_channel + 4]), result
+                self.i2c_addr, bytes([self.adc_channel + 4]), result
             )  # + 4 is the i2c pointer offset
             return int.from_bytes(result, byteorder="little", signed=False)
         except OSError:
             raise exc.HardwareNotFoundError(
-                f"Unable to find i2c address {self._i2c_addr}. Is the HAT attached? Is the firmware loaded?"
+                f"Unable to find i2c address {self.i2c_addr}. Is the HAT attached? Is the firmware loaded?"
             )
 
     def get_firmware_version(self) -> tuple[int, int]:
         try:
             result = bytearray(2)
-            self.i2c.writeto_then_readfrom(self._i2c_addr, bytes([0x08]), result)
+            self.i2c.writeto_then_readfrom(self.i2c_addr, bytes([0x08]), result)
             return (result[1], result[0])
         except OSError:
             raise exc.HardwareNotFoundError(
-                f"Unable to find i2c address {self._i2c_addr}. Is the HAT attached? Is the firmware loaded?"
+                f"Unable to find i2c address {self.i2c_addr}. Is the HAT attached? Is the firmware loaded?"
             )
 
     def from_voltage_to_raw(self, voltage: pt.Voltage) -> pt.AnalogValue:
@@ -232,7 +234,7 @@ class ADS1114_ADC:
         # SMBUS doesn't use scl or sda directly, it opens up /dev/i2c-1 in the linux space
         i2c_bus = 1
         self._bus = SMBus(i2c_bus)
-        self._i2c_addr = i2c_addr
+        self.i2c_addr = i2c_addr
         assert adc_channel == 0
         self.adc_channel = adc_channel
         # Cache current DR and PGA fields
@@ -287,14 +289,14 @@ class ADS1114_ADC:
             pass
 
         # Read conversion register (MSB first), convert to signed
-        msb, lsb = self._bus.read_i2c_block_data(self._i2c_addr, self._CONVERSION, 2)
+        msb, lsb = self._bus.read_i2c_block_data(self.i2c_addr, self._CONVERSION, 2)
         value = struct.unpack(">h", bytes((msb, lsb)))[0]
         return int(value)
 
     # --- Private helpers ---
 
     def _read_config_ready(self) -> bool:
-        msb, lsb = self._bus.read_i2c_block_data(self._i2c_addr, self._CONFIG, 2)
+        msb, lsb = self._bus.read_i2c_block_data(self.i2c_addr, self._CONFIG, 2)
         cfg = (msb << 8) | lsb
         return bool(cfg & (1 << 15))  # OS bit
 
@@ -329,7 +331,7 @@ class ADS1114_ADC:
 
     def _write_register(self, reg: int, value: int) -> None:
         data = [(value >> 8) & 0xFF, value & 0xFF]
-        self._bus.write_i2c_block_data(self._i2c_addr, reg, data)
+        self._bus.write_i2c_block_data(self.i2c_addr, reg, data)
 
     def __del__(self) -> None:
         try:

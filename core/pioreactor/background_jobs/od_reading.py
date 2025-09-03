@@ -143,7 +143,7 @@ class ADCReader(LoggerMixin):
 
         self.adcs = self._get_ADCs()
 
-        if not hardware.is_ADC_present("pd1", "pd2"):
+        if not hardware.is_ADC_present(*[adc.i2c_addr for adc in self.adcs.values()]):
             self.logger.error("The internal ADCs for pd1 and pd2 are not responding. Exiting.")
             raise exc.HardwareNotFoundError("The internal ADCs for pd1 and pd2 are not responding. Exiting.")
 
@@ -156,7 +156,7 @@ class ADCReader(LoggerMixin):
         if self.fake_data:
             from pioreactor.utils.mock import Mock_ADC
 
-            return {c: Mock_ADC(adc_channel=0) for c in self.channels}
+            return {c: Mock_ADC(adc_channel=0, i2c_addr=0x00) for c in self.channels}
         else:
             return {c: hardware.ADCs[f"pd{c}"]() for c in self.channels}
 
