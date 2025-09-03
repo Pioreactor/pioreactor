@@ -404,6 +404,144 @@ def db_query_table(table_name: str, limit: int = 100, offset: int = 0) -> list:
 
     return rows
 
+@mcp.tool()
+@wrap_result_as_dict
+def db_list_rows(
+    table_name: str,
+    columns: list[str] | None = None,
+    where: list[dict[str, Any]] | None = None,
+    order_by: str | None = None,
+    direction: str = "desc",
+    limit: int = 100,
+    cursor: Any | None = None,
+    re_sort_ascending: bool = False,
+) -> dict:
+    """
+    Return rows from a table with explicit ordering and cursor-based pagination.
+
+    - Default ordering: uses 'timestamp' if present, else 'created_at', else 'rowid'.
+    - Cursor pagination: if direction=='desc', returns rows with order_by < cursor; if 'asc', order_by > cursor.
+    - Re-sort: set re_sort_ascending=True to fetch latest N (fast, DESC) but return oldest->newest.
+
+    Parameters
+    ----------
+    table_name: str
+    columns: optional list of columns to return (key column auto-added if missing)
+    where: optional list of filters, each like {"col": "vial", "op": "=", "val": "A"}
+           Allowed ops: =, !=, <, <=, >, >=, LIKE
+    order_by: column name to order on (must exist in table or be 'rowid')
+    direction: "asc" or "desc" (default "desc")
+    limit: max rows to return (default 100)
+    cursor: value for keyset pagination
+    re_sort_ascending: if True, re-sort the page in Python to ascending by key before returning
+    """
+    # --- helpers ---
+    def _is_safe_ident(name: str) -> bool:
+        # Keep it simple & safe: SQLite identifiers we accept are [A-Za-z0-9_]+
+        return bool(name) and all(ch.isalnum() or ch == "_" for ch in name)
+
+    def _qi(name: str) -> str:
+        if name.lower() == "rowid":
+            return "rowid"
+        if not _is_safe_ident(name):
+            raise ValueError(f"Invalid identifier: {name!r}")
+        return f'"{name}"'
+
+    def _table_exists(name: str) -> bool:
+        res = query_app_db(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=? LIMIT 1;", (name,)
+        )
+        return bool(res)
+
+    def _table_columns(name: str) -> list[str]:
+        # safe because _is_safe_ident already checked
+        schema = query_app_db(f'PRAGMA table_info("{name}");')
+        # schema rows have keys: cid, name, type, notnull, dflt_value, pk
+        return [row["name"] if isinstance(row, dict) else row[1] for row in schema]  # type: ignore[index]
+
+    def _get_key_from_row(row: Any, key: str, select_cols: list[str]) -> Any:
+        if isinstance(row, dict):
+            return row.get(key)
+        if isinstance(row, (list, tuple)):
+            try:
+                return row[select_cols.index(key)]
+            except Exception:
+                return None
+        return None
+
+    ALLOWED_OPS = {"=", "!=", ">", "<", ">=", "<=", "LIKE"}
+
+    if not _table_exists(table_name):
+        raise ValueError(f"Table '{table_name}' not found.")
+
+    # Discover columns
+    tbl_cols = _table_columns(table_name)
+    cols_set = set(tbl_cols)
+
+    # Choose default sort key
+    default_candidates = ["timestamp", "created_at", "time", "datetime"]
+    key = (order_by or next((c for c in default_candidates if c in cols_set), "rowid"))
+
+    # Validate identifiers
+    if key != "rowid" and key not in cols_set:
+        raise ValueError(f"order_by '{key}' not in table '{table_name}'.")
+    if columns:
+        bad = [c for c in columns if c != "rowid" and c not in cols_set]
+        if bad:
+            raise ValueError(f"Unknown column(s): {', '.join(bad)}")
+
+    # SELECT list: ensure key is included so we can emit next_cursor
+    select_cols = list(dict.fromkeys((columns or tbl_cols) + ([key] if key not in (columns or tbl_cols) else [])))
+
+    # WHERE clause
+    where_clauses: list[str] = []
+    params: list[Any] = []
+    for f in where or []:
+        col = f.get("col")
+        op = str(f.get("op", "=")).upper()
+        if not col or (col != "rowid" and col not in cols_set):
+            raise ValueError(f"Filter column '{col}' not in table '{table_name}'.")
+        if op not in ALLOWED_OPS:
+            raise ValueError(f"Operator '{op}' not allowed.")
+        where_clauses.append(f"{_qi(col)} {op} ?")
+        params.append(f.get("val"))
+
+    # Cursor predicate (keyset pagination)
+    dir_sql = "DESC" if str(direction).lower().startswith("d") else "ASC"
+    if cursor is not None:
+        comparator = "<" if dir_sql == "DESC" else ">"
+        where_clauses.append(f"{_qi(key)} {comparator} ?")
+        params.append(cursor)
+
+    where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
+
+    # Build and run query
+    sql = (
+        f"SELECT {', '.join(_qi(c) for c in select_cols)} "
+        f"FROM {_qi(table_name)} "
+        f"{where_sql} "
+        f"ORDER BY {_qi(key)} {dir_sql} "
+        f"LIMIT ?"
+    )
+    params.append(int(limit))
+
+    rows = query_app_db(sql, tuple(params))
+    if not isinstance(rows, list):
+        rows = []  # defensive
+
+    # Derive next_cursor from the last row’s key
+    next_cursor = _get_key_from_row(rows[-1], key, select_cols) if rows else None
+
+    # Optional re-sort to ascending for nicer plotting/CSV
+    if re_sort_ascending and rows:
+        # We’ll sort in Python using the extracted key
+        def key_fn(r: Any):
+            return _get_key_from_row(r, key, select_cols)
+        rows = sorted(rows, key=key_fn)
+
+    return {"rows": rows, "next_cursor": next_cursor, "count": len(rows)}
+
+
 
 @mcp.tool()
 def get_pioreactor_unit_configuration(pioreactor_unit: str) -> dict:
