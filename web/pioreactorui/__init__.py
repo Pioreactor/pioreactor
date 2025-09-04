@@ -196,6 +196,7 @@ def _get_temp_local_metadata_db_connection():
             PRAGMA temp_store = 2;  -- stop writing small files to disk, use mem
             PRAGMA busy_timeout = 15000;
             PRAGMA cache_size = -4000;
+            PRAGMA query_only = 1; -- forbid writes through this connection
         """
         )
 
@@ -204,9 +205,18 @@ def _get_temp_local_metadata_db_connection():
 
 def query_app_db(query: str, args=(), one: bool = False) -> dict[str, t.Any] | list[dict[str, t.Any]] | None:
     assert am_I_leader()
-    cur = _get_app_db_connection().execute(query, args)
-    rv = cur.fetchall()
-    cur.close()
+    con = _get_app_db_connection()
+    try:
+        con.execute("PRAGMA query_only = 1")
+        cur = con.execute(query, args)
+        rv = cur.fetchall()
+        cur.close()
+    finally:
+        # Restore to default to allow mutations via modify_app_db within same request
+        try:
+            con.execute("PRAGMA query_only = 0")
+        except Exception:
+            pass
     if one:
         return rv[0] if rv else None
     return rv

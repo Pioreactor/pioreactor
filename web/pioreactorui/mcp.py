@@ -395,15 +395,10 @@ def db_get_table_schema(table_name: str) -> list:
 
 @mcp.tool()
 @wrap_result_as_dict
-def db_query_table(table_name: str, limit: int = 100, offset: int = 0) -> list:
-    """Query rows from the specified table, with optional limit and offset."""
-    exists = query_app_db("SELECT name FROM sqlite_master WHERE type='table' AND name=?;", (table_name,))
-    if not exists:
-        raise ValueError(f"Table {table_name} not found")
-
-    rows = query_app_db(f'SELECT * FROM "{table_name}" LIMIT ? OFFSET ?;', (limit, offset))
+def db_query_db(query: str) -> list:
+    """Read-only query the database."""
+    rows = query_app_db(query)
     assert isinstance(rows, list)
-
     return rows
 
 
