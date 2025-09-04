@@ -30,6 +30,7 @@ from typing import Any
 from typing import Dict
 from typing import List
 
+import msgspec
 from flask import Blueprint
 from flask import jsonify
 from flask import request
@@ -47,7 +48,7 @@ from . import query_app_db
 
 
 logger = logging.getLogger("mcp_utils")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 handler = logging.StreamHandler(sys.stdout)
 formatter = logging.Formatter("[%(asctime)s] [%(levelname)s] %(name)s: %(message)s")
 handler.setFormatter(formatter)
@@ -418,8 +419,9 @@ mcp_bp = Blueprint("mcp", __name__, url_prefix="/mcp")
 @mcp_bp.post("/")
 def handle_mcp():
     payload = request.get_json(force=True, silent=False)
-    if payload["method"] == "notifications/initialized":
-        return Response(status=202)
 
     result = mcp.handle_message(payload)
-    return jsonify(result.model_dump(exclude_none=True))
+    if result:
+        return jsonify(msgspec.to_builtins(result))
+    else:
+        return Response(status=202)

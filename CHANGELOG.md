@@ -5,6 +5,7 @@
  - Initial support for eye-spy.
  - Export option under Inventory page to export the Pioreactors ~/.pioreactor folder. Likewise on the leader.
  - "sleep" can be used in `pio run pumps ...` to wait between pump actions.
+ - no long require pydantic!
 
 
 #### Bug fixes
@@ -12,6 +13,7 @@
  - real time charts in the UI again!
  - dataset exports have a corrected timestamp on the folders
  - remove instances of double logging from the ui
+ - fix MCP not respecting "notifications" methods.
 
 ### 25.8.14
 
