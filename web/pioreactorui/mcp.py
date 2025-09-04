@@ -33,6 +33,7 @@ from typing import List
 from flask import Blueprint
 from flask import jsonify
 from flask import request
+from flask import Response
 from mcp_utils.core import MCPServer
 from mcp_utils.queue import ResponseQueueProtocol
 from pioreactor.config import get_leader_hostname
@@ -46,7 +47,7 @@ from . import query_app_db
 
 
 logger = logging.getLogger("mcp_utils")
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler(sys.stdout)
 formatter = logging.Formatter("[%(asctime)s] [%(levelname)s] %(name)s: %(message)s")
 handler.setFormatter(formatter)
@@ -417,5 +418,8 @@ mcp_bp = Blueprint("mcp", __name__, url_prefix="/mcp")
 @mcp_bp.post("/")
 def handle_mcp():
     payload = request.get_json(force=True, silent=False)
+    if payload["method"] == "notifications/initialized":
+        return Response(status=202)
+
     result = mcp.handle_message(payload)
     return jsonify(result.model_dump(exclude_none=True))
