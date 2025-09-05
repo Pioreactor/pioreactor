@@ -23,8 +23,6 @@ from __future__ import annotations
 import logging
 import sys
 from functools import wraps
-from queue import Empty
-from queue import Queue
 from time import sleep
 from typing import Any
 from typing import Dict
@@ -36,7 +34,7 @@ from flask import jsonify
 from flask import request
 from flask import Response
 from mcp_utils.core import MCPServer
-from mcp_utils.queue import ResponseQueueProtocol
+from mcp_utils.queue import SQLiteResponseQueue
 from pioreactor.config import get_leader_hostname
 from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import get_from_leader as _get_from_leader
@@ -64,32 +62,17 @@ def wrap_result_as_dict(func):
     return wrapper
 
 
-class ResponseQueue(ResponseQueueProtocol):
-    def __init__(self) -> None:
-        self.queues: dict[str, Queue] = {}
-
-    def push_response(self, session_id: str, response) -> None:
-        if session_id not in self.queues:
-            self.queues[session_id] = Queue()
-        self.queues[session_id].put(response.model_dump_json())
-
-    def wait_for_response(self, session_id: str, timeout: float | None = None) -> str | None:
-        if session_id not in self.queues:
-            return None
-        try:
-            return self.queues[session_id].get(timeout=timeout)
-        except Empty:
-            return None
-
-    def clear_session(self, session_id: str) -> None:
-        if session_id in self.queues:
-            del self.queues[session_id]
-
-
 MCP_APP_NAME = "pioreactor_mcp"
-MCP_VERSION = "0.1.0"
+MCP_VERSION = "0.2.0"
+INSTRUCTIONS = """
+Use this MCP server to control a Pioreactor cluster of workers. Basic summary:
+ - a leader Pioreactor controls multiple worker Pioreactors (the leader can also be a worker)
+ - workers should be assigned to an experiment and be "active" before running jobs
+ - jobs have settings, some of which can be modified in real-time
+ - experiment profiles can be used to run sequences of jobs automatically
+"""
 
-mcp = MCPServer(MCP_APP_NAME, MCP_VERSION, response_queue=ResponseQueue())
+mcp = MCPServer(MCP_APP_NAME, MCP_VERSION, response_queue=SQLiteResponseQueue(), instructions=INSTRUCTIONS)
 
 
 def get_from_leader(endpoint: str):

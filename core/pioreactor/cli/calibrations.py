@@ -131,6 +131,7 @@ def run_calibration(ctx, device: str, protocol_name: str | None, y: bool) -> Non
     out_file = calibration_struct.save_to_disk_for_device(device)
 
     if not y:
+        click.echo()
         if click.confirm(
             green(f"Do you want to set this calibration as the active calibration for {device}?"),
             default=True,

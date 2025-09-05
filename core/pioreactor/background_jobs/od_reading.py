@@ -158,7 +158,38 @@ class ADCReader(LoggerMixin):
 
             return {c: Mock_ADC(adc_channel=0, i2c_addr=0x00) for c in self.channels}
         else:
-            return {c: hardware.ADCs[f"pd{c}"]() for c in self.channels}
+            adcs: dict[pt.PdChannel, madcs._I2C_ADC] = {}
+            for c in self.channels:
+                try:
+                    curried = hardware.ADCs[f"pd{c}"]
+                except KeyError as e:
+                    # Configuration is missing an ADC mapping for this channel
+                    self.logger.error(f"No ADC configuration found for channel pd{c}.")
+                    raise exc.HardwareNotFoundError(f"ADC for pd{c} is not configured.") from e
+
+                try:
+                    adcs[c] = curried()
+                except (OSError, exc.HardwareError) as e:
+                    # I2C / hardware init failure: surface a consistent, actionable error
+                    try:
+                        i2c_addr = getattr(curried, "i2c_address")
+                        addr_str = f" at 0x{i2c_addr:02X}"
+                    except Exception:
+                        addr_str = ""
+                    self.logger.exception(
+                        f"Failed to initialize ADC for pd{c}{addr_str}. Is the HAT attached and powered?"
+                    )
+                    raise exc.HardwareNotFoundError(
+                        f"Failed to initialize ADC for pd{c}{addr_str}. Is the HAT attached and powered?"
+                    ) from e
+                except Exception as e:
+                    # Unexpected error: log and wrap to avoid crashing with opaque tracebacks
+                    self.logger.exception(f"Unexpected error initializing ADC for pd{c}.")
+                    raise exc.HardwareNotFoundError(
+                        f"Unexpected error initializing ADC for pd{c}: {type(e).__name__}: {e}"
+                    ) from e
+
+            return adcs
 
     def tune_adc(self) -> RawPDReadings:
         """
