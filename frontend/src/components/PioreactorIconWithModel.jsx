@@ -28,6 +28,7 @@ const PioreactorIconWithModel = ({ badgeContent, color }) => {
       badgeContent={badgeContent}
       overlap="circular"
       color="primary"
+      showZero={true}
     >
       <PioreactorIcon
         style={{ verticalAlign: "middle" }}

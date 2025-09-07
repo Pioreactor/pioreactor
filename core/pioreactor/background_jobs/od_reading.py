@@ -143,10 +143,6 @@ class ADCReader(LoggerMixin):
 
         self.adcs = self._get_ADCs()
 
-        if not hardware.is_ADC_present(*[adc.i2c_addr for adc in self.adcs.values()]):
-            self.logger.error("The internal ADCs for pd1 and pd2 are not responding. Exiting.")
-            raise exc.HardwareNotFoundError("The internal ADCs for pd1 and pd2 are not responding. Exiting.")
-
         if "local_ac_hz" in config["od_reading.config"]:
             self.most_appropriate_AC_hz: Optional[float] = config.getfloat("od_reading.config", "local_ac_hz")
         else:

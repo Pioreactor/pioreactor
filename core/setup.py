@@ -25,7 +25,7 @@ CORE_REQUIREMENTS = [
     "python-dotenv==1.0.1",
     "Werkzeug==3.1.0",
     "packaging==24.1",
-    "mcp_utils @ git+https://github.com/pioreactor/mcp-utils.git@2bd82c5",
+    "mcp_utils @ git+https://github.com/pioreactor/mcp-utils.git@242a8e1",
 ]
 
 
