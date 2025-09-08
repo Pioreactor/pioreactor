@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
 from os import geteuid
@@ -39,76 +38,6 @@ if whoami.am_I_leader():
     lazy_subcommands["workers"] = "pioreactor.cli.workers.workers"
 
 
-def _build_commands_for_release_zip(
-    version_installed: str,
-    tmp_rls_dir: str,
-    *,
-    source_zip: Optional[str] = None,
-    download_url: Optional[str] = None,
-) -> list[tuple[str, float]]:
-    """Return unified shell commands for updating from a release zip.
-
-    Provide either a local `source_zip` path or a `download_url` to fetch.
-    The ordering mirrors the existing local-zip path; execution is sorted by priority later.
-    """
-    import tempfile
-
-    assert (source_zip is None) ^ (download_url is None), "Provide either source_zip or download_url"
-
-    commands: list[tuple[str, float]] = []
-    tmp_dir = tempfile.gettempdir()
-
-    commands.append((f"sudo rm -rf {tmp_rls_dir}", -99))
-
-    if download_url is not None:
-        release_zip = os.path.join(tmp_dir, f"release_{version_installed}.zip")
-        commands.append((f"wget -O {release_zip} {download_url}", -50))
-        commands.append((f"unzip -o {release_zip} -d {tmp_rls_dir}", 0))
-    else:
-        assert source_zip is not None
-        commands.append((f"unzip -o {source_zip} -d {tmp_rls_dir}", 0))
-
-    commands.extend(
-        [
-            (f"unzip -o {tmp_rls_dir}/wheels_{version_installed}.zip -d {tmp_rls_dir}/wheels", 1),
-            (f"sudo bash {tmp_rls_dir}/pre_update.sh", 2),
-            (f"sudo bash {tmp_rls_dir}/update.sh", 4),
-            (f"sudo bash {tmp_rls_dir}/post_update.sh", 20),
-            (
-                f'echo "moving {tmp_rls_dir}/pioreactorui_*.tar.gz to {tmp_dir}/pioreactorui_archive.tar.gz"',
-                97,
-            ),
-            (f"mv {tmp_rls_dir}/pioreactorui_*.tar.gz {tmp_dir}/pioreactorui_archive.tar.gz", 98),
-            (f"sudo rm -rf {tmp_rls_dir}", 99),
-        ]
-    )
-
-    if whoami.am_I_leader():
-        commands.extend(
-            [
-                (
-                    f"sudo pip install --no-index --find-links={tmp_rls_dir}/wheels/ "
-                    f"{tmp_rls_dir}/pioreactor-{version_installed}-py3-none-any.whl[leader,worker]",
-                    3,
-                ),
-                (
-                    f'sudo sqlite3 {config.get("storage","database")} < {tmp_rls_dir}/update.sql || :',
-                    10,
-                ),
-            ]
-        )
-    else:
-        commands.append(
-            (
-                f"sudo pip install --no-index --find-links={tmp_rls_dir}/wheels/ "
-                f"{tmp_rls_dir}/pioreactor-{version_installed}-py3-none-any.whl[worker]",
-                3,
-            )
-        )
-
-    return commands
-
-
 def get_update_app_commands(
     branch: Optional[str], repo: str, source: Optional[str], version: Optional[str]
 ) -> tuple[list[tuple[str, float]], str]:
@@ -126,15 +55,49 @@ def get_update_app_commands(
             tmp_dir = tempfile.gettempdir()
             tmp_rls_dir = f"{tmp_dir}/release_{version_installed}"
             commands_and_priority.extend(
-                _build_commands_for_release_zip(version_installed, tmp_rls_dir, source_zip=source)
+                [
+                    (f"sudo rm -rf {tmp_rls_dir}", -99),
+                    (f"unzip -o {source} -d {tmp_rls_dir}", 0),
+                    (f"unzip -o {tmp_rls_dir}/wheels_{version_installed}.zip -d {tmp_rls_dir}/wheels", 1),
+                    (f"sudo bash {tmp_rls_dir}/pre_update.sh", 2),
+                    (f"sudo bash {tmp_rls_dir}/update.sh", 4),
+                    (f"sudo bash {tmp_rls_dir}/post_update.sh", 20),
+                    (
+                        f'echo "moving {tmp_rls_dir}/pioreactorui_*.tar.gz to {tmp_dir}/pioreactorui_archive.tar.gz"',
+                        97,
+                    ),
+                    (f"mv {tmp_rls_dir}/pioreactorui_*.tar.gz {tmp_dir}/pioreactorui_archive.tar.gz", 98),
+                    (f"sudo rm -rf {tmp_rls_dir}", 99),
+                ]
             )
+            if whoami.am_I_leader():
+                commands_and_priority.extend(
+                    [
+                        (
+                            f"sudo pip install --no-index --find-links={tmp_rls_dir}/wheels/ "
+                            f"{tmp_rls_dir}/pioreactor-{version_installed}-py3-none-any.whl[leader,worker]",
+                            3,
+                        ),
+                        (
+                            f'sudo sqlite3 {config.get("storage","database")} < {tmp_rls_dir}/update.sql || :',
+                            10,
+                        ),
+                    ]
+                )
+            else:
+                commands_and_priority.append(
+                    (
+                        f"sudo pip install --no-index --find-links={tmp_rls_dir}/wheels/ "
+                        f"{tmp_rls_dir}/pioreactor-{version_installed}-py3-none-any.whl[worker]",
+                        3,
+                    )
+                )
         elif source.endswith(".whl"):
             version_installed = source
             commands_and_priority.append((f"sudo pip install --force-reinstall --no-index {source}", 1))
         else:
             click.echo("Not a valid source file. Should be either a whl or release archive.")
             sys.exit(1)
-
     elif branch is not None:
         cleaned_branch = quote(branch)
         cleaned_repo = quote(repo)
@@ -146,7 +109,6 @@ def get_update_app_commands(
                 1,
             )
         )
-
     else:
         from pioreactor.cli.pio import get_tag_to_install
 
@@ -157,24 +119,63 @@ def get_update_app_commands(
                 f"Unable to retrieve information over internet. Is the Pioreactor connected to the internet? "
                 f"Local access point is {'active' if is_using_local_access_point() else 'inactive'}."
             )
-
-        # Determine the tag to install and fetch its metadata to get the resolved tag name
         response = get(f"https://api.github.com/repos/{repo}/releases/{tag}")
         if not response.ok:
             raise HTTPException(f"Version {version} not found on GitHub")
         release_metadata = loads(response.body)
         version_installed = release_metadata["tag_name"]
-
-        # Download the single release zip and perform the identical steps as local release zip path
+        found_whl = False
         tmp_dir = tempfile.gettempdir()
         tmp_rls_dir = f"{tmp_dir}/release_{version_installed}"
-        release_zip_url = (
-            f"https://github.com/{repo}/releases/download/{version_installed}/release_{version_installed}.zip"
-        )
-        commands_and_priority.extend(
-            _build_commands_for_release_zip(version_installed, tmp_rls_dir, download_url=release_zip_url)
-        )
-
+        commands_and_priority.append((f"mkdir {tmp_rls_dir}", -9))
+        commands_and_priority.append((f"rm -rf {tmp_rls_dir}", -10))
+        for asset in release_metadata["assets"]:
+            url = asset["browser_download_url"]
+            name = asset["name"]
+            if name == "pre_update.sh":
+                commands_and_priority.extend(
+                    [
+                        (f"wget -O {tmp_rls_dir}/pre_update.sh {url}", 0),
+                        (f"sudo bash {tmp_rls_dir}/pre_update.sh", 1),
+                    ]
+                )
+            elif name.startswith("pioreactor") and name.endswith(".whl"):
+                found_whl = True
+                assert (
+                    version_installed in url
+                ), f"pip installing {url} but doesn't match version {version_installed}"
+                if whoami.am_I_leader():
+                    commands_and_priority.append((f'sudo pip install "pioreactor[worker,leader] @ {url}"', 2))
+                else:
+                    commands_and_priority.append((f'sudo pip install "pioreactor[worker] @ {url}"', 2))
+            elif name == "update.sh":
+                commands_and_priority.extend(
+                    [
+                        (f"wget -O {tmp_rls_dir}/update.sh {url}", 3),
+                        (f"sudo bash {tmp_rls_dir}/update.sh", 4),
+                    ]
+                )
+            elif name == "update.sql" and whoami.am_I_leader():
+                commands_and_priority.extend(
+                    [
+                        (f"wget -O {tmp_rls_dir}/update.sql {url}", 5),
+                        (
+                            f'sudo sqlite3 {config.get("storage","database")} < {tmp_rls_dir}/update.sql || :',
+                            6,
+                        ),
+                    ]
+                )
+            elif name == "post_update.sh":
+                commands_and_priority.extend(
+                    [
+                        (f"wget -O {tmp_rls_dir}/post_update.sh {url}", 99),
+                        (f"sudo bash {tmp_rls_dir}/post_update.sh", 100),
+                    ]
+                )
+            else:
+                commands_and_priority.append((f"wget -O {tmp_rls_dir}/{name} {url}", -1))
+        if not found_whl:
+            raise FileNotFoundError(f"Could not find a whl in assets of {repo} release {tag}")
     return commands_and_priority, version_installed
 
 
@@ -418,17 +419,11 @@ def update(ctx, source: Optional[str], branch: Optional[str]) -> None:
     if ctx.invoked_subcommand is None:
         # run update app and then update ui
         if source is not None:
-            # Local source: consume provided release zip or wheel
             ctx.invoke(update_app, source=source)
             ctx.invoke(update_ui, source="/tmp/pioreactorui_archive.tar.gz")
-        elif branch is not None:
-            # Developer flow: install app and UI from a branch
+        else:
             ctx.invoke(update_app, branch=branch)
             ctx.invoke(update_ui, branch=branch)
-        else:
-            # Internet release flow: fetch single release zip, then use bundled UI archive
-            ctx.invoke(update_app)
-            ctx.invoke(update_ui, source="/tmp/pioreactorui_archive.tar.gz")
 
 
 def get_non_prerelease_tags_of_pioreactor(repo) -> list[str]:
@@ -604,6 +599,7 @@ def get_update_ui_commands(
 ) -> tuple[list[list[str]], str]:
     """Build the shell command sequence and return (commands, installed_version) for updating the UI from the monorepo."""
     import tempfile
+    import os
 
     if version is None:
         version_ref = "latest"
