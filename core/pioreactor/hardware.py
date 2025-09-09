@@ -1,7 +1,83 @@
 # -*- coding: utf-8 -*-
+"""
+Hardware configuration loader and compatibility layer.
+
+Overview
+- Hardware config is defined by user-editable YAML files only.
+- Mods (subsystems) are layered by precedence: hats/<hat_version> -> models/<model>/<version>.
+  Later layer overrides earlier. Paths are under ~/.pioreactor/hardware/.
+- Required mods must exist and will raise if missing keys; optional mods are "gated" by the
+  presence of a model file and otherwise ignored.
+
+Paths
+- Base: ~/.pioreactor/hardware
+  - hats/<hat_version>/<mod>.yaml     # wiring/electrical details tied to HAT
+  - models/<model>/<version>/<mod>.yaml  # model intent and capability opt-in
+
+Layering rules
+- For a given mod, the loader deep-merges (dict-wise) files in this order:
+  1) hats/<hat_version>/<mod>.yaml
+  2) models/<model>/<version>/<mod>.yaml
+  Later keys override earlier ones.
+
+Capability gating (important)
+- A mod is considered enabled for a model only if models/<model>/<version>/<mod>.yaml exists.
+- For optional mods, hats/ alone does NOT enable the feature.
+- For required mods, model YAML must exist and missing keys will raise clearly.
+
+Detection policy
+- Detect HAT version only (as today). Avoid runtime I2C probing for other devices.
+
+Back-compat exports
+- Keep existing module attributes used across the codebase:
+  - ADCs: dict with keys 'pd1', 'pd2', 'aux', 'version' mapping to curried ADC drivers
+  - PWM_TO_PIN: map from PWM channel ("1".."5") to BCM pin
+  - HEATER_PWM_TO_PIN: PWM channel string dedicated to heater
+  - GPIOCHIP: integer chip index (0 on most; 4 on RPi 5)
+  - TEMP_ADDRESS, DAC_ADDRESS (and TEMP, DAC aliases)
+- PWM_CONTROLLER is exposed for forward-compatibility (e.g., 'rpi_gpio' vs 'hat_mcu'),
+  but is not yet used elsewhere.
+
+YAML schemas (initial scope)
+- pwm.yaml
+  - controller: rpi_gpio | hat_mcu
+  - heater_pwm_channel: "5"
+  - pwm_to_pin: {"1": 17, "2": 13, "3": 16, "4": 12, "5": 18}
+- adc.yaml
+  - pd1|pd2|aux|version:
+      driver: ads1115 | ads1114 | pico
+      address: 0x.. or int
+      channel: int
+- dac.yaml
+  - address: 0x..
+- temp.yaml
+  - address: 0x..
+- gpio.yaml
+  - pcb_led_pin: int
+  - pcb_button_pin: int
+  - hall_sensor_pin: int
+  - sda_pin: int (default 2)
+  - scl_pin: int (default 3)
+
+APIs for loaders
+- get_layered_mod_config(mod): dict
+  Returns the merged config for required mods; used internally by this module.
+
+Testing/development notes
+- In tests, DOT_PIOREACTOR env var points to a local .pioreactor folder used for YAMLs.
+- On devices, loader reads from /home/pioreactor/.pioreactor/.
+
+Failure behaviour
+- Missing required files/keys raise HardwareNotFoundError with explicit paths/keys.
+- Invalid YAML raises HardwareError with a parse message.
+"""
 from __future__ import annotations
 
 from os import environ
+from pathlib import Path
+from typing import Any
+
+from msgspec.yaml import decode as yaml_decode
 
 from pioreactor import exc
 from pioreactor import types as pt
@@ -11,59 +87,90 @@ from pioreactor.version import rpi_version_info
 from pioreactor.whoami import get_pioreactor_model
 from pioreactor.whoami import is_testing_env
 
-#
-# All GPIO pins below are BCM numbered
+## All GPIO pins below are BCM numbered
 
-# PWMs
-# Heater PWM
-HEATER_PWM_TO_PIN: pt.PwmChannel = "5"
+
+def _hat_version_text() -> str:
+    try:
+        major, minor = hardware_version_info[:2]
+    except Exception:
+        major, minor = (0, 0)
+    return f"{major}.{minor}"
+
+
+def _load_yaml_if_exists(path: Path) -> dict[str, Any]:
+    if path.exists():
+        try:
+            return yaml_decode(path.read_bytes()) or {}
+        except Exception as e:
+            raise exc.HardwareError(f"Failed to parse YAML at {path}: {e}")
+    return {}
+
+
+def _deep_merge(a: dict[str, Any], b: dict[str, Any]) -> dict[str, Any]:
+    """Recursively merge b into a and return a new dict."""
+    out: dict[str, Any] = {**a}
+    for k, v in b.items():
+        if k in out and isinstance(out[k], dict) and isinstance(v, dict):
+            out[k] = _deep_merge(out[k], v)
+        else:
+            out[k] = v
+    return out
+
+
+
+def get_layered_mod_config(mod: str) -> dict[str, Any]:
+    """Load one mod's YAML by layering hats -> model.
+
+    Later layer (model) overrides earlier (hat). Files are optional; missing
+    keys will be caught when materializing constants below.
+    If require_model_opt_in is True, return {} unless the model provides the mod file.
+    """
+    base = Path(environ["DOT_PIOREACTOR"]) / "hardware"
+
+    model = get_pioreactor_model()
+    model_dir = base / "models" / model.model_name / model.model_version
+    hat_dir = base / "hats" / _hat_version_text()
+    model_file = model_dir / f"{mod}.yaml"
+
+    data: dict[str, Any] = {}
+    data = _deep_merge(data, _load_yaml_if_exists(hat_dir / f"{mod}.yaml"))
+    data = _deep_merge(data, _load_yaml_if_exists(model_file))
+    return data
+
+
+
+# PWMs (loaded from YAML)
+_pwm_cfg = get_layered_mod_config("pwm")
+
+# pwm.controller for future-proofing (rpi_gpio | hat_mcu). Not currently used elsewhere.
+PWM_CONTROLLER: str | None = _pwm_cfg.get("controller")
+
+# Heater PWM channel
+HEATER_PWM_TO_PIN: pt.PwmChannel = str(_pwm_cfg["heater_pwm_channel"])  # type: ignore
 
 # map between PWM channels and GPIO pins
-PWM_TO_PIN: dict[pt.PwmChannel, pt.GpioPin] = {
-    "1": 17,
-    "2": 13,  # hardware PWM1 available
-    "3": 16,
-    "4": 12,  # hardware PWM0 available
-    HEATER_PWM_TO_PIN: 18,  # dedicated to heater
-}
+PWM_TO_PIN: dict[pt.PwmChannel, pt.GpioPin] = {str(k): v for k, v in _pwm_cfg["pwm_to_pin"].items()}  # type: ignore
 
 
-# led and button GPIO pins
-PCB_LED_PIN: pt.GpioPin = 23
-PCB_BUTTON_PIN: pt.GpioPin = 24 if hardware_version_info <= (1, 0) else 4
-
-
-# hall sensor
-HALL_SENSOR_PIN: pt.GpioPin = 25 if hardware_version_info <= (1, 0) else 21
-
-
-# I2C pins
-GPIOCHIP: pt.GpioChip
+# I2C pins and misc GPIO
 SDA: pt.I2CPin
 SCL: pt.I2CPin
 
-if rpi_version_info.startswith("Raspberry Pi 5"):
-    GPIOCHIP = 4
-    SDA = 2
-    SCL = 3
-else:
-    GPIOCHIP = 0
-    SDA = 2
-    SCL = 3
+GPIOCHIP: pt.GpioChip = 4 if rpi_version_info.startswith("Raspberry Pi 5") else 0
 
-## not used in app
-# if hardware_version_info >= (1,1):
-#     # SWD, used in HAT version == 1.1
-#     SWCLK: pt.GpioPin = 25
-#     SWDIO: pt.GpioPin = 24
+_gpio_cfg = get_layered_mod_config("gpio")
 
+SDA = int(_gpio_cfg["sda_pin"])
+SCL = int(_gpio_cfg["scl_pin"])
 
-# I2C channels used
-TEMP_ADDRESS = 0x4F
+PCB_LED_PIN: pt.GpioPin = int(_gpio_cfg["pcb_led_pin"])
+PCB_BUTTON_PIN: pt.GpioPin = int(_gpio_cfg["pcb_button_pin"])
+HALL_SENSOR_PIN: pt.GpioPin = int(_gpio_cfg["hall_sensor_pin"])
+
+_temp_cfg = get_layered_mod_config("temp")
+TEMP_ADDRESS = int(_temp_cfg["address"])
 TEMP = TEMP_ADDRESS  # bc
-
-
-od_optics_setup = get_pioreactor_model().od_optics_setup
 
 
 class ADCCurrier:
@@ -89,32 +196,43 @@ class ADCCurrier:
         return self.adc_driver(SCL, SDA, self.i2c_address, self.adc_channel)
 
 
+_ADC_DRIVER_LUT: dict[str, type[adcs._I2C_ADC]] = {
+    "ads1115": adcs.ADS1115_ADC,
+    "ads1114": adcs.ADS1114_ADC,
+    "pico": adcs.Pico_ADC,
+}
+
+
+def _build_adc_currier_from_cfg(entry: dict[str, Any], context_key: str) -> ADCCurrier:
+    try:
+        driver_key = str(entry["driver"]).lower()
+        driver = _ADC_DRIVER_LUT[driver_key]
+        addr = int(entry["address"])  # supports decimal or hex
+        channel = int(entry["channel"])  # 0..3
+    except KeyError as e:
+        raise exc.HardwareNotFoundError(
+            f"Missing key {e.args[0]!r} in adc configuration for '{context_key}'."
+        ) from e
+    except Exception as e:
+        raise exc.HardwareError(
+            f"Invalid adc configuration for '{context_key}': {type(e).__name__}: {e}"
+        ) from e
+    return ADCCurrier(driver, addr, channel)
+
+
+_adc_cfg = get_layered_mod_config("adc")
 ADCs: dict[str, ADCCurrier] = {}
-
-if od_optics_setup == "eye_spy":
-    ADCs["pd1"] = ADCCurrier(adcs.ADS1114_ADC, 0x48, 0)
-    ADCs["pd2"] = ADCCurrier(adcs.ADS1114_ADC, 0x49, 0)
-
-elif od_optics_setup == "on_board":
-    if hardware_version_info <= (1, 0):
-        ADCs["pd1"] = ADCCurrier(adcs.ADS1115_ADC, 0x48, 1)
-        ADCs["pd2"] = ADCCurrier(adcs.ADS1115_ADC, 0x48, 0)
+for key in ("pd1", "pd2", "aux", "version"):
+    if key in _adc_cfg:
+        ADCs[key] = _build_adc_currier_from_cfg(_adc_cfg[key], key)
     else:
-        ADCs["pd1"] = ADCCurrier(adcs.Pico_ADC, 0x2C, 2)
-        ADCs["pd2"] = ADCCurrier(adcs.Pico_ADC, 0x2C, 3)
-else:
-    raise exc.HardwareNotFoundError()
+        raise exc.HardwareNotFoundError(
+            f"Missing adc configuration for '{key}'. Ensure hardware/models/<model>/<version>/adc.yaml or overlays provide it."
+        )
 
 
-if hardware_version_info <= (1, 0):
-    ADCs["aux"] = ADCCurrier(adcs.ADS1115_ADC, 0x48, 3)
-    ADCs["version"] = ADCCurrier(adcs.ADS1115_ADC, 0x48, 2)
-else:
-    ADCs["aux"] = ADCCurrier(adcs.Pico_ADC, 0x2C, 1)
-    ADCs["version"] = ADCCurrier(adcs.Pico_ADC, 0x2C, 0)
-
-
-DAC_ADDRESS = 0x49 if (0, 0) < hardware_version_info <= (1, 0) else 0x2C
+_dac_cfg = get_layered_mod_config("dac")
+DAC_ADDRESS = int(_dac_cfg["address"])
 DAC = DAC_ADDRESS  # bc
 
 
