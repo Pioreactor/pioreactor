@@ -96,7 +96,6 @@ CORE_MODELS = {
 def load_contrib_model_definitions() -> list[Model]:
     """Load all model definitions from YAML files under MODEL_DEFINITIONS_PATH."""
 
-
     MODEL_DEFINITIONS_PATH = Path(os.environ["DOT_PIOREACTOR"]) / "models"
 
     models: list[Model] = []

@@ -78,7 +78,6 @@ from pathlib import Path
 from typing import Any
 
 from msgspec.yaml import decode as yaml_decode
-
 from pioreactor import exc
 from pioreactor import types as pt
 from pioreactor.utils import adcs
@@ -118,7 +117,6 @@ def _deep_merge(a: dict[str, Any], b: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-
 def get_layered_mod_config(mod: str) -> dict[str, Any]:
     """Load one mod's YAML by layering hats -> model.
 
@@ -137,7 +135,6 @@ def get_layered_mod_config(mod: str) -> dict[str, Any]:
     data = _deep_merge(data, _load_yaml_if_exists(hat_dir / f"{mod}.yaml"))
     data = _deep_merge(data, _load_yaml_if_exists(model_file))
     return data
-
 
 
 # PWMs (loaded from YAML)
