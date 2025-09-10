@@ -12,6 +12,7 @@
  - dataset exports have a corrected timestamp on the folders
  - remove instances of double logging from the ui
  - fix MCP not respecting "notifications" methods.
+ - fix not being able to select a model when add a Pioreactor worker from the Inventory page.
 
 ### 25.8.14
 

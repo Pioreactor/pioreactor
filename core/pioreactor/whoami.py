@@ -236,4 +236,4 @@ if is_testing_env():
     os.environ["FIRMWARE"] = "0.5"
     os.environ["HARDWARE"] = "1.2"
     os.environ["MODEL_NAME"] = "pioreactor_40ml"
-    os.environ["MODEL_VERSION"] = "1.5"
+    os.environ["MODEL_VERSION"] = "1.0"

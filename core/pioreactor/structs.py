@@ -396,10 +396,6 @@ class Model(Struct):
     max_temp_to_disable_heating: float
     max_temp_to_shutdown: float
 
-    # hardware parameters:
-    od_optics_setup: t.Literal["on_board", "eye_spy"] = "on_board"
-    display: None = None
-
     # metadata
     is_legacy: bool = False
     is_contrib: bool = True

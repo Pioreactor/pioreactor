@@ -571,7 +571,7 @@ def get_growth_rates(experiment: str) -> ResponseReturnValue:
     """Gets growth rates for all units"""
     args = request.args
     lookback = float(args.get("lookback", 4.0))
-    target_points = int(args.get("target_points", 600))
+    target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
         abort(404, "target_points must be > 0")
 
@@ -613,7 +613,7 @@ def get_temperature_readings(experiment: str) -> ResponseReturnValue:
     """Gets temperature readings for all units"""
     args = request.args
     lookback = float(args.get("lookback", 4.0))
-    target_points = int(args.get("target_points", 600))
+    target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
         abort(404, "target_points must be > 0")
 
@@ -655,7 +655,7 @@ def get_od_readings_filtered(experiment: str) -> ResponseReturnValue:
     """Gets normalized od for all units"""
     args = request.args
     lookback = float(args.get("lookback", 4.0))
-    target_points = int(args.get("target_points", 600))
+    target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
         abort(404, "target_points must be > 0")
 
@@ -697,7 +697,7 @@ def get_od_readings(experiment: str) -> ResponseReturnValue:
     """Gets raw od for all units"""
     args = request.args
     lookback = float(args.get("lookback", 4.0))
-    target_points = int(args.get("target_points", 600))
+    target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
         abort(404, "target_points must be > 0")
 
@@ -739,7 +739,7 @@ def get_od_raw_readings(experiment: str) -> ResponseReturnValue:
     """Gets raw od for all units"""
     args = request.args
     lookback = float(args.get("lookback", 4.0))
-    target_points = int(args.get("target_points", 600))
+    target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
         abort(404, "target_points must be > 0")
 
@@ -780,7 +780,7 @@ def get_od_raw_readings(experiment: str) -> ResponseReturnValue:
 def get_fallback_time_series(experiment: str, data_source: str, column: str) -> ResponseReturnValue:
     args = request.args
     lookback = float(args.get("lookback", 4.0))
-    target_points = int(args.get("target_points", 600))
+    target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
         abort(404, "target_points must be > 0")
 
@@ -828,7 +828,7 @@ def get_fallback_time_series(experiment: str, data_source: str, column: str) -> 
 def get_growth_rates_per_unit(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
     args = request.args
     lookback = float(args.get("lookback", 4.0))
-    target_points = int(args.get("target_points", 600))
+    target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
         abort(404, "target_points must be > 0")
 
@@ -872,7 +872,7 @@ def get_growth_rates_per_unit(pioreactor_unit: str, experiment: str) -> Response
 def get_temperature_readings_per_unit(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
     args = request.args
     lookback = float(args.get("lookback", 4.0))
-    target_points = int(args.get("target_points", 600))
+    target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
         abort(404, "target_points must be > 0")
 
@@ -916,7 +916,7 @@ def get_temperature_readings_per_unit(pioreactor_unit: str, experiment: str) -> 
 def get_od_readings_filtered_per_unit(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
     args = request.args
     lookback = float(args.get("lookback", 4.0))
-    target_points = int(args.get("target_points", 600))
+    target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
         abort(404, "target_points must be > 0")
 
@@ -957,7 +957,7 @@ def get_od_readings_filtered_per_unit(pioreactor_unit: str, experiment: str) -> 
 def get_od_readings_per_unit(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
     args = request.args
     lookback = float(args.get("lookback", 4.0))
-    target_points = int(args.get("target_points", 600))
+    target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
         abort(404, "target_points must be > 0")
 
@@ -1001,7 +1001,7 @@ def get_od_readings_per_unit(pioreactor_unit: str, experiment: str) -> ResponseR
 def get_od_raw_readings_per_unit(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
     args = request.args
     lookback = float(args.get("lookback", 4.0))
-    target_points = int(args.get("target_points", 600))
+    target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
         abort(404, "target_points must be > 0")
 
@@ -1047,7 +1047,7 @@ def get_fallback_time_series_per_unit(
 ) -> ResponseReturnValue:
     args = request.args
     lookback = float(args.get("lookback", 4.0))
-    target_points = int(args.get("target_points", 600))
+    target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
         abort(404, "target_points must be > 0")
 

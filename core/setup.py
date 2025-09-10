@@ -47,6 +47,7 @@ WORKER_REQUIREMENTS = [
     "pyserial==3.5",
     "pyusb==1.2.1",
     "rpi_hardware_pwm==0.3.0",
+    "smbus2==0.5.0",
 ]
 
 

@@ -8,7 +8,6 @@ from pioreactor import types as pt
 from pioreactor.utils import adcs
 from pioreactor.version import hardware_version_info
 from pioreactor.version import rpi_version_info
-from pioreactor.whoami import get_pioreactor_model
 from pioreactor.whoami import is_testing_env
 
 #
@@ -63,7 +62,7 @@ TEMP_ADDRESS = 0x4F
 TEMP = TEMP_ADDRESS  # bc
 
 
-od_optics_setup = get_pioreactor_model().od_optics_setup
+od_optics_setup = environ.get("OPTICS_MOD", "on_board")
 
 
 class ADCCurrier:
