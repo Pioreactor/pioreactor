@@ -25,11 +25,12 @@ CORE_REQUIREMENTS = [
     "python-dotenv==1.0.1",
     "Werkzeug==3.1.0",
     "packaging==24.1",
-    "mcp_utils @ git+https://github.com/pioreactor/mcp-utils.git@242a8e1",
 ]
 
 
-LEADER_REQUIREMENTS: list[str] = []
+LEADER_REQUIREMENTS: list[str] = [
+    "mcp_utils @ git+https://github.com/pioreactor/mcp-utils.git@242a8e1",
+]
 
 
 WORKER_REQUIREMENTS = [

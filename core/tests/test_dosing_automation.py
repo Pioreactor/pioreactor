@@ -1072,7 +1072,7 @@ def test_strings_are_okay_for_chemostat() -> None:
     unit = get_unit_name()
     experiment = "test_strings_are_okay_for_chemostat"
 
-    with start_dosing_automation("chemostat", "20", False, unit, experiment, exchange_volume_ml="0.7") as chemostat:  # type: ignore
+    with start_dosing_automation("chemostat", False, unit, experiment, duration="20", exchange_volume_ml="0.7") as chemostat:  # type: ignore
         assert chemostat.exchange_volume_ml == 0.7  # type: ignore
         pause(n=35)
         assert chemostat.media_throughput == 0.7
@@ -1106,7 +1106,13 @@ def test_pass_in_alt_media_fraction() -> None:
     unit = get_unit_name()
 
     with start_dosing_automation(
-        "chemostat", 20, False, unit, experiment, exchange_volume_ml=0.25, alt_media_fraction=0.5
+        "chemostat",
+        False,
+        unit,
+        experiment,
+        exchange_volume_ml=0.25,
+        alt_media_fraction=0.5,
+        duration=20,
     ) as chemostat:
         assert chemostat.alt_media_fraction == 0.5
         pause(n=35)
@@ -1118,11 +1124,11 @@ def test_pass_in_alt_media_fraction() -> None:
     # test that the latest alt_media_fraction is saved and reused if dosing automation is recreated in the same experiment.
     with start_dosing_automation(
         "chemostat",
-        20,
         False,
         unit,
         experiment,
         exchange_volume_ml=0.35,
+        duration=20,
     ) as chemostat:
         assert close(chemostat.alt_media_fraction, alt_media_fraction_post_dosing)
         pause(n=35)
@@ -1138,12 +1144,12 @@ def test_chemostat_from_0_volume() -> None:
 
     with start_dosing_automation(
         "chemostat",
-        0.25,
         False,
         unit,
         experiment,
         exchange_volume_ml=0.5,
         current_volume_ml=0,
+        duration=0.25,
     ) as chemostat:
         pause(n=25)
         assert chemostat.media_throughput == 0.5
@@ -1183,13 +1189,13 @@ def test_execute_io_respects_dilutions_ratios() -> None:
 
     with start_dosing_automation(
         "_test_chemostat_alt_media",
-        2,
         False,
         unit,
         experiment,
         exchange_volume_ml=2.0,
         alt_media_fraction=0.5,
         fraction_alt_media=0.5,
+        duration=2,
     ) as automation_job:
         assert automation_job.alt_media_fraction == 0.5
         pause(n=100)
@@ -1198,12 +1204,12 @@ def test_execute_io_respects_dilutions_ratios() -> None:
     # change fraction_alt_media to increase alt_media being added
     with start_dosing_automation(
         "_test_chemostat_alt_media",
-        2,
         False,
         unit,
         experiment,
         exchange_volume_ml=2.0,
         fraction_alt_media=1.0,
+        duration=2,
     ) as automation_job:
         assert automation_job.alt_media_fraction == 0.5
         pause(n=20)
@@ -1652,10 +1658,10 @@ def test_adding_pumps_and_calling_them_from_execute_io_action() -> None:
 
     with start_dosing_automation(
         "_test_external_automation",
-        5,
         False,
         unit,
         experiment,
+        duration=5,
     ):
         pause(40)
 
@@ -1763,7 +1769,7 @@ def test_a_failing_automation_cleans_duration_attr_in_mqtt_up() -> None:
 
     with pytest.raises(exc.CalibrationError):
         with start_dosing_automation(
-            "_test_failure", 60, False, get_unit_name(), experiment, exchange_volume_ml=10
+            "_test_failure", False, get_unit_name(), experiment, exchange_volume_ml=10, duration=60
         ):
             pass
 

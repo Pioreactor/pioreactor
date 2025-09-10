@@ -149,7 +149,7 @@ class ADCReader(LoggerMixin):
             self.most_appropriate_AC_hz = None
 
     def _get_ADCs(self) -> dict[pt.PdChannel, madcs._I2C_ADC]:
-        if self.fake_data:
+        if self.fake_data or whoami.is_testing_env():
             from pioreactor.utils.mock import Mock_ADC
 
             return {c: Mock_ADC(adc_channel=0, i2c_addr=0x00) for c in self.channels}
@@ -167,16 +167,11 @@ class ADCReader(LoggerMixin):
                     adcs[c] = curried()
                 except (OSError, exc.HardwareError) as e:
                     # I2C / hardware init failure: surface a consistent, actionable error
-                    try:
-                        i2c_addr = getattr(curried, "i2c_address")
-                        addr_str = f" at 0x{i2c_addr:02X}"
-                    except Exception:
-                        addr_str = ""
                     self.logger.exception(
-                        f"Failed to initialize ADC for pd{c}{addr_str}. Is the HAT attached and powered?"
+                        f"Failed to initialize ADC for pd{c}. Is the HAT attached and powered?"
                     )
                     raise exc.HardwareNotFoundError(
-                        f"Failed to initialize ADC for pd{c}{addr_str}. Is the HAT attached and powered?"
+                        f"Failed to initialize ADC for pd{c}. Is the HAT attached and powered?"
                     ) from e
                 except Exception as e:
                     # Unexpected error: log and wrap to avoid crashing with opaque tracebacks
@@ -677,7 +672,7 @@ class CalibrationTransformerProtocol(Protocol):
         ...
 
 
-class NullCalibrationTransformer(LoggerMixin):
+class NullCalibrationTransformer(CalibrationTransformerProtocol, LoggerMixin):
     _logger_name = "calibration_transformer"
 
     def __init__(self) -> None:
@@ -691,7 +686,7 @@ class NullCalibrationTransformer(LoggerMixin):
         return batched_readings
 
 
-class CachedCalibrationTransformer(LoggerMixin):
+class CachedCalibrationTransformer(CalibrationTransformerProtocol, LoggerMixin):
     _logger_name = "calibration_transformer"
 
     def __init__(self) -> None:
@@ -1359,10 +1354,10 @@ def start_od_reading(
     # use an OD calibration?
     calibration_transformer: CalibrationTransformerProtocol
     if calibration is True:
-        calibration_transformer = cast(CalibrationTransformerProtocol, CachedCalibrationTransformer())
+        calibration_transformer = CachedCalibrationTransformer()
         calibration_transformer.hydate_models(load_active_calibration("od"))
     elif isinstance(calibration, structs.CalibrationBase):
-        calibration_transformer = cast(CalibrationTransformerProtocol, CachedCalibrationTransformer())
+        calibration_transformer = CachedCalibrationTransformer()
         calibration_transformer.hydate_models(calibration)
     else:
         calibration_transformer = NullCalibrationTransformer()
