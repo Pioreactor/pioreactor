@@ -1101,7 +1101,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
         # now that `enable_dodging_od` is set, we can check for OD changes
         self.subscribe_and_callback(
             self._od_reading_changed_status,
-            f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval",
+            f"pioreactor/{self.unit}/{self.experiment}/od_reading/$state",
             allow_retained=False,  # only allow future changes
         )
         super().__post__init__()  # set ready
@@ -1150,14 +1150,15 @@ class BackgroundJobWithDodging(_BackgroundJob):
     def initialize_continuous_operation(self) -> None:
         pass
 
-    def _od_reading_changed_status(self, msg: pt.MQTTMessage) -> None:
+    def _od_reading_changed_status(self, state_msg: pt.MQTTMessage) -> None:
         if self.enable_dodging_od:
+            new_state = state_msg.payload.decode()
             # only act if our internal state is discordant with the external state
-            if msg.payload and not self.currently_dodging_od:
+            if new_state in {self.READY, self.SLEEPING, self.INIT} and not self.currently_dodging_od:
                 # turned off
                 self.logger.debug("OD reading present. Dodging!")
                 self.set_currently_dodging_od(True)
-            elif not msg.payload and self.currently_dodging_od:
+            elif new_state in {self.LOST, self.DISCONNECTED} and self.currently_dodging_od:
                 self.logger.debug("OD reading turned off. Stop dodging.")
                 self.set_currently_dodging_od(False)
             return

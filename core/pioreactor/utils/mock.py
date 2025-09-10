@@ -187,6 +187,9 @@ class MockRpmCalculator:
         time.sleep(seconds_to_observe)
         return self.ALWAYS_RETURN_RPM
 
+    def clean_up(self):
+        pass
+
 
 if is_testing_env():
     from rpi_hardware_pwm import HardwarePWM
