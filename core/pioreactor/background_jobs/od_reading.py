@@ -672,7 +672,7 @@ class CalibrationTransformerProtocol(Protocol):
         ...
 
 
-class NullCalibrationTransformer(CalibrationTransformerProtocol, LoggerMixin):
+class NullCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
     _logger_name = "calibration_transformer"
 
     def __init__(self) -> None:
@@ -686,7 +686,7 @@ class NullCalibrationTransformer(CalibrationTransformerProtocol, LoggerMixin):
         return batched_readings
 
 
-class CachedCalibrationTransformer(CalibrationTransformerProtocol, LoggerMixin):
+class CachedCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
     _logger_name = "calibration_transformer"
 
     def __init__(self) -> None:

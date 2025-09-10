@@ -1,7 +1,7 @@
 ### Upcoming
 
- - Experiment profile editing in the UI has a new "search" feature to find available jobs and actions.
- - Experiment Overview page no long "hides" chart data for very old experiments. Now it will always select (up to) 600 data points for each line, regardless of the length of the experiment. For larger cluster, this might result in a slower load time - let me know!
+ - Experiment profile editing in the UI has a new "search" feature to find available capabilities.
+ - Experiment Overview page no long "hides" chart data for very old experiments. Now it will always select (up to) 720 data points for each line, regardless of the length of the experiment. For larger cluster, this might result in a slower load time - let me know!
  - Initial support for eye-spy optics system.
  - Export option under Inventory page to export the Pioreactors ~/.pioreactor folder. Likewise on the leader.
  - New "sleep" option can be used in `pio run pumps ...` to wait between pump actions.
@@ -13,6 +13,10 @@
  - remove instances of double logging from the ui
  - fix MCP not respecting "notifications" methods.
  - fix not being able to select a model when add a Pioreactor worker from the Inventory page.
+
+### Breaking changes
+ - Turbidostat now forces duration=0.25s for frequent checks. This was always the case when run from the UI.
+
 
 ### 25.8.14
 
