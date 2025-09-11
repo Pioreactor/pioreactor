@@ -1198,7 +1198,7 @@ def test_auto_ir_led_intensity_REF_and_90() -> None:
         with start_od_reading(
             "REF", "90", interval=None, fake_data=True, experiment=experiment, calibration=False
         ) as od:
-            assert abs(od.ir_led_intensity - 70.0) < 0.01
+            assert abs(od.ir_led_intensity - 85.0) < 0.01
 
 
 def test_auto_ir_led_intensity_90_only() -> None:

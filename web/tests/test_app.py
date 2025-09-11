@@ -341,6 +341,11 @@ def test_run_job(client):
         },
     }
 
+    # stop job now
+    client.post(
+        "/api/workers/unit1/jobs/stop/job_name/stirring/experiments/exp1",
+    )
+
     # wrong experiment!
     with capture_requests() as bucket:
         client.post(
@@ -384,6 +389,11 @@ def test_run_job_with_job_source(client):
         },
     }
 
+    # stop job now
+    client.post(
+        "/api/workers/unit1/jobs/stop/job_name/stirring/experiments/exp1",
+    )
+
 
 def test_run_job_response(client):
     # regression test
@@ -398,6 +408,11 @@ def test_run_job_response(client):
     assert multicast_task_query_response.status_code == 200
     multicast_task_data = multicast_task_query_response.get_json()
     assert multicast_task_data["status"] == "complete"
+
+    # stop job now
+    client.post(
+        "/api/workers/unit1/jobs/stop/job_name/stirring/experiments/exp1",
+    )
 
 
 @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Requires a webserver running to handle huey pings.")

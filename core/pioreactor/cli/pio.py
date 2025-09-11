@@ -105,7 +105,7 @@ def get_update_app_commands(
         commands_and_priority.append(
             (
                 f"sudo pip install --force-reinstall "
-                f'"git+https://github.com/{cleaned_repo}.git@{cleaned_branch}#egg=pioreactor&subdirectory=core"',
+                f'"pioreactor[leader_worker] @ git+https://github.com/{cleaned_repo}.git@{cleaned_branch}#subdirectory=core"',
                 1,
             )
         )

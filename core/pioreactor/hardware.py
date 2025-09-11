@@ -87,9 +87,11 @@ class ADCCurrier:
     def __call__(self) -> adcs._I2C_ADC:
         return self.adc_driver(SCL, SDA, self.i2c_address, self.adc_channel)
 
+    def __repr__(self) -> str:
+        return f"ADCCurrier(adc_driver={self.adc_driver.__name__}, i2c_address={hex(self.i2c_address)}, adc_channel={self.adc_channel})"
+
 
 ADCs: dict[str, ADCCurrier] = {}
-
 if od_optics_setup == "eye_spy":
     ADCs["pd1"] = ADCCurrier(adcs.ADS1114_ADC, 0x48, 0)
     ADCs["pd2"] = ADCCurrier(adcs.ADS1114_ADC, 0x49, 0)
@@ -103,7 +105,6 @@ elif od_optics_setup == "on_board":
         ADCs["pd2"] = ADCCurrier(adcs.Pico_ADC, 0x2C, 3)
 else:
     raise exc.HardwareNotFoundError()
-
 
 if hardware_version_info <= (1, 0):
     ADCs["aux"] = ADCCurrier(adcs.ADS1115_ADC, 0x48, 3)
