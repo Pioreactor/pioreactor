@@ -29,7 +29,7 @@ CORE_REQUIREMENTS = [
 
 
 LEADER_REQUIREMENTS: list[str] = [
-    "mcp_utils==2.0.1",
+    "mcp_utils==2.0.1",  # NOTE: if updating this version, create a tag in the local repo, push to gh, and update the build.yaml in this repo.
 ]
 
 

@@ -921,7 +921,11 @@ def test_calibration_simple_linear_calibration_negative_slope() -> None:
         voltage = 0.5
         assert od.calibration_transformer.models["2"](voltage) == (voltage - 2) / (-0.1)
 
-        with collect_all_logs_of_level("warning", unit=get_unit_name(), experiment="+") as bucket:
+        with collect_all_logs_of_level(
+            "warning",
+            unit=get_unit_name(),
+            experiment="test_calibration_simple_linear_calibration_negative_slope",
+        ) as bucket:
             voltage = 12.0
             assert voltage > maximum_voltage
 

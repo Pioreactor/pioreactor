@@ -14,12 +14,12 @@ from msgspec import Struct
 from msgspec.json import decode as loads
 from paho.mqtt.client import Client as PahoClient
 from paho.mqtt.enums import CallbackAPIVersion
+from paho.mqtt.enums import MQTTErrorCode
 from pioreactor import mureq
 from pioreactor import types as pt
 from pioreactor.config import config
 from pioreactor.config import leader_address
 from pioreactor.config import mqtt_address
-from pioreactor.types import MQTTMessage
 
 
 def add_hash_suffix(s: str) -> str:
@@ -39,14 +39,14 @@ class Client(PahoClient):
     def __enter__(self) -> Client:
         return self
 
-    def __exit__(self, *args):
+    def __exit__(self, *args) -> None:
         self.loop_stop()
         self.disconnect()
 
-    def loop_stop(self):
-        super().loop_stop()
+    def loop_stop(self) -> MQTTErrorCode:
+        r = super().loop_stop()
         self._reset_sockets(sockpair_only=True)
-        return self
+        return r
 
 
 class QOS:
@@ -172,7 +172,7 @@ def subscribe(
     allow_retained: bool = True,
     name: Optional[str] = None,
     **mqtt_kwargs,
-) -> Optional[MQTTMessage]:
+) -> Optional[pt.MQTTMessage]:
     """
     Modeled closely after the paho version, this also includes some try/excepts and
     a timeout. Note that this _does_ disconnect after receiving a single message.
@@ -193,7 +193,7 @@ def subscribe(
         client.subscribe(userdata["topics"])
         return
 
-    def on_message(client: Client, userdata, message: MQTTMessage) -> None:
+    def on_message(client: Client, userdata, message: pt.MQTTMessage) -> None:
         if not allow_retained and message.retain:
             return
 
@@ -232,7 +232,7 @@ def subscribe(
 
 
 def subscribe_and_callback(
-    callback: Callable[[MQTTMessage], Any],
+    callback: Callable[[pt.MQTTMessage], Any],
     topics: str | list[str],
     last_will: Optional[dict] = None,
     name: Optional[str] = None,
@@ -257,7 +257,7 @@ def subscribe_and_callback(
     """
     assert callable(callback), "callback should be callable - do you need to change the order of arguments?"
 
-    def wrap_callback(actual_callback: Callable[[MQTTMessage], Any]) -> Callable:
+    def wrap_callback(actual_callback: Callable[[pt.MQTTMessage], Any]) -> Callable:
         def _callback(client: Client, userdata: dict, message):
             try:
                 if not allow_retained and message.retain:
@@ -347,7 +347,7 @@ class collect_all_logs_of_level:
             client_id=f"{self.unit}_{self.experiment}_{self.log_level}_log_collector",
         )
 
-    def _collect_logs_into_bucket(self, message):
+    def _collect_logs_into_bucket(self, message: pt.MQTTMessage) -> None:
         # load the message
         log = loads(message.payload)
         # if the log level matches, add it to the bucket
@@ -357,7 +357,7 @@ class collect_all_logs_of_level:
     def __enter__(self) -> list[dict]:
         return self.bucket
 
-    def __exit__(self, *args):
+    def __exit__(self, *args) -> None:
         # stop listening for messages
         self.client.loop_stop()
         # disconnect from the broker
