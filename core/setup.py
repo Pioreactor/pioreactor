@@ -29,7 +29,7 @@ CORE_REQUIREMENTS = [
 
 
 LEADER_REQUIREMENTS: list[str] = [
-    "mcp_utils @ git+https://github.com/pioreactor/mcp-utils.git@242a8e1",
+    "mcp_utils==2.0.1",
 ]
 
 

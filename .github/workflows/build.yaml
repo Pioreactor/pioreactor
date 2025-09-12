@@ -60,9 +60,19 @@ jobs:
       - name: 🏗 Install dependencies
         run: |
           python -m pip install --upgrade pip
+      - name: 🔨 Build mcp_utils wheel (from tag)
+        run: |
+          mkdir -p wheels
+          # Build from the tagged version
+          pip wheel --no-deps -w wheels git+https://github.com/pioreactor/mcp-utils.git@2.0.1
       - name: 🔨 Download wheels for all dependencies
         run: |
           pip download -d wheels -r requirements/requirements_leader_worker.txt --index-url https://piwheels.org/simple --platform linux_armv7l --platform linux_armv6l --platform manylinux_2_36_armv7l --only-binary=:all: --extra-index-url https://pypi.org/simple --python-version 311
+          # Add build tools so any future sdist won’t choke offline
+
+          pip download -d wheels setuptools wheel \
+            --index-url https://piwheels.org/simple \
+            --extra-index-url https://pypi.org/simple
       - name: Zip the wheels
         run: |
           cd wheels
