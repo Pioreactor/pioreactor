@@ -1448,12 +1448,12 @@ def test_raw_and_calibrated_data_is_published_if_calibration_is_used() -> None:
         angle="90",
         calibration_name="test_raw_and_calibrated_data_is_published_if_calibration_is_used",
         curve_type="poly",
-        curve_data_=[1, 0],
+        curve_data_=[1, 0, 0.1],
         ir_led_intensity=70,
         pd_channel="2",
         created_at=current_utc_datetime(),
         calibrated_on_pioreactor_unit="pio1",
-        recorded_data={"y": [0, 1], "x": [0, 1]},
+        recorded_data={"y": [0, 1, 2], "x": [0, 1, 2]},
     )
 
     with start_od_reading(
@@ -1485,11 +1485,11 @@ def test_raw_and_calibrated_data_is_published_if_calibration_is_used() -> None:
 
 
 def test_raw_published_even_if_calibration_is_bad() -> None:
-    experiment = "test_raw_and_calibrated_data_is_published_if_calibration_is_used"
+    experiment = "test_raw_published_even_if_calibration_is_bad"
 
     calibration = structs.OD600Calibration(
         angle="90",
-        calibration_name="test_raw_and_calibrated_data_is_published_if_calibration_is_used",
+        calibration_name="test_raw_published_even_if_calibration_is_bad",
         curve_type="poly",
         curve_data_=[0],  # bad!
         ir_led_intensity=50,

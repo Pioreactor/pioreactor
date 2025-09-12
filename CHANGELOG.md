@@ -5,6 +5,7 @@
  - Initial support for eye-spy optics system.
  - Export option under Inventory page to export the Pioreactors ~/.pioreactor folder. Likewise on the leader.
  - New "sleep" option can be used in `pio run pumps ...` to wait between pump actions.
+ - "Advanced" menu in the UI to modify configuration temporarily when starting a job - now available for automations.
 
 #### Bug fixes
 
