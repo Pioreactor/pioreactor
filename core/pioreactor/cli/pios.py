@@ -142,6 +142,10 @@ if am_I_leader() or is_testing_env():
         elif include_leader is False:
             units_set.discard(leader)
 
+            if len(units_set) == 0:
+                # no other workers, exit successfully.
+                return tuple()
+
         if not units_set:
             raise click.BadParameter("No target workers matched the selection. Check --units/--experiments.")
         return tuple(sorted(units_set))

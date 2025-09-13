@@ -1,22 +1,34 @@
 ### Upcoming
 
- - Experiment profile editing in the UI has a new "search" feature to find available capabilities.
- - Experiment Overview page no long "hides" chart data for very old experiments. Now it will always select (up to) 720 data points for each line, regardless of the length of the experiment. For larger cluster, this might result in a slower load time - let me know!
- - Initial support for eye-spy optics system.
- - Export option under Inventory page to export the Pioreactors ~/.pioreactor folder. Likewise on the leader.
- - New "sleep" option can be used in `pio run pumps ...` to wait between pump actions.
- - "Advanced" menu in the UI to modify configuration temporarily when starting a job - now available for automations.
+ - Experiment profile editor: added a searchable capabilities browser. You can now search across available jobs, automations, actions, and options directly in the editor. This should make building and editing profiles faster and reduce syntax errors.
+ - Experiment Overview charts: no longer hide older data on long experiments. Instead, each series is downsampled on the client to a maximum of 720 points while preserving trends, regardless of experiment length. For very large clusters this may increase initial load time — narrowing the time range or hiding unused series can help if you notice slowness.
+ - Eye-spy optics: initial support is included. If detected, the OD reading job can use it via the existing interfaces. Nothing changes if you don’t have this hardware connected; more documentation will follow.
+ - Inventory export: from the Inventory page, you can export a worker’s `~/.pioreactor` directory as a zip. The Leader page also includes an export for the leader’s `~/.pioreactor`. This is useful for backups, support, or migration. Review the archive before sharing — it may contain configuration and credentials.
+ - Pump scripting: `pio run pumps ...` now accepts a `sleep` step to pause between actions. Example: `pio run pumps --media 2 --sleep 1 --waste 1.5` runs media for 2 mL, waits 1 s, then runs waste for 1.5 mL. In experiment profiles, you can repeat actions by suffixing keys with `_`, for example:
+   ```yaml
+   jobs:
+     pumps:
+       actions:
+         - type: start
+           options:
+             media: 2
+             sleep: 1
+             waste: 1.5
+             sleep_: 2   # repeat keys by adding underscores
+             waste_: 0.5
+   ```
+ - Advanced config for automations: the UI’s “Advanced” menu (temporary config overrides at start) is now available when launching automations, not just individual jobs. The options shown come from the `[<job_name>.config]` section.
 
 #### Bug fixes
 
- - real time charts in the UI again!
- - dataset exports have a corrected timestamp on the folders
- - remove instances of double logging from the ui
- - fix MCP not respecting "notifications" methods.
- - fix not being able to select a model when add a Pioreactor worker from the Inventory page.
+ - Restored live updates in real‑time charts in the UI (regression fixed).
+ - Corrected timestamps on exported dataset folders in the archive.
+ - Removed cases of duplicate log lines shown in the UI.
+ - MCP now correctly respects configured notification methods.
+ - Fixed model selection in the “Add a new Pioreactor worker” dialog in Inventory.
 
 ### Breaking changes
- - Turbidostat now forces duration=0.25s for frequent checks. This was always the case when run from the UI.
+ - Turbidostat now enforces `duration = 0.25s` for its frequent checks. The UI already used this value; CLI runs will now match it for more consistent behavior.
 
 
 ### 25.8.14
