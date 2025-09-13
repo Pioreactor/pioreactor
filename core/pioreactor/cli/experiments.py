@@ -9,13 +9,13 @@ from pioreactor.whoami import am_I_leader
 
 
 @click.group(short_help="manage experiments")
-def experiment() -> None:
+def experiments() -> None:
     """Experiment operations (leader only)."""
     if not am_I_leader():
         raise click.UsageError("This command is only available on the leader.")
 
 
-@experiment.command(name="create", short_help="create a new experiment")
+@experiments.command(name="create", short_help="create a new experiment")
 @click.argument("name", nargs=1, required=True)
 def create_experiment(name: str) -> None:
     """Create a new experiment with the given NAME (leader only)."""
@@ -39,7 +39,7 @@ def create_experiment(name: str) -> None:
         raise click.ClickException(f"Failed to create experiment '{name}' (HTTP {resp.status_code})")
 
 
-@experiment.command(name="list", short_help="list experiments")
+@experiments.command(name="list", short_help="list experiments")
 @click.option("--verbose", "-v", is_flag=True, help="show creation time and description")
 def list_experiments(verbose: bool) -> None:
     """List experiments on the leader."""
@@ -73,7 +73,7 @@ def list_experiments(verbose: bool) -> None:
             click.echo(name)
 
 
-@experiment.command(name="delete", short_help="delete an experiment")
+@experiments.command(name="delete", short_help="delete an experiment")
 @click.argument("name", nargs=1, required=True)
 @click.option("--yes", "-y", is_flag=True, help="do not prompt for confirmation")
 def delete_experiment(name: str, yes: bool) -> None:

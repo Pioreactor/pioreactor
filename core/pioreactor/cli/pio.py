@@ -37,7 +37,7 @@ if whoami.am_I_leader():
     # add in ability to control workers
     lazy_subcommands["workers"] = "pioreactor.cli.workers.workers"
     # experiment management is leader-only
-    lazy_subcommands["experiment"] = "pioreactor.cli.experiment.experiment"
+    lazy_subcommands["experiments"] = "pioreactor.cli.experiment.experiments"
 
 
 def get_update_app_commands(
