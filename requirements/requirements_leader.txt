@@ -1,2 +1,2 @@
 -r requirements.txt
-mcp_utils==2.0.1
+mcp-utils-msgspec==2.1.0

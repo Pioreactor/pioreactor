@@ -18,6 +18,7 @@
              waste_: 0.5
    ```
  - Advanced config for automations: the UI’s “Advanced” menu (temporary config overrides at start) is now available when launching automations, not just individual jobs. The options shown come from the `[<job_name>.config]` section.
+ - CLI: added leader-only experiment management commands — `pio experiment create <NAME>`, `pio experiment list`, and `pio experiment delete <NAME>`.
 
 #### Bug fixes
 
