@@ -182,7 +182,7 @@ if am_I_leader() or is_testing_env():
         )(f)
         return f
 
-    confirmation = click.option("-y", is_flag=True, help="Skip asking for confirmation.")
+    confirmation = click.option("--yes", "-y", is_flag=True, help="Skip asking for confirmation.")
     json_output = click.option("--json", is_flag=True, help="output as json")
 
     def parse_click_arguments(input_list: list[str]) -> dict:  # TODO: typed dict
@@ -400,7 +400,7 @@ if am_I_leader() or is_testing_env():
         json: bool,
     ) -> None:
         if ctx.invoked_subcommand is None:
-            units = resolve_target_units(units, experiments, active_only=False, include_leader=True)
+            units = resolve_target_units(units, experiments, active_only=False, include_leader=False)
 
             if not y:
                 confirm = input(f"Confirm updating app and ui on {units}? Y/n: ").strip().upper()
