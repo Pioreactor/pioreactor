@@ -25,6 +25,7 @@ from pioreactor.experiment_profiles.profile_struct import Start
 from pioreactor.experiment_profiles.profile_struct import Stop
 from pioreactor.experiment_profiles.profile_struct import Update
 from pioreactor.experiment_profiles.profile_struct import When
+from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe_and_callback
@@ -752,12 +753,14 @@ def test_profiles_in_github_repo() -> None:
     # Set the API endpoint URL
     owner = "Pioreactor"
     repo = "experiment_profile_examples"
-    path = ""  # Top level directory
-    api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{path}"
+    api_url = f"https://api.github.com/repos/{owner}/{repo}/contents"
 
-    # Make a GET request to the GitHub API
     response = get(api_url)
-    response.raise_for_status()  # Will raise an HTTPError if the HTTP request returned an unsuccessful status code
+    try:
+        response.raise_for_status()
+    except HTTPErrorStatus as e:
+        # raise HTTPErrorStatus(f"HTTP error: Failed to fetch repository contents from {api_url}: saw {str(e)}")
+        raise e
 
     # Check for YAML files
     yaml_files = [

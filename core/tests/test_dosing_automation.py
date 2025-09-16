@@ -1004,7 +1004,9 @@ def test_AltMediaFractionCalculator() -> None:
         timestamp=default_datetime_for_pioreactor(1),
         source_of_event="test",
     )
-    assert ac.update(add_alt_media_event, 0.0, current_volume_ml) == round(1 / (current_volume_ml + 1), 10)
+    assert round(ac.update(add_alt_media_event, 0.0, current_volume_ml), 10) == round(
+        1 / (current_volume_ml + 1), 10
+    )
 
     alt_media_added = 2.0
     add_alt_media_event = DosingEvent(
