@@ -72,7 +72,7 @@ def as_json_response(json: str) -> ResponseReturnValue:
 def broadcast_get_across_cluster(endpoint: str, timeout: float = 5.0, return_raw=False) -> Result:
     assert endpoint.startswith("/unit_api")
     return tasks.multicast_get(
-        endpoint=endpoint, workers=get_all_units(), timeout=timeout, return_raw=return_raw
+        endpoint=endpoint, units=get_all_units(), timeout=timeout, return_raw=return_raw
     )
 
 
@@ -97,7 +97,7 @@ def broadcast_patch_across_cluster(endpoint: str, json: dict | None = None) -> R
 def broadcast_get_across_workers(endpoint: str, timeout: float = 5.0, return_raw=False) -> Result:
     assert endpoint.startswith("/unit_api")
     return tasks.multicast_get(
-        endpoint=endpoint, workers=get_all_workers(), timeout=timeout, return_raw=return_raw
+        endpoint=endpoint, units=get_all_workers(), timeout=timeout, return_raw=return_raw
     )
 
 
@@ -107,7 +107,7 @@ def broadcast_get_across_workers_in_experiment(
     assert endpoint.startswith("/unit_api")
     return tasks.multicast_get(
         endpoint=endpoint,
-        workers=get_all_workers_in_experiment(experiment),
+        units=get_all_workers_in_experiment(experiment),
         timeout=timeout,
         return_raw=return_raw,
     )
