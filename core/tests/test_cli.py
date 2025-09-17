@@ -121,7 +121,7 @@ def test_pio_kill_cleans_up_automations_correctly() -> None:
 def test_pios_run_requests() -> None:
     with capture_requests() as bucket:
         ctx = click.Context(run, allow_extra_args=True)
-        ctx.forward(run, job="stirring", y=True)
+        ctx.forward(run, job="stirring", yes=True)
 
     assert len(bucket) == 2
     assert sorted(bucket)[0].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/stirring"
@@ -132,7 +132,7 @@ def test_pios_run_requests_dedup() -> None:
 
     with capture_requests() as bucket:
         ctx = click.Context(run, allow_extra_args=True)
-        ctx.forward(run, job="stirring", y=True, units=units)
+        ctx.forward(run, job="stirring", yes=True, units=units)
 
     assert len(bucket) == 1
     assert bucket[0].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/stirring"
@@ -153,7 +153,7 @@ def test_pios_run_requests_with_experiments(active_workers_in_cluster):
 def test_pios_kill_requests() -> None:
     with capture_requests() as bucket:
         ctx = click.Context(kill, allow_extra_args=True)
-        ctx.forward(kill, experiment="demo", y=True)
+        ctx.forward(kill, experiment="demo", yes=True)
 
     assert len(bucket) == 2
     assert bucket[0].url == "http://unit1.local:4999/unit_api/jobs/stop"
@@ -176,7 +176,7 @@ def test_pios_kill_requests_with_experiments(active_workers_in_cluster):
 def test_pios_reboot_requests() -> None:
     with capture_requests() as bucket:
         ctx = click.Context(reboot, allow_extra_args=True)
-        ctx.forward(reboot, y=True, units=("unit1",))
+        ctx.forward(reboot, yes=True, units=("unit1",))
 
     assert len(bucket) == 1
     assert bucket[0].url == "http://unit1.local:4999/unit_api/system/reboot"
