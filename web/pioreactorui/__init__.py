@@ -58,8 +58,6 @@ def decode_base64(string: str) -> str:
 
 def create_app():
     from .unit_api import unit_api
-    from .api import api
-    from .mcp import mcp_bp
 
     app = Flask(NAME)
     app.logger = logger
@@ -67,6 +65,9 @@ def create_app():
     app.register_blueprint(unit_api)
 
     if am_I_leader():
+        from .api import api
+        from .mcp import mcp_bp
+
         app.register_blueprint(api)
         app.register_blueprint(mcp_bp)
         # we currently only need to communicate with MQTT for the leader.
