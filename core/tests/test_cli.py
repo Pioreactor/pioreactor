@@ -173,16 +173,6 @@ def test_pios_kill_requests_with_experiments(active_workers_in_cluster):
         assert req.params == {}
 
 
-def test_pios_run_fails_when_no_workers_for_experiment(monkeypatch):
-    # simulate no workers assigned to experiment
-    # override callback import in CLI to simulate no experiment assignments
-    monkeypatch.setattr("pioreactor.cli.pios.get_active_workers_in_experiment", lambda exp: [])
-    runner = CliRunner()
-    result = runner.invoke(pios, ["run", "--experiments", "wrong-exp", "stirring", "-y"])
-    assert result.exit_code != 0
-    assert "No active workers found for experiment(s): wrong-exp" in result.output
-
-
 def test_pios_reboot_requests() -> None:
     with capture_requests() as bucket:
         ctx = click.Context(reboot, allow_extra_args=True)

@@ -66,6 +66,9 @@ class CapturedRequest:
     def __lt__(self, other):
         return self.path < other.path
 
+    def __repr__(self):
+        return f"CaptureRequest(url={self.url}, method={self.method})"
+
 
 @contextlib.contextmanager
 def capture_requests():

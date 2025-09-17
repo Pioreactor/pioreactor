@@ -27,6 +27,7 @@
  - Removed cases of duplicate log lines shown in the UI.
  - MCP now correctly respects configured notification methods.
  - Fixed model selection in the “Add a new Pioreactor worker” dialog in Inventory.
+ - For leader-only Pioreactors, fixed them not showing up in "Cluster clocks" (and likely other places)
 
 ### Breaking changes
  - Turbidostat now enforces `duration = 0.25s` for its frequent checks. The UI already used this value; CLI runs will now match it for more consistent behavior.

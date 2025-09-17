@@ -318,11 +318,11 @@ if am_I_leader() or is_testing_env():
         filepath: str,
         units: tuple[str, ...],
         experiments: tuple[str, ...],
-        y: bool,
+        yes: bool,
     ) -> None:
         units = resolve_target_units(units, experiments, active_only=False, include_leader=False)
 
-        if not y:
+        if not yes:
             confirm = input(f"Confirm copying {filepath} onto {units}? Y/n: ").strip().upper()
             if confirm != "Y":
                 sys.exit(1)
@@ -353,11 +353,11 @@ if am_I_leader() or is_testing_env():
         filepath: str,
         units: tuple[str, ...],
         experiments: tuple[str, ...],
-        y: bool,
+        yes: bool,
     ) -> None:
         units = resolve_target_units(units, experiments, active_only=False, include_leader=False)
 
-        if not y:
+        if not yes:
             confirm = input(f"Confirm deleting {filepath} on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
                 sys.exit(1)
@@ -396,13 +396,13 @@ if am_I_leader() or is_testing_env():
         branch: str | None,
         units: tuple[str, ...],
         experiments: tuple[str, ...],
-        y: bool,
+        yes: bool,
         json: bool,
     ) -> None:
         if ctx.invoked_subcommand is None:
             units = resolve_target_units(units, experiments, active_only=False, include_leader=False)
 
-            if not y:
+            if not yes:
                 confirm = input(f"Confirm updating app and ui on {units}? Y/n: ").strip().upper()
                 if confirm != "Y":
                     sys.exit(1)
@@ -467,7 +467,7 @@ if am_I_leader() or is_testing_env():
         source: str | None,
         units: tuple[str, ...],
         experiments: tuple[str, ...],
-        y: bool,
+        yes: bool,
         json: bool,
     ) -> None:
         """
@@ -476,7 +476,7 @@ if am_I_leader() or is_testing_env():
 
         units = resolve_target_units(units, experiments, active_only=False, include_leader=True)
 
-        if not y:
+        if not yes:
             confirm = input(f"Confirm updating app on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
                 sys.exit(1)
@@ -545,7 +545,7 @@ if am_I_leader() or is_testing_env():
         source: str | None,
         units: tuple[str, ...],
         experiments: tuple[str, ...],
-        y: bool,
+        yes: bool,
         json: bool,
     ) -> None:
         """
@@ -554,7 +554,7 @@ if am_I_leader() or is_testing_env():
 
         units = resolve_target_units(units, experiments, active_only=False, include_leader=True)
 
-        if not y:
+        if not yes:
             confirm = input(f"Confirm updating ui on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
                 sys.exit(1)
@@ -623,7 +623,7 @@ if am_I_leader() or is_testing_env():
         source: str | None,
         units: tuple[str, ...],
         experiments: tuple[str, ...],
-        y: bool,
+        yes: bool,
         json: bool,
     ) -> None:
         """
@@ -632,7 +632,7 @@ if am_I_leader() or is_testing_env():
 
         units = resolve_target_units(units, experiments, active_only=False, include_leader=True)
 
-        if not y:
+        if not yes:
             confirm = input(f"Confirm installing {plugin} on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
                 sys.exit(1)
@@ -671,7 +671,7 @@ if am_I_leader() or is_testing_env():
     @confirmation
     @json_output
     def uninstall_plugin(
-        plugin: str, units: tuple[str, ...], experiments: tuple[str, ...], y: bool, json: bool
+        plugin: str, units: tuple[str, ...], experiments: tuple[str, ...], yes: bool, json: bool
     ) -> None:
         """
         Uninstalls a plugin from worker and leader
@@ -679,7 +679,7 @@ if am_I_leader() or is_testing_env():
 
         units = resolve_target_units(units, experiments, active_only=False, include_leader=True)
 
-        if not y:
+        if not yes:
             confirm = input(f"Confirm uninstalling {plugin} on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
                 sys.exit(1)
@@ -734,7 +734,7 @@ if am_I_leader() or is_testing_env():
         skip_save: bool,
         units: tuple[str, ...],
         experiments: tuple[str, ...],
-        y: bool,
+        yes: bool,
     ) -> None:
         """
         Deploys the shared config.ini and specific config.inis to the pioreactor units.
@@ -794,7 +794,7 @@ if am_I_leader() or is_testing_env():
         job_name: str | None,
         units: tuple[str, ...],
         experiments: tuple[str, ...],
-        y: bool,
+        yes: bool,
         json: bool,
     ) -> None:
         """
@@ -811,7 +811,7 @@ if am_I_leader() or is_testing_env():
 
         """
         units = resolve_target_units(units, experiments, active_only=True, include_leader=None)
-        if not y:
+        if not yes:
             confirm = input(f"Confirm killing jobs on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
                 sys.exit(1)
@@ -839,7 +839,9 @@ if am_I_leader() or is_testing_env():
     @confirmation
     @json_output
     @click.pass_context
-    def run(ctx, job: str, units: tuple[str, ...], experiments: tuple[str, ...], y: bool, json: bool) -> None:
+    def run(
+        ctx, job: str, units: tuple[str, ...], experiments: tuple[str, ...], yes: bool, json: bool
+    ) -> None:
         """
         Run a job on all, or specific, workers. Ex:
 
@@ -865,7 +867,7 @@ if am_I_leader() or is_testing_env():
         units = resolve_target_units(units, experiments, active_only=True, include_leader=None)
         assert len(units) > 0, "Empty units!"
 
-        if not y:
+        if not yes:
             confirm = input(f"Confirm running {job} on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
                 sys.exit(1)
@@ -898,7 +900,7 @@ if am_I_leader() or is_testing_env():
     )
     @which_units
     @confirmation
-    def shutdown(units: tuple[str, ...], experiments: tuple[str, ...], y: bool) -> None:
+    def shutdown(units: tuple[str, ...], experiments: tuple[str, ...], yes: bool) -> None:
         """Shutdown Pioreactor / Raspberry Pi.
 
         Leader handling: only shutdown the leader if it was explicitly included in
@@ -909,7 +911,7 @@ if am_I_leader() or is_testing_env():
         units = resolve_target_units(units, experiments, active_only=False, include_leader=False)
         units_san_leader = units
 
-        if not y:
+        if not yes:
             confirm = input(f"Confirm shutting down on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
                 sys.exit(1)
@@ -934,7 +936,7 @@ if am_I_leader() or is_testing_env():
     @pios.command(name="reboot", short_help="reboot Pioreactors")
     @which_units
     @confirmation
-    def reboot(units: tuple[str, ...], experiments: tuple[str, ...], y: bool) -> None:
+    def reboot(units: tuple[str, ...], experiments: tuple[str, ...], yes: bool) -> None:
         """Reboot Pioreactor / Raspberry Pi.
 
         Leader handling mirrors `shutdown`: only reboot the leader if explicitly
@@ -944,7 +946,7 @@ if am_I_leader() or is_testing_env():
         units = resolve_target_units(units, experiments, active_only=False, include_leader=False)
         units_san_leader = units
 
-        if not y:
+        if not yes:
             confirm = input(f"Confirm rebooting on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
                 sys.exit(1)
@@ -975,7 +977,9 @@ if am_I_leader() or is_testing_env():
     @which_units
     @confirmation
     @click.pass_context
-    def update_settings(ctx, job: str, units: tuple[str, ...], experiments: tuple[str, ...], y: bool) -> None:
+    def update_settings(
+        ctx, job: str, units: tuple[str, ...], experiments: tuple[str, ...], yes: bool
+    ) -> None:
         """
 
         Examples:
@@ -989,7 +993,7 @@ if am_I_leader() or is_testing_env():
 
         assert len(extra_args) > 0
 
-        if not y:
+        if not yes:
             confirm = input(f"Confirm updating {job}'s {extra_args} on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
                 sys.exit(1)

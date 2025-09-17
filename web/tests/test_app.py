@@ -280,7 +280,7 @@ def test_broadcasting(client):
     with capture_requests() as bucket:
         response = client.get("/api/units/$broadcast/versions/ui")
 
-    assert len(bucket) == count_of_workers
+    assert len(bucket) == (count_of_workers + 1)  # leader is localhost, whos not a worker in this fixture
 
 
 def test_broadcast_in_manage_all(client):
