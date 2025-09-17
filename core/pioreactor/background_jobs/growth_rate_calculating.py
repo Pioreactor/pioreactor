@@ -242,9 +242,6 @@ class GrowthRateProcessor(LoggerMixin):
             self.logger.error(
                 "OD variance is zero - this suggests that the OD sensor is not working properly, or a calibration is wrong."
             )
-            raise ValueError(
-                "OD variance is zero - this suggests that the OD sensor is not working properly, or a calibration is wrong."
-            )
 
         if not self.ignore_cache:
             od_blank = self.get_od_blank_from_cache()

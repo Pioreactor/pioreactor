@@ -190,16 +190,10 @@ class TestGrowthRateCalculating:
             config, [("od_config.photodiode_channel", "1", "90"), ("od_config.photodiode_channel", "2", "90")]
         ):
             with local_persistent_storage("od_normalization_mean") as cache:
-                cache[experiment] = json.dumps({1: 1, 2: 1})
+                cache[experiment] = json.dumps({"1": 1.15, "2": 0.93})
 
             with local_persistent_storage("od_normalization_variance") as cache:
-                cache[experiment] = json.dumps({1: 1, 2: 1})
-
-            with local_persistent_storage("od_normalization_mean") as cache:
-                cache[experiment] = '{"1": 1.15, "2": 0.93}'
-
-            with local_persistent_storage("od_normalization_variance") as cache:
-                cache[experiment] = '{"1": 1, "2": 1}'
+                cache[experiment] = json.dumps({"1": 1, "2": 1})
 
             od_stream, dosing_stream = create_od_stream_from_mqtt(
                 unit, experiment

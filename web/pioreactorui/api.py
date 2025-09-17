@@ -1771,7 +1771,6 @@ def delete_experiment(experiment: str) -> ResponseReturnValue:
         return {"status": "success"}, 200
     else:
         abort(404, f"Experiment {experiment} not found")
-    pass
 
 
 @api.route("/experiments/latest", methods=["GET"])
