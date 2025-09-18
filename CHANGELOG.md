@@ -1,4 +1,4 @@
-### Upcoming
+### 25.9.18
 
  - Experiment profile editor: added a searchable capabilities browser. You can now search across available jobs, automations, actions, and options directly in the editor. This should make building and editing profiles faster and reduce syntax errors.
  - Experiment Overview charts: no longer hide older data on long experiments. Instead, each series is downsampled on the client to a maximum of 720 points while preserving trends, regardless of experiment length. For very large clusters this may increase initial load time — narrowing the time range or hiding unused series can help if you notice slowness.
