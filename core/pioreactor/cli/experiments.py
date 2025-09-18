@@ -33,8 +33,8 @@ def create_experiment(name: str) -> None:
         raise click.ClickException(f"Experiment '{name}' already exists (409)")
     elif resp.status_code == 400:
         # try to show server error message if available
-        msg = resp.json().get("message")
-        raise click.ClickException(f"Invalid experiment name: {msg}")
+        msg = resp.json().get("error")
+        raise click.ClickException(f"Invalid experiment name. {msg}")
     else:
         raise click.ClickException(f"Failed to create experiment '{name}' (HTTP {resp.status_code})")
 

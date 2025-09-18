@@ -322,6 +322,9 @@ if am_I_leader() or is_testing_env():
     ) -> None:
         units = resolve_target_units(units, experiments, active_only=False, include_leader=False)
 
+        if len(units) == 0:
+            return
+
         if not yes:
             confirm = input(f"Confirm copying {filepath} onto {units}? Y/n: ").strip().upper()
             if confirm != "Y":
@@ -356,6 +359,9 @@ if am_I_leader() or is_testing_env():
         yes: bool,
     ) -> None:
         units = resolve_target_units(units, experiments, active_only=False, include_leader=False)
+
+        if len(units) == 0:
+            return
 
         if not yes:
             confirm = input(f"Confirm deleting {filepath} on {units}? Y/n: ").strip().upper()
@@ -401,6 +407,9 @@ if am_I_leader() or is_testing_env():
     ) -> None:
         if ctx.invoked_subcommand is None:
             units = resolve_target_units(units, experiments, active_only=False, include_leader=False)
+
+            if len(units) == 0:
+                return
 
             if not yes:
                 confirm = input(f"Confirm updating app and ui on {units}? Y/n: ").strip().upper()
@@ -475,6 +484,9 @@ if am_I_leader() or is_testing_env():
         """
 
         units = resolve_target_units(units, experiments, active_only=False, include_leader=True)
+
+        if len(units) == 0:
+            return
 
         if not yes:
             confirm = input(f"Confirm updating app on {units}? Y/n: ").strip().upper()
@@ -554,6 +566,9 @@ if am_I_leader() or is_testing_env():
 
         units = resolve_target_units(units, experiments, active_only=False, include_leader=True)
 
+        if len(units) == 0:
+            return
+
         if not yes:
             confirm = input(f"Confirm updating ui on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
@@ -632,6 +647,9 @@ if am_I_leader() or is_testing_env():
 
         units = resolve_target_units(units, experiments, active_only=False, include_leader=True)
 
+        if len(units) == 0:
+            return
+
         if not yes:
             confirm = input(f"Confirm installing {plugin} on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
@@ -678,6 +696,9 @@ if am_I_leader() or is_testing_env():
         """
 
         units = resolve_target_units(units, experiments, active_only=False, include_leader=True)
+
+        if len(units) == 0:
+            return
 
         if not yes:
             confirm = input(f"Confirm uninstalling {plugin} on {units}? Y/n: ").strip().upper()
@@ -748,6 +769,9 @@ if am_I_leader() or is_testing_env():
             include_leader=True,  # maintain previous behaviour of always including leader
         )
 
+        if len(units) == 0:
+            return
+
         if not shared and not specific:
             shared = specific = True
 
@@ -811,6 +835,10 @@ if am_I_leader() or is_testing_env():
 
         """
         units = resolve_target_units(units, experiments, active_only=True, include_leader=None)
+
+        if len(units) == 0:
+            return
+
         if not yes:
             confirm = input(f"Confirm killing jobs on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
@@ -865,7 +893,9 @@ if am_I_leader() or is_testing_env():
             sys.exit(1)
 
         units = resolve_target_units(units, experiments, active_only=True, include_leader=None)
-        assert len(units) > 0, "Empty units!"
+
+        if len(units) == 0:
+            return
 
         if not yes:
             confirm = input(f"Confirm running {job} on {units}? Y/n: ").strip().upper()

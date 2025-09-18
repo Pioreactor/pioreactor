@@ -1,7 +1,7 @@
 ---
 display_name: Chemostat
 automation_name: chemostat
-description: Add and remove a constant volume of media on a fixed scheduale.
+description: Add and remove a constant volume of media on a fixed scheduale.  Requires a calibrated media pump and calibrated waste pump.
 fields:
   - key: duration
     default: 20
