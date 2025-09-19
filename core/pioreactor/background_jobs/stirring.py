@@ -209,7 +209,7 @@ class Stirrer(BackgroundJobWithDodging):
         target_rpm: Optional[float],
         unit: pt.Unit,
         experiment: pt.Experiment,
-        rpm_calculator: Optional[RpmCalculator] = None,
+        rpm_calculator: Optional[RpmCalculator | MockRpmCalculator] = None,
         calibration: bool | structs.SimpleStirringCalibration | None = True,
         enable_dodging_od: bool = False,
         duty_cycle: float | None = None,
@@ -314,7 +314,11 @@ class Stirrer(BackgroundJobWithDodging):
         self.poll_and_update_dc()
 
     def initialize_dodging_operation(self):
-        if config.getfloat("od_reading.config", "samples_per_second") > 0.12:
+        self.logger.debug("Starting initialize_dodging_operation")
+        with JobManager() as jm:
+            interval = float(jm.get_setting_from_running_job("od_reading", "interval", timeout=5))
+
+        if (interval or 0.0) < 1 / 0.12:
             self.logger.warning(
                 "Recommended to decrease `samples_per_second` to ensure there is time to start/stop stirring. Try 0.12 or less."
             )
@@ -339,8 +343,10 @@ class Stirrer(BackgroundJobWithDodging):
         self.add_to_published_settings(
             "target_rpm_outside_od_reading", {"datatype": "float", "settable": True, "unit": "RPM"}
         )
+        self.logger.debug("Finished initialize_dodging_operation")
 
     def initialize_continuous_operation(self):
+        self.logger.debug("Starting initialize_continuous_operation")
         # set up thread to periodically check the rpm
         self.rpm_check_repeated_timer = RepeatedTimer(
             config.getfloat("stirring.config", "duration_between_updates_seconds", fallback=23.0),
@@ -356,6 +362,7 @@ class Stirrer(BackgroundJobWithDodging):
 
         self.remove_from_published_settings("target_rpm_during_od_reading")
         self.remove_from_published_settings("target_rpm_outside_od_reading")
+        self.logger.debug("Finished initialize_continuous_operation")
 
     def initialize_rpm_to_dc_lookup(
         self, calibration: bool | structs.SimpleStirringCalibration | None

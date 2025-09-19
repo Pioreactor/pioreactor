@@ -14,6 +14,7 @@ import paho.mqtt.client as mqtt
 from flask import Flask
 from flask import g
 from flask import jsonify
+from flask import request
 from flask.json.provider import JSONProvider
 from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
@@ -57,8 +58,6 @@ def decode_base64(string: str) -> str:
 
 def create_app():
     from .unit_api import unit_api
-    from .api import api
-    from .mcp import mcp_bp
 
     app = Flask(NAME)
     app.logger = logger
@@ -66,6 +65,9 @@ def create_app():
     app.register_blueprint(unit_api)
 
     if am_I_leader():
+        from .api import api
+        from .mcp import mcp_bp
+
         app.register_blueprint(api)
         app.register_blueprint(mcp_bp)
         # we currently only need to communicate with MQTT for the leader.
@@ -90,6 +92,18 @@ def create_app():
     @app.errorhandler(404)
     def handle_not_found(e):
         # Return JSON for API requests
+
+        # check if accessing /api/ when not leader. User had the wrong leader_hostname on their leader image. This would have helped them.
+        if not am_I_leader() and request.path.startswith("/api/"):
+            return (
+                jsonify(
+                    {
+                        "error": "Can't access /api/ endpoints when this unit isn't the leader. Did you mean /unit_api/?"
+                    }
+                ),
+                404,
+            )
+
         return jsonify({"error": e.description}), 404
 
     @app.errorhandler(400)

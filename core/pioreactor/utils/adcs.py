@@ -8,13 +8,6 @@ from typing import Final
 from typing import Protocol
 from typing import runtime_checkable
 
-try:
-    # Debian/Raspberry Pi: prefer smbus2
-    from smbus2 import SMBus
-except Exception:
-    # Fallback to smbus if smbus2 isn't available
-    from smbus import SMBus  # type: ignore
-
 from busio import I2C  # type: ignore
 from pioreactor import exc
 from pioreactor import types as pt
@@ -239,8 +232,11 @@ class ADS1114_ADC:
     def __init__(
         self, scl: pt.I2CPin, sda: pt.I2CPin, i2c_addr: pt.I2CAddress, adc_channel: pt.AdcChannel
     ) -> None:
+        from smbus2 import SMBus
+
         # SMBUS doesn't use scl or sda directly, it opens up /dev/i2c-1 in the linux space
         i2c_bus = 1
+
         self._bus = SMBus(i2c_bus)
         self.i2c_addr = i2c_addr
         assert adc_channel == 0

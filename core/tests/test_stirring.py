@@ -198,8 +198,8 @@ def test_stirring_wont_fire_last_100dc_on_od_reading_end() -> None:
         experiment=exp,
         use_rpm=True,
         enable_dodging_od=True,
-        target_rpm_during_od_reading=100,
-        target_rpm_outside_od_reading=300,
+        target_rpm_during_od_reading=500,
+        target_rpm_outside_od_reading=450,
     ) as st:
         with start_od_reading(
             "90", None, interval=10.0, unit=unit, experiment=exp, fake_data=True, calibration=False

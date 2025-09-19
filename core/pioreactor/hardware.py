@@ -83,8 +83,8 @@ from pioreactor import types as pt
 from pioreactor.utils import adcs
 from pioreactor.version import hardware_version_info
 from pioreactor.version import rpi_version_info
-from pioreactor.whoami import get_pioreactor_model
 from pioreactor.whoami import is_testing_env
+from pioreactor.whoami import get_pioreactor_model
 
 ## All GPIO pins below are BCM numbered
 
@@ -192,6 +192,9 @@ class ADCCurrier:
     def __call__(self) -> adcs._I2C_ADC:
         return self.adc_driver(SCL, SDA, self.i2c_address, self.adc_channel)
 
+    def __repr__(self) -> str:
+        return f"ADCCurrier(adc_driver={self.adc_driver.__name__}, i2c_address={hex(self.i2c_address)}, adc_channel={self.adc_channel})"
+
 
 _ADC_DRIVER_LUT: dict[str, type[adcs._I2C_ADC]] = {
     "ads1115": adcs.ADS1115_ADC,
@@ -230,6 +233,7 @@ for key in ("pd1", "pd2", "aux", "version"):
 
 _dac_cfg = get_layered_mod_config("dac")
 DAC_ADDRESS = int(_dac_cfg["address"])
+
 DAC = DAC_ADDRESS  # bc
 
 

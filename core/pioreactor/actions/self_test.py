@@ -284,7 +284,7 @@ def test_REF_is_lower_than_0_dot_256_volts(
     ir_channel = cast(LedChannel, config["leds_reverse"][IR_keyword])
     config_ir_intensity = config.get("od_reading.config", "ir_led_intensity")
     if config_ir_intensity == "auto":
-        ir_intensity = 50.0  # this has been our historical default, and should generally work. Default now is "auto", which targets 0.225 V into REF
+        ir_intensity = 70.0  # this has been our historical default, and should generally work. Default now is "auto", which targets 0.225 V into REF
     else:
         ir_intensity = float(config_ir_intensity)
 
@@ -467,10 +467,10 @@ class BatchTestRunner:
         for test in self.tests_to_run:
             test_name = test.__name__
 
+            res = True
             logger.debug(f"Starting test {test_name}...")
             try:
                 test(managed_state, logger, unit, testing_experiment)
-                res = True
             except Exception as e:
                 res = False
                 logger.debug(e, exc_info=True)

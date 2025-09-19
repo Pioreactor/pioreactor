@@ -79,7 +79,7 @@ function AdvancedConfigDialog({ open, onFinished, jobName, displayName, unit, ex
 
         <DialogContent >
           {Object.keys(values).length === 0 && (
-            <Typography variant="body2">No configurable parameters found for {jobName}.</Typography>
+            <Typography variant="body2" component="p" color="textSecondary">No configuration parameters found for {jobName}.</Typography>
           )}
 
           {Object.keys(values).length > 0 && ( <Typography variant="body2" component="span" gutterBottom>

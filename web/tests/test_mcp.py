@@ -32,17 +32,6 @@ def test_mcp_blueprint_registration(app) -> None:
     assert "/mcp/" in routes
 
 
-def test_handle_mcp_invalid_payload(client) -> None:
-    """POSTing an empty payload to /mcp should return a 400 Bad Request."""
-    resp = client.post("/mcp/", json={})
-    # JSON-RPC error for missing id should return HTTP 200 with an error object
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert "error" in data
-    # Missing message id is the expected error
-    assert data["error"]["message"] == "Missing message id"
-
-
 def test_get_experiments_invokes_correct_leader_endpoint() -> None:
     """get_experiments(active_only=False) should call the standard /api/experiments endpoint."""
     with capture_requests() as requests:

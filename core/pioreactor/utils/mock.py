@@ -60,11 +60,10 @@ class Mock_ADC(_I2C_ADC):
         if not is_ir_on:
             return self.OFFSET
 
-        # TODO: I think this below line is wrong.
-        am_i_REF = str(self.adc_channel - 1) == config.get("od_config.photodiode_channel_reverse", "REF")
+        am_i_REF = self.adc_channel == 1  # see _get_ADCS in od_reading.py
 
         if am_i_REF:
-            return self.from_voltage_to_raw(0.250 + random.normalvariate(0, sigma=0.001) / 2**10)
+            return self.from_voltage_to_raw(0.100 + random.normalvariate(0, sigma=0.001) / 2**10)
         else:
             self.gr = self.growth_rate(
                 self._counter / config.getfloat("od_reading.config", "samples_per_second"), am_i_REF
@@ -186,6 +185,9 @@ class MockRpmCalculator:
 
         time.sleep(seconds_to_observe)
         return self.ALWAYS_RETURN_RPM
+
+    def clean_up(self):
+        pass
 
 
 if is_testing_env():

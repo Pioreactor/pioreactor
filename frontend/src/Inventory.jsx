@@ -832,7 +832,7 @@ function ManagePioreactorMenu({unit, isLeader}){
 
   const handleExport = async () => {
     try {
-      const response = await fetch(`/api/workers/${unit}/zipped_dot_pioreactor`);
+      const response = await fetch(`/api/units/${unit}/zipped_dot_pioreactor`);
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }

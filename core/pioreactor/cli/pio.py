@@ -36,6 +36,8 @@ lazy_subcommands = {
 if whoami.am_I_leader():
     # add in ability to control workers
     lazy_subcommands["workers"] = "pioreactor.cli.workers.workers"
+    # experiment management is leader-only
+    lazy_subcommands["experiments"] = "pioreactor.cli.experiments.experiments"
 
 
 def get_update_app_commands(
@@ -105,7 +107,7 @@ def get_update_app_commands(
         commands_and_priority.append(
             (
                 f"sudo pip install --force-reinstall "
-                f'"git+https://github.com/{cleaned_repo}.git@{cleaned_branch}#egg=pioreactor&subdirectory=core"',
+                f'"pioreactor[leader_worker] @ git+https://github.com/{cleaned_repo}.git@{cleaned_branch}#subdirectory=core"',
                 1,
             )
         )
@@ -246,7 +248,7 @@ def logs(n: int, f: bool) -> None:
         log_files = [log_file]
 
     with subprocess.Popen(
-        ["tail", "-qn", str(n), "-f" if f else ""] + log_files,
+        ["tail", "-qn", str(n)] + (["-f"] if f else []) + log_files,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
     ) as process:
@@ -331,10 +333,13 @@ def version(verbose: bool) -> None:
         from pioreactor.whoami import get_pioreactor_model
 
         click.echo(f"Pioreactor app:         {tuple_to_text(software_version_info)}")
-        click.echo(f"Pioreactor HAT:         {tuple_to_text(hardware_version_info)}")
-        click.echo(f"Pioreactor firmware:    {tuple_to_text(get_firmware_version())}")
-        click.echo(f"Bioreactor model name:  {get_pioreactor_model().display_name}")
-        click.echo(f"HAT serial number:      {serial_number}")
+
+        if whoami.am_I_a_worker():
+            click.echo(f"Pioreactor HAT:         {tuple_to_text(hardware_version_info)}")
+            click.echo(f"Pioreactor firmware:    {tuple_to_text(get_firmware_version())}")
+            click.echo(f"Bioreactor model name:  {get_pioreactor_model().display_name}")
+            click.echo(f"HAT serial number:      {serial_number}")
+
         click.echo(f"Operating system:       {platform.platform()}")
         click.echo(f"Raspberry Pi:           {rpi_version_info}")
         click.echo(f"Image version:          {whoami.get_image_git_hash()}")
@@ -346,6 +351,7 @@ def version(verbose: bool) -> None:
             ui_version = "<Failed to fetch>"
 
         click.echo(f"Pioreactor UI:          {ui_version}")
+
     else:
         click.echo(tuple_to_text(software_version_info))
 

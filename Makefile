@@ -107,7 +107,10 @@ tail-log:  ## Show last $$LINES lines of the merged pioreactor log (override wit
 
 
 # --- release helpers ----------------------------------------------------------
-.PHONY: create-rc
+.PHONY: create-release create-rc
+create-release:  ## Perform production release workflow; pass args via ARGS="--dry-run"
+	@$(PYTHON) scratch/create_release.py $(ARGS)
+
 create-rc:  ## Create release-candidate; pass args via ARGS="--dry-run --rc 1"
 	@$(PYTHON) scratch/create_rc.py $(ARGS)
 

@@ -862,6 +862,7 @@ def test_calibration_simple_linear_calibration_positive_slope() -> None:
         experiment=experiment,
         unit=get_unit_name(),
         calibration=cal,
+        ir_led_intensity=90.0,
     ) as od:
         assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
 
@@ -873,7 +874,7 @@ def test_calibration_simple_linear_calibration_positive_slope() -> None:
         pause()
         pause()
         pause()
-        with collect_all_logs_of_level("warning", unit=get_unit_name(), experiment="+") as bucket:
+        with collect_all_logs_of_level("warning", unit=get_unit_name(), experiment=experiment) as bucket:
             pause()
             pause()
             pause()
@@ -910,6 +911,7 @@ def test_calibration_simple_linear_calibration_negative_slope() -> None:
         experiment=experiment,
         unit=get_unit_name(),
         calibration=cal,
+        ir_led_intensity=90.0,
     ) as od:
         assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
 
@@ -919,7 +921,11 @@ def test_calibration_simple_linear_calibration_negative_slope() -> None:
         voltage = 0.5
         assert od.calibration_transformer.models["2"](voltage) == (voltage - 2) / (-0.1)
 
-        with collect_all_logs_of_level("warning", unit=get_unit_name(), experiment="+") as bucket:
+        with collect_all_logs_of_level(
+            "warning",
+            unit=get_unit_name(),
+            experiment="test_calibration_simple_linear_calibration_negative_slope",
+        ) as bucket:
             voltage = 12.0
             assert voltage > maximum_voltage
 
@@ -955,6 +961,7 @@ def test_calibration_simple_quadratic_calibration() -> None:
         experiment=experiment,
         unit=get_unit_name(),
         calibration=cal,
+        ir_led_intensity=90.0,
     ) as od:
         assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
         x = 0.5
@@ -981,7 +988,13 @@ def test_calibration_multi_modal() -> None:
     cal.set_as_active_calibration_for_device("od")
 
     with start_od_reading(
-        "REF", "90", interval=None, fake_data=True, experiment=experiment, calibration=cal
+        "REF",
+        "90",
+        interval=None,
+        fake_data=True,
+        experiment=experiment,
+        calibration=cal,
+        ir_led_intensity=90.0,
     ) as od:
         assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
         for i in range(0, 1000):
@@ -992,26 +1005,31 @@ def test_calibration_multi_modal() -> None:
 def test_calibration_errors_when_ir_led_differs() -> None:
     experiment = "test_calibration_errors_when_ir_led_differs"
 
-    with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "100"):
-        cal = structs.OD600Calibration(
-            created_at=current_utc_datetime(),
-            curve_type="poly",
-            curve_data_=[1.0, 0, -0.1],
-            calibration_name="quad_test",
-            ir_led_intensity=50.0,
-            angle="90",
-            recorded_data={"x": [0, 1], "y": [0, 2]},
-            pd_channel="2",
-            calibrated_on_pioreactor_unit=get_unit_name(),
-        )
+    cal = structs.OD600Calibration(
+        created_at=current_utc_datetime(),
+        curve_type="poly",
+        curve_data_=[1.0, 0, -0.1],
+        calibration_name="quad_test",
+        ir_led_intensity=50.0,  # here!
+        angle="90",
+        recorded_data={"x": [0, 1], "y": [0, 2]},
+        pd_channel="2",
+        calibrated_on_pioreactor_unit=get_unit_name(),
+    )
 
-        cal.set_as_active_calibration_for_device("od")
-        with collect_all_logs_of_level("ERROR", unit=get_unit_name(), experiment=experiment) as bucket:
-            with start_od_reading(
-                "REF", "90", interval=1, fake_data=True, experiment=experiment, calibration=cal
-            ):
-                pass
-            assert "LED intensity" in bucket[0]["message"]
+    cal.set_as_active_calibration_for_device("od")
+    with collect_all_logs_of_level("ERROR", unit=get_unit_name(), experiment=experiment) as bucket:
+        with start_od_reading(
+            "REF",
+            "90",
+            interval=1,
+            fake_data=True,
+            experiment=experiment,
+            calibration=cal,
+            ir_led_intensity=90.0,  # here!
+        ):
+            pass
+        assert "LED intensity" in bucket[0]["message"]
 
 
 def test_calibration_with_irl_data1() -> None:
@@ -1093,7 +1111,7 @@ def test_ODReader_with_multiple_angles_and_a_ref() -> None:
     """
     experiment = "test_ODReader_with_multiple_angles_and_a_ref"
 
-    ir_led_reference_channel = "version"  # hack
+    ir_led_reference_channel = "3"  # hack
     channel_angle_map = {"1": "45", "2": "90"}
     channels = ["1", "2", ir_led_reference_channel]
 
@@ -1137,7 +1155,13 @@ def test_calibration_data_from_user1() -> None:
     calibration.set_as_active_calibration_for_device("od")
 
     with start_od_reading(
-        "REF", "90", interval=None, fake_data=True, experiment=experiment, calibration=calibration
+        "REF",
+        "90",
+        interval=None,
+        fake_data=True,
+        experiment=experiment,
+        calibration=calibration,
+        ir_led_intensity=90.0,
     ) as od:
         assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
         infer = od.calibration_transformer.models["2"]
@@ -1177,7 +1201,13 @@ def test_calibration_data_from_user2() -> None:
     cal.set_as_active_calibration_for_device("od")
 
     with start_od_reading(
-        "REF", "90", interval=None, fake_data=True, experiment=experiment, calibration=cal
+        "REF",
+        "90",
+        interval=None,
+        fake_data=True,
+        experiment=experiment,
+        calibration=cal,
+        ir_led_intensity=90.0,
     ) as od:
         assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
         infer = od.calibration_transformer.models["2"]
@@ -1198,7 +1228,7 @@ def test_auto_ir_led_intensity_REF_and_90() -> None:
         with start_od_reading(
             "REF", "90", interval=None, fake_data=True, experiment=experiment, calibration=False
         ) as od:
-            assert abs(od.ir_led_intensity - 70.0) < 0.01
+            assert abs(od.ir_led_intensity - 85.0) < 0.01
 
 
 def test_auto_ir_led_intensity_90_only() -> None:
@@ -1208,7 +1238,7 @@ def test_auto_ir_led_intensity_90_only() -> None:
         with start_od_reading(
             None, "90", interval=None, fake_data=True, experiment=experiment, calibration=False
         ) as od:
-            assert od.ir_led_intensity == 70.0
+            assert od.ir_led_intensity == 85.0
 
 
 def test_auto_ir_led_intensity_90_and_90() -> None:
@@ -1216,7 +1246,7 @@ def test_auto_ir_led_intensity_90_and_90() -> None:
         experiment = "test_auto_ir_led_intensity"
 
         with start_od_reading("90", "90", interval=None, fake_data=True, experiment=experiment) as od:
-            assert od.ir_led_intensity == 70.0
+            assert od.ir_led_intensity == 85.0
 
 
 def test_at_least_one_channel() -> None:
@@ -1422,16 +1452,22 @@ def test_raw_and_calibrated_data_is_published_if_calibration_is_used() -> None:
         angle="90",
         calibration_name="test_raw_and_calibrated_data_is_published_if_calibration_is_used",
         curve_type="poly",
-        curve_data_=[1, 0],
+        curve_data_=[1, 0, 0.1],
         ir_led_intensity=70,
         pd_channel="2",
         created_at=current_utc_datetime(),
         calibrated_on_pioreactor_unit="pio1",
-        recorded_data={"y": [0, 1], "x": [0, 1]},
+        recorded_data={"y": [0, 1, 2], "x": [0, 1, 2]},
     )
 
     with start_od_reading(
-        "REF", "90", interval=2, fake_data=True, experiment=experiment, calibration=calibration
+        "REF",
+        "90",
+        interval=2,
+        fake_data=True,
+        experiment=experiment,
+        calibration=calibration,
+        ir_led_intensity=70,
     ) as od_job:
         next(od_job)
         assert isinstance(od_job.calibration_transformer, CachedCalibrationTransformer)
@@ -1453,11 +1489,11 @@ def test_raw_and_calibrated_data_is_published_if_calibration_is_used() -> None:
 
 
 def test_raw_published_even_if_calibration_is_bad() -> None:
-    experiment = "test_raw_and_calibrated_data_is_published_if_calibration_is_used"
+    experiment = "test_raw_published_even_if_calibration_is_bad"
 
     calibration = structs.OD600Calibration(
         angle="90",
-        calibration_name="test_raw_and_calibrated_data_is_published_if_calibration_is_used",
+        calibration_name="test_raw_published_even_if_calibration_is_bad",
         curve_type="poly",
         curve_data_=[0],  # bad!
         ir_led_intensity=50,
@@ -1468,7 +1504,13 @@ def test_raw_published_even_if_calibration_is_bad() -> None:
     )
 
     with start_od_reading(
-        "REF", "90", interval=2, fake_data=True, experiment=experiment, calibration=calibration
+        "REF",
+        "90",
+        interval=2,
+        fake_data=True,
+        experiment=experiment,
+        calibration=calibration,
+        ir_led_intensity=50,
     ) as od_job:
         pause(6)
         assert isinstance(od_job.calibration_transformer, CachedCalibrationTransformer)

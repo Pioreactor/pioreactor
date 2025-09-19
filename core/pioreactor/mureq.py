@@ -345,7 +345,10 @@ def _prepare_outgoing_headers(
 ) -> HTTPMessage:
     from pioreactor.config import config
 
-    DEFAULT_AUTH = f'Basic {config.get("ui_basic_auth", "api_key", fallback="")}'
+    if config.get("ui_basic_auth", "api_key", fallback=""):
+        default_auth = f'Basic {config.get("ui_basic_auth", "api_key", fallback="")}'
+    else:
+        default_auth = ""
 
     if headers is None:
         headers = HTTPMessage()
@@ -359,7 +362,8 @@ def _prepare_outgoing_headers(
             new_headers[k] = v
         headers = new_headers
     _setdefault_header(headers, "User-Agent", DEFAULT_UA)
-    _setdefault_header(headers, "Authorization", DEFAULT_AUTH)
+    if default_auth:
+        _setdefault_header(headers, "Authorization", default_auth)
     return headers
 
 

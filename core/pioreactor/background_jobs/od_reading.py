@@ -149,10 +149,10 @@ class ADCReader(LoggerMixin):
             self.most_appropriate_AC_hz = None
 
     def _get_ADCs(self) -> dict[pt.PdChannel, madcs._I2C_ADC]:
-        if self.fake_data:
+        if self.fake_data or whoami.is_testing_env():
             from pioreactor.utils.mock import Mock_ADC
 
-            return {c: Mock_ADC(adc_channel=0, i2c_addr=0x00) for c in self.channels}
+            return {c: Mock_ADC(adc_channel=int(c), i2c_addr=0x00) for c in self.channels}
         else:
             adcs: dict[pt.PdChannel, madcs._I2C_ADC] = {}
             for c in self.channels:
@@ -167,16 +167,11 @@ class ADCReader(LoggerMixin):
                     adcs[c] = curried()
                 except (OSError, exc.HardwareError) as e:
                     # I2C / hardware init failure: surface a consistent, actionable error
-                    try:
-                        i2c_addr = getattr(curried, "i2c_address")
-                        addr_str = f" at 0x{i2c_addr:02X}"
-                    except Exception:
-                        addr_str = ""
                     self.logger.exception(
-                        f"Failed to initialize ADC for pd{c}{addr_str}. Is the HAT attached and powered?"
+                        f"Failed to initialize ADC for pd{c}. Is the HAT attached and powered?"
                     )
                     raise exc.HardwareNotFoundError(
-                        f"Failed to initialize ADC for pd{c}{addr_str}. Is the HAT attached and powered?"
+                        f"Failed to initialize ADC for pd{c}. Is the HAT attached and powered?"
                     ) from e
                 except Exception as e:
                     # Unexpected error: log and wrap to avoid crashing with opaque tracebacks
@@ -677,7 +672,7 @@ class CalibrationTransformerProtocol(Protocol):
         ...
 
 
-class NullCalibrationTransformer(LoggerMixin):
+class NullCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
     _logger_name = "calibration_transformer"
 
     def __init__(self) -> None:
@@ -691,7 +686,7 @@ class NullCalibrationTransformer(LoggerMixin):
         return batched_readings
 
 
-class CachedCalibrationTransformer(LoggerMixin):
+class CachedCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
     _logger_name = "calibration_transformer"
 
     def __init__(self) -> None:
@@ -997,14 +992,15 @@ class ODReader(BackgroundJob):
 
          - [REF] is less than 0.256
          - [90] gets lots of light, but less than 3.0, even at a full culture
-         - IR intensity is less than 90%, maybe even 80%
+         - IR intensity always is less than 90%
          - [90] is "far away" from it's blank signal (TODO: how do we quantify this?)
 
         """
+        MAX = 85.0
 
         if len(channel_angle_map) != 1:
             # multiple signals? noop
-            return 70.0
+            return MAX
 
         pd_channel = list(channel_angle_map.keys())[0]
 
@@ -1012,24 +1008,20 @@ class ODReader(BackgroundJob):
 
         if len(on_reading) == 0:
             # no REF, noop
-            return 70.0
+            return MAX
 
         _, REF_on_signal = on_reading.popitem()
 
         ir_intensity_argmax_REF_can_be = initial_ir_intensity / REF_on_signal.reading * 0.250
 
-        ir_intensity_argmax_ANGLE_can_be = (
-            initial_ir_intensity / culture_on_signal.reading * 3
-        ) / 50  # divide by N since the culture is unlikely to Nx.
+        # divide by N since the culture is unlikely to Nx.
+        ir_intensity_argmax_ANGLE_can_be = (initial_ir_intensity / culture_on_signal.reading) * 3.0 / 50
 
-        ir_intensity_max = 85.0
-
-        return round(
-            max(
-                min(ir_intensity_max, ir_intensity_argmax_ANGLE_can_be, ir_intensity_argmax_REF_can_be), 50.0
-            ),
-            2,
-        )
+        ir_led_intensity = min(
+            MAX, ir_intensity_argmax_ANGLE_can_be, ir_intensity_argmax_REF_can_be
+        )  # small as possible
+        ir_led_intensity = max(ir_led_intensity, 50)  # always more than X
+        return round(ir_led_intensity, 2)
 
     def set_interval(self, interval: Optional[float]) -> None:
         if (interval is not None) and interval <= 0:
@@ -1359,10 +1351,10 @@ def start_od_reading(
     # use an OD calibration?
     calibration_transformer: CalibrationTransformerProtocol
     if calibration is True:
-        calibration_transformer = cast(CalibrationTransformerProtocol, CachedCalibrationTransformer())
+        calibration_transformer = CachedCalibrationTransformer()
         calibration_transformer.hydate_models(load_active_calibration("od"))
     elif isinstance(calibration, structs.CalibrationBase):
-        calibration_transformer = cast(CalibrationTransformerProtocol, CachedCalibrationTransformer())
+        calibration_transformer = CachedCalibrationTransformer()
         calibration_transformer.hydate_models(calibration)
     else:
         calibration_transformer = NullCalibrationTransformer()

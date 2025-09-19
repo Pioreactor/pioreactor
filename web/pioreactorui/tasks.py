@@ -74,21 +74,21 @@ def filter_to_allowed_env(env: dict):
     return {k: v for k, v in env.items() if k in ALLOWED_ENV and v is not None and v != "" and v != "None"}
 
 
-def _process_delayed_json_response(worker: str, response: Response) -> tuple[str, Any]:
+def _process_delayed_json_response(unit: str, response: Response) -> tuple[str, Any]:
     """
     Handle delayed HTTP responses (202 with result_url_path) and immediate 200 responses.
-    Returns the worker and the appropriate JSON data or result value.
+    Returns the unit and the appropriate JSON data or result value.
     """
     data = response.json()
     if response.status_code == 202 and "result_url_path" in data:
         sleep(0.1)
-        return _get_from_worker(worker, data["result_url_path"])
+        return _get_from_unit(unit, data["result_url_path"])
     if response.status_code == 200:
         if "task_id" in data:
-            return worker, data["result"]
+            return unit, data["result"]
         else:
-            return worker, data
-    return worker, None
+            return unit, data
+    return unit, None
 
 
 @huey.on_startup()
@@ -411,36 +411,36 @@ def write_config_and_sync(
 
 
 @huey.task(priority=10)
-def post_into_worker(
-    worker: str, endpoint: str, json: dict | None = None, params: dict | None = None
+def post_into_unit(
+    unit: str, endpoint: str, json: dict | None = None, params: dict | None = None
 ) -> tuple[str, Any]:
     try:
-        address = resolve_to_address(worker)
+        address = resolve_to_address(unit)
         r = post_into(address, endpoint, json=json, params=params, timeout=1)
         r.raise_for_status()
 
         if r.content is None:
-            return worker, None
+            return unit, None
 
         # delayed or immediate JSON response
-        return _process_delayed_json_response(worker, r)
+        return _process_delayed_json_response(unit, r)
 
     except (HTTPErrorStatus, HTTPException) as e:
         logger.debug(
-            f"Could not post to {worker}'s {address=}/{endpoint=}, sent {json=} and returned {e}. Check connection? Check port?"
+            f"Could not post to {unit}'s {address=}/{endpoint=}, sent {json=} and returned {e}. Check connection? Check port?"
         )
-        return worker, None
+        return unit, None
     except DecodeError:
         logger.debug(
-            f"Could not decode response from {worker}'s {endpoint=}, sent {json=} and returned {r.body.decode()}."
+            f"Could not decode response from {unit}'s {endpoint=}, sent {json=} and returned {r.body.decode()}."
         )
-        return worker, None
+        return unit, None
 
 
 @huey.task(priority=5)
-def multicast_post_across_cluster(
+def multicast_post(
     endpoint: str,
-    workers: list[str],
+    units: list[str],
     json: dict | list[dict | None] | None = None,
     params: dict | list[dict | None] | None = None,
 ) -> dict[str, Any]:
@@ -448,58 +448,58 @@ def multicast_post_across_cluster(
     assert endpoint.startswith("/unit_api")
 
     if not isinstance(json, list):
-        json = [json] * len(workers)
+        json = [json] * len(units)
 
     assert json is not None
 
     if not isinstance(params, list):
-        params = [params] * len(workers)
+        params = [params] * len(units)
 
-    tasks = post_into_worker.map(((workers[i], endpoint, json[i], params[i]) for i in range(len(workers))))
+    tasks = post_into_unit.map(((units[i], endpoint, json[i], params[i]) for i in range(len(units))))
 
     return {
-        worker: response for (worker, response) in tasks.get(blocking=True, timeout=30)
+        unit: response for (unit, response) in tasks.get(blocking=True, timeout=30)
     }  # add a timeout so that we don't hold up a thread forever.
 
 
 @huey.task(priority=10)
-def get_from_worker(
-    worker: str, endpoint: str, json: dict | None = None, timeout=5.0, return_raw=False
+def get_from_unit(
+    unit: str, endpoint: str, json: dict | None = None, timeout=5.0, return_raw=False
 ) -> tuple[str, Any]:
-    return _get_from_worker(worker, endpoint, json=json, timeout=timeout, return_raw=return_raw)
+    return _get_from_unit(unit, endpoint, json=json, timeout=timeout, return_raw=return_raw)
 
 
-def _get_from_worker(
-    worker: str, endpoint: str, json: dict | None = None, timeout=5.0, return_raw=False
+def _get_from_unit(
+    unit: str, endpoint: str, json: dict | None = None, timeout=5.0, return_raw=False
 ) -> tuple[str, Any]:
     try:
-        address = resolve_to_address(worker)
+        address = resolve_to_address(unit)
 
         r = get_from(address, endpoint, json=json, timeout=timeout)
         r.raise_for_status()
 
         if return_raw:
-            return worker, r.content or None
+            return unit, r.content or None
 
         # delayed or immediate JSON response
-        return _process_delayed_json_response(worker, r)
+        return _process_delayed_json_response(unit, r)
 
     except (HTTPErrorStatus, HTTPException) as e:
         logger.debug(
-            f"Could not get from {worker}'s {address=}, {endpoint=}, sent {json=} and returned {e}. Check connection? Check port?"
+            f"Could not get from {unit}'s {address=}, {endpoint=}, sent {json=} and returned {e}. Check connection? Check port?"
         )
-        return worker, None
+        return unit, None
     except DecodeError:
         logger.debug(
-            f"Could not decode response from {worker}'s {endpoint=}, sent {json=} and returned {r.body.decode()}."
+            f"Could not decode response from {unit}'s {endpoint=}, sent {json=} and returned {r.body.decode()}."
         )
-        return worker, None
+        return unit, None
 
 
 @huey.task(priority=5)
-def multicast_get_across_cluster(
+def multicast_get(
     endpoint: str,
-    workers: list[str],
+    units: list[str],
     json: dict | list[dict | None] | None = None,
     timeout: float = 5.0,
     return_raw=False,
@@ -508,84 +508,78 @@ def multicast_get_across_cluster(
     assert endpoint.startswith("/unit_api")
 
     if not isinstance(json, list):
-        json = [json] * len(workers)
+        json = [json] * len(units)
 
-    tasks = get_from_worker.map(
-        ((workers[i], endpoint, json[i], timeout, return_raw) for i in range(len(workers)))
-    )
+    tasks = get_from_unit.map(((units[i], endpoint, json[i], timeout, return_raw) for i in range(len(units))))
     unsorted_responses = {
-        worker: response for (worker, response) in tasks.get(blocking=True, timeout=15)
+        unit: response for (unit, response) in tasks.get(blocking=True, timeout=15)
     }  # add a timeout so that we don't hold up a thread forever.
 
     return dict(sorted(unsorted_responses.items()))  # always sort alphabetically for downstream uses.
 
 
 @huey.task(priority=10)
-def patch_into_worker(worker: str, endpoint: str, json: dict | None = None) -> tuple[str, Any]:
+def patch_into_unit(unit: str, endpoint: str, json: dict | None = None) -> tuple[str, Any]:
     try:
-        address = resolve_to_address(worker)
+        address = resolve_to_address(unit)
         r = patch_into(address, endpoint, json=json, timeout=1)
         r.raise_for_status()
 
         if r.content is None:
-            return worker, None
+            return unit, None
 
         # delayed or immediate JSON response
-        return _process_delayed_json_response(worker, r)
+        return _process_delayed_json_response(unit, r)
 
     except (HTTPErrorStatus, HTTPException) as e:
         logger.debug(
-            f"Could not PATCH to {worker}'s {address=}/{endpoint=}, sent {json=} and returned {e}. Check connection? Check port?"
+            f"Could not PATCH to {unit}'s {address=}/{endpoint=}, sent {json=} and returned {e}. Check connection? Check port?"
         )
-        return worker, None
+        return unit, None
     except DecodeError:
         logger.debug(
-            f"Could not decode response from {worker}'s {endpoint=}, sent {json=} and returned {r.body.decode()}."
+            f"Could not decode response from {unit}'s {endpoint=}, sent {json=} and returned {r.body.decode()}."
         )
-        return worker, None
+        return unit, None
 
 
 @huey.task(priority=5)
-def multicast_patch_across_cluster(
-    endpoint: str, workers: list[str], json: dict | None = None
-) -> dict[str, Any]:
+def multicast_patch(endpoint: str, units: list[str], json: dict | None = None) -> dict[str, Any]:
     # this function "consumes" one huey thread waiting fyi
     assert endpoint.startswith("/unit_api")
 
-    tasks = patch_into_worker.map(((worker, endpoint, json) for worker in workers))
+    tasks = patch_into_unit.map(((unit, endpoint, json) for unit in units))
 
     return {
-        worker: response for (worker, response) in tasks.get(blocking=True, timeout=30)
+        unit: response for (unit, response) in tasks.get(blocking=True, timeout=30)
     }  # add a timeout so that we don't hold up a thread forever.
 
 
 @huey.task(priority=10)
-def delete_from_worker(worker: str, endpoint: str, json: dict | None = None) -> tuple[str, Any]:
+def delete_from_unit(unit: str, endpoint: str, json: dict | None = None) -> tuple[str, Any]:
     try:
-        r = delete_from(resolve_to_address(worker), endpoint, json=json, timeout=1)
+        r = delete_from(resolve_to_address(unit), endpoint, json=json, timeout=1)
         r.raise_for_status()
-        return worker, r.json() if r.content else None
+        return unit, r.json() if r.content else None
     except (HTTPErrorStatus, HTTPException) as e:
         logger.debug(
-            f"Could not DELETE {worker}'s {endpoint=}, sent {json=} and returned {e}. Check connection?"
+            f"Could not DELETE {unit}'s {endpoint=}, sent {json=} and returned {e}. Check connection?"
         )
-        return worker, None
+        return unit, None
     except DecodeError:
         logger.debug(
-            f"Could not decode response from {worker}'s {endpoint=}, sent {json=} and returned {r.body.decode()}."
+            f"Could not decode response from {unit}'s {endpoint=}, sent {json=} and returned {r.body.decode()}."
         )
-        return worker, None
+        return unit, None
 
 
 @huey.task(priority=5)
-def multicast_delete_across_cluster(
-    endpoint: str, workers: list[str], json: dict | None = None
-) -> dict[str, Any]:
+def multicast_delete(endpoint: str, units: list[str], json: dict | None = None) -> dict[str, Any]:
     # this function "consumes" one huey thread waiting fyi
     assert endpoint.startswith("/unit_api")
 
-    tasks = delete_from_worker.map(((worker, endpoint, json) for worker in workers))
+    tasks = delete_from_unit.map(((unit, endpoint, json) for unit in units))
 
     return {
-        worker: response for (worker, response) in tasks.get(blocking=True, timeout=30)
+        unit: response for (unit, response) in tasks.get(blocking=True, timeout=30)
     }  # add a timeout so that we don't hold up a thread forever.

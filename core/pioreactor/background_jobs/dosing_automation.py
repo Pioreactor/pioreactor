@@ -150,11 +150,8 @@ class AltMediaFractionCalculator:
 
         return clamp(
             0.0,
-            round(
-                (current_alt_media_fraction * current_volume_ml + alt_media_delta)
-                / (current_volume_ml + total_addition),
-                10,
-            ),
+            (current_alt_media_fraction * current_volume_ml + alt_media_delta)
+            / (current_volume_ml + total_addition),
             1.0,
         )
 
@@ -497,8 +494,9 @@ class DosingAutomationJob(AutomationJob):
         self._update_liquid_volume(dosing_event)
 
     def _update_alt_media_fraction(self, dosing_event: structs.DosingEvent) -> None:
-        self.alt_media_fraction = AltMediaFractionCalculator.update(
-            dosing_event, self.alt_media_fraction, self.current_volume_ml
+        self.alt_media_fraction = round(
+            AltMediaFractionCalculator.update(dosing_event, self.alt_media_fraction, self.current_volume_ml),
+            10,
         )
 
         # add to cache
@@ -506,8 +504,8 @@ class DosingAutomationJob(AutomationJob):
             cache[self.experiment] = self.alt_media_fraction
 
     def _update_liquid_volume(self, dosing_event: structs.DosingEvent) -> None:
-        self.current_volume_ml = VolumeCalculator.update(
-            dosing_event, self.current_volume_ml, self.max_working_volume_ml
+        self.current_volume_ml = round(
+            VolumeCalculator.update(dosing_event, self.current_volume_ml, self.max_working_volume_ml), 10
         )
 
         # add to cache

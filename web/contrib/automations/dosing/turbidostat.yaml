@@ -2,8 +2,9 @@
 display_name: Turbidostat
 automation_name: turbidostat
 description: >
-  Every half-minute, check if the normalized OD or OD, is above the target value. If so, exchange volume amount.
+  Every 15 sec, check if the normalized OD or OD, is above the target value. If so, exchange volume amount.
 
+  Requires a calibrated media pump and calibrated waste pump.
 
   Only set either Target nOD or Target OD, not both.
 

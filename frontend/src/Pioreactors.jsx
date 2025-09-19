@@ -51,6 +51,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import AdvancedConfigButton from "./components/AdvancedConfigDialog"
 import ChangeAutomationsDialog from "./components/ChangeAutomationsDialog"
 import ChangeDosingAutomationsDialog from "./components/ChangeDosingAutomationsDialog"
+import AutomationAdvancedConfigButton from "./components/AutomationAdvancedConfigDialog"
 import ActionDosingForm from "./components/ActionDosingForm"
 import ActionManualDosingForm from "./components/ActionManualDosingForm"
 import ActionCirculatingForm from "./components/ActionCirculatingForm"
@@ -1092,6 +1093,17 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
                   Stop
                 </Button>
 
+                <AutomationAdvancedConfigButton
+                  jobName="temperature_automation"
+                  displayName="Temperature automation"
+                  automationType="temperature"
+                  unit={unit}
+                  experiment={experiment}
+                  label={label}
+                  config={config?.["temperature_automation.config"] || {}}
+                  no_skip_first_run={true}
+                />
+
                </React.Fragment>
               }
             </div>
@@ -1148,6 +1160,19 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
                 >
                   Stop
                 </Button>
+
+                <AutomationAdvancedConfigButton
+                  jobName="dosing_automation"
+                  displayName="Dosing automation"
+                  automationType="dosing"
+                  unit={unit}
+                  experiment={experiment}
+                  label={label}
+                  config={config?.["dosing_automation.config"] || {}}
+                  maxVolume={parseFloat(dosingControlJob.publishedSettings.max_working_volume_ml.value) || parseFloat(config?.bioreactor?.max_working_volume_ml) || 10}
+                  liquidVolume={parseFloat(dosingControlJob.publishedSettings.current_volume_ml.value) || parseFloat(config?.bioreactor?.current_volume_ml) || 10}
+                  threshold={modelDetails.reactor_max_fill_volume_ml}
+                />
                </React.Fragment>
               }
             </div>
@@ -1210,6 +1235,17 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
                 >
                   Stop
                 </Button>
+
+                <AutomationAdvancedConfigButton
+                  jobName="led_automation"
+                  displayName="LED automation"
+                  automationType="led"
+                  unit={unit}
+                  experiment={experiment}
+                  label={label}
+                  config={config?.["led_automation.config"] || {}}
+                  no_skip_first_run={false}
+                />
                </React.Fragment>
               }
             </div>

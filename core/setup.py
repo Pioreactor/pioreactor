@@ -25,11 +25,12 @@ CORE_REQUIREMENTS = [
     "python-dotenv==1.0.1",
     "Werkzeug==3.1.0",
     "packaging==24.1",
-    "mcp_utils @ git+https://github.com/pioreactor/mcp-utils.git@242a8e1",
 ]
 
 
-LEADER_REQUIREMENTS: list[str] = []
+LEADER_REQUIREMENTS: list[str] = [
+    "mcp-utils-msgspec==2.1.0",
+]
 
 
 WORKER_REQUIREMENTS = [
@@ -47,6 +48,7 @@ WORKER_REQUIREMENTS = [
     "pyserial==3.5",
     "pyusb==1.2.1",
     "rpi_hardware_pwm==0.3.0",
+    "smbus2==0.5.0",
 ]
 
 
