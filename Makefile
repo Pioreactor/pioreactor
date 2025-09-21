@@ -63,7 +63,7 @@ test: venv  ## Run all pytest suites
 	@$(ACTIVATE) && pytest $(CORE_DIR)/tests $(API_DIR)/tests --timeout 600 --random-order --durations 15
 
 core-test: venv  ## Backend tests only
-	@$(ACTIVATE) && pytest $(CORE_DIR)/tests --timeout 600 --random-order --durations 15
+	@$(ACTIVATE) && pytest $(CORE_DIR)/tests --timeout 600 --random-order --durations 15 --random-order-bucket=module --random-order-seed=904213
 
 web-test: venv  ## API (Flask) tests only
 	@$(ACTIVATE) && pytest $(API_DIR)/tests --timeout 600 --random-order --durations 15

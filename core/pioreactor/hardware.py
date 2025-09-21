@@ -6,8 +6,7 @@ Overview
 - Hardware config is defined by user-editable YAML files only.
 - Mods (subsystems) are layered by precedence: hats/<hat_version> -> models/<model>/<version>.
   Later layer overrides earlier. Paths are under ~/.pioreactor/hardware/.
-- Required mods must exist and will raise if missing keys; optional mods are "gated" by the
-  presence of a model file and otherwise ignored.
+- Required mods must exist and will raise if missing keys.
 
 Paths
 - Base: ~/.pioreactor/hardware
@@ -19,14 +18,6 @@ Layering rules
   1) hats/<hat_version>/<mod>.yaml
   2) models/<model>/<version>/<mod>.yaml
   Later keys override earlier ones.
-
-Capability gating (important)
-- A mod is considered enabled for a model only if models/<model>/<version>/<mod>.yaml exists.
-- For optional mods, hats/ alone does NOT enable the feature.
-- For required mods, model YAML must exist and missing keys will raise clearly.
-
-Detection policy
-- Detect HAT version only (as today). Avoid runtime I2C probing for other devices.
 
 Back-compat exports
 - Keep existing module attributes used across the codebase:
@@ -59,17 +50,6 @@ YAML schemas (initial scope)
   - sda_pin: int (default 2)
   - scl_pin: int (default 3)
 
-APIs for loaders
-- get_layered_mod_config(mod): dict
-  Returns the merged config for required mods; used internally by this module.
-
-Testing/development notes
-- In tests, DOT_PIOREACTOR env var points to a local .pioreactor folder used for YAMLs.
-- On devices, loader reads from /home/pioreactor/.pioreactor/.
-
-Failure behaviour
-- Missing required files/keys raise HardwareNotFoundError with explicit paths/keys.
-- Invalid YAML raises HardwareError with a parse message.
 """
 from __future__ import annotations
 
@@ -83,10 +63,8 @@ from pioreactor import types as pt
 from pioreactor.utils import adcs
 from pioreactor.version import hardware_version_info
 from pioreactor.version import rpi_version_info
-from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import get_pioreactor_model
-
-## All GPIO pins below are BCM numbered
+from pioreactor.whoami import is_testing_env
 
 
 def _hat_version_text() -> str:
@@ -122,7 +100,6 @@ def get_layered_mod_config(mod: str) -> dict[str, Any]:
 
     Later layer (model) overrides earlier (hat). Files are optional; missing
     keys will be caught when materializing constants below.
-    If require_model_opt_in is True, return {} unless the model provides the mod file.
     """
     base = Path(environ["DOT_PIOREACTOR"]) / "hardware"
 
