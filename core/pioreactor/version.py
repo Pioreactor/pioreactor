@@ -21,7 +21,7 @@ def get_hardware_version() -> tuple[int, int] | tuple[int, int, str]:
             text = f.read().rstrip("\x00")
             return (int(text[-2]), int(text[-1]))
     except FileNotFoundError:
-        from whoami import is_testing_env
+        from pioreactor.whoami import is_testing_env
 
         if is_testing_env():
             return (1, 2)
