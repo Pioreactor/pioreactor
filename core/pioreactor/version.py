@@ -15,17 +15,15 @@ def get_hardware_version() -> tuple[int, int] | tuple[int, int, str]:
         # ex: > HARDWARE=1.1 pio ...
         return int(os.environ["HARDWARE"].split(".")[0]), int(os.environ["HARDWARE"].split(".")[1])
 
+    elif os.environ.get("TESTING", "") == "1": # hack
+        return (1, 2)
+
     try:
         # check version in /proc/device-tree/hat/
         with open("/proc/device-tree/hat/product_ver", "r") as f:
             text = f.read().rstrip("\x00")
             return (int(text[-2]), int(text[-1]))
     except FileNotFoundError:
-        from pioreactor.whoami import is_testing_env
-
-        if is_testing_env():
-            return (1, 2)
-
         # no eeprom? Probably dev board with no EEPROM, or testing env, or EEPROM not written, or cable exists between HAT and Pi -> signal degradation.
         return (0, 0)
 
