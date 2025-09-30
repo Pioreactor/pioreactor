@@ -850,6 +850,48 @@ function ManagePioreactorMenu({unit, isLeader}){
     }
   };
 
+  const handleImport = async (event) => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) {
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('archive', file);
+
+    try {
+      const response = await fetch(`/api/units/${unit}/import_zipped_dot_pioreactor`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || 'Import failed');
+      }
+
+      confirm({
+        description: 'Import succeeded. The Pioreactor is rebooting now.',
+        confirmationText: 'Ok',
+        confirmationButtonProps: {color: 'primary'},
+      });
+    } catch (err) {
+      console.error('Import failed:', err);
+      confirm({
+        description: `Import failed: ${err.message}`,
+        title: 'Import failed',
+        confirmationText: 'Ok',
+        confirmationButtonProps: {color: 'primary'},
+      });
+    } finally {
+      event.target.value = '';
+    }
+  };
+
+  const handleImportClick = () => {
+    document.getElementById(`import-dot-pioreactor-${unit}`).click();
+  };
+
   const handleRemove = () => {
     confirm({
       description: 'Removing this Pioreactor will unassign it from any experiments, halt all activity running, and remove it from your inventory. No experiment data is removed, and calibration data still exists on the worker.',
@@ -894,12 +936,22 @@ function ManagePioreactorMenu({unit, isLeader}){
           <ListItemText>Shutdown</ListItemText>
         </MenuItem>
         <MenuItem onClick={handleExport}>
-          <ListItemText>Export</ListItemText>
+          <ListItemText>Export system files</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleImportClick}>
+          <ListItemText>Import system files</ListItemText>
         </MenuItem>
         <MenuItem onClick={handleRemove} disabled={isLeader} sx={{ color: 'secondary.main' }}>
           <ListItemText>Remove</ListItemText>
         </MenuItem>
       </Menu>
+      <input
+        id={`import-dot-pioreactor-${unit}`}
+        type="file"
+        accept="application/zip"
+        style={{display: 'none'}}
+        onChange={handleImport}
+      />
     </div>
   );
 }

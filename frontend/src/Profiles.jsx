@@ -254,7 +254,6 @@ function RunProfilesContainer(props) {
 
 function RunningProfilesContainer() {
   const confirm = useConfirm();
-  const navigate = useNavigate();
   const { runningProfiles, loading, stopProfile } = useRunningProfiles();
 
   const onStop = (job_id) => {
@@ -305,9 +304,7 @@ function RunningProfilesContainer() {
                           sx={{maxWidth: "210px"}}
                           clickable
                           component={Link}
-                          onClick={() => {
-                            navigate(`/experiment-profiles/${element.settings.profile_filename}`);
-                          }}
+                          to={`/experiment-profiles/${encodeURIComponent(element.settings.profile_filename)}`}
                         />
                       </TableCell>
                       <TableCell align="right">

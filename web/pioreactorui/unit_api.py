@@ -1,13 +1,19 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import json
 import os
+import shutil
 import zipfile
 from io import BytesIO
 from pathlib import Path
 from subprocess import run
 from tempfile import NamedTemporaryFile
+from tempfile import mkdtemp
 from time import sleep
+
+import grp
+import pwd
 
 from flask import abort
 from flask import after_this_request
@@ -48,6 +54,58 @@ from .utils import is_valid_unix_filename
 AllCalibrations = subclass_union(CalibrationBase)
 
 unit_api = Blueprint("unit_api", __name__, url_prefix="/unit_api")
+
+
+METADATA_FILENAME = "pioreactor_export_metadata.json"
+
+
+def _safe_zip_members(members: list[zipfile.ZipInfo]) -> None:
+    for member in members:
+        filename = member.filename
+        if filename.startswith("/"):
+            raise ValueError("Archive contains absolute paths, aborting import.")
+        path = Path(filename)
+        if ".." in path.parts:
+            raise ValueError("Archive contains path traversal, aborting import.")
+        # prevent zip entries that act as symlinks
+        is_symlink = member.external_attr >> 16 & 0o120000 == 0o120000
+        if is_symlink:
+            raise ValueError("Archive contains symbolic links, aborting import.")
+
+
+def _apply_ownership(target: Path, user: str, group: str) -> None:
+    try:
+        uid = pwd.getpwnam(user).pw_uid
+        gid = grp.getgrnam(group).gr_gid
+    except KeyError:
+        publish_to_error_log(
+            f"Unable to resolve ownership for {user}:{group}", "import_zipped_dot_pioreactor"
+        )
+        return
+
+    for root, dirs, files in os.walk(target):
+        try:
+            os.chown(root, uid, gid)
+        except PermissionError:
+            publish_to_error_log(
+                f"Failed to set ownership on {root}", "import_zipped_dot_pioreactor"
+            )
+        for name in dirs:
+            path = os.path.join(root, name)
+            try:
+                os.chown(path, uid, gid)
+            except PermissionError:
+                publish_to_error_log(
+                    f"Failed to set ownership on {path}", "import_zipped_dot_pioreactor"
+                )
+        for name in files:
+            path = os.path.join(root, name)
+            try:
+                os.chown(path, uid, gid)
+            except PermissionError:
+                publish_to_error_log(
+                    f"Failed to set ownership on {path}", "import_zipped_dot_pioreactor"
+                )
 
 
 # Endpoint to check the status of a background task. unit_api is required to ping workers (who only expose unit_api)
@@ -725,6 +783,14 @@ def get_entire_dot_pioreactor_as_zip() -> ResponseReturnValue:
     tmp_path = Path(tmp.name)
     tmp.close()  # will write to this path below
 
+    exported_at = current_utc_timestamp()
+    leader_hostname = ""
+    try:
+        leader_hostname = get_leader_hostname()
+    except Exception:
+        # avoid failing the export if the leader hostname can't be resolved
+        leader_hostname = "unknown"
+
     try:
         with zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as zf:
             skip_backup = base_dir / "storage" / "pioreactor.sqlite.backup"
@@ -739,6 +805,16 @@ def get_entire_dot_pioreactor_as_zip() -> ResponseReturnValue:
                     zf.write(str(path), arcname=str(arcname))
                 except Exception as e:
                     publish_to_error_log(f"Failed to add {path} to zip: {e}", "zipped_dot_pioreactor")
+
+            metadata = {
+                "metadata_version": 1,
+                "name": HOSTNAME,
+                "leader_hostname": leader_hostname,
+                "is_leader": HOSTNAME == leader_hostname,
+                "app_version": VERSION,
+                "exported_at_utc": exported_at,
+            }
+            zf.writestr(METADATA_FILENAME, json.dumps(metadata))
 
         @after_this_request
         def cleanup_temp_file(response: Response) -> Response:
@@ -756,6 +832,89 @@ def get_entire_dot_pioreactor_as_zip() -> ResponseReturnValue:
         )
     finally:
         pass
+
+
+@unit_api.route("/import_zipped_dot_pioreactor", methods=["POST"])
+def import_dot_pioreactor_from_zip() -> ResponseReturnValue:
+    if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_FILE_SYSTEM"):
+        abort(403, "DISALLOW_UI_FILE_SYSTEM is present")
+
+    uploaded = request.files.get("archive")
+    if uploaded is None or uploaded.filename == "":
+        abort(400, "No archive uploaded")
+
+    tmp = NamedTemporaryFile(prefix="import_dot_pioreactor_", suffix=".zip", delete=False)
+    tmp_path = Path(tmp.name)
+    uploaded.save(tmp_path)
+    tmp.close()
+
+    extraction_root = Path(mkdtemp(prefix="dot_pioreactor_import_"))
+
+    try:
+        with zipfile.ZipFile(tmp_path, "r") as zf:
+            try:
+                _safe_zip_members(zf.infolist())
+            except ValueError as exc:
+                abort(400, str(exc))
+
+            try:
+                metadata_bytes = zf.read(METADATA_FILENAME)
+            except KeyError:
+                abort(400, "Archive missing metadata")
+
+            metadata = json.loads(metadata_bytes.decode("utf-8"))
+            exported_name = metadata.get("name")
+
+            if exported_name and exported_name != HOSTNAME:
+                abort(
+                    400,
+                    f"Archive prepared for {exported_name}, cannot import into {HOSTNAME}",
+                )
+
+            zf.extractall(extraction_root)
+    except zipfile.BadZipFile:
+        abort(400, "Uploaded file is not a valid zip archive")
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+
+    backup_dir = Path("/tmp") / f"{HOSTNAME}_dot_pioreactor_backup_{current_utc_timestamp()}"
+
+    try:
+        shutil.move(str(base_dir), str(backup_dir))
+    except Exception as exc:
+        shutil.rmtree(extraction_root, ignore_errors=True)
+        abort(500, f"Failed to backup existing DOT_PIOREACTOR: {exc}")
+
+    try:
+        base_dir.mkdir(parents=True, exist_ok=True)
+        for item in extraction_root.iterdir():
+            shutil.move(str(item), base_dir / item.name)
+    except Exception as exc:
+        # Attempt to roll back
+        shutil.rmtree(base_dir, ignore_errors=True)
+        try:
+            shutil.move(str(backup_dir), str(base_dir))
+        except Exception:
+            publish_to_error_log(
+                "Failed to restore DOT_PIOREACTOR from backup", "import_zipped_dot_pioreactor"
+            )
+        shutil.rmtree(extraction_root, ignore_errors=True)
+        abort(500, f"Failed to write new DOT_PIOREACTOR contents: {exc}")
+    finally:
+        shutil.rmtree(extraction_root, ignore_errors=True)
+
+    # _apply_ownership(base_dir, "pioreactor", "www-data")
+
+    try:
+        tasks.reboot()
+    except Exception as exc:
+        publish_to_error_log(str(exc), "import_zipped_dot_pioreactor")
+        abort(500, "Failed to initiate reboot")
+
+    return jsonify({"status": "rebooting"}), 202
 
 
 @unit_api.route("/calibrations/<device>", methods=["GET"])

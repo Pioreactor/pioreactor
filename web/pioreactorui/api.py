@@ -6,6 +6,7 @@ import os
 import re
 import sqlite3
 import tempfile
+import uuid
 import zipfile
 from io import BytesIO
 from pathlib import Path
@@ -31,6 +32,10 @@ from pioreactor.models import get_registered_models
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import Dataset
 from pioreactor.structs import subclass_union
+from pioreactor.mureq import HTTPErrorStatus
+from pioreactor.mureq import HTTPException
+from pioreactor.pubsub import post_into
+from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import is_testing_env
@@ -128,6 +133,24 @@ def broadcast_delete_across_workers(endpoint: str, json: dict | None = None) -> 
 def broadcast_patch_across_workers(endpoint: str, json: dict | None = None) -> Result:
     assert endpoint.startswith("/unit_api")
     return tasks.multicast_patch(endpoint, get_all_workers(), json=json)
+
+
+def _build_single_file_multipart(
+    field_name: str, filename: str, content_type: str, payload: bytes
+) -> tuple[str, bytes]:
+    boundary = f"----PioreactorBoundary{uuid.uuid4().hex}"
+    content_type = content_type or "application/octet-stream"
+    parts = [
+        f"--{boundary}\r\n".encode("utf-8"),
+        f"Content-Disposition: form-data; name=\"{field_name}\"; filename=\"{filename}\"\r\n".encode(
+            "utf-8"
+        ),
+        f"Content-Type: {content_type}\r\n\r\n".encode("utf-8"),
+        payload,
+        b"\r\n",
+        f"--{boundary}--\r\n".encode("utf-8"),
+    ]
+    return boundary, b"".join(parts)
 
 
 @api.route("/models", methods=["GET"])
@@ -1284,6 +1307,50 @@ def get_entire_dot_pioreactor(pioreactor_unit: str) -> ResponseReturnValue:
         download_name="cluster_dot_pioreactor.zip",
         mimetype="application/zip",
     )
+
+
+@api.route("/units/<pioreactor_unit>/import_zipped_dot_pioreactor", methods=["POST"])
+def import_dot_pioreactor_archive(pioreactor_unit: str) -> ResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        abort(400, "Cannot import to $broadcast; choose a specific Pioreactor.")
+
+    uploaded = request.files.get("archive")
+    if uploaded is None or uploaded.filename == "":
+        abort(400, "No archive uploaded")
+
+    try:
+        filename = secure_filename(uploaded.filename) or "archive.zip"
+        temp_basename = f"import_dot_pioreactor_{uuid.uuid4().hex}_{filename}"
+        temp_path = Path(safe_join(tempfile.gettempdir(), temp_basename))
+        uploaded.save(temp_path)
+    except Exception as exc:
+        publish_to_error_log(str(exc), "import_zipped_dot_pioreactor")
+        abort(500, "Failed to save uploaded archive")
+
+    payload = temp_path.read_bytes()
+    temp_path.unlink(missing_ok=True)
+
+    boundary, body = _build_single_file_multipart(
+        field_name="archive",
+        filename=filename,
+        content_type="application/zip",
+        payload=payload,
+    )
+
+    try:
+        response = post_into(
+            resolve_to_address(pioreactor_unit),
+            "/unit_api/import_zipped_dot_pioreactor",
+            body=body,
+            headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+            timeout=120,
+        )
+    except (HTTPErrorStatus, HTTPException) as exc:
+        publish_to_error_log(str(exc), "import_zipped_dot_pioreactor")
+        abort(502, f"Failed to contact {pioreactor_unit}")
+
+
+    return 202, response.json()
 
 
 @api.route("/workers/<pioreactor_unit>/calibrations/<device>", methods=["GET"])

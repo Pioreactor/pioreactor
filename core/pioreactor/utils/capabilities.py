@@ -32,7 +32,7 @@ import click
 import pioreactor
 from pioreactor.automations.base import AutomationJob
 from pioreactor.background_jobs.base import _BackgroundJob
-from pioreactor.cli.run import run  # noqa: ensure commands and plugins are loaded
+from pioreactor.cli.run import run
 
 
 _MODULES_LOADED: bool = False

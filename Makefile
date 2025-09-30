@@ -85,7 +85,7 @@ frontend-dev:  ## Run React dev server on :3000
 # --- background task queue ----------------------------------------------------
 huey-dev: venv  ## Run the Huey consumer with sensible dev flags
 	@$(ACTIVATE) && cd $(API_DIR) && \
-	huey_consumer pioreactorui.tasks.huey -n -b 1.001 -w 10 -f -C -d 0.05
+	huey_consumer pioreactorui.tasks.huey -n -b 1.001 -w 10 -f -C -d 0.05 --verbose
 
 # --- clean-up -----------------------------------------------------------------
 clean:  ## Delete bytecode, build artefacts, node deps
