@@ -1,4 +1,9 @@
-import React from "react";
+import React, { useRef, useState } from "react";
+import IconButton from "@mui/material/IconButton";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import Tooltip from "@mui/material/Tooltip";
+import DownloadIcon from "@mui/icons-material/Download";
 import Typography from '@mui/material/Typography';
 
 import {
@@ -65,6 +70,120 @@ function generatePolynomialData(calibration, stepCount = 50) {
 }
 
 function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlightedModel, title }) {
+  const [exportAnchorEl, setExportAnchorEl] = useState(null);
+  const chartContainerRef = useRef(null);
+
+  const handleOpenExportMenu = (event) => {
+    setExportAnchorEl(event.currentTarget);
+  };
+
+  const handleCloseExportMenu = () => {
+    setExportAnchorEl(null);
+  };
+
+  const getDownloadFilename = (extension) => {
+    const raw = title || deviceName || "calibration-chart";
+    const slug = raw
+      .toString()
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    const safeName = slug || "calibration-chart";
+    return `${safeName}.${extension}`;
+  };
+
+  const triggerBlobDownload = (blob, filename) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const triggerDataUrlDownload = (dataUrl, filename) => {
+    const link = document.createElement("a");
+    link.href = dataUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const exportChart = (format) => {
+    const container = chartContainerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const svgElement = container.querySelector("svg");
+    if (!svgElement) {
+      return;
+    }
+
+    const clonedSvg = svgElement.cloneNode(true);
+    clonedSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    clonedSvg.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+
+    const styleNode = document.createElement("style");
+    styleNode.setAttribute("type", "text/css");
+    styleNode.innerHTML = "* { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important; }";
+    clonedSvg.insertBefore(styleNode, clonedSvg.firstChild);
+
+    const serializer = new XMLSerializer();
+    const serializedSvg = serializer.serializeToString(clonedSvg);
+    const svgWithHeader = `<?xml version=\"1.0\" encoding=\"utf-8\"?>\n${serializedSvg}`;
+    const svgBlob = new Blob([svgWithHeader], { type: "image/svg+xml;charset=utf-8" });
+
+    if (format === "svg") {
+      triggerBlobDownload(svgBlob, getDownloadFilename("svg"));
+      return;
+    }
+
+    if (format !== "png") {
+      return;
+    }
+
+    const width = Number(clonedSvg.getAttribute("width")) || svgElement.clientWidth || 1050;
+    const height = Number(clonedSvg.getAttribute("height")) || svgElement.clientHeight || 350;
+    const scaleFactor = 2;
+
+    const url = URL.createObjectURL(svgBlob);
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = width * scaleFactor;
+      canvas.height = height * scaleFactor;
+      const context = canvas.getContext("2d");
+      if (!context) {
+        URL.revokeObjectURL(url);
+        return;
+      }
+      context.scale(scaleFactor, scaleFactor);
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, width, height);
+      context.drawImage(image, 0, 0, width, height);
+      const dataUrl = canvas.toDataURL("image/png", 1.0);
+      triggerDataUrlDownload(dataUrl, getDownloadFilename(format));
+      URL.revokeObjectURL(url);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+    };
+    image.src = url;
+  };
+
+  const handleDownloadSelection = (format) => {
+    setExportAnchorEl(null);
+    exportChart(format);
+  };
+
+  const exportMenuOpen = Boolean(exportAnchorEl);
+
   if (!deviceName){
     return <Typography variant="body2" component="p" color="textSecondary">No calibrations exist. Try creating a calibration from the command line.</Typography>
   }
@@ -81,6 +200,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
 
   const width = 1050
   return (
+    <div ref={chartContainerRef} style={{ position: "relative" }}>
       <VictoryChart
         domainPadding={10}
         height={350}
@@ -224,6 +344,34 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
         })}
 
       </VictoryChart>
+        <IconButton
+          aria-label={`download-${deviceName || 'calibration'}`}
+          size="small"
+          onClick={handleOpenExportMenu}
+          sx={{
+            position: "absolute",
+            bottom: 8,
+            right: 8,
+            backgroundColor: "rgba(255,255,255,0.85)",
+          }}
+        >
+          <DownloadIcon fontSize="small" />
+        </IconButton>
+      <Menu
+        anchorEl={exportAnchorEl}
+        open={exportMenuOpen}
+        onClose={handleCloseExportMenu}
+        anchorOrigin={{ horizontal: "right", vertical: "top" }}
+        transformOrigin={{ horizontal: "right", vertical: "bottom" }}
+      >
+        <MenuItem onClick={() => handleDownloadSelection('png')}>
+          Download PNG
+        </MenuItem>
+        <MenuItem onClick={() => handleDownloadSelection('svg')}>
+          Download SVG
+        </MenuItem>
+      </Menu>
+    </div>
   );
 }
 

@@ -448,7 +448,6 @@ function CalibrationData() {
           </Box>
         </Box>
 
-        <Box sx={{display: "flex", justifyContent: "center" }}>
           <CalibrationChart
             highlightedModel={highlightedModel}
             calibrations={filteredCalibrations}
@@ -457,7 +456,6 @@ function CalibrationData() {
             title={`Calibrations for ${selectedDevice}`}
           />
 
-        </Box>
       </Box>
 
       <TableContainer sx={{px: 5, mt: 1, mb: 1,  width: "100%", overflowY: "auto", overflowX: 'auto',}}>

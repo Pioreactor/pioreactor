@@ -1,4 +1,9 @@
 import React from "react";
+import IconButton from "@mui/material/IconButton";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import Tooltip from "@mui/material/Tooltip";
+import DownloadIcon from "@mui/icons-material/Download";
 import {
   VictoryChart,
   VictoryLabel,
@@ -37,6 +42,7 @@ class Chart extends React.Component {
       hiddenSeries: new Set(),
       names: [],
       fetched: false,
+      exportAnchorEl: null,
     };
 
     this.topics = toArray(this.props.topic)
@@ -47,6 +53,10 @@ class Chart extends React.Component {
     this.createLegendEvents = this.createLegendEvents.bind(this);
     this.yTransformation = this.props.yTransformation || ((y) => y)
     this.VictoryVoronoiContainer = (this.props.allowZoom  || false) ? createContainer("zoom", "voronoi") : createContainer("voronoi");
+    this.chartContainerRef = React.createRef();
+    this.handleOpenExportMenu = this.handleOpenExportMenu.bind(this);
+    this.handleCloseExportMenu = this.handleCloseExportMenu.bind(this);
+    this.handleDownloadSelection = this.handleDownloadSelection.bind(this);
   }
 
   componentDidUpdate(prevProps) {
@@ -222,6 +232,116 @@ class Chart extends React.Component {
         },
       },
     ];
+  }
+
+  handleOpenExportMenu(event) {
+    this.setState({ exportAnchorEl: event.currentTarget });
+  }
+
+  handleCloseExportMenu() {
+    this.setState({ exportAnchorEl: null });
+  }
+
+  handleDownloadSelection(format) {
+    this.setState({ exportAnchorEl: null }, () => {
+      this.exportChart(format);
+    });
+  }
+
+  getDownloadFilename(extension) {
+    const raw = this.props.title || this.props.chartKey || "chart";
+    const slug = raw
+      .toString()
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    const safeName = slug || "chart";
+    return `${safeName}.${extension}`;
+  }
+
+  exportChart(format) {
+    const container = this.chartContainerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const svgElement = container.querySelector("svg");
+    if (!svgElement) {
+      return;
+    }
+
+    const clonedSvg = svgElement.cloneNode(true);
+    clonedSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    clonedSvg.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+
+    const styleNode = document.createElement("style");
+    styleNode.setAttribute("type", "text/css");
+    styleNode.innerHTML = "* { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important; }";
+    clonedSvg.insertBefore(styleNode, clonedSvg.firstChild);
+
+    const serializer = new XMLSerializer();
+    const serializedSvg = serializer.serializeToString(clonedSvg);
+    const svgWithHeader = `<?xml version="1.0" encoding="utf-8"?>\n${serializedSvg}`;
+    const svgBlob = new Blob([svgWithHeader], { type: "image/svg+xml;charset=utf-8" });
+
+    if (format === "svg") {
+      this.triggerBlobDownload(svgBlob, this.getDownloadFilename("svg"));
+      return;
+    }
+
+    if (format !== "png") {
+      return;
+    }
+
+    const width = Number(clonedSvg.getAttribute("width")) || svgElement.clientWidth || 600;
+    const height = Number(clonedSvg.getAttribute("height")) || svgElement.clientHeight || 400;
+    const scaleFactor = 2;
+
+    const url = URL.createObjectURL(svgBlob);
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = width * scaleFactor;
+      canvas.height = height * scaleFactor;
+      const context = canvas.getContext("2d");
+      if (!context) {
+        URL.revokeObjectURL(url);
+        return;
+      }
+      context.scale(scaleFactor, scaleFactor);
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, width, height);
+      context.drawImage(image, 0, 0, width, height);
+      const dataUrl = canvas.toDataURL("image/png", 1.0);
+      this.triggerDataUrlDownload(dataUrl, this.getDownloadFilename(format));
+      URL.revokeObjectURL(url);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+    };
+    image.src = url;
+  }
+
+  triggerBlobDownload(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  triggerDataUrlDownload(dataUrl, filename) {
+    const link = document.createElement("a");
+    link.href = dataUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 
   onMessage(topic, message, packet) {
@@ -424,7 +544,9 @@ ${this.relabelAndFormatSeries(seriesLabel)}: ${Math.round(this.yTransformation(d
   render() {
     const legendEvents = this.createLegendEvents();
     const chartKey = this.state.names.join('-');
+    const exportMenuOpen = Boolean(this.state.exportAnchorEl);
     return (
+      <div ref={this.chartContainerRef} style={{ position: "relative" }}>
         <VictoryChart
           key={chartKey}
           style={{ parent: { maxWidth: "700px"}}}
@@ -533,6 +655,35 @@ ${this.relabelAndFormatSeries(seriesLabel)}: ${Math.round(this.yTransformation(d
           />
           {Object.keys(this.state.seriesMap).map(this.selectVictoryLines)}
         </VictoryChart>
+          <IconButton
+            aria-label={`download-${this.props.chartKey}`}
+            size="small"
+            onClick={this.handleOpenExportMenu}
+            sx={{
+              position: "absolute",
+              bottom: 8,
+              right: 8,
+              backgroundColor: "rgba(255,255,255,0.85)",
+              zIndex: 2,
+            }}
+          >
+            <DownloadIcon fontSize="small" />
+          </IconButton>
+        <Menu
+          anchorEl={this.state.exportAnchorEl}
+          open={exportMenuOpen}
+          onClose={this.handleCloseExportMenu}
+          anchorOrigin={{ horizontal: "right", vertical: "top" }}
+          transformOrigin={{ horizontal: "right", vertical: "bottom" }}
+        >
+          <MenuItem onClick={() => this.handleDownloadSelection('png')}>
+            Download PNG
+          </MenuItem>
+          <MenuItem onClick={() => this.handleDownloadSelection('svg')}>
+            Download SVG
+          </MenuItem>
+        </Menu>
+      </div>
     );
   }
 }
