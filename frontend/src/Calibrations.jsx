@@ -270,10 +270,12 @@ function CalibrationData() {
   const [selectedUnit, setSelectedUnit] = useState(pioreactorUnit || '$broadcast');
   const [onlyActive, setOnlyActive] = useState(false);
   const [highlightedModel, setHighlightedModel] = useState({pioreactorUnit: null, calibrationName: null});
+  const [hiddenCalibrationKeys, setHiddenCalibrationKeys] = useState({});
   const unitsColorMap = React.useMemo(
     () => new ColorCycler(colors),
     []
   );
+  const getCalibrationKey = React.useCallback((unit, calibrationName) => `${unit}::${calibrationName}`, []);
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -349,6 +351,57 @@ function CalibrationData() {
     setOnlyActive(event.target.checked);
   };
 
+  const toggleCalibrationVisibility = React.useCallback((calibration) => {
+    const key = getCalibrationKey(calibration.pioreactor_unit, calibration.calibration_name);
+    setHiddenCalibrationKeys((prev) => {
+      const next = { ...prev };
+      if (next[key]) {
+        delete next[key];
+      } else {
+        next[key] = true;
+      }
+      return next;
+    });
+  }, [getCalibrationKey]);
+
+
+  const isDataComplete = rawData && rawData.status === 'complete';
+
+  const filteredCalibrations = React.useMemo(() => {
+    if (!isDataComplete) {
+      return [];
+    }
+
+    const calibrationsForDevice = calibrationDataByDevice[selectedDevice] || [];
+    const allUnitsSelected = selectedUnit === '$broadcast';
+
+    return calibrationsForDevice.filter((cal) => {
+      if (allUnitsSelected && onlyActive) {
+        return cal.is_active;
+      }
+      if (allUnitsSelected && !onlyActive) {
+        return true;
+      }
+      if (!allUnitsSelected && onlyActive) {
+        return cal.pioreactor_unit === selectedUnit && cal.is_active;
+      }
+      if (!allUnitsSelected && !onlyActive) {
+        return cal.pioreactor_unit === selectedUnit;
+      }
+      return false;
+    }).sort((a, b) => {
+      if (a.is_active !== b.is_active) {
+        return a.is_active ? -1 : 1;
+      }
+      return a.pioreactor_unit.localeCompare(b.pioreactor_unit);
+    });
+  }, [isDataComplete, calibrationDataByDevice, selectedDevice, selectedUnit, onlyActive]);
+
+  const visibleCalibrations = React.useMemo(() => (
+    filteredCalibrations.filter((cal) => {
+      return !hiddenCalibrationKeys[getCalibrationKey(cal.pioreactor_unit, cal.calibration_name)];
+    })
+  ), [filteredCalibrations, hiddenCalibrationKeys, getCalibrationKey]);
 
   if (loading) {
     return (
@@ -358,39 +411,9 @@ function CalibrationData() {
     );
   }
 
-  if (!rawData || rawData.status !== 'complete') {
+  if (!isDataComplete) {
     return <Typography>Something went wrong or data is incomplete. Check web server logs.</Typography>;
   }
-
-  // filter calibrations to active if onlyActive is true, and by pioreactorUnit if selectedUnit is not $broadcast
-  const filteredCalibrations = (calibrationDataByDevice[selectedDevice] || []).filter((cal) => {
-    const allUnits = (selectedUnit === '$broadcast');
-
-    if (allUnits && onlyActive) {
-      // Case 1: All units and only active
-      return cal.is_active;
-    }
-    if (allUnits && !onlyActive) {
-      // Case 2: All units, regardless of activity
-      return true;
-    }
-    if (!allUnits && onlyActive) {
-      // Case 3: Selected unit and only active
-      return cal.pioreactor_unit === selectedUnit && cal.is_active;
-    }
-    if (!allUnits && !onlyActive) {
-      // Case 4: Selected unit, regardless of activity
-      return cal.pioreactor_unit === selectedUnit;
-    }
-    return false
-  }).sort((a, b) => {
-  // Compare `is_active` (true first, false later)
-  if (a.is_active !== b.is_active) {
-    return a.is_active ? -1 : 1; // true comes before false
-  }
-  // If `is_active` is the same, compare `pioreactor_unit`
-  return a.pioreactor_unit.localeCompare(b.pioreactor_unit);
-  });
 
   const onMouseOverRow = (_, cal) => {
     setHighlightedModel({pioreactorUnit: cal.pioreactor_unit, calibrationName: cal.calibration_name});
@@ -450,7 +473,7 @@ function CalibrationData() {
 
           <CalibrationChart
             highlightedModel={highlightedModel}
-            calibrations={filteredCalibrations}
+            calibrations={visibleCalibrations}
             deviceName={selectedDevice}
             unitsColorMap={unitsColorMap}
             title={`Calibrations for ${selectedDevice}`}
@@ -475,6 +498,24 @@ function CalibrationData() {
             {filteredCalibrations.map((cal, i) => {
               const unitName = cal.pioreactor_unit
               const calName = cal.calibration_name
+              const calibrationKey = getCalibrationKey(unitName, calName)
+              const isHidden = Boolean(hiddenCalibrationKeys[calibrationKey])
+              const dotColor = unitsColorMap[unitName + calName]
+
+              const handleDotClick = (event) => {
+                event.stopPropagation()
+                event.preventDefault()
+                toggleCalibrationVisibility(cal)
+              }
+
+              const handleDotKeyDown = (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  toggleCalibrationVisibility(cal)
+                }
+              }
+
               return (
                 <TableRow
                   sx={{
@@ -489,7 +530,19 @@ function CalibrationData() {
                   key={i}
                   >
                   <TableCell sx={{padding: "6px 6px", display: "flex"}}>
-                    <div className="indicator-dot-as-legend" style={{boxShadow: `0 0 0px, inset 0 0 100px  ${unitsColorMap[unitName + calName]}`}} />
+                    <div
+                      className="indicator-dot-as-legend"
+                      role="button"
+                      onClick={handleDotClick}
+                      tabIndex={0}
+                      aria-pressed={!isHidden}
+                      aria-label={isHidden ? `Show ${unitName} calibration ${calName}` : `Hide ${unitName} calibration ${calName}`}
+                      onKeyDown={handleDotKeyDown}
+                      style={{
+                        backgroundColor: isHidden ? 'transparent' : dotColor,
+                        cursor: 'pointer',
+                      }}
+                    />
                     <Chip
                       size="small"
                       icon={<PioreactorIcon/>}

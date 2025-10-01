@@ -249,15 +249,24 @@ class Chart extends React.Component {
   }
 
   getDownloadFilename(extension) {
+    const slugify = (value) =>
+      value
+        .toString()
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+
     const raw = this.props.title || this.props.chartKey || "chart";
-    const slug = raw
-      .toString()
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
-    const safeName = slug || "chart";
-    return `${safeName}.${extension}`;
+    const safeName = slugify(raw) || "chart";
+    const experimentSegment = this.props.experiment ? slugify(this.props.experiment) : null;
+    const timestampSegment = dayjs().utc().format("YYYYMMDD-HHmmss");
+    const filenameParts = [safeName];
+    if (experimentSegment) {
+      filenameParts.push(experimentSegment);
+    }
+    filenameParts.push(timestampSegment);
+    return `${filenameParts.join("-")}.${extension}`;
   }
 
   exportChart(format) {
@@ -649,7 +658,7 @@ ${this.relabelAndFormatSeries(seriesLabel)}: ${Math.round(this.yTransformation(d
             rowGutter={5}
             style={{
               labels: { fontSize: 13 },
-              data: { stroke: "#485157", strokeWidth: 0.5, size: 6.5 },
+              data: { stroke: "#485157", strokeWidth: 0.5, size: 6.5, cursor: "pointer" },
             }}
             data={this.state.names.map(this.selectLegendData).filter(item => item && item.name)}
           />

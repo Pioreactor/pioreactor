@@ -1,6 +1,7 @@
 ### Upcoming
 
   - export images of the overview charts
+  - show and hide calibration curves
 
 ### 25.9.18
 

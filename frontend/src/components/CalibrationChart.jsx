@@ -3,6 +3,7 @@ import IconButton from "@mui/material/IconButton";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Tooltip from "@mui/material/Tooltip";
+import Box from "@mui/material/Box";
 import DownloadIcon from "@mui/icons-material/Download";
 import Typography from '@mui/material/Typography';
 
@@ -185,10 +186,10 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
   const exportMenuOpen = Boolean(exportAnchorEl);
 
   if (!deviceName){
-    return <Typography variant="body2" component="p" color="textSecondary">No calibrations exist. Try creating a calibration from the command line.</Typography>
+    return <Box display="flex" justifyContent="center" alignItems="center" minHeight="10vh"><Typography variant="body2" component="p" color="textSecondary">No calibrations exist. Try creating a calibration from the command line.</Typography></Box>
   }
   else if (!calibrations || calibrations.length === 0) {
-    return <Typography variant="body2" component="p" color="textSecondary">No calibrations to plot for {deviceName}.</Typography>;
+    return <Box display="flex" justifyContent="center" alignItems="center" minHeight="10vh"><Typography variant="body2" component="p" color="textSecondary">No calibrations to plot for {deviceName}.</Typography></Box>;
   }
 
   // Assume the x and y fields match across all calibrations for a device
