@@ -2,6 +2,9 @@
 
   - export images of the overview charts
   - show and hide calibration curves
+  - test charts more
+
+
 
 ### 25.9.18
 

@@ -1,7 +1,7 @@
 ---
 display_name: PID Morbidostat
 automation_name: pid_morbidostat
-description: Control the growth rate of the culture using two sources of liquid, media and alternative media. The growth rate is controlled by varying the amount of either liquid. The target growth rate should be less than the maximum observed growth rate of the microbe.
+description: Control the growth rate of the culture using two sources of liquid, media and alternative media. The growth rate is controlled by varying the amount of either liquid. The target growth rate should be less than the maximum observed growth rate of the culture.
 fields:
   - key: duration
     default: 60

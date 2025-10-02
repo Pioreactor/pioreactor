@@ -1768,7 +1768,13 @@ def delete_experiment(experiment: str) -> ResponseReturnValue:
     broadcast_post_across_cluster("/unit_api/jobs/stop", params={"experiment": experiment})
 
     if row_count > 0:
-        return {"status": "success"}, 200
+        try:
+            # Reclaim the freed pages from the cascaded delete.
+            modify_app_db("VACUUM;")
+        except sqlite3.OperationalError:
+            pass
+        finally:
+            return {"status": "success"}, 200
     else:
         abort(404, f"Experiment {experiment} not found")
 
