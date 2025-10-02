@@ -25,7 +25,6 @@ from pioreactor.pubsub import patch_into
 from pioreactor.pubsub import post_into
 from pioreactor.utils.networking import resolve_to_address
 from pioreactor.web.config import huey
-from pioreactor.whoami import is_testing_env
 
 
 logger = create_logger(
@@ -37,12 +36,8 @@ logger = create_logger(
 
 logger.setLevel(logging.DEBUG)
 
-if not is_testing_env():
-    PIO_EXECUTABLE = "/usr/local/bin/pio"
-    PIOS_EXECUTABLE = "/usr/local/bin/pios"
-else:
-    PIO_EXECUTABLE = os.environ["PIO_EXECUTABLE"]
-    PIOS_EXECUTABLE = os.environ["PIOS_EXECUTABLE"]
+PIO_EXECUTABLE = os.environ["PIO_EXECUTABLE"]
+PIOS_EXECUTABLE = os.environ["PIOS_EXECUTABLE"]
 
 ALLOWED_ENV = (
     "EXPERIMENT",
