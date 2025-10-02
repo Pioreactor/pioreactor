@@ -8,7 +8,6 @@ from shlex import quote
 from typing import Optional
 
 import click
-import pioreactor
 from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
 from pioreactor import plugin_management
@@ -73,7 +72,7 @@ def get_update_app_commands(
                 commands_and_priority.extend(
                     [
                         (
-                            f"sudo pip install --no-index --find-links={tmp_rls_dir}/wheels/ {tmp_rls_dir}/pioreactor-{version_installed}-py3-none-any.whl[leader,worker]",
+                            f"/opt/pioreactor/venv/bin/pip install --no-index --find-links={tmp_rls_dir}/wheels/ {tmp_rls_dir}/pioreactor-{version_installed}-py3-none-any.whl[leader,worker]",
                             3,
                         ),  # noqa: E501
                         (
@@ -85,13 +84,15 @@ def get_update_app_commands(
             else:
                 commands_and_priority.append(
                     (
-                        f"sudo pip install --no-index --find-links={tmp_rls_dir}/wheels/ {tmp_rls_dir}/pioreactor-{version_installed}-py3-none-any.whl[worker]",
+                        f"/opt/pioreactor/venv/bin/pip install --no-index --find-links={tmp_rls_dir}/wheels/ {tmp_rls_dir}/pioreactor-{version_installed}-py3-none-any.whl[worker]",
                         3,
                     )  # noqa: E501
                 )
         elif source.endswith(".whl"):
             version_installed = source
-            commands_and_priority.append((f"sudo pip install --force-reinstall --no-index {source}", 1))
+            commands_and_priority.append(
+                (f"/opt/pioreactor/venv/bin/pip install --force-reinstall --no-index {source}", 1)
+            )
             commands_and_priority.append(("sudo systemctl restart pioreactor-web.target", 30))
         else:
             click.echo("Not a valid source file. Should be either a whl or release archive.")
@@ -102,7 +103,7 @@ def get_update_app_commands(
         version_installed = cleaned_branch
         commands_and_priority.append(
             (
-                f'sudo pip install --force-reinstall "git+https://github.com/{cleaned_repo}.git@{cleaned_branch}#egg=pioreactor&subdirectory=core"',
+                f'/opt/pioreactor/venv/bin/pip install --force-reinstall "git+https://github.com/{cleaned_repo}.git@{cleaned_branch}#egg=pioreactor&subdirectory=core"',
                 1,
             )  # noqa: E501
         )
@@ -142,9 +143,13 @@ def get_update_app_commands(
                     version_installed in url
                 ), f"pip installing {url} but doesn't match version {version_installed}"
                 if whoami.am_I_leader():
-                    commands_and_priority.append((f'sudo pip install "pioreactor[worker,leader] @ {url}"', 2))
+                    commands_and_priority.append(
+                        (f'/opt/pioreactor/venv/bin/pip install "pioreactor[worker,leader] @ {url}"', 2)
+                    )
                 else:
-                    commands_and_priority.append((f'sudo pip install "pioreactor[worker] @ {url}"', 2))
+                    commands_and_priority.append(
+                        (f'/opt/pioreactor/venv/bin/pip install "pioreactor[worker] @ {url}"', 2)
+                    )
             elif name == "update.sh":
                 commands_and_priority.extend(
                     [
@@ -210,10 +215,6 @@ def pio(ctx, show_version: bool) -> None:
         # running as root can cause problems as files created by the software are owned by root
         if geteuid() == 0:
             raise SystemError("Don't run as root!")
-
-        # user-installs of pioreactor are not the norm and cause problems. This may change in the future.
-        if pioreactor.__file__ != "/usr/local/lib/python3.11/dist-packages/pioreactor/__init__.py":
-            raise SystemError("Pioreactor installed in a non-standard location. Please re-install.")
 
     # https://click.palletsprojects.com/en/8.1.x/commands/#group-invocation-without-command
     if ctx.invoked_subcommand is None:
