@@ -3,6 +3,7 @@
   - export images of the overview charts
   - show and hide calibration curves
   - test charts more
+  - trixie upgrade?
 
 
 
