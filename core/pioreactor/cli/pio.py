@@ -8,10 +8,8 @@ from shlex import quote
 from typing import Optional
 
 import click
-import pioreactor
 from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
-from pioreactor import exc
 from pioreactor import plugin_management
 from pioreactor import whoami
 from pioreactor.cli.lazy_group import LazyGroup
@@ -60,15 +58,15 @@ def get_update_app_commands(
                 [
                     (f"sudo rm -rf {tmp_rls_dir}", -99),
                     (f"unzip -o {source} -d {tmp_rls_dir}", 0),
-                    (f"unzip -o {tmp_rls_dir}/wheels_{version_installed}.zip -d {tmp_rls_dir}/wheels", 1),
+                    (
+                        f"unzip -o {tmp_rls_dir}/wheels_{version_installed}.zip -d {tmp_rls_dir}/wheels",
+                        1,
+                    ),  # noqa: E501
                     (f"sudo bash {tmp_rls_dir}/pre_update.sh", 2),
                     (f"sudo bash {tmp_rls_dir}/update.sh", 4),
                     (f"sudo bash {tmp_rls_dir}/post_update.sh", 20),
-                    (
-                        f'echo "moving {tmp_rls_dir}/pioreactorui_*.tar.gz to {tmp_dir}/pioreactorui_archive.tar.gz"',
-                        97,
-                    ),
-                    (f"mv {tmp_rls_dir}/pioreactorui_*.tar.gz {tmp_dir}/pioreactorui_archive.tar.gz", 98),
+                    # reboot web server and huey
+                    ("sudo systemctl restart pioreactor-web.target", 30),
                     (f"sudo rm -rf {tmp_rls_dir}", 99),
                 ]
             )
@@ -76,27 +74,28 @@ def get_update_app_commands(
                 commands_and_priority.extend(
                     [
                         (
-                            f"sudo pip install --no-index --find-links={tmp_rls_dir}/wheels/ "
-                            f"{tmp_rls_dir}/pioreactor-{version_installed}-py3-none-any.whl[leader,worker]",
+                            f"/opt/pioreactor/venv/bin/pip install --no-index --find-links={tmp_rls_dir}/wheels/ {tmp_rls_dir}/pioreactor-{version_installed}-py3-none-any.whl[leader,worker]",
                             3,
-                        ),
+                        ),  # noqa: E501
                         (
                             f'sudo sqlite3 {config.get("storage","database")} < {tmp_rls_dir}/update.sql || :',
                             10,
-                        ),
+                        ),  # noqa: E501
                     ]
                 )
             else:
                 commands_and_priority.append(
                     (
-                        f"sudo pip install --no-index --find-links={tmp_rls_dir}/wheels/ "
-                        f"{tmp_rls_dir}/pioreactor-{version_installed}-py3-none-any.whl[worker]",
+                        f"/opt/pioreactor/venv/bin/pip install --no-index --find-links={tmp_rls_dir}/wheels/ {tmp_rls_dir}/pioreactor-{version_installed}-py3-none-any.whl[worker]",
                         3,
-                    )
+                    )  # noqa: E501
                 )
         elif source.endswith(".whl"):
             version_installed = source
-            commands_and_priority.append((f"sudo pip install --force-reinstall --no-index {source}", 1))
+            commands_and_priority.append(
+                (f"/opt/pioreactor/venv/bin/pip install --force-reinstall --no-index {source}", 1)
+            )
+            commands_and_priority.append(("sudo systemctl restart pioreactor-web.target", 30))
         else:
             click.echo("Not a valid source file. Should be either a whl or release archive.")
             sys.exit(1)
@@ -106,14 +105,14 @@ def get_update_app_commands(
         version_installed = cleaned_branch
         commands_and_priority.append(
             (
-                f"sudo pip install --force-reinstall "
+                f"/opt/pioreactor/venv/bin/pip install --force-reinstall "
                 f'"pioreactor[leader_worker] @ git+https://github.com/{cleaned_repo}.git@{cleaned_branch}#subdirectory=core"',
                 1,
-            )
+            )  # noqa: E501
         )
-    else:
-        from pioreactor.cli.pio import get_tag_to_install
+        commands_and_priority.append(("sudo systemctl restart pioreactor-web.target", 30))  # noqa: E501
 
+    else:
         try:
             tag = get_tag_to_install(repo, version)
         except HTTPException:
@@ -147,9 +146,13 @@ def get_update_app_commands(
                     version_installed in url
                 ), f"pip installing {url} but doesn't match version {version_installed}"
                 if whoami.am_I_leader():
-                    commands_and_priority.append((f'sudo pip install "pioreactor[worker,leader] @ {url}"', 2))
+                    commands_and_priority.append(
+                        (f'/opt/pioreactor/venv/bin/pip install "pioreactor[worker,leader] @ {url}"', 2)
+                    )
                 else:
-                    commands_and_priority.append((f'sudo pip install "pioreactor[worker] @ {url}"', 2))
+                    commands_and_priority.append(
+                        (f'/opt/pioreactor/venv/bin/pip install "pioreactor[worker] @ {url}"', 2)
+                    )
             elif name == "update.sh":
                 commands_and_priority.extend(
                     [
@@ -215,10 +218,6 @@ def pio(ctx, show_version: bool) -> None:
         # running as root can cause problems as files created by the software are owned by root
         if geteuid() == 0:
             raise SystemError("Don't run as root!")
-
-        # user-installs of pioreactor are not the norm and cause problems. This may change in the future.
-        if pioreactor.__file__ != "/usr/local/lib/python3.11/dist-packages/pioreactor/__init__.py":
-            raise SystemError("Pioreactor installed in a non-standard location. Please re-install.")
 
     # https://click.palletsprojects.com/en/8.1.x/commands/#group-invocation-without-command
     if ctx.invoked_subcommand is None:
@@ -426,10 +425,8 @@ def update(ctx, source: Optional[str], branch: Optional[str]) -> None:
         # run update app and then update ui
         if source is not None:
             ctx.invoke(update_app, source=source)
-            ctx.invoke(update_ui, source="/tmp/pioreactorui_archive.tar.gz")
         else:
             ctx.invoke(update_app, branch=branch)
-            ctx.invoke(update_ui, branch=branch)
 
 
 def get_non_prerelease_tags_of_pioreactor(repo) -> list[str]:
@@ -598,89 +595,6 @@ def update_firmware(version: Optional[str]) -> None:
             sys.exit(1)
 
     logger.info(f"Updated Pioreactor firmware to version {version_installed}.")  # type: ignore
-
-
-def get_update_ui_commands(
-    branch: Optional[str], repo: str, source: Optional[str], version: Optional[str]
-) -> tuple[list[list[str]], str]:
-    """Build the shell command sequence and return (commands, installed_version) for updating the UI from the monorepo."""
-    import tempfile
-    import os
-
-    if version is None:
-        version_ref = "latest"
-    else:
-        version_ref = f"tags/{version}"
-
-    if source:
-        source = quote(source)
-        version_installed = source
-        commands: list[list[str]] = []
-    else:
-        if branch:
-            cleaned_branch = quote(branch)
-            version_installed = cleaned_branch
-            archive_url = f"https://github.com/{quote(repo)}/archive/{cleaned_branch}.tar.gz"
-        else:
-            latest_meta = loads(get(f"https://api.github.com/repos/{repo}/releases/{version_ref}").body)
-            version_installed = latest_meta["tag_name"]
-            archive_url = f"https://github.com/{repo}/archive/refs/tags/{version_installed}.tar.gz"
-
-        tmp_dir = tempfile.gettempdir()
-        repo_name = repo.split("/")[-1]
-        tmp_archive = os.path.join(tmp_dir, f"{repo_name}-{version_installed}.tar.gz")
-        tmp_extract = os.path.join(tmp_dir, f"{repo_name}-{version_installed}")
-        source = os.path.join(tmp_dir, "pioreactorui_archive.tar.gz")
-        intermediate_folder = os.path.join(tmp_dir, f"pioreactorui-{version_installed}")
-        commands = [
-            ["rm", "-rf", tmp_extract],
-            ["rm", "-rf", intermediate_folder],
-            ["wget", archive_url, "-O", tmp_archive],
-            ["mkdir", "-p", tmp_extract],
-            ["tar", "-xzf", tmp_archive, "-C", tmp_dir],
-            ["mkdir", "-p", intermediate_folder],
-            ["cp", "-r", os.path.join(tmp_extract, "web", "."), intermediate_folder],
-            ["tar", "czf", source, "-C", tmp_dir, f"pioreactorui-{version_installed}"],
-        ]
-
-    assert source
-    commands.append(["bash", "/usr/local/bin/update_ui.sh", source])
-    return commands, version_installed
-
-
-@update.command(name="ui")
-@click.option("-b", "--branch", help="install from a branch on github")
-@click.option(
-    "-r",
-    "--repo",
-    help="install from a repo on github. Format: username/project",
-    default="pioreactor/pioreactor",
-)
-@click.option("--source", help="use a tar.gz file")
-@click.option("-v", "--version", help="install a specific version")
-def update_ui(branch: Optional[str], repo: str, source: Optional[str], version: Optional[str]) -> None:
-    """
-    Update the PioreactorUI
-
-    Source, if provided, should be a .tar.gz with a top-level dir like pioreactorui-{version}/
-    This is what is provided from Github releases.
-    """
-    logger = create_logger("update_ui", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT)
-    commands, version_installed = get_update_ui_commands(branch, repo, source, version)
-
-    for command in commands:
-        logger.debug(" ".join(command))
-        p = subprocess.run(
-            command,
-            universal_newlines=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-        )
-        if p.returncode != 0:
-            logger.error(p.stderr)
-            raise exc.BashScriptError(p.stderr)
-
-    logger.info(f"Updated PioreactorUI to version {version_installed}.")  # type: ignore
 
 
 if whoami.am_I_leader():

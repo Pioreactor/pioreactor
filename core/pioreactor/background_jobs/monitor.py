@@ -120,7 +120,6 @@ class Monitor(LongRunningBackgroundJob):
             "hat_serial": version.serial_number,
             "rpi_machine": version.rpi_version_info,
             "timestamp": current_utc_timestamp(),
-            "ui": None,
         }
 
         self.logger.debug(f"Pioreactor software version: {self.versions['app']}")
@@ -300,22 +299,16 @@ class Monitor(LongRunningBackgroundJob):
         if whoami.is_testing_env():
             return
         try:
-            r = get_from("localhost", "/unit_api/versions/ui")
+            r = get_from("localhost", "/unit_api/health")
             r.raise_for_status()
-            ui_version = r.json()["version"]
         except HTTPException:
             self.set_state(self.LOST)
             self.logger.warning("Webserver isn't online.")
             self.flicker_led_with_error_code(error_codes.WEBSERVER_OFFLINE)
-            ui_version = "Unknown"
         except Exception as e:
             self.set_state(self.LOST)
             self.logger.warning(e)
             self.flicker_led_with_error_code(error_codes.WEBSERVER_OFFLINE)
-            ui_version = "Unknown"
-        finally:
-            self.set_versions({"ui": ui_version})
-            self.logger.debug(f"Pioreactor UI version: {self.versions['ui']}")
 
     def check_for_required_jobs_running(self) -> None:
         # we put this in a while loop since if mqtt_to_db_streaming is not working, the warning is not saved to disk,

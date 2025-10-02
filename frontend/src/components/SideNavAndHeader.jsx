@@ -32,7 +32,7 @@ import TuneIcon from '@mui/icons-material/Tune';
 import SubdirectoryArrowRightIcon from '@mui/icons-material/SubdirectoryArrowRight';
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
-
+import whiteLogo from '../assets/white_colour.png';
 
 const ExpIcon = PlayCircleOutlinedIcon
 
@@ -452,7 +452,7 @@ export default function SideNavAndHeader() {
 
               <Typography variant="h6"  sx={{ flexGrow: 1 }}>
                 <Link color="inherit" underline="none" to="/" >
-                  <img alt="pioreactor logo" src="/white_colour.png" style={{width: "120px", height: "29px"}}/>
+                  <img alt="pioreactor logo" src={whiteLogo} style={{width: "120px", height: "29px"}}/>
                 </Link>
               </Typography>
 
