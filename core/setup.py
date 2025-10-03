@@ -26,9 +26,9 @@ CORE_REQUIREMENTS = [
     "Werkzeug==3.1.0",
     "packaging==24.1",
     # preinstalled on base images
-    #"pyyaml==6.0.2",
-    #"rpi-lgpio==0.6"
-    #"lgpio==0.2.2.0"
+    # "pyyaml==6.0.2",
+    # "rpi-lgpio==0.6"
+    # "lgpio==0.2.2.0"
 ]
 
 

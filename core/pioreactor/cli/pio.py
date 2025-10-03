@@ -105,7 +105,7 @@ def get_update_app_commands(
         version_installed = cleaned_branch
         commands_and_priority.append(
             (
-                f"/opt/pioreactor/venv/bin/pip install --force-reinstall "
+                f"/opt/pioreactor/venv/bin/pip install --force-reinstall --index-url https://piwheels.org/simple --extra-index-url https://pypi.org/simple "
                 f'"pioreactor[leader_worker] @ git+https://github.com/{cleaned_repo}.git@{cleaned_branch}#subdirectory=core"',
                 1,
             )  # noqa: E501

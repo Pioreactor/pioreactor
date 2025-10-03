@@ -124,14 +124,11 @@ def is_i2c_device_present(channel: int) -> bool:
     else:
         from adafruit_blinka.microcontroller.generic_linux.i2c import I2C
 
-    from adafruit_bus_device.i2c_device import I2CDevice  # type: ignore
-
-    with I2C(1, mode=I2C.MASTER) as i2c:  # ??
-        try:
-            I2CDevice(i2c, channel, probe=True)
-            return True
-        except ValueError:
-            return False
+    try:
+        I2C(1, mode=I2C.MASTER).writeto(channel, b"")
+        return True
+    except OSError:
+        return False
 
 
 def is_DAC_present() -> bool:

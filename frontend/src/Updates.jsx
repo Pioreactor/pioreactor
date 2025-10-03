@@ -386,7 +386,7 @@ function PageHeader(props) {
           <SystemUpdateAltIcon style={{ fontSize: 14, verticalAlign: "-1px" }}/> Version installed on leader:
         </Box>
         <Box fontWeight="fontWeightRegular" style={{marginRight: "20px", display:"inline-block"}}>
-          <UnderlineSpan title={`App: ${version}, UI:  ${uiVersion}`}> {version} </UnderlineSpan>
+          {version}
         </Box>
 
         <Box fontWeight="fontWeightBold" style={{margin: "10px 2px 10px 2px", display:"inline-block"}}>
