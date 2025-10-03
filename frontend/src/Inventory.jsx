@@ -496,7 +496,7 @@ function WorkerCard({worker, config, leaderVersion}) {
         <div style={{display: "flex", justifyContent: "space-between"}}>
 
           <div style={{display: "flex", justifyContent: "left"}}>
-            <PioreactorIconWithModel badgeContent={currentModelCapacity} />
+            <PioreactorIconWithModel badgeContent={currentModelCapacity} badgeColor={isLeader ? "#fff2cc" : ""} />
             <Typography sx={{
                 fontSize: 20,
                 color: "rgba(0, 0, 0, 0.87)",
