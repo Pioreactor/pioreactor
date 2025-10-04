@@ -17,7 +17,6 @@ from pioreactor.config import config
 from pioreactor.logging import create_logger
 from pioreactor.mureq import get
 from pioreactor.mureq import HTTPException
-from pioreactor.pubsub import get_from
 from pioreactor.pubsub import post_into_leader
 from pioreactor.utils import JobManager
 from pioreactor.utils import local_intermittent_storage
@@ -342,14 +341,6 @@ def version(verbose: bool) -> None:
         click.echo(f"Operating system:       {platform.platform()}")
         click.echo(f"Raspberry Pi:           {rpi_version_info}")
         click.echo(f"Image version:          {whoami.get_image_git_hash()}")
-        try:
-            result = get_from("localhost", "/unit_api/versions/ui")
-            result.raise_for_status()
-            ui_version = result.json()["version"]
-        except Exception:
-            ui_version = "<Failed to fetch>"
-
-        click.echo(f"Pioreactor UI:          {ui_version}")
 
     else:
         click.echo(tuple_to_text(software_version_info))

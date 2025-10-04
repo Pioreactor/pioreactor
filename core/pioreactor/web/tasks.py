@@ -142,7 +142,7 @@ def update_app_across_cluster() -> bool:
     update_app_on_leader = ["pio", "update", "app"]
     check_call(update_app_on_leader)
 
-    logger.debug("Updating app and ui on workers")
+    logger.debug("Updating app on workers")
     update_app_across_all_workers = [PIOS_EXECUTABLE, "update", "-y"]
     run(update_app_across_all_workers)
     return True
@@ -155,7 +155,7 @@ def update_app_from_release_archive_across_cluster(archive_location: str, units:
         update_app_on_leader = ["pio", "update", "app", "--source", archive_location]
         check_call(update_app_on_leader)
 
-        logger.debug(f"Updating app and ui on workers from {archive_location}")
+        logger.debug(f"Updating app on workers from {archive_location}")
         distribute_archive_to_workers = [PIOS_EXECUTABLE, "cp", archive_location, "-y"]
         run(distribute_archive_to_workers)
 
@@ -171,7 +171,7 @@ def update_app_from_release_archive_across_cluster(archive_location: str, units:
 
         return True
     else:
-        logger.debug(f"Updating app and ui on unit {units} from {archive_location}")
+        logger.debug(f"Updating app on unit {units} from {archive_location}")
         distribute_archive_to_workers = [
             PIOS_EXECUTABLE,
             "cp",

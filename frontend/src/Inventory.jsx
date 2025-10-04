@@ -87,7 +87,7 @@ function Header(props) {
 function AddNewPioreactor({setWorkers}){
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [model, setModel] = React.useState(["pioreactor_40ml", "1.0"])
+  const [model, setModel] = React.useState(["pioreactor_40ml", "1.5"])
 
   const [isError, setIsError] = useState(false)
   const [errorMsg, setErrorMsg] = useState("")
