@@ -13,8 +13,8 @@ from msgspec import Struct
 from msgspec import to_builtins
 from pioreactor.mureq import get
 from pioreactor.mureq import Response
-from pioreactorui import _make_dicts
-from pioreactorui import create_app
+from pioreactor.web.app import _make_dicts
+from pioreactor.web.app import create_app
 
 
 @pytest.fixture()

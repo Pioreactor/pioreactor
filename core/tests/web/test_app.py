@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 
 import pytest
-from pioreactorui.config import huey
+from pioreactor.web.config import huey
 
 from .conftest import capture_requests
 

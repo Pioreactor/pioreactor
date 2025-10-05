@@ -52,7 +52,7 @@ def test_set_clock_non_leader(client):
 def test_set_clock_time_sync_branch(client, monkeypatch):
     """When not leader or no payload, sync_clock branch schedules a task."""
     # Force non-leader behavior
-    import pioreactorui.unit_api as mod
+    import pioreactor.web.unit_api as mod
 
     monkeypatch.setattr(mod, "HOSTNAME", "worker1", raising=False)
     monkeypatch.setattr(mod, "get_leader_hostname", lambda: "leader", raising=False)

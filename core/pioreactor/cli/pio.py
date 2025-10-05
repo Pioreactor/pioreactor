@@ -418,10 +418,10 @@ def update_settings(ctx, job: str) -> None:
 @click.pass_context
 def update(ctx, source: Optional[str], branch: Optional[str]) -> None:
     """
-    update software for the app and UI
+    update software for the app (it's an alias for pio update app)
     """
     if ctx.invoked_subcommand is None:
-        # run update app and then update ui
+        # run update app
         if source is not None:
             ctx.invoke(update_app, source=source)
         else:
@@ -524,7 +524,12 @@ def update_app(
     )
 
     for command, _ in sorted(commands_and_priority, key=lambda t: t[1]):
+        if whoami.is_testing_env():
+            logger.debug(f"DRY-RUN: {command}")
+            continue
+
         logger.debug(command)
+
         p = subprocess.run(
             command,
             shell=True,

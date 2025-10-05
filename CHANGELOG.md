@@ -1,6 +1,7 @@
 ### Upcoming
 
   - export images of the overview charts
+  - MCP server: add tools for creating experiments and managing worker assignments
   - show and hide calibration curves
   - test charts more
   - trixie upgrade?

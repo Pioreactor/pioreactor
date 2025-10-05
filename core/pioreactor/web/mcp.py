@@ -18,9 +18,11 @@ from mcp_utils.core import MCPServer
 from mcp_utils.queue import SQLiteResponseQueue
 from pioreactor.config import get_leader_hostname
 from pioreactor.mureq import HTTPException
+from pioreactor.pubsub import delete_from_leader as _delete_from_leader
 from pioreactor.pubsub import get_from_leader as _get_from_leader
 from pioreactor.pubsub import patch_into_leader as _patch_into_leader
 from pioreactor.pubsub import post_into_leader as _post_into_leader
+from pioreactor.pubsub import put_into_leader as _put_into_leader
 from pioreactor.web.app import query_app_db
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
@@ -115,6 +117,40 @@ def patch_into_leader(endpoint: str, json: dict | None = None) -> dict:
         raise
 
 
+def put_into_leader(endpoint: str, json: dict | None = None) -> dict:
+    """Wrapper around `put_into_leader` to handle errors."""
+    try:
+        r = _put_into_leader(endpoint, json=json)
+        r.raise_for_status()
+        content = r.json() if r.content else {}
+        if r.status_code == 202 and "result_url_path" in content:
+            sleep(0.25)
+            return get_from_leader(content["result_url_path"])
+        else:
+            return content
+
+    except HTTPException as e:
+        logger.error(f"Failed to PUT into leader: {e}")
+        raise
+
+
+def delete_from_leader(endpoint: str, json: dict | None = None) -> dict:
+    """Wrapper around `delete_from_leader` to handle errors."""
+    try:
+        r = _delete_from_leader(endpoint, json=json)
+        r.raise_for_status()
+        content = r.json() if r.content else {}
+        if r.status_code == 202 and "result_url_path" in content:
+            sleep(0.25)
+            return get_from_leader(content["result_url_path"])
+        else:
+            return content
+
+    except HTTPException as e:
+        logger.error(f"Failed to DELETE from leader: {e}")
+        raise
+
+
 @mcp.tool()
 @wrap_result_as_dict
 def get_experiments(active_only: bool) -> dict:
@@ -131,6 +167,21 @@ def get_experiments(active_only: bool) -> dict:
 
 @mcp.tool()
 @wrap_result_as_dict
+def create_experiment(
+    experiment: str,
+    description: str | None = None,
+) -> dict:
+    """
+    Create a new experiment record with optional metadata about media and organism.
+    """
+    payload: dict[str, str] = {"experiment": experiment}
+    if description is not None:
+        payload["description"] = description
+    return post_into_leader("/api/experiments", json=payload)
+
+
+@mcp.tool()
+@wrap_result_as_dict
 def get_pioreactor_workers(active_only: bool) -> list:
     """
     Return the worker inventory with experiment assignments. If *active_only*, filter by `is_active`.
@@ -140,6 +191,25 @@ def get_pioreactor_workers(active_only: bool) -> list:
     """
     workers = get_from_leader("/api/workers/assignments")
     return [w for w in workers if w.get("is_active")] if active_only else workers
+
+
+@mcp.tool()
+@wrap_result_as_dict
+def assign_workers_to_experiment(experiment: str, pioreactor_unit: str) -> dict:
+    """
+    Assign a specific worker to an experiment so it can participate in experiment activities.
+    """
+    payload = {"pioreactor_unit": pioreactor_unit}
+    return put_into_leader(f"/api/experiments/{experiment}/workers", json=payload)
+
+
+@mcp.tool()
+@wrap_result_as_dict
+def unassign_worker_from_experiment(experiment: str, pioreactor_unit: str) -> dict:
+    """
+    Remove a worker from an experiment and stop any jobs scoped to that experiment on the worker.
+    """
+    return delete_from_leader(f"/api/experiments/{experiment}/workers/{pioreactor_unit}")
 
 
 def _condense_capabilities(capabilities: list[dict[str, Any]] | None) -> list[dict[str, Any]]:

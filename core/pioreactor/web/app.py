@@ -27,7 +27,7 @@ from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 VERSION = __version__
 HOSTNAME = get_unit_name()
-NAME = f"pioreactorui-{HOSTNAME}"
+NAME = f"pioreactor-{HOSTNAME}-api"
 
 # load plugins
 load_plugins()
