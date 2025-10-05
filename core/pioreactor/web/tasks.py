@@ -152,7 +152,14 @@ def update_app_across_cluster() -> bool:
 def update_app_from_release_archive_across_cluster(archive_location: str, units: str) -> bool:
     if units == "$broadcast":
         logger.debug(f"Updating app on leader from {archive_location}")
-        update_app_on_leader = ["pio", "update", "app", "--source", archive_location]
+        update_app_on_leader = [
+            "pio",
+            "update",
+            "app",
+            "--source",
+            archive_location,
+            "--defer-web-restart",
+        ]
         check_call(update_app_on_leader)
 
         logger.debug(f"Updating app on workers from {archive_location}")
@@ -168,6 +175,9 @@ def update_app_from_release_archive_across_cluster(archive_location: str, units:
             "-y",
         ]
         run(update_app_across_all_workers)
+
+        logger.debug("Restarting pioreactor-web.target after cluster update")
+        check_call(["sudo", "systemctl", "restart", "pioreactor-web.target"])
 
         return True
     else:

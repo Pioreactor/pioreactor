@@ -122,7 +122,7 @@ def is_i2c_device_present(channel: int) -> bool:
     if is_testing_env():
         from pioreactor.utils.mock import MockI2C as I2C
     else:
-        from adafruit_blinka.microcontroller.generic_linux.i2c import I2C
+        from adafruit_blinka.microcontroller.generic_linux.i2c import I2C  # type: ignore
 
     try:
         I2C(1, mode=I2C.MASTER).writeto(channel, b"")

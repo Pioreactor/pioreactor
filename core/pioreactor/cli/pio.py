@@ -38,7 +38,11 @@ if whoami.am_I_leader():
 
 
 def get_update_app_commands(
-    branch: Optional[str], repo: str, source: Optional[str], version: Optional[str]
+    branch: Optional[str],
+    repo: str,
+    source: Optional[str],
+    version: Optional[str],
+    defer_web_restart: bool = False,
 ) -> tuple[list[tuple[str, float]], str]:
     """Build the commands_and_priority list and return the installed version."""
     import tempfile
@@ -64,11 +68,13 @@ def get_update_app_commands(
                     (f"sudo bash {tmp_rls_dir}/pre_update.sh", 2),
                     (f"sudo bash {tmp_rls_dir}/update.sh", 4),
                     (f"sudo bash {tmp_rls_dir}/post_update.sh", 20),
-                    # reboot web server and huey
-                    ("sudo systemctl restart pioreactor-web.target", 30),
-                    (f"sudo rm -rf {tmp_rls_dir}", 99),
+                    (f"sudo rm -rf {tmp_rls_dir}", 98),
                 ]
             )
+            if not defer_web_restart:
+                commands_and_priority.append(
+                    ("sudo systemctl restart pioreactor-web.target", 99)
+                )  # restart lighttpd (flask api) and huey.
             if whoami.am_I_leader():
                 commands_and_priority.extend(
                     [
@@ -94,7 +100,8 @@ def get_update_app_commands(
             commands_and_priority.append(
                 (f"/opt/pioreactor/venv/bin/pip install --force-reinstall --no-index {source}", 1)
             )
-            commands_and_priority.append(("sudo systemctl restart pioreactor-web.target", 30))
+            if not defer_web_restart:
+                commands_and_priority.append(("sudo systemctl restart pioreactor-web.target", 30))
         else:
             click.echo("Not a valid source file. Should be either a whl or release archive.")
             sys.exit(1)
@@ -109,7 +116,8 @@ def get_update_app_commands(
                 1,
             )  # noqa: E501
         )
-        commands_and_priority.append(("sudo systemctl restart pioreactor-web.target", 30))  # noqa: E501
+        if not defer_web_restart:
+            commands_and_priority.append(("sudo systemctl restart pioreactor-web.target", 30))  # noqa: E501
 
     else:
         try:
@@ -493,18 +501,27 @@ def get_tag_to_install(repo: str, version_desired: Optional[str]) -> str:
 )
 @click.option("--source", help="use a URL, whl file, or release-***.zip file")
 @click.option("-v", "--version", help="install a specific version, default is latest")
+@click.option(
+    "--defer-web-restart",
+    is_flag=True,
+    default=False,
+    help="skip restarting pioreactor-web.target; useful when another process will restart it later",
+)
 def update_app(
     branch: Optional[str],
     repo: str,
     source: Optional[str],
     version: Optional[str],
+    defer_web_restart: bool = False,
 ) -> None:
     """
     Update the Pioreactor core software
     """
     # initialize logger and build commands based on input parameters
     logger = create_logger("update_app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT)
-    commands_and_priority, version_installed = get_update_app_commands(branch, repo, source, version)
+    commands_and_priority, version_installed = get_update_app_commands(
+        branch, repo, source, version, defer_web_restart=defer_web_restart
+    )
 
     for command, _ in sorted(commands_and_priority, key=lambda t: t[1]):
         logger.debug(command)
