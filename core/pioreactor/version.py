@@ -67,12 +67,11 @@ def get_firmware_version() -> tuple[int, int]:
     # Compare hardware versions using tuples to avoid lexicographic issues.
     if hardware_version_info >= (1, 1):
         try:
-            import busio  # type: ignore
-            from pioreactor.hardware import SCL, SDA, ADCs
+            from adafruit_blinka.microcontroller.generic_linux.i2c import I2C
+            from pioreactor.hardware import ADCs
 
-            i2c = busio.I2C(SCL, SDA)
             result = bytearray(2)
-            i2c.writeto_then_readfrom(ADCs["version"].i2c_address, bytes([0x08]), result)
+            I2C(1, mode=I2C.MASTER).writeto_then_readfrom(ADCs["version"].i2c_address, bytes([0x08]), result)
             return (result[1], result[0])
         except Exception:
             return (0, 0)

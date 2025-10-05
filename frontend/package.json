@@ -2,6 +2,7 @@
   "name": "ui",
   "version": "0.1.0",
   "private": true,
+  "homepage": "/static",
   "proxy": "http://localhost:4999",
   "dependencies": {
     "@emotion/react": "^11.11.4",
@@ -36,7 +37,7 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "postbuild": "rm -rf ../web/static rm ../web/precache-manifest* && cp -R build/* ../web && mkdir -p ../web/static/exports/ && touch ../web/static/exports/.gitignore"
+    "postbuild": "rm -rf ../core/pioreactor/web/static/* && cp -R build/* ../core/pioreactor/web/static"
   },
   "eslintConfig": {
     "extends": "react-app",

@@ -16,7 +16,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       TESTING: 1
-      TMPDIR: /tmp/
       PIO_EXECUTABLE: pio
       PIOS_EXECUTABLE: pios
       DOT_PIOREACTOR: .pioreactor/

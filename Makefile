@@ -14,7 +14,7 @@ PYTHON       ?= python3.11        # put full path if multiple versions
 VENV_DIR     ?= .venv
 PIP_FLAGS    ?=
 NODE_DIR     ?= frontend
-API_DIR      ?= web
+API_DIR      ?= core/pioreactor/web
 CORE_DIR  ?= core
 
 # --- internal helpers ---------------------------------------------------------
@@ -48,25 +48,19 @@ node_modules/.installed: $(NODE_DIR)/package.json  ## Install Node deps
 frontend-install: node_modules/.installed ## Alias
 
 # --- quality gates ------------------------------------------------------------
-lint: venv  ## Run ruff & black in check-only mode
-	@$(ACTIVATE) && ruff check $(CORE_DIR) $(API_DIR)
-	@$(ACTIVATE) && black --check $(CORE_DIR) $(API_DIR)
-
-format: venv  ## Reformat python code with black
-	@$(ACTIVATE) && black $(CORE_DIR) $(API_DIR)
 
 precommit: venv ## Run pre-commit on all files
 	@$(ACTIVATE) && pre-commit run --all-files
 
 # --- test ---------------------------------------------------------------------
 test: venv  ## Run all pytest suites
-	@$(ACTIVATE) && pytest $(CORE_DIR)/tests $(API_DIR)/tests --timeout 600 --random-order --durations 15
+	@$(ACTIVATE) && pytest $(CORE_DIR)/tests --timeout 600 --random-order --durations 15
 
 core-test: venv  ## Backend tests only
 	@$(ACTIVATE) && pytest $(CORE_DIR)/tests --timeout 600 --random-order --durations 15 --random-order-bucket=module --random-order-seed=904213
 
 web-test: venv  ## API (Flask) tests only
-	@$(ACTIVATE) && pytest $(API_DIR)/tests --timeout 600 --random-order --durations 15
+	@$(ACTIVATE) && pytest $(CORE_DIR)/tests/web/ --timeout 600 --random-order --durations 15
 
 # --- build --------------------------------------------------------------------
 wheel: venv  ## Build core wheel (stage 1 artifact)
@@ -77,7 +71,7 @@ frontend-build:
 
 # --- live dev servers ---------------------------------------------------------
 web-dev: venv  ## Run Flask API on 127.0.0.1:5000
-	@FLASK_ENV=development $(ACTIVATE) && cd $(API_DIR) && python3 -m flask  --app main run -p 4999 --debug
+	@FLASK_ENV=development $(ACTIVATE) && cd $(API_DIR) && python3 -m flask --app app run -p 4999 --debug
 
 frontend-dev:  ## Run React dev server on :3000
 	cd $(NODE_DIR) && npm start
@@ -85,7 +79,7 @@ frontend-dev:  ## Run React dev server on :3000
 # --- background task queue ----------------------------------------------------
 huey-dev: venv  ## Run the Huey consumer with sensible dev flags
 	@$(ACTIVATE) && cd $(API_DIR) && \
-	huey_consumer pioreactorui.tasks.huey -n -b 1.001 -w 10 -f -C -d 0.05
+	huey_consumer pioreactor.web.tasks.huey -n -b 1.001 -w 10 -f -C -d 0.05
 
 # --- clean-up -----------------------------------------------------------------
 clean:  ## Delete bytecode, build artefacts, node deps

@@ -630,6 +630,7 @@ class JobManager:
         self.conn = sqlite3.connect(db_path, isolation_level=None)
         self.conn.executescript(
             """
+            PRAGMA journal_mode=WAL;
             PRAGMA busy_timeout = 5000;
             PRAGMA temp_store = 2;
             PRAGMA foreign_keys = ON;

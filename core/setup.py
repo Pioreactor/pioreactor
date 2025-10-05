@@ -25,6 +25,10 @@ CORE_REQUIREMENTS = [
     "python-dotenv==1.0.1",
     "Werkzeug==3.1.0",
     "packaging==24.1",
+    # preinstalled on base images
+    # "pyyaml==6.0.2",
+    # "rpi-lgpio==0.6"
+    # "lgpio==0.2.2.0"
 ]
 
 
@@ -34,6 +38,7 @@ LEADER_REQUIREMENTS: list[str] = [
 
 
 WORKER_REQUIREMENTS = [
+    "numpy==2.3.2",
     "grpredict==25.6.1",
     "Adafruit-Blinka==8.58.1",
     "adafruit-circuitpython-ads1x15==2.2.23",
@@ -72,11 +77,19 @@ setup(
     author_email="hello@pioreactor.com",
     install_requires=CORE_REQUIREMENTS,
     include_package_data=True,
+    package_data={
+        "pioreactor": [
+            "web/static/*",
+            "web/static/**/*",
+        ]
+    },
+    zip_safe=False,
     packages=find_packages(exclude=["tests", "tests.*"]),
     entry_points="""
         [console_scripts]
         pio=pioreactor.cli.pio:pio
         pios=pioreactor.cli.pios:pios
+        pioreactor-fcgi=pioreactor.web.fcgi:main
     """,
     python_requires=">=3.11",
     extras_require={

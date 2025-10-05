@@ -1,3 +1,13 @@
+### Upcoming
+
+  - export images of the overview charts
+  - MCP server: add tools for creating experiments and managing worker assignments
+  - show and hide calibration curves
+  - test charts more
+  - trixie upgrade?
+
+
+
 ### 25.9.18
 
  - Experiment profile editor: added a searchable capabilities browser. You can now search across available jobs, automations, actions, and options directly in the editor. This should make building and editing profiles faster and reduce syntax errors.

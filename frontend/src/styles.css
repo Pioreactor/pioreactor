@@ -68,9 +68,10 @@ u {
 }
 
 .indicator-dot-as-legend{
-  width:10px;
-  height:10px;
-  border-radius:5px;
+  width:15px;
+  height:15px;
+  border-radius:7px;
+  border: 0.5px solid #000;
   margin: auto 7px auto 0px;
 }
 

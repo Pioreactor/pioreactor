@@ -87,7 +87,7 @@ function Header(props) {
 function AddNewPioreactor({setWorkers}){
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [model, setModel] = React.useState(["pioreactor_40ml", "1.0"])
+  const [model, setModel] = React.useState(["pioreactor_40ml", "1.5"])
 
   const [isError, setIsError] = useState(false)
   const [errorMsg, setErrorMsg] = useState("")
@@ -496,7 +496,7 @@ function WorkerCard({worker, config, leaderVersion}) {
         <div style={{display: "flex", justifyContent: "space-between"}}>
 
           <div style={{display: "flex", justifyContent: "left"}}>
-            <PioreactorIconWithModel badgeContent={currentModelCapacity} />
+            <PioreactorIconWithModel badgeContent={currentModelCapacity} badgeColor={isLeader ? "#fff2cc" : ""} />
             <Typography sx={{
                 fontSize: 20,
                 color: "rgba(0, 0, 0, 0.87)",

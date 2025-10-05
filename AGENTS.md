@@ -3,7 +3,7 @@
 This repository contains the **executable code for the Pioreactor project**. It has three primary sub-projects:
 
 1. **`core/`** — backend / worker code that runs jobs
-2. **`web/`** — Flask-based web API
+2. **`core/pioreactor/web/`** — Flask-based web API
 3. **`frontend/`** — React-based web UI
 
 ---

@@ -19,6 +19,8 @@ import PioreactorIcon from "./PioreactorIcon";
 import { runPioreactorJob } from "../utilities";
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ReplayIcon from '@mui/icons-material/Replay';
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
+
 
 function AdvancedConfigDialog({ open, onFinished, jobName, displayName, unit, experiment, config = {} }) {
   const [values, setValues] = useState({});              // local, editable copy
