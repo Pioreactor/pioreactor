@@ -1,9 +1,9 @@
 ### Upcoming
 
-  - export images of the overview charts
+  - hardware: reworked GPIO, PWM, and I2C configuration to load from layered YAML mods so new HAT+model combinations can be described without code changes.
+  - export images of the Overview's and Calibrations' charts
   - MCP server: add tools for creating experiments and managing worker assignments
-  - show and hide calibration curves
-  - test charts more
+  - Show and hide calibration curves in Calibrations page
   - trixie upgrade?
 
 

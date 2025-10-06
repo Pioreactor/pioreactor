@@ -15,7 +15,7 @@ def get_hardware_version() -> tuple[int, int] | tuple[int, int, str]:
         # ex: > HARDWARE=1.1 pio ...
         return int(os.environ["HARDWARE"].split(".")[0]), int(os.environ["HARDWARE"].split(".")[1])
 
-    elif os.environ.get("TESTING", "") == "1": # hack
+    elif os.environ.get("TESTING", "") == "1":  # hack
         return (1, 2)
 
     try:

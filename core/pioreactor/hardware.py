@@ -19,17 +19,7 @@ Layering rules
   2) models/<model>/<version>/<mod>.yaml
   Later keys override earlier ones.
 
-Back-compat exports
-- Keep existing module attributes used across the codebase:
-  - ADCs: dict with keys 'pd1', 'pd2', 'aux', 'version' mapping to curried ADC drivers
-  - PWM_TO_PIN: map from PWM channel ("1".."5") to BCM pin
-  - HEATER_PWM_TO_PIN: PWM channel string dedicated to heater
-  - GPIOCHIP: integer chip index (0 on most; 4 on RPi 5)
-  - TEMP_ADDRESS, DAC_ADDRESS (and TEMP, DAC aliases)
-- PWM_CONTROLLER is exposed for forward-compatibility (e.g., 'rpi_gpio' vs 'hat_mcu'),
-  but is not yet used elsewhere.
-
-YAML schemas (initial scope)
+YAML schemas
 - pwm.yaml
   - controller: rpi_gpio | hat_mcu
   - heater_pwm_channel: "5"
@@ -63,16 +53,9 @@ from pioreactor import types as pt
 from pioreactor.utils import adcs
 from pioreactor.version import hardware_version_info
 from pioreactor.version import rpi_version_info
+from pioreactor.version import tuple_to_text
 from pioreactor.whoami import get_pioreactor_model
 from pioreactor.whoami import is_testing_env
-
-
-def _hat_version_text() -> str:
-    try:
-        major, minor = hardware_version_info[:2]
-    except Exception:
-        major, minor = (0, 0)
-    return f"{major}.{minor}"
 
 
 def _load_yaml_if_exists(path: Path) -> dict[str, Any]:
@@ -105,7 +88,7 @@ def get_layered_mod_config(mod: str) -> dict[str, Any]:
 
     model = get_pioreactor_model()
     model_dir = base / "models" / model.model_name / model.model_version
-    hat_dir = base / "hats" / _hat_version_text()
+    hat_dir = base / "hats" / tuple_to_text(hardware_version_info)
     model_file = model_dir / f"{mod}.yaml"
 
     data: dict[str, Any] = {}
@@ -114,7 +97,9 @@ def get_layered_mod_config(mod: str) -> dict[str, Any]:
     return data
 
 
-# PWMs (loaded from YAML)
+GPIOCHIP: pt.GpioChip = 4 if rpi_version_info.startswith("Raspberry Pi 5") else 0
+
+# PWMs
 _pwm_cfg = get_layered_mod_config("pwm")
 
 # pwm.controller for future-proofing (rpi_gpio | hat_mcu). Not currently used elsewhere.
@@ -127,16 +112,11 @@ HEATER_PWM_TO_PIN: pt.PwmChannel = str(_pwm_cfg["heater_pwm_channel"])  # type: 
 PWM_TO_PIN: dict[pt.PwmChannel, pt.GpioPin] = {str(k): v for k, v in _pwm_cfg["pwm_to_pin"].items()}  # type: ignore
 
 
-# I2C pins and misc GPIO
-SDA: pt.I2CPin
-SCL: pt.I2CPin
-
-GPIOCHIP: pt.GpioChip = 4 if rpi_version_info.startswith("Raspberry Pi 5") else 0
-
+# GPIOS
 _gpio_cfg = get_layered_mod_config("gpio")
 
-SDA = int(_gpio_cfg["sda_pin"])
-SCL = int(_gpio_cfg["scl_pin"])
+SDA: pt.I2CPin = int(_gpio_cfg["sda_pin"])
+SCL: pt.I2CPin = int(_gpio_cfg["scl_pin"])
 
 PCB_LED_PIN: pt.GpioPin = int(_gpio_cfg["pcb_led_pin"])
 PCB_BUTTON_PIN: pt.GpioPin = int(_gpio_cfg["pcb_button_pin"])
@@ -145,6 +125,9 @@ HALL_SENSOR_PIN: pt.GpioPin = int(_gpio_cfg["hall_sensor_pin"])
 _temp_cfg = get_layered_mod_config("temp")
 TEMP_ADDRESS = int(_temp_cfg["address"])
 TEMP = TEMP_ADDRESS  # bc
+
+
+# ADCS
 
 
 class ADCCurrier:
@@ -173,7 +156,7 @@ class ADCCurrier:
         return f"ADCCurrier(adc_driver={self.adc_driver.__name__}, i2c_address={hex(self.i2c_address)}, adc_channel={self.adc_channel})"
 
 
-_ADC_DRIVER_LUT: dict[str, type[adcs._I2C_ADC]] = {
+_ADC_DRIVERS: dict[str, type[adcs._I2C_ADC]] = {
     "ads1115": adcs.ADS1115_ADC,
     "ads1114": adcs.ADS1114_ADC,
     "pico": adcs.Pico_ADC,
@@ -183,7 +166,7 @@ _ADC_DRIVER_LUT: dict[str, type[adcs._I2C_ADC]] = {
 def _build_adc_currier_from_cfg(entry: dict[str, Any], context_key: str) -> ADCCurrier:
     try:
         driver_key = str(entry["driver"]).lower()
-        driver = _ADC_DRIVER_LUT[driver_key]
+        driver = _ADC_DRIVERS[driver_key]
         addr = int(entry["address"])  # supports decimal or hex
         channel = int(entry["channel"])  # 0..3
     except KeyError as e:
@@ -208,9 +191,10 @@ for key in ("pd1", "pd2", "aux", "version"):
         )
 
 
+# DACS
+
 _dac_cfg = get_layered_mod_config("dac")
 DAC_ADDRESS = int(_dac_cfg["address"])
-
 DAC = DAC_ADDRESS  # bc
 
 
