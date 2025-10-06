@@ -58,7 +58,7 @@ const LEVELS = ["NOTSET", "DEBUG", "INFO", "NOTICE", "WARNING", "ERROR", "CRITIC
 
 function LogTable({ units, byDuration, experimentStartTime, experiment, config, relabelMap }) {
   const [listOfLogs, setListOfLogs] = useState([]);
-  const { client, subscribeToTopic } = useMQTT();
+  const { client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
 
   useEffect(() => {
     const getData = async () => {
@@ -83,28 +83,32 @@ function LogTable({ units, byDuration, experimentStartTime, experiment, config, 
   }, [experiment, config]);
 
   useEffect(() => {
-    if (client && Object.keys(config).length) {
-      const levelRequested = config.logging.ui_log_level.toUpperCase() || 'INFO';
-      const ix = LEVELS.indexOf(levelRequested);
-      subscribeToTopic(
-        LEVELS.slice(ix).map((level) => `pioreactor/+/$experiment/logs/+/${level.toLowerCase()}`),
-        onMessage,
-        'LogTable'
-      );
-    }
-  }, [client, config]);
+    if (!client || !Object.keys(config).length) return undefined;
+
+    const levelRequested = config.logging.ui_log_level.toUpperCase() || 'INFO';
+    const ix = LEVELS.indexOf(levelRequested);
+    const topics = LEVELS.slice(ix).map((level) => `pioreactor/+/$experiment/logs/+/${level.toLowerCase()}`);
+
+    subscribeToTopic(topics, onMessage, 'LogTable');
+
+    return () => {
+      topics.forEach((topic) => unsubscribeFromTopic(topic, 'LogTable'));
+    };
+  }, [client, config, subscribeToTopic, unsubscribeFromTopic]);
 
   useEffect(() => {
-    if (experiment && client && Object.keys(config).length) {
-      const levelRequested = config.logging.ui_log_level.toUpperCase() || 'INFO';
-      const ix = LEVELS.indexOf(levelRequested);
-      subscribeToTopic(
-        LEVELS.slice(ix).map((level) => `pioreactor/+/${experiment}/logs/+/${level.toLowerCase()}`),
-        onMessage,
-        'LogTable'
-      );
-    }
-  }, [client, experiment, config]);
+    if (!experiment || !client || !Object.keys(config).length) return undefined;
+
+    const levelRequested = config.logging.ui_log_level.toUpperCase() || 'INFO';
+    const ix = LEVELS.indexOf(levelRequested);
+    const topics = LEVELS.slice(ix).map((level) => `pioreactor/+/${experiment}/logs/+/${level.toLowerCase()}`);
+
+    subscribeToTopic(topics, onMessage, 'LogTable');
+
+    return () => {
+      topics.forEach((topic) => unsubscribeFromTopic(topic, 'LogTable'));
+    };
+  }, [client, experiment, config, subscribeToTopic, unsubscribeFromTopic]);
 
   const relabelUnit = (unit) => {
     if (unit === '$broadcast') {

@@ -382,17 +382,20 @@ class TemperatureAutomationJob(AutomationJob):
         features["time_series_of_temp"] = time_series_of_temp
         self.logger.debug(f"{features=}")
 
-        hardware_model = get_pioreactor_model()
+        model = get_pioreactor_model()
         try:
-            if hardware_model.model_name == "pioreactor_20ml":
-                if hardware_model.model_version == "1.0":
+            if model.model_name == "pioreactor_20ml":
+                if model.model_version == "1.0":
                     inferred_temperature = self.approximate_temperature_20_1_0(features)
-                elif hardware_model.model_version >= "1.1":
+                elif model.model_version >= "1.1":
                     inferred_temperature = self.approximate_temperature_20_2_0(features)
-            elif hardware_model.model_name == "pioreactor_40ml":
-                inferred_temperature = self.approximate_temperature_20_2_0(features)  # TODO: change me back
+            elif model.model_name == "pioreactor_40ml":
+                inferred_temperature = self.approximate_temperature_20_2_0(features)
             else:
-                raise ValueError("Unknown Pioreactor model.")
+                self.logger.warning(
+                    "Approximating temperature inference for non-pioreactor models using pioreactor_40ml."
+                )
+                inferred_temperature = self.approximate_temperature_20_2_0(features)
 
             self.temperature = Temperature(
                 temperature=round(inferred_temperature, 2),

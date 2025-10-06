@@ -46,6 +46,7 @@ from __future__ import annotations
 from os import environ
 from pathlib import Path
 from typing import Any
+from typing import cast
 
 from msgspec.yaml import decode as yaml_decode
 from pioreactor import exc
@@ -115,12 +116,12 @@ PWM_TO_PIN: dict[pt.PwmChannel, pt.GpioPin] = {str(k): v for k, v in _pwm_cfg["p
 # GPIOS
 _gpio_cfg = get_layered_mod_config("gpio")
 
-SDA: pt.I2CPin = int(_gpio_cfg["sda_pin"])
-SCL: pt.I2CPin = int(_gpio_cfg["scl_pin"])
+SDA: pt.I2CPin = cast(pt.I2CPin, int(_gpio_cfg["sda_pin"]))
+SCL: pt.I2CPin = cast(pt.I2CPin, int(_gpio_cfg["scl_pin"]))
 
-PCB_LED_PIN: pt.GpioPin = int(_gpio_cfg["pcb_led_pin"])
-PCB_BUTTON_PIN: pt.GpioPin = int(_gpio_cfg["pcb_button_pin"])
-HALL_SENSOR_PIN: pt.GpioPin = int(_gpio_cfg["hall_sensor_pin"])
+PCB_LED_PIN: pt.GpioPin = cast(pt.GpioPin, int(_gpio_cfg["pcb_led_pin"]))
+PCB_BUTTON_PIN: pt.GpioPin = cast(pt.GpioPin, int(_gpio_cfg["pcb_button_pin"]))
+HALL_SENSOR_PIN: pt.GpioPin = cast(pt.GpioPin, int(_gpio_cfg["hall_sensor_pin"]))
 
 _temp_cfg = get_layered_mod_config("temp")
 TEMP_ADDRESS = int(_temp_cfg["address"])
