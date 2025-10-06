@@ -65,6 +65,7 @@ def filter_to_allowed_env(env: dict):
     Filter the environment dictionary to only include allowed keys.
     This is used to prevent passing sensitive or unnecessary environment variables.
     """
+    env = os.environ | env
     return {k: v for k, v in env.items() if k in ALLOWED_ENV and v is not None and v != "" and v != "None"}
 
 

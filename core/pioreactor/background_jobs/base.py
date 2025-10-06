@@ -16,6 +16,7 @@ from msgspec.json import encode as dumps
 from pioreactor import types as pt
 from pioreactor.config import config
 from pioreactor.config import leader_hostname
+from pioreactor.exc import JobPresentError
 from pioreactor.exc import NotActiveWorkerError
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import Client
@@ -957,7 +958,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def _check_for_duplicate_activity(self) -> None:
         if is_pio_job_running(self.job_name) and not is_testing_env():
             self.logger.warning(f"{self.job_name} is already running. Skipping.")
-            raise RuntimeError(f"{self.job_name} is already running. Skipping.")
+            raise JobPresentError(f"{self.job_name} is already running. Skipping.")
 
     def __setattr__(self, name: str, value: t.Any) -> None:
         super(_BackgroundJob, self).__setattr__(name, value)

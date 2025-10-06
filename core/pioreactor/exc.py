@@ -20,13 +20,13 @@ class HardwareNotFoundError(HardwareError):
     """
 
 
-class JobRequiredError(Exception):
+class JobRequiredError(RuntimeError):
     """
     A job should be running, but isn't found.
     """
 
 
-class JobPresentError(Exception):
+class JobPresentError(RuntimeError):
     """
     A job shouldn't be running, but is.
     """
