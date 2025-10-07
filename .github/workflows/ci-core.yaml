@@ -55,9 +55,14 @@ jobs:
       - name: Create pioreactor folders
         run: |
           mkdir -p "$RUN_PIOREACTOR"
+          mkdir -p "$RUN_PIOREACTOR/cache"
+          touch "$RUN_PIOREACTOR/cache/huey.db"
+
+
           mkdir -p "$DOT_PIOREACTOR"
           mv config.dev.ini "$DOT_PIOREACTOR"/config.ini
           mkdir -p "$DOT_PIOREACTOR"/storage
+
 
           mkdir -p "$DOT_PIOREACTOR"/hardware/hats/1.2
           mkdir -p "$DOT_PIOREACTOR"/hardware/models/pioreactor_40ml/1.5
