@@ -7,14 +7,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       TESTING: 1
-      DOT_PIOREACTOR: .pioreactor
-      RUN_PIOREACTOR: run/pioreactor
-      LG_WD: run/pioreactor
+      DOT_PIOREACTOR: ${{ github.workspace }}/.pioreactor
+      RUN_PIOREACTOR: ${{ github.workspace }}/run/pioreactor
+      LG_WD: ${{ github.workspace }}/run/pioreactor
       TMPDIR: /tmp/
-      PIO_VENV: .venv
-      VIRTUAL_ENV: .venv
-      PIO_EXECUTABLE: .venv/bin/pio
-      PIOS_EXECUTABLE: .venv/bin/pios
+      PIO_VENV: ${{ github.workspace }}/.venv
+      VIRTUAL_ENV: ${{ github.workspace }}/.venv
+      PIO_EXECUTABLE: ${{ github.workspace }}/.venv/bin/pio
+      PIOS_EXECUTABLE: ${{ github.workspace }}/.venv/bin/pios
 
     strategy:
       fail-fast: true
@@ -111,6 +111,8 @@ jobs:
             address: 0x49
             channel: 0
           EOF_HW
+
+          ls "$DOT_PIOREACTOR"
 
       - name: Create plugin folder and seed it
         run: |
