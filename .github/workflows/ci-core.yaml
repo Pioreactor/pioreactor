@@ -8,11 +8,11 @@ jobs:
     env:
       TESTING: 1
       DOT_PIOREACTOR: .pioreactor/
-      RUN_PIOREACTOR: /run/pioreactor
-      LG_WD: /run/pioreactor
+      RUN_PIOREACTOR: ${{ github.workspace }}/run/pioreactor
+      LG_WD: ${{ github.workspace }}/run/pioreactor
       TMPDIR: /tmp/
-      PIO_VENV: .venv/venv
-      VIRTUAL_ENV: .venv/venv
+      PIO_VENV: .venv
+      VIRTUAL_ENV: .venv
       PIO_EXECUTABLE: .venv/bin/pio
       PIOS_EXECUTABLE: .venv/bin/pios
 
@@ -21,7 +21,6 @@ jobs:
       matrix:
         os: ["ubuntu-latest"]
         python-version: ["3.11"]
-
 
     steps:
       - name: Checkout source
@@ -49,22 +48,20 @@ jobs:
         with:
           version: '1.6'
 
-
       - name: Install any other required linux software
         run: |
-           sudo apt-get install avahi-daemon avahi-discover avahi-utils mosquitto-clients
-
+          sudo apt-get install avahi-daemon avahi-discover avahi-utils mosquitto-clients
 
       - name: Create pioreactor folders
         run: |
           mkdir -p "$RUN_PIOREACTOR"/pioreactor_cache/
+          mkdir -p .pioreactor
           mv config.dev.ini .pioreactor/config.ini
           mkdir -p .pioreactor/storage
 
-
           mkdir -p .pioreactor/hardware/hats/1.2
           mkdir -p .pioreactor/hardware/models/pioreactor_40ml/1.5
-          cat <<'EOF' > .pioreactor/hardware/hats/1.2/pwm.yaml
+          cat <<'EOF_HW' > .pioreactor/hardware/hats/1.2/pwm.yaml
           heater_pwm_channel: "5"
           pwm_to_pin:
             "1": 17
@@ -72,14 +69,14 @@ jobs:
             "3": 16
             "4": 12
             "5": 18
-          EOF
-          cat <<'EOF' > .pioreactor/hardware/hats/1.2/dac.yaml
+          EOF_HW
+          cat <<'EOF_HW' > .pioreactor/hardware/hats/1.2/dac.yaml
           address: 0x2C
-          EOF
-          cat <<'EOF' > .pioreactor/hardware/hats/1.2/temp.yaml
+          EOF_HW
+          cat <<'EOF_HW' > .pioreactor/hardware/hats/1.2/temp.yaml
           address: 0x4F
-          EOF
-          cat <<'EOF' > .pioreactor/hardware/hats/1.2/adc.yaml
+          EOF_HW
+          cat <<'EOF_HW' > .pioreactor/hardware/hats/1.2/adc.yaml
           aux:
             driver: pico
             address: 0x2C
@@ -96,15 +93,15 @@ jobs:
             driver: pico
             address: 0x2C
             channel: 3
-          EOF
-          cat <<'EOF' > .pioreactor/hardware/hats/1.2/gpio.yaml
+          EOF_HW
+          cat <<'EOF_HW' > .pioreactor/hardware/hats/1.2/gpio.yaml
           pcb_led_pin: 23
           pcb_button_pin: 4
           hall_sensor_pin: 21
           sda_pin: 2
           scl_pin: 3
-          EOF
-          cat <<'EOF' > .pioreactor/hardware/models/pioreactor_40ml/1.5/adc.yaml
+          EOF_HW
+          cat <<'EOF_HW' > .pioreactor/hardware/models/pioreactor_40ml/1.5/adc.yaml
           pd1:
             driver: ads1114
             address: 0x48
@@ -113,37 +110,36 @@ jobs:
             driver: ads1114
             address: 0x49
             channel: 0
-          EOF
-
+          EOF_HW
 
       - name: Create plugin folder and seed it
         run: |
-           mkdir -p plugins_dev
-           cat <<EOT >> plugins_dev/example_plugin.py
-           import click
-           from pioreactor.background_jobs.base import BackgroundJob
+          mkdir -p plugins_dev
+          cat <<'EOF_PLUGIN' > plugins_dev/example_plugin.py
+          import click
+          from pioreactor.background_jobs.base import BackgroundJob
 
-           __plugin_version__ = "0.2.0"
-           __plugin_name__ = "my-example-plugin"
+          __plugin_version__ = "0.2.0"
+          __plugin_name__ = "my-example-plugin"
 
-           class ExamplePlugin(BackgroundJob):
-              job_name="example_plugin"
+
+          class ExamplePlugin(BackgroundJob):
+              job_name = "example_plugin"
+
               def __init__(self):
                   super().__init__(unit="test", experiment="test")
 
 
-           @click.command(name="example_plugin")
-           def click_example_plugin():
+          @click.command(name="example_plugin")
+          def click_example_plugin():
               job = ExamplePlugin()
-           EOT
-
+          EOF_PLUGIN
 
       - name: Start MQTT capture
         run: |
           # Subscribe to all MQTT topics and capture output; auto-restart if broker not ready
           nohup sh -c 'while true; do mosquitto_sub -h 127.0.0.1 -p 1883 -v -t "#" >> mqtt.log 2>&1; echo "mosquitto_sub exited, retrying..." >> mqtt.log; sleep 1; done' &
           echo $! > mqtt_sub.pid
-
 
       - name: Start web API
         run: |
