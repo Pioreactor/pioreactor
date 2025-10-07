@@ -54,13 +54,13 @@ precommit: venv ## Run pre-commit on all files
 
 # --- test ---------------------------------------------------------------------
 test: venv  ## Run all pytest suites
-	@$(ACTIVATE) && pytest $(CORE_DIR)/tests --timeout 600 --random-order --durations 15  --random-order-bucket=module --random-order-seed=904213
+	@$(ACTIVATE) && pytest --rootdir=. $(CORE_DIR)/tests --timeout 600 --random-order --durations 15  --random-order-bucket=module --random-order-seed=904213 -vv
 
 core-test: venv  ## Backend tests only
-	@$(ACTIVATE) && pytest $(CORE_DIR)/tests --timeout 600 --random-order --durations 15 --random-order-bucket=module --random-order-seed=904213 --ignore=$(CORE_DIR)/tests/web --ignore=$(CORE_DIR)/tests/test_monitor.py
+	@$(ACTIVATE) && pytest --rootdir=. $(CORE_DIR)/tests --timeout 600 --random-order --durations 15 --random-order-bucket=module --random-order-seed=904213 --ignore=$(CORE_DIR)/tests/web --ignore=$(CORE_DIR)/tests/test_monitor.py -vv
 
 web-test: venv  ## API (Flask) tests only
-	@$(ACTIVATE) && pytest $(CORE_DIR)/tests/web/ --timeout 600 --random-order --durations 15
+	@$(ACTIVATE) && pytest --rootdir=. $(CORE_DIR)/tests/web/ --timeout 600 --random-order --durations 15 -vv
 
 # --- build --------------------------------------------------------------------
 wheel: venv  ## Build core wheel (stage 1 artifact)
