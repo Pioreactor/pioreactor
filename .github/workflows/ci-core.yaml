@@ -7,7 +7,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       TESTING: 1
-      DOT_PIOREACTOR: .pioreactor/
+      DOT_PIOREACTOR: .pioreactor
       RUN_PIOREACTOR: run/pioreactor
       LG_WD: run/pioreactor
       TMPDIR: /tmp/

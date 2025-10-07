@@ -54,10 +54,10 @@ precommit: venv ## Run pre-commit on all files
 
 # --- test ---------------------------------------------------------------------
 test: venv  ## Run all pytest suites
-	@$(ACTIVATE) && pytest $(CORE_DIR)/tests --timeout 600 --random-order --durations 15
+	@$(ACTIVATE) && pytest $(CORE_DIR)/tests --timeout 600 --random-order --durations 15  --random-order-bucket=module --random-order-seed=904213
 
 core-test: venv  ## Backend tests only
-	@$(ACTIVATE) && pytest $(CORE_DIR)/tests --timeout 600 --random-order --durations 15 --random-order-bucket=module --random-order-seed=904213
+	@$(ACTIVATE) && pytest $(CORE_DIR)/tests --timeout 600 --random-order --durations 15 --random-order-bucket=module --random-order-seed=904213 --ignore=$(CORE_DIR)/tests/web
 
 web-test: venv  ## API (Flask) tests only
 	@$(ACTIVATE) && pytest $(CORE_DIR)/tests/web/ --timeout 600 --random-order --durations 15
