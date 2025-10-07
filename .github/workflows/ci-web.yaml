@@ -19,7 +19,6 @@ jobs:
       PIO_EXECUTABLE: pio
       PIOS_EXECUTABLE: pios
       DOT_PIOREACTOR: .pioreactor/
-      WWW: web/
 
     strategy:
       fail-fast: true

@@ -8,12 +8,20 @@ jobs:
     env:
       TESTING: 1
       DOT_PIOREACTOR: .pioreactor/
+      RUN_PIOREACTOR: /run/pioreactor
+      LG_WD: /run/pioreactor
+      TMPDIR: /tmp/
+      PIO_VENV: .venv/venv
+      VIRTUAL_ENV: .venv/venv
+      PIO_EXECUTABLE: .venv/bin/pio
+      PIOS_EXECUTABLE: .venv/bin/pios
 
     strategy:
       fail-fast: true
       matrix:
         os: ["ubuntu-latest"]
         python-version: ["3.11"]
+
 
     steps:
       - name: Checkout source
@@ -24,8 +32,9 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install python libraries
+      - name: Install python libraries into env
         run: |
+          # env create in make install
           make install
           wget https://github.com/Gadgetoid/PY_LGPIO/releases/download/0.2.2.0/lgpio-0.2.2.0.tar.gz -O lgpio-0.2.2.0.tar.gz
           tar -xvzf lgpio-0.2.2.0.tar.gz
@@ -46,11 +55,13 @@ jobs:
            sudo apt-get install avahi-daemon avahi-discover avahi-utils mosquitto-clients
 
 
-      - name: Create pioreactor folders and env
+      - name: Create pioreactor folders
         run: |
-          mkdir -p .pioreactor/storage
+          mkdir -p "$RUN_PIOREACTOR"/pioreactor_cache/
           mv config.dev.ini .pioreactor/config.ini
-          mkdir -p /tmp/pioreactor_cache/
+          mkdir -p .pioreactor/storage
+
+
           mkdir -p .pioreactor/hardware/hats/1.2
           mkdir -p .pioreactor/hardware/models/pioreactor_40ml/1.5
           cat <<'EOF' > .pioreactor/hardware/hats/1.2/pwm.yaml
@@ -104,10 +115,6 @@ jobs:
             channel: 0
           EOF
 
-      - name: Create web API folders and environment
-        run: |
-          mv web/.env.example web/.env
-
 
       - name: Create plugin folder and seed it
         run: |
@@ -140,9 +147,8 @@ jobs:
 
       - name: Start web API
         run: |
-          GLOBAL_CONFIG=../.pioreactor/config.ini make web-dev &
+          make web-dev &
           sleep 5
-
 
       - name: Run tests
         run: |
