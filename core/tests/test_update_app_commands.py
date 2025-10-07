@@ -90,7 +90,7 @@ def test_app_commands_with_release_zip(tmp_path) -> None:
         (f"sudo bash {tmp_rls_dir}/pre_update.sh", 2),
         (f"sudo bash {tmp_rls_dir}/update.sh", 4),
         (f"sudo bash {tmp_rls_dir}/post_update.sh", 20),
-        (f"sudo rm -rf {tmp_rls_dir}", 99),
+        (f"sudo rm -rf {tmp_rls_dir}", 98),
         (
             f"/opt/pioreactor/venv/bin/pip install --no-index --find-links={tmp_rls_dir}/wheels/ "
             f"{tmp_rls_dir}/pioreactor-{version}-py3-none-any.whl[leader,worker]",
