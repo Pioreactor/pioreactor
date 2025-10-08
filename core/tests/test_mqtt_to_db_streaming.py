@@ -120,7 +120,7 @@ def test_dosing_events_land_in_db() -> None:
         m2db.TopicToParserToTable("pioreactor/+/+/dosing_events", m2db.parse_dosing_events, "dosing_events"),
     ]
 
-    with m2db.MqttToDBStreamer(unit, exp, parsers):
+    with m2db.MqttToDBStreamer(unit, exp, parsers) as job:
         from pioreactor.actions.pump import add_media
 
         sleep(1)  # give mqtt_to_db_streaming time to subscribe before publishing dosing events
@@ -139,6 +139,9 @@ def test_dosing_events_land_in_db() -> None:
                 voltage=-1.0,
                 calibrated_on_pioreactor_unit=unit,
             ),
+            source_of_event="test_suite",
+            logger=job.logger,
+            mqtt_client=job.pub_client,
         )
 
     cursor.execute("SELECT * FROM dosing_events WHERE pioreactor_unit=?", (unit,))

@@ -11,7 +11,6 @@ from msgspec import ValidationError
 from msgspec.structs import replace
 from msgspec.yaml import decode as yaml_decode
 from pioreactor.structs import Model
-from pioreactor.whoami import is_testing_env
 
 
 def tag_latest(model: Model) -> Model:

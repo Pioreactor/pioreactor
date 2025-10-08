@@ -391,7 +391,7 @@ class TestGrowthRateCalculating:
                 )
                 pause()
                 assert calc.processor._recent_dilution
-
+                pause()
                 publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/ods",
                     create_encoded_od_raw_batched(
@@ -401,6 +401,7 @@ class TestGrowthRateCalculating:
                         timestamp="2010-01-01T12:02:00.000Z",
                     ),
                 )
+                pause()
                 pause()
                 assert not calc.processor._recent_dilution
 
@@ -1088,7 +1089,9 @@ class TestGrowthRateCalculating:
             ) as od_stream, ExportDosingSource(None) as dosing_stream, GrowthRateCalculator(
                 unit=unit, experiment=experiment
             ) as calc:
-                for result in calc.process_until_disconnected_or_exhausted(od_stream, dosing_stream):
+                for _, result in enumerate(
+                    calc.process_until_disconnected_or_exhausted(od_stream, dosing_stream)
+                ):
                     if result[1].od_filtered <= 0:
                         assert False
                         break

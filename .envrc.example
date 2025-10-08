@@ -1,0 +1,18 @@
+export VIRTUAL_ENV=.venv
+export VIRTUAL_ENV_PROMPT=$(basename "$PWD")
+layout python3
+
+export TESTING=1
+export GLOBAL_CONFIG=/Users/camerondavidson-pilon/code/pioreactor/.pioreactor/config.ini
+export DOT_PIOREACTOR=/Users/camerondavidson-pilon/code/pioreactor/.pioreactor
+export RUN_PIOREACTOR=/tmp/
+export PLUGINS_DEV=/Users/camerondavidson-pilon/code/pioreactor/plugins_dev
+export PIO_EXECUTABLE=/Users/camerondavidson-pilon/code/pioreactor/.venv/bin/pio
+export PIOS_EXECUTABLE=/Users/camerondavidson-pilon/code/pioreactor/.venv/bin/pios
+
+export HARDWARE=1.2
+export FIRMWARE=0.5
+export BLINKA_FORCECHIP=BCM2XXX
+export BLINKA_FORCEBOARD=RASPBERRY_PI_3A_PLUS
+export MODEL_NAME=pioreactor_40ml
+export MODEL_VERSION=1.5

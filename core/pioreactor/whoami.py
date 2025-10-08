@@ -226,19 +226,3 @@ def check_firstboot_successful() -> bool:
     if is_testing_env():
         return True
     return os.path.isfile("/usr/local/bin/firstboot.sh.done")
-
-
-if is_testing_env():
-    # allow Blinka to think we are an Rpi:
-    # https://github.com/adafruit/Adafruit_Python_PlatformDetect/blob/75f69806222fbaf8535130ed2eacd07b06b1a298/adafruit_platformdetect/board.py
-    pairs = [
-        ("BLINKA_FORCECHIP", "BCM2XXX"),
-        ("BLINKA_FORCEBOARD", "RASPBERRY_PI_3A_PLUS"),
-        ("FIRMWARE", "0.5"),
-        ("HARDWARE", "1.2"),
-        ("MODEL_NAME", "pioreactor_40ml"),
-        ("MODEL_VERSION", "1.5"),
-    ]
-
-    for key, value in pairs:
-        os.environ.setdefault(key, value)
