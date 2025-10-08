@@ -11,6 +11,7 @@ from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalcula
 from pioreactor.config import config
 from pioreactor.config import temporary_config_changes
 from pioreactor.pubsub import collect_all_logs_of_level
+from pioreactor.pubsub import create_client
 from pioreactor.pubsub import publish
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.streaming import EmptyDosingSource
@@ -872,8 +873,6 @@ class TestGrowthRateCalculating:
             unit = get_unit_name()
             experiment = "test_baseline_shift_gets_absorbed"
 
-            publish(f"pioreactor/{unit}/{experiment}/od_reading/ods", None, retain=True)
-
             var = 1e-6
             std = float(np.sqrt(var))
 
@@ -890,49 +889,57 @@ class TestGrowthRateCalculating:
             with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
                 calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
 
-                # Initial steady data
-                for _ in range(30):
-                    v = 0.05 + std * np.random.randn()
-                    t = current_utc_timestamp()
-                    publish(
-                        f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                        create_encoded_od_raw_batched(["2"], [v], ["90"], timestamp=t),
-                        retain=True,
-                    )
-                    publish(
-                        f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                        encode(
-                            structs.RawODReading(
-                                od=v, angle="90", timestamp=to_datetime(t), channel="2", ir_led_intensity=80
-                            )
-                        ),
-                        retain=True,
-                    )
-                    time.sleep(0.5)
+                with create_client() as client:
 
-                previous_gr = calc.growth_rate
+                    def publish_and_wait(topic: str, payload, retain=False) -> None:
+                        msg_info = client.publish(topic, payload, retain=retain)
+                        msg_info.wait_for_publish()
 
-                # Introduce baseline shift
-                shift = 0.01
-                calc.logger.info("OFFSET!")
-                for _ in range(30):
-                    v = 0.05 + shift + std * np.random.randn()
-                    t = current_utc_timestamp()
-                    publish(
-                        f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                        create_encoded_od_raw_batched(["2"], [v], ["90"], timestamp=t),
-                        retain=True,
-                    )
-                    publish(
-                        f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                        encode(
-                            structs.RawODReading(
-                                od=v, angle="90", timestamp=to_datetime(t), channel="2", ir_led_intensity=80
-                            )
-                        ),
-                        retain=True,
-                    )
-                    time.sleep(0.5)
+                    # Initial steady data
+                    for _ in range(30):
+                        v = 0.05 + std * np.random.randn()
+                        t = current_utc_timestamp()
+                        publish_and_wait(
+                            f"pioreactor/{unit}/{experiment}/od_reading/ods",
+                            create_encoded_od_raw_batched(["2"], [v], ["90"], timestamp=t),
+                        )
+                        publish_and_wait(
+                            f"pioreactor/{unit}/{experiment}/od_reading/od2",
+                            encode(
+                                structs.RawODReading(
+                                    od=v,
+                                    angle="90",
+                                    timestamp=to_datetime(t),
+                                    channel="2",
+                                    ir_led_intensity=80,
+                                )
+                            ),
+                        )
+
+                    previous_gr = calc.growth_rate
+
+                    # Introduce baseline shift
+                    shift = 0.01
+                    calc.logger.info("OFFSET!")
+                    for _ in range(30):
+                        v = 0.05 + shift + std * np.random.randn()
+                        t = current_utc_timestamp()
+                        publish_and_wait(
+                            f"pioreactor/{unit}/{experiment}/od_reading/ods",
+                            create_encoded_od_raw_batched(["2"], [v], ["90"], timestamp=t),
+                        )
+                        publish_and_wait(
+                            f"pioreactor/{unit}/{experiment}/od_reading/od2",
+                            encode(
+                                structs.RawODReading(
+                                    od=v,
+                                    angle="90",
+                                    timestamp=to_datetime(t),
+                                    channel="2",
+                                    ir_led_intensity=80,
+                                )
+                            ),
+                        )
 
                 current_gr = calc.growth_rate
 
@@ -950,8 +957,6 @@ class TestGrowthRateCalculating:
             unit = get_unit_name()
             experiment = "test_massive_outlier_spike_gets_absorbed"
 
-            publish(f"pioreactor/{unit}/{experiment}/od_reading/ods", None, retain=True)
-
             var = 1e-6
             std = float(np.sqrt(var))
 
@@ -968,63 +973,47 @@ class TestGrowthRateCalculating:
             with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
                 calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
 
-                for _ in range(30):
-                    v = 0.05 + std * np.random.randn()
-                    t = current_utc_timestamp()
-                    publish(
-                        f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                        create_encoded_od_raw_batched(["2"], [v], ["90"], timestamp=t),
-                        retain=True,
-                    )
-                    publish(
-                        f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                        encode(
-                            structs.RawODReading(
-                                od=v, angle="90", timestamp=to_datetime(t), channel="2", ir_led_intensity=80
-                            )
-                        ),
-                        retain=True,
-                    )
-                    time.sleep(0.5)
+                with create_client() as client:
 
-                previous_nOD = calc.od_filtered
-                previous_gr = calc.growth_rate
+                    def publish_and_wait(topic: str, payload, retain=False) -> None:
+                        msg_info = client.publish(topic, payload, retain=retain)
+                        msg_info.wait_for_publish()
 
-                # introduce large outlier
-                v = 0.6 + std * np.random.randn()
-                t = current_utc_timestamp()
-                publish(
-                    f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                    create_encoded_od_raw_batched(["2"], [v], ["90"], timestamp=t),
-                    retain=True,
-                )
-                publish(
-                    f"pioreactor/{unit}/{experiment}/od_reading/od2",
-                    encode(
-                        structs.RawODReading(
-                            od=v, angle="90", timestamp=to_datetime(t), channel="2", ir_led_intensity=80
+                    for _ in range(30):
+                        v = 0.05 + std * np.random.randn()
+                        t = current_utc_timestamp()
+                        publish_and_wait(
+                            f"pioreactor/{unit}/{experiment}/od_reading/ods",
+                            create_encoded_od_raw_batched(["2"], [v], ["90"], timestamp=t),
+                            retain=True,
                         )
-                    ),
-                    retain=True,
-                )
-                time.sleep(0.5)
+                        publish_and_wait(
+                            f"pioreactor/{unit}/{experiment}/od_reading/od2",
+                            encode(
+                                structs.RawODReading(
+                                    od=v,
+                                    angle="90",
+                                    timestamp=to_datetime(t),
+                                    channel="2",
+                                    ir_led_intensity=80,
+                                )
+                            ),
+                            retain=True,
+                        )
+                        time.sleep(0.1)
 
-                current_nOD = calc.od_filtered
-                current_gr = calc.growth_rate
+                    previous_nOD = calc.od_filtered
+                    previous_gr = calc.growth_rate
 
-                assert previous_nOD.od_filtered < current_nOD.od_filtered
-                assert abs(previous_gr.growth_rate - current_gr.growth_rate) < 0.01
-
-                # resume normal values
-                for _ in range(30):
-                    v = 0.05 + std * np.random.randn()
+                    # introduce large outlier
+                    v = 0.6 + std * np.random.randn()
                     t = current_utc_timestamp()
-                    publish(
+                    publish_and_wait(
                         f"pioreactor/{unit}/{experiment}/od_reading/ods",
                         create_encoded_od_raw_batched(["2"], [v], ["90"], timestamp=t),
                         retain=True,
                     )
-                    publish(
+                    publish_and_wait(
                         f"pioreactor/{unit}/{experiment}/od_reading/od2",
                         encode(
                             structs.RawODReading(
@@ -1033,13 +1022,43 @@ class TestGrowthRateCalculating:
                         ),
                         retain=True,
                     )
-                    time.sleep(0.5)
+                    time.sleep(0.1)
 
-                current_nOD = calc.od_filtered
-                current_gr = calc.growth_rate
+                    current_nOD = calc.od_filtered
+                    current_gr = calc.growth_rate
 
-                assert abs(previous_nOD.od_filtered - current_nOD.od_filtered) < 0.05
-                assert abs(previous_gr.growth_rate - current_gr.growth_rate) < 0.01
+                    assert previous_nOD.od_filtered < current_nOD.od_filtered
+                    assert abs(previous_gr.growth_rate - current_gr.growth_rate) < 0.01
+
+                    # resume normal values
+                    for _ in range(30):
+                        v = 0.05 + std * np.random.randn()
+                        t = current_utc_timestamp()
+                        publish_and_wait(
+                            f"pioreactor/{unit}/{experiment}/od_reading/ods",
+                            create_encoded_od_raw_batched(["2"], [v], ["90"], timestamp=t),
+                            retain=True,
+                        )
+                        publish_and_wait(
+                            f"pioreactor/{unit}/{experiment}/od_reading/od2",
+                            encode(
+                                structs.RawODReading(
+                                    od=v,
+                                    angle="90",
+                                    timestamp=to_datetime(t),
+                                    channel="2",
+                                    ir_led_intensity=80,
+                                )
+                            ),
+                            retain=True,
+                        )
+                        time.sleep(0.1)
+
+                    current_nOD = calc.od_filtered
+                    current_gr = calc.growth_rate
+
+                    assert abs(previous_nOD.od_filtered - current_nOD.od_filtered) < 0.05
+                    assert abs(previous_gr.growth_rate - current_gr.growth_rate) < 0.01
 
     def test_abnormal_kf_caused_by_previous_outlier_algo(self) -> None:
         experiment = "test_abnormal_kf_caused_by_previous_outlier_algo"

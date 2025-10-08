@@ -123,6 +123,7 @@ def test_dosing_events_land_in_db() -> None:
     with m2db.MqttToDBStreamer(unit, exp, parsers):
         from pioreactor.actions.pump import add_media
 
+        sleep(1)  # give mqtt_to_db_streaming time to subscribe before publishing dosing events
         add_media(
             unit,
             exp,
