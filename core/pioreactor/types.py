@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import typing as t
 
-# alias types
-Unit = str
-Experiment = str
-
 from msgspec import Meta
 
 if t.TYPE_CHECKING:
     from pioreactor.pubsub import Client
     from pioreactor.logging import CustomLogger
+
+
+type Unit = str
+type Experiment = str
 
 
 class DosingProgram(t.Protocol):
@@ -33,7 +33,7 @@ class DosingProgram(t.Protocol):
         ...
 
 
-MQTTMessagePayload = t.Union[bytes, bytearray]
+type MQTTMessagePayload = bytes | bytearray
 
 
 class MQTTMessage:
@@ -44,7 +44,7 @@ class MQTTMessage:
     mid: int
 
 
-PublishableSettingDataType = t.Union[str, float, int, bool]
+type PublishableSettingDataType = str | float | int | bool
 
 
 class PublishableSetting(t.TypedDict, total=False):
@@ -96,32 +96,32 @@ class PublishableSetting(t.TypedDict, total=False):
     persist: t.NotRequired[bool]
 
 
-JobState = t.Literal["init", "ready", "sleeping", "disconnected", "lost"]
+type JobState = t.Literal["init", "ready", "sleeping", "disconnected", "lost"]
 
 
-LedChannel = t.Literal["A", "B", "C", "D"]
+type LedChannel = t.Literal["A", "B", "C", "D"]
 # these are strings! Don't make them ints, since ints suggest we can perform math on them, that's meaningless.
 # str suggest symbols, which they are.
-PdChannel = t.Literal["1", "2"]
-PwmChannel = t.Literal["1", "2", "3", "4", "5"]
+type PdChannel = t.Literal["1", "2"]
+type PwmChannel = t.Literal["1", "2", "3", "4", "5"]
 
-PdAngle = t.Literal["45", "90", "135", "180"]
-PdAngleOrREF = t.Union[PdAngle, t.Literal["REF"]]
+type PdAngle = t.Literal["45", "90", "135", "180"]
+type PdAngleOrREF = PdAngle | t.Literal["REF"]
 
 # hardware level stuff
-AnalogValue = t.Union[int, float]
-Voltage = float  # maybe should be non-negative?
-RawOD = t.Annotated[float, Meta(ge=0)]
-CalibratedOD = float
-OD = RawOD | CalibratedOD
+type AnalogValue = int | float
+type Voltage = float  # maybe should be non-negative?
+type RawOD = t.Annotated[float, Meta(ge=0)]
+type CalibratedOD = float
+type OD = RawOD | CalibratedOD
 
-AdcChannel = int  # non-negative
+type AdcChannel = int  # non-negative
 
-FloatBetween0and100 = t.Annotated[float, Meta(ge=0, le=100)]
-LedIntensityValue = FloatBetween0and100
+type FloatBetween0and100 = t.Annotated[float, Meta(ge=0, le=100)]
+type LedIntensityValue = FloatBetween0and100
 
 # All GPIO pins below are BCM numbered
-GpioPin = t.Literal[
+type GpioPin = t.Literal[
     2,
     3,
     4,
@@ -152,13 +152,13 @@ GpioPin = t.Literal[
     21,
 ]
 
-I2CPin = t.Union[GpioPin, tuple[int, GpioPin]]
-I2CAddress = int  # 0 <= I2CAddress <= 127
+type I2CPin = GpioPin | tuple[int, GpioPin]
+type I2CAddress = int  # 0 <= I2CAddress <= 127
 
-GpioChip = t.Literal[0, 4]
+type GpioChip = t.Literal[0, 4]
 
-mL = float
-Seconds = float
+type mL = float
+type Seconds = float
 
 # calibration stuff
-PumpCalibrationDevices = t.Literal["waste_pump", "media_pump", "alt_media_pump"]
+type PumpCalibrationDevices = t.Literal["waste_pump", "media_pump", "alt_media_pump"]

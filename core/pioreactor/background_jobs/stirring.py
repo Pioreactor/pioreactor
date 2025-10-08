@@ -9,6 +9,7 @@ from time import time
 from typing import Callable
 from typing import cast
 from typing import Optional
+from typing import override
 
 import click
 import pioreactor.types as pt
@@ -295,6 +296,7 @@ class Stirrer(BackgroundJobWithDodging):
             pub_client=self.pub_client,
         )
 
+    @override
     def action_to_do_before_od_reading(self):
         if self.rpm_calculator is None:
             return
@@ -303,6 +305,7 @@ class Stirrer(BackgroundJobWithDodging):
         sleep(0.15)
         self.poll_and_update_dc()
 
+    @override
     def action_to_do_after_od_reading(self):
         if self.rpm_calculator is None:
             return
@@ -313,6 +316,7 @@ class Stirrer(BackgroundJobWithDodging):
         self.poll_and_update_dc()  # do it twice.
         self.poll_and_update_dc()
 
+    @override
     def initialize_dodging_operation(self):
         self.logger.debug("Starting initialize_dodging_operation")
         with JobManager() as jm:
@@ -345,6 +349,7 @@ class Stirrer(BackgroundJobWithDodging):
         )
         self.logger.debug("Finished initialize_dodging_operation")
 
+    @override
     def initialize_continuous_operation(self):
         self.logger.debug("Starting initialize_continuous_operation")
         # set up thread to periodically check the rpm

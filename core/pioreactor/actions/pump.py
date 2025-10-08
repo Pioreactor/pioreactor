@@ -162,23 +162,23 @@ def _to_human_readable_action(
 ) -> str:
     if pump_device == "waste_pump":
         if duration is not None:
-            return f"Removing waste for {round(duration,2)}s."
+            return f"Removing waste for {round(duration, 2)}s."
         elif ml is not None:
-            return f"Removing {round(ml,3)} mL waste."
+            return f"Removing {round(ml, 3)} mL waste."
         else:
             raise ValueError()
     elif pump_device == "media_pump":
         if duration is not None:
-            return f"Adding media for {round(duration,2)}s."
+            return f"Adding media for {round(duration, 2)}s."
         elif ml is not None:
-            return f"Adding {round(ml,3)} mL media."
+            return f"Adding {round(ml, 3)} mL media."
         else:
             raise ValueError()
     elif pump_device == "alt_media_pump":
         if duration is not None:
-            return f"Adding alt-media for {round(duration,2)}s."
+            return f"Adding alt-media for {round(duration, 2)}s."
         elif ml is not None:
-            return f"Adding {round(ml,3)} mL alt-media."
+            return f"Adding {round(ml, 3)} mL alt-media."
         else:
             raise ValueError()
     else:
@@ -289,9 +289,6 @@ def _pump_action(
 
         assert duration is not None
         assert ml is not None
-
-        duration = pt.Seconds(duration)
-        ml = pt.mL(ml)
 
         empty_dosing_event = structs.DosingEvent(
             volume_change=0.0,

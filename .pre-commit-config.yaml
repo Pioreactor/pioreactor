@@ -14,13 +14,13 @@ repos:
 
 
 -   repo: https://github.com/ambv/black
-    rev: 23.3.0
+    rev: 25.9.0
     hooks:
     - id: black
       args: ["--line-length", "110"]
 
 -   repo: https://github.com/PyCQA/flake8
-    rev: 6.0.0
+    rev: 7.3.0
     hooks:
     - id: flake8
       args: # arguments to configure flake8
@@ -34,7 +34,7 @@ repos:
         - "--per-file-ignores=*/__init__.py: F401"
 
 -   repo: https://github.com/pre-commit/mirrors-mypy
-    rev: 'v1.6.0'  # Use the sha / tag you want to point at
+    rev: 'v1.18.2'  # Use the sha / tag you want to point at
     hooks:
     -   id: mypy
         additional_dependencies: [

@@ -10,6 +10,7 @@ from os import environ
 from os import getpid
 from time import sleep
 from time import time
+from typing import Self
 
 from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
@@ -31,9 +32,6 @@ from pioreactor.whoami import is_active
 from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
-
-T = t.TypeVar("T")
-BJT = t.TypeVar("BJT", bound="_BackgroundJob")
 
 # these are used elsewhere in our software
 DISALLOWED_JOB_NAMES = {
@@ -111,7 +109,6 @@ class PostInitCaller(type):
 
 
 class _BackgroundJob(metaclass=PostInitCaller):
-
     """
     State management & hooks
     ---------------------------
@@ -460,7 +457,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             see pioreactor.pubsub.QOS
         """
 
-        def wrap_callback(actual_callback: t.Callable[..., T]) -> t.Callable[..., t.Optional[T]]:
+        def wrap_callback[T](actual_callback: t.Callable[..., T]) -> t.Callable[..., t.Optional[T]]:
             def _callback(client, userdata, message: pt.MQTTMessage) -> t.Optional[T]:
                 if not allow_retained and message.retain:
                     return None
@@ -965,7 +962,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         if name in self.published_settings:
             self._publish_setting(name)
 
-    def __enter__(self: BJT) -> BJT:
+    def __enter__(self: Self) -> Self:
         return self
 
     def __exit__(self, *args) -> None:
@@ -1217,7 +1214,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
         # get interval, and confirm that the requirements are possible: post_delay + pre_delay <= ADS interval - (od reading duration)
         if not (ads_interval - self.OD_READING_DURATION > (post_delay + pre_delay)):
             self.logger.error(
-                f"Your {pre_delay=} or {post_delay=} is too high for the samples_per_second={1/ads_interval}. Either decrease pre_delay or post_delay, or decrease samples_per_second"
+                f"Your {pre_delay=} or {post_delay=} is too high for the samples_per_second={1 / ads_interval}. Either decrease pre_delay or post_delay, or decrease samples_per_second"
             )
             self.clean_up()
             return

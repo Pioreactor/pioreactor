@@ -10,12 +10,12 @@
 
 # --- configurable knobs -------------------------------------------------------
 
-PYTHON       ?= python3.11        # put full path if multiple versions
+PYTHON       ?= python3.13
 VENV_DIR     ?= .venv
 PIP_FLAGS    ?=
 NODE_DIR     ?= frontend
 API_DIR      ?= core/pioreactor/web
-CORE_DIR  ?= core
+CORE_DIR     ?= core
 
 # environment variables expected to come from .envrc or elsewhere
 ENV_REQUIRED ?= GLOBAL_CONFIG DOT_PIOREACTOR RUN_PIOREACTOR PLUGINS_DEV PIO_EXECUTABLE PIOS_EXECUTABLE HARDWARE FIRMWARE BLINKA_FORCECHIP BLINKA_FORCEBOARD MODEL_NAME MODEL_VERSION
