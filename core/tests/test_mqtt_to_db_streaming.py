@@ -9,6 +9,7 @@ import pioreactor.background_jobs.leader.mqtt_to_db_streaming as m2db
 import pytest
 from pioreactor import mureq
 from pioreactor import structs
+from pioreactor.automations import temperature  # noqa: F401
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
 from pioreactor.background_jobs.od_reading import start_od_reading

@@ -29,9 +29,6 @@ VERSION = __version__
 HOSTNAME = get_unit_name()
 NAME = f"pioreactor-{HOSTNAME}-api"
 
-# load plugins
-load_plugins()
-
 
 # set up logging
 logger = create_logger(
@@ -307,6 +304,9 @@ def get_all_units() -> list[str]:
     assert result is not None and isinstance(result, list)
     return list(r["pioreactor_unit"] for r in result)
 
+
+# load plugins
+load_plugins()
 
 if __name__ == "__main__":
     create_app().run()
