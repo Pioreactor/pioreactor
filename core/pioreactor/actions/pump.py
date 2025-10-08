@@ -30,6 +30,7 @@ from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import default_datetime_for_pioreactor
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
+from pioreactor.whoami import is_testing_env
 
 
 def get_default_calibration() -> structs.SimplePeristalticPumpCalibration:
@@ -41,7 +42,7 @@ def get_default_calibration() -> structs.SimplePeristalticPumpCalibration:
         dc=95.0,
         voltage=-1,
         curve_type="poly",
-        curve_data_=[0.0911, 0.0],  # 0.0911 is a pretty okay estimate for the slope
+        curve_data_=[0.0911, 0.0] if not is_testing_env() else [5.0, 0],  # go fast if in testing
         recorded_data={"x": [], "y": []},
     )
 
