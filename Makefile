@@ -17,7 +17,7 @@ NODE_DIR     ?= frontend
 API_DIR      ?= core/pioreactor/web
 CORE_DIR  ?= core
 
-# environment variables expected to come from .envrc
+# environment variables expected to come from .envrc or elsewhere
 ENV_REQUIRED ?= GLOBAL_CONFIG DOT_PIOREACTOR RUN_PIOREACTOR PLUGINS_DEV PIO_EXECUTABLE PIOS_EXECUTABLE HARDWARE FIRMWARE BLINKA_FORCECHIP BLINKA_FORCEBOARD MODEL_NAME MODEL_VERSION
 
 # --- internal helpers ---------------------------------------------------------

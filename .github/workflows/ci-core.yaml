@@ -16,6 +16,13 @@ jobs:
       PIO_EXECUTABLE: ${{ github.workspace }}/.venv/bin/pio
       PIOS_EXECUTABLE: ${{ github.workspace }}/.venv/bin/pios
       PLUGINS_DEV: ${{ github.workspace }}/plugins_dev
+      HARDWARE: 1.2
+      FIRMWARE: 0.5
+      BLINKA_FORCECHIP: BCM2XXX
+      BLINKA_FORCEBOARD: RASPBERRY_PI_3A_PLUS
+      MODEL_NAME: pioreactor_40ml
+      MODEL_VERSION: 1.5
+
 
     strategy:
       fail-fast: true
@@ -119,6 +126,8 @@ jobs:
           EOF_HW
 
           ls "$DOT_PIOREACTOR"
+
+          make check-env
 
       - name: Create plugin folder and seed it
         run: |
