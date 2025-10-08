@@ -17,6 +17,9 @@ NODE_DIR     ?= frontend
 API_DIR      ?= core/pioreactor/web
 CORE_DIR  ?= core
 
+# environment variables expected to come from .envrc
+ENV_REQUIRED ?= GLOBAL_CONFIG DOT_PIOREACTOR RUN_PIOREACTOR PLUGINS_DEV PIO_EXECUTABLE PIOS_EXECUTABLE HARDWARE
+
 # --- internal helpers ---------------------------------------------------------
 ACTIVATE = . $(VENV_DIR)/bin/activate
 define newline
@@ -27,7 +30,31 @@ endef
 # --- meta ---------------------------------------------------------------------
 .PHONY: help
 help:  ## Show this message
+	@-$(MAKE) --no-print-directory check-env
 	@awk -F':.*?## ' '/^[a-zA-Z0-9_-]+:.*?## /{printf " \033[36m%-18s\033[0m %s\n",$$1,$$2}' $(MAKEFILE_LIST)
+
+.PHONY: check-env
+check-env:  ## Verify required environment variables are loaded
+	@if [ ! -f .envrc ]; then \
+		echo ".envrc not found - skipping environment verification."; \
+		exit 0; \
+	fi; \
+	missing=""; \
+	for var in $(ENV_REQUIRED); do \
+		if ! printenv $$var >/dev/null 2>&1; then \
+			missing="$$missing $$var"; \
+		fi; \
+	done; \
+	if [ -n "$$missing" ]; then \
+		echo "Missing environment variables:"; \
+		for var in $$missing; do \
+			echo "  - $$var"; \
+		done; \
+		echo "Run 'direnv allow' (or equivalent) to load variables from .envrc"; \
+		exit 1; \
+	else \
+		echo "All required environment variables are present."; \
+	fi
 
 # --- environment --------------------------------------------------------------
 $(VENV_DIR)/bin/activate:  ## Create virtual env + core tooling

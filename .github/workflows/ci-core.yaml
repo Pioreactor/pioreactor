@@ -15,6 +15,7 @@ jobs:
       VIRTUAL_ENV: ${{ github.workspace }}/.venv
       PIO_EXECUTABLE: ${{ github.workspace }}/.venv/bin/pio
       PIOS_EXECUTABLE: ${{ github.workspace }}/.venv/bin/pios
+      PLUGINS_DEV: ${{ github.workspace }}/plugins_dev
 
     strategy:
       fail-fast: true
@@ -121,8 +122,8 @@ jobs:
 
       - name: Create plugin folder and seed it
         run: |
-          mkdir -p plugins_dev
-          cat <<'EOF_PLUGIN' > plugins_dev/example_plugin.py
+          mkdir -p "$PLUGINS_DEV"
+          cat <<'EOF_PLUGIN' > "$PLUGINS_DEV"/example_plugin.py
           import click
           from pioreactor.background_jobs.base import BackgroundJob
 

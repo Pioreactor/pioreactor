@@ -915,6 +915,7 @@ class TestGrowthRateCalculating:
                                 )
                             ),
                         )
+                        time.sleep(0.1)
 
                     previous_gr = calc.growth_rate
 
@@ -940,6 +941,7 @@ class TestGrowthRateCalculating:
                                 )
                             ),
                         )
+                        time.sleep(0.1)
 
                 current_gr = calc.growth_rate
 
