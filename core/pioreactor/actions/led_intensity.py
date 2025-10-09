@@ -147,7 +147,7 @@ def led_intensity(
     if not is_testing_env():
         from pioreactor.utils.dacs import DAC
     else:
-        from pioreactor.utils.mock import Mock_DAC as DAC
+        from pioreactor.utils.mock import Mock_DAC as DAC  # type: ignore
 
     if pubsub_client is None:
         mqtt_publishing = create_client(client_id=f"led_intensity-{unit}-{experiment}")

@@ -6,6 +6,17 @@ import os
 from contextlib import contextmanager
 from functools import cache
 from pathlib import Path
+from typing import Any
+from typing import Final
+from typing import Mapping
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from configparser import _SectionName as _ConfigSectionName
+else:
+    _ConfigSectionName = str
+
+_FALLBACK_SENTINEL: Final = object()
 
 
 def __getattr__(attr):  # type: ignore
@@ -57,12 +68,27 @@ class ConfigParserMod(configparser.ConfigParser):
                 raise e
             return fallback
 
-    def getboolean(self, section: str, option: str, *args, **kwargs) -> bool:
+    def getboolean(
+        self,
+        section: _ConfigSectionName,
+        option: str,
+        *,
+        raw: bool = False,
+        vars: Mapping[str, str] | None = None,
+        fallback: Any = _FALLBACK_SENTINEL,
+    ) -> Any:
+        kwargs_for_super: dict[str, Any] = {"raw": raw, "vars": vars}
+        fallback_provided = fallback is not _FALLBACK_SENTINEL
+
         try:
-            return super().getboolean(section, option, *args, **kwargs)
+            if fallback_provided:
+                result = super().getboolean(section, option, fallback=fallback, **kwargs_for_super)
+            else:
+                result = super().getboolean(section, option, **kwargs_for_super)
+            return result
         except (configparser.NoSectionError, configparser.NoOptionError) as e:
-            if "fallback" in kwargs:
-                return kwargs["fallback"]
+            if fallback_provided:
+                return fallback
 
             from pioreactor.logging import create_logger
 
