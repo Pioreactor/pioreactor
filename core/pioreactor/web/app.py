@@ -50,11 +50,16 @@ def decode_base64(string: str) -> str:
 
 
 def create_app():
+    # load plugins
+    logger.debug("here-2")
+    load_plugins()
+    logger.debug("here-1")
     app = Flask(NAME)
     app.logger = logger
 
     from pioreactor.web.unit_api import unit_api_bp
 
+    app.logger.debug("here0")
     app.register_blueprint(unit_api_bp)
 
     if am_I_leader():
@@ -62,14 +67,18 @@ def create_app():
         from pioreactor.web.mcp import mcp_bp
 
         app.register_blueprint(api_bp)
+        app.logger.debug("here1")
         app.register_blueprint(mcp_bp)
+        app.logger.debug("here2")
         # we currently only need to communicate with MQTT for the leader.
         # don't even connect if a worker - if the leader is down, this will crash and restart the server over and over.
+        broker_address = pioreactor_config.get("mqtt", "broker_address", fallback="localhost").split(";")[0]
+        broker_port = pioreactor_config.getint("mqtt", "broker_port", fallback=1883)
         client.connect(
-            host=pioreactor_config.get("mqtt", "broker_address", fallback="localhost").split(";")[0],
-            port=pioreactor_config.getint("mqtt", "broker_port", fallback=1883),
+            host=broker_address,
+            port=broker_port,
         )
-        logger.debug("Starting MQTT client")
+        logger.debug(f"Starting MQTT client at {broker_address}:{broker_port}")
         client.loop_start()
 
     @app.teardown_appcontext
@@ -304,9 +313,6 @@ def get_all_units() -> list[str]:
     assert result is not None and isinstance(result, list)
     return list(r["pioreactor_unit"] for r in result)
 
-
-# load plugins
-load_plugins()
 
 if __name__ == "__main__":
     create_app().run()
