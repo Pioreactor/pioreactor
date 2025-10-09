@@ -35,6 +35,7 @@ from pioreactor.web.app import HOSTNAME
 from pioreactor.web.app import publish_to_error_log
 from pioreactor.web.app import query_temp_local_metadata_db
 from pioreactor.web.config import huey
+from pioreactor.web.plugin_registry import registered_unit_api_routes
 from pioreactor.web.utils import attach_cache_control
 from pioreactor.web.utils import create_task_response
 from pioreactor.web.utils import DelayedResponseReturnValue
@@ -46,6 +47,9 @@ from werkzeug.utils import safe_join
 AllCalibrations = subclass_union(CalibrationBase)
 
 unit_api_bp = Blueprint("unit_api", __name__, url_prefix="/unit_api")
+
+for rule, options, view_func in registered_unit_api_routes():
+    unit_api_bp.add_url_rule(rule, view_func=view_func, **options)
 
 
 # Basic health check for workers exposing only unit_api

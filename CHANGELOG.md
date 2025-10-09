@@ -7,13 +7,10 @@
   - trixie upgrade?
   - add new apis and mcp tools via plugins. Example: drop the following in your .pioreactor/plugins folder:
   ```python
-  # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 from __future__ import annotations
-
-from typing import Any
-
 from pioreactor.plugin_management import get_plugins
-from pioreactor.web.mcp import mcp
+from pioreactor.web.plugin_registry import register_mcp_tool
 
 __plugin_name__ = "mcp-extra-tools"
 __plugin_version__ = "0.1.0"
@@ -21,29 +18,19 @@ __plugin_summary__ = "Adds convenience MCP utilities for Pioreactor plugin intro
 __plugin_author__ = "Cam DP"
 
 
-def _serialize_plugin_metadata(name: str, plugin: Any) -> dict[str, Any]:
-    """Convert plugin metadata from Plugin struct to serializable dict for MCP responses."""
-    serialized: dict[str, Any] = {
-        "name": name,
-        "version": plugin.version,
-        "summary": plugin.description,
-        "author": plugin.author,
-    }
-    return serialized
-
-
-@mcp.tool()
-def list_installed_plugins(include_source: bool = False, include_homepage: bool = False) -> dict[str, Any]:
+@register_mcp_tool()
+def list_installed_plugins():
     """
     Return metadata for installed Pioreactor plugins registered with the system.
-
-    Parameters:
-        include_source: When True include the plugin source path.
-        include_homepage: When True include the plugin homepage URL if available.
     """
     plugins = get_plugins()
     details = [
-        _serialize_plugin_metadata(name, plugin, include_source, include_homepage) for name, plugin in plugins.items()
+            {
+            "name": name,
+            "version": plugin.version,
+            "summary": plugin.description,
+            "author": plugin.author,
+         } for name, plugin in plugins.items()
     ]
     return {"plugins": details}
 ```

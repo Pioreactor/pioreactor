@@ -24,6 +24,7 @@ from pioreactor.pubsub import patch_into_leader as _patch_into_leader
 from pioreactor.pubsub import post_into_leader as _post_into_leader
 from pioreactor.pubsub import put_into_leader as _put_into_leader
 from pioreactor.web.app import query_app_db
+from pioreactor.web.plugin_registry import registered_mcp_tools
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 
@@ -33,15 +34,6 @@ handler = logging.StreamHandler(sys.stdout)
 formatter = logging.Formatter("[%(asctime)s] [%(levelname)s] %(name)s: %(message)s")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
-
-
-def wrap_result_as_dict(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        result = func(*args, **kwargs)
-        return result if isinstance(result, dict) else {"result": result}
-
-    return wrapper
 
 
 MCP_APP_NAME = "pioreactor_mcp"
@@ -54,10 +46,20 @@ Use this MCP server to control a Pioreactor cluster of workers. Basic summary:
  - experiment profiles can be used to run sequences of jobs automatically
 """
 
+
+def wrap_result_as_dict(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        result = func(*args, **kwargs)
+        return result if isinstance(result, dict) else {"result": result}
+
+    return wrapper
+
+
 mcp = MCPServer(MCP_APP_NAME, MCP_VERSION, response_queue=SQLiteResponseQueue(), instructions=INSTRUCTIONS)
 
 
-def get_from_leader(endpoint: str):
+def get_from_leader(endpoint: str) -> dict:
     """Wrapper around `get_from_leader` to handle errors and callback checks."""
     try:
         r = _get_from_leader(endpoint)
@@ -83,7 +85,7 @@ def get_from_leader(endpoint: str):
         raise
 
 
-def post_into_leader(endpoint: str, json: dict | None = None):
+def post_into_leader(endpoint: str, json: dict | None = None) -> dict:
     """Wrapper around `post_into_leader` to handle errors."""
     try:
         r = _post_into_leader(endpoint, json=json)
@@ -236,7 +238,7 @@ def _condense_capabilities(capabilities: list[dict[str, Any]] | None) -> list[di
 
 @mcp.tool()
 @wrap_result_as_dict
-def get_pioreactor_unit_capabilties(pioreactor_unit: str, condensed: bool = False) -> list:
+def get_pioreactor_unit_capabilties(pioreactor_unit: str, condensed: bool = False) -> dict:
     """
     List all `pio run` subcommands and their args/options, and published settings.
 
@@ -439,6 +441,10 @@ def db_query_db(query: str) -> list:
 def get_pioreactor_unit_configuration(pioreactor_unit: str) -> dict:
     """Get merged configuration for a given unit (global config.ini and unit-specific unit_config.ini)."""
     return get_from_leader(f"/api/units/{pioreactor_unit}/configuration")
+
+
+for tool, kwargs in registered_mcp_tools():
+    mcp.tool(**kwargs)(tool)
 
 
 mcp_bp = Blueprint("mcp", __name__, url_prefix="/mcp")

@@ -46,6 +46,7 @@ from pioreactor.web.app import publish_to_experiment_log
 from pioreactor.web.app import publish_to_log
 from pioreactor.web.app import query_app_db
 from pioreactor.web.app import query_temp_local_metadata_db
+from pioreactor.web.plugin_registry import registered_api_routes
 from pioreactor.web.utils import attach_cache_control
 from pioreactor.web.utils import create_task_response
 from pioreactor.web.utils import DelayedResponseReturnValue
@@ -61,6 +62,9 @@ from werkzeug.utils import secure_filename
 AllCalibrations = structs.subclass_union(CalibrationBase)
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
+
+for rule, options, view_func in registered_api_routes():
+    api_bp.add_url_rule(rule, view_func=view_func, **options)
 
 
 def as_json_response(json: str) -> ResponseReturnValue:
