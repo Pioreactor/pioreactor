@@ -4,7 +4,6 @@ from __future__ import annotations
 import time
 from contextlib import suppress
 from datetime import datetime
-from threading import Thread
 from typing import Optional
 
 import click
@@ -41,7 +40,7 @@ class LEDAutomationJob(AutomationJob):
     _latest_run_at: Optional[datetime] = None
 
     latest_event: Optional[events.AutomationEvent] = None
-    run_thread: RepeatedTimer | Thread
+    run_thread: RepeatedTimer
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -90,6 +89,7 @@ class LEDAutomationJob(AutomationJob):
             run_after = min(
                 1.0 / config.getfloat("od_reading.config", "samples_per_second"), 10
             )  # max so users aren't waiting forever to see lights come on...
+
         self.run_thread = RepeatedTimer(
             self.duration * 60,  # RepeatedTimer uses seconds
             self.run,

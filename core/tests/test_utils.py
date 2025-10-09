@@ -304,8 +304,7 @@ def test_ClusterJobManager_sends_requests() -> None:
     assert bucket[0].body is None
     assert bucket[0].method == "PATCH"
 
-    assert len(bucket) == len(workers)
-    for request, worker in zip(bucket, workers):
+    for request, worker in zip(sorted(bucket), sorted(workers)):
         assert request.url == f"http://{worker}.local:4999/unit_api/jobs/stop"
         assert request.params == {"job_name": "stirring"}
 

@@ -6,7 +6,6 @@ from contextlib import suppress
 from datetime import datetime
 from functools import partial
 from threading import Event
-from threading import Thread
 from typing import Optional
 
 import click
@@ -176,7 +175,7 @@ class DosingAutomationJob(AutomationJob):
 
     latest_event: Optional[events.AutomationEvent] = None
     _latest_run_at: Optional[datetime] = None
-    run_thread: RepeatedTimer | Thread
+    run_thread: RepeatedTimer
     duration: float | None
 
     # overwrite to use your own dosing programs.
@@ -282,11 +281,6 @@ class DosingAutomationJob(AutomationJob):
                 run_after=run_after,
                 logger=self.logger,
             ).start()
-
-        else:
-            self.duration = None
-            self.run_thread = Thread(target=self.run, daemon=True)
-            self.run_thread.start()
 
     def run(self, timeout: float = 60.0) -> Optional[events.AutomationEvent]:
         """

@@ -96,6 +96,8 @@ def test_updated_heater_dc() -> None:
 
 
 def test_dosing_events_land_in_db() -> None:
+    from pioreactor.actions.pump import add_media
+
     unit = get_unit_name()
     exp = "test_dosing_events_land_in_db"
     connection = sqlite3.connect(config["storage"]["database"])
@@ -121,9 +123,8 @@ def test_dosing_events_land_in_db() -> None:
     ]
 
     with m2db.MqttToDBStreamer(unit, exp, parsers) as job:
-        from pioreactor.actions.pump import add_media
 
-        sleep(1)  # give mqtt_to_db_streaming time to subscribe before publishing dosing events
+        sleep(1)
         add_media(
             unit,
             exp,
@@ -143,6 +144,7 @@ def test_dosing_events_land_in_db() -> None:
             logger=job.logger,
             mqtt_client=job.pub_client,
         )
+        sleep(1)
 
     cursor.execute("SELECT * FROM dosing_events WHERE pioreactor_unit=?", (unit,))
     results = cursor.fetchall()

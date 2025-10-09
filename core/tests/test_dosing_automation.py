@@ -5,7 +5,6 @@ import time
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
-from threading import Thread
 from threading import Timer
 from typing import Any
 from typing import Callable
@@ -66,8 +65,6 @@ def cancel_run_thread(job: Any) -> None:
     run_thread = getattr(job, "run_thread", None)
     if isinstance(run_thread, RepeatedTimer):
         run_thread.cancel()
-    elif isinstance(run_thread, Thread):
-        run_thread.join(timeout=0)
 
 
 @pytest.fixture
