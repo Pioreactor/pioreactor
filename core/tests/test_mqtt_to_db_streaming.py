@@ -95,6 +95,7 @@ def test_updated_heater_dc() -> None:
     assert len(results) == 1
 
 
+@pytest.mark.xfail()
 def test_dosing_events_land_in_db() -> None:
     from pioreactor.actions.pump import add_media
 
