@@ -29,7 +29,7 @@ from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
 
 
-DEFAULT_TIMEOUT = 15.0
+DEFAULT_TIMEOUT = 10.0
 DEFAULT_UA = "Python/Pioreactor"
 
 
@@ -341,7 +341,7 @@ def _check_redirect(
 
 
 def _prepare_outgoing_headers(
-    headers: HTTPMessage | Mapping[str, str] | Iterable[Tuple[str, str]] | None
+    headers: HTTPMessage | Mapping[str, str] | Iterable[Tuple[str, str]] | None,
 ) -> HTTPMessage:
     from pioreactor.config import config
 

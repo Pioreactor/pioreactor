@@ -386,8 +386,8 @@ def get_from(address: str, endpoint: str, **kwargs) -> mureq.Response:
     return mureq.get(create_webserver_path(address, endpoint), **kwargs)
 
 
-def get_from_leader(endpoint: str, **kwargs) -> mureq.Response:
-    return get_from(leader_address, endpoint, **kwargs)
+def get_from_leader(endpoint: str, timeout=5, **kwargs) -> mureq.Response:
+    return get_from(leader_address, endpoint, timeout=timeout, **kwargs)
 
 
 def put_into(
@@ -398,9 +398,9 @@ def put_into(
 
 
 def put_into_leader(
-    endpoint: str, body: bytes | None = None, json: dict | Struct | None = None, **kwargs
+    endpoint: str, body: bytes | None = None, json: dict | Struct | None = None, timeout=5, **kwargs
 ) -> mureq.Response:
-    return put_into(leader_address, endpoint, body=body, json=json, **kwargs)
+    return put_into(leader_address, endpoint, body=body, json=json, timeout=timeout, **kwargs)
 
 
 def patch_into(
@@ -411,9 +411,9 @@ def patch_into(
 
 
 def patch_into_leader(
-    endpoint: str, body: bytes | None = None, json: dict | Struct | None = None, **kwargs
+    endpoint: str, body: bytes | None = None, json: dict | Struct | None = None, timeout=5, **kwargs
 ) -> mureq.Response:
-    return patch_into(leader_address, endpoint, body=body, json=json, **kwargs)
+    return patch_into(leader_address, endpoint, body=body, json=json, timeout=timeout, **kwargs)
 
 
 def post_into(
@@ -424,9 +424,9 @@ def post_into(
 
 
 def post_into_leader(
-    endpoint: str, body: bytes | None = None, json: dict | Struct | None = None, **kwargs
+    endpoint: str, body: bytes | None = None, json: dict | Struct | None = None, timeout=5, **kwargs
 ) -> mureq.Response:
-    return post_into(leader_address, endpoint, body=body, json=json, **kwargs)
+    return post_into(leader_address, endpoint, body=body, json=json, timeout=timeout, **kwargs)
 
 
 def delete_from(address: str, endpoint: str, **kwargs) -> mureq.Response:
@@ -434,5 +434,5 @@ def delete_from(address: str, endpoint: str, **kwargs) -> mureq.Response:
     return mureq.delete(create_webserver_path(address, endpoint), **kwargs)
 
 
-def delete_from_leader(endpoint: str, **kwargs) -> mureq.Response:
-    return delete_from(leader_address, endpoint, **kwargs)
+def delete_from_leader(endpoint: str, timeout=5, **kwargs) -> mureq.Response:
+    return delete_from(leader_address, endpoint, timeout=timeout, **kwargs)

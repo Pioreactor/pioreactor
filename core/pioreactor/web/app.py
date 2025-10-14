@@ -45,6 +45,9 @@ client.username_pw_set(
 )
 
 
+load_plugins()
+
+
 def decode_base64(string: str) -> str:
     return b64decode(string).decode("utf-8")
 
@@ -121,8 +124,6 @@ def create_app():
 
     app.json = MsgspecJsonProvider(app)
     app.get_json = app.json.loads
-
-    load_plugins()
 
     return app
 
