@@ -900,10 +900,12 @@ def import_dot_pioreactor_from_zip() -> ResponseReturnValue:
             pass
 
     backup_dir = Path("/tmp") / f"{HOSTNAME}_dot_pioreactor_backup_{current_utc_timestamp()}"
-    publish_to_log(f"Backing up existing DOT_PIOREACTOR to {backup_dir}", task_name, "INFO")
+    publish_to_log(f"Backing up existing DOT_PIOREACTOR contents to {backup_dir}", task_name, "INFO")
 
     try:
-        shutil.move(str(base_dir), str(backup_dir))
+        backup_dir.mkdir(parents=True, exist_ok=False)
+        for item in base_dir.iterdir():
+            shutil.move(str(item), backup_dir / item.name)
         publish_to_log(f"Backup completed at {backup_dir}", task_name, "INFO")
     except Exception as exc:
         shutil.rmtree(extraction_root, ignore_errors=True)
@@ -920,7 +922,17 @@ def import_dot_pioreactor_from_zip() -> ResponseReturnValue:
         # Attempt to roll back
         shutil.rmtree(base_dir, ignore_errors=True)
         try:
-            shutil.move(str(backup_dir), str(base_dir))
+            base_dir.mkdir(parents=True, exist_ok=True)
+            for leftover in list(base_dir.iterdir()):
+                if leftover.is_dir():
+                    shutil.rmtree(leftover, ignore_errors=True)
+                else:
+                    try:
+                        leftover.unlink()
+                    except Exception:
+                        shutil.rmtree(leftover, ignore_errors=True)
+            for item in backup_dir.iterdir():
+                shutil.move(str(item), base_dir / item.name)
         except Exception:
             publish_to_error_log("Failed to restore DOT_PIOREACTOR from backup", task_name)
         shutil.rmtree(extraction_root, ignore_errors=True)
