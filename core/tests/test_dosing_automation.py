@@ -7,6 +7,8 @@ from datetime import timedelta
 from datetime import timezone
 from threading import Timer
 from typing import Any
+from typing import Callable
+from typing import cast
 
 import pytest
 from click.testing import CliRunner
@@ -31,6 +33,7 @@ from pioreactor.structs import DosingEvent
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import default_datetime_for_pioreactor
+from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.whoami import get_unit_name
 
 
@@ -44,6 +47,47 @@ unit = get_unit_name()
 def pause(n=1) -> None:
     # to avoid race conditions when updating state
     time.sleep(n * 0.5)
+
+
+def wait_for(predicate: Callable[[], bool], timeout: float = 5.0, check_interval: float = 0.01) -> bool:
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            if predicate():
+                return True
+        except Exception:
+            pass
+        time.sleep(check_interval)
+    return False
+
+
+def cancel_run_thread(job: Any) -> None:
+    run_thread = getattr(job, "run_thread", None)
+    if isinstance(run_thread, RepeatedTimer):
+        run_thread.cancel()
+
+
+@pytest.fixture
+def fast_dosing_timers(monkeypatch):
+    def make_short_pause(seconds: float) -> Callable[[], float]:
+        def _pause() -> float:
+            time.sleep(seconds)
+            return seconds
+
+        return _pause
+
+    monkeypatch.setattr(
+        "pioreactor.background_jobs.dosing_automation.brief_pause",
+        make_short_pause(0.01),
+    )
+    monkeypatch.setattr(
+        "pioreactor.background_jobs.dosing_automation.briefer_pause",
+        make_short_pause(0.01),
+    )
+    monkeypatch.setattr(
+        "pioreactor.background_jobs.dosing_automation.pause_between_subdoses",
+        make_short_pause(0.01),
+    )
 
 
 def setup_function() -> None:
@@ -806,7 +850,7 @@ def test_execute_io_action_outputs_will_shortcut_if_disconnected() -> None:
     assert result["waste_ml"] == 0.0
 
 
-def test_PIDMorbidostat() -> None:
+def test_PIDMorbidostat(fast_dosing_timers) -> None:
     experiment = "test_PIDMorbidostat"
     algo = PIDMorbidostat(
         target_normalized_od=1.0,
@@ -824,8 +868,10 @@ def test_PIDMorbidostat() -> None:
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         encode(structs.ODFiltered(od_filtered=0.5, timestamp=current_utc_datetime())),
     )
-    time.sleep(10)
-    pause()
+    cancel_run_thread(algo)
+    assert wait_for(lambda: close(algo.latest_normalized_od, 0.5), timeout=5.0)
+    assert wait_for(lambda: close(algo.latest_growth_rate, 0.08), timeout=5.0)
+    algo.run()
     assert isinstance(algo.latest_event, events.NoEvent)
 
     pubsub.publish(
@@ -836,13 +882,14 @@ def test_PIDMorbidostat() -> None:
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         encode(structs.ODFiltered(od_filtered=0.95, timestamp=current_utc_datetime())),
     )
-    time.sleep(20)
-    pause()
+    assert wait_for(lambda: close(algo.latest_normalized_od, 0.95), timeout=5.0)
+    assert wait_for(lambda: close(algo.latest_growth_rate, 0.08), timeout=5.0)
+    algo.run()
     assert isinstance(algo.latest_event, events.AddAltMediaEvent)
     algo.clean_up()
 
 
-def test_changing_duration_over_mqtt() -> None:
+def test_changing_duration_over_mqtt(fast_dosing_timers) -> None:
     experiment = "test_changing_duration_over_mqtt"
     with PIDMorbidostat(
         target_normalized_od=1.0,
@@ -860,19 +907,21 @@ def test_changing_duration_over_mqtt() -> None:
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
             encode(structs.ODFiltered(od_filtered=0.5, timestamp=current_utc_datetime())),
         )
-        time.sleep(10)
-
+        cancel_run_thread(algo)
+        assert wait_for(lambda: close(algo.latest_normalized_od, 0.5), timeout=5.0)
+        assert wait_for(lambda: close(algo.latest_growth_rate, 0.08), timeout=5.0)
+        algo.run()
         assert isinstance(algo.latest_event, events.NoEvent)
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/dosing_automation/duration/set",
             1,  # in minutes
         )
-        time.sleep(10)
-        assert algo.run_thread.interval == 60  # in seconds
+        assert wait_for(lambda: close(algo.duration, 1.0), timeout=10.0)
+        assert wait_for(lambda: close(algo.run_thread.interval, 60.0), timeout=10.0)  # in seconds
 
 
-def test_changing_duration_over_mqtt_will_start_next_run_earlier() -> None:
+def test_changing_duration_over_mqtt_will_start_next_run_earlier(fast_dosing_timers) -> None:
     experiment = "test_changing_duration_over_mqtt_will_start_next_run_earlier"
     with PIDMorbidostat(
         target_normalized_od=1.0,
@@ -890,20 +939,22 @@ def test_changing_duration_over_mqtt_will_start_next_run_earlier() -> None:
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
             encode(structs.ODFiltered(od_filtered=0.5, timestamp=current_utc_datetime())),
         )
-        time.sleep(15)
-
+        cancel_run_thread(algo)
+        assert wait_for(lambda: close(algo.latest_normalized_od, 0.5), timeout=5.0)
+        assert wait_for(lambda: close(algo.latest_growth_rate, 0.08), timeout=5.0)
+        algo.run()
         assert isinstance(algo.latest_event, events.NoEvent)
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/dosing_automation/duration/set",
             15 / 60,  # in minutes
         )
-        time.sleep(5)
-        assert algo.run_thread.interval == 15  # in seconds
-        assert algo.run_thread.run_after > 0
+        assert wait_for(lambda: close(algo.duration, 15 / 60), timeout=10.0)
+        assert wait_for(lambda: close(algo.run_thread.interval, 15.0), timeout=10.0)  # in seconds
+        assert wait_for(lambda: algo.run_thread.run_after > 0, timeout=5.0)
 
 
-def test_disconnect_cleanly() -> None:
+def test_disconnect_cleanly(fast_dosing_timers) -> None:
     experiment = "test_disconnect_cleanly"
     algo = Turbidostat(
         unit=unit,
@@ -915,11 +966,11 @@ def test_disconnect_cleanly() -> None:
     assert algo.automation_name == "turbidostat"
     assert isinstance(algo, Turbidostat)
     pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/$state/set", "disconnected")
-    time.sleep(10)
-    assert algo.state == algo.DISCONNECTED
+    assert wait_for(lambda: algo.state == algo.DISCONNECTED, timeout=5.0)
+    algo.clean_up()
 
 
-def test_disconnect_cleanly_during_pumping_execution() -> None:
+def test_disconnect_cleanly_during_pumping_execution(fast_dosing_timers) -> None:
     experiment = "test_disconnect_cleanly_during_pumping_execution"
     algo = Chemostat(
         unit=unit,
@@ -928,10 +979,10 @@ def test_disconnect_cleanly_during_pumping_execution() -> None:
         duration=10,
     )
     assert algo.automation_name == "chemostat"
-    time.sleep(4)
+    assert wait_for(lambda: algo.state == algo.READY, timeout=5.0)
     pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/$state/set", "disconnected")
-    time.sleep(10)
-    assert algo.state == algo.DISCONNECTED
+    assert wait_for(lambda: algo.state == algo.DISCONNECTED, timeout=5.0)
+    algo.clean_up()
 
 
 def test_custom_class_will_register_and_run() -> None:
@@ -1035,7 +1086,7 @@ def test_AltMediaFractionCalculator() -> None:
     assert ac.update(add_alt_media_event, 0.5, current_volume_ml) == 0.75
 
 
-def test_latest_event_goes_to_mqtt() -> None:
+def test_latest_event_goes_to_mqtt(fast_dosing_timers) -> None:
     experiment = "test_latest_event_goes_to_mqtt"
 
     class FakeAutomation(DosingAutomationJob):
@@ -1055,11 +1106,14 @@ def test_latest_event_goes_to_mqtt() -> None:
     with FakeAutomation(
         unit=get_unit_name(),
         experiment=experiment,
-        duration=0.1,
+        duration=None,
     ) as dc:
         assert "latest_event" in dc.published_settings
-        pause(4)
-        msg = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/dosing_automation/latest_event")
+        dc.run()
+        msg = pubsub.subscribe(
+            f"pioreactor/{unit}/{experiment}/dosing_automation/latest_event",
+            timeout=1.0,
+        )
         assert msg is not None
         assert msg.payload is not None
 
@@ -1070,21 +1124,30 @@ def test_latest_event_goes_to_mqtt() -> None:
         assert latest_event_from_mqtt["data"]["s"] == "test"
 
 
-def test_strings_are_okay_for_chemostat() -> None:
+def test_strings_are_okay_for_chemostat(fast_dosing_timers) -> None:
     unit = get_unit_name()
     experiment = "test_strings_are_okay_for_chemostat"
 
-    with start_dosing_automation("chemostat", False, unit, experiment, duration="20", exchange_volume_ml="0.7") as chemostat:  # type: ignore
+    with start_dosing_automation(
+        "chemostat",
+        False,
+        unit,
+        experiment,
+        duration="0.1",
+        exchange_volume_ml="0.7",
+    ) as chemostat_job:
+        chemostat = cast(Chemostat, chemostat_job)  # type: ignore[arg-type]
         assert chemostat.exchange_volume_ml == 0.7  # type: ignore
-        pause(n=35)
-        assert chemostat.media_throughput == 0.7
+        cancel_run_thread(chemostat)
+        chemostat.run()
+        assert wait_for(lambda: close(chemostat.media_throughput, 0.7), timeout=5.0)
 
 
 def test_chemostat_from_cli() -> None:
     from pioreactor.cli.pio import pio
 
     t = Timer(
-        15,
+        0.5,
         pubsub.publish,
         args=(
             "pioreactor/testing_unit/_testing_experiment/dosing_automation/$state/set",
@@ -1103,7 +1166,7 @@ def test_chemostat_from_cli() -> None:
     assert len(errors) == 0
 
 
-def test_pass_in_alt_media_fraction() -> None:
+def test_pass_in_alt_media_fraction(fast_dosing_timers) -> None:
     experiment = "test_pass_in_alt_media_fraction"
     unit = get_unit_name()
 
@@ -1114,14 +1177,17 @@ def test_pass_in_alt_media_fraction() -> None:
         experiment,
         exchange_volume_ml=0.25,
         alt_media_fraction=0.5,
-        duration=20,
-    ) as chemostat:
+        duration=None,
+    ) as chemostat_job:
+        chemostat = cast(Chemostat, chemostat_job)
         assert chemostat.alt_media_fraction == 0.5
-        pause(n=35)
+        chemostat.run()
+        assert wait_for(lambda: close(chemostat.media_throughput, 0.25), timeout=5.0)
+        assert wait_for(lambda: close(chemostat.alt_media_throughput, 0.0), timeout=5.0)
         alt_media_fraction_post_dosing = 0.5 / (1 + 0.25 / chemostat.current_volume_ml)
-        assert chemostat.media_throughput == 0.25
-        assert chemostat.alt_media_throughput == 0.0
-        assert close(chemostat.alt_media_fraction, alt_media_fraction_post_dosing)
+        assert wait_for(
+            lambda: close(chemostat.alt_media_fraction, alt_media_fraction_post_dosing), timeout=5.0
+        )
 
     # test that the latest alt_media_fraction is saved and reused if dosing automation is recreated in the same experiment.
     with start_dosing_automation(
@@ -1130,17 +1196,16 @@ def test_pass_in_alt_media_fraction() -> None:
         unit,
         experiment,
         exchange_volume_ml=0.35,
-        duration=20,
-    ) as chemostat:
+        duration=None,
+    ) as chemostat_job:
+        chemostat = cast(Chemostat, chemostat_job)
         assert close(chemostat.alt_media_fraction, alt_media_fraction_post_dosing)
-        pause(n=35)
-        assert close(
-            chemostat.alt_media_fraction,
-            alt_media_fraction_post_dosing / (1 + 0.35 / 14),
-        )
+        chemostat.run()
+        target = alt_media_fraction_post_dosing / (1 + 0.35 / 14)
+        assert wait_for(lambda: close(chemostat.alt_media_fraction, target), timeout=5.0)
 
 
-def test_chemostat_from_0_volume() -> None:
+def test_chemostat_from_0_volume(fast_dosing_timers) -> None:
     experiment = "test_chemostat_from_0_volume"
     unit = get_unit_name()
 
@@ -1151,17 +1216,18 @@ def test_chemostat_from_0_volume() -> None:
         experiment,
         exchange_volume_ml=0.5,
         current_volume_ml=0,
-        duration=0.25,
-    ) as chemostat:
-        pause(n=25)
-        assert chemostat.media_throughput == 0.5
-        assert chemostat.current_volume_ml == 0.5
-        pause(n=25)
-        assert chemostat.media_throughput == 1.0
-        assert chemostat.current_volume_ml == 1.0
+        duration=None,
+    ) as chemostat_job:
+        chemostat = cast(Chemostat, chemostat_job)
+        chemostat.run()
+        assert wait_for(lambda: close(chemostat.media_throughput, 0.5), timeout=5.0)
+        assert wait_for(lambda: close(chemostat.current_volume_ml, 0.5), timeout=5.0)
+        chemostat.run()
+        assert wait_for(lambda: close(chemostat.media_throughput, 1.0), timeout=5.0)
+        assert wait_for(lambda: close(chemostat.current_volume_ml, 1.0), timeout=5.0)
 
 
-def test_execute_io_respects_dilutions_ratios() -> None:
+def test_execute_io_respects_dilutions_ratios(fast_dosing_timers) -> None:
     # https://forum.pioreactor.com/t/inconsistent-dosing-behavior-with-multiple-media/37/3
 
     unit = get_unit_name()
@@ -1197,11 +1263,11 @@ def test_execute_io_respects_dilutions_ratios() -> None:
         exchange_volume_ml=2.0,
         alt_media_fraction=0.5,
         fraction_alt_media=0.5,
-        duration=2,
+        duration=0.1,
     ) as automation_job:
         assert automation_job.alt_media_fraction == 0.5
-        pause(n=100)
-        assert automation_job.alt_media_fraction == 0.5
+        assert wait_for(lambda: automation_job.media_throughput > 0, timeout=5.0)
+        assert close(automation_job.alt_media_fraction, 0.5)
 
     # change fraction_alt_media to increase alt_media being added
     with start_dosing_automation(
@@ -1211,33 +1277,39 @@ def test_execute_io_respects_dilutions_ratios() -> None:
         experiment,
         exchange_volume_ml=2.0,
         fraction_alt_media=1.0,
-        duration=2,
+        duration=0.1,
     ) as automation_job:
         assert automation_job.alt_media_fraction == 0.5
-        pause(n=20)
-        assert automation_job.alt_media_fraction > 0.5
+        assert wait_for(lambda: automation_job.alt_media_fraction > 0.5, timeout=5.0)
 
 
-def test_current_volume_ml_is_published() -> None:
+def test_current_volume_ml_is_published(fast_dosing_timers) -> None:
     unit = get_unit_name()
     experiment = "test_current_volume_ml_is_published"
 
     with start_dosing_automation(
         "chemostat",
-        duration=2,
+        duration=0.1,
         skip_first_run=False,
         unit=unit,
         experiment=experiment,
         exchange_volume_ml=2.0,
-    ) as chemostat:
-        assert chemostat.current_volume_ml == 14
-        pause(60)
-        result = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/dosing_automation/current_volume_ml")
-        if result:
-            assert float(result.payload) == 14
+    ) as chemostat_job:
+        chemostat = cast(Chemostat, chemostat_job)
+        initial_volume = chemostat.current_volume_ml
+        assert initial_volume == 14
+        assert wait_for(lambda: chemostat.media_throughput > 0, timeout=5.0)
+        assert wait_for(lambda: chemostat.current_volume_ml <= initial_volume, timeout=5.0)
+        result = pubsub.subscribe(
+            f"pioreactor/{unit}/{experiment}/dosing_automation/current_volume_ml",
+            timeout=1.0,
+        )
+        assert result is not None
+        published_volume = float(result.payload)
+        assert close(published_volume, chemostat.current_volume_ml)
 
         assert chemostat.media_throughput > 0
-        assert chemostat.current_volume_ml == 14
+        assert abs(chemostat.current_volume_ml - initial_volume) <= chemostat.exchange_volume_ml
 
 
 def test_chemostat_detects_pump_malfunction(monkeypatch) -> None:
@@ -1688,14 +1760,14 @@ def test_execute_io_action_errors() -> None:
             ca.execute_io_action(waste_ml=1.0, salty_media_ml=1.0)
 
 
-def test_timeout_in_run() -> None:
+def test_timeout_in_run(fast_dosing_timers) -> None:
     unit = get_unit_name()
     experiment = "test_timeout_in_run"
 
     with pubsub.collect_all_logs_of_level("DEBUG", unit, experiment) as bucket:
-        with Silent(unit=unit, experiment=experiment, duration=5) as ca:
+        with Silent(unit=unit, experiment=experiment, duration=None) as ca:
             ca.set_state(ca.SLEEPING)
-            time.sleep(70)
+            ca.run(timeout=0.05)
 
         assert any("Timed out" in item["message"] for item in bucket)
 
@@ -1730,7 +1802,7 @@ def test_automation_will_pause_itself_if_pumping_goes_above_safety_threshold() -
         pause()
 
 
-def test_warning_is_logged_if_under_remove_waste() -> None:
+def test_warning_is_logged_if_under_remove_waste(fast_dosing_timers) -> None:
     unit = get_unit_name()
     experiment = "test_warning_is_logged_if_under_remove_waste"
 
@@ -1745,10 +1817,8 @@ def test_warning_is_logged_if_under_remove_waste() -> None:
             return
 
     with pubsub.collect_all_logs_of_level("WARNING", unit, experiment) as bucket:
-        pause(2)
         with BadWasteRemoval(unit=unit, experiment=experiment, duration=5):
-            time.sleep(30)
-        pause(2)
+            assert wait_for(lambda: len(bucket) >= 1, timeout=3.0)
 
         assert len(bucket) >= 1
 

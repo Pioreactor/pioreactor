@@ -7,14 +7,28 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       TESTING: 1
+      DOT_PIOREACTOR: ${{ github.workspace }}/.pioreactor
+      RUN_PIOREACTOR: ${{ github.workspace }}/run/pioreactor
+      LG_WD: ${{ github.workspace }}/run/pioreactor
       TMPDIR: /tmp/
-      DOT_PIOREACTOR: .pioreactor/
+      PIO_VENV: ${{ github.workspace }}/.venv
+      VIRTUAL_ENV: ${{ github.workspace }}/.venv
+      PIO_EXECUTABLE: ${{ github.workspace }}/.venv/bin/pio
+      PIOS_EXECUTABLE: ${{ github.workspace }}/.venv/bin/pios
+      PLUGINS_DEV: ${{ github.workspace }}/plugins_dev
+      HARDWARE: 1.2
+      FIRMWARE: 0.5
+      BLINKA_FORCECHIP: BCM2XXX
+      BLINKA_FORCEBOARD: RASPBERRY_PI_3A_PLUS
+      MODEL_NAME: pioreactor_40ml
+      MODEL_VERSION: 1.5
+
 
     strategy:
       fail-fast: true
       matrix:
         os: ["ubuntu-latest"]
-        python-version: ["3.11"]
+        python-version: ["3.13"]
 
     steps:
       - name: Checkout source
@@ -25,8 +39,9 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install python libraries
+      - name: Install python libraries into env
         run: |
+          # env create in make install
           make install
           wget https://github.com/Gadgetoid/PY_LGPIO/releases/download/0.2.2.0/lgpio-0.2.2.0.tar.gz -O lgpio-0.2.2.0.tar.gz
           tar -xvzf lgpio-0.2.2.0.tar.gz
@@ -41,70 +56,107 @@ jobs:
         with:
           version: '1.6'
 
-
       - name: Install any other required linux software
         run: |
-           sudo apt-get install avahi-daemon avahi-discover avahi-utils mosquitto-clients
+          sudo apt-get install avahi-daemon avahi-discover avahi-utils mosquitto-clients
 
-
-      - name: Create pioreactor folders and env
+      - name: Create pioreactor folders
         run: |
-          mkdir -p .pioreactor/storage
-          mv config.dev.ini .pioreactor/config.ini
-          mkdir -p /tmp/pioreactor_cache/
+          mkdir -p "$RUN_PIOREACTOR"
+          mkdir -p "$RUN_PIOREACTOR/cache"
+          touch "$RUN_PIOREACTOR/cache/huey.db"
 
-      - name: Create web API folders and environment
-        run: |
-          mv web/.env.example web/.env
 
+          mkdir -p "$DOT_PIOREACTOR"
+          mv config.dev.ini "$DOT_PIOREACTOR"/config.ini
+          mkdir -p "$DOT_PIOREACTOR"/storage
+
+
+          mkdir -p "$DOT_PIOREACTOR"/hardware/hats/1.2
+          mkdir -p "$DOT_PIOREACTOR"/hardware/models/pioreactor_40ml/1.5
+          cat <<'EOF_HW' > "$DOT_PIOREACTOR"/hardware/hats/1.2/pwm.yaml
+          heater_pwm_channel: "5"
+          pwm_to_pin:
+            "1": 17
+            "2": 13
+            "3": 16
+            "4": 12
+            "5": 18
+          EOF_HW
+          cat <<'EOF_HW' > "$DOT_PIOREACTOR"/hardware/hats/1.2/dac.yaml
+          address: 0x2C
+          EOF_HW
+          cat <<'EOF_HW' > "$DOT_PIOREACTOR"/hardware/hats/1.2/temp.yaml
+          address: 0x4F
+          EOF_HW
+          cat <<'EOF_HW' > "$DOT_PIOREACTOR"/hardware/hats/1.2/adc.yaml
+          aux:
+            driver: pico
+            address: 0x2C
+            channel: 1
+          version:
+            driver: pico
+            address: 0x2C
+            channel: 0
+          pd1:
+            driver: pico
+            address: 0x2C
+            channel: 2
+          pd2:
+            driver: pico
+            address: 0x2C
+            channel: 3
+          EOF_HW
+          cat <<'EOF_HW' > "$DOT_PIOREACTOR"/hardware/hats/1.2/gpio.yaml
+          pcb_led_pin: 23
+          pcb_button_pin: 4
+          hall_sensor_pin: 21
+          sda_pin: 2
+          scl_pin: 3
+          EOF_HW
+          cat <<'EOF_HW' > "$DOT_PIOREACTOR"/hardware/models/pioreactor_40ml/1.5/adc.yaml
+          pd1:
+            driver: ads1114
+            address: 0x48
+            channel: 0
+          pd2:
+            driver: ads1114
+            address: 0x49
+            channel: 0
+          EOF_HW
+
+          ls "$DOT_PIOREACTOR"
+
+          make check-env
 
       - name: Create plugin folder and seed it
         run: |
-           mkdir -p plugins_dev
-           cat <<EOT >> plugins_dev/example_plugin.py
-           import click
-           from pioreactor.background_jobs.base import BackgroundJob
+          mkdir -p "$PLUGINS_DEV"
+          cat <<'EOF_PLUGIN' > "$PLUGINS_DEV"/example_plugin.py
+          import click
+          from pioreactor.background_jobs.base import BackgroundJob
 
-           __plugin_version__ = "0.2.0"
-           __plugin_name__ = "my-example-plugin"
+          __plugin_version__ = "0.2.0"
+          __plugin_name__ = "my-example-plugin"
 
-           class ExamplePlugin(BackgroundJob):
-              job_name="example_plugin"
+
+          class ExamplePlugin(BackgroundJob):
+              job_name = "example_plugin"
+
               def __init__(self):
                   super().__init__(unit="test", experiment="test")
 
 
-           @click.command(name="example_plugin")
-           def click_example_plugin():
+          @click.command(name="example_plugin")
+          def click_example_plugin():
               job = ExamplePlugin()
-           EOT
-
-
-      - name: Start MQTT capture
-        run: |
-          # Subscribe to all MQTT topics and capture output; auto-restart if broker not ready
-          nohup sh -c 'while true; do mosquitto_sub -h 127.0.0.1 -p 1883 -v -t "#" >> mqtt.log 2>&1; echo "mosquitto_sub exited, retrying..." >> mqtt.log; sleep 1; done' &
-          echo $! > mqtt_sub.pid
-
+          EOF_PLUGIN
 
       - name: Start web API
         run: |
-          GLOBAL_CONFIG=../.pioreactor/config.ini make web-dev &
+          make web-dev &
           sleep 5
-
 
       - name: Run tests
         run: |
           make core-test
-
-      - name: Stop MQTT capture
-        if: always()
-        run: |
-          if [ -f mqtt_sub.pid ]; then kill $(cat mqtt_sub.pid) || true; fi
-
-      - name: Upload MQTT messages artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: mqtt-messages
-          path: mqtt.log

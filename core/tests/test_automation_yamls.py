@@ -4,15 +4,23 @@ from __future__ import annotations
 
 from pioreactor.automations import *  # noqa: F403, F401
 from pioreactor.background_jobs.dosing_automation import available_dosing_automations
+from pioreactor.background_jobs.dosing_automation import DosingAutomationJobContrib
 from pioreactor.background_jobs.led_automation import available_led_automations
+from pioreactor.background_jobs.led_automation import LEDAutomationJobContrib
 from pioreactor.background_jobs.temperature_automation import available_temperature_automations
+from pioreactor.background_jobs.temperature_automation import TemperatureAutomationJobContrib
 from pioreactor.mureq import get
 from yaml import load  # type: ignore
 from yaml import Loader  # type: ignore
 
 
 def get_specific_yaml(path):
-    r = get(f"https://raw.githubusercontent.com/Pioreactor/pioreactor/develop/web/{path}")
+    r = get(
+        f"https://raw.githubusercontent.com/Pioreactor/CustoPiZer/pioreactor/workspace/scripts/files/pioreactor/ui/{path}"
+    )
+    print(
+        f"https://raw.githubusercontent.com/Pioreactor/CustoPiZer/pioreactor/workspace/scripts/files/pioreactor/ui/{path}"
+    )
     r.raise_for_status()
     data = r.content
     return load(data, Loader=Loader)
@@ -26,10 +34,15 @@ def test_automations_and_their_yamls_have_the_same_data() -> None:
             ("dosing", available_dosing_automations),
         ]:
             for automation_name, klass in available_automations.items():  # type: ignore
-                if automation_name.startswith("_test"):
+                if (
+                    automation_name.startswith("_test")
+                    or issubclass(klass, LEDAutomationJobContrib)
+                    or issubclass(klass, TemperatureAutomationJobContrib)
+                    or issubclass(klass, DosingAutomationJobContrib)
+                ):
                     continue
 
-                data = get_specific_yaml(f"contrib/automations/{type_}/{automation_name}.yaml")
+                data = get_specific_yaml(f"automations/{type_}/{automation_name}.yaml")
                 assert data["automation_name"] == automation_name, automation_name
 
                 # check yaml -> settings

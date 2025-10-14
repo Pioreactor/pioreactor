@@ -18,7 +18,7 @@ from pioreactor import types as pt
 from pioreactor import utils
 from pioreactor.calibrations import load_active_calibration
 from pioreactor.config import config
-from pioreactor.hardware import PWM_TO_PIN
+from pioreactor.hardware import get_pwm_to_pin_map
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
 from pioreactor.pubsub import Client
@@ -30,6 +30,7 @@ from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import default_datetime_for_pioreactor
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
+from pioreactor.whoami import is_testing_env
 
 
 def get_default_calibration() -> structs.SimplePeristalticPumpCalibration:
@@ -41,7 +42,7 @@ def get_default_calibration() -> structs.SimplePeristalticPumpCalibration:
         dc=95.0,
         voltage=-1,
         curve_type="poly",
-        curve_data_=[0.0911, 0.0],  # 0.0911 is a pretty okay estimate for the slope
+        curve_data_=[0.0911, 0.0] if not is_testing_env() else [5.0, 0],  # go fast if in testing
         recorded_data={"x": [], "y": []},
     )
 
@@ -138,7 +139,7 @@ class PWMPump:
 
 
 def _get_pin(pump_device: PumpCalibrationDevices) -> pt.GpioPin:
-    return PWM_TO_PIN[
+    return get_pwm_to_pin_map()[
         cast(pt.PwmChannel, config.get("PWM_reverse", pump_device.removesuffix("_pump")))
     ]  # backwards compatibility
 
@@ -161,23 +162,23 @@ def _to_human_readable_action(
 ) -> str:
     if pump_device == "waste_pump":
         if duration is not None:
-            return f"Removing waste for {round(duration,2)}s."
+            return f"Removing waste for {round(duration, 2)}s."
         elif ml is not None:
-            return f"Removing {round(ml,3)} mL waste."
+            return f"Removing {round(ml, 3)} mL waste."
         else:
             raise ValueError()
     elif pump_device == "media_pump":
         if duration is not None:
-            return f"Adding media for {round(duration,2)}s."
+            return f"Adding media for {round(duration, 2)}s."
         elif ml is not None:
-            return f"Adding {round(ml,3)} mL media."
+            return f"Adding {round(ml, 3)} mL media."
         else:
             raise ValueError()
     elif pump_device == "alt_media_pump":
         if duration is not None:
-            return f"Adding alt-media for {round(duration,2)}s."
+            return f"Adding alt-media for {round(duration, 2)}s."
         elif ml is not None:
-            return f"Adding {round(ml,3)} mL alt-media."
+            return f"Adding {round(ml, 3)} mL alt-media."
         else:
             raise ValueError()
     else:
@@ -288,9 +289,6 @@ def _pump_action(
 
         assert duration is not None
         assert ml is not None
-
-        duration = pt.Seconds(duration)
-        ml = pt.mL(ml)
 
         empty_dosing_event = structs.DosingEvent(
             volume_change=0.0,

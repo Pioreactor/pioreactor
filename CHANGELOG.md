@@ -1,6 +1,45 @@
 ### Upcoming
 
- - import system files
+  - `pioreactor.hardware`: reworked GPIO, PWM, and I2C configuration to load from layered YAML mods so new HAT+model combinations can be described without code changes. See new ~/.pioreactor/hardware directories.
+  - `pioreactor.hardware`: constants are now resolved lazily through accessor functions (e.g., determine_gpiochip(), get_pwm_to_pin_map()); direct module constants remain as deprecated shims that emit warnings and cache the first look-up.
+  - export images (PNGs and SVGs) of the Overview's and Calibrations' charts.
+  - MCP server: added tools for creating experiments and managing worker assignments
+  - Show and hide calibration curves in Calibrations page by clicking the dot beside the calibration (similar to the Overview page).
+  - Upgrade to Trixie Debian 13! This mostly means: new Python 3.13.
+  - New Pioreactor architecture:
+     - New environment variable file /etc/pioreactor.env
+     - The old `pioreactorui` Python package is now part of the `pioreactor` Python package, under `pioreactor.web`
+     - Moved temporary files from /tmp to /run/pioreactor/
+     - New `pioreactor-web.service` to handle both `huey.service` and `lighttpd.service`
+  - add new APIs and MCP tools via plugins. Example: drop the following in your ~/.pioreactor/plugins folder:
+  ```python
+# -*- coding: utf-8 -*-
+from __future__ import annotations
+from pioreactor.plugin_management import get_plugins
+from pioreactor.web.plugin_registry import register_mcp_tool
+
+__plugin_name__ = "mcp-extra-tools"
+__plugin_version__ = "0.1.0"
+__plugin_summary__ = "Adds convenience MCP utilities for Pioreactor plugin introspection."
+__plugin_author__ = "Cam DP"
+
+
+@register_mcp_tool()
+def list_installed_plugins():
+    """
+    Return metadata for installed Pioreactor plugins registered with the system.
+    """
+    plugins = get_plugins()
+    details = [
+            {
+            "name": name,
+            "version": plugin.version,
+            "summary": plugin.description,
+            "author": plugin.author,
+         } for name, plugin in plugins.items()
+    ]
+    return {"plugins": details}
+```
 
 ### 25.9.18
 

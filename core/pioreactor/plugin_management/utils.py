@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib.metadata as entry_point
+import os
 import sys
 from pathlib import Path
 
@@ -10,7 +11,10 @@ from pioreactor.whoami import is_testing_env
 
 def discover_plugins_in_local_folder() -> list[Path]:
     if is_testing_env():
-        MODULE_DIR = Path("plugins_dev")
+        if "PLUGINS_DEV" not in os.environ:
+            return []
+
+        MODULE_DIR = Path(os.environ["PLUGINS_DEV"])
     else:
         MODULE_DIR = Path("/home/pioreactor/.pioreactor/plugins")
 
@@ -24,6 +28,7 @@ def discover_plugins_in_local_folder() -> list[Path]:
     # Get the stem names (file name, without directory and '.py') of any
     # python files in your directory, load each module by name and run
     # the required function.
+
     return sorted(MODULE_DIR.glob("*.py"))
 
 

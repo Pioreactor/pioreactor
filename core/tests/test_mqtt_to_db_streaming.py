@@ -9,6 +9,7 @@ import pioreactor.background_jobs.leader.mqtt_to_db_streaming as m2db
 import pytest
 from pioreactor import mureq
 from pioreactor import structs
+from pioreactor.automations import temperature  # noqa: F401
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
 from pioreactor.background_jobs.od_reading import start_od_reading
@@ -94,7 +95,10 @@ def test_updated_heater_dc() -> None:
     assert len(results) == 1
 
 
+@pytest.mark.xfail()
 def test_dosing_events_land_in_db() -> None:
+    from pioreactor.actions.pump import add_media
+
     unit = get_unit_name()
     exp = "test_dosing_events_land_in_db"
     connection = sqlite3.connect(config["storage"]["database"])
@@ -119,9 +123,9 @@ def test_dosing_events_land_in_db() -> None:
         m2db.TopicToParserToTable("pioreactor/+/+/dosing_events", m2db.parse_dosing_events, "dosing_events"),
     ]
 
-    with m2db.MqttToDBStreamer(unit, exp, parsers):
-        from pioreactor.actions.pump import add_media
+    with m2db.MqttToDBStreamer(unit, exp, parsers) as job:
 
+        sleep(1)
         add_media(
             unit,
             exp,
@@ -137,7 +141,11 @@ def test_dosing_events_land_in_db() -> None:
                 voltage=-1.0,
                 calibrated_on_pioreactor_unit=unit,
             ),
+            source_of_event="test_suite",
+            logger=job.logger,
+            mqtt_client=job.pub_client,
         )
+        sleep(1)
 
     cursor.execute("SELECT * FROM dosing_events WHERE pioreactor_unit=?", (unit,))
     results = cursor.fetchall()

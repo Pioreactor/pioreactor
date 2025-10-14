@@ -15,6 +15,9 @@ def get_hardware_version() -> tuple[int, int] | tuple[int, int, str]:
         # ex: > HARDWARE=1.1 pio ...
         return int(os.environ["HARDWARE"].split(".")[0]), int(os.environ["HARDWARE"].split(".")[1])
 
+    elif os.environ.get("TESTING", "") == "1":  # hack
+        return (1, 2)
+
     try:
         # check version in /proc/device-tree/hat/
         with open("/proc/device-tree/hat/product_ver", "r") as f:
@@ -64,12 +67,12 @@ def get_firmware_version() -> tuple[int, int]:
     # Compare hardware versions using tuples to avoid lexicographic issues.
     if hardware_version_info >= (1, 1):
         try:
-            import busio  # type: ignore
-            from pioreactor.hardware import SCL, SDA, ADCs
+            from adafruit_blinka.microcontroller.generic_linux.i2c import I2C
+            from pioreactor.hardware import get_adc_curriers
 
-            i2c = busio.I2C(SCL, SDA)
             result = bytearray(2)
-            i2c.writeto_then_readfrom(ADCs["version"].i2c_address, bytes([0x08]), result)
+            version_adc = get_adc_curriers()["version"]
+            I2C(1, mode=I2C.MASTER).writeto_then_readfrom(version_adc.i2c_address, bytes([0x08]), result)
             return (result[1], result[0])
         except Exception:
             return (0, 0)

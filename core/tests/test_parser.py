@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from datetime import UTC
 from math import sqrt
 
 import pytest
@@ -67,7 +68,11 @@ def test_mqtt_fetches() -> None:
         f"pioreactor/{unit}/{experiment}/od_reading/od1",
         encode(
             structs.RawODReading(
-                timestamp=datetime.utcnow(), angle="90", od=1.2, channel="2", ir_led_intensity=90
+                timestamp=datetime.now(UTC),
+                angle="90",
+                od=1.2,
+                channel="2",
+                ir_led_intensity=90,
             )
         ),
         retain=True,
@@ -112,7 +117,11 @@ def test_mqtt_fetches_with_env() -> None:
         f"pioreactor/{unit}/{experiment}/od_reading/od1",
         encode(
             structs.RawODReading(
-                timestamp=datetime.utcnow(), angle="90", od=1.2, channel="2", ir_led_intensity=80
+                timestamp=datetime.now(UTC),
+                angle="90",
+                od=1.2,
+                channel="2",
+                ir_led_intensity=80,
             )
         ),
         retain=True,
@@ -183,7 +192,11 @@ def test_mqtt_fetches_with_calculations() -> None:
         f"pioreactor/{unit}/{experiment}/od_reading/od1",
         encode(
             structs.RawODReading(
-                timestamp=datetime.utcnow(), angle="90", od=1.2, channel="2", ir_led_intensity=80
+                timestamp=datetime.now(UTC),
+                angle="90",
+                od=1.2,
+                channel="2",
+                ir_led_intensity=80,
             )
         ),
         retain=True,

@@ -10,12 +10,15 @@
 
 # --- configurable knobs -------------------------------------------------------
 
-PYTHON       ?= python3.11        # put full path if multiple versions
+PYTHON       ?= python3.13
 VENV_DIR     ?= .venv
 PIP_FLAGS    ?=
 NODE_DIR     ?= frontend
-API_DIR      ?= web
-CORE_DIR  ?= core
+API_DIR      ?= core/pioreactor/web
+CORE_DIR     ?= core
+
+# environment variables expected to come from .envrc or elsewhere
+ENV_REQUIRED ?= GLOBAL_CONFIG DOT_PIOREACTOR RUN_PIOREACTOR PLUGINS_DEV PIO_EXECUTABLE PIOS_EXECUTABLE HARDWARE FIRMWARE BLINKA_FORCECHIP BLINKA_FORCEBOARD MODEL_NAME MODEL_VERSION
 
 # --- internal helpers ---------------------------------------------------------
 ACTIVATE = . $(VENV_DIR)/bin/activate
@@ -27,7 +30,31 @@ endef
 # --- meta ---------------------------------------------------------------------
 .PHONY: help
 help:  ## Show this message
+	@-$(MAKE) --no-print-directory check-env
 	@awk -F':.*?## ' '/^[a-zA-Z0-9_-]+:.*?## /{printf " \033[36m%-18s\033[0m %s\n",$$1,$$2}' $(MAKEFILE_LIST)
+
+.PHONY: check-env
+check-env:  ## Verify required environment variables are loaded
+	@if [ ! -f .envrc ]; then \
+		echo ".envrc not found - skipping environment verification."; \
+		exit 0; \
+	fi; \
+	missing=""; \
+	for var in $(ENV_REQUIRED); do \
+		if ! printenv $$var >/dev/null 2>&1; then \
+			missing="$$missing $$var"; \
+		fi; \
+	done; \
+	if [ -n "$$missing" ]; then \
+		echo "Missing environment variables:"; \
+		for var in $$missing; do \
+			echo "  - $$var"; \
+		done; \
+		echo "Run 'direnv allow' (or equivalent) to load variables from .envrc"; \
+		exit 1; \
+	else \
+		echo "All required environment variables are present."; \
+	fi
 
 # --- environment --------------------------------------------------------------
 $(VENV_DIR)/bin/activate:  ## Create virtual env + core tooling
@@ -48,25 +75,19 @@ node_modules/.installed: $(NODE_DIR)/package.json  ## Install Node deps
 frontend-install: node_modules/.installed ## Alias
 
 # --- quality gates ------------------------------------------------------------
-lint: venv  ## Run ruff & black in check-only mode
-	@$(ACTIVATE) && ruff check $(CORE_DIR) $(API_DIR)
-	@$(ACTIVATE) && black --check $(CORE_DIR) $(API_DIR)
-
-format: venv  ## Reformat python code with black
-	@$(ACTIVATE) && black $(CORE_DIR) $(API_DIR)
 
 precommit: venv ## Run pre-commit on all files
 	@$(ACTIVATE) && pre-commit run --all-files
 
 # --- test ---------------------------------------------------------------------
 test: venv  ## Run all pytest suites
-	@$(ACTIVATE) && pytest $(CORE_DIR)/tests $(API_DIR)/tests --timeout 600 --random-order --durations 15
+	@$(ACTIVATE) && pytest --rootdir=. $(CORE_DIR)/tests --timeout 600 --random-order --durations 15  --random-order-bucket=module --random-order-seed=904213 -vv
 
 core-test: venv  ## Backend tests only
-	@$(ACTIVATE) && pytest $(CORE_DIR)/tests --timeout 600 --random-order --durations 15
+	@$(ACTIVATE) && pytest --rootdir=. $(CORE_DIR)/tests --timeout 600 --random-order --durations 15 --random-order-bucket=module --random-order-seed=904213 --ignore=$(CORE_DIR)/tests/web --ignore=$(CORE_DIR)/tests/test_monitor.py -vv
 
 web-test: venv  ## API (Flask) tests only
-	@$(ACTIVATE) && pytest $(API_DIR)/tests --timeout 600 --random-order --durations 15
+	@$(ACTIVATE) && pytest --rootdir=. $(CORE_DIR)/tests/web/ --timeout 600 --random-order --durations 15 -vv
 
 # --- build --------------------------------------------------------------------
 wheel: venv  ## Build core wheel (stage 1 artifact)
@@ -77,7 +98,7 @@ frontend-build:
 
 # --- live dev servers ---------------------------------------------------------
 web-dev: venv  ## Run Flask API on 127.0.0.1:5000
-	@FLASK_ENV=development $(ACTIVATE) && cd $(API_DIR) && python3 -m flask  --app main run -p 4999 --debug
+	@FLASK_ENV=development $(ACTIVATE) && cd $(API_DIR) && python3 -m flask --app app run -p 4999 --debug
 
 frontend-dev:  ## Run React dev server on :3000
 	cd $(NODE_DIR) && npm start
@@ -85,7 +106,7 @@ frontend-dev:  ## Run React dev server on :3000
 # --- background task queue ----------------------------------------------------
 huey-dev: venv  ## Run the Huey consumer with sensible dev flags
 	@$(ACTIVATE) && cd $(API_DIR) && \
-	huey_consumer pioreactorui.tasks.huey -n -b 1.001 -w 10 -f -C -d 0.05 --verbose
+	huey_consumer pioreactor.web.tasks.huey -n -b 1.001 -w 10 -f -C -d 0.05
 
 # --- clean-up -----------------------------------------------------------------
 clean:  ## Delete bytecode, build artefacts, node deps

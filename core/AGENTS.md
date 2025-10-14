@@ -83,6 +83,11 @@ This repository contains the openâ€‘source control software for the Pioreactorâ€
     The `tests/` directory includes pytest-based unit tests and fixtures for simulating hardware interactions.
 
 
+*   **Web API and UI**
+    The `pioreactor/web/` directory includes our APIs and built frontend React projects.
+
+
+
 **Purpose and Usage**
 
 The Pioreactor software enables users to control and monitor small-scale bioreactors. It supports features such as:

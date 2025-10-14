@@ -66,6 +66,7 @@ import { MQTTProvider, useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 import PatientButton from './components/PatientButton';
 import {getConfig, getRelabelMap, runPioreactorJob, disconnectedGrey, lostRed, disabledColor, stateDisplay, checkTaskCallback} from "./utilities"
+import cloudImage from './assets/pioreactor_cloud.webp'
 
 
 
@@ -2688,7 +2689,7 @@ function Pioreactors({title}) {
     <Box sx={{textAlign: "center"}}>
       {isLoading ? <CircularProgress /> : (
       <>
-      <img alt="filler image for no pioreactor assigned" src="/pioreactor_cloud.webp" style={{width: "500px", opacity: 0.9, filter: "grayscale(50%)", marginLeft: "30px"}}/>
+      <img alt="filler image for no pioreactor assigned" src={cloudImage} style={{width: "500px", opacity: 0.9, filter: "grayscale(50%)", marginLeft: "30px"}}/>
       <Typography component='div' variant='h6' sx={{mb: 2}}>
         No Pioreactors assigned to this experiment
       </Typography>

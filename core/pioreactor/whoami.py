@@ -191,8 +191,8 @@ def _get_pioreactor_model_version() -> str:
 
 def _get_pioreactor_model_name() -> str:
     # pioreactor model name
-    if os.environ.get("MODEL_NAME"):
-        return os.environ["MODEL_NAME"]
+    if model := os.environ.get("MODEL_NAME"):
+        return model
     elif is_testing_env():
         return "pioreactor_40ml"
 
@@ -226,14 +226,3 @@ def check_firstboot_successful() -> bool:
     if is_testing_env():
         return True
     return os.path.isfile("/usr/local/bin/firstboot.sh.done")
-
-
-if is_testing_env():
-    # allow Blinka to think we are an Rpi:
-    # https://github.com/adafruit/Adafruit_Python_PlatformDetect/blob/75f69806222fbaf8535130ed2eacd07b06b1a298/adafruit_platformdetect/board.py
-    os.environ["BLINKA_FORCECHIP"] = "BCM2XXX"  # RaspberryPi
-    os.environ["BLINKA_FORCEBOARD"] = "RASPBERRY_PI_3A_PLUS"  # Raspberry Pi 3 Model A Plus Rev 1.0
-    os.environ["FIRMWARE"] = "0.5"
-    os.environ["HARDWARE"] = "1.2"
-    os.environ["MODEL_NAME"] = "pioreactor_40ml"
-    os.environ["MODEL_VERSION"] = "1.0"

@@ -630,6 +630,7 @@ class JobManager:
         self.conn = sqlite3.connect(db_path, isolation_level=None)
         self.conn.executescript(
             """
+            PRAGMA journal_mode=WAL;
             PRAGMA busy_timeout = 5000;
             PRAGMA temp_store = 2;
             PRAGMA foreign_keys = ON;
@@ -640,7 +641,6 @@ class JobManager:
         self._create_tables()
 
     def _create_tables(self) -> None:
-        # TODO: add a created_at, updated_at to pio_job_published_settings
         create_table_query = """
         CREATE TABLE IF NOT EXISTS pio_job_metadata (
             job_id       INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -660,6 +660,8 @@ class JobManager:
             setting        TEXT NOT NULL,
             value          BLOB,
             proposed_value BLOB,
+            created_at     TEXT,
+            updated_at     TEXT,
             job_id         INTEGER NOT NULL,
             FOREIGN KEY(job_id) REFERENCES pio_job_metadata(job_id),
             UNIQUE(setting, job_id)
@@ -717,10 +719,11 @@ class JobManager:
             else:
                 # upsert
                 update_query = """
-                INSERT INTO pio_job_published_settings (setting, value, job_id)
-                VALUES (:setting, :value, :job_id)
+                INSERT INTO pio_job_published_settings (setting, value, job_id, created_at, updated_at)
+                VALUES (:setting, :value, :job_id, STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW'), STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW'))
                     ON CONFLICT (setting, job_id) DO
-                    UPDATE SET value = :value
+                    UPDATE SET value = :value,
+                                updated_at = STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW')
                 """
                 if isinstance(value, dict):
                     value = dumps(value).decode()  # back to string, not bytes

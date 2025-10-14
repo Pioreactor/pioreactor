@@ -112,6 +112,8 @@ class TemperatureAutomationJob(AutomationJob):
             {"datatype": "float", "settable": False, "unit": "%"},
         )
 
+        self._exit_event = Event()
+
         if not hardware.is_heating_pcb_present():
             self.logger.error("Heating PCB must be attached to Pioreactor HAT")
             self.clean_up()
@@ -129,9 +131,8 @@ class TemperatureAutomationJob(AutomationJob):
 
         self.heater_duty_cycle = 0.0
         self.pwm = self.setup_pwm()
-        self._exit_event = Event()
 
-        self.heating_pcb_tmp_driver = TMP1075(address=hardware.TEMP_ADDRESS)
+        self.heating_pcb_tmp_driver = TMP1075(address=hardware.get_temp_address())
 
         self.read_external_temperature_timer = RepeatedTimer(
             53,
@@ -301,7 +302,8 @@ class TemperatureAutomationJob(AutomationJob):
         hertz = 16  # technically this doesn't need to be high: it could even be 1hz. However, we want to smooth it's
         # impact (mainly: current sink), over the second. Ex: imagine freq=1hz, dc=40%, and the pump needs to run for
         # 0.3s. The influence of when the heat is one on the pump can be significant in a power-constrained system.
-        pin = hardware.PWM_TO_PIN[hardware.HEATER_PWM_TO_PIN]
+        heater_channel = hardware.get_heater_pwm_channel()
+        pin = hardware.get_pwm_to_pin_map()[heater_channel]
         pwm = PWM(
             pin,
             hertz,
@@ -381,17 +383,20 @@ class TemperatureAutomationJob(AutomationJob):
         features["time_series_of_temp"] = time_series_of_temp
         self.logger.debug(f"{features=}")
 
-        hardware_model = get_pioreactor_model()
+        model = get_pioreactor_model()
         try:
-            if hardware_model.model_name == "pioreactor_20ml":
-                if hardware_model.model_version == "1.0":
+            if model.model_name == "pioreactor_20ml":
+                if model.model_version == "1.0":
                     inferred_temperature = self.approximate_temperature_20_1_0(features)
-                elif hardware_model.model_version >= "1.1":
+                elif model.model_version >= "1.1":
                     inferred_temperature = self.approximate_temperature_20_2_0(features)
-            elif hardware_model.model_name == "pioreactor_40ml":
-                inferred_temperature = self.approximate_temperature_20_2_0(features)  # TODO: change me back
+            elif model.model_name == "pioreactor_40ml":
+                inferred_temperature = self.approximate_temperature_20_2_0(features)
             else:
-                raise ValueError("Unknown Pioreactor model.")
+                self.logger.warning(
+                    "Approximating temperature inference for non-pioreactor models using pioreactor_40ml."
+                )
+                inferred_temperature = self.approximate_temperature_20_2_0(features)
 
             self.temperature = Temperature(
                 temperature=round(inferred_temperature, 2),
@@ -593,7 +598,7 @@ def start_temperature_automation(
         klass = available_temperature_automations[automation_name]
     except KeyError:
         raise KeyError(
-            f"Unable to find {automation_name}. Available automations are {list( available_temperature_automations.keys())}"
+            f"Unable to find {automation_name}. Available automations are {list(available_temperature_automations.keys())}"
         )
 
     if "skip_first_run" in kwargs:

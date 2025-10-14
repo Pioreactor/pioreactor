@@ -9,6 +9,7 @@ from time import time
 from typing import Callable
 from typing import cast
 from typing import Optional
+from typing import override
 
 import click
 import pioreactor.types as pt
@@ -60,14 +61,15 @@ class RpmCalculator:
         # we delay the setup so that when all other checks are done (like in stirring's uniqueness), we can start to
         # use the GPIO for this.
 
-        if not is_testing_env():
-            self._handle = lgpio.gpiochip_open(hardware.GPIOCHIP)
-            lgpio.gpio_claim_input(self._handle, hardware.HALL_SENSOR_PIN, lgpio.SET_PULL_UP)
+        hall_sensor_pin = hardware.get_hall_sensor_pin()
+        self._hall_sensor_pin = hall_sensor_pin
 
-            lgpio.gpio_claim_alert(
-                self._handle, hardware.HALL_SENSOR_PIN, lgpio.FALLING_EDGE, lgpio.SET_PULL_UP
-            )
-            self._edge_callback = lgpio.callback(self._handle, hardware.HALL_SENSOR_PIN, lgpio.FALLING_EDGE)
+        if not is_testing_env():
+            self._handle = lgpio.gpiochip_open(hardware.determine_gpiochip())
+            lgpio.gpio_claim_input(self._handle, hall_sensor_pin, lgpio.SET_PULL_UP)
+
+            lgpio.gpio_claim_alert(self._handle, hall_sensor_pin, lgpio.FALLING_EDGE, lgpio.SET_PULL_UP)
+            self._edge_callback = lgpio.callback(self._handle, hall_sensor_pin, lgpio.FALLING_EDGE)
         else:
             self._edge_callback = MockCallback()
             self._handle = MockHandle()
@@ -85,7 +87,7 @@ class RpmCalculator:
 
         if not is_testing_env():
             self._edge_callback = lgpio.callback(
-                self._handle, hardware.HALL_SENSOR_PIN, lgpio.FALLING_EDGE, self.callback
+                self._handle, self._hall_sensor_pin, lgpio.FALLING_EDGE, self.callback
             )
 
     def clean_up(self) -> None:
@@ -241,7 +243,7 @@ class Stirrer(BackgroundJobWithDodging):
             self.clean_up()
             return
 
-        pin: pt.GpioPin = hardware.PWM_TO_PIN[channel]
+        pin: pt.GpioPin = hardware.get_pwm_to_pin_map()[channel]
         self.pwm = PWM(
             pin,
             config.getfloat("stirring.config", "pwm_hz"),
@@ -295,6 +297,7 @@ class Stirrer(BackgroundJobWithDodging):
             pub_client=self.pub_client,
         )
 
+    @override
     def action_to_do_before_od_reading(self):
         if self.rpm_calculator is None:
             return
@@ -303,6 +306,7 @@ class Stirrer(BackgroundJobWithDodging):
         sleep(0.15)
         self.poll_and_update_dc()
 
+    @override
     def action_to_do_after_od_reading(self):
         if self.rpm_calculator is None:
             return
@@ -313,6 +317,7 @@ class Stirrer(BackgroundJobWithDodging):
         self.poll_and_update_dc()  # do it twice.
         self.poll_and_update_dc()
 
+    @override
     def initialize_dodging_operation(self):
         self.logger.debug("Starting initialize_dodging_operation")
         with JobManager() as jm:
@@ -345,6 +350,7 @@ class Stirrer(BackgroundJobWithDodging):
         )
         self.logger.debug("Finished initialize_dodging_operation")
 
+    @override
     def initialize_continuous_operation(self):
         self.logger.debug("Starting initialize_continuous_operation")
         # set up thread to periodically check the rpm

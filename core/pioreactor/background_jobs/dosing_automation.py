@@ -6,7 +6,6 @@ from contextlib import suppress
 from datetime import datetime
 from functools import partial
 from threading import Event
-from threading import Thread
 from typing import Optional
 
 import click
@@ -170,25 +169,25 @@ class DosingAutomationJob(AutomationJob):
 
     automation_name = "dosing_automation_base"  # is overwritten in subclasses
     job_name = "dosing_automation"
-    published_settings: dict[
-        str, pt.PublishableSetting
-    ] = {}  # see methods in init for dynamic additions, like current_volume_ml
+    published_settings: dict[str, pt.PublishableSetting] = (
+        {}
+    )  # see methods in init for dynamic additions, like current_volume_ml
 
     latest_event: Optional[events.AutomationEvent] = None
     _latest_run_at: Optional[datetime] = None
-    run_thread: RepeatedTimer | Thread
+    run_thread: RepeatedTimer
     duration: float | None
 
     # overwrite to use your own dosing programs.
     # interface must look like types.DosingProgram
-    add_media_to_bioreactor: pt.DosingProgram = partial(
-        add_media, duration=None, calibration=None, continuously=False
+    add_media_to_bioreactor: pt.DosingProgram = staticmethod(
+        partial(add_media, duration=None, calibration=None, continuously=False)
     )
-    remove_waste_from_bioreactor: pt.DosingProgram = partial(
-        remove_waste, duration=None, calibration=None, continuously=False
+    remove_waste_from_bioreactor: pt.DosingProgram = staticmethod(
+        partial(remove_waste, duration=None, calibration=None, continuously=False)
     )
-    add_alt_media_to_bioreactor: pt.DosingProgram = partial(
-        add_alt_media, duration=None, calibration=None, continuously=False
+    add_alt_media_to_bioreactor: pt.DosingProgram = staticmethod(
+        partial(add_alt_media, duration=None, calibration=None, continuously=False)
     )
 
     # dosing metrics that are available, and published to MQTT
@@ -282,11 +281,6 @@ class DosingAutomationJob(AutomationJob):
                 run_after=run_after,
                 logger=self.logger,
             ).start()
-
-        else:
-            self.duration = None
-            self.run_thread = Thread(target=self.run, daemon=True)
-            self.run_thread.start()
 
     def run(self, timeout: float = 60.0) -> Optional[events.AutomationEvent]:
         """
@@ -648,7 +642,7 @@ def start_dosing_automation(
         klass = available_dosing_automations[automation_name]
     except KeyError:
         raise KeyError(
-            f"Unable to find {automation_name}. Available automations are {list( available_dosing_automations.keys())}"
+            f"Unable to find {automation_name}. Available automations are {list(available_dosing_automations.keys())}"
         )
 
     try:
