@@ -15,7 +15,7 @@ from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.background_jobs.base import LongRunningBackgroundJob
 from pioreactor.config import config
-from pioreactor.hardware import PWM_TO_PIN
+from pioreactor.hardware import get_pwm_to_pin_map
 from pioreactor.pubsub import QOS
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.sqlite_worker import Sqlite3Worker
@@ -378,16 +378,17 @@ def parse_stirring_rates(topic: str, payload: pt.MQTTMessagePayload) -> dict:
 def parse_pwm_dcs(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     metadata = produce_metadata(topic)
     pin_to_dc = loads(payload)
+    pwm_to_pin = get_pwm_to_pin_map()
 
     return {
         "experiment": metadata.experiment,
         "pioreactor_unit": metadata.pioreactor_unit,
         "timestamp": current_utc_datetime(),
-        "channel_1": pin_to_dc.get(str(PWM_TO_PIN["1"]), 0.0),
-        "channel_2": pin_to_dc.get(str(PWM_TO_PIN["2"]), 0.0),
-        "channel_3": pin_to_dc.get(str(PWM_TO_PIN["3"]), 0.0),
-        "channel_4": pin_to_dc.get(str(PWM_TO_PIN["4"]), 0.0),
-        "channel_5": pin_to_dc.get(str(PWM_TO_PIN["5"]), 0.0),
+        "channel_1": pin_to_dc.get(str(pwm_to_pin["1"]), 0.0),
+        "channel_2": pin_to_dc.get(str(pwm_to_pin["2"]), 0.0),
+        "channel_3": pin_to_dc.get(str(pwm_to_pin["3"]), 0.0),
+        "channel_4": pin_to_dc.get(str(pwm_to_pin["4"]), 0.0),
+        "channel_5": pin_to_dc.get(str(pwm_to_pin["5"]), 0.0),
     }
 
 

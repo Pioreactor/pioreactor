@@ -20,11 +20,11 @@ from pioreactor.cluster_management import get_workers_in_inventory
 from pioreactor.config import config
 from pioreactor.config import leader_hostname
 from pioreactor.config import mqtt_address
-from pioreactor.hardware import GPIOCHIP
+from pioreactor.hardware import determine_gpiochip
+from pioreactor.hardware import get_pcb_button_pin
+from pioreactor.hardware import get_pcb_led_pin
+from pioreactor.hardware import get_temp_address
 from pioreactor.hardware import is_HAT_present
-from pioreactor.hardware import PCB_BUTTON_PIN as BUTTON_PIN
-from pioreactor.hardware import PCB_LED_PIN as LED_PIN
-from pioreactor.hardware import TEMP_ADDRESS
 from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import get_from
 from pioreactor.pubsub import QOS
@@ -129,6 +129,8 @@ class Monitor(LongRunningBackgroundJob):
         self.logger.debug(f"Pioreactor HAT serial number: {self.versions['hat_serial']}")
 
         self.button_down = False
+        self._led_pin = get_pcb_led_pin()
+        self._button_pin = get_pcb_button_pin()
 
         try:
             # set up GPIO for accessing the button and changing the LED
@@ -162,19 +164,19 @@ class Monitor(LongRunningBackgroundJob):
         import lgpio  # type: ignore
 
         if not whoami.is_testing_env():
-            self._handle = lgpio.gpiochip_open(GPIOCHIP)
+            self._handle = lgpio.gpiochip_open(determine_gpiochip())
 
             # Set LED_PIN as output and initialize to low
-            lgpio.gpio_claim_output(self._handle, LED_PIN)
-            lgpio.gpio_write(self._handle, LED_PIN, 0)
+            lgpio.gpio_claim_output(self._handle, self._led_pin)
+            lgpio.gpio_write(self._handle, self._led_pin, 0)
 
             # Set BUTTON_PIN as input with no pull-up
-            lgpio.gpio_claim_input(self._handle, BUTTON_PIN, lgpio.SET_PULL_DOWN)
+            lgpio.gpio_claim_input(self._handle, self._button_pin, lgpio.SET_PULL_DOWN)
 
-            lgpio.gpio_claim_alert(self._handle, BUTTON_PIN, lgpio.BOTH_EDGES, lgpio.SET_PULL_DOWN)
+            lgpio.gpio_claim_alert(self._handle, self._button_pin, lgpio.BOTH_EDGES, lgpio.SET_PULL_DOWN)
 
             self._button_callback = lgpio.callback(
-                self._handle, BUTTON_PIN, lgpio.BOTH_EDGES, self.button_down_and_up
+                self._handle, self._button_pin, lgpio.BOTH_EDGES, self.button_down_and_up
             )
         else:
             self._button_callback = MockCallback()
@@ -341,7 +343,7 @@ class Monitor(LongRunningBackgroundJob):
                 return
 
         try:
-            tmp_driver = TMP1075(address=TEMP_ADDRESS)
+            tmp_driver = TMP1075(address=get_temp_address())
         except ValueError:
             # No PCB detected using i2c - fine to exit.
             self.logger.debug("Heater PCB is not detected.")
@@ -436,13 +438,13 @@ class Monitor(LongRunningBackgroundJob):
         import lgpio  # type: ignore
 
         if not whoami.is_testing_env():
-            lgpio.gpio_write(self._handle, LED_PIN, 1)
+            lgpio.gpio_write(self._handle, self._led_pin, 1)
 
     def led_off(self) -> None:
         import lgpio  # type: ignore
 
         if not whoami.is_testing_env():
-            lgpio.gpio_write(self._handle, LED_PIN, 0)
+            lgpio.gpio_write(self._handle, self._led_pin, 0)
 
     def button_down_and_up(self, chip, gpio, level, tick) -> None:
         # Warning: this might be called twice

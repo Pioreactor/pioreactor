@@ -18,7 +18,7 @@ from pioreactor import types as pt
 from pioreactor import utils
 from pioreactor.calibrations import load_active_calibration
 from pioreactor.config import config
-from pioreactor.hardware import PWM_TO_PIN
+from pioreactor.hardware import get_pwm_to_pin_map
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
 from pioreactor.pubsub import Client
@@ -139,7 +139,7 @@ class PWMPump:
 
 
 def _get_pin(pump_device: PumpCalibrationDevices) -> pt.GpioPin:
-    return PWM_TO_PIN[
+    return get_pwm_to_pin_map()[
         cast(pt.PwmChannel, config.get("PWM_reverse", pump_device.removesuffix("_pump")))
     ]  # backwards compatibility
 

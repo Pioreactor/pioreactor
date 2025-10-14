@@ -30,7 +30,7 @@ repos:
         # these are errors that will be ignored by flake8
         # check out their meaning here
         # https://flake8.pycqa.org/en/latest/user/error-codes.html
-        - "--ignore=E203,E266,E501,W503,E402,E401"
+        - "--ignore=E203,E266,E501,W503,E402,E401,E704"
         - "--per-file-ignores=*/__init__.py: F401"
 
 -   repo: https://github.com/pre-commit/mirrors-mypy

@@ -68,10 +68,11 @@ def get_firmware_version() -> tuple[int, int]:
     if hardware_version_info >= (1, 1):
         try:
             from adafruit_blinka.microcontroller.generic_linux.i2c import I2C
-            from pioreactor.hardware import ADCs
+            from pioreactor.hardware import get_adc_curriers
 
             result = bytearray(2)
-            I2C(1, mode=I2C.MASTER).writeto_then_readfrom(ADCs["version"].i2c_address, bytes([0x08]), result)
+            version_adc = get_adc_curriers()["version"]
+            I2C(1, mode=I2C.MASTER).writeto_then_readfrom(version_adc.i2c_address, bytes([0x08]), result)
             return (result[1], result[0])
         except Exception:
             return (0, 0)

@@ -16,6 +16,7 @@ from huey import SqliteHuey
 load_dotenv()
 
 CACHE_DIR = Path(os.environ["RUN_PIOREACTOR"]) / "cache"
+CACHE_DIR.mkdir(exist_ok=True)
 
 try:
     huey = SqliteHuey(filename=CACHE_DIR / "huey.db")

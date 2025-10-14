@@ -192,7 +192,7 @@ def get_pioreactor_workers(active_only: bool) -> list:
     or "which pioreactors are running experiments".
     """
     workers = get_from_leader("/api/workers/assignments")
-    return [w for w in workers if w.get("is_active")] if active_only else workers
+    return [w for w in workers if w.get("is_active")] if active_only else [w for w in workers]
 
 
 @mcp.tool()

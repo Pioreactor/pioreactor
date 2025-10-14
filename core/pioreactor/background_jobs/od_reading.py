@@ -157,7 +157,7 @@ class ADCReader(LoggerMixin):
             adcs: dict[pt.PdChannel, madcs._I2C_ADC] = {}
             for c in self.channels:
                 try:
-                    curried = hardware.ADCs[f"pd{c}"]
+                    curried = hardware.get_adc_curriers()[f"pd{c}"]
                 except KeyError as e:
                     # Configuration is missing an ADC mapping for this channel
                     self.logger.error(f"No ADC configuration found for channel pd{c}.")
@@ -256,7 +256,7 @@ class ADCReader(LoggerMixin):
             self.adc_offsets[channel] = self.adcs[channel].from_voltage_to_raw_precise(blank_reading.reading)
 
         self.logger.debug(
-            f"ADC offsets: {self.adc_offsets}, and in voltage: { {c: self.adcs[c].from_raw_to_voltage(i) for c, i in self.adc_offsets.items()}}"
+            f"ADC offsets: {self.adc_offsets}, and in voltage: {{c: self.adcs[c].from_raw_to_voltage(i) for c, i in self.adc_offsets.items()}}"
         )
 
     def _check_if_over_max(self, value: pt.Voltage) -> None:
@@ -493,12 +493,14 @@ class ADCReader(LoggerMixin):
                         shifted_signals,
                         self.most_appropriate_AC_hz,
                         prior_C=(
-                            self.adcs[channel].from_voltage_to_raw_precise(
-                                self.batched_readings[channel].reading
+                            (
+                                self.adcs[channel].from_voltage_to_raw_precise(
+                                    self.batched_readings[channel].reading
+                                )
                             )
-                        )
-                        if (channel in self.batched_readings)
-                        else None,
+                            if (channel in self.batched_readings)
+                            else None
+                        ),
                         penalizer_C=(self.penalizer * self.oversampling_count),
                     )
 
@@ -663,11 +665,9 @@ class NullIrLedReferenceTracker(IrLedReferenceTracker):
 class CalibrationTransformerProtocol(Protocol):
     models: dict[pt.PdChannel, Callable]
 
-    def hydate_models(self, calibration_data: structs.ODCalibration | None) -> None:
-        ...
+    def hydate_models(self, calibration_data: structs.ODCalibration | None) -> None: ...
 
-    def __call__(self, batched_readings: structs.ODReadings) -> structs.ODReadings:
-        ...
+    def __call__(self, batched_readings: structs.ODReadings) -> structs.ODReadings: ...
 
 
 class NullCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):

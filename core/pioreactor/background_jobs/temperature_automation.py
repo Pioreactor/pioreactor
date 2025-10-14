@@ -132,7 +132,7 @@ class TemperatureAutomationJob(AutomationJob):
         self.heater_duty_cycle = 0.0
         self.pwm = self.setup_pwm()
 
-        self.heating_pcb_tmp_driver = TMP1075(address=hardware.TEMP_ADDRESS)
+        self.heating_pcb_tmp_driver = TMP1075(address=hardware.get_temp_address())
 
         self.read_external_temperature_timer = RepeatedTimer(
             53,
@@ -302,7 +302,8 @@ class TemperatureAutomationJob(AutomationJob):
         hertz = 16  # technically this doesn't need to be high: it could even be 1hz. However, we want to smooth it's
         # impact (mainly: current sink), over the second. Ex: imagine freq=1hz, dc=40%, and the pump needs to run for
         # 0.3s. The influence of when the heat is one on the pump can be significant in a power-constrained system.
-        pin = hardware.PWM_TO_PIN[hardware.HEATER_PWM_TO_PIN]
+        heater_channel = hardware.get_heater_pwm_channel()
+        pin = hardware.get_pwm_to_pin_map()[heater_channel]
         pwm = PWM(
             pin,
             hertz,
@@ -597,7 +598,7 @@ def start_temperature_automation(
         klass = available_temperature_automations[automation_name]
     except KeyError:
         raise KeyError(
-            f"Unable to find {automation_name}. Available automations are {list( available_temperature_automations.keys())}"
+            f"Unable to find {automation_name}. Available automations are {list(available_temperature_automations.keys())}"
         )
 
     if "skip_first_run" in kwargs:

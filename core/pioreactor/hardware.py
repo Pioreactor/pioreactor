@@ -43,9 +43,13 @@ YAML schemas
 """
 from __future__ import annotations
 
+import sys
+import warnings
+from functools import cache
 from os import environ
 from pathlib import Path
 from typing import Any
+from typing import Callable
 from typing import cast
 
 from msgspec.yaml import decode as yaml_decode
@@ -98,34 +102,76 @@ def get_layered_mod_config(mod: str) -> dict[str, Any]:
     return data
 
 
-GPIOCHIP: pt.GpioChip = 4 if rpi_version_info.startswith("Raspberry Pi 5") else 0
+@cache
+def determine_gpiochip() -> pt.GpioChip:
+    """Return the GPIO chip index for the current Raspberry Pi."""
 
-# PWMs
-_pwm_cfg = get_layered_mod_config("pwm")
-
-# pwm.controller for future-proofing (rpi_gpio | hat_mcu). Not currently used elsewhere.
-PWM_CONTROLLER: str | None = _pwm_cfg.get("controller")
-
-# Heater PWM channel
-HEATER_PWM_TO_PIN: pt.PwmChannel = str(_pwm_cfg["heater_pwm_channel"])  # type: ignore
-
-# map between PWM channels and GPIO pins
-PWM_TO_PIN: dict[pt.PwmChannel, pt.GpioPin] = {str(k): v for k, v in _pwm_cfg["pwm_to_pin"].items()}  # type: ignore
+    return cast(pt.GpioChip, 4 if rpi_version_info.startswith("Raspberry Pi 5") else 0)
 
 
-# GPIOS
-_gpio_cfg = get_layered_mod_config("gpio")
+@cache
+def _load_pwm_cfg() -> dict[str, Any]:
+    return get_layered_mod_config("pwm")
 
-SDA: pt.I2CPin = cast(pt.I2CPin, int(_gpio_cfg["sda_pin"]))
-SCL: pt.I2CPin = cast(pt.I2CPin, int(_gpio_cfg["scl_pin"]))
 
-PCB_LED_PIN: pt.GpioPin = cast(pt.GpioPin, int(_gpio_cfg["pcb_led_pin"]))
-PCB_BUTTON_PIN: pt.GpioPin = cast(pt.GpioPin, int(_gpio_cfg["pcb_button_pin"]))
-HALL_SENSOR_PIN: pt.GpioPin = cast(pt.GpioPin, int(_gpio_cfg["hall_sensor_pin"]))
+@cache
+def get_pwm_controller() -> str | None:
+    """Return the configured PWM controller type (e.g., 'rpi_gpio' or 'hat_mcu')."""
 
-_temp_cfg = get_layered_mod_config("temp")
-TEMP_ADDRESS = int(_temp_cfg["address"])
-TEMP = TEMP_ADDRESS  # bc
+    return cast(str | None, _load_pwm_cfg().get("controller"))
+
+
+@cache
+def get_heater_pwm_channel() -> pt.PwmChannel:
+    return cast(pt.PwmChannel, str(_load_pwm_cfg()["heater_pwm_channel"]))
+
+
+@cache
+def get_pwm_to_pin_map() -> dict[pt.PwmChannel, pt.GpioPin]:
+    raw_mapping = _load_pwm_cfg()["pwm_to_pin"]
+    if not isinstance(raw_mapping, dict):
+        raise exc.HardwareError("Expected 'pwm_to_pin' to be a mapping in pwm configuration.")
+    return {cast(pt.PwmChannel, str(k)): cast(pt.GpioPin, int(v)) for k, v in raw_mapping.items()}
+
+
+@cache
+def _load_gpio_cfg() -> dict[str, Any]:
+    return get_layered_mod_config("gpio")
+
+
+@cache
+def get_sda_pin() -> pt.I2CPin:
+    return cast(pt.I2CPin, int(_load_gpio_cfg()["sda_pin"]))
+
+
+@cache
+def get_scl_pin() -> pt.I2CPin:
+    return cast(pt.I2CPin, int(_load_gpio_cfg()["scl_pin"]))
+
+
+@cache
+def get_pcb_led_pin() -> pt.GpioPin:
+    return cast(pt.GpioPin, int(_load_gpio_cfg()["pcb_led_pin"]))
+
+
+@cache
+def get_pcb_button_pin() -> pt.GpioPin:
+    return cast(pt.GpioPin, int(_load_gpio_cfg()["pcb_button_pin"]))
+
+
+@cache
+def get_hall_sensor_pin() -> pt.GpioPin:
+    return cast(pt.GpioPin, int(_load_gpio_cfg()["hall_sensor_pin"]))
+
+
+@cache
+def _load_temp_cfg() -> dict[str, Any]:
+    return get_layered_mod_config("temp")
+
+
+@cache
+def get_temp_address() -> int:
+    return int(_load_temp_cfg()["address"])
 
 
 # ADCS
@@ -136,9 +182,9 @@ class ADCCurrier:
     We don't to initiate the ADCs until we need them, so we curry them using this class, and this keeps all
     the hardware metadata nice and neat and accessible.
 
-    from pioreactor.hardware import ADCs
+    from pioreactor.hardware import get_adc_curriers
 
-    adc = ADCs['pd1']()
+    adc = get_adc_curriers()['pd1']()
     reading = adc.read_from_channel()
 
     """
@@ -151,7 +197,7 @@ class ADCCurrier:
         self.adc_channel = adc_channel
 
     def __call__(self) -> adcs._I2C_ADC:
-        return self.adc_driver(SCL, SDA, self.i2c_address, self.adc_channel)
+        return self.adc_driver(get_scl_pin(), get_sda_pin(), self.i2c_address, self.adc_channel)
 
     def __repr__(self) -> str:
         return f"ADCCurrier(adc_driver={self.adc_driver.__name__}, i2c_address={hex(self.i2c_address)}, adc_channel={self.adc_channel})"
@@ -181,22 +227,96 @@ def _build_adc_currier_from_cfg(entry: dict[str, Any], context_key: str) -> ADCC
     return ADCCurrier(driver, addr, channel)
 
 
-_adc_cfg = get_layered_mod_config("adc")
-ADCs: dict[str, ADCCurrier] = {}
-for key in ("pd1", "pd2", "aux", "version"):
-    if key in _adc_cfg:
-        ADCs[key] = _build_adc_currier_from_cfg(_adc_cfg[key], key)
-    else:
-        raise exc.HardwareNotFoundError(
-            f"Missing adc configuration for '{key}'. Ensure hardware/models/<model>/<version>/adc.yaml or overlays provide it."
-        )
+@cache
+def _load_adc_cfg() -> dict[str, Any]:
+    return get_layered_mod_config("adc")
+
+
+@cache
+def get_adc_curriers() -> dict[str, ADCCurrier]:
+    cfg = _load_adc_cfg()
+    out: dict[str, ADCCurrier] = {}
+    for key in ("pd1", "pd2", "aux", "version"):
+        if key in cfg:
+            out[key] = _build_adc_currier_from_cfg(cfg[key], key)
+        else:
+            raise exc.HardwareNotFoundError(
+                f"Missing adc configuration for '{key}'. Ensure hardware/models/<model>/<version>/adc.yaml or overlays provide it."
+            )
+    return out
 
 
 # DACS
 
-_dac_cfg = get_layered_mod_config("dac")
-DAC_ADDRESS = int(_dac_cfg["address"])
-DAC = DAC_ADDRESS  # bc
+
+@cache
+def _load_dac_cfg() -> dict[str, Any]:
+    return get_layered_mod_config("dac")
+
+
+@cache
+def get_dac_address() -> int:
+    return int(_load_dac_cfg()["address"])
+
+
+__all__ = [
+    "get_layered_mod_config",
+    "determine_gpiochip",
+    "get_pwm_controller",
+    "get_heater_pwm_channel",
+    "get_pwm_to_pin_map",
+    "get_sda_pin",
+    "get_scl_pin",
+    "get_pcb_led_pin",
+    "get_pcb_button_pin",
+    "get_hall_sensor_pin",
+    "get_temp_address",
+    "get_adc_curriers",
+    "get_dac_address",
+    "ADCCurrier",
+    "is_i2c_device_present",
+    "is_DAC_present",
+    "is_ADC_present",
+    "is_heating_pcb_present",
+    "is_HAT_present",
+    "round_to_precision",
+    "voltage_in_aux",
+]
+
+
+_DEPRECATED_EXPORTS: dict[str, Callable[[], Any]] = {
+    "GPIOCHIP": determine_gpiochip,
+    "PWM_CONTROLLER": get_pwm_controller,
+    "HEATER_PWM_TO_PIN": get_heater_pwm_channel,
+    "PWM_TO_PIN": get_pwm_to_pin_map,
+    "SDA": get_sda_pin,
+    "SCL": get_scl_pin,
+    "PCB_LED_PIN": get_pcb_led_pin,
+    "PCB_BUTTON_PIN": get_pcb_button_pin,
+    "HALL_SENSOR_PIN": get_hall_sensor_pin,
+    "TEMP_ADDRESS": get_temp_address,
+    "TEMP": get_temp_address,
+    "ADCs": get_adc_curriers,
+    "DAC_ADDRESS": get_dac_address,
+    "DAC": get_dac_address,
+}
+
+
+def __getattr__(name: str) -> Any:
+    try:
+        factory = _DEPRECATED_EXPORTS[name]
+    except KeyError as exc:
+        raise AttributeError(f"module 'pioreactor.hardware' has no attribute {name!r}") from exc
+
+    replacement = factory.__name__
+    warnings.warn(
+        f"`hardware.{name}` is deprecated; call `hardware.{replacement}()` instead. `hardware.{name}` will be removed in a future version.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    value = factory()
+    setattr(sys.modules[__name__], name, value)
+    return value
 
 
 def is_i2c_device_present(channel: int) -> bool:
@@ -213,19 +333,19 @@ def is_i2c_device_present(channel: int) -> bool:
 
 
 def is_DAC_present() -> bool:
-    return is_i2c_device_present(DAC_ADDRESS)
+    return is_i2c_device_present(get_dac_address())
 
 
 def is_ADC_present(*args: int) -> bool:
     if args:
         to_check = set(args)
     else:
-        to_check = set([adc.i2c_address for adc in ADCs.values()])
+        to_check = {adc.i2c_address for adc in get_adc_curriers().values()}
     return all(is_i2c_device_present(c) for c in to_check)
 
 
 def is_heating_pcb_present() -> bool:
-    return is_i2c_device_present(TEMP_ADDRESS)
+    return is_i2c_device_present(get_temp_address())
 
 
 def is_HAT_present() -> bool:
@@ -254,13 +374,13 @@ def round_to_precision(x: float, p: float) -> float:
 
 def voltage_in_aux(precision: float = 0.1) -> float:
     if not is_testing_env():
-        AUX_ADC = ADCs["aux"]
+        aux_adc = get_adc_curriers()["aux"]
     else:
         from pioreactor.utils.mock import Mock_ADC  # type: ignore
 
-        AUX_ADC = ADCCurrier(Mock_ADC, 0x00, 0)
+        aux_adc = ADCCurrier(Mock_ADC, 0x00, 0)
 
-    adc = AUX_ADC()
+    adc = aux_adc()
     slope = 0.134  # from schematic
 
     return round_to_precision(

@@ -23,7 +23,6 @@ from pioreactor.whoami import get_unit_name
 from tests.conftest import capture_requests
 
 
-@pytest.mark.xfail(reason="Don't use nested caches like this!")
 def test_that_out_scope_caches_cant_access_keys_created_by_inner_scope_cache() -> None:
     """
     You can modify caches, and the last assignment is valid.

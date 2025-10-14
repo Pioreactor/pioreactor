@@ -1,11 +1,17 @@
 ### Upcoming
 
-  - hardware: reworked GPIO, PWM, and I2C configuration to load from layered YAML mods so new HAT+model combinations can be described without code changes.
-  - export images of the Overview's and Calibrations' charts
-  - MCP server: add tools for creating experiments and managing worker assignments
-  - Show and hide calibration curves in Calibrations page
-  - trixie upgrade?
-  - add new apis and mcp tools via plugins. Example: drop the following in your .pioreactor/plugins folder:
+  - `pioreactor.hardware`: reworked GPIO, PWM, and I2C configuration to load from layered YAML mods so new HAT+model combinations can be described without code changes. See new ~/.pioreactor/hardware directories.
+  - `pioreactor.hardware`: constants are now resolved lazily through accessor functions (e.g., determine_gpiochip(), get_pwm_to_pin_map()); direct module constants remain as deprecated shims that emit warnings and cache the first look-up.
+  - export images (PNGs and SVGs) of the Overview's and Calibrations' charts.
+  - MCP server: added tools for creating experiments and managing worker assignments
+  - Show and hide calibration curves in Calibrations page by clicking the dot beside the calibration (similar to the Overview page).
+  - Upgrade to Trixie Debian 13! This mostly means: new Python 3.13.
+  - New Pioreactor architecture:
+     - New environment variable file /etc/pioreactor.env
+     - The old `pioreactorui` Python package is now part of the `pioreactor` Python package, under `pioreactor.web`
+     - Moved temporary files from /tmp to /run/pioreactor/
+     - New `pioreactor-web.service` to handle both `huey.service` and `lighttpd.service`
+  - add new APIs and MCP tools via plugins. Example: drop the following in your ~/.pioreactor/plugins folder:
   ```python
 # -*- coding: utf-8 -*-
 from __future__ import annotations
