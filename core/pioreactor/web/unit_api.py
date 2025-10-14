@@ -38,6 +38,7 @@ from pioreactor.version import __version__
 from pioreactor.web import tasks
 from pioreactor.web.app import HOSTNAME
 from pioreactor.web.app import publish_to_error_log
+from pioreactor.web.app import publish_to_log
 from pioreactor.web.app import query_temp_local_metadata_db
 from pioreactor.web.config import huey
 from pioreactor.web.plugin_registry import registered_unit_api_routes
@@ -826,86 +827,119 @@ def get_entire_dot_pioreactor_as_zip() -> ResponseReturnValue:
 
 @unit_api_bp.route("/import_zipped_dot_pioreactor", methods=["POST"])
 def import_dot_pioreactor_from_zip() -> ResponseReturnValue:
-    if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_FILE_SYSTEM"):
+    task_name = "import_zipped_dot_pioreactor"
+    publish_to_log("Starting import of zipped DOT_PIOREACTOR archive", task_name, "INFO")
+
+    disallow_file = Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_FILE_SYSTEM"
+    if os.path.isfile(disallow_file):
+        publish_to_log(f"Import blocked because {disallow_file} is present", task_name, "WARNING")
         abort(403, "DISALLOW_UI_FILE_SYSTEM is present")
 
     uploaded = request.files.get("archive")
     if uploaded is None or uploaded.filename == "":
+        publish_to_log("No archive uploaded in import request", task_name, "WARNING")
         abort(400, "No archive uploaded")
 
     tmp = NamedTemporaryFile(prefix="import_dot_pioreactor_", suffix=".zip", delete=False)
     tmp_path = Path(tmp.name)
+    publish_to_log(f"Saving uploaded archive to temporary file {tmp_path}", task_name, "INFO")
     uploaded.save(tmp_path)
     tmp.close()
 
     base_dir = Path(os.environ["DOT_PIOREACTOR"]).resolve()
+    publish_to_log(f"Resolved DOT_PIOREACTOR base directory to {base_dir}", task_name, "INFO")
 
     extraction_root = Path(mkdtemp(prefix="dot_pioreactor_import_"))
+    publish_to_log(f"Created extraction directory {extraction_root}", task_name, "INFO")
 
     try:
         with zipfile.ZipFile(tmp_path, "r") as zf:
+            publish_to_log("Opened uploaded archive successfully", task_name, "INFO")
             try:
                 _safe_zip_members(zf.infolist())
             except ValueError as exc:
+                publish_to_log(f"Zip validation failed: {exc}", task_name, "WARNING")
                 abort(400, str(exc))
+
+            publish_to_log("Zip members validated", task_name, "INFO")
 
             try:
                 metadata_bytes = zf.read(METADATA_FILENAME)
             except KeyError:
+                publish_to_log("Archive missing metadata file", task_name, "WARNING")
                 abort(400, "Archive missing metadata")
 
             metadata = json.loads(metadata_bytes.decode("utf-8"))
             exported_name = metadata.get("name")
+            publish_to_log(
+                f"Loaded archive metadata for unit {exported_name or 'unknown'}", task_name, "INFO"
+            )
 
             if exported_name and exported_name != HOSTNAME:
+                publish_to_log(
+                    f"Archive prepared for {exported_name}, refusing import for {HOSTNAME}",
+                    task_name,
+                    "WARNING",
+                )
                 abort(
                     400,
                     f"Archive prepared for {exported_name}, cannot import into {HOSTNAME}",
                 )
 
             zf.extractall(extraction_root)
+            publish_to_log(f"Extracted archive into {extraction_root}", task_name, "INFO")
     except zipfile.BadZipFile:
+        publish_to_log("Uploaded file is not a valid zip archive", task_name, "WARNING")
         abort(400, "Uploaded file is not a valid zip archive")
     finally:
         try:
             os.unlink(tmp_path)
+            publish_to_log(f"Removed temporary upload {tmp_path}", task_name, "INFO")
         except OSError:
+            publish_to_log(f"Failed to remove temporary upload {tmp_path}", task_name, "WARNING")
             pass
 
     backup_dir = Path("/tmp") / f"{HOSTNAME}_dot_pioreactor_backup_{current_utc_timestamp()}"
+    publish_to_log(f"Backing up existing DOT_PIOREACTOR to {backup_dir}", task_name, "INFO")
 
     try:
         shutil.move(str(base_dir), str(backup_dir))
+        publish_to_log(f"Backup completed at {backup_dir}", task_name, "INFO")
     except Exception as exc:
         shutil.rmtree(extraction_root, ignore_errors=True)
+        publish_to_error_log(f"Failed to backup existing DOT_PIOREACTOR: {exc}", task_name)
         abort(500, f"Failed to backup existing DOT_PIOREACTOR: {exc}")
 
     try:
         base_dir.mkdir(parents=True, exist_ok=True)
+        publish_to_log("Restoring DOT_PIOREACTOR contents from extracted archive", task_name, "INFO")
         for item in extraction_root.iterdir():
             shutil.move(str(item), base_dir / item.name)
+        publish_to_log("DOT_PIOREACTOR contents moved into place", task_name, "INFO")
     except Exception as exc:
         # Attempt to roll back
         shutil.rmtree(base_dir, ignore_errors=True)
         try:
             shutil.move(str(backup_dir), str(base_dir))
         except Exception:
-            publish_to_error_log(
-                "Failed to restore DOT_PIOREACTOR from backup", "import_zipped_dot_pioreactor"
-            )
+            publish_to_error_log("Failed to restore DOT_PIOREACTOR from backup", task_name)
         shutil.rmtree(extraction_root, ignore_errors=True)
         abort(500, f"Failed to write new DOT_PIOREACTOR contents: {exc}")
     finally:
         shutil.rmtree(extraction_root, ignore_errors=True)
+        publish_to_log(f"Cleaned up extraction directory {extraction_root}", task_name, "INFO")
 
     # _apply_ownership(base_dir, "pioreactor", "www-data")
 
     try:
-        tasks.reboot()
+        publish_to_log("Submitting reboot task after import", task_name, "INFO")
+        task = tasks.reboot()
+        publish_to_log(f"Reboot task enqueued: {task}", task_name, "INFO")
     except Exception as exc:
-        publish_to_error_log(str(exc), "import_zipped_dot_pioreactor")
+        publish_to_error_log(str(exc), task_name)
         abort(500, "Failed to initiate reboot")
 
+    publish_to_log("Import finished successfully, returning 202 response", task_name, "INFO")
     return Response(status=202)
 
 
