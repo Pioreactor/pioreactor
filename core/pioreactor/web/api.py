@@ -1338,7 +1338,7 @@ def import_dot_pioreactor_archive(pioreactor_unit: str) -> ResponseReturnValue:
     )
 
     try:
-        response = post_into(
+        post_into(
             resolve_to_address(pioreactor_unit),
             "/unit_api/import_zipped_dot_pioreactor",
             body=body,
@@ -1349,7 +1349,7 @@ def import_dot_pioreactor_archive(pioreactor_unit: str) -> ResponseReturnValue:
         publish_to_error_log(str(exc), "import_zipped_dot_pioreactor")
         abort(502, f"Failed to contact {pioreactor_unit}")
 
-    return 202, response.json()
+    return Response(status=202)
 
 
 @api_bp.route("/workers/<pioreactor_unit>/calibrations/<device>", methods=["GET"])

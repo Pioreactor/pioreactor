@@ -906,7 +906,7 @@ def import_dot_pioreactor_from_zip() -> ResponseReturnValue:
         publish_to_error_log(str(exc), "import_zipped_dot_pioreactor")
         abort(500, "Failed to initiate reboot")
 
-    return jsonify({"status": "rebooting"}), 202
+    return Response(status=202)
 
 
 @unit_api_bp.route("/calibrations/<device>", methods=["GET"])
