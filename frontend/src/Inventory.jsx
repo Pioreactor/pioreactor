@@ -30,6 +30,7 @@ import CheckIcon from '@mui/icons-material/Check';
 import Divider from '@mui/material/Divider';
 import RemoveCircleOutlineRoundedIcon from '@mui/icons-material/RemoveCircleOutlineRounded';
 import CircularProgress from '@mui/material/CircularProgress';
+import Backdrop from '@mui/material/Backdrop';
 import { useConfirm } from 'material-ui-confirm';
 import { useNavigate, Link } from 'react-router-dom';
 import UnderlineSpan from "./components/UnderlineSpan";
@@ -320,7 +321,6 @@ function WorkerCard({worker, config, leaderVersion}) {
     availableModels.find(
       ({model_name, model_version}) => model_name === model[0] && model_version === model[1]
     );
-  const currentModelDisplayName = currentModelDetails ? currentModelDetails.display_name : "Unknown Model";
   const currentModelCapacity = currentModelDetails ? currentModelDetails.reactor_capacity_ml : "";
 
 
@@ -334,6 +334,7 @@ function WorkerCard({worker, config, leaderVersion}) {
   const { selectExperiment } = useExperiment();
   const navigate = useNavigate()
   const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
 
 
   const isActive = () => {
@@ -346,6 +347,10 @@ function WorkerCard({worker, config, leaderVersion}) {
     }
     setSnackbarOpen(false)
   }
+  const showSnackbar = (message) => {
+    setSnackbarMessage(message);
+    setSnackbarOpen(true);
+  };
 
   const onMonitorData = (topic, message, packet) => {
     if (!message || !topic) return;
@@ -412,7 +417,11 @@ function WorkerCard({worker, config, leaderVersion}) {
   const handleModelChange = (event) => {
     const [modelName, modelVersion] = event.target.value.split(',');
     setModel([modelName, modelVersion]);
-    setSnackbarOpen(true);
+    const selectedModel = availableModels.find(
+      ({model_name, model_version}) => model_name === modelName && String(model_version) === String(modelVersion)
+    );
+    const displayName = selectedModel ? selectedModel.display_name : `${modelName}, v${modelVersion}`;
+    showSnackbar(`Updated ${unit} to ${displayName}`);
     fetch(`/api/workers/${unit}/model`, {
       method: "PUT",
       body: JSON.stringify({model_name: modelName, model_version: modelVersion}),
@@ -633,7 +642,7 @@ function WorkerCard({worker, config, leaderVersion}) {
           <Unassign unit={unit} experimentAssigned={experimentAssigned} setExperimentAssigned={setExperimentAssigned} />
         </Box>
         <Box>
-          <ManagePioreactorMenu unit={unit} isLeader={isLeader} />
+          <ManagePioreactorMenu unit={unit} isLeader={isLeader} showSnackbar={showSnackbar} />
         </Box>
       </CardActions>
     </Card>
@@ -641,7 +650,7 @@ function WorkerCard({worker, config, leaderVersion}) {
       anchorOrigin={{vertical: "bottom", horizontal: "center"}}
       open={snackbarOpen}
       onClose={handleSnackbarClose}
-      message={`Updated ${unit} to ${currentModelDisplayName}`}
+      message={snackbarMessage}
       autoHideDuration={2500}
       key={"snackbar" + unit + "model"}
     />
@@ -793,11 +802,13 @@ function Inventory({title}) {
 }
 
 
-function ManagePioreactorMenu({unit, isLeader}){
+function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
   const [anchorEl, setAnchorEl] = React.useState(null);
   const open = Boolean(anchorEl);
   const confirm = useConfirm();
   const navigate = useNavigate();
+  const [isExporting, setIsExporting] = React.useState(false);
+  const [isImporting, setIsImporting] = React.useState(false);
 
   const handleClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -831,6 +842,25 @@ function ManagePioreactorMenu({unit, isLeader}){
   };
 
   const handleExport = async () => {
+    let dialogResult;
+    try {
+      dialogResult = await confirm({
+        description: 'Exporting system files downloads a .zip containing this Pioreactor\'s configuration and calibration data so you can back up or migrate settings.',
+        title: `Export system files from ${unit}?`,
+        confirmationText: "Export",
+        confirmationButtonProps: {color: "primary"},
+        cancellationButtonProps: {color: "secondary"},
+      });
+    } catch (_) {
+      return;
+    }
+
+    if (dialogResult && dialogResult.confirmed === false) {
+      return;
+    }
+
+    handleClose();
+    setIsExporting(true);
     try {
       const response = await fetch(`/api/units/${unit}/zipped_dot_pioreactor`);
       if (!response.ok) {
@@ -847,6 +877,11 @@ function ManagePioreactorMenu({unit, isLeader}){
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Export failed:', err);
+      if (showSnackbar) {
+        showSnackbar('Export failed. Please try again.');
+      }
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -859,6 +894,7 @@ function ManagePioreactorMenu({unit, isLeader}){
     const formData = new FormData();
     formData.append('archive', file);
 
+    setIsImporting(true);
     try {
       const response = await fetch(`/api/units/${unit}/import_zipped_dot_pioreactor`, {
         method: 'POST',
@@ -866,30 +902,50 @@ function ManagePioreactorMenu({unit, isLeader}){
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || 'Import failed');
+        let errorMessage = `Import failed with status ${response.status}`;
+        try {
+          const error = await response.json();
+          if (error && error.error) {
+            errorMessage = error.error;
+          }
+        } catch (_) {
+        }
+        showSnackbar(`${errorMessage}`);
+        return;
       }
-
-      confirm({
-        description: 'Import succeeded. The Pioreactor is rebooting now.',
-        confirmationText: 'Ok',
-        confirmationButtonProps: {color: 'primary'},
-      });
+      showSnackbar(`Import succeeded. The Pioreactor ${unit} will reboot now.`);
     } catch (err) {
       console.error('Import failed:', err);
-      confirm({
-        description: `Import failed: ${err.message}`,
-        title: 'Import failed',
-        confirmationText: 'Ok',
-        confirmationButtonProps: {color: 'primary'},
-      });
+      showSnackbar('Import failed. Please try again.');
     } finally {
-      event.target.value = '';
+      setIsImporting(false);
+      event.target.value = null;
     }
   };
 
-  const handleImportClick = () => {
-    document.getElementById(`import-dot-pioreactor-${unit}`).click();
+  const handleImportClick = async () => {
+    let dialogResult;
+    try {
+      dialogResult = await confirm({
+        description: 'Importing system files uploads a .zip that replaces this Pioreactor\'s configuration and calibration data. The Pioreactor will reboot after the import. Note: the names of the Pioreactor you exported from and this Pioreactor must be identical.',
+        title: `Import system files into ${unit}?`,
+        confirmationText: "Import",
+        confirmationButtonProps: {color: "primary"},
+        cancellationButtonProps: {color: "secondary"},
+      });
+    } catch (_) {
+      return;
+    }
+
+    if (dialogResult && dialogResult.confirmed === false) {
+      return;
+    }
+
+    handleClose();
+    const fileInput = document.getElementById(`import-dot-pioreactor-${unit}`);
+    if (fileInput) {
+      fileInput.click();
+    }
   };
 
   const handleRemove = () => {
@@ -952,6 +1008,12 @@ function ManagePioreactorMenu({unit, isLeader}){
         style={{display: 'none'}}
         onChange={handleImport}
       />
+      <Backdrop
+        sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.modal + 1 }}
+        open={isExporting || isImporting}
+      >
+        <CircularProgress color="inherit" />
+      </Backdrop>
     </div>
   );
 }

@@ -1338,16 +1338,17 @@ def import_dot_pioreactor_archive(pioreactor_unit: str) -> ResponseReturnValue:
     )
 
     try:
-        post_into(
+        response = post_into(
             resolve_to_address(pioreactor_unit),
             "/unit_api/import_zipped_dot_pioreactor",
             body=body,
             headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
             timeout=120,
         )
+        response.raise_for_status()
     except (HTTPErrorStatus, HTTPException) as exc:
         publish_to_error_log(str(exc), "import_zipped_dot_pioreactor")
-        abort(502, f"Failed to contact {pioreactor_unit}")
+        abort(502, f"Importing system files failed on {pioreactor_unit}. See system logs.")
 
     return Response(status=202)
 

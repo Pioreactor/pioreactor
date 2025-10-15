@@ -28,6 +28,7 @@ from huey.exceptions import TaskLockedException
 from msgspec import to_builtins
 from msgspec.yaml import decode as yaml_decode
 from pioreactor import structs
+from pioreactor import whoami
 from pioreactor.config import get_leader_hostname
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import subclass_union
@@ -830,6 +831,9 @@ def import_dot_pioreactor_from_zip() -> ResponseReturnValue:
     task_name = "import_zipped_dot_pioreactor"
     publish_to_log("Starting import of zipped DOT_PIOREACTOR archive", task_name, "INFO")
 
+    if whoami.is_testing_env():
+        return Response(status=202)
+
     disallow_file = Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_FILE_SYSTEM"
     if os.path.isfile(disallow_file):
         publish_to_log(f"Import blocked because {disallow_file} is present", task_name, "WARNING")
@@ -945,13 +949,13 @@ def import_dot_pioreactor_from_zip() -> ResponseReturnValue:
 
     try:
         publish_to_log("Submitting reboot task after import", task_name, "INFO")
-        task = tasks.reboot()
+        task = tasks.reboot(wait=2)
         publish_to_log(f"Reboot task enqueued: {task}", task_name, "INFO")
     except Exception as exc:
         publish_to_error_log(str(exc), task_name)
         abort(500, "Failed to initiate reboot")
 
-    publish_to_log("Import finished successfully, returning 202 response", task_name, "INFO")
+    publish_to_log("Import finished successfully.", task_name, "INFO")
     return Response(status=202)
 
 

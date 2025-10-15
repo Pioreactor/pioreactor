@@ -334,7 +334,8 @@ def shutdown() -> bool:
 
 
 @huey.task()
-def reboot() -> bool:
+def reboot(wait=0) -> bool:
+    sleep(wait)
     logger.debug("Rebooting now")
     if whoami.is_testing_env():
         return True

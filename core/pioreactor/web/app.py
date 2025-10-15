@@ -122,6 +122,13 @@ def create_app():
             500,
         )
 
+    @app.errorhandler(502)
+    def handle_bad_gateway(e):
+        return (
+            jsonify({"error": f"{e.description}"}),
+            502,
+        )
+
     app.json = MsgspecJsonProvider(app)
     app.get_json = app.json.loads
 
