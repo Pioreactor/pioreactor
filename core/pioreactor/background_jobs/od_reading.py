@@ -263,7 +263,7 @@ class ADCReader(LoggerMixin):
                 self.adc_offsets[channel] = 0.0
 
         self.logger.debug(
-            f"ADC offsets: {self.adc_offsets}, and in voltage: {{c: self.adcs[c].from_raw_to_voltage(i) for c, i in self.adc_offsets.items()}}"
+            f"ADC offsets: {self.adc_offsets}, and in voltage: { {c: self.adcs[c].from_raw_to_voltage(i) for c, i in self.adc_offsets.items()} }"
         )
 
     def _check_if_over_max(self, value: pt.Voltage) -> None:
