@@ -451,7 +451,7 @@ def repeat(
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             logger.debug(
-                f"Skipping repeat action on {unit} do to not being assigned to experiment {experiment}."
+                f"Skipping repeat action on {unit} due to not being assigned to experiment {experiment}."
             )
             return
 
@@ -537,7 +537,7 @@ def log(
 
         if get_assigned_experiment_name(unit) != experiment:
             logger.debug(
-                f"Skipping log action on {unit} do to not being assigned to experiment {experiment}."
+                f"Skipping log action on {unit} due to not being assigned to experiment {experiment}."
             )
 
             return
@@ -585,7 +585,7 @@ def start_job(
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             logger.debug(
-                f"Skipping start action on {unit} do to not being assigned to experiment {experiment}."
+                f"Skipping start action on {unit} due to not being assigned to experiment {experiment}."
             )
             return
 
@@ -644,7 +644,7 @@ def pause_job(
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             logger.debug(
-                f"Skipping pause action on {unit} do to not being assigned to experiment {experiment}."
+                f"Skipping pause action on {unit} due to not being assigned to experiment {experiment}."
             )
             return
 
@@ -687,7 +687,7 @@ def resume_job(
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             logger.debug(
-                f"Skipping resume action on {unit} do to not being assigned to experiment {experiment}."
+                f"Skipping resume action on {unit} due to not being assigned to experiment {experiment}."
             )
 
             return
@@ -731,7 +731,7 @@ def stop_job(
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             logger.debug(
-                f"Skipping stop action on {unit} do to not being assigned to experiment {experiment}."
+                f"Skipping stop action on {unit} due to not being assigned to experiment {experiment}."
             )
 
             return
@@ -772,7 +772,7 @@ def update_job(
         # first check if the Pioreactor is still part of the experiment.
         if get_assigned_experiment_name(unit) != experiment:
             logger.debug(
-                f"Skipping update action on {unit} do to not being assigned to experiment {experiment}."
+                f"Skipping update action on {unit} due to not being assigned to experiment {experiment}."
             )
 
             return

@@ -79,7 +79,12 @@ def _get_assigned_experiment_name(unit_name: pt.Unit) -> pt.Experiment:
         )
 
 
+@cache
 def is_active(unit_name: pt.Unit) -> bool:
+    return _is_active(unit_name)
+
+
+def _is_active(unit_name: pt.Unit) -> bool:
     if os.environ.get("ACTIVE") == "1" or is_testing_env():
         return True
     elif os.environ.get("ACTIVE") == "0":
@@ -113,7 +118,9 @@ def get_hostname() -> str:
     if os.environ.get("HOSTNAME"):
         return os.environ["HOSTNAME"]
     elif is_testing_env():
-        return "testing_unit"
+        from pioreactor.config import leader_hostname
+
+        return leader_hostname
     else:
         return socket.gethostname()
 

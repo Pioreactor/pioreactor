@@ -336,11 +336,14 @@ def run_job(job: str) -> DelayedResponseReturnValue:
     if is_rate_limited(job):
         abort(429, "Too many requests, please try again later.")
 
-    body = current_app.get_json(request.data, type=structs.ArgsOptionsEnvsConfigOverrides)
-    args = body.args
-    options = body.options
-    env = body.env
-    config_overrides = body.config_overrides
+    json = current_app.get_json(request.data, type=structs.ArgsOptionsEnvsConfigOverrides)
+    args = json.args
+    options = json.options
+    env = json.env | {
+        "TESTING": str(int(whoami.is_testing_env())),
+        "DOT_PIOREACTOR": os.environ["DOT_PIOREACTOR"],
+    }
+    config_overrides = json.config_overrides
 
     config_overrides_as_flags: tuple[str, ...] = sum(
         [("--config-override",) + tuple(_args) for _args in config_overrides], tuple()

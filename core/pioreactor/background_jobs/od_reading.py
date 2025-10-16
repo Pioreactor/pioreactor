@@ -250,10 +250,17 @@ class ADCReader(LoggerMixin):
 
     def set_offsets(self, batched_readings: RawPDReadings) -> None:
         """
-        With the IR LED off, determine the offsets. These offsets are used later to shift the raw signals such that "dark" is 0.
+        With the IR LED off, determine the dark offsets. These offsets are used later to shift the raw signals such that "dark" is 0.
         """
-        for channel, blank_reading in batched_readings.items():
-            self.adc_offsets[channel] = self.adcs[channel].from_voltage_to_raw_precise(blank_reading.reading)
+
+        if config.getboolean("od_reading.config", "use_dark_offsets", fallback="true"):
+            for channel, blank_reading in batched_readings.items():
+                self.adc_offsets[channel] = self.adcs[channel].from_voltage_to_raw_precise(
+                    blank_reading.reading
+                )
+        else:
+            for channel, _ in batched_readings.items():
+                self.adc_offsets[channel] = 0.0
 
         self.logger.debug(
             f"ADC offsets: {self.adc_offsets}, and in voltage: {{c: self.adcs[c].from_raw_to_voltage(i) for c, i in self.adc_offsets.items()}}"
@@ -436,7 +443,7 @@ class ADCReader(LoggerMixin):
     def _remove_offset_from_signal(
         signals: list[pt.AnalogValue], offset: pt.AnalogValue
     ) -> list[pt.AnalogValue]:
-        return [x - offset for x in signals]
+        return [max(x - offset, 0) for x in signals]
 
     def take_reading(self) -> RawPDReadings:
         """
@@ -535,9 +542,7 @@ class ADCReader(LoggerMixin):
             return self.batched_readings
         except OSError as e:
             self.logger.debug(e, exc_info=True)
-            self.logger.error(
-                "Detected i2c error - is everything well connected? Check Heating PCB connection & HAT connection."
-            )
+            self.logger.error("Detected i2c error - is everything well connected? Check the connections.")
             raise e
         except Exception as e:
             self.logger.debug(e, exc_info=True)
