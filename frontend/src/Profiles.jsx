@@ -22,7 +22,7 @@ import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material'
 import { RunningProfilesProvider, useRunningProfiles } from './providers/RunningProfilesContext';
 
 import EditIcon from '@mui/icons-material/Edit';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router';
 import SelectButton from "./components/SelectButton";
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ViewTimelineOutlinedIcon from '@mui/icons-material/ViewTimelineOutlined';

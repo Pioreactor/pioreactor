@@ -24,7 +24,7 @@ import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import InsertChartOutlinedIcon from '@mui/icons-material/InsertChartOutlined';
 import ViewTimelineOutlinedIcon from '@mui/icons-material/ViewTimelineOutlined';
 import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { Sidebar, Menu, MenuItem, SubMenu} from "react-pro-sidebar";
 import { useExperiment } from '../providers/ExperimentContext';
 import AddIcon from '@mui/icons-material/Add';
@@ -104,6 +104,9 @@ const SelectableMenuItem = ({experiment, availableExperiments, selectExperiment}
 
     setSelectOpen(false)
   }
+  const experimentsList = Array.isArray(availableExperiments) ? availableExperiments : [];
+  const selectValue = experimentsList.includes(experiment) ? experiment : "";
+
   return (
 
     <ConditionalTooltip
@@ -118,9 +121,14 @@ const SelectableMenuItem = ({experiment, availableExperiments, selectExperiment}
         <Select
           open={selectOpen}
           onClose={handleSelectClose}
-          value={experiment}
+          value={selectValue}
           label="Experiment"
           onChange={handleExperimentChange}
+          renderValue={(val) => {
+            if (!val && experiment) return experiment;
+            if (!val) return "Select experiment";
+            return val;
+          }}
           MenuProps={{ classes: { paper: { maxHeight: 400 } } }}
           sx={{
             '&:before': {

@@ -32,7 +32,7 @@ import RemoveCircleOutlineRoundedIcon from '@mui/icons-material/RemoveCircleOutl
 import CircularProgress from '@mui/material/CircularProgress';
 import Backdrop from '@mui/material/Backdrop';
 import { useConfirm } from 'material-ui-confirm';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router';
 import UnderlineSpan from "./components/UnderlineSpan";
 import PioreactorIcon from "./components/PioreactorIcon";
 import PioreactorIconWithModel from "./components/PioreactorIconWithModel";
@@ -170,7 +170,6 @@ function AddNewPioreactor({setWorkers}){
   const standard = availableModels.filter(m => !(m.is_contrib) && !(m.is_legacy));
   const contrib = availableModels.filter(m => (m.is_contrib));
   const legacy = availableModels.filter(m => (m.is_legacy));
-
   return (
     <React.Fragment>
     <Button
@@ -496,6 +495,10 @@ function WorkerCard({worker, config, leaderVersion}) {
   const standard = availableModels.filter(m => !(m.is_contrib) && !(m.is_legacy));
   const contrib = availableModels.filter(m => (m.is_contrib));
   const legacy = availableModels.filter(m => (m.is_legacy));
+  const modelValue = `${model[0]},${model[1]}`;
+  const selectValue = availableModels.some(
+    ({model_name, model_version}) => model_name === model[0] && String(model_version) === String(model[1])
+  ) ? modelValue : "";
 
   return (
     <>
@@ -559,7 +562,7 @@ function WorkerCard({worker, config, leaderVersion}) {
               <Select
                 labelId="modelSelect"
                 variant="standard"
-                value={`${model[0]},${model[1]}`}
+                value={selectValue}
                 onChange={handleModelChange}
                 label="Model"
                 disableUnderline={true}

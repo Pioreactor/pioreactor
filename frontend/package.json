@@ -24,7 +24,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-pro-sidebar": "^1.1.0-alpha.1",
-    "react-router-dom": "^6.23.0",
+    "react-router": "^7.9.4",
     "react-scripts": "^5.0.1",
     "react-showdown": "^2.3.1",
     "react-simple-code-editor": "^0.13.1",

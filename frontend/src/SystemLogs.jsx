@@ -3,7 +3,7 @@ import { useState, useEffect, Fragment } from 'react';
 import Select from '@mui/material/Select';
 import Grid from "@mui/material/Grid";
 import MenuItem from "@mui/material/MenuItem";
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import PaginatedLogsTable from "./components/PaginatedLogsTable";

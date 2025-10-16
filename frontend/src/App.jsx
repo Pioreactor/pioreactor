@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router";
 import { ThemeProvider, createTheme} from '@mui/material/styles';
 import CssBaseline from "@mui/material/CssBaseline";
 import { StyledEngineProvider } from '@mui/material/styles';
@@ -82,7 +82,12 @@ function App() {
     <React.StrictMode>
       <StyledEngineProvider injectFirst>
         <ThemeProvider theme={theme}>
-          <Router>
+          <Router
+            future={{
+              v7_relativeSplatPath: true,
+              v7_startTransition: true,
+            }}
+          >
             <ScrollToTop/>
             <ConfirmProvider>
               <CssBaseline />

@@ -18,7 +18,7 @@ import { styled } from '@mui/material/styles';
 import {ERROR_COLOR, WARNING_COLOR, NOTICE_COLOR} from "../utilities"
 import Chip from '@mui/material/Chip';
 import PioreactorIcon from "./PioreactorIcon"
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 
 // Activate the UTC plugin
 dayjs.extend(utc);

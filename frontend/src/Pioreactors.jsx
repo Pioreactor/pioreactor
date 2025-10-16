@@ -46,7 +46,7 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
 
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router'
 
 import AdvancedConfigButton from "./components/AdvancedConfigDialog"
 import ChangeAutomationsDialog from "./components/ChangeAutomationsDialog"

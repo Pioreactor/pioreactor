@@ -17,7 +17,7 @@ import { highlight, languages } from 'prismjs';
 import 'prismjs/components/prism-ini';
 
 import dayjs from "dayjs";
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router';
 
 
 function EditableCodeDiv() {

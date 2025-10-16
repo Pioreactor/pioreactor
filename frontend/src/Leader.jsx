@@ -23,7 +23,7 @@ import ManageInventoryMenu from './components/ManageInventoryMenu';
 import LogTableByUnit from './components/LogTableByUnit';
 import {disconnectedGrey, lostRed, disabledColor, readyGreen, checkTaskCallback, getConfig} from "./utilities"
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 
 import {
   ListItem,

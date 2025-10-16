@@ -37,7 +37,7 @@ import { useConfirm } from 'material-ui-confirm';
 import Alert from '@mui/material/Alert';
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 
-import {Link, useParams, useNavigate} from 'react-router-dom'
+import {Link, useParams, useNavigate} from 'react-router'
 
 import SelfTestDialog from "./components/SelfTestDialog"
 import ChangeAutomationsDialog from "./components/ChangeAutomationsDialog"

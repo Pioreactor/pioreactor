@@ -17,7 +17,7 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import {getConfig, getRelabelMap, colors, ColorCycler} from "./utilities"
 import DownloadIcon from '@mui/icons-material/Download';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 
 // TODO:
 // figure out how to display lots of data from long-running experiments without breaking the thing,

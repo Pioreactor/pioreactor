@@ -14,7 +14,7 @@ import Chip from '@mui/material/Chip';
 import PioreactorIcon from "./PioreactorIcon"
 import PioreactorsIcon from "./PioreactorsIcon"
 import { useMQTT } from '../providers/MQTTContext';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 
 
 function MediaCard({experiment, relabelMap, activeUnits}) {

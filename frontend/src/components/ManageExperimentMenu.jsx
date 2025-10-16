@@ -5,7 +5,7 @@ import Menu from "@mui/material/Menu";
 import Button from "@mui/material/Button";
 import ListItemText from "@mui/material/ListItemText";
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useConfirm } from 'material-ui-confirm';
 import { useExperiment } from '../providers/ExperimentContext';
 import Divider from '@mui/material/Divider';

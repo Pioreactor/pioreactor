@@ -116,6 +116,7 @@ class MqttToDBStreamer(LongRunningBackgroundJob):
 
             try:
                 new_rows = parser(message.topic, message.payload)
+                print(new_rows)
             except Exception as e:
                 self.logger.warning(f"Encountered error in saving to DB: {e}. See logs.")
                 self.logger.debug(
@@ -135,7 +136,7 @@ class MqttToDBStreamer(LongRunningBackgroundJob):
                 cols_placeholder = ", ".join(new_row.keys())
                 values_placeholder = ", ".join(":" + c for c in new_row.keys())
                 SQL = f"""INSERT INTO {table} ({cols_placeholder}) VALUES ({values_placeholder})"""
-
+                print(SQL)
                 try:
                     self.sqliteworker.execute(SQL, new_row)  # type: ignore
                 except Exception as e:
@@ -163,6 +164,7 @@ def produce_metadata(topic: str) -> MetaData:
 
 
 def parse_od(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+    print("here!", topic, payload)
     metadata = produce_metadata(topic)
     od_reading = msgspec_loads(payload, type=structs.ODReading)
     return {

@@ -40,6 +40,7 @@ def list_installed_plugins():
     ]
     return {"plugins": details}
 ```
+ - new import of system files (the `~/.pioreactor` directory) into Pioreactors. This means that it's easy to "back up" a pioreactor (leader or worker), and then reupload this to a (new) pioreactor in your cluster.
 
 ### 25.9.18
 

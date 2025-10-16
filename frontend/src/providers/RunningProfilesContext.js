@@ -85,7 +85,7 @@ export function RunningProfilesProvider({ children, experiment }) {
           ['execute', selectedExperimentProfile, experiment],
           params
         );
-        // Artificial delay. Wait 2 seconds before refreshing:
+        // Artificial delay. Wait N seconds before refreshing:
         setLoading(true);
         setTimeout(() => {
           refreshRunningProfiles();
