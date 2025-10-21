@@ -59,7 +59,7 @@ class ConfigParserMod(configparser.ConfigParser):
         self, section, option, conv, *, raw=False, vars=None, fallback=configparser._UNSET, **kwargs
     ):
         try:
-            return self._get(section, conv, option, raw=raw, vars=vars, **kwargs)
+            return self._get(section, conv, option, raw=raw, vars=vars, fallback=fallback, **kwargs)
         except (configparser.NoSectionError, configparser.NoOptionError, TypeError) as e:
             if fallback is configparser._UNSET:
                 from pioreactor.logging import create_logger
@@ -121,6 +121,7 @@ class ConfigParserMod(configparser.ConfigParser):
 
 """
             )
+            print(1, e)
             raise e
 
 

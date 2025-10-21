@@ -810,16 +810,20 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def _add_to_job_manager(self) -> int:
         # this registration use to be in post_init, and I feel like it was there for a good reason...
-        with JobManager() as jm:
-            return jm.register_and_set_running(
-                self.unit,
-                self.experiment,
-                self.job_name,
-                self._job_source,
-                getpid(),
-                leader_hostname,
-                self._IS_LONG_RUNNING,
-            )
+        try:
+            with JobManager() as jm:
+                return jm.register_and_set_running(
+                    self.unit,
+                    self.experiment,
+                    self.job_name,
+                    self._job_source,
+                    getpid(),
+                    leader_hostname,
+                    self._IS_LONG_RUNNING,
+                )
+        except OSError as e:
+            self.logger.error(e)
+            raise e
 
     def _disconnect_from_loggers(self) -> None:
         # clean up logger handlers

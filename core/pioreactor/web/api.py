@@ -1723,7 +1723,7 @@ def export_datasets() -> ResponseReturnValue:
     else:
         experiment_options = sum((["--experiment", experiment] for experiment in experiments), [])
 
-    filename_with_path = Path(f"{os.environ['DOT_PIOREACTOR']}/web/exports/") / filename
+    filename_with_path = Path(f"{os.environ['RUN_PIOREACTOR']}/exports/") / filename
     result = (
         tasks.pio_run_export_experiment_data(  # uses a lock so multiple exports can't happen simultaneously.
             "--output", filename_with_path.as_posix(), *cmd_tables, *experiment_options, *other_options

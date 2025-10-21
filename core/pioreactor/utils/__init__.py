@@ -465,13 +465,11 @@ def clamp(minimum: float | int, x: float | int, maximum: float | int) -> float:
 
 
 @overload
-def is_pio_job_running(target_jobs: list[str]) -> list[bool]:
-    ...
+def is_pio_job_running(target_jobs: list[str]) -> list[bool]: ...
 
 
 @overload
-def is_pio_job_running(target_jobs: str) -> bool:
-    ...
+def is_pio_job_running(target_jobs: str) -> bool: ...
 
 
 def is_pio_job_running(target_jobs):
@@ -627,18 +625,21 @@ class LEDKill:
 class JobManager:
     def __init__(self) -> None:
         db_path = config.get("storage", "temporary_cache")
-        self.conn = sqlite3.connect(db_path, isolation_level=None)
-        self.conn.executescript(
+        try:
+            self.conn = sqlite3.connect(db_path, isolation_level=None)
+            self.conn.executescript(
+                """
+                PRAGMA journal_mode=WAL;
+                PRAGMA busy_timeout = 5000;
+                PRAGMA temp_store = 2;
+                PRAGMA foreign_keys = ON;
+                PRAGMA cache_size = -4000;
             """
-            PRAGMA journal_mode=WAL;
-            PRAGMA busy_timeout = 5000;
-            PRAGMA temp_store = 2;
-            PRAGMA foreign_keys = ON;
-            PRAGMA cache_size = -4000;
-        """
-        )
-        self.cursor = self.conn.cursor()
-        self._create_tables()
+            )
+            self.cursor = self.conn.cursor()
+            self._create_tables()
+        except sqlite3.Error:
+            raise OSError(f"Unable to open and create temporary_cache database at {db_path}")
 
     def _create_tables(self) -> None:
         create_table_query = """
