@@ -1147,7 +1147,7 @@ def test_chemostat_from_cli() -> None:
     from pioreactor.cli.pio import pio
 
     t = Timer(
-        0.5,
+        5.0,
         pubsub.publish,
         args=(
             "pioreactor/testing_unit/_testing_experiment/dosing_automation/$state/set",

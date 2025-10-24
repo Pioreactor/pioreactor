@@ -2552,11 +2552,11 @@ def get_worker_model_and_metadata(pioreactor_unit: str) -> ResponseReturnValue:
         (pioreactor_unit,),
         one=True,
     )
-    assert isinstance(result, dict)
     if result is None:
         # If the worker is not found, return an error
         return abort(404, "Worker not found")
     else:
+        assert isinstance(result, dict)
         # If the worker is found, return the model and metadata
         return attach_cache_control(
             jsonify(

@@ -35,43 +35,12 @@ This repository contains the **executable code for the Pioreactor project**. It 
 
 ---
 
-## Failure Handling & Recovery Rules
-
-### 1. Process Already Running (Port in Use / Duplicate Service)
-
-* **Detect:** If process start fails due to “port already in use.”
-* **Recover:**
-
-  * Kill the process bound to that port (use `lsof -ti :<port> | xargs kill -9`).
-  * Restart the intended service.
-* **Log:** `Recovered: restarted <service> on <port>`
-
-### 2. Missing Dependencies
-
-* **Detect:** If a service fails because a dependency is down (e.g., frontend cannot connect to API).
-* **Recover:**
-
-  * Start the missing dependency in the correct order.
-  * Retry starting the dependent service once.
-* **Log:** `Recovered: restarted <dependent> after starting <dependency>`
-
-### 3. Command Execution Failure
-
-* **Detect:** Any `make` or `pio` command exits with non-zero status.
-* **Recover:**
-
-  * Run the command once more.
-  * If it fails again, stop recovery and log full stderr/stdout.
-* **Log:** `Unrecoverable failure: <command> failed twice`
-
----
-
 ## Editing Rules (Important)
 
 1. **Do not apply automatic formatting** — leave that to our linter.
 2. Place custom/experimental code in **`scratch/`** only.
 3. **Do not run `pre-commit`** or lint manually.
-4. **Do not use Git commands** — I will manage version control.
+4. **Do not use Git commands unless asked** — I will manage version control.
 5. **Do not delete any files** you didn’t create yourself.
 
 ---
@@ -91,12 +60,16 @@ make frontend-dev   # Run React dev server on 127.0.0.1:3000
 
 ## Testing
 
-* Use **pytest** for Python tests.
-* Always run it scoped to a subproject. Examples:
+ * Use **pytest** for Python tests. However, all the tests take in excess of 30 minutes, so don't run the entire test suite. Instead run specific files or tests using pytest options.
 
   ```bash
-  pytest core/
-  pytest web/
+  pytest core/tests/test_cli.py
+  ```
+
+ * To run just the web backend tests, use
+
+  ```bash
+  pytest core/tests/web/
   ```
 
 ---

@@ -413,7 +413,7 @@ function LeaderCard({leaderHostname}) {
                 fontWeight: 500,
               }}
               gutterBottom>
-              <PioreactorIconWithModel badgeContent={""} badgeColor="#fff2cc" sx={{verticalAlign: "middle", mr: "3px", mb: "2px"}} />
+              <PioreactorIconWithModel badgeContent={"L"} badgeColor="#fff2cc" sx={{verticalAlign: "middle", mr: "3px", mb: "2px"}} />
               {unit}
             </Typography>
             <Tooltip title={indicatorLabel} placement="right">
