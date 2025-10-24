@@ -259,6 +259,7 @@ def _pump_action(
             assert ml is not None
             ml = float(ml)
             if ml < 0:
+                logger.error("ml should be greater than or equal to 0")
                 raise ValueError("ml should be greater than or equal to 0")
             duration = 0.0
             logger.info(f"{_to_human_readable_action(ml, None, pump_device)} (exchanged manually)")
@@ -273,6 +274,7 @@ def _pump_action(
                 )
 
             if ml < 0:
+                logger.error("ml should be greater than or equal to 0")
                 raise ValueError("ml should be greater than or equal to 0")
             duration = calibration.ml_to_duration(ml)
             logger.info(_to_human_readable_action(ml, None, pump_device))

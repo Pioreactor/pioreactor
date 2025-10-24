@@ -2,9 +2,13 @@
 
 This repository contains the **executable code for the Pioreactor project**. It has three primary sub-projects:
 
-1. **`core/`** — backend / worker code that runs jobs
-2. **`core/pioreactor/web/`** — Flask-based web API
-3. **`frontend/`** — React-based web UI
+1. `core/` — backend / worker code that runs jobs. Important files:
+   - `core/pioreactor/background_jobs/base.py` is the super class for background jobs (like stirring, od_reading, automations, etc)
+2. `core/pioreactor/web/` — Flask-based web API. Important files:
+   - `core/pioreactor/web/api.py`  handles the leader-only (and frontend) api. This is the main entry point most often. It sends requests to the `unit_api.py` too.
+   - `core/pioreactor/web/unit_api.py` is the pioreactor-specific api for controlling individual actions on a Pioreactor.
+   - `core/pioreactor/web/tasks.py` lists the Huey (background) tasks spawned by the web apis.
+3. `frontend/` — React-based web UI
 
 ---
 
@@ -91,7 +95,6 @@ When searching the repo:
 
 * **Exclude** these directories:
 
-  * `core/migration_scripts/`
   * `core/tests/data/`
   * `core/update_scripts/`
 

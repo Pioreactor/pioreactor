@@ -16,5 +16,6 @@ if am_I_leader():
     workers.add_command(cluster_management.assign_worker_to_experiment)
     workers.add_command(cluster_management.unassign_worker_from_experiment)
     workers.add_command(cluster_management.update_active)
+    workers.add_command(cluster_management.update_model)
     workers.add_command(cluster_management.discover_workers)
     workers.add_command(cluster_management.cluster_status)

@@ -175,7 +175,7 @@ function AddNewPioreactor({setWorkers}){
     <Button
       id="add-new-pioreactor-button"
       onClick={handleClickOpen}
-      style={{ textTransform: 'none', float: 'right', marginRight: 0 }}
+      sx={{ textTransform: 'none', float: 'right', marginRight: 0 }}
       color="primary"
     >
       <AddIcon fontSize="small" sx={textIcon}/> Add new Pioreactor

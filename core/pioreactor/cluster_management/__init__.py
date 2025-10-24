@@ -232,6 +232,41 @@ def update_active(worker: pt.Unit, active: int) -> None:
         click.echo(f"Updated {worker}'s active to {bool(active)}")
 
 
+@click.command(name="update-model", short_help="update worker model metadata")
+@click.argument("worker")
+@click.option("--model-name", "-m", required=True)
+@click.option("--model-version", "-v", required=True)
+def update_model(worker: pt.Unit, model_name: str, model_version: str) -> None:
+    from pioreactor.models import get_registered_models
+
+    registered_models = get_registered_models()
+
+    if (model_name, model_version) not in registered_models:
+        click.echo(
+            f"Invalid model/version: {model_name} v{model_version}."
+            f" Valid options: {sorted(registered_models.keys())}"
+        )
+        click.Abort()
+
+    try:
+        r = put_into_leader(
+            f"/api/workers/{worker}/model",
+            json={"model_name": model_name, "model_version": model_version},
+        )
+        r.raise_for_status()
+    except HTTPErrorStatus:
+        if r.status_code >= 500:
+            click.echo("Server error. Could not complete. See UI logs.")
+        else:
+            click.echo("Not valid data. Check model name or version.")
+        click.Abort()
+    except HTTPException:
+        click.echo("Not able to connect to leader's backend.")
+        click.Abort()
+    else:
+        click.echo(f"Updated {worker} to {model_name} v{model_version}.")
+
+
 @click.command(
     name="discover",
     short_help="discover all pioreactor workers on the network",
@@ -304,7 +339,7 @@ def cluster_status() -> None:
         statef = click.style(f"{state:15s}", fg="green" if state in ("ready", "init") else "red")
         ipf = f"{ip if (ip is not None) else 'unknown':20s}"
 
-        is_leaderf = f"{('Y' if hostname==leader_hostname else 'N'):15s}"
+        is_leaderf = f"{('Y' if hostname == leader_hostname else 'N'):15s}"
         hostnamef = f"{hostname:20s}"
         reachablef = f"{(click.style('Y', fg='green') if reachable else click.style('N', fg='red')):23s}"
         versionf = f"{version:15s}"

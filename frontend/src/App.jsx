@@ -27,6 +27,7 @@ import SystemLogs from "./SystemLogs";
 import Experiments from "./Experiments";
 import Calibrations from "./Calibrations";
 import SideNavAndHeader from "./components/SideNavAndHeader";
+import MissingWorkerModelModal from "./components/MissingWorkerModelModal";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ConfirmProvider } from 'material-ui-confirm';
 import {getConfig} from "./utilities"
@@ -144,6 +145,7 @@ function MainSite() {
                   <Route path="/" element={<ExperimentOverview title="Pioreactor ~ Overview"/>}/>
                   <Route path="*" element={<NotFound />} />
                 </Routes>
+                <MissingWorkerModelModal />
                 <ErrorSnackbar />
                 <TactileButtonNotification />
               </MQTTProvider>
