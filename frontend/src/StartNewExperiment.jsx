@@ -203,12 +203,22 @@ function ExperimentSummaryForm(props) {
           setHelperText("Experiment name already used. Please choose another.")
         }
         else {
+          res
+            .json()
+            .then((json) => {
+               if (json && json.error) {
+                setHelperText(json.error);
+              } else {
+                setHelperText("Server error. See UI logs.");
+              }
+            })
+            .catch(() => {
+              setHelperText("Server error. See UI logs.");
+            });
           setFormError(true);
-          setHelperText("Server error. See UI logs.")
         }
         setLoading(false)
-      }
-     )
+      })
   }
 
   const onExpNameChange = (e) => {

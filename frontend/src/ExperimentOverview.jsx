@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, useMemo, Fragment } from 'react';
 
 import Grid from "@mui/material/Grid";
 import LogTable from "./components/LogTable";
@@ -154,7 +154,7 @@ function Overview(props) {
   const [timeScale, setTimeScale] = useState(initialTimeScale);
   const [timeWindow, setTimeWindow] = useState(initialTimeWindow);
   const [units, setUnits] = useState([])
-  const unitsColorMap = new ColorCycler(colors)
+  const unitsColorMap = useMemo(() => new ColorCycler(colors), [])
 
 
   useEffect(() => {

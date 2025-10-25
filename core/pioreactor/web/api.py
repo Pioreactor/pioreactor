@@ -1771,8 +1771,8 @@ def create_experiment() -> ResponseReturnValue:
         abort(400, "Experiment name is too long")
     elif proposed_experiment_name.lower() == "current":  # too much API rework
         abort(400, "Experiment name cannot be 'current'")
-    elif proposed_experiment_name.startswith("_testing_"):  # jobs won't run as expected
-        abort(400, "Experiment name cannot start with '_testing_'")
+    elif proposed_experiment_name.startswith("_testing"):  # jobs won't run as expected
+        abort(400, "Experiment name cannot start with '_testing'")
     elif (
         ("#" in proposed_experiment_name)
         or ("+" in proposed_experiment_name)

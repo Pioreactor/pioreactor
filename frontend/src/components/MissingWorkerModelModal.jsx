@@ -58,16 +58,8 @@ const setModelsVerifiedFlag = (value) => {
   }
 };
 
-const hasMissingModelDetails = (worker) => {
-  const name = worker?.model_name;
-  const version = worker?.model_version;
-  const isNameMissing =
-    name === "" || name === undefined || name === null || (typeof name === "string" && name.trim() === "");
-  const isVersionMissing =
-    version === "" || version === undefined || version === null || (typeof version === "string" && version.trim() === "");
-
-  return isNameMissing || isVersionMissing;
-};
+const hasMissingModelDetails = (worker) =>
+  worker?.model_name == null || worker?.model_version == null;
 
 const MissingWorkerModelModal = () => {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -210,7 +202,7 @@ const MissingWorkerModelModal = () => {
       <DialogContent>
         <Stack spacing={2}>
           <Typography variant="body1">
-            We need the model name and version for the following Pioreactors before continuing. Please select the correct model for each unit. You can change this later, too.
+            We need the model name and version for the following Pioreactors before continuing. Please select the correct for each unit. Note: you can change this later.
           </Typography>
           {errorMessage && (
             <Alert severity="error" onClose={() => setErrorMessage("")}>

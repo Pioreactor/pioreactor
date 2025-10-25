@@ -114,6 +114,64 @@ const RowOfUnitSettingDisplayBox  = styled(Box)(({ theme }) => ({
     alignContent: "stretch",
 }));
 
+let cachedContribJobsList = null;
+let contribJobsListPromise = null;
+
+function requestContribJobsList() {
+  if (cachedContribJobsList) {
+    return Promise.resolve(cachedContribJobsList);
+  }
+  if (!contribJobsListPromise) {
+    const pendingRequest = fetch("/api/contrib/jobs")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Failed to fetch contrib jobs");
+        }
+        return response.json();
+      })
+      .then((data) => {
+        cachedContribJobsList = data;
+        return data;
+      });
+    contribJobsListPromise = pendingRequest
+      .catch((error) => {
+        contribJobsListPromise = null;
+        throw error;
+      })
+      .then((data) => {
+        contribJobsListPromise = null;
+        return data;
+      });
+  }
+  return contribJobsListPromise;
+}
+
+function useContribJobsList() {
+  const [jobs, setJobs] = useState(cachedContribJobsList);
+
+  useEffect(() => {
+    if (cachedContribJobsList) {
+      return;
+    }
+
+    let isActive = true;
+    requestContribJobsList()
+      .then((data) => {
+        if (!isActive) {
+          return;
+        }
+        setJobs(data);
+      })
+      .catch(() => {});
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  return jobs;
+}
+
 
 function TabPanel({ children, value, index, ...other }) {
 
@@ -1602,33 +1660,39 @@ function SettingsActionsDialogAll({experiment, config}) {
   const [openChangeDosingDialog, setOpenChangeDosingDialog] = useState(false);
   const [openChangeLEDDialog, setOpenChangeLEDDialog] = useState(false);
   const {client} = useMQTT();
+  const contribJobsList = useContribJobsList();
 
   useEffect(() => {
-    function fetchContribBackgroundJobs() {
-      fetch("/api/contrib/jobs")
-        .then((response) => {
-            if (response.ok) {
-              return response.json();
-            } else {
-              throw new Error('Something went wrong');
-            }
-          })
-        .then((listOfJobs) => {
-          var jobs_ = {}
-          for (const job of listOfJobs){
-            var metaData_ = {publishedSettings: {}, metadata: {display_name: job.display_name, display: job.display, description: job.description, key: job.job_name, source:job.source}}
-            for(var i = 0; i < job["published_settings"].length; ++i){
-              var field = job["published_settings"][i]
-              metaData_.publishedSettings[field.key] = {value: field.default || null, label: field.label, type: field.type, unit: field.unit || null, display: field.display, description: field.description, editable: field.editable || true}
-            }
-            jobs_[job.job_name] = metaData_
-          }
-          setJobs((prev) => ({...prev, ...jobs_}))
-        })
-        .catch((error) => {})
+    if (!Array.isArray(contribJobsList)) {
+      return;
     }
-    fetchContribBackgroundJobs();
-  }, [])
+    const jobsFromApi = {};
+    for (const job of contribJobsList) {
+      const metaData = {
+        publishedSettings: {},
+        metadata: {
+          display_name: job.display_name,
+          display: job.display,
+          description: job.description,
+          key: job.job_name,
+          source: job.source,
+        },
+      };
+      for (const field of job.published_settings) {
+        metaData.publishedSettings[field.key] = {
+          value: field.default || null,
+          label: field.label,
+          type: field.type,
+          unit: field.unit || null,
+          display: field.display,
+          description: field.description,
+          editable: field.editable || true,
+        };
+      }
+      jobsFromApi[job.job_name] = metaData;
+    }
+    setJobs(jobsFromApi);
+  }, [contribJobsList]);
 
 
   const handleTabChange = (event, newValue) => {
@@ -2289,6 +2353,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
   const [jobFetchComplete, setJobFetchComplete] = useState(false)
   const [label, setLabel] = useState("")
   const {client, subscribeToTopic } = useMQTT();
+  const contribJobsList = useContribJobsList();
 
   const [jobs, setJobs] = useState({
     monitor: {
@@ -2320,32 +2385,39 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
 
 
   useEffect(() => {
-    function fetchContribBackgroundJobs() {
-      fetch("/api/contrib/jobs")
-        .then((response) => {
-            if (response.ok) {
-              return response.json();
-            } else {
-              throw new Error('Something went wrong');
-            }
-          })
-        .then((listOfJobs) => {
-          var jobs_ = {}
-          for (const job of listOfJobs){
-            var metaData_ = {state: "disconnected", publishedSettings: {}, metadata: {display_name: job.display_name, subtext: job.subtext, display: job.display, description: job.description, key: job.job_name, source: job.source}}
-            for(var i = 0; i < job["published_settings"].length; ++i){
-              var field = job["published_settings"][i]
-              metaData_.publishedSettings[field.key] = {value: field.default || null, label: field.label, type: field.type, unit: field.unit || null, display: field.display, description: field.description, editable: field.editable || true}
-            }
-            jobs_[job.job_name] = metaData_
-          }
-          setJobs((prev) => ({...prev, ...jobs_}))
-          setJobFetchComplete(true)
-        })
-        .catch((error) => {})
+    if (!Array.isArray(contribJobsList)) {
+      return;
     }
-    fetchContribBackgroundJobs();
-  }, [])
+    const jobsFromApi = {};
+    for (const job of contribJobsList) {
+      const metaData = {
+        state: "disconnected",
+        publishedSettings: {},
+        metadata: {
+          display_name: job.display_name,
+          subtext: job.subtext,
+          display: job.display,
+          description: job.description,
+          key: job.job_name,
+          source: job.source,
+        },
+      };
+      for (const field of job.published_settings) {
+        metaData.publishedSettings[field.key] = {
+          value: field.default || null,
+          label: field.label,
+          type: field.type,
+          unit: field.unit || null,
+          display: field.display,
+          description: field.description,
+          editable: field.editable || true,
+        };
+      }
+      jobsFromApi[job.job_name] = metaData;
+    }
+    setJobs((prev) => ({ ...prev, ...jobsFromApi }));
+    setJobFetchComplete(true);
+  }, [contribJobsList])
 
   const parseToType = (payloadString, typeOfSetting) => {
     if (typeOfSetting === "numeric"){
