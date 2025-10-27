@@ -37,8 +37,10 @@ function ExperimentSelection(props) {
         return response.json();
       })
       .then((data) => {
-        setExperiments(prevState => [ ...data, ...prevState])
-        props.handleExperimentSelectionChange(data[0].experiment)
+        setExperiments(data);
+        if (!props.experimentSelection && data.length > 0) {
+          props.handleExperimentSelectionChange(data[0].experiment);
+        }
       });
     }
     getData()

@@ -870,17 +870,30 @@ def import_dot_pioreactor_from_zip() -> ResponseReturnValue:
 
             publish_to_log("Zip members validated", task_name, "INFO")
 
+            metadata = None
+            exported_name = None
+
             try:
                 metadata_bytes = zf.read(METADATA_FILENAME)
             except KeyError:
-                publish_to_log("Archive missing metadata file", task_name, "WARNING")
-                abort(400, "Archive missing metadata")
-
-            metadata = json.loads(metadata_bytes.decode("utf-8"))
-            exported_name = metadata.get("name")
-            publish_to_log(
-                f"Loaded archive metadata for unit {exported_name or 'unknown'}", task_name, "INFO"
-            )
+                publish_to_log(
+                    "Archive missing metadata file, assuming legacy export without host validation",
+                    task_name,
+                    "WARNING",
+                )
+            else:
+                try:
+                    metadata = json.loads(metadata_bytes.decode("utf-8"))
+                except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                    publish_to_log(f"Failed to parse archive metadata: {exc}", task_name, "WARNING")
+                    abort(400, "Archive metadata invalid")
+                assert metadata is not None
+                exported_name = metadata["name"]
+                publish_to_log(
+                    f"Loaded archive metadata for unit {exported_name or 'unknown'}",
+                    task_name,
+                    "INFO",
+                )
 
             if exported_name and exported_name != HOSTNAME:
                 publish_to_log(

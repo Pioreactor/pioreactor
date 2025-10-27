@@ -89,10 +89,22 @@ function EditableCodeDiv() {
         if (ignore){
           return
         }
-        setState(prev => ({
-        ...prev,
-        availableConfigs: [...prev.availableConfigs, ...json.filter(e => e !== 'config.ini').map(e => ({ name: e, filename: e }))]
-        }))
+        setState(prev => {
+          const existing = new Set(prev.availableConfigs.map((config) => config.filename));
+          const newEntries = json
+            .filter((e) => e !== 'config.ini')
+            .map((e) => ({ name: e, filename: e }))
+            .filter((entry) => !existing.has(entry.filename));
+
+          if (newEntries.length === 0) {
+            return prev;
+          }
+
+          return {
+            ...prev,
+            availableConfigs: [...prev.availableConfigs, ...newEntries]
+          };
+        })
       });
     }
 

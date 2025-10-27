@@ -503,22 +503,32 @@ function LeaderJobs(){
         return response.json();
       })
       .then((data) => {
-        data.map(job => {
+        if (ignore) {
+          return;
+        }
+
+        let mqttState = "disconnected";
+        let monitorState = "disconnected";
+        const remainingJobs = [];
+
+        data.forEach((job) => {
           switch (job.job_name) {
             case "mqtt_to_db_streaming":
-              set_mqtt_to_db_streaming_state("ready");
+              mqttState = "ready";
               break;
             case "monitor":
-              set_monitor_state("ready");
+              monitorState = "ready";
               break;
             default:
-              if (!ignore){
-                setOtherLongRunningJobs((prevJobs) => [...prevJobs, { job_name: job.job_name, state: "ready" }]);
-              }
+              remainingJobs.push({ job_name: job.job_name, state: "ready" });
               break;
           }
-        }
-      )})
+        });
+
+        set_mqtt_to_db_streaming_state(mqttState);
+        set_monitor_state(monitorState);
+        setOtherLongRunningJobs(remainingJobs);
+      })
       .catch((error) => {
         console.error("Error fetching long-running jobs:", error);
       });
