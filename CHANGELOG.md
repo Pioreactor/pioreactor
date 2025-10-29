@@ -21,7 +21,7 @@ from __future__ import annotations
 from pioreactor.plugin_management import get_plugins
 from pioreactor.web.plugin_registry import register_mcp_tool
 
-__plugin_name__ = "mcp-extra-tools"
+__plugin_name__ = "mcp-plugins"
 __plugin_version__ = "0.1.0"
 __plugin_summary__ = "Adds convenience MCP utilities for Pioreactor plugin introspection."
 __plugin_author__ = "Cam DP"

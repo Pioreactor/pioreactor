@@ -2,7 +2,7 @@
 <br />
 
 
-[![CI](https://github.com/Pioreactor/pioreactor/actions/workflows/ci.yaml/badge.svg)](https://github.com/Pioreactor/pioreactor/actions/workflows/ci.yaml)
+[![CI](https://github.com/Pioreactor/pioreactor/actions/workflows/ci.yaml/badge.svg)](https://github.com/Pioreactor/pioreactor/actions/workflows/ci-core.yaml)
 
 The Pioreactor is a *mostly* open source, affordable, and extensible bioreactor platform. The goal is to enable biologists, educators, DIYers, biohackers, and enthusiasts to be able to reliably control and study microorganisms.
 

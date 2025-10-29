@@ -142,6 +142,7 @@ class ADCReader(LoggerMixin):
         self.max_signal_moving_average = {c: ExponentialMovingAverage(alpha=0.05) for c in self.channels}
 
         self.adcs = self._get_ADCs()
+        self.logger.debug(f"Using smoothing penalizer = {penalizer}")
 
         if "local_ac_hz" in config["od_reading.config"]:
             self.most_appropriate_AC_hz: Optional[float] = config.getfloat("od_reading.config", "local_ac_hz")
