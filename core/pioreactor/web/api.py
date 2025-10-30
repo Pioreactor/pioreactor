@@ -637,7 +637,7 @@ def get_growth_rates(experiment: str) -> ResponseReturnValue:
             FROM (
                 SELECT pioreactor_unit AS unit,
                        timestamp,
-                       round(rate, 5) AS y
+                       rate AS y
                 FROM growth_rates
                 WHERE experiment=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', ?)
             )
@@ -650,7 +650,7 @@ def get_growth_rates(experiment: str) -> ResponseReturnValue:
         SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
         FROM (
             SELECT numbered.unit,
-                   json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
+                   json_group_array(json_object('x', timestamp, 'y', round(y, 5))) AS series_data
             FROM numbered
             JOIN steps USING (unit)
             WHERE (rn % step) = 0
@@ -684,7 +684,7 @@ def get_temperature_readings(experiment: str) -> ResponseReturnValue:
             FROM (
                 SELECT pioreactor_unit AS unit,
                        timestamp,
-                       round(temperature_c, 2) AS y
+                       temperature_c AS y
                 FROM temperature_readings
                 WHERE experiment=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW' , ?)
             )
@@ -697,7 +697,7 @@ def get_temperature_readings(experiment: str) -> ResponseReturnValue:
         SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
         FROM (
             SELECT numbered.unit,
-                   json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
+                   json_group_array(json_object('x', timestamp, 'y', round(y, 2))) AS series_data
             FROM numbered
             JOIN steps USING (unit)
             WHERE (rn % step) = 0
@@ -731,7 +731,7 @@ def get_od_readings_filtered(experiment: str) -> ResponseReturnValue:
             FROM (
                 SELECT pioreactor_unit AS unit,
                        timestamp,
-                       round(normalized_od_reading, 7) AS y
+                       normalized_od_reading AS y
                 FROM od_readings_filtered
                 WHERE experiment=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', ?)
             )
@@ -744,7 +744,7 @@ def get_od_readings_filtered(experiment: str) -> ResponseReturnValue:
         SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
         FROM (
             SELECT numbered.unit,
-                   json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
+                   json_group_array(json_object('x', timestamp, 'y', round(y, 7))) AS series_data
             FROM numbered
             JOIN steps USING (unit)
             WHERE (rn % step) = 0
@@ -759,7 +759,7 @@ def get_od_readings_filtered(experiment: str) -> ResponseReturnValue:
     return attach_cache_control(as_json_response(filtered_od_readings["json"]))
 
 
-@api_bp.route("/experiments/<experiment>`od_readings", methods=["GET"])
+@api_bp.route("/experiments/<experiment>/time_series/od_readings", methods=["GET"])
 def get_od_readings(experiment: str) -> ResponseReturnValue:
     """Gets raw od for all units"""
     args = request.args
@@ -778,7 +778,7 @@ def get_od_readings(experiment: str) -> ResponseReturnValue:
             FROM (
                 SELECT (pioreactor_unit || '-' || channel) AS unit,
                        timestamp,
-                       round(od_reading, 7) AS y
+                       od_reading AS y
                 FROM od_readings
                 WHERE experiment=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW',  ?)
             )
@@ -791,7 +791,7 @@ def get_od_readings(experiment: str) -> ResponseReturnValue:
         SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
         FROM (
             SELECT numbered.unit,
-                   json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
+                   json_group_array(json_object('x', timestamp, 'y', round(y, 7))) AS series_data
             FROM numbered
             JOIN steps USING (unit)
             WHERE (rn % step) = 0
@@ -825,7 +825,7 @@ def get_od_raw_readings(experiment: str) -> ResponseReturnValue:
             FROM (
                 SELECT (pioreactor_unit || '-' || channel) AS unit,
                        timestamp,
-                       round(od_reading, 7) AS y
+                       od_reading AS y
                 FROM raw_od_readings
                 WHERE experiment=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW',  ?)
             )
@@ -838,7 +838,7 @@ def get_od_raw_readings(experiment: str) -> ResponseReturnValue:
         SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
         FROM (
             SELECT numbered.unit,
-                   json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
+                   json_group_array(json_object('x', timestamp, 'y', round(y, 7))) AS series_data
             FROM numbered
             JOIN steps USING (unit)
             WHERE (rn % step) = 0
@@ -874,7 +874,7 @@ def get_fallback_time_series(experiment: str, data_source: str, column: str) -> 
                     FROM (
                         SELECT pioreactor_unit AS unit,
                                timestamp,
-                               round({column}, 7) AS y
+                               {column} AS y
                         FROM {data_source}
                         WHERE experiment=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW',?) AND {column} IS NOT NULL
                     )
@@ -887,7 +887,7 @@ def get_fallback_time_series(experiment: str, data_source: str, column: str) -> 
                 SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
                 FROM (
                     SELECT numbered.unit,
-                           json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
+                           json_group_array(json_object('x', timestamp, 'y', round(y, 7))) AS series_data
                     FROM numbered
                     JOIN steps USING (unit)
                     WHERE (rn % step) = 0
@@ -924,7 +924,7 @@ def get_growth_rates_per_unit(pioreactor_unit: str, experiment: str) -> Response
             FROM (
                 SELECT pioreactor_unit AS unit,
                        timestamp,
-                       round(rate, 5) AS y
+                       rate AS y
                 FROM growth_rates
                 WHERE experiment=? AND pioreactor_unit=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', ?)
             )
@@ -937,7 +937,7 @@ def get_growth_rates_per_unit(pioreactor_unit: str, experiment: str) -> Response
         SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
         FROM (
             SELECT numbered.unit,
-                   json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
+                   json_group_array(json_object('x', timestamp, 'y', round(y, 5))) AS series_data
             FROM numbered
             JOIN steps USING (unit)
             WHERE (rn % step) = 0
@@ -973,7 +973,7 @@ def get_temperature_readings_per_unit(pioreactor_unit: str, experiment: str) -> 
             FROM (
                 SELECT pioreactor_unit AS unit,
                        timestamp,
-                       round(temperature_c, 2) AS y
+                       temperature_c AS y
                 FROM temperature_readings
                 WHERE experiment=? AND pioreactor_unit=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW' , ?)
             )
@@ -986,7 +986,7 @@ def get_temperature_readings_per_unit(pioreactor_unit: str, experiment: str) -> 
         SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
         FROM (
             SELECT numbered.unit,
-                   json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
+                   json_group_array(json_object('x', timestamp, 'y', round(y, 2))) AS series_data
             FROM numbered
             JOIN steps USING (unit)
             WHERE (rn % step) = 0
@@ -1022,7 +1022,7 @@ def get_od_readings_filtered_per_unit(pioreactor_unit: str, experiment: str) -> 
             FROM (
                 SELECT pioreactor_unit AS unit,
                        timestamp,
-                       round(normalized_od_reading, 7) AS y
+                       normalized_od_reading AS y
                 FROM od_readings_filtered
                 WHERE experiment=? AND pioreactor_unit=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', ?)
             )
@@ -1035,7 +1035,7 @@ def get_od_readings_filtered_per_unit(pioreactor_unit: str, experiment: str) -> 
         SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
         FROM (
             SELECT numbered.unit,
-                   json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
+                   json_group_array(json_object('x', timestamp, 'y', round(y, 7))) AS series_data
             FROM numbered
             JOIN steps USING (unit)
             WHERE (rn % step) = 0
@@ -1068,7 +1068,7 @@ def get_od_readings_per_unit(pioreactor_unit: str, experiment: str) -> ResponseR
             FROM (
                 SELECT (pioreactor_unit || '-' || channel) AS unit,
                        timestamp,
-                       round(od_reading, 7) AS y
+                       od_reading AS y
                 FROM od_readings
                 WHERE experiment=? AND pioreactor_unit=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW',  ?)
             )
@@ -1081,7 +1081,7 @@ def get_od_readings_per_unit(pioreactor_unit: str, experiment: str) -> ResponseR
         SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
         FROM (
             SELECT numbered.unit,
-                   json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
+                   json_group_array(json_object('x', timestamp, 'y', round(y, 7))) AS series_data
             FROM numbered
             JOIN steps USING (unit)
             WHERE (rn % step) = 0
@@ -1117,7 +1117,7 @@ def get_od_raw_readings_per_unit(pioreactor_unit: str, experiment: str) -> Respo
             FROM (
                 SELECT (pioreactor_unit || '-' || channel) AS unit,
                        timestamp,
-                       round(od_reading, 7) AS y
+                       od_reading AS y
                 FROM raw_od_readings
                 WHERE experiment=? AND pioreactor_unit=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW',  ?)
             )
@@ -1130,7 +1130,7 @@ def get_od_raw_readings_per_unit(pioreactor_unit: str, experiment: str) -> Respo
         SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
         FROM (
             SELECT numbered.unit,
-                   json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
+                   json_group_array(json_object('x', timestamp, 'y', round(y, 7))) AS series_data
             FROM numbered
             JOIN steps USING (unit)
             WHERE (rn % step) = 0
@@ -1171,7 +1171,7 @@ def get_fallback_time_series_per_unit(
                     FROM (
                         SELECT pioreactor_unit AS unit,
                                timestamp,
-                               round({column}, 7) AS y
+                               {column} AS y
                         FROM {data_source}
                         WHERE experiment=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW',?) AND pioreactor_unit=? AND {column} IS NOT NULL
                     )
@@ -1184,7 +1184,7 @@ def get_fallback_time_series_per_unit(
                 SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
                 FROM (
                     SELECT numbered.unit,
-                           json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
+                           json_group_array(json_object('x', timestamp, 'y', round(y, 7))) AS series_data
                     FROM numbered
                     JOIN steps USING (unit)
                     WHERE (rn % step) = 0
