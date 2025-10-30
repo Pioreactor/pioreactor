@@ -25,6 +25,7 @@ class Turbidostat(DosingAutomationJob):
         "exchange_volume_ml": {"datatype": "float", "settable": True, "unit": "mL"},
         "target_normalized_od": {"datatype": "float", "settable": True, "unit": "AU"},
         "target_od": {"datatype": "float", "settable": True, "unit": "OD"},
+        "duration": {"datatype": "float", "settable": False, "unit": "min"},
     }
     target_od = None
     target_normalized_od = None

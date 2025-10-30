@@ -974,7 +974,7 @@ class ODReader(BackgroundJob):
             ir_intensity_cfg = ir_led_intensity
 
         if ir_intensity_cfg == "auto":
-            return True, 70.0
+            return True, 85.0
 
         intensity_value = float(ir_intensity_cfg)
         if intensity_value > 90:
@@ -1364,7 +1364,7 @@ def start_od_reading(
         calibration_transformer = NullCalibrationTransformer()
 
     if interval is not None:
-        penalizer = config.getfloat("od_reading.config", "smoothing_penalizer", fallback=700.0) / interval
+        penalizer = config.getfloat("od_reading.config", "smoothing_penalizer", fallback=3.0) / interval
     else:
         penalizer = 0.0
 

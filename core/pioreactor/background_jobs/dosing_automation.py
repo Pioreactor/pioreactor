@@ -230,14 +230,16 @@ class DosingAutomationJob(AutomationJob):
     ) -> None:
         super(DosingAutomationJob, self).__init__(unit, experiment)
 
-        self.add_to_published_settings(
-            "duration",
-            {
-                "datatype": "float",
-                "settable": True,
-                "unit": "min",
-            },
-        )
+        if "duration" not in self.published_settings:
+
+            self.add_to_published_settings(
+                "duration",
+                {
+                    "datatype": "float",
+                    "settable": True,
+                    "unit": "min",
+                },
+            )
 
         self.skip_first_run = skip_first_run
 

@@ -629,27 +629,32 @@ def get_growth_rates(experiment: str) -> ResponseReturnValue:
 
     growth_rates = query_app_db(
         """
-        WITH data AS (
-            SELECT pioreactor_unit AS unit, timestamp, rate AS y
-            FROM growth_rates
-            WHERE experiment=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', ?)
-        ), numbered AS (
-            SELECT unit, timestamp, round(y, 5) AS y,
-                   row_number() OVER (PARTITION BY unit ORDER BY timestamp) AS rn,
-                   count(*) OVER (PARTITION BY unit) AS total
-            FROM data
+        WITH numbered AS (
+            SELECT unit,
+                   timestamp,
+                   y,
+                   ROW_NUMBER() OVER (PARTITION BY unit ORDER BY timestamp) AS rn
+            FROM (
+                SELECT pioreactor_unit AS unit,
+                       timestamp,
+                       round(rate, 5) AS y
+                FROM growth_rates
+                WHERE experiment=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', ?)
+            )
         ), steps AS (
-            SELECT unit, timestamp, y, rn,
-                   CASE WHEN ? > 0 THEN MAX(1, CAST((total + ? - 1) / ? AS INT)) ELSE 1 END AS step
+            SELECT unit,
+                   CASE WHEN ? > 0 THEN MAX(1, CAST((MAX(rn) + ? - 1) / ? AS INT)) ELSE 1 END AS step
             FROM numbered
+            GROUP BY unit
         )
         SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
         FROM (
-            SELECT unit,
+            SELECT numbered.unit,
                    json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
-            FROM steps
+            FROM numbered
+            JOIN steps USING (unit)
             WHERE (rn % step) = 0
-            GROUP BY 1
+            GROUP BY numbered.unit
         );
         """,
         (experiment, f"-{lookback} hours", target_points, target_points, target_points),
@@ -671,27 +676,32 @@ def get_temperature_readings(experiment: str) -> ResponseReturnValue:
 
     temperature_readings = query_app_db(
         """
-        WITH data AS (
-            SELECT pioreactor_unit AS unit, timestamp, temperature_c AS y
-            FROM temperature_readings
-            WHERE experiment=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW' , ?)
-        ), numbered AS (
-            SELECT unit, timestamp, round(y, 2) AS y,
-                   row_number() OVER (PARTITION BY unit ORDER BY timestamp) AS rn,
-                   count(*) OVER (PARTITION BY unit) AS total
-            FROM data
+        WITH numbered AS (
+            SELECT unit,
+                   timestamp,
+                   y,
+                   ROW_NUMBER() OVER (PARTITION BY unit ORDER BY timestamp) AS rn
+            FROM (
+                SELECT pioreactor_unit AS unit,
+                       timestamp,
+                       round(temperature_c, 2) AS y
+                FROM temperature_readings
+                WHERE experiment=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW' , ?)
+            )
         ), steps AS (
-            SELECT unit, timestamp, y, rn,
-                   CASE WHEN ? > 0 THEN MAX(1, CAST((total + ? - 1) / ? AS INT)) ELSE 1 END AS step
+            SELECT unit,
+                   CASE WHEN ? > 0 THEN MAX(1, CAST((MAX(rn) + ? - 1) / ? AS INT)) ELSE 1 END AS step
             FROM numbered
+            GROUP BY unit
         )
         SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
         FROM (
-            SELECT unit,
+            SELECT numbered.unit,
                    json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
-            FROM steps
+            FROM numbered
+            JOIN steps USING (unit)
             WHERE (rn % step) = 0
-            GROUP BY 1
+            GROUP BY numbered.unit
         );
         """,
         (experiment, f"-{lookback} hours", target_points, target_points, target_points),
@@ -713,27 +723,32 @@ def get_od_readings_filtered(experiment: str) -> ResponseReturnValue:
 
     filtered_od_readings = query_app_db(
         """
-        WITH data AS (
-            SELECT pioreactor_unit AS unit, timestamp, normalized_od_reading AS y
-            FROM od_readings_filtered
-            WHERE experiment=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', ?)
-        ), numbered AS (
-            SELECT unit, timestamp, round(y, 7) AS y,
-                   row_number() OVER (PARTITION BY unit ORDER BY timestamp) AS rn,
-                   count(*) OVER (PARTITION BY unit) AS total
-            FROM data
+        WITH numbered AS (
+            SELECT unit,
+                   timestamp,
+                   y,
+                   ROW_NUMBER() OVER (PARTITION BY unit ORDER BY timestamp) AS rn
+            FROM (
+                SELECT pioreactor_unit AS unit,
+                       timestamp,
+                       round(normalized_od_reading, 7) AS y
+                FROM od_readings_filtered
+                WHERE experiment=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', ?)
+            )
         ), steps AS (
-            SELECT unit, timestamp, y, rn,
-                   CASE WHEN ? > 0 THEN MAX(1, CAST((total + ? - 1) / ? AS INT)) ELSE 1 END AS step
+            SELECT unit,
+                   CASE WHEN ? > 0 THEN MAX(1, CAST((MAX(rn) + ? - 1) / ? AS INT)) ELSE 1 END AS step
             FROM numbered
+            GROUP BY unit
         )
         SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
         FROM (
-            SELECT unit,
+            SELECT numbered.unit,
                    json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
-            FROM steps
+            FROM numbered
+            JOIN steps USING (unit)
             WHERE (rn % step) = 0
-            GROUP BY 1
+            GROUP BY numbered.unit
         );
         """,
         (experiment, f"-{lookback} hours", target_points, target_points, target_points),
@@ -744,7 +759,7 @@ def get_od_readings_filtered(experiment: str) -> ResponseReturnValue:
     return attach_cache_control(as_json_response(filtered_od_readings["json"]))
 
 
-@api_bp.route("/experiments/<experiment>/time_series/od_readings", methods=["GET"])
+@api_bp.route("/experiments/<experiment>`od_readings", methods=["GET"])
 def get_od_readings(experiment: str) -> ResponseReturnValue:
     """Gets raw od for all units"""
     args = request.args
@@ -755,27 +770,32 @@ def get_od_readings(experiment: str) -> ResponseReturnValue:
 
     raw_od_readings = query_app_db(
         """
-        WITH data AS (
-            SELECT (pioreactor_unit || '-' || channel) AS unit, timestamp, od_reading AS y
-            FROM od_readings
-            WHERE experiment=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW',  ?)
-        ), numbered AS (
-            SELECT unit, timestamp, round(y, 7) AS y,
-                   row_number() OVER (PARTITION BY unit ORDER BY timestamp) AS rn,
-                   count(*) OVER (PARTITION BY unit) AS total
-            FROM data
+        WITH numbered AS (
+            SELECT unit,
+                   timestamp,
+                   y,
+                   ROW_NUMBER() OVER (PARTITION BY unit ORDER BY timestamp) AS rn
+            FROM (
+                SELECT (pioreactor_unit || '-' || channel) AS unit,
+                       timestamp,
+                       round(od_reading, 7) AS y
+                FROM od_readings
+                WHERE experiment=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW',  ?)
+            )
         ), steps AS (
-            SELECT unit, timestamp, y, rn,
-                   CASE WHEN ? > 0 THEN MAX(1, CAST((total + ? - 1) / ? AS INT)) ELSE 1 END AS step
+            SELECT unit,
+                   CASE WHEN ? > 0 THEN MAX(1, CAST((MAX(rn) + ? - 1) / ? AS INT)) ELSE 1 END AS step
             FROM numbered
+            GROUP BY unit
         )
         SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
         FROM (
-            SELECT unit,
+            SELECT numbered.unit,
                    json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
-            FROM steps
+            FROM numbered
+            JOIN steps USING (unit)
             WHERE (rn % step) = 0
-            GROUP BY 1
+            GROUP BY numbered.unit
         );
         """,
         (experiment, f"-{lookback} hours", target_points, target_points, target_points),
@@ -797,27 +817,32 @@ def get_od_raw_readings(experiment: str) -> ResponseReturnValue:
 
     raw_od_readings = query_app_db(
         """
-        WITH data AS (
-            SELECT (pioreactor_unit || '-' || channel) AS unit, timestamp, od_reading AS y
-            FROM raw_od_readings
-            WHERE experiment=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW',  ?)
-        ), numbered AS (
-            SELECT unit, timestamp, round(y, 7) AS y,
-                   row_number() OVER (PARTITION BY unit ORDER BY timestamp) AS rn,
-                   count(*) OVER (PARTITION BY unit) AS total
-            FROM data
+        WITH numbered AS (
+            SELECT unit,
+                   timestamp,
+                   y,
+                   ROW_NUMBER() OVER (PARTITION BY unit ORDER BY timestamp) AS rn
+            FROM (
+                SELECT (pioreactor_unit || '-' || channel) AS unit,
+                       timestamp,
+                       round(od_reading, 7) AS y
+                FROM raw_od_readings
+                WHERE experiment=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW',  ?)
+            )
         ), steps AS (
-            SELECT unit, timestamp, y, rn,
-                   CASE WHEN ? > 0 THEN MAX(1, CAST((total + ? - 1) / ? AS INT)) ELSE 1 END AS step
+            SELECT unit,
+                   CASE WHEN ? > 0 THEN MAX(1, CAST((MAX(rn) + ? - 1) / ? AS INT)) ELSE 1 END AS step
             FROM numbered
+            GROUP BY unit
         )
         SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
         FROM (
-            SELECT unit,
+            SELECT numbered.unit,
                    json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
-            FROM steps
+            FROM numbered
+            JOIN steps USING (unit)
             WHERE (rn % step) = 0
-            GROUP BY 1
+            GROUP BY numbered.unit
         );
         """,
         (experiment, f"-{lookback} hours", target_points, target_points, target_points),
@@ -841,27 +866,32 @@ def get_fallback_time_series(experiment: str, data_source: str, column: str) -> 
         column = scrub_to_valid(column)
         r = query_app_db(
             f"""
-                WITH data AS (
-                    SELECT pioreactor_unit AS unit, timestamp, {column} AS y
-                    FROM {data_source}
-                    WHERE experiment=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW',?) AND {column} IS NOT NULL
-                ), numbered AS (
-                    SELECT unit, timestamp, round(y, 7) AS y,
-                           row_number() OVER (PARTITION BY unit ORDER BY timestamp) AS rn,
-                           count(*) OVER (PARTITION BY unit) AS total
-                    FROM data
+                WITH numbered AS (
+                    SELECT unit,
+                           timestamp,
+                           y,
+                           ROW_NUMBER() OVER (PARTITION BY unit ORDER BY timestamp) AS rn
+                    FROM (
+                        SELECT pioreactor_unit AS unit,
+                               timestamp,
+                               round({column}, 7) AS y
+                        FROM {data_source}
+                        WHERE experiment=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW',?) AND {column} IS NOT NULL
+                    )
                 ), steps AS (
-                    SELECT unit, timestamp, y, rn,
-                           CASE WHEN ? > 0 THEN MAX(1, CAST((total + ? - 1) / ? AS INT)) ELSE 1 END AS step
+                    SELECT unit,
+                           CASE WHEN ? > 0 THEN MAX(1, CAST((MAX(rn) + ? - 1) / ? AS INT)) ELSE 1 END AS step
                     FROM numbered
+                    GROUP BY unit
                 )
                 SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
                 FROM (
-                    SELECT unit,
+                    SELECT numbered.unit,
                            json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
-                    FROM steps
+                    FROM numbered
+                    JOIN steps USING (unit)
                     WHERE (rn % step) = 0
-                    GROUP BY 1
+                    GROUP BY numbered.unit
                 );
                 """,
             (experiment, f"-{lookback} hours", target_points, target_points, target_points),
@@ -886,27 +916,32 @@ def get_growth_rates_per_unit(pioreactor_unit: str, experiment: str) -> Response
 
     growth_rates = query_app_db(
         """
-        WITH data AS (
-            SELECT pioreactor_unit AS unit, timestamp, rate AS y
-            FROM growth_rates
-            WHERE experiment=? AND pioreactor_unit=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', ?)
-        ), numbered AS (
-            SELECT unit, timestamp, round(y, 5) AS y,
-                   row_number() OVER (PARTITION BY unit ORDER BY timestamp) AS rn,
-                   count(*) OVER (PARTITION BY unit) AS total
-            FROM data
+        WITH numbered AS (
+            SELECT unit,
+                   timestamp,
+                   y,
+                   ROW_NUMBER() OVER (PARTITION BY unit ORDER BY timestamp) AS rn
+            FROM (
+                SELECT pioreactor_unit AS unit,
+                       timestamp,
+                       round(rate, 5) AS y
+                FROM growth_rates
+                WHERE experiment=? AND pioreactor_unit=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', ?)
+            )
         ), steps AS (
-            SELECT unit, timestamp, y, rn,
-                   CASE WHEN ? > 0 THEN MAX(1, CAST((total + ? - 1) / ? AS INT)) ELSE 1 END AS step
+            SELECT unit,
+                   CASE WHEN ? > 0 THEN MAX(1, CAST((MAX(rn) + ? - 1) / ? AS INT)) ELSE 1 END AS step
             FROM numbered
+            GROUP BY unit
         )
         SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
         FROM (
-            SELECT unit,
+            SELECT numbered.unit,
                    json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
-            FROM steps
+            FROM numbered
+            JOIN steps USING (unit)
             WHERE (rn % step) = 0
-            GROUP BY 1
+            GROUP BY numbered.unit
         );
         """,
         (experiment, pioreactor_unit, f"-{lookback} hours", target_points, target_points, target_points),
@@ -930,27 +965,32 @@ def get_temperature_readings_per_unit(pioreactor_unit: str, experiment: str) -> 
 
     temperature_readings = query_app_db(
         """
-        WITH data AS (
-            SELECT pioreactor_unit AS unit, timestamp, temperature_c AS y
-            FROM temperature_readings
-            WHERE experiment=? AND pioreactor_unit=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW' , ?)
-        ), numbered AS (
-            SELECT unit, timestamp, round(y, 2) AS y,
-                   row_number() OVER (PARTITION BY unit ORDER BY timestamp) AS rn,
-                   count(*) OVER (PARTITION BY unit) AS total
-            FROM data
+        WITH numbered AS (
+            SELECT unit,
+                   timestamp,
+                   y,
+                   ROW_NUMBER() OVER (PARTITION BY unit ORDER BY timestamp) AS rn
+            FROM (
+                SELECT pioreactor_unit AS unit,
+                       timestamp,
+                       round(temperature_c, 2) AS y
+                FROM temperature_readings
+                WHERE experiment=? AND pioreactor_unit=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW' , ?)
+            )
         ), steps AS (
-            SELECT unit, timestamp, y, rn,
-                   CASE WHEN ? > 0 THEN MAX(1, CAST((total + ? - 1) / ? AS INT)) ELSE 1 END AS step
+            SELECT unit,
+                   CASE WHEN ? > 0 THEN MAX(1, CAST((MAX(rn) + ? - 1) / ? AS INT)) ELSE 1 END AS step
             FROM numbered
+            GROUP BY unit
         )
         SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
         FROM (
-            SELECT unit,
+            SELECT numbered.unit,
                    json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
-            FROM steps
+            FROM numbered
+            JOIN steps USING (unit)
             WHERE (rn % step) = 0
-            GROUP BY 1
+            GROUP BY numbered.unit
         );
         """,
         (experiment, pioreactor_unit, f"-{lookback} hours", target_points, target_points, target_points),
@@ -974,27 +1014,32 @@ def get_od_readings_filtered_per_unit(pioreactor_unit: str, experiment: str) -> 
 
     filtered_od_readings = query_app_db(
         """
-        WITH data AS (
-            SELECT pioreactor_unit AS unit, timestamp, normalized_od_reading AS y
-            FROM od_readings_filtered
-            WHERE experiment=? AND pioreactor_unit=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', ?)
-        ), numbered AS (
-            SELECT unit, timestamp, round(y, 7) AS y,
-                   row_number() OVER (PARTITION BY unit ORDER BY timestamp) AS rn,
-                   count(*) OVER (PARTITION BY unit) AS total
-            FROM data
+        WITH numbered AS (
+            SELECT unit,
+                   timestamp,
+                   y,
+                   ROW_NUMBER() OVER (PARTITION BY unit ORDER BY timestamp) AS rn
+            FROM (
+                SELECT pioreactor_unit AS unit,
+                       timestamp,
+                       round(normalized_od_reading, 7) AS y
+                FROM od_readings_filtered
+                WHERE experiment=? AND pioreactor_unit=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', ?)
+            )
         ), steps AS (
-            SELECT unit, timestamp, y, rn,
-                   CASE WHEN ? > 0 THEN MAX(1, CAST((total + ? - 1) / ? AS INT)) ELSE 1 END AS step
+            SELECT unit,
+                   CASE WHEN ? > 0 THEN MAX(1, CAST((MAX(rn) + ? - 1) / ? AS INT)) ELSE 1 END AS step
             FROM numbered
+            GROUP BY unit
         )
         SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
         FROM (
-            SELECT unit,
+            SELECT numbered.unit,
                    json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
-            FROM steps
+            FROM numbered
+            JOIN steps USING (unit)
             WHERE (rn % step) = 0
-            GROUP BY 1
+            GROUP BY numbered.unit
         );
         """,
         (experiment, pioreactor_unit, f"-{lookback} hours", target_points, target_points, target_points),
@@ -1015,27 +1060,32 @@ def get_od_readings_per_unit(pioreactor_unit: str, experiment: str) -> ResponseR
 
     raw_od_readings = query_app_db(
         """
-        WITH data AS (
-            SELECT (pioreactor_unit || '-' || channel) AS unit, timestamp, od_reading AS y
-            FROM od_readings
-            WHERE experiment=? AND pioreactor_unit=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW',  ?)
-        ), numbered AS (
-            SELECT unit, timestamp, round(y, 7) AS y,
-                   row_number() OVER (PARTITION BY unit ORDER BY timestamp) AS rn,
-                   count(*) OVER (PARTITION BY unit) AS total
-            FROM data
+        WITH numbered AS (
+            SELECT unit,
+                   timestamp,
+                   y,
+                   ROW_NUMBER() OVER (PARTITION BY unit ORDER BY timestamp) AS rn
+            FROM (
+                SELECT (pioreactor_unit || '-' || channel) AS unit,
+                       timestamp,
+                       round(od_reading, 7) AS y
+                FROM od_readings
+                WHERE experiment=? AND pioreactor_unit=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW',  ?)
+            )
         ), steps AS (
-            SELECT unit, timestamp, y, rn,
-                   CASE WHEN ? > 0 THEN MAX(1, CAST((total + ? - 1) / ? AS INT)) ELSE 1 END AS step
+            SELECT unit,
+                   CASE WHEN ? > 0 THEN MAX(1, CAST((MAX(rn) + ? - 1) / ? AS INT)) ELSE 1 END AS step
             FROM numbered
+            GROUP BY unit
         )
         SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
         FROM (
-            SELECT unit,
+            SELECT numbered.unit,
                    json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
-            FROM steps
+            FROM numbered
+            JOIN steps USING (unit)
             WHERE (rn % step) = 0
-            GROUP BY 1
+            GROUP BY numbered.unit
         );
         """,
         (experiment, pioreactor_unit, f"-{lookback} hours", target_points, target_points, target_points),
@@ -1059,27 +1109,32 @@ def get_od_raw_readings_per_unit(pioreactor_unit: str, experiment: str) -> Respo
 
     raw_od_readings = query_app_db(
         """
-        WITH data AS (
-            SELECT (pioreactor_unit || '-' || channel) AS unit, timestamp, od_reading AS y
-            FROM raw_od_readings
-            WHERE experiment=? AND pioreactor_unit=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW',  ?)
-        ), numbered AS (
-            SELECT unit, timestamp, round(y, 7) AS y,
-                   row_number() OVER (PARTITION BY unit ORDER BY timestamp) AS rn,
-                   count(*) OVER (PARTITION BY unit) AS total
-            FROM data
+        WITH numbered AS (
+            SELECT unit,
+                   timestamp,
+                   y,
+                   ROW_NUMBER() OVER (PARTITION BY unit ORDER BY timestamp) AS rn
+            FROM (
+                SELECT (pioreactor_unit || '-' || channel) AS unit,
+                       timestamp,
+                       round(od_reading, 7) AS y
+                FROM raw_od_readings
+                WHERE experiment=? AND pioreactor_unit=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW',  ?)
+            )
         ), steps AS (
-            SELECT unit, timestamp, y, rn,
-                   CASE WHEN ? > 0 THEN MAX(1, CAST((total + ? - 1) / ? AS INT)) ELSE 1 END AS step
+            SELECT unit,
+                   CASE WHEN ? > 0 THEN MAX(1, CAST((MAX(rn) + ? - 1) / ? AS INT)) ELSE 1 END AS step
             FROM numbered
+            GROUP BY unit
         )
         SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
         FROM (
-            SELECT unit,
+            SELECT numbered.unit,
                    json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
-            FROM steps
+            FROM numbered
+            JOIN steps USING (unit)
             WHERE (rn % step) = 0
-            GROUP BY 1
+            GROUP BY numbered.unit
         );
         """,
         (experiment, pioreactor_unit, f"-{lookback} hours", target_points, target_points, target_points),
@@ -1108,27 +1163,32 @@ def get_fallback_time_series_per_unit(
         column = scrub_to_valid(column)
         r = query_app_db(
             f"""
-                WITH data AS (
-                    SELECT pioreactor_unit AS unit, timestamp, {column} AS y
-                    FROM {data_source}
-                    WHERE experiment=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW',?) AND pioreactor_unit=? AND {column} IS NOT NULL
-                ), numbered AS (
-                    SELECT unit, timestamp, round(y, 7) AS y,
-                           row_number() OVER (PARTITION BY unit ORDER BY timestamp) AS rn,
-                           count(*) OVER (PARTITION BY unit) AS total
-                    FROM data
+                WITH numbered AS (
+                    SELECT unit,
+                           timestamp,
+                           y,
+                           ROW_NUMBER() OVER (PARTITION BY unit ORDER BY timestamp) AS rn
+                    FROM (
+                        SELECT pioreactor_unit AS unit,
+                               timestamp,
+                               round({column}, 7) AS y
+                        FROM {data_source}
+                        WHERE experiment=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW',?) AND pioreactor_unit=? AND {column} IS NOT NULL
+                    )
                 ), steps AS (
-                    SELECT unit, timestamp, y, rn,
-                           CASE WHEN ? > 0 THEN MAX(1, CAST((total + ? - 1) / ? AS INT)) ELSE 1 END AS step
+                    SELECT unit,
+                           CASE WHEN ? > 0 THEN MAX(1, CAST((MAX(rn) + ? - 1) / ? AS INT)) ELSE 1 END AS step
                     FROM numbered
+                    GROUP BY unit
                 )
                 SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
                 FROM (
-                    SELECT unit,
+                    SELECT numbered.unit,
                            json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
-                    FROM steps
+                    FROM numbered
+                    JOIN steps USING (unit)
                     WHERE (rn % step) = 0
-                    GROUP BY 1
+                    GROUP BY numbered.unit
                 );
                 """,
             (experiment, f"-{lookback} hours", pioreactor_unit, target_points, target_points, target_points),
