@@ -68,9 +68,10 @@ const LEVELS = [
   "CRITICAL"
 ]
 
-function LogTableByUnit({ experiment, unit, level="info" }) {
+function LogTableByUnit({ experiment, unit, level="info", byDuration=false, experimentStartTime=null }) {
   const [listOfLogs, setListOfLogs] = useState([]);
   const { client, subscribeToTopic } = useMQTT();
+  const experimentStart = experimentStartTime ? dayjs.utc(experimentStartTime) : null;
 
   useEffect(() => {
     const getData = async () => {
@@ -121,12 +122,21 @@ function LogTableByUnit({ experiment, unit, level="info" }) {
   }, [client, experiment]);
 
   const toTimestampObject = (timestamp) => {
+    if (dayjs.isDayjs(timestamp)) {
+      return timestamp;
+    }
     return dayjs.utc(timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]');
   };
 
-  const timestampCell = (timestampStr) => {
-    const ts = toTimestampObject(timestampStr);
+  const timestampCell = (timestampValue) => {
+    const ts = toTimestampObject(timestampValue);
     const localTs = ts.local();
+
+    if (byDuration && experimentStart && experimentStart.isValid()) {
+      const deltaHours = Math.round(ts.diff(experimentStart, 'hours', true) * 1e2) / 1e2;
+      return <span title={localTs.format('YYYY-MM-DD HH:mm:ss')}>{deltaHours} h</span>;
+    }
+
     return <span title={localTs.format('YYYY-MM-DD HH:mm:ss')}>{localTs.format('HH:mm:ss')}</span>;
   };
 

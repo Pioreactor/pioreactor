@@ -33,6 +33,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import TuneIcon from '@mui/icons-material/Tune';
 import IconButton from '@mui/material/IconButton';
 import Switch from '@mui/material/Switch';
+import Stack from '@mui/material/Stack';
 import { useConfirm } from 'material-ui-confirm';
 import Alert from '@mui/material/Alert';
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
@@ -59,6 +60,7 @@ import { useExperiment } from './providers/ExperimentContext';
 import PatientButton from './components/PatientButton';
 import {getConfig, getRelabelMap, runPioreactorJob, colors, disconnectedGrey, lostRed, disabledColor, stateDisplay, checkTaskCallback} from "./utilities"
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
+import { TimeFormatSwitch, TimeWindowSwitch } from "./components/TimeControls";
 
 
 function StateTypography({ state, isDisabled=false }) {
@@ -1942,7 +1944,7 @@ function Charts(props) {
                   downSample={chart.down_sample}
                   interpolation={chart.interpolation || "stepAfter"}
                   yAxisDomain={chart.y_axis_domain ? chart.y_axis_domain : null}
-                  lookback={props.timeWindow ? props.timeWindow : (chart.lookback ? eval(chart.lookback) : 10000)}
+                  lookback={(props.timeWindow >= 0) ? props.timeWindow : (chart.lookback ? eval(chart.lookback) : 10000)}
                   fixedDecimals={chart.fixed_decimals}
                   relabelMap={props.relabelMap}
                   yTransformation={eval(chart.y_transformation || "(y) => y")}
@@ -1969,6 +1971,11 @@ function Pioreactor({title}) {
   const { experimentMetadata, selectExperiment } = useExperiment();
   const [unitConfig, setUnitConfig] = useState({})
   const [config, setConfig] = useState({})
+  const initialTimeScale = localStorage.getItem('timeScale') || config['ui.overview.settings']?.['time_display_mode'] || 'hours';
+  const storedTimeWindow = parseInt(localStorage.getItem('timeWindow'), 10);
+  const initialTimeWindow = storedTimeWindow >= 0 ? storedTimeWindow : 1000000;
+  const [timeScale, setTimeScale] = useState(initialTimeScale);
+  const [timeWindow, setTimeWindow] = useState(initialTimeWindow);
 
   const {pioreactorUnit} = useParams();
   const unit = pioreactorUnit
@@ -2119,19 +2126,37 @@ function Pioreactor({title}) {
               xs: 12,
               md: 7
             }}>
-            <Charts unit={unit} unitsColorMap={{[unit]: colors[0]}} config={unitConfig} timeScale={"clock_time"} timeWindow={1000000} experimentMetadata={experimentMetadata}/>
+            <Charts unit={unit} unitsColorMap={{[unit]: colors[0]}} config={unitConfig} timeScale={timeScale} timeWindow={timeWindow} experimentMetadata={experimentMetadata}/>
           </Grid>
           <Grid
             container
-            spacing={1}
+            spacing={2}
             justifyContent="flex-end"
             style={{height: "100%"}}
             size={{
               xs: 12,
               md: 5
             }}>
+            <Grid
+              size={{
+                xs: 7,
+                md: 7
+              }}>
+              <Stack direction="row" justifyContent="start">
+                <TimeWindowSwitch setTimeWindow={setTimeWindow} initTimeWindow={timeWindow}/>
+              </Stack>
+            </Grid>
+            <Grid
+              size={{
+                xs: 5,
+                md: 5
+              }}>
+              <Stack direction="row" justifyContent="end">
+                <TimeFormatSwitch setTimeScale={setTimeScale} initTimeScale={timeScale}/>
+              </Stack>
+            </Grid>
             <Grid size={12}>
-              <LogTableByUnit experiment={experimentMetadata.experiment} unit={unit}/>
+              <LogTableByUnit experiment={experimentMetadata.experiment} unit={unit} byDuration={timeScale === "hours"} experimentStartTime={experimentMetadata.created_at}/>
             </Grid>
           </Grid>
         </Grid>

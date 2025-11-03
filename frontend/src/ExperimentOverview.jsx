@@ -9,82 +9,11 @@ import {RunningProfilesContainer} from "./Profiles";
 import { RunningProfilesProvider} from './providers/RunningProfilesContext';
 import {getConfig, getRelabelMap, colors, ColorCycler} from "./utilities"
 import Card from "@mui/material/Card";
-import ToggleButton from "@mui/material/ToggleButton";
-import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Stack from "@mui/material/Stack";
 import { useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
+import { TimeFormatSwitch, TimeWindowSwitch } from "./components/TimeControls";
 
-const TimeFormatSwitch = (props) => {
-  const [state, setState] = useState(props.initTimeScale);
-
-  // Update state when props.init changes
-  useEffect(() => {
-    setState(props.initTimeScale);
-  }, [props.initTimeScale]);
-
-  const onChange = (
-    event,
-    newAlignment,
-  ) => {
-    if (newAlignment !== null) {
-      setState(newAlignment);
-      props.setTimeScale(newAlignment);
-      localStorage.setItem('timeScale', newAlignment);
-    }
-  };
-
-  return (
-    <ToggleButtonGroup
-      color="primary"
-      value={state}
-      exclusive
-      onChange={onChange}
-      size="small"
-    >
-      <ToggleButton style={{textTransform: "None"}} value="hours">Elapsed time</ToggleButton>
-      <ToggleButton style={{textTransform: "None"}} value="clock_time">Timestamp</ToggleButton>
-    </ToggleButtonGroup>
-
-  );
-}
-
-
-
-const TimeWindowSwitch = (props) => {
-  const [state, setState] = useState(props.initTimeWindow);
-
-  // Update state when props.init changes
-  useEffect(() => {
-    setState(props.initTimeWindow);
-  }, [props.initTimeWindow]);
-
-  const onChange = (
-    event,
-    newAlignment,
-  ) => {
-    if (newAlignment !== null) {
-      setState(newAlignment);
-      props.setTimeWindow(newAlignment);
-      localStorage.setItem('timeWindow', newAlignment.toString());
-    }
-  };
-  return (
-    <ToggleButtonGroup
-      color="primary"
-      value={state}
-      exclusive
-      onChange={onChange}
-      size="small"
-    >
-      <ToggleButton style={{textTransform: "None"}} value={1000000}>All time</ToggleButton>
-      <ToggleButton style={{textTransform: "None"}} value={12}>Past 12h</ToggleButton>
-      <ToggleButton style={{textTransform: "None"}} value={1}>Past hour</ToggleButton>
-      <ToggleButton style={{textTransform: "None"}} value={0}>Now</ToggleButton>
-    </ToggleButtonGroup>
-
-  );
-}
 
 function Charts(props) {
   const [charts, setCharts] = useState({})

@@ -8,6 +8,7 @@
   - Upgrade to Trixie Debian 13! This mostly means: new Python 3.13.
   - Adding `pio workers update-model <unit> -m <name> -v <version>` to leader's CLI.
   - Adding `pio run -d jobX` to detach the `jobX` from the terminal.
+  - Added time-window and time-format options to the individual Pioreactors pages.
   - New workflow to set your Pioreactor leader-worker model on first load of the UI.
   - New Pioreactor architecture:
      - New environment variable file /etc/pioreactor.env
