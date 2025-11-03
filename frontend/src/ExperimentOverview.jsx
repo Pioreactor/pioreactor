@@ -77,7 +77,7 @@ const TimeWindowSwitch = (props) => {
       onChange={onChange}
       size="small"
     >
-      <ToggleButton style={{textTransform: "None"}} value={10000000}>All time</ToggleButton>
+      <ToggleButton style={{textTransform: "None"}} value={1000000}>All time</ToggleButton>
       <ToggleButton style={{textTransform: "None"}} value={12}>Past 12h</ToggleButton>
       <ToggleButton style={{textTransform: "None"}} value={1}>Past hour</ToggleButton>
       <ToggleButton style={{textTransform: "None"}} value={0}>Now</ToggleButton>
@@ -150,7 +150,7 @@ function Overview(props) {
   const [relabelMap, setRelabelMap] = useState({})
 
   const initialTimeScale = localStorage.getItem('timeScale') || config['ui.overview.settings']?.['time_display_mode'] || 'hours';
-  const initialTimeWindow = parseInt(localStorage.getItem('timeWindow')) >= 0 ? parseInt(localStorage.getItem('timeWindow')) :  10000000;
+  const initialTimeWindow = parseInt(localStorage.getItem('timeWindow')) >= 0 ? parseInt(localStorage.getItem('timeWindow')) :  1000000;
   const [timeScale, setTimeScale] = useState(initialTimeScale);
   const [timeWindow, setTimeWindow] = useState(initialTimeWindow);
   const [units, setUnits] = useState([])

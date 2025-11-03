@@ -2119,7 +2119,7 @@ function Pioreactor({title}) {
               xs: 12,
               md: 7
             }}>
-            <Charts unit={unit} unitsColorMap={{[unit]: colors[0]}} config={unitConfig} timeScale={"clock_time"} timeWindow={10000000} experimentMetadata={experimentMetadata}/>
+            <Charts unit={unit} unitsColorMap={{[unit]: colors[0]}} config={unitConfig} timeScale={"clock_time"} timeWindow={1000000} experimentMetadata={experimentMetadata}/>
           </Grid>
           <Grid
             container

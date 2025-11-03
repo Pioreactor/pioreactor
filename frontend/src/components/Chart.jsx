@@ -484,7 +484,7 @@ function Chart(props) {
     }
 
     const queryParams = new URLSearchParams({
-      target_points: downSample ? 720 : 10000000,
+      target_points: downSample ? 720 : 1000000,
       lookback,
     });
 
