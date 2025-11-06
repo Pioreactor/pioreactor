@@ -1,5 +1,6 @@
 ### Upcoming
 
+  - Added support for Pioreactor v1.5.
   - `pioreactor.hardware`: reworked GPIO, PWM, and I2C configuration to load from layered YAML mods so new HAT+model combinations can be described without code changes. See new ~/.pioreactor/hardware directories.
   - `pioreactor.hardware`: constants are now resolved lazily through accessor functions (e.g., determine_gpiochip(), get_pwm_to_pin_map()); direct module constants remain but are deprecated shims that emit warnings.
   - export images (PNGs and SVGs) of the Overview's and Calibrations' charts.

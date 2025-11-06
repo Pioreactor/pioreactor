@@ -102,3 +102,15 @@ class SolutionAboveDomainError(ValueError):
     """
     Outside maximum range
     """
+
+
+class NoModelAssignedError(ValueError):
+    """
+    The model is not provided to this Pioreactor.
+    """
+
+
+class UnknownModelAssignedError(ValueError):
+    """
+    The model isn't present in the registered models in models.py
+    """

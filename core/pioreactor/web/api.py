@@ -413,26 +413,17 @@ def set_clocktime() -> DelayedResponseReturnValue:
 
 
 # util
-def get_level_string(min_level: str) -> str:
-    min_level = min_level.upper()
-    levels = {
-        "DEBUG": ["ERROR", "WARNING", "NOTICE", "INFO", "DEBUG"],
-        "INFO": [
-            "ERROR",
-            "WARNING",
-            "NOTICE",
-            "INFO",
-        ],
-        "NOTICE": [
-            "ERROR",
-            "WARNING",
-            "NOTICE",
-        ],
-        "WARNING": ["ERROR", "WARNING"],
-        "ERROR": ["ERROR"],
+def get_level_filter(min_level: str) -> tuple[str, tuple[str, ...]]:
+    levels_by_threshold: dict[str, tuple[str, ...]] = {
+        "DEBUG": ("ERROR", "WARNING", "NOTICE", "INFO", "DEBUG"),
+        "INFO": ("ERROR", "WARNING", "NOTICE", "INFO"),
+        "NOTICE": ("ERROR", "WARNING", "NOTICE"),
+        "WARNING": ("ERROR", "WARNING"),
+        "ERROR": ("ERROR",),
     }
-    selected_levels = levels.get(min_level, levels["INFO"])
-    return " or ".join(f'level == "{level}"' for level in selected_levels)
+    selected_levels = levels_by_threshold.get(min_level.upper(), levels_by_threshold["INFO"])
+    placeholders = ", ".join("?" for _ in selected_levels)
+    return f"level IN ({placeholders})", selected_levels
 
 
 @api_bp.route("/experiments/<experiment>/recent_logs", methods=["GET"])
@@ -440,17 +431,19 @@ def get_recent_logs(experiment: str) -> ResponseReturnValue:
     """Shows recent event logs from all units"""
 
     min_level = request.args.get("min_level", "INFO")
+    level_filter, level_params = get_level_filter(min_level)
 
     recent_logs = query_app_db(
         f"""SELECT l.timestamp, level, l.pioreactor_unit, message, task, l.experiment
             FROM logs AS l
             WHERE (l.experiment=? or l.experiment=?)
-                AND ({get_level_string(min_level)})
+                AND {level_filter}
                 AND l.timestamp >= MAX(
                     STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', '-24 hours'),
                     COALESCE((SELECT created_at FROM experiments WHERE experiment=?), STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', '-24 hours'))
-                )            ORDER BY l.timestamp DESC LIMIT 50;""",
-        (UNIVERSAL_EXPERIMENT, experiment, experiment),
+                )
+            ORDER BY l.timestamp DESC LIMIT 50;""",
+        (UNIVERSAL_EXPERIMENT, experiment, *level_params, experiment),
     )
 
     return jsonify(recent_logs)
@@ -462,12 +455,14 @@ def get_logs() -> ResponseReturnValue:
 
     skip = int(request.args.get("skip", 0))
     min_level = request.args.get("min_level", "INFO")
+    level_filter, level_params = get_level_filter(min_level)
 
     recent_logs = query_app_db(
         f"""SELECT l.timestamp, level, l.pioreactor_unit, message, task, l.experiment
             FROM logs AS l
-            WHERE ({get_level_string(min_level)})
-            ORDER BY l.timestamp DESC LIMIT 100 OFFSET {skip};"""
+            WHERE {level_filter}
+            ORDER BY l.timestamp DESC LIMIT 100 OFFSET ?;""",
+        (*level_params, skip),
     )
 
     return jsonify(recent_logs)
@@ -479,14 +474,15 @@ def get_exp_logs(experiment: str) -> ResponseReturnValue:
 
     skip = int(request.args.get("skip", 0))
     min_level = request.args.get("min_level", "INFO")
+    level_filter, level_params = get_level_filter(min_level)
 
     recent_logs = query_app_db(
         f"""SELECT l.timestamp, l.level, l.pioreactor_unit, l.message, l.task, l.experiment
             FROM logs AS l
-            WHERE (l.experiment=? )
-            AND ({get_level_string(min_level)})
-            ORDER BY l.timestamp DESC LIMIT 100 OFFSET {skip};""",
-        (experiment,),
+            WHERE (l.experiment=?)
+            AND {level_filter}
+            ORDER BY l.timestamp DESC LIMIT 100 OFFSET ?;""",
+        (experiment, *level_params, skip),
     )
 
     return jsonify(recent_logs)
@@ -497,19 +493,27 @@ def get_recent_logs_for_unit_and_experiment(pioreactor_unit: str, experiment: st
     """Shows event logs for a specific unit within an experiment. This is for the single-page Pioreactor ui"""
 
     min_level = request.args.get("min_level", "INFO")
+    level_filter, level_params = get_level_filter(min_level)
 
     recent_logs = query_app_db(
         f"""SELECT l.timestamp, level, l.pioreactor_unit, message, task, l.experiment
             FROM logs AS l
             WHERE (l.experiment=? OR l.experiment=?)
                 AND (l.pioreactor_unit=? or l.pioreactor_unit=?)
-                AND ({get_level_string(min_level)})
+                AND {level_filter}
                 AND l.timestamp >= MAX(
                     STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', '-24 hours'),
                     COALESCE((SELECT created_at FROM experiments WHERE experiment=?), STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', '-24 hours'))
                 )
             ORDER BY l.timestamp DESC LIMIT 50;""",
-        (experiment, UNIVERSAL_EXPERIMENT, pioreactor_unit, UNIVERSAL_IDENTIFIER, experiment),
+        (
+            experiment,
+            UNIVERSAL_EXPERIMENT,
+            pioreactor_unit,
+            UNIVERSAL_IDENTIFIER,
+            *level_params,
+            experiment,
+        ),
     )
 
     return jsonify(recent_logs)
@@ -521,6 +525,7 @@ def get_logs_for_unit_and_experiment(pioreactor_unit: str, experiment: str) -> R
 
     skip = int(request.args.get("skip", 0))
     min_level = request.args.get("min_level", "INFO")
+    level_filter, level_params = get_level_filter(min_level)
 
     recent_logs = query_app_db(
         f"""SELECT l.timestamp, level, l.pioreactor_unit, message, task, l.experiment
@@ -531,9 +536,9 @@ def get_logs_for_unit_and_experiment(pioreactor_unit: str, experiment: str) -> R
                and DATETIME(l.timestamp) <= DATETIME(coalesce(h.unassigned_at, STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW')), '+5 seconds')
             WHERE (l.experiment=?)
                 AND (l.pioreactor_unit=? or l.pioreactor_unit=?)
-                AND ({get_level_string(min_level)})
-            ORDER BY l.timestamp DESC LIMIT 100 OFFSET {skip};""",
-        (experiment, pioreactor_unit, UNIVERSAL_IDENTIFIER),
+                AND {level_filter}
+            ORDER BY l.timestamp DESC LIMIT 100 OFFSET ?;""",
+        (experiment, pioreactor_unit, UNIVERSAL_IDENTIFIER, *level_params, skip),
     )
 
     return jsonify(recent_logs)
@@ -545,15 +550,16 @@ def get_system_logs_for_unit(pioreactor_unit: str) -> ResponseReturnValue:
 
     skip = int(request.args.get("skip", 0))
     min_level = request.args.get("min_level", "INFO")
+    level_filter, level_params = get_level_filter(min_level)
 
     recent_logs = query_app_db(
         f"""SELECT l.timestamp, l.level, l.pioreactor_unit, l.message, l.task, l.experiment
             FROM logs AS l
             WHERE (l.experiment="$experiment")
                 AND (l.pioreactor_unit=? or l.pioreactor_unit=?)
-                AND ({get_level_string(min_level)})
-            ORDER BY l.timestamp DESC LIMIT 100 OFFSET {skip};""",
-        (pioreactor_unit, UNIVERSAL_IDENTIFIER),
+                AND {level_filter}
+            ORDER BY l.timestamp DESC LIMIT 100 OFFSET ?;""",
+        (pioreactor_unit, UNIVERSAL_IDENTIFIER, *level_params, skip),
     )
 
     return jsonify(recent_logs)
@@ -565,14 +571,15 @@ def get_logs_for_unit(pioreactor_unit: str) -> ResponseReturnValue:
 
     skip = int(request.args.get("skip", 0))
     min_level = request.args.get("min_level", "INFO")
+    level_filter, level_params = get_level_filter(min_level)
 
     recent_logs = query_app_db(
         f"""SELECT l.timestamp, level, l.pioreactor_unit, message, task, l.experiment
             FROM logs AS l
             WHERE (l.pioreactor_unit=? or l.pioreactor_unit=?)
-            AND ({get_level_string(min_level)})
-            ORDER BY l.timestamp DESC LIMIT 100 OFFSET {skip};""",
-        (pioreactor_unit, UNIVERSAL_IDENTIFIER),
+            AND {level_filter}
+            ORDER BY l.timestamp DESC LIMIT 100 OFFSET ?;""",
+        (pioreactor_unit, UNIVERSAL_IDENTIFIER, *level_params, skip),
     )
 
     return jsonify(recent_logs)

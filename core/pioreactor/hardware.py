@@ -91,7 +91,14 @@ def get_layered_mod_config(mod: str) -> dict[str, Any]:
     """
     base = Path(environ["DOT_PIOREACTOR"]) / "hardware"
 
-    model = get_pioreactor_model()
+    try:
+        model = get_pioreactor_model()
+    except exc.NoModelAssignedError:
+        # some default?
+        from pioreactor.models import PIOREACTOR_40ml__v1_5
+
+        model = PIOREACTOR_40ml__v1_5
+
     model_dir = base / "models" / model.model_name / model.model_version
     hat_dir = base / "hats" / tuple_to_text(hardware_version_info)
     model_file = model_dir / f"{mod}.yaml"

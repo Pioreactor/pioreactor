@@ -9,8 +9,10 @@ from functools import cache
 from typing import TYPE_CHECKING
 
 from pioreactor import mureq
+from pioreactor.exc import NoModelAssignedError
 from pioreactor.exc import NotAssignedAnExperimentError
 from pioreactor.exc import NoWorkerFoundError
+from pioreactor.exc import UnknownModelAssignedError
 
 if TYPE_CHECKING:
     from pioreactor import types as pt
@@ -169,13 +171,19 @@ def get_pioreactor_model() -> Model:
 
     name = _get_pioreactor_model_name()
     version = _get_pioreactor_model_version()
+
+    if name is None or version is None:
+        raise NoModelAssignedError("Unknown Pioreactor model: name and version not set yet.")
+
+    assert name is not None
+    assert version is not None
     try:
         return get_registered_models()[(name, version)]
     except KeyError:
-        raise ValueError(f"Unknown Pioreactor model {name} v{version}.")
+        raise UnknownModelAssignedError(f"Unknown Pioreactor model {name} v{version}.")
 
 
-def _get_pioreactor_model_version() -> str:
+def _get_pioreactor_model_version() -> str | None:
     # pioreactor model version
     if os.environ.get("MODEL_VERSION"):
         return os.environ["MODEL_VERSION"]
@@ -196,7 +204,7 @@ def _get_pioreactor_model_version() -> str:
         raise e
 
 
-def _get_pioreactor_model_name() -> str:
+def _get_pioreactor_model_name() -> str | None:
     # pioreactor model name
     if model := os.environ.get("MODEL_NAME"):
         return model
