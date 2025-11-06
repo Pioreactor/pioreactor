@@ -21,8 +21,8 @@ import importlib
 import inspect
 import json
 import pkgutil
-import textwrap
 from functools import lru_cache
+from types import MappingProxyType
 from typing import Any
 from typing import Dict
 from typing import List
@@ -68,44 +68,114 @@ def _all_subclasses(cls: type) -> set[type]:
     return subclasses
 
 
+def _extract_from_call_node(node: ast.Call) -> tuple[str, Dict[str, Any]] | None:
+    func = node.func
+    if not (isinstance(func, ast.Attribute) and func.attr == "add_to_published_settings"):
+        return None
+
+    if len(node.args) < 2:
+        return None
+
+    name_node, data_node = node.args[0], node.args[1]
+    if not (isinstance(name_node, ast.Constant) and isinstance(name_node.value, str)):
+        return None
+
+    if not isinstance(data_node, ast.Dict):
+        return None
+
+    meta: Dict[str, Any] = {}
+    for key_node, value_node in zip(data_node.keys, data_node.values):
+        if not (isinstance(key_node, ast.Constant) and isinstance(key_node.value, str)):
+            continue
+        if isinstance(value_node, ast.Constant):
+            meta[key_node.value] = value_node.value
+
+    if not meta:
+        return None
+
+    return name_node.value, meta
+
+
+def _extract_from_class_node(node: ast.ClassDef) -> Dict[str, Dict[str, Any]]:
+    settings: Dict[str, Dict[str, Any]] = {}
+    for child in ast.walk(node):
+        if isinstance(child, ast.Call):
+            extracted = _extract_from_call_node(child)
+            if extracted:
+                name, meta = extracted
+                settings[name] = (
+                    meta  # later occurrences override earlier ones, matching dict.update semantics
+                )
+    return settings
+
+
+@lru_cache(maxsize=512)
+def _module_additional_settings(source_path: str) -> MappingProxyType[str, Dict[str, Dict[str, Any]]]:
+    try:
+        with open(source_path, "r", encoding="utf-8") as fh:
+            module_source = fh.read()
+    except (OSError, FileNotFoundError):
+        return MappingProxyType({})
+
+    if "add_to_published_settings" not in module_source:
+        return MappingProxyType({})
+
+    try:
+        tree = ast.parse(module_source, filename=source_path)
+    except SyntaxError:
+        return MappingProxyType({})
+
+    collected: Dict[str, Dict[str, Dict[str, Any]]] = {}
+
+    def visit(node: ast.AST, parents: List[str]) -> None:
+        if isinstance(node, ast.ClassDef):
+            current = parents + [node.name]
+            qualname = ".".join(current)
+            collected[qualname] = _extract_from_class_node(node)
+            for child in node.body:
+                if isinstance(child, ast.ClassDef):
+                    visit(child, current)
+                elif isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    visit(child, current + [child.name, "<locals>"])
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            new_parents = parents + [node.name, "<locals>"]
+            for child in node.body:
+                if isinstance(child, ast.ClassDef):
+                    visit(child, new_parents)
+                elif isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    visit(child, new_parents)
+
+    for top_level in getattr(tree, "body", []):
+        if isinstance(top_level, ast.ClassDef):
+            visit(top_level, [])
+        elif isinstance(top_level, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            visit(top_level, [])
+
+    return MappingProxyType(collected)
+
+
 @lru_cache(maxsize=1024)
 def _extract_additional_settings(cls: type) -> Dict[str, Dict[str, Any]]:
-    """Parse class source for calls to ``add_to_published_settings``.
+    """Parse class source for calls to ``add_to_published_settings`` with module-level caching."""
 
-    This is relatively expensive due to ``inspect.getsource`` and AST parsing.
-    We use a simple guard and LRU caching to avoid repeating work across calls
-    and across classes encountered multiple times through MROs.
-    """
-    settings: Dict[str, Dict[str, Any]] = {}
     try:
-        source = textwrap.dedent(inspect.getsource(cls))
+        source_path = inspect.getsourcefile(cls)
     except (OSError, TypeError):
-        # no source available (e.g., built-in or dynamically generated classes)
-        return settings
+        return {}
 
-    # Fast path: if the marker method name isn't mentioned, skip AST work
-    if "add_to_published_settings" not in source:
-        return settings
+    if not source_path:
+        return {}
 
-    tree = ast.parse(source)
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Call):
-            func = node.func
-            if isinstance(func, ast.Attribute) and func.attr == "add_to_published_settings":
-                if len(node.args) >= 2:
-                    name_node = node.args[0]
-                    data_node = node.args[1]
-                    if isinstance(name_node, ast.Constant) and isinstance(name_node.value, str):
-                        name = name_node.value
-                        if isinstance(data_node, ast.Dict):
-                            meta: Dict[str, Any] = {}
-                            for k, v in zip(data_node.keys, data_node.values):
-                                if isinstance(k, ast.Constant) and isinstance(k.value, str):
-                                    if isinstance(v, ast.Constant):
-                                        meta[k.value] = v.value
-                            if meta:
-                                settings[name] = meta
-    return settings
+    settings_map = _module_additional_settings(source_path)
+    if not settings_map:
+        return {}
+
+    qualname = cls.__qualname__
+    settings = settings_map.get(qualname)
+    if not settings:
+        return {}
+
+    return dict(settings)
 
 
 def collect_background_jobs() -> Tuple[Dict[str, Any], ...]:

@@ -8,7 +8,7 @@ Don't make unnecessary formatting changes to the files you edit. We have a linte
 
 ## Running
 
-- We use Python 3.11.
+- We use Python 3.13.
 - The Pioreactor CLI is invoked via `pio`. For example:
   ```bash
   pio run stirring
@@ -51,7 +51,7 @@ make tail-mqtt      ## Tail mosquitto
 
 **Directory Summary**
 
-This repository contains the open‑source control software for the Pioreactor—a Raspberry‑Pi–based bioreactor platform. The project uses Python 3.11 and relies heavily on MQTT for communication between processes. Core functionality is organized into “background jobs” that manage hardware components such as pumps, stirrers, temperature sensors, and LEDs.
+This repository contains the open‑source control software for the Pioreactor—a Raspberry‑Pi–based bioreactor platform. The project uses Python 3.13 and relies heavily on MQTT for communication between processes. Core functionality is organized into “background jobs” that manage hardware components such as pumps, stirrers, temperature sensors, and LEDs.
 
 **Key Components**
 
