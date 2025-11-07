@@ -39,7 +39,7 @@ def get_default_calibration() -> structs.SimplePeristalticPumpCalibration:
         calibrated_on_pioreactor_unit=get_unit_name(),
         created_at=default_datetime_for_pioreactor(),
         hz=250.0,
-        dc=95.0,
+        dc=100.00,
         voltage=-1,
         curve_type="poly",
         curve_data_=[0.0911, 0.0] if not is_testing_env() else [5.0, 0],  # go fast if in testing
