@@ -373,13 +373,19 @@ def view_cache(cache: str) -> None:
 @click.argument("key")
 @click.option("--as-int", is_flag=True, help="evict after casting key to int, useful for gpio pins.")
 def clear_cache(cache: str, key: str, as_int: bool) -> None:
+    key_to_evict = int(key) if as_int else key
+    removed = False
+
     for cacher in [local_intermittent_storage, local_persistent_storage]:
         with cacher(cache) as c:
-            if as_int:
-                key = int(key)  # type: ignore
+            if key_to_evict in c:
+                del c[key_to_evict]
+                removed = True
 
-            if key in c:
-                del c[key]
+    if removed:
+        click.echo(f"Removed key {key_to_evict} from cache '{cache}'.")
+    else:
+        click.echo(f"No entry for key {key_to_evict} found in cache '{cache}'.")
 
 
 @pio.command(

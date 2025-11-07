@@ -1147,16 +1147,16 @@ def test_chemostat_from_cli() -> None:
     from pioreactor.cli.pio import pio
 
     t = Timer(
-        5.0,
+        10.0,
         pubsub.publish,
         args=(
-            "pioreactor/testing_unit/_testing_experiment/dosing_automation/$state/set",
+            "pioreactor/localhost/_testing_experiment/dosing_automation/$state/set",
             "disconnected",
         ),
     )
     t.start()
 
-    with pubsub.collect_all_logs_of_level("ERROR", "testing_unit", "_testing_experiment") as errors:
+    with pubsub.collect_all_logs_of_level("ERROR", "localhost", "_testing_experiment") as errors:
         runner = CliRunner()
         result = runner.invoke(
             pio, ["run", "dosing_automation", "--automation-name", "chemostat", "--exchange-volume-ml", "1.5"]
