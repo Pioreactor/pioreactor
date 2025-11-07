@@ -2101,7 +2101,7 @@ function Pioreactor({title}) {
               md: 12,
               xs: 12
             }}>
-            {(modelDetails.model_name === "pioreactor_20ml" || modelDetails.model_name === "pioreactor_40ml") ? (
+            {(modelDetails.model_name?.startsWith("pioreactor_20ml") || modelDetails.model_name?.startsWith("pioreactor_40ml")) ? (
               <BioreactorDiagram
                 experiment={experimentMetadata.experiment}
                 unit={unit}

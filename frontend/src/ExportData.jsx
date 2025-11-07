@@ -388,7 +388,7 @@ function ExportDataContainer() {
       var link = document.createElement("a");
       const filename = res['filename'].replace(/%/g, "%25")
       link.setAttribute('export', filename);
-      link.href = "/static/exports/" + filename;
+      link.href = "/exports/" + filename;
       document.body.appendChild(link);
       link.click();
       link.remove();

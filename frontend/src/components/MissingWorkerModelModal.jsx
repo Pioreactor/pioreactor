@@ -13,6 +13,7 @@ import InputLabel from "@mui/material/InputLabel";
 import CircularProgress from "@mui/material/CircularProgress";
 import Alert from "@mui/material/Alert";
 import Stack from "@mui/material/Stack";
+import Snackbar from "@mui/material/Snackbar";
 import { styled } from "@mui/material/styles";
 import PioreactorIcon from "./PioreactorIcon";
 import ListSubheader from '@mui/material/ListSubheader';
@@ -69,6 +70,8 @@ const MissingWorkerModelModal = () => {
   const [selections, setSelections] = useState({});
   const [availableModels, setAvailableModels] = useState([]);
   const [errorMessage, setErrorMessage] = useState("");
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
 
   useEffect(() => {
     if (getModelsVerifiedFlag()) {
@@ -131,14 +134,6 @@ const MissingWorkerModelModal = () => {
     [workersNeedingInfo, selections]
   );
 
-  if (!isLoaded) {
-    return null;
-  }
-
-  if (!isOpen || workersNeedingInfo.length === 0) {
-    return null;
-  }
-
   const handleSelectionChange = (unit) => (event) => {
     setSelections((current) => ({
       ...current,
@@ -155,6 +150,8 @@ const MissingWorkerModelModal = () => {
     setErrorMessage("");
 
     try {
+      const updatedUnits = workersNeedingInfo.map((worker) => worker.pioreactor_unit);
+
       await Promise.all(
         workersNeedingInfo.map((worker) => {
           const [model_name, model_version] = (selections[worker.pioreactor_unit] || "").split(
@@ -189,6 +186,12 @@ const MissingWorkerModelModal = () => {
       setIsOpen(false);
       setWorkersNeedingInfo([]);
       setModelsVerifiedFlag(true);
+      setSnackbarMessage(
+        updatedUnits.length === 1
+          ? `Assigned model to ${updatedUnits[0]}.`
+          : "Model assignments updated"
+      );
+      setSnackbarOpen(true);
     } catch (error) {
       setErrorMessage(error.message);
     } finally {
@@ -196,92 +199,120 @@ const MissingWorkerModelModal = () => {
     }
   };
 
+  const handleSnackbarClose = (_event, reason) => {
+    if (reason === "clickaway") {
+      return;
+    }
+    setSnackbarOpen(false);
+  };
+
+  const shouldDisplayDialog = isOpen && workersNeedingInfo.length > 0;
+
+  if (!isLoaded) {
+    return null;
+  }
+
+  if (!shouldDisplayDialog && !snackbarOpen) {
+    return null;
+  }
+
   return (
-    <Dialog open={isOpen} onClose={() => {}} maxWidth="sm" fullWidth>
-      <DialogTitle>Update Pioreactor model</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2}>
-          <Typography variant="body1">
-            We need the model name and version for the following Pioreactors before continuing. Please select the correct for each unit. Note: you can change this later.
-          </Typography>
-          {errorMessage && (
-            <Alert severity="error" onClose={() => setErrorMessage("")}>
-              {errorMessage}
-            </Alert>
+    <>
+      <Dialog open={shouldDisplayDialog} onClose={() => {}} maxWidth="sm" fullWidth>
+        <DialogTitle>Update Pioreactor model</DialogTitle>
+        <DialogContent>
+          {shouldDisplayDialog && (
+            <Stack spacing={2}>
+              <Typography variant="body1">
+                We need the model name and version for the following Pioreactors before continuing. Please select the correct for each unit. Note: you can change this later.
+              </Typography>
+              {errorMessage && (
+                <Alert severity="error" onClose={() => setErrorMessage("")}>
+                  {errorMessage}
+                </Alert>
+              )}
+              {workersNeedingInfo.map((worker) => (
+                <WorkerRow key={worker.pioreactor_unit}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 400 }}>
+                     <PioreactorIcon fontSize="small" sx={{verticalAlign: "middle"}}/> {worker.pioreactor_unit}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    Model information missing. Choose a model to proceed.
+                  </Typography>
+                  <FormControl required sx={{minWidth: "195px", maxWidth: "400px"}} variant="outlined" size="small">
+                    <InputLabel id={`model-select-${worker.pioreactor_unit}`}>Model</InputLabel>
+                    <Select
+                      labelId={`model-select-${worker.pioreactor_unit}`}
+                      value={selections[worker.pioreactor_unit] || ""}
+                      label="Model"
+                      onChange={handleSelectionChange(worker.pioreactor_unit)}
+                      disabled={isSubmitting}
+                    >
+                      {groupedModels.standard.length > 0 && (
+                        <ListSubheader disableSticky>Latest</ListSubheader>
+                      )}
+                      {groupedModels.standard.map((model) => (
+                        <MenuItem
+                          key={`${model.model_name}-${model.model_version}`}
+                          value={`${model.model_name}::${model.model_version}`}
+                        >
+                          {model.display_name || `${model.model_name} v${model.model_version}`}
+                        </MenuItem>
+                      ))}
+                      {groupedModels.contrib.length > 0 && (
+                        <ListSubheader disableSticky>Custom</ListSubheader>
+                      )}
+                      {groupedModels.contrib.map((model) => (
+                        <MenuItem
+                          key={`${model.model_name}-${model.model_version}`}
+                          value={`${model.model_name}::${model.model_version}`}
+                        >
+                          {model.display_name || `${model.model_name} v${model.model_version}`}
+                        </MenuItem>
+                      ))}
+                      {groupedModels.legacy.length > 0 && (
+                        <ListSubheader disableSticky>Legacy</ListSubheader>
+                      )}
+                      {groupedModels.legacy.map((model) => (
+                        <MenuItem
+                          key={`${model.model_name}-${model.model_version}`}
+                          value={`${model.model_name}::${model.model_version}`}
+                        >
+                          {model.display_name || `${model.model_name} v${model.model_version}`}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </WorkerRow>
+              ))}
+            </Stack>
           )}
-          {workersNeedingInfo.map((worker) => (
-            <WorkerRow key={worker.pioreactor_unit}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 400 }}>
-                 <PioreactorIcon fontSize="small" sx={{verticalAlign: "middle"}}/> {worker.pioreactor_unit}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                Model information missing. Choose a model to proceed.
-              </Typography>
-              <FormControl required sx={{minWidth: "195px", maxWidth: "400px"}} variant="outlined" size="small">
-                <InputLabel id={`model-select-${worker.pioreactor_unit}`}>Model</InputLabel>
-                <Select
-                  labelId={`model-select-${worker.pioreactor_unit}`}
-                  value={selections[worker.pioreactor_unit] || ""}
-                  label="Model"
-                  onChange={handleSelectionChange(worker.pioreactor_unit)}
-                  disabled={isSubmitting}
-                >
-                  {groupedModels.standard.length > 0 && (
-                    <ListSubheader disableSticky>Latest</ListSubheader>
-                  )}
-                  {groupedModels.standard.map((model) => (
-                    <MenuItem
-                      key={`${model.model_name}-${model.model_version}`}
-                      value={`${model.model_name}::${model.model_version}`}
-                    >
-                      {model.display_name || `${model.model_name} v${model.model_version}`}
-                    </MenuItem>
-                  ))}
-                  {groupedModels.contrib.length > 0 && (
-                    <ListSubheader disableSticky>Custom</ListSubheader>
-                  )}
-                  {groupedModels.contrib.map((model) => (
-                    <MenuItem
-                      key={`${model.model_name}-${model.model_version}`}
-                      value={`${model.model_name}::${model.model_version}`}
-                    >
-                      {model.display_name || `${model.model_name} v${model.model_version}`}
-                    </MenuItem>
-                  ))}
-                  {groupedModels.legacy.length > 0 && (
-                    <ListSubheader disableSticky>Legacy</ListSubheader>
-                  )}
-                  {groupedModels.legacy.map((model) => (
-                    <MenuItem
-                      key={`${model.model_name}-${model.model_version}`}
-                      value={`${model.model_name}::${model.model_version}`}
-                    >
-                      {model.display_name || `${model.model_name} v${model.model_version}`}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </WorkerRow>
-          ))}
-        </Stack>
-      </DialogContent>
-      <DialogActions sx={{ px: 3, py: 2 }}>
-        <Box sx={{ flexGrow: 1, display: "flex", justifyContent: "right", alignItems: "center" }}>
-          <Box sx={{ display: "flex", alignItems: "center" }}>
-            {isSubmitting && <CircularProgress size={24} sx={{ mr: 2 }} />}
-            <Button
-              sx={{textTransform: 'none', }}
-              color="primary"
-              variant="contained"
-              onClick={handleSubmit}
-              disabled={isSubmitting || anyMissingSelection}
-            >
-              Save
-            </Button>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Box sx={{ flexGrow: 1, display: "flex", justifyContent: "right", alignItems: "center" }}>
+            <Box sx={{ display: "flex", alignItems: "center" }}>
+              {isSubmitting && <CircularProgress size={24} sx={{ mr: 2 }} />}
+              <Button
+                sx={{textTransform: 'none', }}
+                color="primary"
+                variant="contained"
+                onClick={handleSubmit}
+                disabled={isSubmitting || anyMissingSelection}
+              >
+                Save
+              </Button>
+            </Box>
           </Box>
-        </Box>
-      </DialogActions>
-    </Dialog>
+        </DialogActions>
+      </Dialog>
+      <Snackbar
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        open={snackbarOpen}
+        onClose={handleSnackbarClose}
+        autoHideDuration={6000}
+        message={snackbarMessage}
+      />
+    </>
   );
 };
 

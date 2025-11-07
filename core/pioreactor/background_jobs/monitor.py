@@ -330,6 +330,10 @@ class Monitor(LongRunningBackgroundJob):
         """
         Originally from #220
         """
+        # if no model assigned, skip
+        if get_pioreactor_model() is None:
+            return
+
         if whoami.is_testing_env():
             from pioreactor.utils.mock import MockTMP1075 as TMP1075
         else:

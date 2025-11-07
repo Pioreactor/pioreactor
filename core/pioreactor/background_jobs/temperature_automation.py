@@ -35,10 +35,9 @@ class classproperty(property):
 
 
 def is_20ml_v1() -> bool:
-    return (
-        get_pioreactor_model().model_name == "pioreactor_20ml"
-        and get_pioreactor_model().model_version == (1, 0)
-    )
+    return get_pioreactor_model().model_name.startswith(
+        "pioreactor_20ml"
+    ) and get_pioreactor_model().model_version == (1, 0)
 
 
 class TemperatureAutomationJob(AutomationJob):
@@ -385,12 +384,12 @@ class TemperatureAutomationJob(AutomationJob):
 
         model = get_pioreactor_model()
         try:
-            if model.model_name == "pioreactor_20ml":
+            if model.model_name.startswith("pioreactor_20ml"):
                 if model.model_version == "1.0":
                     inferred_temperature = self.approximate_temperature_20_1_0(features)
                 elif model.model_version >= "1.1":
                     inferred_temperature = self.approximate_temperature_20_2_0(features)
-            elif model.model_name == "pioreactor_40ml":
+            elif model.model_name.startswith("pioreactor_40ml"):
                 inferred_temperature = self.approximate_temperature_20_2_0(features)
             else:
                 self.logger.warning(
