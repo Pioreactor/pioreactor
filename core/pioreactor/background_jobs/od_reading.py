@@ -157,7 +157,7 @@ class ADCReader(LoggerMixin):
             adcs: dict[pt.PdChannel, madcs._I2C_ADC] = {}
             for c in self.channels:
                 try:
-                    curried = hardware.get_adc_curriers()[f"pd{c}"]
+                    curried = hardware.get_available_pd_channels()[c]
                 except KeyError as e:
                     # Configuration is missing an ADC mapping for this channel
                     self.logger.error(f"No ADC configuration found for channel pd{c}.")
@@ -1410,7 +1410,7 @@ def click_od_reading(
     default_interval = 1 / config.getfloat("od_reading.config", "samples_per_second", fallback=0.2)
     run_interval = interval if interval is not None else (None if snapshot else default_interval)
     with start_od_reading(
-        config["od_config.photodiodes"],
+        config["od_config.photodiode_channel"],
         fake_data=fake_data or whoami.is_testing_env(),
         interval=run_interval,
         ir_led_intensity=ir_led_intensity,
