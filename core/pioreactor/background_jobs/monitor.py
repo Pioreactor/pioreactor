@@ -129,15 +129,24 @@ class Monitor(LongRunningBackgroundJob):
         self.logger.debug(f"Pioreactor HAT serial number: {self.versions['hat_serial']}")
 
         self.button_down = False
-        self._led_pin = get_pcb_led_pin()
-        self._button_pin = get_pcb_button_pin()
+        self._led_pin: Optional[int] = None
+        self._button_pin: Optional[int] = None
+        self._hardware_controls_ready = False
 
-        try:
-            # set up GPIO for accessing the button and changing the LED
-            # if these fail, don't kill the entire job - sucks for onboarding.
-            self._setup_GPIO()
-        except Exception as e:
-            self.logger.debug(e, exc_info=True)
+        hat_available = True if whoami.is_testing_env() else is_HAT_present()
+
+        if hat_available:
+            try:
+                self._led_pin = get_pcb_led_pin()
+                self._button_pin = get_pcb_button_pin()
+                # set up GPIO for accessing the button and changing the LED
+                # if these fail, don't kill the entire job - sucks for onboarding.
+                self._setup_GPIO()
+                self._hardware_controls_ready = True
+            except Exception:
+                self.logger.debug("Skipping LED / button controls: setup failed.", exc_info=True)
+        else:
+            self.logger.debug("Pioreactor HAT not detected. Skipping LED / button controls.")
 
         # set up a self check function to periodically check vitals and log them
         # we manually run a self_check outside of a thread first, as if there are
@@ -439,12 +448,18 @@ class Monitor(LongRunningBackgroundJob):
             lgpio.gpiochip_close(self._handle)
 
     def led_on(self) -> None:
+        if not self._hardware_controls_ready:
+            return
+
         import lgpio  # type: ignore
 
         if not whoami.is_testing_env():
             lgpio.gpio_write(self._handle, self._led_pin, 1)
 
     def led_off(self) -> None:
+        if not self._hardware_controls_ready:
+            return
+
         import lgpio  # type: ignore
 
         if not whoami.is_testing_env():
@@ -539,6 +554,10 @@ class Monitor(LongRunningBackgroundJob):
         self._publish_setting("state")
 
     def flicker_led_response_okay(self, *args) -> None:
+        if not self._hardware_controls_ready:
+            self._republish_state()
+            return
+
         if self.led_in_use:
             return
 
@@ -559,6 +578,10 @@ class Monitor(LongRunningBackgroundJob):
         self.led_in_use = False
 
     def flicker_led_with_error_code(self, error_code: int) -> None:
+        if not self._hardware_controls_ready:
+            self.logger.debug("Skipping error LED flicker: hardware controls unavailable.")
+            return
+
         if self.led_in_use:
             return
 
