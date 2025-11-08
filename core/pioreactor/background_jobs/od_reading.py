@@ -1271,43 +1271,36 @@ class ODReader(BackgroundJob):
         assert False  # we never reach here - this is to silence mypy
 
 
-def find_ir_led_reference(
-    od_angle_channel1: Optional[pt.PdAngleOrREF], od_angle_channel2: Optional[pt.PdAngleOrREF]
-) -> Optional[pt.PdChannel]:
-    if od_angle_channel1 == REF_keyword:
-        return "1"
-    elif od_angle_channel2 == REF_keyword:
-        return "2"
-    else:
-        return None
+def find_ir_led_reference(channels: dict[str, str | None]) -> Optional[pt.PdChannel]:
+    for channel, angle in channels.items():
+        if angle != REF_keyword:
+            continue
+        if channel not in ALL_PD_CHANNELS:
+            continue
+
+        return cast(pt.PdChannel, channel)
+    return None
 
 
 def create_channel_angle_map(
-    od_angle_channel1: Optional[pt.PdAngleOrREF], od_angle_channel2: Optional[pt.PdAngleOrREF]
+    channels: dict[str, str | None],
 ) -> dict[pt.PdChannel, pt.PdAngle]:
-    # Inputs are either None, or a string like "135", "90", "REF", ...
-    # Example return dict: {"1": "90", "2": "45"}
     channel_angle_map: dict[pt.PdChannel, pt.PdAngle] = {}
 
-    if od_angle_channel1 and od_angle_channel1 != REF_keyword:
-        if od_angle_channel1 not in VALID_PD_ANGLES:
-            raise ValueError(f"{od_angle_channel1=} is not a valid angle. Must be one of {VALID_PD_ANGLES}")
-        od_angle_channel1 = cast(pt.PdAngle, od_angle_channel1)
-        channel_angle_map["1"] = od_angle_channel1
+    for channel, angle in channels.items():
+        if angle is None or angle == REF_keyword or angle == "":
+            continue
 
-    if od_angle_channel2 and od_angle_channel2 != REF_keyword:
-        if od_angle_channel2 not in VALID_PD_ANGLES:
-            raise ValueError(f"{od_angle_channel2=} is not a valid angle. Must be one of {VALID_PD_ANGLES}")
+        if angle not in VALID_PD_ANGLES:
+            raise ValueError(f"{angle=} is not a valid angle. Must be one of {VALID_PD_ANGLES}")
 
-        od_angle_channel2 = cast(pt.PdAngle, od_angle_channel2)
-        channel_angle_map["2"] = od_angle_channel2
+        channel_angle_map[cast(pt.PdChannel, channel)] = cast(pt.PdAngle, angle)
 
     return channel_angle_map
 
 
 def start_od_reading(
-    od_angle_channel1: pt.PdAngleOrREF | None,
-    od_angle_channel2: pt.PdAngleOrREF | None,
+    channels: dict[str, str | None],
     interval: float | None = None,
     fake_data: bool = False,
     unit: pt.Unit | None = None,
@@ -1318,37 +1311,42 @@ def start_od_reading(
     """
     This function prepares ODReader and other necessary transformation objects. It's a higher level API than using ODReader.
 
-    Note on od_angle_channels
+    Note on channels
     --------------------------
 
-    Position is important for these arguments. If your config looks like:
+    Provide a mapping between physical photodiode channels and the desired IR/angle configuration.
+    Keys should match whatever channels are declared in `adc.yaml`. For example, if your config looks like:
 
         [od_config.photodiode_channel]
         1=REF
         2=90
 
-    then the correct syntax is `start_od_reading("REF", "90").
+    then the correct syntax is `start_od_reading({"1": "REF", "2": "90"})`.
 
     """
     if interval is not None and interval <= 0:
         raise ValueError("interval must be positive.")
 
-    if od_angle_channel2 is None and od_angle_channel1 is None:
-        raise ValueError("Atleast one of od_angle_channel2 or od_angle_channel1 should be populated")
+    if not channels:
+        raise ValueError("Need to supply at least one photodiode channel.")
 
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_assigned_experiment_name(unit)
 
-    ir_led_reference_channel = find_ir_led_reference(od_angle_channel1, od_angle_channel2)
-    channel_angle_map = create_channel_angle_map(od_angle_channel1, od_angle_channel2)
-    channels = list(channel_angle_map.keys())
+    ir_led_reference_channel = find_ir_led_reference(channels)
+    channel_angle_map = create_channel_angle_map(channels)
+    if len(channel_angle_map) == 0:
+        raise ValueError(
+            "Need to supply a signal channel. Check `[od_config.photodiode_channel]` in your config."
+        )
+    active_pd_channels = list(channel_angle_map.keys())
 
     # use IR LED reference to normalize?
     if ir_led_reference_channel is not None:
         ir_led_reference_tracker = PhotodiodeIrLedReferenceTrackerStaticInit(
             ir_led_reference_channel,
         )
-        channels.append(ir_led_reference_channel)
+        active_pd_channels.append(ir_led_reference_channel)
     else:
         ir_led_reference_tracker = NullIrLedReferenceTracker()  # type: ignore
 
@@ -1374,7 +1372,7 @@ def start_od_reading(
         unit=unit,
         experiment=experiment,
         adc_reader=ADCReader(
-            channels=channels, fake_data=fake_data, dynamic_gain=not fake_data, penalizer=penalizer
+            channels=active_pd_channels, fake_data=fake_data, dynamic_gain=not fake_data, penalizer=penalizer
         ),
         ir_led_reference_tracker=ir_led_reference_tracker,
         calibration_transformer=calibration_transformer,
@@ -1412,8 +1410,6 @@ def start_od_reading(
 )
 @click.option("--snapshot", is_flag=True, help="take one reading and exit")
 def click_od_reading(
-    od_angle_channel1: pt.PdAngleOrREF | None,
-    od_angle_channel2: pt.PdAngleOrREF | None,
     fake_data: bool,
     interval: float | None,
     ir_led_intensity: float | None,
@@ -1422,15 +1418,12 @@ def click_od_reading(
     """
     Start the optical density reading job
     """
-    od_angle_channel1 = od_angle_channel1 or config.get("od_config.photodiode_channel", "1", fallback=None)
-    od_angle_channel2 = od_angle_channel2 or config.get("od_config.photodiode_channel", "2", fallback=None)
 
     # determine interval: override if provided, else use snapshot or config default
     default_interval = 1 / config.getfloat("od_reading.config", "samples_per_second", fallback=0.2)
     run_interval = interval if interval is not None else (None if snapshot else default_interval)
     with start_od_reading(
-        od_angle_channel1,
-        od_angle_channel2,
+        config["od_config.photodiodes"],
         fake_data=fake_data or whoami.is_testing_env(),
         interval=run_interval,
         ir_led_intensity=ir_led_intensity,

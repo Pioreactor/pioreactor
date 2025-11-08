@@ -1321,7 +1321,9 @@ def test_chemostat_detects_pump_malfunction(monkeypatch) -> None:
             ("turbidostat.config", "signal_channel", "2"),
         ],
     ):
-        with start_od_reading("REF", "90", interval=None, unit=unit, experiment=experiment, fake_data=True):
+        with start_od_reading(
+            {"1": "REF", "2": "90"}, interval=None, unit=unit, experiment=experiment, fake_data=True
+        ):
             with Chemostat(
                 exchange_volume_ml=1.0,
                 duration=None,

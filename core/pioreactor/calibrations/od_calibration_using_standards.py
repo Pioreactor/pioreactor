@@ -180,8 +180,7 @@ def start_recording_standards(st: Stirrer, signal_channel):
     click.echo("Starting OD recordings.")
 
     with start_od_reading(
-        cast(pt.PdAngleOrREF, config.get("od_config.photodiode_channel", "1")),
-        cast(pt.PdAngleOrREF, config.get("od_config.photodiode_channel", "2")),
+        config["od_config.photodiode_channel"],
         interval=None,
         unit=get_unit_name(),
         fake_data=is_testing_env(),

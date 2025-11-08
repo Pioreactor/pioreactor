@@ -19,12 +19,22 @@ from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.calibrations import load_active_calibration
 from pioreactor.config import config
 from pioreactor.config import temporary_config_change
+from pioreactor.config import temporary_config_changes
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
+
+
+def make_channels(channel1: str | None, channel2: str | None) -> dict[str, str | None]:
+    channels: dict[str, str | None] = {}
+    if channel1 is not None:
+        channels["1"] = channel1
+    if channel2 is not None:
+        channels["2"] = channel2
+    return channels
 
 
 def pause(n=1) -> None:
@@ -544,18 +554,20 @@ def test_ADC_picks_to_correct_freq_even_if_slight_noise_in_freq() -> None:
 
 def test_error_thrown_if_wrong_angle() -> None:
     with pytest.raises(ValueError):
-        start_od_reading("100", "135", fake_data=True, experiment="test_error_thrown_if_wrong_angle")  # type: ignore
+        start_od_reading(make_channels("100", "135"), fake_data=True, experiment="test_error_thrown_if_wrong_angle")  # type: ignore
 
     with pytest.raises(ValueError):
-        start_od_reading("100", None, fake_data=True, experiment="test_error_thrown_if_wrong_angle")  # type: ignore
+        start_od_reading(make_channels("100", None), fake_data=True, experiment="test_error_thrown_if_wrong_angle")  # type: ignore
 
     with pytest.raises(ValueError):
-        start_od_reading("135", "99", fake_data=True, experiment="test_error_thrown_if_wrong_angle")  # type: ignore
+        start_od_reading(make_channels("135", "99"), fake_data=True, experiment="test_error_thrown_if_wrong_angle")  # type: ignore
 
     with pytest.raises(ValueError):
-        start_od_reading("100", "REF", fake_data=True, experiment="test_error_thrown_if_wrong_angle")  # type: ignore
+        start_od_reading(make_channels("100", "REF"), fake_data=True, experiment="test_error_thrown_if_wrong_angle")  # type: ignore
 
-    st = start_od_reading("135", "90", fake_data=True, experiment="test_error_thrown_if_wrong_angle")
+    st = start_od_reading(
+        make_channels("135", "90"), fake_data=True, experiment="test_error_thrown_if_wrong_angle"
+    )
     st.clean_up()
 
 
@@ -595,7 +607,7 @@ def test_sin_regression_all_negative() -> None:
 
 
 def test_simple_API() -> None:
-    od_job = start_od_reading("90", "REF", interval=100_000, fake_data=True, calibration=False)
+    od_job = start_od_reading(make_channels("90", "REF"), interval=100_000, fake_data=True, calibration=False)
 
     for led_int in range(5, 70, 15):
         time.sleep(2)
@@ -611,7 +623,11 @@ def test_simple_API() -> None:
 
 def test_ability_to_be_iterated() -> None:
     od_stream = start_od_reading(
-        "90", "REF", interval=1.0, fake_data=True, experiment="test_ability_to_be_iterated", calibration=False
+        make_channels("90", "REF"),
+        interval=1.0,
+        fake_data=True,
+        experiment="test_ability_to_be_iterated",
+        calibration=False,
     )
     results = []
 
@@ -633,7 +649,7 @@ def test_add_pre_read_callback() -> None:
 
     ODReader.add_pre_read_callback(cb)
 
-    od = start_od_reading("45", "REF", interval=1, fake_data=True)
+    od = start_od_reading(make_channels("45", "REF"), interval=1, fake_data=True)
     pause()
     pause()
     pause()
@@ -655,8 +671,7 @@ def test_add_post_read_callback() -> None:
         "CRITICAL", experiment="test_add_post_read_callback", unit="test"
     ) as bucket:
         od = start_od_reading(
-            "45",
-            "REF",
+            make_channels("45", "REF"),
             interval=1,
             fake_data=True,
             experiment="test_add_post_read_callback",
@@ -763,7 +778,7 @@ def test_outliers_are_removed_in_sin_regression() -> None:
 
 
 def test_interval_is_empty() -> None:
-    with start_od_reading("90", "REF", interval=None, fake_data=True) as od:
+    with start_od_reading(make_channels("90", "REF"), interval=None, fake_data=True) as od:
         assert not hasattr(od, "record_from_adc_timer")
 
 
@@ -802,7 +817,7 @@ def test_determine_best_ir_led_intensity_values() -> None:
 
 
 def test_calibration_not_requested() -> None:
-    with start_od_reading("90", "REF", interval=None, fake_data=True, calibration=False) as od:
+    with start_od_reading(make_channels("90", "REF"), interval=None, fake_data=True, calibration=False) as od:
         assert isinstance(od.calibration_transformer, NullCalibrationTransformer)
         ts = current_utc_datetime()
         x = structs.ODReadings(
@@ -832,7 +847,7 @@ def test_calibration_not_present() -> None:
     cal = load_active_calibration("od")
     assert cal is None
 
-    with start_od_reading("90", "REF", interval=None, fake_data=True, calibration=cal) as od:
+    with start_od_reading(make_channels("90", "REF"), interval=None, fake_data=True, calibration=cal) as od:
         assert isinstance(od.calibration_transformer, NullCalibrationTransformer)
         assert len(od.calibration_transformer.models) == 0, od.calibration_transformer.models
 
@@ -855,8 +870,7 @@ def test_calibration_simple_linear_calibration_positive_slope() -> None:
     cal.set_as_active_calibration_for_device("od")
 
     with start_od_reading(
-        "REF",
-        "90",
+        make_channels("REF", "90"),
         interval=None,
         fake_data=True,
         experiment=experiment,
@@ -904,8 +918,7 @@ def test_calibration_simple_linear_calibration_negative_slope() -> None:
     cal.set_as_active_calibration_for_device("od")
 
     with start_od_reading(
-        "REF",
-        "90",
+        make_channels("REF", "90"),
         interval=None,
         fake_data=True,
         experiment=experiment,
@@ -954,8 +967,7 @@ def test_calibration_simple_quadratic_calibration() -> None:
     cal.set_as_active_calibration_for_device("od")
 
     with start_od_reading(
-        "REF",
-        "90",
+        make_channels("REF", "90"),
         interval=None,
         fake_data=True,
         experiment=experiment,
@@ -988,8 +1000,7 @@ def test_calibration_multi_modal() -> None:
     cal.set_as_active_calibration_for_device("od")
 
     with start_od_reading(
-        "REF",
-        "90",
+        make_channels("REF", "90"),
         interval=None,
         fake_data=True,
         experiment=experiment,
@@ -1020,8 +1031,7 @@ def test_calibration_errors_when_ir_led_differs() -> None:
     cal.set_as_active_calibration_for_device("od")
     with collect_all_logs_of_level("ERROR", unit=get_unit_name(), experiment=experiment) as bucket:
         with start_od_reading(
-            "REF",
-            "90",
+            make_channels("REF", "90"),
             interval=1,
             fake_data=True,
             experiment=experiment,
@@ -1155,8 +1165,7 @@ def test_calibration_data_from_user1() -> None:
     calibration.set_as_active_calibration_for_device("od")
 
     with start_od_reading(
-        "REF",
-        "90",
+        make_channels("REF", "90"),
         interval=None,
         fake_data=True,
         experiment=experiment,
@@ -1201,8 +1210,7 @@ def test_calibration_data_from_user2() -> None:
     cal.set_as_active_calibration_for_device("od")
 
     with start_od_reading(
-        "REF",
-        "90",
+        make_channels("REF", "90"),
         interval=None,
         fake_data=True,
         experiment=experiment,
@@ -1226,7 +1234,11 @@ def test_auto_ir_led_intensity_REF_and_90() -> None:
         experiment = "test_auto_ir_led_intensity"
 
         with start_od_reading(
-            "REF", "90", interval=None, fake_data=True, experiment=experiment, calibration=False
+            make_channels("REF", "90"),
+            interval=None,
+            fake_data=True,
+            experiment=experiment,
+            calibration=False,
         ) as od:
             assert abs(od.ir_led_intensity - 85.0) < 0.01
 
@@ -1236,7 +1248,7 @@ def test_auto_ir_led_intensity_90_only() -> None:
         experiment = "test_auto_ir_led_intensity"
 
         with start_od_reading(
-            None, "90", interval=None, fake_data=True, experiment=experiment, calibration=False
+            make_channels(None, "90"), interval=None, fake_data=True, experiment=experiment, calibration=False
         ) as od:
             assert od.ir_led_intensity == 85.0
 
@@ -1245,7 +1257,9 @@ def test_auto_ir_led_intensity_90_and_90() -> None:
     with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "auto"):
         experiment = "test_auto_ir_led_intensity"
 
-        with start_od_reading("90", "90", interval=None, fake_data=True, experiment=experiment) as od:
+        with start_od_reading(
+            make_channels("90", "90"), interval=None, fake_data=True, experiment=experiment
+        ) as od:
             assert od.ir_led_intensity == 85.0
 
 
@@ -1253,7 +1267,9 @@ def test_at_least_one_channel() -> None:
     experiment = "test_at_least_one_channel"
 
     with pytest.raises(ValueError):
-        with start_od_reading(None, None, interval=None, fake_data=True, experiment=experiment):
+        with start_od_reading(
+            make_channels(None, None), interval=None, fake_data=True, experiment=experiment
+        ):
             pass
 
 
@@ -1261,8 +1277,50 @@ def test_at_least_one_signal_channel() -> None:
     experiment = "test_at_least_one_signal_channel"
 
     with pytest.raises(ValueError):
-        with start_od_reading("REF", None, interval=None, fake_data=True, experiment=experiment):
+        with start_od_reading(
+            make_channels("REF", None), interval=None, fake_data=True, experiment=experiment
+        ):
             pass
+
+
+def test_only_one_ref_channel_allowed() -> None:
+    experiment = "test_only_one_ref_channel_allowed"
+
+    with pytest.raises(ValueError):
+        with start_od_reading({"1": "REF", "2": "REF"}, interval=None, fake_data=True, experiment=experiment):
+            pass
+
+
+def test_supports_more_photodiode_channels() -> None:
+    experiment = "test_supports_more_photodiode_channels"
+
+    with start_od_reading(
+        {"1": "90", "2": "REF", "3": "135", "4": "45"},
+        interval=None,
+        fake_data=True,
+        experiment=experiment,
+    ) as od:
+        assert set(od.channel_angle_map.keys()) == {"1", "3", "4"}
+
+
+def test_can_pass_config_section_directly() -> None:
+    experiment = "test_can_pass_config_section_directly"
+    with temporary_config_changes(
+        config,
+        [
+            ("od_config.photodiode_channel", "1", "90"),
+            ("od_config.photodiode_channel", "2", "REF"),
+        ],
+    ):
+        section = config["od_config.photodiode_channel"]
+        with start_od_reading(
+            section,
+            interval=None,
+            fake_data=True,
+            experiment=experiment,
+            calibration=False,
+        ) as od:
+            assert set(od.channel_angle_map.keys()) == {"1"}
 
 
 def test_CachedCalibrationTransformer_with_real_calibration() -> None:
@@ -1419,7 +1477,9 @@ def test_mandys_calibration() -> None:
 
 def test_setting_interval_after_starting() -> None:
     initial_interval = 2
-    with start_od_reading("90", "REF", interval=initial_interval, fake_data=True, calibration=False) as od:
+    with start_od_reading(
+        make_channels("90", "REF"), interval=initial_interval, fake_data=True, calibration=False
+    ) as od:
         next(od)
         with catchtime() as c:
             next(od)
@@ -1461,8 +1521,7 @@ def test_raw_and_calibrated_data_is_published_if_calibration_is_used() -> None:
     )
 
     with start_od_reading(
-        "REF",
-        "90",
+        make_channels("REF", "90"),
         interval=2,
         fake_data=True,
         experiment=experiment,
@@ -1478,7 +1537,7 @@ def test_raw_and_calibrated_data_is_published_if_calibration_is_used() -> None:
 
     # if no calibration is used:
     with start_od_reading(
-        "REF", "90", interval=2, fake_data=True, experiment=experiment, calibration=False
+        make_channels("REF", "90"), interval=2, fake_data=True, experiment=experiment, calibration=False
     ) as od_job:
         next(od_job)
         assert isinstance(od_job.calibration_transformer, NullCalibrationTransformer)
@@ -1504,8 +1563,7 @@ def test_raw_published_even_if_calibration_is_bad() -> None:
     )
 
     with start_od_reading(
-        "REF",
-        "90",
+        make_channels("REF", "90"),
         interval=2,
         fake_data=True,
         experiment=experiment,
@@ -1521,7 +1579,9 @@ def test_raw_published_even_if_calibration_is_bad() -> None:
 def test_ir_led_on_and_rest_off_state_turns_off_other_leds_by_default() -> None:
     # By default, turn_off_leds_during_reading is True: only IR channel should be on
     with temporary_config_change(config, "od_reading.config", "turn_off_leds_during_reading", "True"):
-        with start_od_reading("90", "REF", interval=None, fake_data=True, calibration=False) as od:
+        with start_od_reading(
+            make_channels("90", "REF"), interval=None, fake_data=True, calibration=False
+        ) as od:
             # set a custom IR intensity and verify desired state
             od.ir_led_intensity = 42.0
             state = od.ir_led_on_and_rest_off_state
@@ -1542,7 +1602,9 @@ def test_ir_led_on_and_rest_off_state_leaves_other_leds_intact_when_disabled() -
             for ch, val in init_states.items():
                 cache[ch] = val
 
-        with start_od_reading("REF", "90", interval=None, fake_data=True, calibration=False) as od:
+        with start_od_reading(
+            make_channels("REF", "90"), interval=None, fake_data=True, calibration=False
+        ) as od:
             # set IR intensity and perform a single reading to exercise the LED context
             _ = od.record_from_adc()
 

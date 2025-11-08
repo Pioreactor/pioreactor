@@ -431,8 +431,7 @@ def test_dodging_order() -> None:
 
         with collect_all_logs_of_level("NOTICE", unit=get_unit_name(), experiment="test_dodging") as bucket:
             with start_od_reading(
-                "90",
-                None,
+                {"1": "90"},
                 interval=6,
                 unit=get_unit_name(),
                 experiment="test_dodging",
@@ -471,8 +470,7 @@ def test_dodging_when_od_reading_stops_first() -> None:
                 self.logger.notice(f"   Unpausing at {time.time()} 🟢")
 
         st = start_od_reading(
-            "90",
-            None,
+            {"1": "90"},
             unit=get_unit_name(),
             experiment="test_dodging_when_od_reading_stops_first",
             fake_data=True,
@@ -528,8 +526,7 @@ def test_disabling_dodging() -> None:
 
         with collect_all_logs_of_level("NOTICE", unit=get_unit_name(), experiment=exp) as bucket:
             with start_od_reading(
-                "90",
-                None,
+                {"1": "90"},
                 interval=5,  # needed
                 unit=get_unit_name(),
                 experiment=exp,

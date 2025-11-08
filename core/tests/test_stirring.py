@@ -202,7 +202,7 @@ def test_stirring_wont_fire_last_100dc_on_od_reading_end() -> None:
         target_rpm_outside_od_reading=450,
     ) as st:
         with start_od_reading(
-            "90", None, interval=10.0, unit=unit, experiment=exp, fake_data=True, calibration=False
+            {"1": "90"}, interval=10.0, unit=unit, experiment=exp, fake_data=True, calibration=False
         ):
             assert st._estimate_duty_cycle > 0
             assert st.currently_dodging_od
@@ -218,7 +218,7 @@ def test_stirring_wont_fire_last_100dc_on_od_reading_end() -> None:
 def test_stirring_will_try_to_restart_and_dodge_od_reading() -> None:
     exp = "test_stirring_will_try_to_restart_and_dodge_od_reading"
 
-    with start_od_reading("90", None, interval=10.0, unit=unit, experiment=exp, fake_data=True):
+    with start_od_reading({"1": "90"}, interval=10.0, unit=unit, experiment=exp, fake_data=True):
         with start_stirring(500, unit, exp, use_rpm=True, enable_dodging_od=True) as st:
             assert st.duty_cycle == 0
             assert st._estimate_duty_cycle > 0
@@ -229,7 +229,7 @@ def test_stirring_will_try_to_restart_and_dodge_od_reading() -> None:
 def test_target_rpm_during_od_reading_defaults_to_zero() -> None:
     exp = "test_target_rpm_during_od_reading_defaults_to_zero"
 
-    with start_od_reading("90", None, interval=10.0, unit=unit, experiment=exp, fake_data=True):
+    with start_od_reading({"1": "90"}, interval=10.0, unit=unit, experiment=exp, fake_data=True):
         with start_stirring(500, unit, exp, use_rpm=True, enable_dodging_od=True) as st:
             # default target_rpm_during_od_reading should be 0.0 and no error occurs
             assert st.target_rpm_during_od_reading == 0.0

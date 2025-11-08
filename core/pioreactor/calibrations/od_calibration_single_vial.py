@@ -204,8 +204,7 @@ def start_recording_and_diluting(
     echo("Warming up OD...")
 
     with start_od_reading(
-        cast(pt.PdAngleOrREF, config.get("od_config.photodiode_channel", "1")),
-        cast(pt.PdAngleOrREF, config.get("od_config.photodiode_channel", "2")),
+        config["od_config.photodiode_channel"],
         interval=None,
         unit=get_unit_name(),
         fake_data=is_testing_env(),
@@ -265,7 +264,7 @@ def start_recording_and_diluting(
                 echo(
                     green(
                         bold(
-                            f"Test {count_of_samples+1} of {total_n_samples} [{'#' * (count_of_samples+1) }{' ' * (total_n_samples - count_of_samples - 1)}]"
+                            f"Test {count_of_samples + 1} of {total_n_samples} [{'#' * (count_of_samples + 1) }{' ' * (total_n_samples - count_of_samples - 1)}]"
                         )
                     )
                 )
@@ -312,7 +311,7 @@ def start_recording_and_diluting(
                 echo("Carefully remove vial.")
                 echo("(Optional: take new OD600 reading with external instrument.)")
                 echo(
-                    f"Reduce volume in vial by {n_samples*dilution_amount}mL. There should be 10mL remaining in your vial."
+                    f"Reduce volume in vial by {n_samples * dilution_amount}mL. There should be 10mL remaining in your vial."
                 )
                 echo("Confirm vial outside is dry and clean. Place back into Pioreactor.")
                 while not confirm(green("Continue?"), default=False):

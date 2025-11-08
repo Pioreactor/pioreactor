@@ -75,8 +75,7 @@ def test_REF_is_in_correct_position(managed_state, logger: CustomLogger, unit: s
     with stirring.start_stirring(
         target_rpm=1250, unit=unit, experiment=experiment, enable_dodging_od=False
     ) as st, start_od_reading(
-        od_angle_channel1="90",
-        od_angle_channel2="90",
+        channels={"1": "90", "2": "90"},
         interval=1.15,
         unit=unit,
         fake_data=is_testing_env(),
@@ -343,8 +342,7 @@ def test_PD_is_near_0_volts_for_blank(
     signals = []
 
     with start_od_reading(
-        od_angle_channel1=angle if signal_channel == "1" else None,  # don't use REF
-        od_angle_channel2=angle if signal_channel == "2" else None,  # don't use REF
+        channels=config["od_config.photodiode_channel"],
         interval=1.15,
         unit=unit,
         fake_data=is_testing_env(),

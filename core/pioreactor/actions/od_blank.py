@@ -65,7 +65,7 @@ def od_statistics(
             for channel, reading in batched_reading.ods.items():
                 readings[channel].append(reading.od)
 
-            logger.debug(f"Progress: {count/n_samples:.0%}")
+            logger.debug(f"Progress: {count / n_samples:.0%}")
             if count == n_samples:
                 break
 
@@ -125,8 +125,6 @@ def delete_od_blank(unit: pt.Unit | None = None, experiment: pt.Experiment | Non
 
 
 def od_blank(
-    od_angle_channel1: pt.PdAngleOrREF,
-    od_angle_channel2: pt.PdAngleOrREF,
     n_samples: int = 20,
     unit: pt.Unit | None = None,
     experiment: pt.Experiment | None = None,
@@ -148,8 +146,7 @@ def od_blank(
     with managed_lifecycle(unit, experiment, action_name):
         try:
             with start_od_reading(
-                od_angle_channel1,
-                od_angle_channel2,
+                config["od_config.photodiode_channel"],
                 unit=unit,
                 interval=1.5,
                 experiment=testing_experiment,  # use testing experiment to not pollute the database (and they would show up in the UI)
@@ -190,20 +187,6 @@ def od_blank(
 @click.group(invoke_without_command=True, name="od_blank")
 @click.pass_context
 @click.option(
-    "--od-angle-channel1",
-    default=config.get("od_config.photodiode_channel", "1", fallback=None),
-    type=click.STRING,
-    show_default=True,
-    help="specify the angle(s) between the IR LED(s) and the PD in channel 1, separated by commas. Don't specify if channel is empty.",
-)
-@click.option(
-    "--od-angle-channel2",
-    default=config.get("od_config.photodiode_channel", "2", fallback=None),
-    type=click.STRING,
-    show_default=True,
-    help="specify the angle(s) between the IR LED(s) and the PD in channel 2, separated by commas. Don't specify if channel is empty.",
-)
-@click.option(
     "--n-samples",
     default=30,
     show_default=True,
@@ -218,8 +201,6 @@ def click_od_blank(ctx, od_angle_channel1, od_angle_channel2, n_samples: int) ->
 
     if ctx.invoked_subcommand is None:
         od_blank(
-            od_angle_channel1,
-            od_angle_channel2,
             n_samples=n_samples,
             unit=unit,
             experiment=experiment,

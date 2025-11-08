@@ -194,8 +194,7 @@ def test_kalman_filter_entries() -> None:
 
     with (
         start_od_reading(
-            od_angle_channel1="135",
-            od_angle_channel2="90",
+            {"1": "135", "2": "90"},
             interval=interval,
             fake_data=True,
             unit=unit,

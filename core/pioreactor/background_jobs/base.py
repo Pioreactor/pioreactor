@@ -1065,7 +1065,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
             def action_to_do_after_od_reading(self):
                 self.logger.debug("Unpausing")
 
-        start_od_reading("90", "REF", interval=5, fake_data=True)
+        start_od_reading({"1": "90", "2": "REF"}, interval=5, fake_data=True)
 
         job = JustPause("test", "test")
         job.block_until_disconnected()
