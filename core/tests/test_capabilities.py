@@ -122,7 +122,7 @@ def test_capabilities_includes_od_blank_group_action():
     # verify expected options are present
     odb = next(c for c in caps if c["job_name"] == "od_blank")
     option_names = {o["name"] for o in odb.get("options", [])}
-    for expected in ("od_angle_channel1", "od_angle_channel2", "n_samples"):
+    for expected in ("n_samples",):
         assert expected in option_names, f"missing option {expected} on od_blank"
 
 

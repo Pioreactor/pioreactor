@@ -5,13 +5,14 @@ import json
 
 from pioreactor.actions.od_blank import od_blank
 from pioreactor.config import config
+from pioreactor.config import temporary_config_change
 from pioreactor.utils import local_persistent_storage
 
 
 def test_returns_means_and_outputs_to_cache() -> None:
     experiment = "test_returns_means_and_outputs_to_cache"
-    config["od_config.photodiode_channel"]["1"] = "90"
-    output = od_blank("90", "REF", n_samples=10, experiment=experiment)
+    with temporary_config_change(config, "od_config.photodiode_channel", "1", "90"):
+        output = od_blank(n_samples=10, experiment=experiment)
     assert "1" in output
 
     with local_persistent_storage("od_blank") as cache:
