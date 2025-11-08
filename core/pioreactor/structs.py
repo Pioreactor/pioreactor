@@ -309,7 +309,7 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
 class ODCalibration(CalibrationBase, kw_only=True, tag="od"):
     ir_led_intensity: float
     angle: t.Literal["45", "90", "135", "180"]
-    pd_channel: t.Literal["1", "2"]
+    pd_channel: pt.PdChannel
     y: str = "Voltage"
 
 

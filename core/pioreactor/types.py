@@ -102,7 +102,7 @@ type JobState = t.Literal["init", "ready", "sleeping", "disconnected", "lost"]
 type LedChannel = t.Literal["A", "B", "C", "D"]
 # these are strings! Don't make them ints, since ints suggest we can perform math on them, that's meaningless.
 # str suggest symbols, which they are.
-type PdChannel = t.Literal["1", "2"]
+type PdChannel = t.Literal["1", "2", "3", "4"]
 type PwmChannel = t.Literal["1", "2", "3", "4", "5"]
 
 type PdAngle = t.Literal["45", "90", "135", "180"]

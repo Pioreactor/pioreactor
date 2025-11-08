@@ -217,20 +217,18 @@ _ADC_DRIVERS: dict[str, type[adcs._I2C_ADC]] = {
 }
 
 
-def _build_adc_currier_from_cfg(entry: dict[str, Any], context_key: str) -> ADCCurrier:
+def _build_adc_currier_from_cfg(adc_name: str, adc_data: dict[str, Any]) -> ADCCurrier:
     try:
-        driver_key = str(entry["driver"]).lower()
+        driver_key = str(adc_data["driver"]).lower()
         driver = _ADC_DRIVERS[driver_key]
-        addr = int(entry["address"])  # supports decimal or hex
-        channel = int(entry["channel"])  # 0..3
+        addr = int(adc_data["address"])
+        channel = int(adc_data["channel"])  # ex: 0..3
     except KeyError as e:
         raise exc.HardwareNotFoundError(
-            f"Missing key {e.args[0]!r} in adc configuration for '{context_key}'."
+            f"Missing key {e.args[0]!r} in adc configuration for '{adc_name}'."
         ) from e
     except Exception as e:
-        raise exc.HardwareError(
-            f"Invalid adc configuration for '{context_key}': {type(e).__name__}: {e}"
-        ) from e
+        raise exc.HardwareError(f"Invalid adc configuration for '{adc_name}': {type(e).__name__}: {e}") from e
     return ADCCurrier(driver, addr, channel)
 
 
@@ -242,15 +240,13 @@ def _load_adc_cfg() -> dict[str, Any]:
 @cache
 def get_adc_curriers() -> dict[str, ADCCurrier]:
     cfg = _load_adc_cfg()
-    out: dict[str, ADCCurrier] = {}
-    for key in ("pd1", "pd2", "aux", "version"):
-        if key in cfg:
-            out[key] = _build_adc_currier_from_cfg(cfg[key], key)
-        else:
-            raise exc.HardwareNotFoundError(
-                f"Missing adc configuration for '{key}'. Ensure hardware/models/<model>/<version>/adc.yaml or overlays provide it."
-            )
-    return out
+    return {adc_name: _build_adc_currier_from_cfg(adc_name, adc_data) for adc_name, adc_data in cfg.items()}
+
+
+@cache
+def get_pds() -> dict[str, ADCCurrier]:
+    adcs = get_adc_curriers()
+    return {adc_name: adc_currier for adc_name, adc_currier in adcs.items() if adc_name.startswith("pd")}
 
 
 # DACS
@@ -266,6 +262,7 @@ def get_dac_address() -> int:
     return int(_load_dac_cfg()["address"])
 
 
+# TODO: remove in a later version
 __all__ = [
     "get_layered_mod_config",
     "determine_gpiochip",

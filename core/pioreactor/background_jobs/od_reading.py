@@ -75,7 +75,7 @@ from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 from pioreactor.utils.streaming_calculations import ExponentialMovingStd
 from pioreactor.utils.timing import catchtime
 
-ALL_PD_CHANNELS: list[pt.PdChannel] = ["1", "2"]
+ALL_PD_CHANNELS: list[pt.PdChannel] = ["1", "2"]  # TODO: change me for DR release, see hardware.get_pds()
 VALID_PD_ANGLES: list[pt.PdAngle] = ["45", "90", "135", "180"]
 PdChannelToVoltage = dict[pt.PdChannel, pt.Voltage]
 
