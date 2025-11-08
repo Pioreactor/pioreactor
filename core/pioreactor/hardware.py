@@ -244,9 +244,13 @@ def get_adc_curriers() -> dict[str, ADCCurrier]:
 
 
 @cache
-def get_pds() -> dict[str, ADCCurrier]:
+def get_available_pd_channels() -> dict[pt.PdChannel, ADCCurrier]:
     adcs = get_adc_curriers()
-    return {adc_name: adc_currier for adc_name, adc_currier in adcs.items() if adc_name.startswith("pd")}
+    return {
+        cast(pt.PdChannel, adc_name.removeprefix("pd")): adc_currier
+        for adc_name, adc_currier in adcs.items()
+        if adc_name.startswith("pd")
+    }
 
 
 # DACS

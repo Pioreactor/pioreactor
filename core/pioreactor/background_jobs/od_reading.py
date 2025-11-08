@@ -75,7 +75,6 @@ from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 from pioreactor.utils.streaming_calculations import ExponentialMovingStd
 from pioreactor.utils.timing import catchtime
 
-ALL_PD_CHANNELS: list[pt.PdChannel] = ["1", "2"]  # TODO: change me for DR release, see hardware.get_pds()
 VALID_PD_ANGLES: list[pt.PdAngle] = ["45", "90", "135", "180"]
 PdChannelToVoltage = dict[pt.PdChannel, pt.Voltage]
 
@@ -1275,7 +1274,7 @@ def find_ir_led_reference(channels: dict[str, str | None]) -> Optional[pt.PdChan
     for channel, angle in channels.items():
         if angle != REF_keyword:
             continue
-        if channel not in ALL_PD_CHANNELS:
+        elif channel not in hardware.get_available_pd_channels():
             continue
 
         return cast(pt.PdChannel, channel)
@@ -1381,18 +1380,6 @@ def start_od_reading(
 
 
 @click.command(name="od_reading")
-@click.option(
-    "--od-angle-channel1",
-    type=click.STRING,
-    show_default=True,
-    help="specify the angle(s) between the IR LED(s) and the PD in channel 1, separated by commas. Don't specify if channel is empty.",
-)
-@click.option(
-    "--od-angle-channel2",
-    type=click.STRING,
-    show_default=True,
-    help="specify the angle(s) between the IR LED(s) and the PD in channel 2, separated by commas. Don't specify if channel is empty.",
-)
 @click.option("--fake-data", is_flag=True, help="produce fake data (for testing)")
 @click.option(
     "--interval",

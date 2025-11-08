@@ -24,12 +24,12 @@ from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.automations.temperature.only_record_temperature import OnlyRecordTemperature
 from pioreactor.background_jobs import stirring
 from pioreactor.background_jobs.od_reading import ADCReader
-from pioreactor.background_jobs.od_reading import ALL_PD_CHANNELS
 from pioreactor.background_jobs.od_reading import average_over_raw_pd_readings
 from pioreactor.background_jobs.od_reading import IR_keyword
 from pioreactor.background_jobs.od_reading import REF_keyword
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.config import config
+from pioreactor.hardware import get_available_pd_channels
 from pioreactor.hardware import is_HAT_present
 from pioreactor.hardware import is_heating_pcb_present
 from pioreactor.hardware import voltage_in_aux
@@ -132,6 +132,8 @@ def test_all_positive_correlations_between_pds_and_leds(
     # we exit before moving to the high intensities.
     INTENSITIES = [10, 70, 60, 40, 30, 20, 50, 80]
 
+    pd_channels_available = list(get_available_pd_channels())
+
     results: dict[tuple[LedChannel, PdChannel], float] = {}
 
     ir_led_channel = cast(LedChannel, config["leds_reverse"][IR_keyword])
@@ -146,7 +148,7 @@ def test_all_positive_correlations_between_pds_and_leds(
     )
 
     adc_reader = ADCReader(
-        channels=ALL_PD_CHANNELS, dynamic_gain=False, fake_data=is_testing_env(), penalizer=0.0
+        channels=pd_channels_available, dynamic_gain=False, fake_data=is_testing_env(), penalizer=0.0
     )
     adc_reader.add_external_logger(logger)
     adc_reader.tune_adc()
@@ -159,7 +161,7 @@ def test_all_positive_correlations_between_pds_and_leds(
         # for led_channel in ALL_LED_CHANNELS: # we use to check all LED channels, but most users don't need to check all, also https://github.com/Pioreactor/pioreactor/issues/445
         for led_channel in [ir_led_channel]:  # fast to just check IR
             varying_intensity_results: dict[PdChannel, list[float]] = {
-                pd_channel: [] for pd_channel in ALL_PD_CHANNELS
+                pd_channel: [] for pd_channel in pd_channels_available
             }
             for intensity in INTENSITIES:
                 # turn on the LED to set intensity
@@ -189,7 +191,7 @@ def test_all_positive_correlations_between_pds_and_leds(
                 sleep(intensity / 100)  # let it cool down in proportion to the intensity
 
                 # Add to accumulating list
-                for pd_channel in ALL_PD_CHANNELS:
+                for pd_channel in pd_channels_available:
                     varying_intensity_results[pd_channel].append(avg_reading[pd_channel].reading)
 
                     if avg_reading[pd_channel].reading >= 2.0:
@@ -199,7 +201,7 @@ def test_all_positive_correlations_between_pds_and_leds(
                         )
 
         # compute the linear correlation between the intensities and observed PD measurements
-        for pd_channel in ALL_PD_CHANNELS:
+        for pd_channel in pd_channels_available:
             measured_correlation = round(correlation(INTENSITIES, varying_intensity_results[pd_channel]), 2)
             results[(led_channel, pd_channel)] = measured_correlation
             logger.debug(f"Corr({led_channel}, {pd_channel}) = {measured_correlation}")
@@ -248,8 +250,9 @@ def test_all_positive_correlations_between_pds_and_leds(
 def test_ambient_light_interference(managed_state, logger: CustomLogger, unit: str, experiment: str) -> None:
     # test ambient light IR interference. With all LEDs off, and the Pioreactor not in a sunny room, we should see near 0 light.
     assert is_HAT_present(), "HAT is not detected."
+    pd_channels_available = list(get_available_pd_channels())
     adc_reader = ADCReader(
-        channels=ALL_PD_CHANNELS,
+        channels=pd_channels_available,
         dynamic_gain=False,
         fake_data=is_testing_env(),
     )
@@ -267,10 +270,10 @@ def test_ambient_light_interference(managed_state, logger: CustomLogger, unit: s
     readings = adc_reader.take_reading()
 
     if hardware_version_info < (1, 1):
-        assert all([readings[pd_channel].reading < 0.005 for pd_channel in ALL_PD_CHANNELS]), readings
+        assert all([readings[pd_channel].reading < 0.005 for pd_channel in pd_channels_available]), readings
     else:
         assert all(
-            [readings[pd_channel].reading < 0.080 for pd_channel in ALL_PD_CHANNELS]
+            [readings[pd_channel].reading < 0.080 for pd_channel in pd_channels_available]
         ), f"Dark signal too high: {readings=}"  # saw a 0.072 blank during testing
 
 
