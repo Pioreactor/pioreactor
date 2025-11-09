@@ -167,10 +167,10 @@ class ADCReader(LoggerMixin):
                     adcs[c] = curried()
                 except (OSError, exc.HardwareError) as e:
                     self.logger.error(
-                        f"Failed to initialize ADC for pd{c}. Check device {curried.adc_driver} on i2c channel {curried.i2c_address}."
+                        f"Failed to initialize ADC for pd{c}. Check device {curried.adc_driver} on i2c channel 0x{curried.i2c_address:02x}."
                     )
                     raise exc.HardwareNotFoundError(
-                        f"Failed to initialize ADC for pd{c}. Check device {curried.adc_driver} on i2c channel {curried.i2c_address}."
+                        f"Failed to initialize ADC for pd{c}. Check device {curried.adc_driver} on i2c channel 0x{curried.i2c_address:02x}."
                     ) from e
                 except Exception as e:
                     self.logger.error(f"Unexpected error initializing ADC for pd{c}.")
@@ -1271,6 +1271,9 @@ class ODReader(BackgroundJob):
 
 
 def find_ir_led_reference(channels: dict[str, str | None]) -> Optional[pt.PdChannel]:
+    if sum(v == "REF" for v in channels.values()) > 1:
+        raise ValueError('"REF" occurs more than once')
+
     for channel, angle in channels.items():
         if angle != REF_keyword:
             continue

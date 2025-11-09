@@ -166,61 +166,67 @@ def am_I_a_worker() -> bool:
 
 
 @cache
-def get_pioreactor_model() -> Model:
+def get_pioreactor_model(unit_name: pt.Unit | None = None) -> Model:
+    """
+    Return the Pioreactor model for a specific unit. Defaults to the local unit.
+    """
     from pioreactor.models import get_registered_models
 
-    name = _get_pioreactor_model_name()
-    version = _get_pioreactor_model_version()
+    target_unit_name = unit_name or get_unit_name()
+
+    name = _get_pioreactor_model_name(target_unit_name)
+    version = _get_pioreactor_model_version(target_unit_name)
 
     if name is None or version is None:
         raise NoModelAssignedError("Unknown Pioreactor model: name and version not set yet.")
 
-    assert name is not None
-    assert version is not None
     try:
         return get_registered_models()[(name, version)]
     except KeyError:
         raise UnknownModelAssignedError(f"Unknown Pioreactor model {name} v{version}.")
 
 
-def _get_pioreactor_model_version() -> str | None:
+def _get_pioreactor_model_version(unit_name: pt.Unit) -> str | None:
     # pioreactor model version
-    if os.environ.get("MODEL_VERSION"):
+    local_unit_name = get_unit_name()
+
+    if unit_name == local_unit_name and os.environ.get("MODEL_VERSION"):
         return os.environ["MODEL_VERSION"]
 
     from pioreactor.pubsub import get_from_leader
 
     try:
-        result = get_from_leader(f"/api/workers/{get_unit_name()}")
+        result = get_from_leader(f"/api/workers/{unit_name}")
         result.raise_for_status()
         data = result.json()
         return data["model_version"]
     except mureq.HTTPErrorStatus as e:
         if e.status_code == 404:
-            raise NoWorkerFoundError(f"Worker {get_unit_name()} is not present in leader's inventory")
-        else:
-            raise e
+            raise NoWorkerFoundError(f"Worker {unit_name} is not present in leader's inventory")
+        raise e
     except mureq.HTTPException as e:
         raise e
 
 
-def _get_pioreactor_model_name() -> str | None:
+def _get_pioreactor_model_name(unit_name: pt.Unit) -> str | None:
     # pioreactor model name
-    if model := os.environ.get("MODEL_NAME"):
+    local_unit_name = get_unit_name()
+
+    if unit_name == local_unit_name and (model := os.environ.get("MODEL_NAME")):
         return model
-    elif is_testing_env():
+    elif unit_name == local_unit_name and is_testing_env():
         return "pioreactor_40ml"
 
     from pioreactor.pubsub import get_from_leader
 
     try:
-        result = get_from_leader(f"/api/workers/{get_unit_name()}")
+        result = get_from_leader(f"/api/workers/{unit_name}")
         result.raise_for_status()
         data = result.json()
         return data["model_name"]
     except mureq.HTTPErrorStatus as e:
         if e.status_code == 404:
-            raise NoWorkerFoundError(f"Worker {get_unit_name()} is not found.")
+            raise NoWorkerFoundError(f"Worker {unit_name} is not found.")
         else:
             raise e
     except mureq.HTTPException as e:

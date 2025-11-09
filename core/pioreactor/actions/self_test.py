@@ -39,7 +39,6 @@ from pioreactor.pubsub import Client
 from pioreactor.pubsub import post_into_leader
 from pioreactor.pubsub import prune_retained_messages
 from pioreactor.types import LedChannel
-from pioreactor.types import PdAngle
 from pioreactor.types import PdChannel
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistent_storage
@@ -281,8 +280,10 @@ def test_REF_is_lower_than_0_dot_256_volts(
     managed_state, logger: CustomLogger, unit: str, experiment: str
 ) -> None:
     assert is_HAT_present(), "HAT is not detected."
+    pd_channels = config["od_config.photodiode_channel"]
+    reference_channel = cast(PdChannel, next((k for k, v in pd_channels.items() if v == REF_keyword), None))
+    assert reference_channel is not None, "REF required for this self-test"
 
-    reference_channel = cast(PdChannel, config.get("od_config.photodiode_channel_reverse", REF_keyword))
     ir_channel = cast(LedChannel, config["leds_reverse"][IR_keyword])
     config_ir_intensity = config.get("od_reading.config", "ir_led_intensity")
     if config_ir_intensity == "auto":
@@ -331,37 +332,33 @@ def test_PD_is_near_0_volts_for_blank(
     managed_state, logger: CustomLogger, unit: str, experiment: str
 ) -> None:
     assert is_HAT_present(), "HAT is not detected."
-    reference_channel = cast(PdChannel, config.get("od_config.photodiode_channel_reverse", REF_keyword))
 
-    if reference_channel == "1":
-        signal_channel = cast(PdChannel, "2")
-    else:
-        signal_channel = cast(PdChannel, "1")
+    pd_channels = config["od_config.photodiode_channel"]
+    signal_pd_channels = {k: v for k, v in pd_channels.items() if v != "REF"}
 
-    angle = cast(PdAngle, config.get("od_config.photodiode_channel", signal_channel, fallback=None))
+    for channel, angle in signal_pd_channels.items():
+        assert angle in ["90", "45", "135"], f"Angle {angle} not valid for this test."
 
-    assert angle in ["90", "45", "135"], f"Angle {angle} not valid for this test."
+        signals = []
 
-    signals = []
+        with start_od_reading(
+            channels={channel: angle},
+            interval=1.15,
+            unit=unit,
+            fake_data=is_testing_env(),
+            experiment=experiment,
+            calibration=False,
+        ) as od_stream:
+            for i, reading in enumerate(od_stream, start=1):
+                signals.append(reading.ods[channel].od)
 
-    with start_od_reading(
-        channels=config["od_config.photodiode_channel"],
-        interval=1.15,
-        unit=unit,
-        fake_data=is_testing_env(),
-        experiment=experiment,
-        calibration=False,
-    ) as od_stream:
-        for i, reading in enumerate(od_stream, start=1):
-            signals.append(reading.ods[signal_channel].od)
+                if i == 6:
+                    break
 
-            if i == 6:
-                break
+        mean_signal = mean(signals)
 
-    mean_signal = mean(signals)
-
-    THRESHOLD = 0.035
-    assert mean_signal <= THRESHOLD, f"Blank signal too high: {mean_signal=} > {THRESHOLD}"
+        THRESHOLD = 0.035
+        assert mean_signal <= THRESHOLD, f"Blank signal too high: {mean_signal=} > {THRESHOLD}"
 
 
 def test_detect_heating_pcb(managed_state, logger: CustomLogger, unit: str, experiment: str) -> None:
