@@ -65,16 +65,20 @@ def test_REF_is_in_correct_position(managed_state, logger: CustomLogger, unit: s
 
     assert is_HAT_present(), "Hat is not detected."
 
-    reference_channel = cast(PdChannel, config.get("od_config.photodiode_channel_reverse", REF_keyword))
-    signal_channel = "2" if reference_channel == "1" else "1"
+    pd_channels = config["od_config.photodiode_channel"]
+    reference_channel = cast(PdChannel, next((k for k, v in pd_channels.items() if v == REF_keyword), None))
+    assert reference_channel is not None, "REF required for this self-test"
 
-    signal1 = []
-    signal2 = []
+    signal_channels = [channel for channel, angle in pd_channels.items() if angle != REF_keyword]
+
+    test_channels = {str(channel): "90" for channel, angle in pd_channels.items()}
+
+    signals: dict[PdChannel, list[float]] = {cast(PdChannel, channel): [] for channel in test_channels}
 
     with stirring.start_stirring(
         target_rpm=1250, unit=unit, experiment=experiment, enable_dodging_od=False
     ) as st, start_od_reading(
-        channels={"1": "90", "2": "90"},
+        channels=test_channels,
         interval=1.15,
         unit=unit,
         fake_data=is_testing_env(),
@@ -84,8 +88,8 @@ def test_REF_is_in_correct_position(managed_state, logger: CustomLogger, unit: s
         st.block_until_rpm_is_close_to_target(abs_tolerance=150, timeout=10)
 
         for i, reading in enumerate(od_stream, start=1):
-            signal1.append(reading.ods["1"].od)
-            signal2.append(reading.ods["2"].od)
+            for channel in signals:
+                signals[channel].append(reading.ods[channel].od)
 
             if i % 5 == 0 and i % 2 == 0:
                 st.set_state("ready")
@@ -95,16 +99,20 @@ def test_REF_is_in_correct_position(managed_state, logger: CustomLogger, unit: s
             if i == 25:
                 break
 
-    logger.debug(f"{signal1=}, {signal2=}")
+    logger.debug(f"{signals=}")
 
     norm_variance_per_channel = {
-        "1": variance(signal1) / trimmed_mean(signal1) ** 2,
-        "2": variance(signal2) / trimmed_mean(signal2) ** 2,
+        channel: variance(readings) / trimmed_mean(readings) ** 2 for channel, readings in signals.items()
     }
 
     THRESHOLD = 1.0
+    ref_variance = norm_variance_per_channel[reference_channel]
+    signal_variances = {channel: norm_variance_per_channel[channel] for channel in signal_channels}
+    lowest_signal_channel = min(signal_variances, key=signal_variances.__getitem__)
+    lowest_signal_variance = signal_variances[lowest_signal_channel]
+
     assert (
-        THRESHOLD * norm_variance_per_channel[reference_channel] < norm_variance_per_channel[signal_channel]
+        THRESHOLD * ref_variance < lowest_signal_variance
     ), f"REF measured higher variance than SIGNAL. {reference_channel=}, {norm_variance_per_channel=}"
 
 

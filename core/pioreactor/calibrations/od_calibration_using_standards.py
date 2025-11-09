@@ -24,6 +24,7 @@ from msgspec.json import encode
 from msgspec.json import format
 from pioreactor import structs
 from pioreactor import types as pt
+from pioreactor.background_jobs.od_reading import REF_keyword
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.stirring import start_stirring as stirring
 from pioreactor.background_jobs.stirring import Stirrer
@@ -96,7 +97,10 @@ def get_metadata_from_user() -> tuple[pt.PdAngle, pt.PdChannel]:
         )
         raise click.Abort()
 
-    ref_channel = config["od_config.photodiode_channel_reverse"]["REF"]
+    pd_channels = config["od_config.photodiode_channel"]
+    ref_channel = next((k for k, v in pd_channels.items() if v == REF_keyword), None)
+    if ref_channel is None:
+        raise ValueError("REF required for this calibration")
     pd_channel = cast(pt.PdChannel, "1" if ref_channel == "2" else "2")
 
     confirm(

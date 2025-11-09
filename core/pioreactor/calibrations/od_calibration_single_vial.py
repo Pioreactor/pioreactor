@@ -18,6 +18,7 @@ from msgspec.json import encode
 from msgspec.json import format
 from pioreactor import structs
 from pioreactor import types as pt
+from pioreactor.background_jobs.od_reading import REF_keyword
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.stirring import start_stirring as stirring
 from pioreactor.background_jobs.stirring import Stirrer
@@ -130,7 +131,10 @@ def get_metadata_from_user() -> tuple[pt.CalibratedOD, pt.CalibratedOD, pt.mL, p
     echo(f"You will need at least {number_of_points * dilution_amount + 10}mL of media available.")
     confirm(green("Continue?"), abort=True, default=True)
 
-    if "REF" not in config["od_config.photodiode_channel_reverse"]:
+    pd_channels = config["od_config.photodiode_channel"]
+    ref_channel = next((k for k, v in pd_channels.items() if v == REF_keyword), None)
+
+    if ref_channel is None:
         echo(
             red(
                 "REF required for OD calibration. Set an input to REF in [od_config.photodiode_channel] in your config."
@@ -139,8 +143,7 @@ def get_metadata_from_user() -> tuple[pt.CalibratedOD, pt.CalibratedOD, pt.mL, p
         raise click.Abort()
         # technically it's not required? we just need a specific PD channel to calibrate from.
 
-    ref_channel = config["od_config.photodiode_channel_reverse"]["REF"]
-    pd_channel = cast(pt.PdChannel, "1" if ref_channel == "2" else "2")
+    pd_channel = cast(pt.PdChannel, "1" if ref_channel == "2" else "2")  # TODO: fix for dr
 
     confirm(
         green(

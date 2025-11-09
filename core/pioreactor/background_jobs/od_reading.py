@@ -46,6 +46,7 @@ import os
 import random
 import threading
 import types
+from collections.abc import Mapping
 from time import sleep
 from time import time
 from typing import Callable
@@ -1270,7 +1271,7 @@ class ODReader(BackgroundJob):
         assert False  # we never reach here - this is to silence mypy
 
 
-def find_ir_led_reference(channels: dict[str, str | None]) -> Optional[pt.PdChannel]:
+def find_ir_led_reference(channels: Mapping[str, str | None]) -> Optional[pt.PdChannel]:
     if sum(v == "REF" for v in channels.values()) > 1:
         raise ValueError('"REF" occurs more than once')
 
@@ -1285,7 +1286,7 @@ def find_ir_led_reference(channels: dict[str, str | None]) -> Optional[pt.PdChan
 
 
 def create_channel_angle_map(
-    channels: dict[str, str | None],
+    channels: Mapping[str, str | None],
 ) -> dict[pt.PdChannel, pt.PdAngle]:
     channel_angle_map: dict[pt.PdChannel, pt.PdAngle] = {}
 
@@ -1302,7 +1303,7 @@ def create_channel_angle_map(
 
 
 def start_od_reading(
-    channels: dict[str, str | None],
+    channels: Mapping[str, str | None],
     interval: float | None = None,
     fake_data: bool = False,
     unit: pt.Unit | None = None,

@@ -153,8 +153,6 @@ def get_config() -> ConfigParserMod:
         waste=3
         media=4
 
-    and `od_config.photodiode_channel_reverse`
-
     """
     config = ConfigParserMod(strict=False)
     from pioreactor.whoami import is_testing_env
@@ -198,8 +196,6 @@ def get_config() -> ConfigParserMod:
         config["leds_reverse"] = config.invert_section("leds")
     if "PWM" in config:
         config["PWM_reverse"] = config.invert_section("PWM")
-    if "od_config.photodiode_channel" in config:
-        config["od_config.photodiode_channel_reverse"] = config.invert_section("od_config.photodiode_channel")
 
     # add this for hostname resolution using config.ini, see pioreactor.utils.networking.resolve_to_address
     if "cluster.addresses" not in config:
