@@ -395,7 +395,6 @@ def import_dot_pioreactor_archive(uploaded_zip_path: str) -> bool:
             raise
 
     if whoami.is_testing_env():
-        archive_path.unlink(missing_ok=True)
         shutil.rmtree(extraction_root, ignore_errors=True)
         log("debug", "Testing environment detected, skipping import.")
         return True
@@ -435,7 +434,6 @@ def import_dot_pioreactor_archive(uploaded_zip_path: str) -> bool:
                 pass
             raise RuntimeError("Failed to write new DOT_PIOREACTOR contents") from exc
     finally:
-        archive_path.unlink(missing_ok=True)
         shutil.rmtree(extraction_root, ignore_errors=True)
 
     _apply_ownership(base_dir, "pioreactor", "www-data")
