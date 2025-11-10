@@ -1,14 +1,21 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import grp
+import json
 import logging
 import os
+import pwd
+import shutil
+import zipfile
+from pathlib import Path
 from shlex import join
 from subprocess import check_call
 from subprocess import DEVNULL
 from subprocess import Popen
 from subprocess import run
 from subprocess import TimeoutExpired
+from tempfile import mkdtemp
 from time import sleep
 from typing import Any
 
@@ -24,7 +31,9 @@ from pioreactor.pubsub import get_from
 from pioreactor.pubsub import patch_into
 from pioreactor.pubsub import post_into
 from pioreactor.utils.networking import resolve_to_address
+from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.web.config import huey
+from pioreactor.whoami import get_unit_name
 
 
 logger = create_logger(
@@ -58,6 +67,72 @@ ALLOWED_ENV = (
     "GLOBAL_CONFIG",
     "LOCAL_CONFIG",
 )
+
+
+def _safe_zip_members(members: list[zipfile.ZipInfo]) -> None:
+    for member in members:
+        filename = member.filename
+        if filename.startswith("/"):
+            raise ValueError("Archive contains absolute paths, aborting import.")
+        path = Path(filename)
+        if ".." in path.parts:
+            raise ValueError("Archive contains path traversal, aborting import.")
+        is_symlink = member.external_attr >> 16 & 0o120000 == 0o120000
+        if is_symlink:
+            raise ValueError("Archive contains symbolic links, aborting import.")
+
+
+def _apply_ownership(target: Path, user: str, group: str) -> None:
+    try:
+        uid = pwd.getpwnam(user).pw_uid
+        gid = grp.getgrnam(group).gr_gid
+    except KeyError:
+        logger.error(f"Unable to resolve ownership for {user}:{group}")
+        return
+
+    for root, dirs, files in os.walk(target):
+        try:
+            os.chown(root, uid, gid)
+        except PermissionError:
+            logger.error(f"Failed to set ownership on {root}")
+        for name in dirs:
+            path = os.path.join(root, name)
+            try:
+                os.chown(path, uid, gid)
+            except PermissionError:
+                logger.error(f"Failed to set ownership on {path}")
+        for name in files:
+            path = os.path.join(root, name)
+            try:
+                os.chown(path, uid, gid)
+            except PermissionError:
+                logger.error(f"Failed to set ownership on {path}")
+
+
+def validate_dot_pioreactor_archive(
+    archive_path: str | Path, expected_hostname: str
+) -> dict[str, Any] | None:
+    """
+    Performs validation on a zipped DOT_PIOREACTOR archive.
+    Returns parsed metadata (if available) after enforcing hostname constraints.
+    Raises ValueError on validation failures.
+    """
+    path = Path(archive_path)
+    with zipfile.ZipFile(path, "r") as zf:
+        _safe_zip_members(zf.infolist())
+        try:
+            metadata_bytes = zf.read("pioreactor_export_metadata.json")
+        except KeyError:
+            return None
+        try:
+            metadata = json.loads(metadata_bytes.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError("Archive metadata invalid") from exc
+
+        exported_name = metadata.get("name")
+        if exported_name and exported_name != expected_hostname:
+            raise ValueError(f"Archive prepared for {exported_name}, cannot import into {expected_hostname}")
+        return metadata
 
 
 def filter_to_allowed_env(env: dict):
@@ -294,6 +369,69 @@ def sync_clock() -> bool:
         return True
     r = run(["sudo", "chronyc", "-a", "makestep"])
     return r.returncode == 0
+
+
+@huey.task()
+def import_dot_pioreactor_archive(uploaded_zip_path: str) -> bool:
+    hostname = get_unit_name()
+    archive_path = Path(uploaded_zip_path)
+    base_dir = Path(os.environ["DOT_PIOREACTOR"]).resolve()
+    extraction_root = Path(mkdtemp(prefix="dot_pioreactor_import_"))
+    backup_dir = Path("/tmp") / f"{hostname}_dot_pioreactor_backup_{current_utc_timestamp()}"
+
+    def log(level: str, message: str) -> None:
+        getattr(logger, level.lower())(message)
+
+    def restore_from_backup() -> None:
+        try:
+            shutil.rmtree(base_dir, ignore_errors=True)
+            base_dir.mkdir(parents=True, exist_ok=True)
+            if backup_dir.exists():
+                for item in backup_dir.iterdir():
+                    shutil.move(str(item), base_dir / item.name)
+            log("info", "Restored DOT_PIOREACTOR contents from backup.")
+        except Exception as exc:  # pragma: no cover - best-effort logging
+            log("error", f"Failed to restore DOT_PIOREACTOR from backup: {exc}")
+            raise
+
+    if whoami.is_testing_env():
+        archive_path.unlink(missing_ok=True)
+        shutil.rmtree(extraction_root, ignore_errors=True)
+        log("debug", "Testing environment detected, skipping import.")
+        return True
+
+    try:
+        try:
+            backup_dir.mkdir(parents=True, exist_ok=False)
+            if base_dir.exists():
+                for item in base_dir.iterdir():
+                    shutil.move(str(item), backup_dir / item.name)
+            log("info", f"Backup completed at {backup_dir}")
+        except Exception as exc:
+            log("error", f"Failed to backup existing DOT_PIOREACTOR: {exc}")
+            raise RuntimeError("Failed to backup existing DOT_PIOREACTOR") from exc
+
+        try:
+            base_dir.mkdir(parents=True, exist_ok=True)
+            for item in extraction_root.iterdir():
+                shutil.move(str(item), base_dir / item.name)
+            log("info", "DOT_PIOREACTOR contents moved into place")
+        except Exception as exc:
+            log("error", f"Failed to write new DOT_PIOREACTOR contents: {exc}")
+            try:
+                restore_from_backup()
+            except Exception:
+                pass
+            raise RuntimeError("Failed to write new DOT_PIOREACTOR contents") from exc
+    finally:
+        archive_path.unlink(missing_ok=True)
+        shutil.rmtree(extraction_root, ignore_errors=True)
+
+    _apply_ownership(base_dir, "pioreactor", "www-data")
+    reboot_task = reboot(wait=2)
+    log("info", f"Reboot task enqueued: {reboot_task}")
+    log("info", "Import finished successfully.")
+    return True
 
 
 @huey.task()

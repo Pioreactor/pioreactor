@@ -1,15 +1,11 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import grp
 import json
 import os
-import pwd
-import shutil
 import zipfile
 from io import BytesIO
 from pathlib import Path
-from tempfile import mkdtemp
 from tempfile import NamedTemporaryFile
 from time import sleep
 
@@ -68,52 +64,6 @@ def health_check() -> ResponseReturnValue:
         "utc_time": current_utc_timestamp(),
     }
     return attach_cache_control(jsonify(payload), max_age=0)
-
-
-METADATA_FILENAME = "pioreactor_export_metadata.json"
-
-
-def _safe_zip_members(members: list[zipfile.ZipInfo]) -> None:
-    for member in members:
-        filename = member.filename
-        if filename.startswith("/"):
-            raise ValueError("Archive contains absolute paths, aborting import.")
-        path = Path(filename)
-        if ".." in path.parts:
-            raise ValueError("Archive contains path traversal, aborting import.")
-        # prevent zip entries that act as symlinks
-        is_symlink = member.external_attr >> 16 & 0o120000 == 0o120000
-        if is_symlink:
-            raise ValueError("Archive contains symbolic links, aborting import.")
-
-
-def _apply_ownership(target: Path, user: str, group: str) -> None:
-    try:
-        uid = pwd.getpwnam(user).pw_uid
-        gid = grp.getgrnam(group).gr_gid
-    except KeyError:
-        publish_to_error_log(
-            f"Unable to resolve ownership for {user}:{group}", "import_zipped_dot_pioreactor"
-        )
-        return
-
-    for root, dirs, files in os.walk(target):
-        try:
-            os.chown(root, uid, gid)
-        except PermissionError:
-            publish_to_error_log(f"Failed to set ownership on {root}", "import_zipped_dot_pioreactor")
-        for name in dirs:
-            path = os.path.join(root, name)
-            try:
-                os.chown(path, uid, gid)
-            except PermissionError:
-                publish_to_error_log(f"Failed to set ownership on {path}", "import_zipped_dot_pioreactor")
-        for name in files:
-            path = os.path.join(root, name)
-            try:
-                os.chown(path, uid, gid)
-            except PermissionError:
-                publish_to_error_log(f"Failed to set ownership on {path}", "import_zipped_dot_pioreactor")
 
 
 # Endpoint to check the status of a background task. unit_api is required to ping workers (who only expose unit_api)
@@ -809,7 +759,7 @@ def get_entire_dot_pioreactor_as_zip() -> ResponseReturnValue:
                 "app_version": __version__,
                 "exported_at_utc": exported_at,
             }
-            zf.writestr(METADATA_FILENAME, json.dumps(metadata))
+            zf.writestr("pioreactor_export_metadata.json", json.dumps(metadata))
 
         @after_this_request
         def cleanup_temp_file(response: Response) -> Response:
@@ -839,140 +789,65 @@ def import_dot_pioreactor_from_zip() -> ResponseReturnValue:
 
     disallow_file = Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_FILE_SYSTEM"
     if os.path.isfile(disallow_file):
-        publish_to_log(f"Import blocked because {disallow_file} is present", task_name, "WARNING")
+        publish_to_error_log(f"Import blocked because {disallow_file} is present", task_name)
         abort(403, "DISALLOW_UI_FILE_SYSTEM is present")
 
     uploaded = request.files.get("archive")
     if uploaded is None or uploaded.filename == "":
-        publish_to_log("No archive uploaded in import request", task_name, "WARNING")
+        publish_to_error_log("No archive uploaded in import request", task_name)
         abort(400, "No archive uploaded")
 
     tmp = NamedTemporaryFile(prefix="import_dot_pioreactor_", suffix=".zip", delete=False)
     tmp_path = Path(tmp.name)
-    publish_to_log(f"Saving uploaded archive to temporary file {tmp_path}", task_name, "INFO")
+    publish_to_log(f"Saving uploaded archive to temporary file {tmp_path}", task_name, "DEBUG")
     uploaded.save(tmp_path)
     tmp.close()
 
-    base_dir = Path(os.environ["DOT_PIOREACTOR"]).resolve()
-    publish_to_log(f"Resolved DOT_PIOREACTOR base directory to {base_dir}", task_name, "INFO")
-
-    extraction_root = Path(mkdtemp(prefix="dot_pioreactor_import_"))
-    publish_to_log(f"Created extraction directory {extraction_root}", task_name, "INFO")
-
     try:
-        with zipfile.ZipFile(tmp_path, "r") as zf:
-            publish_to_log("Opened uploaded archive successfully", task_name, "INFO")
-            try:
-                _safe_zip_members(zf.infolist())
-            except ValueError as exc:
-                publish_to_log(f"Zip validation failed: {exc}", task_name, "WARNING")
-                abort(400, str(exc))
-
-            publish_to_log("Zip members validated", task_name, "INFO")
-
-            metadata = None
-            exported_name = None
-
-            try:
-                metadata_bytes = zf.read(METADATA_FILENAME)
-            except KeyError:
-                publish_to_log(
-                    "Archive missing metadata file, assuming legacy export without host validation",
-                    task_name,
-                    "WARNING",
-                )
-            else:
-                try:
-                    metadata = json.loads(metadata_bytes.decode("utf-8"))
-                except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-                    publish_to_log(f"Failed to parse archive metadata: {exc}", task_name, "WARNING")
-                    abort(400, "Archive metadata invalid")
-                assert metadata is not None
-                exported_name = metadata["name"]
-                publish_to_log(
-                    f"Loaded archive metadata for unit {exported_name or 'unknown'}",
-                    task_name,
-                    "INFO",
-                )
-
-            if exported_name and exported_name != HOSTNAME:
-                publish_to_log(
-                    f"Archive prepared for {exported_name}, refusing import for {HOSTNAME}",
-                    task_name,
-                    "WARNING",
-                )
-                abort(
-                    400,
-                    f"Archive prepared for {exported_name}, cannot import into {HOSTNAME}",
-                )
-
-            zf.extractall(extraction_root)
-            publish_to_log(f"Extracted archive into {extraction_root}", task_name, "INFO")
+        metadata = tasks.validate_dot_pioreactor_archive(tmp_path, HOSTNAME)
+    except ValueError as exc:
+        publish_to_error_log(f"Zip validation failed: {exc}", task_name)
+        tmp_path.unlink(missing_ok=True)
+        abort(400, str(exc))
     except zipfile.BadZipFile:
-        publish_to_log("Uploaded file is not a valid zip archive", task_name, "WARNING")
+        publish_to_error_log("Uploaded file is not a valid zip archive", task_name)
+        tmp_path.unlink(missing_ok=True)
         abort(400, "Uploaded file is not a valid zip archive")
-    finally:
-        try:
-            os.unlink(tmp_path)
-            publish_to_log(f"Removed temporary upload {tmp_path}", task_name, "INFO")
-        except OSError:
-            publish_to_log(f"Failed to remove temporary upload {tmp_path}", task_name, "WARNING")
-            pass
+    except Exception as exc:
+        publish_to_error_log(f"Failed to inspect uploaded archive: {exc}", task_name)
+        tmp_path.unlink(missing_ok=True)
+        abort(500, "Failed to inspect uploaded archive")
 
-    backup_dir = Path("/tmp") / f"{HOSTNAME}_dot_pioreactor_backup_{current_utc_timestamp()}"
-    publish_to_log(f"Backing up existing DOT_PIOREACTOR contents to {backup_dir}", task_name, "INFO")
+    if metadata is None:
+        publish_to_log(
+            "Archive missing metadata file, assuming legacy export without host validation",
+            task_name,
+            "DEBUG",
+        )
+    else:
+        exported_name = metadata.get("name")
+        publish_to_log(
+            f"Loaded archive metadata for unit {exported_name or 'unknown'}",
+            task_name,
+            "DEBUG",
+        )
+
+    base_dir = Path(os.environ["DOT_PIOREACTOR"]).resolve()
+    publish_to_log(f"Resolved DOT_PIOREACTOR base directory to {base_dir}", task_name, "DEBUG")
 
     try:
-        backup_dir.mkdir(parents=True, exist_ok=False)
-        for item in base_dir.iterdir():
-            shutil.move(str(item), backup_dir / item.name)
-        publish_to_log(f"Backup completed at {backup_dir}", task_name, "INFO")
-    except Exception as exc:
-        shutil.rmtree(extraction_root, ignore_errors=True)
-        publish_to_error_log(f"Failed to backup existing DOT_PIOREACTOR: {exc}", task_name)
-        abort(500, f"Failed to backup existing DOT_PIOREACTOR: {exc}")
+        task = tasks.import_dot_pioreactor_archive(str(tmp_path))
+    except HueyException as exc:
+        publish_to_error_log(f"Failed to enqueue import task: {exc}", task_name)
+        tmp_path.unlink(missing_ok=True)
+        abort(500, "Failed to enqueue import task")
+    except Exception as exc:  # pragma: no cover - unexpected failure
+        publish_to_error_log(f"Failed to enqueue import task: {exc}", task_name)
+        tmp_path.unlink(missing_ok=True)
+        abort(500, "Failed to enqueue import task")
 
-    try:
-        base_dir.mkdir(parents=True, exist_ok=True)
-        publish_to_log("Restoring DOT_PIOREACTOR contents from extracted archive", task_name, "INFO")
-        for item in extraction_root.iterdir():
-            shutil.move(str(item), base_dir / item.name)
-        publish_to_log("DOT_PIOREACTOR contents moved into place", task_name, "INFO")
-    except Exception as exc:
-        # Attempt to roll back
-        shutil.rmtree(base_dir, ignore_errors=True)
-        try:
-            base_dir.mkdir(parents=True, exist_ok=True)
-            for leftover in list(base_dir.iterdir()):
-                if leftover.is_dir():
-                    shutil.rmtree(leftover, ignore_errors=True)
-                else:
-                    try:
-                        leftover.unlink()
-                    except Exception:
-                        shutil.rmtree(leftover, ignore_errors=True)
-            for item in backup_dir.iterdir():
-                shutil.move(str(item), base_dir / item.name)
-        except Exception:
-            publish_to_error_log("Failed to restore DOT_PIOREACTOR from backup", task_name)
-        shutil.rmtree(extraction_root, ignore_errors=True)
-        abort(500, f"Failed to write new DOT_PIOREACTOR contents: {exc}")
-    finally:
-        shutil.rmtree(extraction_root, ignore_errors=True)
-        publish_to_log(f"Cleaned up extraction directory {extraction_root}", task_name, "INFO")
-
-    _apply_ownership(base_dir, "pioreactor", "www-data")
-
-    try:
-        publish_to_log("Submitting reboot task after import", task_name, "INFO")
-        task = tasks.reboot(wait=2)
-        publish_to_log(f"Reboot task enqueued: {task}", task_name, "INFO")
-    except Exception as exc:
-        publish_to_error_log(str(exc), task_name)
-        abort(500, "Failed to initiate reboot")
-
-    publish_to_log("Import finished successfully.", task_name, "INFO")
-    return Response(status=202)
+    publish_to_log("Import task submitted to Huey", task_name, "DEBUG")
+    return create_task_response(task)
 
 
 @unit_api_bp.route("/calibrations/<device>", methods=["GET"])

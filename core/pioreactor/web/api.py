@@ -1417,7 +1417,11 @@ def import_dot_pioreactor_archive(pioreactor_unit: str) -> ResponseReturnValue:
         publish_to_error_log(str(exc), "import_zipped_dot_pioreactor")
         abort(502, f"Importing system files failed on {pioreactor_unit}. See system logs.")
 
-    return Response(status=202)
+    return Response(
+        response.content,
+        status=response.status_code,
+        content_type=response.headers.get("Content-Type", "application/json"),
+    )
 
 
 @api_bp.route("/workers/<pioreactor_unit>/calibrations/<device>", methods=["GET"])

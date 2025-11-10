@@ -287,23 +287,20 @@ class Monitor(LongRunningBackgroundJob):
 
         from pathlib import Path
 
+        # some users have the wrong permissions on their .pioreactor/storage folder. www-data is needed to write to the folder.
         storage_path = Path(config.get("storage", "database")).parent
+
+        if storage_path.owner() != "pioreactor" and storage_path.group() != "www-data":
+            self.logger.warning("Pioreactor storage folder has the wrong permissions.")
 
         for file in [
             storage_path / "pioreactor.sqlite",
-            # shm and wal sometimes aren't present at when monitor starts - removed too many false positives
-            # storage_path / "pioreactor.sqlite-shm",
-            # storage_path / "pioreactor.sqlite-wal",
         ]:
             if file.exists() and (file.owner() != "pioreactor" or file.group() != "www-data"):
                 self.logger.warning(
-                    f"Pioreactor sqlite database file {file} has the wrong permissions / does not exist."
+                    f"Pioreactor sqlite database file {file} has the wrong permissions or does not exist."
                 )
                 break
-
-        # some users have the wrong permissions on their .pioreactor/storage folder. www-data is needed to write to the folder.
-        if storage_path.owner() != "pioreactor" and storage_path.group() != "www-data":
-            self.logger.warning("Pioreactor storage folder has the wrong permissions.")
 
         return
 
