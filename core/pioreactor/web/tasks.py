@@ -7,6 +7,7 @@ import logging
 import os
 import pwd
 import shutil
+import stat
 import zipfile
 from pathlib import Path
 from shlex import join
@@ -91,22 +92,33 @@ def _apply_ownership(target: Path, user: str, group: str) -> None:
         return
 
     for root, dirs, files in os.walk(target):
-        try:
-            os.chown(root, uid, gid)
-        except PermissionError:
-            logger.error(f"Failed to set ownership on {root}")
+        _chown_directory(Path(root), uid, gid)
         for name in dirs:
-            path = os.path.join(root, name)
-            try:
-                os.chown(path, uid, gid)
-            except PermissionError:
-                logger.error(f"Failed to set ownership on {path}")
+            _chown_directory(Path(root) / name, uid, gid)
         for name in files:
-            path = os.path.join(root, name)
-            try:
-                os.chown(path, uid, gid)
-            except PermissionError:
-                logger.error(f"Failed to set ownership on {path}")
+            _chown_path(Path(root) / name, uid, gid)
+
+
+def _chown_path(path: Path, uid: int, gid: int) -> None:
+    try:
+        os.chown(path, uid, gid)
+    except PermissionError:
+        logger.error(f"Failed to set ownership on {path}")
+
+
+def _chown_directory(path: Path, uid: int, gid: int) -> None:
+    try:
+        os.chown(path, uid, gid)
+    except PermissionError:
+        logger.error(f"Failed to set ownership on {path}")
+        return
+
+    try:
+        mode = path.stat().st_mode
+        if not mode & stat.S_ISGID:
+            os.chmod(path, mode | stat.S_ISGID)
+    except PermissionError:
+        logger.error(f"Failed to apply setgid on {path}")
 
 
 def validate_dot_pioreactor_archive(
