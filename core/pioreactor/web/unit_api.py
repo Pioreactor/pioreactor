@@ -802,6 +802,10 @@ def import_dot_pioreactor_from_zip() -> ResponseReturnValue:
     publish_to_log(f"Saving uploaded archive to temporary file {tmp_path}", task_name, "DEBUG")
     uploaded.save(tmp_path)
     tmp.close()
+    try:
+        tmp_path.chmod(0o640)
+    except OSError as exc:
+        publish_to_error_log(f"Failed to set permissions on {tmp_path}: {exc}", task_name)
 
     try:
         metadata = tasks.validate_dot_pioreactor_archive(tmp_path, HOSTNAME)
