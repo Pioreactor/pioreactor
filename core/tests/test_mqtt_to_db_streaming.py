@@ -14,6 +14,7 @@ from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.config import config
+from pioreactor.config import temporary_config_changes
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
 from pioreactor.utils import local_persistent_storage
@@ -154,70 +155,74 @@ def test_dosing_events_land_in_db() -> None:
 
 @pytest.mark.xfail(reason="we stopped adding to kalman filter table in 25.1.x release")
 def test_kalman_filter_entries() -> None:
-    config["storage"]["database"] = "test.sqlite"
-    config["od_reading.config"]["samples_per_second"] = "0.2"
-    config["od_config.photodiode_channel"]["1"] = "135"
-    config["od_config.photodiode_channel"]["2"] = "90"
-
-    unit = "unit"
-    exp = "test_kalman_filter_entries"
-
-    # init the database
-    connection = sqlite3.connect(config["storage"]["database"])
-    cursor = connection.cursor()
-
-    cursor.executescript("DROP TABLE IF EXISTS kalman_filter_outputs;")
-    cursor.executescript(
-        mureq.get(
-            "https://raw.githubusercontent.com/Pioreactor/CustoPiZer/pioreactor/workspace/scripts/files/sql/create_tables.sql"
-        ).content.decode("utf-8")
-    )
-    connection.commit()
-
-    with local_persistent_storage("od_normalization_mean") as cache:
-        cache[exp] = json.dumps({"1": 0.5, "2": 0.5})
-
-    with local_persistent_storage("od_normalization_variance") as cache:
-        cache[exp] = json.dumps({"1": 1e-6, "2": 1e-4})
-
-    # turn on our mqtt to db
-    parsers = [
-        m2db.TopicToParserToTable(
-            "pioreactor/+/+/growth_rate_calculating/kalman_filter_outputs",
-            m2db.parse_kalman_filter_outputs,
-            "kalman_filter_outputs",
-        )
-    ]
-
-    # turn on data collection
-    interval = 0.5
-
-    with (
-        start_od_reading(
-            {"1": "135", "2": "90"},
-            interval=interval,
-            fake_data=True,
-            unit=unit,
-            experiment=exp,
-        ),
-        GrowthRateCalculator(unit=unit, experiment=exp),
-        m2db.MqttToDBStreamer(unit, exp, parsers),
+    with temporary_config_changes(
+        config,
+        [
+            ("storage", "database", "test.sqlite"),
+            ("od_reading.config", "samples_per_second", "0.2"),
+            ("od_config.photodiode_channel", "1", "135"),
+            ("od_config.photodiode_channel", "2", "90"),
+        ],
     ):
-        # let data collect
-        sleep(10)
+        unit = "unit"
+        exp = "test_kalman_filter_entries"
 
-        cursor.execute("SELECT * FROM kalman_filter_outputs WHERE experiment = ?", (exp,))
-        results = cursor.fetchall()
-        assert len(results) > 0
+        # init the database
+        connection = sqlite3.connect(config["storage"]["database"])
+        cursor = connection.cursor()
 
-        cursor.execute(
-            "SELECT state_0, state_1, state_2 FROM kalman_filter_outputs WHERE experiment = ? ORDER BY timestamp DESC LIMIT 1",
-            (exp,),
+        cursor.executescript("DROP TABLE IF EXISTS kalman_filter_outputs;")
+        cursor.executescript(
+            mureq.get(
+                "https://raw.githubusercontent.com/Pioreactor/CustoPiZer/pioreactor/workspace/scripts/files/sql/create_tables.sql"
+            ).content.decode("utf-8")
         )
-        results = cursor.fetchone()
-        assert results[0] != 0.0
-        assert results[1] != 0.0
-        assert results[2] != 0.0
+        connection.commit()
+
+        with local_persistent_storage("od_normalization_mean") as cache:
+            cache[exp] = json.dumps({"1": 0.5, "2": 0.5})
+
+        with local_persistent_storage("od_normalization_variance") as cache:
+            cache[exp] = json.dumps({"1": 1e-6, "2": 1e-4})
+
+        # turn on our mqtt to db
+        parsers = [
+            m2db.TopicToParserToTable(
+                "pioreactor/+/+/growth_rate_calculating/kalman_filter_outputs",
+                m2db.parse_kalman_filter_outputs,
+                "kalman_filter_outputs",
+            )
+        ]
+
+        # turn on data collection
+        interval = 0.5
+
+        with (
+            start_od_reading(
+                {"1": "135", "2": "90"},
+                interval=interval,
+                fake_data=True,
+                unit=unit,
+                experiment=exp,
+            ),
+            GrowthRateCalculator(unit=unit, experiment=exp),
+            m2db.MqttToDBStreamer(unit, exp, parsers),
+        ):
+            # let data collect
+            sleep(10)
+
+            cursor.execute("SELECT * FROM kalman_filter_outputs WHERE experiment = ?", (exp,))
+            results = cursor.fetchall()
+            assert len(results) > 0
+
+            cursor.execute(
+                "SELECT state_0, state_1, state_2 FROM kalman_filter_outputs WHERE experiment = ? ORDER BY timestamp DESC LIMIT 1",
+                (exp,),
+            )
+            results = cursor.fetchone()
+            assert results[0] != 0.0
+            assert results[1] != 0.0
+            assert results[2] != 0.0
 
         cursor.execute(
             "SELECT cov_00, cov_11, cov_22 FROM kalman_filter_outputs WHERE experiment = ? ORDER BY timestamp DESC LIMIT 1",
