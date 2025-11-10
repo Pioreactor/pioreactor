@@ -384,7 +384,6 @@ def import_dot_pioreactor_archive(uploaded_zip_path: str) -> bool:
 
     def restore_from_backup() -> None:
         try:
-            shutil.rmtree(base_dir, ignore_errors=True)
             base_dir.mkdir(parents=True, exist_ok=True)
             if backup_dir.exists():
                 for item in backup_dir.iterdir():
@@ -395,46 +394,42 @@ def import_dot_pioreactor_archive(uploaded_zip_path: str) -> bool:
             raise
 
     if whoami.is_testing_env():
-        shutil.rmtree(extraction_root, ignore_errors=True)
         log("debug", "Testing environment detected, skipping import.")
         return True
 
     try:
-        try:
-            with zipfile.ZipFile(archive_path, "r") as zf:
-                zf.extractall(extraction_root)
-            log("debug", f"Extracted archive into {extraction_root}")
-        except zipfile.BadZipFile:
-            log("error", "Uploaded file is not a valid zip archive")
-            raise
-        except Exception as e:
-            log("error", str(e))
-            raise
+        with zipfile.ZipFile(archive_path, "r") as zf:
+            zf.extractall(extraction_root)
+        log("debug", f"Extracted archive into {extraction_root}")
+    except zipfile.BadZipFile:
+        log("error", "Uploaded file is not a valid zip archive")
+        raise
+    except Exception as e:
+        log("error", str(e))
+        raise
 
-        try:
-            backup_dir.mkdir(parents=True, exist_ok=False)
-            if base_dir.exists():
-                for item in base_dir.iterdir():
-                    shutil.move(str(item), backup_dir / item.name)
-            log("debug", f"Backup completed at {backup_dir}")
-        except Exception as exc:
-            log("error", f"Failed to backup existing DOT_PIOREACTOR: {exc}")
-            raise RuntimeError("Failed to backup existing DOT_PIOREACTOR") from exc
+    try:
+        backup_dir.mkdir(parents=True, exist_ok=False)
+        if base_dir.exists():
+            for item in base_dir.iterdir():
+                shutil.move(str(item), backup_dir / item.name)
+        log("debug", f"Backup completed at {backup_dir}")
+    except Exception as exc:
+        log("error", f"Failed to backup existing DOT_PIOREACTOR: {exc}")
+        raise RuntimeError("Failed to backup existing DOT_PIOREACTOR") from exc
 
+    try:
+        base_dir.mkdir(parents=True, exist_ok=True)
+        for item in extraction_root.iterdir():
+            shutil.move(str(item), base_dir / item.name)
+        log("debug", "DOT_PIOREACTOR contents moved into place")
+    except Exception as exc:
+        log("error", f"Failed to write new DOT_PIOREACTOR contents: {exc}")
         try:
-            base_dir.mkdir(parents=True, exist_ok=True)
-            for item in extraction_root.iterdir():
-                shutil.move(str(item), base_dir / item.name)
-            log("debug", "DOT_PIOREACTOR contents moved into place")
-        except Exception as exc:
-            log("error", f"Failed to write new DOT_PIOREACTOR contents: {exc}")
-            try:
-                restore_from_backup()
-            except Exception:
-                pass
-            raise RuntimeError("Failed to write new DOT_PIOREACTOR contents") from exc
-    finally:
-        shutil.rmtree(extraction_root, ignore_errors=True)
+            restore_from_backup()
+        except Exception:
+            pass
+        raise RuntimeError("Failed to write new DOT_PIOREACTOR contents") from exc
 
     _apply_ownership(base_dir, "pioreactor", "www-data")
     reboot(wait=2)
