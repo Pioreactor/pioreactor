@@ -71,4 +71,11 @@ class Pico_DAC(_DAC):
             )
 
 
-DAC = DAC43608_DAC if (0, 0) < hardware_version_info <= (1, 0) else Pico_DAC
+DAC: type[_DAC]
+if hardware_version_info is not None:
+    if (0, 0) < hardware_version_info <= (1, 0):
+        DAC = DAC43608_DAC
+    else:
+        DAC = Pico_DAC
+else:
+    DAC = _DAC

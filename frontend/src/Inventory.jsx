@@ -848,7 +848,7 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
     let dialogResult;
     try {
       dialogResult = await confirm({
-        description: 'Exporting system files downloads a .zip containing this Pioreactor\'s configuration and calibration data so you can back up or migrate settings.',
+        description: 'Exporting system files downloads a .zip containing this Pioreactor\'s system data (ex: configuration and calibration files) so you can back up or migrate settings.',
         title: `Export system files from ${unit}?`,
         confirmationText: "Export",
         confirmationButtonProps: {color: "primary"},
@@ -930,9 +930,9 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
     let dialogResult;
     try {
       dialogResult = await confirm({
-        description: 'Importing system files uploads a .zip that replaces this Pioreactor\'s configuration and calibration data. The Pioreactor will reboot after the import. Note: the names of the Pioreactor you exported from and this Pioreactor must be identical.',
+        description: 'Importing system files uploads a zip that replaces this Pioreactor\'s system data (configuration, calibration, models, etc). The Pioreactor will reboot after the import. Note: the names of the Pioreactor you exported from and this Pioreactor must be identical.',
         title: `Import system files into ${unit}?`,
-        confirmationText: "Import",
+        confirmationText: "Select zip file",
         confirmationButtonProps: {color: "primary"},
         cancellationButtonProps: {color: "secondary"},
       });

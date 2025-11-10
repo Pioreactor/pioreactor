@@ -10,7 +10,7 @@ import os
 __version__ = "25.11.10rc0"
 
 
-def get_hardware_version() -> tuple[int, int] | tuple[int, int, str]:
+def get_hardware_version() -> tuple[int, int] | tuple[int, int, str] | None:
     if os.environ.get("HARDWARE") is not None:
         # ex: > HARDWARE=1.1 pio ...
         return int(os.environ["HARDWARE"].split(".")[0]), int(os.environ["HARDWARE"].split(".")[1])
@@ -25,7 +25,7 @@ def get_hardware_version() -> tuple[int, int] | tuple[int, int, str]:
             return (int(text[-2]), int(text[-1]))
     except FileNotFoundError:
         # no eeprom? Probably dev board with no EEPROM, or testing env, or EEPROM not written, or cable exists between HAT and Pi -> signal degradation.
-        return (0, 0)
+        return None
 
 
 def get_product_from_id() -> str:
@@ -58,14 +58,14 @@ def get_rpi_machine() -> str:
         return "Raspberry Pi 3"
 
 
-def get_firmware_version() -> tuple[int, int]:
+def get_firmware_version() -> tuple[int, int] | None:
     if os.environ.get("FIRMWARE") is not None:
         # ex: > FIRMWARE=1.1 pio ...
 
         return tuple(int(_) for _ in os.environ["FIRMWARE"].split("."))  # type: ignore
 
     # Compare hardware versions using tuples to avoid lexicographic issues.
-    if hardware_version_info >= (1, 1):
+    if hardware_version_info is not None and hardware_version_info >= (1, 1):
         try:
             from adafruit_blinka.microcontroller.generic_linux.i2c import I2C
             from pioreactor.hardware import get_adc_curriers
@@ -75,14 +75,17 @@ def get_firmware_version() -> tuple[int, int]:
             I2C(1, mode=I2C.MASTER).writeto_then_readfrom(version_adc.i2c_address, bytes([0x08]), result)
             return (result[1], result[0])
         except Exception:
-            return (0, 0)
+            return None
 
     else:
-        return (0, 0)
+        return None
 
 
-def tuple_to_text(t: tuple) -> str:
-    return ".".join(map(str, t))
+def tuple_to_text(t: tuple | None) -> str:
+    if t is None:
+        return ""
+    else:
+        return ".".join(map(str, t))
 
 
 def version_text_to_tuple(s: str) -> tuple[int, int]:

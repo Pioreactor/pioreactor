@@ -108,8 +108,11 @@ class Monitor(LongRunningBackgroundJob):
     def __init__(self, unit: pt.Unit, experiment: pt.Experiment) -> None:
         super().__init__(unit=unit, experiment=experiment)
 
-        def pretty_version(info: tuple) -> str:
-            return ".".join((str(x) for x in info))
+        def pretty_version(info: tuple | None) -> str:
+            if info is None:
+                return ""
+            else:
+                return ".".join((str(x) for x in info))
 
         # previously I had pioreactor_version and model name here, but this starts before the webserver is online, and it
         # would crash this job.

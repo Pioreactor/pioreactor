@@ -48,7 +48,6 @@ from pioreactor.utils.math_helpers import correlation
 from pioreactor.utils.math_helpers import mean
 from pioreactor.utils.math_helpers import trimmed_mean
 from pioreactor.utils.math_helpers import variance
-from pioreactor.version import hardware_version_info
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_testing_experiment_name
 from pioreactor.whoami import get_unit_name
@@ -276,12 +275,9 @@ def test_ambient_light_interference(managed_state, logger: CustomLogger, unit: s
 
     readings = adc_reader.take_reading()
 
-    if hardware_version_info < (1, 1):
-        assert all([readings[pd_channel].reading < 0.005 for pd_channel in pd_channels_available]), readings
-    else:
-        assert all(
-            [readings[pd_channel].reading < 0.080 for pd_channel in pd_channels_available]
-        ), f"Dark signal too high: {readings=}"  # saw a 0.072 blank during testing
+    assert all(
+        [readings[pd_channel].reading < 0.080 for pd_channel in pd_channels_available]
+    ), f"Dark signal too high: {readings=}"  # saw a 0.072 blank during testing
 
 
 def test_REF_is_lower_than_0_dot_256_volts(

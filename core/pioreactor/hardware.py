@@ -91,6 +91,10 @@ def get_layered_mod_config(mod: str) -> dict[str, Any]:
     """
     base = Path(environ["DOT_PIOREACTOR"]) / "hardware"
 
+    if hardware_version_info is None:
+        raise exc.HardwareNotFoundError("HAT not found")
+    assert hardware_version_info is not None
+
     try:
         model = get_pioreactor_model()
     except exc.NoModelAssignedError:
