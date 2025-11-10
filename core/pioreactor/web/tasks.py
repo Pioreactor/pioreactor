@@ -401,12 +401,21 @@ def import_dot_pioreactor_archive(uploaded_zip_path: str) -> bool:
         return True
 
     try:
+
+        try:
+            with zipfile.ZipFile(archive_path, "r") as zf:
+                zf.extractall(extraction_root)
+            log("debug", f"Extracted archive into {extraction_root}")
+        except zipfile.BadZipFile:
+            log("warning", "Uploaded file is not a valid zip archive")
+            raise
+
         try:
             backup_dir.mkdir(parents=True, exist_ok=False)
             if base_dir.exists():
                 for item in base_dir.iterdir():
                     shutil.move(str(item), backup_dir / item.name)
-            log("info", f"Backup completed at {backup_dir}")
+            log("debug", f"Backup completed at {backup_dir}")
         except Exception as exc:
             log("error", f"Failed to backup existing DOT_PIOREACTOR: {exc}")
             raise RuntimeError("Failed to backup existing DOT_PIOREACTOR") from exc
@@ -428,7 +437,7 @@ def import_dot_pioreactor_archive(uploaded_zip_path: str) -> bool:
         shutil.rmtree(extraction_root, ignore_errors=True)
 
     _apply_ownership(base_dir, "pioreactor", "www-data")
-    reboot_task = reboot(wait=2)
+    reboot_task = reboot.schedule(delay=2)
     log("info", f"Reboot task enqueued: {reboot_task}")
     log("info", "Import finished successfully.")
     return True
@@ -472,8 +481,7 @@ def shutdown() -> bool:
 
 
 @huey.task()
-def reboot(wait=0) -> bool:
-    sleep(wait)
+def reboot() -> bool:
     logger.debug("Rebooting now")
     if whoami.is_testing_env():
         return True
