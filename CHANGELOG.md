@@ -6,6 +6,7 @@
   - export images (PNGs and SVGs) of the Overview's and Calibrations' charts.
   - MCP server: added tools for creating experiments and managing worker assignments
   - Show and hide calibration curves in Calibrations page by clicking the dot beside the calibration (similar to the Overview page).
+  - Changed `start_od_reading` API. It now accepts a dict instead of args for each PD position.
   - Upgrade to Trixie Debian 13! This mostly means: new Python 3.13.
   - Adding `pio workers update-model <unit> -m <name> -v <version>` to leader's CLI.
   - Added time-window and time-format options to the individual Pioreactors pages.
