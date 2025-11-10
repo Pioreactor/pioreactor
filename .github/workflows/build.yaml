@@ -87,28 +87,10 @@ jobs:
           tag: ${{ github.event.release.tag_name }}
           overwrite: true
 
-  bundle-pioreactorui-release:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
-
-    - name: Archive UI source
-      run: |
-        tar -czf pioreactorui_${{ github.event.release.tag_name }}.tar.gz web
-
-    - name: Upload UI tarball
-      uses: svenstaro/upload-release-action@v2
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: pioreactorui_${{ github.event.release.tag_name }}.tar.gz
-        tag: ${{ github.event.release.tag_name }}
-        overwrite: true
-
   zip-asset-upload:
     name: 🤐 Zip assets and upload
     runs-on: ubuntu-latest
-    needs: [build, build-deps, bundle-pioreactorui-release]
+    needs: [build, build-deps]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

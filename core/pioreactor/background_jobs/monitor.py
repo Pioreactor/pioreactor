@@ -134,7 +134,6 @@ class Monitor(LongRunningBackgroundJob):
         self.button_down = False
         self._led_pin: Optional[int] = None
         self._button_pin: Optional[int] = None
-        self._hardware_controls_ready = False
 
         hat_available = True if whoami.is_testing_env() else is_HAT_present()
 
@@ -145,7 +144,6 @@ class Monitor(LongRunningBackgroundJob):
                 # set up GPIO for accessing the button and changing the LED
                 # if these fail, don't kill the entire job - sucks for onboarding.
                 self._setup_GPIO()
-                self._hardware_controls_ready = True
             except Exception:
                 self.logger.debug("Skipping LED / button controls: setup failed.", exc_info=True)
         else:
@@ -345,6 +343,8 @@ class Monitor(LongRunningBackgroundJob):
         # if no model assigned, skip
         if get_pioreactor_model() is None:
             return
+        if not is_HAT_present():
+            return
 
         if whoami.is_testing_env():
             from pioreactor.utils.mock import MockTMP1075 as TMP1075
@@ -451,7 +451,7 @@ class Monitor(LongRunningBackgroundJob):
             lgpio.gpiochip_close(self._handle)
 
     def led_on(self) -> None:
-        if not self._hardware_controls_ready:
+        if not is_HAT_present():
             return
 
         import lgpio  # type: ignore
@@ -460,7 +460,7 @@ class Monitor(LongRunningBackgroundJob):
             lgpio.gpio_write(self._handle, self._led_pin, 1)
 
     def led_off(self) -> None:
-        if not self._hardware_controls_ready:
+        if not is_HAT_present():
             return
 
         import lgpio  # type: ignore
@@ -557,7 +557,7 @@ class Monitor(LongRunningBackgroundJob):
         self._publish_setting("state")
 
     def flicker_led_response_okay(self, *args) -> None:
-        if not self._hardware_controls_ready:
+        if not is_HAT_present():
             self._republish_state()
             return
 
@@ -581,7 +581,7 @@ class Monitor(LongRunningBackgroundJob):
         self.led_in_use = False
 
     def flicker_led_with_error_code(self, error_code: int) -> None:
-        if not self._hardware_controls_ready:
+        if not is_HAT_present():
             self.logger.debug("Skipping error LED flicker: hardware controls unavailable.")
             return
 

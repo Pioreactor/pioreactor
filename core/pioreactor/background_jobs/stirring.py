@@ -394,7 +394,7 @@ class Stirrer(BackgroundJobWithDodging):
                 self.logger.error(f"Calibration {cal.calibration_name} has wrong type.")
                 raise exc.CalibrationError(f"Calibration {cal.calibration_name} has wrong type.")
 
-            self.logger.debug(f"Found stirring calibration: {cal.calibration_name}.")
+            self.logger.debug(f"Found active stirring calibration: {cal.calibration_name}.")
 
             # since we have calibration data, and the initial_duty_cycle could be
             # far off, giving the below equation a bad "first step". We set it here.
