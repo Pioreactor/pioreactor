@@ -56,16 +56,14 @@ def get_workers_in_experiment(experiment: pt.Experiment) -> tuple[pt.Unit, ...]:
 @click.option(
     "--model-name",
     "-m",
-    required=True,
 )
 @click.option(
     "--model-version",
     "-v",
-    required=True,
 )
 @click.option("--address", "-a")
 def add_worker(
-    hostname: str, password: str, model_name: str, model_version: str, address: str | None
+    hostname: str, password: str, model_name: str | None, model_version: str | None, address: str | None
 ) -> None:
     """
     Add a new pioreactor worker to the cluster. The pioreactor should already have the worker image installed and is turned on.
@@ -75,7 +73,7 @@ def add_worker(
 
     registered_models = get_registered_models()
 
-    if (model_name, model_version) not in registered_models:
+    if model_name and model_version and ((model_name, model_version) not in registered_models):
         click.echo(
             f"Invalid model/version: {model_name} v{model_version}."
             f" Valid options: {sorted(registered_models.keys())}"

@@ -2494,11 +2494,11 @@ def setup_worker_pioreactor() -> ResponseReturnValue:
 def add_worker() -> ResponseReturnValue:
     data = request.get_json()
     pioreactor_unit = data.get("pioreactor_unit")
-    model_name = data.get("model_name")
-    model_version = data.get("model_version")
+    model_name = data.get("model_name")  # optional
+    model_version = data.get("model_version")  # optional
 
-    if not pioreactor_unit or not model_name or not model_version:
-        return jsonify({"error": "Missing data"}), 400
+    if not pioreactor_unit:
+        return jsonify({"error": "Missing unit name"}), 400
 
     nrows = modify_app_db(
         "INSERT OR REPLACE INTO workers (pioreactor_unit, added_at, is_active, model_name, model_version) VALUES (?, STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW'), 1, ?, ?);",
