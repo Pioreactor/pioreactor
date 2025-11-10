@@ -78,4 +78,4 @@ if hardware_version_info is not None:
     else:
         DAC = Pico_DAC
 else:
-    DAC = _DAC
+    DAC = _DAC  # silent failure
