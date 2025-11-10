@@ -961,7 +961,7 @@ def import_dot_pioreactor_from_zip() -> ResponseReturnValue:
         shutil.rmtree(extraction_root, ignore_errors=True)
         publish_to_log(f"Cleaned up extraction directory {extraction_root}", task_name, "INFO")
 
-    # _apply_ownership(base_dir, "pioreactor", "www-data")
+    _apply_ownership(base_dir, "pioreactor", "www-data")
 
     try:
         publish_to_log("Submitting reboot task after import", task_name, "INFO")
