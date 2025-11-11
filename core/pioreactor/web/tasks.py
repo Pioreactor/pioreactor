@@ -448,6 +448,19 @@ def import_dot_pioreactor_archive(uploaded_zip_path: str) -> bool:
             with config_path.open("w") as fh:
                 cfg.write(fh, space_around_delimiters=False)
 
+        ui_path = base_dir / "ui"
+        if not ui_path.exists():
+            backup_ui_path = backup_dir / "ui"
+            if backup_ui_path.exists():
+                shutil.move(str(backup_ui_path), ui_path)
+                log("debug", "ui directory missing from import; restored from backup")
+            else:
+                log(
+                    "error",
+                    "ui directory missing from import and no backup copy is available",
+                )
+                raise RuntimeError("DOT_PIOREACTOR import missing required ui directory")
+
         log("debug", "DOT_PIOREACTOR contents moved into place")
     except Exception as exc:
         log("error", f"Failed to write new DOT_PIOREACTOR contents: {exc}")
