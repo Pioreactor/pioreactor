@@ -11,6 +11,7 @@ from typing import Optional
 import click
 from msgspec import Struct
 from msgspec.json import decode as msgspec_loads
+from pioreactor import exc
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.background_jobs.base import LongRunningBackgroundJob
@@ -377,7 +378,21 @@ def parse_stirring_rates(topic: str, payload: pt.MQTTMessagePayload) -> dict:
 def parse_pwm_dcs(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     metadata = produce_metadata(topic)
     pin_to_dc = loads(payload)
-    pwm_to_pin = get_pwm_to_pin_map()
+
+    try:
+        # this is a all gross. What's going on?
+        # 1. If the leader doesn't have a HAT, it can't load get_pwm_to_pin_map
+        # 2. Why do we even need that? because worker's publishes _pins_ and not _channels_! workers should publish channels.
+        # 3. leader's get_pwm_to_pin_map might differ from workers get_pwm_to_pin_map too. See 2.
+        pwm_to_pin = get_pwm_to_pin_map()
+    except exc.HardwareNotFoundError:
+        pwm_to_pin = {
+            "1": 17,
+            "2": 13,
+            "3": 16,
+            "4": 12,
+            "5": 18,
+        }
 
     return {
         "experiment": metadata.experiment,
