@@ -30,8 +30,8 @@ export default function ManageExperimentMenu({experiment}){
       description: 'This will stop running activities in assigned Pioreactors, and unassign all Pioreactors from this experiment. Do you wish to continue?',
       title: "End experiment?",
       confirmationText: "Confirm",
-      confirmationButtonProps: {color: "primary"},
-      cancellationButtonProps: {color: "secondary"},
+      confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}},
+      cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
 
       }).then(() =>
         fetch(`/api/experiments/${experiment}/workers`, {method: "DELETE"})
@@ -45,8 +45,8 @@ export default function ManageExperimentMenu({experiment}){
       description: 'This will permanently delete experiment data, stop Pioreactor activity, and unassign Pioreactors. Do you wish to continue?',
       title: "Delete experiment?",
       confirmationText: "Confirm",
-      confirmationButtonProps: {color: "primary"},
-      cancellationButtonProps: {color: "secondary"},
+      confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}},
+      cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
 
       }).then(() =>
         fetch(`/api/experiments/${experiment}`, {method: "DELETE"}).then((res) => {

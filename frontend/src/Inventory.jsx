@@ -42,7 +42,8 @@ import Snackbar from '@mui/material/Snackbar';
 import Menu from "@mui/material/Menu";
 import ListItemText from "@mui/material/ListItemText";
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
-// icons removed from dropdown items
+import Alert from '@mui/material/Alert';
+
 
 
 import { useExperiment } from './providers/ExperimentContext';
@@ -825,8 +826,8 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
       description: 'Rebooting this Pioreactor will halt all activity and make the Pioreactor inaccessible for a few minutes.',
       title: `Reboot ${unit}?`,
       confirmationText: "Confirm",
-      confirmationButtonProps: {color: "primary"},
-      cancellationButtonProps: {color: "secondary"},
+      confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}},
+      cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
     }).then(() => {
       fetch(`/api/units/${unit}/system/reboot`, {method: "POST"})
     }).catch(() => {});
@@ -837,8 +838,8 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
       description: 'Shutting down this Pioreactor will halt all activity and require a power-cycle to bring it back up.',
       title: `Shutdown ${unit}?`,
       confirmationText: "Confirm",
-      confirmationButtonProps: {color: "primary"},
-      cancellationButtonProps: {color: "secondary"},
+      confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}},
+      cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
     }).then(() => {
       fetch(`/api/units/${unit}/system/shutdown`, {method: "POST"})
     }).catch(() => {});
@@ -848,11 +849,11 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
     let dialogResult;
     try {
       dialogResult = await confirm({
-        description: 'Exporting system files downloads a .zip containing this Pioreactor\'s system data (ex: configuration and calibration files) so you can back up or migrate settings.',
-        title: `Export system files from ${unit}?`,
+        description: 'Export an archive containing this Pioreactor\'s system data (ex: configuration and calibration files) so you can back up or migrate settings.',
+        title: `Export system archive from ${unit}?`,
         confirmationText: "Export",
-        confirmationButtonProps: {color: "primary"},
-        cancellationButtonProps: {color: "secondary"},
+        confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}},
+        cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
       });
     } catch (_) {
       return;
@@ -930,11 +931,11 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
     let dialogResult;
     try {
       dialogResult = await confirm({
-        description: 'Importing system files uploads a zip that replaces this Pioreactor\'s system data (configuration, calibration, models, etc). The Pioreactor will reboot after the import. Note: the names of the Pioreactor you exported from and this Pioreactor must be identical.',
-        title: `Import system files into ${unit}?`,
-        confirmationText: "Select zip file",
-        confirmationButtonProps: {color: "primary"},
-        cancellationButtonProps: {color: "secondary"},
+        description: <><p>Import a previously exported system archive and overwrite this Pioreactor's system data (configuration, calibrations, plugins, etc). The Pioreactor will reboot after the import.</p><p>The name of the Pioreactor you exported from and the name of this Pioreactor must be identical.</p><Alert severity="warning">This will overwrite the existing system data on {unit}.</Alert></>,
+        title: `Import a system archive into ${unit}?`,
+        confirmationText: "Select system archive file",
+        confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}},
+        cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
       });
     } catch (_) {
       return;
@@ -956,8 +957,8 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
       description: 'Removing this Pioreactor will unassign it from any experiments, halt all activity running, and remove it from your inventory. No experiment data is removed, and calibration data still exists on the worker.',
       title: `Remove ${unit} from inventory?`,
       confirmationText: "Confirm",
-      confirmationButtonProps: {color: "primary"},
-      cancellationButtonProps: {color: "secondary"},
+      confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}},
+      cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
     }).then(() => {
       fetch(`/api/workers/${unit}`, {method: "DELETE"})
       .then((response) => {
@@ -995,10 +996,10 @@ function ManagePioreactorMenu({unit, isLeader, showSnackbar}){
           <ListItemText>Shutdown</ListItemText>
         </MenuItem>
         <MenuItem onClick={handleExport}>
-          <ListItemText>Export system files</ListItemText>
+          <ListItemText>Export system archive</ListItemText>
         </MenuItem>
         <MenuItem onClick={handleImportClick}>
-          <ListItemText>Import system files</ListItemText>
+          <ListItemText>Import system archive</ListItemText>
         </MenuItem>
         <MenuItem onClick={handleRemove} disabled={isLeader} sx={{ color: 'secondary.main' }}>
           <ListItemText>Remove</ListItemText>

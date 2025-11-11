@@ -7,6 +7,7 @@ import { MQTTProvider, useMQTT } from './providers/MQTTContext';
 import Tooltip from '@mui/material/Tooltip';
 import { useConfirm } from 'material-ui-confirm';
 import Button from '@mui/material/Button';
+import Backdrop from '@mui/material/Backdrop';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
@@ -35,10 +36,12 @@ import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DownloadIcon from '@mui/icons-material/Download';
+import UploadIcon from '@mui/icons-material/Upload';
 import { styled } from '@mui/material/styles';
 import Chip from '@mui/material/Chip';
 import PioreactorIconWithModel from "./components/PioreactorIconWithModel"
 import PioreactorIcon from "./components/PioreactorIcon"
+import Alert from '@mui/material/Alert';
 
 // Activate the UTC plugin
 dayjs.extend(utc);
@@ -155,6 +158,9 @@ function DirectoryNavigatorCard({leaderHostname}) {
   const [dirs, setDirs] = React.useState([]);
   const [files, setFiles] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
+  const [isImporting, setIsImporting] = React.useState(false);
+  const confirm = useConfirm();
+  const fileInputRef = React.useRef(null);
 
   const handleExport = async () => {
     try {
@@ -173,6 +179,65 @@ function DirectoryNavigatorCard({leaderHostname}) {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Export failed:', err);
+    }
+  };
+
+  const handleImport = async (event) => {
+    const input = event.target;
+    const file = input.files && input.files[0];
+    if (!file) {
+      input.value = null;
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('archive', file);
+
+    setIsImporting(true);
+    try {
+      const response = await fetch('/unit_api/import_zipped_dot_pioreactor', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        let errorMessage = `Import failed with status ${response.status}`;
+        try {
+          const error = await response.json();
+          if (error && error.error) {
+            errorMessage = error.error;
+          }
+        } catch (_) {
+        }
+        window.alert(errorMessage);
+        return;
+      }
+
+      window.alert(`Import succeeded. ${leaderHostname} will reboot now.`);
+    } catch (err) {
+      console.error('Import failed:', err);
+      window.alert('Import failed. Please try again.');
+    } finally {
+      setIsImporting(false);
+      input.value = null;
+    }
+  };
+
+  const handleImportClick = async () => {
+    try {
+      await confirm({
+        description: <><p>Import a previously exported system archive and overwrite this Pioreactor's system data (configuration, calibrations, plugins, etc). The Pioreactor will reboot after the import.</p><p>The name of the Pioreactor you exported from and the name of this Pioreactor must be identical.</p><Alert severity="warning">This will overwrite the existing system data on {leaderHostname}.</Alert></>,
+        title: `Import a system archive into ${leaderHostname}?`,
+        confirmationText: "Select system archive file",
+        confirmationButtonProps: {color: "primary"},
+        cancellationButtonProps: {color: "secondary"},
+      });
+    } catch (_) {
+      return;
+    }
+
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
     }
   };
 
@@ -301,9 +366,30 @@ function DirectoryNavigatorCard({leaderHostname}) {
 
           sx={{textTransform: "none"}}
         >
-          <DownloadIcon fontSize="small" sx={textIcon} /> Export system files
+          <DownloadIcon fontSize="small" sx={textIcon} /> Export system archive
+        </Button>
+        <Button
+          size="small"
+          disabled={isImporting}
+          onClick={handleImportClick}
+          sx={{textTransform: "none"}}
+        >
+          <UploadIcon fontSize="small" sx={textIcon} /> Import system archive
         </Button>
       </CardActions>
+      <input
+        type="file"
+        accept="application/zip"
+        ref={fileInputRef}
+        style={{display: 'none'}}
+        onChange={handleImport}
+      />
+      <Backdrop
+        sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.modal + 1 }}
+        open={isImporting}
+      >
+        <CircularProgress color="inherit" />
+      </Backdrop>
     </Card>
   );
 }
