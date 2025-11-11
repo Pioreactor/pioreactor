@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import configparser
 import grp
 import json
 import logging
@@ -434,6 +435,19 @@ def import_dot_pioreactor_archive(uploaded_zip_path: str) -> bool:
         base_dir.mkdir(parents=True, exist_ok=True)
         for item in extraction_root.iterdir():
             shutil.move(str(item), base_dir / item.name)
+
+        # hardcode a change =(
+        config_path = base_dir / "config.ini"
+        if config_path.exists():
+            cfg = configparser.ConfigParser()
+            cfg.read(config_path)
+            cfg.setdefault("storage", {})
+            cfg["storage"][
+                "temporary_cache"
+            ] = "/run/pioreactor/cache/local_intermittent_pioreactor_metadata.sqlite"
+            with config_path.open("w") as fh:
+                cfg.write(fh, space_around_delimiters=False)
+
         log("debug", "DOT_PIOREACTOR contents moved into place")
     except Exception as exc:
         log("error", f"Failed to write new DOT_PIOREACTOR contents: {exc}")
