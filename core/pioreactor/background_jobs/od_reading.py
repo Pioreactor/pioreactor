@@ -851,8 +851,12 @@ class ODReader(BackgroundJob):
         # below are only used if a calibration is used
         "raw_od1": {"datatype": "RawODReading", "settable": False},
         "raw_od2": {"datatype": "RawODReading", "settable": False},
+        "raw_od3": {"datatype": "RawODReading", "settable": False},
+        "raw_od4": {"datatype": "RawODReading", "settable": False},
         "calibrated_od1": {"datatype": "CalibratedODReading", "settable": False},
         "calibrated_od2": {"datatype": "CalibratedODReading", "settable": False},
+        "calibrated_od3": {"datatype": "CalibratedODReading", "settable": False},
+        "calibrated_od4": {"datatype": "CalibratedODReading", "settable": False},
     }
 
     _pre_read: list[Callable] = []
@@ -864,8 +868,12 @@ class ODReader(BackgroundJob):
     ods: structs.ODReadings | None = None
     raw_od1: structs.RawODReading | None = None
     raw_od2: structs.RawODReading | None = None
+    raw_od3: structs.RawODReading | None = None
+    raw_od4: structs.RawODReading | None = None
     calibrated_od1: structs.CalibratedODReading | None = None
     calibrated_od2: structs.CalibratedODReading | None = None
+    calibrated_od3: structs.CalibratedODReading | None = None
+    calibrated_od4: structs.CalibratedODReading | None = None
     record_from_adc_timer: timing.RepeatedTimer
 
     def __init__(

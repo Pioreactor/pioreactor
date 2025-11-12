@@ -362,7 +362,9 @@ def test_PD_is_near_0_volts_for_blank(
         mean_signal = mean(signals)
 
         THRESHOLD = 0.035
-        assert mean_signal <= THRESHOLD, f"Blank signal too high: {mean_signal=} > {THRESHOLD}"
+        assert (
+            mean_signal <= THRESHOLD
+        ), f"Blank signal too high for pd{channel}: {mean_signal=} > {THRESHOLD}"
 
 
 def test_detect_heating_pcb(managed_state, logger: CustomLogger, unit: str, experiment: str) -> None:
