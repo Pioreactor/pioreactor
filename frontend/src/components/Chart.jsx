@@ -21,7 +21,7 @@ import utc from 'dayjs/plugin/utc';
 // Activate the UTC plugin
 dayjs.extend(utc);
 
-const sensorRe = /(.*)-[1234]/;
+const sensorRe = /IGNORE/;
 
 function toArray(thing){
    if (Array.isArray(thing)){
