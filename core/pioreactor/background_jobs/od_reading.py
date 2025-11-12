@@ -846,6 +846,8 @@ class ODReader(BackgroundJob):
         "ods": {"datatype": "ODReadings", "settable": False},
         "od1": {"datatype": "ODReading", "settable": False},
         "od2": {"datatype": "ODReading", "settable": False},
+        "od3": {"datatype": "ODReading", "settable": False},
+        "od4": {"datatype": "ODReading", "settable": False},
         # below are only used if a calibration is used
         "raw_od1": {"datatype": "RawODReading", "settable": False},
         "raw_od2": {"datatype": "RawODReading", "settable": False},
@@ -857,6 +859,8 @@ class ODReader(BackgroundJob):
     _post_read: list[Callable] = []
     od1: structs.ODReading | None = None
     od2: structs.ODReading | None = None
+    od3: structs.ODReading | None = None
+    od4: structs.ODReading | None = None
     ods: structs.ODReadings | None = None
     raw_od1: structs.RawODReading | None = None
     raw_od2: structs.RawODReading | None = None

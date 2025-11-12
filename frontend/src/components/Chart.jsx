@@ -445,7 +445,7 @@ function Chart(props) {
         : incomingTopic.split("/")[1];
 
       if (unit) {
-        if (isPartitionedBySensor && parsedUnit !== `${unit}-2` && parsedUnit !== `${unit}-1`) {
+        if (isPartitionedBySensor && parsedUnit !== `${unit}-2` && parsedUnit !== `${unit}-1` && parsedUnit !== `${unit}-3` && parsedUnit !== `${unit}-4`) {
           return;
         }
         if (!isPartitionedBySensor && parsedUnit !== unit) {
@@ -512,6 +512,8 @@ function Chart(props) {
         if (unit) {
           if (
             isPartitionedBySensor &&
+            unitName !== `${unit}-4` &&
+            unitName !== `${unit}-3` &&
             unitName !== `${unit}-2` &&
             unitName !== `${unit}-1`
           ) {
