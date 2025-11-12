@@ -1,23 +1,27 @@
 ### Upcoming
 
-  - Added support for Pioreactor v1.5.
-  - `pioreactor.hardware`: reworked GPIO, PWM, and I2C configuration to load from layered YAML mods so new HAT+model combinations can be described without code changes. See new ~/.pioreactor/hardware directories.
-  - `pioreactor.hardware`: constants are now resolved lazily through accessor functions (e.g., determine_gpiochip(), get_pwm_to_pin_map()); direct module constants remain but are deprecated shims that emit warnings.
-  - export images (PNGs and SVGs) of the Overview's and Calibrations' charts.
-  - MCP server: added tools for creating experiments and managing worker assignments
-  - Show and hide calibration curves in Calibrations page by clicking the dot beside the calibration (similar to the Overview page).
-  - Changed `start_od_reading` API. It now accepts a dict instead of args for each PD position.
-  - Upgrade to Trixie Debian 13! This mostly means: new Python 3.13.
-  - Adding `pio workers update-model <unit> -m <name> -v <version>` to leader's CLI.
-  - Added time-window and time-format options to the individual Pioreactors pages.
-  - New workflow to set your Pioreactor leader-worker model on first load of the UI.
-  - New Pioreactor architecture:
-     - New environment variable file /etc/pioreactor.env
-     - The old `pioreactorui` Python package is now part of the `pioreactor` Python package, under `pioreactor.web`
-     - Moved temporary files from /tmp to /run/pioreactor/
-     - New `pioreactor-web.service` to handle both `huey.service` and `lighttpd.service`
-  - add new APIs and MCP tools via plugins. Example: drop the following in your ~/.pioreactor/plugins folder:
-  ```python
+#### Highlights
+
+ - Added support for Pioreactor v1.5.
+ - Upgrade to Trixie Debian 13!
+ - New Pioreactor architecture:
+    - New environment variable file /etc/pioreactor.env
+    - The old `pioreactorui` Python package is now part of the `pioreactor` Python package, under `pioreactor.web`
+    - Moved temporary files from /tmp to /run/pioreactor/
+    - New `pioreactor-web.service` to handle both `huey.service` and `lighttpd.service`
+
+#### Enhancements
+
+ - `pioreactor.hardware`: reworked GPIO, PWM, and I2C configuration to load from layered YAML mods so new HAT+model combinations can be described without code changes. See new ~/.pioreactor/hardware directories.
+ - `pioreactor.hardware`: constants are now resolved lazily through accessor functions (e.g., determine_gpiochip(), get_pwm_to_pin_map()); direct module constants remain but are deprecated shims that emit warnings.
+ - Export images (PNGs and SVGs) of the Overview's and Calibrations' charts.
+ - MCP server: added tools for creating experiments and managing worker assignments.
+ - Show and hide calibration curves in Calibrations page by clicking the dot beside the calibration (similar to the Overview page).
+ - Adding `pio workers update-model <unit> -m <name> -v <version>` to leader's CLI.
+ - Added time-window and time-format options to the individual Pioreactors pages.
+ - New workflow to set your Pioreactor leader-worker model on first load of the UI.
+ - Add new APIs and MCP tools via plugins. Example: drop the following in your ~/.pioreactor/plugins folder:
+   ```python
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 from pioreactor.plugin_management import get_plugins
@@ -44,8 +48,12 @@ def list_installed_plugins():
          } for name, plugin in plugins.items()
     ]
     return {"plugins": details}
-```
- - new import of system files (the `~/.pioreactor` directory) into Pioreactors. This means that it's easy to "back up" a pioreactor (leader or worker), and then reupload this to a (new) pioreactor in your cluster via the import system. This is available on the Inventory page.
+   ```
+ - New import of system files (the `~/.pioreactor` directory) into Pioreactors. This means that it's easy to "back up" a pioreactor (leader or worker), and then reupload this to a (new) pioreactor in your cluster via the import system. This is available on the Inventory page.
+
+#### Breaking changes
+
+ - Changed `start_od_reading` API. It now accepts a dict instead of args for each PD position.
 
 ### 25.9.18
 
