@@ -258,7 +258,7 @@ export default function SideNavAndHeader() {
                     color: disabled ? '#00000050' : (active ? '#5331ca' : 'inherit'),
                     backgroundColor: active ? '#5331ca14' : undefined,
                     height: "43px",
-                    fontWeight: active ? 500 : 450,
+                    fontWeight: active ? 500 : 400,
                   };
                   if (level === 1){
                     sx.paddingLeft = "27px"

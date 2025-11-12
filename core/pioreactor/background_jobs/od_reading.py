@@ -1424,6 +1424,9 @@ def click_od_reading(
         ir_led_intensity=ir_led_intensity,
     ) as od:
         if snapshot:
-            od.logger.debug(od.record_from_adc())
+            od_snapshot = od.record_from_adc()
+            # send the reading to stdout so it can be captured / piped elsewhere
+            click.echo(str(od_snapshot), err=False)
+            od.logger.debug(od_snapshot)
         else:
             od.block_until_disconnected()
