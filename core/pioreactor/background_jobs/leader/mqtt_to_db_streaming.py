@@ -418,10 +418,22 @@ def add_default_source_to_sinks() -> list[TopicToParserToTable]:
                 "od_readings_filtered",
             ),
             TopicToParserToTable(
-                ["pioreactor/+/+/od_reading/od1", "pioreactor/+/+/od_reading/od2"], parse_od, "od_readings"
+                [
+                    "pioreactor/+/+/od_reading/od1",
+                    "pioreactor/+/+/od_reading/od2",
+                    "pioreactor/+/+/od_reading/od3",
+                    "pioreactor/+/+/od_reading/od4",
+                ],
+                parse_od,
+                "od_readings",
             ),
             TopicToParserToTable(
-                ["pioreactor/+/+/od_reading/raw_od1", "pioreactor/+/+/od_reading/raw_od2"],
+                [
+                    "pioreactor/+/+/od_reading/raw_od1",
+                    "pioreactor/+/+/od_reading/raw_od2",
+                    "pioreactor/+/+/od_reading/raw_od3",
+                    "pioreactor/+/+/od_reading/raw_od4",
+                ],
                 parse_raw_od,
                 "raw_od_readings",
             ),

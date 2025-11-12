@@ -448,7 +448,7 @@ class Monitor(LongRunningBackgroundJob):
             lgpio.gpiochip_close(self._handle)
 
     def led_on(self) -> None:
-        if not is_HAT_present():
+        if not is_HAT_present() or not hasattr(self, "_handle"):
             return
 
         import lgpio  # type: ignore
@@ -457,7 +457,7 @@ class Monitor(LongRunningBackgroundJob):
             lgpio.gpio_write(self._handle, self._led_pin, 1)
 
     def led_off(self) -> None:
-        if not is_HAT_present():
+        if not is_HAT_present() or not hasattr(self, "_handle"):
             return
 
         import lgpio  # type: ignore
