@@ -4,7 +4,6 @@ CLI for running the commands on workers, or otherwise interacting with the worke
 """
 from __future__ import annotations
 
-import sys
 from concurrent.futures import ThreadPoolExecutor
 
 import click
@@ -328,7 +327,7 @@ if am_I_leader() or is_testing_env():
         if not yes:
             confirm = input(f"Confirm copying {filepath} onto {units}? Y/n: ").strip().upper()
             if confirm != "Y":
-                sys.exit(1)
+                raise click.Abort()
 
         logger = create_logger("cp", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
@@ -346,7 +345,7 @@ if am_I_leader() or is_testing_env():
             results = executor.map(_thread_function, units)
 
         if not all(results):
-            sys.exit(1)
+            raise click.Abort()
 
     @pios.command("rm", short_help="rm a file across the cluster")
     @click.argument("filepath", type=click.Path(resolve_path=True))
@@ -366,7 +365,7 @@ if am_I_leader() or is_testing_env():
         if not yes:
             confirm = input(f"Confirm deleting {filepath} on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
-                sys.exit(1)
+                raise click.Abort()
 
         logger = create_logger("rm", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
@@ -387,7 +386,7 @@ if am_I_leader() or is_testing_env():
             results = executor.map(_thread_function, units)
 
         if not all(results):
-            sys.exit(1)
+            raise click.Abort()
 
     @pios.group(invoke_without_command=True)
     @click.option("-s", "--source", help="use a release-***.zip already on the workers")
@@ -414,7 +413,7 @@ if am_I_leader() or is_testing_env():
             if not yes:
                 confirm = input(f"Confirm updating app and ui on {units}? Y/n: ").strip().upper()
                 if confirm != "Y":
-                    sys.exit(1)
+                    raise click.Abort()
 
             logger = create_logger("update", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
             options: dict[str, str | None] = {}
@@ -455,7 +454,7 @@ if am_I_leader() or is_testing_env():
                     click.echo(dumps(api_result))
 
             if not all(success for (success, _) in results):
-                click.Abort()
+                raise click.Abort()
 
     @update.command(name="app", short_help="update Pioreactor app on workers")
     @click.option("-b", "--branch", help="update to the github branch")
@@ -491,7 +490,7 @@ if am_I_leader() or is_testing_env():
         if not yes:
             confirm = input(f"Confirm updating app on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
-                sys.exit(1)
+                raise click.Abort()
 
         logger = create_logger("update", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
         options: dict[str, str | None] = {}
@@ -536,7 +535,7 @@ if am_I_leader() or is_testing_env():
                 click.echo(dumps(api_result))
 
         if not all(success for (success, _) in results):
-            click.Abort()
+            raise click.Abort()
 
     @pios.group()
     def plugins():
@@ -572,7 +571,7 @@ if am_I_leader() or is_testing_env():
         if not yes:
             confirm = input(f"Confirm installing {plugin} on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
-                sys.exit(1)
+                raise click.Abort()
 
         logger = create_logger("install_plugin", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
         commands = {"args": [plugin], "options": {}}
@@ -600,7 +599,7 @@ if am_I_leader() or is_testing_env():
                 click.echo(dumps(api_result))
 
         if not all(success for (success, _) in results):
-            click.Abort()
+            raise click.Abort()
 
     @plugins.command("uninstall", short_help="uninstall a plugin on workers")
     @click.argument("plugin")
@@ -622,7 +621,7 @@ if am_I_leader() or is_testing_env():
         if not yes:
             confirm = input(f"Confirm uninstalling {plugin} on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
-                sys.exit(1)
+                raise click.Abort()
 
         logger = create_logger("uninstall_plugin", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
         commands = {"args": [plugin]}
@@ -648,7 +647,7 @@ if am_I_leader() or is_testing_env():
                 click.echo(dumps(api_result))
 
         if not all(success for (success, _) in results):
-            click.Abort()
+            raise click.Abort()
 
     @pios.command(name="sync-configs", short_help="sync config")
     @click.option(
@@ -718,7 +717,7 @@ if am_I_leader() or is_testing_env():
             results = executor.map(_thread_function, units)
 
         if not all(results):
-            sys.exit(1)
+            raise click.Abort()
 
     @pios.command("kill", short_help="kill a job(s) on workers")
     @click.option("--job")
@@ -761,7 +760,7 @@ if am_I_leader() or is_testing_env():
         if not yes:
             confirm = input(f"Confirm killing jobs on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
-                sys.exit(1)
+                raise click.Abort()
 
         with ClusterJobManager() as cm:
             results = cm.kill_jobs(
@@ -774,7 +773,7 @@ if am_I_leader() or is_testing_env():
                 click.echo(dumps(api_result))
 
         if not all(success for (success, _) in results):
-            click.Abort()
+            raise click.Abort()
 
     @pios.command(
         name="run",
@@ -809,7 +808,7 @@ if am_I_leader() or is_testing_env():
 
         if "unit" in extra_args:
             click.echo("Did you mean to use 'units' instead of 'unit'? Exiting.", err=True)
-            sys.exit(1)
+            raise click.Abort()
 
         units = resolve_target_units(units, experiments, active_only=True, include_leader=None)
 
@@ -819,7 +818,7 @@ if am_I_leader() or is_testing_env():
         if not yes:
             confirm = input(f"Confirm running {job} on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
-                sys.exit(1)
+                raise click.Abort()
 
         data = parse_click_arguments(extra_args)
 
@@ -841,7 +840,7 @@ if am_I_leader() or is_testing_env():
                 click.echo(dumps(api_result))
 
         if not all(success for (success, _) in results):
-            click.Abort()
+            raise click.Abort()
 
     @pios.command(
         name="shutdown",
@@ -863,7 +862,7 @@ if am_I_leader() or is_testing_env():
         if not yes:
             confirm = input(f"Confirm shutting down on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
-                sys.exit(1)
+                raise click.Abort()
 
         def _thread_function(unit: str) -> bool:
             try:
@@ -898,7 +897,7 @@ if am_I_leader() or is_testing_env():
         if not yes:
             confirm = input(f"Confirm rebooting on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
-                sys.exit(1)
+                raise click.Abort()
 
         def _thread_function(unit: str) -> bool:
             try:
@@ -945,7 +944,7 @@ if am_I_leader() or is_testing_env():
         if not yes:
             confirm = input(f"Confirm updating {job}'s {extra_args} on {units}? Y/n: ").strip().upper()
             if confirm != "Y":
-                sys.exit(1)
+                raise click.Abort()
 
         units = resolve_target_units(units, experiments, active_only=True, include_leader=None)
 

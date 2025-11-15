@@ -1,3 +1,16 @@
+### Upcoming
+
+#### Enhancements
+
+ - Added `pio job-status` for a quick view of running jobs, powered by a new `JobManager.list_jobs` helper.
+ - Introduced `make dev-status` / `scripts/dev_services_status.sh` to summarize local Huey, API, and frontend processes before starting the dev stack.
+ - Moved the release + RC automation helpers into `scripts/` with more guardrails, and pointed the Makefile targets at them.
+ - Published `scripts/pioreactor_agent_smoke_test.sh` so Pioreactor installations can run the documented smoke-test suite with one command.
+
+#### Bug fixes
+
+ - Cluster CLI commands now use `click.Abort()` (instead of bare `sys.exit`) so failed prompts, copy/install operations, and OD blanking exit cleanly with Click’s messaging.
+
 ### 25.11.12
 
 #### Highlights

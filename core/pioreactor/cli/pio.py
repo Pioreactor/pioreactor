@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import subprocess
-import sys
 from os import geteuid
 from shlex import quote
 from typing import Optional
@@ -105,7 +104,7 @@ def get_update_app_commands(
                 commands_and_priority.append(("sudo systemctl restart pioreactor-web.target", 30))
         else:
             click.echo("Not a valid source file. Should be either a whl or release archive.")
-            sys.exit(1)
+            raise click.Abort()
     elif branch is not None:
         cleaned_branch = quote(branch)
         cleaned_repo = quote(repo)
@@ -292,7 +291,7 @@ def log(message: str, level: str, name: str, local_only: bool):
     except Exception as e:
         # don't let a logging error bring down a script...
         print(e)
-        sys.exit(1)
+        raise click.Abort()
 
 
 @pio.command(name="blink", short_help="blink LED")
@@ -323,6 +322,35 @@ def kill(
             all_jobs=all_jobs, job_name=job_name, experiment=experiment, job_source=job_source, job_id=job_id
         )
     click.echo(f"Killed {count} job{'s' if count != 1 else ''}.")
+
+
+@pio.command(name="job-status", short_help="show status of job(s)")
+@click.option("--job-name", type=click.STRING)
+@click.option("--experiment", type=click.STRING)
+@click.option("--job-source", type=click.STRING)
+@click.option("--job-id", type=click.INT)
+@click.option("--all-jobs", is_flag=True, help="show all short jobs (ignore filters)")
+def job_status(
+    job_name: str | None, experiment: str | None, job_source: str | None, job_id: int | None, all_jobs: bool
+) -> None:
+    if not (job_name or experiment or job_source or all_jobs or job_id):
+        all_jobs = True
+
+    with JobManager() as jm:
+        jobs = jm.list_jobs(
+            all_jobs=all_jobs,
+            job_name=job_name,
+            experiment=experiment,
+            job_source=job_source,
+            job_id=job_id,
+        )
+
+    if not jobs:
+        click.echo("No jobs match the provided filters.")
+        return
+
+    for job, pid, found_job_id, *_ in jobs:
+        click.echo(f"[job_id={found_job_id}] {job} is running.")
 
 
 @pio.command(name="version", short_help="print the Pioreactor software version")
@@ -553,7 +581,7 @@ def update_app(
             logger.debug(p.stderr)
             logger.error("Update failed. See logs.")
             # end early
-            sys.exit(1)
+            raise click.Abort()
         elif p.stdout:
             logger.debug(p.stdout)
 
@@ -617,7 +645,7 @@ def update_firmware(version: Optional[str]) -> None:
             logger.debug(p.stderr)
             logger.error("Update failed. See logs.")
             # end early
-            sys.exit(1)
+            raise click.Abort()
 
     logger.info(f"Updated Pioreactor firmware to version {version_installed}.")  # type: ignore
 

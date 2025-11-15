@@ -103,6 +103,9 @@ web-dev: venv  ## Run Flask API on 127.0.0.1:5000
 frontend-dev:  ## Run React dev server on :3000
 	cd $(NODE_DIR) && npm start
 
+dev-status:  ## Show whether the usual dev services are already running
+	@scripts/dev_services_status.sh
+
 # --- background task queue ----------------------------------------------------
 huey-dev: venv  ## Run the Huey consumer with sensible dev flags
 	@$(ACTIVATE) && cd $(API_DIR) && \
@@ -130,10 +133,10 @@ tail-log:  ## Show last $$LINES lines of the merged pioreactor log (override wit
 # --- release helpers ----------------------------------------------------------
 .PHONY: create-release create-rc
 create-release:  ## Perform production release workflow; pass args via ARGS="--dry-run"
-	@$(PYTHON) scratch/create_release.py $(ARGS)
+	@$(PYTHON) scripts/create_release.py $(ARGS)
 
 create-rc:  ## Create release-candidate; pass args via ARGS="--dry-run --rc 1"
-	@$(PYTHON) scratch/create_rc.py $(ARGS)
+	@$(PYTHON) scripts/create_rc.py $(ARGS)
 
 
 # default target ---------------------------------------------------------------

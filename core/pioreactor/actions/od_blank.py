@@ -141,7 +141,7 @@ def od_blank(
 
     if is_pio_job_running("od_reading"):
         logger.error("OD Reading should be off. Perform OD Blanking _before_ OD Reading.")
-        raise click.Abort
+        raise click.Abort()
 
     with managed_lifecycle(unit, experiment, action_name):
         try:

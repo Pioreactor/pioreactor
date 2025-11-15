@@ -826,6 +826,10 @@ class JobManager:
 
         return self.cursor.fetchall()
 
+    def list_jobs(self, all_jobs: bool = False, **query) -> list[tuple[str, int, int]]:
+        """Return job rows matching *query* using the same filters as kill_jobs."""
+        return self._get_jobs(all_jobs, **query)
+
     def kill_jobs(self, all_jobs: bool = False, **query) -> int:
         # ex: kill_jobs(experiment="testing_exp") should end all jobs with experiment='testing_exp'
 

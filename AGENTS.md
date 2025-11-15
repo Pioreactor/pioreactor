@@ -16,6 +16,8 @@ This repository contains the **executable code for the Pioreactor project**. It 
 
 **Startup order (recommended):**
 
+0. Before starting anything, run `make dev-status` to see whether the Huey consumer, Flask API (4999), or frontend dev server (3000) are already up. Only launch what's listed under "Need to start".
+
 1. Start the Huey consumer:
 
    ```bash
@@ -39,26 +41,19 @@ This repository contains the **executable code for the Pioreactor project**. It 
 
 ---
 
-## Editing Rules (Important)
-
-1. **Do not apply automatic formatting** — leave that to our linter.
-2. Place custom/experimental code in **`scratch/`** only.
-3. **Do not run `pre-commit`** or lint manually.
-4. **Do not use Git commands unless asked** — I will manage version control.
-5. **Do not delete any files** you didn’t create yourself.
-
----
-
 ## Tools & Commands
 
 Available commands are listed in the `Makefile`. Key ones:
 
 ```bash
+make dev-status    # Summarizes which dev servers are already running vs need to be started
 make tail-log       # Show last 10 lines of the merged pioreactor log (override with LINES=200)
 make huey-dev       # Run Huey consumer with dev flags
 make web-dev        # Run Flask API on 127.0.0.1:4999
 make frontend-dev   # Run React dev server on 127.0.0.1:3000
 ```
+
+`make dev-status` either reports "All dev services appear to be running" with brief details, or prints a "Need to start" list with only the missing services. Start only those listed; everything else is already running.
 
 ---
 

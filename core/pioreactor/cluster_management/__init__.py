@@ -115,7 +115,7 @@ def add_worker(
                     logger.error(
                         f"`{hostname}` not found on network after {round(elapsed())} seconds. Check that you provided the right i) the name is correct, ii) worker is powered on, iii) any WiFi credentials to the network are correct."
                     )
-                    sys.exit(1)
+                    raise click.Abort()
                 sleep(sleep_time)
 
         res = subprocess.run(
@@ -163,10 +163,10 @@ def remove_worker(worker: pt.Unit) -> None:
             click.echo("Server error. Could not complete. See UI logs.")
         else:
             click.echo(f"Worker {worker} not present to be removed. Check hostname.")
-        click.Abort()
+        raise click.Abort()
     except HTTPException:
         click.echo(f"Not able to connect to leader's backend at {leader_address}.")
-        click.Abort()
+        raise click.Abort()
     else:
         click.echo(f"Removed {worker} from cluster.")  # this needs to shutdown the worker too???
 
@@ -186,10 +186,10 @@ def assign_worker_to_experiment(worker: pt.Unit, experiment: pt.Experiment) -> N
             click.echo("Server error. Could not complete.")
         else:
             click.echo("Not valid data. Check hostname or experiment.")
-        click.Abort()
+        raise click.Abort()
     except HTTPException:
         click.echo("Not able to connect to leader's backend.")
-        click.Abort()
+        raise click.Abort()
     else:
         click.echo(f"Assigned {worker} to {experiment}")
 
@@ -205,10 +205,10 @@ def unassign_worker_from_experiment(worker: pt.Unit, experiment: pt.Experiment) 
         r.raise_for_status()
     except HTTPErrorStatus:
         click.echo("Error")
-        click.Abort()
+        raise click.Abort()
     except HTTPException:
         click.echo("Not able to connect to leader's backend.")
-        click.Abort()
+        raise click.Abort()
     else:
         click.echo(f"Unassigned {worker} from {experiment}")
 
@@ -225,7 +225,7 @@ def update_active(worker: pt.Unit, active: int) -> None:
         r.raise_for_status()
     except HTTPException:
         click.echo("Not able to connect to leader's backend.")
-        click.Abort()
+        raise click.Abort()
     else:
         click.echo(f"Updated {worker}'s active to {bool(active)}")
 
@@ -244,7 +244,7 @@ def update_model(worker: pt.Unit, model_name: str, model_version: str) -> None:
             f"Invalid model/version: {model_name} v{model_version}."
             f" Valid options: {sorted(registered_models.keys())}"
         )
-        click.Abort()
+        raise click.Abort()
 
     try:
         r = put_into_leader(
@@ -257,10 +257,10 @@ def update_model(worker: pt.Unit, model_name: str, model_version: str) -> None:
             click.echo("Server error. Could not complete. See UI logs.")
         else:
             click.echo("Not valid data. Check model name or version.")
-        click.Abort()
+        raise click.Abort()
     except HTTPException:
         click.echo("Not able to connect to leader's backend.")
-        click.Abort()
+        raise click.Abort()
     else:
         click.echo(f"Updated {worker} to {model_name} v{model_version}.")
 

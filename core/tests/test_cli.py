@@ -14,9 +14,11 @@ from pioreactor.cli.pios import kill
 from pioreactor.cli.pios import pios
 from pioreactor.cli.pios import reboot
 from pioreactor.cli.pios import run
+from pioreactor.config import get_leader_hostname
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.utils import is_pio_job_running
+from pioreactor.utils import JobManager
 from pioreactor.utils import local_intermittent_storage
 from tests.conftest import capture_requests
 
@@ -160,6 +162,40 @@ def test_pios_kill_requests() -> None:
     assert bucket[0].params == {"experiment": "demo"}
     assert bucket[1].url == "http://unit2.local:4999/unit_api/jobs/stop"
     assert bucket[1].params == {"experiment": "demo"}
+
+
+def test_pio_job_status_requires_filter() -> None:
+    runner = CliRunner()
+    result = runner.invoke(pio, ["job-status"])
+    assert result.exit_code != 0
+    assert "Aborted" in result.output
+
+
+def test_pio_job_status_lists_job() -> None:
+    runner = CliRunner()
+    job_name = "test_job_status"
+    unit = whoami.get_unit_name()
+    experiment = whoami.UNIVERSAL_EXPERIMENT
+
+    with JobManager() as jm:
+        job_id = jm.register_and_set_running(
+            unit=unit,
+            experiment=experiment,
+            job_name=job_name,
+            job_source="cli",
+            pid=12345,
+            leader=get_leader_hostname(),
+            is_long_running_job=True,
+        )
+
+    try:
+        result = runner.invoke(pio, ["job-status", "--job-name", job_name])
+        assert result.exit_code == 0
+        assert job_name in result.output
+        assert str(job_id) in result.output
+    finally:
+        with JobManager() as jm:
+            jm.set_not_running(job_id)
 
 
 def test_pios_kill_requests_with_experiments(active_workers_in_cluster):
