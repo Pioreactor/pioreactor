@@ -327,7 +327,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
             # (hence the _cleanup bit, don't use set_state)
             # but we still raise the error afterwards.
             self._check_published_settings(self.published_settings)
-
         except ValueError as e:
             self.logger.debug(e, exc_info=True)
             self.logger.error(e)
@@ -948,16 +947,24 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         # iterate twice since publish and upsert_setting are slow, and I don't want to block the db.
         for setting, metadata_on_attr in self.published_settings.items():
-            if not metadata_on_attr.get("persist", False):
+            if (
+                not metadata_on_attr.get("persist", False)
+                and hasattr(self, setting)
+                and (getattr(self, setting) is not None)
+            ):
                 self._unpublish_setting(setting)
 
         with JobManager() as jm:
             for setting, metadata_on_attr in self.published_settings.items():
-                if not metadata_on_attr.get("persist", False):
+                if (
+                    not metadata_on_attr.get("persist", False)
+                    and hasattr(self, setting)
+                    and (getattr(self, setting) is not None)
+                ):
                     jm.upsert_setting(self.job_id, setting, None)
 
     def _check_for_duplicate_activity(self) -> None:
-        if is_pio_job_running(self.job_name) and not is_testing_env():
+        if is_pio_job_running(self.job_name):
             self.logger.warning(f"{self.job_name} is already running. Skipping.")
             raise JobPresentError(f"{self.job_name} is already running. Skipping.")
 

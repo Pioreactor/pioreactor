@@ -12,12 +12,14 @@ from pioreactor.background_jobs.od_reading import ODReader
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.config import config
 from pioreactor.config import temporary_config_changes
+from pioreactor.exc import JobPresentError
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.types import MQTTMessage
 from pioreactor.utils import is_pio_job_running
+from pioreactor.utils import JobManager
 from pioreactor.whoami import get_unit_name
 
 
@@ -406,6 +408,56 @@ def test_cleans_up_mqtt() -> None:
 
     msg = subscribe(f"pioreactor/+/{exp}/job/$state", timeout=0.5)
     assert msg is not None
+
+
+def test_clear_caches_doesnt_unpublish_settings_without_values(monkeypatch) -> None:
+    recorded_upserts: list[tuple[str, object]] = []
+    original_upsert = JobManager.upsert_setting
+
+    def tracking_upsert(self, job_id, setting, value):
+        recorded_upserts.append((setting, value))
+        return original_upsert(self, job_id, setting, value)
+
+    monkeypatch.setattr(JobManager, "upsert_setting", tracking_upsert)
+
+    class OptionalSettingJob(BackgroundJob):
+        job_name = "optional_setting_job"
+        published_settings = {
+            "optional_setting": {
+                "datatype": "float",
+                "settable": True,
+            },
+        }
+
+        def __init__(self, unit, experiment):
+            self.unpublished_settings: list[str] = []
+            super().__init__(unit=unit, experiment=experiment)
+
+        def _unpublish_setting(self, setting: str) -> None:
+            self.unpublished_settings.append(setting)
+            super()._unpublish_setting(setting)
+
+    exp = "test_clear_caches_doesnt_unpublish_settings_without_values"
+    unit = get_unit_name()
+
+    with OptionalSettingJob(unit=unit, experiment=exp) as job:
+        pause()
+
+    assert "optional_setting" not in job.unpublished_settings
+    assert all(setting != "optional_setting" for setting, _ in recorded_upserts)
+
+
+def test_duplicate_job_cannot_start_while_existing_instance_is_running() -> None:
+    class DuplicateJob(BackgroundJob):
+        job_name = "duplicate_job_guard"
+
+    exp = "test_duplicate_job_cannot_start_while_existing_instance_is_running"
+    unit = get_unit_name()
+
+    with DuplicateJob(unit=unit, experiment=exp):
+        pause()
+        with pytest.raises(JobPresentError):
+            DuplicateJob(unit=unit, experiment=exp)
 
 
 def test_dodging_order() -> None:
