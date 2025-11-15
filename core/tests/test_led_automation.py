@@ -253,14 +253,16 @@ def test_fractional_hours() -> None:
 
 @pytest.fixture
 def light_dark_cycle():
-    return LightDarkCycle(
+    # Use context manager so each test tears down the automation cleanly.
+    with LightDarkCycle(
         duration=1,
         unit=get_unit_name(),
         experiment="test_light_dark_cycle",
         light_intensity=100,
         light_duration_minutes=60,
         dark_duration_minutes=60,
-    )
+    ) as cycle:
+        yield cycle
 
 
 def test_light_turns_on_in_light_period(light_dark_cycle) -> None:

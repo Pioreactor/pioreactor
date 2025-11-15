@@ -7,6 +7,7 @@ from __future__ import annotations
 import tempfile
 from shlex import quote
 
+import click
 import pytest
 from pioreactor.cli.pio import get_update_app_commands
 from pioreactor.config import config
@@ -103,9 +104,8 @@ def test_app_commands_with_release_zip(tmp_path) -> None:
 
 def test_app_commands_invalid_source(capsys) -> None:
     bad_source = "/some/invalid/file.txt"
-    with pytest.raises(SystemExit) as exc:
+    with pytest.raises(click.Abort):
         get_update_app_commands(branch=None, repo="org/repo", source=bad_source, version=None)
-    assert exc.value.code == 1
     captured = capsys.readouterr()
     assert "Not a valid source file" in captured.out
 

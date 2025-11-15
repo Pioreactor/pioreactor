@@ -10,6 +10,8 @@
 #### Bug fixes
 
  - Cluster CLI commands now use `click.Abort()` (instead of bare `sys.exit`) so failed prompts, copy/install operations, and OD blanking exit cleanly with Click’s messaging.
+ - Background jobs now only clear MQTT/db cache entries for attributes that were actually set, preventing accidental removal of unset metadata.
+ - Dodging jobs keep their OD-reading interval topic published even if a second OD reader attempts to start and fails, so dodging continues uninterrupted.
 
 ### 25.11.12
 

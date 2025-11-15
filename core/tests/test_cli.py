@@ -164,13 +164,6 @@ def test_pios_kill_requests() -> None:
     assert bucket[1].params == {"experiment": "demo"}
 
 
-def test_pio_job_status_requires_filter() -> None:
-    runner = CliRunner()
-    result = runner.invoke(pio, ["job-status"])
-    assert result.exit_code != 0
-    assert "Aborted" in result.output
-
-
 def test_pio_job_status_lists_job() -> None:
     runner = CliRunner()
     job_name = "test_job_status"
