@@ -100,7 +100,6 @@ def update_version_py_to(version: str, dry_run: bool) -> None:
     VERSION_FILE.write_text(new_src)
 
 
-
 def list_update_scripts_for(calver: str) -> list[Path]:
     d = UPDATE_SCRIPTS_DIR / "upcoming"
     if not d.exists() or not d.is_dir():
