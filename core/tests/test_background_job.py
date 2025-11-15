@@ -460,6 +460,60 @@ def test_duplicate_job_cannot_start_while_existing_instance_is_running() -> None
             DuplicateJob(unit=unit, experiment=exp)
 
 
+def test_dodging_persists_when_second_od_reader_start_fails() -> None:
+    exp = "test_dodging_persists_when_second_od_reader_start_fails"
+    unit = get_unit_name()
+
+    with temporary_config_section(config, "keep_dodging.config"):
+        with temporary_config_changes(
+            config,
+            [
+                ("keep_dodging.config", "post_delay_duration", "0.3"),
+                ("keep_dodging.config", "pre_delay_duration", "0.3"),
+                ("keep_dodging.config", "enable_dodging_od", "1"),
+            ],
+        ):
+
+            class KeepDodging(BackgroundJobWithDodging):
+                job_name = "keep_dodging"
+
+                def __init__(self) -> None:
+                    super().__init__(unit=unit, experiment=exp, enable_dodging_od=True)
+
+                def action_to_do_before_od_reading(self) -> None:
+                    self.logger.notice("before reading")
+
+                def action_to_do_after_od_reading(self) -> None:
+                    self.logger.notice("after reading")
+
+            def wait_for(predicate, timeout=6.0) -> None:
+                deadline = time.time() + timeout
+                while time.time() < deadline:
+                    if predicate():
+                        return
+                    time.sleep(0.2)
+                raise AssertionError("predicate did not become True in time")
+
+            with KeepDodging() as dodger:
+                assert not dodger.currently_dodging_od
+
+                with start_od_reading({"1": "90"}, interval=3, unit=unit, experiment=exp, fake_data=True):
+                    wait_for(lambda: dodger.currently_dodging_od)
+                    assert dodger.currently_dodging_od
+
+                    interval_topic = f"pioreactor/{unit}/{exp}/od_reading/interval"
+                    interval_msg = subscribe(interval_topic, timeout=1)
+                    assert interval_msg is not None
+
+                    with pytest.raises(JobPresentError):
+                        start_od_reading({"1": "90"}, interval=3, unit=unit, experiment=exp, fake_data=True)
+
+                    time.sleep(1)
+                    assert dodger.currently_dodging_od
+                    interval_msg = subscribe(interval_topic, timeout=1)
+                    assert interval_msg is not None
+
+
 def test_dodging_order() -> None:
     with temporary_config_section(config, "just_pause.config"):
         with temporary_config_changes(
