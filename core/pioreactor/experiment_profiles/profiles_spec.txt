@@ -80,7 +80,7 @@ pioreactors:
 - type: when
   t: <time_string_or_float>
   if: <bool_or_expression>
-  condition: <bool_or_expression>
+  wait_until: <bool_or_expression>
   actions:
     - # any action (including repeat/when)
 

@@ -78,6 +78,7 @@ class Resume(_Action):
 
 class When(_ContainerAction):
     condition_: str = field(name="condition", default="")
+    wait_until: str = field(name="wait_until", default="")
     actions: list[Action] = []
 
 

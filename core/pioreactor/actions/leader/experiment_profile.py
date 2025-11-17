@@ -302,7 +302,8 @@ def wrapped_execute_action(
                 schedule,
             )
 
-        case struct.When(_, _, if_, condition_, actions):
+        case struct.When(_, _, if_, condition_, wait_until, actions):
+            c = wait_until or condition_
             return when(
                 unit,
                 experiment,
@@ -313,7 +314,7 @@ def wrapped_execute_action(
                 env,
                 logger,
                 action_metrics,
-                condition_,
+                c,
                 action,
                 actions,
                 schedule,

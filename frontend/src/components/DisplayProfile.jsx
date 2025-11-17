@@ -207,7 +207,7 @@ const humanReadableDuration = (duration, missingMsg='missing `hours_elapsed` or 
     return <UnderlineSpan title={missingMsg}>after ??</UnderlineSpan>
   }
   else if (duration === 0){
-    return "immediately"
+    return "starting at 0 seconds"
   }
   else if (duration < 1./60){
     const seconds = Math.round(duration * 60 * 60 * 10) / 10
@@ -388,7 +388,7 @@ const ActionDetails = ({ action, jobName, index }) => {
       return (
         <>
           <Typography variant="body2" sx={level2}>
-            {index + 1}. {if_} {afterLiteral(scheduledTime)} {humanReadableLiteral(scheduledTime)}, the first time <span style={highlightedActionType}>when</span> <span style={highlightedIf}>{processOptionalBracketedExpression(action?.condition, "missing `condition`")}</span>, execute:
+            {index + 1}. {if_} {afterLiteral(scheduledTime)} {humanReadableLiteral(scheduledTime)}, wait until <span style={highlightedIf}>{processOptionalBracketedExpression(action?.wait_until || action?.condition, "missing `wait_until`")}</span>, then do:
           </Typography>
           <Box sx={level1}>
           {Array.isArray(action.actions) && action.actions.sort((a, b) => actionTimeKey(a) - actionTimeKey(b)).map((action, index) => (
