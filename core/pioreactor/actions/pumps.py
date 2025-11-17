@@ -68,21 +68,11 @@ def click_pumps(ctx, pump_script: list[tuple[str, float]]) -> None:
     """
     Run pumps in sequence. Accepts pairs of arguments where the first is the pump name (e.g., 'media', 'alt_media', 'waste') and the second is the volume in milliliters to pump.
     Also accepts a "sleep" command (with the second arg being the number of seconds to sleep).
+    Example:
+
+    pio run pumps --media 2 --waste 2 --media 1.5
 
     Use suffixed "_" to indicate the same pump multiple times for experiment profiles
-
-    jobs:
-      pumps:
-        actions:
-          - hours_elapsed: 0
-            type: start
-            options:
-              waste: 2
-              media: 2
-              sleep: 2
-              waste_: 1
-              sleep_: 2
-              waste__: 1
 
     """
 

@@ -51,6 +51,8 @@ def _load_all_modules() -> None:
         return
 
     for module in pkgutil.walk_packages(pioreactor.__path__, pioreactor.__name__ + "."):  # type: ignore
+        if module.name.startswith("pioreactor.web."):
+            continue
         try:
             importlib.import_module(module.name)
         except Exception:

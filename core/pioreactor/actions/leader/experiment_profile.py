@@ -595,11 +595,11 @@ def start_job(
         if (if_ is None) or evaluate_bool_expression(if_, env):
             if dry_run:
                 logger.info(
-                    f"{action_count}. Dry-run: Starting {job_name} on {unit} with options {options} and args {args}."
+                    f"{action_count}. Dry-run: Starting {job_name} on {unit} with options {evaluate_options(options, env)} and args {args}."
                 )
             else:
                 logger.debug(
-                    f"{action_count}. Starting {job_name} on {unit} with options {options}, args {args}, and overrides {config_overrides}."
+                    f"{action_count}. Starting {job_name} on {unit} with options {evaluate_options(options, env)}, args {args}, and overrides {config_overrides}."
                 )
                 try:
                     patch_into(
