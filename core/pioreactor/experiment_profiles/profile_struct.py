@@ -28,21 +28,23 @@ class _LogOptions(Struct):
     message: str
     level: t.Literal[
         "DEBUG", "debug", "WARNING", "warning", "INFO", "info", "NOTICE", "notice", "ERROR", "error"
-    ] = "notice"
+    ] = "NOTICE"
 
 
 class Log(Struct, tag=str.lower, forbid_unknown_fields=True):
-    hours_elapsed: float
     options: _LogOptions
-    if_: t.Optional[bool_expression] = field(name="if", default=None)
+    if_: bool_expression = field(name="if", default=True)
+    hours_elapsed: t.Optional[float] = None
+    t: t.Optional[str | float] = None
 
     def __str__(self) -> str:
-        return f"Log(hours_elapsed={self.hours_elapsed:.5f}, message={self.options.message})"
+        return f"Log(message={self.options.message})"
 
 
 class _Action(Struct, tag=str.lower, forbid_unknown_fields=True):
-    hours_elapsed: float
-    if_: t.Optional[bool_expression] = field(name="if", default=None)
+    hours_elapsed: t.Optional[float] = None
+    t: t.Optional[str | float] = None
+    if_: bool_expression = field(name="if", default=True)
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__.lower()}"
@@ -80,9 +82,11 @@ class When(_ContainerAction):
 
 
 class Repeat(_ContainerAction):
-    repeat_every_hours: float = 1.0
-    while_: t.Optional[str | bool] = field(name="while", default=None)
+    repeat_every_hours: t.Optional[float] = None
+    every: t.Optional[float | str] = None
+    while_: str | bool = field(name="while", default=True)
     max_hours: t.Optional[float] = None
+    max_time: t.Optional[float | str] = None
     actions: list[BasicAction] = []
     _completed_loops: int = 0
 

@@ -41,6 +41,42 @@ common:
     assert decode(file, type=structs.Profile) is not None
 
 
+def test_parsing_t_time_literals() -> None:
+    file = """
+experiment_profile_name: time_literals
+
+metadata:
+  author: Tester
+
+common:
+  jobs:
+    stirring:
+      actions:
+        - type: start
+          t: 0s
+        - type: update
+          t: 90s
+        - type: stop
+          t: 2m
+    logging:
+      actions:
+        - type: log
+          t: 45s
+          options:
+            message: hello
+"""
+
+    profile = decode(file, type=structs.Profile)
+
+    stirring_actions = profile.common.jobs["stirring"].actions
+    log_action = profile.common.jobs["logging"].actions[0]
+
+    assert [action.t for action in stirring_actions] == ["0s", "90s", "2m"]
+    assert log_action.t == "45s"
+    assert all(action.hours_elapsed is None for action in stirring_actions)
+    assert log_action.hours_elapsed is None
+
+
 def test_config_overrides_in_start() -> None:
     file = """
 experiment_profile_name: demo_stirring_example

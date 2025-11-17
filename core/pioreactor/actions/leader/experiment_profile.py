@@ -40,6 +40,13 @@ STRICT_EXPRESSION_PATTERN = r"^\${{(.*?)}}$"
 FLEXIBLE_EXPRESSION_PATTERN = r"\${{(.*?)}}"
 
 
+def coalesce(*args):
+    for a in args:
+        if a is not None:
+            return a
+    return None
+
+
 class ActionMetrics:
     def __init__(self):
         self.count = 0
@@ -59,6 +66,7 @@ def wrap_in_try_except(func, logger: CustomLogger) -> Callable:
             func(*args, **kwargs)
         except Exception as e:
             logger.error(f"Error in action: {e}")
+            logger.debug(f"Error in action: {e}", exc_info=True)
 
     return inner_function
 
@@ -82,6 +90,7 @@ def evaluate_options(options: dict, env: dict) -> dict:
     Users can provide options like {'target_rpm': '${{ bioreactor_A:stirring:target_rpm + 10 }}'}, and the latter
     should be evaluated
     """
+
     from pioreactor.experiment_profiles.parser import parse_profile_expression
 
     options_expressed = {}
@@ -163,12 +172,12 @@ def _led_intensity_hack(action: struct.Action) -> struct.Action:
             # noop
             return action
 
-        case struct.Pause(hours, if_) | struct.Stop(hours, if_):
+        case struct.Pause(hours, t, if_) | struct.Stop(hours, t, if_):
             options = {"A": 0, "B": 0, "C": 0, "D": 0}
-            return struct.Start(hours, if_, options, [])
+            return struct.Start(hours, t, if_, options, [])
 
-        case struct.Update(hours, if_, options):
-            return struct.Start(hours, if_, options, [])
+        case struct.Update(hours, t, if_, options):
+            return struct.Start(hours, t, if_, options, [])
 
         case _:
             raise ValueError()
@@ -215,7 +224,7 @@ def wrapped_execute_action(
     env = global_env | {"unit": unit, "experiment": experiment, "job_name": job_name}
 
     match action:
-        case struct.Start(_, if_, options, args, config_overrides):
+        case struct.Start(_, _, if_, options, args, config_overrides):
             return start_job(
                 unit,
                 experiment,
@@ -231,20 +240,20 @@ def wrapped_execute_action(
                 config_overrides,
             )
 
-        case struct.Pause(_, if_):
+        case struct.Pause(_, _, if_):
             return pause_job(
                 unit, experiment, parent_job, job_name, dry_run, if_, env, logger, action_metrics
             )
 
-        case struct.Resume(_, if_):
+        case struct.Resume(_, _, if_):
             return resume_job(
                 unit, experiment, parent_job, job_name, dry_run, if_, env, logger, action_metrics
             )
 
-        case struct.Stop(_, if_):
+        case struct.Stop(_, _, if_):
             return stop_job(unit, experiment, parent_job, job_name, dry_run, if_, env, logger, action_metrics)
 
-        case struct.Update(_, if_, options):
+        case struct.Update(_, _, if_, options):
             return update_job(
                 unit,
                 experiment,
@@ -258,7 +267,7 @@ def wrapped_execute_action(
                 options,
             )
 
-        case struct.Log(_, options, if_):
+        case struct.Log(options, if_, _):
             return log(
                 unit,
                 experiment,
@@ -272,7 +281,9 @@ def wrapped_execute_action(
                 options,
             )
 
-        case struct.Repeat(_, if_, repeat_every_hours, while_, max_hours, actions):
+        case struct.Repeat(_, _, if_, repeat_every_hours, every, while_, max_hours, max_time, actions):
+            every = coalesce(repeat_every_hours, every)
+            max_time = coalesce(max_hours, max_time)
             return repeat(
                 unit,
                 experiment,
@@ -285,13 +296,13 @@ def wrapped_execute_action(
                 action_metrics,
                 action,
                 while_,
-                repeat_every_hours,
-                max_hours,
+                every,
+                max_time,
                 actions,
                 schedule,
             )
 
-        case struct.When(_, if_, condition_, actions):
+        case struct.When(_, _, if_, condition_, actions):
             return when(
                 unit,
                 experiment,
@@ -358,7 +369,7 @@ def when(
     parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
-    if_: BoolExpression | None,
+    if_: BoolExpression,
     env: dict,
     logger: CustomLogger,
     action_metrics: ActionMetrics,
@@ -375,7 +386,7 @@ def when(
         nonlocal env
         env = env | {"hours_elapsed": action_metrics.hours_elapsed(), "action_count": action_metrics.count}
 
-        if (if_ is None) or evaluate_bool_expression(if_, env):
+        if evaluate_bool_expression(if_, env):
             try:
                 condition_met = evaluate_bool_expression(condition_, env)
             except MQTTValueError:
@@ -389,7 +400,7 @@ def when(
             if condition_met:
                 for action in actions:
                     schedule.enter(
-                        delay=hours_to_seconds(action.hours_elapsed),
+                        delay=time_to_seconds(coalesce(action.t, action.hours_elapsed)),
                         priority=get_simple_priority(action),
                         action=wrapped_execute_action(
                             unit,
@@ -436,14 +447,14 @@ def repeat(
     parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
-    if_: BoolExpression | None,
+    if_: BoolExpression,
     env: dict,
     logger: CustomLogger,
     action_metrics: ActionMetrics,
     repeat_action: struct.Repeat,
-    while_: BoolExpression | None,
-    repeat_every_hours: float,
-    max_hours: float | None,
+    while_: BoolExpression,
+    every: str | float,
+    max_time: str | float | None,
     actions: list[struct.BasicAction],
     schedule: scheduler,
 ) -> Callable[..., None]:
@@ -458,19 +469,17 @@ def repeat(
         nonlocal env
         env = env | {"hours_elapsed": action_metrics.hours_elapsed(), "action_count": action_metrics.count}
 
-        if ((if_ is None) or evaluate_bool_expression(if_, env)) and (
-            ((while_ is None) or evaluate_bool_expression(while_, env))
-        ):
+        if evaluate_bool_expression(if_, env) and evaluate_bool_expression(while_, env):
             for action in actions:
-                if action.hours_elapsed > repeat_every_hours:
+                if time_to_seconds(coalesce(action.t, action.hours_elapsed)) > time_to_seconds(every):
                     logger.warning(
-                        f"Action {action} hours_elapsed is greater than the repeat's repeat_every_hours. Skipping."
+                        f"Action {action} start time is greater than the Repeat's cycle time, so it can't ever run. Skipping."
                     )
                     # don't allow schedualing events outside the repeat_every_hours, it's meaningless and confusing.
                     continue
 
                 schedule.enter(
-                    delay=hours_to_seconds(action.hours_elapsed),
+                    delay=time_to_seconds(coalesce(action.t, action.hours_elapsed)),
                     priority=get_simple_priority(action),
                     action=wrapped_execute_action(
                         unit,
@@ -486,15 +495,13 @@ def repeat(
                     ),
                 )
 
-            repeat_action.if_ = None  # not eval'd after the first loop
+            repeat_action.if_ = True  # not eval'd after the first loop
             repeat_action._completed_loops += 1
-
-            if (max_hours is None) or (
-                repeat_action._completed_loops * hours_to_seconds(repeat_every_hours)
-                < hours_to_seconds(max_hours)
+            if (max_time is None) or (
+                repeat_action._completed_loops * time_to_seconds(every) < time_to_seconds(max_time)
             ):
                 schedule.enter(
-                    delay=hours_to_seconds(repeat_every_hours),
+                    delay=time_to_seconds(every),
                     priority=get_simple_priority(repeat_action),
                     action=wrapped_execute_action(
                         unit,
@@ -510,7 +517,7 @@ def repeat(
                     ),
                 )
             else:
-                logger.debug(f"Exiting {repeat_action} loop as `max_hours` exceeded.")
+                logger.debug(f"Exiting {repeat_action} loop as max time exceeded.")
 
         else:
             logger.debug(
@@ -526,13 +533,16 @@ def log(
     parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
-    if_: BoolExpression | None,
+    if_: BoolExpression,
     env: dict,
     logger: CustomLogger,
     action_metrics: ActionMetrics,
     options: struct._LogOptions,
 ) -> Callable[..., None]:
     def _callable() -> None:
+        action_count = action_metrics.increment()
+        parent_job.publish_setting("action_count", action_count)
+
         # first check if the Pioreactor is still part of the experiment.
 
         if get_assigned_experiment_name(unit) != experiment:
@@ -545,11 +555,11 @@ def log(
         nonlocal env
         env = env | {"hours_elapsed": action_metrics.hours_elapsed(), "action_count": action_metrics.count}
 
-        if (if_ is None) or evaluate_bool_expression(if_, env):
+        if evaluate_bool_expression(if_, env):
             body = {
                 "message": evaluate_log_message(options.message, env),
                 "timestamp": current_utc_timestamp(),
-                "level": options.level,
+                "level": options.level.upper(),
                 "source": parent_job.job_key,
                 "task": parent_job.job_key,
                 "_souce": "app",
@@ -557,7 +567,7 @@ def log(
             post_into_leader(
                 f"/api/workers/{unit}/experiments/{experiment}/logs", json=body
             ).raise_for_status()
-            # getattr(logger, level)(evaluate_log_message(options.message, env))
+            getattr(logger, "debug")(f"{action_count}. {evaluate_log_message(options.message, env)}")
         else:
             logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
 
@@ -570,7 +580,7 @@ def start_job(
     parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
-    if_: BoolExpression | None,
+    if_: BoolExpression,
     env: dict,
     logger: CustomLogger,
     action_metrics: ActionMetrics,
@@ -592,7 +602,7 @@ def start_job(
         nonlocal env
         env = env | {"hours_elapsed": action_metrics.hours_elapsed(), "action_count": action_metrics.count}
 
-        if (if_ is None) or evaluate_bool_expression(if_, env):
+        if evaluate_bool_expression(if_, env):
             if dry_run:
                 logger.info(
                     f"{action_count}. Dry-run: Starting {job_name} on {unit} with options {evaluate_options(options, env)} and args {args}."
@@ -632,7 +642,7 @@ def pause_job(
     parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
-    if_: BoolExpression | None,
+    if_: BoolExpression,
     env: dict,
     logger: CustomLogger,
     action_metrics: ActionMetrics,
@@ -651,7 +661,7 @@ def pause_job(
         nonlocal env
         env = env | {"hours_elapsed": action_metrics.hours_elapsed(), "action_count": action_metrics.count}
 
-        if (if_ is None) or evaluate_bool_expression(if_, env):
+        if evaluate_bool_expression(if_, env):
             if dry_run:
                 logger.info(f"{action_count}. Dry-run: Pausing {job_name} on {unit}.")
             else:
@@ -675,7 +685,7 @@ def resume_job(
     parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
-    if_: BoolExpression | None,
+    if_: BoolExpression,
     env: dict,
     logger: CustomLogger,
     action_metrics: ActionMetrics,
@@ -695,7 +705,7 @@ def resume_job(
         nonlocal env
         env = env | {"hours_elapsed": action_metrics.hours_elapsed(), "action_count": action_metrics.count}
 
-        if (if_ is None) or evaluate_bool_expression(if_, env):
+        if evaluate_bool_expression(if_, env):
             if dry_run:
                 logger.info(f"{action_count}. Dry-run: Resuming {job_name} on {unit}.")
             else:
@@ -719,7 +729,7 @@ def stop_job(
     parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
-    if_: BoolExpression | None,
+    if_: BoolExpression,
     env: dict,
     logger: CustomLogger,
     action_metrics: ActionMetrics,
@@ -739,7 +749,7 @@ def stop_job(
         nonlocal env
         env = env | {"hours_elapsed": action_metrics.hours_elapsed(), "action_count": action_metrics.count}
 
-        if (if_ is None) or evaluate_bool_expression(if_, env):
+        if evaluate_bool_expression(if_, env):
             if dry_run:
                 logger.info(f"{action_count}. Dry-run: Stopping {job_name} on {unit}.")
             else:
@@ -759,7 +769,7 @@ def update_job(
     parent_job: long_running_managed_lifecycle,
     job_name: str,
     dry_run: bool,
-    if_: BoolExpression | None,
+    if_: BoolExpression,
     env: dict,
     logger: CustomLogger,
     action_metrics: ActionMetrics,
@@ -780,7 +790,7 @@ def update_job(
         nonlocal env
         env = env | {"hours_elapsed": action_metrics.hours_elapsed(), "action_count": action_metrics.count}
 
-        if (if_ is None) or evaluate_bool_expression(if_, env):
+        if evaluate_bool_expression(if_, env):
             if dry_run:
                 for setting, value in options.items():
                     logger.info(
@@ -801,6 +811,60 @@ def update_job(
             logger.debug(f"Action's `if` condition, `{if_}`, evaluated False. Skipping action.")
 
     return wrap_in_try_except(_callable, logger)
+
+
+def time_to_seconds(value: float | int | str) -> float:
+    """
+    Convert a time literal into seconds.
+
+    Supported forms:
+        - float/int: interpreted as hours
+        - "10s", "15m", "1.5h", "2d" (case-insensitive)
+
+    Returns:
+        float seconds
+
+    Raises:
+        ValueError on invalid format.
+    """
+
+    if isinstance(value, (float, int)):
+        return hours_to_seconds(value)
+
+    if not isinstance(value, str):
+        raise ValueError(f"Invalid time literal type: {type(value)}")
+
+    s = value.strip().lower()
+
+    # Avoid things like "1 h" or "1minute"
+    import re
+
+    # pattern: FLOAT + UNIT
+    m = re.fullmatch(r"([0-9]*\.?[0-9]+)([smhd])", s)
+    if not m:
+        raise ValueError(
+            f"Invalid time literal '{value}'. "
+            "Expected float hours or string like '10s', '15m', '1.5h', '2d'."
+        )
+
+    number = float(m.group(1))
+    unit = m.group(2)
+
+    if number < 0:
+        raise ValueError(f"Time value cannot be negative: {value}")
+
+    # --- 3. Unit conversion ---
+    if unit == "s":
+        return number
+    elif unit == "m":
+        return number * 60.0
+    elif unit == "h":
+        return number * 3600.0
+    elif unit == "d":
+        return number * 86400.0
+
+    # Unreachable with regex, but keep for safety
+    raise ValueError(f"Unhandled time unit '{unit}' in literal '{value}'.")
 
 
 def hours_to_seconds(hours: float) -> float:
@@ -964,7 +1028,7 @@ def execute_experiment_profile(
         for job_name, job in profile.common.jobs.items():
             for action in job.actions:
                 sched.enter(
-                    delay=hours_to_seconds(action.hours_elapsed),
+                    delay=time_to_seconds(coalesce(action.t, action.hours_elapsed)),
                     priority=get_simple_priority(action),
                     action=common_wrapped_execute_action(
                         experiment,
@@ -1000,7 +1064,7 @@ def execute_experiment_profile(
             for job_name, job in pioreactor_specific_block.jobs.items():
                 for action in job.actions:
                     sched.enter(
-                        delay=hours_to_seconds(action.hours_elapsed),
+                        delay=time_to_seconds(coalesce(action.t, action.hours_elapsed)),
                         priority=get_simple_priority(action),
                         action=wrapped_execute_action(
                             unit_,

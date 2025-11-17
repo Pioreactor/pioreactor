@@ -169,9 +169,36 @@ function processBracketedExpression(value) {
     return displayVariable(String(value));
 }
 
-const humanReadableDuration = (duration, missingMsg='missing `hours_elapsed` field') => {
+const timeLiteralToSeconds = (value) => {
+  if (value === undefined || value === null) return null;
+
+  if (typeof value === 'number') {
+    return value * 60 * 60; // hours to seconds
+  }
+
+  if (typeof value !== 'string') return null;
+
+  const match = value.trim().match(/^([0-9]*\.?[0-9]+)([smhd])$/i);
+  if (!match) return null;
+
+  const num = parseFloat(match[1]);
+  const unit = match[2].toLowerCase();
+  const factor = { s: 1, m: 60, h: 3600, d: 86400 }[unit];
+  return num * factor;
+};
+
+
+const humanReadableDuration = (duration, missingMsg='missing `hours_elapsed` or `t` field') => {
   if (duration === undefined || duration === null){
     return <UnderlineSpan title={missingMsg}>after ??</UnderlineSpan>
+  }
+  else if (typeof duration === 'string'){
+    const seconds = timeLiteralToSeconds(duration);
+    if (seconds === null){
+      return <UnderlineSpan title={missingMsg}>after ??</UnderlineSpan>
+    }
+    duration = seconds / 3600.0;
+    return humanReadableDuration(duration)
   }
   else if (!isNumeric(duration)){
     return <UnderlineSpan title={missingMsg}>after ??</UnderlineSpan>
@@ -197,6 +224,25 @@ const humanReadableDuration = (duration, missingMsg='missing `hours_elapsed` fie
     return `${duration} hours`
   }
 }
+
+const humanReadableLiteral = (tValue, durationFields = 't') => {
+  if (tValue === undefined || tValue === null) {
+    return humanReadableDuration(undefined, `missing \"${durationFields}\"  field`);
+  }
+
+  return humanReadableDuration(tValue, `missing \"${durationFields}\" field`);
+};
+
+
+const afterLiteral = (timeValue) => {
+  if (timeValue === undefined || timeValue === null) return "";
+
+  if (typeof timeValue === 'string') {
+    return /^0+(\\.0+)?[smhd]$/i.test(timeValue.trim()) ? "" : "after";
+  }
+
+  return after(timeValue);
+};
 
 const humanReadableDurationPre = (duration, missingMsg) => {
   if (duration === undefined || duration === null){
@@ -227,9 +273,15 @@ const after = (duration) => {
 }
 
 
+const actionTimeKey = (action) => {
+  return timeLiteralToSeconds(action?.t) ?? timeLiteralToSeconds(action?.hours_elapsed) ?? 0;
+};
+
+
 const ActionDetails = ({ action, jobName, index }) => {
+  const scheduledTime = action?.t ?? action?.hours_elapsed;
   var if_;
-  if (action?.if !== undefined && action?.if !== null) {
+  if (action?.if !== undefined && action?.if !== null && action?.if !== true) {
     if_ = <>
             if {processOptionalBracketedExpression(action.if)} is true,
           </>
@@ -302,7 +354,7 @@ const ActionDetails = ({ action, jobName, index }) => {
       return (
         <>
           <Typography variant="body2" sx={level2}>
-            {index + 1}. {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)}, {if_} <span style={highlightedActionType}>{action.type}</span> <span style={{ fontWeight: 500 }}>{jobName}</span>
+            {index + 1}. {afterLiteral(scheduledTime)} {humanReadableLiteral(scheduledTime)}, {if_} <span style={highlightedActionType}>{action.type}</span> <span style={{ fontWeight: 500 }}>{jobName}</span>
           </Typography>
           {renderOptions(action?.type)}
           {renderInvalidOptionsMessage()}
@@ -313,7 +365,7 @@ const ActionDetails = ({ action, jobName, index }) => {
       return (
         <>
           <Typography variant="body2" sx={level2}>
-            {index + 1}. {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)}, {if_} <span style={highlightedActionType}>log</span> the message:
+            {index + 1}. {afterLiteral(scheduledTime)} {humanReadableLiteral(scheduledTime)}, {if_} <span style={highlightedActionType}>log</span> the message:
           </Typography>
             {action.options?.message &&
             <Typography variant="body2" sx={level3}>
@@ -328,7 +380,7 @@ const ActionDetails = ({ action, jobName, index }) => {
       return (
         <>
           <Typography variant="body2" sx={level2}>
-            {index + 1}. {if_} <span style={highlightedActionType}>{action.type}</span> <span style={{ fontWeight: 500 }}>{jobName}</span> {after(action.hours_elapsed)} {humanReadableDuration(action.hours_elapsed)}
+            {index + 1}. {if_} <span style={highlightedActionType}>{action.type}</span> <span style={{ fontWeight: 500 }}>{jobName}</span> {afterLiteral(scheduledTime)} {humanReadableLiteral(scheduledTime)}
           </Typography>
         </>
       );
@@ -336,35 +388,37 @@ const ActionDetails = ({ action, jobName, index }) => {
       return (
         <>
           <Typography variant="body2" sx={level2}>
-            {index + 1}. {if_} {after(action.hours_elapsed)} {humanReadableDurationPre(action.hours_elapsed, 'missing `hours_elapsed` field')}, the first time <span style={highlightedActionType}>when</span> <span style={highlightedIf}>{processOptionalBracketedExpression(action?.condition, "missing `condition`")}</span>, execute:
+            {index + 1}. {if_} {afterLiteral(scheduledTime)} {humanReadableLiteral(scheduledTime)}, the first time <span style={highlightedActionType}>when</span> <span style={highlightedIf}>{processOptionalBracketedExpression(action?.condition, "missing `condition`")}</span>, execute:
           </Typography>
           <Box sx={level1}>
-          {Array.isArray(action.actions) && action.actions.sort((a, b) => a?.hours_elapsed - b?.hours_elapsed).map((action, index) => (
+          {Array.isArray(action.actions) && action.actions.sort((a, b) => actionTimeKey(a) - actionTimeKey(b)).map((action, index) => (
             <ActionDetails key={index} action={action} jobName={jobName} index={index} />
           ))}
           </Box>
         </>
       );
-    case 'repeat':
+    case 'repeat': {
+      const repeatEvery = action?.every ?? action?.repeat_every_hours;
+      const repeatMax = action?.max_time ?? action?.max_hours;
       return (
         <>
           <Typography variant="body2" sx={level2}>
-            {index + 1}. {if_} {after(action.hours_elapsed)} {humanReadableDurationPre(action.hours_elapsed, 'missing `hours_elapsed` field')}, <span> </span>
-          {action.while && (
+            {index + 1}. {if_} {afterLiteral(scheduledTime)} {humanReadableLiteral(scheduledTime)}, <span> </span>
+          {action.while && action.while !== true && (
             <>
                while <span style={highlightedIf}>{processOptionalBracketedExpression(action.while)}</span> {action.max_hours ? "or" : ""},<span> </span>
             </>
           )}
-          {action.max_hours && (
+          {repeatMax && (
             <>
-              until {humanReadableDuration(action.max_hours, 'max_hours')} have passed,<span> </span>
+              until {humanReadableLiteral(repeatMax, 'max_time')} have passed,<span> </span>
             </>
           )}
 
-            <span style={highlightedActionType}>repeat</span> the following every {humanReadableDuration(action.repeat_every_hours, 'missing `repeat_every_hours` field')},
+            <span style={highlightedActionType}>repeat</span> the following every {humanReadableLiteral(repeatEvery, 'every')},
           </Typography>
           <Box sx={level1}>
-            {Array.isArray(action.actions) && action.actions.sort((a, b) => a?.hours_elapsed - b?.hours_elapsed).map((action, index) => (
+            {Array.isArray(action.actions) && action.actions.sort((a, b) => actionTimeKey(a) - actionTimeKey(b)).map((action, index) => (
               <ActionDetails key={index} action={action} jobName={jobName} index={index} />
             ))}
           </Box>
@@ -375,6 +429,7 @@ const ActionDetails = ({ action, jobName, index }) => {
           }
         </>
       );
+    }
     default:
       return <>
         <Typography variant="body2" sx={level2}>

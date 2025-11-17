@@ -261,8 +261,8 @@ function RunningProfilesContainer() {
       description: 'Stopping this profile early will stop executing new actions end all actions started by it.',
       title: 'Stop profile?',
       confirmationText: 'Stop profile',
-      confirmationButtonProps: {color: "primary"},
-      cancellationButtonProps: {color: "secondary"},
+      confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}},
+      cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
     })
       .then(() => stopProfile(job_id))
       .catch(() => {});
@@ -365,7 +365,6 @@ function Profiles(props) {
         }
       });
   }, [profileFilename]);
-
   return (
     <RunningProfilesProvider experiment={experimentMetadata.experiment}>
       <Grid container spacing={2}>

@@ -3,15 +3,40 @@
 #### Enhancements
 
  - Added `pio job-status` for a quick view of running jobs, powered by a new `JobManager.list_jobs` helper.
- - Introduced `make dev-status` / `scripts/dev_services_status.sh` to summarize local Huey, API, and frontend processes before starting the dev stack.
- - Moved the release + RC automation helpers into `scripts/` with more guardrails, and pointed the Makefile targets at them.
- - Published `scripts/pioreactor_agent_smoke_test.sh` so Pioreactor installations can run the documented smoke-test suite with one command.
+ - Easier time syntax for experiment profiles! Use the `t` field to specify times using suffixes:
+   ```
+   experiment_profile_name: demo_stirring_repeat
+
+   metadata:
+     author: Cam Davidson-Pilon
+     description: A simple profile that shows of a repeat
+
+   common:
+     jobs:
+       stirring:
+         actions:
+           - type: repeat
+             t: 1h
+             every: 5m
+             actions:
+               - type: update
+                 t: 0.0
+                 options:
+                   target_rpm: ${{::stirring:target_rpm + 100}}
+               - type: update
+                 t: 30s
+                 options:
+                   target_rpm: ${{::stirring:target_rpm - 50}}
+   ```
+   This is now the preferred way (though the old syntax isn't going away), and docs will be updated to reflect this.
+
 
 #### Bug fixes
 
  - Cluster CLI commands now use `click.Abort()` (instead of bare `sys.exit`) so failed prompts, copy/install operations, and OD blanking exit cleanly with Click’s messaging.
  - Background jobs now only clear MQTT/db cache entries for attributes that were actually set, preventing accidental removal of unset metadata.
  - Dodging jobs keep their OD-reading interval topic published even if a second OD reader attempts to start and fails, so dodging continues uninterrupted.
+
 
 ### 25.11.12
 

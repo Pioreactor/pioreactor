@@ -11,6 +11,7 @@ from pioreactor.actions.leader.experiment_profile import _verify_experiment_prof
 from pioreactor.actions.leader.experiment_profile import execute_experiment_profile
 from pioreactor.actions.leader.experiment_profile import hours_to_seconds
 from pioreactor.actions.leader.experiment_profile import seconds_to_hours
+from pioreactor.actions.leader.experiment_profile import time_to_seconds
 from pioreactor.background_jobs.stirring import start_stirring
 from pioreactor.experiment_profiles.profile_struct import _LogOptions
 from pioreactor.experiment_profiles.profile_struct import CommonBlock
@@ -44,6 +45,25 @@ def test_seconds_to_hours() -> None:
     assert seconds_to_hours(3600.0) == 1
     assert seconds_to_hours(3600) == 1
     assert seconds_to_hours(0) == 0
+
+
+def test_time_to_seconds_accepts_literals() -> None:
+    assert time_to_seconds(0.5) == 1800
+    assert time_to_seconds("10s") == 10.0
+    assert time_to_seconds("2m") == 120.0
+    assert time_to_seconds("1.5h") == 5400.0
+    assert time_to_seconds("2d") == 172800.0
+
+
+def test_time_to_seconds_rejects_bad_literals() -> None:
+    with pytest.raises(ValueError):
+        time_to_seconds("1 h")
+
+    with pytest.raises(ValueError):
+        time_to_seconds("bad")
+
+    with pytest.raises(ValueError):
+        time_to_seconds("-5m")
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
@@ -470,6 +490,86 @@ def test_repeat_block(mock__load_experiment_profile) -> None:
         if b.path == "/api/workers/unit1/jobs/update/job_name/jobbing/experiments/_testing_experiment"
     ]
     assert r == ["1"] * repeat_num
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_repeat_respects_every_and_time_literals(mock__load_experiment_profile) -> None:
+    experiment = "_testing_experiment"
+
+    start = Start(t="0s")
+    repeat = Repeat(
+        t="0s",
+        every="0.01s",
+        max_time="0.03s",
+        actions=[Update(t="0s", options={"setting": "1"})],
+    )
+
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        plugins=[],
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(
+                jobs={
+                    "jobbing": Job(actions=[start, repeat]),
+                }
+            ),
+        },
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    with capture_requests() as bucket:
+        execute_experiment_profile("profile.yaml", experiment)
+
+    updates = [
+        b
+        for b in bucket
+        if b.path == "/api/workers/unit1/jobs/update/job_name/jobbing/experiments/_testing_experiment"
+    ]
+
+    assert len(updates) == 3
+
+
+@patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
+def test_repeat_warns_and_skips_actions_beyond_every(mock__load_experiment_profile, caplog) -> None:
+    experiment = "_testing_experiment"
+
+    start = Start(t="0s")
+    repeat = Repeat(
+        t="0s",
+        every="0.01s",
+        max_time="0.02s",
+        actions=[Update(t="0.05s", options={"setting": "1"})],
+    )
+
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        plugins=[],
+        pioreactors={
+            "unit1": PioreactorSpecificBlock(
+                jobs={
+                    "jobbing": Job(actions=[start, repeat]),
+                }
+            ),
+        },
+        metadata=Metadata(author="test_author"),
+    )
+
+    mock__load_experiment_profile.return_value = profile
+
+    with caplog.at_level("WARNING"):
+        with capture_requests() as bucket:
+            execute_experiment_profile("profile.yaml", experiment)
+
+    updates = [
+        b
+        for b in bucket
+        if b.path == "/api/workers/unit1/jobs/update/job_name/jobbing/experiments/_testing_experiment"
+    ]
+
+    assert updates == []
+    assert any("can't ever run" in record.message for record in caplog.records)
 
 
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")

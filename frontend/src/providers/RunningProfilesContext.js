@@ -19,6 +19,13 @@ export function RunningProfilesProvider({ children, experiment }) {
 
   // Use a callback for fetching the running profiles
   const fetchRunningProfiles = React.useCallback(async () => {
+    // If we don't yet know the experiment, don't hit the API.
+    if (!experiment) {
+      setRunningProfiles([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       const response = await fetch(
