@@ -482,7 +482,7 @@ if am_I_leader() or is_testing_env():
         Pulls and installs a Pioreactor software version across the cluster
         """
 
-        units = resolve_target_units(units, experiments, active_only=False, include_leader=True)
+        units = resolve_target_units(units, experiments, active_only=False, include_leader=None)
 
         if len(units) == 0:
             return
