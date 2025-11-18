@@ -207,7 +207,7 @@ const humanReadableDuration = (duration, missingMsg='missing `hours_elapsed` or 
     return <UnderlineSpan title={missingMsg}>after ??</UnderlineSpan>
   }
   else if (duration === 0){
-    return "starting at 0 seconds"
+    return "immediately"
   }
   else if (duration < 1./60){
     const seconds = Math.round(duration * 60 * 60 * 10) / 10

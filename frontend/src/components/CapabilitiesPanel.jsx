@@ -63,8 +63,8 @@ function yamlSnippetForStart(cap) {
     `jobs:`,
     `  ${job}:`,
     `    actions:`,
-    `      - hours_elapsed: 0`,
-    `        type: start`,
+    `      - type: start`,
+    `        t: 10s`,
     ...maybeOptions,
     ...argsLines,
   ]
@@ -94,8 +94,8 @@ function yamlSnippetForStartWithOverrides(cap, overrideOptions) {
     `jobs:`,
     `  ${job}:`,
     `    actions:`,
-    `      - hours_elapsed: 0`,
-    `        type: start`,
+    `      - type: start`,
+    `        t: 10s`,
     ...maybeOptions,
     ...argsLines,
   ].join('\n');
@@ -115,8 +115,8 @@ function yamlSnippetForUpdate(cap) {
     `jobs:`,
     `  ${job}:`,
     `    actions:`,
-    `      - hours_elapsed: 0.5`,
-    `        type: update`,
+    `      - type: update`,
+    `        t: 610s`,
     `        options:`,
     ...optLines,
   ].join('\n');
@@ -131,8 +131,8 @@ function yamlSnippetForUpdateWithOverrides(cap, overrideOptions) {
     `jobs:`,
     `  ${job}:`,
     `    actions:`,
-    `      - hours_elapsed: 0.5`,
-    `        type: update`,
+    `      - type: update`,
+    `        t: 610s`,
     ...maybeOptions,
   ].join('\n');
 }

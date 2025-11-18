@@ -3,30 +3,38 @@
 #### Enhancements
 
  - Added `pio job-status` for a quick view of running jobs, powered by a new `JobManager.list_jobs` helper.
- - Easier time syntax for experiment profiles! Use the `t` field to specify times using suffixes:
+ - Easier time syntax for experiment profiles!
+
+   1. Use the `t` field to specify times using suffixes, like `15s`, `1m`, `2.5h`
+   2. In `repeat` blocks, `every`  replaces `repeat_every_hours`, and `max_time` replaces `max_hours`. Both the same time syntax above.
+   3. In `when` blocks, `wait_until` replaces `condition`.
    ```
    experiment_profile_name: demo_stirring_repeat
 
    metadata:
      author: Cam Davidson-Pilon
-     description: A simple profile that shows of a repeat
+     description: A simple profile that starts stirring, increases it every 5min, and stops when the RPM exceeds 2000.
 
    common:
      jobs:
        stirring:
          actions:
+           - type: start
+             t: 0
            - type: repeat
-             t: 1h
+             t: 5m
              every: 5m
              actions:
                - type: update
-                 t: 0.0
+                 t: 0.0s
                  options:
                    target_rpm: ${{::stirring:target_rpm + 100}}
-               - type: update
-                 t: 30s
-                 options:
-                   target_rpm: ${{::stirring:target_rpm - 50}}
+           - type: when
+             t: 0s
+             wait_until: ${{::stirring:target_rpm > 2000}}
+             actions:
+                - type: stop
+                  t: 0s
    ```
    This is now the preferred way (though the old syntax isn't going away), and docs will be updated to reflect this.
 
@@ -36,6 +44,7 @@
  - Cluster CLI commands now use `click.Abort()` (instead of bare `sys.exit`) so failed prompts, copy/install operations, and OD blanking exit cleanly with Click’s messaging.
  - Background jobs now only clear MQTT/db cache entries for attributes that were actually set, preventing accidental removal of unset metadata.
  - Dodging jobs keep their OD-reading interval topic published even if a second OD reader attempts to start and fails, so dodging continues uninterrupted.
+ - Fix `pios update ...` breaking the web server from starting. (`pio update` is fine)
 
 
 ### 25.11.12
