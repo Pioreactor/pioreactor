@@ -69,7 +69,7 @@ def test_no_restarting_huey_service() -> None:
                     continue
 
                 # Checking for 'systemctl restart huey'
-                if "systemctl restart huey" in line:
+                if "systemctl restart huey" in line or "systemctl restart pioreactor-web":
                     error_msgs.append(
                         f"Error in {script} at line {line_number}: 'systemctl restart huey' should not be used since it will halt updates."
                     )

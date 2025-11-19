@@ -25,6 +25,7 @@ from pioreactor.hardware import get_pcb_button_pin
 from pioreactor.hardware import get_pcb_led_pin
 from pioreactor.hardware import get_temp_address
 from pioreactor.hardware import is_HAT_present
+from pioreactor.hardware import is_heating_pcb_present
 from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import get_from
 from pioreactor.pubsub import QOS
@@ -337,10 +338,10 @@ class Monitor(LongRunningBackgroundJob):
         """
         Originally from #220
         """
-        # if no model assigned, skip
+        # if no model assigned or missing hardware, skip
         if get_pioreactor_model() is None:
             return
-        if not is_HAT_present():
+        elif not is_HAT_present() or not is_heating_pcb_present():
             return
 
         if whoami.is_testing_env():

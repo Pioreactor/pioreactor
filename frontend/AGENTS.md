@@ -26,3 +26,4 @@ Rules
 -------
 
 1. Keep imports at the top of the file
+2. Reference (the incomplete) DESIGN.md for style design

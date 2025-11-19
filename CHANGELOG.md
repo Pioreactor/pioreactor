@@ -2,7 +2,7 @@
 
 #### Enhancements
 
- - Added `pio job-status` for a quick view of running jobs, powered by a new `JobManager.list_jobs` helper.
+ - Added `pio job-status` for a quick view of running jobs.
  - Easier time syntax for experiment profiles!
 
    1. Use the `t` field to specify times using suffixes, like `15s`, `1m`, `2.5h`
