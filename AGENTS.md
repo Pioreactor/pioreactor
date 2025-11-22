@@ -14,6 +14,12 @@ This repository contains the **executable code for the Pioreactor project**. It 
 
 ## Running the System
 
+Always use the repo virtualenv for any Python or pytest commands:
+
+```bash
+source .venv/bin/activate
+```
+
 **Startup order (recommended):**
 
 0. Before starting anything, run `make dev-status` to see whether the Huey consumer, Flask API (4999), or frontend dev server (3000) are already up. Only launch what's listed under "Need to start".

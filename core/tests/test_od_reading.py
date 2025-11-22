@@ -1114,6 +1114,41 @@ def test_PhotodiodeIrLedReferenceTrackerStaticInit() -> None:
         tracker.update(v)
 
 
+def test_dark_offset_turns_off_all_leds(mocker) -> None:
+    experiment = "test_dark_offset_turns_off_all_leds"
+    unit = get_unit_name()
+
+    adc_reader = ADCReader(
+        channels=["1"],
+        fake_data=True,
+        dynamic_gain=False,
+        oversampling_count=2,
+    )
+
+    led_states_seen: list[dict[str, float]] = []
+    original_set_offsets = adc_reader.set_offsets
+
+    def capture_led_state_during_offset(batched_readings):
+        with local_intermittent_storage("leds") as cache:
+            led_states_seen.append({channel: float(cache.get(channel, -1.0)) for channel in ALL_LED_CHANNELS})
+        return original_set_offsets(batched_readings)
+
+    mocker.patch.object(adc_reader, "set_offsets", side_effect=capture_led_state_during_offset)
+
+    with ODReader(
+        {"1": "90"},
+        interval=None,
+        unit=unit,
+        experiment=experiment,
+        adc_reader=adc_reader,
+        calibration_transformer=NullCalibrationTransformer(),
+    ):
+        pass
+
+    assert led_states_seen, "Expected dark offset to be set during initialization."
+    assert led_states_seen[0] == {channel: pytest.approx(0.0) for channel in ALL_LED_CHANNELS}
+
+
 def test_ODReader_with_multiple_angles_and_a_ref() -> None:
     """
     Technically not possible, since there are only two PD channels.

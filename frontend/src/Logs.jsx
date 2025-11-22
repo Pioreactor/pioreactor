@@ -151,7 +151,7 @@ function Logs(props) {
               <ManageExperimentMenu experiment={experimentMetadata.experiment}/>
             </Box>
           </Grid>
-          <Grid>
+          <Grid size={{xs: 12}}>
             <PaginatedLogsTable pioreactorUnit={pioreactorUnit} experiment={experimentMetadata.experiment} relabelMap={relabelMap} logLevel={logLevel} />
           </Grid>
 

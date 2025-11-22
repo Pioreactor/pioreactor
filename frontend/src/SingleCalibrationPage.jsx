@@ -10,7 +10,6 @@ import {checkTaskCallback, colors, ColorCycler} from "./utilities"
 import MuiLink from '@mui/material/Link';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import CalibrationChart from "./components/CalibrationChart";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CodeIcon from '@mui/icons-material/Code';
@@ -23,12 +22,9 @@ import {
   TableCell,
   TableHead,
   TableRow,
-  IconButton,
 } from "@mui/material";
 import PioreactorIcon from "./components/PioreactorIcon"
-import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
 import yaml from "js-yaml";
-import UnderlineSpan from "./components/UnderlineSpan";
 import dayjs from 'dayjs';
 import Snackbar from '@mui/material/Snackbar';
 import TuneIcon from '@mui/icons-material/Tune';
@@ -320,13 +316,32 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } )
       <Grid size={12} sx={{mb: 2}}>
         <Card>
           <CardContent sx={{p: 2}}>
-              <Typography variant="h6" mb={2}>
-                <MuiLink component={Link} to={`/calibrations/${pioreactorUnit}`} color="inherit" underline="hover" sx={{cursor: "pointer"}} > <PioreactorIcon sx={{verticalAlign: "middle", marginRight: "1px"}} /> {pioreactorUnit} </MuiLink>
-                  <NavigateNextIcon sx={{verticalAlign: "middle", marginRight: "3px"}}/>
-                <MuiLink component={Link} to={`/calibrations/${pioreactorUnit}/${device}`} color="inherit" underline="hover" sx={{cursor: "pointer"}} >  {device} </MuiLink>
-                  <NavigateNextIcon sx={{verticalAlign: "middle", marginRight: "3px"}}/>
-                 {calibrationName}
-              </Typography>
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="h6" component="h2">
+                  Calibration: {calibrationName}
+                </Typography>
+                <Typography variant="subtitle2" color="text.secondary">
+                  <MuiLink
+                    component={Link}
+                    to={`/calibrations/${pioreactorUnit}`}
+                    color="inherit"
+                    underline="hover"
+                    sx={{ fontWeight: 500 }}
+                  >
+                    {pioreactorUnit}
+                  </MuiLink>
+                  {" / "}
+                  <MuiLink
+                    component={Link}
+                    to={`/calibrations/${pioreactorUnit}/${device}`}
+                    color="inherit"
+                    underline="hover"
+                    sx={{ fontWeight: 500 }}
+                  >
+                    {device}
+                  </MuiLink>
+                </Typography>
+              </Box>
 
               <CalibrationChart calibrations={[calibration]} deviceName={device} unitsColorMap={unitsColorMap} highlightedModel={{pioreactorUnit: null, calbrationName: null}} title={`Calibration curve for ${calibrationName}`} />
 

@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from "react";
+import React, {useState, useEffect, useCallback} from "react";
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -43,6 +43,7 @@ import Menu from "@mui/material/Menu";
 import ListItemText from "@mui/material/ListItemText";
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import Alert from '@mui/material/Alert';
+import RefreshIcon from '@mui/icons-material/Refresh';
 
 
 
@@ -105,15 +106,20 @@ function AddNewPioreactor({setWorkers}){
   const [isDiscovering, setIsDiscovering] = useState(false);
   const availableModels = useAvailableModels();
 
+  const loadDiscoveredWorkers = useCallback(() => {
+    setIsDiscovering(true);
+    fetch('/api/workers/discover')
+      .then((res) => res.json())
+      .then((data) => setDiscoveredWorkers(data))
+      .catch(() => setDiscoveredWorkers([]))
+      .finally(() => setIsDiscovering(false));
+  }, []);
+
   useEffect(() => {
     if (open) {
-      setIsDiscovering(true);
-      fetch('/api/workers/discover')
-        .then((res) => res.json())
-        .then((data) => setDiscoveredWorkers(data))
-        .finally(() => setIsDiscovering(false));
+      loadDiscoveredWorkers();
     }
-  }, [open]);
+  }, [open, loadDiscoveredWorkers]);
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -211,7 +217,16 @@ function AddNewPioreactor({setWorkers}){
         provide the hostname you used when installing the Pioreactor image onto the Raspberry Pi, and the Pioreactor model (this can be changed later).</p>
         <p>Your existing leader will automatically connect the new Pioreactor to the cluster.</p>
         <Box sx={{ mt: 2, mb: 2 }}>
-          <Typography variant="subtitle1">Discovered available workers:</Typography>
+          <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
+            <Typography variant="subtitle1" sx={{ mr: 1 }}>Discovered available workers:</Typography>
+            <Tooltip title="Refresh discovered workers">
+              <span>
+                <IconButton size="small" onClick={loadDiscoveredWorkers} disabled={isDiscovering}>
+                  {isDiscovering ? <CircularProgress size={16} /> : <RefreshIcon fontSize="small" />}
+                </IconButton>
+              </span>
+            </Tooltip>
+          </Box>
           {isDiscovering ? (
             <CircularProgress size={20} sx={{ mt: 1 }} />
           ) : discoveredWorkers.length === 0 ? (

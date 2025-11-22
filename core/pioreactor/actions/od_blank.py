@@ -192,7 +192,7 @@ def od_blank(
     show_default=True,
     help="Number of samples",
 )
-def click_od_blank(ctx, od_angle_channel1, od_angle_channel2, n_samples: int) -> None:
+def click_od_blank(ctx, n_samples: int) -> None:
     """
     Compute statistics about the blank OD time series
     """

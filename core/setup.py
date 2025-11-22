@@ -91,7 +91,7 @@ setup(
         pios=pioreactor.cli.pios:pios
         pioreactor-fcgi=pioreactor.web.fcgi:main
     """,
-    python_requires=">=3.11",
+    python_requires=">=3.13",
     extras_require={
         "worker": WORKER_REQUIREMENTS,
         "leader_worker": LEADER_REQUIREMENTS + WORKER_REQUIREMENTS,

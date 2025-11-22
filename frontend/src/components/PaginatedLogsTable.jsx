@@ -19,6 +19,7 @@ import {ERROR_COLOR, WARNING_COLOR, NOTICE_COLOR} from "../utilities"
 import Chip from '@mui/material/Chip';
 import PioreactorIcon from "./PioreactorIcon"
 import { Link } from 'react-router';
+import emptyStateIllustration from '../assets/undraw_clouds_bmtk.svg';
 
 // Activate the UTC plugin
 dayjs.extend(utc);
@@ -195,41 +196,54 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
     return localTs.format('YYYY-MM-DD HH:mm:ss');
   };
 
+  const hasLogs = listOfLogs.length > 0;
+  const showEmptyState = !hasLogs && !loading;
+
   return (
     <>
-      <Card>
-        <CardContent>
-
-          <TableContainer sx={{ maxHeight: "500px", minHeight: "200px", width: "100%", overflowY: "auto", overflowX: 'auto', }}>
-            <Table sx={{tableLayout: { xs: 'auto', lg: 'fixed' }, minWidth: 600}} stickyHeader size="small" aria-label="log table">
-              <colgroup>
-                <col style={{width:'15%'}}/>
-                <col style={{width:'10%'}}/>
-                <col style={{width:'10%'}}/>
-                <col style={{width:'55%'}}/>
-              </colgroup>
-              <TableHead>
-                <TableRow >
-                  <TableCell sx={{"backgroundColor": "white"}}>Time</TableCell>
-                  <TableCell sx={{"backgroundColor": "white"}}>Pioreactor</TableCell>
-                  <TableCell sx={{"backgroundColor": "white"}}>Source</TableCell>
-                  <TableCell sx={{"backgroundColor": "white"}}>Message</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {listOfLogs.map((log) => (
-                  <TableRowStyled key={log.key}>
-                    <StyledTimeTableCell level={log.level}>
-                      {timestampCell(log.timestamp)}
-                    </StyledTimeTableCell>
-                    <StyledTableCell level={log.level}><Chip size="small" icon={<PioreactorIcon/>} label={relabelUnit(log.pioreactor_unit)} clickable component={Link} to={"/pioreactors/" + log.pioreactor_unit} data-pioreactor-unit={log.pioreactor_unit} /></StyledTableCell>
-                    <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
-                    <StyledTableCell level={log.level}>{log.message}</StyledTableCell>
-                  </TableRowStyled>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+      <Card sx={{ width: "100%" }}>
+        <CardContent sx={{ width: "100%" }}>
+          {hasLogs ? (
+            <TableContainer sx={{ maxHeight: "500px", minHeight: "200px", width: "100%", overflowY: "auto", overflowX: 'auto', }}>
+              <Table sx={{tableLayout: { xs: 'auto', lg: 'fixed' }, minWidth: 600}} stickyHeader size="small" aria-label="log table">
+                <colgroup>
+                  <col style={{width:'15%'}}/>
+                  <col style={{width:'10%'}}/>
+                  <col style={{width:'10%'}}/>
+                  <col style={{width:'55%'}}/>
+                </colgroup>
+                <TableHead>
+                  <TableRow >
+                    <TableCell sx={{"backgroundColor": "white"}}>Time</TableCell>
+                    <TableCell sx={{"backgroundColor": "white"}}>Pioreactor</TableCell>
+                    <TableCell sx={{"backgroundColor": "white"}}>Source</TableCell>
+                    <TableCell sx={{"backgroundColor": "white"}}>Message</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {listOfLogs.map((log) => (
+                    <TableRowStyled key={log.key}>
+                      <StyledTimeTableCell level={log.level}>
+                        {timestampCell(log.timestamp)}
+                      </StyledTimeTableCell>
+                      <StyledTableCell level={log.level}><Chip size="small" icon={<PioreactorIcon/>} label={relabelUnit(log.pioreactor_unit)} clickable component={Link} to={"/pioreactors/" + log.pioreactor_unit} data-pioreactor-unit={log.pioreactor_unit} /></StyledTableCell>
+                      <StyledTableCell level={log.level}>{log.task.replace(/_/g, ' ')}</StyledTableCell>
+                      <StyledTableCell level={log.level}>{log.message}</StyledTableCell>
+                    </TableRowStyled>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          ) : showEmptyState ? (
+            <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" sx={{ minHeight: "350px", gap: 2, textAlign: "center" }}>
+              <Box component="img" src={emptyStateIllustration} alt="No logs illustration" sx={{ maxWidth: "320px", width: "100%", opacity: 0.9 }} />
+              <Box sx={{ color: "#5f6a7d", fontSize: "14px" }}>
+                No logs yet. They will appear here once your Pioreactor starts reporting activity.
+              </Box>
+            </Box>
+          ) : (
+            <Box sx={{ minHeight: "350px" }} />
+          )}
           <Box display="flex" justifyContent="space-between" mt={2}>
             <Box sx={{width: 300}}/>
             <Button onClick={loadMoreLogs} disabled={loading || (skip % 50 !== 0) || (skip === 0) } style={{textTransform: 'none'}}>

@@ -188,7 +188,7 @@ def pio_run(
 ) -> bool:
     command = (PIO_EXECUTABLE, "run") + config_overrides + args
 
-    env = {k: v for k, v in (env or {}).items() if k in ALLOWED_ENV}
+    env = filter_to_allowed_env(env or {})
 
     logger.debug(f"Executing `{join(command)}`, {env=}")
 
