@@ -79,13 +79,10 @@ def task_status(task_id: str):
         )
     except TaskException as e:
         # huey wraps the exception, so lets reraise it.
-        try:
-            exec(f"from huey.exceptions import *; raise {str(e)}")
-        except Exception as ee:
-            return (
-                jsonify(blob | {"status": "failed", "error": str(ee)}),
-                500,
-            )
+        return (
+            jsonify(blob | {"status": "failed", "error": str(e)}),
+            500,
+        )
 
     if task is None:
         return jsonify(blob | {"status": "pending or not present"}), 202
@@ -159,8 +156,8 @@ def remove_file() -> DelayedResponseReturnValue:
     # use filepath in body
     body = request.get_json()
 
-    if not body["filepath"].startswith("/home/pioreactor") or not body["filepath"].startswith("/tmp"):
-        raise FileNotFoundError()
+    if not (body["filepath"].startswith("/home/pioreactor") or body["filepath"].startswith("/tmp")):
+        abort(403, "Access to this path is not allowed")
 
     task = tasks.rm(body["filepath"])
     return create_task_response(task)
@@ -416,7 +413,7 @@ def get_specific_setting_for_a_job(job_name: str, setting: str) -> ResponseRetur
         (job_name, setting),
         one=True,
     )
-    assert isinstance(setting_metadata, dict)
+    assert isinstance(setting_metadata, (dict, type(None)))
     if setting_metadata:
         return jsonify({setting_metadata["setting"]: setting_metadata["value"]})
     else:

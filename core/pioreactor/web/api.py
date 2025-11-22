@@ -632,7 +632,7 @@ def get_growth_rates(experiment: str) -> ResponseReturnValue:
     lookback = float(args.get("lookback", 4.0))
     target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
-        abort(404, "target_points must be > 0")
+        abort(400, "target_points must be > 0")
 
     growth_rates = query_app_db(
         """
@@ -2160,10 +2160,10 @@ def update_config(filename: str) -> ResponseReturnValue:
 
     if is_unit_specific[1] != "":
         units = is_unit_specific[1]
-        flags = "--specific"
+        flags = ("--specific",)
     else:
         units = UNIVERSAL_IDENTIFIER
-        flags = "--shared"
+        flags = ("--shared",)
 
     # General security risk here to save arbitrary file to OS.
     config_path = Path(os.environ["DOT_PIOREACTOR"]) / filename

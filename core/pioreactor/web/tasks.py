@@ -318,7 +318,7 @@ def update_app_from_release_archive_on_specific_pioreactors(
 
 
 @huey.task()
-def pio(*args: str, env: dict[str, str] = {}) -> bool:
+def pio(*args: str, env: dict[str, str] | None = None) -> bool:
     env = filter_to_allowed_env(env or {})
     logger.debug(f'Executing `{join(("pio",) + args)}`, {env=}')
     result = run((PIO_EXECUTABLE,) + args, env=env)
@@ -326,7 +326,7 @@ def pio(*args: str, env: dict[str, str] = {}) -> bool:
 
 
 @huey.task()
-def pio_plugins_list(*args: str, env: dict[str, str] = {}) -> tuple[bool, str]:
+def pio_plugins_list(*args: str, env: dict[str, str] | None = None) -> tuple[bool, str]:
     env = filter_to_allowed_env(env or {})
     logger.debug(f'Executing `{join(("pio",) + args)}`, {env=}')
     result = run((PIO_EXECUTABLE,) + args, capture_output=True, text=True, env=env)
@@ -335,7 +335,7 @@ def pio_plugins_list(*args: str, env: dict[str, str] = {}) -> tuple[bool, str]:
 
 @huey.task()
 @huey.lock_task("export-data-lock")
-def pio_run_export_experiment_data(*args: str, env: dict[str, str] = {}) -> tuple[bool, str]:
+def pio_run_export_experiment_data(*args: str, env: dict[str, str] | None = None) -> tuple[bool, str]:
     env = filter_to_allowed_env(env or {})
     logger.debug(f'Executing `{join(("pio", "run", "export_experiment_data") + args)}`, {env=}')
     result = run(
@@ -348,7 +348,7 @@ def pio_run_export_experiment_data(*args: str, env: dict[str, str] = {}) -> tupl
 
 
 @huey.task(priority=100)
-def pio_kill(*args: str, env: dict[str, str] = {}) -> bool:
+def pio_kill(*args: str, env: dict[str, str] | None = None) -> bool:
     env = filter_to_allowed_env(env or {})
     logger.debug(f'Executing `{join(("pio", "kill") + args)}`, {env=}')
     result = run((PIO_EXECUTABLE, "kill") + args, env=env)
@@ -357,7 +357,7 @@ def pio_kill(*args: str, env: dict[str, str] = {}) -> bool:
 
 @huey.task()
 @huey.lock_task("plugins-lock")
-def pio_plugins(*args: str, env: dict[str, str] = {}) -> bool:
+def pio_plugins(*args: str, env: dict[str, str] | None = None) -> bool:
     # install / uninstall only
     env = filter_to_allowed_env(env or {})
     assert args[0] in ("install", "uninstall")
@@ -479,7 +479,7 @@ def import_dot_pioreactor_archive(uploaded_zip_path: str) -> bool:
 
 @huey.task()
 @huey.lock_task("update-lock")
-def pio_update_app(*args: str, env: dict[str, str] = {}) -> bool:
+def pio_update_app(*args: str, env: dict[str, str] | None = None) -> bool:
     env = filter_to_allowed_env(env or {})
     logger.debug(f'Executing `{join(("pio", "update", "app") + args)}`, {env=}')
     result = run((PIO_EXECUTABLE, "update", "app") + args, env=env)
@@ -488,7 +488,7 @@ def pio_update_app(*args: str, env: dict[str, str] = {}) -> bool:
 
 @huey.task()
 @huey.lock_task("update-lock")
-def pio_update(*args: str, env: dict[str, str] = {}) -> bool:
+def pio_update(*args: str, env: dict[str, str] | None = None) -> bool:
     env = filter_to_allowed_env(env or {})
     logger.debug(f'Executing `{join(("pio", "update") + args)}`, {env=}')
     run((PIO_EXECUTABLE, "update") + args, env=env)
@@ -525,7 +525,7 @@ def reboot(wait=0) -> bool:
 
 
 @huey.task()
-def pios(*args: str, env: dict[str, str] = {}) -> bool:
+def pios(*args: str, env: dict[str, str] | None = None) -> bool:
     env = filter_to_allowed_env(env or {})
     logger.debug(f'Executing `{join(("pios",) + args + ("-y",))}`, {env=}')
     result = run(
@@ -548,7 +548,7 @@ def save_file(path: str, content: str) -> bool:
 
 @huey.task()
 def write_config_and_sync(
-    config_path: str, text: str, units: str, flags: str, env: dict[str, str] = {}
+    config_path: str, text: str, units: str, flags: tuple[str, ...] = (), env: dict[str, str] | None = None
 ) -> tuple[bool, str]:
     env = filter_to_allowed_env(env or {})
     try:
@@ -556,11 +556,11 @@ def write_config_and_sync(
             f.write(text)
 
         logger.debug(
-            f'Executing `{join((PIOS_EXECUTABLE, "sync-configs", "--units", units, flags))}`, {env=}'
+            f'Executing `{join((PIOS_EXECUTABLE, "sync-configs", "--units", units) + flags)}`, {env=}'
         )
 
         result = run(
-            (PIOS_EXECUTABLE, "sync-configs", "--units", units, flags),
+            (PIOS_EXECUTABLE, "sync-configs", "--units", units) + flags,
             capture_output=True,
             text=True,
             env=env,
