@@ -63,3 +63,13 @@ repos:
     hooks:
       - id: sqlfluff-lint
         args: [--dialect, "sqlite"]
+
+
+-   repo: local
+    hooks:
+    -   id: ensure-tests-return-none
+        name: Require tests to annotate return None
+        entry: python scripts/ensure_tests_return_none.py
+        language: system
+        types: [python]
+        files: '(^|/)tests?/.*\.py$|(^|/)test_.*\.py$'

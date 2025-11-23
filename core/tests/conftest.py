@@ -19,6 +19,12 @@ from pioreactor.utils.timing import to_datetime
 @pytest.fixture(autouse=True)
 def run_around_tests(request):
     prune_retained_messages("pioreactor/#")
+    from pioreactor.utils import JobManager
+
+    with JobManager() as job_manager:
+        job_manager.cursor.execute("DELETE FROM pio_job_published_settings;")
+        job_manager.cursor.execute("DELETE FROM pio_job_metadata;")
+
     yield
 
     from pioreactor.utils import local_intermittent_storage
