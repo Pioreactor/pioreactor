@@ -272,7 +272,7 @@ def run_job_on_unit_in_experiment(
             f"Worker(s) {pioreactor_unit} not found, not active, or not assigned to experiment {experiment}.",
         )
 
-    # and we can include experiment in the env since we know these workers are in the experiment!
+    # Note we can include experiment in the env since we know these workers are in the experiment!
 
     t = tasks.multicast_post(
         f"/unit_api/jobs/run/job_name/{job}",
@@ -282,18 +282,16 @@ def run_job_on_unit_in_experiment(
                 "args": json.args,
                 "options": json.options,
                 "config_overrides": json.config_overrides,
-                "env": (
-                    json.env
-                    | {
-                        "EXPERIMENT": experiment,
-                        "MODEL_NAME": worker["model_name"],
-                        "MODEL_VERSION": worker["model_version"],
-                        "HOSTNAME": worker["pioreactor_unit"],
-                        "ACTIVE": str(int(worker["is_active"])),
-                        "TESTING": str(int(is_testing_env())),
-                        "DOT_PIOREACTOR": os.environ["DOT_PIOREACTOR"],
-                    }
-                ),
+                "env": json.env
+                | {
+                    "EXPERIMENT": experiment,
+                    "MODEL_NAME": worker["model_name"],
+                    "MODEL_VERSION": worker["model_version"],
+                    "HOSTNAME": worker["pioreactor_unit"],
+                    "ACTIVE": str(int(worker["is_active"])),
+                    "TESTING": str(int(is_testing_env())),
+                    "DOT_PIOREACTOR": os.environ["DOT_PIOREACTOR"],
+                },
             }
             for worker in assigned_workers
         ],

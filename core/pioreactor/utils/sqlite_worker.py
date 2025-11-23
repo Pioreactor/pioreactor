@@ -143,7 +143,8 @@ class Sqlite3Worker(threading.Thread):
             try:
                 self._sqlite3_cursor.execute(query, values)
             except sqlite3.Error as e:
-                raise e
+                if self._raise_on_error:
+                    raise e
 
     def close(self) -> None:
         """Close down the thread."""

@@ -196,10 +196,10 @@ class TestGrowthRateCalculating:
             with local_persistent_storage("od_normalization_variance") as cache:
                 cache[experiment] = json.dumps({"1": 1, "2": 1})
 
-            od_stream, dosing_stream = create_od_stream_from_mqtt(
-                unit, experiment
-            ), create_dosing_stream_from_mqtt(unit, experiment)
             with GrowthRateCalculator(unit=unit, experiment=experiment) as calc1:
+                od_stream, dosing_stream = create_od_stream_from_mqtt(
+                    unit, experiment
+                ), create_dosing_stream_from_mqtt(unit, experiment)
                 calc1.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
 
                 publish(
@@ -243,6 +243,10 @@ class TestGrowthRateCalculating:
                 assert float(calc1.processor.ekf.state_[-1]) != 0
 
             with GrowthRateCalculator(unit=unit, experiment=experiment) as calc2:
+                od_stream, dosing_stream = create_od_stream_from_mqtt(
+                    unit, experiment
+                ), create_dosing_stream_from_mqtt(unit, experiment)
+
                 calc2.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
                 pause()
                 pause()

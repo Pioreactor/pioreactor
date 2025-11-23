@@ -179,7 +179,7 @@ def initialized():
     logger.debug("Starting Huey consumer...")
 
 
-@huey.task()
+@huey.task(priority=50)
 def pio_run(
     *args: str,
     env: dict[str, str] | None = None,
@@ -603,7 +603,7 @@ def post_into_unit(
         return unit, None
 
 
-@huey.task(priority=5)
+@huey.task(priority=50)
 def multicast_post(
     endpoint: str,
     units: list[str],
@@ -684,7 +684,7 @@ def multicast_get(
     return dict(sorted(unsorted_responses.items()))  # always sort alphabetically for downstream uses.
 
 
-@huey.task(priority=10)
+@huey.task(priority=50)
 def patch_into_unit(unit: str, endpoint: str, json: dict | None = None) -> tuple[str, Any]:
     try:
         address = resolve_to_address(unit)
@@ -709,7 +709,7 @@ def patch_into_unit(unit: str, endpoint: str, json: dict | None = None) -> tuple
         return unit, None
 
 
-@huey.task(priority=5)
+@huey.task(priority=50)
 def multicast_patch(endpoint: str, units: list[str], json: dict | None = None) -> dict[str, Any]:
     # this function "consumes" one huey thread waiting fyi
     assert endpoint.startswith("/unit_api")

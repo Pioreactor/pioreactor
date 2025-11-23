@@ -288,7 +288,6 @@ def run_job(job: str) -> DelayedResponseReturnValue:
     options = json.options
     env = json.env | {
         "TESTING": str(int(whoami.is_testing_env())),
-        "DOT_PIOREACTOR": os.environ["DOT_PIOREACTOR"],
     }
     config_overrides = json.config_overrides
 
