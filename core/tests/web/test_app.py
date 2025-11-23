@@ -13,7 +13,7 @@ IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
 huey.immediate = True
 
 
-def test_latest_experiment_endpoint(client):
+def test_latest_experiment_endpoint(client) -> None:
     response = client.get("/api/experiments/latest")
 
     assert response.status_code == 200
@@ -23,7 +23,7 @@ def test_latest_experiment_endpoint(client):
     assert data["delta_hours"] > 0
 
 
-def test_assignment_count(client):
+def test_assignment_count(client) -> None:
     response = client.get("/api/experiments/assignment_count")
 
     assert response.status_code == 200
@@ -33,7 +33,7 @@ def test_assignment_count(client):
     assert data[0]["experiment"] == "exp1"
 
 
-def test_get_workers(client):
+def test_get_workers(client) -> None:
     response = client.get("/api/workers")
     assert response.status_code == 200
     data = response.get_json()
@@ -45,7 +45,7 @@ def test_get_workers(client):
     assert "unit4" in units
 
 
-def test_discover_workers_endpoint(client, monkeypatch):
+def test_discover_workers_endpoint(client, monkeypatch) -> None:
     # Mock network discovery to yield an existing and a new worker
     monkeypatch.setattr(
         "pioreactor.utils.networking.discover_workers_on_network",
@@ -59,7 +59,7 @@ def test_discover_workers_endpoint(client, monkeypatch):
     assert "unit1" not in units
 
 
-def test_get_worker(client):
+def test_get_worker(client) -> None:
     response = client.get("/api/workers/unit1")
     assert response.status_code == 200
     data = response.get_json()
@@ -68,14 +68,14 @@ def test_get_worker(client):
     assert data["added_at"] == "2023-10-01T10:00:00Z"
 
 
-def test_get_experiment_assignment_for_worker(client):
+def test_get_experiment_assignment_for_worker(client) -> None:
     response = client.get("/api/workers/unit1/experiment")
     assert response.status_code == 200
     data = response.get_json()
     assert data["experiment"] == "exp1"
 
 
-def test_get_workers_for_experiment(client):
+def test_get_workers_for_experiment(client) -> None:
     response = client.get("/api/experiments/exp1/workers")
     assert response.status_code == 200
     data = response.get_json()
@@ -85,7 +85,7 @@ def test_get_workers_for_experiment(client):
     assert "unit2" in units
 
 
-def test_add_worker_to_experiment(client):
+def test_add_worker_to_experiment(client) -> None:
     # Add unit4 to exp1
     response = client.put("/api/experiments/exp1/workers", json={"pioreactor_unit": "unit4"})
     assert response.status_code == 200
@@ -97,7 +97,7 @@ def test_add_worker_to_experiment(client):
     assert "unit4" in units
 
 
-def test_remove_worker_from_experiment(client):
+def test_remove_worker_from_experiment(client) -> None:
     # Remove unit2 from exp1
     response = client.delete("/api/experiments/exp1/workers/unit2")
     assert response.status_code == 200
@@ -109,26 +109,26 @@ def test_remove_worker_from_experiment(client):
     assert "unit2" not in units
 
 
-def test_remove_worker_from_experiment_it_doesnt_belong_to(client):
+def test_remove_worker_from_experiment_it_doesnt_belong_to(client) -> None:
     # Try to remove unit2 from an experiment it's not assigned to.
     response = client.delete("/api/experiments/exp99/workers/unit2")
     assert response.status_code == 404
 
 
-def test_get_assignment_count(client):
+def test_get_assignment_count(client) -> None:
     response = client.get("/api/experiments/assignment_count")
     assert response.status_code == 200
     data = response.get_json()
     assert len(data) == 3  # We have 3 experiments
-    exp1 = next((item for item in data if item["experiment"] == "exp1"), None)
-    exp2 = next((item for item in data if item["experiment"] == "exp2"), None)
-    exp3 = next((item for item in data if item["experiment"] == "exp3"), None)
+    exp1 = next((item for item in data if item["experiment"] == "exp1"))
+    exp2 = next((item for item in data if item["experiment"] == "exp2"))
+    exp3 = next((item for item in data if item["experiment"] == "exp3"))
     assert exp1["worker_count"] == 2
     assert exp2["worker_count"] == 1
     assert exp3["worker_count"] == 1
 
 
-def test_change_worker_status(client):
+def test_change_worker_status(client) -> None:
     # Deactivate unit3
     response = client.put("/api/workers/unit3/is_active", json={"is_active": 0})
     assert response.status_code == 200
@@ -139,7 +139,7 @@ def test_change_worker_status(client):
     assert data["is_active"] == 0
 
 
-def test_get_unit_labels(client):
+def test_get_unit_labels(client) -> None:
     response = client.get("/api/experiments/exp1/unit_labels")
     assert response.status_code == 200
     data = response.get_json()
@@ -148,7 +148,7 @@ def test_get_unit_labels(client):
     assert data["unit2"] == "Reactor 2"
 
 
-def test_upsert_unit_labels(client):
+def test_upsert_unit_labels(client) -> None:
     # Update label for unit1 in exp1
     response = client.patch(
         "/api/experiments/exp1/unit_labels",
@@ -163,7 +163,7 @@ def test_upsert_unit_labels(client):
 
 
 @pytest.mark.xfail(reason="need to mock datetime")
-def test_get_logs_for_unit_and_experiment(client):
+def test_get_logs_for_unit_and_experiment(client) -> None:
     response = client.get("/api/workers/unit1/experiments/exp1/logs")
     assert response.status_code == 200
     data = response.get_json()
@@ -176,7 +176,7 @@ def test_get_logs_for_unit_and_experiment(client):
 
 
 @pytest.mark.xfail(reason="need to mock datetime")
-def test_get_growth_rates(client):
+def test_get_growth_rates(client) -> None:
     response = client.get("/api/experiments/exp1/time_series/growth_rates")
     assert response.status_code == 200
     data = response.get_json()
@@ -186,7 +186,7 @@ def test_get_growth_rates(client):
     assert 0.025 in rates
 
 
-def test_create_experiment(client):
+def test_create_experiment(client) -> None:
     # Create a new experiment
     response = client.post(
         "/api/experiments",
@@ -208,7 +208,7 @@ def test_create_experiment(client):
     assert data["description"] == "Fourth experiment"
 
 
-def test_create_duplicate_experiment(client):
+def test_create_duplicate_experiment(client) -> None:
     # Try to create an experiment with a duplicate name 'exp1'
     response = client.post(
         "/api/experiments",
@@ -221,7 +221,7 @@ def test_create_duplicate_experiment(client):
     assert response.status_code == 409
 
 
-def test_update_experiment(client):
+def test_update_experiment(client) -> None:
     # Update an existing experiment
     response = client.patch(
         "/api/experiments/exp2",
@@ -237,7 +237,7 @@ def test_update_experiment(client):
     assert data["description"] == "Updated second experiment"
 
 
-def test_update_nonexistent_experiment(client):
+def test_update_nonexistent_experiment(client) -> None:
     # Try to update an experiment that doesn't exist
     response = client.patch(
         "/api/experiments/nonexistent_exp",
@@ -248,7 +248,7 @@ def test_update_nonexistent_experiment(client):
     assert response.status_code == 404  # Not Found
 
 
-def test_create_experiment_missing_fields(client):
+def test_create_experiment_missing_fields(client) -> None:
     # Try to create an experiment without required fields
     response = client.post(
         "/api/experiments",
@@ -261,7 +261,7 @@ def test_create_experiment_missing_fields(client):
     assert response.status_code == 400  # Bad Request
 
 
-def test_404_for_unknown_api(client):
+def test_404_for_unknown_api(client) -> None:
     response = client.get("/api/this-doesnt-exist")
     assert response.status_code == 404
 
@@ -272,7 +272,7 @@ def test_404_for_unknown_api(client):
     assert response.status_code == 404
 
 
-def test_broadcasting(client):
+def test_broadcasting(client) -> None:
     response = client.get("/api/workers")
     data = response.get_json()
     count_of_workers = len(data)
@@ -283,7 +283,7 @@ def test_broadcasting(client):
     assert len(bucket) == (count_of_workers + 1)  # leader is localhost, whos not a worker in this fixture
 
 
-def test_broadcast_in_manage_all(client):
+def test_broadcast_in_manage_all(client) -> None:
     # regression test
     with capture_requests() as bucket:
         client.post(
@@ -316,7 +316,7 @@ def test_broadcast_in_manage_all(client):
     assert len(bucket) == 1
 
 
-def test_run_job(client):
+def test_run_job(client) -> None:
     # regression test
     with capture_requests() as bucket:
         client.post(
@@ -363,7 +363,7 @@ def test_run_job(client):
     assert len(bucket) == 0
 
 
-def test_run_job_with_job_source(client):
+def test_run_job_with_job_source(client) -> None:
     # regression test
     with capture_requests() as bucket:
         client.post(
@@ -395,7 +395,7 @@ def test_run_job_with_job_source(client):
     )
 
 
-def test_run_job_response(client):
+def test_run_job_response(client) -> None:
     # regression test
     run_post_response = client.post(
         "/api/workers/unit1/jobs/run/job_name/stirring/experiments/exp1",
@@ -416,7 +416,7 @@ def test_run_job_response(client):
 
 
 @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Requires a webserver running to handle huey pings.")
-def test_get_settings_unit_api(client):
+def test_get_settings_unit_api(client) -> None:
     from pioreactor.background_jobs.stirring import start_stirring
 
     with start_stirring():
@@ -433,7 +433,7 @@ def test_get_settings_unit_api(client):
 
 
 @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Requires a webserver running to handle huey pings.")
-def test_get_settings_api(client):
+def test_get_settings_api(client) -> None:
     from pioreactor.background_jobs.stirring import start_stirring
 
     with start_stirring(unit="unit1", experiment="exp1"):

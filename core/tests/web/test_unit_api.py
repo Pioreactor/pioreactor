@@ -7,7 +7,7 @@ from __future__ import annotations
 import pytest
 
 
-def test_task_results_pending(client):
+def test_task_results_pending(client) -> None:
     """GET on non-existent task should return pending status."""
     resp = client.get("/unit_api/task_results/does_not_exist")
     assert resp.status_code == 202
@@ -15,7 +15,7 @@ def test_task_results_pending(client):
     assert data["status"] == "pending or not present"
 
 
-def test_invalid_update_target(client):
+def test_invalid_update_target(client) -> None:
     """Invalid target for system update should return 404."""
     resp = client.post(
         "/unit_api/system/update/invalid",
@@ -27,7 +27,7 @@ def test_invalid_update_target(client):
 
 
 @pytest.mark.parametrize("endpoint", ["/unit_api/system/reboot", "/unit_api/system/shutdown"])
-def test_reboot_and_shutdown_schedule_task(client, endpoint):
+def test_reboot_and_shutdown_schedule_task(client, endpoint) -> None:
     """Reboot and shutdown endpoints should schedule background tasks."""
     resp = client.post(endpoint)
     assert resp.status_code == 202
@@ -35,7 +35,7 @@ def test_reboot_and_shutdown_schedule_task(client, endpoint):
     assert "task_id" in data and "result_url_path" in data
 
 
-def test_get_clock_time_success(client):
+def test_get_clock_time_success(client) -> None:
     """GET clock time returns success and a timestamp."""
     resp = client.get("/unit_api/system/utc_clock")
     assert resp.status_code == 200
@@ -44,12 +44,12 @@ def test_get_clock_time_success(client):
     assert "clock_time" in data
 
 
-def test_set_clock_non_leader(client):
+def test_set_clock_non_leader(client) -> None:
     resp = client.patch("/unit_api/system/utc_clock")
     assert resp.status_code == 202
 
 
-def test_set_clock_time_sync_branch(client, monkeypatch):
+def test_set_clock_time_sync_branch(client, monkeypatch) -> None:
     """When not leader or no payload, sync_clock branch schedules a task."""
     # Force non-leader behavior
     import pioreactor.web.unit_api as mod
@@ -62,7 +62,7 @@ def test_set_clock_time_sync_branch(client, monkeypatch):
     assert data.get("result_url_path", "").startswith("/unit_api/task_results/")
 
 
-def test_get_versions_endpoints(client):
+def test_get_versions_endpoints(client) -> None:
     """Versions for app and ui should be returned."""
     r_ui = client.get("/unit_api/versions/ui")
     assert r_ui.status_code == 200

@@ -318,7 +318,7 @@ def prune_retained_messages(topics_to_prune: str = "#") -> None:
         topics.append(message.topic)
 
     client = subscribe_and_callback(on_message, topics_to_prune, allow_retained=True)
-    sleep(1)
+    sleep(0.1)  # to collect
     for topic in topics.copy():
         client.publish(topic, None, retain=True)
 

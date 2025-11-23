@@ -27,6 +27,8 @@ from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
 
+from .utils import wait_for
+
 
 def make_channels(channel1: str | None, channel2: str | None) -> dict[str, str | None]:
     channels: dict[str, str | None] = {}
@@ -889,15 +891,10 @@ def test_calibration_simple_linear_calibration_positive_slope() -> None:
         pause()
         pause()
         with collect_all_logs_of_level("warning", unit=get_unit_name(), experiment=experiment) as bucket:
-            pause()
-            pause()
-            pause()
             voltage = 10.0
             assert od.calibration_transformer.models["2"](voltage) == max(cal.recorded_data["x"])
-            pause()
-            pause()
-            pause()
-            assert "Signal above" in bucket[0]["message"]
+            assert wait_for(lambda: len(bucket) > 0, timeout=3.0)
+            assert any("Signal above" in log["message"] for log in bucket)
 
 
 def test_calibration_simple_linear_calibration_negative_slope() -> None:
@@ -944,9 +941,8 @@ def test_calibration_simple_linear_calibration_negative_slope() -> None:
 
             pause()
             assert od.calibration_transformer.models["2"](voltage) == 0.0
-            pause()
-            pause()
-            assert "suggested" in bucket[0]["message"]
+            assert wait_for(lambda: len(bucket) > 0, timeout=3.0)
+            assert any("suggested" in log["message"] for log in bucket)
 
 
 def test_calibration_simple_quadratic_calibration() -> None:

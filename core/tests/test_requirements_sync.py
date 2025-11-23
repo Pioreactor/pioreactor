@@ -35,7 +35,7 @@ def parse_requirements(path: Path) -> list[str]:
     return requirements
 
 
-def test_requirements_files_match_setup_py():
+def test_requirements_files_match_setup_py() -> None:
     repo_root = Path(__file__).resolve().parent.parent.parent
     req_dir = repo_root / "requirements"
     setup_py_path = repo_root / "core" / "setup.py"

@@ -6,12 +6,12 @@ from pioreactor.web.utils import is_valid_unix_filename
 from pioreactor.web.utils import scrub_to_valid
 
 
-def test_none_input_raises():
+def test_none_input_raises() -> None:
     with pytest.raises(ValueError):
         scrub_to_valid(None)  # type: ignore[arg-type]
 
 
-def test_sqlite_prefixed_input_rejected():
+def test_sqlite_prefixed_input_rejected() -> None:
     with pytest.raises(ValueError):
         scrub_to_valid("sqlite_master")
 
@@ -24,7 +24,7 @@ def test_sqlite_prefixed_input_rejected():
         ("name\x00../../etc/passwd", "nameetcpasswd"),
     ],
 )
-def test_dangerous_inputs_are_scrubbed(dangerous, expected):
+def test_dangerous_inputs_are_scrubbed(dangerous, expected) -> None:
     assert scrub_to_valid(dangerous) == expected
 
 
@@ -36,7 +36,7 @@ def test_dangerous_inputs_are_scrubbed(dangerous, expected):
         "alpha beta-01.ext",
     ],
 )
-def test_valid_unix_filenames(name):
+def test_valid_unix_filenames(name) -> None:
     assert is_valid_unix_filename(name)
 
 
@@ -53,5 +53,5 @@ def test_valid_unix_filenames(name):
         "a" * 256,
     ],
 )
-def test_invalid_unix_filenames(name):
+def test_invalid_unix_filenames(name) -> None:
     assert not is_valid_unix_filename(name)

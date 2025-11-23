@@ -22,6 +22,8 @@ from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import JobManager
 from pioreactor.whoami import get_unit_name
 
+from .utils import wait_for
+
 
 @contextmanager
 def temporary_config_section(config_parser, section):
@@ -113,6 +115,7 @@ def test_jobs_connecting_and_disconnecting_will_still_log_to_mqtt() -> None:
             pause()
             pause()
 
+    assert wait_for(lambda: len(bucket) >= 2, timeout=3.0)
     assert len(bucket) == 2
 
 
@@ -315,6 +318,7 @@ def test_editing_readonly_attr_via_mqtt() -> None:
             pause()
             pause()
 
+    assert wait_for(lambda: len(logs) > 0, timeout=3.0)
     assert len(logs) > 0
     assert any(["readonly" in log["message"] for log in logs])
 
@@ -429,7 +433,7 @@ def test_clear_caches_doesnt_unpublish_settings_without_values(monkeypatch) -> N
             },
         }
 
-        def __init__(self, unit, experiment):
+        def __init__(self, unit, experiment) -> None:
             self.unpublished_settings: list[str] = []
             super().__init__(unit=unit, experiment=experiment)
 
@@ -563,7 +567,7 @@ def test_dodging_order() -> None:
                         enable_dodging_od=config.getboolean("just_pause.config", "enable_dodging_od")
                     ):
                         time.sleep(26)
-                        assert len(bucket) > 4, bucket
+                        assert wait_for(lambda: len(bucket) > 4, timeout=6.0), bucket
 
             ODReader._pre_read = []
             ODReader._post_read = []
@@ -661,13 +665,14 @@ def test_disabling_dodging() -> None:
                 ):
                     time.sleep(2)
                     with JustPause(
-                        enable_dodging_od=config.getboolean("just_pause.config", "enable_dodging_od")
+                        enable_dodging_od=config.getboolean("just_pause.config", "enable_dodging_od"),
                     ) as jp:
                         assert set(jp.published_settings.keys()) == set(
                             ["test", "state", "enable_dodging_od", "currently_dodging_od"]
                         )
                         time.sleep(20)
 
+                        assert wait_for(lambda: len(bucket) >= 7, timeout=6.0)
                         assert len(bucket) == 7
 
                         jp.set_enable_dodging_od(False)
@@ -706,11 +711,11 @@ def test_disabled_dodging_will_start_continuous_operation() -> None:
             with collect_all_logs_of_level("NOTICE", unit=get_unit_name(), experiment=exp) as bucket:
                 with JustPause():
                     time.sleep(5)
-                assert any("OK" in b["message"] for b in bucket)
-                assert all("NOPE" not in b["message"] for b in bucket)
+                assert wait_for(lambda: any("OK" in b["message"] for b in bucket), timeout=5.0)
+            assert all("NOPE" not in b["message"] for b in bucket)
 
 
-def test_subclasses_provide_a_unique_job_name_for_contrib():
+def test_subclasses_provide_a_unique_job_name_for_contrib() -> None:
     with pytest.raises(NameError):
 
         class TestJobBad(BackgroundJobContrib):

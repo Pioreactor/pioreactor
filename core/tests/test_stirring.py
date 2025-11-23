@@ -288,7 +288,7 @@ def dummy_start_stirring(monkeypatch):
     return calls
 
 
-def test_click_stirring_accepts_new_flags(dummy_start_stirring):
+def test_click_stirring_accepts_new_flags(dummy_start_stirring) -> None:
     runner = CliRunner()
     result = runner.invoke(
         stirring_mod.click_stirring,
@@ -322,7 +322,7 @@ def test_click_stirring_accepts_new_flags(dummy_start_stirring):
         "--target-rpm-outside-od-reading",
     ],
 )
-def test_click_stirring_help_includes_new_flags(flag):
+def test_click_stirring_help_includes_new_flags(flag) -> None:
     runner = CliRunner()
     result = runner.invoke(stirring_mod.click_stirring, ["--help"])
     assert result.exit_code == 0

@@ -11,7 +11,7 @@ from pioreactor.cluster_management import get_workers_in_experiment
 from pioreactor.cluster_management import get_workers_in_inventory
 
 
-def test_get_workers_in_inventory(active_workers_in_cluster):
+def test_get_workers_in_inventory(active_workers_in_cluster) -> None:
     """get_workers_in_inventory should return all workers including inactive ones"""
     units = get_workers_in_inventory()
     assert isinstance(units, tuple)
@@ -20,7 +20,7 @@ def test_get_workers_in_inventory(active_workers_in_cluster):
     assert set(units) == expected
 
 
-def test_get_active_workers_in_inventory(active_workers_in_cluster):
+def test_get_active_workers_in_inventory(active_workers_in_cluster) -> None:
     """get_active_workers_in_inventory should return only active workers"""
     units = get_active_workers_in_inventory()
     assert isinstance(units, tuple)
@@ -28,7 +28,7 @@ def test_get_active_workers_in_inventory(active_workers_in_cluster):
 
 
 @pytest.mark.parametrize("experiment", ["testexp", "another"])
-def test_get_workers_in_experiment(active_workers_in_cluster, experiment):
+def test_get_workers_in_experiment(active_workers_in_cluster, experiment) -> None:
     """get_workers_in_experiment should return workers for a given experiment"""
     units = get_workers_in_experiment(experiment)
     assert isinstance(units, tuple)
@@ -37,7 +37,7 @@ def test_get_workers_in_experiment(active_workers_in_cluster, experiment):
 
 
 @pytest.mark.parametrize("experiment", ["testexp", "another"])
-def test_get_active_workers_in_experiment(active_workers_in_cluster, experiment):
+def test_get_active_workers_in_experiment(active_workers_in_cluster, experiment) -> None:
     """get_active_workers_in_experiment should return only active workers for a given experiment"""
     units = get_active_workers_in_experiment(experiment)
     assert isinstance(units, tuple)

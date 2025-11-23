@@ -771,6 +771,13 @@ class JobManager:
         self.cursor.execute(update_query, (job_id,))
         return
 
+    def clear(self) -> None:
+        """
+        Remove all job metadata and published settings. Intended for tests.
+        """
+        self.cursor.execute("DELETE FROM pio_job_published_settings;")
+        self.cursor.execute("DELETE FROM pio_job_metadata;")
+
     def is_job_running(self, job_name: str) -> bool:
         select_query = """SELECT 1 FROM pio_job_metadata WHERE job_name=(?) AND is_running=1"""
         self.cursor.execute(select_query, (job_name,))

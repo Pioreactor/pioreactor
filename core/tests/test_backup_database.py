@@ -17,7 +17,7 @@ def dummy_lifecycle(*args, **kwargs):
     yield SimpleNamespace(job_key="backup_database")
 
 
-def test_skip_backup_when_worker_has_no_space(tmp_path):
+def test_skip_backup_when_worker_has_no_space(tmp_path) -> None:
     db_path = tmp_path / "db.sqlite"
 
     with temporary_config_change(config, "storage", "database", str(db_path)):
@@ -53,7 +53,7 @@ def test_skip_backup_when_worker_has_no_space(tmp_path):
             mock_rsync.assert_not_called()
 
 
-def test_skip_backup_when_local_has_no_space(tmp_path):
+def test_skip_backup_when_local_has_no_space(tmp_path) -> None:
     db_path = tmp_path / "db.sqlite"
 
     with temporary_config_change(config, "storage", "database", str(db_path)):

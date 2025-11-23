@@ -24,6 +24,8 @@ from pioreactor.utils.timing import default_datetime_for_pioreactor
 from pioreactor.utils.timing import to_datetime
 from pioreactor.whoami import get_unit_name
 
+from .utils import wait_for
+
 
 def pause() -> None:
     # to avoid race conditions when updating state
@@ -238,9 +240,7 @@ class TestGrowthRateCalculating:
                         timestamp="2010-01-01T12:00:35.000Z",
                     ),
                 )
-                pause()
-
-                assert float(calc1.processor.ekf.state_[-1]) != 0
+                assert wait_for(lambda: float(calc1.processor.ekf.state_[-1]) != 0, timeout=3.0)
 
             with GrowthRateCalculator(unit=unit, experiment=experiment) as calc2:
                 od_stream, dosing_stream = create_od_stream_from_mqtt(
@@ -259,7 +259,7 @@ class TestGrowthRateCalculating:
                         timestamp="2010-01-01T12:00:35.000Z",
                     ),
                 )
-                assert float(calc2.processor.ekf.state_[-1]) != 0
+                assert wait_for(lambda: float(calc2.processor.ekf.state_[-1]) != 0, timeout=3.0)
 
     def test_single_observation(self) -> None:
         unit = get_unit_name()

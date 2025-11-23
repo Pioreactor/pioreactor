@@ -12,7 +12,7 @@ from pioreactor.utils.capabilities import collect_capabilities
 from pioreactor.utils.capabilities import generate_command_metadata
 
 
-def test_all_subclasses():
+def test_all_subclasses() -> None:
     class Base:
         pass
 
@@ -36,7 +36,7 @@ class DummySettings:
         self.add_to_published_settings("partial", {"x": True, "y": {"z": 3}})
 
 
-def test_extract_additional_settings():
+def test_extract_additional_settings() -> None:
     settings = _extract_additional_settings(DummySettings)
     # only 'yes' and 'partial' keys are captured
     assert "yes" in settings and settings["yes"] == {"a": 1, "b": "two"}
@@ -44,7 +44,7 @@ def test_extract_additional_settings():
     assert "partial" in settings and settings["partial"] == {"x": True}
 
 
-def test_generate_command_metadata():
+def test_generate_command_metadata() -> None:
     arg = click.Argument(["arg"], nargs=1, required=True, type=click.INT)
     opt = click.Option(
         ["--opt", "-o"], help="option help", required=False, multiple=True, default=["foo"], type=click.STRING
@@ -74,7 +74,7 @@ def test_generate_command_metadata():
     ]
 
 
-def test_collect_actions(monkeypatch):
+def test_collect_actions(monkeypatch) -> None:
     # prepare fake commands mapping
     arg = click.Argument(["arg"], nargs=2, required=False, type=click.STRING)
     opt = click.Option(["--opt"], help=None, required=True, multiple=False, default=None, type=click.INT)
@@ -98,7 +98,7 @@ def test_collect_actions(monkeypatch):
     assert foo["options"][0]["name"] == "opt"
 
 
-def test_collect_actions_includes_invokable_group(monkeypatch):
+def test_collect_actions_includes_invokable_group(monkeypatch) -> None:
     # Group that is invokable without a subcommand should be included
     grp = click.Group("grp", help="grp help", invoke_without_command=True)
     grp.callback = lambda: None  # ensure it has a callback
@@ -114,7 +114,7 @@ def test_collect_actions_includes_invokable_group(monkeypatch):
     assert "grp sub" in names, "subcommands are still listed"
 
 
-def test_capabilities_includes_od_blank_group_action():
+def test_capabilities_includes_od_blank_group_action() -> None:
     # Full collection should include the top-level od_blank action alongside its delete subcommand
     caps = collect_capabilities()
     names = {c["job_name"] for c in caps}
@@ -126,7 +126,7 @@ def test_capabilities_includes_od_blank_group_action():
         assert expected in option_names, f"missing option {expected} on od_blank"
 
 
-def test_chemostat_inherits_parent_settings_and_options():
+def test_chemostat_inherits_parent_settings_and_options() -> None:
     # The 'chemostat' automation should include settings from its base class
     caps = collect_capabilities()
     chemo = next(c for c in caps if c.get("automation_name") == "chemostat")
@@ -141,7 +141,7 @@ def test_chemostat_inherits_parent_settings_and_options():
         assert key in option_names, f"{key} missing in CLI options for chemostat"
 
 
-def test_state_published_setting_for_all_jobs_and_not_in_cli_flags():
+def test_state_published_setting_for_all_jobs_and_not_in_cli_flags() -> None:
     """
     Verify that every job includes the "$state" published_setting, but that "$state" is not exposed
     as a CLI option for automations.

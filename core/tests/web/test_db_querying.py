@@ -26,7 +26,7 @@ def _count_rows(path: str) -> int:
         conn.close()
 
 
-def test_query_app_db_disallows_dml_via_query_only_pragma(app, tmp_path):
+def test_query_app_db_disallows_dml_via_query_only_pragma(app, tmp_path) -> None:
     from pioreactor.web.app import _make_dicts, query_app_db
 
     db_path = _prepare_db_file(tmp_path)

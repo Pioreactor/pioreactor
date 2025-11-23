@@ -140,7 +140,7 @@ def test_pios_run_requests_dedup() -> None:
     assert bucket[0].url == "http://unit1.local:4999/unit_api/jobs/run/job_name/stirring"
 
 
-def test_pios_run_requests_with_experiments(active_workers_in_cluster):
+def test_pios_run_requests_with_experiments(active_workers_in_cluster) -> None:
     runner = CliRunner()
     with capture_requests() as bucket:
         result = runner.invoke(pios, ["run", "--experiments", "exp1", "stirring", "-y"])
@@ -191,7 +191,7 @@ def test_pio_job_status_lists_job() -> None:
             jm.set_not_running(job_id)
 
 
-def test_pios_kill_requests_with_experiments(active_workers_in_cluster):
+def test_pios_kill_requests_with_experiments(active_workers_in_cluster) -> None:
     runner = CliRunner()
     with capture_requests() as bucket:
         result = runner.invoke(pios, ["kill", "--all-jobs", "--experiments", "exp1", "-y"])

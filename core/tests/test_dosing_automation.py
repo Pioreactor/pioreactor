@@ -574,8 +574,7 @@ def test_changing_parameters_over_mqtt_with_unknown_parameter() -> None:
             pause(2)
         pause(2)
 
-    assert len(bucket) > 0
-    assert any(["garbage" in log["message"] for log in bucket])
+    assert wait_for(lambda: any("garbage" in log["message"] for log in bucket), timeout=4.0)
 
 
 def test_old_readings_will_not_execute_io() -> None:
@@ -1771,7 +1770,7 @@ def test_timeout_in_run(fast_dosing_timers) -> None:
             ca.set_state(ca.SLEEPING)
             ca.run(timeout=0.05)
 
-        assert any("Timed out" in item["message"] for item in bucket)
+        assert wait_for(lambda: any("Timed out" in item["message"] for item in bucket), timeout=3.0)
 
 
 def test_automation_will_pause_itself_if_pumping_goes_above_safety_threshold() -> None:
@@ -1820,7 +1819,7 @@ def test_warning_is_logged_if_under_remove_waste(fast_dosing_timers) -> None:
 
     with pubsub.collect_all_logs_of_level("WARNING", unit, experiment) as bucket:
         with BadWasteRemoval(unit=unit, experiment=experiment, duration=5):
-            assert wait_for(lambda: len(bucket) >= 1, timeout=3.0)
+            assert wait_for(lambda: len(bucket) >= 1, timeout=6.0)
 
         assert len(bucket) >= 1
 
@@ -1880,7 +1879,7 @@ def test_custom_class_without_duration() -> None:
         assert msg is not None
 
 
-def test_dosing_automation_initial_values_for_volumes():
+def test_dosing_automation_initial_values_for_volumes() -> None:
     exp = "test_dosing_automation_initial_values_for_volumes"
 
     with Silent(

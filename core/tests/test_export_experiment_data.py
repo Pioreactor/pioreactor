@@ -332,7 +332,7 @@ def test_export_experiment_data_with_partition_by_unit_if_pioreactor_unit_col_do
     assert zf.namelist()[1].startswith("od_readings/od_readings-exp1-all_units")
 
 
-def test_export_experiment_data_with_start_time(temp_zipfile, mock_load_exportable_datasets):
+def test_export_experiment_data_with_start_time(temp_zipfile, mock_load_exportable_datasets) -> None:
     # Set up a temporary SQLite database with sample data spanning two timestamps
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp TEXT, reading FLOAT)")
@@ -367,7 +367,7 @@ def test_export_experiment_data_with_start_time(temp_zipfile, mock_load_exportab
             assert values[0] == "2"
 
 
-def test_export_experiment_data_with_end_time(temp_zipfile, mock_load_exportable_datasets):
+def test_export_experiment_data_with_end_time(temp_zipfile, mock_load_exportable_datasets) -> None:
     # Set up a temporary SQLite database with sample data spanning two timestamps
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp TEXT, reading FLOAT)")
@@ -402,7 +402,7 @@ def test_export_experiment_data_with_end_time(temp_zipfile, mock_load_exportable
             assert values[0] == "1"
 
 
-def test_export_experiment_data_with_start_and_end_time(temp_zipfile, mock_load_exportable_datasets):
+def test_export_experiment_data_with_start_and_end_time(temp_zipfile, mock_load_exportable_datasets) -> None:
     # Set up a temporary SQLite database with sample data spanning two timestamps
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE test_table (id INTEGER, name TEXT, timestamp TEXT, reading FLOAT)")
