@@ -498,6 +498,14 @@ def is_pio_job_running(target_jobs):
         return results
 
 
+def get_running_pio_job_id(job_name: str) -> int | None:
+    """
+    Return the running job_id for `job_name`, or None if not running.
+    """
+    with JobManager() as jm:
+        return jm.get_running_job_id(job_name)
+
+
 def get_cpu_temperature() -> float:
     if whoami.is_testing_env():
         return 22.0
@@ -779,9 +787,19 @@ class JobManager:
         self.cursor.execute("DELETE FROM pio_job_metadata;")
 
     def is_job_running(self, job_name: str) -> bool:
-        select_query = """SELECT 1 FROM pio_job_metadata WHERE job_name=(?) AND is_running=1"""
+        return self.get_running_job_id(job_name) is not None
+
+    def get_running_job_id(self, job_name: str) -> int | None:
+        select_query = """
+            SELECT job_id
+            FROM pio_job_metadata
+            WHERE job_name = (?) AND is_running = 1
+            ORDER BY started_at DESC
+            LIMIT 1
+        """
         self.cursor.execute(select_query, (job_name,))
-        return self.cursor.fetchone() is not None
+        result = self.cursor.fetchone()
+        return int(result[0]) if result else None
 
     def _get_jobs(self, all_jobs: bool = False, **query) -> list[tuple[str, int, int]]:
         if not all_jobs:
@@ -836,6 +854,64 @@ class JobManager:
     def list_jobs(self, all_jobs: bool = False, **query) -> list[tuple[str, int, int]]:
         """Return job rows matching *query* using the same filters as kill_jobs."""
         return self._get_jobs(all_jobs, **query)
+
+    def list_job_history(
+        self, running_only: bool = False
+    ) -> list[tuple[int, str, str, str | None, str, str, str | None]]:
+        where_clause = "WHERE ended_at IS NULL" if running_only else ""
+        select_query = f"""
+            SELECT
+                job_id,
+                job_name,
+                experiment,
+                job_source,
+                unit,
+                started_at,
+                ended_at
+            FROM pio_job_metadata
+            {where_clause}
+            ORDER BY started_at DESC
+        """
+
+        self.cursor.execute(select_query)
+        return self.cursor.fetchall()
+
+    def get_job_info(
+        self, job_id: int
+    ) -> tuple[int, str, str, str | None, str, str, str | None, int, str, int, int] | None:
+        select_query = """
+            SELECT
+                job_id,
+                job_name,
+                experiment,
+                job_source,
+                unit,
+                started_at,
+                ended_at,
+                is_running,
+                leader,
+                pid,
+                is_long_running_job
+            FROM pio_job_metadata
+            WHERE job_id = ?
+        """
+        self.cursor.execute(select_query, (job_id,))
+        return self.cursor.fetchone()
+
+    def list_job_settings(self, job_id: int) -> list[tuple[str, Any, str | None, str | None]]:
+        select_query = """
+            SELECT setting, value, created_at, updated_at
+            FROM pio_job_published_settings
+            WHERE job_id = ?
+            ORDER BY setting
+        """
+        self.cursor.execute(select_query, (job_id,))
+        return self.cursor.fetchall()
+
+    def remove_job(self, job_id: int) -> int:
+        self.cursor.execute("DELETE FROM pio_job_published_settings WHERE job_id = ?", (job_id,))
+        self.cursor.execute("DELETE FROM pio_job_metadata WHERE job_id = ?", (job_id,))
+        return self.cursor.rowcount
 
     def kill_jobs(self, all_jobs: bool = False, **query) -> int:
         # ex: kill_jobs(experiment="testing_exp") should end all jobs with experiment='testing_exp'

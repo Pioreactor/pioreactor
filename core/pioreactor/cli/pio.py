@@ -4,6 +4,7 @@ from __future__ import annotations
 import subprocess
 from os import geteuid
 from shlex import quote
+from typing import Any
 from typing import Optional
 
 import click
@@ -18,6 +19,7 @@ from pioreactor.logging import create_logger
 from pioreactor.mureq import get
 from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import post_into_leader
+from pioreactor.utils import get_running_pio_job_id
 from pioreactor.utils import JobManager
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistent_storage
@@ -324,7 +326,37 @@ def kill(
     click.echo(f"Killed {count} job{'s' if count != 1 else ''}.")
 
 
-@pio.command(name="job-status", short_help="show status of job(s)")
+@pio.group(name="jobs", short_help="job-related commands")
+def jobs():
+    """Interact with Pioreactor jobs."""
+    pass
+
+
+def _format_job_history_line(
+    job_id: int,
+    job_name: str,
+    experiment: str,
+    job_source: str | None,
+    unit: str,
+    started_at: str,
+    ended_at: str | None,
+) -> str:
+    job_source_display = job_source or "unknown"
+    ended_at_display = ended_at or "still running"
+    job_id_label = click.style(f"[job_id={job_id}]", fg="cyan")
+    job_name_label = click.style(job_name, fg="green", bold=True)
+    ended_at_label = (
+        click.style(ended_at_display, fg="yellow", bold=True) if ended_at is None else ended_at_display
+    )
+
+    return (
+        f"{job_id_label} {job_name_label} "
+        f"(unit={unit}, experiment={experiment}, source={job_source_display}) "
+        f"started_at={started_at} ended_at={ended_at_label}"
+    )
+
+
+@jobs.command(name="status", short_help="show status of job(s)")
 @click.option("--job-name", type=click.STRING)
 @click.option("--experiment", type=click.STRING)
 @click.option("--job-source", type=click.STRING)
@@ -349,8 +381,130 @@ def job_status(
         click.echo("No jobs match the provided filters.")
         return
 
-    for job, pid, found_job_id, *_ in jobs:
-        click.echo(f"[job_id={found_job_id}] {job} is running.")
+    for job_name, _pid, found_job_id, *_ in jobs:
+        job_id_label = click.style(f"[job_id={found_job_id}]", fg="cyan")
+        job_name_label = click.style(job_name, fg="green", bold=True)
+        click.echo(f"{job_id_label} {job_name_label} is running.")
+
+
+@jobs.command(name="history", short_help="list historical jobs with timing")
+def job_history() -> None:
+    with JobManager() as jm:
+        jobs = jm.list_job_history()
+
+    if not jobs:
+        click.echo("No historical jobs recorded.")
+        return
+
+    for job in jobs:
+        click.echo(_format_job_history_line(*job))
+
+
+@jobs.command(name="info", short_help="show details for a job")
+@click.option("--job-id", type=click.INT)
+@click.option("--job-name", type=click.STRING)
+def job_info(job_id: int | None, job_name: str | None) -> None:
+    if job_id is None and job_name is None:
+        click.echo("Provide --job-id or --job-name.")
+        return
+
+    if job_id is None and job_name is not None:
+        job_id = get_running_pio_job_id(job_name)
+        if job_id is None:
+            click.echo(f"No running job found with name {job_name}.")
+            return
+
+    assert job_id is not None
+
+    with JobManager() as jm:
+        job = jm.get_job_info(job_id)
+        settings = jm.list_job_settings(job_id) if job else []
+
+    if job is None:
+        click.echo(f"No job found with job_id={job_id}.")
+        return
+
+    (
+        found_job_id,
+        job_name,
+        experiment,
+        job_source,
+        unit,
+        started_at,
+        ended_at,
+        is_running,
+        leader,
+        pid,
+        is_long_running_job,
+    ) = job
+
+    click.echo(
+        _format_job_history_line(found_job_id, job_name, experiment, job_source, unit, started_at, ended_at)
+    )
+
+    status_label = (
+        click.style("running", fg="green", bold=True) if is_running else click.style("stopped", fg="red")
+    )
+    click.echo(
+        f"status={status_label} leader={leader} pid={pid} " f"is_long_running_job={bool(is_long_running_job)}"
+    )
+
+    if not settings:
+        return
+
+    click.echo("published settings:")
+    for setting, value, created_at, updated_at in settings:
+        setting_label = click.style(setting, fg="cyan")
+
+        def _stringify(val: Any) -> str:
+            if val is None:
+                return "None"
+            if isinstance(val, bytes):
+                try:
+                    return val.decode()
+                except Exception:
+                    return str(val)
+            return str(val)
+
+        click.echo(
+            f"  {setting_label}={_stringify(value)} " f"(created_at={created_at}, updated_at={updated_at})"
+        )
+
+
+@jobs.command(name="remove", short_help="remove a job record")
+@click.option("--job-id", type=click.INT)
+@click.option("--job-name", type=click.STRING)
+def job_remove(job_id: int | None, job_name: str | None) -> None:
+    if job_id is None and job_name is None:
+        click.echo("Provide --job-id or --job-name.")
+        return
+
+    if job_id is None and job_name is not None:
+        job_id = get_running_pio_job_id(job_name)
+        if job_id is None:
+            click.echo(f"No running job found with name {job_name}.")
+            return
+
+    assert job_id is not None
+
+    with JobManager() as jm:
+        job = jm.get_job_info(job_id)
+
+        if job is None:
+            click.echo(f"No job found with job_id={job_id}.")
+            return
+
+        is_running = bool(job[7])
+        if is_running:
+            click.echo("Job is still running. Stop it before removing the record.")
+            return
+
+        removed = jm.remove_job(job_id)
+
+    if removed:
+        click.echo(f"Removed job record {job_id}.")
+    else:
+        click.echo(f"Failed to remove job record {job_id}.")
 
 
 @pio.command(name="version", short_help="print the Pioreactor software version")

@@ -5,6 +5,15 @@
 
   - fix OD blank not being able to be run.
 
+#### Enhancements
+
+  - Added a `pio jobs` command group with `status`, `history`, `info`, and `remove` subcommands to inspect and tidy job records, including published settings.
+  - Background job logs now include the job_id in their logger key and duplicate-start warnings report the running job_id for easier debugging.
+
+#### Breaking changes
+
+  - `pio job-status` has been replaced by `pio jobs status`.
+
 
 ### 25.11.19
 

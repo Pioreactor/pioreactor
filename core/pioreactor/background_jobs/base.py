@@ -24,12 +24,12 @@ from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import QOS
 from pioreactor.utils import append_signal_handlers
+from pioreactor.utils import get_running_pio_job_id
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import JobManager
 from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.whoami import is_active
-from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 
@@ -291,17 +291,17 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # we want to give the sub_client (has the will msg) as much time as possible to disconnect.
         self.pub_client = self._create_pub_client()
 
+        self._check_for_duplicate_activity()
+
+        self.job_id = self._add_to_job_manager()
+
         self.logger = create_logger(
-            self.job_name,
+            self.job_key,
             unit=self.unit,
             experiment=self.experiment,
             source=self._source,
             pub_client=self.pub_client,
         )
-
-        self._check_for_duplicate_activity()
-
-        self.job_id = self._add_to_job_manager()
 
         # if we no-op in the _check_for_duplicate_activity, we don't want to fire the LWT, so we delay subclient until after.
         self.sub_client = self._create_sub_client()
@@ -357,6 +357,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # setting READY should happen after we write to the job manager, since a job might do a long-running
         # task in on_ready, which delays writing to the db, which means `pio kill` might not see it.
         self.set_state(self.READY)
+
+    @property
+    def job_key(self):
+        return f"{self.job_name}/{self.job_id}"
 
     def start_passive_listeners(self) -> None:
         # overwrite this to in subclasses to subscribe to topics in MQTT
@@ -927,11 +931,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
             sleep(1)
             self._publish_setting("state")
 
-    @property
-    def job_key(self):
-        # not used...yet
-        return self.job_name + "/" + self.job_id
-
     def _unpublish_setting(self, setting: str) -> None:
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting}",
@@ -964,9 +963,17 @@ class _BackgroundJob(metaclass=PostInitCaller):
                     jm.upsert_setting(self.job_id, setting, None)
 
     def _check_for_duplicate_activity(self) -> None:
-        if is_pio_job_running(self.job_name):
-            self.logger.warning(f"{self.job_name} is already running. Skipping.")
-            raise JobPresentError(f"{self.job_name} is already running. Skipping.")
+        maybe_job_id = get_running_pio_job_id(self.job_name)
+        if maybe_job_id is not None:
+            logger = create_logger(
+                self.job_name,
+                unit=self.unit,
+                experiment=self.experiment,
+                source=self._source,
+                pub_client=self.pub_client,
+            )
+            logger.warning(f"{self.job_name} is already running (job_id={maybe_job_id}). Skipping.")
+            raise JobPresentError(f"{self.job_name} is already running (job_id={maybe_job_id}). Skipping.")
 
     def __setattr__(self, name: str, value: t.Any) -> None:
         super(_BackgroundJob, self).__setattr__(name, value)

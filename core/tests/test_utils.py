@@ -13,6 +13,7 @@ from pioreactor.background_jobs.stirring import start_stirring
 from pioreactor.utils import argextrema
 from pioreactor.utils import callable_stack
 from pioreactor.utils import ClusterJobManager
+from pioreactor.utils import get_running_pio_job_id
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import JobManager
 from pioreactor.utils import JobMetadataKey
@@ -144,6 +145,20 @@ def test_is_pio_job_running_multiple() -> None:
         assert is_pio_job_running(["od_reading", "stirring"]) == [False, True]
 
     assert not any(is_pio_job_running(["stirring", "od_reading"]))
+
+
+def test_get_running_pio_job_id_single() -> None:
+    experiment = "test_get_running_pio_job_id_single"
+    unit = get_unit_name()
+
+    assert get_running_pio_job_id("stirring") is None
+
+    with start_stirring(target_rpm=0, experiment=experiment, unit=unit):
+        job_id = get_running_pio_job_id("stirring")
+        assert job_id is not None
+        assert isinstance(job_id, int)
+
+    assert get_running_pio_job_id("stirring") is None
 
 
 def test_mqtt_disconnect_exit() -> None:

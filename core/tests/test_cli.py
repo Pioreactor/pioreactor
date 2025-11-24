@@ -182,13 +182,166 @@ def test_pio_job_status_lists_job() -> None:
         )
 
     try:
-        result = runner.invoke(pio, ["job-status", "--job-name", job_name])
+        result = runner.invoke(pio, ["jobs", "status", "--job-name", job_name])
         assert result.exit_code == 0
         assert job_name in result.output
         assert str(job_id) in result.output
     finally:
         with JobManager() as jm:
             jm.set_not_running(job_id)
+
+
+def test_pio_job_history_lists_job() -> None:
+    runner = CliRunner()
+    job_name = "test_job_history"
+    unit = whoami.get_unit_name()
+    experiment = whoami.UNIVERSAL_EXPERIMENT
+
+    with JobManager() as jm:
+        job_id = jm.register_and_set_running(
+            unit=unit,
+            experiment=experiment,
+            job_name=job_name,
+            job_source="cli",
+            pid=98765,
+            leader=get_leader_hostname(),
+            is_long_running_job=True,
+        )
+        jm.set_not_running(job_id)
+
+    result = runner.invoke(pio, ["jobs", "history"])
+
+    assert result.exit_code == 0
+    matching_lines = [line for line in result.output.splitlines() if f"[job_id={job_id}]" in line]
+    assert matching_lines, result.output
+    assert "started_at=" in matching_lines[0]
+    assert "ended_at=" in matching_lines[0]
+    assert "still running" not in matching_lines[0]
+
+
+def test_pio_job_info_shows_metadata_and_settings() -> None:
+    runner = CliRunner()
+    job_name = "test_job_info"
+    unit = whoami.get_unit_name()
+    experiment = whoami.UNIVERSAL_EXPERIMENT
+
+    with JobManager() as jm:
+        job_id = jm.register_and_set_running(
+            unit=unit,
+            experiment=experiment,
+            job_name=job_name,
+            job_source="cli",
+            pid=112233,
+            leader=get_leader_hostname(),
+            is_long_running_job=False,
+        )
+        jm.upsert_setting(job_id, "speed", "fast")
+
+    try:
+        result = runner.invoke(pio, ["jobs", "info", "--job-id", str(job_id)])
+        assert result.exit_code == 0
+        assert job_name in result.output
+        assert "status=running" in result.output
+        assert "published settings" in result.output
+        assert "speed=fast" in result.output
+
+        # via job-name lookup
+        result_by_name = runner.invoke(pio, ["jobs", "info", "--job-name", job_name])
+        assert result_by_name.exit_code == 0
+        assert str(job_id) in result_by_name.output
+        assert "status=running" in result_by_name.output
+    finally:
+        with JobManager() as jm:
+            jm.set_not_running(job_id)
+
+
+def test_pio_job_remove_deletes_finished_job() -> None:
+    runner = CliRunner()
+    job_name = "test_job_remove"
+    unit = whoami.get_unit_name()
+    experiment = whoami.UNIVERSAL_EXPERIMENT
+
+    with JobManager() as jm:
+        job_id = jm.register_and_set_running(
+            unit=unit,
+            experiment=experiment,
+            job_name=job_name,
+            job_source="cli",
+            pid=445566,
+            leader=get_leader_hostname(),
+            is_long_running_job=False,
+        )
+        jm.upsert_setting(job_id, "speed", "fast")
+        jm.set_not_running(job_id)
+
+    result = runner.invoke(pio, ["jobs", "remove", "--job-id", str(job_id)])
+    assert result.exit_code == 0
+    assert "Removed job record" in result.output
+
+    # via job-name, should fail gracefully since job removed
+    result_by_name = runner.invoke(pio, ["jobs", "remove", "--job-name", job_name])
+    assert "No running job found with name" in result_by_name.output
+
+    with JobManager() as jm:
+        assert jm.get_job_info(job_id) is None
+        assert jm.list_job_settings(job_id) == []
+
+
+def test_pio_job_remove_blocks_running_job() -> None:
+    runner = CliRunner()
+    job_name = "test_job_remove_running"
+    unit = whoami.get_unit_name()
+    experiment = whoami.UNIVERSAL_EXPERIMENT
+
+    with JobManager() as jm:
+        job_id = jm.register_and_set_running(
+            unit=unit,
+            experiment=experiment,
+            job_name=job_name,
+            job_source="cli",
+            pid=778899,
+            leader=get_leader_hostname(),
+            is_long_running_job=True,
+        )
+
+    try:
+        result = runner.invoke(pio, ["jobs", "remove", "--job-id", str(job_id)])
+        assert result.exit_code == 0
+        assert "still running" in result.output
+
+        # via job-name lookup while running
+        result_by_name = runner.invoke(pio, ["jobs", "remove", "--job-name", job_name])
+        assert result_by_name.exit_code == 0
+        assert "still running" in result_by_name.output
+
+        with JobManager() as jm:
+            assert jm.get_job_info(job_id) is not None
+    finally:
+        with JobManager() as jm:
+            jm.set_not_running(job_id)
+
+
+def test_job_manager_get_running_job_id() -> None:
+    job_name = "test_get_running_job_id"
+    unit = whoami.get_unit_name()
+    experiment = whoami.UNIVERSAL_EXPERIMENT
+
+    with JobManager() as jm:
+        job_id = jm.register_and_set_running(
+            unit=unit,
+            experiment=experiment,
+            job_name=job_name,
+            job_source="cli",
+            pid=123456,
+            leader=get_leader_hostname(),
+            is_long_running_job=False,
+        )
+
+        assert jm.get_running_job_id(job_name) == job_id
+        jm.set_not_running(job_id)
+
+    with JobManager() as jm:
+        assert jm.get_running_job_id(job_name) is None
 
 
 def test_pios_kill_requests_with_experiments(active_workers_in_cluster) -> None:
