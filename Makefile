@@ -109,7 +109,7 @@ dev-status:  ## Show whether the usual dev services are already running
 # --- background task queue ----------------------------------------------------
 huey-dev: venv  ## Run the Huey consumer with sensible dev flags
 	@$(ACTIVATE) && cd $(API_DIR) && \
-	huey_consumer pioreactor.web.tasks.huey -n -b 1.001 -w 10 -f -C -d 0.05
+	huey_consumer pioreactor.web.tasks.huey -n -w 10 -f -C -d 0.01
 
 # --- clean-up -----------------------------------------------------------------
 clean:  ## Delete bytecode, build artefacts, node deps

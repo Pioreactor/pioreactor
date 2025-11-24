@@ -2,6 +2,7 @@
 # test_cli.py
 from __future__ import annotations
 
+import re
 import time
 
 import click
@@ -244,6 +245,12 @@ def test_pio_job_info_shows_metadata_and_settings() -> None:
         assert "status=running" in result.output
         assert "published settings" in result.output
         assert "speed=fast" in result.output
+        speed_line = next(line for line in result.output.splitlines() if "speed=fast" in line)
+        match = re.search(r"created_at=([^,]+), updated_at=([^)]+)\)", speed_line)
+        assert match, speed_line
+        created_ts, updated_ts = match.groups()
+        assert "." not in created_ts
+        assert "." not in updated_ts
 
         # via job-name lookup
         result_by_name = runner.invoke(pio, ["jobs", "info", "--job-name", job_name])

@@ -898,7 +898,7 @@ class JobManager:
         self.cursor.execute(select_query, (job_id,))
         return self.cursor.fetchone()
 
-    def list_job_settings(self, job_id: int) -> list[tuple[str, Any, str | None, str | None]]:
+    def list_job_settings(self, job_id: int) -> list[tuple[str, Any, str, str | None]]:
         select_query = """
             SELECT setting, value, created_at, updated_at
             FROM pio_job_published_settings

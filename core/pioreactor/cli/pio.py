@@ -25,6 +25,7 @@ from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.networking import is_using_local_access_point
 from pioreactor.utils.timing import current_utc_timestamp
+from pioreactor.utils.timing import to_datetime
 
 lazy_subcommands = {
     "run": "pioreactor.cli.run.run",
@@ -356,30 +357,13 @@ def _format_job_history_line(
     )
 
 
-@jobs.command(name="status", short_help="show status of job(s)")
-@click.option("--job-name", type=click.STRING)
-@click.option("--experiment", type=click.STRING)
-@click.option("--job-source", type=click.STRING)
-@click.option("--job-id", type=click.INT)
-@click.option("--all-jobs", is_flag=True, help="show all short jobs (ignore filters)")
-def job_status(
-    job_name: str | None, experiment: str | None, job_source: str | None, job_id: int | None, all_jobs: bool
-) -> None:
-    if not (job_name or experiment or job_source or all_jobs or job_id):
-        all_jobs = True
+@jobs.command(name="running", short_help="show status of running job(s)")
+def job_running() -> None:
 
     with JobManager() as jm:
         jobs = jm.list_jobs(
-            all_jobs=all_jobs,
-            job_name=job_name,
-            experiment=experiment,
-            job_source=job_source,
-            job_id=job_id,
+            all_jobs=True,
         )
-
-    if not jobs:
-        click.echo("No jobs match the provided filters.")
-        return
 
     for job_name, _pid, found_job_id, *_ in jobs:
         job_id_label = click.style(f"[job_id={found_job_id}]", fg="cyan")
@@ -404,6 +388,18 @@ def job_history() -> None:
 @click.option("--job-id", type=click.INT)
 @click.option("--job-name", type=click.STRING)
 def job_info(job_id: int | None, job_name: str | None) -> None:
+
+    def _format_timestamp_to_seconds(timestamp: str) -> str:
+        """
+        Truncate timestamps like 2024-01-01T00:00:00.123456Z to second precision.
+        """
+        try:
+            dt = to_datetime(timestamp)
+        except ValueError:
+            return timestamp
+
+        return dt.replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
     if job_id is None and job_name is None:
         click.echo("Provide --job-id or --job-name.")
         return
@@ -455,6 +451,8 @@ def job_info(job_id: int | None, job_name: str | None) -> None:
     click.echo("published settings:")
     for setting, value, created_at, updated_at in settings:
         setting_label = click.style(setting, fg="cyan")
+        created_at_display = _format_timestamp_to_seconds(created_at)
+        updated_at_display = _format_timestamp_to_seconds(updated_at) if updated_at is not None else ""
 
         def _stringify(val: Any) -> str:
             if val is None:
@@ -467,7 +465,8 @@ def job_info(job_id: int | None, job_name: str | None) -> None:
             return str(val)
 
         click.echo(
-            f"  {setting_label}={_stringify(value)} " f"(created_at={created_at}, updated_at={updated_at})"
+            f"  {setting_label}={_stringify(value)} "
+            f"(created_at={created_at_display}, updated_at={updated_at_display})"
         )
 
 
