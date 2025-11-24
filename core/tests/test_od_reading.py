@@ -899,7 +899,7 @@ def test_calibration_simple_linear_calibration_positive_slope() -> None:
 
 def test_calibration_simple_linear_calibration_negative_slope() -> None:
     experiment = "test_calibration_simple_linear_calibration_negative_slope"
-    maximum_voltage = 5.0
+    maximum_voltage = 2.0
     cal = structs.OD600Calibration(
         created_at=current_utc_datetime(),
         curve_type="poly",
@@ -907,7 +907,7 @@ def test_calibration_simple_linear_calibration_negative_slope() -> None:
         calibration_name="linear",
         ir_led_intensity=90.0,
         angle="90",
-        recorded_data={"y": [0, maximum_voltage], "x": [0, 20]},
+        recorded_data={"y": [maximum_voltage, 0.0], "x": [0, 20]},
         pd_channel="2",
         calibrated_on_pioreactor_unit=get_unit_name(),
     )
