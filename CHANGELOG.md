@@ -4,6 +4,7 @@
 #### Bug fixes
 
   - fix OD blank not being able to be run.
+  - OD calibration now clamps out-of-range voltages to the OD values paired with the calibration’s voltage extrema, preventing inverted mappings on non-monotonic curves.
 
 #### Enhancements
 

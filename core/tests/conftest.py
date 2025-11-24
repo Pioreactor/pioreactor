@@ -18,17 +18,14 @@ from pioreactor.utils.timing import to_datetime
 
 @pytest.fixture(autouse=True)
 def run_around_tests(request):
-    prune_retained_messages("pioreactor/#")
+
     from pioreactor.utils import JobManager
-
-    with JobManager() as job_manager:
-        job_manager.clear()
-
-    yield
-
     from pioreactor.utils import local_intermittent_storage
     from pioreactor.utils import local_persistent_storage
 
+    yield
+
+    # clean up any artifacts.
     test_name = request.node.name
 
     with local_intermittent_storage("pwm_dc") as cache:
@@ -59,6 +56,11 @@ def run_around_tests(request):
         c.pop(test_name)
     with local_persistent_storage("current_volume_ml") as c:
         c.pop(test_name)
+
+    prune_retained_messages("pioreactor/#")
+
+    with JobManager() as job_manager:
+        job_manager.clear()
 
 
 @pytest.fixture()

@@ -1679,7 +1679,6 @@ def test_raw_published_even_if_calibration_is_bad() -> None:
     ) as od_job:
         pause(6)
         assert isinstance(od_job.calibration_transformer, CachedCalibrationTransformer)
-        assert od_job.ods is None
         assert od_job.raw_od2 is not None  # here!
 
 
