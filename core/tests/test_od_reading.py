@@ -1477,6 +1477,82 @@ def test_CachedCalibrationTransformer_with_real_calibration() -> None:
     assert abs(cal_transformer(float_to_od_readings_struct("2", 0.096)).ods["2"].od - 0.06) < 0.01
 
 
+def test_calibration_trims_to_voltage_extrema() -> None:
+    # recorded voltages do not correspond to max/min ODs; ensure we clamp using the paired OD values
+    calibration = structs.OD600Calibration(
+        angle="90",
+        curve_type="poly",
+        curve_data_=[1.0],  # constant model -> NoSolutionsFound outside recorded voltages
+        ir_led_intensity=50.0,
+        pd_channel="2",
+        created_at=current_utc_datetime(),
+        calibrated_on_pioreactor_unit="pio1",
+        recorded_data={"y": [1.0, 0.5], "x": [0.0, 2.0]},
+        calibration_name="trim_extrema",
+    )
+
+    transformer = CachedCalibrationTransformer()
+    transformer.hydate_models(calibration)
+
+    def to_od_readings(voltage: float) -> structs.ODReadings:
+        return structs.ODReadings(
+            timestamp=current_utc_datetime(),
+            ods={
+                "2": structs.RawODReading(
+                    ir_led_intensity=50.0,
+                    od=voltage,
+                    angle="90",
+                    channel="2",
+                    timestamp=current_utc_datetime(),
+                )
+            },
+        )
+
+    # Above the max recorded voltage (1.0V) should clamp to the OD paired with that voltage (0.0)
+    assert transformer(to_od_readings(2.0)).ods["2"].od == pytest.approx(0.0)
+    # Below the min recorded voltage (0.5V) should clamp to the OD paired with that voltage (2.0)
+    assert transformer(to_od_readings(-1.0)).ods["2"].od == pytest.approx(2.0)
+
+
+def test_calibration_with_misaligned_voltage_and_od_extrema() -> None:
+    calibration = structs.OD600Calibration(
+        calibration_name="M5_YE_sept",
+        calibrated_on_pioreactor_unit="pio01",
+        created_at=current_utc_datetime(),
+        curve_data_=[-0.003190387455580229, 0.04003007669797895, 0.05183324889904352, 0.3399254157439484],
+        x="OD600",
+        y="Voltage",
+        recorded_data={
+            "x": [0, 0.361, 0.657, 1.32, 2.58, 3.3, 4.36, 5.74, 6.98, 7.89, 9.47],
+            "y": [0.5466, 0.3466, 0.5757, 0.6696, 0.5935, 0.9594, 0.9591, 1.2046, 1.74, 1.6743, 1.6807],
+        },
+        curve_type="poly",
+        ir_led_intensity=50,
+        angle="45",
+        pd_channel="1",
+    )
+
+    transformer = CachedCalibrationTransformer()
+    transformer.hydate_models(calibration)
+
+    def to_od_readings(voltage: float) -> structs.ODReadings:
+        return structs.ODReadings(
+            timestamp=current_utc_datetime(),
+            ods={
+                "1": structs.RawODReading(
+                    ir_led_intensity=50.0,
+                    od=voltage,
+                    angle="45",
+                    channel="1",
+                    timestamp=current_utc_datetime(),
+                )
+            },
+        )
+
+    assert transformer(to_od_readings(2.0)).ods["1"].od == pytest.approx(6.98)
+    assert transformer(to_od_readings(0.1)).ods["1"].od == pytest.approx(0.361)
+
+
 def test_mandys_calibration() -> None:
     mcal = structs.OD600Calibration(
         calibration_name="mandy",
