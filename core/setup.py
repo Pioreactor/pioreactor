@@ -54,7 +54,7 @@ WORKER_REQUIREMENTS = [
     "pyusb==1.2.1",
     "rpi_hardware_pwm==0.3.0",
     "smbus2==0.5.0",
-    "DAC43608",
+    "DAC43608==0.2.7",
 ]
 
 
