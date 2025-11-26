@@ -273,7 +273,7 @@ function RunningProfilesContainer() {
       <Card>
         <CardContent sx={{ p: 2 }}>
           <Typography variant="h6" component="h2" gutterBottom>
-            <Box fontWeight="fontWeightRegular">Profiles Running</Box>
+            <Box fontWeight="fontWeightRegular">Profiles running</Box>
           </Typography>
           {loading && (
             <Box sx={{ textAlign: "center", mt: 2 }}>
@@ -338,11 +338,78 @@ function Profiles(props) {
   const [viewSource, setViewSource] = React.useState(false);
   const [source, setSource] = React.useState("Loading...");
   const [dryRun, setDryRun] = React.useState(false);
+  const [recentRuns, setRecentRuns] = React.useState([]);
+  const [recentLoading, setRecentLoading] = React.useState(false);
+  const [recentError, setRecentError] = React.useState("");
+
+  const getRecentRunDisplayName = React.useCallback(
+    (runName) => {
+      const profilesArray = Object.values(experimentProfilesAvailable);
+
+      const byName = profilesArray.find(
+        (p) => p.profile?.experiment_profile_name === runName
+      );
+      if (byName) return byName.profile.experiment_profile_name;
+
+      const byFilename = profilesArray.find((p) => p.file === runName);
+      if (byFilename) return byFilename.profile.experiment_profile_name;
+
+      const byFilenameBase = profilesArray.find(
+        (p) => p.file === `${runName}.yaml` || p.file === `${runName}.yml`
+      );
+      if (byFilenameBase) return byFilenameBase.profile.experiment_profile_name;
+
+      return runName;
+    },
+    [experimentProfilesAvailable]
+  );
+
+  const getRecentRunFile = React.useCallback(
+    (runName) => {
+      const profilesArray = Object.values(experimentProfilesAvailable);
+
+      const byName = profilesArray.find(
+        (p) => p.profile?.experiment_profile_name === runName
+      );
+      if (byName) return byName.file;
+
+      const byFilename = profilesArray.find((p) => p.file === runName);
+      if (byFilename) return byFilename.file;
+
+      const byFilenameBase = profilesArray.find(
+        (p) => p.file === `${runName}.yaml` || p.file === `${runName}.yml`
+      );
+      if (byFilenameBase) return byFilenameBase.file;
+
+      return null;
+    },
+    [experimentProfilesAvailable]
+  );
 
 
   React.useEffect(() => {
     document.title = props.title;
   }, [props.title]);
+
+  const fetchRecentRuns = React.useCallback(() => {
+    setRecentLoading(true);
+    setRecentError("");
+    fetch(`/api/experiments/${encodeURIComponent(experimentMetadata.experiment)}/experiment_profiles/recent`)
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error("Failed to load recent runs");
+        }
+        return res.json();
+      })
+      .then((data) => {
+        setRecentRuns(Array.isArray(data) ? data : []);
+      })
+      .catch((err) => {
+        console.error(err);
+        setRecentError("Failed to load recent runs");
+      })
+      .finally(() => setRecentLoading(false));
+  }, [experimentMetadata.experiment]);
 
   React.useEffect(() => {
     fetch("/api/contrib/experiment_profiles")
@@ -365,6 +432,10 @@ function Profiles(props) {
         }
       });
   }, [profileFilename]);
+
+  React.useEffect(() => {
+    fetchRecentRuns();
+  }, [fetchRecentRuns]);
   return (
     <RunningProfilesProvider experiment={experimentMetadata.experiment}>
       <Grid container spacing={2}>
@@ -427,6 +498,73 @@ function Profiles(props) {
             xs: 12
           }}>
           <RunningProfilesContainer />
+          <Box sx={{ mt: 2 }}>
+            <Card>
+              <CardContent sx={{ p: 2 }}>
+                <Typography variant="h6" component="h2" gutterBottom>
+                  <Box fontWeight="fontWeightRegular">Recent runs</Box>
+                </Typography>
+                {recentLoading && (
+                  <Box sx={{ textAlign: "center", mt: 1 }}>
+                    <CircularProgress size={33} />
+                  </Box>
+                )}
+                {recentError && !recentLoading && (
+                  <Typography variant="body2" color="error">
+                    {recentError}
+                  </Typography>
+                )}
+                {!recentLoading && !recentError && recentRuns.length === 0 && (
+                  <Typography variant="body2" component="p" color="textSecondary">
+                    No recent runs yet.
+                  </Typography>
+                )}
+                {!recentLoading && !recentError && recentRuns.length > 0 && (
+                  <Table size="small" sx={{ mt: 0 }}>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ padding: "6px 0px" }}>Profile name</TableCell>
+                        <TableCell align="right">Started</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {recentRuns.map((run, ix) => (
+                        <TableRow key={`${run.started_at}-${ix}`}>
+                          <TableCell sx={{ padding: "6px 0px" }}>
+                            {(() => {
+                              const file = getRecentRunFile(run.experiment_profile_name);
+                              const label = getRecentRunDisplayName(run.experiment_profile_name);
+                              if (file) {
+                                return (
+                                  <Chip
+                                    size="small"
+                                    icon={<ViewTimelineOutlinedIcon />}
+                                    label={label}
+                                    sx={{ maxWidth: "210px" }}
+                                    clickable
+                                    component={Link}
+                                    to={`/experiment-profiles/${encodeURIComponent(file)}`}
+                                  />
+                                );
+                              }
+                              return (
+                                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                  {label}
+                                </Typography>
+                              );
+                            })()}
+                          </TableCell>
+                          <TableCell align="right">
+                            {dayjs(run.started_at).local().format("MMM D, h:mm a")}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </Box>
         </Grid>
 
         <Grid size={12}>
@@ -437,6 +575,7 @@ function Profiles(props) {
             </a>.
           </p>
         </Grid>
+
       </Grid>
     </RunningProfilesProvider>
   );

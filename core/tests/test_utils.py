@@ -9,7 +9,9 @@ from io import StringIO
 
 import pytest
 from msgspec.json import encode as dumps
+from pioreactor import whoami
 from pioreactor.background_jobs.stirring import start_stirring
+from pioreactor.exc import NotActiveWorkerError
 from pioreactor.utils import argextrema
 from pioreactor.utils import callable_stack
 from pioreactor.utils import ClusterJobManager
@@ -22,6 +24,20 @@ from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import managed_lifecycle
 from pioreactor.whoami import get_unit_name
 from tests.conftest import capture_requests
+
+
+class DummyMQTTClient:
+    def __init__(self):
+        self.published: list[tuple[str, str, bool]] = []
+
+    def publish(self, topic, payload, retain=True):
+        self.published.append((topic, payload, retain))
+
+    def message_callback_add(self, *args, **kwargs):
+        return None
+
+    def subscribe(self, *args, **kwargs):
+        return None
 
 
 def test_that_out_scope_caches_cant_access_keys_created_by_inner_scope_cache() -> None:
@@ -166,9 +182,35 @@ def test_mqtt_disconnect_exit() -> None:
     experiment = "test_mqtt_disconnect_exit"
     name = "test_name"
 
-    with managed_lifecycle(unit, experiment, name, exit_on_mqtt_disconnect=True) as state:
-        state.mqtt_client.disconnect()  # Simulate a disconnect
+    client = DummyMQTTClient()
+    with managed_lifecycle(unit, experiment, name, mqtt_client=client, exit_on_mqtt_disconnect=True) as state:
+        state._on_disconnect()  # Simulate broker disconnect
         state.block_until_disconnected()  # exits immediately
+        assert state.exit_event.is_set()
+
+
+def test_managed_lifecycle_requires_active_unit(monkeypatch) -> None:
+    monkeypatch.setattr(whoami, "is_active", lambda unit: False)
+
+    with pytest.raises(NotActiveWorkerError):
+        managed_lifecycle("inactive_unit", "test_ignore_flag", "test_job", mqtt_client=DummyMQTTClient())
+
+
+def test_managed_lifecycle_can_ignore_inactive_state(monkeypatch) -> None:
+    monkeypatch.setattr(whoami, "is_active", lambda unit: False)
+    client = DummyMQTTClient()
+
+    with managed_lifecycle(
+        "inactive_unit",
+        "test_ignore_flag",
+        "test_job",
+        mqtt_client=client,
+        ignore_is_active_state=True,
+    ) as lifecycle:
+        assert lifecycle.state == "ready"
+
+    assert lifecycle.exit_event.is_set()
+    assert [payload for _, payload, _ in client.published] == ["init", "ready", "disconnected"]
 
 
 def greet(name):

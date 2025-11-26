@@ -2281,6 +2281,21 @@ def get_running_profiles(experiment: str) -> ResponseReturnValue:
     return as_json_response(jobs["result"])
 
 
+@api_bp.route("/experiments/<experiment>/experiment_profiles/recent", methods=["GET"])
+def get_recent_experiment_profile_runs(experiment: str) -> ResponseReturnValue:
+    recent_runs = query_app_db(
+        """
+        SELECT started_at, experiment_profile_name, experiment
+        FROM experiment_profile_runs
+        WHERE experiment = ?
+        ORDER BY datetime(started_at) DESC
+        """,
+        (experiment,),
+    )
+
+    return attach_cache_control(jsonify(recent_runs), max_age=5)
+
+
 @api_bp.route("/contrib/experiment_profiles", methods=["POST"])
 def create_experiment_profile() -> ResponseReturnValue:
     body = request.get_json()

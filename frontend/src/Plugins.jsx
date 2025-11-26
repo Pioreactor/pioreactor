@@ -18,124 +18,10 @@ import ListItemAvatar from '@mui/material/ListItemAvatar';
 import ListItemSecondaryAction from '@mui/material/ListItemSecondaryAction';
 import ListItemText from '@mui/material/ListItemText';
 import DeleteIcon from '@mui/icons-material/Delete';
-import DownloadIcon from '@mui/icons-material/Download';
 import CircularProgress from '@mui/material/CircularProgress';
 import { Link, useParams, useNavigate } from 'react-router';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import CloseIcon from '@mui/icons-material/Close';
-import TextField from '@mui/material/TextField';
-import IconButton from '@mui/material/IconButton';
 import SelectButton from "./components/SelectButton";
 import {checkTaskCallback} from "./utilities";
-
-function InstallByNameDialog(props){
-
-
-  const [open, setOpen] = React.useState(false);
-  const [text, setText] = React.useState("");
-  const [snackbarOpen, setSnackbarOpen] = React.useState(false)
-  const [snackbarMsg, setSnackbarMsg] = React.useState("")
-
-
-  const handleClickOpen = () => {
-    setOpen(true);
-  };
-
-
-  const handleClose = () => {
-    setOpen(false);
-  };
-
-  const handleTextChange = evt => {
-    setText(evt.target.value)
-  }
-
-  const handleSnackbarClose = (event, reason) => {
-    if (reason === 'clickaway') {
-      return;
-    }
-    setSnackbarOpen(false)
-  }
-
-  const onSubmit = () => {
-    setSnackbarOpen(true);
-    setSnackbarMsg(`Installing ${text} in the background - this may take a minute...`);
-    fetch('/api/plugins/install', {
-      method: "POST",
-      body: JSON.stringify({args: [text]}),
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      }
-    })
-    setOpen(false);
-  }
-
-  return (
-    <React.Fragment>
-
-    <Button style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="primary" onClick={handleClickOpen}>
-      <DownloadIcon fontSize="small"/> Install plugin by name
-    </Button>
-    <Dialog open={open} onClose={handleClose} aria-labelledby="form-dialog-title">
-      <DialogTitle>
-        Install plugin
-        <IconButton
-          aria-label="close"
-          onClick={handleClose}
-          sx={{
-            position: 'absolute',
-            right: 8,
-            top: 8,
-            color: (theme) => theme.palette.grey[500],
-          }}
-          size="large">
-          <CloseIcon />
-        </IconButton>
-      </DialogTitle>
-      <DialogContent>
-        <p>This requires access to the internet to download the plugin, and will install across the entire cluster.</p>
-        <div>
-          <TextField
-            size="small"
-            id="plugin-name"
-            label="Plugin name"
-            variant="outlined"
-            sx={{mt: "15px", width: "380px"}}
-            onChange={handleTextChange}
-            value={text}
-          />
-        </div>
-
-        <div style={{display: "flex", justifyContent: "flex-end"}}>
-          <Button
-            disabled={text === ""}
-            variant="contained"
-            color="primary"
-            style={{marginTop: "20px", textTransform: 'none'}}
-            onClick={onSubmit}
-            type="submit"
-            endIcon={<DownloadIcon />}
-          >
-            Install
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-    <Snackbar
-      anchorOrigin={{vertical: "bottom", horizontal: "center"}}
-      open={snackbarOpen}
-      onClose={handleSnackbarClose}
-      message={snackbarMsg}
-      autoHideDuration={10000}
-      key="snackbar-available"
-    />
-    </React.Fragment>
-)}
-
-
 
 function PageHeader(props) {
   return (
@@ -146,9 +32,6 @@ function PageHeader(props) {
             Plugins
           </Box>
         </Typography>
-        <Box >
-          <InstallByNameDialog />
-        </Box>
       </Box>
       <Divider sx={{marginTop: "0px", marginBottom: "15px"}} />
     </Box>
