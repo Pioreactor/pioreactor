@@ -440,7 +440,7 @@ def discover_jobs_and_settings_available() -> ResponseReturnValue:
 
 ### PLUGINS
 
-PLUGIN_ALLOWLIST_FILENAME = "api_plugins_allowlist.json"
+PLUGIN_ALLOWLIST_FILENAME = "plugins/api_plugins_allowlist.json"
 
 
 def _canonicalize_package_name(raw: str) -> str:
