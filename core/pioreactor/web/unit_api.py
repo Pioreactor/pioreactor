@@ -176,32 +176,28 @@ def get_clock_time():
 # PATCH / POST to set clock time
 @unit_api_bp.route("/system/utc_clock", methods=["PATCH", "POST"])
 def set_clock_time() -> DelayedResponseReturnValue:  # type: ignore[return]
-    try:
-        if HOSTNAME == get_leader_hostname():
-            if request.json:
-                data = request.json
-                new_time = data.get("utc_clock_time")
-                if not new_time:
-                    abort(400, "utc_clock_time field is required")
+    if HOSTNAME == get_leader_hostname():
+        if request.json:
+            data = request.json
+            new_time = data.get("utc_clock_time")
+            if not new_time:
+                abort(400, "utc_clock_time field is required")
 
-                # validate the timestamp
-                try:
-                    to_datetime(new_time)
-                except ValueError:
-                    abort(400, "Invalid utc_clock_time format. Use ISO 8601.")
+            # validate the timestamp
+            try:
+                to_datetime(new_time)
+            except ValueError:
+                abort(400, "Invalid utc_clock_time format. Use ISO 8601.")
 
-                # Update the system clock (requires admin privileges)
-                t = tasks.update_clock(new_time)
-                return create_task_response(t)
-            else:
-                abort(404, "utc_clock_time field required")
-        else:
-            # sync using chrony
-            t = tasks.sync_clock()
+            # Update the system clock (requires admin privileges)
+            t = tasks.update_clock(new_time)
             return create_task_response(t)
-
-    except Exception as e:
-        abort(500, str(e))
+        else:
+            abort(404, "utc_clock_time field required")
+    else:
+        # sync using chrony
+        t = tasks.sync_clock()
+        return create_task_response(t)
 
 
 #### DIR
@@ -444,6 +440,27 @@ def discover_jobs_and_settings_available() -> ResponseReturnValue:
 
 ### PLUGINS
 
+PLUGIN_ALLOWLIST_FILENAME = "api_plugins_allowlist.json"
+
+
+def _canonicalize_package_name(raw: str) -> str:
+    # normalize to something close to pip's canonical form for comparison
+    name = raw.strip()
+    for sep in ("[", "==", ">=", "<=", "~=", "!=", ">", "<"):
+        if sep in name:
+            name = name.split(sep, 1)[0]
+    return name.replace("_", "-").lower()
+
+
+def _load_plugin_allowlist() -> set[str]:
+    allowlist_path = Path(os.environ["DOT_PIOREACTOR"]) / PLUGIN_ALLOWLIST_FILENAME
+    try:
+        contents = current_app.get_json(allowlist_path.read_bytes())
+    except Exception as e:
+        publish_to_error_log(f"{PLUGIN_ALLOWLIST_FILENAME} is present but invalid JSON: {e}", "plugins")
+        return set()
+    return {_canonicalize_package_name(c["name"]) for c in contents}
+
 
 @unit_api_bp.route("/plugins/installed", methods=["GET"])
 def get_installed_plugins() -> ResponseReturnValue:
@@ -518,7 +535,26 @@ def install_plugin() -> DelayedResponseReturnValue:
     if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS"):
         abort(403, "DISALLOW_UI_INSTALLS is present")
 
+    allowlist = _load_plugin_allowlist()
+    if not allowlist:
+        abort(
+            403,
+            "Plugin installs via API are disabled: plugins_allowlist.json missing, empty, or invalid.",
+        )
+
     body = current_app.get_json(request.data, type=structs.ArgsOptionsEnvs)
+
+    if not body.args:
+        abort(400, "Plugin name is required")
+    if len(body.args) > 1:
+        abort(400, "Install one plugin at a time via the API")
+
+    requested_plugin = _canonicalize_package_name(body.args[0])
+    if requested_plugin not in allowlist:
+        abort(
+            403,
+            f"Plugin '{requested_plugin}' is not in the allowlist for API installs.",
+        )
 
     commands: tuple[str, ...] = ("install",)
     commands += tuple(body.args)

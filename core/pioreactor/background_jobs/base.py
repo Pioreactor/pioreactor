@@ -291,17 +291,17 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # we want to give the sub_client (has the will msg) as much time as possible to disconnect.
         self.pub_client = self._create_pub_client()
 
-        self._check_for_duplicate_activity()
-
-        self.job_id = self._add_to_job_manager()
-
         self.logger = create_logger(
-            self.job_key,
+            self.job_name,
             unit=self.unit,
             experiment=self.experiment,
             source=self._source,
             pub_client=self.pub_client,
         )
+
+        self._check_for_duplicate_activity()
+
+        self.job_id = self._add_to_job_manager()
 
         # if we no-op in the _check_for_duplicate_activity, we don't want to fire the LWT, so we delay subclient until after.
         self.sub_client = self._create_sub_client()
@@ -965,14 +965,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def _check_for_duplicate_activity(self) -> None:
         maybe_job_id = get_running_pio_job_id(self.job_name)
         if maybe_job_id is not None:
-            logger = create_logger(
-                self.job_name,
-                unit=self.unit,
-                experiment=self.experiment,
-                source=self._source,
-                pub_client=self.pub_client,
-            )
-            logger.warning(f"{self.job_name} is already running (job_id={maybe_job_id}). Skipping.")
+            self.logger.warning(f"{self.job_name} is already running (job_id={maybe_job_id}). Skipping.")
             raise JobPresentError(f"{self.job_name} is already running (job_id={maybe_job_id}). Skipping.")
 
     def __setattr__(self, name: str, value: t.Any) -> None:

@@ -14,7 +14,7 @@ This repository contains the **executable code for the Pioreactor project**. It 
 
 ## Running the System
 
-Always use the repo virtualenv for any Python or pytest commands:
+ALWAYS use the project virtualenv for any Python or pytest commands:
 
 ```bash
 source .venv/bin/activate

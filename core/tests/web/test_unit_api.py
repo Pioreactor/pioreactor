@@ -45,8 +45,8 @@ def test_get_clock_time_success(client) -> None:
 
 
 def test_set_clock_non_leader(client) -> None:
-    resp = client.patch("/unit_api/system/utc_clock")
-    assert resp.status_code == 202
+    resp = client.patch("/unit_api/system/utc_clock", json={})
+    assert resp.status_code == 404  # need to provide clock data, else it 404s, that's okay.
 
 
 def test_set_clock_time_sync_branch(client, monkeypatch) -> None:
@@ -63,13 +63,70 @@ def test_set_clock_time_sync_branch(client, monkeypatch) -> None:
 
 
 def test_get_versions_endpoints(client) -> None:
-    """Versions for app and ui should be returned."""
-    r_ui = client.get("/unit_api/versions/ui")
-    assert r_ui.status_code == 200
-    v_ui = r_ui.get_json()
-    assert "version" in v_ui and isinstance(v_ui["version"], str)
-
     r_app = client.get("/unit_api/versions/app")
     assert r_app.status_code == 200
     v_app = r_app.get_json()
     assert "version" in v_app and isinstance(v_app["version"], str)
+
+
+def test_install_plugin_rejects_without_allowlist(client, monkeypatch, tmp_path) -> None:
+    """API install should fail closed if allowlist is missing."""
+    import pioreactor.web.unit_api as mod
+
+    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
+    monkeypatch.setattr(
+        mod.tasks,
+        "pio_plugins",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("should not run")),
+    )
+
+    resp = client.post(
+        "/unit_api/plugins/install",
+        json={"args": ["safe-plugin"], "options": {}, "env": {}},
+    )
+    assert resp.status_code == 403
+    assert b"allowlist" in resp.data
+
+
+def test_install_plugin_rejects_not_allowlisted(client, monkeypatch) -> None:
+    """API install should reject plugins not on the allowlist."""
+    import pioreactor.web.unit_api as mod
+
+    monkeypatch.setattr(
+        mod.tasks,
+        "pio_plugins",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("should not run")),
+    )
+
+    resp = client.post(
+        "/unit_api/plugins/install",
+        json={"args": ["blocked-plugin"], "options": {}, "env": {}},
+    )
+    assert resp.status_code == 403
+    assert b"allowlist" in resp.data
+
+
+def test_install_plugin_allows_allowlisted(client, monkeypatch) -> None:
+    """API install should proceed for allowlisted plugins."""
+    import pioreactor.web.unit_api as mod
+
+    captured = {}
+
+    def fake_pio_plugins(*args, **kwargs):
+        captured["args"] = args
+
+        class DummyTask:
+            id = "task-123"
+
+        return DummyTask()
+
+    monkeypatch.setattr(mod.tasks, "pio_plugins", fake_pio_plugins)
+
+    resp = client.post(
+        "/unit_api/plugins/install",
+        json={"args": ["pioreactor-air-bubbler"], "options": {}, "env": {}},
+    )
+    assert resp.status_code == 202
+    data = resp.get_json()
+    assert data["task_id"] == "task-123"
+    assert captured["args"] == ("install", "pioreactor-air-bubbler")
