@@ -1,4 +1,4 @@
-name: CI Core
+name: CI
 
 on: [pull_request, push, workflow_dispatch]
 
@@ -125,7 +125,7 @@ jobs:
             channel: 0
           EOF_HW
 
-          curl https://raw.githubusercontent.com/Pioreactor/list-of-plugins/refs/heads/main/plugins.json > $DOT_PIOREACTOR/plugins/api_plugins_allowlist.json
+          curl https://raw.githubusercontent.com/Pioreactor/list-of-plugins/refs/heads/main/plugins.json -o $DOT_PIOREACTOR/plugins/api_plugins_allowlist.json
 
           ls "$DOT_PIOREACTOR"
 
