@@ -8,8 +8,10 @@ import Box from '@mui/material/Box';
 import OutlinedInput from '@mui/material/OutlinedInput';
 import InputLabel from '@mui/material/InputLabel';
 import Divider from '@mui/material/Divider';
+import Alert from '@mui/material/Alert';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import TimelapseIcon from '@mui/icons-material/Timelapse';
+import { Link } from 'react-router';
 import ManageExperimentMenu from "./ManageExperimentMenu";
 
 
@@ -90,7 +92,7 @@ class EditableDescription extends React.Component {
 
 
 
-function ExperimentSummary({experimentMetadata, updateExperiment}){
+function ExperimentSummary({experimentMetadata, updateExperiment, showAssignmentAlert=false}){
   const experiment = experimentMetadata.experiment
   const startedAt = experimentMetadata.created_at
   const deltaHours = experimentMetadata.delta_hours
@@ -129,9 +131,14 @@ function ExperimentSummary({experimentMetadata, updateExperiment}){
               </Box>
             </Box>
 
-          </Typography>
+      </Typography>
         </Box>
       </Box>
+      {showAssignmentAlert &&
+        <Alert severity="info" sx={{ mb: 1 }}>
+          No Pioreactors assigned to experiment. Assign Pioreactors on the <Link to="/pioreactors">Pioreactors page</Link>.
+        </Alert>
+      }
       <Card >
         <CardContent sx={{p: 1}}>
           <EditableDescription experimentMetadata={experimentMetadata} updateExperiment={updateExperiment} />

@@ -83,6 +83,7 @@ function Overview(props) {
   const [timeScale, setTimeScale] = useState(initialTimeScale);
   const [timeWindow, setTimeWindow] = useState(initialTimeWindow);
   const [units, setUnits] = useState([])
+  const [hasFetchedUnits, setHasFetchedUnits] = useState(false)
   const unitsColorMap = useMemo(() => new ColorCycler(colors), [])
 
 
@@ -98,6 +99,7 @@ function Overview(props) {
         if (response.ok) {
           const units = await response.json();
           setUnits(units);
+          setHasFetchedUnits(true);
         } else {
           console.error('Failed to fetch workers:', response.statusText);
         }
@@ -109,12 +111,16 @@ function Overview(props) {
 
     if (experimentMetadata.experiment){
         getRelabelMap(setRelabelMap, experimentMetadata.experiment)
+        setHasFetchedUnits(false)
+        setUnits([])
         fetchWorkers(experimentMetadata.experiment)
     }
   }, [experimentMetadata])
 
   const activeUnits = units.filter(unit => unit.is_active === 1).map(unit => unit.pioreactor_unit)
   const assignedUnits = units.map(unit => unit.pioreactor_unit)
+
+  const showAssignmentAlert = hasFetchedUnits && assignedUnits.length === 0
 
   return (
     <Fragment>
@@ -124,7 +130,7 @@ function Overview(props) {
             xs: 12,
             md: 12
           }}>
-          <ExperimentSummary experimentMetadata={experimentMetadata} updateExperiment={updateExperiment}/>
+          <ExperimentSummary experimentMetadata={experimentMetadata} updateExperiment={updateExperiment} showAssignmentAlert={showAssignmentAlert}/>
         </Grid>
 
 
