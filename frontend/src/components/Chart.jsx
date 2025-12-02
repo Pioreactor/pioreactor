@@ -1,4 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import IconButton from "@mui/material/IconButton";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
@@ -73,6 +80,8 @@ function Chart(props) {
 
   const topics = useMemo(() => toArray(topic), [topic]);
   const chartContainerRef = useRef(null);
+  const canvasMeasureRef = useRef(null);
+  const [chartWidth, setChartWidth] = useState(600);
   const [seriesMap, setSeriesMap] = useState({});
   const [hiddenSeries, setHiddenSeries] = useState(() => new Set());
   const [fetched, setFetched] = useState(false);
@@ -137,6 +146,18 @@ function Chart(props) {
     [breakString, relabelMap]
   );
 
+  const measureLegendLabel = useMemo(() => {
+    if (!canvasMeasureRef.current) {
+      canvasMeasureRef.current = document.createElement("canvas");
+    }
+    const context = canvasMeasureRef.current.getContext("2d");
+    if (context) {
+      context.font = "13px Helvetica, Arial, sans-serif";
+      return (text) => context.measureText(text).width;
+    }
+    return (text) => text.length * 8;
+  }, []);
+
   const createToolTip = useCallback(
     (d) => {
       let xValue;
@@ -178,6 +199,57 @@ function Chart(props) {
     },
     [hiddenSeries, relabelAndFormatSeriesForLegend, seriesMap]
   );
+
+  const legendItems = useMemo(
+    () => names.map(selectLegendData).filter((item) => item && item.name),
+    [names, selectLegendData]
+  );
+
+  const legendLayout = useMemo(() => {
+    if (!legendItems.length) {
+      return { itemsPerRow: 1, rows: 0, rowHeight: 24 };
+    }
+
+    const legendPadding = 130; // left + right padding for legend area inside the chart
+    const availableWidth = Math.max(200, chartWidth - legendPadding);
+    const gutter = 15;
+    const symbolWidth = 14; // approx symbol + stroke width
+
+    const estimatedWidths = legendItems.map(
+      (item) => measureLegendLabel(item.name) + symbolWidth + gutter + 8
+    );
+    const avgWidth = estimatedWidths.reduce((sum, width) => sum + width, 0) / estimatedWidths.length;
+    const minWidth = Math.max(60, Math.max(...estimatedWidths));
+    const targetWidth = Math.max(minWidth, avgWidth + gutter);
+    const itemsPerRow = Math.max(
+      1,
+      Math.min(legendItems.length, Math.floor(availableWidth / targetWidth) || 1)
+    );
+    const rows = Math.ceil(legendItems.length / itemsPerRow);
+    return { itemsPerRow, rows, rowHeight: 24 };
+  }, [chartWidth, legendItems, measureLegendLabel]);
+
+  useLayoutEffect(() => {
+    const node = chartContainerRef.current;
+    if (!node) {
+      return undefined;
+    }
+
+    const updateWidth = () => {
+      const nextWidth = Math.max(400, node.clientWidth || 600);
+      setChartWidth(nextWidth);
+    };
+
+    updateWidth();
+    const resizeObserver = new ResizeObserver(updateWidth);
+    resizeObserver.observe(node);
+    window.addEventListener("resize", updateWidth);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateWidth);
+    };
+  }, []);
 
   const selectVictoryLines = useCallback(
     (name) => {
@@ -580,17 +652,23 @@ function Chart(props) {
   const exportMenuOpen = Boolean(exportAnchorEl);
   const chartStateKey = names.join("-");
 
+  const legendRows = legendLayout.rows;
+  const legendItemsPerRow = legendLayout.itemsPerRow;
+  const legendRowHeight = legendLayout.rowHeight;
+  const legendBottomPadding = 40 + legendRows * legendRowHeight;
+  const chartHeight = 285 + legendRows * legendRowHeight;
+
   return (
     <div ref={chartContainerRef} style={{ position: "relative" }}>
       <VictoryChart
         key={chartStateKey}
-        style={{ parent: { maxWidth: "700px" } }}
+        style={{ parent: { maxWidth: "700px", width: "100%" } }}
         title={title}
         domainPadding={10}
-        padding={{ left: 70, right: 50, bottom: 40 + 25 * Math.ceil(names.length / 4), top: 50 }}
+        padding={{ left: 70, right: 50, bottom: legendBottomPadding, top: 50 }}
         events={legendEvents}
-        height={285 + 25 * Math.ceil(names.length / 4)}
-        width={600}
+        height={chartHeight}
+        width={chartWidth}
         scale={{ x: byDuration ? "linear" : "time" }}
         theme={VictoryTheme.material}
         containerComponent={
@@ -630,14 +708,15 @@ function Chart(props) {
               fontFamily: "inherit",
             },
           }}
-          offsetY={40 + 25 * Math.ceil(names.length / 4)}
+          offsetY={legendBottomPadding}
           label={byDuration ? "Hours" : "Time"}
           orientation="bottom"
           fixLabelOverlap={true}
           axisLabelComponent={
             <VictoryLabel
-              dy={-15}
-              dx={262}
+              dy={-5}
+              x={chartWidth - 30}
+              textAnchor="end"
               style={{
                 fontSize: 12,
                 fontFamily: "inherit",
@@ -674,7 +753,7 @@ function Chart(props) {
           x={65}
           y={285}
           symbolSpacer={6}
-          itemsPerRow={4}
+          itemsPerRow={legendItemsPerRow}
           name="legend"
           borderPadding={{ right: 8 }}
           orientation="horizontal"
@@ -685,7 +764,8 @@ function Chart(props) {
             labels: { fontSize: 13 },
             data: { stroke: "#485157", strokeWidth: 0.5, size: 6.5, cursor: "pointer" },
           }}
-          data={names.map(selectLegendData).filter((item) => item && item.name)}
+          data={legendItems}
+          width={chartWidth}
         />
         {names.map(selectVictoryLines)}
       </VictoryChart>
