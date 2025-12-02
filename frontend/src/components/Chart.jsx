@@ -313,6 +313,18 @@ function Chart(props) {
     [chartKey, experiment, title]
   );
 
+  const addWatermarkToSvg = useCallback((svgElement, width, height) => {
+    const watermark = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    watermark.textContent = "Prepared via Pioreactor";
+    watermark.setAttribute("x", `${width - 8}`);
+    watermark.setAttribute("y", `${height - 8}`);
+    watermark.setAttribute("text-anchor", "end");
+    watermark.setAttribute("fill", "#90a4ae");
+    watermark.setAttribute("font-size", "10");
+    watermark.setAttribute("font-family", "Helvetica Neue, Helvetica, Arial, sans-serif");
+    svgElement.appendChild(watermark);
+  }, []);
+
   const exportChart = useCallback(
     (format) => {
       const container = chartContainerRef.current;
@@ -334,6 +346,12 @@ function Chart(props) {
       styleNode.innerHTML = "* { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important; }";
       clonedSvg.insertBefore(styleNode, clonedSvg.firstChild);
 
+      const width = Number(clonedSvg.getAttribute("width")) || svgElement.clientWidth || 600;
+      const height = Number(clonedSvg.getAttribute("height")) || svgElement.clientHeight || 400;
+      clonedSvg.setAttribute("width", `${width}`);
+      clonedSvg.setAttribute("height", `${height}`);
+      addWatermarkToSvg(clonedSvg, width, height);
+
       const serializer = new XMLSerializer();
       const serializedSvg = serializer.serializeToString(clonedSvg);
       const svgWithHeader = `<?xml version="1.0" encoding="utf-8"?>\n${serializedSvg}`;
@@ -348,8 +366,6 @@ function Chart(props) {
         return;
       }
 
-      const width = Number(clonedSvg.getAttribute("width")) || svgElement.clientWidth || 600;
-      const height = Number(clonedSvg.getAttribute("height")) || svgElement.clientHeight || 400;
       const scaleFactor = 2;
 
       const url = URL.createObjectURL(svgBlob);
@@ -377,7 +393,7 @@ function Chart(props) {
       };
       image.src = url;
     },
-    [getDownloadFilename, triggerBlobDownload, triggerDataUrlDownload]
+    [addWatermarkToSvg, getDownloadFilename, triggerBlobDownload, triggerDataUrlDownload]
   );
 
   const handleOpenExportMenu = useCallback((event) => {

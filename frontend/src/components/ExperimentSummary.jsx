@@ -13,7 +13,7 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import TimelapseIcon from '@mui/icons-material/Timelapse';
 import { Link } from 'react-router';
 import ManageExperimentMenu from "./ManageExperimentMenu";
-
+import ArrowOutwardIcon from '@mui/icons-material/ArrowOutward';
 
 
 class EditableDescription extends React.Component {
@@ -136,7 +136,7 @@ function ExperimentSummary({experimentMetadata, updateExperiment, showAssignment
       </Box>
       {showAssignmentAlert &&
         <Alert severity="info" sx={{ mb: 1 }}>
-          No Pioreactors assigned to experiment. Assign Pioreactors on the <Link to="/pioreactors">Pioreactors page</Link>.
+          No Pioreactors currently assigned to experiment. <Link to="/pioreactors"> Assign Pioreactors <ArrowOutwardIcon sx={{ fontSize: 12, verticalAlign: "-1px" }}/></Link>
         </Alert>
       }
       <Card >
