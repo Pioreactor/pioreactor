@@ -260,7 +260,6 @@ function AddNewPioreactor({setWorkers}){
             labelId="add-model-label"
             value={`${model[0]}::${model[1]}`}
             onChange={(evt) => {
-              console.log(evt)
               const [modelName, modelVersion] = String(evt.target.value).split('::');
               setModel([modelName, modelVersion]);
             }}
@@ -515,7 +514,6 @@ function WorkerCard({worker, config, leaderVersion}) {
   const selectValue = availableModels.some(
     ({model_name, model_version}) => model_name === model[0] && String(model_version) === String(model[1])
   ) ? modelValue : "";
-
   return (
     <>
     <Card sx={{ minWidth: 275 }}>

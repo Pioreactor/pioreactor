@@ -67,6 +67,10 @@ import { useExperiment } from './providers/ExperimentContext';
 import PatientButton from './components/PatientButton';
 import {getConfig, getRelabelMap, runPioreactorJob, disconnectedGrey, lostRed, disabledColor, stateDisplay, checkTaskCallback} from "./utilities"
 import cloudImage from './assets/pioreactor_cloud.webp'
+import MissingWorkerModelModal from "./components/MissingWorkerModelModal";
+
+const workerMissingModelDetails = (worker) =>
+  worker?.model_name == null || worker?.model_version == null;
 
 
 
@@ -2314,7 +2318,7 @@ function ActiveUnits({experiment, config, units, availableModels}){
     const modelDetails = availableModels.find(
       ({model_name, model_version}) => model_name === unit.model_name && unit.model_version === model_version
     );
-    return <PioreactorCard  key={unit.pioreactor_unit} isUnitActive={true} unit={unit.pioreactor_unit} modelDetails={modelDetails || {}} config={config} experiment={experiment} originalLabel={relabelMap[unit.pioreactor_unit]}/>
+    return <PioreactorCard key={unit.pioreactor_unit} isUnitActive={true} unit={unit.pioreactor_unit} modelDetails={modelDetails || {}} config={config} experiment={experiment} originalLabel={relabelMap[unit.pioreactor_unit]}/>
   })
 
   return (
@@ -2708,6 +2712,7 @@ function Pioreactors({title}) {
   const [config, setConfig] = useState({})
   const [isLoading, setIsLoading] = useState(true);
   const [availableModels, setAvailableModels] = useState([]);
+  const [modelCheckKey, setModelCheckKey] = useState(0);
 
   useEffect(() => {
     document.title = title;
@@ -2725,6 +2730,14 @@ function Pioreactors({title}) {
       .then((r) => r.json())
       .then((data) => setAvailableModels(data.models))
   }, []);
+
+  const workersMissingModel = workers.some(workerMissingModelDetails);
+
+  useEffect(() => {
+    if (workersMissingModel) {
+      setModelCheckKey((key) => key + 1);
+    }
+  }, [workersMissingModel]);
 
 
   const fetchWorkers = async () => {
@@ -2776,6 +2789,7 @@ function Pioreactors({title}) {
 
   return (
     <MQTTProvider name="pioreactor" config={config} experiment={experimentMetadata.experiment}>
+      {modelCheckKey > 0 && <MissingWorkerModelModal triggerCheckKey={modelCheckKey} />}
       <Grid container spacing={2} >
         <Grid
           size={{

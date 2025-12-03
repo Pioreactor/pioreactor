@@ -692,7 +692,7 @@ function Chart(props) {
       >
         <VictoryLabel
           text={title}
-          x={300}
+          x={360}
           y={30}
           textAnchor="middle"
           style={{
@@ -714,8 +714,8 @@ function Chart(props) {
           fixLabelOverlap={true}
           axisLabelComponent={
             <VictoryLabel
-              dy={-5}
-              x={chartWidth - 30}
+              dy={-15}
+              x={chartWidth - 12}
               textAnchor="end"
               style={{
                 fontSize: 12,

@@ -62,7 +62,7 @@ const setModelsVerifiedFlag = (value) => {
 const hasMissingModelDetails = (worker) =>
   worker?.model_name == null || worker?.model_version == null;
 
-const MissingWorkerModelModal = () => {
+const MissingWorkerModelModal = ({ triggerCheckKey = 0 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -74,7 +74,9 @@ const MissingWorkerModelModal = () => {
   const [snackbarMessage, setSnackbarMessage] = useState("");
 
   useEffect(() => {
-    if (getModelsVerifiedFlag()) {
+    const shouldForceCheck = triggerCheckKey !== 0;
+
+    if (getModelsVerifiedFlag() && !shouldForceCheck) {
       setIsLoaded(true);
       return;
     }
@@ -115,7 +117,7 @@ const MissingWorkerModelModal = () => {
     };
 
     loadData();
-  }, []);
+  }, [triggerCheckKey]);
 
   const groupedModels = useMemo(() => {
     const safeModels = availableModels ?? [];
