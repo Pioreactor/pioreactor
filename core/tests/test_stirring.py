@@ -120,6 +120,7 @@ def test_publish_measured_rpm() -> None:
         assert json.loads(message.payload)["measured_rpm"] == 500
 
 
+@pytest.mark.slow
 def test_rpm_isnt_updated_if_there_is_no_rpm_measurement() -> None:
     exp = "test_rpm_isnt_updated_if_there_is_no_rpm_measurement"
 
@@ -180,6 +181,7 @@ def test_stirring_with_calibration() -> None:
         assert st.rpm_to_dc_lookup(700) == 73.21021312500001
 
 
+@pytest.mark.slow
 def test_stirring_wont_fire_last_100dc_on_od_reading_end() -> None:
     # regression test for BackgroundJobWithDodging, but first observed in stirring job
 

@@ -162,4 +162,6 @@ jobs:
 
       - name: Run tests
         run: |
-          make test
+          make fast-test
+          make slow-test
+          make flakey-test

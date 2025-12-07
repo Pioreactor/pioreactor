@@ -3,12 +3,14 @@ from __future__ import annotations
 
 import json
 
+import pytest
 from pioreactor.actions.od_blank import od_blank
 from pioreactor.config import config
 from pioreactor.config import temporary_config_change
 from pioreactor.utils import local_persistent_storage
 
 
+@pytest.mark.slow
 def test_returns_means_and_outputs_to_cache() -> None:
     experiment = "test_returns_means_and_outputs_to_cache"
     with temporary_config_change(config, "od_config.photodiode_channel", "1", "90"):

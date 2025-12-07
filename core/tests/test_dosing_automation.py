@@ -179,6 +179,7 @@ def test_silent_automation() -> None:
         assert algo.previous_od == {"2": 0.05}
 
 
+@pytest.mark.slow
 def test_turbidostat_automation() -> None:
     experiment = "test_turbidostat_automation"
     target_od = 1.0
@@ -435,6 +436,7 @@ def test_turbidostat_targeting_od() -> None:
         assert algo.media_throughput == 0.50
 
 
+@pytest.mark.slow
 def test_pid_morbidostat_automation() -> None:
     experiment = "test_pid_morbidostat_automation"
     target_growth_rate = 0.09
@@ -558,6 +560,7 @@ def test_changing_turbidostat_params_over_mqtt() -> None:
     algo.clean_up()
 
 
+@pytest.mark.flakey
 def test_changing_parameters_over_mqtt_with_unknown_parameter() -> None:
     experiment = "test_changing_parameters_over_mqtt_with_unknown_parameter"
     with pubsub.collect_all_logs_of_level("DEBUG", unit, experiment) as bucket:
@@ -597,6 +600,7 @@ def test_old_readings_will_not_execute_io() -> None:
         assert isinstance(algo.run(), events.NoEvent)
 
 
+@pytest.mark.slow
 def test_throughput_calculator_multiple_types() -> None:
     experiment = "test_throughput_calculator_multiple_types"
 
@@ -712,6 +716,7 @@ def test_throughput_calculator_manual_set() -> None:
         assert automation_job.alt_media_throughput == 0
 
 
+@pytest.mark.slow
 def test_execute_io_action() -> None:
     experiment = "test_execute_io_action"
 
@@ -1703,6 +1708,7 @@ def test_alt_media_calculator_from_0_volume_with_negative_doses() -> None:
     assert B_current_volume == A_current_volume
 
 
+@pytest.mark.slow
 def test_adding_pumps_and_calling_them_from_execute_io_action() -> None:
     experiment = "test_adding_pumps_and_calling_them_from_execute_io_action"
     unit = get_unit_name()
@@ -1761,6 +1767,7 @@ def test_execute_io_action_errors() -> None:
             ca.execute_io_action(waste_ml=1.0, salty_media_ml=1.0)
 
 
+@pytest.mark.flakey
 def test_timeout_in_run(fast_dosing_timers) -> None:
     unit = get_unit_name()
     experiment = "test_timeout_in_run"
@@ -1773,6 +1780,7 @@ def test_timeout_in_run(fast_dosing_timers) -> None:
         assert wait_for(lambda: any("Timed out" in item["message"] for item in bucket), timeout=3.0)
 
 
+@pytest.mark.slow
 def test_automation_will_pause_itself_if_pumping_goes_above_safety_threshold() -> None:
     experiment = "test_automation_will_pause_itself_if_pumping_goes_above_safety_threshold"
 
@@ -1803,6 +1811,7 @@ def test_automation_will_pause_itself_if_pumping_goes_above_safety_threshold() -
         pause()
 
 
+@pytest.mark.flakey
 def test_warning_is_logged_if_under_remove_waste(fast_dosing_timers) -> None:
     unit = get_unit_name()
     experiment = "test_warning_is_logged_if_under_remove_waste"

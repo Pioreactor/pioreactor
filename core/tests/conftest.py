@@ -50,10 +50,13 @@ def run_around_tests(request):
 
     with local_persistent_storage("media_throughput") as c:
         c.pop(test_name)
+
     with local_persistent_storage("alt_media_throughput") as c:
         c.pop(test_name)
+
     with local_persistent_storage("alt_media_fraction") as c:
         c.pop(test_name)
+
     with local_persistent_storage("current_volume_ml") as c:
         c.pop(test_name)
 

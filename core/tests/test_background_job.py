@@ -93,6 +93,7 @@ def test_init_state_is_sent_to_mqtt() -> None:
     assert states == ["init", "ready", "disconnected"]
 
 
+@pytest.mark.flakey
 def test_jobs_connecting_and_disconnecting_will_still_log_to_mqtt() -> None:
     # see note in base.py about create_logger
     unit = get_unit_name()
@@ -296,6 +297,7 @@ def test_bad_setting_name_in_published_settings() -> None:
             pass
 
 
+@pytest.mark.flakey
 def test_editing_readonly_attr_via_mqtt() -> None:
     class TestJob(BackgroundJob):
         job_name = "job"
@@ -518,6 +520,8 @@ def test_dodging_persists_when_second_od_reader_start_fails() -> None:
                     assert interval_msg is not None
 
 
+@pytest.mark.flakey
+@pytest.mark.slow
 def test_dodging_order() -> None:
     with temporary_config_section(config, "just_pause.config"):
         with temporary_config_changes(
@@ -573,6 +577,7 @@ def test_dodging_order() -> None:
             ODReader._post_read = []
 
 
+@pytest.mark.slow
 def test_dodging_when_od_reading_stops_first() -> None:
     with temporary_config_section(config, "just_pause.config"):
         with temporary_config_changes(
@@ -617,6 +622,8 @@ def test_dodging_when_od_reading_stops_first() -> None:
                 assert len(bucket) == 0
 
 
+@pytest.mark.flakey
+@pytest.mark.slow
 def test_disabling_dodging() -> None:
     exp = "test_disabling_dodging"
 
@@ -684,6 +691,7 @@ def test_disabling_dodging() -> None:
                         time.sleep(3)
 
 
+@pytest.mark.flakey
 def test_disabled_dodging_will_start_continuous_operation() -> None:
     exp = "test_disabled_dodging_will_start_action_to_do_after_od_reading"
     with temporary_config_section(config, "just_pause.config"):

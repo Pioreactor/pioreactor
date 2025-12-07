@@ -2,6 +2,7 @@
 # test_od_calibration
 from __future__ import annotations
 
+import pytest
 from click.testing import CliRunner
 from pioreactor import structs
 from pioreactor.calibrations import load_active_calibration
@@ -36,6 +37,7 @@ def test_analyze() -> None:
     assert len(loaded_cal.curve_data_) == 3
 
 
+@pytest.mark.slow
 def test_run_od_standards() -> None:
     with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "70"):
         runner = CliRunner()

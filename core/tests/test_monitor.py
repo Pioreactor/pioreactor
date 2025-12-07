@@ -19,6 +19,7 @@ def pause(n=1):
     time.sleep(n * 0.5)
 
 
+@pytest.mark.slow
 @pytest.mark.xfail()
 def test_check_job_states_in_monitor() -> None:
     unit = get_unit_name()
@@ -38,6 +39,7 @@ def test_check_job_states_in_monitor() -> None:
         assert message.payload.decode() == "lost"
 
 
+@pytest.mark.slow
 def test_monitor_alerts_on_found_worker() -> None:
     experiment = "test_monitor_alerts_on_found_worker"
 
@@ -61,6 +63,7 @@ def test_monitor_alerts_on_found_worker() -> None:
     r.unregister_service(info)
 
 
+@pytest.mark.slow
 def test_monitor_doesnt_alert_if_already_in_cluster() -> None:
     experiment = "test_monitor_doesnt_alert_if_already_in_cluster"
 

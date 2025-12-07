@@ -608,6 +608,7 @@ def test_sin_regression_all_negative() -> None:
     assert AIC == float("inf")
 
 
+@pytest.mark.slow
 def test_simple_API() -> None:
     od_job = start_od_reading(make_channels("90", "REF"), interval=100_000, fake_data=True, calibration=False)
 
@@ -1582,6 +1583,7 @@ def test_mandys_calibration() -> None:
     assert 0.0 < mcal.y_to_x(0.002, enforce_bounds=True) < 1.0
 
 
+@pytest.mark.slow
 def test_setting_interval_after_starting() -> None:
     initial_interval = 2
     with start_od_reading(

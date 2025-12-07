@@ -81,10 +81,19 @@ precommit: venv ## Run pre-commit on all files
 
 # --- test ---------------------------------------------------------------------
 test: venv  ## Run all pytest suites
-	@$(ACTIVATE) && pytest --rootdir=. $(CORE_DIR)/tests --timeout 300 --random-order --durations 15  --random-order-bucket=module --random-order-seed=904213 -vv
+	@$(ACTIVATE) && pytest --rootdir=. $(CORE_DIR)/tests --timeout 300 --random-order --durations 15  --random-order-bucket=module -vv
+
+fast-test: venv  ## Run an optimized, low-threshold test suite
+	@$(ACTIVATE) && pytest --rootdir=. $(CORE_DIR)/tests --timeout 300 --random-order --durations 15  --random-order-bucket=module -vv -m "not slow and not flakey and not xfail and not skip"
+
+slow-test: venv
+	@$(ACTIVATE) && pytest --rootdir=. $(CORE_DIR)/tests --timeout 300 --random-order --durations 15  --random-order-bucket=module -vv -m slow
+
+flakey-test: venv
+	@$(ACTIVATE) && pytest --rootdir=. $(CORE_DIR)/tests --timeout 300 --random-order --durations 15  --random-order-bucket=module -vv -m "flakey or xfail or skip"
 
 core-test: venv  ## Backend tests only
-	@$(ACTIVATE) && pytest --rootdir=. $(CORE_DIR)/tests --timeout 300 --random-order --durations 15 --random-order-bucket=module --random-order-seed=904213 --ignore=$(CORE_DIR)/tests/web --ignore=$(CORE_DIR)/tests/test_monitor.py -vv
+	@$(ACTIVATE) && pytest --rootdir=. $(CORE_DIR)/tests --timeout 300 --random-order --durations 15 --random-order-bucket=module --ignore=$(CORE_DIR)/tests/web  -vv
 
 web-test: venv  ## API (Flask) tests only
 	@$(ACTIVATE) && pytest --rootdir=. $(CORE_DIR)/tests/web/ --timeout 300 --random-order --durations 15 -vv

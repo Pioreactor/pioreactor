@@ -186,7 +186,7 @@ class TestGrowthRateCalculating:
 
                 assert calc.processor.ekf.state_ is not None
 
-    @pytest.mark.skip(reason="testing flakey CI")
+    @pytest.mark.flakey
     def test_restart(self) -> None:
         unit = get_unit_name()
         experiment = "test_restart"
@@ -411,6 +411,7 @@ class TestGrowthRateCalculating:
                 pause()
                 assert not calc.processor._recent_dilution
 
+    @pytest.mark.slow
     def test_180_angle(self) -> None:
         import json
         import numpy as np
@@ -477,6 +478,7 @@ class TestGrowthRateCalculating:
                 assert calc.processor.ekf.state_[1] > 0
                 thread.cancel()
 
+    @pytest.mark.slow
     def test_90_angle(self) -> None:
         import json
         import numpy as np
@@ -753,6 +755,7 @@ class TestGrowthRateCalculating:
                 pause()
                 assert len(bucket) > 0
 
+    @pytest.mark.slow
     def test_single_outlier_spike_gets_absorbed(self) -> None:
         with temporary_config_changes(
             config,
@@ -1069,6 +1072,7 @@ class TestGrowthRateCalculating:
                     assert abs(previous_nOD.od_filtered - current_nOD.od_filtered) < 0.05
                     assert abs(previous_gr.growth_rate - current_gr.growth_rate) < 0.01
 
+    @pytest.mark.slow
     def test_abnormal_kf_caused_by_previous_outlier_algo(self) -> None:
         experiment = "test_abnormal_kf_caused_by_previous_outlier_algo"
         unit = "wk3"

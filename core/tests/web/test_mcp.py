@@ -58,8 +58,6 @@ def test_create_experiment_posts_expected_payload() -> None:
         result = create_experiment(
             "new-experiment",
             description="A test experiment",
-            media_used="media",
-            organism_used="organism",
         )
     assert requests, "Expected HTTP request to be captured"
     req = requests[0]
@@ -68,8 +66,6 @@ def test_create_experiment_posts_expected_payload() -> None:
     assert req.json == {
         "experiment": "new-experiment",
         "description": "A test experiment",
-        "mediaUsed": "media",
-        "organismUsed": "organism",
     }
     assert result == {"mocked": "response"}
 

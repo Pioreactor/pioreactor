@@ -43,6 +43,7 @@ def test_repeated_timer_will_not_execute_if_killed_during_run_immediately_paused
     assert c.counter == 0
 
 
+@pytest.mark.slow
 def test_repeated_timer_has_low_variance() -> None:
     import time
     import numpy as np
@@ -152,6 +153,7 @@ def test_repeated_timer_run_after_works_as_intended() -> None:
     assert c.counter == 0
 
 
+@pytest.mark.slow
 def test_repeated_timer_pause_works_as_intended() -> None:
     class Counter:
         counter = 0

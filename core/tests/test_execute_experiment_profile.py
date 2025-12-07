@@ -453,6 +453,7 @@ def test_wrong_syntax_in_if_statement(mock__load_experiment_profile) -> None:
         execute_experiment_profile("profile.yaml", experiment)
 
 
+@pytest.mark.slow
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_repeat_block(mock__load_experiment_profile) -> None:
     repeat_num = 6
@@ -747,6 +748,7 @@ def test_execute_experiment_profile_when_action_with_if(mock__load_experiment_pr
     )
 
 
+@pytest.mark.slow
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_profile_when_action_condition_eventually_met(
     mock__load_experiment_profile,
@@ -794,6 +796,7 @@ def test_execute_experiment_profile_when_action_condition_eventually_met(
     assert actions == [500, 1000, 200]
 
 
+@pytest.mark.slow
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_profile_when_action_nested(
     mock__load_experiment_profile,

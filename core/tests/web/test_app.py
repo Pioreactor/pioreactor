@@ -395,6 +395,7 @@ def test_run_job_with_job_source(client) -> None:
     )
 
 
+@pytest.mark.slow
 def test_run_job_response(client) -> None:
     # regression test
     run_post_response = client.post(
@@ -432,6 +433,7 @@ def test_get_settings_unit_api(client) -> None:
         r.json["target_rpm"] == "500.0"
 
 
+@pytest.mark.slow
 @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Requires a webserver running to handle huey pings.")
 def test_get_settings_api(client) -> None:
     from pioreactor.background_jobs.stirring import start_stirring
