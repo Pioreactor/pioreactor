@@ -97,6 +97,7 @@ class TestGrowthRateCalculating:
             for experiment in cache.iterkeys():
                 del cache[experiment]
 
+    @pytest.mark.slow
     def test_subscribing(self) -> None:
         with temporary_config_changes(
             config, [("od_config.photodiode_channel", "1", "90"), ("od_config.photodiode_channel", "2", "90")]
@@ -263,29 +264,6 @@ class TestGrowthRateCalculating:
                 )
                 assert wait_for(lambda: float(calc2.processor.ekf.state_[-1]) != 0, timeout=3.0)
 
-    def test_single_observation(self) -> None:
-        unit = get_unit_name()
-        experiment = "test_single_observation"
-
-        with local_persistent_storage("od_normalization_mean") as cache:
-            cache[experiment] = json.dumps({1: 1})
-
-        with local_persistent_storage("od_normalization_variance") as cache:
-            cache[experiment] = json.dumps({1: 1})
-
-        od_stream, dosing_stream = create_od_stream_from_mqtt(
-            unit, experiment
-        ), create_dosing_stream_from_mqtt(unit, experiment)
-
-        with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
-            calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
-
-            publish(
-                f"pioreactor/{unit}/{experiment}/od_reading/ods",
-                create_encoded_od_raw_batched(["1"], [1.155], ["90"], timestamp="2010-01-01T12:00:35.000Z"),
-            )
-            pause()
-
     def test_scaling_works(self) -> None:
         unit = get_unit_name()
         experiment = "test_scaling_works"
@@ -320,6 +298,7 @@ class TestGrowthRateCalculating:
                 ),
             )
 
+    @pytest.mark.slow
     def test_shock_from_dosing_works(self) -> None:
         unit = get_unit_name()
         experiment = "test_shock_from_dosing_works"

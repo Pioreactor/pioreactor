@@ -278,7 +278,7 @@ def test_broadcasting(client) -> None:
     count_of_workers = len(data)
 
     with capture_requests() as bucket:
-        response = client.get("/api/units/$broadcast/versions/ui")
+        response = client.get("/api/units/$broadcast/versions/app")
 
     assert len(bucket) == (count_of_workers + 1)  # leader is localhost, whos not a worker in this fixture
 

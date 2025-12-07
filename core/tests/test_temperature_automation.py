@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import time
 
+import pytest
 from pioreactor import pubsub
 from pioreactor import structs
 from pioreactor.automations.temperature import OnlyRecordTemperature
@@ -17,6 +18,7 @@ def pause(n=1) -> None:
     time.sleep(n)
 
 
+@pytest.mark.slow
 def test_thermostat_automation() -> None:
     experiment = "test_thermostat_automation"
     with Thermostat(target_temperature=50, unit=unit, experiment=experiment) as automation_job:

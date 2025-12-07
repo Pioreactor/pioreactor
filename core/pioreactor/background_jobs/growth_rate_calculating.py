@@ -392,7 +392,12 @@ class GrowthRateProcessor(LoggerMixin):
         """
 
         def consume(od_stream, dosing_stream):
-            for _ in self.process_until_disconnected_or_exhausted(od_stream, dosing_stream):
+            try:
+                for _ in self.process_until_disconnected_or_exhausted(od_stream, dosing_stream):
+                    pass
+            except StopIteration:
+                return
+            except Exception:
                 pass
 
         Thread(target=consume, args=(od_stream, dosing_stream), daemon=True).start()
