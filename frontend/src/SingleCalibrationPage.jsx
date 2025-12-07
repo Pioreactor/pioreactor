@@ -28,7 +28,7 @@ import yaml from "js-yaml";
 import dayjs from 'dayjs';
 import Snackbar from '@mui/material/Snackbar';
 import TuneIcon from '@mui/icons-material/Tune';
-import DeleteIcon from '@mui/icons-material/Delete';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import Chip from '@mui/material/Chip';
 import DoNotDisturbOnOutlinedIcon from '@mui/icons-material/DoNotDisturbOnOutlined';
 import CheckCircleOutlineOutlinedIcon from '@mui/icons-material/CheckCircleOutlineOutlined';
@@ -120,7 +120,7 @@ function Delete({ pioreactorUnit, device, calibrationName }) {
 
   return (
     <Button style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="secondary" onClick={deleteCalibration}>
-       <DeleteIcon fontSize="small"/> Delete
+       <DeleteOutlineIcon fontSize="small"/> Delete
     </Button>
 )}
 
