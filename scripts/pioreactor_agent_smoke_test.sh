@@ -48,6 +48,7 @@ declare -a TEST_SEQUENCE=(
   check_pump_actions
   check_plugin_install_cycle
   check_pios_cli
+  check_pios_sync_configs
   check_numpy_installation
 )
 
@@ -849,6 +850,15 @@ check_pios_cli() {
     ok "pios kill stirring"
   else
     fail "pios kill stirring failed"
+  fi
+}
+
+check_pios_sync_configs() {
+  info "Testing pios sync-configs"
+  if pios sync-configs >/dev/null; then
+    ok "pios sync-configs"
+  else
+    fail "pios sync-configs failed"
   fi
 }
 

@@ -19,20 +19,30 @@ function Charts(props) {
   const [charts, setCharts] = useState({})
   const config = props.config
   const { client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
+  const enabledCharts = config['ui.overview.charts'] || {};
 
   useEffect(() => {
-    fetch('/api/contrib/charts')
-      .then((response) => response.json())
-      .then((data) => {
-        setCharts(data.reduce((map, obj) => ((map[obj.chart_key] = obj), map), {}));
-      });
+    const fetchCharts = async () => {
+      try {
+        const response = await fetch('/api/contrib/charts');
+        if (!response.ok) {
+          throw new Error('Failed to fetch charts');
+        }
+        const data = await response.json();
+        setCharts(Object.fromEntries(data.map((chart) => [chart.chart_key, chart])));
+      } catch (err) {
+        console.error('Error loading charts:', err);
+      }
+    };
+
+    fetchCharts();
   }, []);
 
 
   return (
     <Fragment>
       {Object.entries(charts)
-        .filter(([chart_key, _]) => config['ui.overview.charts'] && (config['ui.overview.charts'][chart_key] === "1"))
+        .filter(([chart_key]) => enabledCharts[chart_key] === "1")
         .map(([chart_key, chart]) =>
           <Fragment key={`grid-chart-${chart_key}`}>
             <Grid size={12}>
@@ -85,6 +95,7 @@ function Overview(props) {
   const [units, setUnits] = useState([])
   const [hasFetchedUnits, setHasFetchedUnits] = useState(false)
   const unitsColorMap = useMemo(() => new ColorCycler(colors), [])
+  const cardsConfig = config['ui.overview.cards'] || {};
 
 
   useEffect(() => {
@@ -175,13 +186,13 @@ function Overview(props) {
             </Stack>
           </Grid>
 
-          {( config['ui.overview.cards'] && (config['ui.overview.cards']['dosings'] === "1")) &&
+          {( cardsConfig['dosings'] === "1") &&
             <Grid size={12}>
               <MediaCard activeUnits={activeUnits} experiment={experimentMetadata.experiment} relabelMap={relabelMap}/>
             </Grid>
           }
 
-        {( config['ui.overview.cards'] && (config['ui.overview.cards']['profiles'] === "1")) &&
+        {( cardsConfig['profiles'] === "1") &&
         <Grid size={12}>
           <RunningProfilesProvider experiment={experimentMetadata.experiment}>
             <RunningProfilesContainer/>
@@ -189,7 +200,7 @@ function Overview(props) {
         </Grid>
        }
 
-        {( config['ui.overview.cards'] && (config['ui.overview.cards']['event_logs'] === "1")) &&
+        {( cardsConfig['event_logs'] === "1") &&
           <Grid size={12}>
             <LogTable units={assignedUnits} byDuration={timeScale==="hours"} experimentStartTime={experimentMetadata.created_at} experiment={experimentMetadata.experiment} config={config} relabelMap={relabelMap}/>
           </Grid>

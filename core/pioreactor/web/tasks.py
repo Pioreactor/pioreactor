@@ -377,7 +377,6 @@ def update_clock(new_time: str) -> bool:
 
 @huey.task()
 def sync_clock() -> bool:
-    # iso8601 format
     if whoami.is_testing_env():
         return True
     r = run(["sudo", "chronyc", "-a", "makestep"])

@@ -457,7 +457,7 @@ def _load_plugin_allowlist() -> set[str]:
     try:
         contents = current_app.get_json(allowlist_path.read_bytes())
     except Exception as e:
-        publish_to_error_log(f"{PLUGIN_ALLOWLIST_FILENAME} is present but invalid JSON: {e}", "plugins")
+        publish_to_error_log(f"{PLUGIN_ALLOWLIST_FILENAME} is not present or invalid JSON: {e}", "plugins")
         return set()
     return {_canonicalize_package_name(c["name"]) for c in contents}
 

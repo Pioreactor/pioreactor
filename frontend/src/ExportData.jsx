@@ -323,7 +323,6 @@ const Datasets = ({ datasets, selectedDatasets, handleChange, onSelectAll }) => 
 
 function ExportDataContainer() {
   const [isRunning, setIsRunning] = React.useState(false)
-  const [isError, setIsError] = React.useState(false)
   const [errorMsg, setErrorMsg] = React.useState("")
   const [datasets, setDatasets] = React.useState([])
 
@@ -343,87 +342,69 @@ function ExportDataContainer() {
   React.useEffect(() => {
 
     async function getDatasets() {
-       await fetch("/api/contrib/exportable_datasets")
-      .then((response) => {
-        return response.json();
-      })
-      .then((data) => {
-        setDatasets(data)
-      });
+      try {
+        const response = await fetch("/api/contrib/exportable_datasets");
+        const data = await response.json();
+        setDatasets(data);
+      } catch (error) {
+        console.error("Failed to fetch datasets:", error);
+      }
     }
     getDatasets()
   }, [])
 
 
-  const countDatasets = () => state.selectedDatasets.length
-  const countExperiments = () => state.experimentSelection.length
+  const onSubmit =  async (event) => {
+    event.preventDefault();
 
-  const onSubmit =  (event) => {
-    event.preventDefault()
-
-    if (countDatasets() === 0) {
-      setIsError(true)
-      setErrorMsg("At least one dataset must be selected.")
-      return
+    if (state.selectedDatasets.length === 0) {
+      setErrorMsg("At least one dataset must be selected.");
+      return;
     }
 
-    setIsRunning(true)
-    setErrorMsg("")
-    fetch('/api/contrib/exportable_datasets/export_datasets',{
-        method: "POST",
-        body: JSON.stringify({
-          experiments: state.experimentSelection,
-          partition_by_unit: state.partitionByUnitSelection,
-          partition_by_experiment: state.partitionByExperimentSelection,
-          datasets: state.selectedDatasets,
-          start_time: state.startTime,
-          end_time: state.endTime,
-        }),
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-    }).then(res => res.json())
-      .then(res => {
+    setIsRunning(true);
+    setErrorMsg("");
+    try {
+      const res = await fetch('/api/contrib/exportable_datasets/export_datasets',{
+          method: "POST",
+          body: JSON.stringify({
+            experiments: state.experimentSelection,
+            partition_by_unit: state.partitionByUnitSelection,
+            partition_by_experiment: state.partitionByExperimentSelection,
+            datasets: state.selectedDatasets,
+            start_time: state.startTime,
+            end_time: state.endTime,
+          }),
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+      });
+      const resJson = await res.json();
       var link = document.createElement("a");
-      const filename = res['filename'].replace(/%/g, "%25")
+      const filename = resJson['filename'].replace(/%/g, "%25")
       link.setAttribute('export', filename);
       link.href = "/exports/" + filename;
       document.body.appendChild(link);
       link.click();
       link.remove();
-      setIsRunning(false)
-    }).catch(e => {
-      setIsRunning(false)
-      setIsError(true)
+    } catch(e) {
       setErrorMsg("Server error occurred. Check logs.")
       console.log(e)
-    });
+    } finally {
+      setIsRunning(false);
+    }
   }
 
   const handleCheckboxChange = (event) => {
     const { name, checked } = event.target;
 
-    setState((prevState) => {
-      const updatedSelectedDatasets = [...prevState.selectedDatasets]; // Create a copy of the list
-
-      if (checked) {
-        if (!updatedSelectedDatasets.includes(name)) {
-          updatedSelectedDatasets.push(name); // Add the item if not already in the list
-        }
-      } else {
-        // Remove the item if unchecked
-        const index = updatedSelectedDatasets.indexOf(name);
-        if (index > -1) {
-          updatedSelectedDatasets.splice(index, 1); // Remove the item
-        }
-      }
-
-      return {
-        ...prevState,
-        selectedDatasets: updatedSelectedDatasets, // Update state with the new list
-      };
-    });
+    setState((prevState) => ({
+      ...prevState,
+      selectedDatasets: checked
+        ? [...new Set([...prevState.selectedDatasets, name])]
+        : prevState.selectedDatasets.filter((item) => item !== name),
+    }));
   };
 
   const handleSelectAll = (event) => {
@@ -443,25 +424,22 @@ function ExportDataContainer() {
   };
 
   function handlePartitionByChange(event) {
-    switch (event.target.name) {
-      case "partition_by_unit":
-        setState(prevState => ({
-          ...prevState,
-          partitionByUnitSelection: event.target.checked
-        }));
-        break;
-      case "partition_by_experiment":
-        setState(prevState => ({
-          ...prevState,
-          partitionByExperimentSelection: event.target.checked
-        }));
-        break;
-      default:
-        break
-    }
+    const stateKey = {
+      partition_by_unit: "partitionByUnitSelection",
+      partition_by_experiment: "partitionByExperimentSelection",
+    }[event.target.name];
+
+    if (!stateKey) return;
+
+    setState(prevState => ({
+      ...prevState,
+      [stateKey]: event.target.checked
+    }));
   };
 
-  const errorFeedbackOrDefault = isError ? <Box color="error.main">{errorMsg}</Box>: ""
+  const errorFeedbackOrDefault = errorMsg ? <Box color="error.main">{errorMsg}</Box>: ""
+  const selectedDatasetsCount = state.selectedDatasets.length;
+  const experimentSelectionCount = state.experimentSelection.length;
   return (
     <React.Fragment>
       <Box>
@@ -480,10 +458,10 @@ function ExportDataContainer() {
                 loadingPosition="end"
                 onClick={onSubmit}
                 endIcon={<FileDownloadIcon />}
-                disabled={(countDatasets() === 0) || (countExperiments() === 0)}
+                disabled={(selectedDatasetsCount === 0) || (experimentSelectionCount === 0)}
                 style={{textTransform: 'none'}}
               >
-                Export { countDatasets() > 0 ?  countDatasets() : ""}
+                Export { selectedDatasetsCount > 0 ?  selectedDatasetsCount : ""}
             </LoadingButton>
           </Box>
         </Box>

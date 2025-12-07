@@ -4,6 +4,7 @@ CLI for running the commands on workers, or otherwise interacting with the worke
 """
 from __future__ import annotations
 
+import os
 from concurrent.futures import ThreadPoolExecutor
 
 import click
@@ -265,13 +266,13 @@ if am_I_leader() or is_testing_env():
         if specific:
             for unit in units:
                 try:
-                    with open(f"/home/pioreactor/.pioreactor/config_{unit}.ini") as f:
+                    with open(f"{os.environ["DOT_PIOREACTOR"]}/config_{unit}.ini") as f:
                         cur.execute(sql, (timestamp, f"config_{unit}.ini", f.read()))
                 except FileNotFoundError:
                     pass
 
         if shared:
-            with open("/home/pioreactor/.pioreactor/config.ini") as f:
+            with open(f"{os.environ["DOT_PIOREACTOR"]}/config.ini") as f:
                 cur.execute(sql, (timestamp, "config.ini", f.read()))
 
         conn.commit()
@@ -290,22 +291,18 @@ if am_I_leader() or is_testing_env():
         # move the global config.ini
         # there was a bug where if the leader == unit, the config.ini would get wiped
         if shared and unit != get_leader_hostname():
-            localpath = "/home/pioreactor/.pioreactor/config.ini"
-            remotepath = "/home/pioreactor/.pioreactor/config.ini"
+            localpath = f"{os.environ["DOT_PIOREACTOR"]}/config.ini"
+            remotepath = f"{os.environ["DOT_PIOREACTOR"]}/config.ini"
             cp_file_across_cluster(unit, localpath, remotepath, timeout=15)
 
         # move the specific unit config.ini
         if specific:
             try:
-                localpath = f"/home/pioreactor/.pioreactor/config_{unit}.ini"
-                remotepath = "/home/pioreactor/.pioreactor/unit_config.ini"
+                localpath = f"{os.environ["DOT_PIOREACTOR"]}/config_{unit}.ini"
+                remotepath = f"{os.environ["DOT_PIOREACTOR"]}/unit_config.ini"
                 cp_file_across_cluster(unit, localpath, remotepath, timeout=15)
 
             except Exception as e:
-                click.echo(
-                    f"Error syncing config_{unit}.ini to {unit} - do they exist?",
-                    err=True,
-                )
                 raise e
         return
 

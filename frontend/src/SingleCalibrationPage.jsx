@@ -96,22 +96,26 @@ function Delete({ pioreactorUnit, device, calibrationName }) {
   const navigate = useNavigate()
   const confirm = useConfirm();
 
-  const deleteCalibration = () => {
-    confirm({
-      description: 'Deleting this calibration will remove it from disk. This is irreversible. Do you wish to continue?',
-      title: `Delete calibration ${calibrationName}?`,
-      confirmationText: "Confirm",
-      confirmationButtonProps: {color: "primary"},
-      cancellationButtonProps: {color: "secondary"},
-    }).then(() => {
-      fetch(`/api/workers/${pioreactorUnit}/calibrations/${device}/${calibrationName}`,
-        {method: "DELETE"})
-      .then((response) => {
-        if (response.ok){
-           navigate(`/calibrations/${pioreactorUnit}/${device}`, {replace: true})
-        }
-      })
-    }).catch(() => {});
+  const deleteCalibration = async () => {
+    try {
+      await confirm({
+        description: 'Deleting this calibration will remove it from disk. This is irreversible. Do you wish to continue?',
+        title: `Delete calibration ${calibrationName}?`,
+        confirmationText: "Confirm",
+        confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}},
+        cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
+      });
+
+      const response = await fetch(`/api/workers/${pioreactorUnit}/calibrations/${device}/${calibrationName}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok){
+         navigate(`/calibrations/${pioreactorUnit}/${device}`, {replace: true})
+      }
+    } catch (err) {
+      // confirmation rejected or request failed; no further action needed
+    }
   };
 
   return (
@@ -231,11 +235,8 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } )
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
 
-  useEffect(() => {
-    fetchSingleCalibration();
-  }, [pioreactorUnit, device, calibrationName]);
-
   const fetchSingleCalibration = async () => {
+    setLoading(true);
     const apiUrl = `/api/workers/${pioreactorUnit}/calibrations/${device}/${calibrationName}`;
     try {
       const response = await fetch(apiUrl);
@@ -249,11 +250,20 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } )
     }
   };
 
+  useEffect(() => {
+    fetchSingleCalibration();
+  }, [pioreactorUnit, device, calibrationName]);
+
   const handleSnackbarClose = (e, reason) => {
     if (reason === 'clickaway') {
       return;
     }
     setSnackbarOpen(false)
+  }
+
+  const showSnackbar = (message) => {
+    setSnackbarMessage(message);
+    setSnackbarOpen(true);
   }
 
   const handleSetActive = async () => {
@@ -263,9 +273,8 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } )
       if (!response.ok) {
         throw new Error("Failed to activate calibration");
       }
-      setSnackbarMessage("Calibration set as Active")
-      setSnackbarOpen(true);
-      setTimeout(fetchSingleCalibration, 300)
+      showSnackbar("Calibration set as Active")
+      await fetchSingleCalibration();
     } catch (err) {
       console.error("Error setting active calibration:", err);
     }
@@ -273,14 +282,17 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } )
 
   const handleRemoveActive = async () => {
     const apiUrl = `/api/workers/${pioreactorUnit}/active_calibrations/${device}`;
-    const response = await fetch(apiUrl, { method: "DELETE" });
-    if (!response.ok) {
-      throw new Error("Failed to remove active calibration");
+    try {
+      const response = await fetch(apiUrl, { method: "DELETE" });
+      if (!response.ok) {
+        throw new Error("Failed to remove active calibration");
+      }
+      showSnackbar("Calibration removed as Active")
+      await fetchSingleCalibration();
+    } catch (err) {
+      console.error("Error removing active calibration:", err);
     }
-    setSnackbarMessage("Calibration removed as Active")
-    setSnackbarOpen(true);
-  setTimeout(fetchSingleCalibration, 200);
-};
+  };
 
 
   if (loading) {
@@ -381,7 +393,7 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } )
                       </TableRow>
                       <TableRow>
                         <TableCell><strong>Active</strong></TableCell>
-                        <TableCell>{is_active ? <><Chip size="small" label={"Active"} icon={<CheckCircleOutlineOutlinedIcon />} sx={{backgroundColor: "white"}}  /></>: ""}</TableCell>
+                        <TableCell>{is_active && <Chip size="small" label={"Active"} icon={<CheckCircleOutlineOutlinedIcon />} sx={{backgroundColor: "white"}}  />}</TableCell>
                       </TableRow>
                       <TableRow>
                         <TableCell><strong>Device</strong></TableCell>

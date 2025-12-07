@@ -15,6 +15,7 @@
   - fix OD blank not being able to be run.
   - OD calibration now clamps out-of-range voltages to the OD values paired with the calibration’s voltage extrema, preventing inverted mappings on non-monotonic curves.
   - Images ship with DAC43608 library (missed the previous OS jump!)
+  - Improvements to "Updating your model" on first boot.
 
 
 ### 25.11.19

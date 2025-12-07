@@ -125,6 +125,7 @@ jobs:
             channel: 0
           EOF_HW
 
+          mkdir -p "$DOT_PIOREACTOR/plugins"
           curl https://raw.githubusercontent.com/Pioreactor/list-of-plugins/refs/heads/main/plugins.json > $DOT_PIOREACTOR/plugins/api_plugins_allowlist.json
 
           ls "$DOT_PIOREACTOR"

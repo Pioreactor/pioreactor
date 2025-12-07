@@ -107,10 +107,6 @@ function ExperimentSummaryForm(props) {
   const [helperText, setHelperText] = React.useState(" ");
   const [expName, setExpName] = React.useState("");
   const [description, setDescription] = React.useState("");
-  const [organismUsed, setOrganismUsed] = React.useState("");
-  const [mediaUsed, setMediaUsed] = React.useState("");
-  const [historicalMediaUsed, setHistoricalMediaUsed] = React.useState([]);
-  const [historicalOrganismUsed, setHistoricalOrganismUsed] = React.useState([]);
   const [historicalExperiments, setHistoricalExperiments] = React.useState({});
   const [loading, setLoading] = React.useState(false);
 
@@ -128,26 +124,6 @@ function ExperimentSummaryForm(props) {
         .then(data => setHistoricalExperiments(data))
     }
 
-
-    function populateDropDowns() {
-      fetch("/api/historical_media")
-        .then((response) => {
-            if (response.ok) {
-              return response.json();
-            }
-          })
-        .then(json => setHistoricalMediaUsed(json))
-
-      fetch("/api/historical_organisms")
-        .then((response) => {
-            if (response.ok) {
-              return response.json();
-            }
-          })
-        .then(json => setHistoricalOrganismUsed(json))
-    }
-    populateDropDowns();
-    getHistoricalExperiments();
   }, [])
 
 
@@ -159,8 +135,7 @@ function ExperimentSummaryForm(props) {
       .then((data) => {
         setExpName(data.experiment)
         setDescription(data.description)
-        setOrganismUsed(data.organism_used)
-        setMediaUsed(data.media_used)
+
       });
   }
 
@@ -182,7 +157,7 @@ function ExperimentSummaryForm(props) {
       return
     }
 
-    const experimentMetadata = {experiment: expName.trim(), created_at: timestamp.toISOString(), description: description, mediaUsed: mediaUsed, organismUsed: organismUsed, delta_hours: 0}
+    const experimentMetadata = {experiment: expName.trim(), created_at: timestamp.toISOString(), description: description,  delta_hours: 0}
 
     fetch('/api/experiments', {
         method: "POST",
@@ -287,30 +262,6 @@ function ExperimentSummaryForm(props) {
             />
           </Grid>
 
-          <Grid
-            size={{
-              xs: 12,
-              md: 6
-            }}>
-            <FreeSoloCreateOption
-              options={historicalOrganismUsed}
-              label="Organism / strain (optional)"
-              updateParentCallback={setOrganismUsed}
-              value={organismUsed}
-            />
-          </Grid>
-          <Grid
-            size={{
-              xs: 12,
-              md: 6
-            }}>
-            <FreeSoloCreateOption
-              options={historicalMediaUsed}
-              label="Media (optional)"
-              updateParentCallback={setMediaUsed}
-              value={mediaUsed}
-            />
-          </Grid>
 
           <Grid
             size={{

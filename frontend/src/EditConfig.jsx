@@ -35,42 +35,63 @@ function EditableCodeDiv() {
     availableConfigs: [{ name: "shared config.ini", filename: "config.ini" }]
   });
 
-  const getConfig = (filename) => {
-    fetch(`/api/configs/${filename}`)
-      .then(response => response.text())
-      .then(text => setState(prev => ({ ...prev, code: text })));
+  const getConfig = async (filename) => {
+    try {
+      const response = await fetch(`/api/configs/${filename}`);
+      const text = await response.text();
+      setState(prev => ({ ...prev, code: text }));
+    } catch (err) {
+      setState(prev => ({ ...prev, code: "# Error loading config" }));
+      console.error("Failed to fetch config:", err);
+    }
   };
 
 
-  const getHistoricalConfigFiles = (filename) => {
-    fetch(`/api/configs/${filename}/history`)
-      .then(response => response.json())
-      .then(listOfHistoricalConfigs => setState(prev => ({
+  const getHistoricalConfigFiles = async (filename) => {
+    try {
+      const response = await fetch(`/api/configs/${filename}/history`);
+      const listOfHistoricalConfigs = await response.json();
+      setState(prev => ({
         ...prev,
         historicalConfigs: listOfHistoricalConfigs,
         timestamp_ix: 0
-      })));
+      }));
+    } catch (err) {
+      console.error("Failed to fetch historical configs:", err);
+    }
   };
 
-  const saveCurrentCode = () => {
+  const saveCurrentCode = async () => {
     setState(prev => ({ ...prev, saving: true, isError: false }));
-    fetch(`/api/configs/${state.filename}`, {
-      method: "PATCH",
-      body: JSON.stringify({ code: state.code, filename: state.filename }),
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      }
-    })
-    .then(res => {
+    try {
+      const res = await fetch(`/api/configs/${state.filename}`, {
+        method: "PATCH",
+        body: JSON.stringify({ code: state.code, filename: state.filename }),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+
       if (res.ok) {
-        setState(prev => ({ ...prev, snackbarMsg: `Success: ${state.filename} saved and synced.`, hasChangedSinceSave: false, saving: false, openSnackbar: true }));
-      } else {
-        res.json().then(parsedJson =>
-          setState(prev => ({ ...prev, errorMsg: parsedJson.error, isError: true, hasChangedSinceSave: true, saving: false }))
-        )
+        setState(prev => ({
+          ...prev,
+          snackbarMsg: `Success: ${state.filename} saved and synced.`,
+          hasChangedSinceSave: false,
+          openSnackbar: true,
+          isError: false
+        }));
+        return;
       }
-    });
+
+      const parsedJson = await res.json();
+      setState(prev => ({ ...prev, errorMsg: parsedJson.error, isError: true, hasChangedSinceSave: true }));
+    } catch (err) {
+      setState(prev => ({ ...prev, errorMsg: "Save failed. Please retry.", isError: true }));
+      console.error("Error saving config:", err);
+    } finally {
+      setState(prev => ({ ...prev, saving: false }));
+    }
   };
 
   useEffect(() => {
@@ -83,9 +104,9 @@ function EditableCodeDiv() {
     let ignore = false;
 
     async function getConfigs() {
-      fetch("/api/configs")
-      .then(response => response.json())
-      .then(json => {
+      try {
+        const response = await fetch("/api/configs");
+        const json = await response.json();
         if (ignore){
           return
         }
@@ -105,7 +126,9 @@ function EditableCodeDiv() {
             availableConfigs: [...prev.availableConfigs, ...newEntries]
           };
         })
-      });
+      } catch (err) {
+        console.error("Failed to fetch config list:", err);
+      }
     }
 
     getConfigs()
