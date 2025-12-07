@@ -1180,7 +1180,7 @@ class ODReader(BackgroundJob):
             self._log_relative_intensity_of_ir_led()
             self._unblock_internal_event()
 
-            return od_readings
+        return od_readings
 
     def start_ir_led(self) -> None:
         r = led_utils.led_intensity(

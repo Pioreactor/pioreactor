@@ -100,6 +100,7 @@ def test_publish_target_rpm() -> None:
         assert float(message.payload) == 500
 
 
+@pytest.mark.slow
 def test_publish_measured_rpm() -> None:
     exp = "test_publish_measured_rpm"
 
@@ -239,6 +240,7 @@ def test_target_rpm_during_od_reading_defaults_to_zero() -> None:
             assert st.target_rpm_outside_od_reading == 500
 
 
+@pytest.mark.slow
 def test_block_until_rpm_is_close_to_target_will_timeout() -> None:
     exp = "test_block_until_rpm_is_close_to_target_will_timeout"
     rpm_calculator = RpmCalculator()

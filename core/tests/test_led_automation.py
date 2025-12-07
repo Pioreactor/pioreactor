@@ -84,7 +84,7 @@ def test_light_dark_cycle_starts_on() -> None:
             assert c["C"] == 50
 
 
-@pytest.mark.skip(reason="flaky in CI")
+@pytest.mark.flakey
 def test_light_dark_cycle_turns_off_after_N_cycles() -> None:
     experiment = "test_light_dark_cycle_turns_off_after_N_cycles"
     unit = get_unit_name()
@@ -109,7 +109,7 @@ def test_light_dark_cycle_turns_off_after_N_cycles() -> None:
             assert c["C"] == 0.0
 
 
-@pytest.mark.skip(reason="flaky in CI")
+@pytest.mark.flakey
 def test_dark_duration_hour_to_zero() -> None:
     experiment = "test_dark_duration_hour_to_zero"
     unit = get_unit_name()
@@ -139,7 +139,7 @@ def test_dark_duration_hour_to_zero() -> None:
             assert c["C"] == 50.0
 
 
-@pytest.mark.skip(reason="flaky in CI")
+@pytest.mark.flakey
 def test_light_duration_hour_to_zero() -> None:
     experiment = "test_light_duration_hour_to_zero"
     unit = get_unit_name()
@@ -159,7 +159,7 @@ def test_light_duration_hour_to_zero() -> None:
         assert not lc.light_active
 
 
-@pytest.mark.skip(reason="flaky in CI")
+@pytest.mark.flakey
 def test_add_dark_duration_minutes() -> None:
     experiment = "test_add_dark_duration_minutes * 60"
     unit = get_unit_name()
@@ -189,7 +189,7 @@ def test_add_dark_duration_minutes() -> None:
             assert c["C"] == 0.0
 
 
-@pytest.mark.skip(reason="flaky in CI")
+@pytest.mark.flakey
 def test_remove_dark_duration_minutes() -> None:
     experiment = "test_remove_dark_duration_minutes * 60"
     unit = get_unit_name()
@@ -223,7 +223,7 @@ def test_remove_dark_duration_minutes() -> None:
             assert c["C"] == 50.0
 
 
-@pytest.mark.skip(reason="flaky in CI")
+@pytest.mark.flakey
 def test_fractional_hours() -> None:
     experiment = "test_fractional_hours"
     unit = get_unit_name()

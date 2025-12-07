@@ -392,6 +392,7 @@ def test_manually_doesnt_trigger_pwm_dcs() -> None:
         assert update == r"{}"
 
 
+@pytest.mark.slow
 def test_published_mqtt_data_is_the_same_as_requested() -> None:
     exp = "test_manually_doesnt_trigger_pwm_dcs"
 

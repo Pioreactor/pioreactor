@@ -58,7 +58,7 @@ check-env:  ## Verify required environment variables are loaded
 
 # --- environment --------------------------------------------------------------
 $(VENV_DIR)/bin/activate:  ## Create virtual env + core tooling
-	@echo ">> Creating virtual env in $(VENV_DIR)"
+	@echo ">> Creating virtual env in $(VENV_DIR) with $(PYTHON)"
 	@$(PYTHON) -m venv $(VENV_DIR)
 	@$(ACTIVATE) && pip install -U pip wheel $(PIP_FLAGS)$(newline)
 	@touch $@
@@ -124,7 +124,7 @@ huey-dev: venv  ## Run the Huey consumer with sensible dev flags
 clean:  ## Delete bytecode, build artefacts, node deps
 	rm -rf $(VENV_DIR) dist/ build/ *.egg-info
 	find . -name '__pycache__' -exec rm -rf {} +
-	rm -rf $(NODE_DIR)/build node_modules .pytest_cache
+	rm -rf $(NODE_DIR)/build node_modules .pytest_cache .pioreactor/storage/local_intermittent_pioreactor_metadata.sqlite .pioreactor/storage/local_persistent_pioreactor_metadata.sqlite
 
 reinstall: clean install frontend-install  ## Freshen everything
 

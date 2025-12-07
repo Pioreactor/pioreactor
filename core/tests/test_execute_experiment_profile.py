@@ -196,6 +196,7 @@ def test_execute_experiment_log_actions(mock__load_experiment_profile, active_wo
         ]
 
 
+@pytest.mark.slow
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_start_and_stop_automations(mock__load_experiment_profile) -> None:
     experiment = "_testing_experiment"
@@ -213,6 +214,7 @@ def test_execute_experiment_start_and_stop_automations(mock__load_experiment_pro
     execute_experiment_profile("profile.yaml", experiment)
 
 
+@pytest.mark.slow
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_update_automation(mock__load_experiment_profile) -> None:
     experiment = "_testing_experiment"
@@ -237,6 +239,7 @@ def test_execute_experiment_update_automation(mock__load_experiment_profile) -> 
     execute_experiment_profile("profile.yaml", experiment)
 
 
+@pytest.mark.slow
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_execute_experiment_start_automation_succeeds(
     mock__load_experiment_profile,

@@ -107,6 +107,7 @@ def test_repeated_timer_has_low_variance_even_for_noisy_process() -> None:
     assert std < 0.005
 
 
+@pytest.mark.slow
 def test_repeated_timer_run_immediately_works_as_intended() -> None:
     class Counter:
         counter = 0

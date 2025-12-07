@@ -341,6 +341,7 @@ def test_cant_change_target_in_turbidostat() -> None:
         assert algo.target_normalized_od is None
 
 
+@pytest.mark.slow
 def test_turbidostat_targeting_od() -> None:
     experiment = "test_turbidostat_targeting_od"
 
@@ -752,6 +753,7 @@ def test_execute_io_action() -> None:
         assert ca.current_volume_ml == 15.0
 
 
+@pytest.mark.slow
 def test_execute_io_action2() -> None:
     experiment = "test_execute_io_action2"
 
@@ -1147,6 +1149,7 @@ def test_strings_are_okay_for_chemostat(fast_dosing_timers) -> None:
         assert wait_for(lambda: close(chemostat.media_throughput, 0.7), timeout=5.0)
 
 
+@pytest.mark.slow
 def test_chemostat_from_cli() -> None:
     from pioreactor.cli.pio import pio
 
@@ -1231,6 +1234,7 @@ def test_chemostat_from_0_volume(fast_dosing_timers) -> None:
         assert wait_for(lambda: close(chemostat.current_volume_ml, 1.0), timeout=5.0)
 
 
+@pytest.mark.slow
 def test_execute_io_respects_dilutions_ratios(fast_dosing_timers) -> None:
     # https://forum.pioreactor.com/t/inconsistent-dosing-behavior-with-multiple-media/37/3
 

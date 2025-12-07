@@ -664,6 +664,7 @@ def test_add_pre_read_callback() -> None:
     ODReader._pre_read.clear()
 
 
+@pytest.mark.slow
 def test_add_post_read_callback() -> None:
     def cb(self, batched_readings, *args):
         self.logger.critical(f"{batched_readings=}")
@@ -1146,6 +1147,7 @@ def test_dark_offset_turns_off_all_leds(mocker) -> None:
     assert led_states_seen[0] == {channel: pytest.approx(0.0) for channel in ALL_LED_CHANNELS}
 
 
+@pytest.mark.slow
 def test_ODReader_with_multiple_angles_and_a_ref() -> None:
     """
     Technically not possible, since there are only two PD channels.

@@ -1,3 +1,4 @@
 [pytest]
+minversion = "9.0"
 addopts = ["--ignore=experiments", "--ignore=core/pioreactor"]
 markers = ["flakey: mark a test as a flakey in GH.", "slow: mark test as slow."]
