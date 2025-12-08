@@ -84,13 +84,13 @@ test: venv  ## Run all pytest suites
 	@$(ACTIVATE) && pytest --rootdir=. $(CORE_DIR)/tests --timeout 300 --random-order --durations 15  --random-order-bucket=module -vv
 
 fast-test: venv  ## Run an optimized, low-threshold test suite
-	@$(ACTIVATE) && pytest --rootdir=. $(CORE_DIR)/tests --timeout 300 --random-order --durations 15  --random-order-bucket=module -vv -m "not slow and not flakey and not xfail and not skip"
+	@$(ACTIVATE) && pytest --rootdir=. $(CORE_DIR)/tests --timeout 300 --random-order --durations 15  --random-order-bucket=module --random-order-seed=399714 -vv -m "not slow and not flakey and not xfail and not skip"
 
 slow-test: venv
 	@$(ACTIVATE) && pytest --rootdir=. $(CORE_DIR)/tests --timeout 300 --random-order --durations 15  --random-order-bucket=module -vv -m slow --random-order-seed=165038
 
 flakey-test: venv
-	@$(ACTIVATE) && pytest --rootdir=. $(CORE_DIR)/tests --timeout 300 --random-order --durations 15  --random-order-bucket=module -vv -m "flakey or xfail or skip"
+	@$(ACTIVATE) && pytest --rootdir=. $(CORE_DIR)/tests --timeout 300 --random-order --durations 15  --random-order-bucket=module -vv -m "flakey or xfail or skip"  --random-order-seed=676208
 
 core-test: venv  ## Backend tests only
 	@$(ACTIVATE) && pytest --rootdir=. $(CORE_DIR)/tests --timeout 300 --random-order --durations 15 --random-order-bucket=module --ignore=$(CORE_DIR)/tests/web  -vv
