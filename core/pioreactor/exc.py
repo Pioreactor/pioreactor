@@ -114,3 +114,7 @@ class UnknownModelAssignedError(ValueError):
     """
     The model isn't present in the registered models in models.py
     """
+
+
+class DodgingTimingError(RuntimeError):
+    pass

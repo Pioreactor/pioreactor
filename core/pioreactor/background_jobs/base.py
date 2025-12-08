@@ -17,6 +17,7 @@ from msgspec.json import encode as dumps
 from pioreactor import types as pt
 from pioreactor.config import config
 from pioreactor.config import leader_hostname
+from pioreactor.exc import DodgingTimingError
 from pioreactor.exc import JobPresentError
 from pioreactor.exc import NotActiveWorkerError
 from pioreactor.logging import create_logger
@@ -1033,6 +1034,44 @@ def _noop():
     pass
 
 
+def compute_od_timing(
+    *,
+    interval: float,
+    first_od_obs_time: float,
+    now: float,
+    od_duration: float,
+    pre_delay: float,
+    post_delay: float,
+    after_action: float,
+) -> dict[str, float]:
+    """
+    Compute the time budget between OD readings.
+
+    The OD job runs every `interval` seconds, taking `od_duration` seconds of that window. We also
+    reserve `pre_delay` seconds before the next OD and `post_delay` seconds after the previous OD.
+    Whatever time is left, minus the runtime of the post-OD action (`after_action`), is the
+    "wait window" where the main activity can run normally.
+
+    wait_window = interval - od_duration - (pre_delay + post_delay) - after_action
+
+    If the wait window is non-positive, dodging is impossible with the current timings.
+
+    time_to_next_od aligns the next timer fire with the OD schedule based on the first observation
+    timestamp and the current clock.
+    """
+
+    wait_window = interval - od_duration - (pre_delay + post_delay) - after_action
+
+    if wait_window <= 0:
+        raise DodgingTimingError(
+            f"Insufficient time budget: interval={interval}, od_duration={od_duration}, pre_delay={pre_delay}, post_delay={post_delay}, after_action={after_action}"
+        )
+
+    time_to_next_od = interval - ((now - first_od_obs_time) % interval)
+
+    return {"wait_window": wait_window, "time_to_next_od": time_to_next_od}
+
+
 class BackgroundJobWithDodging(_BackgroundJob):
     """
     This utility class allows for a change in behaviour when an OD reading is about to taken. Example: shutting
@@ -1102,6 +1141,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
         self.add_to_published_settings("enable_dodging_od", {"datatype": "boolean", "settable": True})
         self.add_to_published_settings("currently_dodging_od", {"datatype": "boolean", "settable": False})
         self._event_is_dodging_od = threading.Event()
+        self._dodging_init_called_once = False
         self.enable_dodging_od = enable_dodging_od
 
     def __post__init__(self):
@@ -1115,37 +1155,67 @@ class BackgroundJobWithDodging(_BackgroundJob):
         )
         super().__post__init__()  # set ready
 
+    def _desired_dodging_mode(self, enable_dodging_od: bool, od_state: str | None) -> bool:
+        """Return True if we should dodge based on enable flag and OD state."""
+        if not enable_dodging_od:
+            return False
+        # enable_dodging_od is true - user wants it on
+        if od_state is None:
+            return False
+        if od_state in {self.READY, self.SLEEPING, self.INIT}:
+            return True
+        if od_state in {self.LOST, self.DISCONNECTED}:
+            return False
+        return False
+
     def set_currently_dodging_od(self, value: bool):
+        """
+        Recall: currently_dodging_od is read-only. This function is called when other settings & variables are satisfied (it's "computed").
+        """
         if self.state not in (self.READY, self.INIT):
             return
 
+        if self._dodging_init_called_once and self.currently_dodging_od == value:
+            # noop
+            return
+
         self.currently_dodging_od = value
+        self._dodging_init_called_once = True
         if self.currently_dodging_od:
+            self.logger.debug("Dodging enabled.")
             self._event_is_dodging_od.clear()
             self.initialize_dodging_operation()  # user defined
             self._action_to_do_before_od_reading = self.action_to_do_before_od_reading
             self._action_to_do_after_od_reading = self.action_to_do_after_od_reading
             self._setup_timer()
         else:
+            self.logger.debug("Dodging disabled; running continuously.")
             self._event_is_dodging_od.set()
-            self.sneak_in_timer.cancel()
+            try:
+                self.sneak_in_timer.cancel()
+            except AttributeError:
+                pass
             self.initialize_continuous_operation()  # user defined
             self._action_to_do_before_od_reading = _noop
             self._action_to_do_after_od_reading = _noop
 
     def set_enable_dodging_od(self, value: bool):
+        """Turn dodging on/off based on user intent, then align mode with current OD state."""
         self.enable_dodging_od = value
-        if self.enable_dodging_od:
-            if is_pio_job_running("od_reading"):
-                self.logger.debug("Will attempt to dodge OD readings.")
-                self.set_currently_dodging_od(True)
-            else:
-                self.logger.debug("Will attempt to dodge OD readings when they start.")
-                self.set_currently_dodging_od(False)
-        else:
-            if is_pio_job_running("od_reading"):
-                self.logger.debug("Running continuously through OD readings.")
-            self.set_currently_dodging_od(False)
+        od_running = is_pio_job_running("od_reading")
+        od_state = self.READY if od_running else self.DISCONNECTED
+
+        desired = self._desired_dodging_mode(self.enable_dodging_od, od_state)
+        self.set_currently_dodging_od(desired)
+
+    def _od_reading_changed_status(self, state_msg: pt.MQTTMessage) -> None:
+        """React to OD job state changes by flipping dodging mode when needed."""
+        if not self.enable_dodging_od:
+            return
+
+        new_state = state_msg.payload.decode()
+        desired = self._desired_dodging_mode(self.enable_dodging_od, new_state)
+        self.set_currently_dodging_od(desired)
 
     def action_to_do_after_od_reading(self) -> None:
         pass
@@ -1159,22 +1229,6 @@ class BackgroundJobWithDodging(_BackgroundJob):
     def initialize_continuous_operation(self) -> None:
         pass
 
-    def _od_reading_changed_status(self, state_msg: pt.MQTTMessage) -> None:
-        if self.enable_dodging_od:
-            new_state = state_msg.payload.decode()
-            # only act if our internal state is discordant with the external state
-            if new_state in {self.READY, self.SLEEPING, self.INIT} and not self.currently_dodging_od:
-                # turned off
-                self.logger.debug("OD reading present. Dodging!")
-                self.set_currently_dodging_od(True)
-            elif new_state in {self.LOST, self.DISCONNECTED} and self.currently_dodging_od:
-                self.logger.debug("OD reading turned off. Stop dodging.")
-                self.set_currently_dodging_od(False)
-            return
-        else:
-            # ignore
-            return
-
     def _setup_timer(self) -> None:
         self.sneak_in_timer.cancel()
 
@@ -1187,7 +1241,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
         if pre_delay < 0.25:
             self.logger.warning("For optimal OD readings, keep `pre_delay_duration` more than 0.25 seconds.")
 
-        def sneak_in(ads_interval: float, post_delay: float, pre_delay: float) -> None:
+        def sneak_in() -> None:
             if self.state != self.READY or not self.currently_dodging_od:
                 return
 
@@ -1196,17 +1250,25 @@ class BackgroundJobWithDodging(_BackgroundJob):
 
             action_after_duration = timer()
 
-            if ads_interval - self.OD_READING_DURATION - (post_delay + pre_delay) - action_after_duration < 0:
-                raise ValueError(
-                    "samples_per_second is too high, or post_delay is too high, or pre_delay is too high, or action_to_do_after_od_reading takes too long."
+            try:
+                timing = compute_od_timing(
+                    interval=ads_interval,
+                    first_od_obs_time=ads_start_time,
+                    now=time(),
+                    od_duration=self.OD_READING_DURATION,
+                    pre_delay=pre_delay,
+                    post_delay=post_delay,
+                    after_action=action_after_duration,
                 )
+            except DodgingTimingError as e:
+                self.logger.error(e)
+                self.clean_up()
+                return
 
             if self.state != self.READY or not self.currently_dodging_od:
                 return
 
-            self._event_is_dodging_od.wait(
-                ads_interval - self.OD_READING_DURATION - (post_delay + pre_delay) - action_after_duration
-            )  # we use an Event here to allow for quick stopping of the timer.
+            self._event_is_dodging_od.wait(timing["wait_window"])  # allow quick stopping of timer.
 
             if self.state != self.READY or not self.currently_dodging_od:
                 return
@@ -1236,7 +1298,6 @@ class BackgroundJobWithDodging(_BackgroundJob):
             ads_interval,
             sneak_in,
             job_name=self.job_name,
-            args=(ads_interval, post_delay, pre_delay),
             run_immediately=True,
             run_after=time_to_next_ads_reading + (post_delay + self.OD_READING_DURATION),
             logger=self.logger,
