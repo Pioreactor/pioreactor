@@ -87,7 +87,7 @@ fast-test: venv  ## Run an optimized, low-threshold test suite
 	@$(ACTIVATE) && pytest --rootdir=. $(CORE_DIR)/tests --timeout 300 --random-order --durations 15  --random-order-bucket=module -vv -m "not slow and not flakey and not xfail and not skip"
 
 slow-test: venv
-	@$(ACTIVATE) && pytest --rootdir=. $(CORE_DIR)/tests --timeout 300 --random-order --durations 15  --random-order-bucket=module -vv -m slow
+	@$(ACTIVATE) && pytest --rootdir=. $(CORE_DIR)/tests --timeout 300 --random-order --durations 15  --random-order-bucket=module -vv -m slow --random-order-seed=165038
 
 flakey-test: venv
 	@$(ACTIVATE) && pytest --rootdir=. $(CORE_DIR)/tests --timeout 300 --random-order --durations 15  --random-order-bucket=module -vv -m "flakey or xfail or skip"

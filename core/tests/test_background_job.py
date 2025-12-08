@@ -521,7 +521,6 @@ def test_dodging_persists_when_second_od_reader_start_fails() -> None:
 
 
 @pytest.mark.flakey
-@pytest.mark.slow
 def test_dodging_order() -> None:
     with temporary_config_section(config, "just_pause.config"):
         with temporary_config_changes(
@@ -623,7 +622,6 @@ def test_dodging_when_od_reading_stops_first() -> None:
 
 
 @pytest.mark.flakey
-@pytest.mark.slow
 def test_disabling_dodging() -> None:
     exp = "test_disabling_dodging"
 
