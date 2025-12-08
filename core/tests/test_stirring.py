@@ -191,9 +191,9 @@ def test_stirring_wont_fire_last_100dc_on_od_reading_end() -> None:
     bucket = []
 
     def collect(msg):
-        pl = json.loads(msg.payload.decode())
-        if pl:
-            bucket.append(pl)
+        payload = msg.payload.decode()
+        if payload and json.loads(payload):
+            bucket.append(json.loads(payload))
 
     with start_stirring(
         target_rpm=500,
