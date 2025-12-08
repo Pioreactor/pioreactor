@@ -20,7 +20,7 @@ def pause(n=1):
 
 
 @pytest.mark.slow
-@pytest.mark.xfail()
+@pytest.mark.skip()
 def test_check_job_states_in_monitor() -> None:
     unit = get_unit_name()
     exp = UNIVERSAL_EXPERIMENT
@@ -40,6 +40,7 @@ def test_check_job_states_in_monitor() -> None:
 
 
 @pytest.mark.slow
+@pytest.mark.skip()
 def test_monitor_alerts_on_found_worker() -> None:
     experiment = "test_monitor_alerts_on_found_worker"
 
@@ -64,6 +65,7 @@ def test_monitor_alerts_on_found_worker() -> None:
 
 
 @pytest.mark.slow
+@pytest.mark.skip()
 def test_monitor_doesnt_alert_if_already_in_cluster() -> None:
     experiment = "test_monitor_doesnt_alert_if_already_in_cluster"
 

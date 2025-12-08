@@ -162,6 +162,9 @@ jobs:
 
       - name: Run tests
         run: |
+          echo "Running fast test"
           make fast-test
+          echo "Running slow test"
           make slow-test
+          echo "Running flakey test"
           make flakey-test

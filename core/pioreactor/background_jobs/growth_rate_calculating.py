@@ -496,11 +496,15 @@ class GrowthRateCalculator(BackgroundJob):
         """
         This is function that will wrap process_until_disconnected_or_exhausted in a thread so the main thread can still do work (like publishing) - useful in tests.
         """
-        # self.processor.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
 
         def consume(od_stream, dosing_stream):
-            for _ in self.process_until_disconnected_or_exhausted(od_stream, dosing_stream):
-                pass
+            try:
+                for _ in self.process_until_disconnected_or_exhausted(od_stream, dosing_stream):
+                    pass
+            except StopIteration:
+                return
+            except Exception as e:
+                self.logger.error(e)
 
         Thread(target=consume, args=(od_stream, dosing_stream), daemon=True).start()
 
