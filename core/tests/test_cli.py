@@ -165,10 +165,9 @@ def test_pios_kill_requests() -> None:
     assert bucket[1].params == {"experiment": "demo"}
 
 
-@pytest.mark.flakey
-def test_pio_job_status_lists_job() -> None:
+def test_pio_job_info_lists_job() -> None:
     runner = CliRunner()
-    job_name = "test_job_status"
+    job_name = "test_job"
     unit = whoami.get_unit_name()
     experiment = whoami.UNIVERSAL_EXPERIMENT
 
@@ -184,7 +183,7 @@ def test_pio_job_status_lists_job() -> None:
         )
 
     try:
-        result = runner.invoke(pio, ["jobs", "status", "--job-name", job_name])
+        result = runner.invoke(pio, ["jobs", "info", "--job-name", job_name])
         assert result.exit_code == 0
         assert job_name in result.output
         assert str(job_id) in result.output
