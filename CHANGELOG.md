@@ -16,6 +16,7 @@
  - Improvements to "Updating your model" on first boot.
  - Fix /pioreactor page crashing if a worker is inactive in the experiment.
 
+
 ### 25.11.19
 
 #### Enhancements
