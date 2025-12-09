@@ -20,6 +20,7 @@ from pioreactor import structs
 from pioreactor.background_jobs.base import BackgroundJobWithDodging
 from pioreactor.calibrations import load_active_calibration
 from pioreactor.config import config
+from pioreactor.states import JobState as st
 from pioreactor.utils import clamp
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import JobManager
@@ -481,7 +482,7 @@ class Stirrer(BackgroundJobWithDodging):
             timestamp=current_utc_datetime(), measured_rpm=self._measured_rpm
         )
 
-        if recent_rpm == 0 and self.state == self.READY:  # and not is_testing_env():
+        if recent_rpm == 0 and self.state is st.READY:  # and not is_testing_env():
             self.logger.warning(
                 "Stirring RPM is 0 - attempting to restart it automatically. It may be a temporary stall, target RPM may be too low, insufficient power applied to fan, or not reading sensor correctly."
             )
@@ -499,13 +500,13 @@ class Stirrer(BackgroundJobWithDodging):
         return self._measured_rpm
 
     def update_dc_with_measured_rpm(self, measured_rpm: Optional[float]) -> None:
-        if measured_rpm is None or self.state != self.READY:
+        if measured_rpm is None or self.state is not st.READY:
             return
         self._estimate_duty_cycle += self.pid.update(measured_rpm)
         self.set_duty_cycle(self._estimate_duty_cycle)
 
     def poll_and_update_dc(self, poll_for_seconds: Optional[float] = None) -> None:
-        if self.rpm_calculator is None or self.target_rpm is None or self.state != self.READY:
+        if self.rpm_calculator is None or self.target_rpm is None or self.state is not st.READY:
             return
 
         if poll_for_seconds is None:
@@ -557,7 +558,7 @@ class Stirrer(BackgroundJobWithDodging):
         self.pid.set_setpoint(self.target_rpm)
 
     def sleep_if_ready(self, seconds):
-        if self.state == self.READY:
+        if self.state is st.READY:
             sleep(seconds)
 
     def block_until_rpm_is_close_to_target(
@@ -585,7 +586,7 @@ class Stirrer(BackgroundJobWithDodging):
 
         def should_exit() -> bool:
             """Encapsulates exit conditions to simplify the main loop."""
-            return self.state != self.READY or self.currently_dodging_od
+            return self.state is not st.READY or self.currently_dodging_od
 
         with paused_timer(self.rpm_check_repeated_timer):  # Automatically pause/unpause
             assert isinstance(self.target_rpm, float)

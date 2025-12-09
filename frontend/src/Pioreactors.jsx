@@ -2353,7 +2353,7 @@ function FlashLEDButton({ unit, disabled }){
 )}
 
 
-function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, modelDetails}){
+function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, modelDetails = {}}){
   const [jobFetchComplete, setJobFetchComplete] = useState(false)
   const [label, setLabel] = useState("")
   const {client, subscribeToTopic } = useMQTT();
@@ -2690,7 +2690,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
 )}
 
 
-function InactiveUnits({ units, config, experiment }){
+function InactiveUnits({ units, config, experiment, availableModels }){
   return (
   <React.Fragment>
     <div style={{display: "flex", justifyContent: "space-between", marginBottom: "10px", marginTop: "15px"}}>
@@ -2700,9 +2700,21 @@ function InactiveUnits({ units, config, experiment }){
         </Box>
       </Typography>
     </div>
-    {(units || []).map(unit =>
-      <PioreactorCard key={unit.pioreactor_name} isUnitActive={false} unit={unit.pioreactor_name} modelName={unit.model_name} modelVersion={unit.model_version} config={config} experiment={experiment} />
-  )}
+    {(units || []).map((unit) => {
+      const modelDetails = (availableModels || []).find(
+        ({ model_name, model_version }) => model_name === unit.model_name && model_version === unit.model_version
+      );
+      return (
+        <PioreactorCard
+          key={unit.pioreactor_name}
+          isUnitActive={false}
+          unit={unit.pioreactor_name}
+          modelDetails={modelDetails || {}}
+          config={config}
+          experiment={experiment}
+        />
+      );
+    })}
     </React.Fragment>
 )}
 

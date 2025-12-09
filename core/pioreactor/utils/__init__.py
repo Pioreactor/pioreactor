@@ -35,6 +35,7 @@ from pioreactor.exc import RoleError
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import patch_into
 from pioreactor.pubsub import subscribe_and_callback
+from pioreactor.states import JobState as st
 from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_timestamp
@@ -163,7 +164,7 @@ class managed_lifecycle:
         self.unit = unit
         self.experiment = experiment
         self.name = name
-        self.state = "init"
+        self.state = st("init")
         self.exit_event = Event()
         self._source = source
         self.is_long_running_job = is_long_running_job
@@ -213,7 +214,7 @@ class managed_lifecycle:
             )
         assert self.mqtt_client is not None
 
-        self.state = "init"
+        self.state = st("init")
         self.publish_setting("$state", self.state)
 
         self.start_passive_listeners()
@@ -230,13 +231,13 @@ class managed_lifecycle:
         self._exit()
 
     def __enter__(self) -> Self:
-        self.state = "ready"
+        self.state = st("ready")
         self.publish_setting("$state", self.state)
 
         return self
 
     def __exit__(self, *args) -> None:
-        self.state = "disconnected"
+        self.state = st("disconnected")
         self._exit()
         self.publish_setting("$state", self.state)
         if not self._externally_provided_client:

@@ -5,7 +5,7 @@ from __future__ import annotations
 import typing as t
 
 from msgspec import Meta
-from pioreactor.state import JobState  # noqa: F401
+from pioreactor.states import JobState  # noqa: F401
 
 if t.TYPE_CHECKING:
     from pioreactor.pubsub import Client

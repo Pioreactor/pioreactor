@@ -67,6 +67,7 @@ from pioreactor.background_jobs.base import LoggerMixin
 from pioreactor.calibrations import load_active_calibration
 from pioreactor.config import config
 from pioreactor.pubsub import publish
+from pioreactor.states import JobState as st
 from pioreactor.utils import adcs as madcs
 from pioreactor.utils import argextrema
 from pioreactor.utils import local_intermittent_storage
@@ -1283,7 +1284,7 @@ class ODReader(BackgroundJob):
             }
 
     def _unblock_internal_event(self) -> None:
-        if self.state != self.READY:
+        if self.state is not st.READY:
             return
 
         self._set_for_iterating.set()
