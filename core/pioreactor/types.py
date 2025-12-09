@@ -5,6 +5,7 @@ from __future__ import annotations
 import typing as t
 
 from msgspec import Meta
+from pioreactor.state import JobState  # noqa: F401
 
 if t.TYPE_CHECKING:
     from pioreactor.pubsub import Client
@@ -94,9 +95,6 @@ class PublishableSetting(t.TypedDict, total=False):
     unit: t.NotRequired[str]
     settable: t.Required[bool]
     persist: t.NotRequired[bool]
-
-
-type JobState = t.Literal["init", "ready", "sleeping", "disconnected", "lost"]
 
 
 type LedChannel = t.Literal["A", "B", "C", "D"]

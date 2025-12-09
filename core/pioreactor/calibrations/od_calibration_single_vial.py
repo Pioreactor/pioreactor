@@ -308,7 +308,7 @@ def start_recording_and_diluting(
                     x_min=minimum_od600,
                     x_max=initial_od600,
                 )
-                st.set_state("sleeping")
+                st.set_state(pt.JobState.SLEEPING)
                 echo()
                 echo(style("Stop❗", fg="red"))
                 echo("Carefully remove vial.")
@@ -320,7 +320,7 @@ def start_recording_and_diluting(
                 while not confirm(green("Continue?"), default=False):
                     pass
                 current_volume_in_vial = initial_volume_in_vial
-                st.set_state("ready")
+                st.set_state(pt.JobState.READY)
                 st.block_until_rpm_is_close_to_target(abs_tolerance=120)
                 sleep(1.0)
 

@@ -218,7 +218,7 @@ def start_recording_standards(st: Stirrer, signal_channel):
         od600_values.append(standard_od)
         voltages.append(voltage)
 
-        st.set_state("sleeping")
+        st.set_state(pt.JobState.SLEEPING)
 
         for i in range(len(od600_values)):
             click.clear()
@@ -242,7 +242,7 @@ def start_recording_standards(st: Stirrer, signal_channel):
         click.echo()
         while not click.confirm(green("Confirm vial is placed in Pioreactor?"), default=True):
             pass
-        st.set_state("ready")
+        st.set_state(pt.JobState.READY)
         click.echo("Starting stirring.")
         st.block_until_rpm_is_close_to_target(abs_tolerance=120)
         sleep(1.0)
