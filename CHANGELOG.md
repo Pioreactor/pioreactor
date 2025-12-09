@@ -3,20 +3,18 @@
 
 #### Enhancements
 
-  - Added a `pio jobs` command group with `status`, `history`, `info`, and `remove` subcommands to inspect and tidy job records, including published settings.
-  - Background job logs now include the job_id in their logger key and duplicate-start warnings report the running job_id for easier debugging.
-
+  - Added a `pio jobs` command group with `status`, `list`, `info`, and `remove` subcommands to inspect and tidy job records, including published settings.
 #### Breaking changes
 
   - `pio job-status` has been replaced by `pio jobs status`.
 
 #### Bug fixes
 
-  - fix OD blank not being able to be run.
-  - OD calibration now clamps out-of-range voltages to the OD values paired with the calibration’s voltage extrema, preventing inverted mappings on non-monotonic curves.
-  - Images ship with DAC43608 library (missed the previous OS jump!)
-  - Improvements to "Updating your model" on first boot.
-
+ - fix OD blank not being able to be run.
+ - OD calibration now clamps out-of-range voltages to the OD values paired with the calibration’s voltage extrema, preventing inverted mappings on non-monotonic curves.
+ - Images ship with DAC43608 library (missed the previous OS jump!)
+ - Improvements to "Updating your model" on first boot.
+ - Fix /pioreactor page crashing if a worker is inactive in the experiment.
 
 ### 25.11.19
 

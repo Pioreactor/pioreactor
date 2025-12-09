@@ -343,7 +343,7 @@ def _format_job_history_line(
     ended_at: str | None,
 ) -> str:
     job_source_display = job_source or "unknown"
-    ended_at_display = ended_at or "still running"
+    ended_at_display = _format_timestamp_to_seconds(ended_at) or "still running"
     job_id_label = click.style(f"[job_id={job_id}]", fg="cyan")
     job_name_label = click.style(job_name, fg="green", bold=True)
     ended_at_label = (
@@ -352,8 +352,8 @@ def _format_job_history_line(
 
     return (
         f"{job_id_label} {job_name_label} "
-        f"(unit={unit}, experiment={experiment}, source={job_source_display}) "
-        f"started_at={started_at} ended_at={ended_at_label}"
+        f"experiment={experiment}, source={job_source_display}, "
+        f"started_at={_format_timestamp_to_seconds(started_at)}, ended_at={ended_at_label}"
     )
 
 
@@ -371,34 +371,35 @@ def job_running() -> None:
         click.echo(f"{job_id_label} {job_name_label} is running.")
 
 
-@jobs.command(name="history", short_help="list historical jobs with timing")
+@jobs.command(name="list", short_help="list jobs current and previous")
 def job_history() -> None:
     with JobManager() as jm:
         jobs = jm.list_job_history()
 
     if not jobs:
-        click.echo("No historical jobs recorded.")
+        click.echo("No jobs recorded.")
         return
 
     for job in jobs:
         click.echo(_format_job_history_line(*job))
 
 
+def _format_timestamp_to_seconds(timestamp: str) -> str:
+    """
+    Truncate timestamps like 2024-01-01T00:00:00.123456Z to second precision.
+    """
+    try:
+        dt = to_datetime(timestamp)
+    except ValueError:
+        return timestamp
+
+    return dt.replace(microsecond=0).strftime("%Y-%m-%dT%H:%M:%S")
+
+
 @jobs.command(name="info", short_help="show details for a job")
 @click.option("--job-id", type=click.INT)
 @click.option("--job-name", type=click.STRING)
 def job_info(job_id: int | None, job_name: str | None) -> None:
-
-    def _format_timestamp_to_seconds(timestamp: str) -> str:
-        """
-        Truncate timestamps like 2024-01-01T00:00:00.123456Z to second precision.
-        """
-        try:
-            dt = to_datetime(timestamp)
-        except ValueError:
-            return timestamp
-
-        return dt.replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
     if job_id is None and job_name is None:
         click.echo("Provide --job-id or --job-name.")
@@ -441,9 +442,7 @@ def job_info(job_id: int | None, job_name: str | None) -> None:
     status_label = (
         click.style("running", fg="green", bold=True) if is_running else click.style("stopped", fg="red")
     )
-    click.echo(
-        f"status={status_label} leader={leader} pid={pid} " f"is_long_running_job={bool(is_long_running_job)}"
-    )
+    click.echo(f"status={status_label}")
 
     if not settings:
         return
