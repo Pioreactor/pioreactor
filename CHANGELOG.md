@@ -3,7 +3,7 @@
 
 #### Enhancements
 
-  - Added a `pio jobs` command group with `status`, `list`, `info`, and `remove` subcommands to inspect and tidy job records, including published settings.
+  - Added a `pio jobs` command group with `running`, `list`, `info`, and `remove` subcommands to inspect and tidy job records, including published settings.
 #### Breaking changes
 
   - `pio job-status` has been replaced by `pio jobs status`.
