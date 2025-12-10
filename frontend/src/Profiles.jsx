@@ -392,6 +392,13 @@ function Profiles(props) {
   }, [props.title]);
 
   const fetchRecentRuns = React.useCallback(() => {
+    // Wait until we know the experiment to avoid hitting `/undefined/...`
+    if (!experimentMetadata.experiment) {
+      setRecentRuns([]);
+      setRecentLoading(false);
+      return;
+    }
+
     setRecentLoading(true);
     setRecentError("");
     fetch(`/api/experiments/${encodeURIComponent(experimentMetadata.experiment)}/experiment_profiles/recent`)

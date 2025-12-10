@@ -310,6 +310,8 @@ def stop_all_jobs() -> DelayedResponseReturnValue:
 
 @unit_api_bp.route("/jobs/stop", methods=["PATCH", "POST"])
 def stop_jobs() -> DelayedResponseReturnValue:
+    if not request.data:
+        return abort(400, "No job filter specified")
     json = current_app.get_json(request.data)
 
     job_name = json.get("job_name")

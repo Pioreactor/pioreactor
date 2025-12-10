@@ -962,7 +962,7 @@ class ClusterJobManager:
         if len(units) == 0:
             return []
 
-        params: dict[str, Any] = {}
+        body: dict[str, Any] = {}
 
         if all_jobs:
             endpoint = "/unit_api/jobs/stop/all"
@@ -970,17 +970,17 @@ class ClusterJobManager:
             endpoint = "/unit_api/jobs/stop"
 
             if experiment:
-                params["experiment"] = experiment
+                body["experiment"] = experiment
             if job_name:
-                params["job_name"] = job_name
+                body["job_name"] = job_name
             if job_source:
-                params["job_source"] = job_source
+                body["job_source"] = job_source
             if job_id:
-                params["job_id"] = job_id
+                body["job_id"] = job_id
 
         def _thread_function(unit: pt.Unit) -> tuple[bool, dict]:
             try:
-                r = patch_into(resolve_to_address(unit), endpoint, params=params)
+                r = patch_into(resolve_to_address(unit), endpoint, json=body)
                 r.raise_for_status()
                 return True, r.json()
             except Exception as e:

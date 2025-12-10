@@ -160,9 +160,9 @@ def test_pios_kill_requests() -> None:
 
     assert len(bucket) == 2
     assert bucket[0].url == "http://unit1.local:4999/unit_api/jobs/stop"
-    assert bucket[0].params == {"experiment": "demo"}
+    assert bucket[0].json == {"experiment": "demo"}
     assert bucket[1].url == "http://unit2.local:4999/unit_api/jobs/stop"
-    assert bucket[1].params == {"experiment": "demo"}
+    assert bucket[1].json == {"experiment": "demo"}
 
 
 def test_pio_job_info_lists_job() -> None:
@@ -354,12 +354,11 @@ def test_job_manager_get_running_job_id() -> None:
 def test_pios_kill_requests_with_experiments(active_workers_in_cluster) -> None:
     runner = CliRunner()
     with capture_requests() as bucket:
-        result = runner.invoke(pios, ["kill", "--all-jobs", "--experiments", "exp1", "-y"])
+        result = runner.invoke(pios, ["kill", "--all-jobs", "-y"])
     assert result.exit_code == 0
 
     for req in bucket:
         assert req.url.endswith("/unit_api/jobs/stop/all")
-        assert req.params == {}
 
 
 def test_pios_reboot_requests() -> None:

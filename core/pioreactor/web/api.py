@@ -168,9 +168,9 @@ def get_models() -> ResponseReturnValue:
 def stop_all_jobs_on_worker_for_experiment(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
     """Kills all jobs for worker assigned to experiment"""
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        broadcast_post_across_cluster("/unit_api/jobs/stop", params={"experiment": experiment})
+        broadcast_post_across_cluster("/unit_api/jobs/stop", json={"experiment": experiment})
     else:
-        tasks.multicast_post("/unit_api/jobs/stop", [pioreactor_unit], params={"experiment": experiment})
+        tasks.multicast_post("/unit_api/jobs/stop", [pioreactor_unit], json={"experiment": experiment})
 
     return {"status": "success"}, 202
 
@@ -197,7 +197,7 @@ def stop_specific_job_on_unit(
         msg.wait_for_publish(timeout=2.0)
     except Exception:
         # TODO: make this $broadcastable
-        tasks.multicast_post("/unit_api/jobs/stop", [pioreactor_unit], params={"job_name": job_name})
+        tasks.multicast_post("/unit_api/jobs/stop", [pioreactor_unit], json={"job_name": job_name})
         abort(500, "Failed to publish to mqtt")
 
     return {"status": "success"}, 202
@@ -1885,7 +1885,7 @@ def create_experiment() -> ResponseReturnValue:
 @api_bp.route("/experiments/<experiment>", methods=["DELETE"])
 def delete_experiment(experiment: str) -> ResponseReturnValue:
     row_count = modify_app_db("DELETE FROM experiments WHERE experiment=?;", (experiment,))
-    broadcast_post_across_cluster("/unit_api/jobs/stop", params={"experiment": experiment})
+    broadcast_post_across_cluster("/unit_api/jobs/stop", json={"experiment": experiment})
 
     if row_count > 0:
         try:
@@ -2853,7 +2853,7 @@ def remove_worker_from_experiment(experiment: str, pioreactor_unit: str) -> Resp
         (pioreactor_unit, experiment),
     )
     if row_count > 0:
-        tasks.multicast_post("/unit_api/jobs/stop", [pioreactor_unit], params={"experiment": experiment})
+        tasks.multicast_post("/unit_api/jobs/stop", [pioreactor_unit], json={"experiment": experiment})
         publish_to_experiment_log(
             f"Removed {pioreactor_unit} from {experiment}.",
             experiment=experiment,
@@ -2872,7 +2872,7 @@ def remove_workers_from_experiment(experiment: str) -> DelayedResponseReturnValu
         "DELETE FROM experiment_worker_assignments WHERE experiment = ?",
         (experiment,),
     )
-    task = broadcast_post_across_workers("/unit_api/jobs/stop", params={"experiment": experiment})
+    task = broadcast_post_across_workers("/unit_api/jobs/stop", json={"experiment": experiment})
     publish_to_experiment_log(
         f"Removed all workers from {experiment}.",
         experiment=experiment,
