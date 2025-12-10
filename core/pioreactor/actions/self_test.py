@@ -38,6 +38,7 @@ from pioreactor.logging import CustomLogger
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import post_into_leader
 from pioreactor.pubsub import prune_retained_messages
+from pioreactor.states import JobState
 from pioreactor.types import LedChannel
 from pioreactor.types import PdChannel
 from pioreactor.utils import is_pio_job_running
@@ -91,9 +92,9 @@ def test_REF_is_in_correct_position(managed_state, logger: CustomLogger, unit: s
                 signals[channel].append(reading.ods[channel].od)
 
             if i % 5 == 0 and i % 2 == 0:
-                st.set_state("ready")
+                st.set_state(JobState.READY)
             elif i % 5 == 0:
-                st.set_state("sleeping")
+                st.set_state(JobState.SLEEPING)
 
             if i == 25:
                 break

@@ -384,10 +384,11 @@ def job_history() -> None:
         click.echo(_format_job_history_line(*job))
 
 
-def _format_timestamp_to_seconds(timestamp: str) -> str:
-    """
-    Truncate timestamps like 2024-01-01T00:00:00.123456Z to second precision.
-    """
+def _format_timestamp_to_seconds(timestamp: str | None) -> str:
+
+    if timestamp is None:
+        return ""
+
     try:
         dt = to_datetime(timestamp)
     except ValueError:
@@ -451,7 +452,7 @@ def job_info(job_id: int | None, job_name: str | None) -> None:
     for setting, value, created_at, updated_at in settings:
         setting_label = click.style(setting, fg="cyan")
         created_at_display = _format_timestamp_to_seconds(created_at)
-        updated_at_display = _format_timestamp_to_seconds(updated_at) if updated_at is not None else ""
+        updated_at_display = _format_timestamp_to_seconds(updated_at)
 
         def _stringify(val: Any) -> str:
             if val is None:

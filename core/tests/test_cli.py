@@ -61,7 +61,7 @@ def test_list_plugins() -> None:
     assert "my-example-plugin==0.2.0" in result.output
 
 
-@pytest.mark.skip(reason="not sure why this fails")
+@pytest.mark.flakey
 def test_pio_log() -> None:
     with collect_all_logs_of_level("DEBUG", whoami.get_unit_name(), whoami.UNIVERSAL_EXPERIMENT) as bucket:
         runner = CliRunner()
@@ -192,9 +192,9 @@ def test_pio_job_info_lists_job() -> None:
             jm.set_not_running(job_id)
 
 
-def test_pio_job_history_lists_job() -> None:
+def test_pio_job_list_lists_job() -> None:
     runner = CliRunner()
-    job_name = "test_job_history"
+    job_name = "test_job_list"
     unit = whoami.get_unit_name()
     experiment = whoami.UNIVERSAL_EXPERIMENT
 
@@ -210,7 +210,7 @@ def test_pio_job_history_lists_job() -> None:
         )
         jm.set_not_running(job_id)
 
-    result = runner.invoke(pio, ["jobs", "history"])
+    result = runner.invoke(pio, ["jobs", "list"])
 
     assert result.exit_code == 0
     matching_lines = [line for line in result.output.splitlines() if f"[job_id={job_id}]" in line]
