@@ -315,8 +315,7 @@ def stop_jobs() -> DelayedResponseReturnValue:
     job_name = json.get("job_name")
     experiment = json.get("experiment")
     job_source = json.get("job_source")
-    job_id = json.get("job_id")  # note job_id is typically an int, so you might convert it.
-
+    job_id = json.get("job_id")
     if not any([job_name, experiment, job_source, job_id]):
         return abort(400, "No job filter specified")
 
@@ -328,7 +327,7 @@ def stop_jobs() -> DelayedResponseReturnValue:
     if job_source:
         kill_args.extend(["--job-source", job_source])
     if job_id:
-        kill_args.extend(["--job-id", job_id])
+        kill_args.extend(["--job-id", str(job_id)])  # note job_id is typically an int, convert to str
 
     task = tasks.pio_kill(*kill_args)
     return create_task_response(task)
