@@ -379,7 +379,9 @@ def update_clock(new_time: str) -> bool:
 def sync_clock() -> bool:
     if whoami.is_testing_env():
         return True
-    r = run(["sudo", "chronyc", "-a", "makestep"])
+    run(["sudo", "systemctl", "stop", "chrony"])
+    run(["sudo", "chronyd", "-q"])
+    r = run(["sudo", "systemctl", "start", "chrony"])
     return r.returncode == 0
 
 

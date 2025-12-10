@@ -666,6 +666,17 @@ function ClusterClockCard({leaderHostname}){
   const [updatingClock, setUpdatingClock] = React.useState(false);
   const [error, setError] = React.useState(null);
   const [timestampLocal, setTimestampLocal] = React.useState(dayjs().local().format('YYYY-MM-DD HH:mm:ss'));
+  const hasUserEditedTimestamp = React.useRef(false);
+
+  const normalizeClockData = (result) => Object.fromEntries(
+    Object.entries(result || {}).map(([unitName, info]) => {
+      const baseInfo = info || {};
+      const clockTimeMs = baseInfo.clock_time
+        ? dayjs.utc(baseInfo.clock_time, 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]').local().valueOf()
+        : null;
+      return [unitName, { ...baseInfo, clock_time_ms: clockTimeMs }];
+    })
+  );
 
   async function fetchBroadcastData() {
     try {
@@ -685,7 +696,7 @@ function ClusterClockCard({leaderHostname}){
       // Poll for the final result using checkTaskCallback
       const finalResult = await checkTaskCallback(broadcastData.result_url_path);
 
-      setClockData(finalResult.result);
+      setClockData(normalizeClockData(finalResult.result));
     } catch (err) {
       setError(err.message);
       console.error(err);
@@ -696,6 +707,28 @@ function ClusterClockCard({leaderHostname}){
 
   React.useEffect(() => {
     fetchBroadcastData();
+  }, []);
+
+  React.useEffect(() => {
+    const intervalId = setInterval(() => {
+      setClockData((prev) => {
+        if (!prev) return prev;
+        return Object.fromEntries(Object.entries(prev).map(([unitName, info]) => {
+          if (info?.clock_time_ms == null) return [unitName, info];
+          return [unitName, { ...info, clock_time_ms: info.clock_time_ms + 1000 }];
+        }));
+      });
+
+      if (!hasUserEditedTimestamp.current) {
+        setTimestampLocal((prev) => {
+          const parsed = dayjs(prev, 'YYYY-MM-DD HH:mm:ss', true);
+          const baseMs = parsed.isValid() ? parsed.valueOf() : dayjs().local().valueOf();
+          return dayjs(baseMs + 1000).format('YYYY-MM-DD HH:mm:ss');
+        });
+      }
+    }, 1000);
+
+    return () => clearInterval(intervalId);
   }, []);
 
 
@@ -766,7 +799,7 @@ function ClusterClockCard({leaderHostname}){
                           to={leaderHostname === unitName ? "/leader" : "/pioreactors/" + unitName}
                           />
                       </TableCell>
-                      <TableCell align="right" sx={{padding: "6px 0px"}}>{info?.clock_time ? dayjs.utc(info.clock_time, 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]').local().format('MMM D, YYYY HH:mm:ss') : "No data received"}</TableCell>
+                      <TableCell align="right" sx={{padding: "6px 0px"}}>{info?.clock_time_ms ? dayjs(info.clock_time_ms).format('MMM D, YYYY HH:mm:ss') : "No data received"}</TableCell>
                     </TableRow>
                   );
                 })}
@@ -781,7 +814,10 @@ function ClusterClockCard({leaderHostname}){
           variant="outlined"
           label="Timestamp (localtime)"
           value={timestampLocal}
-          onChange={(e) => setTimestampLocal(e.target.value)}
+          onChange={(e) => {
+            setTimestampLocal(e.target.value);
+            hasUserEditedTimestamp.current = true;
+          }}
         />
         <LoadingButton
           variant="text"

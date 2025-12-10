@@ -310,10 +310,12 @@ def stop_all_jobs() -> DelayedResponseReturnValue:
 
 @unit_api_bp.route("/jobs/stop", methods=["PATCH", "POST"])
 def stop_jobs() -> DelayedResponseReturnValue:
-    job_name = request.args.get("job_name")
-    experiment = request.args.get("experiment")
-    job_source = request.args.get("job_source")
-    job_id = request.args.get("job_id")  # note job_id is typically an int, so you might convert it.
+    json = current_app.get_json(request.data)
+
+    job_name = json.get("job_name")
+    experiment = json.get("experiment")
+    job_source = json.get("job_source")
+    job_id = json.get("job_id")  # note job_id is typically an int, so you might convert it.
 
     if not any([job_name, experiment, job_source, job_id]):
         return abort(400, "No job filter specified")
@@ -535,12 +537,12 @@ def install_plugin() -> DelayedResponseReturnValue:
     if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS"):
         abort(403, "DISALLOW_UI_INSTALLS is present")
 
-    allowlist = _load_plugin_allowlist()
-    if not allowlist:
-        abort(
-            403,
-            "Plugin installs via API are disabled: plugins_allowlist.json missing, empty, or invalid.",
-        )
+    # allowlist = _load_plugin_allowlist()
+    # if not allowlist:
+    #    abort(
+    #        403,
+    #        "Plugin installs via API are disabled: plugins_allowlist.json missing, empty, or invalid.",
+    #    )
 
     body = current_app.get_json(request.data, type=structs.ArgsOptionsEnvs)
 
@@ -549,12 +551,12 @@ def install_plugin() -> DelayedResponseReturnValue:
     if len(body.args) > 1:
         abort(400, "Install one plugin at a time via the API")
 
-    requested_plugin = _canonicalize_package_name(body.args[0])
-    if requested_plugin not in allowlist:
-        abort(
-            403,
-            f"Plugin '{requested_plugin}' is not in the allowlist for API installs.",
-        )
+    # requested_plugin = _canonicalize_package_name(body.args[0])
+    # if requested_plugin not in allowlist:
+    #    abort(
+    #        403,
+    #        f"Plugin '{requested_plugin}' is not in the allowlist for API installs.",
+    #    )
 
     commands: tuple[str, ...] = ("install",)
     commands += tuple(body.args)

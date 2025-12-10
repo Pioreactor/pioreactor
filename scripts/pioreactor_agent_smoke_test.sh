@@ -596,7 +596,7 @@ check_experiment_scoping() {
 
   sleep 2
 
-  if curl -fsS -X PATCH -H "Content-Type: application/json" -d '{"experiment":"exp2"}' http://localhost/unit_api/jobs/stop/all >/dev/null; then
+  if curl -fsS -X PATCH -H "Content-Type: application/json" -d '{"experiment":"exp2"}' http://localhost/unit_api/jobs/stop >/dev/null; then
     ok "stopped jobs in exp2"
   else
     fail "stop jobs exp2 failed"

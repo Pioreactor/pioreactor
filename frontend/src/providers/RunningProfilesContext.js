@@ -57,9 +57,9 @@ export function RunningProfilesProvider({ children, experiment }) {
   const stopProfile = React.useCallback(
     async (job_id) => {
       try {
-        const response = await fetch(`/unit_api/jobs/stop?job_id=${job_id}`, {
+        const response = await fetch(`/unit_api/jobs/stop`, {
           method: 'PATCH',
-          body: JSON.stringify({ settings: { $state: 'disconnected' } }),
+          body: JSON.stringify({ job_id: job_id }),
           headers: {
             Accept: 'application/json',
             'Content-Type': 'application/json'
