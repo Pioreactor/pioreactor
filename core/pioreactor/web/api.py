@@ -402,7 +402,9 @@ def get_clocktime(pioreactor_unit: str) -> DelayedResponseReturnValue:
 @api_bp.route("/system/utc_clock", methods=["POST"])
 def set_clocktime() -> DelayedResponseReturnValue:
     # first update the leader:
-    task1 = tasks.multicast_post("/unit_api/system/utc_clock", [get_leader_hostname()], request.get_json())
+    task1 = tasks.multicast_post(
+        "/unit_api/system/utc_clock", [get_leader_hostname()], json=request.get_json()
+    )
     task1.get(blocking=True, timeout=20)
 
     # then tell the workers to update to leader's value (via chrony)

@@ -7,6 +7,7 @@
 #### Breaking changes
 
   - `pio job-status` has been replaced by `pio jobs status`.
+  - changed `/unit_api/jobs/stop` from using query params to json body.
 
 #### Bug fixes
 
@@ -15,7 +16,7 @@
  - Images ship with DAC43608 library (missed the previous OS jump!)
  - Improvements to "Updating your model" on first boot.
  - Fix /pioreactor page crashing if a worker is inactive in the experiment.
-
+ - Fixed clock syncing on the cluster
 
 ### 25.11.19
 

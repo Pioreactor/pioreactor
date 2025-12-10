@@ -177,7 +177,7 @@ def get_clock_time():
 @unit_api_bp.route("/system/utc_clock", methods=["PATCH", "POST"])
 def set_clock_time() -> DelayedResponseReturnValue:  # type: ignore[return]
     if HOSTNAME == get_leader_hostname():
-        if request.json:
+        if request.get_json(silent=True):  # don't throw 415
             data = request.json
             new_time = data.get("utc_clock_time")
             if not new_time:
