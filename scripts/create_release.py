@@ -234,8 +234,11 @@ def main(argv: list[str]) -> int:
         else:
             print("No changes detected for develop bump; skipping commit.")
 
+        release_url = "https://github.com/pioreactor/pioreactor/releases/new" f"?tag={calver}&title={calver}"
+
         print("\nNext manual steps:")
         print(" - Create GitHub release with tag and title", calver)
+        print("   ", release_url)
         print(" - Attach update scripts if applicable")
         print(" - Announce to community once artifacts are ready")
 
