@@ -31,6 +31,7 @@ from pioreactor.config import config
 from pioreactor.config import temporary_config_changes
 from pioreactor.structs import DosingEvent
 from pioreactor.utils import local_persistent_storage
+from pioreactor.utils import SummableDict
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import default_datetime_for_pioreactor
 from pioreactor.utils.timing import RepeatedTimer
@@ -1130,6 +1131,46 @@ def test_latest_event_goes_to_mqtt(fast_dosing_timers) -> None:
         assert latest_event_from_mqtt["data"]["s"] == "test"
 
 
+def test_dosing_start_and_stop_events_publish_to_mqtt(fast_dosing_timers) -> None:
+    experiment = "test_dosing_start_and_stop_events_publish_to_mqtt"
+    received_events: list[dict] = []
+
+    def on_message(message) -> None:
+        if message.payload:
+            received_events.append(decode(message.payload))
+
+    client = pubsub.subscribe_and_callback(
+        on_message,
+        f"pioreactor/{unit}/{experiment}/dosing_automation/latest_event",
+        allow_retained=False,
+        client_id=f"{unit}_{experiment}_event_listener",
+    )
+
+    class FakeAutomation(DosingAutomationJob):
+        automation_name = "_test_fake_dosing_events"
+
+        def _execute_io_action(self, waste_ml: float = 0.0, **all_pumps_ml: float) -> SummableDict:
+            return SummableDict(waste_ml=waste_ml, **all_pumps_ml)
+
+        def execute(self):
+            return events.NoEvent()
+
+    try:
+        with FakeAutomation(unit=unit, experiment=experiment, duration=None) as automation:
+            automation.execute_io_action(waste_ml=0.2, media_ml=0.1)
+            assert wait_for(lambda: len(received_events) >= 2, timeout=2.0)
+    finally:
+        client.loop_stop()
+        client.disconnect()
+
+    event_names = [event["event_name"] for event in received_events[:2]]
+    assert event_names == ["DosingStarted", "DosingStopped"]
+    assert received_events[0]["data"]["waste_ml"] == pytest.approx(0.2)
+    assert received_events[0]["data"]["media_ml"] == pytest.approx(0.1)
+    assert received_events[1]["data"]["waste_ml"] == pytest.approx(0.2)
+    assert received_events[1]["data"]["media_ml"] == pytest.approx(0.1)
+
+
 def test_strings_are_okay_for_chemostat(fast_dosing_timers) -> None:
     unit = get_unit_name()
     experiment = "test_strings_are_okay_for_chemostat"
@@ -1807,7 +1848,7 @@ def test_automation_will_pause_itself_if_pumping_goes_above_safety_threshold() -
         pause()
         assert job.current_volume_ml < Chemostat.MAX_VIAL_VOLUME_TO_STOP
 
-        job.set_state("ready")
+        job.set_state(job.READY)
         assert job.state == "ready"
 
         pause()

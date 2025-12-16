@@ -12,6 +12,14 @@ class DilutionEvent(AutomationEvent):
     pass
 
 
+class DosingStarted(AutomationEvent):
+    pass
+
+
+class DosingStopped(AutomationEvent):
+    pass
+
+
 class AddMediaEvent(AutomationEvent):
     pass
 

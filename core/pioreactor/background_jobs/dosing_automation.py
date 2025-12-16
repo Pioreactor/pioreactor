@@ -339,6 +339,16 @@ class DosingAutomationJob(AutomationJob):
         waste_ml: float = 0.0,
         **all_pumps_ml: float,
     ) -> SummableDict:
+        self.latest_event = events.DosingStarted(data={"waste_ml": waste_ml, **all_pumps_ml})
+        result = self._execute_io_action(waste_ml, **all_pumps_ml)
+        self.latest_event = events.DosingStopped(data=result)
+        return result
+
+    def _execute_io_action(
+        self,
+        waste_ml: float = 0.0,
+        **all_pumps_ml: float,
+    ) -> SummableDict:
         """
         This function recursively reduces the amount to add so that we don't end up adding 5ml,
         and then removing 5ml (this could cause vial overflow). Instead we add 0.5ml, remove 0.5ml,

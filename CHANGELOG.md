@@ -1,12 +1,18 @@
-### 25.12.10
+### Upcoming
 
+#### Enhancements
+
+ - new events in the dosing_automation_events table & export detailing when dosing starts and stops.
+
+
+### 25.12.10
 
 #### Enhancements
 
   - Added a `pio jobs` command group with `running`, `list`, `info`, and `remove` subcommands to inspect and tidy job records, including published settings.
 #### Breaking changes
 
-  - `pio job-status` has been replaced by `pio jobs status`.
+  - `pio job-status` has been replaced by `pio jobs info`.
   - changed `/unit_api/jobs/stop` from using query params to json body.
 
 #### Bug fixes

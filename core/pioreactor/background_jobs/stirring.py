@@ -717,14 +717,18 @@ def click_stirring(
         if enable_dodging_od is not None
         else config.getboolean("stirring.config", "enable_dodging_od", fallback="false")
     )
+    try:
+        with start_stirring(
+            target_rpm=target_rpm,
+            use_rpm=use_rpm,
+            enable_dodging_od=enable_dodging_od,
+            duty_cycle=duty_cycle,
+            target_rpm_during_od_reading=target_rpm_during_od_reading,
+            target_rpm_outside_od_reading=target_rpm_outside_od_reading,
+        ) as st:
+            st.block_until_rpm_is_close_to_target()
+            st.block_until_disconnected()
+    except exc.HardwareNotFoundError as e:
+        from pioreactor.logging import create_logger
 
-    with start_stirring(
-        target_rpm=target_rpm,
-        use_rpm=use_rpm,
-        enable_dodging_od=enable_dodging_od,
-        duty_cycle=duty_cycle,
-        target_rpm_during_od_reading=target_rpm_during_od_reading,
-        target_rpm_outside_od_reading=target_rpm_outside_od_reading,
-    ) as st:
-        st.block_until_rpm_is_close_to_target()
-        st.block_until_disconnected()
+        create_logger("stirring").error(e)
