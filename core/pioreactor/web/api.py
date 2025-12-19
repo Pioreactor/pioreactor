@@ -652,7 +652,7 @@ def get_growth_rates(experiment: str) -> ResponseReturnValue:
             WHERE experiment=? AND timestamp > ?
         ), stats AS (
             SELECT pioreactor_unit,
-                   CASE WHEN ? > 0 THEN MAX(1, CAST((COUNT(*) + ? - 1) / ? AS INT)) ELSE 1 END AS step
+                   COUNT(*) AS total
             FROM filtered
             GROUP BY pioreactor_unit
         )
@@ -662,11 +662,11 @@ def get_growth_rates(experiment: str) -> ResponseReturnValue:
                    json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
             FROM filtered
             JOIN stats USING (pioreactor_unit)
-            WHERE (abs(random()) % step) = 0
+            WHERE total <= ? OR (abs(random()) % total) < ?
             GROUP BY pioreactor_unit
         );
         """,
-        (experiment, cutoff_timestamp, target_points, target_points, target_points),
+        (experiment, cutoff_timestamp, target_points, target_points),
         one=True,
     )
 
@@ -742,7 +742,7 @@ def get_od_readings_filtered(experiment: str) -> ResponseReturnValue:
             WHERE experiment=? AND timestamp > ?
         ), stats AS (
             SELECT pioreactor_unit,
-                   CASE WHEN ? > 0 THEN MAX(1, CAST((COUNT(*) + ? - 1) / ? AS INT)) ELSE 1 END AS step
+                   COUNT(*) AS total
             FROM filtered
             GROUP BY pioreactor_unit
         )
@@ -752,11 +752,11 @@ def get_od_readings_filtered(experiment: str) -> ResponseReturnValue:
                    json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
             FROM filtered
             JOIN stats USING (pioreactor_unit)
-            WHERE (abs(random()) % step) = 0
+            WHERE total <= ? OR (abs(random()) % total) < ?
             GROUP BY pioreactor_unit
         );
         """,
-        (experiment, cutoff_timestamp, target_points, target_points, target_points),
+        (experiment, cutoff_timestamp, target_points, target_points),
         one=True,
     )
 
@@ -787,7 +787,7 @@ def get_od_readings(experiment: str) -> ResponseReturnValue:
         ), stats AS (
             SELECT pioreactor_unit,
                    channel,
-                   CASE WHEN ? > 0 THEN MAX(1, CAST((COUNT(*) + ? - 1) / ? AS INT)) ELSE 1 END AS step
+                   COUNT(*) AS total
             FROM filtered
             GROUP BY pioreactor_unit, channel
         )
@@ -797,11 +797,11 @@ def get_od_readings(experiment: str) -> ResponseReturnValue:
                    json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
             FROM filtered
             JOIN stats USING (pioreactor_unit, channel)
-            WHERE (abs(random()) % step) = 0
+            WHERE total <= ? OR (abs(random()) % total) < ?
             GROUP BY pioreactor_unit, channel
         );
         """,
-        (experiment, cutoff_timestamp, target_points, target_points, target_points),
+        (experiment, cutoff_timestamp, target_points, target_points),
         one=True,
     )
 
@@ -832,7 +832,7 @@ def get_od_raw_readings(experiment: str) -> ResponseReturnValue:
         ), stats AS (
             SELECT pioreactor_unit,
                    channel,
-                   CASE WHEN ? > 0 THEN MAX(1, CAST((COUNT(*) + ? - 1) / ? AS INT)) ELSE 1 END AS step
+                   COUNT(*) AS total
             FROM filtered
             GROUP BY pioreactor_unit, channel
         )
@@ -842,11 +842,11 @@ def get_od_raw_readings(experiment: str) -> ResponseReturnValue:
                    json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
             FROM filtered
             JOIN stats USING (pioreactor_unit, channel)
-            WHERE (abs(random()) % step) = 0
+            WHERE total <= ? OR (abs(random()) % total) < ?
             GROUP BY pioreactor_unit, channel
         );
         """,
-        (experiment, cutoff_timestamp, target_points, target_points, target_points),
+        (experiment, cutoff_timestamp, target_points, target_points),
         one=True,
     )
 
@@ -927,7 +927,7 @@ def get_growth_rates_per_unit(pioreactor_unit: str, experiment: str) -> Response
             WHERE experiment=? AND pioreactor_unit=? AND timestamp > ?
         ), stats AS (
             SELECT pioreactor_unit,
-                   CASE WHEN ? > 0 THEN MAX(1, CAST((COUNT(*) + ? - 1) / ? AS INT)) ELSE 1 END AS step
+                   COUNT(*) AS total
             FROM filtered
             GROUP BY pioreactor_unit
         )
@@ -937,7 +937,7 @@ def get_growth_rates_per_unit(pioreactor_unit: str, experiment: str) -> Response
                    json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
             FROM filtered
             JOIN stats USING (pioreactor_unit)
-            WHERE (abs(random()) % step) = 0
+            WHERE total <= ? OR (abs(random()) % total) < ?
             GROUP BY pioreactor_unit
         );
         """,
@@ -945,7 +945,6 @@ def get_growth_rates_per_unit(pioreactor_unit: str, experiment: str) -> Response
             experiment,
             pioreactor_unit,
             cutoff_timestamp,
-            target_points,
             target_points,
             target_points,
         ),
@@ -1028,7 +1027,7 @@ def get_od_readings_filtered_per_unit(pioreactor_unit: str, experiment: str) -> 
             WHERE experiment=? AND pioreactor_unit=? AND timestamp > ?
         ), stats AS (
             SELECT pioreactor_unit,
-                   CASE WHEN ? > 0 THEN MAX(1, CAST((COUNT(*) + ? - 1) / ? AS INT)) ELSE 1 END AS step
+                   COUNT(*) AS total
             FROM filtered
             GROUP BY pioreactor_unit
         )
@@ -1038,7 +1037,7 @@ def get_od_readings_filtered_per_unit(pioreactor_unit: str, experiment: str) -> 
                    json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
             FROM filtered
             JOIN stats USING (pioreactor_unit)
-            WHERE (abs(random()) % step) = 0
+            WHERE total <= ? OR (abs(random()) % total) < ?
             GROUP BY pioreactor_unit
         );
         """,
@@ -1046,7 +1045,6 @@ def get_od_readings_filtered_per_unit(pioreactor_unit: str, experiment: str) -> 
             experiment,
             pioreactor_unit,
             cutoff_timestamp,
-            target_points,
             target_points,
             target_points,
         ),
@@ -1079,7 +1077,7 @@ def get_od_readings_per_unit(pioreactor_unit: str, experiment: str) -> ResponseR
         ), stats AS (
             SELECT pioreactor_unit,
                    channel,
-                   CASE WHEN ? > 0 THEN MAX(1, CAST((COUNT(*) + ? - 1) / ? AS INT)) ELSE 1 END AS step
+                   COUNT(*) AS total
             FROM filtered
             GROUP BY pioreactor_unit, channel
         )
@@ -1089,11 +1087,11 @@ def get_od_readings_per_unit(pioreactor_unit: str, experiment: str) -> ResponseR
                    json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
             FROM filtered
             JOIN stats USING (pioreactor_unit, channel)
-            WHERE (abs(random()) % step) = 0
+            WHERE total <= ? OR (abs(random()) % total) < ?
             GROUP BY pioreactor_unit, channel
         );
         """,
-        (experiment, pioreactor_unit, cutoff_timestamp, target_points, target_points, target_points),
+        (experiment, pioreactor_unit, cutoff_timestamp, target_points, target_points),
         one=True,
     )
 
@@ -1126,7 +1124,7 @@ def get_od_raw_readings_per_unit(pioreactor_unit: str, experiment: str) -> Respo
         ), stats AS (
             SELECT pioreactor_unit,
                    channel,
-                   CASE WHEN ? > 0 THEN MAX(1, CAST((COUNT(*) + ? - 1) / ? AS INT)) ELSE 1 END AS step
+                   COUNT(*) AS total
             FROM filtered
             GROUP BY pioreactor_unit, channel
         )
@@ -1136,11 +1134,11 @@ def get_od_raw_readings_per_unit(pioreactor_unit: str, experiment: str) -> Respo
                    json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
             FROM filtered
             JOIN stats USING (pioreactor_unit, channel)
-            WHERE (abs(random()) % step) = 0
+            WHERE total <= ? OR (abs(random()) % total) < ?
             GROUP BY pioreactor_unit, channel
         );
         """,
-        (experiment, pioreactor_unit, cutoff_timestamp, target_points, target_points, target_points),
+        (experiment, pioreactor_unit, cutoff_timestamp, target_points, target_points),
         one=True,
     )
 
