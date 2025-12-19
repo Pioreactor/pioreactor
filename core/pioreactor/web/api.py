@@ -8,6 +8,7 @@ import sqlite3
 import tempfile
 import uuid
 import zipfile
+from datetime import timedelta
 from io import BytesIO
 from pathlib import Path
 
@@ -74,6 +75,11 @@ for rule, options, view_func in registered_api_routes():
 
 def as_json_response(json: str) -> ResponseReturnValue:
     return Response(json, mimetype="application/json")
+
+
+def format_utc_timestamp_for_lookback_hours(lookback_hours: float) -> str:
+    cutoff = current_utc_datetime() - timedelta(hours=lookback_hours)
+    return cutoff.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
 def broadcast_get_across_cluster(endpoint: str, timeout: float = 5.0, return_raw=False) -> Result:
@@ -634,37 +640,33 @@ def get_growth_rates(experiment: str) -> ResponseReturnValue:
     if not target_points or target_points <= 0:
         abort(400, "target_points must be > 0")
 
+    cutoff_timestamp = format_utc_timestamp_for_lookback_hours(lookback)
+
     growth_rates = query_app_db(
         """
-        WITH numbered AS (
-            SELECT unit,
+        WITH filtered AS (
+            SELECT pioreactor_unit,
                    timestamp,
-                   y,
-                   ROW_NUMBER() OVER (PARTITION BY unit ORDER BY timestamp) AS rn
-            FROM (
-                SELECT pioreactor_unit AS unit,
-                       timestamp,
-                       rate AS y
-                FROM growth_rates
-                WHERE experiment=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', ?)
-            )
-        ), steps AS (
-            SELECT unit,
-                   CASE WHEN ? > 0 THEN MAX(1, CAST((MAX(rn) + ? - 1) / ? AS INT)) ELSE 1 END AS step
-            FROM numbered
-            GROUP BY unit
+                   round(rate, 5) AS y
+            FROM growth_rates INDEXED BY growth_rates_ix
+            WHERE experiment=? AND timestamp > ?
+        ), stats AS (
+            SELECT pioreactor_unit,
+                   CASE WHEN ? > 0 THEN MAX(1, CAST((COUNT(*) + ? - 1) / ? AS INT)) ELSE 1 END AS step
+            FROM filtered
+            GROUP BY pioreactor_unit
         )
         SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
         FROM (
-            SELECT numbered.unit,
-                   json_group_array(json_object('x', timestamp, 'y', round(y, 5))) AS series_data
-            FROM numbered
-            JOIN steps USING (unit)
-            WHERE (rn % step) = 0
-            GROUP BY numbered.unit
+            SELECT pioreactor_unit AS unit,
+                   json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
+            FROM filtered
+            JOIN stats USING (pioreactor_unit)
+            WHERE (abs(random()) % step) = 0
+            GROUP BY pioreactor_unit
         );
         """,
-        (experiment, f"-{lookback} hours", target_points, target_points, target_points),
+        (experiment, cutoff_timestamp, target_points, target_points, target_points),
         one=True,
     )
 
@@ -728,37 +730,33 @@ def get_od_readings_filtered(experiment: str) -> ResponseReturnValue:
     if not target_points or target_points <= 0:
         abort(400, "target_points must be > 0")
 
+    cutoff_timestamp = format_utc_timestamp_for_lookback_hours(lookback)
+
     filtered_od_readings = query_app_db(
         """
-        WITH numbered AS (
-            SELECT unit,
+        WITH filtered AS (
+            SELECT pioreactor_unit,
                    timestamp,
-                   y,
-                   ROW_NUMBER() OVER (PARTITION BY unit ORDER BY timestamp) AS rn
-            FROM (
-                SELECT pioreactor_unit AS unit,
-                       timestamp,
-                       normalized_od_reading AS y
-                FROM od_readings_filtered
-                WHERE experiment=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', ?)
-            )
-        ), steps AS (
-            SELECT unit,
-                   CASE WHEN ? > 0 THEN MAX(1, CAST((MAX(rn) + ? - 1) / ? AS INT)) ELSE 1 END AS step
-            FROM numbered
-            GROUP BY unit
+                   round(normalized_od_reading, 7) AS y
+            FROM od_readings_filtered INDEXED BY od_readings_filtered_ix
+            WHERE experiment=? AND timestamp > ?
+        ), stats AS (
+            SELECT pioreactor_unit,
+                   CASE WHEN ? > 0 THEN MAX(1, CAST((COUNT(*) + ? - 1) / ? AS INT)) ELSE 1 END AS step
+            FROM filtered
+            GROUP BY pioreactor_unit
         )
         SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
         FROM (
-            SELECT numbered.unit,
-                   json_group_array(json_object('x', timestamp, 'y', round(y, 7))) AS series_data
-            FROM numbered
-            JOIN steps USING (unit)
-            WHERE (rn % step) = 0
-            GROUP BY numbered.unit
+            SELECT pioreactor_unit AS unit,
+                   json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
+            FROM filtered
+            JOIN stats USING (pioreactor_unit)
+            WHERE (abs(random()) % step) = 0
+            GROUP BY pioreactor_unit
         );
         """,
-        (experiment, f"-{lookback} hours", target_points, target_points, target_points),
+        (experiment, cutoff_timestamp, target_points, target_points, target_points),
         one=True,
     )
 
@@ -775,37 +773,35 @@ def get_od_readings(experiment: str) -> ResponseReturnValue:
     if not target_points or target_points <= 0:
         abort(400, "target_points must be > 0")
 
+    cutoff_timestamp = format_utc_timestamp_for_lookback_hours(lookback)
+
     raw_od_readings = query_app_db(
         """
-        WITH numbered AS (
-            SELECT unit,
+        WITH filtered AS (
+            SELECT pioreactor_unit,
+                   channel,
                    timestamp,
-                   y,
-                   ROW_NUMBER() OVER (PARTITION BY unit ORDER BY timestamp) AS rn
-            FROM (
-                SELECT (pioreactor_unit || '-' || channel) AS unit,
-                       timestamp,
-                       od_reading AS y
-                FROM od_readings
-                WHERE experiment=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW',  ?)
-            )
-        ), steps AS (
-            SELECT unit,
-                   CASE WHEN ? > 0 THEN MAX(1, CAST((MAX(rn) + ? - 1) / ? AS INT)) ELSE 1 END AS step
-            FROM numbered
-            GROUP BY unit
+                   round(od_reading, 7) AS y
+            FROM od_readings INDEXED BY od_readings_ix_unit_channel_ts
+            WHERE experiment=? AND timestamp > ?
+        ), stats AS (
+            SELECT pioreactor_unit,
+                   channel,
+                   CASE WHEN ? > 0 THEN MAX(1, CAST((COUNT(*) + ? - 1) / ? AS INT)) ELSE 1 END AS step
+            FROM filtered
+            GROUP BY pioreactor_unit, channel
         )
         SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
         FROM (
-            SELECT numbered.unit,
-                   json_group_array(json_object('x', timestamp, 'y', round(y, 7))) AS series_data
-            FROM numbered
-            JOIN steps USING (unit)
-            WHERE (rn % step) = 0
-            GROUP BY numbered.unit
+            SELECT (pioreactor_unit || '-' || channel) AS unit,
+                   json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
+            FROM filtered
+            JOIN stats USING (pioreactor_unit, channel)
+            WHERE (abs(random()) % step) = 0
+            GROUP BY pioreactor_unit, channel
         );
         """,
-        (experiment, f"-{lookback} hours", target_points, target_points, target_points),
+        (experiment, cutoff_timestamp, target_points, target_points, target_points),
         one=True,
     )
 
@@ -822,37 +818,35 @@ def get_od_raw_readings(experiment: str) -> ResponseReturnValue:
     if not target_points or target_points <= 0:
         abort(400, "target_points must be > 0")
 
+    cutoff_timestamp = format_utc_timestamp_for_lookback_hours(lookback)
+
     raw_od_readings = query_app_db(
         """
-        WITH numbered AS (
-            SELECT unit,
+        WITH filtered AS (
+            SELECT pioreactor_unit,
+                   channel,
                    timestamp,
-                   y,
-                   ROW_NUMBER() OVER (PARTITION BY unit ORDER BY timestamp) AS rn
-            FROM (
-                SELECT (pioreactor_unit || '-' || channel) AS unit,
-                       timestamp,
-                       od_reading AS y
-                FROM raw_od_readings
-                WHERE experiment=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW',  ?)
-            )
-        ), steps AS (
-            SELECT unit,
-                   CASE WHEN ? > 0 THEN MAX(1, CAST((MAX(rn) + ? - 1) / ? AS INT)) ELSE 1 END AS step
-            FROM numbered
-            GROUP BY unit
+                   round(od_reading, 7) AS y
+            FROM raw_od_readings INDEXED BY raw_od_readings_ix
+            WHERE experiment=? AND timestamp > ?
+        ), stats AS (
+            SELECT pioreactor_unit,
+                   channel,
+                   CASE WHEN ? > 0 THEN MAX(1, CAST((COUNT(*) + ? - 1) / ? AS INT)) ELSE 1 END AS step
+            FROM filtered
+            GROUP BY pioreactor_unit, channel
         )
         SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
         FROM (
-            SELECT numbered.unit,
-                   json_group_array(json_object('x', timestamp, 'y', round(y, 7))) AS series_data
-            FROM numbered
-            JOIN steps USING (unit)
-            WHERE (rn % step) = 0
-            GROUP BY numbered.unit
+            SELECT (pioreactor_unit || '-' || channel) AS unit,
+                   json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
+            FROM filtered
+            JOIN stats USING (pioreactor_unit, channel)
+            WHERE (abs(random()) % step) = 0
+            GROUP BY pioreactor_unit, channel
         );
         """,
-        (experiment, f"-{lookback} hours", target_points, target_points, target_points),
+        (experiment, cutoff_timestamp, target_points, target_points, target_points),
         one=True,
     )
 
@@ -921,37 +915,40 @@ def get_growth_rates_per_unit(pioreactor_unit: str, experiment: str) -> Response
     if not target_points or target_points <= 0:
         abort(400, "target_points must be > 0")
 
+    cutoff_timestamp = format_utc_timestamp_for_lookback_hours(lookback)
+
     growth_rates = query_app_db(
         """
-        WITH numbered AS (
-            SELECT unit,
+        WITH filtered AS (
+            SELECT pioreactor_unit,
                    timestamp,
-                   y,
-                   ROW_NUMBER() OVER (PARTITION BY unit ORDER BY timestamp) AS rn
-            FROM (
-                SELECT pioreactor_unit AS unit,
-                       timestamp,
-                       rate AS y
-                FROM growth_rates
-                WHERE experiment=? AND pioreactor_unit=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', ?)
-            )
-        ), steps AS (
-            SELECT unit,
-                   CASE WHEN ? > 0 THEN MAX(1, CAST((MAX(rn) + ? - 1) / ? AS INT)) ELSE 1 END AS step
-            FROM numbered
-            GROUP BY unit
+                   round(rate, 5) AS y
+            FROM growth_rates INDEXED BY growth_rates_ix
+            WHERE experiment=? AND pioreactor_unit=? AND timestamp > ?
+        ), stats AS (
+            SELECT pioreactor_unit,
+                   CASE WHEN ? > 0 THEN MAX(1, CAST((COUNT(*) + ? - 1) / ? AS INT)) ELSE 1 END AS step
+            FROM filtered
+            GROUP BY pioreactor_unit
         )
         SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
         FROM (
-            SELECT numbered.unit,
-                   json_group_array(json_object('x', timestamp, 'y', round(y, 5))) AS series_data
-            FROM numbered
-            JOIN steps USING (unit)
-            WHERE (rn % step) = 0
-            GROUP BY numbered.unit
+            SELECT pioreactor_unit AS unit,
+                   json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
+            FROM filtered
+            JOIN stats USING (pioreactor_unit)
+            WHERE (abs(random()) % step) = 0
+            GROUP BY pioreactor_unit
         );
         """,
-        (experiment, pioreactor_unit, f"-{lookback} hours", target_points, target_points, target_points),
+        (
+            experiment,
+            pioreactor_unit,
+            cutoff_timestamp,
+            target_points,
+            target_points,
+            target_points,
+        ),
         one=True,
     )
 
@@ -1019,37 +1016,40 @@ def get_od_readings_filtered_per_unit(pioreactor_unit: str, experiment: str) -> 
     if not target_points or target_points <= 0:
         abort(400, "target_points must be > 0")
 
+    cutoff_timestamp = format_utc_timestamp_for_lookback_hours(lookback)
+
     filtered_od_readings = query_app_db(
         """
-        WITH numbered AS (
-            SELECT unit,
+        WITH filtered AS (
+            SELECT pioreactor_unit,
                    timestamp,
-                   y,
-                   ROW_NUMBER() OVER (PARTITION BY unit ORDER BY timestamp) AS rn
-            FROM (
-                SELECT pioreactor_unit AS unit,
-                       timestamp,
-                       normalized_od_reading AS y
-                FROM od_readings_filtered
-                WHERE experiment=? AND pioreactor_unit=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW', ?)
-            )
-        ), steps AS (
-            SELECT unit,
-                   CASE WHEN ? > 0 THEN MAX(1, CAST((MAX(rn) + ? - 1) / ? AS INT)) ELSE 1 END AS step
-            FROM numbered
-            GROUP BY unit
+                   round(normalized_od_reading, 7) AS y
+            FROM od_readings_filtered INDEXED BY od_readings_filtered_ix
+            WHERE experiment=? AND pioreactor_unit=? AND timestamp > ?
+        ), stats AS (
+            SELECT pioreactor_unit,
+                   CASE WHEN ? > 0 THEN MAX(1, CAST((COUNT(*) + ? - 1) / ? AS INT)) ELSE 1 END AS step
+            FROM filtered
+            GROUP BY pioreactor_unit
         )
         SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
         FROM (
-            SELECT numbered.unit,
-                   json_group_array(json_object('x', timestamp, 'y', round(y, 7))) AS series_data
-            FROM numbered
-            JOIN steps USING (unit)
-            WHERE (rn % step) = 0
-            GROUP BY numbered.unit
+            SELECT pioreactor_unit AS unit,
+                   json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
+            FROM filtered
+            JOIN stats USING (pioreactor_unit)
+            WHERE (abs(random()) % step) = 0
+            GROUP BY pioreactor_unit
         );
         """,
-        (experiment, pioreactor_unit, f"-{lookback} hours", target_points, target_points, target_points),
+        (
+            experiment,
+            pioreactor_unit,
+            cutoff_timestamp,
+            target_points,
+            target_points,
+            target_points,
+        ),
         one=True,
     )
 
@@ -1065,37 +1065,35 @@ def get_od_readings_per_unit(pioreactor_unit: str, experiment: str) -> ResponseR
     if not target_points or target_points <= 0:
         abort(400, "target_points must be > 0")
 
+    cutoff_timestamp = format_utc_timestamp_for_lookback_hours(lookback)
+
     raw_od_readings = query_app_db(
         """
-        WITH numbered AS (
-            SELECT unit,
+        WITH filtered AS (
+            SELECT pioreactor_unit,
+                   channel,
                    timestamp,
-                   y,
-                   ROW_NUMBER() OVER (PARTITION BY unit ORDER BY timestamp) AS rn
-            FROM (
-                SELECT (pioreactor_unit || '-' || channel) AS unit,
-                       timestamp,
-                       od_reading AS y
-                FROM od_readings
-                WHERE experiment=? AND pioreactor_unit=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW',  ?)
-            )
-        ), steps AS (
-            SELECT unit,
-                   CASE WHEN ? > 0 THEN MAX(1, CAST((MAX(rn) + ? - 1) / ? AS INT)) ELSE 1 END AS step
-            FROM numbered
-            GROUP BY unit
+                   round(od_reading, 7) AS y
+            FROM od_readings INDEXED BY od_readings_ix_unit_channel_ts
+            WHERE experiment=? AND pioreactor_unit=? AND timestamp > ?
+        ), stats AS (
+            SELECT pioreactor_unit,
+                   channel,
+                   CASE WHEN ? > 0 THEN MAX(1, CAST((COUNT(*) + ? - 1) / ? AS INT)) ELSE 1 END AS step
+            FROM filtered
+            GROUP BY pioreactor_unit, channel
         )
         SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
         FROM (
-            SELECT numbered.unit,
-                   json_group_array(json_object('x', timestamp, 'y', round(y, 7))) AS series_data
-            FROM numbered
-            JOIN steps USING (unit)
-            WHERE (rn % step) = 0
-            GROUP BY numbered.unit
+            SELECT (pioreactor_unit || '-' || channel) AS unit,
+                   json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
+            FROM filtered
+            JOIN stats USING (pioreactor_unit, channel)
+            WHERE (abs(random()) % step) = 0
+            GROUP BY pioreactor_unit, channel
         );
         """,
-        (experiment, pioreactor_unit, f"-{lookback} hours", target_points, target_points, target_points),
+        (experiment, pioreactor_unit, cutoff_timestamp, target_points, target_points, target_points),
         one=True,
     )
 
@@ -1114,37 +1112,35 @@ def get_od_raw_readings_per_unit(pioreactor_unit: str, experiment: str) -> Respo
     if not target_points or target_points <= 0:
         abort(400, "target_points must be > 0")
 
+    cutoff_timestamp = format_utc_timestamp_for_lookback_hours(lookback)
+
     raw_od_readings = query_app_db(
         """
-        WITH numbered AS (
-            SELECT unit,
+        WITH filtered AS (
+            SELECT pioreactor_unit,
+                   channel,
                    timestamp,
-                   y,
-                   ROW_NUMBER() OVER (PARTITION BY unit ORDER BY timestamp) AS rn
-            FROM (
-                SELECT (pioreactor_unit || '-' || channel) AS unit,
-                       timestamp,
-                       od_reading AS y
-                FROM raw_od_readings
-                WHERE experiment=? AND pioreactor_unit=? AND timestamp > STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW',  ?)
-            )
-        ), steps AS (
-            SELECT unit,
-                   CASE WHEN ? > 0 THEN MAX(1, CAST((MAX(rn) + ? - 1) / ? AS INT)) ELSE 1 END AS step
-            FROM numbered
-            GROUP BY unit
+                   round(od_reading, 7) AS y
+            FROM raw_od_readings INDEXED BY raw_od_readings_ix
+            WHERE experiment=? AND pioreactor_unit=? AND timestamp > ?
+        ), stats AS (
+            SELECT pioreactor_unit,
+                   channel,
+                   CASE WHEN ? > 0 THEN MAX(1, CAST((COUNT(*) + ? - 1) / ? AS INT)) ELSE 1 END AS step
+            FROM filtered
+            GROUP BY pioreactor_unit, channel
         )
         SELECT json_object('series', json_group_array(unit), 'data', json_group_array(json(series_data))) AS json
         FROM (
-            SELECT numbered.unit,
-                   json_group_array(json_object('x', timestamp, 'y', round(y, 7))) AS series_data
-            FROM numbered
-            JOIN steps USING (unit)
-            WHERE (rn % step) = 0
-            GROUP BY numbered.unit
+            SELECT (pioreactor_unit || '-' || channel) AS unit,
+                   json_group_array(json_object('x', timestamp, 'y', y)) AS series_data
+            FROM filtered
+            JOIN stats USING (pioreactor_unit, channel)
+            WHERE (abs(random()) % step) = 0
+            GROUP BY pioreactor_unit, channel
         );
         """,
-        (experiment, pioreactor_unit, f"-{lookback} hours", target_points, target_points, target_points),
+        (experiment, pioreactor_unit, cutoff_timestamp, target_points, target_points, target_points),
         one=True,
     )
 
