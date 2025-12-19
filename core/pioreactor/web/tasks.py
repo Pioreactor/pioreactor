@@ -391,7 +391,7 @@ def import_dot_pioreactor_archive(uploaded_zip_path: str) -> bool:
     archive_path = Path(uploaded_zip_path)
     base_dir = Path(os.environ["DOT_PIOREACTOR"]).resolve()
     extraction_root = Path(mkdtemp(prefix="dot_pioreactor_import_"))
-    backup_dir = Path("/tmp") / f"{hostname}_dot_pioreactor_backup_{current_utc_timestamp()}"
+    backup_dir = Path(os.environ["TMPDIR"]) / f"{hostname}_dot_pioreactor_backup_{current_utc_timestamp()}"
 
     def log(level: str, message: str) -> None:
         getattr(logger, level.lower())(message)

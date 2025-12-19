@@ -831,7 +831,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
       return
     }
 
-    fetch(`/api/workers/${unit}/configuration`).then((response) => {
+    fetch(`/api/units/${unit}/configuration`).then((response) => {
       if (!response.ok) {
         return response.json().then((errorData) => {
           console.log(errorData)

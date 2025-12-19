@@ -344,7 +344,7 @@ def update_job_on_unit(pioreactor_unit: str, job: str, experiment: str) -> Respo
     ----------
 
     ```
-     curl -X PATCH "http://localhost:4999/api/workers/pio01/experiments/Exp001/jobs/stirring/update" \
+     curl -X PATCH "http://localhost:4999/api/workers/pio01/jobs/update/job_name/stirring/experiments/Exp001" \
      -H "Content-Type: application/json" \
      -d '{
            "settings": {
@@ -555,11 +555,11 @@ def get_system_logs_for_unit(pioreactor_unit: str) -> ResponseReturnValue:
     recent_logs = query_app_db(
         f"""SELECT l.timestamp, l.level, l.pioreactor_unit, l.message, l.task, l.experiment
             FROM logs AS l
-            WHERE (l.experiment="$experiment")
+            WHERE (l.experiment=?)
                 AND (l.pioreactor_unit=? or l.pioreactor_unit=?)
                 AND {level_filter}
             ORDER BY l.timestamp DESC LIMIT 100 OFFSET ?;""",
-        (pioreactor_unit, UNIVERSAL_IDENTIFIER, *level_params, skip),
+        (UNIVERSAL_EXPERIMENT, pioreactor_unit, UNIVERSAL_IDENTIFIER, *level_params, skip),
     )
 
     return jsonify(recent_logs)
@@ -679,7 +679,7 @@ def get_temperature_readings(experiment: str) -> ResponseReturnValue:
     lookback = float(args.get("lookback", 4.0))
     target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
-        abort(404, "target_points must be > 0")
+        abort(400, "target_points must be > 0")
 
     temperature_readings = query_app_db(
         """
@@ -726,7 +726,7 @@ def get_od_readings_filtered(experiment: str) -> ResponseReturnValue:
     lookback = float(args.get("lookback", 4.0))
     target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
-        abort(404, "target_points must be > 0")
+        abort(400, "target_points must be > 0")
 
     filtered_od_readings = query_app_db(
         """
@@ -773,7 +773,7 @@ def get_od_readings(experiment: str) -> ResponseReturnValue:
     lookback = float(args.get("lookback", 4.0))
     target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
-        abort(404, "target_points must be > 0")
+        abort(400, "target_points must be > 0")
 
     raw_od_readings = query_app_db(
         """
@@ -820,7 +820,7 @@ def get_od_raw_readings(experiment: str) -> ResponseReturnValue:
     lookback = float(args.get("lookback", 4.0))
     target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
-        abort(404, "target_points must be > 0")
+        abort(400, "target_points must be > 0")
 
     raw_od_readings = query_app_db(
         """
@@ -866,7 +866,7 @@ def get_fallback_time_series(experiment: str, data_source: str, column: str) -> 
     lookback = float(args.get("lookback", 4.0))
     target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
-        abort(404, "target_points must be > 0")
+        abort(400, "target_points must be > 0")
 
     try:
         data_source = scrub_to_valid(data_source)
@@ -919,7 +919,7 @@ def get_growth_rates_per_unit(pioreactor_unit: str, experiment: str) -> Response
     lookback = float(args.get("lookback", 4.0))
     target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
-        abort(404, "target_points must be > 0")
+        abort(400, "target_points must be > 0")
 
     growth_rates = query_app_db(
         """
@@ -968,7 +968,7 @@ def get_temperature_readings_per_unit(pioreactor_unit: str, experiment: str) -> 
     lookback = float(args.get("lookback", 4.0))
     target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
-        abort(404, "target_points must be > 0")
+        abort(400, "target_points must be > 0")
 
     temperature_readings = query_app_db(
         """
@@ -1017,7 +1017,7 @@ def get_od_readings_filtered_per_unit(pioreactor_unit: str, experiment: str) -> 
     lookback = float(args.get("lookback", 4.0))
     target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
-        abort(404, "target_points must be > 0")
+        abort(400, "target_points must be > 0")
 
     filtered_od_readings = query_app_db(
         """
@@ -1063,7 +1063,7 @@ def get_od_readings_per_unit(pioreactor_unit: str, experiment: str) -> ResponseR
     lookback = float(args.get("lookback", 4.0))
     target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
-        abort(404, "target_points must be > 0")
+        abort(400, "target_points must be > 0")
 
     raw_od_readings = query_app_db(
         """
@@ -1112,7 +1112,7 @@ def get_od_raw_readings_per_unit(pioreactor_unit: str, experiment: str) -> Respo
     lookback = float(args.get("lookback", 4.0))
     target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
-        abort(404, "target_points must be > 0")
+        abort(400, "target_points must be > 0")
 
     raw_od_readings = query_app_db(
         """
@@ -1163,7 +1163,7 @@ def get_fallback_time_series_per_unit(
     lookback = float(args.get("lookback", 4.0))
     target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
-        abort(404, "target_points must be > 0")
+        abort(400, "target_points must be > 0")
 
     try:
         data_source = scrub_to_valid(data_source)
@@ -2055,7 +2055,6 @@ def get_experiment(experiment: str) -> ResponseReturnValue:
 
 
 @api_bp.route("/units/<pioreactor_unit>/configuration", methods=["GET"])
-@api_bp.route("/workers/<pioreactor_unit>/configuration", methods=["GET"])
 def get_configuration_for_pioreactor_unit(pioreactor_unit: str) -> ResponseReturnValue:
     """get configuration for a pioreactor unit"""
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
@@ -2093,7 +2092,7 @@ def get_config(filename: str) -> ResponseReturnValue:
 
     try:
         if Path(filename).suffix != ".ini":
-            abort(404, "Must be a .ini file")
+            abort(400, "Must be a .ini file")
 
         specific_config_path = Path(os.environ["DOT_PIOREACTOR"]) / filename
 
@@ -2315,12 +2314,12 @@ def create_experiment_profile() -> ResponseReturnValue:
     # verify file
     try:
         if not is_valid_unix_filename(experiment_profile_filename):
-            abort(404, "Not valid unix name")
+            abort(400, "Not valid unix name")
 
         if not (
             experiment_profile_filename.endswith(".yaml") or experiment_profile_filename.endswith(".yml")
         ):
-            abort(404, "must end in .yaml")
+            abort(400, "must end in .yaml")
 
     except Exception:
         msg = "Invalid filename"
@@ -2358,12 +2357,12 @@ def update_experiment_profile() -> ResponseReturnValue:
     # verify file - user could have provided a different filename so we still check this.
     try:
         if not is_valid_unix_filename(experiment_profile_filename):
-            abort(404, "not valid unix filename")
+            abort(400, "not valid unix filename")
 
         if not (
             experiment_profile_filename.endswith(".yaml") or experiment_profile_filename.endswith(".yml")
         ):
-            abort(404, "must end in .yaml")
+            abort(400, "must end in .yaml")
 
     except Exception as e:
         # publish_to_error_log(msg, "create_experiment_profile")

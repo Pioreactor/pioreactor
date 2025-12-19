@@ -153,10 +153,16 @@ def shutdown() -> DelayedResponseReturnValue:
 
 @unit_api_bp.route("/system/remove_file", methods=["POST", "PATCH"])
 def remove_file() -> DelayedResponseReturnValue:
+    disallow_file = Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_FILE_SYSTEM"
+    if os.path.isfile(disallow_file):
+        publish_to_error_log(f"Delete blocked because {disallow_file} is present", task_name)
+        abort(403, "DISALLOW_UI_FILE_SYSTEM is present")
+
+
     # use filepath in body
     body = request.get_json()
 
-    if not (body["filepath"].startswith("/home/pioreactor") or body["filepath"].startswith("/tmp")):
+    if not (body["filepath"].startswith("/home/pioreactor")):
         abort(403, "Access to this path is not allowed")
 
     task = tasks.rm(body["filepath"])

@@ -186,6 +186,42 @@ def test_get_growth_rates(client) -> None:
     assert 0.025 in rates
 
 
+def test_get_system_logs_filters_universal_experiment(client) -> None:
+    from pioreactor.web.app import modify_app_db
+    from pioreactor.whoami import UNIVERSAL_EXPERIMENT
+
+    modify_app_db(
+        "INSERT INTO logs (experiment, pioreactor_unit, timestamp, message, source, level, task) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (
+            UNIVERSAL_EXPERIMENT,
+            "unit1",
+            "2023-10-04T12:00:00Z",
+            "System event logged",
+            "system",
+            "INFO",
+            "system",
+        ),
+    )
+
+    response = client.get("/api/units/unit1/system_logs")
+    assert response.status_code == 200
+    data = response.get_json()
+    assert any(row["message"] == "System event logged" for row in data)
+    assert all(row["experiment"] == UNIVERSAL_EXPERIMENT for row in data)
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/experiments/exp1/time_series/temperature_readings",
+        "/api/workers/unit1/experiments/exp1/time_series/temperature_readings",
+    ],
+)
+def test_time_series_target_points_validation_returns_400(client, path: str) -> None:
+    response = client.get(f"{path}?target_points=0")
+    assert response.status_code == 400
+
+
 def test_create_experiment(client) -> None:
     # Create a new experiment
     response = client.post(
@@ -270,6 +306,27 @@ def test_404_for_unknown_api(client) -> None:
 
     response = client.get("/this-doesnt-exist")
     assert response.status_code == 404
+
+
+def test_get_config_rejects_non_ini(client) -> None:
+    response = client.get("/api/configs/not-a-config.txt")
+    assert response.status_code == 400
+
+
+def test_create_experiment_profile_invalid_filename_returns_400(client) -> None:
+    response = client.post(
+        "/api/contrib/experiment_profiles",
+        json={"body": "experiment_profile_name: demo", "filename": "bad?name.yaml"},
+    )
+    assert response.status_code == 400
+
+
+def test_update_experiment_profile_invalid_filename_returns_400(client) -> None:
+    response = client.patch(
+        "/api/contrib/experiment_profiles",
+        json={"body": "experiment_profile_name: demo", "filename": "bad?name.yaml"},
+    )
+    assert response.status_code == 400
 
 
 def test_broadcasting(client) -> None:
