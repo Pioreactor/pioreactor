@@ -153,19 +153,31 @@ def shutdown() -> DelayedResponseReturnValue:
 
 @unit_api_bp.route("/system/remove_file", methods=["POST", "PATCH"])
 def remove_file() -> DelayedResponseReturnValue:
+    task_name = "remove_file"
     disallow_file = Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_FILE_SYSTEM"
     if os.path.isfile(disallow_file):
         publish_to_error_log(f"Delete blocked because {disallow_file} is present", task_name)
         abort(403, "DISALLOW_UI_FILE_SYSTEM is present")
 
-
     # use filepath in body
-    body = request.get_json()
+    body = current_app.get_json(request.data) or {}
+    filepath = body.get("filepath")
+    if not filepath:
+        abort(400, "filepath field is required")
+    assert filepath is not None
 
-    if not (body["filepath"].startswith("/home/pioreactor")):
+    base_dir = Path(os.environ["DOT_PIOREACTOR"]).resolve()
+    candidate_path = Path(filepath).expanduser()
+    if not candidate_path.is_absolute():
+        candidate_path = (base_dir / candidate_path).resolve()
+    else:
+        candidate_path = candidate_path.resolve()
+    try:
+        candidate_path.relative_to(base_dir)
+    except ValueError:
         abort(403, "Access to this path is not allowed")
 
-    task = tasks.rm(body["filepath"])
+    task = tasks.rm(str(candidate_path))
     return create_task_response(task)
 
 
@@ -183,23 +195,23 @@ def get_clock_time():
 @unit_api_bp.route("/system/utc_clock", methods=["PATCH", "POST"])
 def set_clock_time() -> DelayedResponseReturnValue:  # type: ignore[return]
     if HOSTNAME == get_leader_hostname():
-        if request.get_json(silent=True):  # don't throw 415
-            data = request.json
-            new_time = data.get("utc_clock_time")
-            if not new_time:
-                abort(400, "utc_clock_time field is required")
+        data = request.get_json(silent=True)  # don't throw 415
+        if not data:
+            abort(400, "utc_clock_time field is required")
 
-            # validate the timestamp
-            try:
-                to_datetime(new_time)
-            except ValueError:
-                abort(400, "Invalid utc_clock_time format. Use ISO 8601.")
+        new_time = data.get("utc_clock_time")
+        if not new_time:
+            abort(400, "utc_clock_time field is required")
 
-            # Update the system clock (requires admin privileges)
-            t = tasks.update_clock(new_time)
-            return create_task_response(t)
-        else:
-            abort(404, "utc_clock_time field required")
+        # validate the timestamp
+        try:
+            to_datetime(new_time)
+        except ValueError:
+            abort(400, "Invalid utc_clock_time format. Use ISO 8601.")
+
+        # Update the system clock (requires admin privileges)
+        t = tasks.update_clock(new_time)
+        return create_task_response(t)
     else:
         # sync using chrony
         t = tasks.sync_clock()
@@ -401,7 +413,7 @@ def get_settings_for_a_specific_job(job_name: str) -> ResponseReturnValue:
     if settings:
         return jsonify({"settings": {s["setting"]: s["value"] for s in settings}})
     else:
-        return {"status": "error"}, 404
+        abort(404, "No settings found for job.")
 
 
 @unit_api_bp.route("/jobs/settings/job_name/<job_name>/setting/<setting>", methods=["GET"])
@@ -421,7 +433,7 @@ def get_specific_setting_for_a_job(job_name: str, setting: str) -> ResponseRetur
     if setting_metadata:
         return jsonify({setting_metadata["setting"]: setting_metadata["value"]})
     else:
-        return {"status": "error"}, 404
+        abort(404, "Setting not found.")
 
 
 @unit_api_bp.route("/jobs/settings/job_name/<job_name>", methods=["PATCH"])
@@ -480,7 +492,7 @@ def get_installed_plugins() -> ResponseReturnValue:
         status, msg = False, "Timed out."
 
     if not status:
-        return jsonify([]), 404
+        abort(404, msg)
     else:
         # sometimes an error from a plugin will be printed. We just want to last line, the json bit.
         _, _, plugins_as_json = msg.rpartition("\n")
@@ -488,7 +500,7 @@ def get_installed_plugins() -> ResponseReturnValue:
             Response(
                 response=plugins_as_json,
                 status=200,
-                mimetype="text/json",
+                mimetype="application/json",
             )
         )
 
@@ -910,6 +922,7 @@ def get_calibrations_by_device(device: str) -> ResponseReturnValue:
                 # first try to open it using our struct, but only to verify it.
                 cal = to_builtins(yaml_decode(file.read_bytes(), type=AllCalibrations))
                 cal["is_active"] = c.get(device) == cal["calibration_name"]
+                cal["pioreactor_unit"] = HOSTNAME
                 calibrations.append(cal)
             except Exception as e:
                 publish_to_error_log(f"Error reading {file.stem}: {e}", "get_calibrations_by_device")
@@ -930,6 +943,7 @@ def get_calibration(device: str, cal_name: str) -> ResponseReturnValue:
         try:
             cal = to_builtins(yaml_decode(calibration_path.read_bytes(), type=AllCalibrations))
             cal["is_active"] = c.get(device) == cal["calibration_name"]
+            cal["pioreactor_unit"] = HOSTNAME
             return attach_cache_control(jsonify(cal), max_age=10)
         except Exception as e:
             publish_to_error_log(f"Error reading {calibration_path.stem}: {e}", "get_calibration")

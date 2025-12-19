@@ -5,6 +5,10 @@
  - new events in the dosing_automation_events table & export detailing when dosing starts and stops.
  -
 
+#### Breaking changes
+
+ - Removed `/api/workers/<pioreactor_unit>/configuration`; use `/api/units/<pioreactor_unit>/configuration`.
+
 ### 25.12.10
 
 #### Enhancements
