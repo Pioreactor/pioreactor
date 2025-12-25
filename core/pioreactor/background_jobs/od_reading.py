@@ -212,17 +212,13 @@ class ADCReader(LoggerMixin):
                         timestamps[pd_channel][counter] = time_since_start()
                         aggregated_signals[pd_channel][counter] = self.adcs[pd_channel].read_from_channel()
 
-                sleep(
-                    max(
-                        0,
-                        -time_sampling_took_to_run()  # the time_sampling_took_to_run() reduces the variance by accounting for the duration of each sampling.
-                        + 0.25
-                        / (SAMPLES - 1)
-                        * (
-                            (counter * 0.618034) % 1
-                        ),  # this is to artificially jitter the samples, so that we observe less aliasing. That constant is phi.
-                    )
-                )
+                    dt = 0.25
+                    u = (counter * 0.618034) % 1  # [0,1)
+                    eps = (u - 0.5) * 2.0  # [-1,1)
+                    a = 0.2  # 20% dither
+                    target_sleep = dt * (1.0 + a * eps)  # [0.8*dt, 1.2*dt]
+
+                    sleep(max(0, -time_sampling_took_to_run() + target_sleep))
 
         if os.environ.get("DEBUG") is not None:
             self.logger.debug(f"TUNE STEP: {timestamps=}")
@@ -470,17 +466,13 @@ class ADCReader(LoggerMixin):
                                 pd_channel
                             ].read_from_channel()
 
-                    sleep(
-                        max(
-                            0,
-                            -time_sampling_took_to_run()  # the time_sampling_took_to_run() reduces the variance by accounting for the duration of each sampling.
-                            + 0.85
-                            / (self.oversampling_count - 1)  # aim for 0.85s per read
-                            * (
-                                (counter * 0.618034) % 1
-                            ),  # this is to artificially jitter the samples, so that we observe less aliasing. That constant is phi.
-                        )
-                    )
+                    dt = 0.85  # aim for 0.85s per read
+                    u = (counter * 0.618034) % 1  # [0,1)
+                    eps = (u - 0.5) * 2.0  # [-1,1)
+                    a = 0.2  # 20% dither
+                    target_sleep = dt * (1.0 + a * eps)  # [0.8*dt, 1.2*dt]
+
+                    sleep(max(0, -time_sampling_took_to_run() + target_sleep))
 
             batched_estimates_: PdChannelToVoltage = {}
 
