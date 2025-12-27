@@ -283,6 +283,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self._job_source = environ.get(
             "JOB_SOURCE", default="user"
         )  # ex: could be JOB_SOURCE=experiment_profile, or JOB_SOURCE=external_provider.
+        self._reconnect_callbacks_ready = False
 
         # why do we need two clients? Paho lib can't publish a message in a callback,
         # but this is critical to our usecase: listen for events, and fire a response (ex: state change)
@@ -356,6 +357,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         P.ready()
         C.on_ready() # default noop
         """
+        self._reconnect_callbacks_ready = True
         # setting READY should happen after we write to the job manager, since a job might do a long-running
         # task in on_ready, which delays writing to the db, which means `pio kill` might not see it.
         self.set_state(st.READY)
@@ -627,6 +629,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
             client.will_set(**last_will)  # type: ignore
 
         def reconnect_protocol(client: Client, userdata: t.Any, flags, rc: int, properties=None) -> None:
+            if not self._reconnect_callbacks_ready:
+                return
             self.logger.info("Sub client reconnected to the MQTT broker on leader.")
             self._publish_defined_settings_to_broker(self.published_settings)
             self._start_general_passive_listeners()
@@ -640,22 +644,14 @@ class _BackgroundJob(metaclass=PostInitCaller):
             last_will=last_will,
             keepalive=125,
             clean_session=False,  # this, in theory, will reconnect to old subs when we reconnect.
+            on_connect=reconnect_protocol,
+            on_disconnect=on_disconnect,
         )
         # we catch exceptions and report them in our software
         client.suppress_exceptions = True
 
-        # the client connects async, but we want it to be connected before adding
-        # our reconnect callback
-        for _ in range(200):
-            if not client.is_connected():
-                sleep(0.01)
-            else:
-                break
-
-        # these all are assigned _after_ connection is made:
+        # on_pre_connect runs on reconnects, so we can assign it after initial connect
         client.on_pre_connect = set_last_will  # type: ignore
-        client.on_connect = reconnect_protocol  # type: ignore
-        client.on_disconnect = on_disconnect
         return client
 
     def _on_mqtt_disconnect(self, client: Client, reason_code: int) -> None:

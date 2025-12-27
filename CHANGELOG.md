@@ -3,7 +3,7 @@
 #### Enhancements
 
  - new events in the dosing_automation_events table & export detailing when dosing starts and stops.
- -
+ - new query pattern for faster Experiment Overview chart loading. However, there is a random element to what data is displayed in a time series. Let me know if this is too distracting.
 
 #### Breaking changes
 
