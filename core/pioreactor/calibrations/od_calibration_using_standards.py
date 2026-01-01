@@ -44,6 +44,25 @@ def green(string: str) -> str:
     return style(string, fg="green")
 
 
+def info(message: str) -> None:
+    echo(style(message, fg="white"))
+
+
+def action(message: str) -> None:
+    echo(style(message, fg="cyan"))
+
+
+def action_block(lines: list[str]) -> None:
+    echo()
+    for line in lines:
+        action(line)
+    echo()
+
+
+def info_heading(message: str) -> None:
+    echo(style(message, fg="white", underline=True, bold=True))
+
+
 def red(string: str) -> str:
     return style(string, fg="red")
 
@@ -54,11 +73,11 @@ def introduction() -> None:
     logging.disable(logging.WARNING)
 
     clear()
-    echo(
+    info(
         """This routine will calibrate the current Pioreactor to (offline) OD600 readings using a set of standards. You'll need:
     1. A Pioreactor
     2. A set of OD600 standards in Pioreactor vials (at least 10 mL in each vial), each with a stirbar
-    3. One of the standards should be a blank (no cells, only media).
+    3. One of the standards should be a blank (no cells, only media). We'll record this last.
 """
     )
 
@@ -76,13 +95,13 @@ def get_name_from_user() -> str:
             ).strip()
 
             if name == "":
-                echo("Name cannot be empty")
+                echo(red("Name cannot be empty."))
                 continue
             elif name in cache:
-                if confirm(green("❗️ Name already exists. Do you wish to overwrite?")):
+                if confirm(green("❗️ Name already exists. Overwrite?")):
                     return name
             elif name == "current":
-                echo("Name cannot be `current`.")
+                echo(red("Name cannot be `current`."))
                 continue
             else:
                 return name
@@ -105,7 +124,7 @@ def get_metadata_from_user() -> tuple[pt.PdAngle, pt.PdChannel]:
 
     confirm(
         green(
-            f"Confirm using channel {pd_channel} with angle {config['od_config.photodiode_channel'][pd_channel]}° position in the Pioreactor"
+            f"Confirm using channel {pd_channel} with angle {config['od_config.photodiode_channel'][pd_channel]}° position in the Pioreactor?"
         ),
         abort=True,
         default=True,
@@ -114,20 +133,20 @@ def get_metadata_from_user() -> tuple[pt.PdAngle, pt.PdChannel]:
     return angle, pd_channel
 
 
-def setup_HDC_instructions() -> None:
+def setup_intial_instructions() -> None:
     click.clear()
-    click.echo(
-        """ Setting up:
-    1. Place first standard into Pioreactor, with a stir bar.
-"""
+    action_block(
+        ["Place first standard into Pioreactor, with a stir bar. This shouldn't be the blank standard."]
     )
+    while not click.confirm(green("Confirm vial is placed in Pioreactor?"), default=True):
+        pass
 
 
 def start_stirring():
-    while not confirm(green("Reading to start stirring?"), default=True, abort=True):
+    while not confirm(green("Ready to start stirring?"), default=True):
         pass
 
-    echo("Starting stirring and blocking until near target RPM...")
+    info("Starting stirring and blocking until near target RPM...")
 
     st = stirring(
         target_rpm=config.getfloat("stirring.config", "initial_target_rpm"),
@@ -181,7 +200,8 @@ def to_struct(
 def start_recording_standards(st: Stirrer, signal_channel):
     voltages = []
     od600_values = []
-    click.echo("Warming up OD...")
+
+    info("Warming up OD...")
 
     with start_od_reading(
         config["od_config.photodiode_channel"],
@@ -194,10 +214,7 @@ def start_recording_standards(st: Stirrer, signal_channel):
 
         def get_voltage_from_adc() -> float:
             od_readings1 = od_reader.record_from_adc()
-            print(od_readings1)
-
             od_readings2 = od_reader.record_from_adc()
-            print(od_readings2)
             assert od_readings1 is not None
             assert od_readings2 is not None
             return 0.5 * (od_readings1.ods[signal_channel].od + od_readings2.ods[signal_channel].od)
@@ -208,7 +225,6 @@ def start_recording_standards(st: Stirrer, signal_channel):
 
     while True:
         click.clear()
-        click.echo("Recording new standard.")
         standard_od = click.prompt(green("Enter OD600 measurement of current vial"), type=float)
         for i in range(4):
             click.echo(".", nl=False)
@@ -230,7 +246,7 @@ def start_recording_standards(st: Stirrer, signal_channel):
                 voltages,
                 title="OD Calibration (ongoing)",
                 x_min=0,
-                x_max=max(od600_values),
+                x_max=max(max(od600_values), 0.1),
                 x_label="OD600",
                 y_label="Voltage",
             )
@@ -239,14 +255,16 @@ def start_recording_standards(st: Stirrer, signal_channel):
         if not click.confirm(green("Record another OD600 standard?"), default=True):
             break
 
-        click.echo()
-        click.echo("Remove old vial.")
-        click.echo("Replace with new vial: confirm vial is dry and clean.")
-        click.echo()
+        action_block(
+            [
+                "Remove the old vial.",
+                "Place the next vial. Confirm it is dry and clean.",
+            ]
+        )
         while not click.confirm(green("Confirm vial is placed in Pioreactor?"), default=True):
             pass
         st.set_state(pt.JobState.READY)
-        click.echo("Starting stirring.")
+        info("Starting stirring.")
         st.block_until_rpm_is_close_to_target(abs_tolerance=120)
         sleep(1.0)
 
@@ -260,13 +278,19 @@ def start_recording_standards(st: Stirrer, signal_channel):
         x_label="OD600",
         y_label="Voltage",
     )
-    click.echo("Add media blank standard.")
-    od600_blank = click.prompt(green("What is the OD600 of your blank?"), type=float)
-    click.echo("Confirm blank vial outside is dry and clean. Place into Pioreactor.")
-    while not click.confirm(green("Continue?"), default=True):
+    action_block(["Add the media blank standard."])
+    while not click.confirm(green("Confirm blank vial is placed in Pioreactor?"), default=True):
         pass
 
+    od600_blank = click.prompt(green("Enter OD600 of your blank"), type=float)
+    for i in range(4):
+        click.echo(".", nl=False)
+        sleep(0.5)
+
+    click.echo(".", nl=False)
     voltages.append(get_voltage_from_adc())
+    click.echo(".", nl=False)
+
     od600_values.append(od600_blank)
 
     return od600_values, voltages
@@ -283,14 +307,14 @@ def run_od_calibration() -> structs.OD600Calibration:
         name = get_name_from_user()
 
         if any(is_pio_job_running(["stirring", "od_reading"])):
-            echo(red("Both Stirring and OD reading should be turned off."))
+            echo(red("Both stirring and OD reading should be turned off."))
             raise click.Abort()
 
         (
             angle,
             pd_channel,
         ) = get_metadata_from_user()
-        setup_HDC_instructions()
+        setup_intial_instructions()
 
         with start_stirring() as st:
             inferred_od600s, voltages = start_recording_standards(st, pd_channel)
@@ -313,12 +337,12 @@ def run_od_calibration() -> structs.OD600Calibration:
         while not cal.curve_data_:
             cal = utils.crunch_data_and_confirm_with_user(cal, initial_degree=3, weights=weights)
 
-        echo(style(f"Calibration curve for `{name}`", underline=True, bold=True))
-        echo(utils.curve_to_functional_form(cal.curve_type, cal.curve_data_))
+        info_heading(f"Calibration curve for `{name}`")
+        info(utils.curve_to_functional_form(cal.curve_type, cal.curve_data_))
         echo()
-        echo(style(f"Data for `{name}`", underline=True, bold=True))
+        info_heading(f"Data for `{name}`")
         print(format(encode(cal)).decode())  # decode to go from bytes -> str
         echo()
-        echo(f"Finished calibration of `{name}` ✅")
+        info(f"Finished calibration of `{name}` ✅")
 
         return cal

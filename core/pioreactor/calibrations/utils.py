@@ -129,6 +129,10 @@ def crunch_data_and_confirm_with_user(
     y, x = calibration.recorded_data["y"], calibration.recorded_data["x"]
     candidate_curve = calibration.curve_data_
 
+    if len(x) - 1 < initial_degree:
+        click.echo(f"Degree is too high for {len(x)} observed data points. Clamping degree to {len(x) - 1}")
+        initial_degree = len(x) - 1
+
     while True:
         click.clear()
 
@@ -157,7 +161,7 @@ def crunch_data_and_confirm_with_user(
                 f"""
 y: confirm curve
 q: exit
-d: choose a new degree for polynomial fit (currently {len(candidate_curve)-1})
+d: choose a new degree for polynomial fit (currently {len(candidate_curve) - 1})
 """
             ),
             type=click.Choice(["y", "q", "d"]),
@@ -173,4 +177,4 @@ d: choose a new degree for polynomial fit (currently {len(candidate_curve)-1})
                 raise ValueError("only poly supported")
 
         else:
-            return calibration
+            raise click.Abort()
