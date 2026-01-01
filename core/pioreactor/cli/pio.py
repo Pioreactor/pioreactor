@@ -45,6 +45,7 @@ def get_update_app_commands(
     repo: str,
     source: Optional[str],
     version: Optional[str],
+    no_deps: bool = False,
     defer_web_restart: bool = False,
 ) -> tuple[list[tuple[str, float]], str]:
     """Build the commands_and_priority list and return the installed version."""
@@ -112,9 +113,10 @@ def get_update_app_commands(
         cleaned_branch = quote(branch)
         cleaned_repo = quote(repo)
         version_installed = cleaned_branch
+        no_deps_flag = "--no-deps " if no_deps else ""
         commands_and_priority.append(
             (
-                f"/opt/pioreactor/venv/bin/pip install --force-reinstall --index-url https://piwheels.org/simple --extra-index-url https://pypi.org/simple "
+                f"/opt/pioreactor/venv/bin/pip install --force-reinstall {no_deps_flag}--index-url https://piwheels.org/simple --extra-index-url https://pypi.org/simple "
                 f'"pioreactor[leader_worker] @ git+https://github.com/{cleaned_repo}.git@{cleaned_branch}#subdirectory=core"',
                 1,
             )  # noqa: E501
@@ -687,6 +689,12 @@ def get_tag_to_install(repo: str, version_desired: Optional[str]) -> str:
 @update.command(name="app")
 @click.option("-b", "--branch", help="install from a branch on github")
 @click.option(
+    "--no-deps",
+    is_flag=True,
+    default=False,
+    help="skip dependency resolution for branch updates",
+)
+@click.option(
     "-r",
     "--repo",
     help="install from a repo on github. Format: 'username/project'",
@@ -702,6 +710,7 @@ def get_tag_to_install(repo: str, version_desired: Optional[str]) -> str:
 )
 def update_app(
     branch: Optional[str],
+    no_deps: bool,
     repo: str,
     source: Optional[str],
     version: Optional[str],
@@ -713,7 +722,12 @@ def update_app(
     # initialize logger and build commands based on input parameters
     logger = create_logger("update_app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT)
     commands_and_priority, version_installed = get_update_app_commands(
-        branch, repo, source, version, defer_web_restart=defer_web_restart
+        branch,
+        repo,
+        source,
+        version,
+        no_deps=no_deps,
+        defer_web_restart=defer_web_restart,
     )
 
     for command, _ in sorted(commands_and_priority, key=lambda t: t[1]):

@@ -388,6 +388,12 @@ if am_I_leader() or is_testing_env():
     @pios.group(invoke_without_command=True)
     @click.option("-s", "--source", help="use a release-***.zip already on the workers")
     @click.option("-b", "--branch", help="specify a branch in repos")
+    @click.option(
+        "--no-deps",
+        is_flag=True,
+        default=False,
+        help="skip dependency resolution for branch updates",
+    )
     @which_units
     @confirmation
     @json_output
@@ -396,6 +402,7 @@ if am_I_leader() or is_testing_env():
         ctx,
         source: str | None,
         branch: str | None,
+        no_deps: bool,
         units: tuple[str, ...],
         experiments: tuple[str, ...],
         yes: bool,
@@ -422,6 +429,10 @@ if am_I_leader() or is_testing_env():
             elif source is not None:
                 options["source"] = source
                 args = f"--source {source}"
+
+            if no_deps:
+                options["no_deps"] = None
+                args = f"{args} --no-deps".strip()
 
             def _thread_function(unit: str) -> tuple[bool, dict]:
                 try:
@@ -456,6 +467,12 @@ if am_I_leader() or is_testing_env():
     @update.command(name="app", short_help="update Pioreactor app on workers")
     @click.option("-b", "--branch", help="update to the github branch")
     @click.option(
+        "--no-deps",
+        is_flag=True,
+        default=False,
+        help="skip dependency resolution for branch updates",
+    )
+    @click.option(
         "-r",
         "--repo",
         help="install from a repo on github. Format: username/project",
@@ -467,6 +484,7 @@ if am_I_leader() or is_testing_env():
     @json_output
     def update_app(
         branch: str | None,
+        no_deps: bool,
         repo: str | None,
         version: str | None,
         source: str | None,
@@ -503,6 +521,10 @@ if am_I_leader() or is_testing_env():
         elif source is not None:
             options["source"] = source
             args = f"--source {source}"
+
+        if no_deps:
+            options["no_deps"] = None
+            args = f"{args} --no-deps".strip()
 
         if repo is not None:
             options["repo"] = repo

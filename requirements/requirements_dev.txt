@@ -2,6 +2,7 @@
 pytest
 pytest-timeout
 pytest-random-order
+pytest-cov
 numpy
 pre-commit
 pytest-mock
