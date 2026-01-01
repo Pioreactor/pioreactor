@@ -495,11 +495,6 @@ def job_remove(job_id: int | None, job_name: str | None) -> None:
             click.echo(f"No job found with job_id={job_id}.")
             return
 
-        is_running = bool(job[7])
-        if is_running:
-            click.echo("Job is still running. Stop it before removing the record.")
-            return
-
         removed = jm.remove_job(job_id)
 
     if removed:

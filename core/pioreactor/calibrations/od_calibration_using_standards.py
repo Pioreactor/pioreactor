@@ -127,7 +127,7 @@ def start_stirring():
     while not confirm(green("Reading to start stirring?"), default=True, abort=True):
         pass
 
-    echo("Starting stirring and blocking until near target RPM.")
+    echo("Starting stirring and blocking until near target RPM...")
 
     st = stirring(
         target_rpm=config.getfloat("stirring.config", "initial_target_rpm"),
@@ -181,7 +181,7 @@ def to_struct(
 def start_recording_standards(st: Stirrer, signal_channel):
     voltages = []
     od600_values = []
-    click.echo("Starting OD recordings.")
+    click.echo("Warming up OD...")
 
     with start_od_reading(
         config["od_config.photodiode_channel"],
@@ -194,7 +194,10 @@ def start_recording_standards(st: Stirrer, signal_channel):
 
         def get_voltage_from_adc() -> float:
             od_readings1 = od_reader.record_from_adc()
+            print(od_readings1)
+
             od_readings2 = od_reader.record_from_adc()
+            print(od_readings2)
             assert od_readings1 is not None
             assert od_readings2 is not None
             return 0.5 * (od_readings1.ods[signal_channel].od + od_readings2.ods[signal_channel].od)
