@@ -85,7 +85,7 @@ def get_name_from_user() -> str:
                 return name
 
 
-def get_metadata_from_user() -> tuple[pt.PdAngle, pt.PdChannel]:
+def get_metadata_from_user(target_device: str) -> dict[pt.PdChannel, pt.PdAngle]:
     if config.get("od_reading.config", "ir_led_intensity") == "auto":
         echo(
             red(
@@ -95,21 +95,43 @@ def get_metadata_from_user() -> tuple[pt.PdAngle, pt.PdChannel]:
         raise click.Abort()
 
     pd_channels = config["od_config.photodiode_channel"]
-    ref_channel = next((k for k, v in pd_channels.items() if v == REF_keyword), None)
-    if ref_channel is None:
+    ref_channels = [k for k, v in pd_channels.items() if v == REF_keyword]
+    if not ref_channels:
         raise ValueError("REF required for this calibration")
-    pd_channel = cast(pt.PdChannel, "1" if ref_channel == "2" else "2")
 
+    channel_angle_map: dict[pt.PdChannel, pt.PdAngle] = {}
+    for channel, angle in pd_channels.items():
+        if angle in (None, "", REF_keyword):
+            continue
+        channel_angle_map[cast(pt.PdChannel, channel)] = cast(pt.PdAngle, angle)
+
+    if not channel_angle_map:
+        raise ValueError("Need at least one non-REF PD channel for this calibration")
+
+    if target_device != "od":
+        target_angle = target_device.removeprefix("od")
+        channel_angle_map = {
+            channel: angle for channel, angle in channel_angle_map.items() if angle == target_angle
+        }
+        if not channel_angle_map:
+            echo(
+                red(
+                    f"No channels configured for angle {target_angle}°. Check [od_config.photodiode_channel]."
+                )
+            )
+            raise click.Abort()
+
+    channel_summary = ", ".join(
+        f"{channel}={angle}°"
+        for channel, angle in sorted(channel_angle_map.items(), key=lambda item: int(item[0]))
+    )
     confirm(
-        green(
-            f"Confirm using channel {pd_channel} with angle {config['od_config.photodiode_channel'][pd_channel]}° position in the Pioreactor?"
-        ),
+        green(f"Confirm using channels {channel_summary} in the Pioreactor?"),
         abort=True,
         default=True,
         prompt_suffix=": ",
     )
-    angle = cast(pt.PdAngle, config["od_config.photodiode_channel"][pd_channel])
-    return angle, pd_channel
+    return channel_angle_map
 
 
 def setup_intial_instructions() -> None:
@@ -174,9 +196,12 @@ def to_struct(
     return data_blob
 
 
-def start_recording_standards(st: Stirrer, signal_channel):
-    voltages = []
+def start_recording_standards(
+    st: Stirrer, channel_angle_map: dict[pt.PdChannel, pt.PdAngle]
+) -> tuple[list[pt.OD], dict[pt.PdChannel, list[pt.Voltage]]]:
+    voltages_by_channel: dict[pt.PdChannel, list[float]] = {channel: [] for channel in channel_angle_map}
     od600_values = []
+    signal_channels = sorted(channel_angle_map.keys(), key=int)
 
     info("Warming up OD...")
 
@@ -189,12 +214,15 @@ def start_recording_standards(st: Stirrer, signal_channel):
         calibration=False,
     ) as od_reader:
 
-        def get_voltage_from_adc() -> float:
+        def get_voltages_from_adc() -> dict[pt.PdChannel, pt.Voltage]:
             od_readings1 = od_reader.record_from_adc()
             od_readings2 = od_reader.record_from_adc()
             assert od_readings1 is not None
             assert od_readings2 is not None
-            return 0.5 * (od_readings1.ods[signal_channel].od + od_readings2.ods[signal_channel].od)
+            return {
+                channel: 0.5 * (od_readings1.ods[channel].od + od_readings2.ods[channel].od)
+                for channel in signal_channels
+            }
 
         for _ in range(3):
             # warm up
@@ -213,20 +241,21 @@ def start_recording_standards(st: Stirrer, signal_channel):
             sleep(0.5)
 
         click.echo(".", nl=False)
-        voltage = get_voltage_from_adc()
+        voltages = get_voltages_from_adc()
         click.echo(".", nl=False)
 
         od600_values.append(standard_od)
-        voltages.append(voltage)
+        for channel, voltage in voltages.items():
+            voltages_by_channel[channel].append(voltage)
 
         st.set_state(pt.JobState.SLEEPING)
 
-        for i in range(len(od600_values)):
+        for channel in signal_channels:
             click.clear()
             utils.plot_data(
                 od600_values,
-                voltages,
-                title="OD Calibration (ongoing)",
+                voltages_by_channel[channel],
+                title=f"OD Calibration (ongoing) - channel {channel} ({channel_angle_map[channel]}°)",
                 x_min=0,
                 x_max=max(max(od600_values), 0.1),
                 x_label="OD600",
@@ -252,16 +281,17 @@ def start_recording_standards(st: Stirrer, signal_channel):
         st.block_until_rpm_is_close_to_target(abs_tolerance=120)
         sleep(1.0)
 
-    click.clear()
-    utils.plot_data(
-        od600_values,
-        voltages,
-        title="OD Calibration (ongoing)",
-        x_min=0,
-        x_max=max(od600_values),
-        x_label="OD600",
-        y_label="Voltage",
-    )
+    for channel in signal_channels:
+        click.clear()
+        utils.plot_data(
+            od600_values,
+            voltages_by_channel[channel],
+            title=f"OD Calibration (ongoing) - channel {channel} ({channel_angle_map[channel]}°)",
+            x_min=0,
+            x_max=max(od600_values),
+            x_label="OD600",
+            y_label="Voltage",
+        )
     action_block(["Add the media blank standard."])
     while not click.confirm(
         green("Confirm blank vial is placed in Pioreactor?"),
@@ -276,19 +306,22 @@ def start_recording_standards(st: Stirrer, signal_channel):
         sleep(0.5)
 
     click.echo(".", nl=False)
-    voltages.append(get_voltage_from_adc())
+    blank_voltages = get_voltages_from_adc()
     click.echo(".", nl=False)
 
     od600_values.append(od600_blank)
 
-    return od600_values, voltages
+    for channel, voltage in blank_voltages.items():
+        voltages_by_channel[channel].append(voltage)
+
+    return od600_values, voltages_by_channel
 
 
-def run_od_calibration() -> structs.OD600Calibration:
+def run_od_calibration(target_device: str) -> list[structs.OD600Calibration]:
     unit = get_unit_name()
     experiment = get_testing_experiment_name()
-    curve_data_: list[float] = []
     curve_type = "poly"
+    calibrations: list[structs.OD600Calibration] = []
 
     with managed_lifecycle(unit, experiment, "od_calibration"):
         introduction()
@@ -298,39 +331,40 @@ def run_od_calibration() -> structs.OD600Calibration:
             echo(red("Both stirring and OD reading should be turned off."))
             raise click.Abort()
 
-        (
-            angle,
-            pd_channel,
-        ) = get_metadata_from_user()
+        channel_angle_map = get_metadata_from_user(target_device)
         setup_intial_instructions()
 
         with start_stirring() as st:
-            inferred_od600s, voltages = start_recording_standards(st, pd_channel)
+            inferred_od600s, voltages_by_channel = start_recording_standards(st, channel_angle_map)
 
-        cal = to_struct(
-            curve_data_,
-            curve_type,
-            voltages,
-            inferred_od600s,
-            angle,
-            name,
-            pd_channel,
-            unit,
-        )
+        for pd_channel, angle in sorted(channel_angle_map.items(), key=lambda item: int(item[0])):
+            curve_data_: list[float] = []
+            voltages = voltages_by_channel[pd_channel]
+            cal = to_struct(
+                curve_data_,
+                curve_type,
+                voltages,
+                inferred_od600s,
+                angle,
+                name,
+                pd_channel,
+                unit,
+            )
 
-        n = len(voltages)
-        weights = [1.0] * n
-        weights[0] = n / 2
+            n = len(voltages)
+            weights = [1.0] * n
+            weights[0] = n / 2
 
-        while not cal.curve_data_:
-            cal = utils.crunch_data_and_confirm_with_user(cal, initial_degree=3, weights=weights)
+            while not cal.curve_data_:
+                cal = utils.crunch_data_and_confirm_with_user(cal, initial_degree=3, weights=weights)
 
-        info_heading(f"Calibration curve for `{name}`")
-        info(utils.curve_to_functional_form(cal.curve_type, cal.curve_data_))
-        echo()
-        info_heading(f"Data for `{name}`")
-        print(format(encode(cal)).decode())  # decode to go from bytes -> str
-        echo()
-        info(f"Finished calibration of `{name}` ✅")
+            info_heading(f"Calibration curve for `{name}` (channel {pd_channel}, {angle}°)")
+            info(utils.curve_to_functional_form(cal.curve_type, cal.curve_data_))
+            echo()
+            info_heading(f"Data for `{name}` (channel {pd_channel}, {angle}°)")
+            print(format(encode(cal)).decode())  # decode to go from bytes -> str
+            echo()
+            info(f"Finished calibration of `{name}` for channel {pd_channel} ✅")
+            calibrations.append(cal)
 
-        return cal
+        return calibrations

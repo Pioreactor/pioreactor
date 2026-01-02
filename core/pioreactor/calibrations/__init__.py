@@ -29,6 +29,9 @@ ProtocolName = str
 calibration_protocols: dict[Device, dict[ProtocolName, Type[CalibrationProtocol]]] = defaultdict(dict)
 
 
+OD_DEVICES = ["od", "od45", "od90", "od135"]
+
+
 class CalibrationProtocol:
     protocol_name: ProtocolName
     target_device: Device | list[Device]
@@ -44,30 +47,34 @@ class CalibrationProtocol:
         else:
             raise ValueError("target_device must be a string or a list of strings")
 
-    def run(self, *args, **kwargs) -> structs.CalibrationBase:
+    def run(
+        self, target_device: str, *args, **kwargs
+    ) -> structs.CalibrationBase | list[structs.CalibrationBase]:
         raise NotImplementedError("Subclasses must implement this method.")
 
 
 class SingleVialODProtocol(CalibrationProtocol):
-    target_device = "od"
+    target_device = OD_DEVICES
     protocol_name = "single_vial"
     description = "Calibrate OD using a single vial"
 
-    def run(self, *args, **kwargs) -> structs.OD600Calibration:
+    def run(self, target_device: str, **kwargs) -> structs.OD600Calibration:
         from pioreactor.calibrations.od_calibration_single_vial import run_od_calibration
 
-        return run_od_calibration()
+        return run_od_calibration(target_device)
 
 
 class StandardsODProtocol(CalibrationProtocol):
-    target_device = "od"
+    target_device = OD_DEVICES
     protocol_name = "standards"
     description = "Calibrate OD using standards. Requires multiple vials"
 
-    def run(self, *args, **kwargs) -> structs.OD600Calibration:
+    def run(  # type: ignore
+        self, target_device: str, *args, **kwargs
+    ) -> structs.OD600Calibration | list[structs.OD600Calibration]:
         from pioreactor.calibrations.od_calibration_using_standards import run_od_calibration
 
-        return run_od_calibration()
+        return run_od_calibration(target_device)
 
 
 class DurationBasedPumpProtocol(CalibrationProtocol):
@@ -95,7 +102,7 @@ class DCBasedStirringProtocol(CalibrationProtocol):
 
 
 @overload
-def load_active_calibration(device: Literal["od"]) -> structs.ODCalibration | None:
+def load_active_calibration(device: Literal["od", "od45", "od90", "od135"]) -> structs.ODCalibration | None:
     pass
 
 

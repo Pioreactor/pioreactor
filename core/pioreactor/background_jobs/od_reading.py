@@ -706,6 +706,10 @@ class CachedCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
             return
 
         channel = calibration_data.pd_channel
+
+        if channel in self.models:
+            raise ValueError(f"Calibration model for channel {channel} already hydrated.")
+
         cal_type = calibration_data.calibration_type
         calibration_name = calibration_data.calibration_name
 
@@ -1337,7 +1341,7 @@ def start_od_reading(
     fake_data: bool = False,
     unit: pt.Unit | None = None,
     experiment: pt.Experiment | None = None,
-    calibration: bool | structs.ODCalibration | None = True,
+    calibration: bool | structs.ODCalibration | list[structs.ODCalibration] | None = True,
     ir_led_intensity: float | None = None,
 ) -> ODReader:
     """
@@ -1386,7 +1390,14 @@ def start_od_reading(
     calibration_transformer: CalibrationTransformerProtocol
     if calibration is True:
         calibration_transformer = CachedCalibrationTransformer()
-        calibration_transformer.hydate_models(load_active_calibration("od"))
+        for channel, angle in channel_angle_map.items():
+            active_calibration = load_active_calibration(f"od{angle}")  # type: ignore
+            if active_calibration is not None:
+                calibration_transformer.hydate_models(active_calibration)
+    elif isinstance(calibration, list):
+        calibration_transformer = CachedCalibrationTransformer()
+        for calibration_item in calibration:
+            calibration_transformer.hydate_models(calibration_item)
     elif isinstance(calibration, structs.CalibrationBase):
         calibration_transformer = CachedCalibrationTransformer()
         calibration_transformer.hydate_models(calibration)

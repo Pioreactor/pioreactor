@@ -71,12 +71,6 @@ make frontend-dev   # Run React dev server on 127.0.0.1:3000
   pytest core/tests/test_cli.py
   ```
 
- * To run just the web backend tests, use
-
-  ```bash
-  pytest core/tests/web/
-  ```
-
 ---
 
 ## Logging

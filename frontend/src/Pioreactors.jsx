@@ -681,7 +681,7 @@ function CalibrateDialog({ unit, experiment, odBlankReading, odBlankJobState, gr
    }
 
   const isGrowRateJobRunning = growthRateJobState === "ready";
-  const hasActiveODCalibration = "od" in (activeCalibrations || {});
+  const hasActiveODCalibration = Object.keys(activeCalibrations || {}).some((device) => device.startsWith("od"));
   const blankODButton = createUserButtonsBasedOnState(odBlankJobState, "od_blank", (isGrowRateJobRunning || hasActiveODCalibration));
 
   return (
