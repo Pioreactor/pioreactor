@@ -6,18 +6,9 @@ from typing import TypeVar
 
 import click
 from pioreactor import structs
-
-
-def green(string: str) -> str:
-    return click.style(string, fg="green")
-
-
-def red(string: str) -> str:
-    return click.style(string, fg="red")
-
-
-def bold(string: str) -> str:
-    return click.style(string, bold=True)
+from pioreactor.calibrations.cli_helpers import green
+from pioreactor.calibrations.cli_helpers import info
+from pioreactor.calibrations.cli_helpers import red
 
 
 def calculate_poly_curve_of_best_fit(
@@ -36,7 +27,7 @@ def calculate_poly_curve_of_best_fit(
     try:
         coefs = np.polyfit(x, y, deg=degree, w=weights)
     except Exception:
-        click.echo("Unable to fit.")
+        click.echo(red("Unable to fit."))
         coefs = np.zeros(degree)
 
     return coefs.tolist()
@@ -129,12 +120,12 @@ def crunch_data_and_confirm_with_user(
     y, x = calibration.recorded_data["y"], calibration.recorded_data["x"]
     candidate_curve = calibration.curve_data_
 
-    if len(x) - 1 < initial_degree:
-        click.echo(f"Degree is too high for {len(x)} observed data points. Clamping degree to {len(x) - 1}")
-        initial_degree = len(x) - 1
-
     while True:
         click.clear()
+
+        if len(x) - 1 < initial_degree:
+            info(f"Degree is too high for {len(x)} observed data points. Clamping degree to {len(x) - 1}")
+            initial_degree = len(x) - 1
 
         if (candidate_curve is None) or len(candidate_curve) == 0:
             if calibration.curve_type == "poly":
@@ -155,7 +146,7 @@ def crunch_data_and_confirm_with_user(
         )
         click.echo()
 
-        click.echo(f"Calibration curve: {curve_to_functional_form(calibration.curve_type, candidate_curve)}")
+        info(f"Calibration curve: {curve_to_functional_form(calibration.curve_type, candidate_curve)}")
         r = click.prompt(
             green(
                 f"""
@@ -165,13 +156,18 @@ d: choose a new degree for polynomial fit (currently {len(candidate_curve) - 1})
 """
             ),
             type=click.Choice(["y", "q", "d"]),
+            prompt_suffix=": ",
         )
         if r == "y":
             calibration.curve_data_ = candidate_curve
             return calibration
         elif r == "d":
             if calibration.curve_type == "poly":
-                degree = click.prompt(green("Enter new degree"), type=click.IntRange(1, 5, clamp=True))
+                degree = click.prompt(
+                    green("Enter new degree"),
+                    type=click.IntRange(1, 5, clamp=True),
+                    prompt_suffix=": ",
+                )
                 candidate_curve = calculate_poly_curve_of_best_fit(x, y, degree, weights)
             else:
                 raise ValueError("only poly supported")

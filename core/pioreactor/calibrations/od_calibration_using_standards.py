@@ -19,7 +19,6 @@ from click import clear
 from click import confirm
 from click import echo
 from click import prompt
-from click import style
 from msgspec.json import encode
 from msgspec.json import format
 from pioreactor import structs
@@ -29,6 +28,11 @@ from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.stirring import start_stirring as stirring
 from pioreactor.background_jobs.stirring import Stirrer
 from pioreactor.calibrations import utils
+from pioreactor.calibrations.cli_helpers import action_block
+from pioreactor.calibrations.cli_helpers import green
+from pioreactor.calibrations.cli_helpers import info
+from pioreactor.calibrations.cli_helpers import info_heading
+from pioreactor.calibrations.cli_helpers import red
 from pioreactor.config import config
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistent_storage
@@ -38,33 +42,6 @@ from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_testing_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
-
-
-def green(string: str) -> str:
-    return style(string, fg="green")
-
-
-def info(message: str) -> None:
-    echo(style(message, fg="white"))
-
-
-def action(message: str) -> None:
-    echo(style(message, fg="cyan"))
-
-
-def action_block(lines: list[str]) -> None:
-    echo()
-    for line in lines:
-        action(line)
-    echo()
-
-
-def info_heading(message: str) -> None:
-    echo(style(message, fg="white", underline=True, bold=True))
-
-
-def red(string: str) -> str:
-    return style(string, fg="red")
 
 
 def introduction() -> None:
@@ -92,13 +69,14 @@ def get_name_from_user() -> str:
                 type=str,
                 default=f"od-cal-{current_utc_datestamp()}",
                 show_default=False,
+                prompt_suffix=": ",
             ).strip()
 
             if name == "":
                 echo(red("Name cannot be empty."))
                 continue
             elif name in cache:
-                if confirm(green("❗️ Name already exists. Overwrite?")):
+                if confirm(green("❗️ Name already exists. Overwrite?"), prompt_suffix=": "):
                     return name
             elif name == "current":
                 echo(red("Name cannot be `current`."))
@@ -128,6 +106,7 @@ def get_metadata_from_user() -> tuple[pt.PdAngle, pt.PdChannel]:
         ),
         abort=True,
         default=True,
+        prompt_suffix=": ",
     )
     angle = cast(pt.PdAngle, config["od_config.photodiode_channel"][pd_channel])
     return angle, pd_channel
@@ -138,12 +117,12 @@ def setup_intial_instructions() -> None:
     action_block(
         ["Place first standard into Pioreactor, with a stir bar. This shouldn't be the blank standard."]
     )
-    while not click.confirm(green("Confirm vial is placed in Pioreactor?"), default=True):
+    while not click.confirm(green("Confirm vial is placed in Pioreactor?"), default=True, prompt_suffix=": "):
         pass
 
 
 def start_stirring():
-    while not confirm(green("Ready to start stirring?"), default=True):
+    while not confirm(green("Ready to start stirring?"), default=True, prompt_suffix=": "):
         pass
 
     info("Starting stirring and blocking until near target RPM...")
@@ -161,13 +140,11 @@ def choose_settings() -> float:
     config_rpm = config.getfloat("stirring", "initial_target_rpm")
 
     rpm = click.prompt(
-        click.style(
-            f"Optional: Enter RPM for stirring. [enter] for {config_rpm} RPM, default set in config.ini",
-            fg="green",
-        ),
+        green(f"Optional: Enter RPM for stirring. [enter] for {config_rpm} RPM, default set in config.ini"),
         type=click.FloatRange(0, 10000),
         default=config_rpm,
         show_default=False,
+        prompt_suffix=": ",
     )
     return rpm
 
@@ -225,7 +202,12 @@ def start_recording_standards(st: Stirrer, signal_channel):
 
     while True:
         click.clear()
-        standard_od = click.prompt(green("Enter OD600 measurement of current vial"), type=float)
+        standard_od = click.prompt(
+            green("Enter OD600 measurement of current vial"),
+            type=float,
+            prompt_suffix=":",
+        )
+        info("Taking OD reading of current vial...")
         for i in range(4):
             click.echo(".", nl=False)
             sleep(0.5)
@@ -252,7 +234,7 @@ def start_recording_standards(st: Stirrer, signal_channel):
             )
             click.echo()
 
-        if not click.confirm(green("Record another OD600 standard?"), default=True):
+        if not click.confirm(green("Record another OD600 standard?"), default=True, prompt_suffix=": "):
             break
 
         action_block(
@@ -261,10 +243,12 @@ def start_recording_standards(st: Stirrer, signal_channel):
                 "Place the next vial. Confirm it is dry and clean.",
             ]
         )
-        while not click.confirm(green("Confirm vial is placed in Pioreactor?"), default=True):
+        while not click.confirm(
+            green("Confirm vial is placed in Pioreactor?"), default=True, prompt_suffix=": "
+        ):
             pass
         st.set_state(pt.JobState.READY)
-        info("Starting stirring.")
+        info("Starting stirring...")
         st.block_until_rpm_is_close_to_target(abs_tolerance=120)
         sleep(1.0)
 
@@ -279,10 +263,14 @@ def start_recording_standards(st: Stirrer, signal_channel):
         y_label="Voltage",
     )
     action_block(["Add the media blank standard."])
-    while not click.confirm(green("Confirm blank vial is placed in Pioreactor?"), default=True):
+    while not click.confirm(
+        green("Confirm blank vial is placed in Pioreactor?"),
+        default=True,
+        prompt_suffix=": ",
+    ):
         pass
 
-    od600_blank = click.prompt(green("Enter OD600 of your blank"), type=float)
+    od600_blank = click.prompt(green("Enter OD600 of your blank"), type=float, prompt_suffix=":")
     for i in range(4):
         click.echo(".", nl=False)
         sleep(0.5)

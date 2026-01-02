@@ -11,7 +11,6 @@ from click import clear
 from click import confirm
 from click import echo
 from click import prompt
-from click import style
 from msgspec.json import encode
 from msgspec.json import format
 from pioreactor import structs
@@ -19,6 +18,11 @@ from pioreactor.actions.pump import add_alt_media
 from pioreactor.actions.pump import add_media
 from pioreactor.actions.pump import remove_waste
 from pioreactor.calibrations import list_of_calibrations_by_device
+from pioreactor.calibrations.cli_helpers import action_block
+from pioreactor.calibrations.cli_helpers import green
+from pioreactor.calibrations.cli_helpers import info
+from pioreactor.calibrations.cli_helpers import info_heading
+from pioreactor.calibrations.cli_helpers import red
 from pioreactor.calibrations.utils import curve_to_callable
 from pioreactor.config import config
 from pioreactor.hardware import voltage_in_aux
@@ -31,18 +35,6 @@ from pioreactor.utils.timing import current_utc_datestamp
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_testing_experiment_name
 from pioreactor.whoami import get_unit_name
-
-
-def green(string: str) -> str:
-    return style(string, fg="green")
-
-
-def red(string: str) -> str:
-    return style(string, fg="red")
-
-
-def bold(string: str) -> str:
-    return style(string, bold=True)
 
 
 def introduction(pump_device) -> None:
@@ -60,7 +52,8 @@ def introduction(pump_device) -> None:
         )
         raise Abort()
 
-    echo(
+    info_heading("Step 1")
+    info(
         f"""This routine will calibrate the {pump_device} on your current Pioreactor. You'll need:
 
     1. A Pioreactor
@@ -72,12 +65,12 @@ def introduction(pump_device) -> None:
 We will dose for a set duration, you'll measure how much volume was expelled, and then record it back here. After doing this a few times, we can construct a calibration curve for this pump.
 """
     )
-    confirm(green("Proceed?"), abort=True, default=True)
+    confirm(green("Proceed?"), abort=True, default=True, prompt_suffix=": ")
     clear()
-    echo(
+    info(
         "You don't need to place your vial in your Pioreactor. While performing this calibration, keep liquids away from the Pioreactor to keep it safe & dry"
     )
-    confirm(green("Proceed?"), abort=True, default=True)
+    confirm(green("Proceed?"), abort=True, default=True, prompt_suffix=": ")
     clear()
 
 
@@ -85,19 +78,19 @@ def get_metadata_from_user(pump_device: PumpCalibrationDevices) -> str:
     existing_calibrations = list_of_calibrations_by_device(pump_device)
     while True:
         name = prompt(
-            style(
-                f"Optional: Provide a name for this {pump_device} calibration. [enter] to use default name `{pump_device}-{current_utc_datestamp()}`",
-                fg="green",
+            green(
+                f"Optional: Provide a name for this {pump_device} calibration. [enter] to use default name `{pump_device}-{current_utc_datestamp()}`"
             ),
             type=str,
             default=f"{pump_device}-{current_utc_datestamp()}",
             show_default=False,
+            prompt_suffix=": ",
         ).strip()
         if name == "":
-            echo("Name cannot be empty")
+            echo(red("Name cannot be empty"))
             continue
         elif name in existing_calibrations:
-            if confirm(green("❗️ Name already exists. Do you wish to overwrite?")):
+            if confirm(green("❗️ Name already exists. Do you wish to overwrite?"), prompt_suffix=": "):
                 break
         else:
             break
@@ -111,29 +104,24 @@ def setup(
     channel_pump_is_configured_for = config.get("PWM_reverse", pump_device.removesuffix("_pump"))
 
     clear()
-    echo()
-    echo(green(bold("Step 2")))
-    echo("We need to prime the pump by filling the tubes completely with water.")
-    echo(
-        "1. From your Pioreactor vial, remove one of the female luer locks. Attach it to the end of the *sink tube*."
+    info_heading("Step 2")
+    info("We need to prime the pump by filling the tubes completely with water.")
+    action_block(
+        [
+            "From your Pioreactor vial, remove one of the female luer locks. Attach it to the end of the sink tube.",
+            "Fill a container with water.",
+            "Submerge both ends of the pump's tubes into the water.",
+            f"Make sure the pump's power is connected to PWM channel {channel_pump_is_configured_for}.",
+            "Run the pump continuously until the tubes are completely filled with water and there are no air pockets.",
+        ]
     )
-    echo("2. Fill a container with water.")
-    echo("3. Submerge both ends of the pump's tubes into the water.")
-    echo(
-        "Make sure the pump's power is connected to " + bold(f"PWM channel {channel_pump_is_configured_for}.")
-    )
-    echo(
-        "Run the pumps continuously until the tubes are completely filled with water and there are no air pockets in the tubes."
-    )
-    echo()
 
-    while not confirm(green("Ready to start pumping?")):
+    while not confirm(green("Ready to start pumping?"), prompt_suffix=": "):
         pass
-    echo()
-    echo(
-        bold(
+    action_block(
+        [
             "Press CTRL+C when the tubes are completely filled with water and there are no air pockets in the tubes."
-        )
+        ]
     )
 
     try:
@@ -166,10 +154,11 @@ def setup(
 def choose_settings() -> tuple[float, float]:
     clear()
     hz = prompt(
-        style(green("Optional: Enter frequency of PWM. [enter] for default 250 hz")),
+        green("Optional: Enter frequency of PWM. [enter] for default 250 Hz"),
         type=click.FloatRange(0.1, 10000),
         default=250,
         show_default=False,
+        prompt_suffix=": ",
     )
     dc = prompt(
         green(
@@ -178,6 +167,7 @@ def choose_settings() -> tuple[float, float]:
         type=click.IntRange(0, 100),
         default=100,
         show_default=False,
+        prompt_suffix=": ",
     )
 
     return hz, dc
@@ -212,9 +202,8 @@ def run_tests(
     execute_pump: Callable, hz: float, dc: float, unit: str, mls_to_calibrate_for: list[float]
 ) -> tuple[list[float], list[float], float, float]:
     clear()
-    echo()
-    echo(green(bold("Step 3")))
-    echo("Beginning tests.")
+    info_heading("Step 3")
+    info("Beginning tests.")
 
     empty_calibration = structs.SimplePeristalticPumpCalibration(
         calibration_name="_test",
@@ -230,12 +219,15 @@ def run_tests(
 
     tracer_duration = 1.0
 
-    echo("We will run the pump for a set amount of time, and you will measure how much liquid is expelled.")
-    echo("Use a small container placed on top of an accurate weighing scale.")
-    echo("Hold the end of the outflow tube above so the container catches the expelled liquid.")
-    echo()
+    info("We will run the pump for a set amount of time, and you will measure how much liquid is expelled.")
+    action_block(
+        [
+            "Use a small container placed on top of an accurate weighing scale.",
+            "Hold the end of the outflow tube above so the container catches the expelled liquid.",
+        ]
+    )
 
-    while not confirm(style(green(f"Ready to test {tracer_duration:.2f}s?"))):
+    while not confirm(green(f"Ready to test {tracer_duration:.2f}s?"), prompt_suffix=": "):
         pass
 
     execute_pump(
@@ -248,21 +240,20 @@ def run_tests(
 
     while True:
         r = prompt(
-            style(green("Enter amount of water expelled (g or ml), or REDO")),
-            confirmation_prompt=style(green("Repeat for confirmation")),
+            green("Enter amount of water expelled (g or ml), or REDO"),
+            confirmation_prompt=green("Repeat for confirmation"),
+            prompt_suffix=": ",
         )
         if r == "REDO":
             clear()
-            echo()
             continue
 
         try:
             tracer_ml = float(r)
             clear()
-            echo()
             break
         except ValueError:
-            echo(red("Not a number - retrying."))
+            echo(red("Not a number. Retrying."))
 
     # calculate min and max duration based on tracer_ml
     min_duration = min(mls_to_calibrate_for) * 0.8 / tracer_ml * tracer_duration
@@ -284,23 +275,19 @@ def run_tests(
                 )
 
             if i > 0:
-                echo()
-                echo("Remove the water from the measuring container or tare your weighing scale.")
+                action_block(["Remove the water from the measuring container or tare your weighing scale."])
 
-            echo(
+            info(
                 "We will run the pump for a set amount of time, and you will measure how much liquid is expelled."
             )
-            echo("Use a small container placed on top of an accurate weighing scale.")
-            echo("Hold the end of the outflow tube above so the container catches the expelled liquid.")
-            echo()
-            echo(
-                green(
-                    bold(
-                        f"Test {i+1} of {n_samples} [{'#' * (i+1) }{' ' * (n_samples - i - 1)}]",
-                    )
-                )
+            action_block(
+                [
+                    "Use a small container placed on top of an accurate weighing scale.",
+                    "Hold the end of the outflow tube above so the container catches the expelled liquid.",
+                ]
             )
-            while not confirm(style(green(f"Ready to test {duration:.1f}s?"))):
+            info(f"Test {i + 1} of {n_samples} [{'#' * (i + 1) }{' ' * (n_samples - i - 1)}]")
+            while not confirm(green(f"Ready to test {duration:.1f}s?"), prompt_suffix=": "):
                 pass
 
             execute_pump(
@@ -312,21 +299,20 @@ def run_tests(
             )
 
             r = prompt(
-                style(green("Enter amount of water expelled (g or ml), or REDO")),
-                confirmation_prompt=style(green("Repeat for confirmation")),
+                green("Enter amount of water expelled (g or ml), or REDO"),
+                confirmation_prompt=green("Repeat for confirmation"),
+                prompt_suffix=": ",
             )
             if r == "REDO":
                 clear()
-                echo()
                 continue
 
             try:
                 results.append(float(r))
                 clear()
-                echo()
                 break
             except ValueError:
-                echo(red("Not a number - retrying."))
+                echo(red("Not a number. Retrying."))
 
     return durations_to_test, results, min_duration, max_duration
 
@@ -365,13 +351,15 @@ def get_user_calibrations() -> list[float]:
         green("Enter the volume you wish to calibrate around (mL). [enter] to use default 1.0 ml"),
         default=1.0,
         type=float,
+        prompt_suffix=": ",
     )
     mls.append(float(r))
-    while click.confirm(green("Do you want to add another value?")):
+    while click.confirm(green("Do you want to add another value?"), prompt_suffix=": "):
         r = prompt(
             green("Enter another volume you wish to calibrate around (mL)"),
             default=1.0,
             type=float,
+            prompt_suffix=": ",
         )
         mls.append(float(r))
 
@@ -409,8 +397,8 @@ def run_pump_calibration(
             setup(pump_device, execute_pump, hz, dc, unit)
 
             settings_are_correct = not confirm(
-                style(green("Do you want to change the frequency or duty cycle?")),
-                prompt_suffix=" ",
+                green("Do you want to change the frequency or duty cycle?"),
+                prompt_suffix=": ",
                 default=False,
             )
 
@@ -446,15 +434,15 @@ def run_pump_calibration(
             unit=unit,
         )
         echo()
-        echo(style(f"Linear calibration curve for `{name}`", underline=True, bold=True))
+        info_heading(f"Linear calibration curve for `{name}`")
         echo()
-        echo(f"slope={slope:0.3f} ± {std_slope:0.3f}, bias={bias:0.3f} ± {std_bias:0.3f}")
+        info(f"slope={slope:0.3f} ± {std_slope:0.3f}, bias={bias:0.3f} ± {std_bias:0.3f}")
         echo()
-        echo(style(f"Data for `{name}`", underline=True, bold=True))
+        info_heading(f"Data for `{name}`")
         print(format(encode(data_blob)).decode())
         echo()
 
-        echo(
+        info(
             f"Calibration is best for volumes between {(slope * min_duration + bias):0.2f}mL to {(slope * max_duration + bias):0.2f}mL, but will be okay for outside this range too."
         )
 
@@ -464,5 +452,5 @@ def run_pump_calibration(
         if std_slope > 0.04:
             logger.warning("Too much uncertainty in slope - you probably want to rerun this calibration...")
 
-        echo(f"Finished {pump_device} calibration `{name}`.")
+        info(f"Finished {pump_device} calibration `{name}`.")
         return data_blob

@@ -13,7 +13,6 @@ from click import clear
 from click import confirm
 from click import echo
 from click import prompt
-from click import style
 from msgspec.json import encode
 from msgspec.json import format
 from pioreactor import structs
@@ -23,6 +22,11 @@ from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.stirring import start_stirring as stirring
 from pioreactor.background_jobs.stirring import Stirrer
 from pioreactor.calibrations import utils
+from pioreactor.calibrations.cli_helpers import action_block
+from pioreactor.calibrations.cli_helpers import green
+from pioreactor.calibrations.cli_helpers import info
+from pioreactor.calibrations.cli_helpers import info_heading
+from pioreactor.calibrations.cli_helpers import red
 from pioreactor.config import config
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistent_storage
@@ -34,25 +38,13 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
 
-def green(string: str) -> str:
-    return style(string, fg="green")
-
-
-def red(string: str) -> str:
-    return style(string, fg="red")
-
-
-def bold(string: str) -> str:
-    return style(string, bold=True)
-
-
 def introduction() -> None:
     import logging
 
     logging.disable(logging.WARNING)
 
     clear()
-    echo(
+    info(
         """This routine will calibrate the current Pioreactor to (offline) OD600 readings. You'll need:
     1. The Pioreactor you wish to calibrate (the one you are using)
     2. At least 10mL of a culture with the highest density you'll ever observe, and its OD600 measurement
@@ -73,16 +65,17 @@ def get_name_from_user() -> str:
                 type=str,
                 default=f"od-cal-{current_utc_datestamp()}",
                 show_default=False,
+                prompt_suffix=": ",
             ).strip()
 
             if name == "":
-                echo("Name cannot be empty")
+                echo(red("Name cannot be empty"))
                 continue
             elif name in cache:
-                if confirm(green("❗️ Name already exists. Do you wish to overwrite?")):
+                if confirm(green("❗️ Name already exists. Do you wish to overwrite?"), prompt_suffix=": "):
                     return name
             elif name == "current":
-                echo("Name cannot be `current`.")
+                echo(red("Name cannot be `current`."))
                 continue
             else:
                 return name
@@ -100,19 +93,24 @@ def get_metadata_from_user() -> tuple[pt.CalibratedOD, pt.CalibratedOD, pt.mL, p
     initial_od600 = prompt(
         green("Provide the OD600 measurement of your initial, high density, culture"),
         type=click.FloatRange(min=0.01, clamp=False),
+        prompt_suffix=": ",
     )
 
     minimum_od600 = prompt(
         green("Provide the minimum OD600 measurement you wish to calibrate to"),
         type=click.FloatRange(min=0, max=initial_od600, clamp=False),
+        prompt_suffix=": ",
     )
 
     while minimum_od600 >= initial_od600:
         minimum_od600 = cast(
             pt.CalibratedOD,
             prompt(
-                "The minimum OD600 measurement must be less than the initial OD600 culture measurement",
+                green(
+                    "The minimum OD600 measurement must be less than the initial OD600 culture measurement"
+                ),
                 type=click.FloatRange(min=0, max=initial_od600, clamp=False),
+                prompt_suffix=": ",
             ),
         )
 
@@ -123,13 +121,14 @@ def get_metadata_from_user() -> tuple[pt.CalibratedOD, pt.CalibratedOD, pt.mL, p
         green("Provide the volume to be added to your vial each iteration (default = 2 mL)"),
         default=2,
         type=click.FloatRange(min=0.01, max=10, clamp=False),
+        prompt_suffix=": ",
     )
 
     number_of_points = int(log2(initial_od600 / minimum_od600) * (10 / dilution_amount)) + 1
 
-    echo(f"This will require {number_of_points} data points.")
-    echo(f"You will need at least {number_of_points * dilution_amount + 10}mL of media available.")
-    confirm(green("Continue?"), abort=True, default=True)
+    info(f"This will require {number_of_points} data points.")
+    info(f"You will need at least {number_of_points * dilution_amount + 10}mL of media available.")
+    confirm(green("Continue?"), abort=True, default=True, prompt_suffix=": ")
 
     pd_channels = config["od_config.photodiode_channel"]
     ref_channel = next((k for k, v in pd_channels.items() if v == REF_keyword), None)
@@ -147,10 +146,11 @@ def get_metadata_from_user() -> tuple[pt.CalibratedOD, pt.CalibratedOD, pt.mL, p
 
     confirm(
         green(
-            f"Confirm using channel {pd_channel} with angle {config['od_config.photodiode_channel'][pd_channel]}° position in the Pioreactor"
+            f"Confirm using channel {pd_channel} with angle {config['od_config.photodiode_channel'][pd_channel]}° position in the Pioreactor?"
         ),
         abort=True,
         default=True,
+        prompt_suffix=": ",
     )
     angle = cast(pt.PdAngle, config["od_config.photodiode_channel"][pd_channel])
     return initial_od600, minimum_od600, dilution_amount, angle, pd_channel
@@ -158,19 +158,20 @@ def get_metadata_from_user() -> tuple[pt.CalibratedOD, pt.CalibratedOD, pt.mL, p
 
 def setup_HDC_instructions() -> None:
     clear()
-    echo(
-        """ Setting up:
-    1. Add 10ml of your culture to the glass vial, with a stir bar. Leave the cap off.
-    2. Confirm the vial is dry and carefully place into Pioreactor.
-"""
+    info_heading("Setup")
+    action_block(
+        [
+            "Add 10 mL of your culture to the glass vial, with a stir bar. Leave the cap off.",
+            "Confirm the vial is dry and carefully place into the Pioreactor.",
+        ]
     )
 
 
 def start_stirring():
-    while not confirm(green("Reading to start stirring?"), default=True, abort=True):
+    while not confirm(green("Ready to start stirring?"), default=True, abort=True, prompt_suffix=": "):
         pass
 
-    echo("Starting stirring and blocking until near target RPM.")
+    info("Starting stirring and blocking until near target RPM...")
 
     st = stirring(
         target_rpm=config.getfloat("stirring.config", "initial_target_rpm"),
@@ -204,7 +205,7 @@ def start_recording_and_diluting(
     )
     count_of_samples = 0
 
-    echo("Warming up OD...")
+    info("Warming up OD...")
 
     with start_od_reading(
         config["od_config.photodiode_channel"],
@@ -229,12 +230,14 @@ def start_recording_and_diluting(
         while inferred_od600 > minimum_od600:
             while True:
                 if inferred_od600 < initial_od600 and confirm(
-                    green("Do you want to enter an updated OD600 value for the current density?")
+                    green("Do you want to enter an updated OD600 value for the current density?"),
+                    prompt_suffix=": ",
                 ):
                     r = prompt(
                         green('Enter updated OD600, or "SKIP"'),
                         type=str,
                         confirmation_prompt=green("Repeat for confirmation"),
+                        prompt_suffix=": ",
                     )
                     if r == "SKIP":
                         break
@@ -244,7 +247,7 @@ def start_recording_and_diluting(
                             inferred_od600 = float(r)
                             break
                         except ValueError:
-                            echo("OD600 entered is invalid.")
+                            echo(red("OD600 entered is invalid."))
                 else:
                     break
 
@@ -264,16 +267,12 @@ def start_recording_and_diluting(
                     x_max=initial_od600,
                 )
                 echo()
-                echo(
-                    green(
-                        bold(
-                            f"Test {count_of_samples + 1} of {total_n_samples} [{'#' * (count_of_samples + 1) }{' ' * (total_n_samples - count_of_samples - 1)}]"
-                        )
-                    )
+                info(
+                    f"Test {count_of_samples + 1} of {total_n_samples} [{'#' * (count_of_samples + 1) }{' ' * (total_n_samples - count_of_samples - 1)}]"
                 )
-                echo(f"Add {dilution_amount}ml of media to vial.")
+                action_block([f"Add {dilution_amount} mL of media to the vial."])
 
-                while not confirm(green("Continue?"), default=False):
+                while not confirm(green("Continue?"), default=False, prompt_suffix=": "):
                     pass
 
                 current_volume_in_vial = current_volume_in_vial + dilution_amount
@@ -309,15 +308,16 @@ def start_recording_and_diluting(
                     x_max=initial_od600,
                 )
                 st.set_state(pt.JobState.SLEEPING)
-                echo()
-                echo(style("Stop❗", fg="red"))
-                echo("Carefully remove vial.")
-                echo("(Optional: take new OD600 reading with external instrument.)")
-                echo(
-                    f"Reduce volume in vial by {n_samples * dilution_amount}mL. There should be 10mL remaining in your vial."
+                action_block(
+                    [
+                        "Stop.",
+                        "Carefully remove the vial.",
+                        "(Optional: take a new OD600 reading with an external instrument.)",
+                        f"Reduce volume in vial by {n_samples * dilution_amount} mL. There should be 10 mL remaining in your vial.",
+                        "Confirm the vial exterior is dry and clean. Place it back into the Pioreactor.",
+                    ]
                 )
-                echo("Confirm vial outside is dry and clean. Place back into Pioreactor.")
-                while not confirm(green("Continue?"), default=False):
+                while not confirm(green("Continue?"), default=False, prompt_suffix=": "):
                     pass
                 current_volume_in_vial = initial_volume_in_vial
                 st.set_state(pt.JobState.READY)
@@ -334,23 +334,24 @@ def start_recording_and_diluting(
             x_min=minimum_od600,
             x_max=initial_od600,
         )
-        echo("Empty the vial and replace with 10 mL of the media you used.")
+        action_block(["Empty the vial and replace it with 10 mL of the media you used."])
         while True:
             od600_of_blank = prompt(
                 green("What is the OD600 of your blank?"),
                 type=str,
                 confirmation_prompt=green("Repeat for confirmation"),
+                prompt_suffix=": ",
             )
             try:
                 od600_of_blank = float(od600_of_blank)
                 break
             except ValueError:
-                echo("OD600 entered is invalid.")
+                echo(red("OD600 entered is invalid."))
 
-        echo("Confirm vial outside is dry and clean. Place back into Pioreactor.")
-        while not confirm(green("Continue?"), default=False):
+        action_block(["Confirm the vial exterior is dry and clean. Place it back into the Pioreactor."])
+        while not confirm(green("Continue?"), default=False, prompt_suffix=": "):
             pass
-        echo("Reading blank...")
+        info("Reading blank...")
 
         value = get_voltage_from_adc()
         voltages.append(value)
@@ -430,12 +431,12 @@ def run_od_calibration() -> structs.OD600Calibration:
         while not cal.curve_data_:
             cal = utils.crunch_data_and_confirm_with_user(cal, initial_degree=3, weights=weights)
 
-        echo(style(f"Calibration curve for `{name}`", underline=True, bold=True))
-        echo(utils.curve_to_functional_form(cal.curve_type, cal.curve_data_))
+        info_heading(f"Calibration curve for `{name}`")
+        info(utils.curve_to_functional_form(cal.curve_type, cal.curve_data_))
         echo()
-        echo(style(f"Data for `{name}`", underline=True, bold=True))
+        info_heading(f"Data for `{name}`")
         print(format(encode(cal)).decode())
         echo()
-        echo(f"Finished calibration of `{name}` ✅")
+        info(f"Finished calibration of `{name}` ✅")
 
         return cal

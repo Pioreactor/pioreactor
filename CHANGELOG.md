@@ -671,7 +671,7 @@ to recreate the calibration curves.
  - `use_calibration` under `od_reading.config` is deprecated. Use the calibrations "active" state instead.
  - **Note**: by default, all calibrations are not active, even if they were "current" before. You must set them to be active.
  - removed Python library `diskcache`.
- - any stirring calibrations needs to be redone. On the command line, run `pio calibration run --device stirring` to start the calibration assistant.
+ - any stirring calibrations needs to be redone. On the command line, run `pio calibrations run --device stirring` to start the calibration assistant.
  - fixed typo `utils.local_persistant_storage` to `utils.local_persistent_storage`.
  - Kalman Filter database table is no longer populated. There is a way to re-add it, lmk.
  - moved intermittent cache location to `/tmp/pioreactor_cache/local_intermittent_pioreactor_metadata.sqlite`. This also determined by your configuration, see `[storage]`.
