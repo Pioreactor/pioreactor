@@ -4,10 +4,12 @@ from __future__ import annotations
 import os
 from collections import defaultdict
 from pathlib import Path
-from typing import Callable
+from typing import Any
+from typing import ClassVar
+from typing import Generic
 from typing import Literal
 from typing import overload
-from typing import Type
+from typing import TypeVar
 
 from msgspec import ValidationError
 from msgspec.yaml import decode as yaml_decode
@@ -16,7 +18,6 @@ from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.utils import local_persistent_storage
 from pioreactor.whoami import is_testing_env
-from typing import Generic, TypeVar, Literal
 
 
 if not is_testing_env():
@@ -28,13 +29,13 @@ else:
 Device = TypeVar("Device", bound=str)
 ProtocolName = str
 
-calibration_protocols: dict[Device, dict[ProtocolName, Type[CalibrationProtocol]]] = defaultdict(dict)
+calibration_protocols: dict[str, dict[ProtocolName, type[CalibrationProtocol[Any]]]] = defaultdict(dict)
 
 
 class CalibrationProtocol(Generic[Device]):
-    protocol_name: ProtocolName
-    target_device: Device | list[Device]
-    description = ""
+    protocol_name: ClassVar[ProtocolName]
+    target_device: ClassVar[str | list[str]]
+    description: ClassVar[str] = ""
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -46,9 +47,7 @@ class CalibrationProtocol(Generic[Device]):
         else:
             raise ValueError("target_device must be a string or a list of strings")
 
-    def run(
-        self, target_device: str, *args, **kwargs
-    ) -> structs.CalibrationBase | list[structs.CalibrationBase]:
+    def run(self, target_device: Device) -> structs.CalibrationBase | list[structs.CalibrationBase]:
         raise NotImplementedError("Subclasses must implement this method.")
 
 
@@ -80,18 +79,20 @@ class DurationBasedPumpProtocol(CalibrationProtocol[pt.PumpCalibrationDevices]):
     target_device = pt.PUMP_DEVICES
     protocol_name = "duration_based"
 
-    def run(self, target_device: pt.PumpCalibrationDevices, **kwargs) -> structs.SimplePeristalticPumpCalibration:
+    def run(
+        self, target_device: pt.PumpCalibrationDevices, **kwargs
+    ) -> structs.SimplePeristalticPumpCalibration:
         from pioreactor.calibrations.pump_calibration import run_pump_calibration
 
         return run_pump_calibration(target_device)
 
 
-class DCBasedStirringProtocol(CalibrationProtocol[Device]):
+class DCBasedStirringProtocol(CalibrationProtocol[Literal["stirring"]]):
     target_device = "stirring"
     protocol_name = "dc_based"
 
     def run(
-        self, target_device: Device, min_dc: str | None = None, max_dc: str | None = None
+        self, target_device: Literal["stirring"], min_dc: str | None = None, max_dc: str | None = None
     ) -> structs.SimpleStirringCalibration:
         from pioreactor.calibrations.stirring_calibration import run_stirring_calibration
 
