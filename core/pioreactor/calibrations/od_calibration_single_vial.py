@@ -82,7 +82,7 @@ def get_name_from_user() -> str:
 
 
 def get_metadata_from_user(
-    target_device: str,
+    target_device: pt.ODCalibrationDevices,
 ) -> tuple[pt.CalibratedOD, pt.CalibratedOD, pt.mL, pt.PdAngle, pt.PdChannel]:
     if config.get("od_reading.config", "ir_led_intensity") == "auto":
         echo(
@@ -421,7 +421,7 @@ def to_struct(
     return data_blob
 
 
-def run_od_calibration(target_device: str) -> structs.OD600Calibration:
+def run_od_calibration(target_device: pt.ODCalibrationDevices) -> structs.OD600Calibration:
     unit = get_unit_name()
     experiment = get_testing_experiment_name()
     curve_data_: list[float] = []

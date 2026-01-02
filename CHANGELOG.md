@@ -4,10 +4,14 @@
 
  - new events in the dosing_automation_events table & export detailing when dosing starts and stops.
  - new query pattern for faster Experiment Overview chart loading. However, there is a random element to what data is displayed in a time series. Let me know if this is too distracting.
+ - OD calibrations now support multiple photodiode angles; `pio calibrations run --device od` can emit per-angle calibrations for 45/90/135.
+ - Calibration CLI now saves and can activate multiple OD calibration outputs in one run.
+ - Added an update helper to migrate legacy OD calibrations into per-angle devices.
 
 #### Breaking changes
 
  - Removed `/api/workers/<pioreactor_unit>/configuration`; use `/api/units/<pioreactor_unit>/configuration`.
+ - OD calibration devices are now per-angle (`od45`, `od90`, `od135`). Existing `od` calibration files and active calibration keys must be migrated.
 
 ### 25.12.10
 

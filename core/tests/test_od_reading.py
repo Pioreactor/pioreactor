@@ -856,6 +856,42 @@ def test_calibration_not_present() -> None:
         assert len(od.calibration_transformer.models) == 0, od.calibration_transformer.models
 
 
+def test_calibration_duplicate_channel_raises_value_error() -> None:
+    cal_1 = structs.OD600Calibration(
+        created_at=current_utc_datetime(),
+        curve_type="poly",
+        curve_data_=[2.0, 0.0],
+        calibration_name="linear_a",
+        ir_led_intensity=90.0,
+        angle="90",
+        recorded_data={"x": [0, 2], "y": [0, 4]},
+        pd_channel="2",
+        calibrated_on_pioreactor_unit=get_unit_name(),
+    )
+    cal_2 = structs.OD600Calibration(
+        created_at=current_utc_datetime(),
+        curve_type="poly",
+        curve_data_=[1.0, 0.0],
+        calibration_name="linear_b",
+        ir_led_intensity=90.0,
+        angle="90",
+        recorded_data={"x": [0, 1], "y": [0, 1]},
+        pd_channel="2",
+        calibrated_on_pioreactor_unit=get_unit_name(),
+    )
+
+    with pytest.raises(ValueError, match="already hydrated"):
+        start_od_reading(
+            make_channels("REF", "90"),
+            interval=None,
+            fake_data=True,
+            experiment="test_calibration_duplicate_channel_raises_value_error",
+            unit=get_unit_name(),
+            calibration=[cal_1, cal_2],
+            ir_led_intensity=90.0,
+        )
+
+
 def test_calibration_multi_angle_active_calibrations() -> None:
     experiment = "test_calibration_multi_angle_active_calibrations"
 

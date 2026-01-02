@@ -85,7 +85,7 @@ def get_name_from_user() -> str:
                 return name
 
 
-def get_metadata_from_user(target_device: str) -> dict[pt.PdChannel, pt.PdAngle]:
+def get_metadata_from_user(target_device: pt.ODCalibrationDevices) -> dict[pt.PdChannel, pt.PdAngle]:
     if config.get("od_reading.config", "ir_led_intensity") == "auto":
         echo(
             red(
@@ -317,7 +317,7 @@ def start_recording_standards(
     return od600_values, voltages_by_channel
 
 
-def run_od_calibration(target_device: str) -> list[structs.OD600Calibration]:
+def run_od_calibration(target_device: pt.ODCalibrationDevices) -> list[structs.OD600Calibration]:
     unit = get_unit_name()
     experiment = get_testing_experiment_name()
     curve_type = "poly"
