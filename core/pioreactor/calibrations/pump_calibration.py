@@ -56,10 +56,10 @@ def introduction(pump_device) -> None:
     info(
         f"""This routine will calibrate the {pump_device} on your current Pioreactor. You'll need:
 
-    1. A Pioreactor
+    1. This Pioreactor.
     2. A vial is placed on a scale that measures weight with a minimum resolution of 0.1 grams.
        OR an accurate graduated cylinder.
-    3. A larger container filled with water
+    3. A larger container filled with water.
     4. {pump_device} connected to the correct PWM channel {channel_pump_is_configured_for}.
 
 We will dose for a set duration, you'll measure how much volume was expelled, and then record it back here. After doing this a few times, we can construct a calibration curve for this pump.
@@ -108,11 +108,11 @@ def setup(
     info("We need to prime the pump by filling the tubes completely with water.")
     action_block(
         [
-            "From your Pioreactor vial, remove one of the female luer locks. Attach it to the end of the sink tube.",
-            "Fill a container with water.",
-            "Submerge both ends of the pump's tubes into the water.",
-            f"Make sure the pump's power is connected to PWM channel {channel_pump_is_configured_for}.",
-            "Run the pump continuously until the tubes are completely filled with water and there are no air pockets.",
+            "1. From your Pioreactor vial cap, remove one of the female luer locks. Attach it to the end of the sink tube (where water will expel). This creates a more accurate stream.",
+            "2. Fill a container with water.",
+            "3. Submerge both ends of the pump's tubes into the water.",
+            f"4. Make sure the pump's power is connected to PWM channel {channel_pump_is_configured_for}.",
+            "5. Run the pump continuously until the tubes are completely filled with water and there are no air pockets.",
         ]
     )
 
