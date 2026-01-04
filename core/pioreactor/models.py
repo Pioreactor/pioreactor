@@ -74,6 +74,13 @@ PIOREACTOR_20ml__v1_5 = replace(
     is_legacy=False,
 )
 
+PIOREACTOR_20ml_XR_v1_5 = replace(
+    PIOREACTOR_20ml__v1_5,
+    model_version="1.5",
+    model_name="pioreactor_20ml_XR",
+    display_name="Pioreactor 20ml XR, v1.5",
+    is_legacy=False,
+)
 
 PIOREACTOR_40ml__v1_5 = replace(
     PIOREACTOR_40ml__v1_0,
@@ -82,10 +89,20 @@ PIOREACTOR_40ml__v1_5 = replace(
     is_legacy=False,
 )
 
+PIOREACTOR_40ml_XR_v1_5 = replace(
+    PIOREACTOR_40ml__v1_5,
+    model_version="1.5",
+    model_name="pioreactor_40ml_XR",
+    display_name="Pioreactor 40ml XR, v1.5",
+    is_legacy=False,
+)
+
 
 CORE_MODELS = {
     ("pioreactor_40ml", "1.5"): PIOREACTOR_40ml__v1_5,
+    ("pioreactor_40ml_XR", "1.5"): PIOREACTOR_40ml_XR_v1_5,
     ("pioreactor_40ml", "1.0"): PIOREACTOR_40ml__v1_0,
+    ("pioreactor_20ml_XR", "1.5"): PIOREACTOR_20ml_XR_v1_5,
     ("pioreactor_20ml", "1.5"): PIOREACTOR_20ml__v1_5,
     ("pioreactor_20ml", "1.1"): PIOREACTOR_20ml__v1_1,
     ("pioreactor_20ml", "1.0"): PIOREACTOR_20ml__v1_0,

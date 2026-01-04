@@ -782,7 +782,7 @@ def get_od_readings(experiment: str) -> ResponseReturnValue:
                    channel,
                    timestamp,
                    round(od_reading, 7) AS y
-            FROM od_readings INDEXED BY od_readings_ix_unit_channel_ts
+            FROM od_readings
             WHERE experiment=? AND timestamp > ?
         ), stats AS (
             SELECT pioreactor_unit,
@@ -1072,7 +1072,7 @@ def get_od_readings_per_unit(pioreactor_unit: str, experiment: str) -> ResponseR
                    channel,
                    timestamp,
                    round(od_reading, 7) AS y
-            FROM od_readings INDEXED BY od_readings_ix_unit_channel_ts
+            FROM od_readings
             WHERE experiment=? AND pioreactor_unit=? AND timestamp > ?
         ), stats AS (
             SELECT pioreactor_unit,
