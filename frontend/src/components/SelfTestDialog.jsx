@@ -110,7 +110,7 @@ export default function SelfTestDialog({client, disabled, experiment, unit, labe
 
   return (
     <React.Fragment>
-      <Button style={{textTransform: 'none', float: "right" }} color="primary" disabled={disabled} onClick={handleClickOpen}>
+      <Button style={{textTransform: 'none'}} color="primary" disabled={disabled} onClick={handleClickOpen}>
         {Icon()} Self test
       </Button>
       <Dialog open={open} onClose={handleClose}>

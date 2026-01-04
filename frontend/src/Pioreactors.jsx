@@ -59,7 +59,6 @@ import ActionLEDForm from "./components/ActionLEDForm"
 import PioreactorIcon from "./components/PioreactorIcon"
 import PioreactorIconWithModel from "./components/PioreactorIconWithModel"
 import PioreactorsIcon from "./components/PioreactorsIcon"
-import SelfTestDialog from "./components/SelfTestDialog"
 import UnderlineSpan from "./components/UnderlineSpan";
 import ManageExperimentMenu from "./components/ManageExperimentMenu";
 import { MQTTProvider, useMQTT } from './providers/MQTTContext';
@@ -2569,17 +2568,6 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
               flexWrap: "wrap",
               }}
             >
-              <div>
-                <SelfTestDialog
-                  client={client}
-                  disabled={!isUnitActive}
-                  experiment={experiment}
-                  unit={unit}
-                  label={label}
-                  selfTestState={jobs['self_test'] ? jobs['self_test'].state : null}
-                  selfTestTests={jobs['self_test'] ? jobs['self_test'] : null}
-                />
-              </div>
               <div>
                 <FlashLEDButton disabled={!isUnitActive} unit={unit}/>
               </div>

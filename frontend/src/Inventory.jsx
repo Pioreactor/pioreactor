@@ -44,6 +44,7 @@ import ListItemText from "@mui/material/ListItemText";
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import Alert from '@mui/material/Alert';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import SelfTestDialog from "./components/SelfTestDialog";
 
 
 
@@ -59,6 +60,78 @@ const useAvailableModels = () => {
   }, []);
   return models;
 };
+
+let cachedSelfTestJobDefinition = null;
+let selfTestJobDefinitionPromise = null;
+
+function requestSelfTestJobDefinition() {
+  if (cachedSelfTestJobDefinition) {
+    return Promise.resolve(cachedSelfTestJobDefinition);
+  }
+  if (!selfTestJobDefinitionPromise) {
+    const pendingRequest = fetch("/api/contrib/jobs")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Failed to fetch contrib jobs");
+        }
+        return response.json();
+      })
+      .then((data) => {
+        const selfTestJob = data.find((job) => job.job_name === "self_test") || null;
+        cachedSelfTestJobDefinition = selfTestJob;
+        return selfTestJob;
+      });
+    selfTestJobDefinitionPromise = pendingRequest
+      .catch((error) => {
+        selfTestJobDefinitionPromise = null;
+        throw error;
+      })
+      .then((job) => {
+        selfTestJobDefinitionPromise = null;
+        return job;
+      });
+  }
+  return selfTestJobDefinitionPromise;
+}
+
+function useSelfTestJobDefinition() {
+  const [definition, setDefinition] = useState(cachedSelfTestJobDefinition);
+
+  useEffect(() => {
+    if (cachedSelfTestJobDefinition) {
+      return;
+    }
+
+    let isActive = true;
+    requestSelfTestJobDefinition()
+      .then((job) => {
+        if (!isActive) {
+          return;
+        }
+        setDefinition(job);
+      })
+      .catch(() => {});
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  return definition;
+}
+
+function parsePayloadToType(payloadString, typeOfSetting) {
+  if (typeOfSetting === "numeric") {
+    return [null, ""].includes(payloadString) ? payloadString : parseFloat(payloadString);
+  }
+  if (typeOfSetting === "boolean") {
+    if ([null, ""].includes(payloadString)) {
+      return null;
+    }
+    return (["1", "true", "True", 1].includes(payloadString));
+  }
+  return payloadString;
+}
 
 const textIcon = {verticalAlign: "middle", margin: "0px 3px"}
 
@@ -340,15 +413,18 @@ function WorkerCard({worker, config, leaderVersion}) {
 
   const [experimentAssigned, setExperimentAssigned] = React.useState(null)
   const {client, subscribeToTopic} = useMQTT();
+  const selfTestDefinition = useSelfTestJobDefinition();
   const [state, setState] = React.useState(null)
   const [versions, setVersions] = React.useState({})
   const [ipv4, setIpv4] = React.useState(null)
   const [WLANaddress, setWLANaddress] = React.useState(null)
   const [ETHAddress, setETHAddress] = React.useState(null)
+  const [selfTestJob, setSelfTestJob] = React.useState(null)
   const { selectExperiment } = useExperiment();
   const navigate = useNavigate()
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
+  const selfTestExperiment = experimentAssigned || "$no_experiment_present";
 
 
   const isActive = () => {
@@ -365,6 +441,60 @@ function WorkerCard({worker, config, leaderVersion}) {
     setSnackbarMessage(message);
     setSnackbarOpen(true);
   };
+
+  const selfTestSettingTypes = React.useMemo(() => {
+    if (!selfTestDefinition) {
+      return {};
+    }
+    return selfTestDefinition.published_settings.reduce((acc, field) => {
+      acc[field.key] = field.type;
+      return acc;
+    }, {});
+  }, [selfTestDefinition]);
+
+  React.useEffect(() => {
+    if (!selfTestDefinition) {
+      return;
+    }
+    const publishedSettings = {};
+    for (const field of selfTestDefinition.published_settings) {
+      publishedSettings[field.key] = {
+        value: field.default || null,
+        type: field.type,
+      };
+    }
+    setSelfTestJob({ state: null, publishedSettings });
+  }, [selfTestDefinition, selfTestExperiment]);
+
+  const onSelfTestData = React.useCallback((topic, message, packet) => {
+    if (!message || !topic) return;
+
+    const [job, setting] = topic.toString().split('/').slice(-2);
+    if (job !== "self_test") {
+      return;
+    }
+    if (setting === "$state") {
+      setSelfTestJob((prev) => (prev ? { ...prev, state: message.toString() } : prev));
+      return;
+    }
+    const payload = parsePayloadToType(message.toString(), selfTestSettingTypes[setting]);
+    setSelfTestJob((prev) => {
+      if (!prev) {
+        return prev;
+      }
+      const previousSetting = prev.publishedSettings[setting] || { type: selfTestSettingTypes[setting] };
+      return {
+        ...prev,
+        publishedSettings: {
+          ...prev.publishedSettings,
+          [setting]: {
+            ...previousSetting,
+            value: payload,
+          },
+        },
+      };
+    });
+  }, [selfTestSettingTypes]);
 
   const onMonitorData = (topic, message, packet) => {
     if (!message || !topic) return;
@@ -471,6 +601,17 @@ function WorkerCard({worker, config, leaderVersion}) {
       fetchExperiment();
     }
   }, [unit, client]);
+
+  React.useEffect(() => {
+    if (!client || !selfTestExperiment || !selfTestDefinition) {
+      return;
+    }
+    const baseTopic = `pioreactor/${unit}/${selfTestExperiment}/self_test`;
+    subscribeToTopic(`${baseTopic}/$state`, onSelfTestData, "WorkerCard-self-test");
+    for (const setting of selfTestDefinition.published_settings) {
+      subscribeToTopic(`${baseTopic}/${setting.key}`, onSelfTestData, "WorkerCard-self-test");
+    }
+  }, [client, onSelfTestData, selfTestDefinition, selfTestExperiment, subscribeToTopic, unit]);
 
   const handleStatusChange = (event) => {
 
@@ -656,6 +797,15 @@ function WorkerCard({worker, config, leaderVersion}) {
       <CardActions sx={{display: "flex", justifyContent: "space-between"}}>
         <Box>
           <Blink unit={unit}/>
+          <SelfTestDialog
+            client={client}
+            disabled={!isActive()}
+            experiment={selfTestExperiment}
+            unit={unit}
+            label={null}
+            selfTestState={selfTestJob ? selfTestJob.state : null}
+            selfTestTests={selfTestJob}
+          />
           <Unassign unit={unit} experimentAssigned={experimentAssigned} setExperimentAssigned={setExperimentAssigned} />
         </Box>
         <Box>
