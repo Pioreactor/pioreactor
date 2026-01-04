@@ -8,6 +8,7 @@ plugins_dev
 *.mosquitto
 .envrc
 .codex
+*.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

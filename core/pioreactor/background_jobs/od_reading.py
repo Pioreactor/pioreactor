@@ -990,7 +990,8 @@ class ODReader(BackgroundJob):
         self.set_interval(interval)
 
         self.logger.debug(
-            f"Starting od_reading with PD channels {channel_angle_map}, with IR LED intensity {self.ir_led_intensity}% from channel {self.ir_channel}, every {self.interval} seconds"
+            f"Starting od_reading with PD channels {channel_angle_map}, with IR LED intensity {self.ir_led_intensity}% from channel {self.ir_channel}"
+            + (f" every {self.interval} seconds." if self.interval else ".")
         )
 
     def _determine_initial_ir_led_intensity(self, ir_led_intensity: float | str | None) -> tuple[bool, float]:

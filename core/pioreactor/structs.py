@@ -311,6 +311,7 @@ class ODCalibration(CalibrationBase, kw_only=True, tag="od"):
     angle: t.Literal["45", "90", "135", "180"]
     pd_channel: pt.PdChannel
     y: str = "Voltage"
+    x: str = "OD"
 
 
 class OD600Calibration(ODCalibration, kw_only=True, tag="od600"):
