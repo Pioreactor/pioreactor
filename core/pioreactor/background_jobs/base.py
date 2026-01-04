@@ -86,9 +86,11 @@ class LoggerMixin:
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._logger = None
+        self._external_logger = False
 
     def add_external_logger(self, logger) -> None:
         self._logger = logger
+        self._external_logger = True
 
     @property
     def logger(self):
@@ -96,10 +98,11 @@ class LoggerMixin:
             self._logger = create_logger(
                 name=self._logger_name if hasattr(self, "_logger_name") else self.__class__.__name__
             )
+            self._external_logger = False
         return self._logger
 
     def __del__(self):
-        if self._logger:
+        if self._logger and not self._external_logger:
             self._logger.clean_up()
 
 

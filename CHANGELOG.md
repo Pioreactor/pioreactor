@@ -13,6 +13,10 @@
 #### Breaking changes
  - Moved Self-test to Inventory page. Pioreactors no longer need to be assigned to an experiment to run self-test.
  - Removed `/api/workers/<pioreactor_unit>/configuration`; use `/api/units/<pioreactor_unit>/configuration`.
+ - self-test logs are now part of "$experiment"
+#### bug fixes
+
+ - fix logging prematurely closing for self-tests
 
 ### 25.12.10
 

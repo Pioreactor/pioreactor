@@ -704,6 +704,7 @@ def click_self_test(k: Optional[str], retry_failed: bool) -> int:
         elif count_failures > 0:
             logger.info(f"{count_failures} failed test{'s' if count_failures > 1 else ''} ❌")
 
+        print(count_tested, count_failures)
         # clear my retained messages
         prune_retained_messages(f"pioreactor/{unit}/{testing_experiment}/#")
 
