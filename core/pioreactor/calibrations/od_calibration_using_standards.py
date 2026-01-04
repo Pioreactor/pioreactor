@@ -300,6 +300,10 @@ def start_recording_standards(
     ):
         pass
 
+    st.set_state(pt.JobState.READY)
+    info("Starting stirring...")
+    st.block_until_rpm_is_close_to_target(abs_tolerance=120)
+    sleep(1.0)
     od600_blank = click.prompt(green("Enter OD600 of your blank"), type=float, prompt_suffix=":")
     for i in range(4):
         click.echo(".", nl=False)
