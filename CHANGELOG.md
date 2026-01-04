@@ -3,10 +3,15 @@
 #### Enhancements
 
  - new events in the dosing_automation_events table & export detailing when dosing starts and stops.
- - new query pattern for faster Experiment Overview chart loading. However, there is a random element to what data is displayed in a time series. Let me know if this is too distracting.
+ - new query pattern for faster Experiment Overview chart loading. However, there is a random element to what data is displayed in a time series for large datasets. Let us know if this is too distracting.
+ - support for the new Optics Standard Reference.
+
+### To test still
+ - new self tests `pio run self_test -k optical_reference_standard`
+ - new self-test pattern on Inventory page
 
 #### Breaking changes
-
+ - Moved Self-test to Inventory page. Pioreactors no longer need to be assigned to an experiment to run self-test.
  - Removed `/api/workers/<pioreactor_unit>/configuration`; use `/api/units/<pioreactor_unit>/configuration`.
 
 ### 25.12.10

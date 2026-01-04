@@ -52,10 +52,9 @@ from pioreactor.utils.math_helpers import mean
 from pioreactor.utils.math_helpers import trimmed_mean
 from pioreactor.utils.math_helpers import variance
 from pioreactor.utils.timing import current_utc_datetime
-from pioreactor.whoami import get_assigned_experiment_name
-from pioreactor.whoami import get_testing_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
+from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
 def test_pioreactor_HAT_present(managed_state, logger: CustomLogger, unit: str, experiment: str) -> None:
@@ -577,11 +576,10 @@ def test_positive_correlation_between_rpm_and_stirring(
 
 
 class BatchTestRunner:
-    def __init__(self, tests_to_run: list[Callable], *test_func_args, experiment: str) -> None:
+    def __init__(self, tests_to_run: list[Callable], *test_func_args) -> None:
         self.count_tested = 0
         self.count_passed = 0
         self.tests_to_run = tests_to_run
-        self.experiment = experiment
         self._thread = Thread(target=self._run, args=test_func_args)  # don't make me daemon: 295
 
     def start(self):
@@ -613,13 +611,13 @@ class BatchTestRunner:
             managed_state.publish_setting(test_name, int(res))
 
             with local_persistent_storage("self_test_results") as c:
-                c[(self.experiment, test_name)] = int(res)
+                c[test_name] = int(res)
 
 
-def get_failed_test_names(experiment: str) -> Iterator[str]:
+def get_failed_test_names() -> Iterator[str]:
     with local_persistent_storage("self_test_results") as c:
         for name in get_all_test_names():
-            if c.get((experiment, name)) == 0:
+            if c.get(name) == 0:
                 yield name
 
 
@@ -635,9 +633,8 @@ def click_self_test(k: Optional[str], retry_failed: bool) -> int:
     Test the input/output in the Pioreactor
     """
     unit = get_unit_name()
-    testing_experiment = get_testing_experiment_name()
-    experiment = get_assigned_experiment_name(unit)
-    logger = create_logger("self_test", unit=unit, experiment=experiment)
+    testing_experiment = UNIVERSAL_EXPERIMENT
+    logger = create_logger("self_test", unit=unit, experiment=testing_experiment)
 
     A_TESTS = (
         test_pioreactor_HAT_present,
@@ -657,7 +654,7 @@ def click_self_test(k: Optional[str], retry_failed: bool) -> int:
         test_signals_when_using_optical_reference_standard,
     )
 
-    with managed_lifecycle(unit, experiment, "self_test") as managed_state:
+    with managed_lifecycle(unit, testing_experiment, "self_test") as managed_state:
         if any(
             is_pio_job_running(
                 ["od_reading", "temperature_automation", "stirring", "dosing_automation", "led_automation"]
@@ -674,7 +671,7 @@ def click_self_test(k: Optional[str], retry_failed: bool) -> int:
         # automagically finds the test_ functions.
         tests_to_run: Iterator[str]
         if retry_failed:
-            tests_to_run = get_failed_test_names(experiment)
+            tests_to_run = get_failed_test_names()
         else:
             tests_to_run = get_all_test_names()
 
@@ -691,12 +688,8 @@ def click_self_test(k: Optional[str], retry_failed: bool) -> int:
 
         # some tests can be run in parallel.
         test_args = (managed_state, logger, unit, testing_experiment)
-        RunnerA = BatchTestRunner(
-            [f for f in A_TESTS if f in functions_to_test], *test_args, experiment=experiment
-        ).start()
-        RunnerB = BatchTestRunner(
-            [f for f in B_TESTS if f in functions_to_test], *test_args, experiment=experiment
-        ).start()
+        RunnerA = BatchTestRunner([f for f in A_TESTS if f in functions_to_test], *test_args).start()
+        RunnerB = BatchTestRunner([f for f in B_TESTS if f in functions_to_test], *test_args).start()
 
         results = RunnerA.collect() + RunnerB.collect()
         count_tested, count_passed = results["count_tested"], results["count_passed"]
