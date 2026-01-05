@@ -81,7 +81,9 @@ def get_name_from_user() -> str:
                 return name
 
 
-def get_metadata_from_user() -> tuple[pt.CalibratedOD, pt.CalibratedOD, pt.mL, pt.PdAngle, pt.PdChannel]:
+def get_metadata_from_user(
+    target_device: pt.ODCalibrationDevices,
+) -> tuple[pt.CalibratedOD, pt.CalibratedOD, pt.mL, pt.PdAngle, pt.PdChannel]:
     if config.get("od_reading.config", "ir_led_intensity") == "auto":
         echo(
             red(
@@ -131,9 +133,9 @@ def get_metadata_from_user() -> tuple[pt.CalibratedOD, pt.CalibratedOD, pt.mL, p
     confirm(green("Continue?"), abort=True, default=True, prompt_suffix=": ")
 
     pd_channels = config["od_config.photodiode_channel"]
-    ref_channel = next((k for k, v in pd_channels.items() if v == REF_keyword), None)
+    ref_channels = [k for k, v in pd_channels.items() if v == REF_keyword]
 
-    if ref_channel is None:
+    if not ref_channels:
         echo(
             red(
                 "REF required for OD calibration. Set an input to REF in [od_config.photodiode_channel] in your config."
@@ -142,7 +144,41 @@ def get_metadata_from_user() -> tuple[pt.CalibratedOD, pt.CalibratedOD, pt.mL, p
         raise click.Abort()
         # technically it's not required? we just need a specific PD channel to calibrate from.
 
-    pd_channel = cast(pt.PdChannel, "1" if ref_channel == "2" else "2")  # TODO: fix for dr
+    channel_angle_map: dict[pt.PdChannel, pt.PdAngle] = {}
+    for channel, angle in pd_channels.items():
+        if angle in (None, "", REF_keyword):
+            continue
+        channel_angle_map[cast(pt.PdChannel, channel)] = cast(pt.PdAngle, angle)
+
+    if not channel_angle_map:
+        echo(red("Need at least one non-REF PD channel for this calibration."))
+        raise click.Abort()
+
+    channel_choices = sorted(channel_angle_map.keys(), key=int)
+    if target_device != "od":
+        target_angle = target_device.removeprefix("od")
+        channel_choices = [
+            channel for channel in channel_choices if channel_angle_map[channel] == target_angle
+        ]
+        if not channel_choices:
+            echo(
+                red(
+                    f"No channels configured for angle {target_angle}°. Check [od_config.photodiode_channel]."
+                )
+            )
+            raise click.Abort()
+
+    if len(channel_choices) == 1:
+        pd_channel = channel_choices[0]
+    else:
+        pd_channel = cast(
+            pt.PdChannel,
+            prompt(
+                green("Select the PD channel to calibrate"),
+                type=click.Choice(channel_choices),
+                prompt_suffix=": ",
+            ),
+        )
 
     confirm(
         green(
@@ -385,7 +421,7 @@ def to_struct(
     return data_blob
 
 
-def run_od_calibration() -> structs.OD600Calibration:
+def run_od_calibration(target_device: pt.ODCalibrationDevices) -> structs.OD600Calibration:
     unit = get_unit_name()
     experiment = get_testing_experiment_name()
     curve_data_: list[float] = []
@@ -405,7 +441,7 @@ def run_od_calibration() -> structs.OD600Calibration:
             dilution_amount,
             angle,
             pd_channel,
-        ) = get_metadata_from_user()
+        ) = get_metadata_from_user(target_device)
         setup_HDC_instructions()
 
         with start_stirring() as st:

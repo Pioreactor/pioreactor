@@ -44,42 +44,42 @@ def test_save_and_load_calibration(temp_calibration_dir) -> None:
     )
 
     # 2. Save to disk
-    od_cal.save_to_disk_for_device("od")
-    # The calibration file should now exist in .pioreactor/storage/calibrations/od/
+    od_cal.save_to_disk_for_device("od90")
+    # The calibration file should now exist in .pioreactor/storage/calibrations/od90/
 
     # 3. Load from disk
-    loaded_cal = load_calibration("od", "my_test_cal")
+    loaded_cal = load_calibration("od90", "my_test_cal")
     assert isinstance(loaded_cal, OD600Calibration)
     assert loaded_cal.calibration_name == "my_test_cal"
     assert loaded_cal.angle == "90"
     assert loaded_cal.curve_data_ == [1.0, 2.0, 3.0]
 
     # 4. Set as active
-    od_cal.set_as_active_calibration_for_device("od")
+    od_cal.set_as_active_calibration_for_device("od90")
 
     # 5. Load via load_active_calibration
-    active_cal = load_active_calibration("od")
+    active_cal = load_active_calibration("od90")
     assert isinstance(active_cal, OD600Calibration)
     assert active_cal.calibration_name == "my_test_cal"
 
 
 def test_load_calibration_missing_file(temp_calibration_dir) -> None:
     with pytest.raises(FileNotFoundError):
-        load_calibration("od", "non_existent_cal")
+        load_calibration("od90", "non_existent_cal")
 
 
 def test_load_active_calibration_none(temp_calibration_dir) -> None:
-    # Make sure 'od' key is not set in local_persistent_storage("active_calibrations")
+    # Make sure 'od90' key is not set in local_persistent_storage("active_calibrations")
     with local_persistent_storage("active_calibrations") as store:
-        store.pop("od", None)
+        store.pop("od90", None)
 
-    cal = load_active_calibration("od")
+    cal = load_active_calibration("od90")
     assert cal is None
 
 
 def test_load_calibration_validation_error(temp_calibration_dir) -> None:
-    # 1. Create the directory for "od" calibrations
-    od_dir = temp_calibration_dir / "od"
+    # 1. Create the directory for "od90" calibrations
+    od_dir = temp_calibration_dir / "od90"
     od_dir.mkdir(parents=True, exist_ok=True)
 
     # 2. Write some invalid YAML (missing required fields, or wrong structure)
@@ -95,7 +95,7 @@ def test_load_calibration_validation_error(temp_calibration_dir) -> None:
 
     # 3. Attempt to load -> ValidationError
     with pytest.raises(ValidationError) as exc_info:
-        load_calibration("od", "bad_cal")
+        load_calibration("od90", "bad_cal")
 
     assert "Error reading bad_cal" in str(exc_info.value)
 
@@ -237,13 +237,13 @@ def test_mandys_data_for_pathological_poly() -> None:
 def test_custom_protocol() -> None:
     class CustomOD600CalibrationProtocol(CalibrationProtocol):
         protocol_name = "custom"
-        target_device = "od"
+        target_device = "od90"
 
         @staticmethod
         def run(target_device, **kwargs):
             pass
 
-    assert calibration_protocols["od"]["custom"].__name__ == "CustomOD600CalibrationProtocol"
+    assert calibration_protocols["od90"]["custom"].__name__ == "CustomOD600CalibrationProtocol"
 
     class CustomCalibrationProtocolWithList(CalibrationProtocol):
         protocol_name = "custom"

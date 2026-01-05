@@ -649,8 +649,8 @@ def click_self_test(k: Optional[str], retry_failed: bool) -> int:
         test_PD_is_near_0_volts_for_blank,
         test_positive_correlation_between_rpm_and_stirring,
         test_run_stirring_calibration,
-        test_create_od_calibrations_using_optical_reference_standard,
-        test_signals_when_using_optical_reference_standard,
+        # test_create_od_calibrations_using_optical_reference_standard,
+        # test_signals_when_using_optical_reference_standard,
     )
 
     with managed_lifecycle(unit, testing_experiment, "self_test") as managed_state:
@@ -699,8 +699,5 @@ def click_self_test(k: Optional[str], retry_failed: bool) -> int:
             logger.info("All tests passed ✅")
         elif count_failures > 0:
             logger.info(f"{count_failures} failed test{'s' if count_failures > 1 else ''} ❌")
-
-        # clear my retained messages
-        prune_retained_messages(f"pioreactor/{unit}/{testing_experiment}/#")
 
         return int(count_failures > 0)

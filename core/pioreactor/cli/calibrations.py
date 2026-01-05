@@ -123,32 +123,51 @@ def run_calibration(ctx, device: str, protocol_name: str | None, y: bool) -> Non
         )
         raise click.Abort()
 
-    calibration_struct = assistant().run(
+    calibration_structs = assistant().run(
         target_device=device,
         **{ctx.args[i][2:].replace("-", "_"): ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},
     )
 
-    out_file = calibration_struct.save_to_disk_for_device(device)
+    if isinstance(calibration_structs, list):
+        calibrations = calibration_structs
+    else:
+        calibrations = [calibration_structs]
+
+    output_rows: list[tuple[structs.CalibrationBase, str, str]] = []
+    for calibration in calibrations:
+        if isinstance(calibration, structs.ODCalibration):
+            calibration_device = f"od{calibration.angle}"
+        else:
+            calibration_device = device
+
+        out_file = calibration.save_to_disk_for_device(calibration_device)
+        output_rows.append((calibration, calibration_device, out_file))
 
     if not y:
         click.echo()
         if click.confirm(
-            green(f"Do you want to set this calibration as the active calibration for {device}?"),
+            green("Do you want to set these calibrations as the active calibrations for their devices?"),
             default=True,
         ):
-            calibration_struct.set_as_active_calibration_for_device(device)
-            click.echo(f"Set {calibration_struct.calibration_name} as the active calibration for {device}.")
+            for calibration, calibration_device, _ in output_rows:
+                calibration.set_as_active_calibration_for_device(calibration_device)
+                click.echo(
+                    f"Set {calibration.calibration_name} as the active calibration for {calibration_device}."
+                )
         else:
-            click.echo(
-                f"Okay. You can use 'pio calibrations set-active --device {device} --name {calibration_struct.calibration_name}' to set this calibration as the active one."
-            )
+            for calibration, calibration_device, _ in output_rows:
+                click.echo(
+                    f"Okay. You can use 'pio calibrations set-active --device {calibration_device} --name {calibration.calibration_name}' to set this calibration as the active one."
+                )
     else:
-        calibration_struct.set_as_active_calibration_for_device(device)
+        for calibration, calibration_device, _ in output_rows:
+            calibration.set_as_active_calibration_for_device(calibration_device)
 
     click.echo()
-    click.echo(
-        f"Calibration '{calibration_struct.calibration_name}' of device '{device}' saved to {out_file} ✅"
-    )
+    for calibration, calibration_device, out_file in output_rows:
+        click.echo(
+            f"Calibration '{calibration.calibration_name}' of device '{calibration_device}' saved to {out_file} ✅"
+        )
 
 
 @calibration.command(name="protocols")
@@ -248,7 +267,7 @@ def analyze_calibration(device: str, calibration_name: str) -> None:
 
     calibration = load_calibration(device, calibration_name)
 
-    if device == "od":
+    if isinstance(calibration, structs.ODCalibration):
         n = len(calibration.recorded_data["x"])
         weights = [1.0] * n
         weights[0] = n / 2

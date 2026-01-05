@@ -464,7 +464,7 @@ function WorkerCard({worker, config, leaderVersion}) {
       };
     }
     setSelfTestJob({ state: null, publishedSettings });
-  }, [selfTestDefinition, selfTestExperiment]);
+  }, [selfTestDefinition]);
 
   const onSelfTestData = React.useCallback((topic, message, packet) => {
     if (!message || !topic) return;
@@ -603,7 +603,7 @@ function WorkerCard({worker, config, leaderVersion}) {
   }, [unit, client]);
 
   React.useEffect(() => {
-    if (!client || !selfTestExperiment || !selfTestDefinition) {
+    if (!client ||  !selfTestDefinition) {
       return;
     }
     const baseTopic = `pioreactor/${unit}/${selfTestExperiment}/self_test`;
@@ -611,7 +611,7 @@ function WorkerCard({worker, config, leaderVersion}) {
     for (const setting of selfTestDefinition.published_settings) {
       subscribeToTopic(`${baseTopic}/${setting.key}`, onSelfTestData, "WorkerCard-self-test");
     }
-  }, [client, onSelfTestData, selfTestDefinition, selfTestExperiment, subscribeToTopic, unit]);
+  }, [client, onSelfTestData, selfTestDefinition, subscribeToTopic, unit]);
 
   const handleStatusChange = (event) => {
 

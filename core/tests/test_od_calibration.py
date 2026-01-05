@@ -27,13 +27,15 @@ def test_analyze() -> None:
         pd_channel="2",
         calibrated_on_pioreactor_unit=get_unit_name(),
     )
-    cal.save_to_disk_for_device("od")
+    cal.save_to_disk_for_device("od90")
 
     runner = CliRunner()
-    result = runner.invoke(analyze_calibration, ["--device", "od", "--name", "test_analyze"], input="d\n2\ny")
+    result = runner.invoke(
+        analyze_calibration, ["--device", "od90", "--name", "test_analyze"], input="d\n2\ny"
+    )
     assert not result.exception
 
-    loaded_cal = load_calibration("od", "test_analyze")
+    loaded_cal = load_calibration("od90", "test_analyze")
     assert len(loaded_cal.curve_data_) == 3
 
 
@@ -43,16 +45,16 @@ def test_run_od_standards() -> None:
         runner = CliRunner()
         result = runner.invoke(
             run_calibration,
-            ["--device", "od"],
+            ["--device", "od90"],
             input="standards\nod-cal-2025-02-23\nY\nY\n1\nY\nY\n0.5\nY\nY\n0.1\nn\n0.0\nY\nd\n1\ny\ny\n",
         )
         assert not result.exception
-        cal = load_calibration("od", "od-cal-2025-02-23")
+        cal = load_calibration("od90", "od-cal-2025-02-23")
         assert len(cal.curve_data_) == 2  # two since it's linear
         assert cal.x == "OD600"
         assert cal.y == "Voltage"
         assert len(cal.recorded_data["x"]) == 4
 
-    active_cal = load_active_calibration("od")
+    active_cal = load_active_calibration("od90")
     assert active_cal is not None
     assert active_cal.calibration_name == "od-cal-2025-02-23"

@@ -846,14 +846,110 @@ def test_calibration_not_requested() -> None:
 
 def test_calibration_not_present() -> None:
     with local_persistent_storage("active_calibrations") as c:
-        c.pop("od")
+        c.pop("od90")
 
-    cal = load_active_calibration("od")
+    cal = load_active_calibration("od90")
     assert cal is None
 
     with start_od_reading(make_channels("90", "REF"), interval=None, fake_data=True, calibration=cal) as od:
         assert isinstance(od.calibration_transformer, NullCalibrationTransformer)
         assert len(od.calibration_transformer.models) == 0, od.calibration_transformer.models
+
+
+def test_calibration_duplicate_channel_raises_value_error() -> None:
+    cal_1 = structs.OD600Calibration(
+        created_at=current_utc_datetime(),
+        curve_type="poly",
+        curve_data_=[2.0, 0.0],
+        calibration_name="linear_a",
+        ir_led_intensity=90.0,
+        angle="90",
+        recorded_data={"x": [0, 2], "y": [0, 4]},
+        pd_channel="2",
+        calibrated_on_pioreactor_unit=get_unit_name(),
+    )
+    cal_2 = structs.OD600Calibration(
+        created_at=current_utc_datetime(),
+        curve_type="poly",
+        curve_data_=[1.0, 0.0],
+        calibration_name="linear_b",
+        ir_led_intensity=90.0,
+        angle="90",
+        recorded_data={"x": [0, 1], "y": [0, 1]},
+        pd_channel="2",
+        calibrated_on_pioreactor_unit=get_unit_name(),
+    )
+
+    with pytest.raises(ValueError, match="already hydrated"):
+        start_od_reading(
+            make_channels("REF", "90"),
+            interval=None,
+            fake_data=True,
+            experiment="test_calibration_duplicate_channel_raises_value_error",
+            unit=get_unit_name(),
+            calibration=[cal_1, cal_2],
+            ir_led_intensity=90.0,
+        )
+
+
+def test_calibration_multi_angle_active_calibrations() -> None:
+    experiment = "test_calibration_multi_angle_active_calibrations"
+
+    cal_90 = structs.OD600Calibration(
+        created_at=current_utc_datetime(),
+        curve_type="poly",
+        curve_data_=[2.0, 0.0],
+        calibration_name="linear_90",
+        ir_led_intensity=90.0,
+        angle="90",
+        recorded_data={"x": [0, 2], "y": [0, 4]},
+        pd_channel="2",
+        calibrated_on_pioreactor_unit=get_unit_name(),
+    )
+    cal_45 = structs.OD600Calibration(
+        created_at=current_utc_datetime(),
+        curve_type="poly",
+        curve_data_=[4.0, 0.0],
+        calibration_name="linear_45",
+        ir_led_intensity=90.0,
+        angle="45",
+        recorded_data={"x": [0, 1], "y": [0, 4]},
+        pd_channel="3",
+        calibrated_on_pioreactor_unit=get_unit_name(),
+    )
+    cal_135 = structs.OD600Calibration(
+        created_at=current_utc_datetime(),
+        curve_type="poly",
+        curve_data_=[5.0, 0.0],
+        calibration_name="linear_135",
+        ir_led_intensity=90.0,
+        angle="135",
+        recorded_data={"x": [0, 1], "y": [0, 5]},
+        pd_channel="4",
+        calibrated_on_pioreactor_unit=get_unit_name(),
+    )
+
+    cal_90.set_as_active_calibration_for_device("od90")
+    cal_45.set_as_active_calibration_for_device("od45")
+    cal_135.set_as_active_calibration_for_device("od135")
+
+    channels = {"1": "REF", "2": "90", "3": "45", "4": "135"}
+    with start_od_reading(
+        channels,
+        interval=None,
+        fake_data=True,
+        experiment=experiment,
+        unit=get_unit_name(),
+        calibration=True,
+        ir_led_intensity=90.0,
+    ) as od:
+        assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
+        assert set(od.calibration_transformer.models.keys()) == {"2", "3", "4"}
+
+        voltage = 1.0
+        assert od.calibration_transformer.models["2"](voltage) == pytest.approx(voltage / 2)
+        assert od.calibration_transformer.models["3"](voltage) == pytest.approx(voltage / 4)
+        assert od.calibration_transformer.models["4"](voltage) == pytest.approx(voltage / 5)
 
 
 def test_calibration_simple_linear_calibration_positive_slope() -> None:
@@ -871,7 +967,7 @@ def test_calibration_simple_linear_calibration_positive_slope() -> None:
         calibrated_on_pioreactor_unit=get_unit_name(),
     )
 
-    cal.set_as_active_calibration_for_device("od")
+    cal.set_as_active_calibration_for_device("od90")
 
     with start_od_reading(
         make_channels("REF", "90"),
@@ -914,7 +1010,7 @@ def test_calibration_simple_linear_calibration_negative_slope() -> None:
         calibrated_on_pioreactor_unit=get_unit_name(),
     )
 
-    cal.set_as_active_calibration_for_device("od")
+    cal.set_as_active_calibration_for_device("od90")
 
     with start_od_reading(
         make_channels("REF", "90"),
@@ -962,7 +1058,7 @@ def test_calibration_simple_quadratic_calibration() -> None:
         calibrated_on_pioreactor_unit=get_unit_name(),
     )
 
-    cal.set_as_active_calibration_for_device("od")
+    cal.set_as_active_calibration_for_device("od90")
 
     with start_od_reading(
         make_channels("REF", "90"),
@@ -995,7 +1091,7 @@ def test_calibration_multi_modal() -> None:
         calibrated_on_pioreactor_unit=get_unit_name(),
     )
 
-    cal.set_as_active_calibration_for_device("od")
+    cal.set_as_active_calibration_for_device("od90")
 
     with start_od_reading(
         make_channels("REF", "90"),
@@ -1026,7 +1122,7 @@ def test_calibration_errors_when_ir_led_differs() -> None:
         calibrated_on_pioreactor_unit=get_unit_name(),
     )
 
-    cal.set_as_active_calibration_for_device("od")
+    cal.set_as_active_calibration_for_device("od90")
     with collect_all_logs_of_level("ERROR", unit=get_unit_name(), experiment=experiment) as bucket:
         with start_od_reading(
             make_channels("REF", "90"),
@@ -1072,7 +1168,7 @@ def test_calibration_with_irl_data1() -> None:
         calibrated_on_pioreactor_unit=get_unit_name(),
     )
 
-    cal.set_as_active_calibration_for_device("od")
+    cal.set_as_active_calibration_for_device("od90")
 
     cc = CachedCalibrationTransformer()
     cc.hydate_models(cal)
@@ -1196,7 +1292,7 @@ def test_calibration_data_from_user1() -> None:
         calibrated_on_pioreactor_unit=get_unit_name(),
     )
 
-    calibration.set_as_active_calibration_for_device("od")
+    calibration.set_as_active_calibration_for_device("od90")
 
     with start_od_reading(
         make_channels("REF", "90"),
@@ -1241,7 +1337,7 @@ def test_calibration_data_from_user2() -> None:
         calibrated_on_pioreactor_unit=get_unit_name(),
     )
 
-    cal.set_as_active_calibration_for_device("od")
+    cal.set_as_active_calibration_for_device("od90")
 
     with start_od_reading(
         make_channels("REF", "90"),
@@ -1460,9 +1556,9 @@ def test_CachedCalibrationTransformer_with_real_calibration() -> None:
         },
         calibration_name="test",
     )
-    calibration.save_to_disk_for_device("od")
+    calibration.save_to_disk_for_device("od90")
 
-    calibration.set_as_active_calibration_for_device("od")
+    calibration.set_as_active_calibration_for_device("od90")
 
     cal_transformer = CachedCalibrationTransformer()
     cal_transformer.hydate_models(calibration)

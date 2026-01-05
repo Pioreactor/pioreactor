@@ -210,11 +210,11 @@ def stop_specific_job_on_unit(
 
 
 @api_bp.route(
-    "/workers/<pioreactor_unit>/jobs/run/job_name/<job>/experiments/<experiment>",
+    "/units/<pioreactor_unit>/jobs/run/job_name/<job>/experiments/<experiment>",
     methods=["PATCH", "POST"],
 )
 @api_bp.route(
-    "/units/<pioreactor_unit>/jobs/run/job_name/<job>/experiments/<experiment>",
+    "/workers/<pioreactor_unit>/jobs/run/job_name/<job>/experiments/<experiment>",
     methods=["PATCH", "POST"],
 )
 def run_job_on_unit_in_experiment(
@@ -240,43 +240,73 @@ def run_job_on_unit_in_experiment(
     """
     json = current_app.get_json(request.data, type=structs.ArgsOptionsEnvsConfigOverrides)
 
-    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        # make sure the worker is active, too
-        assigned_workers = query_app_db(
-            """
-            SELECT a.pioreactor_unit, w.is_active, w.model_name, w.model_version
-            FROM experiment_worker_assignments a
-            JOIN workers w
-               on w.pioreactor_unit = a.pioreactor_unit
-            WHERE experiment = ? and w.is_active = 1
-            """,
-            (experiment,),
-        )
-        assert isinstance(assigned_workers, list)
-
-    else:
-        # check if worker is part of experiment
-        worker = query_app_db(
-            """
-            SELECT a.pioreactor_unit, w.is_active, w.model_name, w.model_version
-            FROM experiment_worker_assignments a
-            JOIN workers w
-               on w.pioreactor_unit = a.pioreactor_unit
-            WHERE a.experiment = ? AND w.pioreactor_unit = ? AND w.is_active = 1
-            """,
-            (experiment, pioreactor_unit),
-            one=True,
-        )
-        if worker is None:
-            assigned_workers = []
+    if experiment == UNIVERSAL_EXPERIMENT:
+        # universal experiment, all workers
+        if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+            assigned_workers = query_app_db(
+                """
+                SELECT pioreactor_unit, is_active, model_name, model_version
+                FROM workers
+                WHERE is_active = 1
+                """
+            )
+            assert isinstance(assigned_workers, list)
         else:
-            assigned_workers = [worker]  # type: ignore
+            # universal experiment, specific worker
+            worker = query_app_db(
+                """
+                SELECT pioreactor_unit, is_active, model_name, model_version
+                FROM workers
+                WHERE pioreactor_unit = ? AND is_active = 1
+                """,
+                (pioreactor_unit,),
+                one=True,
+            )
+            if worker is None:
+                assigned_workers = []
+            else:
+                assigned_workers = [worker]  # type: ignore
+    else:
+        if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+            # specific experiment, all workers
+            assigned_workers = query_app_db(
+                """
+                SELECT a.pioreactor_unit, w.is_active, w.model_name, w.model_version
+                FROM experiment_worker_assignments a
+                JOIN workers w
+                   on w.pioreactor_unit = a.pioreactor_unit
+                WHERE experiment = ? and w.is_active = 1
+                """,
+                (experiment,),
+            )
+            assert isinstance(assigned_workers, list)
+        else:
+            # specific experiment, specific worker
+            # check if worker is part of experiment
+            worker = query_app_db(
+                """
+                SELECT a.pioreactor_unit, w.is_active, w.model_name, w.model_version
+                FROM experiment_worker_assignments a
+                JOIN workers w
+                   on w.pioreactor_unit = a.pioreactor_unit
+                WHERE a.experiment = ? AND w.pioreactor_unit = ? AND w.is_active = 1
+                """,
+                (experiment, pioreactor_unit),
+                one=True,
+            )
+            if worker is None:
+                assigned_workers = []
+            else:
+                assigned_workers = [worker]  # type: ignore
 
     if len(assigned_workers) == 0:
-        abort(
-            404,
-            f"Worker(s) {pioreactor_unit} not found, not active, or not assigned to experiment {experiment}.",
-        )
+        if experiment == UNIVERSAL_EXPERIMENT:
+            abort(404, f"Worker(s) {pioreactor_unit} not found or not active.")
+        else:
+            abort(
+                404,
+                f"Worker(s) {pioreactor_unit} not found, not active, or not assigned to experiment {experiment}.",
+            )
 
     # Note we can include experiment in the env since we know these workers are in the experiment!
 

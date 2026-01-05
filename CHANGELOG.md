@@ -3,20 +3,30 @@
 #### Enhancements
 
  - new events in the dosing_automation_events table & export detailing when dosing starts and stops.
+<<<<<<< HEAD
  - new query pattern for faster Experiment Overview chart loading. However, there is a random element to what data is displayed in a time series for large datasets. Let us know if this is too distracting.
  - support for the new Optics Standard Reference.
 
 ### To test still
  - new self tests `pio run self_test -k optical_reference_standard`
  - new self-test pattern on Inventory page
+=======
+ - new query pattern for faster Experiment Overview chart loading. However, there is a random element to what data is displayed in a time series. Let me know if this is too distracting.
+ - OD calibrations now support multiple photodiode angles; `pio calibrations run --device od` can emit per-angle calibrations for 45/90/135.
+ - Added an update helper to migrate legacy OD calibrations into per-angle devices.
+>>>>>>> multi-od-cals
 
 #### Breaking changes
  - Moved Self-test to Inventory page. Pioreactors no longer need to be assigned to an experiment to run self-test.
  - Removed `/api/workers/<pioreactor_unit>/configuration`; use `/api/units/<pioreactor_unit>/configuration`.
+<<<<<<< HEAD
  - self-test logs are now part of "$experiment"
 #### bug fixes
 
  - fix logging prematurely closing for self-tests
+=======
+ - OD calibration devices are now per-angle (`od45`, `od90`, `od135`) instead of just `od`. Physically, this changes the calibration directory in `~/.pioreactor/storage/calibrations/od` to  `~/.pioreactor/storage/calibrations/{od45,od90,od135}`. Existing `od` calibration files and active calibrations are migrated during the update.
+>>>>>>> multi-od-cals
 
 ### 25.12.10
 

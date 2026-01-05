@@ -158,5 +158,9 @@ type GpioChip = t.Literal[0, 4]
 type mL = float
 type Seconds = float
 
-# calibration stuff
-type PumpCalibrationDevices = t.Literal["waste_pump", "media_pump", "alt_media_pump"]
+# calibration data
+OD_DEVICES = ["od", "od45", "od90", "od135"]
+PUMP_DEVICES = ["media_pump", "alt_media_pump", "waste_pump"]
+
+type ODCalibrationDevices = t.Literal["od", "od45", "od90", "od135"]
+type PumpCalibrationDevices = t.Literal["media_pump", "alt_media_pump", "waste_pump"]
