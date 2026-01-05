@@ -641,7 +641,7 @@ function WorkerCard({worker, config, leaderVersion}) {
     if (leaderVersion && workerVersion !== leaderVersion) {
       return (
         <UnderlineSpan title={`Not aligned with leader's version, ${leaderVersion}`}>
-          {workerVersion} ❌
+          {workerVersion} <ErrorOutlineIcon sx={{ verticalAlign: "middle", marginLeft: "4px", color: lostRed }} />
         </UnderlineSpan>
       );
     }

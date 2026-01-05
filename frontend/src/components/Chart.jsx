@@ -117,7 +117,7 @@ function Chart(props) {
         return name;
       }
 
-      const regexResults = name.match(/(.*)-([12])/);
+      const regexResults = name.match(sensorRe);
       if (regexResults) {
         const [_, mainPart, sensor] = regexResults;
         return `${breakString(12)(relabelMap[mainPart] || mainPart)}-ch${sensor}`;
@@ -136,7 +136,7 @@ function Chart(props) {
       const nElements = Object.keys(relabelMap).length || 1;
       const truncateString = breakString(Math.floor(100 / nElements));
 
-      const regexResults = name.match(/(.*)-([12])/);
+      const regexResults = name.match(sensorRe);
       if (regexResults) {
         const [_, mainPart, sensor] = regexResults;
         return `${truncateString(relabelMap[mainPart] || mainPart)}-ch${sensor}`;

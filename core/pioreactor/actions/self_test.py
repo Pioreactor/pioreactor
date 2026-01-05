@@ -393,9 +393,9 @@ def test_signals_when_using_optical_reference_standard(
             target = TARGETS[pd_channels[channel]]
             # within rel5%
 
-            #assert (
+            # assert (
             #    abs((signal - target) / target) < 0.05
-            #), f"Signal for {pd_channels[channel]} not within target. Target={target}V, saw {signal}V."
+            # ), f"Signal for {pd_channels[channel]} not within target. Target={target}V, saw {signal}V."
 
 
 def test_create_od_calibrations_using_optical_reference_standard(
