@@ -38,7 +38,6 @@ from pioreactor.hardware import voltage_in_aux
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
 from pioreactor.pubsub import Client
-from pioreactor.pubsub import post_into_leader
 from pioreactor.pubsub import prune_retained_messages
 from pioreactor.states import JobState
 from pioreactor.types import LedChannel
@@ -664,7 +663,6 @@ def click_self_test(k: Optional[str], retry_failed: bool) -> int:
                 "Make sure Optical Density, any automations, and Stirring are off before running a self test. Exiting."
             )
             raise click.Abort()
-
 
         # automagically finds the test_ functions.
         tests_to_run: Iterator[str]

@@ -424,7 +424,7 @@ function WorkerCard({worker, config, leaderVersion}) {
   const navigate = useNavigate()
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
-  const selfTestExperiment = experimentAssigned || "$experiment";
+  const selfTestExperiment = "$experiment";
 
 
   const isActive = () => {
