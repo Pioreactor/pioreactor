@@ -19,10 +19,10 @@ import List from '@mui/material/List';
 import {Typography} from '@mui/material';
 import Box from '@mui/material/Box';
 import LoadingButton from "@mui/lab/LoadingButton";
-import { Table, TableBody, TableCell, TableHead, TableRow, TableContainer } from '@mui/material';
+import { Table, TableBody, TableCell, TableHead, TableRow, TableContainer, IconButton } from '@mui/material';
 import ManageInventoryMenu from './components/ManageInventoryMenu';
 import LogTableByUnit from './components/LogTableByUnit';
-import {disconnectedGrey, lostRed, disabledColor, readyGreen, checkTaskCallback, getConfig} from "./utilities"
+import {disconnectedGrey, lostRed, disabledColor, readyGreen, checkTaskCallback, getConfig, runPioreactorJobViaUnitAPI} from "./utilities"
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
 import { Link } from 'react-router';
 
@@ -68,6 +68,23 @@ function StateTypography({ state, isDisabled=false }) {
     <Typography display="block" gutterBottom sx={style}>
       {stateDisplay[state].display}
     </Typography>
+  );
+}
+
+function RestartJobButton({ jobName, onRestart, isRestarting }) {
+  return (
+    <Tooltip title="Restart job" placement="top-start">
+      <span>
+        <IconButton
+          size="small"
+          aria-label="Restart job"
+          disabled={isRestarting}
+          onClick={() => onRestart(jobName)}
+        >
+          <RestartAltIcon fontSize="inherit" />
+        </IconButton>
+      </span>
+    </Tooltip>
   );
 }
 
@@ -578,6 +595,30 @@ function LeaderJobs(){
   const [mqtt_to_db_streaming_state, set_mqtt_to_db_streaming_state] = React.useState("disconnected")
   const [monitor_state, set_monitor_state] = React.useState("disconnected")
   const [otherLongRunningJobs, setOtherLongRunningJobs] = React.useState([])
+  const [restartingJob, setRestartingJob] = React.useState(null)
+
+  async function restartLongRunningJob(jobName) {
+    setRestartingJob(jobName);
+    try {
+      const response = await fetch("/unit_api/jobs/stop", {
+        method: "PATCH",
+        body: JSON.stringify({ job_name: jobName }),
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json'
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to stop job ${jobName}: ${response.statusText}`);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      await runPioreactorJobViaUnitAPI(jobName);
+    } catch (error) {
+      console.error(`Error restarting job ${jobName}:`, error);
+    } finally {
+      setRestartingJob(null);
+    }
+  }
 
   React.useEffect(() => {
     let ignore = false;
@@ -635,22 +676,44 @@ function LeaderJobs(){
               <TableRow>
                 <TableCell sx={{padding: "6px 0px"}}>Job name</TableCell>
                 <TableCell align="right" >Status</TableCell>
+                <TableCell align="right" sx={{padding: "6px 0px", width: 36}} />
               </TableRow>
             </TableHead>
             <TableBody>
               <TableRow>
                 <TableCell sx={{padding: "6px 0px"}}>mqtt_to_db_streaming</TableCell>
                 <TableCell align="right"><StateTypography state={mqtt_to_db_streaming_state}/></TableCell>
+                <TableCell align="right" sx={{padding: "6px 0px"}}>
+                  <RestartJobButton
+                    jobName="mqtt_to_db_streaming"
+                    onRestart={restartLongRunningJob}
+                    isRestarting={restartingJob === "mqtt_to_db_streaming"}
+                  />
+                </TableCell>
               </TableRow>
               <TableRow>
                 <TableCell sx={{padding: "6px 0px"}}>monitor</TableCell>
                 <TableCell align="right"><StateTypography state={monitor_state}/></TableCell>
+                <TableCell align="right" sx={{padding: "6px 0px"}}>
+                  <RestartJobButton
+                    jobName="monitor"
+                    onRestart={restartLongRunningJob}
+                    isRestarting={restartingJob === "monitor"}
+                  />
+                </TableCell>
               </TableRow>
               {otherLongRunningJobs.map(element => (
                 <React.Fragment key={element.job_name}>
                 <TableRow>
                   <TableCell sx={{padding: "6px 0px"}}>{element.job_name}</TableCell>
                   <TableCell align="right"><StateTypography state={element.state}/></TableCell>
+                  <TableCell align="right" sx={{padding: "6px 0px"}}>
+                    <RestartJobButton
+                      jobName={element.job_name}
+                      onRestart={restartLongRunningJob}
+                      isRestarting={restartingJob === element.job_name}
+                    />
+                  </TableCell>
                 </TableRow>
                 </React.Fragment>
               ))}

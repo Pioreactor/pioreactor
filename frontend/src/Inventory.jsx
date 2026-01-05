@@ -21,6 +21,7 @@ import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import FlareIcon from '@mui/icons-material/Flare';
 import IconButton from '@mui/material/IconButton';
 import TextField from '@mui/material/TextField';
@@ -369,7 +370,7 @@ function AddNewPioreactor({setWorkers}){
         </div>
 
         <Box sx={{minHeight: "60px", alignItems: "center", display: "flex"}}>
-          {isError   ? <p><CloseIcon sx={{verticalAlign: "middle", margin: "0px 3px", color: lostRed}}/>{errorMsg}</p>           : <React.Fragment/>}
+          {isError   ? <p><ErrorOutlineIcon sx={{verticalAlign: "middle", margin: "0px 3px", color: lostRed}}/>{errorMsg}</p>           : <React.Fragment/>}
           {isRunning ? <p>{expectedPathMsg}</p>                                                                    : <React.Fragment/>}
           {isSuccess ? <p><CheckIcon sx={{verticalAlign: "middle", margin: "0px 3px", color: readyGreen}}/>{successMsg}</p>      : <React.Fragment/>}
         </Box>

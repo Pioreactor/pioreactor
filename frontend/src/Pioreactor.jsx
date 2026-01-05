@@ -25,7 +25,7 @@ import Tab from '@mui/material/Tab';
 import Button from "@mui/material/Button";
 import LoadingButton from '@mui/lab/LoadingButton';
 import ToggleOnIcon from '@mui/icons-material/ToggleOn';
-import ClearIcon from '@mui/icons-material/Clear';
+import CancelIcon from '@mui/icons-material/Cancel';
 import CloseIcon from '@mui/icons-material/Close';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import FlareIcon from '@mui/icons-material/Flare';
@@ -287,7 +287,7 @@ function ButtonStopProcess({experiment, unit}) {
 
   return (
     <Button style={{textTransform: 'none', float: "right" }} color="secondary" onClick={handleClick}>
-      <ClearIcon fontSize="small" sx={textIcon}/> Stop all activity
+      <CancelIcon fontSize="small" sx={textIcon}/> Stop all activity
     </Button>
   );
 }

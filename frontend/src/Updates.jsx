@@ -25,7 +25,7 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
-import CloseIcon from '@mui/icons-material/Close';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import PioreactorsIcon from './components/PioreactorsIcon';
 import Select from '@mui/material/Select';
 import InputLabel from '@mui/material/InputLabel';
@@ -188,7 +188,7 @@ function UploadArchiveAndConfirm(props) {
               <Box sx={{m: 1, ml: 2}}>{selectedFile == null ? "" : `${selectedFile.name}  ✅`}</Box>
             </Box>
             <Box sx={{minHeight: "30px", alignItems: "center", display: "flex"}}>
-              {errorMsg   ? <p><CloseIcon sx={{color: lostRed, fontSize: 15, verticalAlign: "middle", margin: "0px 3px"}}/>{errorMsg}</p>           : <React.Fragment/>}
+              {errorMsg   ? <p><ErrorOutlineIcon sx={{color: lostRed, fontSize: 15, verticalAlign: "middle", margin: "0px 3px"}}/>{errorMsg}</p>           : <React.Fragment/>}
             </Box>
           </DialogContentText>
         </DialogContent>

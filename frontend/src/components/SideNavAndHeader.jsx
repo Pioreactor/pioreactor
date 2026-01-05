@@ -6,7 +6,7 @@ import Divider from '@mui/material/Divider';
 import MenuIcon from '@mui/icons-material/Menu';
 import MenuItemMUI from '@mui/material/MenuItem';
 import IconButton from '@mui/material/IconButton';
-import SaveAltIcon from '@mui/icons-material/SaveAlt';
+import DownloadIcon from '@mui/icons-material/Download';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import UpdateIcon from '@mui/icons-material/Update';
 import Toolbar from '@mui/material/Toolbar';
@@ -401,7 +401,7 @@ export default function SideNavAndHeader() {
                 </MenuItem>
 
                 <MenuItem
-                  icon={<SaveAltIcon sx={{fontSize: "23px"}}/> }
+                  icon={<DownloadIcon sx={{fontSize: "23px"}}/> }
                   component={<Link to="/export-data" className="link" />}
                   active={isSelected("/export-data")}
 

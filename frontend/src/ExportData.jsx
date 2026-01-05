@@ -14,7 +14,7 @@ import {Typography} from '@mui/material';
 import Select from '@mui/material/Select';
 import Box from '@mui/material/Box';
 import LoadingButton from "@mui/lab/LoadingButton";
-import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import DownloadIcon from '@mui/icons-material/Download';
 import { useTheme } from '@mui/material/styles';
 import Chip from '@mui/material/Chip';
 import { Accordion, AccordionSummary, AccordionDetails, Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
@@ -457,7 +457,7 @@ function ExportDataContainer() {
                 loading={isRunning}
                 loadingPosition="end"
                 onClick={onSubmit}
-                endIcon={<FileDownloadIcon />}
+                endIcon={<DownloadIcon />}
                 disabled={(selectedDatasetsCount === 0) || (experimentSelectionCount === 0)}
                 style={{textTransform: 'none'}}
               >

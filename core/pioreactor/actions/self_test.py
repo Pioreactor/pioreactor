@@ -38,7 +38,6 @@ from pioreactor.hardware import voltage_in_aux
 from pioreactor.logging import create_logger
 from pioreactor.logging import CustomLogger
 from pioreactor.pubsub import Client
-from pioreactor.pubsub import prune_retained_messages
 from pioreactor.states import JobState
 from pioreactor.types import LedChannel
 from pioreactor.types import PdChannel
@@ -649,8 +648,8 @@ def click_self_test(k: Optional[str], retry_failed: bool) -> int:
         test_PD_is_near_0_volts_for_blank,
         test_positive_correlation_between_rpm_and_stirring,
         test_run_stirring_calibration,
-        # test_create_od_calibrations_using_optical_reference_standard,
-        # test_signals_when_using_optical_reference_standard,
+        test_create_od_calibrations_using_optical_reference_standard,
+        test_signals_when_using_optical_reference_standard,
     )
 
     with managed_lifecycle(unit, testing_experiment, "self_test") as managed_state:
