@@ -392,6 +392,10 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } )
                         </TableCell>
                       </TableRow>
                       <TableRow>
+                        <TableCell><strong>Created at</strong></TableCell>
+                        <TableCell>{dayjs(created_at).format('MMMM D, YYYY, h:mm A')}</TableCell>
+                      </TableRow>
+                      <TableRow>
                         <TableCell><strong>Active</strong></TableCell>
                         <TableCell>{is_active && <Chip size="small" label={"Active"} icon={<CheckCircleOutlineOutlinedIcon />} sx={{backgroundColor: "white"}}  />}</TableCell>
                       </TableRow>
@@ -402,10 +406,6 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } )
                       <TableRow>
                         <TableCell><strong>Calibration type</strong></TableCell>
                         <TableCell>{calibration_type}</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell><strong>Calibrated on</strong></TableCell>
-                        <TableCell>{dayjs(created_at).format('YYYY-MM-DD') }</TableCell>
                       </TableRow>
                       <TableRow>
                         <TableCell><strong>Fit polynomial</strong></TableCell>

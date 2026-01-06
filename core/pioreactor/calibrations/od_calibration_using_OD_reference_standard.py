@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from time import sleep
 from typing import cast
 
 import click
@@ -86,6 +87,7 @@ def record_reference_standard(ir_led_intensity: float) -> structs.ODReadings:
         ir_led_intensity=ir_led_intensity,
     ) as od_reader:
         for _ in range(3):
+            sleep(5)
             od_reader.record_from_adc()
 
         od_readings_samples: list[structs.ODReadings] = []
@@ -96,7 +98,13 @@ def record_reference_standard(ir_led_intensity: float) -> structs.ODReadings:
                 raise click.Abort()
             od_readings_samples.append(od_readings)
 
-    return average_over_od_readings(*od_readings_samples)
+    averaged_od_readings = average_over_od_readings(*od_readings_samples)
+    averaged_od_summary = ", ".join(
+        f"channel {pd_channel} ({od_reading.angle} deg)={od_reading.od:.6f}"
+        for pd_channel, od_reading in sorted(averaged_od_readings.ods.items())
+    )
+    info(f"Averaged OD readings: {averaged_od_summary}")
+    return averaged_od_readings
 
 
 def run_od_calibration(target_device: pt.ODCalibrationDevices) -> list[structs.ODCalibration]:
@@ -127,6 +135,17 @@ def run_od_calibration(target_device: pt.ODCalibrationDevices) -> list[structs.O
             curve_data_ = calibration_utils.calculate_poly_curve_of_best_fit(
                 recorded_ods, recorded_voltages, degree=1
             )
+            if len(curve_data_) == 2:
+                slope, intercept = curve_data_
+                info(
+                    f"Fitted linear curve for od{angle} (channel {pd_channel}): "
+                    f"y = {slope:.6f}x + {intercept:.6f}"
+                )
+            else:
+                info(
+                    f"Fitted linear curve for od{angle} (channel {pd_channel}): "
+                    f"coefficients={curve_data_}"
+                )
 
             calibration = structs.ODCalibration(
                 created_at=current_utc_datetime(),
