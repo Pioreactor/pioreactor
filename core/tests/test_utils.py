@@ -22,6 +22,7 @@ from pioreactor.utils import JobMetadataKey
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import managed_lifecycle
+from pioreactor.utils import SummableDict
 from pioreactor.whoami import get_unit_name
 from tests.conftest import capture_requests
 
@@ -490,3 +491,14 @@ def test_retrieve_setting(job_manager, job_id) -> None:
 def test_argextrema_with_empty_lists() -> None:
     with pytest.raises(ValueError):
         argextrema([])
+
+
+def test_summable_dict_with_list_values() -> None:
+    first = SummableDict({"a": [1.0, 2.0], "b": [3.0]})
+    second = SummableDict({"a": [4.0], "c": [5.0, 6.0]})
+
+    result = first + second
+
+    assert result["a"] == [1.0, 2.0, 4.0]
+    assert result["b"] == [3.0]
+    assert result["c"] == [5.0, 6.0]

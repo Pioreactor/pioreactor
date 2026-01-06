@@ -26,6 +26,7 @@ import SystemLogs from "./SystemLogs";
 //import Analysis from "./Analysis";
 import Experiments from "./Experiments";
 import Calibrations from "./Calibrations";
+import Protocols from "./Protocols";
 import SideNavAndHeader from "./components/SideNavAndHeader";
 import MissingWorkerModelModal from "./components/MissingWorkerModelModal";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -134,6 +135,7 @@ function MainSite() {
                   <Route path="/calibrations/:pioreactorUnit/" element={<Calibrations title="Pioreactor ~ Calibrations"/>}/>
                   <Route path="/calibrations/:pioreactorUnit/:device" element={<Calibrations title="Pioreactor ~ Calibrations"/>}/>
                   <Route path="/calibrations/:pioreactorUnit/:device/:calibrationName" element={<SingleCalibrationPage title="Pioreactor ~ Calibration"/>}/>
+                  <Route path="/protocols" element={<Protocols title="Pioreactor ~ Protocols"/>}/>
                   <Route path="/pioreactors" element={ <Pioreactors title="Pioreactor ~ Pioreactors"/>}/>
                   <Route path="/pioreactors/:pioreactorUnit" element={ <Pioreactor title="Pioreactor ~ Pioreactor"/>}/>
                   <Route path="/updates" element={<Updates title="Pioreactor ~ Updates"/>}/>

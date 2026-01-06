@@ -466,6 +466,7 @@ class BatchTestRunner:
     def __init__(self, tests_to_run: list[Callable], *test_func_args) -> None:
         self.count_tested = 0
         self.count_passed = 0
+        self.failed_tests: list[str] = []
         self.tests_to_run = tests_to_run
         self._thread = Thread(target=self._run, args=test_func_args)  # don't make me daemon: 295
 
@@ -475,30 +476,38 @@ class BatchTestRunner:
 
     def collect(self) -> SummableDict:
         self._thread.join()
-        return SummableDict({"count_tested": self.count_tested, "count_passed": self.count_passed})
+        return SummableDict(
+            {
+                "count_tested": self.count_tested,
+                "count_passed": self.count_passed,
+                "failed_tests": self.failed_tests,
+            }
+        )
 
     def _run(self, managed_state, logger: CustomLogger, unit: str, testing_experiment: str) -> None:
         for test in self.tests_to_run:
             test_name = test.__name__
 
-            res = True
+            success = True
             logger.debug(f"Starting test {test_name}...")
             try:
                 test(managed_state, logger, unit, testing_experiment)
             except Exception as e:
-                res = False
+                success = False
                 logger.debug(e, exc_info=True)
                 logger.warning(f"{test_name.replace('_', ' ')}: {e}")
 
-            logger.debug(f"{test_name}: {'✅' if res else '❌'}")
+            logger.debug(f"{test_name}: {'✅' if success else '❌'}")
 
             self.count_tested += 1
-            self.count_passed += int(res)
+            self.count_passed += int(success)
+            if not success:
+                self.failed_tests.append(test_name)
 
-            managed_state.publish_setting(test_name, int(res))
+            managed_state.publish_setting(test_name, int(success))
 
             with local_persistent_storage("self_test_results") as c:
-                c[test_name] = int(res)
+                c[test_name] = int(success)
 
 
 def get_failed_test_names() -> Iterator[str]:
@@ -586,5 +595,7 @@ def click_self_test(k: Optional[str], retry_failed: bool) -> int:
             logger.info("All tests passed ✅")
         elif count_failures > 0:
             logger.info(f"{count_failures} failed test{'s' if count_failures > 1 else ''} ❌")
+            failed_tests = "\n      ".join(f"{test_name}" for test_name in results["failed_tests"])
+            logger.debug(f"Failed tests:\n      {failed_tests}")
 
         return int(count_failures > 0)

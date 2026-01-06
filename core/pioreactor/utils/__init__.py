@@ -552,6 +552,12 @@ class SummableDict(dict):
 
     # result should be {'a': 1, 'b': 5, 'c': 4}
 
+    # list values are concatenated
+    d3 = SummableDict({'a': [1, 2]})
+    d4 = SummableDict({'a': [3], 'b': [4]})
+    result = d3 + d4
+    # result should be {'a': [1, 2, 3], 'b': [4]}
+
     # also has a default value:
     print(result['missing_key']) # 0.0
 
@@ -563,10 +569,13 @@ class SummableDict(dict):
 
     def __add__(self, other: SummableDict) -> SummableDict:
         s = SummableDict()
-        for key in self:
-            s[key] += self[key]
-        for key in other:
-            s[key] += other[key]
+        for key, value in self.items():
+            s[key] = value
+        for key, value in other.items():
+            if key in s:
+                s[key] = s[key] + value
+            else:
+                s[key] = value
 
         return s
 
