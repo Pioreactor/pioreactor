@@ -26,7 +26,6 @@ from pioreactor.whoami import is_testing_env
 
 STANDARD_OD = 1.0
 DEFAULT_TARGET_ANGLES = {"45", "90", "135"}
-OD_REFERENCE_STANDARD_SAMPLES = 5
 
 
 def introduction() -> None:
@@ -86,16 +85,15 @@ def record_reference_standard(ir_led_intensity: float) -> structs.ODReadings:
         calibration=False,
         ir_led_intensity=ir_led_intensity,
     ) as od_reader:
-        for _ in range(3):
-            sleep(5)
+        for _ in range(2):
+            sleep(1.0 / config.getfloat("od_reading.config", "samples_per_second"))
             od_reader.record_from_adc()
 
         od_readings_samples: list[structs.ODReadings] = []
-        for _ in range(OD_REFERENCE_STANDARD_SAMPLES):
+        for _ in range(5):
             od_readings = od_reader.record_from_adc()
-            if od_readings is None:
-                echo(red("Unable to record OD readings."))
-                raise click.Abort()
+            assert od_readings is not None
+            sleep(1.0 / config.getfloat("od_reading.config", "samples_per_second"))
             od_readings_samples.append(od_readings)
 
     averaged_od_readings = average_over_od_readings(*od_readings_samples)
