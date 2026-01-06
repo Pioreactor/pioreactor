@@ -23,6 +23,7 @@ from msgspec.json import encode
 from msgspec.json import format
 from pioreactor import structs
 from pioreactor import types as pt
+from pioreactor.background_jobs.od_reading import average_over_od_readings
 from pioreactor.background_jobs.od_reading import REF_keyword
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.stirring import start_stirring as stirring
@@ -217,12 +218,12 @@ def start_recording_standards(
         def get_voltages_from_adc() -> dict[pt.PdChannel, pt.Voltage]:
             od_readings1 = od_reader.record_from_adc()
             od_readings2 = od_reader.record_from_adc()
+            od_readings3 = od_reader.record_from_adc()
             assert od_readings1 is not None
             assert od_readings2 is not None
-            return {
-                channel: 0.5 * (od_readings1.ods[channel].od + od_readings2.ods[channel].od)
-                for channel in signal_channels
-            }
+            assert od_readings3 is not None
+            averaged_readings = average_over_od_readings(od_readings1, od_readings2, od_readings3)
+            return {channel: averaged_readings.ods[channel].od for channel in signal_channels}
 
         for _ in range(3):
             # warm up

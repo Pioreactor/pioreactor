@@ -75,6 +75,19 @@ class StandardsODProtocol(CalibrationProtocol[pt.ODCalibrationDevices]):
         return run_od_calibration(target_device)
 
 
+class ODReferenceStandardProtocol(CalibrationProtocol[pt.ODCalibrationDevices]):
+    target_device = pt.OD_DEVICES
+    protocol_name = "od_reference_standard"
+    description = "Calibrate OD using the Pioreactor Optical Reference Standard."
+
+    def run(  # type: ignore
+        self, target_device: pt.ODCalibrationDevices, *args, **kwargs
+    ) -> list[structs.ODCalibration]:
+        from pioreactor.calibrations.od_calibration_using_OD_reference_standard import run_od_calibration
+
+        return run_od_calibration(target_device)
+
+
 class DurationBasedPumpProtocol(CalibrationProtocol[pt.PumpCalibrationDevices]):
     target_device = pt.PUMP_DEVICES
     protocol_name = "duration_based"

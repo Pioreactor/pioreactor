@@ -18,7 +18,6 @@ from typing import Iterator
 from typing import Optional
 
 import click
-from pioreactor import structs
 from pioreactor.actions.led_intensity import ALL_LED_CHANNELS
 from pioreactor.actions.led_intensity import change_leds_intensities_temporarily
 from pioreactor.actions.led_intensity import led_intensity
@@ -29,7 +28,6 @@ from pioreactor.background_jobs.od_reading import average_over_raw_pd_readings
 from pioreactor.background_jobs.od_reading import IR_keyword
 from pioreactor.background_jobs.od_reading import REF_keyword
 from pioreactor.background_jobs.od_reading import start_od_reading
-from pioreactor.calibrations import utils as calibration_utils
 from pioreactor.config import config
 from pioreactor.hardware import get_available_pd_channels
 from pioreactor.hardware import is_HAT_present
@@ -49,7 +47,6 @@ from pioreactor.utils.math_helpers import correlation
 from pioreactor.utils.math_helpers import mean
 from pioreactor.utils.math_helpers import trimmed_mean
 from pioreactor.utils.math_helpers import variance
-from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
@@ -156,7 +153,7 @@ def test_all_positive_correlations_between_pds_and_leds(
     )
 
     adc_reader = ADCReader(
-        channels=pd_channels_available, dynamic_gain=False, fake_data=is_testing_env(), penalizer=0.0
+        channels=pd_channels_available, dynamic_gain=True, fake_data=is_testing_env(), penalizer=0.0
     )
     adc_reader.add_external_logger(logger)
     adc_reader.tune_adc()
@@ -261,7 +258,7 @@ def test_ambient_light_interference(managed_state, logger: CustomLogger, unit: s
     pd_channels_available = list(get_available_pd_channels())
     adc_reader = ADCReader(
         channels=pd_channels_available,
-        dynamic_gain=False,
+        dynamic_gain=True,
         fake_data=is_testing_env(),
     )
 
@@ -298,7 +295,7 @@ def test_REF_is_lower_than_0_dot_256_volts(
         ir_intensity = float(config_ir_intensity)
 
     adc_reader = ADCReader(
-        channels=[reference_channel], dynamic_gain=False, fake_data=is_testing_env(), penalizer=0.0
+        channels=[reference_channel], dynamic_gain=True, fake_data=is_testing_env(), penalizer=0.0
     )
     adc_reader.add_external_logger(logger)
     adc_reader.tune_adc()
@@ -332,128 +329,6 @@ def test_REF_is_lower_than_0_dot_256_volts(
 
         # also check for stability: the std. of the reference should be quite low:
         assert variance(samples) < 1e-2, f"Too much noise in REF channel, observed {variance(samples)}."
-
-
-def test_signals_when_using_optical_reference_standard(
-    managed_state, logger: CustomLogger, unit: str, experiment: str
-) -> None:
-
-    # assert False, "No standard!"
-    assert is_HAT_present(), "HAT is not detected."
-    pd_channels = config["od_config.photodiode_channel"]
-    pd_channels_that_are_angles = list(pd_channels.keys())
-    reference_channel = cast(PdChannel, next((k for k, v in pd_channels.items() if v == REF_keyword), None))
-
-    if reference_channel:
-        pd_channels_that_are_angles.remove(reference_channel)
-
-    ir_intensity = 80.0
-    ir_channel = cast(LedChannel, config["leds_reverse"][IR_keyword])
-
-    adc_reader = ADCReader(
-        channels=pd_channels_that_are_angles, dynamic_gain=False, fake_data=is_testing_env(), penalizer=0.0
-    )
-    adc_reader.add_external_logger(logger)
-    adc_reader.tune_adc()
-
-    TARGETS = {
-        "45": 1.0,
-        "90": 1.0,
-        "135": 1.0,
-    }
-
-    with change_leds_intensities_temporarily(
-        {"A": 0, "B": 0, "C": 0, "D": 0},
-        unit=unit,
-        source_of_event="self_test",
-        experiment=experiment,
-        verbose=False,
-    ):
-        blank_reading = adc_reader.take_reading()
-        adc_reader.set_offsets(blank_reading)  # set dark offset
-        adc_reader.clear_batched_readings()
-
-    with change_leds_intensities_temporarily(
-        {ir_channel: ir_intensity},
-        unit=unit,
-        source_of_event="self_test",
-        experiment=experiment,
-        verbose=False,
-    ):
-        # record from ADC, we'll average them
-        avg_reading = average_over_raw_pd_readings(
-            adc_reader.take_reading(),
-            adc_reader.take_reading(),
-            adc_reader.take_reading(),
-        )
-
-        for channel in pd_channels_that_are_angles:
-            signal = avg_reading[channel].reading
-            print(signal, pd_channels[channel])
-            target = TARGETS[pd_channels[channel]]
-            # within rel5%
-
-            # assert (
-            #    abs((signal - target) / target) < 0.05
-            # ), f"Signal for {pd_channels[channel]} not within target. Target={target}V, saw {signal}V."
-
-
-def test_create_od_calibrations_using_optical_reference_standard(
-    managed_state, logger: CustomLogger, unit: str, experiment: str
-) -> None:
-    # assert False, "No standard!"
-
-    ir_intensity_setting = config.get("od_reading.config", "ir_led_intensity")
-    assert (
-        ir_intensity_setting != "auto"
-    ), "ir_led_intensity must be numeric when creating OD calibrations from the optical reference standard. Try 80."
-    ir_intensity = float(ir_intensity_setting)
-
-    STANDARD_OD = 1.0
-
-    with start_od_reading(
-        config["od_config.photodiode_channel"],
-        interval=None,
-        unit=unit,
-        fake_data=is_testing_env(),
-        experiment=experiment,
-        calibration=False,
-        ir_led_intensity=ir_intensity,
-    ) as od_reader:
-        # warm up
-        for _ in range(3):
-            od_reader.record_from_adc()
-
-        od_readings = od_reader.record_from_adc()
-
-    assert od_readings is not None, "Unable to record OD reading."
-
-    target_angles = {"45", "90", "135"}
-    recorded_ods = [0.0, STANDARD_OD]
-    timestamp = current_utc_datetime().strftime("%Y-%m-%d")
-
-    for pd_channel, od_reading in od_readings.ods.items():
-        if od_reading.angle not in target_angles:
-            continue
-
-        recorded_voltages = [0.0, od_reading.od]
-        curve_data_ = calibration_utils.calculate_poly_curve_of_best_fit(
-            recorded_ods, recorded_voltages, degree=1
-        )
-
-        calibration = structs.OD600Calibration(
-            created_at=current_utc_datetime(),
-            calibrated_on_pioreactor_unit=unit,
-            calibration_name=f"od{od_reading.angle}-optical-reference-standard-{timestamp}",
-            angle=od_reading.angle,
-            curve_data_=curve_data_,
-            curve_type="poly",
-            recorded_data={"x": recorded_ods, "y": recorded_voltages},
-            ir_led_intensity=ir_intensity,
-            pd_channel=pd_channel,
-        )
-
-        calibration.set_as_active_calibration_for_device(f"od{od_reading.angle}")
 
 
 def test_PD_is_near_0_volts_for_blank(
@@ -502,6 +377,18 @@ def test_run_stirring_calibration(managed_state, logger: CustomLogger, unit: str
     cal.save_to_disk_for_device("stirring")
     cal.set_as_active_calibration_for_device("stirring")
     return
+
+
+def test_create_od_calibrations_using_optical_reference_standard(
+    managed_state, logger: CustomLogger, unit: str, experiment: str
+) -> None:
+    from pioreactor.calibrations.od_calibration_using_OD_reference_standard import run_od_calibration
+
+    calibrations = run_od_calibration("od")
+    for calibration in calibrations:
+        calibration_device = f"od{calibration.angle}"
+        calibration.save_to_disk_for_device(calibration_device)
+        calibration.set_as_active_calibration_for_device(calibration_device)
 
 
 def test_positive_correlation_between_temperature_and_heating(
@@ -651,7 +538,6 @@ def click_self_test(k: Optional[str], retry_failed: bool) -> int:
         test_positive_correlation_between_rpm_and_stirring,
         test_run_stirring_calibration,
         test_create_od_calibrations_using_optical_reference_standard,
-        test_signals_when_using_optical_reference_standard,
     )
 
     with managed_lifecycle(unit, testing_experiment, "self_test") as managed_state:

@@ -104,6 +104,35 @@ def average_over_raw_pd_readings(*multiple_raw_pd_readings: RawPDReadings) -> Ra
     }
 
 
+def average_over_od_readings(*multiple_od_readings: structs.ODReadings) -> structs.ODReadings:
+    if not multiple_od_readings:
+        raise ValueError("No OD readings provided.")
+
+    running_count = 0
+    summed_pd_channel_to_od: dict[pt.PdChannel, float] = {}
+    reference_reading = multiple_od_readings[0]
+
+    for od_readings in multiple_od_readings:
+        for pd_channel, od_reading in od_readings.ods.items():
+            summed_pd_channel_to_od[pd_channel] = summed_pd_channel_to_od.get(pd_channel, 0.0) + od_reading.od
+        running_count += 1
+
+    timestamp = timing.current_utc_datetime()
+    return structs.ODReadings(
+        timestamp=timestamp,
+        ods={
+            pd_channel: structs.RawODReading(
+                timestamp=timestamp,
+                angle=reference_reading.ods[pd_channel].angle,
+                od=od_value / running_count,
+                channel=pd_channel,
+                ir_led_intensity=reference_reading.ods[pd_channel].ir_led_intensity,
+            )
+            for pd_channel, od_value in summed_pd_channel_to_od.items()
+        },
+    )
+
+
 class ADCReader(LoggerMixin):
     """
 

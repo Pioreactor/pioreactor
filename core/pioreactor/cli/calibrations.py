@@ -116,10 +116,9 @@ def run_calibration(ctx, device: str, protocol_name: str | None, y: bool) -> Non
             )
 
     assistant = calibration_protocols.get(device, {}).get(protocol_name)
-
     if assistant is None:
         click.echo(
-            f"No protocols found for device '{device}'. Available {device} protocols: {list(c[1] for c in calibration_protocols.keys() if c[0] == device)}"
+            f"No protocols found for device '{device}'. Available {device} protocols: {list(calibration_protocols[device].keys())}"
         )
         raise click.Abort()
 

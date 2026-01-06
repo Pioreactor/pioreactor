@@ -17,6 +17,7 @@ from msgspec.json import encode
 from msgspec.json import format
 from pioreactor import structs
 from pioreactor import types as pt
+from pioreactor.background_jobs.od_reading import average_over_od_readings
 from pioreactor.background_jobs.od_reading import REF_keyword
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.stirring import start_stirring as stirring
@@ -257,7 +258,8 @@ def start_recording_and_diluting(
             od_readings2 = od_reader.record_from_adc()
             assert od_readings1 is not None
             assert od_readings2 is not None
-            return 0.5 * (od_readings1.ods[pd_channel].od + od_readings2.ods[pd_channel].od)
+            averaged_readings = average_over_od_readings(od_readings1, od_readings2)
+            return averaged_readings.ods[pd_channel].od
 
         for _ in range(4):
             # warm up
