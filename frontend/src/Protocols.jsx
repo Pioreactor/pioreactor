@@ -397,7 +397,9 @@ function Protocols(props) {
           component={Link}
           to={
             selectedUnit && selectedDevice
-              ? `/calibrations/${selectedUnit}/${selectedDevice}`
+              ? `/calibrations/${selectedUnit}/${
+                  selectedDevice === "od" ? "od90" : selectedDevice
+                }`
               : "/calibrations"
           }
           startIcon={<TuneIcon />}
