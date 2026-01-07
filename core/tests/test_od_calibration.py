@@ -41,13 +41,11 @@ def test_analyze() -> None:
 
 @pytest.mark.slow
 def test_run_od_standards() -> None:
+    input_ = "standards\nod-cal-2025-02-23\nY\nY\nY\n1\nY\nY\n0.5\nY\nY\n0.1\nn\nY\n0.0\nd\n1\ny\ny\n"
+    print(input_)
     with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "70"):
         runner = CliRunner()
-        result = runner.invoke(
-            run_calibration,
-            ["--device", "od90"],
-            input="standards\nod-cal-2025-02-23\nY\nY\n1\nY\nY\n0.5\nY\nY\n0.1\nn\n0.0\nY\nd\n1\ny\ny\n",
-        )
+        result = runner.invoke(run_calibration, ["--device", "od90"], input=input_)
         assert not result.exception
         cal = load_calibration("od90", "od-cal-2025-02-23")
         assert len(cal.curve_data_) == 2  # two since it's linear
