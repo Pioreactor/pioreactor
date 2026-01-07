@@ -14,15 +14,14 @@ from click import prompt
 from msgspec.json import encode
 from msgspec.json import format
 from pioreactor import structs
-from pioreactor.actions.pump import add_alt_media
-from pioreactor.actions.pump import add_media
-from pioreactor.actions.pump import remove_waste
+from pioreactor import types as pt
 from pioreactor.calibrations import list_of_calibrations_by_device
 from pioreactor.calibrations.cli_helpers import action_block
 from pioreactor.calibrations.cli_helpers import green
 from pioreactor.calibrations.cli_helpers import info
 from pioreactor.calibrations.cli_helpers import info_heading
 from pioreactor.calibrations.cli_helpers import red
+from pioreactor.calibrations.registry import CalibrationProtocol
 from pioreactor.calibrations.utils import curve_to_callable
 from pioreactor.config import config
 from pioreactor.hardware import voltage_in_aux
@@ -369,6 +368,11 @@ def get_user_calibrations() -> list[float]:
 def run_pump_calibration(
     pump_device,
 ) -> structs.SimplePeristalticPumpCalibration:
+
+    from pioreactor.actions.pump import add_alt_media
+    from pioreactor.actions.pump import add_media
+    from pioreactor.actions.pump import remove_waste
+
     unit = get_unit_name()
     experiment = "$experiment"
 
@@ -454,3 +458,13 @@ def run_pump_calibration(
 
         info(f"Finished {pump_device} calibration `{name}`.")
         return data_blob
+
+
+class DurationBasedPumpProtocol(CalibrationProtocol[pt.PumpCalibrationDevices]):
+    target_device = pt.PUMP_DEVICES
+    protocol_name = "duration_based"
+
+    def run(
+        self, target_device: pt.PumpCalibrationDevices, **kwargs
+    ) -> structs.SimplePeristalticPumpCalibration:
+        return run_pump_calibration(target_device)

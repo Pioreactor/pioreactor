@@ -653,6 +653,33 @@ def create_calibration(device: str) -> ResponseReturnValue:
         abort(500, description="Failed to create calibration.")
 
 
+@unit_api_bp.route("/calibrations/protocols/run", methods=["POST"])
+def run_calibration_protocol() -> DelayedResponseReturnValue:
+    body = request.get_json()
+    if body is None:
+        abort(400, description="Missing JSON payload.")
+
+    device = body.get("device")
+    if not device:
+        abort(400, description="Missing 'device'.")
+
+    protocol_name = body.get("protocol_name")
+    if not protocol_name:
+        abort(400, description="Missing 'protocol_name'.")
+    set_active = body.get("set_active", True)
+    if not isinstance(set_active, bool):
+        set_active = str(set_active).lower() == "true"
+
+    commands: tuple[str, ...] = ("--device", device)
+    if protocol_name:
+        commands += ("--protocol-name", protocol_name)
+    if set_active:
+        commands += ("-y",)
+
+    task = tasks.pio_calibrations_run(*commands, env={"JOB_SOURCE": "user"})
+    return create_task_response(task)
+
+
 @unit_api_bp.route("/calibrations/<device>/<calibration_name>", methods=["DELETE"])
 def delete_calibration(device: str, calibration_name: str) -> ResponseReturnValue:
     """

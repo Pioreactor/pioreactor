@@ -28,6 +28,7 @@ from pioreactor.calibrations.cli_helpers import green
 from pioreactor.calibrations.cli_helpers import info
 from pioreactor.calibrations.cli_helpers import info_heading
 from pioreactor.calibrations.cli_helpers import red
+from pioreactor.calibrations.registry import CalibrationProtocol
 from pioreactor.config import config
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistent_storage
@@ -478,3 +479,12 @@ def run_od_calibration(target_device: pt.ODCalibrationDevices) -> structs.OD600C
         info(f"Finished calibration of `{name}` ✅")
 
         return cal
+
+
+class SingleVialODProtocol(CalibrationProtocol[pt.ODCalibrationDevices]):
+    target_device = pt.OD_DEVICES
+    protocol_name = "single_vial"
+    description = "Calibrate OD using a single vial"
+
+    def run(self, target_device: pt.ODCalibrationDevices, **kwargs) -> structs.OD600Calibration:
+        return run_od_calibration(target_device)

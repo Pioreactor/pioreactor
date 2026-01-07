@@ -20,10 +20,11 @@ import DialogContent from '@mui/material/DialogContent';
 import {Typography} from '@mui/material';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
+import LoadingButton from "@mui/lab/LoadingButton";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 
 
 import PioreactorIcon from "./PioreactorIcon"
-import PatientButton from "./PatientButton"
 import {runPioreactorJob} from "../utilities"
 
 
@@ -73,23 +74,35 @@ export default function SelfTestDialog({client, disabled, experiment, unit, labe
       case "init":
       case "ready":
       case "sleeping":
-       return (<Box  sx={{display: "inline-block"}}>
-               <PatientButton
-                color="primary"
-                variant="contained"
-                disabled={true}
-                buttonText="Running"
-               />
-              </Box>)
+       return (
+         <Box sx={{display: "inline-block"}}>
+           <LoadingButton
+            variant="contained"
+            loading={true}
+            loadingPosition="start"
+            endIcon={<PlayArrowIcon />}
+            disabled={true}
+            sx={{mt: "5px", height: "31px", textTransform: "none"}}
+           >
+            Running
+           </LoadingButton>
+         </Box>
+       )
       default:
-       return (<Box  sx={{display: "inline-block"}}>
-               <PatientButton
-                color="primary"
-                variant="contained"
-                onClick={() => runPioreactorJob(unit, experiment, "self_test")}
-                buttonText="Start"
-               />
-              </Box>)
+       return (
+         <Box sx={{display: "inline-block"}}>
+           <LoadingButton
+            variant="contained"
+            loading={false}
+            loadingPosition="start"
+            endIcon={<PlayArrowIcon />}
+            onClick={() => runPioreactorJob(unit, experiment, "self_test")}
+            sx={{mt: "5px", height: "31px", textTransform: "none"}}
+           >
+            Start
+           </LoadingButton>
+         </Box>
+       )
     }
   }
 
@@ -251,12 +264,6 @@ export default function SelfTestDialog({client, disabled, experiment, unit, labe
                 <ListItemText primary="Stirring RPM is responsive" />
               </ListItem>
 
-              <ListItem sx={{pt: 0, pb: 0}}>
-                <ListItemIcon sx={{minWidth: "30px"}}>
-                  {displayIcon("test_run_stirring_calibration", selfTestState)}
-                </ListItemIcon>
-                <ListItemText primary="Create stirring calibration" />
-              </ListItem>
 
               <ListItem sx={{pt: 0, pb: 0}}>
                 <ListItemIcon sx={{minWidth: "30px"}}>

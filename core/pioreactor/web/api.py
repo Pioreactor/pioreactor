@@ -1489,6 +1489,34 @@ def create_calibration(pioreactor_unit: str, device: str) -> DelayedResponseRetu
     return create_task_response(task)
 
 
+@api_bp.route("/workers/<pioreactor_unit>/calibrations/protocols/run", methods=["POST"])
+def run_calibration_protocol(pioreactor_unit: str) -> DelayedResponseReturnValue:
+    body = request.get_json()
+    if body is None:
+        abort(400, description="Missing JSON payload.")
+
+    device = body.get("device")
+    if not device:
+        abort(400, description="Missing 'device'.")
+
+    protocol_name = body.get("protocol_name")
+    set_active = body.get("set_active", True)
+    if not isinstance(set_active, bool):
+        set_active = str(set_active).lower() == "true"
+
+    payload = {
+        "device": device,
+        "protocol_name": protocol_name,
+        "set_active": set_active,
+    }
+
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        task = broadcast_post_across_workers("/unit_api/calibrations/protocols/run", payload)
+    else:
+        task = tasks.multicast_post("/unit_api/calibrations/protocols/run", [pioreactor_unit], payload)
+    return create_task_response(task)
+
+
 @api_bp.route("/workers/<pioreactor_unit>/active_calibrations/<device>/<cal_name>", methods=["PATCH"])
 def set_active_calibration(pioreactor_unit, device, cal_name) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:

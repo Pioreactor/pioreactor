@@ -15,6 +15,7 @@ from pioreactor.calibrations import utils as calibration_utils
 from pioreactor.calibrations.cli_helpers import info
 from pioreactor.calibrations.cli_helpers import info_heading
 from pioreactor.calibrations.cli_helpers import red
+from pioreactor.calibrations.registry import CalibrationProtocol
 from pioreactor.config import config
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import managed_lifecycle
@@ -164,3 +165,14 @@ def run_od_calibration(target_device: pt.ODCalibrationDevices) -> list[structs.O
 
         info("Finished reference standard calibration.")
         return calibrations
+
+
+class ODReferenceStandardProtocol(CalibrationProtocol[pt.ODCalibrationDevices]):
+    target_device = pt.OD_DEVICES
+    protocol_name = "od_reference_standard"
+    description = "Calibrate OD using the Pioreactor Optical Reference Standard."
+
+    def run(  # type: ignore
+        self, target_device: pt.ODCalibrationDevices, *args, **kwargs
+    ) -> list[structs.ODCalibration]:
+        return run_od_calibration(target_device)

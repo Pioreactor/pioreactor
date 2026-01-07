@@ -399,17 +399,9 @@ export default function SideNavAndHeader() {
 
                   >
                   <MenuItem
-                    component={<Link to="/calibrations" className="link" />}
-                    active={isSelected("/calibrations")}
-                    icon={<SubdirectoryArrowRightIcon  sx={{fontSize: "23px"}}/>}
-                    >
-                    Library
-                  </MenuItem>
-                  <MenuItem
                     component={<Link to="/protocols" className="link" />}
                     active={isSelected("/protocols")}
                     icon={<SubdirectoryArrowRightIcon  sx={{fontSize: "23px"}}/>}
-                    disabled={true}
                     >
                     Protocols
                   </MenuItem>

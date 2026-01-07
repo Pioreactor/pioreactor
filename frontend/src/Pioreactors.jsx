@@ -2328,9 +2328,6 @@ function ActiveUnits({experiment, config, units, availableModels}){
             Active Pioreactors
           </Box>
         </Typography>
-        <div >
-
-        </div>
       </div>
       {renderCards()}
 

@@ -7,8 +7,10 @@ This should be run with a vial in, with a stirbar. Water is fine.
 from __future__ import annotations
 
 from time import sleep
+from typing import Literal
 
 from pioreactor.background_jobs import stirring
+from pioreactor.calibrations.registry import CalibrationProtocol
 from pioreactor.calibrations.utils import linspace
 from pioreactor.config import config
 from pioreactor.exc import JobPresentError
@@ -81,7 +83,7 @@ def run_stirring_calibration(
                     f"pioreactor/{unit}/{experiment}/{action_name}/percent_progress",
                     count / n_samples * 100,
                 )
-                logger.debug(f"Progress: {count/n_samples:.0%}")
+                logger.debug(f"Progress: {count / n_samples:.0%}")
 
         # drop any 0 in RPM, too little DC
         try:
@@ -114,4 +116,16 @@ def run_stirring_calibration(
             curve_data_=[alpha, beta],
             curve_type="poly",
             recorded_data={"x": list(filtered_dcs), "y": list(filtered_measured_rpms)},
+        )
+
+
+class DCBasedStirringProtocol(CalibrationProtocol[Literal["stirring"]]):
+    target_device = "stirring"
+    protocol_name = "dc_based"
+
+    def run(
+        self, target_device: Literal["stirring"], min_dc: str | None = None, max_dc: str | None = None
+    ) -> SimpleStirringCalibration:
+        return run_stirring_calibration(
+            min_dc=float(min_dc) if min_dc is not None else None, max_dc=float(max_dc) if max_dc else None
         )

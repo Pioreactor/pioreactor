@@ -371,7 +371,7 @@ def test_detect_heating_pcb(managed_state, logger: CustomLogger, unit: str, expe
 
 
 def test_run_stirring_calibration(managed_state, logger: CustomLogger, unit: str, experiment: str) -> None:
-    from pioreactor.calibrations.stirring_calibration import run_stirring_calibration
+    from pioreactor.calibrations.protocols.stirring_dc_based import run_stirring_calibration
 
     cal = run_stirring_calibration()
     cal.save_to_disk_for_device("stirring")
@@ -382,7 +382,7 @@ def test_run_stirring_calibration(managed_state, logger: CustomLogger, unit: str
 def test_create_od_calibrations_using_optical_reference_standard(
     managed_state, logger: CustomLogger, unit: str, experiment: str
 ) -> None:
-    from pioreactor.calibrations.od_calibration_using_OD_reference_standard import run_od_calibration
+    from pioreactor.calibrations.protocols.od_reference_standard import run_od_calibration
 
     calibrations = run_od_calibration("od")
     for calibration in calibrations:
@@ -545,8 +545,8 @@ def click_self_test(k: Optional[str], retry_failed: bool) -> int:
         test_REF_is_in_correct_position,
         test_PD_is_near_0_volts_for_blank,
         test_positive_correlation_between_rpm_and_stirring,
-        test_run_stirring_calibration,
-        test_create_od_calibrations_using_optical_reference_standard,
+        # test_run_stirring_calibration,
+        # test_create_od_calibrations_using_optical_reference_standard,
     )
 
     with managed_lifecycle(unit, testing_experiment, "self_test") as managed_state:

@@ -501,7 +501,7 @@ function CalibrationData() {
               <TableCell align="left" sx={{padding: "6px 0px"}}>Device</TableCell>
               <TableCell align="left" sx={{padding: "6px 0px"}}>Calibration name</TableCell>
               <TableCell align="left" sx={{padding: "6px 0px"}}>Active</TableCell>
-              <TableCell align="right" sx={{padding: "6px 6px"}}>Calibrated on</TableCell>
+              <TableCell align="right" sx={{padding: "6px 6px"}}>Created at</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -574,7 +574,7 @@ function CalibrationData() {
                         />
                   </TableCell>
                   <TableCell align="left" sx={{padding: "6px 0px"}}>{cal.is_active ?  <><Chip size="small" label={"Active"} icon={<CheckCircleOutlineOutlinedIcon />} sx={{backgroundColor: "inherit"}}  /></> : ""}</TableCell>
-                  <TableCell align="right" sx={{padding: "6px 6px"}}>{dayjs(cal.created_at).format('YYYY-MM-DD') }</TableCell>
+                  <TableCell align="right" sx={{padding: "6px 6px"}}>{dayjs(cal.created_at).format('MMMM D, YYYY, h:mm a')}</TableCell>
                 </TableRow>
               );
             })}

@@ -216,6 +216,40 @@ def pio_run(
         return False
 
 
+@huey.task(priority=50)
+def pio_calibrations_run(
+    *args: str,
+    env: dict[str, str] | None = None,
+    grace_s: float = 0.5,
+) -> bool:
+    command = (PIO_EXECUTABLE, "calibrations", "run") + args
+
+    env = filter_to_allowed_env(env or {})
+
+    logger.debug(f"Executing `{join(command)}`, {env=}")
+
+    try:
+        proc = Popen(
+            command,
+            start_new_session=True,  # detach from our session
+            env=env,
+            stdin=DEVNULL,
+            stdout=DEVNULL,
+            stderr=DEVNULL,
+            close_fds=True,
+        )
+    except Exception:
+        logger.error("Failed to spawn %r", command)
+        return False
+
+    try:
+        proc.wait(timeout=grace_s)
+    except TimeoutExpired:
+        return True
+    else:
+        return False
+
+
 @huey.task()
 def add_new_pioreactor(new_pioreactor_name: str, version: str, model: str) -> bool:
     command = [PIO_EXECUTABLE, "workers", "add", new_pioreactor_name, "-v", version, "-m", model]
@@ -321,7 +355,12 @@ def update_app_from_release_archive_on_specific_pioreactors(
 def pio(*args: str, env: dict[str, str] | None = None) -> bool:
     env = filter_to_allowed_env(env or {})
     logger.debug(f'Executing `{join(("pio",) + args)}`, {env=}')
-    result = run((PIO_EXECUTABLE,) + args, env=env)
+    result = run(
+        (PIO_EXECUTABLE,) + args,
+        env=env,
+        stdout=DEVNULL,
+        stderr=DEVNULL,
+    )
     return result.returncode == 0
 
 

@@ -393,7 +393,7 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } )
                       </TableRow>
                       <TableRow>
                         <TableCell><strong>Created at</strong></TableCell>
-                        <TableCell>{dayjs(created_at).format('MMMM D, YYYY, h:mm A')}</TableCell>
+                        <TableCell>{dayjs(created_at).format('MMMM D, YYYY, h:mm a')}</TableCell>
                       </TableRow>
                       <TableRow>
                         <TableCell><strong>Active</strong></TableCell>

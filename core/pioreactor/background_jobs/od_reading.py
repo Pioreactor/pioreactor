@@ -1310,7 +1310,7 @@ class ODReader(BackgroundJob):
         return raw_od_readings
 
     def _log_relative_intensity_of_ir_led(self) -> None:
-        if random.random() < 0.15:  # some pseudo randomness
+        if random.random() < 0.2:
             self.relative_intensity_of_ir_led = {
                 # represents the relative intensity of the LED.
                 "relative_intensity_of_ir_led": 1 / self.ir_led_reference_transformer.transform(1.0),

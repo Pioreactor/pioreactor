@@ -34,6 +34,7 @@ from pioreactor.calibrations.cli_helpers import green
 from pioreactor.calibrations.cli_helpers import info
 from pioreactor.calibrations.cli_helpers import info_heading
 from pioreactor.calibrations.cli_helpers import red
+from pioreactor.calibrations.registry import CalibrationProtocol
 from pioreactor.config import config
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistent_storage
@@ -373,3 +374,14 @@ def run_od_calibration(target_device: pt.ODCalibrationDevices) -> list[structs.O
             calibrations.append(cal)
 
         return calibrations
+
+
+class StandardsODProtocol(CalibrationProtocol[pt.ODCalibrationDevices]):
+    target_device = pt.OD_DEVICES
+    protocol_name = "standards"
+    description = "Calibrate OD using standards. Requires multiple vials"
+
+    def run(  # type: ignore
+        self, target_device: pt.ODCalibrationDevices, *args, **kwargs
+    ) -> structs.OD600Calibration | list[structs.OD600Calibration]:
+        return run_od_calibration(target_device)
