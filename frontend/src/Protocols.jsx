@@ -479,7 +479,7 @@ function Protocols(props) {
         </CardContent>
       </Card>
         <Box>
-        <Alert severity="info" style={{marginBottom: '10px', marginTop: '10px'}}>Heads up! This isn't <i>all</i> the available calibrations - only the ones that can be run from the UI. See more here </Alert>
+        <Alert severity="info" color="warning" style={{marginBottom: '10px', marginTop: '10px'}}>Heads up! This isn't <i>all</i> the available calibrations - only the ones that can be run from the UI. See more <a href="https://docs.pioreactor.com/user-guide/calibrations">here</a>.</Alert>
         </Box>
       <Grid container spacing={2}>
         {PROTOCOLS.filter(

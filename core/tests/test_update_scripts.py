@@ -34,9 +34,9 @@ def test_pio_commands() -> None:
                     continue
 
                 # Checking for 'pio' not preceded by 'sudo -u pioreactor -i'
-                if (
-                    " pio " in line or line.strip().startswith("pio ")
-                ) and "sudo -u pioreactor -i" not in line:
+                if (" pio " in line or line.strip().startswith("pio ")) and (
+                    "sudo -u pioreactor -i" not in line
+                ):
                     error_msgs.append(
                         f"Error in {script} at line {line_number}: 'pio' command must be prefixed with 'sudo -u pioreactor -i'."
                     )
@@ -69,7 +69,7 @@ def test_no_restarting_huey_service() -> None:
                     continue
 
                 # Checking for 'systemctl restart huey'
-                if "systemctl restart huey" in line or "systemctl restart pioreactor-web":
+                if "systemctl restart huey" in line or "systemctl restart pioreactor-web" in line:
                     error_msgs.append(
                         f"Error in {script} at line {line_number}: 'systemctl restart huey' should not be used since it will halt updates."
                     )

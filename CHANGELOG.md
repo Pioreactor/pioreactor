@@ -7,6 +7,14 @@
  - support for the new Optics Standard Reference.
  - OD calibrations now support multiple photodiode angles; `pio calibrations run --device od` can emit per-angle calibrations for 45/90/135.
    - Added an update helper to migrate legacy OD calibrations into per-angle devices.
+ - added calibration protocol execution UI with device/unit selection, MQTT-backed state, and a direct link to device-specific calibrations.
+ - added API endpoints to run calibration protocols via the web UI (`/api/workers/<unit>/calibrations/protocols/run` and `/unit_api/calibrations/protocols/run`).
+ - updated Self-test dialog action buttons to match the new protocol run button styling.
+ - reorganized calibration protocol modules into `core/pioreactor/calibrations/protocols/` and extracted a `registry.py` for protocol registration.
+
+#### Bug fixes
+
+ - enforce protocol name for calibration protocol runs to prevent non-interactive CLI prompts.
 
 ### To test still
  - new self tests `pio run self_test -k optical_reference_standard`
@@ -16,6 +24,7 @@
  - Moved Self-test to Inventory page. Pioreactors no longer need to be assigned to an experiment to run self-test.
  - Removed `/api/workers/<pioreactor_unit>/configuration`; use `/api/units/<pioreactor_unit>/configuration`.
  - self-test logs are now part of "$experiment"
+ - calibration flow modules were merged into protocol modules; old import paths like `pioreactor.calibrations.pump_calibration` and `pioreactor.calibrations.od_calibration_*` are removed.
 
 #### Bug Fixes
 

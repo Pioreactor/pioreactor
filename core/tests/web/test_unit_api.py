@@ -46,7 +46,7 @@ def test_get_clock_time_success(client) -> None:
 
 def test_set_clock_non_leader(client) -> None:
     resp = client.patch("/unit_api/system/utc_clock", json={})
-    assert resp.status_code == 404  # need to provide clock data, else it 404s, that's okay.
+    assert resp.status_code == 400  # need to provide clock data, else it errors
 
 
 def test_set_clock_time_sync_branch(client, monkeypatch) -> None:

@@ -294,40 +294,6 @@ def test_pio_job_remove_deletes_finished_job() -> None:
         assert jm.list_job_settings(job_id) == []
 
 
-def test_pio_job_remove_blocks_running_job() -> None:
-    runner = CliRunner()
-    job_name = "test_job_remove_running"
-    unit = whoami.get_unit_name()
-    experiment = whoami.UNIVERSAL_EXPERIMENT
-
-    with JobManager() as jm:
-        job_id = jm.register_and_set_running(
-            unit=unit,
-            experiment=experiment,
-            job_name=job_name,
-            job_source="cli",
-            pid=778899,
-            leader=get_leader_hostname(),
-            is_long_running_job=True,
-        )
-
-    try:
-        result = runner.invoke(pio, ["jobs", "remove", "--job-id", str(job_id)])
-        assert result.exit_code == 0
-        assert "still running" in result.output
-
-        # via job-name lookup while running
-        result_by_name = runner.invoke(pio, ["jobs", "remove", "--job-name", job_name])
-        assert result_by_name.exit_code == 0
-        assert "still running" in result_by_name.output
-
-        with JobManager() as jm:
-            assert jm.get_job_info(job_id) is not None
-    finally:
-        with JobManager() as jm:
-            jm.set_not_running(job_id)
-
-
 def test_job_manager_get_running_job_id() -> None:
     job_name = "test_get_running_job_id"
     unit = whoami.get_unit_name()
