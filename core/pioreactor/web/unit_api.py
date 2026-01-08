@@ -69,6 +69,10 @@ unit_api_bp = Blueprint("unit_api", __name__, url_prefix="/unit_api")
 
 
 def _execute_calibration_action(action: str, payload: dict[str, object]) -> dict[str, object]:
+    def _raise_if_task_failed(result: object, message: str) -> None:
+        if isinstance(result, Exception):
+            raise ValueError(message)
+
     if action == "pump":
         task = tasks.calibration_execute_pump(
             str(payload["pump_device"]),
@@ -80,6 +84,7 @@ def _execute_calibration_action(action: str, payload: dict[str, object]) -> dict
             success = task(blocking=True, timeout=30)
         except HueyException as exc:
             raise ValueError("Pump action timed out.") from exc
+        _raise_if_task_failed(success, "Pump action failed.")
         if not success:
             raise ValueError("Pump action failed.")
         return {}
@@ -93,6 +98,7 @@ def _execute_calibration_action(action: str, payload: dict[str, object]) -> dict
             voltages = task(blocking=True, timeout=30)
         except HueyException as exc:
             raise ValueError("OD measurement timed out.") from exc
+        _raise_if_task_failed(voltages, "OD measurement failed.")
         return {"voltages": voltages}
 
     if action == "od_reference_standard_read":
@@ -101,6 +107,7 @@ def _execute_calibration_action(action: str, payload: dict[str, object]) -> dict
             readings = task(blocking=True, timeout=30)
         except HueyException as exc:
             raise ValueError("Reference standard reading timed out.") from exc
+        _raise_if_task_failed(readings, "Reference standard reading failed.")
         return {"od_readings": readings}
 
     if action == "stirring_calibration":
@@ -112,6 +119,7 @@ def _execute_calibration_action(action: str, payload: dict[str, object]) -> dict
             calibration = task(blocking=True, timeout=120)
         except HueyException as exc:
             raise ValueError("Stirring calibration timed out.") from exc
+        _raise_if_task_failed(calibration, "Stirring calibration failed.")
         return calibration
 
     raise ValueError("Unknown calibration action.")
