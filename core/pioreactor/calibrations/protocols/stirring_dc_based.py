@@ -138,7 +138,9 @@ def _run_stirring_calibration_for_session(
             "stirring_calibration",
             {"min_dc": min_dc, "max_dc": max_dc},
         )
-        return SimpleStirringCalibration(**payload)
+        allowed = set(SimpleStirringCalibration.__struct_fields__)
+        cleaned = {key: value for key, value in payload.items() if key in allowed}
+        return SimpleStirringCalibration(**cleaned)
     return run_stirring_calibration(min_dc=min_dc, max_dc=max_dc)
 
 
