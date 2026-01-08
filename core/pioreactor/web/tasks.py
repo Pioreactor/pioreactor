@@ -20,9 +20,11 @@ from subprocess import TimeoutExpired
 from tempfile import mkdtemp
 from time import sleep
 from typing import Any
+from typing import cast
 
 from msgspec import DecodeError
 from msgspec import to_builtins
+from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.config import config as pioreactor_config
 from pioreactor.logging import create_logger
@@ -345,7 +347,7 @@ def calibration_execute_pump(pump_device: str, duration_s: float, hz: float, dc:
     from pioreactor.calibrations.protocols.pump_duration_based import _get_execute_pump_for_device
     from pioreactor.whoami import get_testing_experiment_name
 
-    execute_pump = _get_execute_pump_for_device(pump_device)
+    execute_pump = _get_execute_pump_for_device(cast(pt.PumpCalibrationDevices, pump_device))
     calibration = _build_transient_calibration(hz=hz, dc=dc, unit=get_unit_name())
     execute_pump(
         duration=duration_s,
@@ -364,10 +366,13 @@ def calibration_measure_standard(
 ) -> dict[str, float]:
     from pioreactor.calibrations.protocols.od_standards import _measure_standard
 
+    typed_map = {
+        cast(pt.PdChannel, channel): cast(pt.PdAngle, angle) for channel, angle in channel_angle_map.items()
+    }
     voltages = _measure_standard(
         od600_value=0.0,
         rpm=rpm,
-        channel_angle_map=channel_angle_map,
+        channel_angle_map=typed_map,
     )
     return {str(channel): float(voltage) for channel, voltage in voltages.items()}
 

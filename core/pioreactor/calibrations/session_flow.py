@@ -17,6 +17,9 @@ from pioreactor.calibrations.structured_session import utc_iso_timestamp
 SessionMode = Literal["ui", "cli"]
 StepFlow = Callable[["SessionContext"], CalibrationStep]
 SessionExecutor = Callable[[str, dict[str, object]], dict[str, object]]
+Str = str
+Float = float
+Int = int
 
 
 @dataclass
@@ -27,12 +30,12 @@ class SessionInputs:
     def has_inputs(self) -> bool:
         return self.raw is not None
 
-    def _get_raw(self, name: str) -> object | None:
+    def _get_raw(self, name: Str) -> object | None:
         if self.raw is None:
             return None
         return self.raw.get(name)
 
-    def str(self, name: str, default: str | None = None, required: bool = True) -> str:
+    def str(self, name: Str, default: Str | None = None, required: bool = True) -> Str:
         value = self._get_raw(name)
         if value is None or value == "":
             if default is not None:
@@ -46,11 +49,11 @@ class SessionInputs:
 
     def float(
         self,
-        name: str,
-        minimum: float | None = None,
-        maximum: float | None = None,
-        default: float | None = None,
-    ) -> float:
+        name: Str,
+        minimum: Float | None = None,
+        maximum: Float | None = None,
+        default: Float | None = None,
+    ) -> Float:
         value = self._get_raw(name)
         if value is None or value == "":
             if default is None:
@@ -73,11 +76,11 @@ class SessionInputs:
 
     def int(
         self,
-        name: str,
-        minimum: int | None = None,
-        maximum: int | None = None,
-        default: int | None = None,
-    ) -> int:
+        name: Str,
+        minimum: Int | None = None,
+        maximum: Int | None = None,
+        default: Int | None = None,
+    ) -> Int:
         value = self._get_raw(name)
         if value is None or value == "":
             if default is None:
@@ -100,7 +103,7 @@ class SessionInputs:
             raise ValueError(f"'{name}' must be <= {maximum}.")
         return numeric
 
-    def choice(self, name: str, options: Iterable[str], default: str | None = None) -> str:
+    def choice(self, name: Str, options: Iterable[Str], default: Str | None = None) -> Str:
         value = self._get_raw(name)
         if value is None or value == "":
             if default is None:
@@ -113,7 +116,7 @@ class SessionInputs:
             raise ValueError(f"Invalid '{name}', expected one of {list(options)}.")
         return value
 
-    def float_list(self, name: str, default: list[float] | None = None) -> list[float]:
+    def float_list(self, name: Str, default: list[Float] | None = None) -> list[Float]:
         value = self._get_raw(name)
         if value is None or value == "":
             if default is None:
@@ -172,11 +175,14 @@ class SessionContext:
             path = None
         return {"device": device, "calibration_name": calibration.calibration_name, "path": path}
 
-    def read_voltage(self) -> float:
+    def read_voltage(self) -> Float:
         if not self.executor or self.mode != "ui":
             raise ValueError("Voltage reader is only available in UI sessions.")
         payload = self.executor("read_voltage", {})
-        return float(payload["voltage"])
+        value = payload.get("voltage")
+        if not isinstance(value, (int, float, str)):
+            raise ValueError("Invalid voltage payload.")
+        return float(value)
 
 
 class SessionEngine:
@@ -222,7 +228,12 @@ class SessionEngine:
 
 
 class FieldBuilder:
-    def str(self, name: str, label: str | None = None, default: str | None = None) -> CalibrationStepField:
+    def str(
+        self,
+        name: Str,
+        label: Str | None = None,
+        default: Str | None = None,
+    ) -> CalibrationStepField:
         return CalibrationStepField(
             name=name,
             label=label or name,
@@ -232,11 +243,11 @@ class FieldBuilder:
 
     def float(
         self,
-        name: str,
-        label: str | None = None,
-        minimum: float | None = None,
-        maximum: float | None = None,
-        default: float | None = None,
+        name: Str,
+        label: Str | None = None,
+        minimum: Float | None = None,
+        maximum: Float | None = None,
+        default: Float | None = None,
     ) -> CalibrationStepField:
         return CalibrationStepField(
             name=name,
@@ -249,11 +260,11 @@ class FieldBuilder:
 
     def int(
         self,
-        name: str,
-        label: str | None = None,
-        minimum: int | None = None,
-        maximum: int | None = None,
-        default: int | None = None,
+        name: Str,
+        label: Str | None = None,
+        minimum: Int | None = None,
+        maximum: Int | None = None,
+        default: Int | None = None,
     ) -> CalibrationStepField:
         return CalibrationStepField(
             name=name,
@@ -266,10 +277,10 @@ class FieldBuilder:
 
     def choice(
         self,
-        name: str,
-        options: list[str],
-        label: str | None = None,
-        default: str | None = None,
+        name: Str,
+        options: list[Str],
+        label: Str | None = None,
+        default: Str | None = None,
     ) -> CalibrationStepField:
         return CalibrationStepField(
             name=name,
@@ -280,7 +291,7 @@ class FieldBuilder:
         )
 
     def float_list(
-        self, name: str, label: str | None = None, default: list[float] | None = None
+        self, name: Str, label: Str | None = None, default: list[Float] | None = None
     ) -> CalibrationStepField:
         return CalibrationStepField(
             name=name,

@@ -480,6 +480,8 @@ def _measure_standard_for_session(
             },
         )
         raw = payload.get("voltages", {})
+        if not isinstance(raw, dict):
+            raise ValueError("Invalid voltage payload.")
         return {cast(pt.PdChannel, channel): float(voltage) for channel, voltage in raw.items()}
     return _measure_standard(od600_value, rpm, channel_angle_map)
 
@@ -519,7 +521,10 @@ def _build_standards_chart_metadata(
         points = [{"x": float(od600_values[i]), "y": float(voltages[i])} for i in range(count)]
         curve = None
         if count > 1:
-            curve = {"type": "poly", "coefficients": _calculate_curve_data(od600_values[:count], voltages[:count])}
+            curve = {
+                "type": "poly",
+                "coefficients": _calculate_curve_data(od600_values[:count], voltages[:count]),
+            }
         series.append(
             {
                 "id": str(channel),

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import uuid
 from time import sleep
+from typing import Any
 from typing import Literal
 
 from pioreactor.background_jobs import stirring
@@ -144,7 +145,8 @@ def _run_stirring_calibration_for_session(
         created_at = cleaned.get("created_at")
         if isinstance(created_at, str):
             cleaned["created_at"] = to_datetime(created_at)
-        return SimpleStirringCalibration(**cleaned)
+        cleaned_payload: Any = cleaned
+        return SimpleStirringCalibration(**cleaned_payload)
     return run_stirring_calibration(min_dc=min_dc, max_dc=max_dc)
 
 

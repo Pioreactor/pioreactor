@@ -104,7 +104,7 @@ def _execute_calibration_action(action: str, payload: dict[str, object]) -> dict
     if action == "od_reference_standard_read":
         task = tasks.calibration_reference_standard_read(float(payload["ir_led_intensity"]))
         try:
-            readings = task(blocking=True, timeout=30)
+            readings = task(blocking=True, timeout=300)
         except HueyException as exc:
             raise ValueError("Reference standard reading timed out.") from exc
         _raise_if_task_failed(readings, "Reference standard reading failed.")

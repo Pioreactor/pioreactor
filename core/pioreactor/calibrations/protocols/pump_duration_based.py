@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import uuid
 from typing import Callable
+from typing import cast
 from typing import Literal
 
 from msgspec import to_builtins
@@ -158,7 +159,7 @@ def pump_duration_flow(ctx: SessionContext) -> CalibrationStep:
             return steps.result(ctx.session.result)
         return steps.info("Calibration ended", "This calibration session has ended.")
 
-    pump_device = ctx.session.target_device
+    pump_device = cast(PumpCalibrationDevices, ctx.session.target_device)
     channel = ctx.data.get("channel_pump_is_configured_for")
     default_name = ctx.data.setdefault("default_name", f"{pump_device}-{current_utc_datestamp()}")
 

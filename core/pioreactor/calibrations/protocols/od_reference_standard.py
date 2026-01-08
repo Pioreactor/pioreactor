@@ -114,7 +114,10 @@ def _record_reference_standard_for_session(
             "od_reference_standard_read",
             {"ir_led_intensity": ir_led_intensity},
         )
-        return payload.get("od_readings", {})
+        raw = payload.get("od_readings", {})
+        if not isinstance(raw, dict):
+            raise ValueError("Invalid OD readings payload.")
+        return raw
     return record_reference_standard(ir_led_intensity)
 
 
@@ -158,7 +161,9 @@ def reference_standard_flow(ctx: SessionContext) -> CalibrationStep:
                 raise ValueError("OD reading should be turned off.")
 
             ir_led_intensity = get_ir_led_intensity()
-            channel_angle_map = get_channel_angle_map(ctx.session.target_device)
+            channel_angle_map = get_channel_angle_map(
+                cast(pt.ODCalibrationDevices, ctx.session.target_device)
+            )
 
             od_readings = _record_reference_standard_for_session(ctx, ir_led_intensity)
             recorded_ods = [0.0, 1000 * STANDARD_OD]
@@ -166,34 +171,53 @@ def reference_standard_flow(ctx: SessionContext) -> CalibrationStep:
 
             calibration_links: list[dict[str, str | None]] = []
             if isinstance(od_readings, dict):
-                readings_iter = od_readings.items()
-            else:
-                readings_iter = od_readings.ods.items()
-            for pd_channel, od_reading in readings_iter:
-                if pd_channel not in channel_angle_map:
-                    continue
-                angle = channel_angle_map[pd_channel]
-                if isinstance(od_reading, dict):
-                    od_value = float(od_reading["od"])
-                else:
-                    od_value = float(od_reading.od)
+                for raw_channel, od_reading_payload in od_readings.items():
+                    pd_channel = cast(pt.PdChannel, raw_channel)
+                    if pd_channel not in channel_angle_map:
+                        continue
+                    angle = channel_angle_map[pd_channel]
+                    od_value = float(od_reading_payload["od"])
 
-                recorded_voltages = [0.0, 1000 * od_value]
-                curve_data_ = calibration_utils.calculate_poly_curve_of_best_fit(
-                    recorded_ods, recorded_voltages, degree=1
-                )
-                calibration = structs.ODCalibration(
-                    created_at=current_utc_datetime(),
-                    calibrated_on_pioreactor_unit=get_unit_name(),
-                    calibration_name=f"od{angle}-optical-reference-standard-{timestamp}",
-                    angle=angle,
-                    curve_data_=curve_data_,
-                    curve_type="poly",
-                    recorded_data={"x": recorded_ods, "y": recorded_voltages},
-                    ir_led_intensity=ir_led_intensity,
-                    pd_channel=pd_channel,
-                )
-                calibration_links.append(ctx.store_calibration(calibration, f"od{angle}"))
+                    recorded_voltages = [0.0, 1000 * od_value]
+                    curve_data_ = calibration_utils.calculate_poly_curve_of_best_fit(
+                        recorded_ods, recorded_voltages, degree=1
+                    )
+                    calibration = structs.ODCalibration(
+                        created_at=current_utc_datetime(),
+                        calibrated_on_pioreactor_unit=get_unit_name(),
+                        calibration_name=f"od{angle}-optical-reference-standard-{timestamp}",
+                        angle=angle,
+                        curve_data_=curve_data_,
+                        curve_type="poly",
+                        recorded_data={"x": recorded_ods, "y": recorded_voltages},
+                        ir_led_intensity=ir_led_intensity,
+                        pd_channel=pd_channel,
+                    )
+                    calibration_links.append(ctx.store_calibration(calibration, f"od{angle}"))
+            else:
+                for raw_channel, od_reading_struct in od_readings.ods.items():
+                    pd_channel = cast(pt.PdChannel, raw_channel)
+                    if pd_channel not in channel_angle_map:
+                        continue
+                    angle = channel_angle_map[pd_channel]
+                    od_value = float(od_reading_struct.od)
+
+                    recorded_voltages = [0.0, 1000 * od_value]
+                    curve_data_ = calibration_utils.calculate_poly_curve_of_best_fit(
+                        recorded_ods, recorded_voltages, degree=1
+                    )
+                    calibration = structs.ODCalibration(
+                        created_at=current_utc_datetime(),
+                        calibrated_on_pioreactor_unit=get_unit_name(),
+                        calibration_name=f"od{angle}-optical-reference-standard-{timestamp}",
+                        angle=angle,
+                        curve_data_=curve_data_,
+                        curve_type="poly",
+                        recorded_data={"x": recorded_ods, "y": recorded_voltages},
+                        ir_led_intensity=ir_led_intensity,
+                        pd_channel=pd_channel,
+                    )
+                    calibration_links.append(ctx.store_calibration(calibration, f"od{angle}"))
 
             if not calibration_links:
                 raise ValueError("No matching channels were recorded for this calibration.")
