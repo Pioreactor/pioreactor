@@ -1,0 +1,412 @@
+import React from "react";
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import FormControl from "@mui/material/FormControl";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import FormLabel from "@mui/material/FormLabel";
+import LinearProgress from "@mui/material/LinearProgress";
+import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
+import Stack from "@mui/material/Stack";
+import Switch from "@mui/material/Switch";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
+import { Link } from "react-router";
+
+const sessionStartEndpoint = (unit) =>
+  `/api/workers/${unit}/calibrations/sessions`;
+const sessionAdvanceEndpoint = (unit, sessionId) =>
+  `/api/workers/${unit}/calibrations/sessions/${sessionId}/inputs`;
+const sessionAbortEndpoint = (unit, sessionId) =>
+  `/api/workers/${unit}/calibrations/sessions/${sessionId}/abort`;
+
+
+function buildInitialValues(step) {
+  const nextValues = {};
+  if (!step || !Array.isArray(step.fields)) {
+    return nextValues;
+  }
+  step.fields.forEach((field) => {
+    if (field.field_type === "float_list") {
+      if (Array.isArray(field.default)) {
+        nextValues[field.name] = field.default.join(", ");
+      } else {
+        nextValues[field.name] = "";
+      }
+      return;
+    }
+    if (field.field_type === "bool") {
+      nextValues[field.name] = Boolean(field.default);
+      return;
+    }
+    if (field.default !== undefined && field.default !== null) {
+      nextValues[field.name] = field.default;
+    } else {
+      nextValues[field.name] = "";
+    }
+  });
+  return nextValues;
+}
+
+
+function formatInputs(step, values) {
+  if (!step || !Array.isArray(step.fields)) {
+    return {};
+  }
+  const output = {};
+  step.fields.forEach((field) => {
+    const rawValue = values[field.name];
+    if (field.field_type === "bool") {
+      if (field.name === "confirmed") {
+        output[field.name] = true;
+        return;
+      }
+      output[field.name] = Boolean(rawValue);
+      return;
+    }
+    if (field.field_type === "float_list") {
+      if (typeof rawValue === "string") {
+        const parsed = rawValue
+          .split(",")
+          .map((value) => value.trim())
+          .filter((value) => value.length > 0)
+          .map((value) => Number(value));
+        output[field.name] = parsed;
+        return;
+      }
+      output[field.name] = Array.isArray(rawValue) ? rawValue : [];
+      return;
+    }
+    if (field.field_type === "float") {
+      output[field.name] = rawValue === "" ? rawValue : Number(rawValue);
+      return;
+    }
+    if (field.field_type === "int") {
+      output[field.name] = rawValue === "" ? rawValue : Number.parseInt(rawValue, 10);
+      return;
+    }
+    output[field.name] = rawValue;
+  });
+  if (step.step_type === "action") {
+    output.confirm = true;
+  }
+  return output;
+}
+
+
+export default function CalibrationSessionDialog({
+  protocol,
+  unit,
+  open,
+  onClose,
+  onAbortSuccess,
+  onAbortFailure,
+  onStartFailure,
+}) {
+  const [sessionId, setSessionId] = React.useState(null);
+  const [sessionStep, setSessionStep] = React.useState(null);
+  const [sessionError, setSessionError] = React.useState("");
+  const [sessionLoading, setSessionLoading] = React.useState(false);
+  const [sessionValues, setSessionValues] = React.useState({});
+
+  const sessionResult = sessionStep?.result || sessionStep?.metadata?.result;
+
+  const resetSessionState = React.useCallback(() => {
+    setSessionId(null);
+    setSessionStep(null);
+    setSessionError("");
+    setSessionLoading(false);
+    setSessionValues({});
+  }, []);
+
+  const startSession = React.useCallback(async () => {
+    if (!open || !protocol || !unit) {
+      return;
+    }
+    setSessionLoading(true);
+    setSessionError("");
+    try {
+      const response = await fetch(sessionStartEndpoint(unit), {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          protocol_name: protocol.protocolName,
+          target_device: protocol.device,
+        }),
+      });
+
+      if (!response.ok) {
+        let errorMessage = `Failed to start session (${response.status}).`;
+        try {
+          const payload = await response.json();
+          errorMessage = payload.error || payload.message || JSON.stringify(payload);
+        } catch (_error) {
+          // Keep the fallback message.
+        }
+        throw new Error(errorMessage);
+      }
+
+      const payload = await response.json();
+      const nextSessionId = payload.session?.session_id;
+      setSessionId(nextSessionId);
+      if (payload.step) {
+        setSessionStep(payload.step);
+        setSessionValues(buildInitialValues(payload.step));
+        return;
+      }
+      if (!nextSessionId) {
+        throw new Error("Session started without a session id.");
+      }
+      const followUp = await fetch(`/api/workers/${unit}/calibrations/sessions/${nextSessionId}`);
+      if (!followUp.ok) {
+        throw new Error("Session started without a step payload.");
+      }
+      const followUpPayload = await followUp.json();
+      if (!followUpPayload.step) {
+        throw new Error("Session started without a step payload.");
+      }
+      setSessionStep(followUpPayload.step);
+      setSessionValues(buildInitialValues(followUpPayload.step));
+    } catch (err) {
+      const message = err.message || "Failed to start session.";
+      setSessionError(message);
+      if (onStartFailure) {
+        onStartFailure(message);
+      }
+    } finally {
+      setSessionLoading(false);
+    }
+  }, [onStartFailure, open, protocol, unit]);
+
+  const advanceSession = React.useCallback(async () => {
+    if (!unit || !sessionId) {
+      return;
+    }
+    setSessionLoading(true);
+    setSessionError("");
+    try {
+      const inputs = formatInputs(sessionStep, sessionValues);
+      const response = await fetch(sessionAdvanceEndpoint(unit, sessionId), {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ inputs }),
+      });
+
+      if (!response.ok) {
+        let errorMessage = `Failed to advance session (${response.status}).`;
+        try {
+          const payload = await response.json();
+          errorMessage = payload.error || payload.message || JSON.stringify(payload);
+        } catch (_error) {
+          // Keep the fallback message.
+        }
+        throw new Error(errorMessage);
+      }
+
+      const payload = await response.json();
+      setSessionStep(payload.step);
+      setSessionValues(buildInitialValues(payload.step));
+    } catch (err) {
+      setSessionError(err.message || "Failed to advance session.");
+    } finally {
+      setSessionLoading(false);
+    }
+  }, [sessionId, sessionStep, sessionValues, unit]);
+
+  const abortSession = React.useCallback(
+    async (shouldAbort) => {
+      if (shouldAbort && sessionId && unit) {
+        try {
+          await fetch(sessionAbortEndpoint(unit, sessionId), {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+            },
+          });
+          if (onAbortSuccess) {
+            onAbortSuccess();
+          }
+        } catch (_error) {
+          if (onAbortFailure) {
+            onAbortFailure();
+          }
+        }
+      }
+      resetSessionState();
+      if (onClose) {
+        onClose();
+      }
+    },
+    [onAbortFailure, onAbortSuccess, onClose, resetSessionState, sessionId, unit]
+  );
+
+  React.useEffect(() => {
+    if (open) {
+      startSession();
+      return;
+    }
+    resetSessionState();
+  }, [open, resetSessionState, startSession]);
+
+  return (
+    <Dialog
+      open={open}
+      onClose={() => abortSession(!sessionResult)}
+      maxWidth="sm"
+      fullWidth
+    >
+      <DialogTitle>{protocol?.title || "Calibration session"}</DialogTitle>
+      <DialogContent sx={{ display: "grid", gap: 2, minHeight: 220 }}>
+        <Box sx={{ height: 4 }}>
+          <LinearProgress sx={{ visibility: sessionLoading ? "visible" : "hidden" }} />
+        </Box>
+        {sessionError && <Alert severity="error">{sessionError}</Alert>}
+        {sessionStep ? (
+          <Box sx={{ minHeight: 50 }}>
+            <Typography variant="h6" sx={{ mb: 0.5 }}>
+              {sessionStep.title || "Calibration step"}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "pre-line" }}>
+              {sessionStep.body || "Follow the instructions for this step."}
+            </Typography>
+          </Box>
+        ) : (
+          <Alert severity="info">Preparing the calibration session...</Alert>
+        )}
+        <Box sx={{ minHeight: 60 }}>
+          {sessionStep && Array.isArray(sessionStep.fields) && sessionStep.fields.length > 0 && (
+            <Stack spacing={2}>
+              {sessionStep.fields.map((field) => {
+                if (
+                  sessionStep.step_type === "action" &&
+                  field.field_type === "bool" &&
+                  field.name === "confirm"
+                ) {
+                  return null;
+                }
+                if (field.field_type === "bool" && field.name === "confirmed") {
+                  return null;
+                }
+                if (field.field_type === "bool") {
+                  return (
+                    <FormControlLabel
+                      key={field.name}
+                      control={
+                        <Switch
+                          checked={Boolean(sessionValues[field.name])}
+                          onChange={(event) =>
+                            setSessionValues((prev) => ({
+                              ...prev,
+                              [field.name]: event.target.checked,
+                            }))
+                          }
+                        />
+                      }
+                      label={field.label}
+                    />
+                  );
+                }
+                if (field.field_type === "choice") {
+                  return (
+                    <FormControl key={field.name} fullWidth size="small">
+                      <FormLabel>{field.label}</FormLabel>
+                      <Select
+                        value={sessionValues[field.name] ?? ""}
+                        onChange={(event) =>
+                          setSessionValues((prev) => ({
+                            ...prev,
+                            [field.name]: event.target.value,
+                          }))
+                        }
+                      >
+                        {(field.options || []).map((option) => (
+                          <MenuItem key={option} value={option}>
+                            {option}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  );
+                }
+                const helperText =
+                  field.field_type === "float_list" ? "Comma-separated values" : field.help_text;
+                return (
+                  <TextField
+                    key={field.name}
+                    fullWidth
+                    size="small"
+                    label={field.label}
+                    value={sessionValues[field.name] ?? ""}
+                    helperText={helperText || " "}
+                    onChange={(event) =>
+                      setSessionValues((prev) => ({
+                        ...prev,
+                        [field.name]: event.target.value,
+                      }))
+                    }
+                  />
+                );
+              })}
+            </Stack>
+          )}
+          {sessionResult?.calibrations && Array.isArray(sessionResult.calibrations) && unit && (
+            <Stack spacing={1}>
+              {sessionResult.calibrations.map((calibration) => (
+                <Button
+                  key={`${calibration.device}-${calibration.calibration_name}`}
+                  component={Link}
+                  to={`/calibrations/${unit}/${calibration.device}/${calibration.calibration_name}`}
+                  sx={{ textTransform: "none", justifyContent: "flex-start" }}
+                >
+                  View calibration details ({calibration.device})
+                </Button>
+              ))}
+            </Stack>
+          )}
+          {sessionResult?.calibration?.calibration_name &&
+            !sessionResult?.calibrations &&
+            unit && (
+              <Button
+                component={Link}
+                to={`/calibrations/${unit}/${protocol?.device}/${sessionResult.calibration.calibration_name}`}
+                sx={{ textTransform: "none" }}
+              >
+                View calibration details
+              </Button>
+            )}
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        {!sessionResult && (
+          <Button
+            onClick={() => abortSession(true)}
+            color="secondary"
+            sx={{ textTransform: "none" }}
+          >
+            Abort
+          </Button>
+        )}
+        <Button
+          variant="contained"
+          onClick={sessionResult ? () => abortSession(false) : advanceSession}
+          disabled={!sessionStep || sessionLoading}
+          sx={{ textTransform: "none" }}
+        >
+          {sessionResult ? "Done" : "Continue"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}

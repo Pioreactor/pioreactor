@@ -6,11 +6,19 @@ This should be run with a vial in, with a stirbar. Water is fine.
 """
 from __future__ import annotations
 
+import uuid
 from time import sleep
 from typing import Literal
 
 from pioreactor.background_jobs import stirring
 from pioreactor.calibrations.registry import CalibrationProtocol
+from pioreactor.calibrations.session_flow import run_session_in_cli
+from pioreactor.calibrations.session_flow import SessionContext
+from pioreactor.calibrations.session_flow import SessionEngine
+from pioreactor.calibrations.session_flow import steps
+from pioreactor.calibrations.structured_session import CalibrationSession
+from pioreactor.calibrations.structured_session import CalibrationStep
+from pioreactor.calibrations.structured_session import utc_iso_timestamp
 from pioreactor.calibrations.utils import linspace
 from pioreactor.config import config
 from pioreactor.exc import JobPresentError
@@ -119,6 +127,66 @@ def run_stirring_calibration(
         )
 
 
+def start_dc_based_session(
+    target_device: Literal["stirring"],
+    min_dc: float | None = None,
+    max_dc: float | None = None,
+) -> CalibrationSession:
+    session_id = str(uuid.uuid4())
+    now = utc_iso_timestamp()
+    return CalibrationSession(
+        session_id=session_id,
+        protocol_name=DCBasedStirringProtocol.protocol_name,
+        target_device=target_device,
+        status="in_progress",
+        step_id="intro",
+        data={"min_dc": min_dc, "max_dc": max_dc},
+        created_at=now,
+        updated_at=now,
+    )
+
+
+def dc_based_flow(ctx: SessionContext) -> CalibrationStep:
+    if ctx.session.status != "in_progress":
+        if ctx.session.result is not None:
+            return steps.result(ctx.session.result)
+        return steps.info("Calibration ended", "This calibration session has ended.")
+
+    if ctx.step == "intro":
+        if ctx.inputs.has_inputs:
+            ctx.step = "run_calibration"
+        return steps.info(
+            "Stirring DC-based calibration",
+            "Insert a vial with a stir bar. Water is fine. Stirring must be off before starting.",
+        )
+
+    if ctx.step == "run_calibration":
+        if ctx.inputs.has_inputs:
+            calibration = run_stirring_calibration(
+                min_dc=ctx.data.get("min_dc"),
+                max_dc=ctx.data.get("max_dc"),
+            )
+            link = ctx.store_calibration(calibration, "stirring")
+            ctx.complete({"calibrations": [link]})
+        return steps.action(
+            "Record calibration",
+            "Continue to run the stirring calibration. This will take a few minutes.",
+        )
+
+    return steps.info("Unknown step", "This step is not recognized.")
+
+
+def advance_dc_based_session(session: CalibrationSession, inputs: dict[str, object]) -> CalibrationSession:
+    engine = SessionEngine(flow=dc_based_flow, session=session, mode="ui")
+    engine.advance(inputs)
+    return engine.session
+
+
+def get_dc_based_step(session: CalibrationSession) -> CalibrationStep | None:
+    engine = SessionEngine(flow=dc_based_flow, session=session, mode="ui")
+    return engine.get_step()
+
+
 class DCBasedStirringProtocol(CalibrationProtocol[Literal["stirring"]]):
     target_device = "stirring"
     protocol_name = "dc_based"
@@ -126,6 +194,12 @@ class DCBasedStirringProtocol(CalibrationProtocol[Literal["stirring"]]):
     def run(
         self, target_device: Literal["stirring"], min_dc: str | None = None, max_dc: str | None = None
     ) -> SimpleStirringCalibration:
-        return run_stirring_calibration(
-            min_dc=float(min_dc) if min_dc is not None else None, max_dc=float(max_dc) if max_dc else None
+        session = start_dc_based_session(
+            target_device,
+            min_dc=float(min_dc) if min_dc is not None else None,
+            max_dc=float(max_dc) if max_dc is not None else None,
         )
+        calibrations = run_session_in_cli(dc_based_flow, session)
+        if not calibrations:
+            raise ValueError("Calibration finished without producing a result.")
+        return calibrations[0]

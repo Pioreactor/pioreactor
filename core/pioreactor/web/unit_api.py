@@ -24,7 +24,23 @@ from huey.exceptions import TaskLockedException
 from msgspec import to_builtins
 from msgspec.yaml import decode as yaml_decode
 from pioreactor import structs
+from pioreactor import types as pt
 from pioreactor import whoami
+from pioreactor.calibrations.protocols.od_reference_standard import advance_reference_standard_session
+from pioreactor.calibrations.protocols.od_reference_standard import get_reference_standard_step
+from pioreactor.calibrations.protocols.od_reference_standard import start_reference_standard_session
+from pioreactor.calibrations.protocols.od_standards import advance_standards_session
+from pioreactor.calibrations.protocols.od_standards import get_standards_step
+from pioreactor.calibrations.protocols.od_standards import start_standards_session
+from pioreactor.calibrations.protocols.pump_duration_based import advance_duration_based_session
+from pioreactor.calibrations.protocols.pump_duration_based import get_duration_based_step
+from pioreactor.calibrations.protocols.pump_duration_based import start_duration_based_session
+from pioreactor.calibrations.protocols.stirring_dc_based import advance_dc_based_session
+from pioreactor.calibrations.protocols.stirring_dc_based import get_dc_based_step
+from pioreactor.calibrations.protocols.stirring_dc_based import start_dc_based_session
+from pioreactor.calibrations.structured_session import abort_calibration_session
+from pioreactor.calibrations.structured_session import load_calibration_session
+from pioreactor.calibrations.structured_session import save_calibration_session
 from pioreactor.config import get_leader_hostname
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import subclass_union
@@ -624,6 +640,140 @@ def get_app_version() -> ResponseReturnValue:
 ### CALIBRATIONS
 
 
+@unit_api_bp.route("/calibrations/sessions", methods=["POST"])
+def start_calibration_session() -> ResponseReturnValue:
+    body = request.get_json()
+    if body is None:
+        abort(400, description="Missing JSON payload.")
+
+    protocol_name = body.get("protocol_name")
+    target_device = body.get("target_device")
+    if not target_device:
+        abort(400, description="Missing 'target_device'.")
+
+    try:
+        if protocol_name == "duration_based":
+            if target_device not in pt.PUMP_DEVICES:
+                abort(400, description="Unsupported target device.")
+            session = start_duration_based_session(target_device)
+        elif protocol_name == "standards":
+            if target_device not in pt.OD_DEVICES:
+                abort(400, description="Unsupported target device.")
+            session = start_standards_session(target_device)
+        elif protocol_name == "od_reference_standard":
+            if target_device not in pt.OD_DEVICES:
+                abort(400, description="Unsupported target device.")
+            session = start_reference_standard_session(target_device)
+        elif protocol_name == "dc_based":
+            if target_device != "stirring":
+                abort(400, description="Unsupported target device.")
+            session = start_dc_based_session(target_device)
+        else:
+            abort(400, description="Unsupported protocol.")
+    except ValueError as exc:
+        abort(400, description=str(exc))
+
+    save_calibration_session(session)
+    if session.protocol_name == "duration_based":
+        step = get_duration_based_step(session)
+    elif session.protocol_name == "standards":
+        step = get_standards_step(session)
+    elif session.protocol_name == "od_reference_standard":
+        step = get_reference_standard_step(session)
+    elif session.protocol_name == "dc_based":
+        step = get_dc_based_step(session)
+    else:
+        abort(400, description="Unsupported protocol.")
+    step_payload = to_builtins(step) if step is not None else None
+    return jsonify({"session": to_builtins(session), "step": step_payload}), 201
+
+
+@unit_api_bp.route("/calibrations/sessions/<session_id>", methods=["GET"])
+def get_calibration_session(session_id: str) -> ResponseReturnValue:
+    session = load_calibration_session(session_id)
+    if session is None:
+        abort(404, description="Calibration session not found.")
+    if session.protocol_name == "duration_based":
+        step = get_duration_based_step(session)
+    elif session.protocol_name == "standards":
+        step = get_standards_step(session)
+    elif session.protocol_name == "od_reference_standard":
+        step = get_reference_standard_step(session)
+    elif session.protocol_name == "dc_based":
+        step = get_dc_based_step(session)
+    else:
+        abort(400, description="Unsupported protocol.")
+    step_payload = to_builtins(step) if step is not None else None
+    return jsonify({"session": to_builtins(session), "step": step_payload}), 200
+
+
+@unit_api_bp.route("/calibrations/sessions/<session_id>/abort", methods=["POST"])
+def abort_calibration_session_route(session_id: str) -> ResponseReturnValue:
+    session = load_calibration_session(session_id)
+    if session is None:
+        abort(404, description="Calibration session not found.")
+
+    abort_calibration_session(session_id)
+    session = load_calibration_session(session_id)
+    if session is None:
+        abort(404, description="Calibration session not found.")
+    if session.protocol_name == "duration_based":
+        step = get_duration_based_step(session)
+    elif session.protocol_name == "standards":
+        step = get_standards_step(session)
+    elif session.protocol_name == "od_reference_standard":
+        step = get_reference_standard_step(session)
+    elif session.protocol_name == "dc_based":
+        step = get_dc_based_step(session)
+    else:
+        abort(400, description="Unsupported protocol.")
+    step_payload = to_builtins(step) if step is not None else None
+    return jsonify({"session": to_builtins(session), "step": step_payload}), 200
+
+
+@unit_api_bp.route("/calibrations/sessions/<session_id>/inputs", methods=["POST"])
+def advance_calibration_session(session_id: str) -> ResponseReturnValue:
+    session = load_calibration_session(session_id)
+    if session is None:
+        abort(404, description="Calibration session not found.")
+
+    body = request.get_json()
+    if body is None:
+        abort(400, description="Missing JSON payload.")
+
+    inputs = body.get("inputs", {})
+    if not isinstance(inputs, dict):
+        abort(400, description="Invalid inputs payload.")
+
+    try:
+        if session.protocol_name == "duration_based":
+            session = advance_duration_based_session(session, inputs)
+        elif session.protocol_name == "standards":
+            session = advance_standards_session(session, inputs)
+        elif session.protocol_name == "od_reference_standard":
+            session = advance_reference_standard_session(session, inputs)
+        elif session.protocol_name == "dc_based":
+            session = advance_dc_based_session(session, inputs)
+        else:
+            abort(400, description="Unsupported protocol.")
+    except ValueError as exc:
+        abort(400, description=str(exc))
+
+    save_calibration_session(session)
+    if session.protocol_name == "duration_based":
+        step = get_duration_based_step(session)
+    elif session.protocol_name == "standards":
+        step = get_standards_step(session)
+    elif session.protocol_name == "od_reference_standard":
+        step = get_reference_standard_step(session)
+    elif session.protocol_name == "dc_based":
+        step = get_dc_based_step(session)
+    else:
+        abort(400, description="Unsupported protocol.")
+    step_payload = to_builtins(step) if step is not None else None
+    return jsonify({"session": to_builtins(session), "step": step_payload}), 200
+
+
 @unit_api_bp.route("/calibrations/<device>", methods=["POST"])
 def create_calibration(device: str) -> ResponseReturnValue:
     """
@@ -651,33 +801,6 @@ def create_calibration(device: str) -> ResponseReturnValue:
     except Exception as e:
         publish_to_error_log(f"Error creating calibration: {e}", "create_calibration")
         abort(500, description="Failed to create calibration.")
-
-
-@unit_api_bp.route("/calibrations/protocols/run", methods=["POST"])
-def run_calibration_protocol() -> DelayedResponseReturnValue:
-    body = request.get_json()
-    if body is None:
-        abort(400, description="Missing JSON payload.")
-
-    device = body.get("device")
-    if not device:
-        abort(400, description="Missing 'device'.")
-
-    protocol_name = body.get("protocol_name")
-    if not protocol_name:
-        abort(400, description="Missing 'protocol_name'.")
-    set_active = body.get("set_active", True)
-    if not isinstance(set_active, bool):
-        set_active = str(set_active).lower() == "true"
-
-    commands: tuple[str, ...] = ("--device", device)
-    if protocol_name:
-        commands += ("--protocol-name", protocol_name)
-    if set_active:
-        commands += ("-y",)
-
-    task = tasks.pio_calibrations_run(*commands, env={"JOB_SOURCE": "user"})
-    return create_task_response(task)
 
 
 @unit_api_bp.route("/calibrations/<device>/<calibration_name>", methods=["DELETE"])

@@ -33,6 +33,7 @@ from pioreactor.experiment_profiles.profile_struct import Profile
 from pioreactor.models import get_registered_models
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
+from pioreactor.pubsub import get_from
 from pioreactor.pubsub import post_into
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import Dataset
@@ -1515,6 +1516,108 @@ def run_calibration_protocol(pioreactor_unit: str) -> DelayedResponseReturnValue
     else:
         task = tasks.multicast_post("/unit_api/calibrations/protocols/run", [pioreactor_unit], payload)
     return create_task_response(task)
+
+
+@api_bp.route("/workers/<pioreactor_unit>/calibrations/sessions", methods=["POST"])
+def start_calibration_session(pioreactor_unit: str) -> ResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        abort(400, "Cannot start sessions with $broadcast; choose a specific Pioreactor.")
+
+    body = request.get_json()
+    if body is None:
+        abort(400, description="Missing JSON payload.")
+
+    try:
+        response = post_into(
+            resolve_to_address(pioreactor_unit),
+            "/unit_api/calibrations/sessions",
+            json=body,
+            timeout=30,
+        )
+        response.raise_for_status()
+    except (HTTPErrorStatus, HTTPException) as exc:
+        publish_to_error_log(str(exc), "start_calibration_session")
+        abort(502, f"Starting calibration session failed on {pioreactor_unit}. See system logs.")
+
+    return Response(
+        response.content,
+        status=response.status_code,
+        content_type=response.headers.get("Content-Type", "application/json"),
+    )
+
+
+@api_bp.route("/workers/<pioreactor_unit>/calibrations/sessions/<session_id>", methods=["GET"])
+def get_calibration_session(pioreactor_unit: str, session_id: str) -> ResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        abort(400, "Cannot fetch sessions with $broadcast; choose a specific Pioreactor.")
+
+    try:
+        response = get_from(
+            resolve_to_address(pioreactor_unit),
+            f"/unit_api/calibrations/sessions/{session_id}",
+            timeout=30,
+        )
+        response.raise_for_status()
+    except (HTTPErrorStatus, HTTPException) as exc:
+        publish_to_error_log(str(exc), "get_calibration_session")
+        abort(502, f"Fetching calibration session failed on {pioreactor_unit}. See system logs.")
+
+    return Response(
+        response.content,
+        status=response.status_code,
+        content_type=response.headers.get("Content-Type", "application/json"),
+    )
+
+
+@api_bp.route("/workers/<pioreactor_unit>/calibrations/sessions/<session_id>/inputs", methods=["POST"])
+def advance_calibration_session(pioreactor_unit: str, session_id: str) -> ResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        abort(400, "Cannot update sessions with $broadcast; choose a specific Pioreactor.")
+
+    body = request.get_json()
+    if body is None:
+        abort(400, description="Missing JSON payload.")
+
+    try:
+        response = post_into(
+            resolve_to_address(pioreactor_unit),
+            f"/unit_api/calibrations/sessions/{session_id}/inputs",
+            json=body,
+            timeout=60,
+        )
+        response.raise_for_status()
+    except (HTTPErrorStatus, HTTPException) as exc:
+        publish_to_error_log(str(exc), "advance_calibration_session")
+        abort(502, f"Updating calibration session failed on {pioreactor_unit}. See system logs.")
+
+    return Response(
+        response.content,
+        status=response.status_code,
+        content_type=response.headers.get("Content-Type", "application/json"),
+    )
+
+
+@api_bp.route("/workers/<pioreactor_unit>/calibrations/sessions/<session_id>/abort", methods=["POST"])
+def abort_calibration_session(pioreactor_unit: str, session_id: str) -> ResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        abort(400, "Cannot abort sessions with $broadcast; choose a specific Pioreactor.")
+
+    try:
+        response = post_into(
+            resolve_to_address(pioreactor_unit),
+            f"/unit_api/calibrations/sessions/{session_id}/abort",
+            timeout=30,
+        )
+        response.raise_for_status()
+    except (HTTPErrorStatus, HTTPException) as exc:
+        publish_to_error_log(str(exc), "abort_calibration_session")
+        abort(502, f"Aborting calibration session failed on {pioreactor_unit}. See system logs.")
+
+    return Response(
+        response.content,
+        status=response.status_code,
+        content_type=response.headers.get("Content-Type", "application/json"),
+    )
 
 
 @api_bp.route("/workers/<pioreactor_unit>/active_calibrations/<device>/<cal_name>", methods=["PATCH"])
