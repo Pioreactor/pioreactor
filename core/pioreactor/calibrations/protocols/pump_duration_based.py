@@ -85,6 +85,23 @@ def _build_transient_calibration(hz: float, dc: float, unit: str) -> structs.Sim
     )
 
 
+def _build_duration_chart_metadata(ctx: SessionContext) -> dict[str, object] | None:
+    durations = ctx.data.get("durations_to_test", [])
+    results = ctx.data.get("results", [])
+    if not isinstance(durations, list) or not isinstance(results, list):
+        return None
+    count = min(len(durations), len(results))
+    if count <= 0:
+        return None
+    points = [{"x": float(durations[i]), "y": float(results[i])} for i in range(count)]
+    return {
+        "title": "Calibration progress",
+        "x_label": "Duration (s)",
+        "y_label": "Volume (mL)",
+        "series": [{"id": "measured", "label": "Measured", "points": points}],
+    }
+
+
 def start_duration_based_session(pump_device: PumpCalibrationDevices) -> CalibrationSession:
     try:
         channel_pump_is_configured_for = config.get("PWM_reverse", pump_device.removesuffix("_pump"))
@@ -290,10 +307,14 @@ def pump_duration_flow(ctx: SessionContext) -> CalibrationStep:
                 calibration=calibration,
             )
             ctx.step = "test_volume"
-        return steps.action(
+        step = steps.action(
             "Test run",
             f"Running the pump for {duration:.2f} seconds, then measure the volume expelled.",
         )
+        chart = _build_duration_chart_metadata(ctx)
+        if chart:
+            step.metadata = {"chart": chart}
+        return step
 
     if ctx.step == "test_volume":
         if ctx.inputs.has_inputs:
@@ -347,11 +368,15 @@ def pump_duration_flow(ctx: SessionContext) -> CalibrationStep:
                     logger.warning(
                         "Too much uncertainty in slope - you probably want to rerun this calibration..."
                     )
-        return steps.form(
+        step = steps.form(
             "Record test volume",
             "Enter the amount of water expelled (mL or g).",
             [fields.float("volume_ml", label="Volume expelled", minimum=0.0001)],
         )
+        chart = _build_duration_chart_metadata(ctx)
+        if chart:
+            step.metadata = {"chart": chart}
+        return step
 
     return steps.info("Unknown step", "This step is not recognized.")
 

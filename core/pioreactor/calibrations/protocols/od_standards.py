@@ -481,6 +481,44 @@ def _calculate_curve_data(
     return utils.calculate_poly_curve_of_best_fit(od600_values, voltages, degree, weights)
 
 
+def _build_standards_chart_metadata(
+    od600_values: list[float],
+    voltages_by_channel: dict[pt.PdChannel, list[float]],
+    channel_angle_map: dict[pt.PdChannel, pt.PdAngle],
+) -> dict[str, object] | None:
+    if not od600_values:
+        return None
+
+    series = []
+    for channel, angle in sorted(channel_angle_map.items(), key=lambda item: int(item[0])):
+        voltages = voltages_by_channel.get(channel, [])
+        count = min(len(od600_values), len(voltages))
+        if count <= 0:
+            continue
+        points = [{"x": float(od600_values[i]), "y": float(voltages[i])} for i in range(count)]
+        curve = None
+        if count > 1:
+            curve = {"type": "poly", "coefficients": _calculate_curve_data(od600_values[:count], voltages[:count])}
+        series.append(
+            {
+                "id": str(channel),
+                "label": f"{channel} ({angle}°)",
+                "points": points,
+                "curve": curve,
+            }
+        )
+
+    if not series:
+        return None
+
+    return {
+        "title": "Calibration progress",
+        "x_label": "OD600",
+        "y_label": "Voltage",
+        "series": series,
+    }
+
+
 def start_standards_session(target_device: pt.ODCalibrationDevices) -> CalibrationSession:
     if config.get("od_reading.config", "ir_led_intensity") == "auto":
         raise ValueError(
@@ -605,10 +643,18 @@ def od_standards_flow(ctx: SessionContext) -> CalibrationStep:
     if ctx.step == "place_standard":
         if ctx.inputs.has_inputs:
             ctx.step = "measure_standard"
-        return steps.info(
+        step = steps.info(
             "Place standard",
             "Place a non-blank standard vial with a stir bar into the Pioreactor.",
         )
+        chart = _build_standards_chart_metadata(
+            ctx.data.get("od600_values", []),
+            ctx.data.get("voltages_by_channel", {}),
+            channel_angle_map,
+        )
+        if chart:
+            step.metadata = {"chart": chart}
+        return step
 
     if ctx.step == "measure_standard":
         if ctx.inputs.has_inputs:
@@ -618,11 +664,19 @@ def od_standards_flow(ctx: SessionContext) -> CalibrationStep:
             for channel, voltage in voltages.items():
                 ctx.data["voltages_by_channel"][channel].append(voltage)
             ctx.step = "another_standard"
-        return steps.form(
+        step = steps.form(
             "Record standard",
             "Enter the OD600 measurement for the current vial.",
             [fields.float("od600_value", label="OD600 value", minimum=0)],
         )
+        chart = _build_standards_chart_metadata(
+            ctx.data.get("od600_values", []),
+            ctx.data.get("voltages_by_channel", {}),
+            channel_angle_map,
+        )
+        if chart:
+            step.metadata = {"chart": chart}
+        return step
 
     if ctx.step == "another_standard":
         if ctx.inputs.has_inputs:
@@ -631,19 +685,35 @@ def od_standards_flow(ctx: SessionContext) -> CalibrationStep:
                 ctx.step = "place_standard"
             else:
                 ctx.step = "place_blank"
-        return steps.form(
+        step = steps.form(
             "Next standard",
             "Record another standard?",
             [fields.choice("record_another", ["yes", "no"], label="Record another standard", default="yes")],
         )
+        chart = _build_standards_chart_metadata(
+            ctx.data.get("od600_values", []),
+            ctx.data.get("voltages_by_channel", {}),
+            channel_angle_map,
+        )
+        if chart:
+            step.metadata = {"chart": chart}
+        return step
 
     if ctx.step == "place_blank":
         if ctx.inputs.has_inputs:
             ctx.step = "measure_blank"
-        return steps.info(
+        step = steps.info(
             "Place blank",
             "Place the blank (media only) standard vial into the Pioreactor.",
         )
+        chart = _build_standards_chart_metadata(
+            ctx.data.get("od600_values", []),
+            ctx.data.get("voltages_by_channel", {}),
+            channel_angle_map,
+        )
+        if chart:
+            step.metadata = {"chart": chart}
+        return step
 
     if ctx.step == "measure_blank":
         if ctx.inputs.has_inputs:
@@ -672,11 +742,19 @@ def od_standards_flow(ctx: SessionContext) -> CalibrationStep:
                 calibration_links.append(ctx.store_calibration(cal, device))
 
             ctx.complete({"calibrations": calibration_links})
-        return steps.form(
+        step = steps.form(
             "Record blank",
             "Enter the OD600 measurement for the blank.",
             [fields.float("od600_blank", label="Blank OD600 value", minimum=0)],
         )
+        chart = _build_standards_chart_metadata(
+            ctx.data.get("od600_values", []),
+            ctx.data.get("voltages_by_channel", {}),
+            channel_angle_map,
+        )
+        if chart:
+            step.metadata = {"chart": chart}
+        return step
 
     return steps.info("Unknown step", "This step is not recognized.")
 

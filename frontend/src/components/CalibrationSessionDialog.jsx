@@ -17,6 +17,7 @@ import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import { Link } from "react-router";
+import CalibrationSessionChart from "./CalibrationSessionChart";
 
 const sessionStartEndpoint = (unit) =>
   `/api/workers/${unit}/calibrations/sessions`;
@@ -115,6 +116,7 @@ export default function CalibrationSessionDialog({
   const [sessionValues, setSessionValues] = React.useState({});
 
   const sessionResult = sessionStep?.result || sessionStep?.metadata?.result;
+  const chartPayload = sessionStep?.metadata?.chart;
 
   const resetSessionState = React.useCallback(() => {
     setSessionId(null);
@@ -278,12 +280,19 @@ export default function CalibrationSessionDialog({
             <Typography variant="h6" sx={{ mb: 0.5 }}>
               {sessionStep.title || "Calibration step"}
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "pre-line" }}>
-              {sessionStep.body || "Follow the instructions for this step."}
-            </Typography>
           </Box>
         ) : (
           <Alert severity="info">Preparing the calibration session...</Alert>
+        )}
+        {chartPayload && (
+          <Box sx={{ minHeight: 240 }}>
+            <CalibrationSessionChart chart={chartPayload} />
+          </Box>
+        )}
+        {sessionStep && (
+          <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "pre-line" }}>
+            {sessionStep.body || "Follow the instructions for this step."}
+          </Typography>
         )}
         <Box sx={{ minHeight: 60 }}>
           {sessionStep && Array.isArray(sessionStep.fields) && sessionStep.fields.length > 0 && (
