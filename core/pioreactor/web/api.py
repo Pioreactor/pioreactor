@@ -12,7 +12,6 @@ from datetime import timedelta
 from io import BytesIO
 from pathlib import Path
 
-from flask import abort
 from flask import Blueprint
 from flask import current_app
 from flask import jsonify
@@ -59,12 +58,15 @@ from pioreactor.web.utils import create_task_response
 from pioreactor.web.utils import DelayedResponseReturnValue
 from pioreactor.web.utils import is_valid_unix_filename
 from pioreactor.web.utils import scrub_to_valid
+from pioreactor.web.utils import abort_with
 from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
-from werkzeug.utils import safe_join
+from typing import Callable
+from typing import cast
+from werkzeug import utils as werkzeug_utils
 from werkzeug.utils import secure_filename
-
+from werkzeug.utils import safe_join
 
 AllCalibrations = structs.subclass_union(CalibrationBase)
 
@@ -205,7 +207,7 @@ def stop_specific_job_on_unit(
     except Exception:
         # TODO: make this $broadcastable
         tasks.multicast_post("/unit_api/jobs/stop", [pioreactor_unit], json={"job_name": job_name})
-        abort(500, "Failed to publish to mqtt")
+        abort_with(500, "Failed to publish to mqtt")
 
     return {"status": "success"}, 202
 
@@ -302,9 +304,9 @@ def run_job_on_unit_in_experiment(
 
     if len(assigned_workers) == 0:
         if experiment == UNIVERSAL_EXPERIMENT:
-            abort(404, f"Worker(s) {pioreactor_unit} not found or not active.")
+            abort_with(404, f"Worker(s) {pioreactor_unit} not found or not active.")
         else:
-            abort(
+            abort_with(
                 404,
                 f"Worker(s) {pioreactor_unit} not found, not active, or not assigned to experiment {experiment}.",
             )
@@ -399,7 +401,7 @@ def update_job_on_unit(pioreactor_unit: str, job: str, experiment: str) -> Respo
             )
     except Exception as e:
         publish_to_error_log(str(e), "update_job_on_unit")
-        abort(400, str(e))
+        abort_with(400, str(e))
 
     return {"status": "success"}, 202
 
@@ -669,7 +671,7 @@ def get_growth_rates(experiment: str) -> ResponseReturnValue:
     lookback = float(args.get("lookback", 4.0))
     target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
-        abort(400, "target_points must be > 0")
+        abort_with(400, "target_points must be > 0")
 
     cutoff_timestamp = format_utc_timestamp_for_lookback_hours(lookback)
 
@@ -712,7 +714,7 @@ def get_temperature_readings(experiment: str) -> ResponseReturnValue:
     lookback = float(args.get("lookback", 4.0))
     target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
-        abort(400, "target_points must be > 0")
+        abort_with(400, "target_points must be > 0")
 
     temperature_readings = query_app_db(
         """
@@ -759,7 +761,7 @@ def get_od_readings_filtered(experiment: str) -> ResponseReturnValue:
     lookback = float(args.get("lookback", 4.0))
     target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
-        abort(400, "target_points must be > 0")
+        abort_with(400, "target_points must be > 0")
 
     cutoff_timestamp = format_utc_timestamp_for_lookback_hours(lookback)
 
@@ -802,7 +804,7 @@ def get_od_readings(experiment: str) -> ResponseReturnValue:
     lookback = float(args.get("lookback", 4.0))
     target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
-        abort(400, "target_points must be > 0")
+        abort_with(400, "target_points must be > 0")
 
     cutoff_timestamp = format_utc_timestamp_for_lookback_hours(lookback)
 
@@ -847,7 +849,7 @@ def get_od_raw_readings(experiment: str) -> ResponseReturnValue:
     lookback = float(args.get("lookback", 4.0))
     target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
-        abort(400, "target_points must be > 0")
+        abort_with(400, "target_points must be > 0")
 
     cutoff_timestamp = format_utc_timestamp_for_lookback_hours(lookback)
 
@@ -891,7 +893,7 @@ def get_fallback_time_series(experiment: str, data_source: str, column: str) -> 
     lookback = float(args.get("lookback", 4.0))
     target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
-        abort(400, "target_points must be > 0")
+        abort_with(400, "target_points must be > 0")
 
     try:
         data_source = scrub_to_valid(data_source)
@@ -932,7 +934,7 @@ def get_fallback_time_series(experiment: str, data_source: str, column: str) -> 
 
     except Exception as e:
         publish_to_error_log(str(e), "get_fallback_time_series")
-        abort(400, str(e))
+        abort_with(400, str(e))
 
     assert isinstance(r, dict)
     return attach_cache_control(as_json_response(r["json"]))
@@ -944,7 +946,7 @@ def get_growth_rates_per_unit(pioreactor_unit: str, experiment: str) -> Response
     lookback = float(args.get("lookback", 4.0))
     target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
-        abort(400, "target_points must be > 0")
+        abort_with(400, "target_points must be > 0")
 
     cutoff_timestamp = format_utc_timestamp_for_lookback_hours(lookback)
 
@@ -995,7 +997,7 @@ def get_temperature_readings_per_unit(pioreactor_unit: str, experiment: str) -> 
     lookback = float(args.get("lookback", 4.0))
     target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
-        abort(400, "target_points must be > 0")
+        abort_with(400, "target_points must be > 0")
 
     temperature_readings = query_app_db(
         """
@@ -1044,7 +1046,7 @@ def get_od_readings_filtered_per_unit(pioreactor_unit: str, experiment: str) -> 
     lookback = float(args.get("lookback", 4.0))
     target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
-        abort(400, "target_points must be > 0")
+        abort_with(400, "target_points must be > 0")
 
     cutoff_timestamp = format_utc_timestamp_for_lookback_hours(lookback)
 
@@ -1092,7 +1094,7 @@ def get_od_readings_per_unit(pioreactor_unit: str, experiment: str) -> ResponseR
     lookback = float(args.get("lookback", 4.0))
     target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
-        abort(400, "target_points must be > 0")
+        abort_with(400, "target_points must be > 0")
 
     cutoff_timestamp = format_utc_timestamp_for_lookback_hours(lookback)
 
@@ -1139,7 +1141,7 @@ def get_od_raw_readings_per_unit(pioreactor_unit: str, experiment: str) -> Respo
     lookback = float(args.get("lookback", 4.0))
     target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
-        abort(400, "target_points must be > 0")
+        abort_with(400, "target_points must be > 0")
 
     cutoff_timestamp = format_utc_timestamp_for_lookback_hours(lookback)
 
@@ -1188,7 +1190,7 @@ def get_fallback_time_series_per_unit(
     lookback = float(args.get("lookback", 4.0))
     target_points = int(args.get("target_points", 720))
     if not target_points or target_points <= 0:
-        abort(400, "target_points must be > 0")
+        abort_with(400, "target_points must be > 0")
 
     try:
         data_source = scrub_to_valid(data_source)
@@ -1229,7 +1231,7 @@ def get_fallback_time_series_per_unit(
 
     except Exception as e:
         publish_to_error_log(str(e), "get_fallback_time_series")
-        abort(400, str(e))
+        abort_with(400, str(e))
 
     assert isinstance(r, dict)
     return attach_cache_control(as_json_response(r["json"]))
@@ -1276,7 +1278,7 @@ def get_media_rates(experiment: str) -> ResponseReturnValue:
 
     except Exception as e:
         publish_to_error_log(str(e), "get_media_rates")
-        abort(500, str(e))
+        abort_with(500, str(e))
 
 
 ## CALIBRATIONS
@@ -1368,7 +1370,7 @@ def get_entire_dot_pioreactor(pioreactor_unit: str) -> ResponseReturnValue:
     if isinstance(results, dict) and len(results) == 1:
         content = next(iter(results.values()))
         if content is None:
-            abort(502, "No data received from worker")
+            abort_with(502, "No data received from worker")
         buf = BytesIO(content)
         buf.seek(0)
         return send_file(
@@ -1404,11 +1406,11 @@ def get_entire_dot_pioreactor(pioreactor_unit: str) -> ResponseReturnValue:
 @api_bp.route("/units/<pioreactor_unit>/import_zipped_dot_pioreactor", methods=["POST"])
 def import_dot_pioreactor_archive(pioreactor_unit: str) -> ResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        abort(400, "Cannot import to $broadcast; choose a specific Pioreactor.")
+        abort_with(400, "Cannot import to $broadcast; choose a specific Pioreactor.")
 
     uploaded = request.files.get("archive")
     if uploaded is None or uploaded.filename == "":
-        abort(400, "No archive uploaded")
+        abort_with(400, "No archive uploaded")
 
     try:
         filename = secure_filename(uploaded.filename) or "archive.zip"
@@ -1417,7 +1419,7 @@ def import_dot_pioreactor_archive(pioreactor_unit: str) -> ResponseReturnValue:
         uploaded.save(temp_path)
     except Exception as exc:
         publish_to_error_log(str(exc), "import_zipped_dot_pioreactor")
-        abort(500, "Failed to save uploaded archive")
+        abort_with(500, "Failed to save uploaded archive")
 
     payload = temp_path.read_bytes()
     temp_path.unlink(missing_ok=True)
@@ -1440,7 +1442,7 @@ def import_dot_pioreactor_archive(pioreactor_unit: str) -> ResponseReturnValue:
         response.raise_for_status()
     except (HTTPErrorStatus, HTTPException) as exc:
         publish_to_error_log(str(exc), "import_zipped_dot_pioreactor")
-        abort(502, f"Importing system files failed on {pioreactor_unit}. See system logs.")
+        abort_with(502, f"Importing system files failed on {pioreactor_unit}. See system logs.")
 
     return Response(
         response.content,
@@ -1472,13 +1474,13 @@ def create_calibration(pioreactor_unit: str, device: str) -> DelayedResponseRetu
     yaml_data = request.get_json()["calibration_data"]
 
     if not yaml_data:
-        abort(400, "YAML data is missing.")
+        abort_with(400, "YAML data is missing.")
 
     try:
         yaml_decode(yaml_data, type=AllCalibrations)
     except Exception as e:
         publish_to_error_log(str(e), "create_calibration")
-        abort(
+        abort_with(
             400,
             description=f"YAML data is not correct, or required calibration struct missing: {str(e)}",
         )
@@ -1494,11 +1496,11 @@ def create_calibration(pioreactor_unit: str, device: str) -> DelayedResponseRetu
 def run_calibration_protocol(pioreactor_unit: str) -> DelayedResponseReturnValue:
     body = request.get_json()
     if body is None:
-        abort(400, description="Missing JSON payload.")
+        abort_with(400, description="Missing JSON payload.")
 
     device = body.get("device")
     if not device:
-        abort(400, description="Missing 'device'.")
+        abort_with(400, description="Missing 'device'.")
 
     protocol_name = body.get("protocol_name")
     set_active = body.get("set_active", True)
@@ -1521,11 +1523,11 @@ def run_calibration_protocol(pioreactor_unit: str) -> DelayedResponseReturnValue
 @api_bp.route("/workers/<pioreactor_unit>/calibrations/sessions", methods=["POST"])
 def start_calibration_session(pioreactor_unit: str) -> ResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        abort(400, "Cannot start sessions with $broadcast; choose a specific Pioreactor.")
+        abort_with(400, "Cannot start sessions with $broadcast; choose a specific Pioreactor.")
 
     body = request.get_json()
     if body is None:
-        abort(400, description="Missing JSON payload.")
+        abort_with(400, description="Missing JSON payload.")
 
     try:
         response = post_into(
@@ -1537,7 +1539,7 @@ def start_calibration_session(pioreactor_unit: str) -> ResponseReturnValue:
         response.raise_for_status()
     except (HTTPErrorStatus, HTTPException) as exc:
         publish_to_error_log(str(exc), "start_calibration_session")
-        abort(502, f"Starting calibration session failed on {pioreactor_unit}. See system logs.")
+        abort_with(502, f"Starting calibration session failed on {pioreactor_unit}. See system logs.")
 
     return Response(
         response.content,
@@ -1549,7 +1551,7 @@ def start_calibration_session(pioreactor_unit: str) -> ResponseReturnValue:
 @api_bp.route("/workers/<pioreactor_unit>/calibrations/sessions/<session_id>", methods=["GET"])
 def get_calibration_session(pioreactor_unit: str, session_id: str) -> ResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        abort(400, "Cannot fetch sessions with $broadcast; choose a specific Pioreactor.")
+        abort_with(400, "Cannot fetch sessions with $broadcast; choose a specific Pioreactor.")
 
     try:
         response = get_from(
@@ -1560,7 +1562,7 @@ def get_calibration_session(pioreactor_unit: str, session_id: str) -> ResponseRe
         response.raise_for_status()
     except (HTTPErrorStatus, HTTPException) as exc:
         publish_to_error_log(str(exc), "get_calibration_session")
-        abort(502, f"Fetching calibration session failed on {pioreactor_unit}. See system logs.")
+        abort_with(502, f"Fetching calibration session failed on {pioreactor_unit}. See system logs.")
 
     return Response(
         response.content,
@@ -1572,11 +1574,11 @@ def get_calibration_session(pioreactor_unit: str, session_id: str) -> ResponseRe
 @api_bp.route("/workers/<pioreactor_unit>/calibrations/sessions/<session_id>/inputs", methods=["POST"])
 def advance_calibration_session(pioreactor_unit: str, session_id: str) -> ResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        abort(400, "Cannot update sessions with $broadcast; choose a specific Pioreactor.")
+        abort_with(400, "Cannot update sessions with $broadcast; choose a specific Pioreactor.")
 
     body = request.get_json()
     if body is None:
-        abort(400, description="Missing JSON payload.")
+        abort_with(400, description="Missing JSON payload.")
 
     try:
         response = post_into(
@@ -1588,7 +1590,7 @@ def advance_calibration_session(pioreactor_unit: str, session_id: str) -> Respon
         response.raise_for_status()
     except (HTTPErrorStatus, HTTPException) as exc:
         publish_to_error_log(str(exc), "advance_calibration_session")
-        abort(502, f"Updating calibration session failed on {pioreactor_unit}. See system logs.")
+        abort_with(502, f"Updating calibration session failed on {pioreactor_unit}. See system logs.")
 
     return Response(
         response.content,
@@ -1600,7 +1602,7 @@ def advance_calibration_session(pioreactor_unit: str, session_id: str) -> Respon
 @api_bp.route("/workers/<pioreactor_unit>/calibrations/sessions/<session_id>/abort", methods=["POST"])
 def abort_calibration_session(pioreactor_unit: str, session_id: str) -> ResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        abort(400, "Cannot abort sessions with $broadcast; choose a specific Pioreactor.")
+        abort_with(400, "Cannot abort sessions with $broadcast; choose a specific Pioreactor.")
 
     try:
         response = post_into(
@@ -1611,7 +1613,7 @@ def abort_calibration_session(pioreactor_unit: str, session_id: str) -> Response
         response.raise_for_status()
     except (HTTPErrorStatus, HTTPException) as exc:
         publish_to_error_log(str(exc), "abort_calibration_session")
-        abort(502, f"Aborting calibration session failed on {pioreactor_unit}. See system logs.")
+        abort_with(502, f"Aborting calibration session failed on {pioreactor_unit}. See system logs.")
 
     return Response(
         response.content,
@@ -1664,7 +1666,7 @@ def get_plugins_on_machine(pioreactor_unit: str) -> DelayedResponseReturnValue:
 def install_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseReturnValue:
     # there is a security problem here. See https://github.com/Pioreactor/pioreactor/issues/421
     if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS"):
-        abort(403, "Not UI installed allowed.")
+        abort_with(403, "Not UI installed allowed.")
 
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         return create_task_response(
@@ -1679,7 +1681,7 @@ def install_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseReturn
 @api_bp.route("/units/<pioreactor_unit>/plugins/uninstall", methods=["POST", "PATCH"])
 def uninstall_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseReturnValue:
     if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS"):
-        abort(403, "No UI uninstall allowed")
+        abort_with(403, "No UI uninstall allowed")
 
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         return create_task_response(
@@ -1719,7 +1721,7 @@ def get_job_settings_for_worker(
     else:
         workers = get_all_workers_in_experiment(experiment)
         if pioreactor_unit not in workers:
-            abort(404, f"{pioreactor_unit} not in experiment {experiment}")
+            abort_with(404, f"{pioreactor_unit} not in experiment {experiment}")
         task = tasks.multicast_get(endpoint, [pioreactor_unit])
 
     return create_task_response(task)
@@ -1741,7 +1743,7 @@ def get_job_setting_for_worker(
     else:
         workers = get_all_workers_in_experiment(experiment)
         if pioreactor_unit not in workers:
-            abort(404, f"{pioreactor_unit} not in experiment {experiment}")
+            abort_with(404, f"{pioreactor_unit} not in experiment {experiment}")
         task = tasks.multicast_get(endpoint, [pioreactor_unit])
 
     return create_task_response(task)
@@ -1761,7 +1763,7 @@ def get_app_versions(pioreactor_unit: str) -> DelayedResponseReturnValue:
 @api_bp.route("/system/upload", methods=["POST"])
 def upload() -> ResponseReturnValue:
     if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_UPLOADS"):
-        abort(403, "No UI uploads allowed")
+        abort_with(403, "No UI uploads allowed")
 
     if "file" not in request.files:
         return jsonify({"error": "No file part"}), 400
@@ -1785,7 +1787,7 @@ def upload() -> ResponseReturnValue:
 def get_automation_contrib(automation_type: str) -> ResponseReturnValue:
     # security to prevent possibly reading arbitrary file
     if automation_type not in {"temperature", "dosing", "led"}:
-        abort(400, "Not a valid automation type")
+        abort_with(400, "Not a valid automation type")
 
     try:
         automation_path_plugins = (
@@ -1809,7 +1811,7 @@ def get_automation_contrib(automation_type: str) -> ResponseReturnValue:
 
     except Exception as e:
         publish_to_error_log(str(e), "get_automation_contrib")
-        abort(400, str(e))
+        abort_with(400, str(e))
 
 
 @api_bp.route("/contrib/jobs", methods=["GET"])
@@ -1833,7 +1835,7 @@ def get_job_contrib() -> ResponseReturnValue:
 
     except Exception as e:
         publish_to_error_log(str(e), "get_job_contrib")
-        abort(400, str(e))
+        abort_with(400, str(e))
 
 
 @api_bp.route("/contrib/charts", methods=["GET"])
@@ -1856,7 +1858,7 @@ def get_charts_contrib() -> ResponseReturnValue:
 
     except Exception as e:
         publish_to_error_log(str(e), "get_charts_contrib")
-        abort(400, str(e))
+        abort_with(400, str(e))
 
 
 @api_bp.route("/system/update_next_version", methods=["POST"])
@@ -1893,7 +1895,7 @@ def get_exportable_datasets() -> ResponseReturnValue:
 
     except Exception as e:
         publish_to_error_log(str(e), "get_exportable_datasets")
-        abort(400, str(e))
+        abort_with(400, str(e))
 
 
 @api_bp.route("/contrib/exportable_datasets/<target_dataset>/preview", methods=["GET"])
@@ -1912,7 +1914,7 @@ def preview_exportable_datasets(target_dataset) -> ResponseReturnValue:
                 return jsonify(result)
         except (ValidationError, DecodeError):
             pass
-    abort(404, f"{target_dataset} not found")
+    abort_with(404, f"{target_dataset} not found")
 
 
 @api_bp.route("/contrib/exportable_datasets/export_datasets", methods=["POST"])
@@ -1983,7 +1985,7 @@ def get_experiments() -> ResponseReturnValue:
 
     except Exception as e:
         publish_to_error_log(str(e), "get_experiments")
-        abort(500, str(e))
+        abort_with(500, str(e))
 
 
 @api_bp.route("/experiments", methods=["POST"])
@@ -1992,13 +1994,13 @@ def create_experiment() -> ResponseReturnValue:
     proposed_experiment_name = body.get("experiment")
 
     if not proposed_experiment_name:
-        abort(400, "Experiment name is required")
+        abort_with(400, "Experiment name is required")
     elif len(proposed_experiment_name) >= 200:  # just too big
-        abort(400, "Experiment name is too long")
+        abort_with(400, "Experiment name is too long")
     elif proposed_experiment_name.lower() == "current":  # too much API rework
-        abort(400, "Experiment name cannot be 'current'")
+        abort_with(400, "Experiment name cannot be 'current'")
     elif proposed_experiment_name.startswith("_testing"):  # jobs won't run as expected
-        abort(400, "Experiment name cannot start with '_testing'")
+        abort_with(400, "Experiment name cannot start with '_testing'")
     elif (
         ("#" in proposed_experiment_name)
         or ("+" in proposed_experiment_name)
@@ -2007,7 +2009,7 @@ def create_experiment() -> ResponseReturnValue:
         or ("%" in proposed_experiment_name)
         or ("\\" in proposed_experiment_name)
     ):
-        abort(400, "Experiment name cannot contain special characters (#, $, %, +, /, \\)")
+        abort_with(400, "Experiment name cannot contain special characters (#, $, %, +, /, \\)")
 
     try:
         row_count = modify_app_db(
@@ -2036,7 +2038,7 @@ def create_experiment() -> ResponseReturnValue:
         return {"status": "error"}, 409
     except Exception as e:
         publish_to_error_log(str(e), "create_experiment")
-        abort(500, str(e))
+        abort_with(500, str(e))
 
 
 @api_bp.route("/experiments/<experiment>", methods=["DELETE"])
@@ -2053,7 +2055,7 @@ def delete_experiment(experiment: str) -> ResponseReturnValue:
         finally:
             return {"status": "success"}, 200
     else:
-        abort(404, f"Experiment {experiment} not found")
+        abort_with(404, f"Experiment {experiment} not found")
 
 
 @api_bp.route("/experiments/latest", methods=["GET"])
@@ -2071,7 +2073,7 @@ def get_latest_experiment() -> ResponseReturnValue:
 
     except Exception as e:
         publish_to_error_log(str(e), "get_latest_experiment")
-        abort(500, str(e))
+        abort_with(500, str(e))
 
 
 @api_bp.route("/experiments/<experiment>/unit_labels", methods=["GET"])
@@ -2095,7 +2097,7 @@ def get_unit_labels(experiment: str) -> ResponseReturnValue:
 
     except Exception as e:
         publish_to_error_log(str(e), "get_unit_labels")
-        abort(500, str(e))
+        abort_with(500, str(e))
 
 
 @api_bp.route("/experiments/<experiment>/unit_labels", methods=["PUT", "PATCH"])
@@ -2140,7 +2142,7 @@ def upsert_unit_labels(experiment: str) -> ResponseReturnValue:
 
     except Exception as e:
         publish_to_error_log(str(e), "upsert_current_unit_labels")
-        abort(400, str(e))
+        abort_with(400, str(e))
 
     return {"status": "success"}, 201
 
@@ -2154,7 +2156,7 @@ def get_historical_organisms_used() -> ResponseReturnValue:
 
     except Exception as e:
         publish_to_error_log(str(e), "historical_organisms")
-        abort(500, str(e))
+        abort_with(500, str(e))
 
     return jsonify(historical_organisms)
 
@@ -2168,7 +2170,7 @@ def get_historical_media_used() -> ResponseReturnValue:
 
     except Exception as e:
         publish_to_error_log(str(e), "historical_media")
-        abort(500, str(e))
+        abort_with(500, str(e))
 
     return jsonify(historical_media)
 
@@ -2185,9 +2187,9 @@ def update_experiment(experiment: str) -> ResponseReturnValue:
         if row_count == 1:
             return {"status": "success"}, 200
         else:
-            abort(404, f"Experiment {experiment} not found")
+            abort_with(404, f"Experiment {experiment} not found")
     else:
-        abort(400, "Missing description")
+        abort_with(400, "Missing description")
 
 
 @api_bp.route("/experiments/<experiment>", methods=["GET"])
@@ -2203,7 +2205,7 @@ def get_experiment(experiment: str) -> ResponseReturnValue:
     if result is not None:
         return jsonify(result)
     else:
-        abort(404, f"Experiment {experiment} not found")
+        abort_with(404, f"Experiment {experiment} not found")
 
 
 ## CONFIG CONTROL
@@ -2233,7 +2235,7 @@ def get_configuration_for_pioreactor_unit(pioreactor_unit: str) -> ResponseRetur
 
         except Exception as e:
             publish_to_error_log(str(e), "get_configuration_for_pioreactor_unit")
-            abort(400, str(e))
+            abort_with(400, str(e))
 
     return result
 
@@ -2247,7 +2249,7 @@ def get_config(filename: str) -> ResponseReturnValue:
 
     try:
         if Path(filename).suffix != ".ini":
-            abort(400, "Must be a .ini file")
+            abort_with(400, "Must be a .ini file")
 
         specific_config_path = Path(os.environ["DOT_PIOREACTOR"]) / filename
 
@@ -2262,7 +2264,7 @@ def get_config(filename: str) -> ResponseReturnValue:
 
     except Exception as e:
         publish_to_error_log(str(e), "get_config_of_file")
-        abort(400, str(e))
+        abort_with(400, str(e))
 
 
 @api_bp.route("/configs", methods=["GET"])
@@ -2299,7 +2301,7 @@ def update_config(filename: str) -> ResponseReturnValue:
     code = body["code"]
 
     if not filename.endswith(".ini"):
-        return abort(400, "Incorrect filetype. Must be .ini.")
+        return abort_with(400, "Incorrect filetype. Must be .ini.")
 
     # security bit:
     # users could have filename look like ../../../../root/bad.txt
@@ -2350,27 +2352,27 @@ def update_config(filename: str) -> ResponseReturnValue:
     except configparser.DuplicateSectionError as e:
         msg = f"Duplicate section [{e.section}] was found. Please fix and try again."
         publish_to_error_log(msg, "update_config")
-        abort(400, msg)
+        abort_with(400, msg)
     except configparser.DuplicateOptionError as e:
         msg = f"Duplicate option, `{e.option}`, was found in section [{e.section}]. Please fix and try again."
         publish_to_error_log(msg, "update_config")
-        abort(400, msg)
+        abort_with(400, msg)
     except configparser.ParsingError:
         msg = "Incorrect syntax. Please fix and try again."
         publish_to_error_log(msg, "update_config")
-        abort(400, msg)
+        abort_with(400, msg)
     except (AssertionError, configparser.NoSectionError, KeyError) as e:
         msg = f"Missing required field(s): {e}"
         publish_to_error_log(msg, "update_config")
-        abort(400, msg)
+        abort_with(400, msg)
     except ValueError as e:
         msg = str(e)
         publish_to_error_log(msg, "update_config")
-        abort(400, msg)
+        abort_with(400, msg)
     except Exception as e:
         publish_to_error_log(str(e), "update_config")
         msg = "Hm, something went wrong, check Pioreactor logs."
-        abort(500, msg)
+        abort_with(500, msg)
 
     # if the config file is unit specific, we only need to run sync-config on that unit.
     result = tasks.write_config_and_sync(config_path, code, units, flags)
@@ -2382,7 +2384,7 @@ def update_config(filename: str) -> ResponseReturnValue:
 
     if not status:
         publish_to_error_log(msg_or_exception, "save_new_config")
-        abort(500, str(msg_or_exception))
+        abort_with(500, str(msg_or_exception))
 
     return {"status": "success"}, 200
 
@@ -2464,28 +2466,28 @@ def create_experiment_profile() -> ResponseReturnValue:
     except Exception as e:
         msg = f"{e}"
         # publish_to_error_log(msg, "create_experiment_profile")
-        return abort(400, msg)
+        return abort_with(400, msg)
 
     # verify file
     try:
         if not is_valid_unix_filename(experiment_profile_filename):
-            abort(400, "Not valid unix name")
+            abort_with(400, "Not valid unix name")
 
         if not (
             experiment_profile_filename.endswith(".yaml") or experiment_profile_filename.endswith(".yml")
         ):
-            abort(400, "must end in .yaml")
+            abort_with(400, "must end in .yaml")
 
     except Exception:
         msg = "Invalid filename"
         # publish_to_error_log(msg, "create_experiment_profile")
-        abort(400, msg)
+        abort_with(400, msg)
 
     filepath = Path(os.environ["DOT_PIOREACTOR"]) / "experiment_profiles" / experiment_profile_filename
 
     # check if exists
     if filepath.exists():
-        abort(400, "A profile already exists with that filename. Choose another.")
+        abort_with(400, "A profile already exists with that filename. Choose another.")
 
     # save file to disk
     tasks.save_file(
@@ -2507,21 +2509,21 @@ def update_experiment_profile() -> ResponseReturnValue:
         yaml_decode(experiment_profile_body, type=Profile)
     except Exception as e:
         # publish_to_error_log(msg, "create_experiment_profile")
-        abort(400, str(e))
+        abort_with(400, str(e))
 
     # verify file - user could have provided a different filename so we still check this.
     try:
         if not is_valid_unix_filename(experiment_profile_filename):
-            abort(400, "not valid unix filename")
+            abort_with(400, "not valid unix filename")
 
         if not (
             experiment_profile_filename.endswith(".yaml") or experiment_profile_filename.endswith(".yml")
         ):
-            abort(400, "must end in .yaml")
+            abort_with(400, "must end in .yaml")
 
     except Exception as e:
         # publish_to_error_log(msg, "create_experiment_profile")
-        abort(400, str(e))
+        abort_with(400, str(e))
 
     filepath = Path(os.environ["DOT_PIOREACTOR"]) / "experiment_profiles" / experiment_profile_filename
 
@@ -2568,7 +2570,7 @@ def get_experiment_profiles() -> ResponseReturnValue:
         return attach_cache_control(jsonify(parsed_yaml), max_age=5)
     except Exception as e:
         publish_to_error_log(str(e), "get_experiment_profiles")
-        abort(400, str(e))
+        abort_with(400, str(e))
 
 
 @api_bp.route("/contrib/experiment_profiles/<filename>", methods=["GET"])
@@ -2586,7 +2588,7 @@ def get_experiment_profile(filename: str) -> ResponseReturnValue:
         )
     except IOError as e:
         publish_to_error_log(str(e), "get_experiment_profile")
-        abort(404, str(e))
+        abort_with(404, str(e))
 
 
 @api_bp.route("/contrib/experiment_profiles/<filename>", methods=["DELETE"])
@@ -2602,10 +2604,10 @@ def delete_experiment_profile(filename: str) -> ResponseReturnValue:
         return {"status": "success"}, 200
     except IOError as e:
         publish_to_error_log(str(e), "delete_experiment_profile")
-        abort(404, str(e))
+        abort_with(404, str(e))
     except Exception as e:
         publish_to_error_log(str(e), "delete_experiment_profile")
-        abort(500, str(e))
+        abort_with(500, str(e))
 
 
 ##### Worker endpoints
@@ -2650,7 +2652,7 @@ def setup_worker_pioreactor() -> ResponseReturnValue:
     try:
         result = tasks.add_new_pioreactor(new_name, version, model)
     except Exception as e:
-        return abort(404, str(e))
+        return abort_with(404, str(e))
 
     try:
         status = result(blocking=True, timeout=250)
@@ -2660,7 +2662,7 @@ def setup_worker_pioreactor() -> ResponseReturnValue:
     if status:
         return {"msg": f"Worker {new_name} added successfully."}, 200
     else:
-        abort(404, f"Failed to add worker {new_name}. See logs.")
+        abort_with(404, f"Failed to add worker {new_name}. See logs.")
 
 
 @api_bp.route("/workers", methods=["PUT"])
@@ -2680,7 +2682,7 @@ def add_worker() -> ResponseReturnValue:
     if nrows > 0:
         return {"status": "success"}, 201
     else:
-        abort(500, "Failed to add worker to database.")
+        abort_with(500, "Failed to add worker to database.")
 
 
 @api_bp.route("/workers/<pioreactor_unit>", methods=["DELETE"])
@@ -2720,7 +2722,7 @@ def delete_worker(pioreactor_unit: str) -> ResponseReturnValue:
 
         return {"status": "success"}, 202
     else:
-        abort(404, f"Worker {pioreactor_unit} not found")
+        abort_with(404, f"Worker {pioreactor_unit} not found")
 
 
 @api_bp.route("/workers/<pioreactor_unit>/is_active", methods=["PUT"])
@@ -2748,7 +2750,7 @@ def change_worker_status(pioreactor_unit: str) -> ResponseReturnValue:
             tasks.multicast_post("/unit_api/jobs/stop/all", [pioreactor_unit])
         return {"status": "success"}, 200
     else:
-        abort(404, f"Worker {pioreactor_unit} not found")
+        abort_with(404, f"Worker {pioreactor_unit} not found")
 
 
 @api_bp.route("/workers/<pioreactor_unit>/model", methods=["PUT"])
@@ -2758,10 +2760,10 @@ def change_worker_model(pioreactor_unit: str) -> ResponseReturnValue:
     model_version, model_name = data.get("model_version"), data.get("model_name")
 
     if not model_version or not model_name:
-        abort(400, "Missing model_version or model_name")
+        abort_with(400, "Missing model_version or model_name")
 
     if (model_name, model_version) not in get_registered_models():
-        abort(400, "Model name or version not found in available models.")
+        abort_with(400, "Model name or version not found in available models.")
 
     # Update the status of the worker in the database
     row_count = modify_app_db(
@@ -2777,7 +2779,7 @@ def change_worker_model(pioreactor_unit: str) -> ResponseReturnValue:
         )
         return {"status": "success"}, 200
     else:
-        abort(404, f"Worker {pioreactor_unit} not found")
+        abort_with(404, f"Worker {pioreactor_unit} not found")
 
 
 @api_bp.route("/workers/<pioreactor_unit>/model", methods=["GET"])
@@ -2794,7 +2796,7 @@ def get_worker_model_and_metadata(pioreactor_unit: str) -> ResponseReturnValue:
     )
     if result is None:
         # If the worker is not found, return an error
-        return abort(404, "Worker not found")
+        return abort_with(404, "Worker not found")
     else:
         assert isinstance(result, dict)
         # If the worker is found, return the model and metadata
@@ -2876,7 +2878,7 @@ def get_active_experiments() -> ResponseReturnValue:
         return attach_cache_control(jsonify(result or []), max_age=2)
     except Exception as e:
         publish_to_error_log(str(e), "get_active_experiments")
-        abort(500, str(e))
+        abort_with(500, str(e))
 
 
 @api_bp.route("/workers/assignments", methods=["DELETE"])
@@ -2998,7 +3000,7 @@ def add_worker_to_experiment(experiment: str) -> ResponseReturnValue:
         return {"status": "success"}, 200
     else:
         # probably an integrity error
-        abort(500, "Failed to add to database.")
+        abort_with(500, "Failed to add to database.")
 
 
 @api_bp.route("/experiments/<experiment>/workers/<pioreactor_unit>", methods=["DELETE"])
@@ -3018,7 +3020,7 @@ def remove_worker_from_experiment(experiment: str, pioreactor_unit: str) -> Resp
         )
         return {"status": "success"}, 200
     else:
-        abort(404, f"Worker {pioreactor_unit} not found")
+        abort_with(404, f"Worker {pioreactor_unit} not found")
 
 
 @api_bp.route("/experiments/<experiment>/workers", methods=["DELETE"])

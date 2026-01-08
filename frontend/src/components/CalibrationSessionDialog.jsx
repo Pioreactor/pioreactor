@@ -327,7 +327,7 @@ export default function CalibrationSessionDialog({
             </Typography>
           </Box>
         ) : (
-          <Alert severity="info">Preparing the calibration session...</Alert>
+          <></>
         )}
         {stepImage && (
           <Box>

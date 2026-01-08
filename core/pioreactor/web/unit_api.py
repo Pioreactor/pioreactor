@@ -9,7 +9,6 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from time import sleep
 
-from flask import abort
 from flask import after_this_request
 from flask import Blueprint
 from flask import current_app
@@ -60,12 +59,54 @@ from pioreactor.web.utils import create_task_response
 from pioreactor.web.utils import DelayedResponseReturnValue
 from pioreactor.web.utils import is_rate_limited
 from pioreactor.web.utils import is_valid_unix_filename
+from pioreactor.web.utils import abort_with
+from typing import Callable
+from typing import cast
+from werkzeug import utils as werkzeug_utils
 from werkzeug.utils import safe_join
-
 
 AllCalibrations = subclass_union(CalibrationBase)
 
 unit_api_bp = Blueprint("unit_api", __name__, url_prefix="/unit_api")
+
+
+def _float_from_payload(payload: dict[str, object], key: str) -> float:
+    value = payload.get(key)
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        return float(value)
+    raise ValueError(f"Missing or invalid '{key}'.")
+
+
+def _optional_float_from_payload(payload: dict[str, object], key: str) -> float | None:
+    value = payload.get(key)
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        return float(value)
+    raise ValueError(f"Invalid '{key}'.")
+
+
+def _string_from_payload(payload: dict[str, object], key: str) -> str:
+    value = payload.get(key)
+    if isinstance(value, str):
+        return value
+    raise ValueError(f"Missing or invalid '{key}'.")
+
+
+def _string_dict_from_payload(payload: dict[str, object], key: str) -> dict[str, str]:
+    value = payload.get(key)
+    if not isinstance(value, dict):
+        raise ValueError(f"Missing or invalid '{key}'.")
+    typed: dict[str, str] = {}
+    for item_key, item_value in value.items():
+        if not isinstance(item_key, str) or not isinstance(item_value, str):
+            raise ValueError(f"Invalid '{key}'.")
+        typed[item_key] = item_value
+    return typed
 
 
 def _execute_calibration_action(action: str, payload: dict[str, object]) -> dict[str, object]:
@@ -75,10 +116,10 @@ def _execute_calibration_action(action: str, payload: dict[str, object]) -> dict
 
     if action == "pump":
         task = tasks.calibration_execute_pump(
-            str(payload["pump_device"]),
-            float(payload["duration_s"]),
-            float(payload["hz"]),
-            float(payload["dc"]),
+            _string_from_payload(payload, "pump_device"),
+            _float_from_payload(payload, "duration_s"),
+            _float_from_payload(payload, "hz"),
+            _float_from_payload(payload, "dc"),
         )
         try:
             success = task(blocking=True, timeout=30)
@@ -91,8 +132,8 @@ def _execute_calibration_action(action: str, payload: dict[str, object]) -> dict
 
     if action == "od_standards_measure":
         task = tasks.calibration_measure_standard(
-            float(payload["rpm"]),
-            payload["channel_angle_map"],
+            _float_from_payload(payload, "rpm"),
+            _string_dict_from_payload(payload, "channel_angle_map"),
         )
         try:
             voltages = task(blocking=True, timeout=30)
@@ -102,7 +143,7 @@ def _execute_calibration_action(action: str, payload: dict[str, object]) -> dict
         return {"voltages": voltages}
 
     if action == "od_reference_standard_read":
-        task = tasks.calibration_reference_standard_read(float(payload["ir_led_intensity"]))
+        task = tasks.calibration_reference_standard_read(_float_from_payload(payload, "ir_led_intensity"))
         try:
             readings = task(blocking=True, timeout=300)
         except HueyException as exc:
@@ -112,8 +153,8 @@ def _execute_calibration_action(action: str, payload: dict[str, object]) -> dict
 
     if action == "stirring_calibration":
         task = tasks.calibration_run_stirring(
-            payload.get("min_dc"),
-            payload.get("max_dc"),
+            _optional_float_from_payload(payload, "min_dc"),
+            _optional_float_from_payload(payload, "max_dc"),
         )
         try:
             calibration = task(blocking=True, timeout=300)
@@ -181,7 +222,7 @@ def task_status(task_id: str):
 @unit_api_bp.route("/system/update/<target>", methods=["POST", "PATCH"])
 def update_target(target: str) -> DelayedResponseReturnValue:
     if target not in ("app",):  # todo: firmware
-        abort(404, description="Invalid target")
+        abort_with(404, description="Invalid target")
 
     body = current_app.get_json(request.data, type=structs.ArgsOptionsEnvs)
 
@@ -240,13 +281,13 @@ def remove_file() -> DelayedResponseReturnValue:
     disallow_file = Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_FILE_SYSTEM"
     if os.path.isfile(disallow_file):
         publish_to_error_log(f"Delete blocked because {disallow_file} is present", task_name)
-        abort(403, "DISALLOW_UI_FILE_SYSTEM is present")
+        abort_with(403, "DISALLOW_UI_FILE_SYSTEM is present")
 
     # use filepath in body
     body = current_app.get_json(request.data) or {}
     filepath = body.get("filepath")
     if not filepath:
-        abort(400, "filepath field is required")
+        abort_with(400, "filepath field is required")
     assert filepath is not None
 
     base_dir = Path(os.environ["DOT_PIOREACTOR"]).resolve()
@@ -258,7 +299,7 @@ def remove_file() -> DelayedResponseReturnValue:
     try:
         candidate_path.relative_to(base_dir)
     except ValueError:
-        abort(403, "Access to this path is not allowed")
+        abort_with(403, "Access to this path is not allowed")
 
     task = tasks.rm(str(candidate_path))
     return create_task_response(task)
@@ -280,17 +321,17 @@ def set_clock_time() -> DelayedResponseReturnValue:  # type: ignore[return]
     if HOSTNAME == get_leader_hostname():
         data = request.get_json(silent=True)  # don't throw 415
         if not data:
-            abort(400, "utc_clock_time field is required")
+            abort_with(400, "utc_clock_time field is required")
 
         new_time = data.get("utc_clock_time")
         if not new_time:
-            abort(400, "utc_clock_time field is required")
+            abort_with(400, "utc_clock_time field is required")
 
         # validate the timestamp
         try:
             to_datetime(new_time)
         except ValueError:
-            abort(400, "Invalid utc_clock_time format. Use ISO 8601.")
+            abort_with(400, "Invalid utc_clock_time format. Use ISO 8601.")
 
         # Update the system clock (requires admin privileges)
         t = tasks.update_clock(new_time)
@@ -306,23 +347,23 @@ def set_clock_time() -> DelayedResponseReturnValue:  # type: ignore[return]
 @unit_api_bp.route("/system/path/<path:req_path>")
 def dir_listing(req_path: str):
     if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_FILE_SYSTEM"):
-        abort(403, "DISALLOW_UI_FILE_SYSTEM is present")
+        abort_with(403, "DISALLOW_UI_FILE_SYSTEM is present")
 
     BASE_DIR = os.environ["DOT_PIOREACTOR"]
 
     # Safely join to prevent directory traversal
     safe_path = safe_join(BASE_DIR, req_path)
     if not safe_path:
-        abort(403, "Invalid path.")
+        abort_with(403, "Invalid path.")
 
     # Check if the path actually exists
     if not os.path.exists(safe_path):
-        abort(404, "Path not found.")
+        abort_with(404, "Path not found.")
 
     # If it's a file, serve the file
     if os.path.isfile(safe_path):
         if safe_path.endswith((".sqlite", ".sqlite.backup", ".sqlite-shm", ".sqlite-wal")):
-            abort(403, "Access to downloading sqlite files is restricted.")
+            abort_with(403, "Access to downloading sqlite files is restricted.")
 
         return send_file(safe_path, mimetype="text/plain")
 
@@ -331,7 +372,7 @@ def dir_listing(req_path: str):
 
     # Return 404 if path doesn't exist
     if not os.path.exists(abs_path):
-        abort(404, "Path not found.")
+        abort_with(404, "Path not found.")
 
     # Check if path is a file and serve
     if os.path.isfile(abs_path):
@@ -378,7 +419,7 @@ def run_job(job: str) -> DelayedResponseReturnValue:
     }'
     """
     if is_rate_limited(job):
-        abort(429, "Too many requests, please try again later.")
+        abort_with(429, "Too many requests, please try again later.")
 
     json = current_app.get_json(request.data, type=structs.ArgsOptionsEnvsConfigOverrides)
     args = json.args
@@ -412,7 +453,7 @@ def stop_all_jobs() -> DelayedResponseReturnValue:
 @unit_api_bp.route("/jobs/stop", methods=["PATCH", "POST"])
 def stop_jobs() -> DelayedResponseReturnValue:
     if not request.data:
-        return abort(400, "No job filter specified")
+        return abort_with(400, "No job filter specified")
     json = current_app.get_json(request.data)
 
     job_name = json.get("job_name")
@@ -420,7 +461,7 @@ def stop_jobs() -> DelayedResponseReturnValue:
     job_source = json.get("job_source")
     job_id = json.get("job_id")
     if not any([job_name, experiment, job_source, job_id]):
-        return abort(400, "No job filter specified")
+        return abort_with(400, "No job filter specified")
 
     kill_args = []
     if job_name:
@@ -496,7 +537,7 @@ def get_settings_for_a_specific_job(job_name: str) -> ResponseReturnValue:
     if settings:
         return jsonify({"settings": {s["setting"]: s["value"] for s in settings}})
     else:
-        abort(404, "No settings found for job.")
+        abort_with(404, "No settings found for job.")
 
 
 @unit_api_bp.route("/jobs/settings/job_name/<job_name>/setting/<setting>", methods=["GET"])
@@ -516,7 +557,7 @@ def get_specific_setting_for_a_job(job_name: str, setting: str) -> ResponseRetur
     if setting_metadata:
         return jsonify({setting_metadata["setting"]: setting_metadata["value"]})
     else:
-        abort(404, "Setting not found.")
+        abort_with(404, "Setting not found.")
 
 
 @unit_api_bp.route("/jobs/settings/job_name/<job_name>", methods=["PATCH"])
@@ -532,7 +573,7 @@ def update_job(job_name: str) -> ResponseReturnValue:
     }
     """
     # body = request.get_json()
-    abort(503, "Not implemented.")
+    abort_with(503, "Not implemented.")
 
 
 @unit_api_bp.route("/capabilities", methods=["GET"])
@@ -575,7 +616,7 @@ def get_installed_plugins() -> ResponseReturnValue:
         status, msg = False, "Timed out."
 
     if not status:
-        abort(404, msg)
+        abort_with(404, msg)
     else:
         # sometimes an error from a plugin will be printed. We just want to last line, the json bit.
         _, _, plugins_as_json = msg.rpartition("\n")
@@ -607,9 +648,9 @@ def get_plugin(filename: str) -> ResponseReturnValue:
             )
         )
     except IOError:
-        abort(404, "must provide a .py file")
+        abort_with(404, "must provide a .py file")
     except Exception:
-        abort(500, "server error")
+        abort_with(500, "server error")
 
 
 @unit_api_bp.route("/plugins/install", methods=["POST", "PATCH"])
@@ -637,11 +678,11 @@ def install_plugin() -> DelayedResponseReturnValue:
 
     # there is a security problem here. See https://github.com/Pioreactor/pioreactor/issues/421
     if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS"):
-        abort(403, "DISALLOW_UI_INSTALLS is present")
+        abort_with(403, "DISALLOW_UI_INSTALLS is present")
 
     # allowlist = _load_plugin_allowlist()
     # if not allowlist:
-    #    abort(
+    #    abort_with(
     #        403,
     #        "Plugin installs via API are disabled: plugins_allowlist.json missing, empty, or invalid.",
     #    )
@@ -649,13 +690,13 @@ def install_plugin() -> DelayedResponseReturnValue:
     body = current_app.get_json(request.data, type=structs.ArgsOptionsEnvs)
 
     if not body.args:
-        abort(400, "Plugin name is required")
+        abort_with(400, "Plugin name is required")
     if len(body.args) > 1:
-        abort(400, "Install one plugin at a time via the API")
+        abort_with(400, "Install one plugin at a time via the API")
 
     # requested_plugin = _canonicalize_package_name(body.args[0])
     # if requested_plugin not in allowlist:
-    #    abort(
+    #    abort_with(
     #        403,
     #        f"Plugin '{requested_plugin}' is not in the allowlist for API installs.",
     #    )
@@ -711,34 +752,34 @@ def get_app_version() -> ResponseReturnValue:
 def start_calibration_session() -> ResponseReturnValue:
     body = request.get_json()
     if body is None:
-        abort(400, description="Missing JSON payload.")
+        abort_with(400, description="Missing JSON payload.")
 
     protocol_name = body.get("protocol_name")
     target_device = body.get("target_device")
     if not target_device:
-        abort(400, description="Missing 'target_device'.")
+        abort_with(400, description="Missing 'target_device'.")
 
     try:
         if protocol_name == "duration_based":
             if target_device not in pt.PUMP_DEVICES:
-                abort(400, description="Unsupported target device.")
+                abort_with(400, description="Unsupported target device.")
             session = start_duration_based_session(target_device)
         elif protocol_name == "standards":
             if target_device not in pt.OD_DEVICES:
-                abort(400, description="Unsupported target device.")
+                abort_with(400, description="Unsupported target device.")
             session = start_standards_session(target_device)
         elif protocol_name == "od_reference_standard":
             if target_device not in pt.OD_DEVICES:
-                abort(400, description="Unsupported target device.")
+                abort_with(400, description="Unsupported target device.")
             session = start_reference_standard_session(target_device)
         elif protocol_name == "dc_based":
             if target_device != "stirring":
-                abort(400, description="Unsupported target device.")
+                abort_with(400, description="Unsupported target device.")
             session = start_dc_based_session(target_device)
         else:
-            abort(400, description="Unsupported protocol.")
+            abort_with(400, description="Unsupported protocol.")
     except ValueError as exc:
-        abort(400, description=str(exc))
+        abort_with(400, description=str(exc))
 
     save_calibration_session(session)
     if session.protocol_name == "duration_based":
@@ -750,7 +791,7 @@ def start_calibration_session() -> ResponseReturnValue:
     elif session.protocol_name == "dc_based":
         step = get_dc_based_step(session)
     else:
-        abort(400, description="Unsupported protocol.")
+        abort_with(400, description="Unsupported protocol.")
     step_payload = to_builtins(step) if step is not None else None
     return jsonify({"session": to_builtins(session), "step": step_payload}), 201
 
@@ -759,7 +800,7 @@ def start_calibration_session() -> ResponseReturnValue:
 def get_calibration_session(session_id: str) -> ResponseReturnValue:
     session = load_calibration_session(session_id)
     if session is None:
-        abort(404, description="Calibration session not found.")
+        abort_with(404, "Calibration session not found.")
     if session.protocol_name == "duration_based":
         step = get_duration_based_step(session)
     elif session.protocol_name == "standards":
@@ -769,7 +810,7 @@ def get_calibration_session(session_id: str) -> ResponseReturnValue:
     elif session.protocol_name == "dc_based":
         step = get_dc_based_step(session)
     else:
-        abort(400, description="Unsupported protocol.")
+        abort_with(400, description="Unsupported protocol.")
     step_payload = to_builtins(step) if step is not None else None
     return jsonify({"session": to_builtins(session), "step": step_payload}), 200
 
@@ -778,12 +819,12 @@ def get_calibration_session(session_id: str) -> ResponseReturnValue:
 def abort_calibration_session_route(session_id: str) -> ResponseReturnValue:
     session = load_calibration_session(session_id)
     if session is None:
-        abort(404, description="Calibration session not found.")
+        abort_with(404, "Calibration session not found.")
 
     abort_calibration_session(session_id)
     session = load_calibration_session(session_id)
     if session is None:
-        abort(404, description="Calibration session not found.")
+        abort_with(404, "Calibration session not found.")
     if session.protocol_name == "duration_based":
         step = get_duration_based_step(session)
     elif session.protocol_name == "standards":
@@ -793,7 +834,7 @@ def abort_calibration_session_route(session_id: str) -> ResponseReturnValue:
     elif session.protocol_name == "dc_based":
         step = get_dc_based_step(session)
     else:
-        abort(400, description="Unsupported protocol.")
+        abort_with(400, description="Unsupported protocol.")
     step_payload = to_builtins(step) if step is not None else None
     return jsonify({"session": to_builtins(session), "step": step_payload}), 200
 
@@ -802,15 +843,15 @@ def abort_calibration_session_route(session_id: str) -> ResponseReturnValue:
 def advance_calibration_session(session_id: str) -> ResponseReturnValue:
     session = load_calibration_session(session_id)
     if session is None:
-        abort(404, description="Calibration session not found.")
+        abort_with(404, "Calibration session not found.")
 
     body = request.get_json()
     if body is None:
-        abort(400, description="Missing JSON payload.")
+        abort_with(400, description="Missing JSON payload.")
 
     inputs = body.get("inputs", {})
     if not isinstance(inputs, dict):
-        abort(400, description="Invalid inputs payload.")
+        abort_with(400, description="Invalid inputs payload.")
 
     try:
         if session.protocol_name == "duration_based":
@@ -824,9 +865,9 @@ def advance_calibration_session(session_id: str) -> ResponseReturnValue:
         elif session.protocol_name == "dc_based":
             session = advance_dc_based_session(session, inputs, executor=_execute_calibration_action)
         else:
-            abort(400, description="Unsupported protocol.")
+            abort_with(400, description="Unsupported protocol.")
     except ValueError as exc:
-        abort(400, description=str(exc))
+        abort_with(400, description=str(exc))
 
     save_calibration_session(session)
     if session.protocol_name == "duration_based":
@@ -838,7 +879,7 @@ def advance_calibration_session(session_id: str) -> ResponseReturnValue:
     elif session.protocol_name == "dc_based":
         step = get_dc_based_step(session)
     else:
-        abort(400, description="Unsupported protocol.")
+        abort_with(400, description="Unsupported protocol.")
     step_payload = to_builtins(step) if step is not None else None
     return jsonify({"session": to_builtins(session), "step": step_payload}), 200
 
@@ -857,9 +898,9 @@ def create_calibration(device: str) -> ResponseReturnValue:
         calibration_name = calibration_data.calibration_name
 
         if not calibration_name or not is_valid_unix_filename(calibration_name):
-            abort(400, description="Missing or invalid 'calibration_name'.")
+            abort_with(400, description="Missing or invalid 'calibration_name'.")
         elif not device or not is_valid_unix_filename(device):
-            abort(400, description="Missing or invalid 'device'.")
+            abort_with(400, description="Missing or invalid 'device'.")
 
         path = calibration_data.path_on_disk_for_device(device)
         tasks.save_file(path, raw_yaml)
@@ -869,7 +910,7 @@ def create_calibration(device: str) -> ResponseReturnValue:
 
     except Exception as e:
         publish_to_error_log(f"Error creating calibration: {e}", "create_calibration")
-        abort(500, description="Failed to create calibration.")
+        abort_with(500, description="Failed to create calibration.")
 
 
 @unit_api_bp.route("/calibrations/<device>/<calibration_name>", methods=["DELETE"])
@@ -882,7 +923,7 @@ def delete_calibration(device: str, calibration_name: str) -> ResponseReturnValu
     )
 
     if not calibration_path.exists():
-        abort(404, description=f"Calibration '{calibration_name}' not found for device '{device}'.")
+        abort_with(404, description=f"Calibration '{calibration_name}' not found for device '{device}'.")
 
     try:
         # Remove the calibration file
@@ -900,7 +941,7 @@ def delete_calibration(device: str, calibration_name: str) -> ResponseReturnValu
 
     except Exception as e:
         publish_to_error_log(f"Error deleting calibration: {e}", "delete_calibration")
-        abort(500, description="Failed to delete calibration.")
+        abort_with(500, description="Failed to delete calibration.")
 
 
 @unit_api_bp.route("/calibrations", methods=["GET"])
@@ -908,7 +949,7 @@ def get_all_calibrations() -> ResponseReturnValue:
     calibration_dir = Path(os.environ["DOT_PIOREACTOR"]) / "storage" / "calibrations"
 
     if not calibration_dir.exists():
-        abort(404, "Calibration directory does not exist.")
+        abort_with(404, "Calibration directory does not exist.")
 
     all_calibrations: dict[str, list] = {}
 
@@ -934,7 +975,7 @@ def get_all_active_calibrations() -> ResponseReturnValue:
     calibration_dir = Path(os.environ["DOT_PIOREACTOR"]) / "storage" / "calibrations"
 
     if not calibration_dir.exists():
-        abort(404, "Calibration directory does not exist.")
+        abort_with(404, "Calibration directory does not exist.")
 
     all_calibrations: dict[str, dict] = {}
 
@@ -960,7 +1001,7 @@ def get_all_calibrations_as_zipped_yaml() -> ResponseReturnValue:
     calibration_dir = Path(os.environ["DOT_PIOREACTOR"]) / "storage" / "calibrations"
 
     if not calibration_dir.exists():
-        abort(404, "Calibration directory does not exist.")
+        abort_with(404, "Calibration directory does not exist.")
 
     buffer = BytesIO()
 
@@ -992,7 +1033,7 @@ def get_entire_dot_pioreactor_as_zip() -> ResponseReturnValue:
     - Zips all contents recursively with paths relative to DOT_PIOREACTOR.
     """
     if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_FILE_SYSTEM"):
-        abort(403, "DISALLOW_UI_FILE_SYSTEM is present")
+        abort_with(403, "DISALLOW_UI_FILE_SYSTEM is present")
 
     base_dir = Path(os.environ["DOT_PIOREACTOR"]).resolve()
 
@@ -1062,12 +1103,12 @@ def import_dot_pioreactor_from_zip() -> ResponseReturnValue:
     disallow_file = Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_FILE_SYSTEM"
     if os.path.isfile(disallow_file):
         publish_to_error_log(f"Import blocked because {disallow_file} is present", task_name)
-        abort(403, "DISALLOW_UI_FILE_SYSTEM is present")
+        abort_with(403, "DISALLOW_UI_FILE_SYSTEM is present")
 
     uploaded = request.files.get("archive")
     if uploaded is None or uploaded.filename == "":
         publish_to_error_log("No archive uploaded in import request", task_name)
-        abort(400, "No archive uploaded")
+        abort_with(400, "No archive uploaded")
 
     tmp = NamedTemporaryFile(prefix="import_dot_pioreactor_", suffix=".zip", delete=False)
     tmp_path = Path(tmp.name)
@@ -1084,15 +1125,15 @@ def import_dot_pioreactor_from_zip() -> ResponseReturnValue:
     except ValueError as exc:
         publish_to_error_log(f"Zip validation failed: {exc}", task_name)
         tmp_path.unlink(missing_ok=True)
-        abort(400, str(exc))
+        abort_with(400, str(exc))
     except zipfile.BadZipFile:
         publish_to_error_log("Uploaded file is not a valid zip archive", task_name)
         tmp_path.unlink(missing_ok=True)
-        abort(400, "Uploaded file is not a valid zip archive")
+        abort_with(400, "Uploaded file is not a valid zip archive")
     except Exception as exc:
         publish_to_error_log(f"Failed to inspect uploaded archive: {exc}", task_name)
         tmp_path.unlink(missing_ok=True)
-        abort(500, "Failed to inspect uploaded archive")
+        abort_with(500, "Failed to inspect uploaded archive")
 
     if metadata is None:
         publish_to_log(
@@ -1116,11 +1157,11 @@ def import_dot_pioreactor_from_zip() -> ResponseReturnValue:
     except HueyException as exc:
         publish_to_error_log(f"Failed to enqueue import task: {exc}", task_name)
         tmp_path.unlink(missing_ok=True)
-        abort(500, "Failed to enqueue import task")
+        abort_with(500, "Failed to enqueue import task")
     except Exception as exc:  # pragma: no cover - unexpected failure
         publish_to_error_log(f"Failed to enqueue import task: {exc}", task_name)
         tmp_path.unlink(missing_ok=True)
-        abort(500, "Failed to enqueue import task")
+        abort_with(500, "Failed to enqueue import task")
 
     publish_to_log("Import task submitted to Huey", task_name, "DEBUG")
     return create_task_response(task)
@@ -1131,7 +1172,7 @@ def get_calibrations_by_device(device: str) -> ResponseReturnValue:
     calibration_dir = Path(os.environ["DOT_PIOREACTOR"]) / "storage" / "calibrations" / device
 
     if not calibration_dir.exists():
-        abort(404, "Calibration directory does not exist.")
+        abort_with(404, "Calibration directory does not exist.")
 
     calibrations: list[dict] = []
 
@@ -1156,7 +1197,7 @@ def get_calibration(device: str, cal_name: str) -> ResponseReturnValue:
     )
 
     if not calibration_path.exists():
-        abort(404, "Calibration file does not exist.")
+        abort_with(404, "Calibration file does not exist.")
 
     with local_persistent_storage("active_calibrations") as c:
         try:
@@ -1166,7 +1207,7 @@ def get_calibration(device: str, cal_name: str) -> ResponseReturnValue:
             return attach_cache_control(jsonify(cal), max_age=10)
         except Exception as e:
             publish_to_error_log(f"Error reading {calibration_path.stem}: {e}", "get_calibration")
-            abort(500, "Failed to read calibration file.")
+            abort_with(500, "Failed to read calibration file.")
 
 
 @unit_api_bp.route("/active_calibrations/<device>/<cal_name>", methods=["PATCH"])
