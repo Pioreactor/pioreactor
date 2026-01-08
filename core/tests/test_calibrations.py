@@ -17,6 +17,7 @@ from pioreactor.calibrations.utils import calculate_poly_curve_of_best_fit
 from pioreactor.calibrations.utils import curve_to_callable
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import OD600Calibration
+from pioreactor.structs import ODCalibration
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.timing import current_utc_datetime
 
@@ -173,6 +174,22 @@ def test_ipredict_solution_above_domain(calibration) -> None:
     y = 50  # Solution above domain
     with pytest.raises(exc.SolutionAboveDomainError):
         calibration.y_to_x(y, enforce_bounds=True)
+
+
+def test_ipredict_zero_solution_in_domain_for_od45_reference_calibration() -> None:
+    calibration_data = ODCalibration(
+        calibration_name="od45-optical-reference-standard-2026-01-08",
+        calibrated_on_pioreactor_unit="lw1209",
+        created_at=datetime(2026, 1, 8, 14, 56, 49, 692000, tzinfo=timezone.utc),
+        curve_data_=[1.4383526269350404, 8.038873388460928e-14],
+        curve_type="poly",
+        recorded_data={"x": [0, 1000], "y": [0, 1438.3526269350407]},
+        ir_led_intensity=80,
+        angle="45",
+        pd_channel="1",
+    )
+
+    assert calibration_data.y_to_x(0.0, enforce_bounds=True) == 0.0
 
 
 def test_predict_ipredict_consistency(calibration) -> None:

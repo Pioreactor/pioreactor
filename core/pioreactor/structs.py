@@ -279,9 +279,15 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
             if not enforce_bounds:
                 return round(sol, 10)
 
-            # if we are here, we let the downstream user decide how to proceed
+            # if we are here, we let the downstream code decide how to proceed
+
+            domain_tolerance = 1e-12  # numpy.roots can return a solution like -1e-16 for a true zero root due to floating‑point noise.
             if min_X <= sol <= max_X:
                 return round(sol, 10)
+            elif sol < min_X and abs(sol - min_X) <= domain_tolerance:
+                return round(min_X, 10)
+            elif sol > max_X and abs(sol - max_X) <= domain_tolerance:
+                return round(max_X, 10)
             elif sol < min_X:
                 raise exc.SolutionBelowDomainError(f"Solution below domain [{min_X}, {max_X}]")
             else:
@@ -293,7 +299,7 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         if (min_X <= closest_sol <= max_X) or not enforce_bounds:
             return round(closest_sol, 10)
 
-        # if we are here, we let the downstream user decide how to proceed
+        # if we are here, we let the downstream code decide how to proceed
         elif closest_sol < min_X:
             raise exc.SolutionBelowDomainError("Solution below domain")
         else:
