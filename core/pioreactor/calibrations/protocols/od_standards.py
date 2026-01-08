@@ -42,6 +42,7 @@ from pioreactor.calibrations.session_flow import fields
 from pioreactor.calibrations.session_flow import run_session_in_cli
 from pioreactor.calibrations.session_flow import SessionContext
 from pioreactor.calibrations.session_flow import SessionEngine
+from pioreactor.calibrations.session_flow import SessionExecutor
 from pioreactor.calibrations.session_flow import steps
 from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.calibrations.structured_session import CalibrationStep
@@ -463,6 +464,26 @@ def _measure_standard(
         return _read_voltages_from_adc(channel_angle_map)
 
 
+def _measure_standard_for_session(
+    ctx: SessionContext,
+    od600_value: float,
+    rpm: float,
+    channel_angle_map: dict[pt.PdChannel, pt.PdAngle],
+) -> dict[pt.PdChannel, pt.Voltage]:
+    if ctx.executor and ctx.mode == "ui":
+        payload = ctx.executor(
+            "od_standards_measure",
+            {
+                "od600_value": od600_value,
+                "rpm": rpm,
+                "channel_angle_map": {str(k): str(v) for k, v in channel_angle_map.items()},
+            },
+        )
+        raw = payload.get("voltages", {})
+        return {cast(pt.PdChannel, channel): float(voltage) for channel, voltage in raw.items()}
+    return _measure_standard(od600_value, rpm, channel_angle_map)
+
+
 def _default_calibration_name() -> str:
     return f"od-cal-{current_utc_datestamp()}"
 
@@ -659,7 +680,7 @@ def od_standards_flow(ctx: SessionContext) -> CalibrationStep:
     if ctx.step == "measure_standard":
         if ctx.inputs.has_inputs:
             od600_value = ctx.inputs.float("od600_value", minimum=0)
-            voltages = _measure_standard(od600_value, ctx.data["rpm"], channel_angle_map)
+            voltages = _measure_standard_for_session(ctx, od600_value, ctx.data["rpm"], channel_angle_map)
             ctx.data["od600_values"].append(od600_value)
             for channel, voltage in voltages.items():
                 ctx.data["voltages_by_channel"][channel].append(voltage)
@@ -745,7 +766,7 @@ def od_standards_flow(ctx: SessionContext) -> CalibrationStep:
     if ctx.step == "measure_blank":
         if ctx.inputs.has_inputs:
             od600_blank = ctx.inputs.float("od600_blank", minimum=0)
-            voltages = _measure_standard(od600_blank, ctx.data["rpm"], channel_angle_map)
+            voltages = _measure_standard_for_session(ctx, od600_blank, ctx.data["rpm"], channel_angle_map)
             ctx.data["od600_values"].append(od600_blank)
             for channel, voltage in voltages.items():
                 ctx.data["voltages_by_channel"][channel].append(voltage)
@@ -786,14 +807,20 @@ def od_standards_flow(ctx: SessionContext) -> CalibrationStep:
     return steps.info("Unknown step", "This step is not recognized.")
 
 
-def advance_standards_session(session: CalibrationSession, inputs: dict[str, object]) -> CalibrationSession:
-    engine = SessionEngine(flow=od_standards_flow, session=session, mode="ui")
+def advance_standards_session(
+    session: CalibrationSession,
+    inputs: dict[str, object],
+    executor: SessionExecutor | None = None,
+) -> CalibrationSession:
+    engine = SessionEngine(flow=od_standards_flow, session=session, mode="ui", executor=executor)
     engine.advance(inputs)
     return engine.session
 
 
-def get_standards_step(session: CalibrationSession) -> CalibrationStep | None:
-    engine = SessionEngine(flow=od_standards_flow, session=session, mode="ui")
+def get_standards_step(
+    session: CalibrationSession, executor: SessionExecutor | None = None
+) -> CalibrationStep | None:
+    engine = SessionEngine(flow=od_standards_flow, session=session, mode="ui", executor=executor)
     return engine.get_step()
 
 

@@ -16,6 +16,7 @@ from pioreactor.calibrations.structured_session import utc_iso_timestamp
 
 SessionMode = Literal["ui", "cli"]
 StepFlow = Callable[["SessionContext"], CalibrationStep]
+SessionExecutor = Callable[[str, dict[str, object]], dict[str, object]]
 
 
 @dataclass
@@ -136,6 +137,7 @@ class SessionContext:
     mode: SessionMode
     inputs: SessionInputs
     collected_calibrations: list[Any]
+    executor: SessionExecutor | None = None
 
     @property
     def step(self) -> str:
@@ -172,10 +174,20 @@ class SessionContext:
 
 
 class SessionEngine:
-    def __init__(self, flow: StepFlow, session: CalibrationSession, mode: SessionMode) -> None:
+    def __init__(
+        self,
+        flow: StepFlow,
+        session: CalibrationSession,
+        mode: SessionMode,
+        executor: SessionExecutor | None = None,
+    ) -> None:
         self.flow = flow
         self.ctx = SessionContext(
-            session=session, mode=mode, inputs=SessionInputs(None), collected_calibrations=[]
+            session=session,
+            mode=mode,
+            inputs=SessionInputs(None),
+            collected_calibrations=[],
+            executor=executor,
         )
 
     @property

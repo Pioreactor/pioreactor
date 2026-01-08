@@ -15,6 +15,7 @@ from pioreactor.calibrations.registry import CalibrationProtocol
 from pioreactor.calibrations.session_flow import run_session_in_cli
 from pioreactor.calibrations.session_flow import SessionContext
 from pioreactor.calibrations.session_flow import SessionEngine
+from pioreactor.calibrations.session_flow import SessionExecutor
 from pioreactor.calibrations.session_flow import steps
 from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.calibrations.structured_session import CalibrationStep
@@ -127,6 +128,20 @@ def run_stirring_calibration(
         )
 
 
+def _run_stirring_calibration_for_session(
+    ctx: SessionContext,
+    min_dc: float | None = None,
+    max_dc: float | None = None,
+) -> SimpleStirringCalibration:
+    if ctx.executor and ctx.mode == "ui":
+        payload = ctx.executor(
+            "stirring_calibration",
+            {"min_dc": min_dc, "max_dc": max_dc},
+        )
+        return SimpleStirringCalibration(**payload)
+    return run_stirring_calibration(min_dc=min_dc, max_dc=max_dc)
+
+
 def start_dc_based_session(
     target_device: Literal["stirring"],
     min_dc: float | None = None,
@@ -162,7 +177,8 @@ def dc_based_flow(ctx: SessionContext) -> CalibrationStep:
 
     if ctx.step == "run_calibration":
         if ctx.inputs.has_inputs:
-            calibration = run_stirring_calibration(
+            calibration = _run_stirring_calibration_for_session(
+                ctx,
                 min_dc=ctx.data.get("min_dc"),
                 max_dc=ctx.data.get("max_dc"),
             )
@@ -176,14 +192,20 @@ def dc_based_flow(ctx: SessionContext) -> CalibrationStep:
     return steps.info("Unknown step", "This step is not recognized.")
 
 
-def advance_dc_based_session(session: CalibrationSession, inputs: dict[str, object]) -> CalibrationSession:
-    engine = SessionEngine(flow=dc_based_flow, session=session, mode="ui")
+def advance_dc_based_session(
+    session: CalibrationSession,
+    inputs: dict[str, object],
+    executor: SessionExecutor | None = None,
+) -> CalibrationSession:
+    engine = SessionEngine(flow=dc_based_flow, session=session, mode="ui", executor=executor)
     engine.advance(inputs)
     return engine.session
 
 
-def get_dc_based_step(session: CalibrationSession) -> CalibrationStep | None:
-    engine = SessionEngine(flow=dc_based_flow, session=session, mode="ui")
+def get_dc_based_step(
+    session: CalibrationSession, executor: SessionExecutor | None = None
+) -> CalibrationStep | None:
+    engine = SessionEngine(flow=dc_based_flow, session=session, mode="ui", executor=executor)
     return engine.get_step()
 
 

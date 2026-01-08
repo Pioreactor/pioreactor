@@ -15,6 +15,7 @@ from pioreactor.calibrations.registry import CalibrationProtocol
 from pioreactor.calibrations.session_flow import run_session_in_cli
 from pioreactor.calibrations.session_flow import SessionContext
 from pioreactor.calibrations.session_flow import SessionEngine
+from pioreactor.calibrations.session_flow import SessionExecutor
 from pioreactor.calibrations.session_flow import steps
 from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.calibrations.structured_session import CalibrationStep
@@ -104,6 +105,19 @@ def record_reference_standard(ir_led_intensity: float) -> structs.ODReadings:
     return averaged_od_readings
 
 
+def _record_reference_standard_for_session(
+    ctx: SessionContext,
+    ir_led_intensity: float,
+) -> dict[str, dict[str, float]] | structs.ODReadings:
+    if ctx.executor and ctx.mode == "ui":
+        payload = ctx.executor(
+            "od_reference_standard_read",
+            {"ir_led_intensity": ir_led_intensity},
+        )
+        return payload.get("od_readings", {})
+    return record_reference_standard(ir_led_intensity)
+
+
 def start_reference_standard_session(
     target_device: pt.ODCalibrationDevices,
 ) -> CalibrationSession:
@@ -146,17 +160,25 @@ def reference_standard_flow(ctx: SessionContext) -> CalibrationStep:
             ir_led_intensity = get_ir_led_intensity()
             channel_angle_map = get_channel_angle_map(ctx.session.target_device)
 
-            od_readings = record_reference_standard(ir_led_intensity)
+            od_readings = _record_reference_standard_for_session(ctx, ir_led_intensity)
             recorded_ods = [0.0, 1000 * STANDARD_OD]
             timestamp = current_utc_datetime().strftime("%Y-%m-%d")
 
             calibration_links: list[dict[str, str | None]] = []
-            for pd_channel, od_reading in od_readings.ods.items():
+            if isinstance(od_readings, dict):
+                readings_iter = od_readings.items()
+            else:
+                readings_iter = od_readings.ods.items()
+            for pd_channel, od_reading in readings_iter:
                 if pd_channel not in channel_angle_map:
                     continue
                 angle = channel_angle_map[pd_channel]
+                if isinstance(od_reading, dict):
+                    od_value = float(od_reading["od"])
+                else:
+                    od_value = float(od_reading.od)
 
-                recorded_voltages = [0.0, 1000 * od_reading.od]
+                recorded_voltages = [0.0, 1000 * od_value]
                 curve_data_ = calibration_utils.calculate_poly_curve_of_best_fit(
                     recorded_ods, recorded_voltages, degree=1
                 )
@@ -186,15 +208,19 @@ def reference_standard_flow(ctx: SessionContext) -> CalibrationStep:
 
 
 def advance_reference_standard_session(
-    session: CalibrationSession, inputs: dict[str, object]
+    session: CalibrationSession,
+    inputs: dict[str, object],
+    executor: SessionExecutor | None = None,
 ) -> CalibrationSession:
-    engine = SessionEngine(flow=reference_standard_flow, session=session, mode="ui")
+    engine = SessionEngine(flow=reference_standard_flow, session=session, mode="ui", executor=executor)
     engine.advance(inputs)
     return engine.session
 
 
-def get_reference_standard_step(session: CalibrationSession) -> CalibrationStep | None:
-    engine = SessionEngine(flow=reference_standard_flow, session=session, mode="ui")
+def get_reference_standard_step(
+    session: CalibrationSession, executor: SessionExecutor | None = None
+) -> CalibrationStep | None:
+    engine = SessionEngine(flow=reference_standard_flow, session=session, mode="ui", executor=executor)
     return engine.get_step()
 
 

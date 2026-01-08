@@ -22,6 +22,7 @@ from time import sleep
 from typing import Any
 
 from msgspec import DecodeError
+from msgspec import to_builtins
 from pioreactor import whoami
 from pioreactor.config import config as pioreactor_config
 from pioreactor.logging import create_logger
@@ -336,6 +337,58 @@ def pio_plugins_list(*args: str, env: dict[str, str] | None = None) -> tuple[boo
     logger.debug(f'Executing `{join(("pio",) + args)}`, {env=}')
     result = run((PIO_EXECUTABLE,) + args, capture_output=True, text=True, env=env)
     return result.returncode == 0, result.stdout.strip()
+
+
+@huey.task()
+def calibration_execute_pump(pump_device: str, duration_s: float, hz: float, dc: float) -> bool:
+    from pioreactor.calibrations.protocols.pump_duration_based import _build_transient_calibration
+    from pioreactor.calibrations.protocols.pump_duration_based import _get_execute_pump_for_device
+    from pioreactor.whoami import get_testing_experiment_name
+
+    execute_pump = _get_execute_pump_for_device(pump_device)
+    calibration = _build_transient_calibration(hz=hz, dc=dc, unit=get_unit_name())
+    execute_pump(
+        duration=duration_s,
+        source_of_event="pump_calibration",
+        unit=get_unit_name(),
+        experiment=get_testing_experiment_name(),
+        calibration=calibration,
+    )
+    return True
+
+
+@huey.task()
+def calibration_measure_standard(
+    rpm: float,
+    channel_angle_map: dict[str, str],
+) -> dict[str, float]:
+    from pioreactor.calibrations.protocols.od_standards import _measure_standard
+
+    voltages = _measure_standard(
+        od600_value=0.0,
+        rpm=rpm,
+        channel_angle_map=channel_angle_map,
+    )
+    return {str(channel): float(voltage) for channel, voltage in voltages.items()}
+
+
+@huey.task()
+def calibration_reference_standard_read(ir_led_intensity: float) -> dict[str, dict[str, float]]:
+    from pioreactor.calibrations.protocols.od_reference_standard import record_reference_standard
+
+    readings = record_reference_standard(ir_led_intensity)
+    return {
+        str(channel): {"od": float(od_reading.od), "angle": float(od_reading.angle)}
+        for channel, od_reading in readings.ods.items()
+    }
+
+
+@huey.task()
+def calibration_run_stirring(min_dc: float | None, max_dc: float | None) -> dict[str, object]:
+    from pioreactor.calibrations.protocols.stirring_dc_based import run_stirring_calibration
+
+    calibration = run_stirring_calibration(min_dc=min_dc, max_dc=max_dc)
+    return to_builtins(calibration)
 
 
 @huey.task()

@@ -14,6 +14,7 @@ from pioreactor.calibrations.session_flow import fields
 from pioreactor.calibrations.session_flow import run_session_in_cli
 from pioreactor.calibrations.session_flow import SessionContext
 from pioreactor.calibrations.session_flow import SessionEngine
+from pioreactor.calibrations.session_flow import SessionExecutor
 from pioreactor.calibrations.session_flow import steps
 from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.calibrations.structured_session import CalibrationStep
@@ -100,6 +101,35 @@ def _build_duration_chart_metadata(ctx: SessionContext) -> dict[str, object] | N
         "y_label": "Volume (mL)",
         "series": [{"id": "measured", "label": "Measured", "points": points}],
     }
+
+
+def _execute_pump_for_calibration(
+    ctx: SessionContext,
+    pump_device: PumpCalibrationDevices,
+    duration_s: float,
+) -> None:
+    if ctx.executor and ctx.mode == "ui":
+        ctx.executor(
+            "pump",
+            {
+                "pump_device": pump_device,
+                "duration_s": duration_s,
+                "hz": float(ctx.data["hz"]),
+                "dc": float(ctx.data["dc"]),
+            },
+        )
+        return
+    execute_pump = _get_execute_pump_for_device(pump_device)
+    calibration = _build_transient_calibration(
+        hz=float(ctx.data["hz"]), dc=float(ctx.data["dc"]), unit=get_unit_name()
+    )
+    execute_pump(
+        duration=duration_s,
+        source_of_event="pump_calibration",
+        unit=get_unit_name(),
+        experiment=get_testing_experiment_name(),
+        calibration=calibration,
+    )
 
 
 def start_duration_based_session(pump_device: PumpCalibrationDevices) -> CalibrationSession:
@@ -235,17 +265,7 @@ def pump_duration_flow(ctx: SessionContext) -> CalibrationStep:
     if ctx.step == "prime_pump_duration":
         if ctx.inputs.has_inputs:
             duration_s = ctx.inputs.float("prime_duration_s", minimum=0.1, default=20.0)
-            execute_pump = _get_execute_pump_for_device(pump_device)
-            calibration = _build_transient_calibration(
-                hz=float(ctx.data["hz"]), dc=float(ctx.data["dc"]), unit=get_unit_name()
-            )
-            execute_pump(
-                duration=duration_s,
-                source_of_event="pump_calibration",
-                unit=get_unit_name(),
-                experiment=get_testing_experiment_name(),
-                calibration=calibration,
-            )
+            _execute_pump_for_calibration(ctx, pump_device, duration_s)
             ctx.data["prime_duration_s"] = duration_s
             ctx.data.setdefault("tracer_duration_s", 1.0)
             ctx.step = "tracer_run"
@@ -258,17 +278,7 @@ def pump_duration_flow(ctx: SessionContext) -> CalibrationStep:
     if ctx.step == "tracer_run":
         tracer_duration = float(ctx.data.get("tracer_duration_s", 1.0))
         if ctx.inputs.has_inputs:
-            execute_pump = _get_execute_pump_for_device(pump_device)
-            calibration = _build_transient_calibration(
-                hz=float(ctx.data["hz"]), dc=float(ctx.data["dc"]), unit=get_unit_name()
-            )
-            execute_pump(
-                duration=tracer_duration,
-                source_of_event="pump_calibration",
-                unit=get_unit_name(),
-                experiment=get_testing_experiment_name(),
-                calibration=calibration,
-            )
+            _execute_pump_for_calibration(ctx, pump_device, tracer_duration)
             ctx.step = "tracer_volume"
         return steps.action(
             "Tracer run",
@@ -312,17 +322,7 @@ def pump_duration_flow(ctx: SessionContext) -> CalibrationStep:
                 test_index = max(test_index - 1, 0)
                 ctx.data["test_index"] = test_index
             duration = float(durations[test_index])
-            execute_pump = _get_execute_pump_for_device(pump_device)
-            calibration = _build_transient_calibration(
-                hz=float(ctx.data["hz"]), dc=float(ctx.data["dc"]), unit=get_unit_name()
-            )
-            execute_pump(
-                duration=duration,
-                source_of_event="pump_calibration",
-                unit=get_unit_name(),
-                experiment=get_testing_experiment_name(),
-                calibration=calibration,
-            )
+            _execute_pump_for_calibration(ctx, pump_device, duration)
             ctx.step = "test_volume"
         duration = float(durations[test_index])
         step = steps.action(
@@ -405,15 +405,19 @@ def pump_duration_flow(ctx: SessionContext) -> CalibrationStep:
     return steps.info("Unknown step", "This step is not recognized.")
 
 
-def get_duration_based_step(session: CalibrationSession) -> CalibrationStep | None:
-    engine = SessionEngine(flow=pump_duration_flow, session=session, mode="ui")
+def get_duration_based_step(
+    session: CalibrationSession, executor: SessionExecutor | None = None
+) -> CalibrationStep | None:
+    engine = SessionEngine(flow=pump_duration_flow, session=session, mode="ui", executor=executor)
     return engine.get_step()
 
 
 def advance_duration_based_session(
-    session: CalibrationSession, inputs: dict[str, object]
+    session: CalibrationSession,
+    inputs: dict[str, object],
+    executor: SessionExecutor | None = None,
 ) -> CalibrationSession:
-    engine = SessionEngine(flow=pump_duration_flow, session=session, mode="ui")
+    engine = SessionEngine(flow=pump_duration_flow, session=session, mode="ui", executor=executor)
     engine.advance(inputs)
     return engine.session
 
