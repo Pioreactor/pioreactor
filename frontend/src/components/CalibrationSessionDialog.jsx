@@ -116,6 +116,7 @@ export default function CalibrationSessionDialog({
   const [sessionError, setSessionError] = React.useState("");
   const [sessionLoading, setSessionLoading] = React.useState(false);
   const [sessionValues, setSessionValues] = React.useState({});
+  const startInFlightRef = React.useRef(false);
 
   const sessionResult = sessionStep?.result || sessionStep?.metadata?.result;
   const chartPayload = sessionStep?.metadata?.chart;
@@ -130,12 +131,17 @@ export default function CalibrationSessionDialog({
     setSessionError("");
     setSessionLoading(false);
     setSessionValues({});
+    startInFlightRef.current = false;
   }, []);
 
   const startSession = React.useCallback(async () => {
     if (!open || !protocol || !unit) {
       return;
     }
+    if (startInFlightRef.current || sessionId) {
+      return;
+    }
+    startInFlightRef.current = true;
     setSessionLoading(true);
     setSessionError("");
     try {
@@ -191,8 +197,9 @@ export default function CalibrationSessionDialog({
       }
     } finally {
       setSessionLoading(false);
+      startInFlightRef.current = false;
     }
-  }, [onStartFailure, open, protocol, unit]);
+  }, [onStartFailure, open, protocol, sessionId, unit]);
 
   const advanceSession = React.useCallback(async (overrideInputs) => {
     if (!unit || !sessionId) {

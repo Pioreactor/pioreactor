@@ -122,6 +122,15 @@ def _execute_calibration_action(action: str, payload: dict[str, object]) -> dict
         _raise_if_task_failed(calibration, "Stirring calibration failed.")
         return calibration
 
+    if action == "read_voltage":
+        task = tasks.calibration_read_voltage()
+        try:
+            voltage = task(blocking=True, timeout=10)
+        except HueyException as exc:
+            raise ValueError("Voltage read timed out.") from exc
+        _raise_if_task_failed(voltage, "Voltage read failed.")
+        return {"voltage": float(voltage)}
+
     raise ValueError("Unknown calibration action.")
 
 for rule, options, view_func in registered_unit_api_routes():

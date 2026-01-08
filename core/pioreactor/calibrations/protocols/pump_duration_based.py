@@ -51,7 +51,7 @@ def save_results(
         curve_data_=[duration_, bias_],
         hz=hz,
         dc=dc,
-        voltage=voltage_in_aux(),
+        voltage=voltage,
         recorded_data={"x": durations, "y": volumes},
     )
 
@@ -361,7 +361,7 @@ def pump_duration_flow(ctx: SessionContext) -> CalibrationStep:
                     bias_=bias,
                     hz=float(ctx.data["hz"]),
                     dc=float(ctx.data["dc"]),
-                    voltage=voltage_in_aux(),
+                    voltage=ctx.read_voltage() if ctx.mode == "ui" else voltage_in_aux(),
                     durations=durations,
                     volumes=results,
                     unit=get_unit_name(),

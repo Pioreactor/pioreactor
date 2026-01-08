@@ -172,6 +172,12 @@ class SessionContext:
             path = None
         return {"device": device, "calibration_name": calibration.calibration_name, "path": path}
 
+    def read_voltage(self) -> float:
+        if not self.executor or self.mode != "ui":
+            raise ValueError("Voltage reader is only available in UI sessions.")
+        payload = self.executor("read_voltage", {})
+        return float(payload["voltage"])
+
 
 class SessionEngine:
     def __init__(

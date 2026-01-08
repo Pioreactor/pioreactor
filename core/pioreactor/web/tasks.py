@@ -392,6 +392,13 @@ def calibration_run_stirring(min_dc: float | None, max_dc: float | None) -> dict
 
 
 @huey.task()
+def calibration_read_voltage() -> float:
+    from pioreactor.hardware import voltage_in_aux
+
+    return float(voltage_in_aux())
+
+
+@huey.task()
 @huey.lock_task("export-data-lock")
 def pio_run_export_experiment_data(*args: str, env: dict[str, str] | None = None) -> tuple[bool, str]:
     env = filter_to_allowed_env(env or {})
