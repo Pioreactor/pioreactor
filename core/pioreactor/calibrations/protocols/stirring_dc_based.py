@@ -31,6 +31,7 @@ from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import managed_lifecycle
 from pioreactor.utils.math_helpers import simple_linear_regression
 from pioreactor.utils.timing import current_utc_datetime
+from pioreactor.utils.timing import to_datetime
 from pioreactor.whoami import get_testing_experiment_name
 from pioreactor.whoami import get_unit_name
 
@@ -140,6 +141,9 @@ def _run_stirring_calibration_for_session(
         )
         allowed = set(SimpleStirringCalibration.__struct_fields__)
         cleaned = {key: value for key, value in payload.items() if key in allowed}
+        created_at = cleaned.get("created_at")
+        if isinstance(created_at, str):
+            cleaned["created_at"] = to_datetime(created_at)
         return SimpleStirringCalibration(**cleaned)
     return run_stirring_calibration(min_dc=min_dc, max_dc=max_dc)
 
