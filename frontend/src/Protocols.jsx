@@ -28,7 +28,11 @@ function ProtocolCard({
   return (
     <Card sx={{ height: "100%" }}>
       <CardContent>
-        <Typography variant="h6" component="h3">
+        <Typography
+          variant="subtitle1"
+          component="h3"
+          sx={{ fontWeight: 600, letterSpacing: "0.01em" }}
+        >
           {protocol.title}
         </Typography>
         <Typography variant="body2" sx={{ mt: 1 }}>
@@ -240,9 +244,6 @@ function Protocols(props) {
           )}
         </CardContent>
       </Card>
-        <Box>
-        <Alert severity="info" color="warning" style={{marginBottom: '10px', marginTop: '10px'}}>Heads up! This isn't <i>all</i> the available calibrations - only the ones that can be run from the UI. See more <a href="https://docs.pioreactor.com/user-guide/calibrations">here</a>.</Alert>
-        </Box>
       <Grid container spacing={2}>
         {PROTOCOLS.filter((protocol) => protocol.device === selectedDevice).map((protocol) => (
           <Grid

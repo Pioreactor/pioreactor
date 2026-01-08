@@ -84,6 +84,7 @@ export default function CalibrationSessionChart({ chart }) {
               fontFamily: "inherit",
             },
           }}
+          tickFormat={(value) => Number(value).toFixed(3)}
           offsetY={45}
           label={xLabel}
           axisLabelComponent={
@@ -100,9 +101,10 @@ export default function CalibrationSessionChart({ chart }) {
           crossAxis={false}
           dependentAxis
           label={yLabel}
+          tickFormat={(value) => Number(value).toFixed(3)}
           axisLabelComponent={
             <VictoryLabel
-              dy={-30}
+              dy={-34}
               style={{
                 fontSize: 10,
                 padding: 8,

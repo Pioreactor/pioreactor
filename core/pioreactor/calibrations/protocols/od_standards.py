@@ -680,23 +680,50 @@ def od_standards_flow(ctx: SessionContext) -> CalibrationStep:
 
     if ctx.step == "another_standard":
         if ctx.inputs.has_inputs:
-            record_another = ctx.inputs.choice("record_another", ["yes", "no"], default="yes")
-            if record_another == "yes":
+            action = None
+            if ctx.inputs.raw is not None:
+                action = ctx.inputs.raw.get("action")
+            if action == "redo_last":
+                if ctx.data.get("od600_values"):
+                    ctx.data["od600_values"].pop()
+                    for channel in ctx.data["voltages_by_channel"]:
+                        if ctx.data["voltages_by_channel"][channel]:
+                            ctx.data["voltages_by_channel"][channel].pop()
                 ctx.step = "place_standard"
             else:
-                ctx.step = "place_blank"
+                next_action = ctx.inputs.choice(
+                    "next_action",
+                    ["record another standard", "continue to blank"],
+                    default="record another standard",
+                )
+                if next_action == "record another standard":
+                    ctx.step = "place_standard"
+                else:
+                    ctx.step = "place_blank"
         step = steps.form(
             "Next standard",
-            "Record another standard?",
-            [fields.choice("record_another", ["yes", "no"], label="Record another standard", default="yes")],
+            "Record another standard or redo the last measurement?",
+            [
+                fields.choice(
+                    "next_action",
+                    ["record another standard", "continue to blank"],
+                    label="Next action",
+                    default="record another standard",
+                )
+            ],
         )
+        step.metadata = {
+            "actions": [
+                {"label": "Redo last measurement", "inputs": {"action": "redo_last"}},
+            ]
+        }
         chart = _build_standards_chart_metadata(
             ctx.data.get("od600_values", []),
             ctx.data.get("voltages_by_channel", {}),
             channel_angle_map,
         )
         if chart:
-            step.metadata = {"chart": chart}
+            step.metadata = {**step.metadata, "chart": chart} if step.metadata else {"chart": chart}
         return step
 
     if ctx.step == "place_blank":

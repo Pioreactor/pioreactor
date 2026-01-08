@@ -9,6 +9,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import FormLabel from "@mui/material/FormLabel";
+import IconButton from "@mui/material/IconButton";
 import LinearProgress from "@mui/material/LinearProgress";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
@@ -16,6 +17,7 @@ import Stack from "@mui/material/Stack";
 import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
+import CloseIcon from "@mui/icons-material/Close";
 import { Link } from "react-router";
 import CalibrationSessionChart from "./CalibrationSessionChart";
 
@@ -117,6 +119,10 @@ export default function CalibrationSessionDialog({
 
   const sessionResult = sessionStep?.result || sessionStep?.metadata?.result;
   const chartPayload = sessionStep?.metadata?.chart;
+  const inlineActions = Array.isArray(sessionStep?.metadata?.actions)
+    ? sessionStep.metadata.actions
+    : [];
+  const stepImage = sessionStep?.metadata?.image;
 
   const resetSessionState = React.useCallback(() => {
     setSessionId(null);
@@ -188,14 +194,17 @@ export default function CalibrationSessionDialog({
     }
   }, [onStartFailure, open, protocol, unit]);
 
-  const advanceSession = React.useCallback(async () => {
+  const advanceSession = React.useCallback(async (overrideInputs) => {
     if (!unit || !sessionId) {
       return;
+    }
+    if (overrideInputs && typeof overrideInputs.preventDefault === "function") {
+      overrideInputs = null;
     }
     setSessionLoading(true);
     setSessionError("");
     try {
-      const inputs = formatInputs(sessionStep, sessionValues);
+      const inputs = overrideInputs ?? formatInputs(sessionStep, sessionValues);
       const response = await fetch(sessionAdvanceEndpoint(unit, sessionId), {
         method: "POST",
         headers: {
@@ -265,38 +274,88 @@ export default function CalibrationSessionDialog({
   return (
     <Dialog
       open={open}
-      onClose={() => abortSession(!sessionResult)}
+      onClose={(_event, reason) => {
+        if (reason === "backdropClick") {
+          return;
+        }
+        abortSession(!sessionResult);
+      }}
       maxWidth="sm"
       fullWidth
+      PaperProps={{ sx: { height: 600 } }}
     >
-      <DialogTitle>{protocol?.title || "Calibration session"}</DialogTitle>
-      <DialogContent sx={{ display: "grid", gap: 2, minHeight: 220 }}>
-        <Box sx={{ height: 4 }}>
+      <DialogTitle>
+        {protocol?.title || "Calibration session"}
+        <IconButton
+          aria-label="close"
+          onClick={() => abortSession(!sessionResult)}
+          sx={{
+            position: "absolute",
+            right: 8,
+            top: 8,
+            color: (theme) => theme.palette.grey[500],
+          }}
+          size="large"
+        >
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+      <DialogContent
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 1,
+          maxHeight: 520,
+          overflowY: "auto",
+        }}
+      >
+        <Box sx={{ height: 4, mb: 2 }}>
           <LinearProgress sx={{ visibility: sessionLoading ? "visible" : "hidden" }} />
         </Box>
         {sessionError && <Alert severity="error">{sessionError}</Alert>}
         {sessionStep ? (
-          <Box sx={{ minHeight: 50 }}>
-            <Typography variant="h6" sx={{ mb: 0.5 }}>
+          <Box sx={{mb: 1.5}}>
+            <Typography variant="subtitle1" component="h2">
               {sessionStep.title || "Calibration step"}
             </Typography>
           </Box>
         ) : (
           <Alert severity="info">Preparing the calibration session...</Alert>
         )}
+        {stepImage && (
+          <Box>
+            <Box
+              component="img"
+              src={stepImage.src}
+              alt={stepImage.alt || ""}
+              sx={{
+                width: "100%",
+                maxHeight: 220,
+                objectFit: "contain",
+                borderRadius: 1,
+                backgroundColor: "action.hover",
+              }}
+            />
+            {stepImage.caption && (
+              <Typography variant="caption" color="text.secondary">
+                {stepImage.caption}
+              </Typography>
+            )}
+          </Box>
+        )}
         {chartPayload && (
-          <Box sx={{ minHeight: 240 }}>
+          <Box>
             <CalibrationSessionChart chart={chartPayload} />
           </Box>
         )}
         {sessionStep && (
-          <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "pre-line" }}>
+          <Typography variant="body2" sx={{ whiteSpace: "pre-line" }}>
             {sessionStep.body || "Follow the instructions for this step."}
           </Typography>
         )}
-        <Box sx={{ minHeight: 60 }}>
+        <Box sx={{width: "75%", mt: 1}}>
           {sessionStep && Array.isArray(sessionStep.fields) && sessionStep.fields.length > 0 && (
-            <Stack spacing={2}>
+            <Stack spacing={1}>
               {sessionStep.fields.map((field) => {
                 if (
                   sessionStep.step_type === "action" &&
@@ -397,7 +456,24 @@ export default function CalibrationSessionDialog({
             )}
         </Box>
       </DialogContent>
-      <DialogActions>
+      <DialogActions sx={{ justifyContent: "right", alignItems: "center" }}>
+        {inlineActions.length > 0 ? (
+          <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap", pl: 1 }}>
+            {inlineActions.map((action) => (
+              <Button
+                key={action.label}
+                variant="text"
+                onClick={() => advanceSession(action.inputs)}
+                sx={{ textTransform: "none" }}
+                disabled={sessionLoading}
+              >
+                {action.label}
+              </Button>
+            ))}
+          </Stack>
+        ) : (
+          <span />
+        )}
         {!sessionResult && (
           <Button
             onClick={() => abortSession(true)}

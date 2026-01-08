@@ -151,10 +151,18 @@ def pump_duration_flow(ctx: SessionContext) -> CalibrationStep:
     if ctx.step == "intro_confirm_2":
         if ctx.inputs.has_inputs:
             ctx.step = "name_input"
-        return steps.info(
+        step = steps.info(
             "Keep hardware safe",
             "Keep liquids away from the Pioreactor while running this calibration.",
         )
+        step.metadata = {
+            "image": {
+                "src": "/static/images/calibration-placeholder.png",
+                "alt": "Keep liquids away from the Pioreactor while running this calibration.",
+                "caption": "Keep liquids away from the Pioreactor.",
+            }
+        }
+        return step
 
     if ctx.step == "name_input":
         if ctx.inputs.has_inputs:
@@ -187,7 +195,7 @@ def pump_duration_flow(ctx: SessionContext) -> CalibrationStep:
                 ctx.step = "name_input"
         return steps.form(
             "Name already exists",
-            f"Calibration name '{pending_name}' already exists. Overwrite it?",
+            f"Calibration name '{pending_name}' already exists.",
             [
                 fields.choice(
                     "overwrite", ["yes", "no"], label="Overwrite existing calibration?", default="no"
@@ -226,7 +234,7 @@ def pump_duration_flow(ctx: SessionContext) -> CalibrationStep:
 
     if ctx.step == "prime_pump_duration":
         if ctx.inputs.has_inputs:
-            duration_s = ctx.inputs.float("prime_duration_s", minimum=0.1, default=10.0)
+            duration_s = ctx.inputs.float("prime_duration_s", minimum=0.1, default=20.0)
             execute_pump = _get_execute_pump_for_device(pump_device)
             calibration = _build_transient_calibration(
                 hz=float(ctx.data["hz"]), dc=float(ctx.data["dc"]), unit=get_unit_name()
@@ -293,8 +301,17 @@ def pump_duration_flow(ctx: SessionContext) -> CalibrationStep:
     if ctx.step == "test_run":
         durations = ctx.data["durations_to_test"]
         test_index = int(ctx.data["test_index"])
-        duration = float(durations[test_index])
+        results = ctx.data.get("results", [])
         if ctx.inputs.has_inputs:
+            action = None
+            if ctx.inputs.raw is not None:
+                action = ctx.inputs.raw.get("action")
+            if action == "redo_last" and results:
+                results.pop()
+                ctx.data["results"] = results
+                test_index = max(test_index - 1, 0)
+                ctx.data["test_index"] = test_index
+            duration = float(durations[test_index])
             execute_pump = _get_execute_pump_for_device(pump_device)
             calibration = _build_transient_calibration(
                 hz=float(ctx.data["hz"]), dc=float(ctx.data["dc"]), unit=get_unit_name()
@@ -307,13 +324,20 @@ def pump_duration_flow(ctx: SessionContext) -> CalibrationStep:
                 calibration=calibration,
             )
             ctx.step = "test_volume"
+        duration = float(durations[test_index])
         step = steps.action(
             "Test run",
             f"Running the pump for {duration:.2f} seconds, then measure the volume expelled.",
         )
+        if results:
+            step.metadata = {
+                "actions": [
+                    {"label": "Redo last measurement", "inputs": {"action": "redo_last"}},
+                ]
+            }
         chart = _build_duration_chart_metadata(ctx)
         if chart:
-            step.metadata = {"chart": chart}
+            step.metadata = {**step.metadata, "chart": chart} if step.metadata else {"chart": chart}
         return step
 
     if ctx.step == "test_volume":
