@@ -1583,7 +1583,7 @@ def advance_calibration_session(pioreactor_unit: str, session_id: str) -> Respon
             resolve_to_address(pioreactor_unit),
             f"/unit_api/calibrations/sessions/{session_id}/inputs",
             json=body,
-            timeout=60,
+            timeout=300,
         )
         response.raise_for_status()
     except (HTTPErrorStatus, HTTPException) as exc:

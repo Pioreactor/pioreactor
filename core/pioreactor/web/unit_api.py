@@ -116,7 +116,7 @@ def _execute_calibration_action(action: str, payload: dict[str, object]) -> dict
             payload.get("max_dc"),
         )
         try:
-            calibration = task(blocking=True, timeout=120)
+            calibration = task(blocking=True, timeout=300)
         except HueyException as exc:
             raise ValueError("Stirring calibration timed out.") from exc
         _raise_if_task_failed(calibration, "Stirring calibration failed.")
@@ -132,6 +132,7 @@ def _execute_calibration_action(action: str, payload: dict[str, object]) -> dict
         return {"voltage": float(voltage)}
 
     raise ValueError("Unknown calibration action.")
+
 
 for rule, options, view_func in registered_unit_api_routes():
     unit_api_bp.add_url_rule(rule, view_func=view_func, **options)
@@ -817,7 +818,9 @@ def advance_calibration_session(session_id: str) -> ResponseReturnValue:
         elif session.protocol_name == "standards":
             session = advance_standards_session(session, inputs, executor=_execute_calibration_action)
         elif session.protocol_name == "od_reference_standard":
-            session = advance_reference_standard_session(session, inputs, executor=_execute_calibration_action)
+            session = advance_reference_standard_session(
+                session, inputs, executor=_execute_calibration_action
+            )
         elif session.protocol_name == "dc_based":
             session = advance_dc_based_session(session, inputs, executor=_execute_calibration_action)
         else:
