@@ -112,8 +112,8 @@ def _execute_calibration_action(action: str, payload: dict[str, Any]) -> dict[st
 
     if action == "stirring_calibration":
         task = tasks.calibration_run_stirring(
-            float(payload["min_dc"]) if "min_dc" in payload else None,
-            float(payload["max_dc"]) if "max_dc" in payload else None,
+            float(payload["min_dc"]) if (payload.get("min_dc") is not None) else None,
+            float(payload["max_dc"]) if (payload.get("max_dc") is not None) else None,
         )
         try:
             calibration_payload = task(blocking=True, timeout=300)
