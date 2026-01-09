@@ -54,15 +54,12 @@ from pioreactor.web.app import publish_to_log
 from pioreactor.web.app import query_temp_local_metadata_db
 from pioreactor.web.config import huey
 from pioreactor.web.plugin_registry import registered_unit_api_routes
+from pioreactor.web.utils import abort_with
 from pioreactor.web.utils import attach_cache_control
 from pioreactor.web.utils import create_task_response
 from pioreactor.web.utils import DelayedResponseReturnValue
 from pioreactor.web.utils import is_rate_limited
 from pioreactor.web.utils import is_valid_unix_filename
-from pioreactor.web.utils import abort_with
-from typing import Callable
-from typing import cast
-from werkzeug import utils as werkzeug_utils
 from werkzeug.utils import safe_join
 
 AllCalibrations = subclass_union(CalibrationBase)
@@ -446,7 +443,7 @@ def run_job(job: str) -> DelayedResponseReturnValue:
 
 @unit_api_bp.route("/jobs/stop/all", methods=["PATCH", "POST"])
 def stop_all_jobs() -> DelayedResponseReturnValue:
-    task = tasks.pio_kill("--all-jobs")
+    task = tasks.kill_jobs_task(all_jobs=True)
     return create_task_response(task)
 
 
@@ -463,17 +460,12 @@ def stop_jobs() -> DelayedResponseReturnValue:
     if not any([job_name, experiment, job_source, job_id]):
         return abort_with(400, "No job filter specified")
 
-    kill_args = []
-    if job_name:
-        kill_args.extend(["--job-name", job_name])
-    if experiment:
-        kill_args.extend(["--experiment", experiment])
-    if job_source:
-        kill_args.extend(["--job-source", job_source])
-    if job_id:
-        kill_args.extend(["--job-id", str(job_id)])  # note job_id is typically an int, convert to str
-
-    task = tasks.pio_kill(*kill_args)
+    task = tasks.kill_jobs_task(
+        job_name=job_name,
+        experiment=experiment,
+        job_source=job_source,
+        job_id=job_id,
+    )
     return create_task_response(task)
 
 
@@ -609,7 +601,7 @@ def _load_plugin_allowlist() -> set[str]:
 
 @unit_api_bp.route("/plugins/installed", methods=["GET"])
 def get_installed_plugins() -> ResponseReturnValue:
-    result = tasks.pio_plugins_list("plugins", "list", "--json")
+    result = tasks.list_plugins_installed()
     try:
         status, msg = result(blocking=True, timeout=10)
     except HueyException:
@@ -701,14 +693,8 @@ def install_plugin() -> DelayedResponseReturnValue:
     #        f"Plugin '{requested_plugin}' is not in the allowlist for API installs.",
     #    )
 
-    commands: tuple[str, ...] = ("install",)
-    commands += tuple(body.args)
-    for option, value in body.options.items():
-        commands += (f"--{option.replace('_', '-')}",)
-        if value is not None:
-            commands += (str(value),)
-
-    task = tasks.pio_plugins(*commands)
+    source = body.options.get("source")
+    task = tasks.install_plugin_task(body.args[0], source=source)
     return create_task_response(task)
 
 
@@ -726,14 +712,10 @@ def uninstall_plugin() -> DelayedResponseReturnValue:
     """
     body = current_app.get_json(request.data, type=structs.ArgsOptionsEnvs)
 
-    commands: tuple[str, ...] = ("uninstall",)
-    commands += tuple(body.args)
-    for option, value in body.options.items():
-        commands += (f"--{option.replace('_', '-')}",)
-        if value is not None:
-            commands += (str(value),)
+    if len(body.args) != 1:
+        abort_with(400, "Uninstall one plugin at a time via the API")
 
-    task = tasks.pio_plugins(*commands)
+    task = tasks.uninstall_plugin_task(body.args[0])
     return create_task_response(task)
 
 

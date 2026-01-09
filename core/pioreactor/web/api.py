@@ -53,20 +53,17 @@ from pioreactor.web.app import publish_to_log
 from pioreactor.web.app import query_app_db
 from pioreactor.web.app import query_temp_local_metadata_db
 from pioreactor.web.plugin_registry import registered_api_routes
+from pioreactor.web.utils import abort_with
 from pioreactor.web.utils import attach_cache_control
 from pioreactor.web.utils import create_task_response
 from pioreactor.web.utils import DelayedResponseReturnValue
 from pioreactor.web.utils import is_valid_unix_filename
 from pioreactor.web.utils import scrub_to_valid
-from pioreactor.web.utils import abort_with
 from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
-from typing import Callable
-from typing import cast
-from werkzeug import utils as werkzeug_utils
-from werkzeug.utils import secure_filename
 from werkzeug.utils import safe_join
+from werkzeug.utils import secure_filename
 
 AllCalibrations = structs.subclass_union(CalibrationBase)
 
@@ -1921,40 +1918,25 @@ def preview_exportable_datasets(target_dataset) -> ResponseReturnValue:
 def export_datasets() -> ResponseReturnValue:
     body = request.get_json()
 
-    other_options: list[str] = []
-    cmd_tables: list[str] = sum(
-        [["--dataset-name", dataset_name] for dataset_name in body["datasets"]],
-        [],
-    )
+    dataset_names: list[str] = body["datasets"]
 
     experiments: list[str] = body["experiments"]
     partition_by_unit: bool = body["partition_by_unit"]
     partition_by_experiment: bool = body["partition_by_experiment"]
 
-    if partition_by_unit:
-        other_options += ["--partition-by-unit"]
-
-    if partition_by_experiment:
-        other_options += ["--partition-by-experiment"]
-
-    # include optional time filters (ISO8601 strings in UTC)
-    if body.get("start_time"):
-        other_options += ["--start-time", body["start_time"]]
-    if body.get("end_time"):
-        other_options += ["--end-time", body["end_time"]]
-
     timestamp = current_utc_datetime().strftime("%Y%m%d%H%M%S")
     filename = f"export_{timestamp}.zip"
 
-    if experiments[0] == "<All experiments>":
-        experiment_options: list[str] = []
-    else:
-        experiment_options = sum((["--experiment", experiment] for experiment in experiments), [])
-
     filename_with_path = Path(f"{os.environ['RUN_PIOREACTOR']}/exports/") / filename
     result = (
-        tasks.pio_run_export_experiment_data(  # uses a lock so multiple exports can't happen simultaneously.
-            "--output", filename_with_path.as_posix(), *cmd_tables, *experiment_options, *other_options
+        tasks.export_experiment_data_task(  # uses a lock so multiple exports can't happen simultaneously.
+            experiments if experiments[0] != "<All experiments>" else [],
+            dataset_names,
+            filename_with_path.as_posix(),
+            start_time=body.get("start_time"),
+            end_time=body.get("end_time"),
+            partition_by_unit=partition_by_unit,
+            partition_by_experiment=partition_by_experiment,
         )
     )
     try:

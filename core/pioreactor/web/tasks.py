@@ -334,11 +334,14 @@ def pio(*args: str, env: dict[str, str] | None = None) -> bool:
 
 
 @huey.task()
-def pio_plugins_list(*args: str, env: dict[str, str] | None = None) -> tuple[bool, str]:
-    env = filter_to_allowed_env(env or {})
-    logger.debug(f'Executing `{join(("pio",) + args)}`, {env=}')
-    result = run((PIO_EXECUTABLE,) + args, capture_output=True, text=True, env=env)
-    return result.returncode == 0, result.stdout.strip()
+def list_plugins_installed() -> tuple[bool, str]:
+    from pioreactor.plugin_management.list_plugins import list_plugins_as_json
+
+    try:
+        return True, list_plugins_as_json()
+    except Exception as exc:
+        logger.debug(str(exc))
+        return False, str(exc)
 
 
 @huey.task()
@@ -405,35 +408,97 @@ def calibration_read_voltage() -> float:
 
 @huey.task()
 @huey.lock_task("export-data-lock")
-def pio_run_export_experiment_data(*args: str, env: dict[str, str] | None = None) -> tuple[bool, str]:
-    env = filter_to_allowed_env(env or {})
-    logger.debug(f'Executing `{join(("pio", "run", "export_experiment_data") + args)}`, {env=}')
-    result = run(
-        (PIO_EXECUTABLE, "run", "export_experiment_data") + args,
-        capture_output=True,
-        text=True,
-        env=env,
-    )
-    return result.returncode == 0, result.stdout.strip()
+def export_experiment_data_task(
+    experiments: list[str],
+    dataset_names: list[str],
+    output: str,
+    start_time: str | None = None,
+    end_time: str | None = None,
+    partition_by_unit: bool = False,
+    partition_by_experiment: bool = True,
+) -> tuple[bool, str]:
+    from pioreactor.actions.leader.export_experiment_data import export_experiment_data
+
+    logger.debug("Exporting experiment data.")
+    if not output:
+        return False, "Missing output"
+    if not output.endswith(".zip"):
+        return False, "output should end with .zip"
+    if not dataset_names:
+        return False, "At least one dataset name must be provided."
+
+    try:
+        export_experiment_data(
+            experiments,
+            dataset_names,
+            output,
+            start_time=start_time,
+            end_time=end_time,
+            partition_by_unit=partition_by_unit,
+            partition_by_experiment=partition_by_experiment,
+        )
+        return True, "Finished"
+    except Exception as exc:
+        logger.debug(str(exc))
+        return False, str(exc)
 
 
 @huey.task(priority=100)
-def pio_kill(*args: str, env: dict[str, str] | None = None) -> bool:
-    env = filter_to_allowed_env(env or {})
-    logger.debug(f'Executing `{join(("pio", "kill") + args)}`, {env=}')
-    result = run((PIO_EXECUTABLE, "kill") + args, env=env)
-    return result.returncode == 0
+def kill_jobs_task(
+    job_name: str | None = None,
+    experiment: str | None = None,
+    job_source: str | None = None,
+    job_id: int | None = None,
+    all_jobs: bool = False,
+) -> bool:
+    if not any([job_name, experiment, job_source, job_id, all_jobs]):
+        logger.debug("No job filters provided for kill.")
+        return False
+
+    from pioreactor.background_jobs.base import JobManager
+
+    try:
+        with JobManager() as jm:
+            count = jm.kill_jobs(
+                all_jobs=all_jobs,
+                job_name=job_name,
+                experiment=experiment,
+                job_source=job_source,
+                job_id=job_id,
+            )
+        logger.debug(f"Killed {count} job{'s' if count != 1 else ''}.")
+        return True
+    except Exception as exc:
+        logger.debug(str(exc))
+        return False
 
 
 @huey.task()
 @huey.lock_task("plugins-lock")
-def pio_plugins(*args: str, env: dict[str, str] | None = None) -> bool:
-    # install / uninstall only
-    env = filter_to_allowed_env(env or {})
-    assert args[0] in ("install", "uninstall")
-    logger.debug(f'Executing `{join(("pio", "plugins") + args)}`, {env=}')
-    result = run((PIO_EXECUTABLE, "plugins") + args, env=env)
-    return result.returncode == 0
+def install_plugin_task(name: str, source: str | None = None) -> bool:
+    from pioreactor.plugin_management.install_plugin import install_plugin
+
+    logger.debug(f"Installing plugin {name}.")
+    try:
+        install_plugin(name, source=source)
+        return True
+    except Exception as exc:
+        logger.debug(str(exc))
+        return False
+
+
+@huey.task()
+@huey.lock_task("plugins-lock")
+def uninstall_plugin_task(name: str) -> bool:
+    from pioreactor.plugin_management.uninstall_plugin import uninstall_plugin
+
+    logger.debug(f"Uninstalling plugin {name}.")
+    try:
+        uninstall_plugin(name)
+        return True
+    except Exception as exc:
+        logger.debug(str(exc))
+        return False
 
 
 @huey.task()
