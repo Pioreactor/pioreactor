@@ -8,6 +8,7 @@ from typing import Iterable
 from typing import Literal
 
 import click
+from msgspec import to_builtins
 from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.calibrations.structured_session import CalibrationStep
 from pioreactor.calibrations.structured_session import CalibrationStepField
@@ -171,12 +172,21 @@ class SessionContext:
         self,
         calibration,
         device: str,
-        saved_path: str | None = None,
     ) -> dict[str, str | None]:
         self.collected_calibrations.append(calibration)
         if self.mode == "ui":
-            path = saved_path or calibration.save_to_disk_for_device(device)
-            calibration.set_as_active_calibration_for_device(device)
+            if not self.executor:
+                raise ValueError("Calibration saver is only available in UI sessions.")
+            payload = self.executor(
+                "save_calibration",
+                {"device": device, "calibration": to_builtins(calibration)},
+            )
+            if not isinstance(payload, dict):
+                raise ValueError("Invalid calibration save payload.")
+            saved_path = payload.get("path")
+            if not isinstance(saved_path, str):
+                raise ValueError("Invalid calibration save payload.")
+            path = saved_path
         else:
             path = None
         return {"device": device, "calibration_name": calibration.calibration_name, "path": path}

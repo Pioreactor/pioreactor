@@ -106,6 +106,13 @@ def _string_dict_from_payload(payload: dict[str, object], key: str) -> dict[str,
     return typed
 
 
+def _object_dict_from_payload(payload: dict[str, object], key: str) -> dict[str, object]:
+    value = payload.get(key)
+    if not isinstance(value, dict):
+        raise ValueError(f"Missing or invalid '{key}'.")
+    return value
+
+
 def _execute_calibration_action(action: str, payload: dict[str, object]) -> dict[str, object]:
     def _raise_if_task_failed(result: object, message: str) -> None:
         if isinstance(result, Exception):
@@ -168,6 +175,18 @@ def _execute_calibration_action(action: str, payload: dict[str, object]) -> dict
             raise ValueError("Voltage read timed out.") from exc
         _raise_if_task_failed(voltage, "Voltage read failed.")
         return {"voltage": float(voltage)}
+
+    if action == "save_calibration":
+        task = tasks.calibration_save_calibration(
+            _string_from_payload(payload, "device"),
+            _object_dict_from_payload(payload, "calibration"),
+        )
+        try:
+            result = task(blocking=True, timeout=30)
+        except HueyException as exc:
+            raise ValueError("Saving calibration timed out.") from exc
+        _raise_if_task_failed(result, "Saving calibration failed.")
+        return result
 
     raise ValueError("Unknown calibration action.")
 

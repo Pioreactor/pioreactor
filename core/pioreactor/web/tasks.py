@@ -399,6 +399,20 @@ def calibration_run_stirring(min_dc: float | None, max_dc: float | None) -> dict
 
 
 @huey.task()
+def calibration_save_calibration(device: str, calibration_payload: dict[str, object]) -> dict[str, str]:
+    from msgspec.json import decode as json_decode
+    from msgspec.json import encode as json_encode
+    from pioreactor.structs import CalibrationBase
+    from pioreactor.structs import subclass_union
+
+    all_calibrations = subclass_union(CalibrationBase)
+    calibration = json_decode(json_encode(calibration_payload), type=all_calibrations)
+    path = calibration.save_to_disk_for_device(device)
+    calibration.set_as_active_calibration_for_device(device)
+    return {"path": path, "device": device, "calibration_name": calibration.calibration_name}
+
+
+@huey.task()
 def calibration_read_voltage() -> float:
     from pioreactor.hardware import voltage_in_aux
 
