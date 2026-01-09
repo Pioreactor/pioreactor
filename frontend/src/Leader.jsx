@@ -832,9 +832,7 @@ function ClusterClockCard({leaderHostname}){
         )}
 
         {error && (
-          <Typography variant="body1" color="error">
-            {error}
-          </Typography>
+          <Alert severity="error">{error}</Alert>
         )}
 
         {!loading && !error && clockData && (

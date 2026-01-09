@@ -5,7 +5,7 @@ import FormControl from '@mui/material/FormControl';
 import Grid from "@mui/material/Grid";
 import Button from "@mui/material/Button";
 import Select from '@mui/material/Select';
-import {Typography} from '@mui/material';
+import { Alert, Typography } from '@mui/material';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Divider from '@mui/material/Divider';
@@ -517,9 +517,7 @@ function Profiles(props) {
                   </Box>
                 )}
                 {recentError && !recentLoading && (
-                  <Typography variant="body2" color="error">
-                    {recentError}
-                  </Typography>
+                  <Alert severity="error">{recentError}</Alert>
                 )}
                 {!recentLoading && !recentError && recentRuns.length === 0 && (
                   <Typography variant="body2" component="p" color="textSecondary">

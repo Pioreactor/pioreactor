@@ -81,7 +81,7 @@ def _execute_calibration_action(action: str, payload: dict[str, Any]) -> dict[st
             float(payload["dc"]),
         )
         try:
-            success = task(blocking=True, timeout=30)
+            success = task(blocking=True, timeout=300)
         except HueyException as exc:
             raise ValueError("Pump action timed out.") from exc
         _raise_if_task_failed(success, "Pump action failed.")
@@ -95,7 +95,7 @@ def _execute_calibration_action(action: str, payload: dict[str, Any]) -> dict[st
             payload["channel_angle_map"],
         )
         try:
-            voltages = task(blocking=True, timeout=30)
+            voltages = task(blocking=True, timeout=300)
         except HueyException as exc:
             raise ValueError("OD measurement timed out.") from exc
         _raise_if_task_failed(voltages, "OD measurement failed.")
@@ -125,7 +125,7 @@ def _execute_calibration_action(action: str, payload: dict[str, Any]) -> dict[st
     if action == "read_voltage":
         task = tasks.calibration_read_voltage()
         try:
-            voltage = task(blocking=True, timeout=10)
+            voltage = task(blocking=True, timeout=30)
         except HueyException as exc:
             raise ValueError("Voltage read timed out.") from exc
         _raise_if_task_failed(voltage, "Voltage read failed.")
@@ -137,7 +137,7 @@ def _execute_calibration_action(action: str, payload: dict[str, Any]) -> dict[st
             payload["calibration"],
         )
         try:
-            result = task(blocking=True, timeout=30)
+            result = task(blocking=True, timeout=300)
         except HueyException as exc:
             raise ValueError("Saving calibration timed out.") from exc
         _raise_if_task_failed(result, "Saving calibration failed.")

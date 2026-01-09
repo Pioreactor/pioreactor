@@ -2,6 +2,7 @@ import React from "react";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
+import Chip from "@mui/material/Chip";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
@@ -18,6 +19,7 @@ import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import CloseIcon from "@mui/icons-material/Close";
+import TuneIcon from "@mui/icons-material/Tune";
 import { Link } from "react-router";
 import CalibrationSessionChart from "./CalibrationSessionChart";
 
@@ -437,29 +439,32 @@ export default function CalibrationSessionDialog({
             </Stack>
           )}
           {sessionResult?.calibrations && Array.isArray(sessionResult.calibrations) && unit && (
-            <Stack spacing={1}>
+            <Stack direction="row" spacing={0} sx={{ flexWrap: "wrap" }}>
               {sessionResult.calibrations.map((calibration) => (
-                <Button
+                <Chip
                   key={`${calibration.device}-${calibration.calibration_name}`}
+                  size="small"
+                  icon={<TuneIcon />}
+                  clickable
                   component={Link}
+                  sx={{my: 1}}
                   to={`/calibrations/${unit}/${calibration.device}/${calibration.calibration_name}`}
-                  sx={{ textTransform: "none", justifyContent: "flex-start" }}
-                >
-                  View calibration details ({calibration.device})
-                </Button>
+                  label={`${calibration.calibration_name}`}
+                />
               ))}
             </Stack>
           )}
           {sessionResult?.calibration?.calibration_name &&
             !sessionResult?.calibrations &&
             unit && (
-              <Button
+              <Chip
+                size="small"
+                icon={<TuneIcon />}
+                clickable
                 component={Link}
                 to={`/calibrations/${unit}/${protocol?.device}/${sessionResult.calibration.calibration_name}`}
-                sx={{ textTransform: "none" }}
-              >
-                View calibration details
-              </Button>
+                label={sessionResult.calibration.calibration_name}
+              />
             )}
         </Box>
       </DialogContent>

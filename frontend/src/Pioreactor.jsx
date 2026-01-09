@@ -2054,9 +2054,9 @@ function Pioreactor({title}) {
   if (error) {
     return (
       <Box sx={{textAlign: "center", mb: '50px', mt: "50px"}}>
-        <Typography  variant="body2" component="p" color="textSecondary">
-           {error}
-        </Typography>
+        <Alert severity="error" sx={{ display: "inline-flex", textAlign: "left" }}>
+          {error}
+        </Alert>
       </Box>
   )}
   else {
