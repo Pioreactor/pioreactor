@@ -283,7 +283,7 @@ def pump_duration_flow(ctx: SessionContext) -> CalibrationStep:
             ctx.step = "tracer_volume"
         return steps.action(
             "Tracer run",
-            f"Running the pump for {tracer_duration:.2f} seconds, then measure the volume expelled.",
+            f"Running the pump for {tracer_duration:.2f} seconds. Please measure the volume expelled.",
         )
 
     if ctx.step == "tracer_volume":
@@ -327,8 +327,8 @@ def pump_duration_flow(ctx: SessionContext) -> CalibrationStep:
             ctx.step = "test_volume"
         duration = float(durations[test_index])
         step = steps.action(
-            "Test run",
-            f"Running the pump for {duration:.2f} seconds, then measure the volume expelled.",
+            "Dispense run",
+            f"Running the pump for {duration:.2f} seconds. Please measure the volume expelled.",
         )
         if results:
             step.metadata = {
@@ -394,7 +394,7 @@ def pump_duration_flow(ctx: SessionContext) -> CalibrationStep:
                         "Too much uncertainty in slope - you probably want to rerun this calibration..."
                     )
         step = steps.form(
-            "Record test volume",
+            "Record dispensed volume",
             "Enter the amount of water expelled (mL or g).",
             [fields.float("volume_ml", label="Volume expelled", minimum=0.0001)],
         )

@@ -8,6 +8,7 @@ from io import BytesIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from time import sleep
+from typing import Any
 
 from flask import after_this_request
 from flask import Blueprint
@@ -67,63 +68,17 @@ AllCalibrations = subclass_union(CalibrationBase)
 unit_api_bp = Blueprint("unit_api", __name__, url_prefix="/unit_api")
 
 
-def _float_from_payload(payload: dict[str, object], key: str) -> float:
-    value = payload.get(key)
-    if isinstance(value, (int, float)):
-        return float(value)
-    if isinstance(value, str):
-        return float(value)
-    raise ValueError(f"Missing or invalid '{key}'.")
-
-
-def _optional_float_from_payload(payload: dict[str, object], key: str) -> float | None:
-    value = payload.get(key)
-    if value is None:
-        return None
-    if isinstance(value, (int, float)):
-        return float(value)
-    if isinstance(value, str):
-        return float(value)
-    raise ValueError(f"Invalid '{key}'.")
-
-
-def _string_from_payload(payload: dict[str, object], key: str) -> str:
-    value = payload.get(key)
-    if isinstance(value, str):
-        return value
-    raise ValueError(f"Missing or invalid '{key}'.")
-
-
-def _string_dict_from_payload(payload: dict[str, object], key: str) -> dict[str, str]:
-    value = payload.get(key)
-    if not isinstance(value, dict):
-        raise ValueError(f"Missing or invalid '{key}'.")
-    typed: dict[str, str] = {}
-    for item_key, item_value in value.items():
-        if not isinstance(item_key, str) or not isinstance(item_value, str):
-            raise ValueError(f"Invalid '{key}'.")
-        typed[item_key] = item_value
-    return typed
-
-
-def _object_dict_from_payload(payload: dict[str, object], key: str) -> dict[str, object]:
-    value = payload.get(key)
-    if not isinstance(value, dict):
-        raise ValueError(f"Missing or invalid '{key}'.")
-    return value
-
-
-def _execute_calibration_action(action: str, payload: dict[str, object]) -> dict[str, object]:
-    def _raise_if_task_failed(result: object, message: str) -> None:
+def _execute_calibration_action(action: str, payload: dict[str, Any]) -> dict[str, Any]:
+    def _raise_if_task_failed(result, message: str) -> None:
         if isinstance(result, Exception):
             raise ValueError(message)
 
     if action == "pump":
         task = tasks.calibration_execute_pump(
-            _string_from_payload(payload, "pump_device"),
-            _float_from_payload(payload, "duration_s"),
-            _float_from_payload(payload, "hz"),
-            _float_from_payload(payload, "dc"),
+            payload["pump_device"],
+            float(payload["duration_s"]),
+            float(payload["hz"]),
+            float(payload["dc"]),
         )
         try:
             success = task(blocking=True, timeout=30)
@@ -136,8 +91,8 @@ def _execute_calibration_action(action: str, payload: dict[str, object]) -> dict
 
     if action == "od_standards_measure":
         task = tasks.calibration_measure_standard(
-            _float_from_payload(payload, "rpm"),
-            _string_dict_from_payload(payload, "channel_angle_map"),
+            float(payload["rpm"]),
+            payload["channel_angle_map"],
         )
         try:
             voltages = task(blocking=True, timeout=30)
@@ -147,7 +102,7 @@ def _execute_calibration_action(action: str, payload: dict[str, object]) -> dict
         return {"voltages": voltages}
 
     if action == "od_reference_standard_read":
-        task = tasks.calibration_reference_standard_read(_float_from_payload(payload, "ir_led_intensity"))
+        task = tasks.calibration_reference_standard_read(float(payload["ir_led_intensity"]))
         try:
             readings = task(blocking=True, timeout=300)
         except HueyException as exc:
@@ -157,8 +112,8 @@ def _execute_calibration_action(action: str, payload: dict[str, object]) -> dict
 
     if action == "stirring_calibration":
         task = tasks.calibration_run_stirring(
-            _optional_float_from_payload(payload, "min_dc"),
-            _optional_float_from_payload(payload, "max_dc"),
+            float(payload["min_dc"]) if "min_dc" in payload else None,
+            float(payload["max_dc"]) if "max_dc" in payload else None,
         )
         try:
             calibration_payload = task(blocking=True, timeout=300)
@@ -178,8 +133,8 @@ def _execute_calibration_action(action: str, payload: dict[str, object]) -> dict
 
     if action == "save_calibration":
         task = tasks.calibration_save_calibration(
-            _string_from_payload(payload, "device"),
-            _object_dict_from_payload(payload, "calibration"),
+            payload["device"],
+            payload["calibration"],
         )
         try:
             result = task(blocking=True, timeout=30)
@@ -1226,9 +1181,3 @@ def remove_active_status_calibration(device: str) -> ResponseReturnValue:
             c.pop(device)
 
     return {"status": "success"}, 200
-
-
-@unit_api_bp.errorhandler(404)
-def not_found(e):
-    # Return JSON for API requests, using the error description
-    return jsonify({"error": e.description}), 404

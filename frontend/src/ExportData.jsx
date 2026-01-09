@@ -7,6 +7,7 @@ import FormControl from '@mui/material/FormControl';
 import FormGroup from '@mui/material/FormGroup';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Checkbox from '@mui/material/Checkbox';
+import Alert from '@mui/material/Alert';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import MenuItem from '@mui/material/MenuItem';
@@ -437,7 +438,7 @@ function ExportDataContainer() {
     }));
   };
 
-  const errorFeedbackOrDefault = errorMsg ? <Box color="error.main">{errorMsg}</Box>: ""
+  const errorFeedbackOrDefault = errorMsg ? <Alert severity="error">{errorMsg}</Alert>: ""
   const selectedDatasetsCount = state.selectedDatasets.length;
   const experimentSelectionCount = state.experimentSelection.length;
   return (

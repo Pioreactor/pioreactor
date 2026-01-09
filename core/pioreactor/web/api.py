@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import configparser
+import json
 import os
 import re
 import sqlite3
@@ -80,6 +81,27 @@ def as_json_response(json: str) -> ResponseReturnValue:
 def format_utc_timestamp_for_lookback_hours(lookback_hours: float) -> str:
     cutoff = current_utc_datetime() - timedelta(hours=lookback_hours)
     return cutoff.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+
+def _extract_unit_api_error(response: Response | None) -> str | None:
+    if response is None:
+        return None
+    body = response.content
+    if not body:
+        return None
+    content_type = response.headers.get("Content-Type", "")
+    if "application/json" not in content_type:
+        return None
+    try:
+        payload = json.loads(body)
+    except Exception:
+        return None
+    if isinstance(payload, dict):
+        for key in ("error", "message", "description"):
+            value = payload.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    return None
 
 
 def broadcast_get_across_cluster(endpoint: str, timeout: float = 5.0, return_raw=False) -> Result:
@@ -1526,6 +1548,7 @@ def start_calibration_session(pioreactor_unit: str) -> ResponseReturnValue:
     if body is None:
         abort_with(400, description="Missing JSON payload.")
 
+    response: Response | None = None
     try:
         response = post_into(
             resolve_to_address(pioreactor_unit),
@@ -1535,8 +1558,17 @@ def start_calibration_session(pioreactor_unit: str) -> ResponseReturnValue:
         )
         response.raise_for_status()
     except (HTTPErrorStatus, HTTPException) as exc:
+        detail = _extract_unit_api_error(response)
+        if detail:
+            publish_to_error_log(f"{exc}: {detail}", "start_calibration_session")
+            abort_with(502, f"Starting calibration session failed on {pioreactor_unit}: {detail}")
+        if response is not None:
+            abort_with(
+                502,
+                f"Starting calibration session failed on {pioreactor_unit} (HTTP {response.status_code}).",
+            )
         publish_to_error_log(str(exc), "start_calibration_session")
-        abort_with(502, f"Starting calibration session failed on {pioreactor_unit}. See system logs.")
+        abort_with(502, f"Starting calibration session failed on {pioreactor_unit}.")
 
     return Response(
         response.content,
@@ -1550,6 +1582,7 @@ def get_calibration_session(pioreactor_unit: str, session_id: str) -> ResponseRe
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         abort_with(400, "Cannot fetch sessions with $broadcast; choose a specific Pioreactor.")
 
+    response: Response | None = None
     try:
         response = get_from(
             resolve_to_address(pioreactor_unit),
@@ -1558,8 +1591,17 @@ def get_calibration_session(pioreactor_unit: str, session_id: str) -> ResponseRe
         )
         response.raise_for_status()
     except (HTTPErrorStatus, HTTPException) as exc:
+        detail = _extract_unit_api_error(response)
+        if detail:
+            publish_to_error_log(f"{exc}: {detail}", "get_calibration_session")
+            abort_with(502, f"Fetching calibration session failed on {pioreactor_unit}: {detail}")
+        if response is not None:
+            abort_with(
+                502,
+                f"Fetching calibration session failed on {pioreactor_unit} (HTTP {response.status_code}).",
+            )
         publish_to_error_log(str(exc), "get_calibration_session")
-        abort_with(502, f"Fetching calibration session failed on {pioreactor_unit}. See system logs.")
+        abort_with(502, f"Fetching calibration session failed on {pioreactor_unit}.")
 
     return Response(
         response.content,
@@ -1577,6 +1619,7 @@ def advance_calibration_session(pioreactor_unit: str, session_id: str) -> Respon
     if body is None:
         abort_with(400, description="Missing JSON payload.")
 
+    response: Response | None = None
     try:
         response = post_into(
             resolve_to_address(pioreactor_unit),
@@ -1586,8 +1629,17 @@ def advance_calibration_session(pioreactor_unit: str, session_id: str) -> Respon
         )
         response.raise_for_status()
     except (HTTPErrorStatus, HTTPException) as exc:
+        detail = _extract_unit_api_error(response)
+        if detail:
+            publish_to_error_log(f"{exc}: {detail}", "advance_calibration_session")
+            abort_with(502, detail)
+        if response is not None:
+            abort_with(
+                502,
+                f"Updating calibration session failed on {pioreactor_unit} (HTTP {response.status_code}).",
+            )
         publish_to_error_log(str(exc), "advance_calibration_session")
-        abort_with(502, f"Updating calibration session failed on {pioreactor_unit}. See system logs.")
+        abort_with(502, f"Updating calibration session failed on {pioreactor_unit}.")
 
     return Response(
         response.content,
@@ -1601,6 +1653,7 @@ def abort_calibration_session(pioreactor_unit: str, session_id: str) -> Response
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         abort_with(400, "Cannot abort sessions with $broadcast; choose a specific Pioreactor.")
 
+    response: Response | None = None
     try:
         response = post_into(
             resolve_to_address(pioreactor_unit),
@@ -1609,8 +1662,17 @@ def abort_calibration_session(pioreactor_unit: str, session_id: str) -> Response
         )
         response.raise_for_status()
     except (HTTPErrorStatus, HTTPException) as exc:
+        detail = _extract_unit_api_error(response)
+        if detail:
+            publish_to_error_log(f"{exc}: {detail}", "abort_calibration_session")
+            abort_with(502, f"Aborting calibration session failed on {pioreactor_unit}: {detail}")
+        if response is not None:
+            abort_with(
+                502,
+                f"Aborting calibration session failed on {pioreactor_unit} (HTTP {response.status_code}).",
+            )
         publish_to_error_log(str(exc), "abort_calibration_session")
-        abort_with(502, f"Aborting calibration session failed on {pioreactor_unit}. See system logs.")
+        abort_with(502, f"Aborting calibration session failed on {pioreactor_unit}.")
 
     return Response(
         response.content,

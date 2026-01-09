@@ -167,7 +167,7 @@ def reference_standard_flow(ctx: SessionContext) -> CalibrationStep:
 
             od_readings = _record_reference_standard_for_session(ctx, ir_led_intensity)
             recorded_ods = [0.0, 1000 * STANDARD_OD]
-            timestamp = current_utc_datetime().strftime("%Y-%m-%d")
+            timestamp = current_utc_datetime().strftime("%Y-%m-%d_%H-%M-%S")
 
             calibration_links: list[dict[str, str | None]] = []
             if isinstance(od_readings, dict):

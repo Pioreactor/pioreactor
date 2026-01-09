@@ -436,11 +436,6 @@ export default function CalibrationSessionDialog({
               })}
             </Stack>
           )}
-          {sessionResult && (
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              Calibration(s) are set as active and ready to be used.
-            </Typography>
-          )}
           {sessionResult?.calibrations && Array.isArray(sessionResult.calibrations) && unit && (
             <Stack spacing={1}>
               {sessionResult.calibrations.map((calibration) => (

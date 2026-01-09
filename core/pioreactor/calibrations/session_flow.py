@@ -331,8 +331,8 @@ class StepBuilder:
         return CalibrationStep(
             step_id="complete",
             step_type="result",
-            title="Calibration complete",
-            body="Calibration results are ready.",
+            title="Calibration complete!",
+            body="Calibration(s) is set to Active and ready to be used.",
             metadata={"result": result},
         )
 

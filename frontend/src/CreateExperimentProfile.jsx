@@ -10,6 +10,7 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import SaveIcon from '@mui/icons-material/Save';
 import TextField from '@mui/material/TextField';
+import Alert from '@mui/material/Alert';
 import InputAdornment from '@mui/material/InputAdornment';
 import { Link, useLocation } from 'react-router';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -190,7 +191,7 @@ metadata:
               >
                 Save
               </Button>
-              <p style={{ marginLeft: "10px" }}>{isError ? <Box color="error.main">{errorMsg}</Box> : ""}</p>
+              <Box sx={{ ml: 0.7, mt: 1 }}>{isError ? <Alert severity="error">{errorMsg}</Alert> : ""}</Box>
             </div>
           </div>
         </Grid>

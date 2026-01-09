@@ -370,8 +370,8 @@ function AddNewPioreactor({setWorkers}){
         </div>
 
         <Box sx={{minHeight: "60px", alignItems: "center", display: "flex"}}>
-          {isError   ? <p><ErrorOutlineIcon sx={{verticalAlign: "middle", margin: "0px 3px", color: lostRed}}/>{errorMsg}</p>           : <React.Fragment/>}
-          {isRunning ? <p>{expectedPathMsg}</p>                                                                    : <React.Fragment/>}
+          {isError   ? <Alert severity="error">{errorMsg}</Alert> : <React.Fragment/>}
+          {isRunning ? <p>{expectedPathMsg}</p> : <React.Fragment/>}
           {isSuccess ? <p><CheckIcon sx={{verticalAlign: "middle", margin: "0px 3px", color: readyGreen}}/>{successMsg}</p>      : <React.Fragment/>}
         </Box>
 
