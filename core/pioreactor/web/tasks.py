@@ -20,8 +20,10 @@ from subprocess import TimeoutExpired
 from tempfile import mkdtemp
 from time import sleep
 from typing import Any
+from typing import cast
 
 from msgspec import DecodeError
+from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.config import config as pioreactor_config
 from pioreactor.logging import create_logger
@@ -216,40 +218,6 @@ def pio_run(
         return False
 
 
-@huey.task(priority=50)
-def pio_calibrations_run(
-    *args: str,
-    env: dict[str, str] | None = None,
-    grace_s: float = 0.5,
-) -> bool:
-    command = (PIO_EXECUTABLE, "calibrations", "run") + args
-
-    env = filter_to_allowed_env(env or {})
-
-    logger.debug(f"Executing `{join(command)}`, {env=}")
-
-    try:
-        proc = Popen(
-            command,
-            start_new_session=True,  # detach from our session
-            env=env,
-            stdin=DEVNULL,
-            stdout=DEVNULL,
-            stderr=DEVNULL,
-            close_fds=True,
-        )
-    except Exception:
-        logger.error("Failed to spawn %r", command)
-        return False
-
-    try:
-        proc.wait(timeout=grace_s)
-    except TimeoutExpired:
-        return True
-    else:
-        return False
-
-
 @huey.task()
 def add_new_pioreactor(new_pioreactor_name: str, version: str, model: str) -> bool:
     command = [PIO_EXECUTABLE, "workers", "add", new_pioreactor_name, "-v", version, "-m", model]
@@ -365,44 +333,185 @@ def pio(*args: str, env: dict[str, str] | None = None) -> bool:
 
 
 @huey.task()
-def pio_plugins_list(*args: str, env: dict[str, str] | None = None) -> tuple[bool, str]:
-    env = filter_to_allowed_env(env or {})
-    logger.debug(f'Executing `{join(("pio",) + args)}`, {env=}')
-    result = run((PIO_EXECUTABLE,) + args, capture_output=True, text=True, env=env)
-    return result.returncode == 0, result.stdout.strip()
+def list_plugins_installed() -> tuple[bool, str]:
+    from pioreactor.plugin_management.list_plugins import list_plugins_as_json
+
+    try:
+        return True, list_plugins_as_json()
+    except Exception as exc:
+        logger.debug(str(exc))
+        return False, str(exc)
+
+
+@huey.task()
+def calibration_execute_pump(pump_device: str, duration_s: float, hz: float, dc: float) -> bool:
+    from pioreactor.calibrations.protocols.pump_duration_based import _build_transient_calibration
+    from pioreactor.calibrations.protocols.pump_duration_based import _get_execute_pump_for_device
+    from pioreactor.whoami import get_testing_experiment_name
+
+    execute_pump = _get_execute_pump_for_device(cast(pt.PumpCalibrationDevices, pump_device))
+    calibration = _build_transient_calibration(hz=hz, dc=dc, unit=get_unit_name())
+    execute_pump(
+        duration=duration_s,
+        source_of_event="pump_calibration",
+        unit=get_unit_name(),
+        experiment=get_testing_experiment_name(),
+        calibration=calibration,
+    )
+    return True
+
+
+@huey.task()
+def calibration_measure_standard(
+    rpm: float,
+    channel_angle_map: dict[str, str],
+) -> dict[str, float]:
+    from pioreactor.calibrations.protocols.od_standards import _measure_standard
+
+    typed_map = {
+        cast(pt.PdChannel, channel): cast(pt.PdAngle, angle) for channel, angle in channel_angle_map.items()
+    }
+    voltages = _measure_standard(
+        od600_value=0.0,
+        rpm=rpm,
+        channel_angle_map=typed_map,
+    )
+    return {str(channel): float(voltage) for channel, voltage in voltages.items()}
+
+
+@huey.task()
+def calibration_reference_standard_read(ir_led_intensity: float) -> dict[str, dict[str, float]]:
+    from pioreactor.calibrations.protocols.od_reference_standard import record_reference_standard
+
+    readings = record_reference_standard(ir_led_intensity)
+    return {
+        str(channel): {"od": float(od_reading.od), "angle": float(od_reading.angle)}
+        for channel, od_reading in readings.ods.items()
+    }
+
+
+@huey.task()
+def calibration_run_stirring(min_dc: float | None, max_dc: float | None) -> dict[str, object]:
+    from pioreactor.calibrations.protocols.stirring_dc_based import collect_stirring_measurements
+
+    dcs, rpms = collect_stirring_measurements(min_dc=min_dc, max_dc=max_dc)
+    return {"dcs": dcs, "rpms": rpms}
+
+
+@huey.task()
+def calibration_save_calibration(device: str, calibration_payload: dict[str, object]) -> dict[str, str]:
+    from msgspec.json import decode as json_decode
+    from msgspec.json import encode as json_encode
+    from pioreactor.structs import CalibrationBase
+    from pioreactor.structs import subclass_union
+
+    all_calibrations = subclass_union(CalibrationBase)
+    calibration = json_decode(json_encode(calibration_payload), type=all_calibrations)
+    path = calibration.save_to_disk_for_device(device)
+    calibration.set_as_active_calibration_for_device(device)
+    return {"path": path, "device": device, "calibration_name": calibration.calibration_name}
+
+
+@huey.task()
+def calibration_read_voltage() -> float:
+    from pioreactor.hardware import voltage_in_aux
+
+    return float(voltage_in_aux())
 
 
 @huey.task()
 @huey.lock_task("export-data-lock")
-def pio_run_export_experiment_data(*args: str, env: dict[str, str] | None = None) -> tuple[bool, str]:
-    env = filter_to_allowed_env(env or {})
-    logger.debug(f'Executing `{join(("pio", "run", "export_experiment_data") + args)}`, {env=}')
-    result = run(
-        (PIO_EXECUTABLE, "run", "export_experiment_data") + args,
-        capture_output=True,
-        text=True,
-        env=env,
-    )
-    return result.returncode == 0, result.stdout.strip()
+def export_experiment_data_task(
+    experiments: list[str],
+    dataset_names: list[str],
+    output: str,
+    start_time: str | None = None,
+    end_time: str | None = None,
+    partition_by_unit: bool = False,
+    partition_by_experiment: bool = True,
+) -> tuple[bool, str]:
+    from pioreactor.actions.leader.export_experiment_data import export_experiment_data
+
+    logger.debug("Exporting experiment data.")
+    if not output:
+        return False, "Missing output"
+    if not output.endswith(".zip"):
+        return False, "output should end with .zip"
+    if not dataset_names:
+        return False, "At least one dataset name must be provided."
+
+    try:
+        export_experiment_data(
+            experiments,
+            dataset_names,
+            output,
+            start_time=start_time,
+            end_time=end_time,
+            partition_by_unit=partition_by_unit,
+            partition_by_experiment=partition_by_experiment,
+        )
+        return True, "Finished"
+    except Exception as exc:
+        logger.debug(str(exc))
+        return False, str(exc)
 
 
 @huey.task(priority=100)
-def pio_kill(*args: str, env: dict[str, str] | None = None) -> bool:
-    env = filter_to_allowed_env(env or {})
-    logger.debug(f'Executing `{join(("pio", "kill") + args)}`, {env=}')
-    result = run((PIO_EXECUTABLE, "kill") + args, env=env)
-    return result.returncode == 0
+def kill_jobs_task(
+    job_name: str | None = None,
+    experiment: str | None = None,
+    job_source: str | None = None,
+    job_id: int | None = None,
+    all_jobs: bool = False,
+) -> bool:
+    if not any([job_name, experiment, job_source, job_id, all_jobs]):
+        logger.debug("No job filters provided for kill.")
+        return False
+
+    from pioreactor.background_jobs.base import JobManager
+
+    try:
+        with JobManager() as jm:
+            count = jm.kill_jobs(
+                all_jobs=all_jobs,
+                job_name=job_name,
+                experiment=experiment,
+                job_source=job_source,
+                job_id=job_id,
+            )
+        logger.debug(f"Killed {count} job{'s' if count != 1 else ''}.")
+        return True
+    except Exception as exc:
+        logger.debug(str(exc))
+        return False
 
 
 @huey.task()
 @huey.lock_task("plugins-lock")
-def pio_plugins(*args: str, env: dict[str, str] | None = None) -> bool:
-    # install / uninstall only
-    env = filter_to_allowed_env(env or {})
-    assert args[0] in ("install", "uninstall")
-    logger.debug(f'Executing `{join(("pio", "plugins") + args)}`, {env=}')
-    result = run((PIO_EXECUTABLE, "plugins") + args, env=env)
-    return result.returncode == 0
+def install_plugin_task(name: str, source: str | None = None) -> bool:
+    from pioreactor.plugin_management.install_plugin import install_plugin
+
+    logger.debug(f"Installing plugin {name}.")
+    try:
+        install_plugin(name, source=source)
+        return True
+    except Exception as exc:
+        logger.debug(str(exc))
+        return False
+
+
+@huey.task()
+@huey.lock_task("plugins-lock")
+def uninstall_plugin_task(name: str) -> bool:
+    from pioreactor.plugin_management.uninstall_plugin import uninstall_plugin
+
+    logger.debug(f"Uninstalling plugin {name}.")
+    try:
+        uninstall_plugin(name)
+        return True
+    except Exception as exc:
+        logger.debug(str(exc))
+        return False
 
 
 @huey.task()

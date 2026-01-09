@@ -56,6 +56,23 @@ const theme = createTheme({
       main: '#DF1A0C',
     },
   },
+  components: {
+    MuiAlert: {
+      styleOverrides: {
+        root: ({ ownerState, theme }) => ({
+          ...(ownerState.severity === "error" ? { color: theme.palette.text.primary } : {}),
+        }),
+      },
+      variants: [
+        {
+          props: { severity: "error" },
+          style: {
+            backgroundColor: "transparent",
+          },
+        },
+      ],
+    },
+  },
 });
 
 

@@ -15,6 +15,7 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  Alert,
 } from '@mui/material';
 import Grid from "@mui/material/Grid";
 import Box from '@mui/material/Box';
@@ -214,10 +215,9 @@ function UploadCalibrationDialog({
 
         <Box sx={{display: "flex", justifyContent: "space-between"}}>
           <Box>
-          {error && <Box color="error.main">
-          {error}
-          </Box>
-          }
+          {error && (
+            <Alert severity="error">{error}</Alert>
+          )}
           {success && <Box>
           <CheckIcon sx={{verticalAlign: "middle", margin: "0px 3px", color: readyGreen}}/> {success}
           </Box>
@@ -422,7 +422,7 @@ function CalibrationData() {
   }
 
   if (!isDataComplete) {
-    return <Typography>Something went wrong or data is incomplete. Check web server logs.</Typography>;
+    return <Alert severity="error">Something went wrong or data is incomplete. Check web server logs.</Alert>;
   }
 
   const onMouseOverRow = (_, cal) => {

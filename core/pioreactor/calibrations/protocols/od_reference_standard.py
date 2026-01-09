@@ -1,24 +1,28 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import uuid
 from time import sleep
 from typing import cast
 
-import click
-from click import echo
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.background_jobs.od_reading import average_over_od_readings
 from pioreactor.background_jobs.od_reading import REF_keyword
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.calibrations import utils as calibration_utils
-from pioreactor.calibrations.cli_helpers import info
-from pioreactor.calibrations.cli_helpers import info_heading
-from pioreactor.calibrations.cli_helpers import red
 from pioreactor.calibrations.registry import CalibrationProtocol
+from pioreactor.calibrations.session_flow import run_session_in_cli
+from pioreactor.calibrations.session_flow import SessionContext
+from pioreactor.calibrations.session_flow import SessionEngine
+from pioreactor.calibrations.session_flow import SessionExecutor
+from pioreactor.calibrations.session_flow import steps
+from pioreactor.calibrations.structured_session import CalibrationSession
+from pioreactor.calibrations.structured_session import CalibrationStep
+from pioreactor.calibrations.structured_session import utc_iso_timestamp
 from pioreactor.config import config
+from pioreactor.logging import create_logger
 from pioreactor.utils import is_pio_job_running
-from pioreactor.utils import managed_lifecycle
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_testing_experiment_name
 from pioreactor.whoami import get_unit_name
@@ -29,21 +33,12 @@ STANDARD_OD = 1.0
 DEFAULT_TARGET_ANGLES = {"45", "90", "135"}
 
 
-def introduction() -> None:
-    click.clear()
-    info_heading("OD reference standard calibration")
-    info("This routine creates OD calibrations using the optical reference standard.")
-
-
 def get_ir_led_intensity() -> float:
     ir_intensity_setting = config.get("od_reading.config", "ir_led_intensity")
     if ir_intensity_setting == "auto":
-        echo(
-            red(
-                "ir_led_intensity must be numeric when creating OD calibrations from the optical reference standard. Try 80."
-            )
+        raise ValueError(
+            "ir_led_intensity must be numeric when creating OD calibrations from the optical reference standard. Try 80."
         )
-        raise click.Abort()
     return float(ir_intensity_setting)
 
 
@@ -69,14 +64,18 @@ def get_channel_angle_map(
         }
 
     if not channel_angle_map:
-        echo(red("No configured PD channels match the selected device."))
-        raise click.Abort()
+        raise ValueError("No configured PD channels match the selected device.")
 
     return channel_angle_map
 
 
 def record_reference_standard(ir_led_intensity: float) -> structs.ODReadings:
-    info("Recording OD readings...")
+    logger = create_logger(
+        "od_reference_standard",
+        unit=get_unit_name(),
+        experiment=get_testing_experiment_name(),
+    )
+    logger.info("Recording OD readings...")
     with start_od_reading(
         config["od_config.photodiode_channel"],
         interval=None,
@@ -102,69 +101,151 @@ def record_reference_standard(ir_led_intensity: float) -> structs.ODReadings:
         f"channel {pd_channel} ({od_reading.angle} deg)={od_reading.od:.6f}"
         for pd_channel, od_reading in sorted(averaged_od_readings.ods.items())
     )
-    info(f"Averaged OD readings: {averaged_od_summary}")
+    logger.info("Averaged OD readings: %s", averaged_od_summary)
     return averaged_od_readings
 
 
-def run_od_calibration(target_device: pt.ODCalibrationDevices) -> list[structs.ODCalibration]:
-    unit = get_unit_name()
-    experiment = get_testing_experiment_name()
-    calibrations: list[structs.ODCalibration] = []
+def _record_reference_standard_for_session(
+    ctx: SessionContext,
+    ir_led_intensity: float,
+) -> dict[str, dict[str, float]] | structs.ODReadings:
+    if ctx.executor and ctx.mode == "ui":
+        payload = ctx.executor(
+            "od_reference_standard_read",
+            {"ir_led_intensity": ir_led_intensity},
+        )
+        raw = payload.get("od_readings", {})
+        if not isinstance(raw, dict):
+            raise ValueError("Invalid OD readings payload.")
+        return raw
+    return record_reference_standard(ir_led_intensity)
 
-    with managed_lifecycle(unit, experiment, "od_calibration"):
-        introduction()
 
-        if is_pio_job_running("od_reading"):
-            echo(red("OD reading should be turned off."))
-            raise click.Abort()
+def start_reference_standard_session(
+    target_device: pt.ODCalibrationDevices,
+) -> CalibrationSession:
+    session_id = str(uuid.uuid4())
+    now = utc_iso_timestamp()
+    return CalibrationSession(
+        session_id=session_id,
+        protocol_name=ODReferenceStandardProtocol.protocol_name,
+        target_device=target_device,
+        status="in_progress",
+        step_id="intro",
+        data={},
+        created_at=now,
+        updated_at=now,
+    )
 
-        ir_led_intensity = get_ir_led_intensity()
-        channel_angle_map = get_channel_angle_map(target_device)
 
-        od_readings = record_reference_standard(ir_led_intensity)
-        recorded_ods = [0.0, 1000 * STANDARD_OD]
-        timestamp = current_utc_datetime().strftime("%Y-%m-%d")
+def reference_standard_flow(ctx: SessionContext) -> CalibrationStep:
+    if ctx.session.status != "in_progress":
+        if ctx.session.result is not None:
+            return steps.result(ctx.session.result)
+        return steps.info("Calibration ended", "This calibration session has ended.")
 
-        for pd_channel, od_reading in od_readings.ods.items():
-            if pd_channel not in channel_angle_map:
-                continue
-            angle = channel_angle_map[pd_channel]
+    if ctx.step == "intro":
+        if ctx.inputs.has_inputs:
+            ctx.step = "record_readings"
+        return steps.info(
+            "OD reference standard calibration",
+            (
+                "This routine creates OD calibrations using the optical reference standard. "
+                "Ensure the jig is installed, OD reading is stopped, and ir_led_intensity is numeric."
+            ),
+        )
 
-            recorded_voltages = [0.0, 1000 * od_reading.od]
-            curve_data_ = calibration_utils.calculate_poly_curve_of_best_fit(
-                recorded_ods, recorded_voltages, degree=1
+    if ctx.step == "record_readings":
+        if ctx.inputs.has_inputs:
+            if is_pio_job_running("od_reading"):
+                raise ValueError("OD reading should be turned off.")
+
+            ir_led_intensity = get_ir_led_intensity()
+            channel_angle_map = get_channel_angle_map(
+                cast(pt.ODCalibrationDevices, ctx.session.target_device)
             )
-            if len(curve_data_) == 2:
-                slope, intercept = curve_data_
-                info(
-                    f"Fitted linear curve for od{angle} (channel {pd_channel}): "
-                    f"y = {slope:.6f}x + {intercept:.6f}"
-                )
+
+            od_readings = _record_reference_standard_for_session(ctx, ir_led_intensity)
+            recorded_ods = [0.0, 1000 * STANDARD_OD]
+            timestamp = current_utc_datetime().strftime("%Y-%m-%d_%H-%M-%S")
+
+            calibration_links: list[dict[str, str | None]] = []
+            if isinstance(od_readings, dict):
+                for raw_channel, od_reading_payload in od_readings.items():
+                    pd_channel = cast(pt.PdChannel, raw_channel)
+                    if pd_channel not in channel_angle_map:
+                        continue
+                    angle = channel_angle_map[pd_channel]
+                    od_value = float(od_reading_payload["od"])
+
+                    recorded_voltages = [0.0, 1000 * od_value]
+                    curve_data_ = calibration_utils.calculate_poly_curve_of_best_fit(
+                        recorded_ods, recorded_voltages, degree=1
+                    )
+                    calibration = structs.ODCalibration(
+                        created_at=current_utc_datetime(),
+                        calibrated_on_pioreactor_unit=get_unit_name(),
+                        calibration_name=f"od{angle}-optical-reference-standard-{timestamp}",
+                        angle=angle,
+                        curve_data_=curve_data_,
+                        curve_type="poly",
+                        recorded_data={"x": recorded_ods, "y": recorded_voltages},
+                        ir_led_intensity=ir_led_intensity,
+                        pd_channel=pd_channel,
+                    )
+                    calibration_links.append(ctx.store_calibration(calibration, f"od{angle}"))
             else:
-                info(
-                    f"Fitted linear curve for od{angle} (channel {pd_channel}): "
-                    f"coefficients={curve_data_}"
-                )
+                for raw_channel, od_reading_struct in od_readings.ods.items():
+                    pd_channel = cast(pt.PdChannel, raw_channel)
+                    if pd_channel not in channel_angle_map:
+                        continue
+                    angle = channel_angle_map[pd_channel]
+                    od_value = float(od_reading_struct.od)
 
-            calibration = structs.ODCalibration(
-                created_at=current_utc_datetime(),
-                calibrated_on_pioreactor_unit=unit,
-                calibration_name=f"od{angle}-optical-reference-standard-{timestamp}",
-                angle=angle,
-                curve_data_=curve_data_,
-                curve_type="poly",
-                recorded_data={"x": recorded_ods, "y": recorded_voltages},
-                ir_led_intensity=ir_led_intensity,
-                pd_channel=pd_channel,
-            )
-            calibrations.append(calibration)
+                    recorded_voltages = [0.0, 1000 * od_value]
+                    curve_data_ = calibration_utils.calculate_poly_curve_of_best_fit(
+                        recorded_ods, recorded_voltages, degree=1
+                    )
+                    calibration = structs.ODCalibration(
+                        created_at=current_utc_datetime(),
+                        calibrated_on_pioreactor_unit=get_unit_name(),
+                        calibration_name=f"od{angle}-optical-reference-standard-{timestamp}",
+                        angle=angle,
+                        curve_data_=curve_data_,
+                        curve_type="poly",
+                        recorded_data={"x": recorded_ods, "y": recorded_voltages},
+                        ir_led_intensity=ir_led_intensity,
+                        pd_channel=pd_channel,
+                    )
+                    calibration_links.append(ctx.store_calibration(calibration, f"od{angle}"))
 
-        if not calibrations:
-            echo(red("No matching channels were recorded for this calibration."))
-            raise click.Abort()
+            if not calibration_links:
+                raise ValueError("No matching channels were recorded for this calibration.")
 
-        info("Finished reference standard calibration.")
-        return calibrations
+            ctx.complete({"calibrations": calibration_links})
+        return steps.action(
+            "Record reference standard",
+            "Continue to record OD readings against the optical reference standard.",
+        )
+
+    return steps.info("Unknown step", "This step is not recognized.")
+
+
+def advance_reference_standard_session(
+    session: CalibrationSession,
+    inputs: dict[str, object],
+    executor: SessionExecutor | None = None,
+) -> CalibrationSession:
+    engine = SessionEngine(flow=reference_standard_flow, session=session, mode="ui", executor=executor)
+    engine.advance(inputs)
+    return engine.session
+
+
+def get_reference_standard_step(
+    session: CalibrationSession, executor: SessionExecutor | None = None
+) -> CalibrationStep | None:
+    engine = SessionEngine(flow=reference_standard_flow, session=session, mode="ui", executor=executor)
+    return engine.get_step()
 
 
 class ODReferenceStandardProtocol(CalibrationProtocol[pt.ODCalibrationDevices]):
@@ -175,4 +256,5 @@ class ODReferenceStandardProtocol(CalibrationProtocol[pt.ODCalibrationDevices]):
     def run(  # type: ignore
         self, target_device: pt.ODCalibrationDevices, *args, **kwargs
     ) -> list[structs.ODCalibration]:
-        return run_od_calibration(target_device)
+        session = start_reference_standard_session(target_device)
+        return run_session_in_cli(reference_standard_flow, session)

@@ -370,26 +370,6 @@ def test_detect_heating_pcb(managed_state, logger: CustomLogger, unit: str, expe
     assert is_heating_pcb_present(), "Heater PCB is not connected, or i2c is not working."
 
 
-def test_run_stirring_calibration(managed_state, logger: CustomLogger, unit: str, experiment: str) -> None:
-    from pioreactor.calibrations.protocols.stirring_dc_based import run_stirring_calibration
-
-    cal = run_stirring_calibration()
-    cal.save_to_disk_for_device("stirring")
-    cal.set_as_active_calibration_for_device("stirring")
-    return
-
-
-def test_create_od_calibrations_using_optical_reference_standard(
-    managed_state, logger: CustomLogger, unit: str, experiment: str
-) -> None:
-    from pioreactor.calibrations.protocols.od_reference_standard import run_od_calibration
-
-    calibrations = run_od_calibration("od")
-    for calibration in calibrations:
-        calibration_device = f"od{calibration.angle}"
-        calibration.save_to_disk_for_device(calibration_device)
-        calibration.set_as_active_calibration_for_device(calibration_device)
-
 
 def test_positive_correlation_between_temperature_and_heating(
     managed_state, logger: CustomLogger, unit: str, experiment: str
@@ -545,8 +525,6 @@ def click_self_test(k: Optional[str], retry_failed: bool) -> int:
         test_REF_is_in_correct_position,
         test_PD_is_near_0_volts_for_blank,
         test_positive_correlation_between_rpm_and_stirring,
-        # test_run_stirring_calibration,
-        # test_create_od_calibrations_using_optical_reference_standard,
     )
 
     with managed_lifecycle(unit, testing_experiment, "self_test") as managed_state:

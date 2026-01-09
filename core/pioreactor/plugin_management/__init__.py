@@ -64,7 +64,6 @@ def get_plugin_api_url(py_file: str) -> str:
     return pubsub.create_webserver_path(networking.resolve_to_address(get_unit_name()), endpoint)
 
 
-@cache
 def get_plugins() -> dict[str, Plugin]:
     """
     This function is really time consuming...

@@ -14,6 +14,7 @@ import Select from '@mui/material/Select';
 import SaveIcon from '@mui/icons-material/Save';
 import Editor from 'react-simple-code-editor';
 import { highlight, languages } from 'prismjs';
+import Alert from "@mui/material/Alert";
 import 'prismjs/components/prism-ini';
 
 import dayjs from "dayjs";
@@ -251,7 +252,7 @@ function EditableCodeDiv() {
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         <div>
           <LoadingButton
-            style={{ margin: "5px 12px 5px 12px", textTransform: 'none' }}
+            sx={{ margin: "5px 12px 5px 12px", textTransform: 'none' }}
             color="primary"
             variant="contained"
             onClick={saveCurrentCode}
@@ -262,7 +263,7 @@ function EditableCodeDiv() {
           >
             {state.timestamp_ix === 0 ? "Save" : "Revert"}
           </LoadingButton>
-          <p style={{ marginLeft: 12 }}>{state.isError ? <Box color="error.main">{state.errorMsg}</Box> : ""}</p>
+          <Box sx={{ ml: 1, my: 1 }}>{state.isError ? <Alert severity="error">{state.errorMsg}</Alert> : ""}</Box>
         </div>
       </div>
       <Snackbar

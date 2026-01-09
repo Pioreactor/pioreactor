@@ -611,8 +611,6 @@ function LeaderJobs(){
       if (!response.ok) {
         throw new Error(`Failed to stop job ${jobName}: ${response.statusText}`);
       }
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      await runPioreactorJobViaUnitAPI(jobName);
     } catch (error) {
       console.error(`Error restarting job ${jobName}:`, error);
     } finally {
@@ -834,9 +832,7 @@ function ClusterClockCard({leaderHostname}){
         )}
 
         {error && (
-          <Typography variant="body1" color="error">
-            {error}
-          </Typography>
+          <Alert severity="error">{error}</Alert>
         )}
 
         {!loading && !error && clockData && (

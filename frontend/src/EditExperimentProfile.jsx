@@ -7,6 +7,7 @@ import Button from "@mui/material/Button";
 import {Typography} from '@mui/material';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Alert from '@mui/material/Alert';
 import CardContent from '@mui/material/CardContent';
 import SaveIcon from '@mui/icons-material/Save';
 import TextField from '@mui/material/TextField';
@@ -171,7 +172,7 @@ const EditExperimentProfilesContent = ({ initialCode, profileFilename }) => {
               >
                 Save
               </Button>
-              <p style={{ marginLeft: "10px" }}>{isError ? <Box color="error.main">{errorMsg}</Box> : ""}</p>
+              <Box sx={{ ml: 0.7, mt: 1 }}>{isError ? <Alert severity="error">{errorMsg}</Alert> : ""}</Box>
             </div>
           </div>
         </Grid>
