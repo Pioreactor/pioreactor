@@ -149,7 +149,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
     }
 
     const width = Number(clonedSvg.getAttribute("width")) || svgElement.clientWidth || 1050;
-    const height = Number(clonedSvg.getAttribute("height")) || svgElement.clientHeight || 350;
+    const height = Number(clonedSvg.getAttribute("height")) || svgElement.clientHeight || 325;
     const scaleFactor = 2;
 
     const url = URL.createObjectURL(svgBlob);
@@ -204,7 +204,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
     <div ref={chartContainerRef} style={{ position: "relative" }}>
       <VictoryChart
         domainPadding={10}
-        height={350}
+        height={325}
         width={1050}
         theme={VictoryTheme.material}
         padding={{ left: 50, right: 50, bottom: 40, top: 45 }}
@@ -333,13 +333,22 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
 
           // Simple color selection (optional)
           const color = unitsColorMap[cal.pioreactor_unit + cal.calibration_name] || "black";
+          const isActive = cal.is_active;
+          const baseLineWidth = isActive ? 3 : 1.5;
+          const lineOpacity = isActive ? 1.0 : 0.8;
 
           return (
               <VictoryLine
                 key={cal.calibration_name || index}
-                interpolation='basis'
+                interpolation="basis"
                 data={polynomialData}
-                style={{ data: { stroke: color, strokeWidth: isHighlighted(cal) ? 4 : 1.5 } }}
+                style={{
+                  data: {
+                    stroke: color,
+                    strokeWidth: isHighlighted(cal) ? 4 : baseLineWidth,
+                    opacity: lineOpacity,
+                  },
+                }}
               />
           );
         })}

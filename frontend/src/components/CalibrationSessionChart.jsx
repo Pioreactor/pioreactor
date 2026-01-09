@@ -58,7 +58,7 @@ export default function CalibrationSessionChart({ chart }) {
   const yLabel = chart.y_label || "Y";
 
   return (
-    <Box sx={{ width: "100%", overflow: "hidden" }}>
+    <Box sx={{ width: "100%", overflow: "hidden", mb: 0.5 }}>
       <VictoryChart
         domainPadding={10}
         height={height}

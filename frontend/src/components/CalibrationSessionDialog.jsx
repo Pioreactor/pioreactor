@@ -439,9 +439,9 @@ export default function CalibrationSessionDialog({
             </Stack>
           )}
           {sessionResult?.calibrations && Array.isArray(sessionResult.calibrations) && unit && (
-            <Stack direction="row" spacing={0} sx={{ flexWrap: "wrap" }}>
+            <Stack direction="column" spacing={0} sx={{ flexWrap: "wrap" }}>
               {sessionResult.calibrations.map((calibration) => (
-                <Chip
+                <Box> View <Chip
                   key={`${calibration.device}-${calibration.calibration_name}`}
                   size="small"
                   icon={<TuneIcon />}
@@ -450,7 +450,8 @@ export default function CalibrationSessionDialog({
                   sx={{my: 1}}
                   to={`/calibrations/${unit}/${calibration.device}/${calibration.calibration_name}`}
                   label={`${calibration.calibration_name}`}
-                />
+                  />
+                </Box>
               ))}
             </Stack>
           )}
