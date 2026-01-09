@@ -154,11 +154,11 @@ def _execute_calibration_action(action: str, payload: dict[str, object]) -> dict
             _optional_float_from_payload(payload, "max_dc"),
         )
         try:
-            calibration = task(blocking=True, timeout=300)
+            calibration_payload = task(blocking=True, timeout=300)
         except HueyException as exc:
             raise ValueError("Stirring calibration timed out.") from exc
-        _raise_if_task_failed(calibration, "Stirring calibration failed.")
-        return calibration
+        _raise_if_task_failed(calibration_payload, "Stirring calibration failed.")
+        return calibration_payload
 
     if action == "read_voltage":
         task = tasks.calibration_read_voltage()

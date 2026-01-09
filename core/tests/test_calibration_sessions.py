@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Generator
 
 import pytest
 from pioreactor.calibrations.session_flow import fields
@@ -20,7 +20,7 @@ from pioreactor.utils import local_persistent_storage
 
 
 @pytest.fixture(autouse=True)
-def clear_calibration_sessions() -> Iterator[None]:
+def clear_calibration_sessions() -> Generator[None, None, None]:
     with local_persistent_storage("calibration_sessions") as store:
         for key in list(store.iterkeys()):
             del store[key]

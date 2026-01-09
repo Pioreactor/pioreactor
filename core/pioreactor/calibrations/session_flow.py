@@ -167,10 +167,16 @@ class SessionContext:
         self.session.result = result
         self.session.step_id = "complete"
 
-    def store_calibration(self, calibration, device: str) -> dict[str, str | None]:
+    def store_calibration(
+        self,
+        calibration,
+        device: str,
+        saved_path: str | None = None,
+    ) -> dict[str, str | None]:
         self.collected_calibrations.append(calibration)
         if self.mode == "ui":
-            path = calibration.save_to_disk_for_device(device)
+            path = saved_path or calibration.save_to_disk_for_device(device)
+            calibration.set_as_active_calibration_for_device(device)
         else:
             path = None
         return {"device": device, "calibration_name": calibration.calibration_name, "path": path}

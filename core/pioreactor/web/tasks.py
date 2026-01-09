@@ -23,7 +23,6 @@ from typing import Any
 from typing import cast
 
 from msgspec import DecodeError
-from msgspec import to_builtins
 from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.config import config as pioreactor_config
@@ -393,10 +392,10 @@ def calibration_reference_standard_read(ir_led_intensity: float) -> dict[str, di
 
 @huey.task()
 def calibration_run_stirring(min_dc: float | None, max_dc: float | None) -> dict[str, object]:
-    from pioreactor.calibrations.protocols.stirring_dc_based import run_stirring_calibration
+    from pioreactor.calibrations.protocols.stirring_dc_based import collect_stirring_measurements
 
-    calibration = run_stirring_calibration(min_dc=min_dc, max_dc=max_dc)
-    return to_builtins(calibration)
+    dcs, rpms = collect_stirring_measurements(min_dc=min_dc, max_dc=max_dc)
+    return {"dcs": dcs, "rpms": rpms}
 
 
 @huey.task()
