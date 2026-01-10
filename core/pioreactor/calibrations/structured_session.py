@@ -71,13 +71,3 @@ def delete_calibration_session(session_id: str) -> None:
     with local_persistent_storage("calibration_sessions") as store:
         if session_id in store:
             del store[session_id]
-
-
-def abort_calibration_session(session_id: str, reason: str = "Calibration aborted by user.") -> None:
-    session = load_calibration_session(session_id)
-    if session is None:
-        return
-    session.status = "aborted"
-    session.error = reason
-    session.updated_at = utc_iso_timestamp()
-    save_calibration_session(session)

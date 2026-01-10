@@ -9,7 +9,6 @@ from pioreactor.calibrations.session_flow import SessionContext
 from pioreactor.calibrations.session_flow import SessionEngine
 from pioreactor.calibrations.session_flow import SessionInputs
 from pioreactor.calibrations.session_flow import steps
-from pioreactor.calibrations.structured_session import abort_calibration_session
 from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.calibrations.structured_session import CalibrationStep
 from pioreactor.calibrations.structured_session import delete_calibration_session
@@ -56,7 +55,10 @@ def test_save_load_abort_delete_session() -> None:
     assert loaded.status == "in_progress"
 
     previous_updated_at = loaded.updated_at
-    abort_calibration_session(session.session_id, reason="Stop.")
+    session.status = "aborted"
+    session.error = "Stop."
+    session.updated_at = utc_iso_timestamp()
+    save_calibration_session(session)
     aborted = load_calibration_session(session.session_id)
     assert aborted is not None
     assert aborted.status == "aborted"

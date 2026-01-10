@@ -1,0 +1,238 @@
+# -*- coding: utf-8 -*-
+from __future__ import annotations
+
+from typing import Any
+
+from flask import Blueprint
+from flask import jsonify
+from flask import request
+from flask.typing import ResponseReturnValue
+from huey.exceptions import HueyException
+from huey.exceptions import TaskException
+from msgspec import to_builtins
+from pioreactor import types as pt
+from pioreactor.calibrations.protocols.od_reference_standard import advance_reference_standard_session
+from pioreactor.calibrations.protocols.od_reference_standard import get_reference_standard_step
+from pioreactor.calibrations.protocols.od_reference_standard import start_reference_standard_session
+from pioreactor.calibrations.protocols.od_standards import advance_standards_session
+from pioreactor.calibrations.protocols.od_standards import get_standards_step
+from pioreactor.calibrations.protocols.od_standards import start_standards_session
+from pioreactor.calibrations.protocols.pump_duration_based import advance_duration_based_session
+from pioreactor.calibrations.protocols.pump_duration_based import get_duration_based_step
+from pioreactor.calibrations.protocols.pump_duration_based import start_duration_based_session
+from pioreactor.calibrations.protocols.stirring_dc_based import advance_dc_based_session
+from pioreactor.calibrations.protocols.stirring_dc_based import get_dc_based_step
+from pioreactor.calibrations.protocols.stirring_dc_based import start_dc_based_session
+from pioreactor.calibrations.structured_session import load_calibration_session
+from pioreactor.calibrations.structured_session import save_calibration_session
+from pioreactor.calibrations.structured_session import utc_iso_timestamp
+from pioreactor.web import tasks
+from pioreactor.web.utils import abort_with
+
+
+def _execute_calibration_action(action: str, payload: dict[str, Any]) -> dict[str, Any]:
+    if action == "pump":
+        task = tasks.calibration_execute_pump(
+            payload["pump_device"],
+            float(payload["duration_s"]),
+            float(payload["hz"]),
+            float(payload["dc"]),
+        )
+        try:
+            success = task(blocking=True, timeout=300)
+        except TaskException as exc:
+            raise ValueError(f"Pump action failed: {exc}") from exc
+        except HueyException as exc:
+            raise ValueError("Pump action timed out.") from exc
+        if not success:
+            raise ValueError("Pump action failed.")
+        return {}
+
+    if action == "od_standards_measure":
+        task = tasks.calibration_measure_standard(
+            float(payload["rpm"]),
+            payload["channel_angle_map"],
+        )
+        try:
+            voltages = task(blocking=True, timeout=300)
+        except TaskException as exc:
+            raise ValueError(f"OD measurement failed: {exc}") from exc
+        except HueyException as exc:
+            raise ValueError("OD measurement timed out.") from exc
+        return {"voltages": voltages}
+
+    if action == "od_reference_standard_read":
+        task = tasks.calibration_reference_standard_read(float(payload["ir_led_intensity"]))
+        try:
+            readings = task(blocking=True, timeout=300)
+        except TaskException as exc:
+            raise ValueError(f"Reference standard reading failed: {exc}") from exc
+        except HueyException as exc:
+            raise ValueError("Reference standard reading timed out.") from exc
+        return {"od_readings": readings}
+
+    if action == "stirring_calibration":
+        task = tasks.calibration_run_stirring(
+            float(payload["min_dc"]) if (payload.get("min_dc") is not None) else None,
+            float(payload["max_dc"]) if (payload.get("max_dc") is not None) else None,
+        )
+        try:
+            calibration_payload = task(blocking=True, timeout=300)
+        except TaskException as exc:
+            raise ValueError(f"Stirring calibration failed: {exc}") from exc
+        except HueyException as exc:
+            raise ValueError("Stirring calibration timed out.") from exc
+        return calibration_payload
+
+    if action == "read_voltage":
+        task = tasks.calibration_read_voltage()
+        try:
+            voltage = task(blocking=True, timeout=30)
+        except TaskException as exc:
+            raise ValueError(f"Voltage read failed: {exc}") from exc
+        except HueyException as exc:
+            raise ValueError("Voltage read timed out.") from exc
+        return {"voltage": float(voltage)}
+
+    if action == "save_calibration":
+        task = tasks.calibration_save_calibration(
+            payload["device"],
+            payload["calibration"],
+        )
+        try:
+            result = task(blocking=True, timeout=300)
+        except TaskException as exc:
+            raise ValueError(f"Saving calibration failed: {exc}") from exc
+        except HueyException as exc:
+            raise ValueError("Saving calibration timed out.") from exc
+        return result
+
+    raise ValueError("Unknown calibration action.")
+
+
+def _get_calibration_step(session) -> Any:
+    if session.protocol_name == "duration_based":
+        return get_duration_based_step(session)
+    if session.protocol_name == "standards":
+        return get_standards_step(session)
+    if session.protocol_name == "od_reference_standard":
+        return get_reference_standard_step(session)
+    if session.protocol_name == "dc_based":
+        return get_dc_based_step(session)
+    abort_with(400, description="Unsupported protocol.")
+    return None
+
+
+def start_calibration_session() -> ResponseReturnValue:
+    body = request.get_json()
+    if body is None:
+        abort_with(400, description="Missing JSON payload.")
+
+    protocol_name = body.get("protocol_name")
+    target_device = body.get("target_device")
+    if not target_device:
+        abort_with(400, description="Missing 'target_device'.")
+
+    try:
+        if protocol_name == "duration_based":
+            if target_device not in pt.PUMP_DEVICES:
+                abort_with(400, description="Unsupported target device.")
+            session = start_duration_based_session(target_device)
+        elif protocol_name == "standards":
+            if target_device not in pt.OD_DEVICES:
+                abort_with(400, description="Unsupported target device.")
+            session = start_standards_session(target_device)
+        elif protocol_name == "od_reference_standard":
+            if target_device not in pt.OD_DEVICES:
+                abort_with(400, description="Unsupported target device.")
+            session = start_reference_standard_session(target_device)
+        elif protocol_name == "dc_based":
+            if target_device != "stirring":
+                abort_with(400, description="Unsupported target device.")
+            session = start_dc_based_session(target_device)
+        else:
+            abort_with(400, description="Unsupported protocol.")
+    except ValueError as exc:
+        abort_with(400, description=str(exc))
+
+    save_calibration_session(session)
+    step = _get_calibration_step(session)
+    step_payload = to_builtins(step) if step is not None else None
+    return jsonify({"session": to_builtins(session), "step": step_payload}), 201
+
+
+def get_calibration_session(session_id: str) -> ResponseReturnValue:
+    session = load_calibration_session(session_id)
+    if session is None:
+        abort_with(404, "Calibration session not found.")
+    step = _get_calibration_step(session)
+    step_payload = to_builtins(step) if step is not None else None
+    return jsonify({"session": to_builtins(session), "step": step_payload}), 200
+
+
+def abort_calibration_session_route(session_id: str) -> ResponseReturnValue:
+    session = load_calibration_session(session_id)
+    if session is None:
+        abort_with(404, "Calibration session not found.")
+
+    session.status = "aborted"
+    session.error = "Calibration aborted by user."
+    session.updated_at = utc_iso_timestamp()
+    save_calibration_session(session)
+    step = _get_calibration_step(session)
+    step_payload = to_builtins(step) if step is not None else None
+    return jsonify({"session": to_builtins(session), "step": step_payload}), 200
+
+
+def advance_calibration_session(session_id: str) -> ResponseReturnValue:
+    session = load_calibration_session(session_id)
+    if session is None:
+        abort_with(404, "Calibration session not found.")
+
+    body = request.get_json()
+    if body is None:
+        abort_with(400, description="Missing JSON payload.")
+
+    inputs = body.get("inputs", {})
+    if not isinstance(inputs, dict):
+        abort_with(400, description="Invalid inputs payload.")
+
+    try:
+        if session.protocol_name == "duration_based":
+            session = advance_duration_based_session(session, inputs, executor=_execute_calibration_action)
+        elif session.protocol_name == "standards":
+            session = advance_standards_session(session, inputs, executor=_execute_calibration_action)
+        elif session.protocol_name == "od_reference_standard":
+            session = advance_reference_standard_session(
+                session, inputs, executor=_execute_calibration_action
+            )
+        elif session.protocol_name == "dc_based":
+            session = advance_dc_based_session(session, inputs, executor=_execute_calibration_action)
+        else:
+            abort_with(400, description="Unsupported protocol.")
+    except ValueError as exc:
+        abort_with(400, description=str(exc))
+
+    save_calibration_session(session)
+    step = _get_calibration_step(session)
+    return (
+        jsonify({"session": to_builtins(session), "step": to_builtins(step) if step is not None else None}),
+        200,
+    )
+
+
+def register_calibration_session_routes(unit_api_bp: Blueprint) -> None:
+    unit_api_bp.add_url_rule("/calibrations/sessions", view_func=start_calibration_session, methods=["POST"])
+    unit_api_bp.add_url_rule(
+        "/calibrations/sessions/<session_id>", view_func=get_calibration_session, methods=["GET"]
+    )
+    unit_api_bp.add_url_rule(
+        "/calibrations/sessions/<session_id>/abort",
+        view_func=abort_calibration_session_route,
+        methods=["POST"],
+    )
+    unit_api_bp.add_url_rule(
+        "/calibrations/sessions/<session_id>/inputs",
+        view_func=advance_calibration_session,
+        methods=["POST"],
+    )

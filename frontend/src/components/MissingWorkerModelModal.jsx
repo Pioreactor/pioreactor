@@ -238,7 +238,7 @@ const MissingWorkerModelModal = ({ triggerCheckKey = 0 }) => {
                   <Typography variant="subtitle1" sx={{ fontWeight: 400 }}>
                      <PioreactorIcon fontSize="small" sx={{verticalAlign: "middle"}}/> {worker.pioreactor_unit}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  <Typography variant="body2"  sx={{ mb: 1 }}>
                     Model information missing. Choose a model to proceed.
                   </Typography>
                   <FormControl required sx={{minWidth: "195px", maxWidth: "400px"}} variant="outlined" size="small">

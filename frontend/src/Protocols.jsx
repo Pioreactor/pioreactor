@@ -44,7 +44,7 @@ function ProtocolCard({
           <Box component="ul" sx={{ mt: 1, mb: 0, pl: 2 }}>
             {protocol.requirements.map((item) => (
               <li key={item}>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" >
                   {item}
                 </Typography>
               </li>
@@ -262,7 +262,7 @@ function Protocols(props) {
         ))}
       </Grid>
       <Box sx={{ textAlign: "center", mt: 3 }}>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2">
           Learn more about{" "}
           <a
             href="https://docs.pioreactor.com/user-guide/hardware-calibrations"
