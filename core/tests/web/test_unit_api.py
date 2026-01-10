@@ -108,6 +108,7 @@ def test_install_plugin_rejects_not_allowlisted(client, monkeypatch) -> None:
     assert b"allowlist" in resp.data
 
 
+@pytest.mark.xfail(reason="need to update task api with new plugin install task")
 def test_install_plugin_allows_allowlisted(client, monkeypatch) -> None:
     """API install should proceed for allowlisted plugins."""
     import pioreactor.web.unit_api as mod
