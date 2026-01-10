@@ -1,35 +1,32 @@
 ### Upcoming
 
+#### Highligts
+
+ - Perform calibrations in the UI!
+
 #### Enhancements
 
+ - Support for Pioreactor XR
+ - Support for Optics calibration jig
+ - faster Stop commands in the UI, listing plugins, and exporting data
  - new events in the dosing_automation_events table & export detailing when dosing starts and stops.
  - new query pattern for faster Experiment Overview chart loading. However, there is a random element to what data is displayed in a time series for large datasets. Let us know if this is too distracting.
- - support for the new Optics Standard Reference.
  - OD calibrations now support multiple photodiode angles; `pio calibrations run --device od` can emit per-angle calibrations for 45/90/135.
    - Added an update helper to migrate legacy OD calibrations into per-angle devices.
- - added calibration protocol execution UI with device/unit selection, MQTT-backed state, and a direct link to device-specific calibrations.
- - added API endpoints to run calibration protocols via the web UI (`/api/workers/<unit>/calibrations/protocols/run` and `/unit_api/calibrations/protocols/run`).
- - updated Self-test dialog action buttons to match the new protocol run button styling.
  - reorganized calibration protocol modules into `core/pioreactor/calibrations/protocols/` and extracted a `registry.py` for protocol registration.
-
-#### Bug fixes
-
- - enforce protocol name for calibration protocol runs to prevent non-interactive CLI prompts.
-
-### To test still
- - new self tests `pio run self_test -k optical_reference_standard`
- - new self-test pattern on Inventory page
 
 #### Breaking changes
  - Moved Self-test to Inventory page. Pioreactors no longer need to be assigned to an experiment to run self-test.
  - Removed `/api/workers/<pioreactor_unit>/configuration`; use `/api/units/<pioreactor_unit>/configuration`.
  - self-test logs are now part of "$experiment"
  - calibration flow modules were merged into protocol modules; old import paths like `pioreactor.calibrations.pump_calibration` and `pioreactor.calibrations.od_calibration_*` are removed.
+ - removed experimental pump-detection failure from chemostat and turbidostat
+ - OD calibration devices are now per-angle (`od45`, `od90`, `od135`) instead of just `od`. Physically, this changes the calibration directory in `~/.pioreactor/storage/calibrations/od` to  `~/.pioreactor/storage/calibrations/{od45,od90,od135}`. Existing `od` calibration files and active calibrations are migrated during the update.
 
 #### Bug Fixes
 
- - fix logging prematurely closing for self-tests
- - OD calibration devices are now per-angle (`od45`, `od90`, `od135`) instead of just `od`. Physically, this changes the calibration directory in `~/.pioreactor/storage/calibrations/od` to  `~/.pioreactor/storage/calibrations/{od45,od90,od135}`. Existing `od` calibration files and active calibrations are migrated during the update.
+ - Fix logging prematurely closing for self-tests
+ - Fix floating point error at the boundary of OD calibrations
 
 ### 25.12.10
 
