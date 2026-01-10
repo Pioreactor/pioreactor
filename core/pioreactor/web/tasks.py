@@ -159,16 +159,27 @@ def filter_to_allowed_env(env: dict):
     return {k: v for k, v in env.items() if k in ALLOWED_ENV and v is not None and v != "" and v != "None"}
 
 
-def _process_delayed_json_response(unit: str, response: Response) -> tuple[str, Any]:
+def _process_delayed_json_response(
+    unit: str,
+    response: Response,
+    *,
+    max_attempts: int = 50,
+    retry_sleep_s: float = 0.1,
+) -> tuple[str, Any]:
     """
     Handle delayed HTTP responses (202 with result_url_path) and immediate 200 responses.
     Returns the unit and the appropriate JSON data or result value.
     """
     data = response.json()
     if response.status_code == 202 and "result_url_path" in data:
-        sleep(0.1)
-        return _get_from_unit(unit, data["result_url_path"])
+        # Follow up shortly on async responses where the unit returns a result URL.
+        if max_attempts <= 0:
+            return unit, None
+        sleep(retry_sleep_s)
+        return _get_from_unit(unit, data["result_url_path"], max_attempts=max_attempts - 1)
     if response.status_code == 200:
+        # Normalize immediate responses: unwrap Huey-style payloads to just the result,
+        # otherwise return the full JSON body for non-task responses.
         if "task_id" in data:
             return unit, data["result"]
         else:
@@ -785,7 +796,12 @@ def get_from_unit(
 
 
 def _get_from_unit(
-    unit: str, endpoint: str, json: dict | None = None, timeout=5.0, return_raw=False
+    unit: str,
+    endpoint: str,
+    json: dict | None = None,
+    timeout=5.0,
+    return_raw=False,
+    max_attempts: int = 30,
 ) -> tuple[str, Any]:
     try:
         address = resolve_to_address(unit)
@@ -797,7 +813,7 @@ def _get_from_unit(
             return unit, r.content or None
 
         # delayed or immediate JSON response
-        return _process_delayed_json_response(unit, r)
+        return _process_delayed_json_response(unit, r, max_attempts=max_attempts)
 
     except (HTTPErrorStatus, HTTPException) as e:
         logger.debug(
