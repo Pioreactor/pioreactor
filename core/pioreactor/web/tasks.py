@@ -163,7 +163,7 @@ def _process_delayed_json_response(
     unit: str,
     response: Response,
     *,
-    max_attempts: int = 50,
+    max_attempts: int = 60,
     retry_sleep_s: float = 0.1,
 ) -> tuple[str, Any]:
     """
@@ -801,7 +801,7 @@ def _get_from_unit(
     json: dict | None = None,
     timeout=5.0,
     return_raw=False,
-    max_attempts: int = 30,
+    max_attempts: int = 60,
 ) -> tuple[str, Any]:
     try:
         address = resolve_to_address(unit)
