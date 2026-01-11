@@ -165,7 +165,7 @@ def run_calibration(ctx, device: str, protocol_name: str | None, y: bool) -> Non
     click.echo()
     for calibration, calibration_device, out_file in output_rows:
         click.echo(
-            f"Calibration '{calibration.calibration_name}' of device '{calibration_device}' saved to {out_file} ✅"
+            f"Calibration '{calibration.calibration_name}' of device '{calibration_device}' saved to {out_file}"
         )
 
 

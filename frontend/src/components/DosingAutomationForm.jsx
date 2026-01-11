@@ -5,6 +5,7 @@ import Typography from "@mui/material/Typography";
 import InputAdornment from "@mui/material/InputAdornment";
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import IconButton from '@mui/material/IconButton';
+import Alert from "@mui/material/Alert";
 import UnderlineSpan from "./UnderlineSpan";
 
 function DosingAutomationForm(props) {
@@ -18,9 +19,9 @@ function DosingAutomationForm(props) {
 
   const checkForWarnings = (id, value) => {
     if (id === "initial_volume_ml" && value > threshold) {
-      setWarning(`⚠️ Initial volume exceeds safe maximum of ${threshold} mL.`);
+      setWarning(`Initial volume exceeds safe maximum of ${threshold} mL.`);
     } else if (id === "max_working_volume_ml" && value > threshold) {
-      setWarning(`⚠️ Max working volume exceeds safe maximum of ${threshold} mL.`);
+      setWarning(`Max working volume exceeds safe maximum of ${threshold} mL.`);
     } else {
       setWarning(""); // clear warning
     }
@@ -113,9 +114,9 @@ function DosingAutomationForm(props) {
       </IconButton>
 
       {warning && (
-        <Typography variant="body2" color="error" sx={{ mt: 2 }}>
+        <Alert severity="warning" sx={{ mt: 2 }}>
           {warning}
-        </Typography>
+        </Alert>
       )}
     </div>
   );

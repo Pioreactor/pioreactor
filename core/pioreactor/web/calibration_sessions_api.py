@@ -10,19 +10,10 @@ from flask.typing import ResponseReturnValue
 from huey.exceptions import HueyException
 from huey.exceptions import TaskException
 from msgspec import to_builtins
-from pioreactor import types as pt
-from pioreactor.calibrations.protocols.od_reference_standard import advance_reference_standard_session
-from pioreactor.calibrations.protocols.od_reference_standard import get_reference_standard_step
-from pioreactor.calibrations.protocols.od_reference_standard import start_reference_standard_session
-from pioreactor.calibrations.protocols.od_standards import advance_standards_session
-from pioreactor.calibrations.protocols.od_standards import get_standards_step
-from pioreactor.calibrations.protocols.od_standards import start_standards_session
-from pioreactor.calibrations.protocols.pump_duration_based import advance_duration_based_session
-from pioreactor.calibrations.protocols.pump_duration_based import get_duration_based_step
-from pioreactor.calibrations.protocols.pump_duration_based import start_duration_based_session
-from pioreactor.calibrations.protocols.stirring_dc_based import advance_dc_based_session
-from pioreactor.calibrations.protocols.stirring_dc_based import get_dc_based_step
-from pioreactor.calibrations.protocols.stirring_dc_based import start_dc_based_session
+from pioreactor.calibrations.registry import get_protocol
+from pioreactor.calibrations.registry import get_protocol_for_session
+from pioreactor.calibrations.session_flow import advance_session
+from pioreactor.calibrations.session_flow import get_session_step
 from pioreactor.calibrations.structured_session import load_calibration_session
 from pioreactor.calibrations.structured_session import save_calibration_session
 from pioreactor.calibrations.structured_session import utc_iso_timestamp
@@ -110,17 +101,17 @@ def _execute_calibration_action(action: str, payload: dict[str, Any]) -> dict[st
     raise ValueError("Unknown calibration action.")
 
 
+def _get_step_registry(protocol) -> Any:
+    step_registry = getattr(protocol, "step_registry", None)
+    if step_registry is None:
+        abort_with(400, description="Protocol does not define a step registry.")
+    return step_registry
+
+
 def _get_calibration_step(session) -> Any:
-    if session.protocol_name == "duration_based":
-        return get_duration_based_step(session)
-    if session.protocol_name == "standards":
-        return get_standards_step(session)
-    if session.protocol_name == "od_reference_standard":
-        return get_reference_standard_step(session)
-    if session.protocol_name == "dc_based":
-        return get_dc_based_step(session)
-    abort_with(400, description="Unsupported protocol.")
-    return None
+    protocol = get_protocol_for_session(session)
+    step_registry = _get_step_registry(protocol)
+    return get_session_step(step_registry, session)
 
 
 def start_calibration_session() -> ResponseReturnValue:
@@ -132,27 +123,18 @@ def start_calibration_session() -> ResponseReturnValue:
     target_device = body.get("target_device")
     if not target_device:
         abort_with(400, description="Missing 'target_device'.")
+    if not protocol_name:
+        abort_with(400, description="Missing 'protocol_name'.")
 
     try:
-        if protocol_name == "duration_based":
-            if target_device not in pt.PUMP_DEVICES:
-                abort_with(400, description="Unsupported target device.")
-            session = start_duration_based_session(target_device)
-        elif protocol_name == "standards":
-            if target_device not in pt.OD_DEVICES:
-                abort_with(400, description="Unsupported target device.")
-            session = start_standards_session(target_device)
-        elif protocol_name == "od_reference_standard":
-            if target_device not in pt.OD_DEVICES:
-                abort_with(400, description="Unsupported target device.")
-            session = start_reference_standard_session(target_device)
-        elif protocol_name == "dc_based":
-            if target_device != "stirring":
-                abort_with(400, description="Unsupported target device.")
-            session = start_dc_based_session(target_device)
-        else:
-            abort_with(400, description="Unsupported protocol.")
+        protocol = get_protocol(target_device, protocol_name)
+        start_session = getattr(protocol, "start_session", None)
+        if start_session is None:
+            abort_with(400, description="Protocol does not support sessions.")
+        session = start_session(target_device)
     except ValueError as exc:
+        abort_with(400, description=str(exc))
+    except KeyError as exc:
         abort_with(400, description=str(exc))
 
     save_calibration_session(session)
@@ -198,19 +180,12 @@ def advance_calibration_session(session_id: str) -> ResponseReturnValue:
         abort_with(400, description="Invalid inputs payload.")
 
     try:
-        if session.protocol_name == "duration_based":
-            session = advance_duration_based_session(session, inputs, executor=_execute_calibration_action)
-        elif session.protocol_name == "standards":
-            session = advance_standards_session(session, inputs, executor=_execute_calibration_action)
-        elif session.protocol_name == "od_reference_standard":
-            session = advance_reference_standard_session(
-                session, inputs, executor=_execute_calibration_action
-            )
-        elif session.protocol_name == "dc_based":
-            session = advance_dc_based_session(session, inputs, executor=_execute_calibration_action)
-        else:
-            abort_with(400, description="Unsupported protocol.")
+        protocol = get_protocol_for_session(session)
+        step_registry = _get_step_registry(protocol)
+        session = advance_session(step_registry, session, inputs, executor=_execute_calibration_action)
     except ValueError as exc:
+        abort_with(400, description=str(exc))
+    except KeyError as exc:
         abort_with(400, description=str(exc))
 
     save_calibration_session(session)

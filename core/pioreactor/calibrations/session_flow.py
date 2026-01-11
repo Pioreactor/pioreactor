@@ -9,18 +9,58 @@ from typing import Literal
 
 import click
 from msgspec import to_builtins
+from pioreactor.calibrations import cli_helpers
 from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.calibrations.structured_session import CalibrationStep
 from pioreactor.calibrations.structured_session import CalibrationStepField
 from pioreactor.calibrations.structured_session import save_calibration_session
 from pioreactor.calibrations.structured_session import utc_iso_timestamp
+from pioreactor.calibrations.utils import curve_to_callable
+from pioreactor.calibrations.utils import plot_data
 
 SessionMode = Literal["ui", "cli"]
-StepFlow = Callable[["SessionContext"], CalibrationStep]
 SessionExecutor = Callable[[str, dict[str, object]], dict[str, object]]
 Str = str
 Float = float
 Int = int
+
+
+class SessionStep:
+    step_id: str = ""
+
+    def render(self, ctx: "SessionContext") -> CalibrationStep:
+        raise NotImplementedError("Step must implement render().")
+
+    def advance(self, ctx: "SessionContext") -> "StepLike | None":
+        return None
+
+
+StepLike = str | SessionStep | type[SessionStep]
+StepRegistry = dict[str, type[SessionStep]]
+
+
+def _step_id_from(step: StepLike) -> str:
+    if isinstance(step, str):
+        return step
+    step_id = getattr(step, "step_id", None)
+    if not isinstance(step_id, str) or not step_id:
+        raise ValueError("Invalid step identifier.")
+    return step_id
+
+
+def resolve_step(registry: StepRegistry, step_id: str) -> SessionStep:
+    step_class = registry.get(step_id)
+    if step_class is None:
+        raise KeyError(f"Unknown step: {step_id}")
+    return step_class()
+
+
+def with_terminal_steps(step_registry: StepRegistry) -> StepRegistry:
+    return {
+        CalibrationComplete.step_id: CalibrationComplete,
+        CalibrationEnded.step_id: CalibrationEnded,
+        **step_registry,
+    }
 
 
 @dataclass
@@ -148,8 +188,8 @@ class SessionContext:
         return self.session.step_id
 
     @step.setter
-    def step(self, value: str) -> None:
-        self.session.step_id = value
+    def step(self, value: StepLike) -> None:
+        self.session.step_id = _step_id_from(value)
 
     @property
     def data(self) -> dict[str, Any]:
@@ -162,6 +202,12 @@ class SessionContext:
     def abort(self, message: str) -> None:
         self.session.status = "aborted"
         self.session.error = message
+        self.session.step_id = "ended"
+
+    def fail(self, message: str) -> None:
+        self.session.status = "failed"
+        self.session.error = message
+        self.session.step_id = "ended"
 
     def complete(self, result: dict[str, Any]) -> None:
         self.session.status = "complete"
@@ -200,16 +246,19 @@ class SessionContext:
             raise ValueError("Invalid voltage payload.")
         return float(value)
 
+    def goto(self, step: StepLike) -> None:
+        self.step = step
+
 
 class SessionEngine:
     def __init__(
         self,
-        flow: StepFlow,
+        step_registry: StepRegistry,
         session: CalibrationSession,
         mode: SessionMode,
         executor: SessionExecutor | None = None,
     ) -> None:
-        self.flow = flow
+        self.step_registry = step_registry
         self.ctx = SessionContext(
             session=session,
             mode=mode,
@@ -222,22 +271,48 @@ class SessionEngine:
     def session(self) -> CalibrationSession:
         return self.ctx.session
 
-    def get_step(self) -> CalibrationStep:
-        self.ctx.inputs = SessionInputs(None)
-        step = self.flow(self.ctx)
+    def _render_terminal_step(self) -> CalibrationStep:
+        if self.session.step_id == "complete" and "complete" in self.step_registry:
+            step_handler = resolve_step(self.step_registry, "complete")
+            step = step_handler.render(self.ctx)
+            if not step.step_id:
+                step.step_id = self.session.step_id
+            return step
+        if self.session.step_id == "ended" and "ended" in self.step_registry:
+            step_handler = resolve_step(self.step_registry, "ended")
+            step = step_handler.render(self.ctx)
+            if not step.step_id:
+                step.step_id = self.session.step_id
+            return step
+        if self.session.result is not None:
+            return steps.result(self.session.result)
+        return steps.info("Calibration ended", "This calibration session has ended.")
+
+    def _render_current_step(self) -> CalibrationStep:
+        step_handler = resolve_step(self.step_registry, self.session.step_id)
+        step = step_handler.render(self.ctx)
         if not step.step_id:
             step.step_id = self.session.step_id
         return step
 
+    def get_step(self) -> CalibrationStep:
+        self.ctx.inputs = SessionInputs(None)
+        if self.session.status != "in_progress":
+            return self._render_terminal_step()
+        return self._render_current_step()
+
     def advance(self, inputs: dict[str, object]) -> CalibrationStep:
         self.ctx.inputs = SessionInputs(inputs)
         self.session.updated_at = utc_iso_timestamp()
-        self.flow(self.ctx)
+        if self.session.status == "in_progress":
+            step_handler = resolve_step(self.step_registry, self.session.step_id)
+            next_step = step_handler.advance(self.ctx)
+            if next_step is not None:
+                self.ctx.goto(next_step)
         self.ctx.inputs = SessionInputs(None)
-        step = self.flow(self.ctx)
-        if not step.step_id:
-            step.step_id = self.session.step_id
-        return step
+        if self.session.status != "in_progress":
+            return self._render_terminal_step()
+        return self._render_current_step()
 
     def save(self) -> None:
         save_calibration_session(self.session)
@@ -341,59 +416,184 @@ fields = FieldBuilder()
 steps = StepBuilder()
 
 
-def run_session_in_cli(flow: StepFlow, session: CalibrationSession) -> list[Any]:
-    engine = SessionEngine(flow=flow, session=session, mode="cli")
+def _render_chart_for_cli(chart: dict[str, object]) -> None:
+    title = chart.get("title", "")
+    x_label = chart.get("x_label", "")
+    y_label = chart.get("y_label", "")
+    series = chart.get("series")
+    if not isinstance(series, list):
+        return
+    multiple_series = len(series) > 1
+    for entry in series:
+        if not isinstance(entry, dict):
+            continue
+        points = entry.get("points", [])
+        if not isinstance(points, list):
+            continue
+        x_vals: list[float] = []
+        y_vals: list[float] = []
+        for point in points:
+            if not isinstance(point, dict):
+                continue
+            x_val = point.get("x")
+            y_val = point.get("y")
+            if isinstance(x_val, (int, float)) and isinstance(y_val, (int, float)):
+                x_vals.append(float(x_val))
+                y_vals.append(float(y_val))
+        if not x_vals or not y_vals:
+            continue
+        entry_title = str(title) if isinstance(title, str) else ""
+        if multiple_series:
+            label = entry.get("label", entry.get("id", "series"))
+            entry_title = f"{entry_title} - {label}" if entry_title else str(label)
+        curve_callable = None
+        curve = entry.get("curve")
+        if isinstance(curve, dict):
+            curve_type = curve.get("type")
+            coeffs = curve.get("coefficients")
+            if curve_type == "poly" and isinstance(coeffs, list):
+                curve_callable = curve_to_callable(curve_type, coeffs)
+        plot_data(
+            x_vals,
+            y_vals,
+            entry_title or "Calibration progress",
+            str(x_label),
+            str(y_label),
+            interpolation_curve=curve_callable,
+            highlight_recent_point=True,
+        )
+
+
+def render_step_for_cli(step: CalibrationStep) -> None:
+    click.clear()
+    if step.title:
+        cli_helpers.info_heading(step.title)
+    if step.body:
+        if step.step_type == "action":
+            cli_helpers.action_block(step.body.splitlines())
+        else:
+            cli_helpers.info(step.body)
+    if step.metadata and isinstance(step.metadata, dict):
+        chart = step.metadata.get("chart")
+        if isinstance(chart, dict):
+            _render_chart_for_cli(chart)
+    click.echo()
+
+
+def run_session_in_cli(step_registry: StepRegistry, session: CalibrationSession) -> list[Any]:
+    engine = SessionEngine(step_registry=with_terminal_steps(step_registry), session=session, mode="cli")
     while engine.session.status == "in_progress":
         step = engine.get_step()
-        if step.title:
-            click.echo(step.title)
-        if step.body:
-            click.echo(step.body)
-        click.echo()
+        render_step_for_cli(step)
 
         inputs: dict[str, object] = {}
         if step.fields:
             for field in step.fields:
+                prompt = cli_helpers.green(field.label)
                 if field.field_type == "choice":
                     value = click.prompt(
-                        field.label,
+                        prompt,
                         type=click.Choice(field.options or []),
                         default=field.default,
                         show_default=field.default is not None,
+                        prompt_suffix=":",
                     )
                 elif field.field_type == "float":
                     value = click.prompt(
-                        field.label,
+                        prompt,
                         type=str,
                         default=field.default,
                         show_default=field.default is not None,
+                        prompt_suffix=":",
                     )
                 elif field.field_type == "int":
                     value = click.prompt(
-                        field.label,
+                        prompt,
                         type=str,
                         default=field.default,
                         show_default=field.default is not None,
+                        prompt_suffix=":",
                     )
                 elif field.field_type == "float_list":
                     value = click.prompt(
-                        field.label,
+                        prompt,
                         type=str,
                         default=",".join(str(v) for v in (field.default or [])),
                         show_default=field.default is not None,
+                        prompt_suffix=":",
                     )
                 elif field.field_type == "bool":
-                    value = click.confirm(field.label, default=bool(field.default))
+                    value = click.confirm(
+                        prompt,
+                        default=bool(field.default),
+                        prompt_suffix=":",
+                    )
                 else:
                     value = click.prompt(
-                        field.label,
+                        prompt,
                         type=str,
                         default=field.default,
                         show_default=field.default is not None,
+                        prompt_suffix=":",
                     )
                 inputs[field.name] = value
         else:
-            click.prompt("Press enter to continue", default="", show_default=False, prompt_suffix="")
+            click.prompt(
+                cli_helpers.green("Press enter to continue..."),
+                default="",
+                show_default=False,
+                prompt_suffix="",
+            )
         engine.advance(inputs)
 
     return engine.ctx.collected_calibrations
+
+
+class CalibrationComplete(SessionStep):
+    step_id = "complete"
+
+    def render(self, ctx: SessionContext) -> CalibrationStep:
+        return steps.result(ctx.session.result or {})
+
+
+class CalibrationEnded(SessionStep):
+    step_id = "ended"
+
+    def render(self, ctx: SessionContext) -> CalibrationStep:
+        status = ctx.session.status
+        message = "This calibration session has ended."
+        if status == "aborted":
+            message = ctx.session.error or "This calibration session was aborted."
+        elif status == "failed":
+            message = ctx.session.error or "This calibration session failed."
+        return steps.info("Calibration ended", message)
+
+
+def get_session_step(
+    step_registry: StepRegistry,
+    session: CalibrationSession,
+    executor: SessionExecutor | None = None,
+) -> CalibrationStep:
+    engine = SessionEngine(
+        step_registry=with_terminal_steps(step_registry),
+        session=session,
+        mode="ui",
+        executor=executor,
+    )
+    return engine.get_step()
+
+
+def advance_session(
+    step_registry: StepRegistry,
+    session: CalibrationSession,
+    inputs: dict[str, object],
+    executor: SessionExecutor | None = None,
+) -> CalibrationSession:
+    engine = SessionEngine(
+        step_registry=with_terminal_steps(step_registry),
+        session=session,
+        mode="ui",
+        executor=executor,
+    )
+    engine.advance(inputs)
+    return engine.session

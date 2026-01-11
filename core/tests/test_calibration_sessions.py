@@ -4,11 +4,17 @@ from __future__ import annotations
 from collections.abc import Generator
 
 import pytest
+from pioreactor import types as pt
+from pioreactor.calibrations.registry import get_protocol
+from pioreactor.calibrations.session_flow import CalibrationComplete
 from pioreactor.calibrations.session_flow import fields
 from pioreactor.calibrations.session_flow import SessionContext
 from pioreactor.calibrations.session_flow import SessionEngine
 from pioreactor.calibrations.session_flow import SessionInputs
+from pioreactor.calibrations.session_flow import SessionStep
+from pioreactor.calibrations.session_flow import StepRegistry
 from pioreactor.calibrations.session_flow import steps
+from pioreactor.calibrations.session_flow import with_terminal_steps
 from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.calibrations.structured_session import CalibrationStep
 from pioreactor.calibrations.structured_session import delete_calibration_session
@@ -95,22 +101,35 @@ def test_session_inputs_parsing() -> None:
 def test_session_engine_advances_and_completes() -> None:
     session = _build_session()
 
-    def flow(ctx: SessionContext) -> CalibrationStep:
-        if ctx.session.status != "in_progress":
-            if ctx.session.result is not None:
-                return steps.result(ctx.session.result)
-            return steps.info("Calibration ended", "This calibration session has ended.")
-        if ctx.step == "start":
-            ctx.step = "name"
+    class Start(SessionStep):
+        step_id = "start"
+
+        def render(self, ctx: SessionContext) -> CalibrationStep:
             return steps.form("Name", "Provide a name.", [fields.str("name")])
-        if ctx.step == "name":
+
+        def advance(self, ctx: SessionContext) -> SessionStep | None:
+            return Complete()
+
+    class Complete(SessionStep):
+        step_id = "name"
+
+        def render(self, ctx: SessionContext) -> CalibrationStep:
+            return steps.form("Confirm", "Confirm completion.", [fields.str("name")])
+
+        def advance(self, ctx: SessionContext) -> SessionStep | None:
             ctx.data["name"] = ctx.inputs.str("name")
             ctx.complete({"name": ctx.data["name"]})
-            return steps.result(ctx.session.result or {})
-        return steps.info("Unknown step", "This step is not recognized.")
+            return CalibrationComplete()
 
-    engine = SessionEngine(flow=flow, session=session, mode="ui")
+    registry: StepRegistry = {
+        Start.step_id: Start,
+        Complete.step_id: Complete,
+    }
+    engine = SessionEngine(step_registry=with_terminal_steps(registry), session=session, mode="ui")
     step = engine.get_step()
+    assert step.step_type == "form"
+
+    step = engine.advance({})
     assert step.step_type == "form"
 
     step = engine.advance({"name": "Example"})
@@ -131,19 +150,56 @@ def test_read_voltage_requires_executor_in_ui() -> None:
         assert action == "read_voltage"
         return {"voltage": "3.3"}
 
-    def flow(ctx: SessionContext) -> CalibrationStep:
-        return steps.info("", "")
+    class Dummy(SessionStep):
+        step_id = "start"
 
-    engine = SessionEngine(flow=flow, session=session, mode="ui", executor=executor)
+        def render(self, ctx: SessionContext) -> CalibrationStep:
+            return steps.info("", "")
+
+    engine = SessionEngine(
+        step_registry=with_terminal_steps({Dummy.step_id: Dummy}),
+        session=session,
+        mode="ui",
+        executor=executor,
+    )
     assert engine.ctx.read_voltage() == pytest.approx(3.3)
 
 
 def test_read_voltage_not_available_in_cli() -> None:
     session = _build_session()
 
-    def flow(ctx: SessionContext) -> CalibrationStep:
-        return steps.info("", "")
+    class Dummy(SessionStep):
+        step_id = "start"
 
-    engine = SessionEngine(flow=flow, session=session, mode="cli")
+        def render(self, ctx: SessionContext) -> CalibrationStep:
+            return steps.info("", "")
+
+    engine = SessionEngine(
+        step_registry=with_terminal_steps({Dummy.step_id: Dummy}),
+        session=session,
+        mode="cli",
+    )
     with pytest.raises(ValueError):
         engine.ctx.read_voltage()
+
+
+def test_protocols_expose_step_registries_and_start_sessions() -> None:
+    pump_protocol = get_protocol(pt.PUMP_DEVICES[0], "duration_based")
+    assert isinstance(pump_protocol.step_registry, dict)
+    assert "intro_confirm_1" in pump_protocol.step_registry
+    assert callable(getattr(pump_protocol, "start_session", None))
+
+    standards_protocol = get_protocol(pt.OD_DEVICES[0], "standards")
+    assert isinstance(standards_protocol.step_registry, dict)
+    assert "intro" in standards_protocol.step_registry
+    assert callable(getattr(standards_protocol, "start_session", None))
+
+    reference_protocol = get_protocol(pt.OD_DEVICES[0], "od_reference_standard")
+    assert isinstance(reference_protocol.step_registry, dict)
+    assert "intro" in reference_protocol.step_registry
+    assert callable(getattr(reference_protocol, "start_session", None))
+
+    stirring_protocol = get_protocol("stirring", "dc_based")
+    assert isinstance(stirring_protocol.step_registry, dict)
+    assert "intro" in stirring_protocol.step_registry
+    assert callable(getattr(stirring_protocol, "start_session", None))

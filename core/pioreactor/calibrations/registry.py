@@ -32,3 +32,14 @@ class CalibrationProtocol(Generic[Device]):
 
     def run(self, target_device: Device) -> structs.CalibrationBase | list[structs.CalibrationBase]:
         raise NotImplementedError("Subclasses must implement this method.")
+
+
+def get_protocol(target_device: str, protocol_name: ProtocolName) -> type[CalibrationProtocol[Any]]:
+    device_protocols = calibration_protocols.get(target_device, {})
+    if protocol_name in device_protocols:
+        return device_protocols[protocol_name]
+    raise KeyError(f"Unknown protocol '{protocol_name}' for target device '{target_device}'.")
+
+
+def get_protocol_for_session(session) -> type[CalibrationProtocol[Any]]:
+    return get_protocol(session.target_device, session.protocol_name)

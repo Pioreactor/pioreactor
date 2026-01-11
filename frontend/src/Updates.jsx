@@ -16,6 +16,7 @@ import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import SystemUpdateAltIcon from '@mui/icons-material/SystemUpdateAlt';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useConfirm } from 'material-ui-confirm';
 import UnderlineSpan from "./components/UnderlineSpan";
 import SelectButton from "./components/SelectButton";
@@ -185,7 +186,14 @@ function UploadArchiveAndConfirm(props) {
 
             <Box sx={{display: "flex", justifyContent: "start", mt: 3}}>
               <Button variant="text" component="label" sx={{textTransform: 'none'}}>Upload zip file <VisuallyHiddenInput onChange={handleFileChange} accept=".zip" type="file" /></Button>
-              <Box sx={{m: 1, ml: 2}}>{selectedFile == null ? "" : `${selectedFile.name}  ✅`}</Box>
+              <Box sx={{m: 1, ml: 2, display: "flex", alignItems: "center", gap: 0.5}}>
+                {selectedFile == null ? "" : (
+                  <React.Fragment>
+                    <span>{selectedFile.name}</span>
+                    <CheckCircleIcon fontSize="small" sx={{ color: "success.main" }} />
+                  </React.Fragment>
+                )}
+              </Box>
             </Box>
             <Box sx={{minHeight: "30px", alignItems: "center", display: "flex"}}>
               {errorMsg   ? <Alert severity="error">{errorMsg}</Alert>           : <React.Fragment/>}
