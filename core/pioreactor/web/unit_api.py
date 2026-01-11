@@ -36,9 +36,9 @@ from pioreactor.web.app import HOSTNAME
 from pioreactor.web.app import publish_to_error_log
 from pioreactor.web.app import publish_to_log
 from pioreactor.web.app import query_temp_local_metadata_db
-from pioreactor.web.calibration_sessions_api import register_calibration_session_routes
 from pioreactor.web.config import huey
 from pioreactor.web.plugin_registry import registered_unit_api_routes
+from pioreactor.web.unit_calibration_sessions_api import register_calibration_session_routes
 from pioreactor.web.utils import abort_with
 from pioreactor.web.utils import attach_cache_control
 from pioreactor.web.utils import create_task_response

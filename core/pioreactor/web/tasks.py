@@ -1,4 +1,11 @@
 # -*- coding: utf-8 -*-
+"""
+Huey background tasks used by the web API, including calibration actions invoked
+from `core/pioreactor/web/unit_calibration_sessions_api.py` via the session executor.
+This module also hosts the calibration action registry that maps action names
+to Huey tasks so unit API handlers can dispatch without hardcoded strings.
+"""
+# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 import configparser
@@ -10,6 +17,7 @@ import pwd
 import shutil
 import stat
 import zipfile
+from collections.abc import Callable
 from pathlib import Path
 from shlex import join
 from subprocess import check_call
@@ -38,6 +46,30 @@ from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.web.config import huey
 from pioreactor.whoami import get_unit_name
+
+CalibrationActionHandler = tuple[
+    Any,
+    int,
+    str,
+    Callable[[Any], dict[str, Any]],
+]
+
+# Registry of calibration action -> handler that returns a Huey task, timeout, label, and normalizer.
+calibration_actions: dict[str, Callable[[dict[str, Any]], CalibrationActionHandler]] = {}
+
+
+def register_calibration_action(
+    action: str,
+    handler: Callable[[dict[str, Any]], CalibrationActionHandler],
+) -> None:
+    calibration_actions[action] = handler
+
+
+def get_calibration_action(action: str) -> Callable[[dict[str, Any]], CalibrationActionHandler]:
+    handler = calibration_actions.get(action)
+    if handler is None:
+        raise ValueError(f"Unknown calibration action: {action}")
+    return handler
 
 
 logger = create_logger(
@@ -428,6 +460,104 @@ def calibration_read_voltage() -> float:
     from pioreactor.hardware import voltage_in_aux
 
     return float(voltage_in_aux())
+
+
+def _default_normalizer(result: Any) -> dict[str, Any]:
+    if isinstance(result, dict):
+        return result
+    return {}
+
+
+def _voltage_normalizer(result: Any) -> dict[str, Any]:
+    return {"voltage": float(result)}
+
+
+def _voltages_normalizer(result: Any) -> dict[str, Any]:
+    return {"voltages": result}
+
+
+def _od_readings_normalizer(result: Any) -> dict[str, Any]:
+    return {"od_readings": result}
+
+
+def _stirring_normalizer(result: Any) -> dict[str, Any]:
+    if isinstance(result, dict):
+        return result
+    return {}
+
+
+def _register_core_calibration_actions() -> None:
+    register_calibration_action(
+        "pump",
+        lambda payload: (
+            calibration_execute_pump(
+                payload["pump_device"],
+                float(payload["duration_s"]),
+                float(payload["hz"]),
+                float(payload["dc"]),
+            ),
+            300,
+            "Pump action",
+            _default_normalizer,
+        ),
+    )
+    register_calibration_action(
+        "od_standards_measure",
+        lambda payload: (
+            calibration_measure_standard(
+                float(payload["rpm"]),
+                payload["channel_angle_map"],
+            ),
+            300,
+            "OD measurement",
+            _voltages_normalizer,
+        ),
+    )
+    register_calibration_action(
+        "od_reference_standard_read",
+        lambda payload: (
+            calibration_reference_standard_read(float(payload["ir_led_intensity"])),
+            300,
+            "Reference standard reading",
+            _od_readings_normalizer,
+        ),
+    )
+    register_calibration_action(
+        "stirring_calibration",
+        lambda payload: (
+            calibration_run_stirring(
+                float(payload["min_dc"]) if (payload.get("min_dc") is not None) else None,
+                float(payload["max_dc"]) if (payload.get("max_dc") is not None) else None,
+            ),
+            300,
+            "Stirring calibration",
+            _stirring_normalizer,
+        ),
+    )
+    register_calibration_action(
+        "read_voltage",
+        lambda payload: (
+            calibration_read_voltage(),
+            30,
+            "Voltage read",
+            _voltage_normalizer,
+        ),
+    )
+    register_calibration_action(
+        "save_calibration",
+        lambda payload: (
+            calibration_save_calibration(
+                payload["device"],
+                payload["calibration"],
+            ),
+            300,
+            "Saving calibration",
+            _default_normalizer,
+        ),
+    )
+
+
+_register_core_calibration_actions()
 
 
 @huey.task()

@@ -1,4 +1,13 @@
 # -*- coding: utf-8 -*-
+"""
+Calibration session HTTP API.
+
+Uses step registries from calibration protocols and dispatches hardware actions
+through Huey tasks defined in `core/pioreactor/web/tasks.py`.
+The unit API routes here for session start/advance/abort and invokes the
+calibration action executor to perform privileged hardware work.
+"""
+# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 from typing import Any
@@ -17,88 +26,20 @@ from pioreactor.calibrations.session_flow import get_session_step
 from pioreactor.calibrations.structured_session import load_calibration_session
 from pioreactor.calibrations.structured_session import save_calibration_session
 from pioreactor.calibrations.structured_session import utc_iso_timestamp
-from pioreactor.web import tasks
+from pioreactor.web.tasks import get_calibration_action
 from pioreactor.web.utils import abort_with
 
 
 def _execute_calibration_action(action: str, payload: dict[str, Any]) -> dict[str, Any]:
-    if action == "pump":
-        task = tasks.calibration_execute_pump(
-            payload["pump_device"],
-            float(payload["duration_s"]),
-            float(payload["hz"]),
-            float(payload["dc"]),
-        )
-        try:
-            success = task(blocking=True, timeout=300)
-        except TaskException as exc:
-            raise ValueError(f"Pump action failed: {exc}") from exc
-        except HueyException as exc:
-            raise ValueError("Pump action timed out.") from exc
-        if not success:
-            raise ValueError("Pump action failed.")
-        return {}
-
-    if action == "od_standards_measure":
-        task = tasks.calibration_measure_standard(
-            float(payload["rpm"]),
-            payload["channel_angle_map"],
-        )
-        try:
-            voltages = task(blocking=True, timeout=300)
-        except TaskException as exc:
-            raise ValueError(f"OD measurement failed: {exc}") from exc
-        except HueyException as exc:
-            raise ValueError("OD measurement timed out.") from exc
-        return {"voltages": voltages}
-
-    if action == "od_reference_standard_read":
-        task = tasks.calibration_reference_standard_read(float(payload["ir_led_intensity"]))
-        try:
-            readings = task(blocking=True, timeout=300)
-        except TaskException as exc:
-            raise ValueError(f"Reference standard reading failed: {exc}") from exc
-        except HueyException as exc:
-            raise ValueError("Reference standard reading timed out.") from exc
-        return {"od_readings": readings}
-
-    if action == "stirring_calibration":
-        task = tasks.calibration_run_stirring(
-            float(payload["min_dc"]) if (payload.get("min_dc") is not None) else None,
-            float(payload["max_dc"]) if (payload.get("max_dc") is not None) else None,
-        )
-        try:
-            calibration_payload = task(blocking=True, timeout=300)
-        except TaskException as exc:
-            raise ValueError(f"Stirring calibration failed: {exc}") from exc
-        except HueyException as exc:
-            raise ValueError("Stirring calibration timed out.") from exc
-        return calibration_payload
-
-    if action == "read_voltage":
-        task = tasks.calibration_read_voltage()
-        try:
-            voltage = task(blocking=True, timeout=30)
-        except TaskException as exc:
-            raise ValueError(f"Voltage read failed: {exc}") from exc
-        except HueyException as exc:
-            raise ValueError("Voltage read timed out.") from exc
-        return {"voltage": float(voltage)}
-
-    if action == "save_calibration":
-        task = tasks.calibration_save_calibration(
-            payload["device"],
-            payload["calibration"],
-        )
-        try:
-            result = task(blocking=True, timeout=300)
-        except TaskException as exc:
-            raise ValueError(f"Saving calibration failed: {exc}") from exc
-        except HueyException as exc:
-            raise ValueError("Saving calibration timed out.") from exc
-        return result
-
-    raise ValueError("Unknown calibration action.")
+    handler = get_calibration_action(action)
+    task, timeout_s, error_label, normalize = handler(payload)
+    try:
+        result = task(blocking=True, timeout=timeout_s)
+    except TaskException as exc:
+        raise ValueError(f"{error_label} failed: {exc}") from exc
+    except HueyException as exc:
+        raise ValueError(f"{error_label} timed out.") from exc
+    return normalize(result)
 
 
 def _get_step_registry(protocol) -> Any:

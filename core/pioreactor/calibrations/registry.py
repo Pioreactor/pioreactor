@@ -12,6 +12,7 @@ from pioreactor import structs
 Device = TypeVar("Device", bound=str)
 ProtocolName = str
 
+# Registry of device -> protocol name -> protocol class (populated via CalibrationProtocol subclasses).
 calibration_protocols: dict[str, dict[ProtocolName, type["CalibrationProtocol[Any]"]]] = defaultdict(dict)
 
 

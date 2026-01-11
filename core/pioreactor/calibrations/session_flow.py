@@ -36,6 +36,7 @@ class SessionStep:
 
 
 StepLike = str | SessionStep | type[SessionStep]
+# Registry of step_id -> SessionStep class for a protocol's session flow.
 StepRegistry = dict[str, type[SessionStep]]
 
 
