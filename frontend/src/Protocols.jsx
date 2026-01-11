@@ -17,6 +17,7 @@ import TuneIcon from "@mui/icons-material/Tune";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import CalibrationSessionDialog from "./components/CalibrationSessionDialog";
 import { fetchTaskResult } from "./utilities";
+import CircularProgress from "@mui/material/CircularProgress";
 
 function ProtocolCard({
   protocol,
@@ -304,9 +305,9 @@ function Protocols(props) {
             </Alert>
           )}
           {isLoadingProtocols && (
-            <Typography variant="body2" sx={{ mt: 2 }}>
-              Loading protocols...
-            </Typography>
+            <Box sx={{ textAlign: "center", mt: 2 }}>
+              <CircularProgress size={28} />
+            </Box>
           )}
         </CardContent>
       </Card>
