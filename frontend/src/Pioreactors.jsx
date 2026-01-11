@@ -64,7 +64,7 @@ import ManageExperimentMenu from "./components/ManageExperimentMenu";
 import { MQTTProvider, useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 import PatientButton from './components/PatientButton';
-import {getConfig, getRelabelMap, runPioreactorJob, disconnectedGrey, lostRed, disabledColor, stateDisplay, checkTaskCallback} from "./utilities"
+import {getConfig, getRelabelMap, runPioreactorJob, disconnectedGrey, lostRed, disabledColor, stateDisplay, fetchTaskResult} from "./utilities"
 import cloudImage from './assets/pioreactor_cloud.webp'
 import MissingWorkerModelModal from "./components/MissingWorkerModelModal";
 
@@ -624,9 +624,7 @@ function CalibrateDialog({ unit, experiment, odBlankReading, odBlankJobState, gr
 
     const fetchCalibrations = async () => {
       try {
-        const response = await fetch(apiUrl);
-        const firstResponse = await response.json();
-        const data = await checkTaskCallback(firstResponse.result_url_path, {delayMs: 2000})
+        const data = await fetchTaskResult(apiUrl, {delayMs: 2000})
         setActiveCalibrations(data.result[unit]);
         setLoadingCalibrations(false)
       } catch (err) {

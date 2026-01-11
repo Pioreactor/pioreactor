@@ -19,7 +19,9 @@ calibration_protocols: dict[str, dict[ProtocolName, type["CalibrationProtocol[An
 class CalibrationProtocol(Generic[Device]):
     protocol_name: ClassVar[ProtocolName]
     target_device: ClassVar[str | list[str]]
+    title: ClassVar[str] = ""
     description: ClassVar[str] = ""
+    requirements: ClassVar[tuple[str, ...]] = ()
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)

@@ -21,7 +21,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import CircularProgress from '@mui/material/CircularProgress';
 import { Link, useParams, useNavigate } from 'react-router';
 import SelectButton from "./components/SelectButton";
-import {checkTaskCallback} from "./utilities";
+import {fetchTaskResult} from "./utilities";
 
 function PageHeader(props) {
   return (
@@ -286,15 +286,7 @@ function PluginContainer(){
       setIsFetchComplete(false)
       try {
         // Fetch installed plugins
-        const response = await fetch(`/api/units/${selectedUnit}/plugins/installed`);
-        const json = await response.json();
-
-        if (!json.result_url_path){
-          throw new Error("No result_url_path in response")
-        }
-
-        // Poll the backend at `json.result_url_path` until status is 200
-        const result = await checkTaskCallback(json.result_url_path);
+        const result = await fetchTaskResult(`/api/units/${selectedUnit}/plugins/installed`);
 
         // Once 200 is received and JSON is parsed, update state
         setIsFetchComplete(true);

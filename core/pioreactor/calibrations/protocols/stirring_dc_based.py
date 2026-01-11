@@ -268,6 +268,12 @@ def get_dc_based_step(
 class DCBasedStirringProtocol(CalibrationProtocol[Literal["stirring"]]):
     target_device = "stirring"
     protocol_name = "dc_based"
+    title = "Stirring DC-based calibration"
+    description = "Maps duty cycle to RPM for the current stirrer configuration."
+    requirements = (
+        "Stirring must be off before starting.",
+        "Insert a vial with a stir bar and the liquid volume you plan to use (water is fine).",
+    )
     step_registry: ClassVar[StepRegistry] = _DC_BASED_STEPS
 
     @classmethod

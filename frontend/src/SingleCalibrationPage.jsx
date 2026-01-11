@@ -6,7 +6,7 @@ import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
-import {checkTaskCallback, colors, ColorCycler} from "./utilities"
+import {fetchTaskResult, colors, ColorCycler} from "./utilities"
 import MuiLink from '@mui/material/Link';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -136,9 +136,7 @@ function ViewYamlSource({ pioreactorUnit, device, calibrationName }) {
     setYamlText("");
     try {
       const apiUrl = `/api/workers/${pioreactorUnit}/calibrations/${device}/${calibrationName}`;
-      const response = await fetch(apiUrl);
-      const firstResponse = await response.json();
-      const data = await checkTaskCallback(firstResponse.result_url_path);
+      const data = await fetchTaskResult(apiUrl);
       const calibration = data.result[pioreactorUnit];
 
       const { calibration_type, created_at, curve_data_, x, y, recorded_data } = calibration;
@@ -239,9 +237,7 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } )
     setLoading(true);
     const apiUrl = `/api/workers/${pioreactorUnit}/calibrations/${device}/${calibrationName}`;
     try {
-      const response = await fetch(apiUrl);
-      const firstResponse = await response.json();
-      const data = await checkTaskCallback(firstResponse.result_url_path)
+      const data = await fetchTaskResult(apiUrl)
       setCalibration(data.result[pioreactorUnit]);
     } catch (err) {
       console.error("Failed to fetch calibration:", err);

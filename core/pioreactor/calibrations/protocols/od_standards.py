@@ -581,7 +581,13 @@ def get_standards_step(
 class StandardsODProtocol(CalibrationProtocol[pt.ODCalibrationDevices]):
     target_device = pt.OD_DEVICES
     protocol_name = "standards"
-    description = "Calibrate OD using standards. Requires multiple vials"
+    title = "OD standards calibration"
+    description = "Calibrate OD channels using a series of OD600 standards and a blank."
+    requirements = (
+        "OD reading and stirring must be off before starting.",
+        "Have OD600 standards ready (including a blank).",
+        "Each vial should include a stir bar.",
+    )
     step_registry: ClassVar[StepRegistry] = _OD_STANDARDS_STEPS
 
     @classmethod

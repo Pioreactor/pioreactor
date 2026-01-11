@@ -16,15 +16,14 @@ import Typography from "@mui/material/Typography";
 import TuneIcon from "@mui/icons-material/Tune";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import CalibrationSessionDialog from "./components/CalibrationSessionDialog";
-import { CALIBRATION_PROTOCOLS } from "./protocols/calibrationProtocols";
-
-const PROTOCOLS = CALIBRATION_PROTOCOLS;
+import { fetchTaskResult } from "./utilities";
 
 function ProtocolCard({
   protocol,
   selectedUnit,
   onRun,
 }) {
+  const requirements = Array.isArray(protocol.requirements) ? protocol.requirements : [];
   return (
     <Card sx={{ height: "100%" }}>
       <CardContent>
@@ -42,7 +41,7 @@ function ProtocolCard({
         <Box sx={{ mt: 2 }}>
           <Typography variant="subtitle2">Requirements</Typography>
           <Box component="ul" sx={{ mt: 1, mb: 0, pl: 2 }}>
-            {protocol.requirements.map((item) => (
+            {requirements.map((item) => (
               <li key={item}>
                 <Typography variant="body2" >
                   {item}
@@ -78,11 +77,12 @@ function Protocols(props) {
   const { pioreactorUnit, device } = useParams();
   const [workers, setWorkers] = React.useState([]);
   const [selectedUnit, setSelectedUnit] = React.useState(pioreactorUnit || "");
-  const [selectedDevice, setSelectedDevice] = React.useState(
-    device || PROTOCOLS[0]?.device || ""
-  );
+  const [selectedDevice, setSelectedDevice] = React.useState(device || "");
+  const [protocols, setProtocols] = React.useState([]);
   const [workersError, setWorkersError] = React.useState("");
   const [isLoadingWorkers, setIsLoadingWorkers] = React.useState(true);
+  const [protocolsError, setProtocolsError] = React.useState("");
+  const [isLoadingProtocols, setIsLoadingProtocols] = React.useState(false);
   const [snackbarOpen, setSnackbarOpen] = React.useState(false);
   const [snackbarMessage, setSnackbarMessage] = React.useState("");
   const [activeSessionProtocol, setActiveSessionProtocol] = React.useState(null);
@@ -122,6 +122,54 @@ function Protocols(props) {
     fetchWorkers();
   }, []);
 
+  React.useEffect(() => {
+    const fetchProtocols = async () => {
+      if (!selectedUnit || selectedUnit === "$broadcast") {
+        setProtocols([]);
+        setProtocolsError("");
+        setIsLoadingProtocols(false);
+        return;
+      }
+      setIsLoadingProtocols(true);
+      setProtocolsError("");
+      try {
+        const finalPayload = await fetchTaskResult(
+          `/api/workers/${selectedUnit}/calibration_protocols`
+        );
+        const result = finalPayload?.result?.[selectedUnit];
+        if (!Array.isArray(result)) {
+          throw new Error("Protocol payload is not a list.");
+        }
+        setProtocols(result);
+      } catch (err) {
+        setProtocolsError(err.message || "Failed to load protocols.");
+        setProtocols([]);
+      } finally {
+        setIsLoadingProtocols(false);
+      }
+    };
+
+    fetchProtocols();
+  }, [selectedUnit]);
+
+  React.useEffect(() => {
+    if (protocols.length === 0) {
+      if (selectedDevice !== "") {
+        setSelectedDevice("");
+      }
+      return;
+    }
+    if (device && protocols.some((protocol) => protocol.target_device === device)) {
+      if (selectedDevice !== device) {
+        setSelectedDevice(device);
+      }
+      return;
+    }
+    if (!protocols.some((protocol) => protocol.target_device === selectedDevice)) {
+      setSelectedDevice(protocols[0].target_device);
+    }
+  }, [device, protocols, selectedDevice]);
+
   const handleSnackbarClose = (_event, reason) => {
     if (reason === "clickaway") {
       return;
@@ -140,6 +188,8 @@ function Protocols(props) {
     setSelectedUnit(event.target.value);
     if (selectedDevice) {
       navigate(`/protocols/${event.target.value}/${selectedDevice}`);
+    } else {
+      navigate(`/protocols/${event.target.value}`);
     }
   };
 
@@ -225,14 +275,20 @@ function Protocols(props) {
                 <Select
                   value={selectedDevice}
                   onChange={handleSelectDeviceChange}
+                  disabled={isLoadingProtocols || protocols.length === 0}
                 >
                   {Array.from(
-                    new Set(PROTOCOLS.map((protocol) => protocol.device))
-                  ).map((device) => (
-                    <MenuItem key={device} value={device}>
-                      {device}
+                    new Set(protocols.map((protocol) => protocol.target_device))
+                  ).map((targetDevice) => (
+                    <MenuItem key={targetDevice} value={targetDevice}>
+                      {targetDevice}
                     </MenuItem>
                   ))}
+                  {!isLoadingProtocols && protocols.length === 0 && (
+                    <MenuItem value="" disabled>
+                      No protocols found
+                    </MenuItem>
+                  )}
                 </Select>
               </FormControl>
             </Box>
@@ -242,10 +298,22 @@ function Protocols(props) {
               {workersError}
             </Alert>
           )}
+          {protocolsError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {protocolsError}
+            </Alert>
+          )}
+          {isLoadingProtocols && (
+            <Typography variant="body2" sx={{ mt: 2 }}>
+              Loading protocols...
+            </Typography>
+          )}
         </CardContent>
       </Card>
       <Grid container spacing={2}>
-        {PROTOCOLS.filter((protocol) => protocol.device === selectedDevice).map((protocol) => (
+        {protocols
+          .filter((protocol) => protocol.target_device === selectedDevice)
+          .map((protocol) => (
           <Grid
             key={protocol.id}
             size={{

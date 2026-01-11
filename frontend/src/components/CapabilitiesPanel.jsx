@@ -9,7 +9,7 @@ import Stack from '@mui/material/Stack';
 import CircularProgress from '@mui/material/CircularProgress';
 // copy-to-clipboard removed per app constraints
 
-import {checkTaskCallback} from '../utilities';
+import {fetchTaskResult} from '../utilities';
 import useCapabilityExamplesOverride from '../hooks/useCapabilityExamplesOverride';
 
 function dedupeCapabilitiesAcrossUnits(resultByUnit) {
@@ -218,12 +218,7 @@ export default function CapabilitiesPanel() {
       setLoading(true);
       setError('');
       try {
-        const r = await fetch('/api/units/$broadcast/capabilities');
-        const j = await r.json();
-        if (!j.result_url_path) {
-          throw new Error('No result_url_path');
-        }
-        const final = await checkTaskCallback(j.result_url_path, {delayMs: 400});
+        const final = await fetchTaskResult('/api/units/$broadcast/capabilities', {delayMs: 400});
         const deduped = dedupeCapabilitiesAcrossUnits(final.result || {});
         if (mounted) setCaps(deduped);
       } catch (e) {

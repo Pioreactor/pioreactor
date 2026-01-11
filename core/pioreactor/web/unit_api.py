@@ -8,6 +8,7 @@ from io import BytesIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from time import sleep
+from typing import Any
 
 from flask import after_this_request
 from flask import Blueprint
@@ -24,6 +25,7 @@ from msgspec import to_builtins
 from msgspec.yaml import decode as yaml_decode
 from pioreactor import structs
 from pioreactor import whoami
+from pioreactor.calibrations import calibration_protocols
 from pioreactor.config import get_leader_hostname
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import subclass_union
@@ -94,6 +96,37 @@ def task_status(task_id: str):
         return jsonify(blob | {"status": "failed", "error": str(task)}), 500
     else:
         return jsonify(blob | {"status": "complete", "result": task}), 200
+
+
+def _format_protocol_text(value: str, device: str) -> str:
+    if not value:
+        return value
+    device_label = device.replace("_", " ")
+    return value.replace("{device}", device_label)
+
+
+def _build_calibration_protocol_payloads() -> list[dict[str, Any]]:
+    protocols: list[dict[str, Any]] = []
+    for device, device_protocols in calibration_protocols.items():
+        for protocol_name, protocol in device_protocols.items():
+            if not hasattr(protocol, "step_registry"):
+                continue
+            title = getattr(protocol, "title", "") or f"{protocol_name.replace('_', ' ').title()} calibration"
+            description = getattr(protocol, "description", "")
+            requirements = list(getattr(protocol, "requirements", ()))
+            protocols.append(
+                {
+                    "id": f"{device}_{protocol_name}",
+                    "target_device": device,
+                    "protocol_name": protocol_name,
+                    "title": _format_protocol_text(title, device),
+                    "description": _format_protocol_text(description, device),
+                    "requirements": [
+                        _format_protocol_text(requirement, device) for requirement in requirements
+                    ],
+                }
+            )
+    return sorted(protocols, key=lambda item: (item["target_device"], item["title"]))
 
 
 ### SYSTEM
@@ -611,6 +644,13 @@ def get_app_version() -> ResponseReturnValue:
 
 
 ### CALIBRATIONS
+
+
+@unit_api_bp.route("/calibration_protocols", methods=["GET"])
+def get_calibration_protocols() -> ResponseReturnValue:
+    return attach_cache_control(jsonify(_build_calibration_protocol_payloads()), max_age=10)
+
+
 @unit_api_bp.route("/calibrations/<device>", methods=["POST"])
 def create_calibration(device: str) -> ResponseReturnValue:
     """

@@ -21,7 +21,7 @@ import Grid from "@mui/material/Grid";
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import {checkTaskCallback, colors, ColorCycler} from "./utilities"
+import {fetchTaskResult, colors, ColorCycler} from "./utilities"
 import CalibrationChart from "./components/CalibrationChart"
 import FormLabel from '@mui/material/FormLabel';
 import FormControlLabel from '@mui/material/FormControlLabel';
@@ -282,9 +282,7 @@ function CalibrationData() {
     const fetchData = async () => {
       try {
         // Replace the URL below with your actual endpoint or route
-        const response = await fetch('/api/workers/$broadcast/calibrations');
-        const firstResponse = await response.json();
-        const data = await checkTaskCallback(firstResponse.result_url_path)
+        const data = await fetchTaskResult('/api/workers/$broadcast/calibrations');
         setRawData(data);
       } catch (err) {
         console.error('Error fetching calibration data', err);

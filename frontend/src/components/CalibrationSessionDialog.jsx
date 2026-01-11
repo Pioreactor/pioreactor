@@ -117,8 +117,10 @@ export default function CalibrationSessionDialog({
   const [sessionStep, setSessionStep] = React.useState(null);
   const [sessionError, setSessionError] = React.useState("");
   const [sessionLoading, setSessionLoading] = React.useState(false);
+  const [showLoading, setShowLoading] = React.useState(false);
   const [sessionValues, setSessionValues] = React.useState({});
   const startInFlightRef = React.useRef(false);
+  const loadingDelayTimerRef = React.useRef(null);
 
   const sessionResult = sessionStep?.result || sessionStep?.metadata?.result;
   const chartPayload = sessionStep?.metadata?.chart;
@@ -154,8 +156,8 @@ export default function CalibrationSessionDialog({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          protocol_name: protocol.protocolName,
-          target_device: protocol.device,
+          protocol_name: protocol.protocol_name,
+          target_device: protocol.target_device,
         }),
       });
 
@@ -280,6 +282,24 @@ export default function CalibrationSessionDialog({
     resetSessionState();
   }, [open, resetSessionState, startSession]);
 
+  React.useEffect(() => {
+    if (!sessionLoading) {
+      if (loadingDelayTimerRef.current) {
+        clearTimeout(loadingDelayTimerRef.current);
+        loadingDelayTimerRef.current = null;
+      }
+      setShowLoading(false);
+      return;
+    }
+    if (loadingDelayTimerRef.current) {
+      return;
+    }
+    loadingDelayTimerRef.current = setTimeout(() => {
+      loadingDelayTimerRef.current = null;
+      setShowLoading(true);
+    }, 250);
+  }, [sessionLoading]);
+
   return (
     <Dialog
       open={open}
@@ -319,7 +339,7 @@ export default function CalibrationSessionDialog({
         }}
       >
         <Box sx={{ height: 4, mb: 2 }}>
-          <LinearProgress sx={{ visibility: sessionLoading ? "visible" : "hidden" }} />
+          <LinearProgress sx={{ visibility: showLoading ? "visible" : "hidden" }} />
         </Box>
         {sessionError && <Alert severity="error">{sessionError}</Alert>}
         {sessionStep ? (

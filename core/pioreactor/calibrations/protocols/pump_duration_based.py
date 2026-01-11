@@ -514,6 +514,12 @@ def run_pump_calibration(
 class DurationBasedPumpProtocol(CalibrationProtocol[pt.PumpCalibrationDevices]):
     target_device = pt.PUMP_DEVICES
     protocol_name = "duration_based"
+    title = "Duration-based pump calibration"
+    description = "Build a duration-to-volume curve for the {device} pump using a simple multi-step flow."
+    requirements = (
+        "Place the outflow tube into a measuring container or scale.",
+        "Have clean water available for priming and tests.",
+    )
     step_registry: ClassVar[StepRegistry] = _PUMP_DURATION_STEPS
 
     @classmethod

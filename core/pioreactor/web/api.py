@@ -1303,6 +1303,15 @@ def get_media_rates(experiment: str) -> ResponseReturnValue:
 ## CALIBRATIONS
 
 
+@api_bp.route("/workers/<pioreactor_unit>/calibration_protocols", methods=["GET"])
+def get_calibration_protocols(pioreactor_unit: str) -> DelayedResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        task = broadcast_get_across_workers("/unit_api/calibration_protocols")
+    else:
+        task = tasks.multicast_get("/unit_api/calibration_protocols", [pioreactor_unit])
+    return create_task_response(task)
+
+
 @api_bp.route("/workers/<pioreactor_unit>/calibrations", methods=["GET"])
 def get_all_calibrations(pioreactor_unit: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:

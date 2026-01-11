@@ -160,6 +160,7 @@ export const WARNING_COLOR = "#ffefa4"
 export const NOTICE_COLOR = "#addcaf"
 
 
+// Use when you already have a result_url_path from a task response.
 export async function checkTaskCallback(callbackURL, {maxRetries = 100, delayMs = 200} = {}) {
   if (maxRetries <= 0) {
     throw new Error('Max retries reached. Stopping.');
@@ -179,6 +180,20 @@ export async function checkTaskCallback(callbackURL, {maxRetries = 100, delayMs 
     await new Promise((resolve) => setTimeout(resolve, delayMs));
     return checkTaskCallback(callbackURL, {maxRetries: maxRetries - 1, delayMs});
   }
+}
+
+
+// Use when calling an endpoint that returns a task response with result_url_path.
+export async function fetchTaskResult(endpoint, {fetchOptions = {}, maxRetries = 100, delayMs = 200} = {}) {
+  const response = await fetch(endpoint, fetchOptions);
+  if (!response.ok) {
+    throw new Error(`HTTP error! Status: ${response.status}`);
+  }
+  const payload = await response.json();
+  if (!payload.result_url_path) {
+    throw new Error('No result_url_path in response');
+  }
+  return checkTaskCallback(payload.result_url_path, {maxRetries, delayMs});
 }
 
 
