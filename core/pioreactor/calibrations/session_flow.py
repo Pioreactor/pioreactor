@@ -241,7 +241,7 @@ class SessionContext:
     def read_voltage(self) -> Float:
         if not self.executor or self.mode != "ui":
             raise ValueError("Voltage reader is only available in UI sessions.")
-        payload = self.executor("read_voltage", {})
+        payload = self.executor("read_aux_voltage", {})
         value = payload.get("voltage")
         if not isinstance(value, (int, float, str)):
             raise ValueError("Invalid voltage payload.")

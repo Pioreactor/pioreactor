@@ -49,12 +49,11 @@ from pioreactor.whoami import get_unit_name
 
 CalibrationActionHandler = tuple[
     Any,
-    int,
     str,
     Callable[[Any], dict[str, Any]],
 ]
 
-# Registry of calibration action -> handler that returns a Huey task, timeout, label, and normalizer.
+# Registry of calibration action -> handler that returns a Huey task, label, and normalizer.
 calibration_actions: dict[str, Callable[[dict[str, Any]], CalibrationActionHandler]] = {}
 
 
@@ -496,7 +495,6 @@ def _register_core_calibration_actions() -> None:
                 float(payload["hz"]),
                 float(payload["dc"]),
             ),
-            300,
             "Pump action",
             _default_normalizer,
         ),
@@ -508,7 +506,6 @@ def _register_core_calibration_actions() -> None:
                 float(payload["rpm"]),
                 payload["channel_angle_map"],
             ),
-            300,
             "OD measurement",
             _voltages_normalizer,
         ),
@@ -517,7 +514,6 @@ def _register_core_calibration_actions() -> None:
         "od_reference_standard_read",
         lambda payload: (
             calibration_reference_standard_read(float(payload["ir_led_intensity"])),
-            300,
             "Reference standard reading",
             _od_readings_normalizer,
         ),
@@ -529,17 +525,15 @@ def _register_core_calibration_actions() -> None:
                 float(payload["min_dc"]) if (payload.get("min_dc") is not None) else None,
                 float(payload["max_dc"]) if (payload.get("max_dc") is not None) else None,
             ),
-            300,
             "Stirring calibration",
             _stirring_normalizer,
         ),
     )
     register_calibration_action(
-        "read_voltage",
+        "read_aux_voltage",
         lambda payload: (
             calibration_read_voltage(),
-            30,
-            "Voltage read",
+            "Aux voltage read",
             _voltage_normalizer,
         ),
     )
@@ -550,7 +544,6 @@ def _register_core_calibration_actions() -> None:
                 payload["device"],
                 payload["calibration"],
             ),
-            300,
             "Saving calibration",
             _default_normalizer,
         ),

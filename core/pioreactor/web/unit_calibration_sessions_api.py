@@ -32,9 +32,9 @@ from pioreactor.web.utils import abort_with
 
 def _execute_calibration_action(action: str, payload: dict[str, Any]) -> dict[str, Any]:
     handler = get_calibration_action(action)
-    task, timeout_s, error_label, normalize = handler(payload)
+    task, error_label, normalize = handler(payload)
     try:
-        result = task(blocking=True, timeout=timeout_s)
+        result = task(blocking=True, timeout=300)
     except TaskException as exc:
         raise ValueError(f"{error_label} failed: {exc}") from exc
     except HueyException as exc:
