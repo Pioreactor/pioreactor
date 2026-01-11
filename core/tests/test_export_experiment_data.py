@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 # test_export_experiment_data.py
-from __future__ import annotations
-
 import re
 import sqlite3
 import zipfile

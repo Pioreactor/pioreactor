@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 import time
 from concurrent.futures import ThreadPoolExecutor
 from configparser import NoOptionError

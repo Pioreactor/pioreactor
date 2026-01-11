@@ -1,18 +1,17 @@
 # -*- coding: utf-8 -*-
 # utils.py
-from __future__ import annotations
-
 import re
-from flask import abort
 from time import time
 from typing import NewType
 from typing import NoReturn
 
+from flask import abort
 from flask import jsonify
 from flask import Response
 from flask.typing import ResponseReturnValue
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.whoami import get_unit_name
+
 
 def abort_with(status: int, description: str) -> NoReturn:
     abort(status, description=description)

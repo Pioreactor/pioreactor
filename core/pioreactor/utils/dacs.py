@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 # dacs.py
-from __future__ import annotations
-
 from typing import cast
 
 import busio  # type: ignore

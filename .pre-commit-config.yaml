@@ -47,9 +47,6 @@ repos:
     rev: v3.9.0
     hooks:
     -   id: reorder-python-imports
-        args:
-          - --add-import
-          - from __future__ import annotations
 
 
 -   repo: https://github.com/shellcheck-py/shellcheck-py

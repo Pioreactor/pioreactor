@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 # pump X ml every period (minute, 30min, hour, etc.)
-from __future__ import annotations
-
 from pioreactor.automations import events
 from pioreactor.automations.dosing.base import DosingAutomationJob
 from pioreactor.exc import CalibrationError

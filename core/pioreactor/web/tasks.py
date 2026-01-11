@@ -6,8 +6,6 @@ This module also hosts the calibration action registry that maps action names
 to Huey tasks so unit API handlers can dispatch without hardcoded strings.
 """
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 import configparser
 import grp
 import json

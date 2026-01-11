@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 # export experiment data
 # See create_tables.sql for all tables
-from __future__ import annotations
-
 import sys
 from base64 import b64decode
 from contextlib import closing

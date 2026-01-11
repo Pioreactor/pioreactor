@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 import msgspec
 import pytest
 from msgspec import DecodeError

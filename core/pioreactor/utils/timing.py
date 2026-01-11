@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 import typing as t
 from contextlib import contextmanager
 from contextlib import suppress
@@ -188,7 +186,7 @@ class RepeatedTimer:
             # so cancelling doesn't do anything
             self.thread.join(timeout=timeout)
 
-    def start(self) -> RepeatedTimer:
+    def start(self) -> "RepeatedTimer":
         # this is idempotent
         with suppress(RuntimeError):
             self.thread.start()

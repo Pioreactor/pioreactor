@@ -2,8 +2,6 @@
 """
 Additional unit tests for unit_api endpoints.
 """
-from __future__ import annotations
-
 import pytest
 
 

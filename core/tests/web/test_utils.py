@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 import pytest
 from pioreactor.web.utils import is_valid_unix_filename
 from pioreactor.web.utils import scrub_to_valid

@@ -19,8 +19,6 @@ Usage examples:
 
 Note: this script invokes git. Run it manually when you are ready.
 """
-from __future__ import annotations
-
 import argparse
 import datetime as _dt
 import subprocess

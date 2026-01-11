@@ -41,8 +41,6 @@ YAML schemas
   - scl_pin: int (default 3)
 
 """
-from __future__ import annotations
-
 import sys
 import warnings
 from functools import cache

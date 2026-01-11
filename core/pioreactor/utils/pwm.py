@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 from contextlib import contextmanager
 from contextlib import suppress
 from json import dumps
@@ -325,5 +323,5 @@ class PWM:
     def __exit__(self, *args: Any) -> None:
         self.clean_up()
 
-    def __enter__(self) -> PWM:
+    def __enter__(self) -> "PWM":
         return self

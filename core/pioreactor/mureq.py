@@ -7,8 +7,6 @@ mureq is copyright 2021 by its contributors and is released under the
 0BSD ("zero-clause BSD") license.
 """
 # typed module with type hints
-from __future__ import annotations
-
 import contextlib
 import io
 import os.path
@@ -47,7 +45,7 @@ def request(
     *,
     read_limit: int | None = None,
     **kwargs: Any,
-) -> Response:
+) -> "Response":
     """request performs an HTTP request and reads the entire response body.
 
     :param str method: HTTP method to request (e.g. 'GET', 'POST')
@@ -74,7 +72,7 @@ def request(
         )
 
 
-def get(url: str, **kwargs: Any) -> Response:
+def get(url: str, **kwargs: Any) -> "Response":
     """get performs an HTTP GET request."""
     return request("GET", url=url, **kwargs)
 
@@ -83,12 +81,12 @@ def post(
     url: str,
     body: bytes | None = None,
     **kwargs: Any,
-) -> Response:
+) -> "Response":
     """post performs an HTTP POST request."""
     return request("POST", url=url, body=body, **kwargs)
 
 
-def head(url: str, **kwargs: Any) -> Response:
+def head(url: str, **kwargs: Any) -> "Response":
     """head performs an HTTP HEAD request."""
     return request("HEAD", url=url, **kwargs)
 
@@ -97,7 +95,7 @@ def put(
     url: str,
     body: bytes | None = None,
     **kwargs: Any,
-) -> Response:
+) -> "Response":
     """put performs an HTTP PUT request."""
     return request("PUT", url=url, body=body, **kwargs)
 
@@ -106,12 +104,12 @@ def patch(
     url: str,
     body: bytes | None = None,
     **kwargs: Any,
-) -> Response:
+) -> "Response":
     """patch performs an HTTP PATCH request."""
     return request("PATCH", url=url, body=body, **kwargs)
 
 
-def delete(url: str, **kwargs: Any) -> Response:
+def delete(url: str, **kwargs: Any) -> "Response":
     """delete performs an HTTP DELETE request."""
     return request("DELETE", url=url, **kwargs)
 

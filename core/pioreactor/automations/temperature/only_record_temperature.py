@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 from pioreactor.automations.events import NoEvent
 from pioreactor.automations.temperature.base import TemperatureAutomationJob
 

@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
 
 
 NO_NETWORK_CONNECTION = 1

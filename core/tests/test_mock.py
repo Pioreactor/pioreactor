@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 # tests the mocking in our test suite
-from __future__ import annotations
-
 from pioreactor.cluster_management import get_active_workers_in_inventory
 
 

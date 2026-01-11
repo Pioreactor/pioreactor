@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 import typing as t
 
 from msgspec import field
@@ -35,7 +33,7 @@ class Log(Struct, tag=str.lower, forbid_unknown_fields=True):
     options: _LogOptions
     if_: bool_expression = field(name="if", default=True)
     hours_elapsed: t.Optional[float] = None
-    t: t.Optional[str | float] = None
+    t: "t.Optional[str | float]" = None
 
     def __str__(self) -> str:
         return f"Log(message={self.options.message})"
@@ -43,7 +41,7 @@ class Log(Struct, tag=str.lower, forbid_unknown_fields=True):
 
 class _Action(Struct, tag=str.lower, forbid_unknown_fields=True):
     hours_elapsed: t.Optional[float] = None
-    t: t.Optional[str | float] = None
+    t: "t.Optional[str | float]" = None
     if_: bool_expression = field(name="if", default=True)
 
     def __str__(self) -> str:
@@ -79,7 +77,7 @@ class Resume(_Action):
 class When(_ContainerAction):
     condition_: str = field(name="condition", default="")
     wait_until: str = field(name="wait_until", default="")
-    actions: list[Action] = []
+    actions: list["Action"] = []
 
 
 class Repeat(_ContainerAction):
@@ -88,7 +86,7 @@ class Repeat(_ContainerAction):
     while_: str | bool = field(name="while", default=True)
     max_hours: t.Optional[float] = None
     max_time: t.Optional[float | str] = None
-    actions: list[BasicAction] = []
+    actions: list["BasicAction"] = []
     _completed_loops: int = 0
 
 

@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 # test_math_helpers
-from __future__ import annotations
-
 import pytest
 from pioreactor.utils.math_helpers import closest_point_to_domain
 from pioreactor.utils.math_helpers import simple_linear_regression

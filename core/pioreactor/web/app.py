@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 import sqlite3
 import typing as t
 from base64 import b64decode

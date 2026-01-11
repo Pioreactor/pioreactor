@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 import logging
 from logging import handlers
 from time import sleep
@@ -100,7 +98,7 @@ class MQTTHandler(logging.Handler):
     def __init__(
         self,
         topic_prefix: str,
-        client: Client,
+        client: "Client",
         qos: int = 0,
         retain: bool = False,
         **mqtt_kwargs,
@@ -145,7 +143,7 @@ def create_logger(
     experiment: pt.Experiment | None = None,
     source: str = "app",
     to_mqtt: bool = True,
-    pub_client: Client | None = None,
+    pub_client: "Client | None" = None,
     log_file_location=config["logging"]["log_file"],
 ) -> CustomLogger:
     """

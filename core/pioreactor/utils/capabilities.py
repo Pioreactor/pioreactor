@@ -14,8 +14,6 @@ Rules summary for capability collection:
 7. Include any CLI-only actions (e.g. leader commands) even if no BackgroundJob exists, with empty published_settings.
 8. Sort the final capabilities list by (job_name, automation_name) for consistent output.
 """
-from __future__ import annotations
-
 import ast
 import importlib
 import inspect

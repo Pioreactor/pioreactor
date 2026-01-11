@@ -3,8 +3,6 @@
 this contains shared data for both huey and the flask app
 
 """
-from __future__ import annotations
-
 import os
 import sqlite3
 from pathlib import Path

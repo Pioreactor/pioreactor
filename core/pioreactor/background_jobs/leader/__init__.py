@@ -12,4 +12,3 @@ the leader will partition based on experiment name too, and write <time_series>_
 can read.
 
 """
-from __future__ import annotations

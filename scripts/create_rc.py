@@ -21,8 +21,6 @@ Usage examples:
 Note: This script intentionally uses git, but does not run it during
 agent execution. Run it locally when you are ready.
 """
-from __future__ import annotations
-
 import argparse
 import datetime as _dt
 import re

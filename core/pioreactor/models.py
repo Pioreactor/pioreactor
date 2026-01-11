@@ -2,8 +2,6 @@
 """
 Registry of built-in and user-provided Pioreactor models.
 """
-from __future__ import annotations
-
 import os
 from pathlib import Path
 

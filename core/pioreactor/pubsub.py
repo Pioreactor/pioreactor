@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 import random
 import socket
 import string
@@ -36,7 +34,7 @@ def add_hash_suffix(s: str) -> str:
 
 
 class Client(PahoClient):
-    def __enter__(self) -> Client:
+    def __enter__(self) -> "Client":
         return self
 
     def __exit__(self, *args) -> None:

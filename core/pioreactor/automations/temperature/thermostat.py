@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 from pioreactor.automations.events import UpdatedHeaterDC
 from pioreactor.background_jobs.temperature_automation import classproperty
 from pioreactor.background_jobs.temperature_automation import TemperatureAutomationJob

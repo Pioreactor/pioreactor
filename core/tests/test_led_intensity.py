@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 import pytest
 from click.testing import CliRunner
 from pioreactor.actions.led_intensity import ALL_LED_CHANNELS

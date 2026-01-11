@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 # test_pwms
-from __future__ import annotations
-
 import json
 import time
 

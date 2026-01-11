@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 from pioreactor.automations import events
 from pioreactor.background_jobs.led_automation import LEDAutomationJob
 

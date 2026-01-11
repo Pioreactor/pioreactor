@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 import importlib.metadata as entry_point
 import os
 import sys

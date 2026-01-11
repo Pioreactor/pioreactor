@@ -2,8 +2,6 @@
 """
 Tests for capability introspection utilities.
 """
-from __future__ import annotations
-
 import click
 from pioreactor.utils.capabilities import _all_subclasses
 from pioreactor.utils.capabilities import _extract_additional_settings

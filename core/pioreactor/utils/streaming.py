@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 # streaming.py
-from __future__ import annotations
-
 import heapq
 import io
 from queue import Empty
@@ -29,11 +27,9 @@ class ODObservationSource(Protocol):
 
     is_live: bool
 
-    def __iter__(self) -> Iterator[ODReadings]:
-        ...
+    def __iter__(self) -> Iterator[ODReadings]: ...
 
-    def set_stop_event(self, ev: Event) -> None:
-        ...
+    def set_stop_event(self, ev: Event) -> None: ...
 
 
 class DosingObservationSource(Protocol):
@@ -41,11 +37,9 @@ class DosingObservationSource(Protocol):
 
     is_live: bool
 
-    def __iter__(self) -> Iterator[DosingEvent]:
-        ...
+    def __iter__(self) -> Iterator[DosingEvent]: ...
 
-    def set_stop_event(self, ev: Event) -> None:
-        ...
+    def set_stop_event(self, ev: Event) -> None: ...
 
 
 class ExportODSource(ODObservationSource):

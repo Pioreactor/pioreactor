@@ -39,8 +39,6 @@ make decisions. For example, if a bubbler/visible light LED is active, it should
 s.t. it is _not_ running when an turbidity measurement is about to occur. See BackgroundJobWithDodging class.
 
 """
-from __future__ import annotations
-
 import math
 import os
 import random
@@ -1323,7 +1321,7 @@ class ODReader(BackgroundJob):
 
         self._set_for_iterating.set()
 
-    def __iter__(self) -> ODReader:
+    def __iter__(self) -> "ODReader":
         return self
 
     def __next__(self) -> structs.ODReadings:
@@ -1373,7 +1371,7 @@ def start_od_reading(
     experiment: pt.Experiment | None = None,
     calibration: bool | structs.ODCalibration | list[structs.ODCalibration] | None = True,
     ir_led_intensity: float | None = None,
-) -> ODReader:
+) -> "ODReader":
     """
     This function prepares ODReader and other necessary transformation objects. It's a higher level API than using ODReader.
 

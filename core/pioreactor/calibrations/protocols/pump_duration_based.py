@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 import uuid
 from typing import Callable
 from typing import cast

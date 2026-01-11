@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 # test_cli.py
-from __future__ import annotations
-
 import re
 import time
 

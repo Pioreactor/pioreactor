@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 import os
 import sys
 import time
@@ -24,12 +22,12 @@ UNIVERSAL_EXPERIMENT = "$experiment"
 NO_EXPERIMENT = "$no_experiment_present"
 
 
-def get_latest_experiment_name() -> pt.Experiment:
+def get_latest_experiment_name() -> "pt.Experiment":
     warnings.warn("Use whoami.get_assigned_experiment_name(unit) instead", DeprecationWarning, stacklevel=2)
     return get_assigned_experiment_name(get_unit_name())
 
 
-def get_testing_experiment_name() -> pt.Experiment:
+def get_testing_experiment_name() -> "pt.Experiment":
     try:
         exp = get_assigned_experiment_name(get_unit_name())
         return f"_testing_{exp}"
@@ -37,11 +35,11 @@ def get_testing_experiment_name() -> pt.Experiment:
         return f"_testing_{NO_EXPERIMENT}"
 
 
-def get_assigned_experiment_name(unit_name: pt.Unit) -> pt.Experiment:
+def get_assigned_experiment_name(unit_name: "pt.Unit") -> "pt.Experiment":
     return _get_assigned_experiment_name(unit_name)
 
 
-def _get_assigned_experiment_name(unit_name: pt.Unit) -> pt.Experiment:
+def _get_assigned_experiment_name(unit_name: "pt.Unit") -> "pt.Experiment":
     from pioreactor.pubsub import get_from_leader
     from pioreactor.config import leader_address
 
@@ -82,11 +80,11 @@ def _get_assigned_experiment_name(unit_name: pt.Unit) -> pt.Experiment:
 
 
 @cache
-def is_active(unit_name: pt.Unit) -> bool:
+def is_active(unit_name: "pt.Unit") -> bool:
     return _is_active(unit_name)
 
 
-def _is_active(unit_name: pt.Unit) -> bool:
+def _is_active(unit_name: "pt.Unit") -> bool:
     if os.environ.get("ACTIVE") == "1" or is_testing_env():
         return True
     elif os.environ.get("ACTIVE") == "0":
@@ -128,7 +126,7 @@ def get_hostname() -> str:
 
 
 @cache
-def get_unit_name() -> pt.Unit:
+def get_unit_name() -> "pt.Unit":
     hostname = get_hostname()
 
     if hostname == "raspberrypi":
@@ -166,7 +164,7 @@ def am_I_a_worker() -> bool:
 
 
 @cache
-def get_pioreactor_model(unit_name: pt.Unit | None = None) -> Model:
+def get_pioreactor_model(unit_name: "pt.Unit | None" = None) -> "Model":
     """
     Return the Pioreactor model for a specific unit. Defaults to the local unit.
     """
@@ -186,7 +184,7 @@ def get_pioreactor_model(unit_name: pt.Unit | None = None) -> Model:
         raise UnknownModelAssignedError(f"Unknown Pioreactor model {name} v{version}.")
 
 
-def _get_pioreactor_model_version(unit_name: pt.Unit) -> str | None:
+def _get_pioreactor_model_version(unit_name: "pt.Unit") -> str | None:
     # pioreactor model version
     local_unit_name = get_unit_name()
 
@@ -208,7 +206,7 @@ def _get_pioreactor_model_version(unit_name: pt.Unit) -> str | None:
         raise e
 
 
-def _get_pioreactor_model_name(unit_name: pt.Unit) -> str | None:
+def _get_pioreactor_model_name(unit_name: "pt.Unit") -> str | None:
     # pioreactor model name
     local_unit_name = get_unit_name()
 

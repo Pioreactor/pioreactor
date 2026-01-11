@@ -34,8 +34,6 @@ with payload
 Incoming OD readings are normalized by the value, called the reference OD, in the cache od_normalization_mean, indexed by the experiment name. You can change
 the reference OD by supplying a value to this cache first. See example https://gist.github.com/CamDavidsonPilon/e5f2b0d03bf6eefdbf43f6653b8149ba
 """
-from __future__ import annotations
-
 from collections import defaultdict
 from datetime import datetime
 from statistics import mean

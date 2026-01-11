@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 from contextlib import suppress
 from threading import RLock
 from time import perf_counter
@@ -107,7 +105,7 @@ class RpmCalculator:
     def sleep_for(self, seconds: float) -> None:
         sleep(seconds)
 
-    def __enter__(self) -> RpmCalculator:
+    def __enter__(self) -> "RpmCalculator":
         return self
 
     def __exit__(self, *args) -> None:

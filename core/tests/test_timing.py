@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 # test_timing.py
-from __future__ import annotations
-
 import datetime
 import time
 from threading import Event

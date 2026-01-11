@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 # test_pubsub.py
-from __future__ import annotations
-
 import socket
 from unittest.mock import MagicMock
 from unittest.mock import patch

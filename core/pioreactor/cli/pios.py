@@ -2,8 +2,6 @@
 """
 CLI for running the commands on workers, or otherwise interacting with the workers.
 """
-from __future__ import annotations
-
 import os
 from concurrent.futures import ThreadPoolExecutor
 

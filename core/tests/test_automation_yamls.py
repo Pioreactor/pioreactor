@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 # test automation_yamls
-from __future__ import annotations
-
 from pioreactor.automations import *  # noqa: F403, F401
 from pioreactor.background_jobs.dosing_automation import available_dosing_automations
 from pioreactor.background_jobs.dosing_automation import DosingAutomationJobContrib

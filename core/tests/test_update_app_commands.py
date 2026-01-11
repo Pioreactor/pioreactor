@@ -2,8 +2,6 @@
 """
 Tests for the get_update_app_commands helper in pioreactor.cli.pio.
 """
-from __future__ import annotations
-
 import tempfile
 from shlex import quote
 

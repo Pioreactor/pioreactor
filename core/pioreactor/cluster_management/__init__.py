@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor

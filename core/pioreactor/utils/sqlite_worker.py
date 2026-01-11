@@ -19,8 +19,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 """Thread safe sqlite3 interface."""
-from __future__ import annotations
-
 import sqlite3
 import threading
 import uuid

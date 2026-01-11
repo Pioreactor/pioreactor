@@ -2,8 +2,6 @@
 """
 Tests for the MCP (Model-Context-Protocol) blueprint and helper functions.
 """
-from __future__ import annotations
-
 from pioreactor.web.mcp import assign_workers_to_experiment
 from pioreactor.web.mcp import create_experiment
 from pioreactor.web.mcp import get_experiments

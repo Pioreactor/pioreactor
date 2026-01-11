@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 import pytest
 from pioreactor.background_jobs.base import compute_od_timing
 from pioreactor.exc import DodgingTimingError

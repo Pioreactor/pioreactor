@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 import os
 from contextlib import contextmanager
 from contextlib import nullcontext

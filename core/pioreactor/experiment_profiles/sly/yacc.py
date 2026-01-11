@@ -31,8 +31,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
-from __future__ import annotations
-
 import inspect
 import sys
 from collections import defaultdict
@@ -233,10 +231,8 @@ class Production:
                     else:
                         k = alias
                     # The value is either a list (for repetition) or a tuple for optional
-                    namemap[k] = (
-                        lambda s, i=index, n=n: ([x[n] for x in s[i].value])
-                        if isinstance(s[i].value, list)
-                        else s[i].value[n]
+                    namemap[k] = lambda s, i=index, n=n: (
+                        ([x[n] for x in s[i].value]) if isinstance(s[i].value, list) else s[i].value[n]
                     )
 
         self.namemap = namemap

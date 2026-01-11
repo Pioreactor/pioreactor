@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 from collections import defaultdict
 from contextlib import nullcontext
 from json import dumps

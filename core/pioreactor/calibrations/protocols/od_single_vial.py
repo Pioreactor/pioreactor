@@ -2,8 +2,6 @@
 """
 https://docs.pioreactor.com/developer-guide/adding-calibration-type
 """
-from __future__ import annotations
-
 from math import log2
 from time import sleep
 from typing import cast

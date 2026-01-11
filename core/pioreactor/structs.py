@@ -3,8 +3,6 @@
 These define structs for internal data structures including MQTT messages, and are type-checkable + runtime-checked.
 
 """
-from __future__ import annotations
-
 import typing as t
 from datetime import datetime
 from pathlib import Path

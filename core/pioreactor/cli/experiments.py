@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 import click
 from pioreactor.pubsub import delete_from_leader
 from pioreactor.pubsub import get_from_leader

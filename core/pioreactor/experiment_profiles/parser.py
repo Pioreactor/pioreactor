@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 # mypy: ignore-errors
 # flake8: noqa
-from __future__ import annotations
-
 import math
 from random import random
 
@@ -92,7 +90,6 @@ class ProfileLexer(Lexer):
 
 
 class ProfileParser(Parser):
-
     """
     you can pass in an variable env that can dynamically populate data, ex:
 

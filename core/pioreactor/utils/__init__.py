@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 import os
 import signal
 import sqlite3
@@ -150,7 +148,7 @@ class managed_lifecycle:
         unit: pt.Unit,
         experiment: pt.Experiment,
         name: str,
-        mqtt_client: Client | None = None,
+        mqtt_client: "Client | None" = None,
         exit_on_mqtt_disconnect: bool = False,
         mqtt_client_kwargs: dict | None = None,
         ignore_is_active_state=False,  # hack and kinda gross
@@ -285,7 +283,7 @@ class long_running_managed_lifecycle(managed_lifecycle):
         unit: pt.Unit,
         experiment: pt.Experiment,
         name: str,
-        mqtt_client: Client | None = None,
+        mqtt_client: "Client | None" = None,
         exit_on_mqtt_disconnect: bool = False,
         mqtt_client_kwargs: dict | None = None,
         source: str = "app",
@@ -567,7 +565,7 @@ class SummableDict(dict):
     def __init__(self, *arg, **kwargs) -> None:
         dict.__init__(self, *arg, **kwargs)
 
-    def __add__(self, other: SummableDict) -> SummableDict:
+    def __add__(self, other: "SummableDict") -> "SummableDict":
         s = SummableDict()
         for key, value in self.items():
             s[key] = value
@@ -579,7 +577,7 @@ class SummableDict(dict):
 
         return s
 
-    def __iadd__(self, other: SummableDict) -> SummableDict:
+    def __iadd__(self, other: "SummableDict") -> "SummableDict":
         return self + other
 
     def __getitem__(self, key: str) -> float:
@@ -945,7 +943,7 @@ class JobManager:
     def close(self):
         self.conn.close()
 
-    def __enter__(self) -> JobManager:
+    def __enter__(self) -> "JobManager":
         return self
 
     def __exit__(self, exc_type, exc_val, tb) -> None:
@@ -1001,7 +999,7 @@ class ClusterJobManager:
 
         return list(results)
 
-    def __enter__(self) -> ClusterJobManager:
+    def __enter__(self) -> "ClusterJobManager":
         return self
 
     def __exit__(self, *args) -> None:

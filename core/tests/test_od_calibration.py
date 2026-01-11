@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 # test_od_calibration
-from __future__ import annotations
-
 import pytest
 from click.testing import CliRunner
 from pioreactor import structs

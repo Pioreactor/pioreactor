@@ -8,8 +8,6 @@ The unit API routes here for session start/advance/abort and invokes the
 calibration action executor to perform privileged hardware work.
 """
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 from typing import Any
 
 from flask import Blueprint

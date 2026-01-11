@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 # mock pieces for testing
-from __future__ import annotations
-
 import random
 from typing import Any
 
@@ -34,7 +32,7 @@ class MockI2C:
     def readfrom_into(self, add, buffer, start=0, end=1_000_000):
         pass
 
-    def __enter__(self) -> MockI2C:
+    def __enter__(self) -> "MockI2C":
         return self
 
     def __exit__(self, *args: Any) -> None:

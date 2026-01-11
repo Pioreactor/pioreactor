@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 from typing import Optional
 from typing import TYPE_CHECKING
 
@@ -33,7 +31,7 @@ class PID:
         job_name: Optional[str] = None,
         target_name: Optional[str] = None,
         derivative_smoothing=0.0,
-        pub_client: Optional[Client] = None,
+        pub_client: Optional["Client"] = None,
     ) -> None:
         # PID coefficients
         self.Kp = Kp

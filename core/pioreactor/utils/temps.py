@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 from adafruit_blinka.microcontroller.generic_linux.i2c import I2C
 
 

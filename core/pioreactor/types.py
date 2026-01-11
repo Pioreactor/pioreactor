@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 # types
-from __future__ import annotations
-
 import typing as t
 
 from msgspec import Meta
@@ -27,8 +25,8 @@ class DosingProgram(t.Protocol):
         experiment: str,
         ml: float,
         source_of_event: str,
-        mqtt_client: t.Optional[Client] = None,
-        logger: t.Optional[CustomLogger] = None,
+        mqtt_client: t.Optional["Client"] = None,
+        logger: t.Optional["CustomLogger"] = None,
     ) -> float:
         # don't forget to return a float!
         ...

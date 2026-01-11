@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 import contextlib
 import sqlite3
 from pathlib import Path

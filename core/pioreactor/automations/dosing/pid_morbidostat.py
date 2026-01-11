@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 from contextlib import suppress
 
 from pioreactor.automations import events

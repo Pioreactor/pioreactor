@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 import pytest
 from pioreactor.background_jobs import temperature_automation
 

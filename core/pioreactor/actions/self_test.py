@@ -6,8 +6,6 @@ Functions with prefix `test_` are ran, and any exception thrown means the test f
 
 Outputs from each test go into MQTT, and return to the command line.
 """
-from __future__ import annotations
-
 import sys
 from json import dumps
 from threading import Thread
@@ -368,7 +366,6 @@ def test_PD_is_near_0_volts_for_blank(
 
 def test_detect_heating_pcb(managed_state, logger: CustomLogger, unit: str, experiment: str) -> None:
     assert is_heating_pcb_present(), "Heater PCB is not connected, or i2c is not working."
-
 
 
 def test_positive_correlation_between_temperature_and_heating(

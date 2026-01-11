@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 from contextlib import suppress
 from threading import Event
 from time import sleep

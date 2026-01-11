@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 # test_streaming_calculations.py
-from __future__ import annotations
-
 import pytest
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 from pioreactor.utils.streaming_calculations import ExponentialMovingStd

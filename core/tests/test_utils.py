@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 # test_utils
-from __future__ import annotations
-
 import time
 from contextlib import redirect_stdout
 from datetime import datetime

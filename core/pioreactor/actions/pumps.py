@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 # pumps.py
 # a higher-level CLI API than the `pio run add_*` api
-from __future__ import annotations
-
 import time
 from typing import Callable
 

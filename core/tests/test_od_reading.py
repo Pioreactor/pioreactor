@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 # test_od_reading.py
-from __future__ import annotations
-
 import time
 
 import numpy as np

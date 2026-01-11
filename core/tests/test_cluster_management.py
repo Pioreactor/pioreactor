@@ -2,8 +2,6 @@
 """
 Tests for cluster_management API interactions against the leader webserver.
 """
-from __future__ import annotations
-
 import pytest
 from pioreactor.cluster_management import get_active_workers_in_experiment
 from pioreactor.cluster_management import get_active_workers_in_inventory
