@@ -1,32 +1,38 @@
 ### Upcoming
 
-#### Highligts
+#### Highlights
 
- - Perform calibrations in the UI!
+ - Run calibrations from the UI.
+ - New Protocols page with guided calibration sessions, including step-by-step instructions and live charts.
 
 #### Enhancements
 
- - Support for Pioreactor XR
- - Support for Optics calibration jig
- - faster Stop commands in the UI, listing plugins, and exporting data
- - new events in the dosing_automation_events table & export detailing when dosing starts and stops.
- - new query pattern for faster Experiment Overview chart loading. However, there is a random element to what data is displayed in a time series for large datasets. Let us know if this is too distracting.
+ - Support for Pioreactor XR.
+ - Support for the optics calibration jig.
+ - Faster Stop commands in the UI, plugin listing, and data exports.
+ - Added dosing start/stop events to `dosing_automation_events`, including exports.
+ - New query pattern for faster Experiment Overview chart loading; large datasets may show randomized sampling in time series. Let us know if this is too distracting. Max point targets per series increased to 1400.
  - OD calibrations now support multiple photodiode angles; `pio calibrations run --device od` can emit per-angle calibrations for 45/90/135.
    - Added an update helper to migrate legacy OD calibrations into per-angle devices.
- - reorganized calibration protocol modules into `core/pioreactor/calibrations/protocols/` and extracted a `registry.py` for protocol registration.
+ - Reorganized calibration protocol modules into `core/pioreactor/calibrations/protocols/` and extracted a `registry.py` for protocol registration.
+ - Calibration protocols are now exposed via API for the UI and CLI, with session IDs that can be advanced or aborted.
+ - Self-test results now surface per-check pass/fail status in the Inventory page and support retrying failed checks.
+ - Removed redundant `from __future__ import annotations` usage now that we run on Python 3.13.
 
 #### Breaking changes
- - Moved Self-test to Inventory page. Pioreactors no longer need to be assigned to an experiment to run self-test.
+ - Moved Self-test to the Inventory page. Pioreactors no longer need to be assigned to an experiment to run self-test.
  - Removed `/api/workers/<pioreactor_unit>/configuration`; use `/api/units/<pioreactor_unit>/configuration`.
- - self-test logs are now part of "$experiment"
- - calibration flow modules were merged into protocol modules; old import paths like `pioreactor.calibrations.pump_calibration` and `pioreactor.calibrations.od_calibration_*` are removed.
- - removed experimental pump-detection failure from chemostat and turbidostat
+ - Self-test logs are now part of `$experiment`.
+ - Calibration flow modules were merged into protocol modules; old import paths like `pioreactor.calibrations.pump_calibration` and `pioreactor.calibrations.od_calibration_*` are removed.
+ - Removed experimental pump-detection failure handling from chemostat and turbidostat.
  - OD calibration devices are now per-angle (`od45`, `od90`, `od135`) instead of just `od`. Physically, this changes the calibration directory in `~/.pioreactor/storage/calibrations/od` to  `~/.pioreactor/storage/calibrations/{od45,od90,od135}`. Existing `od` calibration files and active calibrations are migrated during the update.
+ - Self-test no longer creates a stirring calibration.
 
-#### Bug Fixes
+#### Bug fixes
 
- - Fix logging prematurely closing for self-tests
- - Fix floating point error at the boundary of OD calibrations
+ - Fix self-test logging closing prematurely.
+ - Fix floating point error at the boundary of OD calibrations.
+ - Fix runtime forward-reference errors in type annotations after dropping `__future__` imports.
 
 ### 25.12.10
 

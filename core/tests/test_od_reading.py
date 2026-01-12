@@ -1438,6 +1438,8 @@ def test_can_pass_config_section_directly() -> None:
         [
             ("od_config.photodiode_channel", "1", "90"),
             ("od_config.photodiode_channel", "2", "REF"),
+            ("od_config.photodiode_channel", "3", None),
+            ("od_config.photodiode_channel", "4", None),
         ],
     ):
         section = config["od_config.photodiode_channel"]

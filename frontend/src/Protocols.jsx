@@ -18,6 +18,7 @@ import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import CalibrationSessionDialog from "./components/CalibrationSessionDialog";
 import { fetchTaskResult } from "./utilities";
 import CircularProgress from "@mui/material/CircularProgress";
+import RequirementsAlert from "./components/RequirementsAlert";
 
 function ProtocolCard({
   protocol,
@@ -40,16 +41,19 @@ function ProtocolCard({
         </Typography>
 
         <Box sx={{ mt: 2 }}>
-          <Typography variant="subtitle2">Requirements</Typography>
-          <Box component="ul" sx={{ mt: 1, mb: 0, pl: 2 }}>
-            {requirements.map((item) => (
-              <li key={item}>
-                <Typography variant="body2" >
-                  {item}
-                </Typography>
-              </li>
-            ))}
-          </Box>
+          <RequirementsAlert>
+            <Box>
+              <Box component="ul" sx={{ mt: 0, mb: 0, pl: 2 }}>
+              {requirements.map((item) => (
+                <li key={item}>
+                  <Typography variant="body2">
+                    {item}
+                  </Typography>
+                </li>
+              ))}
+              </Box>
+            </Box>
+          </RequirementsAlert>
         </Box>
         <Box
           sx={{

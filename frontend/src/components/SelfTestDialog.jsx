@@ -25,6 +25,7 @@ import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 
 
 import PioreactorIcon from "./PioreactorIcon"
+import RequirementsAlert from "./RequirementsAlert"
 import {runPioreactorJob} from "../utilities"
 
 
@@ -150,9 +151,9 @@ export default function SelfTestDialog({client, disabled, experiment, unit, labe
           <Typography variant="body2" component="p" gutterBottom>
             Perform a check of the heating & temperature sensor, LEDs & photodiodes, and stirring.
           </Typography>
-          <Typography variant="body2" component="p" gutterBottom>
+          <RequirementsAlert>
             Add a closed vial, half-filled with water, and stirbar into the Pioreactor.
-          </Typography>
+          </RequirementsAlert>
 
             <Box>
 

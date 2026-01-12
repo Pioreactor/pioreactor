@@ -145,7 +145,7 @@ def test_read_voltage_requires_executor_in_ui() -> None:
     session = _build_session()
 
     def executor(action: str, payload: dict[str, object]) -> dict[str, object]:
-        assert action == "read_voltage"
+        assert action == "read_aux_voltage"
         return {"voltage": "3.3"}
 
     class Dummy(SessionStep):
