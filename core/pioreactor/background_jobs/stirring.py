@@ -210,7 +210,7 @@ class Stirrer(BackgroundJobWithDodging):
         target_rpm: Optional[float],
         unit: pt.Unit,
         experiment: pt.Experiment,
-        rpm_calculator: Optional[RpmCalculator | MockRpmCalculator] = None,
+        rpm_calculator: "Optional[RpmCalculator | MockRpmCalculator]" = None,
         calibration: bool | structs.SimpleStirringCalibration | None = True,
         enable_dodging_od: bool = False,
         duty_cycle: float | None = None,

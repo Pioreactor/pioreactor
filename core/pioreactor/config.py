@@ -155,18 +155,25 @@ def get_config() -> ConfigParserMod:
     config = ConfigParserMod(strict=False)
     from pioreactor.whoami import is_testing_env
 
-    if is_testing_env():
-        local_config_path = os.environ.get("LOCAL_CONFIG", "")
-
-        if os.environ.get("GLOBAL_CONFIG") is not None:
-            global_config_path = os.environ["GLOBAL_CONFIG"]
-        elif os.environ.get("DOT_PIOREACTOR") is not None:
-            global_config_path = os.environ["DOT_PIOREACTOR"] + "/config.ini"
-        else:
-            global_config_path = "./.pioreactor/config.ini"
+    if os.environ.get("GLOBAL_CONFIG") is not None:
+        global_config_path = os.environ["GLOBAL_CONFIG"]
+    elif os.environ.get("DOT_PIOREACTOR") is not None:
+        global_config_path = os.environ["DOT_PIOREACTOR"] + "/config.ini"
     else:
-        global_config_path = "/home/pioreactor/.pioreactor/config.ini"
-        local_config_path = "/home/pioreactor/.pioreactor/unit_config.ini"
+        if is_testing_env():
+            global_config_path = "./.pioreactor/config.ini"
+        else:
+            global_config_path = "/home/pioreactor/.pioreactor/config.ini"
+
+    if os.environ.get("LOCAL_CONFIG") is not None:
+        local_config_path = os.environ["GLOBAL_CONFIG"]
+    elif os.environ.get("DOT_PIOREACTOR") is not None:
+        local_config_path = os.environ["DOT_PIOREACTOR"] + "/unit_config.ini"
+    else:
+        if is_testing_env():
+            local_config_path = "./.pioreactor/unit_config.ini"
+        else:
+            local_config_path = "/home/pioreactor/.pioreactor/unit_config.ini"
 
     if not Path(global_config_path).exists():
         raise FileNotFoundError(
