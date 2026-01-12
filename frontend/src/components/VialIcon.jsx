@@ -5,9 +5,9 @@ function VialIcon(props) {
   return (
     <SvgIcon viewBox="-1 -1 13 22" strokeWidth="1.9" {...props}>
       <rect
-        x="0.56"
+        x="0.86"
         y="0.5"
-        width="10.21"
+        width="9.61"
         height="3.0"
         fill="currentColor"
         stroke="currentColor"

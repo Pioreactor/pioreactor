@@ -388,9 +388,6 @@ function CalibrationData() {
       }
       return false;
     }).sort((a, b) => {
-      const unitCmp = a.pioreactor_unit.localeCompare(b.pioreactor_unit);
-      if (unitCmp !== 0) return unitCmp;
-
       const aDate = dayjs(a.created_at);
       const bDate = dayjs(b.created_at);
 
@@ -398,8 +395,11 @@ function CalibrationData() {
       const bTime = bDate.isValid() ? bDate.valueOf() : 0;
 
       if (aTime !== bTime) {
-        return aTime - bTime; // oldest first within unit
+        return bTime - aTime; // newest first
       }
+
+      const unitCmp = a.pioreactor_unit.localeCompare(b.pioreactor_unit);
+      if (unitCmp !== 0) return unitCmp;
 
       return a.calibration_name.localeCompare(b.calibration_name);
     });

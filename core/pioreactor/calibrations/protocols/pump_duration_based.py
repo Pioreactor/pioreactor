@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import uuid
+from configparser import NoOptionError
 from typing import Callable
 from typing import cast
 from typing import ClassVar
@@ -139,7 +140,7 @@ def _execute_pump_for_calibration(
 def start_duration_based_session(pump_device: PumpCalibrationDevices) -> CalibrationSession:
     try:
         channel_pump_is_configured_for = config.get("PWM_reverse", pump_device.removesuffix("_pump"))
-    except KeyError as exc:
+    except NoOptionError as exc:
         raise ValueError(f"{pump_device} is not present in config.ini. Add it to the [PWM] section.") from exc
 
     session_id = str(uuid.uuid4())

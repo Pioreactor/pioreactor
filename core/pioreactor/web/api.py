@@ -1540,7 +1540,7 @@ def start_calibration_session(pioreactor_unit: str) -> ResponseReturnValue:
         detail = _extract_unit_api_error(response)
         if detail:
             publish_to_error_log(f"{exc}: {detail}", "start_calibration_session")
-            abort_with(502, f"Starting calibration session failed on {pioreactor_unit}: {detail}")
+            abort_with(502, f"{detail}")
         if response is not None:
             abort_with(
                 502,

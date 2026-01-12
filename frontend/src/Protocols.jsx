@@ -206,12 +206,6 @@ function Protocols(props) {
     if (!selectedUnit) {
       return;
     }
-    if (selectedUnit === "$broadcast") {
-      setSnackbarMessage("Select a single Pioreactor to run a protocol.");
-      setSnackbarOpen(true);
-      return;
-    }
-
     setActiveSessionProtocol(protocol);
   };
 
@@ -366,10 +360,6 @@ function Protocols(props) {
         }}
         onAbortFailure={() => {
           setSnackbarMessage("Failed to abort calibration session.");
-          setSnackbarOpen(true);
-        }}
-        onStartFailure={(message) => {
-          setSnackbarMessage(message);
           setSnackbarOpen(true);
         }}
       />
