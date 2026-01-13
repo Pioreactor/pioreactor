@@ -2,6 +2,7 @@
 from copy import deepcopy as copy
 
 import click
+from msgspec import ValidationError
 from msgspec.yaml import decode as yaml_decode
 from msgspec.yaml import encode as yaml_encode
 from pioreactor import structs
@@ -53,8 +54,11 @@ def list_calibrations(device: str | None) -> None:
 def _display_calibrations_by_device(device: str) -> None:
     calibration_dir = CALIBRATION_PATH / device
     if not calibration_dir.exists():
-        click.echo(f"No calibrations found for device '{device}'. Directory does not exist.")
-        raise click.Abort()
+        click.echo(
+            f"No calibrations found for device '{device}'. Directory does not exist.",
+            err=True,
+        )
+        return
 
     calibrations_by_device = list_of_calibrations_by_device(device)
 
@@ -183,7 +187,11 @@ def display_calibration(device: str, calibration_name: str) -> None:
     """
     Display the contents of a calibration YAML file.
     """
-    data = load_calibration(device, calibration_name)
+    try:
+        data = load_calibration(device, calibration_name)
+    except (FileNotFoundError, ValidationError) as exc:
+        click.echo(f"Error: {exc}", err=True)
+        raise SystemExit(1) from exc
 
     click.echo()
     curve = curve_to_callable(data.curve_type, data.curve_data_)

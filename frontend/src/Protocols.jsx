@@ -5,6 +5,7 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
+import Chip from "@mui/material/Chip";
 import Divider from "@mui/material/Divider";
 import FormControl from "@mui/material/FormControl";
 import FormLabel from "@mui/material/FormLabel";
@@ -24,6 +25,7 @@ function ProtocolCard({
   protocol,
   selectedUnit,
   onRun,
+  showResume,
 }) {
   const requirements = Array.isArray(protocol.requirements) ? protocol.requirements : [];
   return (
@@ -70,7 +72,7 @@ function ProtocolCard({
             disabled={!selectedUnit}
             sx={{ textTransform: "none" }}
           >
-            Run protocol
+            {showResume ? "Resume protocol" : "Run protocol"}
           </Button>
         </Box>
       </CardContent>
@@ -91,6 +93,9 @@ function Protocols(props) {
   const [snackbarOpen, setSnackbarOpen] = React.useState(false);
   const [snackbarMessage, setSnackbarMessage] = React.useState("");
   const [activeSessionProtocol, setActiveSessionProtocol] = React.useState(null);
+  const [activeSessionId, setActiveSessionId] = React.useState(null);
+  const [activeSessionProtocolId, setActiveSessionProtocolId] = React.useState(null);
+  const [activeSessionUnit, setActiveSessionUnit] = React.useState(null);
   const navigate = useNavigate();
 
   const isSessionDialogOpen = Boolean(activeSessionProtocol);
@@ -191,6 +196,10 @@ function Protocols(props) {
 
   const handleSelectUnitChange = (event) => {
     setSelectedUnit(event.target.value);
+    setActiveSessionProtocol(null);
+    setActiveSessionId(null);
+    setActiveSessionProtocolId(null);
+    setActiveSessionUnit(null);
     if (selectedDevice) {
       navigate(`/protocols/${event.target.value}/${selectedDevice}`);
     } else {
@@ -206,6 +215,17 @@ function Protocols(props) {
     if (!selectedUnit) {
       return;
     }
+    if (
+      activeSessionId &&
+      activeSessionProtocolId === protocol.id &&
+      activeSessionUnit === selectedUnit
+    ) {
+      setActiveSessionProtocol(protocol);
+      return;
+    }
+    setActiveSessionId(null);
+    setActiveSessionProtocolId(protocol.id);
+    setActiveSessionUnit(selectedUnit);
     setActiveSessionProtocol(protocol);
   };
 
@@ -324,6 +344,11 @@ function Protocols(props) {
               protocol={protocol}
               selectedUnit={selectedUnit}
               onRun={handleRunProtocol}
+              showResume={
+                Boolean(activeSessionId) &&
+                activeSessionProtocolId === protocol.id &&
+                activeSessionUnit === selectedUnit
+              }
             />
           </Grid>
         ))}
@@ -346,15 +371,28 @@ function Protocols(props) {
         open={snackbarOpen}
         onClose={handleSnackbarClose}
         message={snackbarMessage}
-        autoHideDuration={7000}
+        autoHideDuration={2500}
         key="snackbar-protocols"
       />
       <CalibrationSessionDialog
         open={isSessionDialogOpen}
         protocol={activeSessionProtocol}
         unit={selectedUnit}
+        sessionId={activeSessionId}
+        onSessionId={(sessionId) => {
+          setActiveSessionId(sessionId);
+          setActiveSessionProtocolId(activeSessionProtocol?.id ?? null);
+          setActiveSessionUnit(selectedUnit);
+        }}
+        onPause={() => {
+          setSnackbarMessage("Protocol paused.");
+          setSnackbarOpen(true);
+        }}
         onClose={closeSessionDialog}
         onAbortSuccess={() => {
+          setActiveSessionId(null);
+          setActiveSessionProtocolId(null);
+          setActiveSessionUnit(null);
           setSnackbarMessage("Calibration session aborted.");
           setSnackbarOpen(true);
         }}

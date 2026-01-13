@@ -108,6 +108,9 @@ export default function CalibrationSessionDialog({
   protocol,
   unit,
   open,
+  sessionId: sessionIdProp,
+  onSessionId,
+  onPause,
   onClose,
   onAbortSuccess,
   onAbortFailure,
@@ -137,6 +140,13 @@ export default function CalibrationSessionDialog({
     setSessionValues({});
     startInFlightRef.current = false;
   }, []);
+
+  React.useEffect(() => {
+    if (sessionIdProp === undefined) {
+      return;
+    }
+    setSessionId(sessionIdProp);
+  }, [sessionIdProp]);
 
   const startSession = React.useCallback(async () => {
     if (!open || !protocol || !unit) {
@@ -175,6 +185,9 @@ export default function CalibrationSessionDialog({
       const payload = await response.json();
       const nextSessionId = payload.session?.session_id;
       setSessionId(nextSessionId);
+      if (nextSessionId && onSessionId) {
+        onSessionId(nextSessionId);
+      }
       if (payload.step) {
         setSessionStep(payload.step);
         setSessionValues(buildInitialValues(payload.step));
@@ -203,7 +216,33 @@ export default function CalibrationSessionDialog({
       setSessionLoading(false);
       startInFlightRef.current = false;
     }
-  }, [onStartFailure, open, protocol, sessionId, unit]);
+  }, [onSessionId, onStartFailure, open, protocol, sessionId, unit]);
+
+  const loadSession = React.useCallback(async () => {
+    if (!open || !unit || !sessionId) {
+      return;
+    }
+    setSessionLoading(true);
+    setSessionError("");
+    try {
+      const response = await fetch(`/api/workers/${unit}/calibrations/sessions/${sessionId}`);
+      if (!response.ok) {
+        throw new Error(`Failed to load session (${response.status}).`);
+      }
+      const payload = await response.json();
+      if (payload.step) {
+        setSessionStep(payload.step);
+        setSessionValues(buildInitialValues(payload.step));
+      } else {
+        setSessionStep(null);
+        setSessionValues({});
+      }
+    } catch (err) {
+      setSessionError(err.message || "Failed to load session.");
+    } finally {
+      setSessionLoading(false);
+    }
+  }, [open, sessionId, unit]);
 
   const advanceSession = React.useCallback(async (overrideInputs) => {
     if (!unit || !sessionId) {
@@ -275,12 +314,18 @@ export default function CalibrationSessionDialog({
   );
 
   React.useEffect(() => {
-    if (open) {
-      startSession();
+    if (!open) {
+      if (!sessionId) {
+        resetSessionState();
+      }
       return;
     }
-    resetSessionState();
-  }, [open, resetSessionState, startSession]);
+    if (sessionId) {
+      loadSession();
+      return;
+    }
+    startSession();
+  }, [loadSession, open, resetSessionState, sessionId, startSession]);
 
   React.useEffect(() => {
     if (!sessionLoading) {
@@ -304,10 +349,16 @@ export default function CalibrationSessionDialog({
     <Dialog
       open={open}
       onClose={(_event, reason) => {
-        if (reason === "backdropClick") {
-          return;
+        if (
+          (reason === "backdropClick" || reason === "escapeKeyDown") &&
+          !sessionResult &&
+          onPause
+        ) {
+          onPause();
         }
-        abortSession(!sessionResult);
+        if (onClose) {
+          onClose();
+        }
       }}
       maxWidth="sm"
       fullWidth
@@ -366,7 +417,11 @@ export default function CalibrationSessionDialog({
               }}
             />
             {stepImage.caption && (
-              <Typography variant="caption" color="text.secondary">
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ textAlign: "center", display: "block", width: "100%" }}
+              >
                 {stepImage.caption}
               </Typography>
             )}

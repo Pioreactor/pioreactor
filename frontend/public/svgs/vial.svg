@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="19px" height="21px" viewBox="-1 -1 13 22" stroke-width="1.2">
+  <rect
+    x="0.86"
+    y="0.5"
+    width="9.61"
+    height="3.0"
+    fill="currentColor"
+    stroke="currentColor"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M0.17 5.96L0.14 19.44H11.17V5.81L0.18 5.97Z"
+    fill="none"
+    stroke="currentColor"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <line x1="7.14" y1="0.00" x2="7.14" y2="12.94" stroke="currentColor" />
+  <line x1="4" y1="-0.00" x2="4" y2="14.94" stroke="currentColor" />
+</svg>

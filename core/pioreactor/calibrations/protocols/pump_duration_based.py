@@ -197,13 +197,36 @@ class IntroConfirm2(SessionStep):
     def render(self, ctx: SessionContext) -> CalibrationStep:
         step = steps.info(
             "Keep hardware safe",
-            "Keep liquids away from the Pioreactor while running this calibration.",
+            "Keep liquids away from the Pioreactor hardware while running this calibration.",
         )
         step.metadata = {
             "image": {
-                "src": "/static/images/calibration-placeholder.png",
-                "alt": "Keep liquids away from the Pioreactor while running this calibration.",
-                "caption": "Keep liquids away from the Pioreactor.",
+                "src": "/static/svgs/no-no-vial.svg",
+                "alt": "Keep liquids away from the Pioreactor hardware while running this calibration.",
+                "caption": "Keep liquids away from the Pioreactor hardware.",
+            }
+        }
+        return step
+
+    def advance(self, ctx: SessionContext) -> SessionStep | None:
+        if ctx.inputs.has_inputs:
+            return IntroConfirm3()
+        return None
+
+
+class IntroConfirm3(SessionStep):
+    step_id = "intro_confirm_3"
+
+    def render(self, ctx: SessionContext) -> CalibrationStep:
+        step = steps.info(
+            "Keep hardware safe",
+            "Move the vial and output end of the tubing away from the Pioreactor hardware.",
+        )
+        step.metadata = {
+            "image": {
+                "src": "/static/svgs/keep-liquids-away.svg",
+                "alt": "Move the vial and pump sink away from the hardware.",
+                "caption": "Move the vial and tubing away from the hardware.",
             }
         }
         return step
@@ -372,8 +395,8 @@ class TestRun(SessionStep):
         results = ctx.data.get("results", [])
         duration = float(durations[test_index])
         step = steps.action(
-            "Dispense run",
-            f"Running the pump for {duration:.2f} seconds. Please measure the volume expelled.",
+            "Dispense",
+            f"Next: running the pump for {duration:.2f} seconds. Please measure the volume expelled.",
         )
         if results:
             step.metadata = {
@@ -474,6 +497,7 @@ class TestVolume(SessionStep):
 _PUMP_DURATION_STEPS: StepRegistry = {
     IntroConfirm1.step_id: IntroConfirm1,
     IntroConfirm2.step_id: IntroConfirm2,
+    IntroConfirm3.step_id: IntroConfirm3,
     NameInput.step_id: NameInput,
     NameOverwriteConfirm.step_id: NameOverwriteConfirm,
     VolumeTargets.step_id: VolumeTargets,
