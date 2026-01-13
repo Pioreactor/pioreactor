@@ -393,6 +393,24 @@ export default function CalibrationSessionDialog({
           <LinearProgress sx={{ visibility: showLoading ? "visible" : "hidden" }} />
         </Box>
         {sessionError && <Alert severity="error">{sessionError}</Alert>}
+        {sessionResult && (
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 1,
+              mb: 1,
+            }}
+          >
+            <Box
+              component="img"
+              src="/static/svgs/calibration-complete.svg"
+              alt="Calibration complete"
+              sx={{ width: 150, height: 150 }}
+            />
+          </Box>
+        )}
         {sessionStep ? (
           <Box sx={{mb: 1.5}}>
             <Typography variant="subtitle1" component="h2">
@@ -515,6 +533,7 @@ export default function CalibrationSessionDialog({
           )}
           {sessionResult?.calibrations && Array.isArray(sessionResult.calibrations) && unit && (
             <Stack direction="column" spacing={0} sx={{ flexWrap: "wrap" }}>
+
               {sessionResult.calibrations.map((calibration) => (
                 <Box> View <Chip
                   key={`${calibration.device}-${calibration.calibration_name}`}
