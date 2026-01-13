@@ -6,6 +6,7 @@ import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
+import IconButton from '@mui/material/IconButton';
 import {fetchTaskResult, colors, ColorCycler} from "./utilities"
 import MuiLink from '@mui/material/Link';
 import Card from '@mui/material/Card';
@@ -33,6 +34,7 @@ import Chip from '@mui/material/Chip';
 import DoNotDisturbOnOutlinedIcon from '@mui/icons-material/DoNotDisturbOnOutlined';
 import CheckCircleOutlineOutlinedIcon from '@mui/icons-material/CheckCircleOutlineOutlined';
 import DisplaySourceCode from "./components/DisplaySourceCode";
+import CloseIcon from '@mui/icons-material/Close';
 
 
 function formatPolynomial(coefficients) {
@@ -176,7 +178,21 @@ function ViewYamlSource({ pioreactorUnit, device, calibrationName }) {
         View YAML
       </Button>
       <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-        <DialogTitle>YAML description for calibration {calibrationName}</DialogTitle>
+        <DialogTitle>
+          YAML description for calibration {calibrationName}
+          <IconButton
+            aria-label="close"
+            onClick={handleClose}
+            sx={{
+              position: 'absolute',
+              right: 8,
+              top: 8,
+              color: (theme) => theme.palette.grey[500],
+            }}
+            size="large">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
         <DialogContent>
           {loading ? (
             <Box textAlign="center" mt={2}><CircularProgress size={20} /></Box>

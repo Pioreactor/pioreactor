@@ -1,0 +1,25 @@
+<svg width="240" height="240" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <title>calibration complete</title>
+  <g stroke="#111111" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="100" cy="106" r="62" fill="none" stroke-width="4" />
+    <path
+      d="M170 26 L176 44 L194 50 L176 56 L170 74 L164 56 L146 50 L164 44 Z"
+      fill="#f7f1c7"
+      stroke-width="3"
+    />
+    <path
+      d="M32 130 L36 140 L46 144 L36 148 L32 158 L28 148 L18 144 L28 140 Z"
+      fill="#e7f6ff"
+      stroke-width="3"
+    />
+  </g>
+  <g
+    transform="translate(100 106) scale(3.6) translate(-8.4 -9.45)"
+    stroke="#111111"
+    stroke-width="1.2"
+    fill="none"
+  >
+    <path d="M1.4,18.9 L1.4,14.7 L0,14.7 L0,11.2 L2.799,11.2 L2.8,0 L14,0 L13.999,11.2 L16.8,11.2 L16.8,14.7 L15.399,14.7 L15.4,18.9 L1.4,18.9 Z" />
+    <circle cx="8.4" cy="13.3" r="2.1" />
+  </g>
+</svg>

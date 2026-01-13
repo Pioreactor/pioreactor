@@ -450,9 +450,9 @@ export default function CalibrationSessionDialog({
             <CalibrationSessionChart chart={chartPayload} />
           </Box>
         )}
-        {sessionStep && (
+        {sessionStep && (sessionStep.body) && (
           <Typography variant="body2" sx={{ whiteSpace: "pre-line" }}>
-            {sessionStep.body || "Follow the instructions for this step."}
+            {sessionStep.body}
           </Typography>
         )}
         <Box sx={{width: "75%", mt: 1}}>

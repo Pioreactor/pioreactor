@@ -4,9 +4,30 @@ on:
     types: [published]
 
 jobs:
+  verify-frontend-build:
+    name: ✅ Verify frontend build is up to date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: 🏗 Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+      - name: 🧰 Install frontend dependencies
+        working-directory: frontend
+        run: |
+          npm ci
+      - name: 🧪 Build frontend and verify committed assets
+        run: |
+          make frontend-build
+          git diff --exit-code -- core/pioreactor/web/static
+
   build:
     name: 🔨 Build distribution
     runs-on: ubuntu-latest
+    needs: [verify-frontend-build]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -49,6 +70,7 @@ jobs:
   build-deps:
     name: 🔨 Build dependencies and upload
     runs-on: ubuntu-latest
+    needs: [verify-frontend-build]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -90,7 +112,7 @@ jobs:
   zip-asset-upload:
     name: 🤐 Zip assets and upload
     runs-on: ubuntu-latest
-    needs: [build, build-deps]
+    needs: [build, build-deps, verify-frontend-build]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -123,7 +145,7 @@ jobs:
   publish-on-pypi:
     name: 📦 Publish tagged releases to PyPI
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, verify-frontend-build]
     steps:
       - name: ⬇ Download build result
         uses: actions/download-artifact@v4
@@ -138,7 +160,7 @@ jobs:
   notify-custopizer-build:
     name: 📧 Notify Pioreactor/CustoPizer
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, verify-frontend-build]
     steps:
       - name: 👀 Determine version
         run: |

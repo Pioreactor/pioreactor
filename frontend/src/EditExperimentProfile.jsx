@@ -22,7 +22,9 @@ import CapabilitiesPanel from './components/CapabilitiesPanel';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
+import IconButton from '@mui/material/IconButton';
 import SearchIcon from '@mui/icons-material/Search';
+import CloseIcon from '@mui/icons-material/Close';
 
 function addQuotesToBrackets(input) {
     return input.replace(/(\${0}){{(.*?)}}/g, (match, p1, p2, offset, string) => {
@@ -238,7 +240,21 @@ function ProfilesContainer(){
         minHeight: '80%',
         maxHeight: '80%',
       }}}>
-        <DialogTitle>Search jobs and automations</DialogTitle>
+        <DialogTitle>
+          Search jobs and automations
+          <IconButton
+            aria-label="close"
+            onClick={() => setOpenCapabilities(false)}
+            sx={{
+              position: 'absolute',
+              right: 8,
+              top: 8,
+              color: (theme) => theme.palette.grey[500],
+            }}
+            size="large">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
         <DialogContent sx={{ height: '100%' }}>
           <CapabilitiesPanel />
         </DialogContent>

@@ -160,6 +160,19 @@ def stage_if_exists(path: Path, dry_run: bool) -> None:
         subprocess.run(["git", "add", path.as_posix()], check=True)
 
 
+def ensure_frontend_build_is_up_to_date(dry_run: bool) -> None:
+    if dry_run:
+        print("DRY-RUN: would run make frontend-build and verify static assets are clean")
+        return
+    subprocess.run(["make", "frontend-build"], check=True)
+    result = subprocess.run(["git", "diff", "--exit-code", "--", "core/pioreactor/web/static"], check=False)
+    if result.returncode != 0:
+        raise RuntimeError(
+            "Frontend build output differs from committed assets. "
+            "Run `make frontend-build` and commit the changes."
+        )
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Automate production release git workflow.")
     parser.add_argument("--date", help="CalVer date in YY.M.D format", default=None)
@@ -184,6 +197,7 @@ def main(argv: list[str]) -> int:
 
         if not args.force:
             ensure_clean_working_tree()
+            ensure_frontend_build_is_up_to_date(dry_run=args.dry_run)
 
         print(f"Preparing production release for {calver}\n")
 
