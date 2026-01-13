@@ -349,10 +349,18 @@ class TracerRun(SessionStep):
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
         tracer_duration = float(ctx.data.get("tracer_duration_s", 1.0))
-        return steps.action(
+        step = steps.action(
             "Tracer run",
-            f"Running the pump for {tracer_duration:.2f} seconds. Please measure the volume expelled.",
+            f"Running the pump for {tracer_duration:.2f} seconds. While running, hold the tube above the vial. Please measure the volume expelled.",
         )
+        step.metadata = {
+            "image": {
+                "src": "/static/svgs/pump-measure-volume.svg",
+                "alt": "Run the pump briefly and measure the volume expelled using a scale.",
+                "caption": "Measure the volume expelled on a scale or graduated cylinder.",
+            }
+        }
+        return step
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
         tracer_duration = float(ctx.data.get("tracer_duration_s", 1.0))
@@ -407,6 +415,14 @@ class TestRun(SessionStep):
         chart = _build_duration_chart_metadata(ctx)
         if chart:
             step.metadata = {**step.metadata, "chart": chart} if step.metadata else {"chart": chart}
+        else:
+            step.metadata = {
+                "image": {
+                    "src": "/static/svgs/pump-measure-volume.svg",
+                    "alt": "Run the pump briefly and measure the volume expelled using a scale.",
+                    "caption": "Measure the volume expelled on a scale or graduated cylinder.",
+                }
+            }
         return step
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:

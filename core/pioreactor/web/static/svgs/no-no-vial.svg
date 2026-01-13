@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 200">
+  <!-- Base icon color shared by the vial and the pioreactor mark. -->
+  <g style="color:#616161" fill="none" stroke="currentColor" stroke-width="3.6" fill-rule="evenodd">
+    <!-- Pioreactor cap: filled rectangle, stroke matches the rest of the icon. -->
+    <rect
+      x="166.7"
+      y="85"
+      width="27"
+      height="9"
+      fill="currentColor"
+      stroke="currentColor"
+      stroke-linejoin="round"
+    />
+    <!-- Pioreactor body outline (baked-in translation + scale from the original symbol). -->
+    <path d="M 159.2,150.7 L 159.2,138.1 L 155,138.1 L 155,127.6 L 163.397,127.6 L 163.4,94 L 197,94 L 196.997,127.6 L 205.4,127.6 L 205.4,138.1 L 201.197,138.1 L 201.2,150.7 L 159.2,150.7 Z" />
+    <!-- Pioreactor inner circle / port. -->
+    <circle cx="180.2" cy="133.9" r="6.3" />
+  </g>
+  <path
+    d="M 182.805,54.292 c -1.229,-1.766 -2.291,-3.291 -2.549,-4.022 c -0.057,-0.161 -0.207,-0.269 -0.378,-0.271 c -0.158,0.005 -0.324,0.102 -0.384,0.261 c -0.262,0.691 -1.27,2.138 -2.438,3.816 C 174.384,57.916 170.722,63.175 170.722,66.596 c 0,5.046 4.105,9.152 9.151,9.152 s 9.151,-4.105 9.151,-9.152 C 189.025,63.23 185.43,58.064 182.805,54.292 z"
+    fill="#9fd7f4"
+    style="color:#616161"
+  />
+  <!-- Red slash overlay to indicate "no vial". -->
+  <line x1="115" y1="65" x2="245" y2="150" stroke="#e53935" stroke-width="10" stroke-linecap="round" opacity="0.85" />
+</svg>

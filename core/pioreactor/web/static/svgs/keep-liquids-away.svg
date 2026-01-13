@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 200">
+  <!-- Base icon color shared by all elements. -->
+  <g style="color:#616161">
+    <!-- Pioreactor outline baked from defs + translate(215,76) + scale(3) + parent translate(14,0). -->
+    <g fill="none" stroke="currentColor" stroke-width="3.6" fill-rule="evenodd">
+      <path d="M 236.2,135.7 L 236.2,123.1 L 232,123.1 L 232,112.6 L 240.397,112.6 L 240.4,79 L 274,79 L 273.997,112.6 L 282.4,112.6 L 282.4,123.1 L 278.197,123.1 L 278.2,135.7 L 236.2,135.7 Z" />
+      <circle cx="257.2" cy="118.9" r="6.3" />
+    </g>
+
+    <!-- Horizontal brace line (was in translate(14,0) group). -->
+    <line x1="119" y1="107.5" x2="214" y2="107.5" stroke="currentColor" stroke-width="2.5" />
+    <!-- Brace end caps. -->
+    <rect x="119" y="103.5" width="2.5" height="8" fill="currentColor" />
+    <rect x="214" y="103.5" width="2.5" height="8" fill="currentColor" />
+
+    <!-- Small vial icon baked from defs + translate(50,85) + scale(2.6) + parent translate(14,0). -->
+    <g stroke="currentColor" stroke-width="3.12" fill="none">
+      <rect
+        x="66.236"
+        y="86.3"
+        width="24.986"
+        height="7.8"
+        fill="currentColor"
+        stroke="currentColor"
+        stroke-linejoin="round"
+      />
+      <path
+        d="M 64.442,100.496 L 64.364,135.544 H 93.042 V 100.106 L 64.468,100.522 Z"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+      <line x1="82.564" y1="85" x2="82.564" y2="118.644" />
+      <line x1="74.4" y1="85" x2="74.4" y2="123.844" />
+    </g>
+
+    <!-- Vial silhouette baked from translate(52,40) + scale(0.05) + parent translate(14,0). -->
+    <path
+      d="M 81.805,44.292 c -1.229,-1.766 -2.291,-3.291 -2.549,-4.022 c -0.057,-0.161 -0.207,-0.269 -0.378,-0.271 c -0.158,0.005 -0.324,0.102 -0.384,0.261 c -0.262,0.691 -1.27,2.138 -2.438,3.816 C 73.384,47.916 69.722,53.175 69.722,56.596 c 0,5.046 4.105,9.152 9.151,9.152 s 9.151,-4.105 9.151,-9.152 C 88.025,53.23 84.43,48.064 81.805,44.292 z"
+      fill="#9fd7f4"
+    />
+  </g>
+</svg>

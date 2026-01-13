@@ -212,10 +212,19 @@ class Intro(SessionStep):
     step_id = "intro"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
-        return steps.info(
+        step = steps.info(
             "Stirring DC-based calibration",
-            "Insert a vial with a stir bar. Water is fine. Stirring must be off before starting.",
+            "Insert a vial with a stir bar and the liquid volume you plan to use (water is fine). "
+            "Stirring must be off before starting.",
         )
+        step.metadata = {
+            "image": {
+                "src": "/static/svgs/prepare-vial-arrow-pioreactor.svg",
+                "alt": "Insert a vial with a stir bar and the liquid volume you plan to use.",
+                "caption": "Insert a vial with a stir bar and the liquid volume you plan to use.",
+            }
+        }
+        return step
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
         if ctx.inputs.has_inputs:

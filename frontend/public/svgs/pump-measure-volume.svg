@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 200">
+  <g style="color:#616161" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linejoin="round" stroke-linecap="round">
+    <!-- Simple scale body -->
+    <rect x="118" y="138" width="124" height="34" rx="8" />
+    <rect x="140" y="122" width="80" height="16" rx="6" />
+    <rect x="166" y="145" width="30" height="20" rx="3" />
+    <text
+      x="181"
+      y="161"
+      font-size="17"
+      font-family="Menlo,Consolas,system-ui"
+      text-anchor="middle"
+      fill="currentColor"
+      stroke="currentColor"
+      stroke-width="0.8"
+      paint-order="stroke fill"
+    >0</text>
+
+    <!-- Vial on scale -->
+    <g transform="translate(166 68) scale(2.6)" stroke-width="1.2">
+      <path d="M0.17 5.96L0.14 19.44H11.17V5.81L0.18 5.97Z" />
+      <line x1="7.14" y1="0.00" x2="7.14" y2="12.94" />
+      <line x1="4" y1="-0.00" x2="4" y2="14.94" />
+      <rect x="0.86" y="0.5" width="9.61" height="3.0" fill="currentColor" stroke="currentColor" stroke-linejoin="round" />
+    </g>
+
+    <!-- Droplet above vial -->
+
+    <path
+      d="M 81.805,44.292 c -1.229,-1.766 -2.291,-3.291 -2.549,-4.022 c -0.057,-0.161 -0.207,-0.269 -0.378,-0.271 c -0.158,0.005 -0.324,0.102 -0.384,0.261 c -0.262,0.691 -1.27,2.138 -2.438,3.816 C 73.384,47.916 69.722,53.175 69.722,56.596 c 0,5.046 4.105,9.152 9.151,9.152 s 9.151,-4.105 9.151,-9.152 C 88.025,53.23 84.43,48.064 81.805,44.292 z"
+      transform="translate(148 10) scale(0.45)"
+      fill="#9fd7f4"
+      stroke="none"
+    />
+
+
+    <path
+      d="M 81.805,44.292 c -1.229,-1.766 -2.291,-3.291 -2.549,-4.022 c -0.057,-0.161 -0.207,-0.269 -0.378,-0.271 c -0.158,0.005 -0.324,0.102 -0.384,0.261 c -0.262,0.691 -1.27,2.138 -2.438,3.816 C 73.384,47.916 69.722,53.175 69.722,56.596 c 0,5.046 4.105,9.152 9.151,9.152 s 9.151,-4.105 9.151,-9.152 C 88.025,53.23 84.43,48.064 81.805,44.292 z"
+      transform="translate(148 30) scale(0.45)"
+      fill="#9fd7f4"
+      stroke="none"
+    />
+  </g>
+</svg>
