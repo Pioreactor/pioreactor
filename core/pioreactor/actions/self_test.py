@@ -386,6 +386,7 @@ def test_positive_correlation_between_temperature_and_heating(
         tc._update_heater(0)
         measured_correlation = round(correlation(dcs, measured_pcb_temps), 2)
         logger.debug(f"Correlation between temp sensor and heating: {measured_correlation}")
+        logger.debug(f"{measured_pcb_temps=}\n{dcs=}")
         assert (
             measured_correlation > 0.9
         ), f"Temp and DC% correlation was not high enough {dcs=}, {measured_pcb_temps=}"

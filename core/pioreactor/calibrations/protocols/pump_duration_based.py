@@ -220,7 +220,7 @@ class IntroConfirm3(SessionStep):
     def render(self, ctx: SessionContext) -> CalibrationStep:
         step = steps.info(
             "Keep hardware safe",
-            "Move the vial and output end of the tubing away from the Pioreactor hardware.",
+            "Keep the vial and tubing away from the Pioreactor hardware during this protocol",
         )
         step.metadata = {
             "image": {
@@ -323,7 +323,31 @@ class PwmSettings(SessionStep):
         dc = ctx.inputs.float("dc", minimum=0, maximum=100, default=100.0)
         ctx.data["hz"] = hz
         ctx.data["dc"] = dc
-        return PrimePumpDuration()
+        return TubingIntoWater()
+
+
+class TubingIntoWater(SessionStep):
+    step_id = "tubing_into_water"
+
+    def render(self, ctx: SessionContext) -> CalibrationStep:
+        pump_device = _get_pump_device(ctx)
+        step = steps.info(
+            f"Place tubing ends in water ({pump_device})",
+            "Place both ends of the tubing into the larger container of water before priming.",
+        )
+        step.metadata = {
+            "image": {
+                "src": "/static/svgs/tubing-ends-in-water.svg",
+                "alt": "Place both ends of the tubing into the larger water container.",
+                "caption": "Both tubing ends should sit below the water line.",
+            }
+        }
+        return step
+
+    def advance(self, ctx: SessionContext) -> SessionStep | None:
+        if ctx.inputs.has_inputs:
+            return PrimePumpDuration()
+        return None
 
 
 class PrimePumpDuration(SessionStep):
@@ -351,7 +375,7 @@ class TracerRun(SessionStep):
         tracer_duration = float(ctx.data.get("tracer_duration_s", 1.0))
         step = steps.action(
             "Tracer run",
-            f"Running the pump for {tracer_duration:.2f} seconds. While running, hold the tube above the vial. Please measure the volume expelled.",
+            f"Running the pump for {tracer_duration:.2f} seconds. While running, hold the tube above the vial. Please measure the volume expelled. Ready?",
         )
         step.metadata = {
             "image": {
@@ -404,7 +428,7 @@ class TestRun(SessionStep):
         duration = float(durations[test_index])
         step = steps.action(
             "Dispense",
-            f"Next: running the pump for {duration:.2f} seconds. Please measure the volume expelled.",
+            f"Next: running the pump for {duration:.2f} seconds. Please measure the volume expelled. Ready?",
         )
         if results:
             step.metadata = {
@@ -514,6 +538,7 @@ _PUMP_DURATION_STEPS: StepRegistry = {
     IntroConfirm1.step_id: IntroConfirm1,
     IntroConfirm2.step_id: IntroConfirm2,
     IntroConfirm3.step_id: IntroConfirm3,
+    TubingIntoWater.step_id: TubingIntoWater,
     NameInput.step_id: NameInput,
     NameOverwriteConfirm.step_id: NameOverwriteConfirm,
     VolumeTargets.step_id: VolumeTargets,

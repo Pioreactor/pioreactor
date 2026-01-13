@@ -26,6 +26,8 @@ function ProtocolCard({
   selectedUnit,
   onRun,
   showResume,
+  onAbort,
+  isAborting,
 }) {
   const requirements = Array.isArray(protocol.requirements) ? protocol.requirements : [];
   return (
@@ -65,15 +67,27 @@ function ProtocolCard({
             mt: 2,
           }}
         >
-          <Button
-            variant="contained"
-            endIcon={<PlayArrowIcon />}
-            onClick={() => onRun(protocol)}
-            disabled={!selectedUnit}
-            sx={{ textTransform: "none" }}
-          >
-            {showResume ? "Resume protocol" : "Run protocol"}
-          </Button>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Button
+              variant="contained"
+              endIcon={<PlayArrowIcon />}
+              onClick={() => onRun(protocol)}
+              disabled={!selectedUnit}
+              sx={{ textTransform: "none" }}
+            >
+              {showResume ? "Resume protocol" : "Run protocol"}
+            </Button>
+            {showResume && (
+              <Button
+                variant="text"
+                onClick={() => onAbort(protocol)}
+                disabled={!selectedUnit || isAborting}
+                sx={{ textTransform: "none", color: "error.main" }}
+              >
+                Abort protocol
+              </Button>
+            )}
+          </Box>
         </Box>
       </CardContent>
     </Card>
@@ -96,6 +110,7 @@ function Protocols(props) {
   const [activeSessionId, setActiveSessionId] = React.useState(null);
   const [activeSessionProtocolId, setActiveSessionProtocolId] = React.useState(null);
   const [activeSessionUnit, setActiveSessionUnit] = React.useState(null);
+  const [isAbortingProtocol, setIsAbortingProtocol] = React.useState(false);
   const navigate = useNavigate();
 
   const isSessionDialogOpen = Boolean(activeSessionProtocol);
@@ -229,6 +244,52 @@ function Protocols(props) {
     setActiveSessionProtocol(protocol);
   };
 
+  const handleAbortProtocol = async (protocol) => {
+    if (!selectedUnit) {
+      return;
+    }
+    if (
+      !activeSessionId ||
+      activeSessionProtocolId !== protocol.id ||
+      activeSessionUnit !== selectedUnit
+    ) {
+      return;
+    }
+    setIsAbortingProtocol(true);
+    try {
+      const response = await fetch(
+        `/api/workers/${selectedUnit}/calibrations/sessions/${activeSessionId}/abort`,
+        {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      if (!response.ok) {
+        let errorMessage = `Failed to abort calibration session (${response.status}).`;
+        try {
+          const payload = await response.json();
+          errorMessage = payload.error || payload.message || JSON.stringify(payload);
+        } catch (_error) {
+          // Keep the fallback message.
+        }
+        throw new Error(errorMessage);
+      }
+      setActiveSessionId(null);
+      setActiveSessionProtocolId(null);
+      setActiveSessionUnit(null);
+      setSnackbarMessage("Calibration session aborted.");
+      setSnackbarOpen(true);
+    } catch (err) {
+      setSnackbarMessage(err.message || "Failed to abort calibration session.");
+      setSnackbarOpen(true);
+    } finally {
+      setIsAbortingProtocol(false);
+    }
+  };
+
   return (
     <React.Fragment>
       <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
@@ -344,6 +405,8 @@ function Protocols(props) {
               protocol={protocol}
               selectedUnit={selectedUnit}
               onRun={handleRunProtocol}
+              onAbort={handleAbortProtocol}
+              isAborting={isAbortingProtocol}
               showResume={
                 Boolean(activeSessionId) &&
                 activeSessionProtocolId === protocol.id &&
