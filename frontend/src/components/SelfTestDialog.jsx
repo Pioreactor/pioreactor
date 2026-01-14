@@ -151,13 +151,13 @@ export default function SelfTestDialog({client, disabled, experiment, unit, labe
           <Typography variant="body2" component="p" gutterBottom>
             Perform a check of the heating & temperature sensor, LEDs & photodiodes, and stirring.
           </Typography>
-          <RequirementsAlert>
+          <RequirementsAlert sx={{mb: 2, pb: 0}}>
             Add a closed vial, half-filled with water, and stirbar into the Pioreactor.
             <Box
               component="img"
               src="/static/svgs/prepare-vial-arrow-pioreactor-compact.svg"
               alt="Prepare vial"
-              sx={{width: "150px", display: "block", mb: 1, mx: "auto"}}
+              sx={{width: "150px", display: "block", mb: 0, mx: "auto"}}
             />
           </RequirementsAlert>
 

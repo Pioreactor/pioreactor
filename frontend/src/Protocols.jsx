@@ -10,6 +10,7 @@ import Divider from "@mui/material/Divider";
 import FormControl from "@mui/material/FormControl";
 import FormLabel from "@mui/material/FormLabel";
 import Grid from "@mui/material/Grid";
+import AlertTitle from "@mui/material/AlertTitle";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import Snackbar from "@mui/material/Snackbar";
@@ -46,6 +47,9 @@ function ProtocolCard({
 
         <Box sx={{ mt: 2 }}>
           <RequirementsAlert>
+            <AlertTitle>
+              Requires:
+            </AlertTitle>
             <Box>
               <Box component="ul" sx={{ mt: 0, mb: 0, pl: 2 }}>
               {requirements.map((item) => (

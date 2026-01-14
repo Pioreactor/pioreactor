@@ -1,7 +1,5 @@
 import React from "react";
 import Alert from "@mui/material/Alert";
-import AlertTitle from "@mui/material/AlertTitle";
-import VialIcon from "./VialIcon";
 
 function RequirementsAlert(props) {
   const { sx, children, ...rest } = props;
@@ -20,7 +18,7 @@ function RequirementsAlert(props) {
   const combinedSx = Array.isArray(sx) ? [baseSx, ...sx] : [baseSx, sx];
 
   return (
-    <Alert severity="info" sx={combinedSx} {...rest}>
+    <Alert severity="info"  sx={combinedSx} {...rest}>
       {children}
     </Alert>
   );
