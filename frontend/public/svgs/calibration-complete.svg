@@ -1,7 +1,7 @@
 <svg width="240" height="240" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
   <title>calibration complete</title>
   <g stroke="#111111" stroke-linecap="round" stroke-linejoin="round">
-    <circle cx="100" cy="106" r="62" fill="none" stroke-width="4" />
+    <circle cx="100" cy="106" r="62" fill="#f6f5ef" stroke-width="4" />
     <path
       d="M170 26 L176 44 L194 50 L176 56 L170 74 L164 56 L146 50 L164 44 Z"
       fill="#f7f1c7"

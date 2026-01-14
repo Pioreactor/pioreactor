@@ -261,11 +261,7 @@ class ODReferenceStandardProtocol(CalibrationProtocol[pt.ODCalibrationDevices]):
     protocol_name = "od_reference_standard"
     title = "Optics Calibration Jig"
     description = "Calibrate OD using the Pioreactor Optical Reference Standard."
-    requirements = (
-        "OD reading must be off before starting.",
-        "Insert the Optics Calibration Jig.",
-        "Set ir_led_intensity in [od_reading.config] to a numeric value.",
-    )
+    requirements = ("Optics Calibration Jig", "2x tubes from the Vial Cap S")
     step_registry: ClassVar[StepRegistry] = _REFERENCE_STANDARD_STEPS
 
     @classmethod

@@ -153,6 +153,12 @@ export default function SelfTestDialog({client, disabled, experiment, unit, labe
           </Typography>
           <RequirementsAlert>
             Add a closed vial, half-filled with water, and stirbar into the Pioreactor.
+            <Box
+              component="img"
+              src="/static/svgs/prepare-vial-arrow-pioreactor-compact.svg"
+              alt="Prepare vial"
+              sx={{width: "150px", display: "block", mb: 1, mx: "auto"}}
+            />
           </RequirementsAlert>
 
             <Box>

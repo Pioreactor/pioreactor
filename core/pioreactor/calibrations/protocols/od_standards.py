@@ -349,7 +349,12 @@ class ChannelConfirm(SessionStep):
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
         channel_summary = ctx.data.get("channel_summary", "")
-        return steps.info("Confirm channels", f"Using channels {channel_summary}.")
+        channel_lines = channel_summary.split(", ") if channel_summary else []
+        if channel_lines:
+            message = "Using channels:\n" + "\n".join(channel_lines)
+        else:
+            message = "Using channels."
+        return steps.info("Confirm channels", message)
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
         if ctx.inputs.has_inputs:
@@ -389,7 +394,15 @@ class PlaceStandard(SessionStep):
             _get_channel_angle_map(ctx),
         )
         if chart:
-            step.metadata = {"chart": chart}
+            step.metadata["chart"] = chart
+        else:
+            step.metadata = {
+                "image": {
+                    "src": "/static/svgs/place-standard-arrow-pioreactor.svg",
+                    "alt": "Place a non-blank standard vial with a stir bar into the Pioreactor.",
+                    "caption": "Place a non-blank standard vial with a stir bar into the Pioreactor.",
+                }
+            }
         return step
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
@@ -436,7 +449,7 @@ class AnotherStandard(SessionStep):
             [
                 fields.choice(
                     "next_action",
-                    ["record another standard", "continue to blank"],
+                    ["record another standard", "finish, and continue to blank"],
                     label="Next action",
                     default="record another standard",
                 )
@@ -469,7 +482,7 @@ class AnotherStandard(SessionStep):
             return PlaceStandard()
         next_action = ctx.inputs.choice(
             "next_action",
-            ["record another standard", "continue to blank"],
+            ["record another standard", "finish, and continue to blank"],
             default="record another standard",
         )
         if next_action == "record another standard":
@@ -485,13 +498,14 @@ class PlaceBlank(SessionStep):
             "Place blank",
             "Place the blank (media only) standard vial into the Pioreactor.",
         )
-        chart = _build_standards_chart_metadata(
-            ctx.data.get("od600_values", []),
-            ctx.data.get("voltages_by_channel", {}),
-            _get_channel_angle_map(ctx),
-        )
-        if chart:
-            step.metadata = {"chart": chart}
+        step.metadata = {
+            "image": {
+                "src": "/static/svgs/place-blank-arrow-pioreactor.svg",
+                "alt": "Place the blank (media only) standard vial into the Pioreactor.",
+                "caption": "Place the blank (media only) standard vial into the Pioreactor.",
+            }
+        }
+
         return step
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
@@ -582,9 +596,9 @@ class StandardsODProtocol(CalibrationProtocol[pt.ODCalibrationDevices]):
     title = "OD standards calibration"
     description = "Calibrate OD channels using a series of OD600 standards and a blank."
     requirements = (
-        "OD reading and stirring must be off before starting.",
-        "Have OD600 standards ready (including a blank).",
-        "Each vial should include a stir bar.",
+        "OD600 standards (including a blank)",
+        "Vials",
+        "Stir bars",
     )
     step_registry: ClassVar[StepRegistry] = _OD_STANDARDS_STEPS
 

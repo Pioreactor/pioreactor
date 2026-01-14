@@ -17,7 +17,7 @@
     <circle cx="140" cy="132" r="4" fill="currentColor" stroke="none" />
     <circle cx="220" cy="132" r="4" fill="currentColor" stroke="none" />
   </g>
-  <g style="color:#616161" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <g style="color:#616161" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
     <text x="150" y="92" font-size="12" font-family="Menlo,Consolas,system-ui" fill="currentColor">In</text>
     <text x="218" y="92" font-size="12" font-family="Menlo,Consolas,system-ui" fill="currentColor">Out</text>
   </g>

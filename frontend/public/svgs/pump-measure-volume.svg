@@ -27,7 +27,7 @@
       />
       <line x1="1.7" y1="2.4" x2="9.6" y2="2.4" stroke="currentColor" />
       <line x1="1.6" y1="4.0" x2="9.7" y2="4.5" stroke="currentColor" />
-      <rect x="1.1" y="18.0" width="9.0" height="0.8" fill="#9fd7f4" stroke="none" />
+      <rect x="1.1" y="18.0" width="9.0" height="1.0" fill="#9fd7f4" stroke="none" />
     </g>
 
     <!-- Out tube above droplets -->
@@ -53,7 +53,7 @@
 
 
   </g>
-  <g style="color:#616161" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <g style="color:#616161" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
     <text x="194" y="32" font-size="12" font-family="Menlo,Consolas,system-ui" fill="currentColor">Out</text>
   </g>
 </svg>

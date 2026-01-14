@@ -220,7 +220,7 @@ class IntroConfirm3(SessionStep):
     def render(self, ctx: SessionContext) -> CalibrationStep:
         step = steps.info(
             "Keep hardware safe",
-            "Keep the vial and tubing away from the Pioreactor hardware during this protocol",
+            "Make space between the vial and Pioreactor hardware",
         )
         step.metadata = {
             "image": {
@@ -332,8 +332,8 @@ class TubingIntoWater(SessionStep):
     def render(self, ctx: SessionContext) -> CalibrationStep:
         pump_device = _get_pump_device(ctx)
         step = steps.info(
-            f"Place tubing ends in water ({pump_device})",
-            "Place both ends of the tubing into the larger container of water before priming.",
+            f"Place tubing ends of {pump_device} in water",
+            f"Place both ends of the {pump_device} tubing into the larger container of water to prime.",
         )
         step.metadata = {
             "image": {
@@ -356,8 +356,8 @@ class PrimePumpDuration(SessionStep):
     def render(self, ctx: SessionContext) -> CalibrationStep:
         return steps.form(
             "Prime pump",
-            "Prime the pump by filling the tubes completely with water.",
-            [fields.float("prime_duration_s", label="Prime duration (seconds)", default=10.0, minimum=0.1)],
+            "Prime the pump by filling the tubes completely with water. There should be no air pockets by the end.",
+            [fields.float("prime_duration_s", label="Prime duration (seconds)", default=15.0, minimum=5)],
         )
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
@@ -375,7 +375,11 @@ class TracerRun(SessionStep):
         tracer_duration = float(ctx.data.get("tracer_duration_s", 1.0))
         step = steps.action(
             "Tracer run",
-            f"Running the pump for {tracer_duration:.2f} seconds. While running, hold the tube above the vial. Please measure the volume expelled. Ready?",
+            (
+                f"Running the pump for {tracer_duration:.2f} seconds.\n\n"
+                "While running, hold the tube above the vial. Please measure the volume expelled.\n\n"
+                "Ready?"
+            ),
         )
         step.metadata = {
             "image": {
@@ -428,7 +432,7 @@ class TestRun(SessionStep):
         duration = float(durations[test_index])
         step = steps.action(
             "Dispense",
-            f"Next: running the pump for {duration:.2f} seconds. Please measure the volume expelled. Ready?",
+            f"Next: running the pump for {duration:.2f} seconds. Please measure the volume expelled. \n\nReady?",
         )
         if results:
             step.metadata = {
@@ -581,8 +585,10 @@ class DurationBasedPumpProtocol(CalibrationProtocol[pt.PumpCalibrationDevices]):
     title = "Duration-based pump calibration"
     description = "Build a duration-to-volume curve for the {device} pump using a simple multi-step flow."
     requirements = (
-        "Place the outflow tube into a measuring container or scale.",
-        "Have clean water available for priming and tests.",
+        "Peristaltic pump",
+        "Pioreactor vial",
+        "Container of clean water",
+        "Measuring container or scale",
     )
     step_registry: ClassVar[StepRegistry] = _PUMP_DURATION_STEPS
 

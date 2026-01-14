@@ -20,7 +20,7 @@ function RequirementsAlert(props) {
   const combinedSx = Array.isArray(sx) ? [baseSx, ...sx] : [baseSx, sx];
 
   return (
-    <Alert icon={<VialIcon sx={{ color: "grey.600" }} />} severity="info" sx={combinedSx} {...rest}>
+    <Alert severity="info" sx={combinedSx} {...rest}>
       {children}
     </Alert>
   );

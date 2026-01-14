@@ -278,8 +278,9 @@ class DCBasedStirringProtocol(CalibrationProtocol[Literal["stirring"]]):
     title = "Stirring DC-based calibration"
     description = "Maps duty cycle to RPM for the current stirrer configuration."
     requirements = (
-        "Stirring must be off before starting.",
-        "Insert a vial with a stir bar and the liquid volume you plan to use (water is fine).",
+        "Vial",
+        "Stir bar",
+        "Liquid (water is fine)",
     )
     step_registry: ClassVar[StepRegistry] = _DC_BASED_STEPS
 
