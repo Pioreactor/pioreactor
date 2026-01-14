@@ -33,6 +33,7 @@
  - Fix self-test logging closing prematurely.
  - Fix floating point error at the boundary of OD calibrations.
  - Fix runtime forward-reference errors in type annotations after dropping `__future__` imports.
+ - Fix timeouts being too short on some UI export operations
 
 ### 25.12.10
 

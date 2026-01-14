@@ -110,20 +110,23 @@ def broadcast_get_across_cluster(endpoint: str, timeout: float = 5.0, return_raw
 
 
 def broadcast_post_across_cluster(
-    endpoint: str, json: dict | None = None, params: dict | None = None
+    endpoint: str,
+    json: dict | None = None,
+    params: dict | None = None,
+    timeout: float = 30.0,
 ) -> Result:
     assert endpoint.startswith("/unit_api")
-    return tasks.multicast_post(endpoint, get_all_units(), json=json, params=params)
+    return tasks.multicast_post(endpoint, get_all_units(), json=json, params=params, timeout=timeout)
 
 
-def broadcast_delete_across_cluster(endpoint: str, json: dict | None = None) -> Result:
+def broadcast_delete_across_cluster(endpoint: str, json: dict | None = None, timeout: float = 30.0) -> Result:
     assert endpoint.startswith("/unit_api")
-    return tasks.multicast_delete(endpoint, get_all_units(), json=json)
+    return tasks.multicast_delete(endpoint, get_all_units(), json=json, timeout=timeout)
 
 
-def broadcast_patch_across_cluster(endpoint: str, json: dict | None = None) -> Result:
+def broadcast_patch_across_cluster(endpoint: str, json: dict | None = None, timeout: float = 30.0) -> Result:
     assert endpoint.startswith("/unit_api")
-    return tasks.multicast_patch(endpoint, get_all_units(), json=json)
+    return tasks.multicast_patch(endpoint, get_all_units(), json=json, timeout=timeout)
 
 
 # send only to workers
@@ -147,20 +150,23 @@ def broadcast_get_across_workers_in_experiment(
 
 
 def broadcast_post_across_workers(
-    endpoint: str, json: dict | None = None, params: dict | None = None
+    endpoint: str,
+    json: dict | None = None,
+    params: dict | None = None,
+    timeout: float = 30.0,
 ) -> Result:
     assert endpoint.startswith("/unit_api")
-    return tasks.multicast_post(endpoint, get_all_workers(), json=json, params=params)
+    return tasks.multicast_post(endpoint, get_all_workers(), json=json, params=params, timeout=timeout)
 
 
-def broadcast_delete_across_workers(endpoint: str, json: dict | None = None) -> Result:
+def broadcast_delete_across_workers(endpoint: str, json: dict | None = None, timeout: float = 30.0) -> Result:
     assert endpoint.startswith("/unit_api")
-    return tasks.multicast_delete(endpoint, get_all_workers(), json=json)
+    return tasks.multicast_delete(endpoint, get_all_workers(), json=json, timeout=timeout)
 
 
-def broadcast_patch_across_workers(endpoint: str, json: dict | None = None) -> Result:
+def broadcast_patch_across_workers(endpoint: str, json: dict | None = None, timeout: float = 30.0) -> Result:
     assert endpoint.startswith("/unit_api")
-    return tasks.multicast_patch(endpoint, get_all_workers(), json=json)
+    return tasks.multicast_patch(endpoint, get_all_workers(), json=json, timeout=timeout)
 
 
 def _build_single_file_multipart(
@@ -1536,17 +1542,15 @@ def start_calibration_session(pioreactor_unit: str) -> ResponseReturnValue:
             timeout=30,
         )
         response.raise_for_status()
-    except (HTTPErrorStatus, HTTPException) as exc:
+    except (HTTPErrorStatus, HTTPException):
         detail = _extract_unit_api_error(response)
         if detail:
-            publish_to_error_log(f"{exc}: {detail}", "start_calibration_session")
             abort_with(502, f"{detail}")
         if response is not None:
             abort_with(
                 502,
                 f"Starting calibration session failed on {pioreactor_unit} (HTTP {response.status_code}).",
             )
-        publish_to_error_log(str(exc), "start_calibration_session")
         abort_with(502, f"Starting calibration session failed on {pioreactor_unit}.")
 
     return Response(
@@ -1569,17 +1573,15 @@ def get_calibration_session(pioreactor_unit: str, session_id: str) -> ResponseRe
             timeout=30,
         )
         response.raise_for_status()
-    except (HTTPErrorStatus, HTTPException) as exc:
+    except (HTTPErrorStatus, HTTPException):
         detail = _extract_unit_api_error(response)
         if detail:
-            publish_to_error_log(f"{exc}: {detail}", "get_calibration_session")
             abort_with(502, f"Fetching calibration session failed on {pioreactor_unit}: {detail}")
         if response is not None:
             abort_with(
                 502,
                 f"Fetching calibration session failed on {pioreactor_unit} (HTTP {response.status_code}).",
             )
-        publish_to_error_log(str(exc), "get_calibration_session")
         abort_with(502, f"Fetching calibration session failed on {pioreactor_unit}.")
 
     return Response(
@@ -1607,17 +1609,15 @@ def advance_calibration_session(pioreactor_unit: str, session_id: str) -> Respon
             timeout=300,
         )
         response.raise_for_status()
-    except (HTTPErrorStatus, HTTPException) as exc:
+    except (HTTPErrorStatus, HTTPException):
         detail = _extract_unit_api_error(response)
         if detail:
-            publish_to_error_log(f"{exc}: {detail}", "advance_calibration_session")
             abort_with(502, detail)
         if response is not None:
             abort_with(
                 502,
                 f"Updating calibration session failed on {pioreactor_unit} (HTTP {response.status_code}).",
             )
-        publish_to_error_log(str(exc), "advance_calibration_session")
         abort_with(502, f"Updating calibration session failed on {pioreactor_unit}.")
 
     return Response(
@@ -1640,17 +1640,15 @@ def abort_calibration_session(pioreactor_unit: str, session_id: str) -> Response
             timeout=30,
         )
         response.raise_for_status()
-    except (HTTPErrorStatus, HTTPException) as exc:
+    except (HTTPErrorStatus, HTTPException):
         detail = _extract_unit_api_error(response)
         if detail:
-            publish_to_error_log(f"{exc}: {detail}", "abort_calibration_session")
             abort_with(502, f"Aborting calibration session failed on {pioreactor_unit}: {detail}")
         if response is not None:
             abort_with(
                 502,
                 f"Aborting calibration session failed on {pioreactor_unit} (HTTP {response.status_code}).",
             )
-        publish_to_error_log(str(exc), "abort_calibration_session")
         abort_with(502, f"Aborting calibration session failed on {pioreactor_unit}.")
 
     return Response(

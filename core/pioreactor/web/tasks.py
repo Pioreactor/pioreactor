@@ -890,6 +890,7 @@ def multicast_post(
     units: list[str],
     json: dict | list[dict | None] | None = None,
     params: dict | list[dict | None] | None = None,
+    timeout: float = 30.0,
 ) -> dict[str, Any]:
     # this function "consumes" one huey thread waiting fyi
     assert endpoint.startswith("/unit_api")
@@ -905,7 +906,7 @@ def multicast_post(
     tasks = post_into_unit.map(((units[i], endpoint, json[i], params[i]) for i in range(len(units))))
 
     return {
-        unit: response for (unit, response) in tasks.get(blocking=True, timeout=30)
+        unit: response for (unit, response) in tasks.get(blocking=True, timeout=timeout)
     }  # add a timeout so that we don't hold up a thread forever.
 
 
@@ -964,7 +965,7 @@ def multicast_get(
 
     tasks = get_from_unit.map(((units[i], endpoint, json[i], timeout, return_raw) for i in range(len(units))))
     unsorted_responses = {
-        unit: response for (unit, response) in tasks.get(blocking=True, timeout=15)
+        unit: response for (unit, response) in tasks.get(blocking=True, timeout=timeout)
     }  # add a timeout so that we don't hold up a thread forever.
 
     return dict(sorted(unsorted_responses.items()))  # always sort alphabetically for downstream uses.
@@ -996,14 +997,16 @@ def patch_into_unit(unit: str, endpoint: str, json: dict | None = None) -> tuple
 
 
 @huey.task(priority=50)
-def multicast_patch(endpoint: str, units: list[str], json: dict | None = None) -> dict[str, Any]:
+def multicast_patch(
+    endpoint: str, units: list[str], json: dict | None = None, timeout: float = 30.0
+) -> dict[str, Any]:
     # this function "consumes" one huey thread waiting fyi
     assert endpoint.startswith("/unit_api")
 
     tasks = patch_into_unit.map(((unit, endpoint, json) for unit in units))
 
     return {
-        unit: response for (unit, response) in tasks.get(blocking=True, timeout=30)
+        unit: response for (unit, response) in tasks.get(blocking=True, timeout=timeout)
     }  # add a timeout so that we don't hold up a thread forever.
 
 
@@ -1026,12 +1029,14 @@ def delete_from_unit(unit: str, endpoint: str, json: dict | None = None) -> tupl
 
 
 @huey.task(priority=5)
-def multicast_delete(endpoint: str, units: list[str], json: dict | None = None) -> dict[str, Any]:
+def multicast_delete(
+    endpoint: str, units: list[str], json: dict | None = None, timeout: float = 30.0
+) -> dict[str, Any]:
     # this function "consumes" one huey thread waiting fyi
     assert endpoint.startswith("/unit_api")
 
     tasks = delete_from_unit.map(((unit, endpoint, json) for unit in units))
 
     return {
-        unit: response for (unit, response) in tasks.get(blocking=True, timeout=30)
+        unit: response for (unit, response) in tasks.get(blocking=True, timeout=timeout)
     }  # add a timeout so that we don't hold up a thread forever.
