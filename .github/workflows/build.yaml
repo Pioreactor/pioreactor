@@ -18,7 +18,11 @@ jobs:
       - name: 🧰 Install frontend dependencies
         working-directory: frontend
         run: |
-          npm ci
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
       - name: 🧪 Build frontend and verify committed assets
         run: |
           make frontend-build
