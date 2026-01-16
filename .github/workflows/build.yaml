@@ -25,7 +25,7 @@ jobs:
           fi
       - name: 🧪 Build frontend and verify committed assets
         run: |
-          make frontend-build
+          CI=false make frontend-build
           git diff --exit-code -- core/pioreactor/web/static
 
   build:

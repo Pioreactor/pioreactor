@@ -26,7 +26,7 @@ dayjs.extend(utc);
 
 
 
-const StyledTableCell = styled(TableCell)(({ theme, level }) => {
+const StyledTableCell = styled(TableCell)(({ level }) => {
   return {
     padding: "6px 6px 6px 10px",
     fontSize: 13,
@@ -38,7 +38,7 @@ const StyledTableCell = styled(TableCell)(({ theme, level }) => {
 });
 
 
-const StyledTimeTableCell = styled(TableCell)(({ theme, level }) => {
+const StyledTimeTableCell = styled(TableCell)(({ level }) => {
   return {
     padding: "6px 6px 6px 10px",
     fontSize: 13,
@@ -50,7 +50,7 @@ const StyledTimeTableCell = styled(TableCell)(({ theme, level }) => {
 });
 
 
-const TableRowStyled = styled(TableRow)(({ theme }) => ({
+const TableRowStyled = styled(TableRow)(() => ({
   '&:nth-of-type(odd)': {
     backgroundColor: "#F7F7F7",
   },
@@ -76,7 +76,7 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
   const { client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
 
   const getAPIURL = (unit, onlyAssignedLogs, experiment) => {
-    if (unit && experiment == "$experiment"){
+    if (unit && experiment === "$experiment"){
       return `/api/units/${unit}/system_logs`;
     } else if (unit && onlyAssignedLogs){
       return `/api/workers/${unit}/experiments/${experiment}/logs`;
@@ -157,7 +157,7 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
     setOnlyAssignedLogs(!event.target.checked)
   }
 
-  const onMessage = (topic, message, packet) => {
+  const onMessage = (topic, message, _packet) => {
     if (!message || !topic) return;
 
     const unit = topic.toString().split('/')[1];

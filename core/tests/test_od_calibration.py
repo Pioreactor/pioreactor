@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 # test_od_calibration
+from uuid import uuid4
+
 import pytest
 from click.testing import CliRunner
 from pioreactor import structs
@@ -39,18 +41,41 @@ def test_analyze() -> None:
 
 @pytest.mark.slow
 def test_run_od_standards() -> None:
-    input_ = "standards\nod-cal-2025-02-23\nY\nY\nY\n1\nY\nY\n0.5\nY\nY\n0.1\nn\nY\n0.0\nd\n1\ny\ny\n"
+    calibration_name = f"od-cal-{uuid4().hex}"
+    input_ = "\n".join(
+        [
+            "standards",
+            "",
+            calibration_name,
+            "",
+            "500",
+            "",
+            "1",
+            "",
+            "",
+            "0.5",
+            "",
+            "",
+            "0.1",
+            "finish, and continue to blank",
+            "",
+            "0.0",
+            "y",
+            "",
+        ]
+    )
     print(input_)
     with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "70"):
         runner = CliRunner()
         result = runner.invoke(run_calibration, ["--device", "od90"], input=input_)
         assert not result.exception
-        cal = load_calibration("od90", "od-cal-2025-02-23")
-        assert len(cal.curve_data_) == 2  # two since it's linear
+        cal = load_calibration("od90", calibration_name)
+        expected_degree = min(3, max(1, len(cal.recorded_data["x"]) - 1))
+        assert len(cal.curve_data_) == expected_degree + 1
         assert cal.x == "OD600"
         assert cal.y == "Voltage"
         assert len(cal.recorded_data["x"]) == 4
 
     active_cal = load_active_calibration("od90")
     assert active_cal is not None
-    assert active_cal.calibration_name == "od-cal-2025-02-23"
+    assert active_cal.calibration_name == calibration_name

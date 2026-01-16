@@ -38,7 +38,7 @@ const readyGreen = "#176114"
 const lostRed = "#DE3618"
 
 
-export default function SelfTestDialog({client, disabled, experiment, unit, label , selfTestState, selfTestTests}) {
+export default function SelfTestDialog({disabled, experiment, unit, label , selfTestState, selfTestTests}) {
   const [open, setOpen] = useState(false);
 
   const handleClickOpen = () => {

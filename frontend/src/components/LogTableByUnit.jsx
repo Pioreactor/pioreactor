@@ -232,7 +232,7 @@ function LogTableByUnit({ experiment, unit, level="info", byDuration=false, expe
             onSubmit={handleSubmitDialog}
           />}
           <Button
-            to={(experiment == "$experiment") ? `/system-logs/${unit}` :  `/logs/${unit}`}
+            to={(experiment === "$experiment") ? `/system-logs/${unit}` :  `/logs/${unit}`}
             component={Link}
             color="primary"
             style={{ textTransform: 'none', verticalAlign: 'middle', margin: '0px 3px' }}

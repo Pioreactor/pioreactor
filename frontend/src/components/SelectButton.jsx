@@ -7,7 +7,7 @@ import MenuItem from '@mui/material/MenuItem';
 import CheckIcon from '@mui/icons-material/Check';
 import Icon from '@mui/material/Icon';
 
-const SelectButton = React.forwardRef((props, ref) => {
+const SelectButton = React.forwardRef((props, _ref) => {
   const { textPrefix, onChange = () => {}, onClick = () => {}, value: initialValue, children, buttonStyle, disabled, endIcon } = props;
   const anchorRef = React.useRef(null);
   const [isOpen, setOpen] = React.useState(false);

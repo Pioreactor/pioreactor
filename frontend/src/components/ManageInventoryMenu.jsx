@@ -6,9 +6,7 @@ import { useNavigate } from 'react-router';
 import Menu from "@mui/material/Menu";
 import ListItemText from "@mui/material/ListItemText";
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
-import ListItemIcon from '@mui/material/ListItemIcon';
 import Divider from '@mui/material/Divider';
-import RemoveCircleOutlineRoundedIcon from '@mui/icons-material/RemoveCircleOutlineRounded';
 
 
 function ManageInventoryMenu(){
