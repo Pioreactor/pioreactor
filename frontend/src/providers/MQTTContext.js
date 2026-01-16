@@ -7,12 +7,11 @@ const MQTTContext = createContext();
 
 export const useMQTT = () => useContext(MQTTContext);
 
-const clearTrie = (node) => {
-  node.handlers = {}; // Clear handlers at the current node
+const normalizeTopics = (topics) => (Array.isArray(topics) ? topics : [topics]).filter(Boolean);
 
-  for (const key in node.children) {
-    clearTrie(node.children[key]); // Recursively clear children
-  }
+const resetTrie = (node) => {
+  node.children = {};
+  node.handlers = {};
 };
 
 const TrieNode = function() {
@@ -20,45 +19,53 @@ const TrieNode = function() {
   this.handlers = {}; // Using an object to store handlers by key
 };
 
-const addHandlerToTrie = (root, topics, handler, key) => {
-  // Convert a single string topic to an array
-  if (!Array.isArray(topics)) {
-    topics = [topics];
-  }
-
-  // Process each topic in the array
-  topics.forEach(topic => {
-    let node = root;
-    const levels = topic.split('/');
-
-    for (const level of levels) {
-      if (!node.children[level]) {
-        node.children[level] = new TrieNode();
-      }
-      node = node.children[level];
-    }
-
-    node.handlers[key] = handler; // Store handler with the unique key
-  });
-};
-
-const removeHandlersFromTrie = (root, topic, key) => {
+const getOrCreateTopicNode = (root, topic) => {
   let node = root;
   const levels = topic.split('/');
 
   for (const level of levels) {
     if (!node.children[level]) {
-      return; // Topic not found
+      node.children[level] = new TrieNode();
     }
     node = node.children[level];
   }
 
-  delete node.handlers[key]; // Remove handler by key
+  return node;
+};
+
+const getTopicNode = (root, topic) => {
+  let node = root;
+  const levels = topic.split('/');
+
+  for (const level of levels) {
+    if (!node.children[level]) {
+      return null;
+    }
+    node = node.children[level];
+  }
+
+  return node;
+};
+
+const addHandlerToTrie = (root, topic, handler, key) => {
+  const node = getOrCreateTopicNode(root, topic);
+  const hadHandler = Object.prototype.hasOwnProperty.call(node.handlers, key);
+  node.handlers[key] = handler;
+  return !hadHandler;
+};
+
+const removeHandlersFromTrie = (root, topic, key) => {
+  const node = getTopicNode(root, topic);
+  if (!node || !Object.prototype.hasOwnProperty.call(node.handlers, key)) {
+    return false;
+  }
+
+  delete node.handlers[key];
+  return true;
 };
 
 const findHandlersInTrie = (root, topic) => {
   const levels = topic.split('/');
-  let node = root;
   const handlers = [];
 
   const search = (index, currentNode) => {
@@ -67,7 +74,9 @@ const findHandlersInTrie = (root, topic) => {
     }
 
     if (index === levels.length) {
-      Object.values(currentNode.handlers).forEach(handler => handlers.push(handler));
+      for (const handlerKey in currentNode.handlers) {
+        handlers.push(currentNode.handlers[handlerKey]);
+      }
       return;
     }
 
@@ -83,11 +92,14 @@ const findHandlersInTrie = (root, topic) => {
 
     // Check for multi-level wildcard '#'
     if (currentNode.children['#']) {
-      Object.values(currentNode.children['#'].handlers).forEach(handler => handlers.push(handler));
+      const wildcardNode = currentNode.children['#'];
+      for (const handlerKey in wildcardNode.handlers) {
+        handlers.push(wildcardNode.handlers[handlerKey]);
+      }
     }
   };
 
-  search(0, node);
+  search(0, root);
 
   return handlers;
 };
@@ -105,19 +117,23 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 export const MQTTProvider = ({ name, config, children, experiment }) => {
   const [client, setClient] = useState(null);
   const topicTrie = useRef(new TrieNode());
+  const topicRefCounts = useRef(new Map());
   const [error, setError] = useState(null);
 
+  const mqttConfig = config?.mqtt ?? {};
+  const {
+    username,
+    password,
+    ws_protocol = 'ws',
+    broker_address = 'localhost',   // may be "addr1;addr2;addr3"
+    broker_ws_port = 9001,
+  } = mqttConfig;
+  const hasConfig = Boolean(config && Object.keys(config).length);
 
   useEffect(() => {
-    if (!Object.keys(config).length) return;
-
-    const {
-      username,
-      password,
-      ws_protocol = 'ws',
-      broker_address = 'localhost',   // may be "addr1;addr2;addr3"
-      broker_ws_port = 9001,
-    } = config.mqtt ?? {};
+    if (!hasConfig) return;
+    setClient(null);
+    setError(null);
 
     /** try a single URI, resolve on 'connect', reject on 'error' or timeout */
     const tryUri = (uri, opts) =>
@@ -163,9 +179,14 @@ export const MQTTProvider = ({ name, config, children, experiment }) => {
     };
 
     let mqttClient;
+    let isActive = true;
 
     connectWithFallback()
       .then(c => {
+        if (!isActive) {
+          c.end(true);
+          return;
+        }
         mqttClient = c;
         console.log(`Connected to MQTT broker for ${name}.`);
 
@@ -184,29 +205,87 @@ export const MQTTProvider = ({ name, config, children, experiment }) => {
           console.warn(`MQTT ${name} client connection closed`);
         });
 
+        setError(null);
         setClient(mqttClient);
       })
       .catch(err => {
+        if (!isActive) return;
         console.error(err);
         setError(err.message);
       });
 
     // ----------------- cleanup -----------------
     return () => {
-      clearTrie(topicTrie.current);
+      isActive = false;
       mqttClient?.end(true);
     };
-  }, [config, name, experiment]);
+  }, [
+    broker_address,
+    broker_ws_port,
+    hasConfig,
+    name,
+    password,
+    username,
+    ws_protocol,
+  ]);
+
+  useEffect(() => () => {
+    resetTrie(topicTrie.current);
+    topicRefCounts.current.clear();
+  }, []);
+
+  useEffect(() => {
+    if (!client) return;
+    const topics = Array.from(topicRefCounts.current.keys());
+    if (topics.length) {
+      client.subscribe(topics, { qos: 0 });
+    }
+  }, [client]);
 
   // 1. Memoize subscribe/unsubscribe so they don't get recreated every render
   const subscribeToTopic = useCallback((topic_or_topics, messageHandler, key) => {
-    addHandlerToTrie(topicTrie.current, topic_or_topics, messageHandler, key);
-    client?.subscribe(topic_or_topics, { qos: 0 });
+    const topics = normalizeTopics(topic_or_topics);
+    if (!topics.length) return;
+    const topicsToSubscribe = [];
+
+    topics.forEach(topic => {
+      const isNewHandler = addHandlerToTrie(topicTrie.current, topic, messageHandler, key);
+      if (!isNewHandler) return;
+
+      const currentCount = topicRefCounts.current.get(topic) ?? 0;
+      const nextCount = currentCount + 1;
+      topicRefCounts.current.set(topic, nextCount);
+      if (client && nextCount === 1) {
+        topicsToSubscribe.push(topic);
+      }
+    });
+
+    if (client && topicsToSubscribe.length) {
+      client.subscribe(topicsToSubscribe, { qos: 0 });
+    }
   }, [client]);
 
-  const unsubscribeFromTopic = useCallback((topic, key) => {
-    removeHandlersFromTrie(topicTrie.current, topic, key);
-    client?.unsubscribe(topic);
+  const unsubscribeFromTopic = useCallback((topic_or_topics, key) => {
+    const topics = normalizeTopics(topic_or_topics);
+    if (!topics.length) return;
+    const topicsToUnsubscribe = [];
+
+    topics.forEach(topic => {
+      const removed = removeHandlersFromTrie(topicTrie.current, topic, key);
+      if (!removed) return;
+
+      const currentCount = topicRefCounts.current.get(topic) ?? 0;
+      if (currentCount <= 1) {
+        topicRefCounts.current.delete(topic);
+        topicsToUnsubscribe.push(topic);
+      } else {
+        topicRefCounts.current.set(topic, currentCount - 1);
+      }
+    });
+
+    if (client && topicsToUnsubscribe.length) {
+      client.unsubscribe(topicsToUnsubscribe);
+    }
   }, [client]);
 
   const handleCloseSnackbar = useCallback(() => {

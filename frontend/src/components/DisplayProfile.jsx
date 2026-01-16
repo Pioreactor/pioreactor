@@ -244,23 +244,6 @@ const afterLiteral = (timeValue) => {
   return after(timeValue);
 };
 
-const humanReadableDurationPre = (duration, missingMsg) => {
-  if (duration === undefined || duration === null){
-    return <UnderlineSpan title={missingMsg}>after ??</UnderlineSpan>
-  }
-  else if (!isNumeric(duration)){
-    return <UnderlineSpan title={missingMsg}>after ??</UnderlineSpan>
-  }
-  else if (duration < 0){
-    return <UnderlineSpan title={missingMsg}>after ??</UnderlineSpan>
-  }
-  else if (duration === 0){
-    return `beginning immediately`
-  }
-  else {
-    return humanReadableDuration(duration, missingMsg)
-  }
-}
 
 
 const after = (duration) => {
