@@ -28,6 +28,8 @@ from time import sleep
 from typing import Any
 from typing import cast
 
+from huey.exceptions import ResultTimeout
+from huey.exceptions import TaskException
 from msgspec import DecodeError
 from pioreactor import types as pt
 from pioreactor import whoami
@@ -884,6 +886,29 @@ def post_into_unit(
         return unit, None
 
 
+def _collect_multicast_results(
+    units: list[str],
+    tasks: Any,
+    timeout: float,
+) -> dict[str, Any]:
+    try:
+        return {unit: response for (unit, response) in tasks.get(blocking=True, timeout=timeout)}
+    except (ResultTimeout, TaskException):
+        results: dict[str, Any] = {}
+        for unit, result in zip(units, tasks):
+            try:
+                value = result.get(blocking=False)
+            except TaskException:
+                results[unit] = None
+                continue
+            if value is None:
+                results[unit] = None
+            else:
+                _, response = value
+                results[unit] = response
+        return results
+
+
 @huey.task(priority=50)
 def multicast_post(
     endpoint: str,
@@ -905,9 +930,9 @@ def multicast_post(
 
     tasks = post_into_unit.map(((units[i], endpoint, json[i], params[i]) for i in range(len(units))))
 
-    return {
-        unit: response for (unit, response) in tasks.get(blocking=True, timeout=timeout)
-    }  # add a timeout so that we don't hold up a thread forever.
+    return _collect_multicast_results(
+        units, tasks, timeout
+    )  # add a timeout so that we don't hold up a thread forever.
 
 
 @huey.task(priority=10)
@@ -964,9 +989,9 @@ def multicast_get(
         json = [json] * len(units)
 
     tasks = get_from_unit.map(((units[i], endpoint, json[i], timeout, return_raw) for i in range(len(units))))
-    unsorted_responses = {
-        unit: response for (unit, response) in tasks.get(blocking=True, timeout=timeout)
-    }  # add a timeout so that we don't hold up a thread forever.
+    unsorted_responses = _collect_multicast_results(
+        units, tasks, timeout
+    )  # add a timeout so that we don't hold up a thread forever.
 
     return dict(sorted(unsorted_responses.items()))  # always sort alphabetically for downstream uses.
 
@@ -1005,9 +1030,9 @@ def multicast_patch(
 
     tasks = patch_into_unit.map(((unit, endpoint, json) for unit in units))
 
-    return {
-        unit: response for (unit, response) in tasks.get(blocking=True, timeout=timeout)
-    }  # add a timeout so that we don't hold up a thread forever.
+    return _collect_multicast_results(
+        units, tasks, timeout
+    )  # add a timeout so that we don't hold up a thread forever.
 
 
 @huey.task(priority=10)
@@ -1037,6 +1062,6 @@ def multicast_delete(
 
     tasks = delete_from_unit.map(((unit, endpoint, json) for unit in units))
 
-    return {
-        unit: response for (unit, response) in tasks.get(blocking=True, timeout=timeout)
-    }  # add a timeout so that we don't hold up a thread forever.
+    return _collect_multicast_results(
+        units, tasks, timeout
+    )  # add a timeout so that we don't hold up a thread forever.
