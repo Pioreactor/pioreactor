@@ -1,6 +1,6 @@
 # ──────────────────────────────────────────────────────────
 # Pioreactor mono-repo – development helpers (stage 1)
-#  * Python 3.11   (core + Flask API)
+#  * Python 3.13   (core + Flask API)
 #  * Node 20       (React frontend)
 #  * Docker        (optional dev stack: mosquitto, sqlite viewer, etc.)
 #
