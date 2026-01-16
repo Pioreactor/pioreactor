@@ -12,6 +12,7 @@ from msgspec.json import decode as msgspec_loads
 from pioreactor import exc
 from pioreactor import structs
 from pioreactor import types as pt
+from pioreactor.automations import events as automation_events  # noqa: F401
 from pioreactor.background_jobs.base import LongRunningBackgroundJob
 from pioreactor.config import config
 from pioreactor.hardware import get_pwm_to_pin_map

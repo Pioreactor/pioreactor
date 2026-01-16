@@ -2,37 +2,37 @@
 from pioreactor.structs import AutomationEvent
 
 
-class NoEvent(AutomationEvent):
+class NoEvent(AutomationEvent, tag="NoEvent"):
     pass
 
 
-class DilutionEvent(AutomationEvent):
+class DilutionEvent(AutomationEvent, tag="DilutionEvent"):
     pass
 
 
-class DosingStarted(AutomationEvent):
+class DosingStarted(AutomationEvent, tag="DosingStarted"):
     pass
 
 
-class DosingStopped(AutomationEvent):
+class DosingStopped(AutomationEvent, tag="DosingStopped"):
     pass
 
 
-class AddMediaEvent(AutomationEvent):
+class AddMediaEvent(AutomationEvent, tag="AddMediaEvent"):
     pass
 
 
-class AddAltMediaEvent(AutomationEvent):
+class AddAltMediaEvent(AutomationEvent, tag="AddAltMediaEvent"):
     pass
 
 
-class ChangedLedIntensity(AutomationEvent):
+class ChangedLedIntensity(AutomationEvent, tag="ChangedLedIntensity"):
     pass
 
 
-class ErrorOccurred(AutomationEvent):
+class ErrorOccurred(AutomationEvent, tag="ErrorOccurred"):
     pass
 
 
-class UpdatedHeaterDC(AutomationEvent):
+class UpdatedHeaterDC(AutomationEvent, tag="UpdatedHeaterDC"):
     pass
