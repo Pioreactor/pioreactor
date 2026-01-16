@@ -1453,6 +1453,29 @@ def test_can_pass_config_section_directly() -> None:
             assert set(od.channel_angle_map.keys()) == {"1"}
 
 
+def test_config_section_omits_empty_photodiode_channels() -> None:
+    experiment = "test_config_section_omits_empty_photodiode_channels"
+    with temporary_config_changes(
+        config,
+        [
+            ("od_config.photodiode_channel", "1", "REF"),
+            ("od_config.photodiode_channel", "2", "90"),
+            ("od_config.photodiode_channel", "3", ""),
+            ("od_config.photodiode_channel", "4", ""),
+        ],
+    ):
+        section = config["od_config.photodiode_channel"]
+        with start_od_reading(
+            section,
+            interval=None,
+            fake_data=True,
+            experiment=experiment,
+            calibration=False,
+        ) as od:
+            assert set(od.channel_angle_map.keys()) == {"2"}
+            assert set(od.adc_reader.channels) == {"1", "2"}
+
+
 def test_CachedCalibrationTransformer_with_real_calibration() -> None:
     calibration = structs.OD600Calibration(
         angle="90",

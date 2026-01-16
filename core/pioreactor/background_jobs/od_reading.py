@@ -62,7 +62,6 @@ from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.base import LoggerMixin
-from pioreactor.calibrations import load_active_calibration
 from pioreactor.config import config
 from pioreactor.pubsub import publish
 from pioreactor.states import JobState as st
@@ -1417,6 +1416,8 @@ def start_od_reading(
     # use an OD calibration?
     calibration_transformer: CalibrationTransformerProtocol
     if calibration is True:
+        from pioreactor.calibrations import load_active_calibration
+
         calibration_transformer = CachedCalibrationTransformer()
         for channel, angle in channel_angle_map.items():
             active_calibration = load_active_calibration(f"od{angle}")  # type: ignore
