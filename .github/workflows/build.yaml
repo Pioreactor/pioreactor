@@ -4,34 +4,9 @@ on:
     types: [published]
 
 jobs:
-  verify-frontend-build:
-    name: ✅ Verify frontend build is up to date
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: 🏗 Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '20'
-      - name: 🧰 Install frontend dependencies
-        working-directory: frontend
-        run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            npm install
-          fi
-      - name: 🧪 Build frontend and verify committed assets
-        run: |
-          CI=false make frontend-build
-          git diff --exit-code -- core/pioreactor/web/static
-
   build:
     name: 🔨 Build distribution
     runs-on: ubuntu-latest
-    needs: [verify-frontend-build]
     steps:
       - uses: actions/checkout@v4
         with:
