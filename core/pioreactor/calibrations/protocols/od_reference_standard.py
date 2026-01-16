@@ -259,9 +259,9 @@ def get_reference_standard_step(
 class ODReferenceStandardProtocol(CalibrationProtocol[pt.ODCalibrationDevices]):
     target_device = pt.OD_DEVICES
     protocol_name = "od_reference_standard"
-    title = "Optics Calibration Jig"
-    description = "Calibrate OD using the Pioreactor Optical Reference Standard."
-    requirements = ("Optics Calibration Jig", "2x tubes from the Vial Cap S")
+    title = "Optics calibration jig"
+    description = "Calibrate OD using the Pioreactor Optics calibration jig."
+    requirements = ("Optics calibration jig", "2x stainless steel ports from the Vial Cap S")
     step_registry: ClassVar[StepRegistry] = _REFERENCE_STANDARD_STEPS
 
     @classmethod
