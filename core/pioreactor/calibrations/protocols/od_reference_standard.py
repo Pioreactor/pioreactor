@@ -260,7 +260,9 @@ class ODReferenceStandardProtocol(CalibrationProtocol[pt.ODCalibrationDevices]):
     target_device = pt.OD_DEVICES
     protocol_name = "od_reference_standard"
     title = "Optics calibration jig"
-    description = "Calibrate OD using the Pioreactor Optics calibration jig."
+    description = (
+        "Calibrate OD using the Pioreactor Optics calibration jig. Useful for aligning multiple Pioreactors."
+    )
     requirements = ("Optics calibration jig", "2x stainless steel ports from the Vial Cap S")
     step_registry: ClassVar[StepRegistry] = _REFERENCE_STANDARD_STEPS
 

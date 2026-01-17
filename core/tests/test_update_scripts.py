@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import re
 from pathlib import Path
 from typing import Generator
 
@@ -70,6 +71,25 @@ def test_no_restarting_huey_service() -> None:
                 if "systemctl restart huey" in line or "systemctl restart pioreactor-web" in line:
                     error_msgs.append(
                         f"Error in {script} at line {line_number}: 'systemctl restart huey' should not be used since it will halt updates."
+                    )
+
+    assert not error_msgs, "\n".join(error_msgs)
+
+
+def test_crudini_uses_venv_binary() -> None:
+    scripts = find_shell_scripts(SCRIPT_DIRECTORY)
+    error_msgs = []
+    crudini_pattern = re.compile(r"(^|[^/\w-])crudini(\s|$)")
+
+    for script in scripts:
+        with open(script, "r") as file:
+            for line_number, line in enumerate(file, start=1):
+                if line.lstrip().startswith("#"):  # comment
+                    continue
+
+                if crudini_pattern.search(line) and "/opt/pioreactor/venv/crudini" not in line:
+                    error_msgs.append(
+                        f"Error in {script} at line {line_number}: 'crudini' must be invoked via '/opt/pioreactor/venv/crudini'."
                     )
 
     assert not error_msgs, "\n".join(error_msgs)
