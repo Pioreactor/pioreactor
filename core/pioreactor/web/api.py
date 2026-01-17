@@ -2798,6 +2798,14 @@ def change_worker_model(pioreactor_unit: str) -> ResponseReturnValue:
             task="worker_model",
             level="INFO",
         )
+        # When new model versions are added, consider extending hardware checks here
+        # (see /unit_api/hardware/check and tasks.check_model_hardware).
+        if model_version == "1.5":
+            tasks.post_into_unit(
+                pioreactor_unit,
+                "/unit_api/hardware/check",
+                json={"model_name": model_name, "model_version": model_version},
+            )
         return {"status": "success"}, 200
     else:
         abort_with(404, f"Worker {pioreactor_unit} not found")

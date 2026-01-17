@@ -67,6 +67,30 @@ def test_get_versions_endpoints(client) -> None:
     assert "version" in v_app and isinstance(v_app["version"], str)
 
 
+def test_hardware_check_requires_model_payload(client) -> None:
+    resp = client.post("/unit_api/hardware/check", json={})
+    assert resp.status_code == 400
+    data = resp.get_json()
+    assert data["error"] == "Missing model_name or model_version"
+
+
+def test_hardware_check_queues_task(client, monkeypatch) -> None:
+    import pioreactor.web.unit_api as mod
+
+    class DummyTask:
+        id = "task-456"
+
+    monkeypatch.setattr(mod.tasks, "check_model_hardware", lambda *_args, **_kwargs: DummyTask())
+
+    resp = client.post(
+        "/unit_api/hardware/check",
+        json={"model_name": "pioreactor_20ml", "model_version": "1.5"},
+    )
+    assert resp.status_code == 202
+    data = resp.get_json()
+    assert data["task_id"] == "task-456"
+
+
 @pytest.mark.xfail
 def test_install_plugin_rejects_without_allowlist(client, monkeypatch, tmp_path) -> None:
     """API install should fail closed if allowlist is missing."""

@@ -31,6 +31,8 @@ from typing import cast
 from huey.exceptions import ResultTimeout
 from huey.exceptions import TaskException
 from msgspec import DecodeError
+from pioreactor import exc
+from pioreactor import hardware
 from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.config import config as pioreactor_config
@@ -266,6 +268,45 @@ def add_new_pioreactor(new_pioreactor_name: str, version: str, model: str) -> bo
     logger.debug(f"Executing `{join(command)}`")
     check_call(command)
     return True
+
+
+def _get_adc_addresses_for_model(model_name: str, model_version: str) -> set[int]:
+    adc_cfg = hardware.get_layered_mod_config_for_model("adc", model_name, model_version)
+    addresses: set[int] = set()
+    for adc_data in adc_cfg.values():
+        address = adc_data.get("address")
+        addresses.add(int(address))
+    return addresses
+
+
+@huey.task(priority=10)
+def check_model_hardware(model_name: str, model_version: str) -> None:
+    if model_version != "1.5":
+        return None
+
+    try:
+        addresses = _get_adc_addresses_for_model(model_name, model_version)
+    except exc.HardwareNotFoundError as err:
+        logger.warning(
+            f"Hardware check skipped on {get_unit_name()}: {err}",
+        )
+        return None
+
+    if not addresses:
+        logger.debug(
+            f"Hardware check found no ADC addresses for {model_name} {model_version} on {get_unit_name()}."
+        )
+        return None
+
+    missing = sorted(addr for addr in addresses if not hardware.is_i2c_device_present(addr))
+    if missing:
+        missing_hex = ", ".join(hex(addr) for addr in missing)
+        logger.warning(
+            f"Hardware check failed for {model_name} {model_version} on {get_unit_name()}: "
+            f"missing I2C devices at {missing_hex}."
+        )
+
+    return None
 
 
 @huey.task()

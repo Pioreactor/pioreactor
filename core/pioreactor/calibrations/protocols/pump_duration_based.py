@@ -175,8 +175,8 @@ class IntroConfirm1(SessionStep):
         return steps.info(
             "Pump calibration",
             (
-                "This routine calibrates the pump on this Pioreactor. You will need:\n"
-                "1. This Pioreactor.\n"
+                f"This routine calibrates the {pump_device} pump. You will need:\n"
+                "1. Pioreactor hardware.\n"
                 "2. A vial on a scale (0.1g resolution) or a graduated cylinder.\n"
                 "3. A larger container filled with water.\n"
                 f"4. {pump_device} connected to PWM channel {channel}.\n\n"

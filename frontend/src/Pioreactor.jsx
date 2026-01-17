@@ -759,6 +759,7 @@ function SettingsActionsDialog(props) {
   const ipInfo = props.jobs.monitor.publishedSettings.ipv4.value
   const macInfoWlan = props.jobs.monitor.publishedSettings.wlan_mac_address.value
   const macInfoEth = props.jobs.monitor.publishedSettings.eth_mac_address.value
+  const isXrModel = Boolean(props.modelDetails?.model_name?.toLowerCase().includes("xr"));
 
   const isLargeScreen = useMediaQuery(theme => theme.breakpoints.down('xl'));
   const dosingControlJob = props.jobs.dosing_automation
@@ -819,6 +820,14 @@ function SettingsActionsDialog(props) {
               <div style={{justifyContent: "space-between", display: "flex"}}>
                 <Typography display="block">
                   {job.metadata.display_name}
+                  {(job.metadata.display_name === "Optical density" && isXrModel) ? (
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      label="XR"
+                      sx={{ ml: 0.5, height: 18, fontSize: "0.65rem" }}
+                    />
+                  ) : null}
                 </Typography>
                 <StateTypography state={job.state}/>
               </div>
@@ -1580,6 +1589,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
   const [jobFetchComplete, setJobFetchComplete] = useState(false)
   const [label, setLabel] = useState(initialLabel || "")
   const {client, subscribeToTopic } = useMQTT();
+  const isXrModel = Boolean(modelDetails.model_name?.toLowerCase().includes("xr"));
 
   const [jobs, setJobs] = useState({
     monitor: {
@@ -1830,6 +1840,14 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
             <Box sx={{width: "130px", mt: "10px", mr: "2px", px: "3px"}} key={job.metadata.key}>
               <Typography variant="body2" style={{fontSize: "0.84rem"}} sx={{ color: !isUnitActive ? disabledColor : 'inherit' }}>
                 {job.metadata.display_name}
+                {(job.metadata.display_name === "Optical density" && isXrModel) ? (
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    label="XR"
+                    sx={{ ml: 0.5, height: 18, fontSize: "0.65rem" }}
+                  />
+                ) : null}
               </Typography>
               <UnitSettingDisplay
                 value={job.state}
@@ -1869,6 +1887,14 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
                   <Box sx={{width: "130px", mt: "10px", mr: "2px", px: "3px"}} key={job_key + setting_key}>
                     <Typography variant="body2" style={{fontSize: "0.84rem"}} sx={{ color: !isUnitActive ? disabledColor : 'inherit' }}>
                       {setting.label}
+                      {(setting.label === "Optical density" && isXrModel) ? (
+                        <Chip
+                          size="small"
+                          variant="outlined"
+                          label="XR"
+                          sx={{ ml: 0.5, height: 18, fontSize: "0.65rem" }}
+                        />
+                      ) : null}
                     </Typography>
                     <UnitSettingDisplay
                       value={setting.value}

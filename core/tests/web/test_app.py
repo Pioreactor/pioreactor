@@ -137,6 +137,39 @@ def test_change_worker_status(client) -> None:
     assert data["is_active"] == 0
 
 
+def test_change_worker_model_triggers_hardware_check_for_v1_5(client, monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_post_into_unit(unit: str, endpoint: str, json: dict | None = None) -> None:
+        captured["unit"] = unit
+        captured["endpoint"] = endpoint
+        captured["json"] = json
+
+    monkeypatch.setattr("pioreactor.web.api.tasks.post_into_unit", fake_post_into_unit)
+
+    response = client.put(
+        "/api/workers/unit1/model",
+        json={"model_name": "pioreactor_20ml", "model_version": "1.5"},
+    )
+    assert response.status_code == 200
+    assert captured["unit"] == "unit1"
+    assert captured["endpoint"] == "/unit_api/hardware/check"
+    assert captured["json"] == {"model_name": "pioreactor_20ml", "model_version": "1.5"}
+
+
+def test_change_worker_model_does_not_trigger_hardware_check_for_non_v1_5(client, monkeypatch) -> None:
+    def fake_post_into_unit(*_args, **_kwargs) -> None:
+        raise AssertionError("hardware check should not be triggered")
+
+    monkeypatch.setattr("pioreactor.web.api.tasks.post_into_unit", fake_post_into_unit)
+
+    response = client.put(
+        "/api/workers/unit1/model",
+        json={"model_name": "pioreactor_20ml", "model_version": "1.1"},
+    )
+    assert response.status_code == 200
+
+
 def test_get_unit_labels(client) -> None:
     response = client.get("/api/experiments/exp1/unit_labels")
     assert response.status_code == 200

@@ -714,6 +714,15 @@ def update_app(
     """
     # initialize logger and build commands based on input parameters
     logger = create_logger("update_app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT)
+    logger.debug(
+        "Starting app update. branch=%s repo=%s source=%s version=%s no_deps=%s defer_web_restart=%s",
+        branch,
+        repo,
+        source,
+        version,
+        no_deps,
+        defer_web_restart,
+    )
     commands_and_priority, version_installed = get_update_app_commands(
         branch,
         repo,
@@ -722,13 +731,22 @@ def update_app(
         no_deps=no_deps,
         defer_web_restart=defer_web_restart,
     )
+    logger.debug(
+        "Prepared %s update commands. target_version=%s", len(commands_and_priority), version_installed
+    )
 
-    for command, _ in sorted(commands_and_priority, key=lambda t: t[1]):
+    for index, (command, priority) in enumerate(sorted(commands_and_priority, key=lambda t: t[1]), start=1):
         if whoami.is_testing_env():
-            logger.debug(f"DRY-RUN: {command}")
+            logger.debug("DRY-RUN (step %s, priority %s): %s", index, priority, command)
             continue
 
-        logger.debug(command)
+        logger.debug(
+            "Running update step %s/%s (priority %s): %s",
+            index,
+            len(commands_and_priority),
+            priority,
+            command,
+        )
 
         p = subprocess.run(
             command,
@@ -738,12 +756,17 @@ def update_app(
             stderr=subprocess.PIPE,
         )
         if p.returncode != 0:
-            logger.debug(p.stderr)
-            logger.error("Update failed. See logs.")
+            if p.stdout:
+                logger.debug("Update step %s stdout: %s", index, p.stdout)
+            if p.stderr:
+                logger.debug("Update step %s stderr: %s", index, p.stderr)
+            logger.debug("Update failed at step %s with returncode %s.", index, p.returncode)
             # end early
             raise click.Abort()
         elif p.stdout:
-            logger.debug(p.stdout)
+            logger.debug("Update step %s stdout: %s", index, p.stdout)
+        if p.stderr:
+            logger.debug("Update step %s stderr: %s", index, p.stderr)
 
     logger.notice(f"Updated Pioreactor app to version {version_installed}.")  # type: ignore
     # everything work? Let's publish to MQTT. This is a terrible hack, as monitor should do this.

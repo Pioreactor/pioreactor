@@ -111,6 +111,23 @@ def get_layered_mod_config(mod: str) -> dict[str, Any]:
     return data
 
 
+def get_layered_mod_config_for_model(mod: str, model_name: str, model_version: str) -> dict[str, Any]:
+    """Load one mod's YAML by layering hats -> provided model."""
+    base = Path(environ["DOT_PIOREACTOR"]) / "hardware"
+
+    if hardware_version_info is None:
+        raise exc.HardwareNotFoundError("HAT not found")
+    assert hardware_version_info is not None
+
+    model_dir = base / "models" / model_name / model_version
+    hat_dir = base / "hats" / tuple_to_text(hardware_version_info)
+
+    data: dict[str, Any] = {}
+    data = _deep_merge(data, _load_yaml_if_exists(hat_dir / f"{mod}.yaml"))
+    data = _deep_merge(data, _load_yaml_if_exists(model_dir / f"{mod}.yaml"))
+    return data
+
+
 @cache
 def determine_gpiochip() -> pt.GpioChip:
     """Return the GPIO chip index for the current Raspberry Pi."""
