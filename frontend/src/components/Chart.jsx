@@ -28,7 +28,7 @@ import utc from 'dayjs/plugin/utc';
 // Activate the UTC plugin
 dayjs.extend(utc);
 
-const sensorRe = /(.*)-([1234])/;
+const sensorRe = /^(.*)-(\d+)$/;
 
 function toArray(thing){
    if (Array.isArray(thing)){
@@ -38,9 +38,18 @@ function toArray(thing){
   }
 }
 
+const splitPartitionedName = (name) => {
+  const match = name.match(sensorRe);
+  if (!match) {
+    return { base: name, suffix: null };
+  }
+  return { base: match[1], suffix: match[2] };
+};
+
 const resolveUnitColor = (name, colorMap) => {
-  if (sensorRe.test(name)) {
-    const primaryName = name.match(sensorRe)[1];
+  const { base, suffix } = splitPartitionedName(name);
+  if (suffix) {
+    const primaryName = base;
     return resolveUnitColor(primaryName, colorMap);
   }
   if (colorMap) {
@@ -55,6 +64,7 @@ function Chart(props) {
     byDuration,
     chartKey,
     client,
+    config,
     dataSource,
     dataSourceColumn,
     downSample,
@@ -94,6 +104,14 @@ function Chart(props) {
     [allowZoom]
   );
 
+  const channelAngleMap = useMemo(() => {
+    const rawMap = config?.["od_config.photodiode_channel"] || {};
+    const entries = Object.entries(rawMap)
+      .filter(([, angle]) => angle && angle !== "REF")
+      .map(([channel, angle]) => [String(channel), String(angle)]);
+    return Object.fromEntries(entries);
+  }, [config]);
+
   const yTransformation = useMemo(
     () => yTransformationProp || ((y) => y),
     [yTransformationProp]
@@ -113,37 +131,39 @@ function Chart(props) {
 
   const relabelAndFormatSeries = useCallback(
     (name) => {
+      if (isPartitionedBySensor) {
+        const { base, suffix } = splitPartitionedName(name);
+        if (suffix) {
+          const displayBase = relabelMap ? (relabelMap[base] || base) : base;
+          return `${breakString(12)(displayBase)}-${suffix}°`;
+        }
+      }
       if (!relabelMap) {
         return name;
       }
-
-      const regexResults = name.match(sensorRe);
-      if (regexResults) {
-        const [_, mainPart, sensor] = regexResults;
-        return `${breakString(12)(relabelMap[mainPart] || mainPart)}-ch${sensor}`;
-      }
       return breakString(12)(relabelMap[name] || name);
     },
-    [breakString, relabelMap]
+    [breakString, isPartitionedBySensor, relabelMap]
   );
 
   const relabelAndFormatSeriesForLegend = useCallback(
     (name) => {
+      const nElements = Object.keys(relabelMap || {}).length || 1;
+      const truncateString = breakString(Math.floor(100 / nElements));
+
+      if (isPartitionedBySensor) {
+        const { base, suffix } = splitPartitionedName(name);
+        if (suffix) {
+          const displayBase = relabelMap ? (relabelMap[base] || base) : base;
+          return `${truncateString(displayBase)}-${suffix}°`;
+        }
+      }
       if (!relabelMap) {
         return name;
       }
-
-      const nElements = Object.keys(relabelMap).length || 1;
-      const truncateString = breakString(Math.floor(100 / nElements));
-
-      const regexResults = name.match(sensorRe);
-      if (regexResults) {
-        const [_, mainPart, sensor] = regexResults;
-        return `${truncateString(relabelMap[mainPart] || mainPart)}-ch${sensor}`;
-      }
       return truncateString(relabelMap[name] || name);
     },
-    [breakString, relabelMap]
+    [breakString, isPartitionedBySensor, relabelMap]
   );
 
   const measureLegendLabel = useMemo(() => {
@@ -172,12 +192,43 @@ function Chart(props) {
         xValue = d.datum.x;
       }
 
-      const formattedSeries = relabelAndFormatSeries(seriesLabel);
       const rounded =
         Math.round(yTransformation(d.datum.y) * 10 ** fixedDecimals) / 10 ** fixedDecimals;
-      return `${xValue}\n${formattedSeries}: ${rounded}`;
+      return `${xValue}\n${seriesLabel}: ${rounded}`;
     },
-    [byDuration, fixedDecimals, relabelAndFormatSeries, yTransformation]
+    [byDuration, fixedDecimals, yTransformation]
+  );
+
+  const mapPartitionedSeriesName = useCallback(
+    (seriesName) => {
+      if (!isPartitionedBySensor) {
+        return seriesName;
+      }
+      const { base, suffix } = splitPartitionedName(seriesName);
+      if (!suffix) {
+        return seriesName;
+      }
+      const angle = channelAngleMap[suffix];
+      if (!angle) {
+        return null;
+      }
+      return `${base}-${angle}`;
+    },
+    [channelAngleMap, isPartitionedBySensor]
+  );
+
+  const shouldIncludeUnit = useCallback(
+    (seriesName) => {
+      if (!unit) {
+        return true;
+      }
+      if (!isPartitionedBySensor) {
+        return seriesName === unit;
+      }
+      const { base } = splitPartitionedName(seriesName);
+      return base === unit;
+    },
+    [isPartitionedBySensor, unit]
   );
 
   const selectLegendData = useCallback(
@@ -525,18 +576,21 @@ function Chart(props) {
       const localTimestamp = timestamp.local();
       const xValue = byDuration ? duration : localTimestamp;
 
+      const baseUnit = incomingTopic.split("/")[1];
+      const channel = incomingTopic
+        .split("/")[4]
+        .replace("raw_od", "")
+        .replace("od", "");
       const parsedUnit = isPartitionedBySensor
-        ? `${incomingTopic.split("/")[1]}-${incomingTopic
-            .split("/")[4]
-            .replace("raw_od", "")
-            .replace("od", "")}`
-        : incomingTopic.split("/")[1];
+        ? mapPartitionedSeriesName(`${baseUnit}-${channel}`)
+        : baseUnit;
+
+      if (!parsedUnit) {
+        return;
+      }
 
       if (unit) {
-        if (isPartitionedBySensor && parsedUnit !== `${unit}-2` && parsedUnit !== `${unit}-1` && parsedUnit !== `${unit}-3` && parsedUnit !== `${unit}-4`) {
-          return;
-        }
-        if (!isPartitionedBySensor && parsedUnit !== unit) {
+        if (!shouldIncludeUnit(parsedUnit)) {
           return;
         }
       }
@@ -563,7 +617,7 @@ function Chart(props) {
         };
       });
     },
-    [byDuration, experimentStartTime, fetched, getUnitColor, isPartitionedBySensor, payloadKey, unit]
+    [byDuration, experimentStartTime, fetched, getUnitColor, isPartitionedBySensor, mapPartitionedSeriesName, payloadKey, shouldIncludeUnit, unit]
   );
 
   const getHistoricalDataFromServer = useCallback(async () => {
@@ -597,28 +651,21 @@ function Chart(props) {
       const data = await response.json();
       const initialSeriesMap = {};
       for (const [index, unitName] of data["series"].entries()) {
-        if (unit) {
-          if (
-            isPartitionedBySensor &&
-            unitName !== `${unit}-4` &&
-            unitName !== `${unit}-3` &&
-            unitName !== `${unit}-2` &&
-            unitName !== `${unit}-1`
-          ) {
-            continue;
-          }
-          if (!isPartitionedBySensor && unitName !== unit) {
-            continue;
-          }
+        const mappedUnitName = mapPartitionedSeriesName(unitName);
+        if (!mappedUnitName) {
+          continue;
+        }
+        if (!shouldIncludeUnit(mappedUnitName)) {
+          continue;
         }
         if (data["data"][index].length > 0) {
-          initialSeriesMap[unitName] = {
+          initialSeriesMap[mappedUnitName] = {
             data: data["data"][index].map((item) => ({
               y: item.y,
               x: transformX(item.x),
             })),
-            name: unitName,
-            color: getUnitColor(unitName),
+            name: mappedUnitName,
+            color: getUnitColor(mappedUnitName),
           };
         }
       }
@@ -628,7 +675,7 @@ function Chart(props) {
       console.log(error);
       setFetched(true);
     }
-  }, [byDuration, dataSource, dataSourceColumn, downSample, experiment, experimentStartTime, getUnitColor, isPartitionedBySensor, lookback, unit]);
+  }, [byDuration, dataSource, dataSourceColumn, downSample, experiment, experimentStartTime, getUnitColor, isPartitionedBySensor, lookback, mapPartitionedSeriesName, shouldIncludeUnit, unit]);
 
   useEffect(() => {
     getHistoricalDataFromServer();

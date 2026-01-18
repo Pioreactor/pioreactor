@@ -28,6 +28,7 @@
  - Removed experimental pump-detection failure handling from chemostat and turbidostat.
  - OD calibration devices are now per-angle (`od45`, `od90`, `od135`) instead of just `od`. Physically, this changes the calibration directory in `~/.pioreactor/storage/calibrations/od` to  `~/.pioreactor/storage/calibrations/{od45,od90,od135}`. Existing `od` calibration files and active calibrations are migrated during the update.
  - Self-test no longer creates a stirring calibration.
+ - OD Reading charts in the UI previously had a sensor label next to the unit, ex: `worker01-2`. Now it is the corresponding angle from config.ini. Note: only the global config.ini is used, not specific unit_config.inis.
 
 #### Bug fixes
 
