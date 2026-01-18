@@ -2365,10 +2365,10 @@ def update_config(filename: str) -> ResponseReturnValue:
             assert config.get("cluster.topology", "leader_address")
             assert config["mqtt"]
 
-            if config.get("cluster.topology", "leader_address").startswith("http") or config.get(
-                "mqtt", "broker_address"
-            ).startswith("http"):
-                raise ValueError("Don't start addresses with http:// or https://")
+        if config.get("cluster.topology", "leader_address", fallback="").startswith("http") or config.get(
+            "mqtt", "broker_address", fallback=""
+        ).startswith("http"):
+            abort_with(400, "Don't start addresses with http:// or https://")
 
     except configparser.DuplicateSectionError as e:
         msg = f"Duplicate section [{e.section}] was found. Please fix and try again."

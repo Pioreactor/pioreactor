@@ -2627,7 +2627,7 @@ function PioreactorCard({unit, isUnitActive, experiment, config, originalLabel, 
                     size="small"
                     variant="outlined"
                     label="XR"
-                    sx={{ ml: 0.5, height: 18, fontSize: "0.65rem", "& .MuiChip-label": { px: "5px" } }}
+                    sx={{ ml: 0.5, height: 18, fontSize: "0.65rem", "& .MuiChip-label": { px: "5px", pt: "1px" } }}
                   />
                 ) : null}
               </Typography>

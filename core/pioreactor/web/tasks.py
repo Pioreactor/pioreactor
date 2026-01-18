@@ -849,6 +849,15 @@ def reboot(wait=0) -> bool:
 
 
 @huey.task()
+def restart_pioreactor_web_target() -> bool:
+    logger.debug("Restarting pioreactor-web.target")
+    if whoami.is_testing_env():
+        return True
+    result = run(["sudo", "systemctl", "restart", "pioreactor-web.target"])
+    return result.returncode == 0
+
+
+@huey.task()
 def pios(*args: str, env: dict[str, str] | None = None) -> bool:
     env = filter_to_allowed_env(env or {})
     logger.debug(f'Executing `{join(("pios",) + args + ("-y",))}`, {env=}')

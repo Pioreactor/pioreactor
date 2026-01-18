@@ -2,8 +2,10 @@
 import json
 import os
 import zipfile
+from functools import wraps
 from io import BytesIO
 from pathlib import Path
+from subprocess import run
 from tempfile import NamedTemporaryFile
 from time import sleep
 from typing import Any
@@ -142,6 +144,16 @@ def _build_calibration_protocol_payloads() -> list[dict[str, Any]]:
     return sorted(protocols, key=lambda item: (item["target_device"], item["title"]))
 
 
+def require_leader(view_func):
+    @wraps(view_func)
+    def _wrapped(*args, **kwargs):
+        if HOSTNAME != get_leader_hostname():
+            abort_with(403, "This endpoint is only available on the leader.")
+        return view_func(*args, **kwargs)
+
+    return _wrapped
+
+
 ### SYSTEM
 
 
@@ -198,6 +210,49 @@ def reboot() -> DelayedResponseReturnValue:
 def shutdown() -> DelayedResponseReturnValue:
     """Shutdown unit"""
     task = tasks.shutdown()
+    return create_task_response(task)
+
+
+@unit_api_bp.route("/system/web_server/status", methods=["GET"])
+@require_leader
+def get_web_server_status() -> ResponseReturnValue:
+    if whoami.is_testing_env():
+        status_text = "active"
+        return attach_cache_control(
+            jsonify(
+                {
+                    "service": "pioreactor-web.target",
+                    "state": "ready",
+                    "raw_status": status_text,
+                }
+            ),
+            max_age=0,
+        )
+
+    result = run(
+        ["systemctl", "is-active", "pioreactor-web.target"],
+        capture_output=True,
+        text=True,
+    )
+    status_text = (result.stdout or result.stderr).strip()
+    is_active = result.returncode == 0 and status_text == "active"
+    state = "ready" if is_active else "disconnected"
+    return attach_cache_control(
+        jsonify(
+            {
+                "service": "pioreactor-web.target",
+                "state": state,
+                "raw_status": status_text,
+            }
+        ),
+        max_age=3,
+    )
+
+
+@unit_api_bp.route("/system/web_server/restart", methods=["POST", "PATCH"])
+@require_leader
+def restart_web_server() -> DelayedResponseReturnValue:
+    task = tasks.restart_pioreactor_web_target()
     return create_task_response(task)
 
 

@@ -592,8 +592,10 @@ function LeaderCard({leaderHostname}) {
 
 function LeaderJobs(){
 
+  const webServerJobName = "web server"
   const [mqtt_to_db_streaming_state, set_mqtt_to_db_streaming_state] = React.useState("disconnected")
   const [monitor_state, set_monitor_state] = React.useState("disconnected")
+  const [webServerState, setWebServerState] = React.useState("disconnected")
   const [otherLongRunningJobs, setOtherLongRunningJobs] = React.useState([])
   const [restartingJob, setRestartingJob] = React.useState(null)
 
@@ -618,45 +620,93 @@ function LeaderJobs(){
     }
   }
 
+  async function restartWebServer() {
+    setRestartingJob(webServerJobName);
+    try {
+      const response = await fetch("/unit_api/system/web_server/restart", {
+        method: "POST",
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to restart web server: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error("Error restarting web server:", error);
+    } finally {
+      setRestartingJob(null);
+    }
+  }
+
   React.useEffect(() => {
     let ignore = false;
-    fetch("/unit_api/long_running_jobs/running")
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`Failed to fetch long-running jobs: ${response.statusText}`);
-        }
-        return response.json();
-      })
-      .then((data) => {
-        if (ignore) {
-          return;
-        }
+    const fetchJobs = async () => {
+      try {
+        const [jobsResult, webResult] = await Promise.allSettled([
+          fetch("/unit_api/long_running_jobs/running"),
+          fetch("/unit_api/system/web_server/status"),
+        ]);
 
-        let mqttState = "disconnected";
-        let monitorState = "disconnected";
-        const remainingJobs = [];
-
-        data.forEach((job) => {
-          switch (job.job_name) {
-            case "mqtt_to_db_streaming":
-              mqttState = "ready";
-              break;
-            case "monitor":
-              monitorState = "ready";
-              break;
-            default:
-              remainingJobs.push({ job_name: job.job_name, state: "ready" });
-              break;
+        if (jobsResult.status === "fulfilled") {
+          const response = jobsResult.value;
+          if (!response.ok) {
+            throw new Error(`Failed to fetch long-running jobs: ${response.statusText}`);
           }
-        });
+          const data = await response.json();
 
-        set_mqtt_to_db_streaming_state(mqttState);
-        set_monitor_state(monitorState);
-        setOtherLongRunningJobs(remainingJobs);
-      })
-      .catch((error) => {
+          if (!ignore) {
+            let mqttState = "disconnected";
+            let monitorState = "disconnected";
+            const remainingJobs = [];
+
+            data.forEach((job) => {
+              switch (job.job_name) {
+                case "mqtt_to_db_streaming":
+                  mqttState = "ready";
+                  break;
+                case "monitor":
+                  monitorState = "ready";
+                  break;
+                default:
+                  remainingJobs.push({ job_name: job.job_name, state: "ready" });
+                  break;
+              }
+            });
+
+            set_mqtt_to_db_streaming_state(mqttState);
+            set_monitor_state(monitorState);
+            setOtherLongRunningJobs(remainingJobs);
+          }
+        } else {
+          console.error("Error fetching long-running jobs:", jobsResult.reason);
+        }
+
+        if (webResult.status === "fulfilled") {
+          const response = webResult.value;
+          if (response.ok) {
+            const webData = await response.json();
+            if (!ignore) {
+              setWebServerState(webData?.state || "disconnected");
+            }
+          } else {
+            console.error("Failed to fetch web server status:", response.statusText);
+            if (!ignore) {
+              setWebServerState("disconnected");
+            }
+          }
+        } else {
+          console.error("Error fetching web server status:", webResult.reason);
+          if (!ignore) {
+            setWebServerState("disconnected");
+          }
+        }
+      } catch (error) {
         console.error("Error fetching long-running jobs:", error);
-      });
+        if (!ignore) {
+          setWebServerState("disconnected");
+        }
+      }
+    };
+
+    fetchJobs();
   return () => {
     ignore = true;
   };
@@ -678,6 +728,17 @@ function LeaderJobs(){
               </TableRow>
             </TableHead>
             <TableBody>
+              <TableRow>
+                <TableCell sx={{padding: "6px 0px"}}>{webServerJobName}</TableCell>
+                <TableCell align="right"><StateTypography state={webServerState}/></TableCell>
+                <TableCell align="right" sx={{padding: "6px 0px"}}>
+                  <RestartJobButton
+                    jobName={webServerJobName}
+                    onRestart={restartWebServer}
+                    isRestarting={restartingJob === webServerJobName}
+                  />
+                </TableCell>
+              </TableRow>
               <TableRow>
                 <TableCell sx={{padding: "6px 0px"}}>mqtt_to_db_streaming</TableCell>
                 <TableCell align="right"><StateTypography state={mqtt_to_db_streaming_state}/></TableCell>
