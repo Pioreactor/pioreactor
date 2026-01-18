@@ -18,6 +18,7 @@
  - Calibration protocols are now exposed via API for the UI and CLI, with session IDs that can be advanced or aborted.
  - Self-test results now surface per-check pass/fail status in the Inventory page and support retrying failed checks.
  - Removed redundant `from __future__ import annotations` usage now that we run on Python 3.13.
+ - When a Pioreactor model is changed, a (non-blocking) hardware check is performed.
 
 #### Breaking changes
  - Moved Self-test to the Inventory page. Pioreactors no longer need to be assigned to an experiment to run self-test.

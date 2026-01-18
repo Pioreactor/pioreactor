@@ -825,7 +825,7 @@ function SettingsActionsDialog(props) {
                       size="small"
                       variant="outlined"
                       label="XR"
-                      sx={{ ml: 0.5, height: 18, fontSize: "0.65rem" }}
+                      sx={{ ml: 0.5, height: 18, fontSize: "0.65rem", "& .MuiChip-label": { px: "5px" } }}
                     />
                   ) : null}
                 </Typography>
@@ -1845,7 +1845,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
                     size="small"
                     variant="outlined"
                     label="XR"
-                    sx={{ ml: 0.5, height: 18, fontSize: "0.65rem" }}
+                    sx={{ ml: 0.5, height: 18, fontSize: "0.65rem", "& .MuiChip-label": { px: "5px" } }}
                   />
                 ) : null}
               </Typography>
@@ -1892,7 +1892,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
                           size="small"
                           variant="outlined"
                           label="XR"
-                          sx={{ ml: 0.5, height: 18, fontSize: "0.65rem" }}
+                          sx={{ ml: 0.5, height: 18, fontSize: "0.65rem", "& .MuiChip-label": { px: "5px" } }}
                         />
                       ) : null}
                     </Typography>
