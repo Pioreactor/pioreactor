@@ -41,6 +41,7 @@
  - Fix runtime forward-reference errors in type annotations after dropping `__future__` imports.
  - Fix timeouts being too short on some UI export operations
  - Re-save calibration files on `pio calibrations analyze` confirmation even when the curve is unchanged.
+ - UI now logs _all_ warning and errors, including from the web backend.
 
 ### 25.12.10
 

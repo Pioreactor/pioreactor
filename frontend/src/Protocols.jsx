@@ -48,7 +48,7 @@ function ProtocolCard({
         <Box sx={{ mt: 2 }}>
           <RequirementsAlert>
             <AlertTitle>
-              Requires:
+              Requirements:
             </AlertTitle>
             <Box>
               <Box component="ul" sx={{ mt: 0, mb: 0, pl: 2 }}>
