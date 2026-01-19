@@ -741,7 +741,7 @@ def update_app(
             continue
 
         logger.debug(
-            "Running update step %s/%s (priority %s): %s",
+            "Running update step %s/%s: %s",
             index,
             len(commands_and_priority),
             priority,

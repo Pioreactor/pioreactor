@@ -146,19 +146,27 @@ def run_calibration(ctx, device: str, protocol_name: str | None, y: bool) -> Non
 
     if not y:
         click.echo()
-        if click.confirm(
-            green("Do you want to set these calibrations as the active calibrations for their devices?"),
-            default=True,
-        ):
+        if len(output_rows) == 1:
+            confirm_message = "Do you want to set this calibration as the active calibration for its device?"
+        else:
+            confirm_message = (
+                "Do you want to set these calibrations as the active calibrations for their devices?"
+            )
+        if click.confirm(green(confirm_message), default=True):
             for calibration, calibration_device, _ in output_rows:
                 calibration.set_as_active_calibration_for_device(calibration_device)
                 click.echo(
                     f"Set {calibration.calibration_name} as the active calibration for {calibration_device}."
                 )
         else:
-            for calibration, calibration_device, _ in output_rows:
+            if len(output_rows) == 1:
+                for calibration, calibration_device, _ in output_rows:
+                    click.echo(
+                        f"Okay. You can use 'pio calibrations set-active --device {calibration_device} --name {calibration.calibration_name}' to set this calibration as the active one."
+                    )
+            else:
                 click.echo(
-                    f"Okay. You can use 'pio calibrations set-active --device {calibration_device} --name {calibration.calibration_name}' to set this calibration as the active one."
+                    "Okay. You can use 'pio calibrations set-active --device <device> --name <calibration_name>' to set a calibration as active."
                 )
     else:
         for calibration, calibration_device, _ in output_rows:
