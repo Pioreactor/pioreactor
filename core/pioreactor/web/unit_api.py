@@ -216,12 +216,14 @@ def shutdown() -> DelayedResponseReturnValue:
 @unit_api_bp.route("/system/web_server/status", methods=["GET"])
 @require_leader
 def get_web_server_status() -> ResponseReturnValue:
+    services_to_check = ("lighttpd.service", "huey.service")
+
     if whoami.is_testing_env():
         status_text = "active"
         return attach_cache_control(
             jsonify(
                 {
-                    "service": "pioreactor-web.target",
+                    "service": ",".join(services_to_check),
                     "state": "ready",
                     "raw_status": status_text,
                 }
@@ -229,18 +231,24 @@ def get_web_server_status() -> ResponseReturnValue:
             max_age=0,
         )
 
-    result = run(
-        ["systemctl", "is-active", "pioreactor-web.target"],
-        capture_output=True,
-        text=True,
-    )
-    status_text = (result.stdout or result.stderr).strip()
-    is_active = result.returncode == 0 and status_text == "active"
+    raw_status_parts = []
+    is_active = True
+    for service in services_to_check:
+        result = run(
+            ["systemctl", "is-active", service],
+            capture_output=True,
+            text=True,
+        )
+        status_text = (result.stdout or result.stderr).strip()
+        raw_status_parts.append(f"{service}={status_text}")
+        is_active = is_active and (result.returncode == 0 and status_text == "active")
+
+    status_text = ", ".join(raw_status_parts)
     state = "ready" if is_active else "disconnected"
     return attach_cache_control(
         jsonify(
             {
-                "service": "pioreactor-web.target",
+                "service": ",".join(services_to_check),
                 "state": state,
                 "raw_status": status_text,
             }

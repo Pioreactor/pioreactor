@@ -14,6 +14,21 @@ function ErrorSnackbar() {
   const {client, subscribeToTopic } = useMQTT();
   const { experimentMetadata } = useExperiment();
 
+  const getAlertTitle = (taskName, alertLevel, unitName) => {
+    if (!taskName || !alertLevel || !unitName) return "";
+
+    switch (alertLevel) {
+      case "ERROR":
+        return `${taskName} failed in ${unitName}`;
+      case "WARNING":
+        return `${taskName} needs attention in ${unitName}`;
+      case "SUCCESS":
+        return `${taskName} finished in ${unitName}`;
+      default:
+        return `${taskName} update in ${unitName}`;
+    }
+  };
+
   React.useEffect(() => {
     if (client && experimentMetadata){
       subscribeToTopic([`pioreactor/+/${experimentMetadata.experiment}/logs/+/error`,
@@ -60,7 +75,7 @@ function ErrorSnackbar() {
       onClose={handleClose}
     >
     <Alert variant="standard" severity={level.toLowerCase()} onClose={handleClose}>
-      <AlertTitle style={{fontSize: 15}}>{task} encountered a{level==="ERROR" ? 'n' : ''} {level.toLowerCase()} in {unit}</AlertTitle>
+      <AlertTitle style={{fontSize: 15}}>{getAlertTitle(task, level, unit)}</AlertTitle>
       <span style={{whiteSpace: 'pre-wrap'}}>{msg}</span>
     </Alert>
     </Snackbar>

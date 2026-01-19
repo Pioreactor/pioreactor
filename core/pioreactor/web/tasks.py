@@ -282,7 +282,7 @@ def _get_adc_addresses_for_model(model_name: str, model_version: str) -> set[int
 @huey.task(priority=10)
 def check_model_hardware(model_name: str, model_version: str) -> None:
     if model_version != "1.5":
-        return None
+        return
 
     try:
         addresses = _get_adc_addresses_for_model(model_name, model_version)
@@ -290,13 +290,13 @@ def check_model_hardware(model_name: str, model_version: str) -> None:
         logger.warning(
             f"Hardware check skipped on {get_unit_name()}: {err}",
         )
-        return None
+        return
 
     if not addresses:
         logger.debug(
             f"Hardware check found no ADC addresses for {model_name} {model_version} on {get_unit_name()}."
         )
-        return None
+        return
 
     missing = sorted(addr for addr in addresses if not hardware.is_i2c_device_present(addr))
     if missing:
@@ -305,8 +305,10 @@ def check_model_hardware(model_name: str, model_version: str) -> None:
             f"Hardware check failed for {model_name} {model_version} on {get_unit_name()}: "
             f"missing I2C devices at {missing_hex}."
         )
+        return
 
-    return logger.notice(f"Correct hardware found for {model_name} {model_version} on {get_unit_name()}.")
+    logger.notice(f"Correct hardware found for {model_name} {model_version} on {get_unit_name()}.")
+    return
 
 
 @huey.task()
