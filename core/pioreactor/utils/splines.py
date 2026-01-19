@@ -7,10 +7,15 @@ from typing import Sequence
 import numpy as np
 
 
+def _to_pyfloat(seq: list[float]) -> list[float]:
+    # we have trouble serializing numpy floats
+    return [float(_) for _ in seq]
+
+
 def spline_fit(
     x: Sequence[float],
     y: Sequence[float],
-    knots: int | Sequence[float],
+    knots: int | Sequence[float] | str | None = "auto",
     weights: Sequence[float] | None = None,
 ) -> list:
     """
@@ -21,7 +26,8 @@ def spline_fit(
     x, y
         Observations.
     knots
-        Either the number of knots to use (including boundaries) or explicit knot positions.
+        Either the number of knots to use (including boundaries), explicit knot positions, or "auto".
+        When "auto" (default), knot count is selected by AICc over a small candidate range.
     weights
         Optional weights for each observation.
 
@@ -41,10 +47,6 @@ def spline_fit(
     if np.allclose(x_values, x_values[0]):
         raise ValueError("x values must not all be the same.")
 
-    knot_positions = _normalize_knots(x_values, knots)
-    if len(knot_positions) < 2:
-        raise ValueError("At least two knots are required.")
-
     if weights is None:
         weight_values = np.ones_like(x_values)
     else:
@@ -54,14 +56,19 @@ def spline_fit(
         if np.any(weight_values < 0):
             raise ValueError("weights must be non-negative.")
 
-    design_matrix = _build_spline_design_matrix(knot_positions, x_values)
-    weighted_design = design_matrix * np.sqrt(weight_values)[:, None]
-    weighted_y = y_values * np.sqrt(weight_values)
+    if knots is None or knots == "auto":
+        knot_positions = _auto_select_knots(x_values, y_values, weight_values)
+    elif isinstance(knots, str):
+        raise ValueError('knots must be an int, a sequence of floats, or "auto".')
+    else:
+        knot_positions = _normalize_knots(x_values, knots)
+    if len(knot_positions) < 2:
+        raise ValueError("At least two knots are required.")
 
-    knot_values, *_ = np.linalg.lstsq(weighted_design, weighted_y, rcond=None)
+    knot_values, _ = _fit_knot_values(knot_positions, x_values, y_values, weight_values)
     coefficients = _natural_cubic_spline_coefficients(knot_positions, knot_values)
 
-    return [knot_positions.tolist(), [coeff.tolist() for coeff in coefficients]]
+    return [_to_pyfloat(knot_positions.tolist()), [_to_pyfloat(coeff.tolist()) for coeff in coefficients]]
 
 
 def spline_eval(spline_data: list, x: float) -> float:
@@ -131,6 +138,61 @@ def _normalize_knots(x_values: np.ndarray, knots: int | Sequence[float]) -> np.n
     if knot_positions.size < 2:
         raise ValueError("knots must contain at least two unique values.")
     return knot_positions
+
+
+def _fit_knot_values(
+    knot_positions: np.ndarray,
+    x_values: np.ndarray,
+    y_values: np.ndarray,
+    weight_values: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    design_matrix = _build_spline_design_matrix(knot_positions, x_values)
+    sqrt_weights = np.sqrt(weight_values)
+    weighted_design = design_matrix * sqrt_weights[:, None]
+    weighted_y = y_values * sqrt_weights
+    knot_values, *_ = np.linalg.lstsq(weighted_design, weighted_y, rcond=None)
+    return knot_values, design_matrix
+
+
+def _aicc_score(weighted_sse: float, n_obs: int, n_params: int) -> float:
+    if n_obs <= n_params + 1:
+        return float("inf")
+    sse = max(weighted_sse, np.finfo(float).tiny)
+    correction = (2 * n_params * (n_params + 1)) / (n_obs - n_params - 1)
+    return n_obs * np.log(sse / n_obs) + 2 * n_params + correction
+
+
+def _auto_select_knots(
+    x_values: np.ndarray,
+    y_values: np.ndarray,
+    weight_values: np.ndarray,
+    *,
+    max_knots: int | None = None,
+) -> np.ndarray:
+    n_obs = x_values.size
+    unique_x = np.unique(x_values).size
+    if max_knots is None:
+        max_knots = min(6, n_obs)
+    max_knots = min(max_knots, unique_x)
+    max_knots = max(2, max_knots)
+
+    best_score = float("inf")
+    best_knots: np.ndarray | None = None
+
+    for count in range(2, max_knots + 1):
+        knot_positions = _normalize_knots(x_values, count)
+        knot_values, design_matrix = _fit_knot_values(knot_positions, x_values, y_values, weight_values)
+        y_pred = design_matrix @ knot_values
+        residual = y_values - y_pred
+        weighted_sse = float(np.sum(weight_values * residual**2))
+        score = _aicc_score(weighted_sse, n_obs, knot_positions.size)
+        if score < best_score:
+            best_score = score
+            best_knots = knot_positions
+
+    if best_knots is None:
+        return _normalize_knots(x_values, 2)
+    return best_knots
 
 
 def _build_spline_design_matrix(knots: np.ndarray, x_values: np.ndarray) -> np.ndarray:

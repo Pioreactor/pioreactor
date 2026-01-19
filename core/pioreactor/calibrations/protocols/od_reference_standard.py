@@ -256,7 +256,7 @@ def get_reference_standard_step(
     return get_session_step(_REFERENCE_STANDARD_STEPS, session, executor)
 
 
-def get_valid_od_devices_for_this_unit() -> list[str]:
+def get_valid_od_devices_for_this_unit() -> list[pt.ODCalibrationDevices]:
 
     pd_channels = config["od_config.photodiode_channel"]
     valid_devices: list[pt.ODCalibrationDevices] = []

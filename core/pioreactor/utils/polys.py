@@ -6,6 +6,11 @@ from typing import Sequence
 import numpy as np
 
 
+def _to_pyfloat(seq: list[float]) -> list[float]:
+    # we have trouble serializing numpy floats
+    return [float(_) for _ in seq]
+
+
 def poly_fit(
     x: Sequence[float],
     y: Sequence[float],
@@ -33,7 +38,7 @@ def poly_fit(
             raise ValueError("weights must be non-negative.")
 
     coefs = np.polyfit(x_values, y_values, deg=degree, w=weight_values)
-    return coefs.tolist()
+    return _to_pyfloat(coefs.tolist())
 
 
 def poly_eval(poly_data: list[float], x: float) -> float:

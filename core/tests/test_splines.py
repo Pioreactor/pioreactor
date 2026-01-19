@@ -15,6 +15,16 @@ def test_spline_fit_and_eval_linear() -> None:
     assert spline_eval(spline_data, -1.0) == pytest.approx(-1.0, rel=1e-6)
 
 
+def test_spline_fit_auto_selects_knots() -> None:
+    x = [0.0, 1.0, 2.0, 3.0]
+    y = [1.0, 3.0, 5.0, 7.0]
+    spline_data = spline_fit(x, y, knots="auto")
+
+    assert spline_eval(spline_data, 2.5) == pytest.approx(6.0, rel=1e-6)
+    assert spline_data[0][0] == pytest.approx(min(x), rel=1e-6)
+    assert spline_data[0][-1] == pytest.approx(max(x), rel=1e-6)
+
+
 def test_spline_fit_explicit_knots_interpolate_at_knots() -> None:
     x = [0.0, 1.0, 2.0]
     y = [0.0, 1.0, 0.0]
@@ -131,6 +141,19 @@ def test_spline_fit_reduces_residuals_on_noisy_linear_data() -> None:
     y_pred = np.array([spline_eval(spline_data, float(xi)) for xi in x])
     mse = np.mean((y_pred - y) ** 2)
     assert mse < 0.2
+
+
+def test_spline_fit_auto_selects_linear_curve_for_noisy_linear_data() -> None:
+    rng = np.random.default_rng(123)
+    x = np.linspace(0.0, 10.0, 30)
+    y = 2.5 * x - 1.0 + rng.normal(0.0, 0.1, size=x.size)
+    spline_data = spline_fit(x.tolist(), y.tolist(), knots="auto")
+
+    knots, coefficients = spline_data
+    assert len(knots) == 2
+    assert len(coefficients) == 1
+    assert coefficients[0][2] == pytest.approx(0.0, abs=1e-12)
+    assert coefficients[0][3] == pytest.approx(0.0, abs=1e-12)
 
 
 def test_spline_fit_respects_sorted_or_unsorted_input() -> None:

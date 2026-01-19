@@ -484,7 +484,7 @@ def run_od_calibration(target_device: pt.ODCalibrationDevices) -> structs.OD600C
 
 
 class SingleVialODProtocol(CalibrationProtocol[pt.ODCalibrationDevices]):
-    target_device = pt.OD_DEVICES
+    target_device = pt.OD_DEVICES  # type: ignore
     protocol_name = "single_vial"
     description = "Calibrate OD using a single vial"
 

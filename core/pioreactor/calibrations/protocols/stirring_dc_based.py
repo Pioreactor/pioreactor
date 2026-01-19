@@ -140,14 +140,13 @@ def _build_stirring_calibration_from_measurements(
 
     from pioreactor.utils.splines import spline_fit
 
-    knots = min(3, len(dcs))
     return SimpleStirringCalibration(
         pwm_hz=config.getfloat("stirring.config", "pwm_hz"),
         voltage=voltage,
         calibration_name=f"stirring-calibration-{current_utc_datetime().strftime('%Y-%m-%d_%H-%M')}",
         calibrated_on_pioreactor_unit=unit,
         created_at=current_utc_datetime(),
-        curve_data_=spline_fit(dcs, rpms, knots=knots),
+        curve_data_=spline_fit(dcs, rpms, knots="auto"),
         curve_type="spline",
         recorded_data={"x": dcs, "y": rpms},
     )

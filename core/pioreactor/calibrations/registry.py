@@ -16,7 +16,7 @@ calibration_protocols: dict[str, dict[ProtocolName, type["CalibrationProtocol[An
 
 class CalibrationProtocol(Generic[Device]):
     protocol_name: ClassVar[ProtocolName]
-    target_device: ClassVar[str | list[str]]
+    target_device: ClassVar[str | list[Device]]
     title: ClassVar[str] = ""
     description: ClassVar[str] = ""
     requirements: ClassVar[tuple[str, ...]] = ()

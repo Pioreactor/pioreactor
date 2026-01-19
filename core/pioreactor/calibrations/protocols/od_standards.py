@@ -187,8 +187,7 @@ def _calculate_curve_data(
     if len(od600_values) >= 3:
         from pioreactor.utils.splines import spline_fit
 
-        knots = min(4, len(od600_values))
-        return "spline", spline_fit(od600_values, voltages, knots=knots, weights=weights)
+        return "spline", spline_fit(od600_values, voltages, knots="auto", weights=weights)
 
     degree = min(3, max(1, len(od600_values) - 1))
     return "poly", utils.calculate_poly_curve_of_best_fit(od600_values, voltages, degree, weights)
@@ -598,7 +597,7 @@ def get_standards_step(
     return get_session_step(_OD_STANDARDS_STEPS, session, executor)
 
 
-def get_valid_od_devices_for_this_unit() -> list[str]:
+def get_valid_od_devices_for_this_unit() -> list[pt.ODCalibrationDevices]:
     pd_channels = config["od_config.photodiode_channel"]
     valid_devices: list[pt.ODCalibrationDevices] = []
 
