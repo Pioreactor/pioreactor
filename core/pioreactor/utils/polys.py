@@ -42,7 +42,7 @@ def poly_fit(
 
 
 def poly_eval(poly_data: list[float], x: float) -> float:
-    return np.polyval(poly_data, x)
+    return float(np.polyval(poly_data, x))
 
 
 def poly_solve(poly_data: list[float], y: float) -> list[float]:

@@ -77,7 +77,7 @@ def spline_eval(spline_data: list, x: float) -> float:
     index = _interval_index(knots, x)
     u = x - knots[index]
     a, b, c, d = coefficients[index]
-    return a + b * u + c * u**2 + d * u**3
+    return float(a + b * u + c * u**2 + d * u**3)
 
 
 def spline_solve(spline_data: list, y: float) -> list[float]:
@@ -104,7 +104,7 @@ def spline_solve(spline_data: list, y: float) -> list[float]:
         for root in roots:
             solutions.append(knots[index] + root)
 
-    return _unique_sorted(solutions)
+    return _to_pyfloat(_unique_sorted(solutions))
 
 
 def _interval_index(knots: np.ndarray, x: float) -> int:
