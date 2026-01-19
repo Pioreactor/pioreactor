@@ -256,8 +256,8 @@ def test_linear_data_produces_linear_curve_in_range_even_if_high_degree() -> Non
 
     curve_data_ = calculate_poly_curve_of_best_fit(od, v, degree=4, weights=weights)  # type: ignore
     curve_callable = curve_to_callable("poly", curve_data_)
-    for od_, v_ in zip(od, curve_callable(od)):
-        assert (v_ - od_ * 0.5) < 0.035
+    for od_ in od:
+        assert (curve_callable(od_) - od_ * 0.5) < 0.035
 
 
 def test_mandys_data_for_pathological_poly() -> None:

@@ -21,8 +21,7 @@
  - When a Pioreactor model is changed, a (non-blocking) hardware check is performed.
  - You can now restart the web server (lighttpd), and the background task queue, Huey, from the UI. Go to Leader -> "Long-running jobs", and see the "web server and queue" line.
  - Added spline curve support for calibrations, including OD standards sessions and calibration charts.
- - Added polynomial/spline curve utilities and JS curve helpers to keep UI plots in sync with backend curve types.
- - `pio calibrations analyze` now supports `--fit poly|spline` (default poly).
+ - `pio calibrations analyze` now supports `--fit poly|spline` (default poly). You can use this to re-fit a dataset to a spline curve.
 
 #### Breaking changes
  - Moved Self-test to the Inventory page. Pioreactors no longer need to be assigned to an experiment to run self-test.
@@ -33,6 +32,7 @@
  - OD calibration devices are now per-angle (`od45`, `od90`, `od135`) instead of just `od`. Physically, this changes the calibration directory in `~/.pioreactor/storage/calibrations/od` to  `~/.pioreactor/storage/calibrations/{od45,od90,od135}`. Existing `od` calibration files and active calibrations are migrated during the update.
  - Self-test no longer creates a stirring calibration.
  - OD Reading charts in the UI previously had a sensor label next to the unit, ex: `worker01-2`. Now it is the corresponding angle from config.ini. Note: only the global config.ini is used, not specific unit_config.inis.
+ - New OD and stirring calibrations are now fit with a spline, and not a polynomial.
 
 #### Bug fixes
 

@@ -20,7 +20,7 @@ def calculate_poly_curve_of_best_fit(
     assert len(weights) == len(x) == len(y)
 
     # sort by y, since we want calibrations to be easily solvable from y to x (this mostly applies to OD cal with weights.)
-    y, x = zip(*sorted(zip(y, x), key=lambda t: t[0]))  # type: ignore
+    y, x, weights = zip(*sorted(zip(y, x, weights), key=lambda t: t[0]))  # type: ignore
 
     try:
         coefs = poly_fit(x, y, degree=degree, weights=weights)
@@ -46,10 +46,10 @@ def curve_to_functional_form(curve_type: str, curve_data) -> str:
         raise NotImplementedError()
 
 
-def curve_to_callable(curve_type: str, curve_data: list[float] | list) -> Callable:
+def curve_to_callable(curve_type: str, curve_data: list[float] | list) -> Callable[[float], float]:
     if curve_type == "poly":
 
-        def curve_callable(x):
+        def curve_callable(x: float):
             return poly_eval(curve_data, x)
 
         return curve_callable
@@ -57,7 +57,7 @@ def curve_to_callable(curve_type: str, curve_data: list[float] | list) -> Callab
     elif curve_type == "spline":
         from pioreactor.utils.splines import spline_eval
 
-        def curve_callable(x):
+        def curve_callable(x: float):
             return spline_eval(curve_data, x)
 
         return curve_callable

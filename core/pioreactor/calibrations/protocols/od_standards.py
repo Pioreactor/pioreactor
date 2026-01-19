@@ -598,6 +598,9 @@ def get_standards_step(
 
 
 def get_valid_od_devices_for_this_unit() -> list[pt.ODCalibrationDevices]:
+    if is_testing_env():
+        return [cast(pt.ODCalibrationDevices, device) for device in pt.OD_DEVICES]
+
     pd_channels = config["od_config.photodiode_channel"]
     valid_devices: list[pt.ODCalibrationDevices] = []
 
