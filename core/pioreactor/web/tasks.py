@@ -306,7 +306,7 @@ def check_model_hardware(model_name: str, model_version: str) -> None:
             f"missing I2C devices at {missing_hex}."
         )
 
-    return logger.notice(f"Hardware present for {model_name} {model_version} on {get_unit_name()}: ")
+    return logger.notice(f"Correct hardware found for {model_name} {model_version} on {get_unit_name()}.")
 
 
 @huey.task()

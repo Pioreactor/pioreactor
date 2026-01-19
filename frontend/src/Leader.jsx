@@ -592,7 +592,7 @@ function LeaderCard({leaderHostname}) {
 
 function LeaderJobs(){
 
-  const webServerJobName = "web server"
+  const webServerJobName = "web server and queue"
   const [mqtt_to_db_streaming_state, set_mqtt_to_db_streaming_state] = React.useState("disconnected")
   const [monitor_state, set_monitor_state] = React.useState("disconnected")
   const [webServerState, setWebServerState] = React.useState("disconnected")

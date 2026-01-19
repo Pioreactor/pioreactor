@@ -198,6 +198,46 @@ def test_predict_ipredict_consistency(calibration) -> None:
     assert calibration.y_to_x(y) == pytest.approx(x)
 
 
+def test_spline_predict_linear() -> None:
+    from pioreactor.utils.splines import spline_fit
+
+    x = [0.0, 2.0]
+    y = [1.0, 5.0]
+    spline_data = spline_fit(x, y, knots=2)
+    calibration = CalibrationBase(
+        calibration_name="test_spline_calibration",
+        calibrated_on_pioreactor_unit="unit1",
+        created_at=datetime.now(),
+        curve_data_=spline_data,
+        curve_type="spline",
+        x="voltage",
+        y="od600",
+        recorded_data={"x": x, "y": y},
+    )
+
+    assert calibration.x_to_y(1.0) == pytest.approx(3.0)
+
+
+def test_spline_ipredict_linear() -> None:
+    from pioreactor.utils.splines import spline_fit
+
+    x = [0.0, 2.0]
+    y = [1.0, 5.0]
+    spline_data = spline_fit(x, y, knots=2)
+    calibration = CalibrationBase(
+        calibration_name="test_spline_calibration",
+        calibrated_on_pioreactor_unit="unit1",
+        created_at=datetime.now(),
+        curve_data_=spline_data,
+        curve_type="spline",
+        x="voltage",
+        y="od600",
+        recorded_data={"x": x, "y": y},
+    )
+
+    assert calibration.y_to_x(3.0) == pytest.approx(1.0)
+
+
 def test_linear_data_produces_linear_curve_in_range_even_if_high_degree() -> None:
     od = np.sort(
         np.r_[

@@ -165,7 +165,7 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
     calibration_name: str
     calibrated_on_pioreactor_unit: pt.Unit
     created_at: t.Annotated[datetime, Meta(tz=True)]
-    curve_data_: list[float]
+    curve_data_: list
     curve_type: str  # ex: "poly"
     x: str
     y: str
@@ -234,33 +234,39 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         """
         Predict y given x
         """
-        assert self.curve_type == "poly"
-
         if len(self.curve_data_) == 0:
             raise exc.NoSolutionsFoundError(f"calibration {self}'s curve_data_ is empty")
 
-        return round(sum([c * x**i for i, c in enumerate(reversed(self.curve_data_))]), 10)
+        if self.curve_type == "poly":
+            from pioreactor.utils.polys import poly_eval
+
+            return round(poly_eval(self.curve_data_, x), 10)
+        if self.curve_type == "spline":
+            from pioreactor.utils.splines import spline_eval
+
+            return round(spline_eval(self.curve_data_, x), 10)  # type: ignore[arg-type]
+
+        raise NotImplementedError(f"Unsupported curve_type: {self.curve_type}")
 
     def y_to_x(self, y: Y, enforce_bounds=False) -> X:
         """
         predict x given y
         """
-        assert self.curve_type == "poly"
-
         if len(self.curve_data_) == 0:
             raise exc.NoSolutionsFoundError(f"calibration {self}'s curve_data_ is empty")
 
-        # we have to solve the polynomial roots numerically, possibly with complex roots
-        from numpy import roots, zeros_like, real, imag
         from pioreactor.utils.math_helpers import closest_point_to_domain
 
-        poly = self.curve_data_
+        if self.curve_type == "poly":
+            from pioreactor.utils.polys import poly_solve
 
-        coef_shift = zeros_like(poly, dtype=float)
-        coef_shift[-1] = y
-        solve_for_poly = poly - coef_shift
-        roots_ = roots(solve_for_poly).tolist()
-        plausible_sols_: list[X] = sorted([real(r) for r in roots_ if (abs(imag(r)) < 1e-10)])
+            plausible_sols_ = poly_solve(self.curve_data_, y)
+        elif self.curve_type == "spline":
+            from pioreactor.utils.splines import spline_solve
+
+            plausible_sols_ = spline_solve(self.curve_data_, y)  # type: ignore[arg-type]
+        else:
+            raise NotImplementedError(f"Unsupported curve_type: {self.curve_type}")
 
         if len(self.recorded_data["x"]) == 0:
             from math import inf

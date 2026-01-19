@@ -19,6 +19,10 @@
  - Self-test results now surface per-check pass/fail status in the Inventory page and support retrying failed checks.
  - Removed redundant `from __future__ import annotations` usage now that we run on Python 3.13.
  - When a Pioreactor model is changed, a (non-blocking) hardware check is performed.
+ - You can now restart the web server (lighttpd), and the background task queue, Huey, from the UI. Go to Leader -> "Long-running jobs", and see the "web server and queue" line.
+ - Added spline curve support for calibrations, including OD standards sessions and calibration charts.
+ - Added polynomial/spline curve utilities and JS curve helpers to keep UI plots in sync with backend curve types.
+ - `pio calibrations analyze` now supports `--fit poly|spline` (default poly).
 
 #### Breaking changes
  - Moved Self-test to the Inventory page. Pioreactors no longer need to be assigned to an experiment to run self-test.
@@ -36,6 +40,7 @@
  - Fix floating point error at the boundary of OD calibrations.
  - Fix runtime forward-reference errors in type annotations after dropping `__future__` imports.
  - Fix timeouts being too short on some UI export operations
+ - Re-save calibration files on `pio calibrations analyze` confirmation even when the curve is unchanged.
 
 ### 25.12.10
 

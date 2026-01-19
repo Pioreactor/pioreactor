@@ -256,8 +256,25 @@ def get_reference_standard_step(
     return get_session_step(_REFERENCE_STANDARD_STEPS, session, executor)
 
 
+def get_valid_od_devices_for_this_unit() -> list[str]:
+
+    pd_channels = config["od_config.photodiode_channel"]
+    valid_devices: list[pt.ODCalibrationDevices] = []
+
+    for _, angle in pd_channels.items():
+        if angle in (None, "", REF_keyword):
+            continue
+        device = f"od{angle}"
+        if device in pt.OD_DEVICES and device not in valid_devices:
+            valid_devices.append(cast(pt.ODCalibrationDevices, device))
+
+    if "od90" in valid_devices and "od45" in valid_devices and "od135" in valid_devices:
+        valid_devices.append("od")
+    return valid_devices
+
+
 class ODReferenceStandardProtocol(CalibrationProtocol[pt.ODCalibrationDevices]):
-    target_device = pt.OD_DEVICES
+    target_device = get_valid_od_devices_for_this_unit()
     protocol_name = "od_reference_standard"
     title = "Optics calibration jig"
     description = (

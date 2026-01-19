@@ -261,7 +261,15 @@ def delete_calibration(device: str, calibration_name: str) -> None:
 @calibration.command(name="analyze")
 @click.option("--device", required=True, help="Which calibration device to delete from.")
 @click.option("--name", "calibration_name", required=True, help="Which calibration name to delete.")
-def analyze_calibration(device: str, calibration_name: str) -> None:
+@click.option(
+    "--fit",
+    "fit",
+    default="poly",
+    type=click.Choice(["poly", "spline"]),
+    show_default=True,
+    help="Curve fit type to use when analyzing.",
+)
+def analyze_calibration(device: str, calibration_name: str, fit: str) -> None:
     """
     Analyze a calibration file from local storage.
     """
@@ -279,6 +287,8 @@ def analyze_calibration(device: str, calibration_name: str) -> None:
     else:
         weights = None
 
-    new_calibration = crunch_data_and_confirm_with_user(copy(calibration), initial_degree=3, weights=weights)
-    if new_calibration != calibration:
-        new_calibration.save_to_disk_for_device(device)
+    new_calibration = crunch_data_and_confirm_with_user(
+        copy(calibration), initial_degree=3, weights=weights, fit=fit
+    )
+
+    new_calibration.save_to_disk_for_device(device)

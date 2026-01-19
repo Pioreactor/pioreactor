@@ -4,7 +4,10 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Tooltip from "@mui/material/Tooltip";
 import Box from "@mui/material/Box";
+import Checkbox from "@mui/material/Checkbox";
+import ListItemText from "@mui/material/ListItemText";
 import DownloadIcon from "@mui/icons-material/Download";
+import SettingsIcon from "@mui/icons-material/Settings";
 import Typography from '@mui/material/Typography';
 
 import {
@@ -18,60 +21,13 @@ import {
   VictoryTooltip,
   LineSegment
 } from "victory";
-
-/**
- * Evaluates a polynomial at x given an array of coefficients in descending order.
- * e.g., [a, b, c] => a*x^2 + b*x + c
- */
-function evaluatePolynomial(x, coeffs) {
-  return coeffs.reduce((acc, coefficient, i) => {
-    const power = coeffs.length - 1 - i; // descending power
-    return acc + coefficient * Math.pow(x, power);
-  }, 0);
-}
-
-/**
- * Generates a set of [x, y] points along a polynomial curve for plotting.
- * We base the domain on the recorded_data.x for each calibration.
- */
-function generatePolynomialData(calibration, stepCount = 50) {
-  const { x: xValues } = calibration.recorded_data;
-  const coeffs = calibration.curve_data_ || [];
-
-  if (!xValues || xValues.length === 0) {
-    // No recorded data => fallback domain
-    // Adjust these as needed or handle differently
-    const fallbackXMin = 0;
-    const fallbackXMax = 1;
-    const stepSize = (fallbackXMax - fallbackXMin) / (stepCount - 1);
-
-    return Array.from({ length: stepCount }).map((_, i) => {
-      const x = fallbackXMin + i * stepSize;
-      return { x, y: evaluatePolynomial(x, coeffs) };
-    });
-  }
-
-  // Determine min/max from recorded data
-  const xMin = Math.min(...xValues);
-  const xMax = Math.max(...xValues);
-
-  // If all xValues are the same, give some small range
-  if (xMin === xMax) {
-    return [{ x: xMin, y: evaluatePolynomial(xMin, coeffs) }];
-  }
-
-  const stepSize = (xMax - xMin) / (stepCount - 1);
-  const points = [];
-
-  for (let i = 0; i < stepCount; i++) {
-    const x = xMin + i * stepSize;
-    points.push({ x, y: evaluatePolynomial(x, coeffs) });
-  }
-  return points;
-}
+import { generateCurveData } from "../curve_utils";
 
 function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlightedModel, title }) {
   const [exportAnchorEl, setExportAnchorEl] = useState(null);
+  const [optionsAnchorEl, setOptionsAnchorEl] = useState(null);
+  const [useLogX, setUseLogX] = useState(false);
+  const [useLogY, setUseLogY] = useState(false);
   const chartContainerRef = useRef(null);
 
   const handleOpenExportMenu = (event) => {
@@ -80,6 +36,14 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
 
   const handleCloseExportMenu = () => {
     setExportAnchorEl(null);
+  };
+
+  const handleOpenOptionsMenu = (event) => {
+    setOptionsAnchorEl(event.currentTarget);
+  };
+
+  const handleCloseOptionsMenu = () => {
+    setOptionsAnchorEl(null);
   };
 
   const getDownloadFilename = (extension) => {
@@ -184,6 +148,19 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
   };
 
   const exportMenuOpen = Boolean(exportAnchorEl);
+  const optionsMenuOpen = Boolean(optionsAnchorEl);
+
+  const isPositiveNumber = (value) => typeof value === "number" && Number.isFinite(value) && value > 0;
+
+  const filterDataForScale = (data) => {
+    if (!useLogX && !useLogY) {
+      return data;
+    }
+    return data.filter((datum) => (
+      (!useLogX || isPositiveNumber(datum.x)) &&
+      (!useLogY || isPositiveNumber(datum.y))
+    ));
+  };
 
   if (!deviceName){
     return <Box display="flex" justifyContent="center" alignItems="center" minHeight="10vh"><Typography variant="body2" component="p" color="textSecondary">No calibrations exist. Try creating a calibration from the command line.</Typography></Box>
@@ -206,6 +183,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
         domainPadding={10}
         height={325}
         width={1050}
+        scale={{ x: useLogX ? "log" : "linear", y: useLogY ? "log" : "linear" }}
         theme={VictoryTheme.material}
         padding={{ left: 50, right: 50, bottom: 40, top: 45 }}
         containerComponent={
@@ -312,6 +290,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
             x: xVal,
             y: cal.recorded_data.y?.[i] ?? null,
           }));
+          const filteredScatterData = filterDataForScale(scatterData);
 
           // Simple color selection (optional)
           const color = unitsColorMap[cal.pioreactor_unit + cal.calibration_name] || "black";
@@ -319,7 +298,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
           return (
               <VictoryScatter
                 key={cal.calibration_name}
-                data={scatterData}
+                data={filteredScatterData}
                 style={{ data: { fill: color, fillOpacity: 0.8, } }}
                 size={isHighlighted(cal) ? 4 : 3}
               />
@@ -328,8 +307,8 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
 
         {calibrations.map((cal, index) => {
 
-          // Generate polynomial curve
-          const polynomialData = generatePolynomialData(cal);
+          const curveData = generateCurveData(cal);
+          const filteredCurveData = filterDataForScale(curveData);
 
           // Simple color selection (optional)
           const color = unitsColorMap[cal.pioreactor_unit + cal.calibration_name] || "black";
@@ -341,7 +320,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
               <VictoryLine
                 key={cal.calibration_name || index}
                 interpolation="basis"
-                data={polynomialData}
+                data={filteredCurveData}
                 style={{
                   data: {
                     stroke: color,
@@ -354,19 +333,32 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
         })}
 
       </VictoryChart>
-        <IconButton
-          aria-label={`download-${deviceName || 'calibration'}`}
-          size="small"
-          onClick={handleOpenExportMenu}
+        <Box
           sx={{
             position: "absolute",
             bottom: 8,
             right: 8,
-            backgroundColor: "rgba(255,255,255,0.85)",
+            display: "flex",
+            gap: 0.5,
           }}
         >
-          <DownloadIcon fontSize="small" />
-        </IconButton>
+          <IconButton
+            aria-label={`chart-options-${deviceName || 'calibration'}`}
+            size="small"
+            onClick={handleOpenOptionsMenu}
+            sx={{ backgroundColor: "rgba(255,255,255,0.85)" }}
+          >
+            <SettingsIcon fontSize="small" />
+          </IconButton>
+          <IconButton
+            aria-label={`download-${deviceName || 'calibration'}`}
+            size="small"
+            onClick={handleOpenExportMenu}
+            sx={{ backgroundColor: "rgba(255,255,255,0.85)" }}
+          >
+            <DownloadIcon fontSize="small" />
+          </IconButton>
+        </Box>
       <Menu
         anchorEl={exportAnchorEl}
         open={exportMenuOpen}
@@ -379,6 +371,22 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
         </MenuItem>
         <MenuItem onClick={() => handleDownloadSelection('svg')}>
           Download SVG
+        </MenuItem>
+      </Menu>
+      <Menu
+        anchorEl={optionsAnchorEl}
+        open={optionsMenuOpen}
+        onClose={handleCloseOptionsMenu}
+        anchorOrigin={{ horizontal: "right", vertical: "top" }}
+        transformOrigin={{ horizontal: "right", vertical: "bottom" }}
+      >
+        <MenuItem onClick={() => setUseLogX((prev) => !prev)}>
+          <Checkbox checked={useLogX} size="small" />
+          <ListItemText primary="Log x-axis" />
+        </MenuItem>
+        <MenuItem onClick={() => setUseLogY((prev) => !prev)}>
+          <Checkbox checked={useLogY} size="small" />
+          <ListItemText primary="Log y-axis" />
         </MenuItem>
       </Menu>
     </div>

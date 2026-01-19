@@ -151,16 +151,20 @@ def test_stirring_with_calibration() -> None:
         def clean_up(self):
             pass
 
+    from pioreactor.utils.splines import spline_fit
+
     linear_term, constant_term = 10, -5
+    dcs = [0.0, 100.0]
+    rpms = [linear_term * dc + constant_term for dc in dcs]
     cal = SimpleStirringCalibration(
         calibration_name="test_stirring_with_calibration",
         calibrated_on_pioreactor_unit=unit,
         created_at=current_utc_datetime(),
-        curve_data_=[linear_term, constant_term],
-        curve_type="poly",
+        curve_data_=spline_fit(dcs, rpms, knots=2),
+        curve_type="spline",
         pwm_hz=200,
         voltage=5.0,
-        recorded_data={"x": [], "y": []},
+        recorded_data={"x": dcs, "y": rpms},
     )
 
     target_rpm = 500
@@ -176,8 +180,8 @@ def test_stirring_with_calibration() -> None:
 
         assert st.duty_cycle > initial_dc
 
-        assert st.rpm_to_dc_lookup(600) == 63.760213125
-        assert st.rpm_to_dc_lookup(700) == 73.21021312500001
+        assert st.rpm_to_dc_lookup(600) == pytest.approx(63.760213125)
+        assert st.rpm_to_dc_lookup(700) == pytest.approx(73.210213125)
 
 
 @pytest.mark.slow

@@ -449,7 +449,7 @@ def _render_chart_for_cli(chart: dict[str, object]) -> None:
         if isinstance(curve, dict):
             curve_type = curve.get("type")
             coeffs = curve.get("coefficients")
-            if curve_type == "poly" and isinstance(coeffs, list):
+            if curve_type in {"poly", "spline"} and isinstance(coeffs, list):
                 curve_callable = curve_to_callable(curve_type, coeffs)
         plot_data(
             x_vals,

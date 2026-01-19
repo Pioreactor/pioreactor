@@ -20,7 +20,6 @@ from pioreactor import types as pt
 from pioreactor.background_jobs.od_reading import average_over_od_readings
 from pioreactor.background_jobs.od_reading import REF_keyword
 from pioreactor.background_jobs.od_reading import start_od_reading
-from pioreactor.background_jobs.stirring import start_stirring as stirring
 from pioreactor.calibrations import list_of_calibrations_by_device
 from pioreactor.calibrations import utils
 from pioreactor.calibrations.registry import CalibrationProtocol
@@ -137,6 +136,8 @@ def _measure_standard(
     rpm: float,
     channel_angle_map: dict[pt.PdChannel, pt.PdAngle],
 ) -> dict[pt.PdChannel, pt.Voltage]:
+    from pioreactor.background_jobs.stirring import start_stirring as stirring
+
     with stirring(
         target_rpm=rpm,
         unit=get_unit_name(),
@@ -180,11 +181,17 @@ def _devices_for_angles(channel_angle_map: dict[pt.PdChannel, pt.PdAngle]) -> li
 def _calculate_curve_data(
     od600_values: list[float],
     voltages: list[float],
-) -> list[float]:
-    degree = min(3, max(1, len(od600_values) - 1))
+) -> tuple[str, list]:
     weights = [1.0] * len(voltages)
     weights[0] = len(voltages) / 2
-    return utils.calculate_poly_curve_of_best_fit(od600_values, voltages, degree, weights)
+    if len(od600_values) >= 3:
+        from pioreactor.utils.splines import spline_fit
+
+        knots = min(4, len(od600_values))
+        return "spline", spline_fit(od600_values, voltages, knots=knots, weights=weights)
+
+    degree = min(3, max(1, len(od600_values) - 1))
+    return "poly", utils.calculate_poly_curve_of_best_fit(od600_values, voltages, degree, weights)
 
 
 def _build_standards_chart_metadata(
@@ -204,9 +211,10 @@ def _build_standards_chart_metadata(
         points = [{"x": float(od600_values[i]), "y": float(voltages[i])} for i in range(count)]
         curve = None
         if count > 1:
+            curve_type, curve_data = _calculate_curve_data(od600_values[:count], voltages[:count])
             curve = {
-                "type": "poly",
-                "coefficients": _calculate_curve_data(od600_values[:count], voltages[:count]),
+                "type": curve_type,
+                "coefficients": curve_data,
             }
         series.append(
             {
@@ -445,7 +453,7 @@ class AnotherStandard(SessionStep):
     def render(self, ctx: SessionContext) -> CalibrationStep:
         step = steps.form(
             "Next standard",
-            "Record another standard or redo the last measurement?",
+            "Record another standard, move on to the blank, or redo the last measurement?",
             [
                 fields.choice(
                     "next_action",
@@ -544,10 +552,10 @@ class MeasureBlank(SessionStep):
         for pd_channel, angle in sorted(channel_angle_map.items(), key=lambda item: int(item[0])):
             voltages_list = ctx.data["voltages_by_channel"][pd_channel]
             od600_values = ctx.data["od600_values"]
-            curve_data_ = _calculate_curve_data(od600_values, voltages_list)
+            curve_type, curve_data_ = _calculate_curve_data(od600_values, voltages_list)
             cal = to_struct(
                 curve_data_,
-                "poly",
+                curve_type,
                 voltages_list,
                 od600_values,
                 angle,
@@ -590,8 +598,22 @@ def get_standards_step(
     return get_session_step(_OD_STANDARDS_STEPS, session, executor)
 
 
+def get_valid_od_devices_for_this_unit() -> list[str]:
+    pd_channels = config["od_config.photodiode_channel"]
+    valid_devices: list[pt.ODCalibrationDevices] = []
+
+    for _, angle in pd_channels.items():
+        if angle in (None, "", REF_keyword):
+            continue
+        device = f"od{angle}"
+        if device in pt.OD_DEVICES and device not in valid_devices:
+            valid_devices.append(cast(pt.ODCalibrationDevices, device))
+
+    return valid_devices
+
+
 class StandardsODProtocol(CalibrationProtocol[pt.ODCalibrationDevices]):
-    target_device = pt.OD_DEVICES
+    target_device = get_valid_od_devices_for_this_unit()
     protocol_name = "standards"
     title = "OD standards calibration"
     description = "Calibrate OD channels using a series of OD600 standards and a blank."

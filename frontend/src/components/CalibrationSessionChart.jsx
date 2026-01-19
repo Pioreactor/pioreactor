@@ -10,6 +10,7 @@ import {
   VictoryTheme,
   VictoryLabel,
 } from "victory";
+import { evaluateCurve } from "../curve_utils";
 
 const SERIES_COLORS = [
   "#1b5e20",
@@ -20,28 +21,25 @@ const SERIES_COLORS = [
   "#c2185b",
 ];
 
-function evaluatePolynomial(x, coeffs) {
-  return coeffs.reduce((acc, coefficient, index) => {
-    const power = coeffs.length - 1 - index;
-    return acc + coefficient * Math.pow(x, power);
-  }, 0);
-}
-
-function generateCurvePoints(points, coefficients, stepCount = 50) {
-  if (!Array.isArray(points) || points.length === 0 || !Array.isArray(coefficients)) {
+function generateCurvePoints(points, curveType, curveData, stepCount = 50) {
+  if (!Array.isArray(points) || points.length === 0) {
     return [];
   }
   const xs = points.map((point) => point.x);
   const xMin = Math.min(...xs);
   const xMax = Math.max(...xs);
   if (xMin === xMax) {
-    return [{ x: xMin, y: evaluatePolynomial(xMin, coefficients) }];
+    const y = evaluateCurve(xMin, curveType, curveData);
+    return y === null ? [] : [{ x: xMin, y }];
   }
   const stepSize = (xMax - xMin) / (stepCount - 1);
   const curve = [];
   for (let i = 0; i < stepCount; i += 1) {
     const x = xMin + i * stepSize;
-    curve.push({ x, y: evaluatePolynomial(x, coefficients) });
+    const y = evaluateCurve(x, curveType, curveData);
+    if (y !== null) {
+      curve.push({ x, y });
+    }
   }
   return curve;
 }
@@ -137,7 +135,12 @@ export default function CalibrationSessionChart({ chart }) {
           if (!series.curve || !Array.isArray(series.curve.coefficients)) {
             return null;
           }
-          const curvePoints = generateCurvePoints(series.points, series.curve.coefficients);
+          const curveType = series.curve.type || "poly";
+          const curvePoints = generateCurvePoints(
+            series.points,
+            curveType,
+            series.curve.coefficients,
+          );
           if (curvePoints.length === 0) {
             return null;
           }

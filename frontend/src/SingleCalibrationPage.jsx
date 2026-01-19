@@ -91,6 +91,23 @@ function formatPolynomial(coefficients) {
     return result || '0';
 }
 
+function formatSpline(splineData) {
+  if (!Array.isArray(splineData) || splineData.length !== 2) {
+    return 'Invalid spline data';
+  }
+  const [knots] = splineData;
+  if (!Array.isArray(knots)) {
+    return 'Invalid spline data';
+  }
+  return `Natural cubic spline (${knots.length} knots)`;
+}
+
+function formatCurve(curveType, curveData) {
+  if (curveType === "spline") {
+    return formatSpline(curveData);
+  }
+  return `y=${formatPolynomial(curveData)}`;
+}
 
 
 
@@ -329,6 +346,7 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } )
     calibration_type,
     created_at,
     curve_data_,
+    curve_type,
     x,
     y,
     recorded_data,
@@ -420,9 +438,9 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } )
                         <TableCell>{calibration_type}</TableCell>
                       </TableRow>
                       <TableRow>
-                        <TableCell><strong>Fit polynomial</strong></TableCell>
+                        <TableCell><strong>Fit curve</strong></TableCell>
                         <TableCell>
-                          y={formatPolynomial(curve_data_)}
+                          {formatCurve(curve_type, curve_data_)}
                         </TableCell>
                       </TableRow>
                     </TableBody>

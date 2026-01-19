@@ -70,8 +70,13 @@ def test_run_od_standards() -> None:
         result = runner.invoke(run_calibration, ["--device", "od90"], input=input_)
         assert not result.exception
         cal = load_calibration("od90", calibration_name)
-        expected_degree = min(3, max(1, len(cal.recorded_data["x"]) - 1))
-        assert len(cal.curve_data_) == expected_degree + 1
+        if cal.curve_type == "poly":
+            expected_degree = min(3, max(1, len(cal.recorded_data["x"]) - 1))
+            assert len(cal.curve_data_) == expected_degree + 1
+        else:
+            assert cal.curve_type == "spline"
+            assert len(cal.curve_data_) == 2
+            assert len(cal.curve_data_[0]) >= 2
         assert cal.x == "OD600"
         assert cal.y == "Voltage"
         assert len(cal.recorded_data["x"]) == 4
