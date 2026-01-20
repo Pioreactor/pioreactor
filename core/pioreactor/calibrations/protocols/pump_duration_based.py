@@ -11,13 +11,10 @@ from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.calibrations import list_of_calibrations_by_device
 from pioreactor.calibrations.registry import CalibrationProtocol
-from pioreactor.calibrations.session_flow import advance_session
 from pioreactor.calibrations.session_flow import CalibrationComplete
 from pioreactor.calibrations.session_flow import fields
-from pioreactor.calibrations.session_flow import get_session_step
 from pioreactor.calibrations.session_flow import run_session_in_cli
 from pioreactor.calibrations.session_flow import SessionContext
-from pioreactor.calibrations.session_flow import SessionExecutor
 from pioreactor.calibrations.session_flow import SessionStep
 from pioreactor.calibrations.session_flow import StepRegistry
 from pioreactor.calibrations.session_flow import steps
@@ -553,20 +550,6 @@ _PUMP_DURATION_STEPS: StepRegistry = {
     TestRun.step_id: TestRun,
     TestVolume.step_id: TestVolume,
 }
-
-
-def get_duration_based_step(
-    session: CalibrationSession, executor: SessionExecutor | None = None
-) -> CalibrationStep | None:
-    return get_session_step(_PUMP_DURATION_STEPS, session, executor)
-
-
-def advance_duration_based_session(
-    session: CalibrationSession,
-    inputs: dict[str, object],
-    executor: SessionExecutor | None = None,
-) -> CalibrationSession:
-    return advance_session(_PUMP_DURATION_STEPS, session, inputs, executor)
 
 
 def run_pump_calibration(

@@ -23,13 +23,10 @@ from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.calibrations import list_of_calibrations_by_device
 from pioreactor.calibrations import utils
 from pioreactor.calibrations.registry import CalibrationProtocol
-from pioreactor.calibrations.session_flow import advance_session
 from pioreactor.calibrations.session_flow import CalibrationComplete
 from pioreactor.calibrations.session_flow import fields
-from pioreactor.calibrations.session_flow import get_session_step
 from pioreactor.calibrations.session_flow import run_session_in_cli
 from pioreactor.calibrations.session_flow import SessionContext
-from pioreactor.calibrations.session_flow import SessionExecutor
 from pioreactor.calibrations.session_flow import SessionStep
 from pioreactor.calibrations.session_flow import StepRegistry
 from pioreactor.calibrations.session_flow import steps
@@ -581,20 +578,6 @@ _OD_STANDARDS_STEPS: StepRegistry = {
     PlaceBlank.step_id: PlaceBlank,
     MeasureBlank.step_id: MeasureBlank,
 }
-
-
-def advance_standards_session(
-    session: CalibrationSession,
-    inputs: dict[str, object],
-    executor: SessionExecutor | None = None,
-) -> CalibrationSession:
-    return advance_session(_OD_STANDARDS_STEPS, session, inputs, executor)
-
-
-def get_standards_step(
-    session: CalibrationSession, executor: SessionExecutor | None = None
-) -> CalibrationStep | None:
-    return get_session_step(_OD_STANDARDS_STEPS, session, executor)
 
 
 def get_valid_od_devices_for_this_unit() -> list[pt.ODCalibrationDevices]:

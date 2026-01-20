@@ -11,12 +11,9 @@ from typing import Literal
 
 from pioreactor.background_jobs import stirring
 from pioreactor.calibrations.registry import CalibrationProtocol
-from pioreactor.calibrations.session_flow import advance_session
 from pioreactor.calibrations.session_flow import CalibrationComplete
-from pioreactor.calibrations.session_flow import get_session_step
 from pioreactor.calibrations.session_flow import run_session_in_cli
 from pioreactor.calibrations.session_flow import SessionContext
-from pioreactor.calibrations.session_flow import SessionExecutor
 from pioreactor.calibrations.session_flow import SessionStep
 from pioreactor.calibrations.session_flow import StepRegistry
 from pioreactor.calibrations.session_flow import steps
@@ -258,20 +255,6 @@ _DC_BASED_STEPS: StepRegistry = {
     Intro.step_id: Intro,
     RunCalibration.step_id: RunCalibration,
 }
-
-
-def advance_dc_based_session(
-    session: CalibrationSession,
-    inputs: dict[str, object],
-    executor: SessionExecutor | None = None,
-) -> CalibrationSession:
-    return advance_session(_DC_BASED_STEPS, session, inputs, executor)
-
-
-def get_dc_based_step(
-    session: CalibrationSession, executor: SessionExecutor | None = None
-) -> CalibrationStep | None:
-    return get_session_step(_DC_BASED_STEPS, session, executor)
 
 
 class DCBasedStirringProtocol(CalibrationProtocol[Literal["stirring"]]):
