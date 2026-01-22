@@ -126,10 +126,9 @@ Calb = TypeVar("Calb", bound=structs.CalibrationBase)
 
 def crunch_data_and_confirm_with_user(
     calibration: Calb,
-    initial_degree: int = 1,
     weights: list[float] | None = None,
-    *,
     fit: str = "poly",
+    initial_degree: int = 1,
     initial_knots: int = 4,
 ) -> Calb:
     y, x = calibration.recorded_data["y"], calibration.recorded_data["x"]

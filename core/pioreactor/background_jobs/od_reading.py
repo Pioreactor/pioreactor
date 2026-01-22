@@ -687,6 +687,57 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
         return pd_reading / led_output
 
 
+class PhotodiodeIrLedReferenceTrackerUnitInit(IrLedReferenceTracker):
+    """
+    Track the IR LED reference as a relative value near 1.0, anchored to the unit's
+    initial REF reading. If REF drops by 20%, f(REF) ~= 0.8, and we normalize by
+    SIGNAL / f(REF).
+    """
+
+    def __init__(self, channel: pt.PdChannel) -> None:
+        super().__init__()
+        self.channel = channel
+        self.initial_ref: float | None = None
+        self.led_output_ema = ExponentialMovingAverage(
+            config.getfloat("od_reading.config", "pd_reference_ema")
+        )
+        self.led_output_emstd = ExponentialMovingStd(alpha=0.95, ema_alpha=0.8, initial_std_value=0.001)
+
+    def update(self, ir_output_reading: pt.Voltage) -> None:
+        if self.initial_ref is None:
+            self.initial_ref = ir_output_reading
+
+        if self.initial_ref <= 0.0:
+            raise ValueError("Initial IR reference is 0.0. Is it connected correctly? Is the IR LED working?")
+
+        relative_ref = ir_output_reading / self.initial_ref
+
+        # check if funky things are happening by std. banding
+        self.led_output_emstd.update(relative_ref)
+
+        try:
+            latest_std = self.led_output_emstd.get_latest()
+        except ValueError:
+            # can happen if there is only a single data points, and the variance can't be computed.
+            latest_std = 0.0
+
+        if latest_std <= 0.01:
+            # only update if the std looks "okay""
+            self.led_output_ema.update(relative_ref)
+        else:
+            self.logger.warning(
+                f"The reference PD is very noisy, std={latest_std:.2g}. Is the PD in channel {self.channel} positioned correctly? Is the IR LED behaving as expected?"
+            )
+            self.led_output_emstd.clear()  # reset it for i) reduce warnings, ii) if the user purposely changed the IR intensity, this is an approx of that
+
+    def transform(self, pd_reading: pt.Voltage) -> pt.OD:
+        relative_ref = self.led_output_ema.get_latest()
+
+        if relative_ref <= 0.0:
+            raise ValueError("IR Reference is 0.0. Is it connected correctly? Is the IR LED working?")
+        return pd_reading / relative_ref
+
+
 class NullIrLedReferenceTracker(IrLedReferenceTracker):
     def __init__(self) -> None:
         super().__init__()
@@ -1406,10 +1457,18 @@ def start_od_reading(
 
     # use IR LED reference to normalize?
     if ir_led_reference_channel is not None:
-        ir_led_reference_tracker = PhotodiodeIrLedReferenceTrackerStaticInit(
-            ir_led_reference_channel,
-        )
         active_pd_channels.append(ir_led_reference_channel)
+
+        ref_normalization = config.get("od_reading.config", "ref_normalization", fallback="classic")
+        if ref_normalization == "unity":
+            ir_led_reference_tracker = PhotodiodeIrLedReferenceTrackerUnitInit(
+                ir_led_reference_channel,
+            )
+        else:
+            ir_led_reference_tracker = PhotodiodeIrLedReferenceTrackerStaticInit(
+                ir_led_reference_channel,
+            )
+
     else:
         ir_led_reference_tracker = NullIrLedReferenceTracker()  # type: ignore
 

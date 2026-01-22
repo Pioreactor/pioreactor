@@ -11,6 +11,7 @@
  - Support for the optics calibration jig.
  - Faster Stop commands in the UI, plugin listing, and data exports.
  - Added dosing start/stop events to `dosing_automation_events`, including exports.
+ - Added unit-relative IR LED reference normalization for OD readings via `ref_normalization=unity`.
  - New query pattern for faster Experiment Overview chart loading; large datasets may show randomized sampling in time series. Let us know if this is too distracting. Max point targets per series increased to 1400.
  - OD calibrations now support multiple photodiode angles; `pio calibrations run --device od` can emit per-angle calibrations for 45/90/135.
    - Added an update helper to migrate legacy OD calibrations into per-angle devices.

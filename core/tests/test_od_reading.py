@@ -13,6 +13,7 @@ from pioreactor.background_jobs.od_reading import CachedCalibrationTransformer
 from pioreactor.background_jobs.od_reading import NullCalibrationTransformer
 from pioreactor.background_jobs.od_reading import ODReader
 from pioreactor.background_jobs.od_reading import PhotodiodeIrLedReferenceTrackerStaticInit
+from pioreactor.background_jobs.od_reading import PhotodiodeIrLedReferenceTrackerUnitInit
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.calibrations import load_active_calibration
 from pioreactor.config import config
@@ -1204,6 +1205,32 @@ def test_PhotodiodeIrLedReferenceTrackerStaticInit() -> None:
     for i in range(100):
         v = 0.001 * np.random.randn() + 0.50  # a bump in IR
         tracker.update(v)
+
+
+def test_PhotodiodeIrLedReferenceTrackerUnitInit() -> None:
+    tracker = PhotodiodeIrLedReferenceTrackerUnitInit(channel="1")
+
+    for i in range(1000):
+        v = 0.001 * np.random.randn() + 0.25
+        tracker.update(v)
+
+    assert abs(tracker.led_output_ema.get_latest() - 1.0) < 0.05
+    assert abs(tracker.transform(1.0) - 1.0) < 0.05
+
+    for i in range(1000):
+        v = 0.001 * np.random.randn() + 0.20  # a drop in IR
+        tracker.update(v)
+
+    assert abs(tracker.led_output_ema.get_latest() - 0.8) < 0.05
+    assert abs(tracker.transform(1.0) - 1.25) < 0.1
+
+
+def test_ref_normalization_unity_uses_unit_init() -> None:
+    with temporary_config_change(config, "od_reading.config", "ref_normalization", "unity"):
+        with start_od_reading(
+            make_channels("90", "REF"), interval=None, fake_data=True, calibration=False
+        ) as od:
+            assert isinstance(od.ir_led_reference_transformer, PhotodiodeIrLedReferenceTrackerUnitInit)
 
 
 def test_dark_offset_turns_off_all_leds(mocker) -> None:
