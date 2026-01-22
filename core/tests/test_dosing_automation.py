@@ -89,8 +89,7 @@ def fast_dosing_timers(monkeypatch):
 def setup_function() -> None:
     cal = structs.SimplePeristalticPumpCalibration(
         calibration_name="setup_function",
-        curve_data_=[1.0, 0.0],
-        curve_type="poly",
+        curve_data_=structs.PolyFitCoefficients(coefficients=[1.0, 0.0]),
         recorded_data={"x": [], "y": []},
         dc=60,
         hz=100,

@@ -101,14 +101,20 @@ function formatSpline(splineData) {
   return `Natural cubic spline (${knots.length} knots)`;
 }
 
-function formatCurve(curveType, curveData) {
-  if (curveType === "spline") {
+function formatCurve(curveData) {
+  if (!curveData || Array.isArray(curveData)) {
+    return "Invalid curve data";
+  }
+  if (curveData.type === "spline") {
     return formatSpline(curveData);
   }
-  if (!curveData || Array.isArray(curveData) || !Array.isArray(curveData.coefficients)) {
-    return "Invalid polynomial data";
+  if (curveData.type === "poly") {
+    if (!Array.isArray(curveData.coefficients)) {
+      return "Invalid polynomial data";
+    }
+    return `y=${formatPolynomial(curveData.coefficients)}`;
   }
-  return `y=${formatPolynomial(curveData.coefficients)}`;
+  return "Invalid curve data";
 }
 
 
@@ -374,7 +380,6 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName, ca
     calibration_type,
     created_at,
     curve_data_,
-    curve_type,
     x,
     y,
     recorded_data,
@@ -497,7 +502,7 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName, ca
                       <TableRow>
                         <TableCell><strong>Fit curve</strong></TableCell>
                         <TableCell>
-                          {formatCurve(curve_type, curve_data_)}
+                          {formatCurve(curve_data_)}
                         </TableCell>
                       </TableRow>
                     </TableBody>

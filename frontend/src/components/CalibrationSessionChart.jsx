@@ -21,7 +21,7 @@ const SERIES_COLORS = [
   "#c2185b",
 ];
 
-function generateCurvePoints(points, curveType, curveData, stepCount = 50) {
+function generateCurvePoints(points, curveData, stepCount = 50) {
   if (!Array.isArray(points) || points.length === 0) {
     return [];
   }
@@ -29,14 +29,14 @@ function generateCurvePoints(points, curveType, curveData, stepCount = 50) {
   const xMin = Math.min(...xs);
   const xMax = Math.max(...xs);
   if (xMin === xMax) {
-    const y = evaluateCurve(xMin, curveType, curveData);
+    const y = evaluateCurve(xMin, curveData);
     return y === null ? [] : [{ x: xMin, y }];
   }
   const stepSize = (xMax - xMin) / (stepCount - 1);
   const curve = [];
   for (let i = 0; i < stepCount; i += 1) {
     const x = xMin + i * stepSize;
-    const y = evaluateCurve(x, curveType, curveData);
+    const y = evaluateCurve(x, curveData);
     if (y !== null) {
       curve.push({ x, y });
     }
@@ -132,15 +132,10 @@ export default function CalibrationSessionChart({ chart }) {
         })}
 
         {chart.series.map((series, index) => {
-          if (!series.curve || !series.curve.coefficients) {
+          if (!series.curve || Array.isArray(series.curve)) {
             return null;
           }
-          const curveType = series.curve.type || "poly";
-          const curvePoints = generateCurvePoints(
-            series.points,
-            curveType,
-            series.curve.coefficients,
-          );
+          const curvePoints = generateCurvePoints(series.points, series.curve);
           if (curvePoints.length === 0) {
             return null;
           }

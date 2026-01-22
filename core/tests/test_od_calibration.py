@@ -18,7 +18,7 @@ from pioreactor.whoami import get_unit_name
 def test_analyze() -> None:
     cal = structs.OD600Calibration(
         created_at=current_utc_datetime(),
-        curve_data_=structs.PolyFitCoefficients([2.0, 0.0]),
+        curve_data_=structs.PolyFitCoefficients(coefficients=[2.0, 0.0]),
         calibration_name="test_analyze",
         ir_led_intensity=90.0,
         angle="90",

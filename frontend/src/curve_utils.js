@@ -48,17 +48,22 @@ export function evaluateSpline(x, splineData) {
   return a + b * u + c * u * u + d * u * u * u;
 }
 
-export function evaluateCurve(x, curveType, curveData) {
-  if (curveType === "spline") {
+export function evaluateCurve(x, curveData) {
+  if (!curveData || Array.isArray(curveData)) {
+    return null;
+  }
+  if (curveData.type === "spline") {
     return evaluateSpline(x, curveData);
   }
-  return evaluatePolynomial(x, curveData);
+  if (curveData.type === "poly") {
+    return evaluatePolynomial(x, curveData);
+  }
+  return null;
 }
 
 export function generateCurveData(calibration, stepCount = 50) {
   const xValues = calibration?.recorded_data?.x;
-  const curveType = calibration?.curve_type || "poly";
-  const curveData = calibration?.curve_data_ || [];
+  const curveData = calibration?.curve_data_;
 
   if (!Array.isArray(xValues) || xValues.length === 0) {
     const fallbackXMin = 0;
@@ -67,7 +72,7 @@ export function generateCurveData(calibration, stepCount = 50) {
 
     return Array.from({ length: stepCount }).map((_, i) => {
       const x = fallbackXMin + i * stepSize;
-      return { x, y: evaluateCurve(x, curveType, curveData) };
+      return { x, y: evaluateCurve(x, curveData) };
     });
   }
 
@@ -75,7 +80,7 @@ export function generateCurveData(calibration, stepCount = 50) {
   const xMax = Math.max(...xValues);
 
   if (xMin === xMax) {
-    return [{ x: xMin, y: evaluateCurve(xMin, curveType, curveData) }];
+    return [{ x: xMin, y: evaluateCurve(xMin, curveData) }];
   }
 
   const stepSize = (xMax - xMin) / (stepCount - 1);
@@ -83,7 +88,7 @@ export function generateCurveData(calibration, stepCount = 50) {
 
   for (let i = 0; i < stepCount; i++) {
     const x = xMin + i * stepSize;
-    points.push({ x, y: evaluateCurve(x, curveType, curveData) });
+    points.push({ x, y: evaluateCurve(x, curveData) });
   }
   return points;
 }

@@ -1,9 +1,16 @@
 # -*- coding: utf-8 -*-
+from typing import cast
+
 import numpy as np
 import pytest
+from pioreactor import structs
 from pioreactor.utils.splines import spline_eval
 from pioreactor.utils.splines import spline_fit
 from pioreactor.utils.splines import spline_solve
+
+
+def _spline_data(knots: list[float], coefficients: list[list[float]]) -> structs.SplineFitData:
+    return structs.SplineFitData(knots=knots, coefficients=coefficients)
 
 
 def test_spline_fit_and_eval_linear() -> None:
@@ -21,8 +28,8 @@ def test_spline_fit_auto_selects_knots() -> None:
     spline_data = spline_fit(x, y, knots="auto")
 
     assert spline_eval(spline_data, 2.5) == pytest.approx(6.0, rel=1e-6)
-    assert spline_data[0][0] == pytest.approx(min(x), rel=1e-6)
-    assert spline_data[0][-1] == pytest.approx(max(x), rel=1e-6)
+    assert spline_data.knots[0] == pytest.approx(min(x), rel=1e-6)
+    assert spline_data.knots[-1] == pytest.approx(max(x), rel=1e-6)
 
 
 def test_spline_fit_explicit_knots_interpolate_at_knots() -> None:
@@ -47,13 +54,13 @@ def test_spline_solve_linear_with_extrapolation() -> None:
 
 
 def test_spline_solve_multiple_solutions() -> None:
-    spline_data = [
+    spline_data = _spline_data(
         [0.0, 1.0, 2.0],
         [
             [0.0, 1.0, 0.0, 0.0],
             [1.0, -1.0, 0.0, 0.0],
         ],
-    ]
+    )
 
     solutions = spline_solve(spline_data, 0.5)
     assert solutions == pytest.approx([0.5, 1.5], rel=1e-6)
@@ -81,21 +88,21 @@ def test_spline_fit_rejects_bad_inputs() -> None:
 
 def test_spline_eval_rejects_bad_spline_data() -> None:
     with pytest.raises(ValueError):
-        spline_eval([0.0, 1.0], 1.0)
+        spline_eval(cast(structs.SplineFitData, [0.0, 1.0]), 1.0)
 
     with pytest.raises(ValueError):
-        spline_eval([[0.0, 1.0], [[0.0, 1.0, 0.0]]], 1.0)
+        spline_eval(_spline_data([0.0, 1.0], [[0.0, 1.0, 0.0]]), 1.0)
 
     with pytest.raises(ValueError):
-        spline_eval([[1.0, 0.0], [[0.0, 1.0, 0.0, 0.0]]], 1.0)
+        spline_eval(_spline_data([1.0, 0.0], [[0.0, 1.0, 0.0, 0.0]]), 1.0)
 
 
 def test_spline_solve_rejects_bad_spline_data() -> None:
     with pytest.raises(ValueError):
-        spline_solve([[0.0, 1.0], [[0.0, 1.0, 0.0]]], 1.0)
+        spline_solve(_spline_data([0.0, 1.0], [[0.0, 1.0, 0.0]]), 1.0)
 
     with pytest.raises(ValueError):
-        spline_solve([[0.0, 1.0, 1.0], [[0.0, 1.0, 0.0, 0.0]]], 1.0)
+        spline_solve(_spline_data([0.0, 1.0, 1.0], [[0.0, 1.0, 0.0, 0.0]]), 1.0)
 
 
 def test_spline_fit_matches_known_knot_values() -> None:
@@ -149,7 +156,7 @@ def test_spline_fit_auto_selects_linear_curve_for_noisy_linear_data() -> None:
     y = 2.5 * x - 1.0 + rng.normal(0.0, 0.1, size=x.size)
     spline_data = spline_fit(x.tolist(), y.tolist(), knots="auto")
 
-    knots, coefficients = spline_data
+    knots, coefficients = spline_data.knots, spline_data.coefficients
     assert len(knots) == 2
     assert len(coefficients) == 1
     assert coefficients[0][2] == pytest.approx(0.0, abs=1e-12)
@@ -174,10 +181,10 @@ def test_spline_fit_respects_sorted_or_unsorted_input() -> None:
 def test_spline_solve_cubic_interval_multiple_roots() -> None:
     # S(x) = (x - 0.2)(x - 0.6)(x - 1.4) on [0, 2]
     # Expanded: x^3 - 2.2x^2 + 1.24x - 0.168
-    spline_data = [
+    spline_data = _spline_data(
         [0.0, 2.0],
         [[-0.168, 1.24, -2.2, 1.0]],
-    ]
+    )
 
     solutions = spline_solve(spline_data, 0.0)
     assert solutions == pytest.approx([0.2, 0.6, 1.4], rel=1e-6)

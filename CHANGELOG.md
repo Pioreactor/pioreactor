@@ -35,7 +35,8 @@
  - Self-test no longer creates a stirring calibration.
  - OD Reading charts in the UI previously had a sensor label next to the unit, ex: `worker01-2`. Now it is the corresponding angle from config.ini. Note: only the global config.ini is used, not specific unit_config.inis.
  - New OD and stirring calibrations are now fit with a spline, and not a polynomial.
- - Calibration curve data is now serialized as tagged structs (`poly`/`spline`) instead of raw lists. `curve_type` is removed in fao existing calibration files are migrated during the update.
+ - Calibration curve data is now serialized as tagged structs (`poly`/`spline`) instead of raw lists. `curve_type` is removed and existing calibration files are migrated during the update.
+ - The calibration UI now expects `curve_data_` to be a tagged object; legacy list formats are rejected.
 
 
 #### Bug fixes

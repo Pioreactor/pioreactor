@@ -1,25 +1,28 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 from os import environ
 from pathlib import Path
+from typing import TypeGuard
 
 from msgspec import yaml
 
 
-def _is_number(value: object) -> bool:
+def _is_number(value: object) -> TypeGuard[int | float]:
     return isinstance(value, (int, float))
 
 
 def _coerce_float_list(values: list[object]) -> list[float]:
-    return [float(value) for value in values if _is_number(value)]
+    coerced: list[float] = []
+    for value in values:
+        if _is_number(value):
+            coerced.append(float(value))
+    return coerced
 
 
 def _coerce_float_matrix(values: list[object]) -> list[list[float]]:
     matrix: list[list[float]] = []
     for row in values:
         if isinstance(row, list):
-            matrix.append([float(item) for item in row if _is_number(item)])
+            matrix.append(_coerce_float_list(row))
     return matrix
 
 
@@ -32,22 +35,17 @@ def _infer_curve_type(curve_data: list[object]) -> str:
 def _migrate_curve_data(data: dict) -> bool:
     curve_data = data.get("curve_data_")
     curve_type = data.get("curve_type")
-
-    save_again = False
-
-    if "curve_type" in data:
-        del data["curve_type"]
-        save_again = True
+    changed = False
 
     if isinstance(curve_data, list):
         if curve_type is None:
             curve_type = _infer_curve_type(curve_data)
-        elif curve_type == "poly":
+        if curve_type == "poly":
             data["curve_data_"] = {
                 "type": "poly",
                 "coefficients": _coerce_float_list(curve_data),
             }
-            save_again = True
+            changed = True
         elif curve_type == "spline":
             knots: list[float] = []
             coefficients: list[list[float]] = []
@@ -59,9 +57,28 @@ def _migrate_curve_data(data: dict) -> bool:
                 "knots": knots,
                 "coefficients": coefficients,
             }
-            save_again = True
+            changed = True
+    elif isinstance(curve_data, dict):
+        tag = curve_data.get("type")
+        if tag == "PolyFitCoefficients":
+            data["curve_data_"] = {
+                "type": "poly",
+                "coefficients": _coerce_float_list(curve_data.get("coefficients", [])),
+            }
+            changed = True
+        elif tag == "SplineFitData":
+            data["curve_data_"] = {
+                "type": "spline",
+                "knots": _coerce_float_list(curve_data.get("knots", [])),
+                "coefficients": _coerce_float_matrix(curve_data.get("coefficients", [])),
+            }
+            changed = True
 
-    return save_again
+    if "curve_type" in data:
+        data.pop("curve_type", None)
+        changed = True
+
+    return changed
 
 
 def main() -> None:

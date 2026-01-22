@@ -56,4 +56,5 @@ pd4:
 EOF
 
 sudo -u pioreactor /opt/pioreactor/venv/bin/python "$SCRIPT_DIR"/od_calibration_device_migration.py
+# Migrate curve_data_ serialization and strip legacy curve_type fields.
 sudo -u pioreactor /opt/pioreactor/venv/bin/python "$SCRIPT_DIR"/calibration_curve_data_migration.py
