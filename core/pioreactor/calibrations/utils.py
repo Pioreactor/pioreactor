@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 from typing import Callable
+from typing import cast
 from typing import TypeVar
 
 import click
 from pioreactor import structs
+from pioreactor import types as pt
 from pioreactor.calibrations.cli_helpers import green
 from pioreactor.calibrations.cli_helpers import info
 from pioreactor.calibrations.cli_helpers import red
@@ -13,7 +15,7 @@ from pioreactor.utils.polys import poly_fit
 
 def calculate_poly_curve_of_best_fit(
     x: list[float], y: list[float], degree: int, weights: list[float] | None = None
-) -> list[float]:
+) -> pt.PolyFitCoefficients:
     if weights is None:
         weights = [1.0] * len(x)
 
@@ -31,34 +33,39 @@ def calculate_poly_curve_of_best_fit(
     return list(coefs)
 
 
-def curve_to_functional_form(curve_type: str, curve_data) -> str:
+def curve_to_functional_form(curve_type: str, curve_data: pt.CalibrationCurveData) -> str:
     if curve_type == "poly":
-        d = len(curve_data)
+        poly_data = cast(pt.PolyFitCoefficients, curve_data)
+        d = len(poly_data)
         return " + ".join(
-            [(f"{c:0.3f}x^{d - i - 1}" if (i < d - 1) else f"{c:0.3f}") for i, c in enumerate(curve_data)]
+            [(f"{c:0.3f}x^{d - i - 1}" if (i < d - 1) else f"{c:0.3f}") for i, c in enumerate(poly_data)]
         )
     elif curve_type == "spline":
-        if not isinstance(curve_data, list) or len(curve_data) != 2:
+        spline_data = cast(pt.SplineFitData, curve_data)
+        if not isinstance(spline_data, list) or len(spline_data) != 2:
             raise ValueError("Invalid spline data.")
-        knots = curve_data[0]
+        knots = cast(list[float], spline_data[0])
         return f"natural cubic spline with {len(knots)} knots"
     else:
         raise NotImplementedError()
 
 
-def curve_to_callable(curve_type: str, curve_data: list[float] | list) -> Callable[[float], float]:
+def curve_to_callable(curve_type: str, curve_data: pt.CalibrationCurveData) -> Callable[[float], float]:
     if curve_type == "poly":
+        poly_data = cast(pt.PolyFitCoefficients, curve_data)
 
         def curve_callable(x: float):
-            return poly_eval(curve_data, x)
+            return poly_eval(poly_data, x)
 
         return curve_callable
 
     elif curve_type == "spline":
         from pioreactor.utils.splines import spline_eval
 
+        spline_data = cast(pt.SplineFitData, curve_data)
+
         def curve_callable(x: float):
-            return spline_eval(curve_data, x)
+            return spline_eval(spline_data, x)
 
         return curve_callable
 

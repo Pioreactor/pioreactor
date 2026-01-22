@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Sequence
 
 import numpy as np
+from pioreactor import types as pt
 
 
 def _to_pyfloat(seq: list[float]) -> list[float]:
@@ -16,7 +17,7 @@ def poly_fit(
     y: Sequence[float],
     degree: int | str | None = "auto",
     weights: Sequence[float] | None = None,
-) -> list[float]:
+) -> pt.PolyFitCoefficients:
     x_values = np.asarray(x, dtype=float)
     y_values = np.asarray(y, dtype=float)
 
@@ -45,11 +46,11 @@ def poly_fit(
     return _to_pyfloat(coefs.tolist())
 
 
-def poly_eval(poly_data: list[float], x: float) -> float:
+def poly_eval(poly_data: pt.PolyFitCoefficients, x: float) -> float:
     return float(np.polyval(poly_data, x))
 
 
-def poly_solve(poly_data: list[float], y: float) -> list[float]:
+def poly_solve(poly_data: pt.PolyFitCoefficients, y: float) -> list[float]:
     if len(poly_data) == 0:
         raise ValueError("poly_data must not be empty.")
 

@@ -5,6 +5,7 @@ from typing import Iterable
 from typing import Sequence
 
 import numpy as np
+from pioreactor import types as pt
 
 
 def _to_pyfloat(seq: list[float]) -> list[float]:
@@ -17,7 +18,7 @@ def spline_fit(
     y: Sequence[float],
     knots: int | Sequence[float] | str | None = "auto",
     weights: Sequence[float] | None = None,
-) -> list:
+) -> pt.SplineFitData:
     """
     Fit a natural cubic regression spline.
 
@@ -71,7 +72,7 @@ def spline_fit(
     return [_to_pyfloat(knot_positions.tolist()), [_to_pyfloat(coeff.tolist()) for coeff in coefficients]]
 
 
-def spline_eval(spline_data: list, x: float) -> float:
+def spline_eval(spline_data: pt.SplineFitData, x: float) -> float:
     """Evaluate a spline produced by spline_fit at a point."""
     knots, coefficients = _parse_spline_data(spline_data)
     index = _interval_index(knots, x)
@@ -80,7 +81,7 @@ def spline_eval(spline_data: list, x: float) -> float:
     return float(a + b * u + c * u**2 + d * u**3)
 
 
-def spline_solve(spline_data: list, y: float) -> list[float]:
+def spline_solve(spline_data: pt.SplineFitData, y: float) -> list[float]:
     """Solve spline(x) == y for all real solutions."""
     knots, coefficients = _parse_spline_data(spline_data)
     solutions: list[float] = []
@@ -259,7 +260,7 @@ def _natural_cubic_spline_coefficients(knots: np.ndarray, values: np.ndarray) ->
     return coefficients
 
 
-def _parse_spline_data(spline_data: list) -> tuple[np.ndarray, np.ndarray]:
+def _parse_spline_data(spline_data: pt.SplineFitData) -> tuple[np.ndarray, np.ndarray]:
     if not isinstance(spline_data, list) or len(spline_data) != 2:
         raise ValueError("spline_data must be [knots, coefficients].")
 

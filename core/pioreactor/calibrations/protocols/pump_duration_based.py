@@ -79,7 +79,7 @@ def _build_transient_calibration(hz: float, dc: float, unit: str) -> structs.Sim
         calibration_name="calibration",
         created_at=current_utc_datetime(),
         curve_type="poly",
-        curve_data_=[1, 0],
+        curve_data_=[1.0, 0.0],
         hz=hz,
         dc=dc,
         voltage=voltage_in_aux(),

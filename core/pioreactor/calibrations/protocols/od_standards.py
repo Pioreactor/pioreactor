@@ -43,7 +43,7 @@ from pioreactor.whoami import is_testing_env
 
 
 def to_struct(
-    curve_data_: list[float],
+    curve_data_: pt.CalibrationCurveData,
     curve_type: str,
     voltages: list[pt.Voltage],
     od600s: list[pt.OD],
@@ -178,7 +178,7 @@ def _devices_for_angles(channel_angle_map: dict[pt.PdChannel, pt.PdAngle]) -> li
 def _calculate_curve_data(
     od600_values: list[float],
     voltages: list[float],
-) -> tuple[str, list]:
+) -> tuple[str, pt.CalibrationCurveData]:
     weights = [1.0] * len(voltages)
     weights[0] = len(voltages) / 2
     if len(od600_values) >= 3:

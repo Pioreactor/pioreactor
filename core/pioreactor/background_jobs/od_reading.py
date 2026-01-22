@@ -1456,6 +1456,7 @@ def start_od_reading(
     active_pd_channels = list(channel_angle_map.keys())
 
     # use IR LED reference to normalize?
+    ir_led_reference_tracker: IrLedReferenceTracker
     if ir_led_reference_channel is not None:
         active_pd_channels.append(ir_led_reference_channel)
 
@@ -1470,7 +1471,7 @@ def start_od_reading(
             )
 
     else:
-        ir_led_reference_tracker = NullIrLedReferenceTracker()  # type: ignore
+        ir_led_reference_tracker = NullIrLedReferenceTracker()
 
     # use an OD calibration?
     calibration_transformer: CalibrationTransformerProtocol

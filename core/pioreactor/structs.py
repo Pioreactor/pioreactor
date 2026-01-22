@@ -165,7 +165,7 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
     calibration_name: str
     calibrated_on_pioreactor_unit: pt.Unit
     created_at: t.Annotated[datetime, Meta(tz=True)]
-    curve_data_: list
+    curve_data_: pt.CalibrationCurveData
     curve_type: str  # ex: "poly"
     x: str
     y: str
@@ -240,11 +240,13 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         if self.curve_type == "poly":
             from pioreactor.utils.polys import poly_eval
 
-            return round(poly_eval(self.curve_data_, x), 10)
+            poly_data = t.cast(pt.PolyFitCoefficients, self.curve_data_)
+            return round(poly_eval(poly_data, x), 10)
         if self.curve_type == "spline":
             from pioreactor.utils.splines import spline_eval
 
-            return round(spline_eval(self.curve_data_, x), 10)  # type: ignore[arg-type]
+            spline_data = t.cast(pt.SplineFitData, self.curve_data_)
+            return round(spline_eval(spline_data, x), 10)
 
         raise NotImplementedError(f"Unsupported curve_type: {self.curve_type}")
 
@@ -260,11 +262,13 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         if self.curve_type == "poly":
             from pioreactor.utils.polys import poly_solve
 
-            plausible_sols_ = poly_solve(self.curve_data_, y)
+            poly_data = t.cast(pt.PolyFitCoefficients, self.curve_data_)
+            plausible_sols_ = poly_solve(poly_data, y)
         elif self.curve_type == "spline":
             from pioreactor.utils.splines import spline_solve
 
-            plausible_sols_ = spline_solve(self.curve_data_, y)  # type: ignore[arg-type]
+            spline_data = t.cast(pt.SplineFitData, self.curve_data_)
+            plausible_sols_ = spline_solve(spline_data, y)
         else:
             raise NotImplementedError(f"Unsupported curve_type: {self.curve_type}")
 

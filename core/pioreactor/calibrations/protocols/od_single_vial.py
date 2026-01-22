@@ -402,7 +402,7 @@ def start_recording_and_diluting(
 
 
 def to_struct(
-    curve_data_: list[float],
+    curve_data_: pt.CalibrationCurveData,
     curve_type: str,
     voltages: list[pt.Voltage],
     od600s: list[pt.OD],
@@ -429,7 +429,7 @@ def to_struct(
 def run_od_calibration(target_device: pt.ODCalibrationDevices) -> structs.OD600Calibration:
     unit = get_unit_name()
     experiment = get_testing_experiment_name()
-    curve_data_: list[float] = []
+    curve_data_: pt.CalibrationCurveData = []
     curve_type = "poly"
 
     with managed_lifecycle(unit, experiment, "od_calibration"):
