@@ -91,10 +91,10 @@ function formatPolynomial(coefficients) {
 }
 
 function formatSpline(splineData) {
-  if (!Array.isArray(splineData) || splineData.length !== 2) {
+  if (!splineData || Array.isArray(splineData)) {
     return 'Invalid spline data';
   }
-  const [knots] = splineData;
+  const { knots } = splineData;
   if (!Array.isArray(knots)) {
     return 'Invalid spline data';
   }
@@ -105,7 +105,10 @@ function formatCurve(curveType, curveData) {
   if (curveType === "spline") {
     return formatSpline(curveData);
   }
-  return `y=${formatPolynomial(curveData)}`;
+  if (!curveData || Array.isArray(curveData) || !Array.isArray(curveData.coefficients)) {
+    return "Invalid polynomial data";
+  }
+  return `y=${formatPolynomial(curveData.coefficients)}`;
 }
 
 

@@ -731,7 +731,7 @@ EOF
     fail "my_test_cal not in calibrations list"
   fi
 
-  if http_json_ok http://localhost/unit_api/calibrations/od/my_test_cal '.calibration_name=="my_test_cal" and .curve_type=="poly"'; then
+  if http_json_ok http://localhost/unit_api/calibrations/od/my_test_cal '.calibration_name=="my_test_cal"'; then
     ok "detail endpoint for my_test_cal succeeded"
   else
     fail "detail endpoint for my_test_cal failed"

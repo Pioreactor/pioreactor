@@ -202,7 +202,7 @@ def display_calibration(device: str, calibration_name: str) -> None:
         raise SystemExit(1) from exc
 
     click.echo()
-    curve = curve_to_callable(data.curve_type, data.curve_data_)
+    curve = curve_to_callable(data.curve_data_)
     plot_data(
         data.recorded_data["x"],
         data.recorded_data["y"],

@@ -132,7 +132,7 @@ export default function CalibrationSessionChart({ chart }) {
         })}
 
         {chart.series.map((series, index) => {
-          if (!series.curve || !Array.isArray(series.curve.coefficients)) {
+          if (!series.curve || !series.curve.coefficients) {
             return null;
           }
           const curveType = series.curve.type || "poly";

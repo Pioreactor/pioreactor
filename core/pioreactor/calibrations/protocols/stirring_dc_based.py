@@ -144,7 +144,6 @@ def _build_stirring_calibration_from_measurements(
         calibrated_on_pioreactor_unit=unit,
         created_at=current_utc_datetime(),
         curve_data_=spline_fit(dcs, rpms, knots="auto"),
-        curve_type="spline",
         recorded_data={"x": dcs, "y": rpms},
     )
 

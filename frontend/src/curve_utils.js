@@ -1,9 +1,13 @@
 export function evaluatePolynomial(x, coeffs) {
-  if (!Array.isArray(coeffs) || coeffs.length === 0) {
+  if (!coeffs || Array.isArray(coeffs) || !Array.isArray(coeffs.coefficients)) {
     return null;
   }
-  return coeffs.reduce((acc, coefficient, i) => {
-    const power = coeffs.length - 1 - i;
+  const coefficients = coeffs.coefficients;
+  if (coefficients.length === 0) {
+    return null;
+  }
+  return coefficients.reduce((acc, coefficient, i) => {
+    const power = coefficients.length - 1 - i;
     return acc + coefficient * Math.pow(x, power);
   }, 0);
 }
@@ -27,10 +31,10 @@ function findIntervalIndex(knots, x) {
 }
 
 export function evaluateSpline(x, splineData) {
-  if (!Array.isArray(splineData) || splineData.length !== 2) {
+  if (!splineData || Array.isArray(splineData)) {
     return null;
   }
-  const [knots, coefficients] = splineData;
+  const { knots, coefficients } = splineData;
   if (!Array.isArray(knots) || !Array.isArray(coefficients) || knots.length < 2) {
     return null;
   }
@@ -48,7 +52,7 @@ export function evaluateCurve(x, curveType, curveData) {
   if (curveType === "spline") {
     return evaluateSpline(x, curveData);
   }
-  return evaluatePolynomial(x, curveData || []);
+  return evaluatePolynomial(x, curveData);
 }
 
 export function generateCurveData(calibration, stepCount = 50) {

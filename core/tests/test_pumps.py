@@ -26,6 +26,10 @@ from pioreactor.whoami import get_unit_name
 unit = get_unit_name()
 
 
+def _poly_curve(coefficients: list[float]) -> structs.PolyFitCoefficients:
+    return structs.PolyFitCoefficients(coefficients=coefficients)
+
+
 def pause(n=1):
     time.sleep(n)
 
@@ -33,8 +37,7 @@ def pause(n=1):
 def setup_function():
     cal = structs.SimplePeristalticPumpCalibration(
         calibration_name="setup_function",
-        curve_data_=[1.0, 0.0],
-        curve_type="poly",
+        curve_data_=_poly_curve([1.0, 0.0]),
         recorded_data={"x": [], "y": []},
         dc=60,
         hz=100,
@@ -195,8 +198,7 @@ def test_pump_can_be_interrupted() -> None:
     experiment = "test_pump_can_be_interrupted"
     calibration = structs.SimplePeristalticPumpCalibration(
         calibration_name="setup_function",
-        curve_data_=[1.0, 0.0],
-        curve_type="poly",
+        curve_data_=_poly_curve([1.0, 0.0]),
         recorded_data={"x": [], "y": []},
         dc=100,
         hz=100,
@@ -242,8 +244,7 @@ def test_pumps_can_run_in_background() -> None:
 
     calibration = structs.SimplePeristalticPumpCalibration(
         calibration_name="setup_function",
-        curve_data_=[1.0, 0.0],
-        curve_type="poly",
+        curve_data_=_poly_curve([1.0, 0.0]),
         recorded_data={"x": [], "y": []},
         dc=60,
         hz=100,
@@ -303,8 +304,7 @@ def test_media_circulation_will_control_media_pump_if_it_has_a_higher_flow_rate(
     exp = "test_media_circulation_will_control_media_pump_if_it_has_a_higher_rate"
     structs.SimplePeristalticPumpCalibration(
         calibration_name="setup_function",
-        curve_data_=[10.0, 0.0],
-        curve_type="poly",
+        curve_data_=_poly_curve([10.0, 0.0]),
         recorded_data={"x": [], "y": []},
         dc=60,
         hz=100,
@@ -315,8 +315,7 @@ def test_media_circulation_will_control_media_pump_if_it_has_a_higher_flow_rate(
 
     structs.SimplePeristalticPumpCalibration(
         calibration_name="setup_function",
-        curve_data_=[1.0, 0.0],
-        curve_type="poly",
+        curve_data_=_poly_curve([1.0, 0.0]),
         recorded_data={"x": [], "y": []},
         dc=60,
         hz=100,
@@ -334,8 +333,7 @@ def test_media_circulation_will_control_media_pump_if_it_has_a_lower_flow_rate()
 
     structs.SimplePeristalticPumpCalibration(
         calibration_name="setup_function",
-        curve_data_=[0.15, 0.0],
-        curve_type="poly",
+        curve_data_=_poly_curve([0.15, 0.0]),
         recorded_data={"x": [], "y": []},
         dc=60,
         hz=100,
@@ -346,8 +344,7 @@ def test_media_circulation_will_control_media_pump_if_it_has_a_lower_flow_rate()
 
     structs.SimplePeristalticPumpCalibration(
         calibration_name="setup_function",
-        curve_data_=[1.0, 0.0],
-        curve_type="poly",
+        curve_data_=_poly_curve([1.0, 0.0]),
         recorded_data={"x": [], "y": []},
         dc=60,
         hz=100,

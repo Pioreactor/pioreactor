@@ -39,8 +39,9 @@ def get_default_calibration() -> structs.SimplePeristalticPumpCalibration:
         hz=250.0,
         dc=100.00,
         voltage=-1,
-        curve_type="poly",
-        curve_data_=[0.0911, 0.0] if not is_testing_env() else [5.0, 0],  # go fast if in testing
+        curve_data_=structs.PolyFitCoefficients(
+            coefficients=[0.0911, 0.0] if not is_testing_env() else [5.0, 0]
+        ),  # go fast if in testing
         recorded_data={"x": [], "y": []},
     )
 

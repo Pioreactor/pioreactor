@@ -7,6 +7,7 @@ from typing import Literal
 
 import click
 from msgspec import to_builtins
+from pioreactor import structs
 from pioreactor.calibrations import cli_helpers
 from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.calibrations.structured_session import CalibrationStep
@@ -45,6 +46,31 @@ def _step_id_from(step: StepLike) -> str:
     if not isinstance(step_id, str) or not step_id:
         raise ValueError("Invalid step identifier.")
     return step_id
+
+
+def _curve_dict_to_struct(curve: dict[str, object]) -> structs.CalibrationCurveData | None:
+    curve_type = curve.get("type")
+    if curve_type == "poly":
+        coefficients = curve.get("coefficients")
+        if not isinstance(coefficients, list):
+            return None
+        return structs.PolyFitCoefficients(
+            coefficients=[float(value) for value in coefficients if isinstance(value, (int, float))]
+        )
+    if curve_type == "spline":
+        knots = curve.get("knots")
+        coefficients = curve.get("coefficients")
+        if not isinstance(knots, list) or not isinstance(coefficients, list):
+            return None
+        spline_coefficients: list[list[float]] = []
+        for row in coefficients:
+            if isinstance(row, list):
+                spline_coefficients.append([float(value) for value in row if isinstance(value, (int, float))])
+        return structs.SplineFitData(
+            knots=[float(value) for value in knots if isinstance(value, (int, float))],
+            coefficients=spline_coefficients,
+        )
+    return None
 
 
 def resolve_step(registry: StepRegistry, step_id: str) -> SessionStep:
@@ -447,10 +473,9 @@ def _render_chart_for_cli(chart: dict[str, object]) -> None:
         curve_callable = None
         curve = entry.get("curve")
         if isinstance(curve, dict):
-            curve_type = curve.get("type")
-            coeffs = curve.get("coefficients")
-            if curve_type in {"poly", "spline"} and isinstance(coeffs, list):
-                curve_callable = curve_to_callable(curve_type, coeffs)
+            curve_data = _curve_dict_to_struct(curve)
+            if curve_data is not None:
+                curve_callable = curve_to_callable(curve_data)
         plot_data(
             x_vals,
             y_vals,

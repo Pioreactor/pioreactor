@@ -42,6 +42,10 @@ def pause(n=1) -> None:
     time.sleep(n * 0.25)
 
 
+def _poly_curve(coefficients: list[float]) -> structs.PolyFitCoefficients:
+    return structs.PolyFitCoefficients(coefficients=coefficients)
+
+
 def test_sin_regression_exactly_60hz() -> None:
     freq = 60
     N = 32
@@ -858,8 +862,7 @@ def test_calibration_not_present() -> None:
 def test_calibration_duplicate_channel_raises_value_error() -> None:
     cal_1 = structs.OD600Calibration(
         created_at=current_utc_datetime(),
-        curve_type="poly",
-        curve_data_=[2.0, 0.0],
+        curve_data_=_poly_curve([2.0, 0.0]),
         calibration_name="linear_a",
         ir_led_intensity=90.0,
         angle="90",
@@ -869,8 +872,7 @@ def test_calibration_duplicate_channel_raises_value_error() -> None:
     )
     cal_2 = structs.OD600Calibration(
         created_at=current_utc_datetime(),
-        curve_type="poly",
-        curve_data_=[1.0, 0.0],
+        curve_data_=_poly_curve([1.0, 0.0]),
         calibration_name="linear_b",
         ir_led_intensity=90.0,
         angle="90",
@@ -896,8 +898,7 @@ def test_calibration_multi_angle_active_calibrations() -> None:
 
     cal_90 = structs.OD600Calibration(
         created_at=current_utc_datetime(),
-        curve_type="poly",
-        curve_data_=[2.0, 0.0],
+        curve_data_=_poly_curve([2.0, 0.0]),
         calibration_name="linear_90",
         ir_led_intensity=90.0,
         angle="90",
@@ -907,8 +908,7 @@ def test_calibration_multi_angle_active_calibrations() -> None:
     )
     cal_45 = structs.OD600Calibration(
         created_at=current_utc_datetime(),
-        curve_type="poly",
-        curve_data_=[4.0, 0.0],
+        curve_data_=_poly_curve([4.0, 0.0]),
         calibration_name="linear_45",
         ir_led_intensity=90.0,
         angle="45",
@@ -918,8 +918,7 @@ def test_calibration_multi_angle_active_calibrations() -> None:
     )
     cal_135 = structs.OD600Calibration(
         created_at=current_utc_datetime(),
-        curve_type="poly",
-        curve_data_=[5.0, 0.0],
+        curve_data_=_poly_curve([5.0, 0.0]),
         calibration_name="linear_135",
         ir_led_intensity=90.0,
         angle="135",
@@ -956,8 +955,7 @@ def test_calibration_simple_linear_calibration_positive_slope() -> None:
 
     cal = structs.OD600Calibration(
         created_at=current_utc_datetime(),
-        curve_type="poly",
-        curve_data_=[2.0, 0.0],
+        curve_data_=_poly_curve([2.0, 0.0]),
         calibration_name="linear",
         ir_led_intensity=90.0,
         angle="90",
@@ -999,8 +997,7 @@ def test_calibration_simple_linear_calibration_negative_slope() -> None:
     maximum_voltage = 2.0
     cal = structs.OD600Calibration(
         created_at=current_utc_datetime(),
-        curve_type="poly",
-        curve_data_=[-0.1, 2],
+        curve_data_=_poly_curve([-0.1, 2]),
         calibration_name="linear",
         ir_led_intensity=90.0,
         angle="90",
@@ -1047,8 +1044,7 @@ def test_calibration_simple_quadratic_calibration() -> None:
 
     cal = structs.OD600Calibration(
         created_at=current_utc_datetime(),
-        curve_type="poly",
-        curve_data_=[1.0, 0, -0.1],
+        curve_data_=_poly_curve([1.0, 0, -0.1]),
         calibration_name="quad_test",
         ir_led_intensity=90.0,
         angle="90",
@@ -1080,8 +1076,7 @@ def test_calibration_multi_modal() -> None:
 
     cal = structs.OD600Calibration(
         created_at=current_utc_datetime(),
-        curve_type="poly",
-        curve_data_=poly,
+        curve_data_=_poly_curve(poly),
         calibration_name="multi_test",
         ir_led_intensity=90.0,
         angle="90",
@@ -1111,8 +1106,7 @@ def test_calibration_errors_when_ir_led_differs() -> None:
 
     cal = structs.OD600Calibration(
         created_at=current_utc_datetime(),
-        curve_type="poly",
-        curve_data_=[1.0, 0, -0.1],
+        curve_data_=_poly_curve([1.0, 0, -0.1]),
         calibration_name="quad_test",
         ir_led_intensity=50.0,  # here!
         angle="90",
@@ -1139,14 +1133,15 @@ def test_calibration_with_irl_data1() -> None:
     MAX_OD = 1.131
     cal = structs.OD600Calibration(
         created_at=current_utc_datetime(),
-        curve_type="poly",
-        curve_data_=[
-            0.13015369282405273,
-            -0.49893265063642067,
-            0.6953041334198933,
-            0.45652927538964966,
-            0.0024870149666305712,
-        ],
+        curve_data_=_poly_curve(
+            [
+                0.13015369282405273,
+                -0.49893265063642067,
+                0.6953041334198933,
+                0.45652927538964966,
+                0.0024870149666305712,
+            ]
+        ),
         calibration_name="quad_test",
         ir_led_intensity=70.0,
         angle="90",
@@ -1307,8 +1302,7 @@ def test_calibration_data_from_user1() -> None:
 
     calibration = structs.OD600Calibration(
         created_at=current_utc_datetime(),
-        curve_type="poly",
-        curve_data_=poly,
+        curve_data_=_poly_curve(poly),
         calibration_name="multi_test",
         ir_led_intensity=90.0,
         angle="90",
@@ -1352,8 +1346,7 @@ def test_calibration_data_from_user2() -> None:
 
     cal = structs.OD600Calibration(
         created_at=current_utc_datetime(),
-        curve_type="poly",
-        curve_data_=poly,
+        curve_data_=_poly_curve(poly),
         calibration_name="multi_test",
         ir_led_intensity=90.0,
         angle="90",
@@ -1506,14 +1499,15 @@ def test_config_section_omits_empty_photodiode_channels() -> None:
 def test_CachedCalibrationTransformer_with_real_calibration() -> None:
     calibration = structs.OD600Calibration(
         angle="90",
-        curve_type="poly",
-        curve_data_=[
-            -0.9876751958847302,
-            1.2023377416112089,
-            0.2591472668916862,
-            0.8385902257553322,
-            0.0445071255201746,
-        ],
+        curve_data_=_poly_curve(
+            [
+                -0.9876751958847302,
+                1.2023377416112089,
+                0.2591472668916862,
+                0.8385902257553322,
+                0.0445071255201746,
+            ]
+        ),
         ir_led_intensity=50,
         pd_channel="2",
         created_at=current_utc_datetime(),
@@ -1630,8 +1624,7 @@ def test_calibration_trims_to_voltage_extrema() -> None:
     # recorded voltages do not correspond to max/min ODs; ensure we clamp using the paired OD values
     calibration = structs.OD600Calibration(
         angle="90",
-        curve_type="poly",
-        curve_data_=[1.0],  # constant model -> NoSolutionsFound outside recorded voltages
+        curve_data_=_poly_curve([1.0]),  # constant model -> NoSolutionsFound outside recorded voltages
         ir_led_intensity=50.0,
         pd_channel="2",
         created_at=current_utc_datetime(),
@@ -1668,14 +1661,15 @@ def test_calibration_with_misaligned_voltage_and_od_extrema() -> None:
         calibration_name="M5_YE_sept",
         calibrated_on_pioreactor_unit="pio01",
         created_at=current_utc_datetime(),
-        curve_data_=[-0.003190387455580229, 0.04003007669797895, 0.05183324889904352, 0.3399254157439484],
+        curve_data_=_poly_curve(
+            [-0.003190387455580229, 0.04003007669797895, 0.05183324889904352, 0.3399254157439484]
+        ),
         x="OD600",
         y="Voltage",
         recorded_data={
             "x": [0, 0.361, 0.657, 1.32, 2.58, 3.3, 4.36, 5.74, 6.98, 7.89, 9.47],
             "y": [0.5466, 0.3466, 0.5757, 0.6696, 0.5935, 0.9594, 0.9591, 1.2046, 1.74, 1.6743, 1.6807],
         },
-        curve_type="poly",
         ir_led_intensity=50,
         angle="45",
         pd_channel="1",
@@ -1707,8 +1701,9 @@ def test_mandys_calibration() -> None:
         calibration_name="mandy",
         calibrated_on_pioreactor_unit="pio1",
         created_at=current_utc_datetime(),
-        curve_data_=[-0.03112259838616315, 0.14606367297714123, 0.05224678328234911, 0.009665339167023364],
-        curve_type="poly",
+        curve_data_=_poly_curve(
+            [-0.03112259838616315, 0.14606367297714123, 0.05224678328234911, 0.009665339167023364]
+        ),
         recorded_data={
             "x": [0.0, 0.139, 0.155, 0.378, 0.671, 0.993, 1.82, 4.061],
             "y": [0.0, 0.0158, 0.0322, 0.0589, 0.1002, 0.1648, 0.4045, 0.5463],
@@ -1722,12 +1717,14 @@ def test_mandys_calibration() -> None:
         assert 0.0 < mcal.y_to_x(0.002, enforce_bounds=True) < 1.0
 
     # correct the curve
-    mcal.curve_data_ = [
-        -0.028385470467897377,
-        0.12917002770232924,
-        0.07787877483987993,
-        0.0011023858538965646,
-    ]
+    mcal.curve_data_ = _poly_curve(
+        [
+            -0.028385470467897377,
+            0.12917002770232924,
+            0.07787877483987993,
+            0.0011023858538965646,
+        ]
+    )
     assert 0.0 < mcal.y_to_x(0.002, enforce_bounds=True) < 1.0
 
 
@@ -1768,8 +1765,7 @@ def test_raw_and_calibrated_data_is_published_if_calibration_is_used() -> None:
     calibration = structs.OD600Calibration(
         angle="90",
         calibration_name="test_raw_and_calibrated_data_is_published_if_calibration_is_used",
-        curve_type="poly",
-        curve_data_=[1, 0, 0.1],
+        curve_data_=_poly_curve([1, 0, 0.1]),
         ir_led_intensity=70,
         pd_channel="2",
         created_at=current_utc_datetime(),
@@ -1810,8 +1806,7 @@ def test_raw_published_even_if_calibration_is_bad() -> None:
     calibration = structs.OD600Calibration(
         angle="90",
         calibration_name="test_raw_published_even_if_calibration_is_bad",
-        curve_type="poly",
-        curve_data_=[0],  # bad!
+        curve_data_=_poly_curve([0]),  # bad!
         ir_led_intensity=50,
         pd_channel="2",
         created_at=current_utc_datetime(),

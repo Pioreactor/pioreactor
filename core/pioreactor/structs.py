@@ -42,6 +42,26 @@ class JSONPrintedStruct(Struct):
         return encode(self).decode()  # this is a valid JSON str, decode() for bytes->str
 
 
+class PolyFitCoefficients(Struct, tag="poly"):
+    coefficients: list[float]
+
+    @property
+    def type(self):
+        return self.__struct_config__.tag
+
+
+class SplineFitData(Struct, tag="spline"):
+    knots: list[float]
+    coefficients: list[list[float]]
+
+    @property
+    def type(self):
+        return self.__struct_config__.tag
+
+
+type CalibrationCurveData = PolyFitCoefficients | SplineFitData
+
+
 class AutomationSettings(JSONPrintedStruct):
     """
     Metadata produced when settings in an automation job change
@@ -165,8 +185,7 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
     calibration_name: str
     calibrated_on_pioreactor_unit: pt.Unit
     created_at: t.Annotated[datetime, Meta(tz=True)]
-    curve_data_: pt.CalibrationCurveData
-    curve_type: str  # ex: "poly"
+    curve_data_: CalibrationCurveData
     x: str
     y: str
     recorded_data: dict[t.Literal["x", "y"], list[X | Y]]
@@ -234,43 +253,45 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
         """
         Predict y given x
         """
-        if len(self.curve_data_) == 0:
-            raise exc.NoSolutionsFoundError(f"calibration {self}'s curve_data_ is empty")
-
-        if self.curve_type == "poly":
+        if self.curve_data_.type == "poly":
             from pioreactor.utils.polys import poly_eval
 
-            poly_data = t.cast(pt.PolyFitCoefficients, self.curve_data_)
+            poly_data = t.cast(PolyFitCoefficients, self.curve_data_)
+            if len(poly_data.coefficients) == 0:
+                raise exc.NoSolutionsFoundError(f"calibration {self}'s curve_data_ is empty")
             return round(poly_eval(poly_data, x), 10)
-        if self.curve_type == "spline":
+        if self.curve_data_.type == "spline":
             from pioreactor.utils.splines import spline_eval
 
-            spline_data = t.cast(pt.SplineFitData, self.curve_data_)
+            spline_data = t.cast(SplineFitData, self.curve_data_)
+            if len(spline_data.knots) == 0 or len(spline_data.coefficients) == 0:
+                raise exc.NoSolutionsFoundError(f"calibration {self}'s curve_data_ is empty")
             return round(spline_eval(spline_data, x), 10)
 
-        raise NotImplementedError(f"Unsupported curve_type: {self.curve_type}")
+        raise NotImplementedError(f"Unsupported curve_type: {self.curve_data_.type}")
 
     def y_to_x(self, y: Y, enforce_bounds=False) -> X:
         """
         predict x given y
         """
-        if len(self.curve_data_) == 0:
-            raise exc.NoSolutionsFoundError(f"calibration {self}'s curve_data_ is empty")
-
         from pioreactor.utils.math_helpers import closest_point_to_domain
 
-        if self.curve_type == "poly":
+        if self.curve_data_.type == "poly":
             from pioreactor.utils.polys import poly_solve
 
-            poly_data = t.cast(pt.PolyFitCoefficients, self.curve_data_)
+            poly_data = t.cast(PolyFitCoefficients, self.curve_data_)
+            if len(poly_data.coefficients) == 0:
+                raise exc.NoSolutionsFoundError(f"calibration {self}'s curve_data_ is empty")
             plausible_sols_ = poly_solve(poly_data, y)
-        elif self.curve_type == "spline":
+        elif self.curve_data_.type == "spline":
             from pioreactor.utils.splines import spline_solve
 
-            spline_data = t.cast(pt.SplineFitData, self.curve_data_)
+            spline_data = t.cast(SplineFitData, self.curve_data_)
+            if len(spline_data.knots) == 0 or len(spline_data.coefficients) == 0:
+                raise exc.NoSolutionsFoundError(f"calibration {self}'s curve_data_ is empty")
             plausible_sols_ = spline_solve(spline_data, y)
         else:
-            raise NotImplementedError(f"Unsupported curve_type: {self.curve_type}")
+            raise NotImplementedError(f"Unsupported curve_type: {self.curve_data_.type}")
 
         if len(self.recorded_data["x"]) == 0:
             from math import inf

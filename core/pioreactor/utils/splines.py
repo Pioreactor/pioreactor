@@ -5,7 +5,7 @@ from typing import Iterable
 from typing import Sequence
 
 import numpy as np
-from pioreactor import types as pt
+from pioreactor import structs
 
 
 def _to_pyfloat(seq: list[float]) -> list[float]:
@@ -18,7 +18,7 @@ def spline_fit(
     y: Sequence[float],
     knots: int | Sequence[float] | str | None = "auto",
     weights: Sequence[float] | None = None,
-) -> pt.SplineFitData:
+) -> structs.SplineFitData:
     """
     Fit a natural cubic regression spline.
 
@@ -34,8 +34,8 @@ def spline_fit(
 
     Returns
     -------
-    list
-        A list representation containing knots and per-interval coefficients.
+    structs.SplineFitData
+        A struct representation containing knots and per-interval coefficients.
     """
     x_values = np.asarray(x, dtype=float)
     y_values = np.asarray(y, dtype=float)
@@ -69,10 +69,13 @@ def spline_fit(
     knot_values, _ = _fit_knot_values(knot_positions, x_values, y_values, weight_values)
     coefficients = _natural_cubic_spline_coefficients(knot_positions, knot_values)
 
-    return [_to_pyfloat(knot_positions.tolist()), [_to_pyfloat(coeff.tolist()) for coeff in coefficients]]
+    return structs.SplineFitData(
+        knots=_to_pyfloat(knot_positions.tolist()),
+        coefficients=[_to_pyfloat(coeff.tolist()) for coeff in coefficients],
+    )
 
 
-def spline_eval(spline_data: pt.SplineFitData, x: float) -> float:
+def spline_eval(spline_data: structs.SplineFitData, x: float) -> float:
     """Evaluate a spline produced by spline_fit at a point."""
     knots, coefficients = _parse_spline_data(spline_data)
     index = _interval_index(knots, x)
@@ -81,7 +84,7 @@ def spline_eval(spline_data: pt.SplineFitData, x: float) -> float:
     return float(a + b * u + c * u**2 + d * u**3)
 
 
-def spline_solve(spline_data: pt.SplineFitData, y: float) -> list[float]:
+def spline_solve(spline_data: structs.SplineFitData, y: float) -> list[float]:
     """Solve spline(x) == y for all real solutions."""
     knots, coefficients = _parse_spline_data(spline_data)
     solutions: list[float] = []
@@ -260,12 +263,12 @@ def _natural_cubic_spline_coefficients(knots: np.ndarray, values: np.ndarray) ->
     return coefficients
 
 
-def _parse_spline_data(spline_data: pt.SplineFitData) -> tuple[np.ndarray, np.ndarray]:
-    if not isinstance(spline_data, list) or len(spline_data) != 2:
-        raise ValueError("spline_data must be [knots, coefficients].")
+def _parse_spline_data(spline_data: structs.SplineFitData) -> tuple[np.ndarray, np.ndarray]:
+    if not isinstance(spline_data, structs.SplineFitData):
+        raise ValueError("spline_data must be a SplineFitData struct.")
 
-    knots = np.asarray(spline_data[0], dtype=float)
-    coefficients = np.asarray(spline_data[1], dtype=float)
+    knots = np.asarray(spline_data.knots, dtype=float)
+    coefficients = np.asarray(spline_data.coefficients, dtype=float)
 
     if knots.ndim != 1 or coefficients.ndim != 2 or coefficients.shape[1] != 4:
         raise ValueError("Invalid spline_data format.")

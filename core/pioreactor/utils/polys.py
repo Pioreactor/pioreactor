@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Sequence
 
 import numpy as np
-from pioreactor import types as pt
+from pioreactor import structs
 
 
 def _to_pyfloat(seq: list[float]) -> list[float]:
@@ -17,7 +17,7 @@ def poly_fit(
     y: Sequence[float],
     degree: int | str | None = "auto",
     weights: Sequence[float] | None = None,
-) -> pt.PolyFitCoefficients:
+) -> structs.PolyFitCoefficients:
     x_values = np.asarray(x, dtype=float)
     y_values = np.asarray(y, dtype=float)
 
@@ -43,20 +43,20 @@ def poly_fit(
         raise ValueError("Not enough data points for requested degree.")
 
     coefs = np.polyfit(x_values, y_values, deg=selected_degree, w=weight_values)
-    return _to_pyfloat(coefs.tolist())
+    return structs.PolyFitCoefficients(coefficients=_to_pyfloat(coefs.tolist()))
 
 
-def poly_eval(poly_data: pt.PolyFitCoefficients, x: float) -> float:
-    return float(np.polyval(poly_data, x))
+def poly_eval(poly_data: structs.PolyFitCoefficients, x: float) -> float:
+    return float(np.polyval(poly_data.coefficients, x))
 
 
-def poly_solve(poly_data: pt.PolyFitCoefficients, y: float) -> list[float]:
-    if len(poly_data) == 0:
+def poly_solve(poly_data: structs.PolyFitCoefficients, y: float) -> list[float]:
+    if len(poly_data.coefficients) == 0:
         raise ValueError("poly_data must not be empty.")
 
-    coef_shift = np.zeros_like(poly_data, dtype=float)
+    coef_shift = np.zeros_like(poly_data.coefficients, dtype=float)
     coef_shift[-1] = y
-    solve_for_poly = np.asarray(poly_data, dtype=float) - coef_shift
+    solve_for_poly = np.asarray(poly_data.coefficients, dtype=float) - coef_shift
     roots_ = np.roots(solve_for_poly).tolist()
     return sorted([float(np.real(r)) for r in roots_ if (abs(np.imag(r)) < 1e-10)])
 

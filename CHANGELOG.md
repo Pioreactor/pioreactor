@@ -23,6 +23,7 @@
  - You can now restart the web server (lighttpd), and the background task queue, Huey, from the UI. Go to Leader -> "Long-running jobs", and see the "web server and queue" line.
  - Added spline curve support for calibrations, including OD standards sessions and calibration charts.
  - `pio calibrations analyze` now supports `--fit poly|spline` (default poly). You can use this to re-fit a dataset to a spline curve.
+ - Added an update helper to migrate calibration curve data into the new tagged format (`poly`/`spline`).
 
 #### Breaking changes
  - Moved Self-test to the Inventory page. Pioreactors no longer need to be assigned to an experiment to run self-test.
@@ -34,6 +35,8 @@
  - Self-test no longer creates a stirring calibration.
  - OD Reading charts in the UI previously had a sensor label next to the unit, ex: `worker01-2`. Now it is the corresponding angle from config.ini. Note: only the global config.ini is used, not specific unit_config.inis.
  - New OD and stirring calibrations are now fit with a spline, and not a polynomial.
+ - Calibration curve data is now serialized as tagged structs (`poly`/`spline`) instead of raw lists. `curve_type` is removed in fao existing calibration files are migrated during the update.
+
 
 #### Bug fixes
 
