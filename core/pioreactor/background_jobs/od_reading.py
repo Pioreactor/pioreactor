@@ -70,6 +70,8 @@ from pioreactor.utils import argextrema
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import timing
 from pioreactor.utils.math_helpers import mean
+from pioreactor.utils.od_fusion import compute_fused_od
+from pioreactor.utils.od_fusion import FUSION_ANGLES
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 from pioreactor.utils.streaming_calculations import ExponentialMovingStd
 from pioreactor.utils.timing import catchtime
@@ -964,6 +966,7 @@ class ODReader(BackgroundJob):
     od3: structs.ODReading | None = None
     od4: structs.ODReading | None = None
     ods: structs.ODReadings | None = None
+    od_fused: structs.ODFused | None = None
     raw_od1: structs.RawODReading | None = None
     raw_od2: structs.RawODReading | None = None
     raw_od3: structs.RawODReading | None = None
@@ -983,6 +986,7 @@ class ODReader(BackgroundJob):
         experiment: pt.Experiment,
         ir_led_reference_tracker: Optional[IrLedReferenceTracker] = None,
         calibration_transformer: Optional[CalibrationTransformerProtocol] = None,
+        fusion_calibration: structs.ODFusionCalibration | None = None,
         ir_led_intensity: float | None = None,
     ) -> None:
         super(ODReader, self).__init__(unit=unit, experiment=experiment)
@@ -1009,6 +1013,12 @@ class ODReader(BackgroundJob):
             self.calibration_transformer = NullCalibrationTransformer()
         else:
             self.calibration_transformer = calibration_transformer  # type: ignore
+
+        self.fusion_calibration: structs.ODFusionCalibration | None = fusion_calibration
+        if self.fusion_calibration is not None:
+            self.add_to_published_settings(
+                "od_fused", {"datatype": "ODFused", "settable": False}
+            )
 
         self.adc_reader.add_external_logger(self.logger)
         self.calibration_transformer.add_external_logger(self.logger)
@@ -1252,6 +1262,7 @@ class ODReader(BackgroundJob):
                 if isinstance(od_readings.ods[channel], structs.CalibratedODReading):
                     setattr(self, f"raw_od{channel}", raw_od_readings.ods[channel])
                     setattr(self, f"calibrated_od{channel}", od_readings.ods[channel])
+            self._update_fused_od(raw_od_readings)
 
         finally:
             for post_function in self.post_read_callbacks:
@@ -1293,6 +1304,43 @@ class ODReader(BackgroundJob):
     ###########
     # Private
     ############
+
+    def _update_fused_od(self, raw_od_readings: structs.ODReadings) -> None:
+        if self.fusion_calibration is None:
+            return
+
+        readings_by_angle: dict[pt.PdAngle, list[float]] = {}
+        for reading in raw_od_readings.ods.values():
+            angle = cast(pt.PdAngle, reading.angle)
+            if angle not in FUSION_ANGLES:
+                continue
+            readings_by_angle.setdefault(angle, []).append(float(reading.od))
+
+        missing_angles = [angle for angle in self.fusion_calibration.angles if angle not in readings_by_angle]
+        if missing_angles:
+            self.logger.debug(
+                f"Skipping fused OD: missing angles {missing_angles} in current reading."
+            )
+            return
+
+        fused_inputs = {angle: mean(values) for angle, values in readings_by_angle.items()}
+
+        try:
+            debug = compute_fused_od(
+                self.fusion_calibration, fused_inputs, return_debug=True
+            )
+        except Exception as e:
+            self.logger.debug(f"Failed to compute fused OD: {e}", exc_info=True)
+            return
+
+        if isinstance(debug, dict):
+            od_fused_value = float(debug.get("od_fused"))
+            self.od_fused = structs.ODFused(
+                od_fused=od_fused_value, timestamp=raw_od_readings.timestamp
+            )
+            self.logger.debug(
+                f"Fused OD computed: {od_fused_value:.5g}, nll={debug.get('nll')}"
+            )
 
     def on_sleeping(self) -> None:
         self.record_from_adc_timer.pause()
@@ -1493,6 +1541,20 @@ def start_od_reading(
     else:
         calibration_transformer = NullCalibrationTransformer()
 
+    fusion_calibration: structs.ODFusionCalibration | None = None
+    try:
+        model = whoami.get_pioreactor_model()
+        if model.model_name.endswith("_XR"):
+            from pioreactor.calibrations import load_active_calibration
+
+            candidate = load_active_calibration(pt.OD_FUSED_DEVICE)
+            if isinstance(candidate, structs.ODFusionCalibration):
+                available_angles = set(channel_angle_map.values())
+                if all(angle in available_angles for angle in candidate.angles):
+                    fusion_calibration = candidate
+    except Exception:
+        fusion_calibration = None
+
     if interval is not None:
         penalizer = config.getfloat("od_reading.config", "smoothing_penalizer", fallback=3.0) / interval
     else:
@@ -1508,6 +1570,7 @@ def start_od_reading(
         ),
         ir_led_reference_tracker=ir_led_reference_tracker,
         calibration_transformer=calibration_transformer,
+        fusion_calibration=fusion_calibration,
         ir_led_intensity=ir_led_intensity,
     )
 

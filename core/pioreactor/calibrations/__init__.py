@@ -31,6 +31,13 @@ def load_active_calibration(device: pt.ODCalibrationDevices) -> structs.ODCalibr
 
 @overload
 def load_active_calibration(
+    device: pt.ODFusedCalibrationDevice,
+) -> structs.ODFusionCalibration | None:
+    pass
+
+
+@overload
+def load_active_calibration(
     device: pt.PumpCalibrationDevices,
 ) -> structs.SimplePeristalticPumpCalibration | None:
     pass
@@ -86,6 +93,9 @@ def list_devices() -> list[str]:
 # Import protocols so they register with calibration_protocols.
 from pioreactor.calibrations.protocols.od_reference_standard import (
     ODReferenceStandardProtocol,
+)  # noqa: F401,E402
+from pioreactor.calibrations.protocols.od_fusion_standards import (
+    FusionStandardsODProtocol,
 )  # noqa: F401,E402
 from pioreactor.calibrations.protocols.od_single_vial import SingleVialODProtocol  # noqa: F401,E402
 from pioreactor.calibrations.protocols.od_standards import StandardsODProtocol  # noqa: F401,E402

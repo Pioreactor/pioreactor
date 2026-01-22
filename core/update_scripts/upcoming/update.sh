@@ -13,6 +13,10 @@ LEADER_HOSTNAME=$(/opt/pioreactor/venv/crudini --get "$CONFIG" cluster.topology 
 if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
     sudo -u pioreactor mkdir -p "$DOT_PIOREACTOR/ui/charts"
     sudo -u pioreactor cp -f "$SCRIPT_DIR"/05_od.yaml "$DOT_PIOREACTOR/ui/charts/05_od.yaml"
+    sudo -u pioreactor cp -f "$SCRIPT_DIR"/10_od_fused.yaml "$DOT_PIOREACTOR/ui/charts/10_od_fused.yaml"
+
+    sudo -u pioreactor mkdir -p "$DOT_PIOREACTOR/exportable_datasets"
+    sudo -u pioreactor cp -f "$SCRIPT_DIR"/28_od_readings_fused.yaml "$DOT_PIOREACTOR/exportable_datasets/28_od_readings_fused.yaml"
 fi
 
 sudo -u pioreactor mkdir -p "$DOT_PIOREACTOR/hardware/models/pioreactor_20ml_XR/1.5"

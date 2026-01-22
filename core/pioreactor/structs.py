@@ -117,6 +117,11 @@ class ODFiltered(JSONPrintedStruct):
     timestamp: t.Annotated[datetime, Meta(tz=True)]
 
 
+class ODFused(JSONPrintedStruct):
+    od_fused: float
+    timestamp: t.Annotated[datetime, Meta(tz=True)]
+
+
 class RawPDReading(JSONPrintedStruct):
     reading: pt.Voltage
     channel: pt.PdChannel
@@ -332,6 +337,18 @@ class OD600Calibration(ODCalibration, kw_only=True, tag="od600"):
     x: str = "OD600"
 
 
+class ODFusionCalibration(CalibrationBase, kw_only=True, tag="od_fused"):
+    ir_led_intensity: float
+    angles: list[pt.PdAngle]
+    mu_splines: dict[pt.PdAngle, pt.SplineFitData]
+    sigma_splines_log: dict[pt.PdAngle, pt.SplineFitData]
+    min_logc: float
+    max_logc: float
+    sigma_floor: float
+    x: str = "log10(OD)"
+    y: str = "log(Voltage)"
+
+
 class SimplePeristalticPumpCalibration(CalibrationBase, kw_only=True, tag="simple_peristaltic_pump"):
     hz: t.Annotated[float, Meta(ge=0)]
     dc: t.Annotated[float, Meta(ge=0)]
@@ -358,6 +375,7 @@ AnyCalibration = t.Union[
     SimplePeristalticPumpCalibration,
     ODCalibration,
     OD600Calibration,
+    ODFusionCalibration,
     CalibrationBase,
 ]
 

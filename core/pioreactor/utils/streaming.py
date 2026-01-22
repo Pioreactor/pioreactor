@@ -17,9 +17,13 @@ from msgspec.json import decode
 from pioreactor import types as pt
 from pioreactor.pubsub import subscribe
 from pioreactor.structs import DosingEvent
+from pioreactor.structs import ODFused
 from pioreactor.structs import ODReadings
 from pioreactor.structs import RawODReading
 from pioreactor.utils.timing import to_datetime
+
+FUSED_PD_CHANNEL: pt.PdChannel = "1"
+FUSED_PD_ANGLE: pt.PdAngle = "90"
 
 
 class ODObservationSource(Protocol):
@@ -180,6 +184,48 @@ class MqttODSource(ODObservationSource):
             except DecodeError as e:
                 print(f"Failed to decode message: {e}")
                 continue
+
+
+class MqttODFusedSource(ODObservationSource):
+    is_live = True
+
+    def __init__(self, unit: pt.Unit, experiment: pt.Experiment, *, skip_first: int = 0) -> None:
+        self.unit, self.experiment, self.skip_first = unit, experiment, skip_first
+
+    def set_stop_event(self, ev: Event) -> None:
+        self._stop_event = ev
+
+    def __iter__(self):
+        counter = 0
+        while not self._stop_event.is_set():
+            msg = subscribe(
+                f"pioreactor/{self.unit}/{self.experiment}/od_reading/od_fused",
+                allow_retained=False,
+                timeout=1,
+            )
+            if msg is None:
+                continue
+            counter += 1
+            if counter <= self.skip_first:
+                continue
+            try:
+                fused = decode(msg.payload, type=ODFused)
+            except DecodeError as e:
+                print(f"Failed to decode message: {e}")
+                continue
+
+            yield ODReadings(
+                timestamp=fused.timestamp,
+                ods={
+                    FUSED_PD_CHANNEL: RawODReading(
+                        timestamp=fused.timestamp,
+                        angle=FUSED_PD_ANGLE,
+                        od=fused.od_fused,
+                        channel=FUSED_PD_CHANNEL,
+                        ir_led_intensity=0.0,
+                    )
+                },
+            )
 
 
 class MqttDosingSource(DosingObservationSource):

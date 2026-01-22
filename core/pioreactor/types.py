@@ -79,6 +79,7 @@ class PublishableSetting(t.TypedDict, total=False):
             "boolean",
             "GrowthRate",
             "ODFiltered",
+            "ODFused",
             "Temperature",
             "MeasuredRPM",
             "AutomationEvent",
@@ -158,9 +159,11 @@ type Seconds = float
 
 # calibration data
 OD_DEVICES = ["od", "od45", "od90", "od135"]
+OD_FUSED_DEVICE = "od_fused"
 PUMP_DEVICES = ["media_pump", "alt_media_pump", "waste_pump"]
 
 type ODCalibrationDevices = t.Literal["od", "od45", "od90", "od135"]
+type ODFusedCalibrationDevice = t.Literal["od_fused"]
 type PumpCalibrationDevices = t.Literal["media_pump", "alt_media_pump", "waste_pump"]
 
 type PolyFitCoefficients = list[float]

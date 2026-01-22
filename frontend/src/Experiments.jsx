@@ -166,6 +166,7 @@ function ExperimentsContainer(props) {
       raw_optical_density : "od_readings",
       temperature : "temperature_readings",
       normalized_optical_density : "od_readings_filtered",
+      fused_optical_density : "od_readings_fused",
       fraction_of_volume_that_is_alternative_media : "alt_media_fraction",
     }
 

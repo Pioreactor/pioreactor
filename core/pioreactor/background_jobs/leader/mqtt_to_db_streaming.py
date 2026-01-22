@@ -174,6 +174,17 @@ def parse_od(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     }
 
 
+def parse_od_fused(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+    metadata = produce_metadata(topic)
+    od_reading = msgspec_loads(payload, type=structs.ODFused)
+    return {
+        "experiment": metadata.experiment,
+        "pioreactor_unit": metadata.pioreactor_unit,
+        "timestamp": od_reading.timestamp,
+        "od_reading": od_reading.od_fused,
+    }
+
+
 def parse_raw_od(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     metadata = produce_metadata(topic)
     od_reading = msgspec_loads(payload, type=structs.RawODReading)
@@ -425,6 +436,11 @@ def add_default_source_to_sinks() -> list[TopicToParserToTable]:
                 ],
                 parse_od,
                 "od_readings",
+            ),
+            TopicToParserToTable(
+                "pioreactor/+/+/od_reading/od_fused",
+                parse_od_fused,
+                "od_readings_fused",
             ),
             TopicToParserToTable(
                 [

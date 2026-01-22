@@ -465,6 +465,25 @@ def calibration_measure_standard(
 
 
 @huey.task()
+def calibration_fusion_standards_measure(
+    od_value: float,
+    rpm: float,
+    samples_per_standard: int,
+) -> dict[str, object]:
+    from pioreactor.calibrations.protocols.od_fusion_standards import _measure_fusion_standard
+
+    samples = _measure_fusion_standard(
+        od_value=od_value,
+        rpm=rpm,
+        samples_per_standard=samples_per_standard,
+    )
+    serialized_samples: list[dict[str, float]] = []
+    for sample in samples:
+        serialized_samples.append({str(angle): float(value) for angle, value in sample.items()})
+    return {"samples": serialized_samples}
+
+
+@huey.task()
 def calibration_reference_standard_read(ir_led_intensity: float) -> dict[str, dict[str, float]]:
     from pioreactor.calibrations.protocols.od_reference_standard import record_reference_standard
 
@@ -551,6 +570,18 @@ def _register_core_calibration_actions() -> None:
             ),
             "OD measurement",
             _voltages_normalizer,
+        ),
+    )
+    register_calibration_action(
+        "od_fusion_standards_measure",
+        lambda payload: (
+            calibration_fusion_standards_measure(
+                float(payload["od_value"]),
+                float(payload["rpm"]),
+                int(payload["samples_per_standard"]),
+            ),
+            "Fusion OD measurement",
+            _default_normalizer,
         ),
     )
     register_calibration_action(

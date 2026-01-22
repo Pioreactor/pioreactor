@@ -58,20 +58,44 @@ from pioreactor.utils.streaming import DosingObservationSource
 from pioreactor.utils.streaming import merge_historical_streams
 from pioreactor.utils.streaming import merge_live_streams
 from pioreactor.utils.streaming import MqttDosingSource
+from pioreactor.utils.streaming import MqttODFusedSource
 from pioreactor.utils.streaming import MqttODSource
 from pioreactor.utils.streaming import ODObservationSource
 from pioreactor.utils.streaming_calculations import CultureGrowthEKF
 
+def _should_use_fused_od(unit: pt.Unit) -> bool:
+    try:
+        model = whoami.get_pioreactor_model(unit)
+    except Exception:
+        return False
+
+    if not model.model_name.endswith("_XR"):
+        return False
+
+    try:
+        from pioreactor.calibrations import load_active_calibration
+
+        calibration = load_active_calibration(pt.OD_FUSED_DEVICE)
+    except Exception:
+        return False
+
+    return isinstance(calibration, structs.ODFusionCalibration)
+
 
 class GrowthRateProcessor(LoggerMixin):
     def __init__(
-        self, ignore_cache: bool = False, cache_key: str | None = None, stopping_event: Event | None = None
+        self,
+        ignore_cache: bool = False,
+        cache_key: str | None = None,
+        stopping_event: Event | None = None,
+        use_fused_od: bool = False,
     ):
         super().__init__()
 
         self.ignore_cache = ignore_cache
         self.stopping_event = stopping_event
         self.cache_key = cache_key
+        self.use_fused_od = use_fused_od
         self.time_of_previous_observation: datetime | None = None
         self.expected_dt = 1 / (
             60 * 60 * config.getfloat("od_reading.config", "samples_per_second")
@@ -111,9 +135,14 @@ class GrowthRateProcessor(LoggerMixin):
         observation_noise_covariance = self.create_obs_noise_covariance(obs_std)
         self.logger.debug(f"Observation noise covariance matrix:\n{repr(observation_noise_covariance)}")
 
-        angles = [
-            angle for (_, angle) in config["od_config.photodiode_channel"].items() if angle in VALID_PD_ANGLES
-        ]
+        if self.use_fused_od:
+            angles = ["90"]
+        else:
+            angles = [
+                angle
+                for (_, angle) in config["od_config.photodiode_channel"].items()
+                if angle in VALID_PD_ANGLES
+            ]
 
         self.logger.debug(f"{angles=}")
         ekf_outlier_std_threshold = config.getfloat(
@@ -481,12 +510,20 @@ class GrowthRateCalculator(BackgroundJob):
         unit: pt.Unit,
         experiment: pt.Experiment,
         ignore_cache: bool = False,
+        use_fused_od: bool = False,
+        cache_key: str | None = None,
     ):
         super(GrowthRateCalculator, self).__init__(unit=unit, experiment=experiment)
+        if cache_key is None:
+            cache_key = experiment if not use_fused_od else f"{experiment}::od_fused"
         self.processor = GrowthRateProcessor(
-            ignore_cache=ignore_cache, stopping_event=self._blocking_event, cache_key=self.experiment
+            ignore_cache=ignore_cache,
+            stopping_event=self._blocking_event,
+            cache_key=cache_key,
+            use_fused_od=use_fused_od,
         )
         self.processor.add_external_logger(self.logger)
+        self.use_fused_od = use_fused_od
 
     def process_until_disconnected_or_exhausted_in_background(
         self, od_stream: ODObservationSource, dosing_stream: DosingObservationSource
@@ -516,10 +553,10 @@ class GrowthRateCalculator(BackgroundJob):
         ) in self.processor.process_until_disconnected_or_exhausted(od_stream, dosing_stream):
             # save to cache
             with local_persistent_storage("growth_rate") as cache:
-                cache[self.experiment] = self.growth_rate.growth_rate
+                cache[self.processor.cache_key] = self.growth_rate.growth_rate
 
             with local_persistent_storage("od_filtered") as cache:
-                cache[self.experiment] = self.od_filtered.od_filtered
+                cache[self.processor.cache_key] = self.od_filtered.od_filtered
 
             yield self.growth_rate, self.od_filtered, self.kalman_filter_outputs
 
@@ -535,13 +572,18 @@ def click_growth_rate_calculating(ctx, ignore_cache):
         unit = whoami.get_unit_name()
         experiment = whoami.get_assigned_experiment_name(unit)
 
-        od_stream = MqttODSource(unit=unit, experiment=experiment, skip_first=5)
+        use_fused_od = _should_use_fused_od(unit)
+        if use_fused_od:
+            od_stream = MqttODFusedSource(unit=unit, experiment=experiment, skip_first=5)
+        else:
+            od_stream = MqttODSource(unit=unit, experiment=experiment, skip_first=5)
         dosing_stream = MqttDosingSource(unit=unit, experiment=experiment)
 
         with GrowthRateCalculator(  # noqa: F841
             unit=unit,
             experiment=experiment,
             ignore_cache=ignore_cache,
+            use_fused_od=use_fused_od,
         ) as job:
             for _ in job.process_until_disconnected_or_exhausted(
                 od_stream=od_stream, dosing_stream=dosing_stream
@@ -553,12 +595,17 @@ def click_growth_rate_calculating(ctx, ignore_cache):
 def click_clear_cache() -> None:
     unit = whoami.get_unit_name()
     experiment = whoami.get_assigned_experiment_name(unit)
+    fused_cache_key = f"{experiment}::od_fused"
 
     with local_persistent_storage("od_filtered") as cache:
         cache.pop(experiment)
+        cache.pop(fused_cache_key, None)
     with local_persistent_storage("growth_rate") as cache:
         cache.pop(experiment)
+        cache.pop(fused_cache_key, None)
     with local_persistent_storage("od_normalization_mean") as cache:
         cache.pop(experiment)
+        cache.pop(fused_cache_key, None)
     with local_persistent_storage("od_normalization_variance") as cache:
         cache.pop(experiment)
+        cache.pop(fused_cache_key, None)
