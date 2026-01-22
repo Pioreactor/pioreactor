@@ -19,6 +19,12 @@ def test_poly_fit_matches_numpy() -> None:
     assert poly_fit(x, y, degree) == pytest.approx(np.polyfit(x, y, degree).tolist())
 
 
+def test_poly_fit_auto_degree_matches_linear() -> None:
+    x = [0.0, 1.0, 2.0, 3.0]
+    y = [1.0, 3.0, 5.0, 7.0]
+    assert poly_fit(x, y, "auto") == pytest.approx(poly_fit(x, y, 1))
+
+
 def test_poly_solve_matches_numpy_roots() -> None:
     coef = [1.0, 0.0, -4.0]  # x^2 - 4
     y = 0.0
@@ -27,6 +33,9 @@ def test_poly_solve_matches_numpy_roots() -> None:
 
 
 def test_poly_fit_rejects_bad_inputs() -> None:
+    with pytest.raises(ValueError):
+        poly_fit([], [], degree=1)
+
     with pytest.raises(ValueError):
         poly_fit([0.0], [1.0], degree=2)
 
@@ -41,6 +50,9 @@ def test_poly_fit_rejects_bad_inputs() -> None:
 
     with pytest.raises(ValueError):
         poly_fit([0.0, 1.0], [1.0, 2.0], degree=1, weights=[1.0, -1.0])
+
+    with pytest.raises(ValueError):
+        poly_fit([0.0, 1.0], [1.0, 2.0], degree="nope")
 
 
 def test_poly_solve_rejects_empty() -> None:

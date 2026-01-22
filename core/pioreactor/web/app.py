@@ -304,19 +304,6 @@ def get_all_workers() -> list[str]:
     return list(r["unit"] for r in result)
 
 
-def get_all_active_workers() -> list[str]:
-    result = query_app_db(
-        """
-        SELECT w.pioreactor_unit as unit
-        FROM workers w
-        WHERE w.is_active=1
-        ORDER BY w.added_at DESC
-        """
-    )
-    assert result is not None and isinstance(result, list)
-    return list(r["unit"] for r in result)
-
-
 def get_all_units() -> list[str]:
     result = query_app_db(
         f"""SELECT DISTINCT pioreactor_unit FROM (
