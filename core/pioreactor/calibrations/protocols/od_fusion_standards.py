@@ -6,7 +6,6 @@ from math import exp
 from math import log
 from math import log10
 from statistics import fmean
-from typing import ClassVar
 from typing import cast
 
 from msgspec import to_builtins
@@ -26,8 +25,9 @@ from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.calibrations.structured_session import utc_iso_timestamp
 from pioreactor.config import config
 from pioreactor.utils import is_pio_job_running
-from pioreactor.utils.od_fusion import FUSION_ANGLES
 from pioreactor.utils.od_fusion import fit_fusion_model
+from pioreactor.utils.od_fusion import FUSION_ANGLES
+from pioreactor.utils.timing import current_utc_datestamp
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_pioreactor_model
 from pioreactor.whoami import get_testing_experiment_name
@@ -42,6 +42,17 @@ def _ensure_xr_model() -> None:
     model = get_pioreactor_model()
     if not model.model_name.endswith("_XR"):
         raise ValueError("Fusion calibration is only available on XR models.")
+
+
+def _fusion_target_devices() -> list[pt.ODFusedCalibrationDevice]:
+    try:
+        model = get_pioreactor_model()
+    except Exception as e:
+        raise e
+        return []
+    if model.model_name.endswith("_XR"):
+        return [pt.OD_FUSED_DEVICE]
+    return []
 
 
 def _channel_angle_map_from_config() -> dict[pt.PdChannel, pt.PdAngle]:
@@ -79,8 +90,6 @@ def _measure_fusion_standard(
     samples_per_standard: int,
 ) -> list[dict[pt.PdAngle, float]]:
     from pioreactor.background_jobs.stirring import start_stirring as stirring
-
-    channel_angle_map = _channel_angle_map_from_config()
 
     with stirring(
         target_rpm=rpm,
@@ -133,11 +142,13 @@ def _measure_fusion_standard_for_session(
         for sample in raw_samples:
             if not isinstance(sample, dict):
                 continue
-            parsed.append({
-                cast(pt.PdAngle, angle): float(value)
-                for angle, value in sample.items()
-                if angle in FUSION_ANGLES
-            })
+            parsed.append(
+                {
+                    cast(pt.PdAngle, angle): float(value)
+                    for angle, value in sample.items()
+                    if angle in FUSION_ANGLES
+                }
+            )
         return parsed
     return _measure_fusion_standard(od_value, rpm, samples_per_standard)
 
@@ -148,11 +159,7 @@ def _build_chart_metadata(records: list[tuple[pt.PdAngle, float, float]]) -> dic
 
     series: list[dict[str, object]] = []
     for angle in FUSION_ANGLES:
-        points = [
-            {"x": float(logc), "y": float(logy)}
-            for ang, logc, logy in records
-            if ang == angle
-        ]
+        points = [{"x": float(logc), "y": float(logy)} for ang, logc, logy in records if ang == angle]
         if not points:
             continue
         series.append(
@@ -207,11 +214,16 @@ class Intro(SessionStep):
     step_id = "intro"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
-        body = (
-            "This protocol fits a fused OD model using the 45°, 90°, and 135° sensors. "
-            "You will provide standards and collect multiple readings for each."
+        return steps.info(
+            "Fusion OD calibration",
+            (
+                "This protocol fits a fused OD model using the 45°, 90°, and 135° sensors. "
+                "You will need:\n"
+                "1. A Pioreactor XR.\n"
+                "2. A set of OD600 standards in Pioreactor vials (at least 10 mL each), with stir bars.\n"
+                "3. Multiple readings per standard."
+            ),
         )
-        return steps.info("Fusion OD calibration", body)
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
         return NameInput
@@ -221,14 +233,16 @@ class NameInput(SessionStep):
     step_id = "name"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
+        default_name = ctx.data.setdefault("default_name", f"od-fused-cal-{current_utc_datestamp()}")
         return steps.form(
             "Name this calibration",
             "Choose a unique name for this fused OD calibration.",
-            [fields.str("calibration_name", label="Calibration name")],
+            [fields.str("calibration_name", label="Calibration name", default=default_name)],
         )
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
-        name = ctx.inputs.str("calibration_name")
+        default_name = ctx.data.setdefault("default_name", f"od-fused-cal-{current_utc_datestamp()}")
+        name = ctx.inputs.str("calibration_name", default=default_name)
         ctx.data["calibration_name"] = name
 
         if name in list_of_calibrations_by_device(pt.OD_FUSED_DEVICE):
@@ -261,7 +275,7 @@ class RpmInput(SessionStep):
         return steps.form(
             "Set stirring speed",
             "Provide the RPM to use while measuring standards.",
-            [fields.float("rpm", label="Stirring RPM", minimum=0.0, default=1800.0)],
+            [fields.float("rpm", label="Stirring RPM", minimum=0.0, default=500.0)],
         )
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
@@ -297,25 +311,37 @@ class PlaceStandard(SessionStep):
     step_id = "place_standard"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
-        return steps.form(
+        step = steps.info(
             "Place standard",
-            "Enter the OD600 of the standard now in the vial.",
-            [fields.float("od_value", label="OD600", minimum=0.0001)],
+            "Place a standard vial with a stir bar into the Pioreactor.",
         )
+        chart = _build_chart_metadata(ctx.data.get("records", []))
+        if chart:
+            step.metadata = {"chart": chart}
+        else:
+            step.metadata = {
+                "image": {
+                    "src": "/static/svgs/place-standard-arrow-pioreactor.svg",
+                    "alt": "Place a standard vial with a stir bar into the Pioreactor.",
+                    "caption": "Place a standard vial with a stir bar into the Pioreactor.",
+                }
+            }
+        return step
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
-        ctx.data["current_od_value"] = ctx.inputs.float("od_value", minimum=0.0001)
-        return MeasureStandard
+        if ctx.inputs.has_inputs:
+            return MeasureStandard
+        return None
 
 
 class MeasureStandard(SessionStep):
     step_id = "measure_standard"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
-        od_value = ctx.data.get("current_od_value", "")
-        step = steps.action(
-            "Measure standard",
-            f"Measuring OD600 {od_value}. Keep the vial in place.",
+        step = steps.form(
+            "Record standard",
+            "Enter the OD600 measurement for the current vial.",
+            [fields.float("od_value", label="OD600", minimum=0.0001)],
         )
         chart = _build_chart_metadata(ctx.data.get("records", []))
         if chart is not None:
@@ -323,7 +349,7 @@ class MeasureStandard(SessionStep):
         return step
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
-        od_value = float(ctx.data["current_od_value"])
+        od_value = ctx.inputs.float("od_value", minimum=0.0001)
         rpm = float(ctx.data["rpm"])
         samples_per_standard = int(ctx.data["samples_per_standard"])
 
@@ -361,16 +387,13 @@ class AnotherStandard(SessionStep):
         if not records:
             raise ValueError("No standards were measured.")
 
-        fit = fit_fusion_model(
-            [(angle, 10 ** logc, exp(logy)) for angle, logc, logy in records]
-        )
+        fit = fit_fusion_model([(angle, 10**logc, exp(logy)) for angle, logc, logy in records])
 
         calibration = structs.ODFusionCalibration(
             created_at=current_utc_datetime(),
             calibrated_on_pioreactor_unit=get_unit_name(),
             calibration_name=str(ctx.data["calibration_name"]),
             curve_data_=fit.mu_splines["90"],
-            curve_type="spline",
             recorded_data=fit.recorded_data,
             ir_led_intensity=float(config["od_reading.config"]["ir_led_intensity"]),
             angles=list(FUSION_ANGLES),
@@ -408,15 +431,11 @@ _FUSION_STEPS: StepRegistry = {
 
 class FusionStandardsODProtocol(CalibrationProtocol[pt.ODFusedCalibrationDevice]):
     protocol_name = "od_fusion_standards"
-    target_device: ClassVar[list[pt.ODFusedCalibrationDevice]] = [pt.OD_FUSED_DEVICE]
-    title: ClassVar[str] = "OD fusion standards"
-    description: ClassVar[str] = (
-        "Fit a fused OD model using standards measured at 45°, 90°, and 135° sensors."
-    )
-    requirements: ClassVar[tuple[str, ...]] = (
-        "Requires XR model with 45°, 90°, and 135° sensors configured.",
-    )
-    step_registry: ClassVar[StepRegistry] = _FUSION_STEPS
+    target_device = [pt.OD_FUSED_DEVICE]
+    title = "OD fusion standards"
+    description = "Fit a fused OD model using standards measured at 45°, 90°, and 135° sensors."
+    requirements = ("Requires XR model with 45°, 90°, and 135° sensors configured.",)
+    step_registry = _FUSION_STEPS
 
     @classmethod
     def start_session(cls, target_device: pt.ODFusedCalibrationDevice) -> CalibrationSession:

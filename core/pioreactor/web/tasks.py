@@ -484,17 +484,6 @@ def calibration_fusion_standards_measure(
 
 
 @huey.task()
-def calibration_reference_standard_read(ir_led_intensity: float) -> dict[str, dict[str, float]]:
-    from pioreactor.calibrations.protocols.od_reference_standard import record_reference_standard
-
-    readings = record_reference_standard(ir_led_intensity)
-    return {
-        str(channel): {"od": float(od_reading.od), "angle": float(od_reading.angle)}
-        for channel, od_reading in readings.ods.items()
-    }
-
-
-@huey.task()
 def calibration_run_stirring(min_dc: float | None, max_dc: float | None) -> dict[str, object]:
     from pioreactor.calibrations.protocols.stirring_dc_based import collect_stirring_measurements
 
@@ -582,14 +571,6 @@ def _register_core_calibration_actions() -> None:
             ),
             "Fusion OD measurement",
             _default_normalizer,
-        ),
-    )
-    register_calibration_action(
-        "od_reference_standard_read",
-        lambda payload: (
-            calibration_reference_standard_read(float(payload["ir_led_intensity"])),
-            "Reference standard reading",
-            _od_readings_normalizer,
         ),
     )
     register_calibration_action(

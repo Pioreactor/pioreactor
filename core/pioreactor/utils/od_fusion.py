@@ -20,8 +20,8 @@ FUSION_ANGLES: tuple[pt.PdAngle, ...] = ("45", "90", "135")
 
 @dataclass(frozen=True)
 class FusionFitResult:
-    mu_splines: dict[pt.PdAngle, pt.SplineFitData]
-    sigma_splines_log: dict[pt.PdAngle, pt.SplineFitData]
+    mu_splines: dict[pt.PdAngle, structs.SplineFitData]
+    sigma_splines_log: dict[pt.PdAngle, structs.SplineFitData]
     min_logc: float
     max_logc: float
     sigma_floor: float
@@ -97,8 +97,8 @@ def fit_fusion_model(
     if not any(by_angle.values()):
         raise ValueError("No usable fusion calibration records provided.")
 
-    mu_splines: dict[pt.PdAngle, pt.SplineFitData] = {}
-    sigma_splines_log: dict[pt.PdAngle, pt.SplineFitData] = {}
+    mu_splines: dict[pt.PdAngle, structs.SplineFitData] = {}
+    sigma_splines_log: dict[pt.PdAngle, structs.SplineFitData] = {}
 
     logc_values: list[float] = []
     recorded_data: dict[str, list[float]] = {"x": [], "y": []}
@@ -115,9 +115,7 @@ def fit_fusion_model(
 
         med_points = sorted((lc, median(values)) for lc, values in grouped.items())
         if len(med_points) < 4:
-            raise ValueError(
-                f"Need >=4 unique concentration levels to fit fusion spline for angle {angle}."
-            )
+            raise ValueError(f"Need >=4 unique concentration levels to fit fusion spline for angle {angle}.")
 
         x_vals = [lc for lc, _ in med_points]
         y_vals = [ly for _, ly in med_points]
@@ -192,7 +190,7 @@ def compute_fused_od(
         return total
 
     logc_hat = _golden_section_minimize(nll, calibration.min_logc, calibration.max_logc)
-    c_hat = 10 ** logc_hat
+    c_hat = 10**logc_hat
 
     if not isfinite(c_hat):
         raise ValueError("Fusion model produced non-finite OD estimate.")

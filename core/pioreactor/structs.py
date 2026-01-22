@@ -361,8 +361,8 @@ class OD600Calibration(ODCalibration, kw_only=True, tag="od600"):
 class ODFusionCalibration(CalibrationBase, kw_only=True, tag="od_fused"):
     ir_led_intensity: float
     angles: list[pt.PdAngle]
-    mu_splines: dict[pt.PdAngle, pt.SplineFitData]
-    sigma_splines_log: dict[pt.PdAngle, pt.SplineFitData]
+    mu_splines: dict[pt.PdAngle, SplineFitData]
+    sigma_splines_log: dict[pt.PdAngle, SplineFitData]
     min_logc: float
     max_logc: float
     sigma_floor: float

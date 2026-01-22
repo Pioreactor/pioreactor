@@ -91,13 +91,9 @@ def list_devices() -> list[str]:
 
 
 # Import protocols so they register with calibration_protocols.
-from pioreactor.calibrations.protocols.od_reference_standard import (
-    ODReferenceStandardProtocol,
-)  # noqa: F401,E402
 from pioreactor.calibrations.protocols.od_fusion_standards import (
     FusionStandardsODProtocol,
 )  # noqa: F401,E402
-from pioreactor.calibrations.protocols.od_single_vial import SingleVialODProtocol  # noqa: F401,E402
 from pioreactor.calibrations.protocols.od_standards import StandardsODProtocol  # noqa: F401,E402
 from pioreactor.calibrations.protocols.pump_duration_based import DurationBasedPumpProtocol  # noqa: F401,E402
 from pioreactor.calibrations.protocols.stirring_dc_based import DCBasedStirringProtocol  # noqa: F401,E402

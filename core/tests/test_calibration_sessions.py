@@ -192,11 +192,6 @@ def test_protocols_expose_step_registries_and_start_sessions() -> None:
     assert "intro" in standards_protocol.step_registry
     assert callable(getattr(standards_protocol, "start_session", None))
 
-    reference_protocol = get_protocol(pt.OD_DEVICES[0], "od_reference_standard")
-    assert isinstance(reference_protocol.step_registry, dict)
-    assert "intro" in reference_protocol.step_registry
-    assert callable(getattr(reference_protocol, "start_session", None))
-
     stirring_protocol = get_protocol("stirring", "dc_based")
     assert isinstance(stirring_protocol.step_registry, dict)
     assert "intro" in stirring_protocol.step_registry

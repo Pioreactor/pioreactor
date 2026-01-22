@@ -25,7 +25,6 @@ def _build_calibration_from_records(records: list[tuple[str, float, float]]) -> 
         calibrated_on_pioreactor_unit="test_unit",
         calibration_name="test_fusion",
         curve_data_=fit.mu_splines["90"],
-        curve_type="spline",
         recorded_data=fit.recorded_data,
         ir_led_intensity=80.0,
         angles=list(FUSION_ANGLES),

@@ -1018,9 +1018,7 @@ class ODReader(BackgroundJob):
 
         self.fusion_calibration: structs.ODFusionCalibration | None = fusion_calibration
         if self.fusion_calibration is not None:
-            self.add_to_published_settings(
-                "od_fused", {"datatype": "ODFused", "settable": False}
-            )
+            self.add_to_published_settings("od_fused", {"datatype": "ODFused", "settable": False})
 
         self.adc_reader.add_external_logger(self.logger)
         self.calibration_transformer.add_external_logger(self.logger)
@@ -1320,29 +1318,21 @@ class ODReader(BackgroundJob):
 
         missing_angles = [angle for angle in self.fusion_calibration.angles if angle not in readings_by_angle]
         if missing_angles:
-            self.logger.debug(
-                f"Skipping fused OD: missing angles {missing_angles} in current reading."
-            )
+            self.logger.debug(f"Skipping fused OD: missing angles {missing_angles} in current reading.")
             return
 
         fused_inputs = {angle: mean(values) for angle, values in readings_by_angle.items()}
 
         try:
-            debug = compute_fused_od(
-                self.fusion_calibration, fused_inputs, return_debug=True
-            )
+            debug = compute_fused_od(self.fusion_calibration, fused_inputs, return_debug=True)
         except Exception as e:
             self.logger.debug(f"Failed to compute fused OD: {e}", exc_info=True)
             return
 
         if isinstance(debug, dict):
             od_fused_value = float(debug.get("od_fused"))
-            self.od_fused = structs.ODFused(
-                od_fused=od_fused_value, timestamp=raw_od_readings.timestamp
-            )
-            self.logger.debug(
-                f"Fused OD computed: {od_fused_value:.5g}, nll={debug.get('nll')}"
-            )
+            self.od_fused = structs.ODFused(od_fused=od_fused_value, timestamp=raw_od_readings.timestamp)
+            self.logger.debug(f"Fused OD computed: {od_fused_value:.5g}, nll={debug.get('nll')}")
 
     def on_sleeping(self) -> None:
         self.record_from_adc_timer.pause()
