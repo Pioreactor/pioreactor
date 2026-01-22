@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useParams,  useNavigate,  Link } from "react-router";
 import { useConfirm } from 'material-ui-confirm';
-import { CircularProgress, Button, Typography, Box } from "@mui/material";
+import { CircularProgress, Button, Typography, Box, Divider } from "@mui/material";
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import IconButton from '@mui/material/IconButton';
-import {fetchTaskResult, colors, ColorCycler} from "./utilities"
+import {fetchTaskResult, colors, ColorCycler, readyGreen} from "./utilities"
 import MuiLink from '@mui/material/Link';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -15,7 +15,6 @@ import CalibrationChart from "./components/CalibrationChart";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CodeIcon from '@mui/icons-material/Code';
 import Grid from "@mui/material/Grid";
-import CardActions from '@mui/material/CardActions';
 
 import {
   Table,
@@ -228,43 +227,14 @@ function ViewYamlSource({ pioreactorUnit, device, calibrationName }) {
 
 function SingleCalibrationPage(props) {
   const { pioreactorUnit, device, calibrationName } = useParams();
-
-  React.useEffect(() => {
-    document.title = props.title;
-  }, [props.title]);
-
-  return (
-      <>
-      <Box>
-        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-
-          <Typography variant="h5" component="h1">
-            <Box sx={{display:"inline"}}>
-              <Button to={`/calibrations`} component={Link} sx={{ textTransform: 'none' }}>
-                <ArrowBackIcon sx={{ verticalAlign: "middle", mr: 0.5 }} fontSize="small"/> All calibrations
-              </Button>
-            </Box>
-          </Typography>
-
-          <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
-            <ViewYamlSource pioreactorUnit={pioreactorUnit} device={device} calibrationName={calibrationName} />
-            <Delete pioreactorUnit={pioreactorUnit} device={device} calibrationName={calibrationName} />
-          </Box>
-        </Box>
-      </Box>
-      <SingleCalibrationPageCard pioreactorUnit={pioreactorUnit} device={device} calibrationName={calibrationName}  />
-      </>
-  )
-}
-
-
-function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } ) {
-  const unitsColorMap = new ColorCycler(colors)
-
   const [calibration, setCalibration] = useState(null);
   const [loading, setLoading] = useState(true);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
+
+  React.useEffect(() => {
+    document.title = props.title;
+  }, [props.title]);
 
   const fetchSingleCalibration = async () => {
     setLoading(true);
@@ -323,7 +293,62 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } )
     }
   };
 
+  const isActive = calibration?.is_active ?? false;
 
+  return (
+      <>
+      <Box>
+        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+
+          <Typography variant="h5" component="h1">
+            <Box sx={{display:"inline"}}>
+              <Button to={`/calibrations`} component={Link} sx={{ textTransform: 'none' }}>
+                <ArrowBackIcon sx={{ verticalAlign: "middle", mr: 0.5 }} fontSize="small"/> All calibrations
+              </Button>
+            </Box>
+          </Typography>
+
+          <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap", alignItems: "center"}}>
+            <ViewYamlSource pioreactorUnit={pioreactorUnit} device={device} calibrationName={calibrationName} />
+            <Delete pioreactorUnit={pioreactorUnit} device={device} calibrationName={calibrationName} />
+            <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+            <Button
+              startIcon={isActive ? <DoNotDisturbOnOutlinedIcon/> : <CheckCircleOutlineOutlinedIcon />}
+              variant={isActive ? "text" : "contained"}
+              color="primary"
+              disabled={loading || !calibration}
+              onClick={isActive ? handleRemoveActive : handleSetActive}
+              sx={{ textTransform: "none",  ml: 1, mr: 1 }}
+            >
+              {isActive ? "Set inactive" : "Set active"}
+            </Button>
+          </Box>
+        </Box>
+      </Box>
+      <SingleCalibrationPageCard
+        pioreactorUnit={pioreactorUnit}
+        device={device}
+        calibrationName={calibrationName}
+        calibration={calibration}
+        loading={loading}
+      />
+
+      <Snackbar
+        anchorOrigin={{vertical: "bottom", horizontal: "center"}}
+        open={snackbarOpen}
+        onClose={handleSnackbarClose}
+        message={snackbarMessage}
+        autoHideDuration={7000}
+        resumeHideDuration={2000}
+        key={"snackbar" + pioreactorUnit + device + calibrationName}
+      />
+      </>
+  )
+}
+
+
+function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName, calibration, loading } ) {
+  const unitsColorMap = new ColorCycler(colors)
   if (loading) {
     return (
       <Box textAlign="center" mt={4}>
@@ -359,9 +384,24 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } )
         <Card>
           <CardContent sx={{p: 2}}>
               <Box sx={{ mb: 2 }}>
-                <Typography variant="h6" component="h2">
-                  Calibration: {calibrationName}
-                </Typography>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Typography variant="h6" component="h2">
+                    Calibration: {calibrationName}
+                  </Typography>
+                  {is_active && (
+                    <Chip
+                      size="small"
+                      label={"Active"}
+                      icon={<CheckCircleOutlineOutlinedIcon />}
+                      sx={{
+                        color: readyGreen,
+                        border: "none",
+                        backgroundColor: "transparent",
+                        "& .MuiChip-icon": { color: readyGreen },
+                      }}
+                    />
+                  )}
+                </Box>
                 <Typography variant="subtitle2" color="text.secondary">
                   <MuiLink
                     component={Link}
@@ -426,8 +466,22 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } )
                         <TableCell>{dayjs(created_at).format('MMMM D, YYYY, h:mm a')}</TableCell>
                       </TableRow>
                       <TableRow>
-                        <TableCell><strong>Active</strong></TableCell>
-                        <TableCell>{is_active && <Chip size="small" label={"Active"} icon={<CheckCircleOutlineOutlinedIcon />} sx={{backgroundColor: "white"}}  />}</TableCell>
+                      <TableCell><strong>Active</strong></TableCell>
+                      <TableCell>
+                        {is_active && (
+                          <Chip
+                            size="small"
+                            label={"Active"}
+                            icon={<CheckCircleOutlineOutlinedIcon />}
+                            sx={{
+                              color: readyGreen,
+                              border: "none",
+                              backgroundColor: "transparent",
+                              "& .MuiChip-icon": { color: readyGreen },
+                            }}
+                          />
+                        )}
+                      </TableCell>
                       </TableRow>
                       <TableRow>
                         <TableCell><strong>Device</strong></TableCell>
@@ -474,39 +528,6 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName } )
                 </Box>
               </Box>
           </CardContent>
-          <CardActions sx={{display: 'flex', justifyContent: 'right', mb: 1 }}>
-            <Button
-              startIcon={<DoNotDisturbOnOutlinedIcon/>}
-              variant="text"
-              color="secondary"
-              disabled={!is_active}
-              onClick={handleRemoveActive}
-              sx={{ textTransform: "none",  ml: 1 }}
-            >
-              Set inactive
-            </Button>
-            <Button
-              startIcon={<CheckCircleOutlineOutlinedIcon />}
-              variant="contained"
-              color="primary"
-              disabled={ is_active}
-              onClick={handleSetActive}
-              sx={{ textTransform: "none", mr: 6}}
-            >
-               Set active
-            </Button>
-
-
-            <Snackbar
-              anchorOrigin={{vertical: "bottom", horizontal: "center"}}
-              open={snackbarOpen}
-              onClose={handleSnackbarClose}
-              message={snackbarMessage}
-              autoHideDuration={7000}
-              resumeHideDuration={2000}
-              key={"snackbar" + pioreactorUnit + device + calibrationName}
-            />
-        </CardActions>
       </Card>
     </Grid>
     <Grid size={12}>

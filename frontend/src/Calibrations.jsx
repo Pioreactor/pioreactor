@@ -571,7 +571,21 @@ function CalibrationData() {
                         data-calibration-name={calName}
                         />
                   </TableCell>
-                  <TableCell align="left" sx={{padding: "6px 0px"}}>{cal.is_active ?  <><Chip size="small" label={"Active"} icon={<CheckCircleOutlineOutlinedIcon />} sx={{backgroundColor: "inherit"}}  /></> : ""}</TableCell>
+                  <TableCell align="left" sx={{padding: "6px 0px"}}>
+                    {cal.is_active ? (
+                      <Chip
+                        size="small"
+                        label={"Active"}
+                        icon={<CheckCircleOutlineOutlinedIcon />}
+                        sx={{
+                          color: readyGreen,
+                          border: "none",
+                          backgroundColor: "transparent",
+                          "& .MuiChip-icon": { color: readyGreen },
+                        }}
+                      />
+                    ) : ""}
+                  </TableCell>
                   <TableCell align="right" sx={{padding: "6px 6px"}}>{dayjs(cal.created_at).format('MMMM D, YYYY, h:mm a')}</TableCell>
                 </TableRow>
               );

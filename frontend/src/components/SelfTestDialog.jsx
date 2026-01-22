@@ -26,17 +26,13 @@ import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 
 import PioreactorIcon from "./PioreactorIcon"
 import RequirementsAlert from "./RequirementsAlert"
-import {runPioreactorJob} from "../utilities"
+import {runPioreactorJob, readyGreen, lostRed} from "../utilities"
 
 
 const ManageDivider = styled(Divider)(({ theme }) => ({
   marginTop: theme.spacing(2), // equivalent to 16px if the default spacing unit is 8px
   marginBottom: theme.spacing(1.25) // equivalent to 10px
 }));
-
-const readyGreen = "#176114"
-const lostRed = "#DE3618"
-
 
 export default function SelfTestDialog({disabled, experiment, unit, label , selfTestState, selfTestTests}) {
   const [open, setOpen] = useState(false);

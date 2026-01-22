@@ -744,7 +744,6 @@ def update_app(
             "Running update step %s/%s: %s",
             index,
             len(commands_and_priority),
-            priority,
             command,
         )
 
