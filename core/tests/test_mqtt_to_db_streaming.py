@@ -124,8 +124,7 @@ def test_dosing_events_land_in_db() -> None:
             ml=1,
             calibration=structs.SimplePeristalticPumpCalibration(
                 calibration_name="test",
-                curve_data_=[1.0, 0.0],
-                curve_type="poly",
+                curve_data_=structs.PolyFitCoefficients(coefficients=[1.0, 0.0]),
                 recorded_data={"x": [], "y": []},
                 dc=60,
                 hz=100,

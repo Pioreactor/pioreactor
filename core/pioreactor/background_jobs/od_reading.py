@@ -795,7 +795,7 @@ class CachedCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
         self.models[channel], self.verifiers[channel] = self._hydrate_model(calibration_data)
         self.models[channel].calibration_name = calibration_name  # type: ignore
         self.logger.debug(
-            f"Using OD calibration `{calibration_name}` of type `{cal_type}` for PD channel {channel}, {calibration_data.curve_type=}, {calibration_data.curve_data_=}"
+            f"Using OD calibration `{calibration_name}` of type `{cal_type}` for PD channel {channel}, {calibration_data.curve_data_=}"
         )
 
     def _hydrate_model(
@@ -807,11 +807,13 @@ class CachedCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
             self.logger.error(f"Calibration {calibration_data.calibration_name} has wrong type.")
             raise exc.CalibrationError(f"Calibration {calibration_data.calibration_name} has wrong type.")
 
-        higher_order_terms = calibration_data.curve_data_[:-1]
-        if len(higher_order_terms) == 0 or all(c == 0.0 for c in higher_order_terms):
-            self.logger.warning(
-                "Calibration curve is y(x)=constant. This is probably wrong. Check the calibration YAML file's curve_data_."
-            )
+        if calibration_data.curve_data_.type == "poly":
+            coefficients = calibration_data.curve_data_.coefficients
+            higher_order_terms = coefficients[:-1]
+            if len(higher_order_terms) == 0 or all(c == 0.0 for c in higher_order_terms):
+                self.logger.warning(
+                    "Calibration curve is y(x)=constant. This is probably wrong. Check the calibration YAML file's curve_data_."
+                )
 
         def _verify(od_reading: structs.ODReading) -> bool:
             """

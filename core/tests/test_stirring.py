@@ -161,7 +161,6 @@ def test_stirring_with_calibration() -> None:
         calibrated_on_pioreactor_unit=unit,
         created_at=current_utc_datetime(),
         curve_data_=spline_fit(dcs, rpms, knots=2),
-        curve_type="spline",
         pwm_hz=200,
         voltage=5.0,
         recorded_data={"x": dcs, "y": rpms},

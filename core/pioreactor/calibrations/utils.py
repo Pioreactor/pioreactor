@@ -5,7 +5,6 @@ from typing import TypeVar
 
 import click
 from pioreactor import structs
-from pioreactor import types as pt
 from pioreactor.calibrations.cli_helpers import green
 from pioreactor.calibrations.cli_helpers import info
 from pioreactor.calibrations.cli_helpers import red
@@ -15,7 +14,7 @@ from pioreactor.utils.polys import poly_fit
 
 def calculate_poly_curve_of_best_fit(
     x: list[float], y: list[float], degree: int, weights: list[float] | None = None
-) -> pt.PolyFitCoefficients:
+) -> structs.PolyFitCoefficients:
     if weights is None:
         weights = [1.0] * len(x)
 
@@ -28,31 +27,31 @@ def calculate_poly_curve_of_best_fit(
         coefs = poly_fit(x, y, degree=degree, weights=weights)
     except Exception:
         click.echo(red("Unable to fit."))
-        coefs = [0.0] * (degree + 1)
+        coefs = structs.PolyFitCoefficients(coefficients=[0.0] * (degree + 1))
 
-    return list(coefs)
+    return coefs
 
 
-def curve_to_functional_form(curve_type: str, curve_data: pt.CalibrationCurveData) -> str:
+def curve_to_functional_form(curve_data: structs.CalibrationCurveData) -> str:
+    curve_type = curve_data.type
     if curve_type == "poly":
-        poly_data = cast(pt.PolyFitCoefficients, curve_data)
-        d = len(poly_data)
+        poly_data = cast(structs.PolyFitCoefficients, curve_data)
+        coefficients = poly_data.coefficients
+        d = len(coefficients)
         return " + ".join(
-            [(f"{c:0.3f}x^{d - i - 1}" if (i < d - 1) else f"{c:0.3f}") for i, c in enumerate(poly_data)]
+            [(f"{c:0.3f}x^{d - i - 1}" if (i < d - 1) else f"{c:0.3f}") for i, c in enumerate(coefficients)]
         )
     elif curve_type == "spline":
-        spline_data = cast(pt.SplineFitData, curve_data)
-        if not isinstance(spline_data, list) or len(spline_data) != 2:
-            raise ValueError("Invalid spline data.")
-        knots = cast(list[float], spline_data[0])
-        return f"natural cubic spline with {len(knots)} knots"
+        spline_data = cast(structs.SplineFitData, curve_data)
+        return f"natural cubic spline with {len(spline_data.knots)} knots"
     else:
         raise NotImplementedError()
 
 
-def curve_to_callable(curve_type: str, curve_data: pt.CalibrationCurveData) -> Callable[[float], float]:
+def curve_to_callable(curve_data: structs.CalibrationCurveData) -> Callable[[float], float]:
+    curve_type = curve_data.type
     if curve_type == "poly":
-        poly_data = cast(pt.PolyFitCoefficients, curve_data)
+        poly_data = cast(structs.PolyFitCoefficients, curve_data)
 
         def curve_callable(x: float):
             return poly_eval(poly_data, x)
@@ -62,7 +61,7 @@ def curve_to_callable(curve_type: str, curve_data: pt.CalibrationCurveData) -> C
     elif curve_type == "spline":
         from pioreactor.utils.splines import spline_eval
 
-        spline_data = cast(pt.SplineFitData, curve_data)
+        spline_data = cast(structs.SplineFitData, curve_data)
 
         def curve_callable(x: float):
             return spline_eval(spline_data, x)
@@ -140,14 +139,18 @@ def crunch_data_and_confirm_with_user(
 ) -> Calb:
     y, x = calibration.recorded_data["y"], calibration.recorded_data["x"]
     candidate_curve = calibration.curve_data_
-    if calibration.curve_type != fit:
-        candidate_curve = []
-        calibration.curve_type = fit
+    if calibration.curve_data_.type != fit:
+        if fit == "poly":
+            candidate_curve = structs.PolyFitCoefficients(coefficients=[])
+        elif fit == "spline":
+            candidate_curve = structs.SplineFitData(knots=[], coefficients=[])
+        else:
+            raise ValueError()
 
     while True:
         click.clear()
 
-        if len(candidate_curve) == 0:
+        if _curve_data_is_empty(fit, candidate_curve):
             if fit == "poly":
                 if len(x) - 1 < initial_degree:
                     info(
@@ -169,7 +172,7 @@ def crunch_data_and_confirm_with_user(
             else:
                 raise ValueError("only `poly` or `spline` supported")
 
-        curve_callable = curve_to_callable(fit, candidate_curve)
+        curve_callable = curve_to_callable(candidate_curve)
         plot_data(
             x,
             y,
@@ -181,7 +184,7 @@ def crunch_data_and_confirm_with_user(
         )
         click.echo()
 
-        info(f"Calibration curve: {curve_to_functional_form(fit, candidate_curve)}")
+        info(f"Calibration curve: {curve_to_functional_form(candidate_curve)}")
         r = click.prompt(
             green(
                 f"""
@@ -229,10 +232,21 @@ def _fit_prompt_choices(fit: str) -> list[str]:
     return ["y", "q"]
 
 
-def _fit_prompt_hint(fit: str, candidate_curve) -> str:
+def _fit_prompt_hint(fit: str, candidate_curve: structs.CalibrationCurveData) -> str:
     if fit == "poly":
-        return f"d: choose a new degree for polynomial fit (currently {len(candidate_curve) - 1})"
+        poly_data = cast(structs.PolyFitCoefficients, candidate_curve)
+        return f"d: choose a new degree for polynomial fit (currently {len(poly_data.coefficients) - 1})"
     if fit == "spline":
-        knots_count = len(candidate_curve[0]) if isinstance(candidate_curve, list) else 0
-        return f"k: choose a new knot count (currently {knots_count})"
+        spline_data = cast(structs.SplineFitData, candidate_curve)
+        return f"k: choose a new knot count (currently {len(spline_data.knots)})"
     return ""
+
+
+def _curve_data_is_empty(fit: str, curve_data: structs.CalibrationCurveData) -> bool:
+    if fit == "poly":
+        poly_data = cast(structs.PolyFitCoefficients, curve_data)
+        return len(poly_data.coefficients) == 0
+    if fit == "spline":
+        spline_data = cast(structs.SplineFitData, curve_data)
+        return len(spline_data.knots) == 0 or len(spline_data.coefficients) == 0
+    return True

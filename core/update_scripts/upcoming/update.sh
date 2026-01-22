@@ -8,7 +8,7 @@ DOT_PIOREACTOR=/home/pioreactor/.pioreactor
 CONFIG="$DOT_PIOREACTOR/config.ini"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOSTNAME=$(hostname)
-LEADER_HOSTNAME=$(/opt/pioreactor/venv/crudini --get "$CONFIG" cluster.topology leader_hostname)
+LEADER_HOSTNAME=$($PIO_VENV/bin/crudini --get "$CONFIG" cluster.topology leader_hostname)
 
 if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
     sudo -u pioreactor mkdir -p "$DOT_PIOREACTOR/ui/charts"
@@ -59,4 +59,6 @@ pd4:
   channel: 0
 EOF
 
-sudo -u pioreactor python "$SCRIPT_DIR"/od_calibration_device_migration.py
+sudo -u pioreactor /opt/pioreactor/venv/bin/python "$SCRIPT_DIR"/od_calibration_device_migration.py
+# Migrate curve_data_ serialization and strip legacy curve_type fields.
+sudo -u pioreactor /opt/pioreactor/venv/bin/python "$SCRIPT_DIR"/calibration_curve_data_migration.py

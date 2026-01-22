@@ -165,9 +165,3 @@ PUMP_DEVICES = ["media_pump", "alt_media_pump", "waste_pump"]
 type ODCalibrationDevices = t.Literal["od", "od45", "od90", "od135"]
 type ODFusedCalibrationDevice = t.Literal["od_fused"]
 type PumpCalibrationDevices = t.Literal["media_pump", "alt_media_pump", "waste_pump"]
-
-type PolyFitCoefficients = list[float]
-type SplineFitKnots = list[float]
-type SplineFitCoefficients = list[list[float]]
-type SplineFitData = list[SplineFitKnots | SplineFitCoefficients]
-type CalibrationCurveData = PolyFitCoefficients | SplineFitData

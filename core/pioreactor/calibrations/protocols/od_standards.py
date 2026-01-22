@@ -43,8 +43,7 @@ from pioreactor.whoami import is_testing_env
 
 
 def to_struct(
-    curve_data_: pt.CalibrationCurveData,
-    curve_type: str,
+    curve_data_: structs.CalibrationCurveData,
     voltages: list[pt.Voltage],
     od600s: list[pt.OD],
     angle,
@@ -58,7 +57,6 @@ def to_struct(
         calibration_name=name,
         angle=angle,
         curve_data_=curve_data_,
-        curve_type=curve_type,
         recorded_data={"x": od600s, "y": voltages},
         ir_led_intensity=float(config["od_reading.config"]["ir_led_intensity"]),
         pd_channel=pd_channel,
@@ -178,16 +176,16 @@ def _devices_for_angles(channel_angle_map: dict[pt.PdChannel, pt.PdAngle]) -> li
 def _calculate_curve_data(
     od600_values: list[float],
     voltages: list[float],
-) -> tuple[str, pt.CalibrationCurveData]:
+) -> structs.CalibrationCurveData:
     weights = [1.0] * len(voltages)
     weights[0] = len(voltages) / 2
     if len(od600_values) >= 3:
         from pioreactor.utils.splines import spline_fit
 
-        return "spline", spline_fit(od600_values, voltages, knots="auto", weights=weights)
+        return spline_fit(od600_values, voltages, knots="auto", weights=weights)
 
     degree = min(3, max(1, len(od600_values) - 1))
-    return "poly", utils.calculate_poly_curve_of_best_fit(od600_values, voltages, degree, weights)
+    return utils.calculate_poly_curve_of_best_fit(od600_values, voltages, degree, weights)
 
 
 def _build_standards_chart_metadata(
@@ -207,11 +205,8 @@ def _build_standards_chart_metadata(
         points = [{"x": float(od600_values[i]), "y": float(voltages[i])} for i in range(count)]
         curve = None
         if count > 1:
-            curve_type, curve_data = _calculate_curve_data(od600_values[:count], voltages[:count])
-            curve = {
-                "type": curve_type,
-                "coefficients": curve_data,
-            }
+            curve_data = _calculate_curve_data(od600_values[:count], voltages[:count])
+            curve = to_builtins(curve_data)
         series.append(
             {
                 "id": str(channel),
@@ -548,10 +543,9 @@ class MeasureBlank(SessionStep):
         for pd_channel, angle in sorted(channel_angle_map.items(), key=lambda item: int(item[0])):
             voltages_list = ctx.data["voltages_by_channel"][pd_channel]
             od600_values = ctx.data["od600_values"]
-            curve_type, curve_data_ = _calculate_curve_data(od600_values, voltages_list)
+            curve_data_ = _calculate_curve_data(od600_values, voltages_list)
             cal = to_struct(
                 curve_data_,
-                curve_type,
                 voltages_list,
                 od600_values,
                 angle,

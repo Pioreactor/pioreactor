@@ -16,8 +16,13 @@ from pioreactor.calibrations.utils import curve_to_callable
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import OD600Calibration
 from pioreactor.structs import ODCalibration
+from pioreactor.structs import PolyFitCoefficients
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.timing import current_utc_datetime
+
+
+def _poly_curve(coefficients: list[float]) -> PolyFitCoefficients:
+    return PolyFitCoefficients(coefficients=coefficients)
 
 
 @pytest.fixture
@@ -34,8 +39,7 @@ def test_save_and_load_calibration(temp_calibration_dir) -> None:
         calibration_name="my_test_cal",
         calibrated_on_pioreactor_unit="unitA",
         created_at=datetime.now(timezone.utc),
-        curve_data_=[1.0, 2.0, 3.0],
-        curve_type="poly",
+        curve_data_=_poly_curve([1.0, 2.0, 3.0]),
         recorded_data={"x": [0.1, 0.2], "y": [0.3, 0.4]},
         ir_led_intensity=1.23,
         angle="90",
@@ -51,7 +55,7 @@ def test_save_and_load_calibration(temp_calibration_dir) -> None:
     assert isinstance(loaded_cal, OD600Calibration)
     assert loaded_cal.calibration_name == "my_test_cal"
     assert loaded_cal.angle == "90"
-    assert loaded_cal.curve_data_ == [1.0, 2.0, 3.0]
+    assert loaded_cal.curve_data_ == _poly_curve([1.0, 2.0, 3.0])
 
     # 4. Set as active
     od_cal.set_as_active_calibration_for_device("od90")
@@ -108,8 +112,7 @@ def calibration():
         calibration_name="test_calibration",
         calibrated_on_pioreactor_unit="unit1",
         created_at=datetime.now(),
-        curve_data_=[2, 3, 5],  # 5x^2 + 3x + 2
-        curve_type="poly",
+        curve_data_=_poly_curve([2, 3, 5]),  # 5x^2 + 3x + 2
         x="voltage",
         y="od600",
         recorded_data={"x": [0.1, 0.2, 0.3], "y": [1.0, 2.0, 3.0]},
@@ -117,28 +120,28 @@ def calibration():
 
 
 def test_predict_linear(calibration) -> None:
-    calibration.curve_data_ = [3, 2]  # 3x + 2
+    calibration.curve_data_ = _poly_curve([3, 2])  # 3x + 2
     x = 4
     expected_y = 3 * x + 2
     assert calibration.x_to_y(x) == expected_y
 
 
 def test_predict_quadratic(calibration) -> None:
-    calibration.curve_data_ = [5, 3, 2]  # 5x^2 + 3x + 2
+    calibration.curve_data_ = _poly_curve([5, 3, 2])  # 5x^2 + 3x + 2
     x = 2
     expected_y = 5 * x**2 + 3 * x + 2
     assert calibration.x_to_y(x) == expected_y
 
 
 def test_ipredict_linear(calibration) -> None:
-    calibration.curve_data_ = [3, 2]  # 3x + 2
+    calibration.curve_data_ = _poly_curve([3, 2])  # 3x + 2
     y = 14
     expected_x = (y - 2) / 3
     assert calibration.y_to_x(y) == pytest.approx(expected_x)
 
 
 def test_ipredict_quadratic_single_solution(calibration) -> None:
-    calibration.curve_data_ = [5, 3, 2]  # 5x^2 + 3x + 2
+    calibration.curve_data_ = _poly_curve([5, 3, 2])  # 5x^2 + 3x + 2
     calibration.recorded_data = {"x": [0, 2], "y": [2, 20]}
     y = 12
     expected_x = 1.145683229480096  # Solves 5x^2 + 3x + 2 = 12
@@ -146,20 +149,20 @@ def test_ipredict_quadratic_single_solution(calibration) -> None:
 
 
 def test_ipredict_no_solution(calibration) -> None:
-    calibration.curve_data_ = [1, 0, 5]  # x^2 + 5, no solution for y = -10
+    calibration.curve_data_ = _poly_curve([1, 0, 5])  # x^2 + 5, no solution for y = -10
     with pytest.raises(exc.NoSolutionsFoundError):
         calibration.y_to_x(-10)
 
 
 def test_ipredict_multiple_solutions(calibration) -> None:
-    calibration.curve_data_ = [1, 0, -6]  # x^2 - 6, solutions for y=0 are +- 2.45
+    calibration.curve_data_ = _poly_curve([1, 0, -6])  # x^2 - 6, solutions for y=0 are +- 2.45
     calibration.recorded_data = {"x": [0, 3], "y": [0, 9]}
     y = 0
     assert calibration.y_to_x(y) == pytest.approx(2.44948974)
 
 
 def test_ipredict_solution_below_domain(calibration) -> None:
-    calibration.curve_data_ = [5, 3, 2]  # 5x^2 + 3x + 2
+    calibration.curve_data_ = _poly_curve([5, 3, 2])  # 5x^2 + 3x + 2
     calibration.recorded_data = {"x": [0, 1], "y": [10, 20]}
     y = 1.99  # Solution below domain
     with pytest.raises(exc.SolutionBelowDomainError):
@@ -167,7 +170,7 @@ def test_ipredict_solution_below_domain(calibration) -> None:
 
 
 def test_ipredict_solution_above_domain(calibration) -> None:
-    calibration.curve_data_ = [25, -10, 1]  # 25x^2 - 10x + 1
+    calibration.curve_data_ = _poly_curve([25, -10, 1])  # 25x^2 - 10x + 1
     calibration.recorded_data = {"x": [0, 1], "y": [0, 100]}
     y = 50  # Solution above domain
     with pytest.raises(exc.SolutionAboveDomainError):
@@ -179,8 +182,7 @@ def test_ipredict_zero_solution_in_domain_for_od45_reference_calibration() -> No
         calibration_name="od45-optical-reference-standard-2026-01-08",
         calibrated_on_pioreactor_unit="lw1209",
         created_at=datetime(2026, 1, 8, 14, 56, 49, 692000, tzinfo=timezone.utc),
-        curve_data_=[1.4383526269350404, 8.038873388460928e-14],
-        curve_type="poly",
+        curve_data_=_poly_curve([1.4383526269350404, 8.038873388460928e-14]),
         recorded_data={"x": [0, 1000], "y": [0, 1438.3526269350407]},
         ir_led_intensity=80,
         angle="45",
@@ -191,7 +193,7 @@ def test_ipredict_zero_solution_in_domain_for_od45_reference_calibration() -> No
 
 
 def test_predict_ipredict_consistency(calibration) -> None:
-    calibration.curve_data_ = [2, -3, 1]  # 2x^2 - 3x + 1
+    calibration.curve_data_ = _poly_curve([2, -3, 1])  # 2x^2 - 3x + 1
     calibration.recorded_data = {"x": [0, 3], "y": [1, 16]}
     x = 2
     y = calibration.x_to_y(x)
@@ -209,7 +211,6 @@ def test_spline_predict_linear() -> None:
         calibrated_on_pioreactor_unit="unit1",
         created_at=datetime.now(),
         curve_data_=spline_data,
-        curve_type="spline",
         x="voltage",
         y="od600",
         recorded_data={"x": x, "y": y},
@@ -229,7 +230,6 @@ def test_spline_ipredict_linear() -> None:
         calibrated_on_pioreactor_unit="unit1",
         created_at=datetime.now(),
         curve_data_=spline_data,
-        curve_type="spline",
         x="voltage",
         y="od600",
         recorded_data={"x": x, "y": y},
@@ -255,7 +255,7 @@ def test_linear_data_produces_linear_curve_in_range_even_if_high_degree() -> Non
     weights[0] = n / 2
 
     curve_data_ = calculate_poly_curve_of_best_fit(od, v, degree=4, weights=weights)  # type: ignore
-    curve_callable = curve_to_callable("poly", curve_data_)
+    curve_callable = curve_to_callable(curve_data_)
     for od_ in od:
         assert (curve_callable(od_) - od_ * 0.5) < 0.035
 
@@ -270,7 +270,7 @@ def test_mandys_data_for_pathological_poly() -> None:
     weights[0] = n / 2
 
     curve_data_ = calculate_poly_curve_of_best_fit(od, v, degree=3, weights=weights)  # type: ignore
-    curve_callable = curve_to_callable("poly", curve_data_)
+    curve_callable = curve_to_callable(curve_data_)
     assert abs(curve_callable(0.002) - 0.002) < 0.1
 
     mcal = OD600Calibration(
@@ -278,7 +278,6 @@ def test_mandys_data_for_pathological_poly() -> None:
         calibrated_on_pioreactor_unit="pio1",
         created_at=current_utc_datetime(),
         curve_data_=curve_data_,
-        curve_type="poly",
         recorded_data={"x": od, "y": v},
         ir_led_intensity=70.0,
         angle="90",
