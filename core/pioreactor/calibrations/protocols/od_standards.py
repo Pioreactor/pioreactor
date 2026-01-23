@@ -598,7 +598,7 @@ class StandardsODProtocol(CalibrationProtocol[pt.ODCalibrationDevices]):
     target_device = get_valid_od_devices_for_this_unit()
     protocol_name = "standards"
     title = "OD600 calibration using standards"
-    description = "Calibrate OD channels using a series of OD600 standards and a blank."
+    description = "Calibrate {device} channels using a series of OD600 standards and a blank."
     requirements = (
         "OD600 standards (including a blank)",
         "Vials",

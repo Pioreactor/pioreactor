@@ -560,9 +560,9 @@ class DurationBasedPumpProtocol(CalibrationProtocol):
     target_device = cast(list[pt.PumpCalibrationDevices], pt.PUMP_DEVICES)
     protocol_name = "duration_based"
     title = "Duration-based pump calibration"
-    description = "Build a duration-to-volume curve for the {device} pump using a simple multi-step flow."
+    description = "Build a duration-to-volume curve for the {device} using a simple multi-step flow."
     requirements = (
-        "Peristaltic pump",
+        "Peristaltic pump assigned to {device}",
         "Pioreactor vial",
         "Container of clean water",
         "Measuring container or scale",

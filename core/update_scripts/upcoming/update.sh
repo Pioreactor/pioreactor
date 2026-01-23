@@ -8,7 +8,7 @@ DOT_PIOREACTOR=/home/pioreactor/.pioreactor
 CONFIG="$DOT_PIOREACTOR/config.ini"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOSTNAME=$(hostname)
-LEADER_HOSTNAME=$($PIO_VENV/bin/crudini --get "$CONFIG" cluster.topology leader_hostname)
+LEADER_HOSTNAME=$(/opt/pioreactor/venv/bin/crudini --get "$CONFIG" cluster.topology leader_hostname)
 
 if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
     sudo -u pioreactor mkdir -p "$DOT_PIOREACTOR/ui/charts"
