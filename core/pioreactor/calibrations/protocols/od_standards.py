@@ -111,9 +111,12 @@ def _read_voltages_from_adc(
 
         for _ in range(3):
             od_reader.record_from_adc()
+            sleep(1.0)
 
         od_readings1 = od_reader.record_from_adc()
+        sleep(3.0)
         od_readings2 = od_reader.record_from_adc()
+        sleep(3.0)
         od_readings3 = od_reader.record_from_adc()
         assert od_readings1 is not None
         assert od_readings2 is not None
@@ -154,9 +157,8 @@ def _measure_standard_for_session(
                 "channel_angle_map": {str(k): str(v) for k, v in channel_angle_map.items()},
             },
         )
-        raw = payload.get("voltages", {})
-        if not isinstance(raw, dict):
-            raise ValueError("Invalid voltage payload.")
+        raw = payload["voltages"]
+        assert isinstance(raw, dict)
         return {cast(pt.PdChannel, channel): float(voltage) for channel, voltage in raw.items()}
     return _measure_standard(od600_value, rpm, channel_angle_map)
 
@@ -189,12 +191,9 @@ def _build_standards_chart_metadata(
     voltages_by_channel: dict[pt.PdChannel, list[float]],
     channel_angle_map: dict[pt.PdChannel, pt.PdAngle],
 ) -> dict[str, object] | None:
-    if not od600_values:
-        return None
-
     series = []
     for channel, angle in sorted(channel_angle_map.items(), key=lambda item: int(item[0])):
-        voltages = voltages_by_channel.get(channel, [])
+        voltages = voltages_by_channel[channel]
         count = min(len(od600_values), len(voltages))
         if count <= 0:
             continue
@@ -260,7 +259,7 @@ def start_standards_session(target_device: pt.ODCalibrationDevices) -> Calibrati
 def _get_channel_angle_map(ctx: SessionContext) -> dict[pt.PdChannel, pt.PdAngle]:
     return {
         cast(pt.PdChannel, channel): cast(pt.PdAngle, angle)
-        for channel, angle in ctx.data.get("channel_angle_map", {}).items()
+        for channel, angle in ctx.data["channel_angle_map"].items()
     }
 
 
@@ -289,7 +288,10 @@ class NameInput(SessionStep):
     step_id = "name_input"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
-        default_name = ctx.data.setdefault("default_name", _default_calibration_name())
+        default_name = ctx.data.get("default_name")
+        if default_name is None:
+            default_name = _default_calibration_name()
+            ctx.data["default_name"] = default_name
         return steps.form(
             "Name calibration",
             "Provide a name for this calibration.",
@@ -297,11 +299,12 @@ class NameInput(SessionStep):
         )
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
-        default_name = ctx.data.setdefault("default_name", _default_calibration_name())
+        default_name = ctx.data.get("default_name")
+        if default_name is None:
+            default_name = _default_calibration_name()
+            ctx.data["default_name"] = default_name
         name = ctx.inputs.str("calibration_name", default=default_name)
-        if name == "":
-            raise ValueError("Calibration name cannot be empty.")
-        devices_for_name_check = ctx.data.get("devices_for_name_check", [])
+        devices_for_name_check = ctx.data["devices_for_name_check"]
         existing = set()
         for device in devices_for_name_check:
             existing.update(list_of_calibrations_by_device(device))
@@ -320,7 +323,7 @@ class NameOverwriteConfirm(SessionStep):
     step_id = "name_overwrite_confirm"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
-        pending_name = ctx.data.get("pending_name", _default_calibration_name())
+        pending_name = ctx.data["pending_name"]
         return steps.form(
             "Name already exists",
             f"Calibration name '{pending_name}' already exists. Overwrite it?",
@@ -328,11 +331,9 @@ class NameOverwriteConfirm(SessionStep):
         )
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
-        pending_name = ctx.data.get("pending_name", _default_calibration_name())
+        pending_name = ctx.data["pending_name"]
         overwrite = ctx.inputs.bool("overwrite", default=False)
         if overwrite:
-            if not pending_name:
-                raise ValueError("Missing pending calibration name.")
             ctx.data["calibration_name"] = pending_name
             ctx.data.pop("pending_name", None)
 
@@ -349,7 +350,7 @@ class ChannelConfirm(SessionStep):
     step_id = "channel_confirm"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
-        channel_summary = ctx.data.get("channel_summary", "")
+        channel_summary = ctx.data["channel_summary"]
         channel_lines = channel_summary.split(", ") if channel_summary else []
         if channel_lines:
             message = "Using channels:\n" + "\n".join(channel_lines)
@@ -367,7 +368,7 @@ class RpmInput(SessionStep):
     step_id = "rpm_input"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
-        default_rpm = ctx.data.get("rpm", config.getfloat("stirring.config", "initial_target_rpm"))
+        default_rpm = ctx.data["rpm"]
         return steps.form(
             "Stirring setup",
             "Optional: set stirring RPM used during readings.",
@@ -375,7 +376,7 @@ class RpmInput(SessionStep):
         )
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
-        default_rpm = ctx.data.get("rpm", config.getfloat("stirring.config", "initial_target_rpm"))
+        default_rpm = ctx.data["rpm"]
         rpm = ctx.inputs.float("rpm", minimum=0, maximum=10000, default=default_rpm)
         ctx.data["rpm"] = rpm
         return PlaceStandard()
@@ -390,8 +391,8 @@ class PlaceStandard(SessionStep):
             "Place a non-blank standard vial with a stir bar into the Pioreactor.",
         )
         chart = _build_standards_chart_metadata(
-            ctx.data.get("od600_values", []),
-            ctx.data.get("voltages_by_channel", {}),
+            ctx.data["od600_values"],
+            ctx.data["voltages_by_channel"],
             _get_channel_angle_map(ctx),
         )
         if chart:
@@ -422,8 +423,8 @@ class MeasureStandard(SessionStep):
             [fields.float("od600_value", label="OD600 value", minimum=0)],
         )
         chart = _build_standards_chart_metadata(
-            ctx.data.get("od600_values", []),
-            ctx.data.get("voltages_by_channel", {}),
+            ctx.data["od600_values"],
+            ctx.data["voltages_by_channel"],
             _get_channel_angle_map(ctx),
         )
         if chart:
@@ -462,8 +463,8 @@ class AnotherStandard(SessionStep):
             ]
         }
         chart = _build_standards_chart_metadata(
-            ctx.data.get("od600_values", []),
-            ctx.data.get("voltages_by_channel", {}),
+            ctx.data["od600_values"],
+            ctx.data["voltages_by_channel"],
             _get_channel_angle_map(ctx),
         )
         if chart:
@@ -471,15 +472,11 @@ class AnotherStandard(SessionStep):
         return step
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
-        action = None
-        if ctx.inputs.raw is not None:
-            action = ctx.inputs.raw.get("action")
+        action = ctx.inputs.raw.get("action")  # type: ignore
         if action == "redo_last":
-            if ctx.data.get("od600_values"):
-                ctx.data["od600_values"].pop()
-                for channel in ctx.data["voltages_by_channel"]:
-                    if ctx.data["voltages_by_channel"][channel]:
-                        ctx.data["voltages_by_channel"][channel].pop()
+            ctx.data["od600_values"].pop()
+            for channel in ctx.data["voltages_by_channel"]:
+                ctx.data["voltages_by_channel"][channel].pop()
             return PlaceStandard()
         next_action = ctx.inputs.choice(
             "next_action",
@@ -525,8 +522,8 @@ class MeasureBlank(SessionStep):
             [fields.float("od600_blank", label="Blank OD600 value", minimum=0)],
         )
         chart = _build_standards_chart_metadata(
-            ctx.data.get("od600_values", []),
-            ctx.data.get("voltages_by_channel", {}),
+            ctx.data["od600_values"],
+            ctx.data["voltages_by_channel"],
             _get_channel_angle_map(ctx),
         )
         if chart:

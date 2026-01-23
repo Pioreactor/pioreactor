@@ -1446,6 +1446,7 @@ def start_od_reading(
     experiment: pt.Experiment | None = None,
     calibration: bool | structs.ODCalibration | list[structs.ODCalibration] | None = True,
     ir_led_intensity: float | None = None,
+    penalizer: float = 0.0,
 ) -> "ODReader":
     """
     This function prepares ODReader and other necessary transformation objects. It's a higher level API than using ODReader.
@@ -1535,9 +1536,7 @@ def start_od_reading(
     except Exception:
         fusion_estimator = None
 
-    if interval is not None:
-        penalizer = config.getfloat("od_reading.config", "smoothing_penalizer", fallback=3.0) / interval
-    else:
+    if interval is None:
         penalizer = 0.0
 
     return ODReader(
@@ -1585,11 +1584,17 @@ def click_od_reading(
     # determine interval: override if provided, else use snapshot or config default
     default_interval = 1 / config.getfloat("od_reading.config", "samples_per_second", fallback=0.2)
     run_interval = interval if interval is not None else (None if snapshot else default_interval)
+    penalizer = (
+        config.getfloat("od_reading.config", "smoothing_penalizer", fallback=3.0) / interval
+        if (interval is not None)
+        else 0
+    )
     with start_od_reading(
         config["od_config.photodiode_channel"],
         fake_data=fake_data or whoami.is_testing_env(),
         interval=run_interval,
         ir_led_intensity=ir_led_intensity,
+        penalizer=penalizer,
     ) as od:
         if snapshot:
             od_snapshot = od.record_from_adc()

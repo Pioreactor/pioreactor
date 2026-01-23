@@ -6,6 +6,7 @@ from math import exp
 from math import log
 from math import log10
 from statistics import fmean
+from time import sleep
 from typing import cast
 
 from msgspec import to_builtins
@@ -35,7 +36,7 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
 
-MIN_SAMPLES_PER_STANDARD = 3
+MIN_SAMPLES_PER_STANDARD = 4
 
 
 def _ensure_xr_model() -> None:
@@ -97,15 +98,15 @@ def _measure_fusion_standard(
         ) as od_reader:
             for _ in range(3):
                 od_reader.record_from_adc()
+                sleep(1)
 
             samples: list[dict[pt.PdAngle, float]] = []
             for _ in range(samples_per_standard):
                 od_readings = od_reader.record_from_adc()
+                sleep(3)
                 assert od_readings is not None
                 samples.append(_aggregate_angles(od_readings))
 
-    if not samples:
-        raise ValueError(f"No readings captured for OD {od_value}.")
     return samples
 
 
@@ -124,13 +125,10 @@ def _measure_fusion_standard_for_session(
                 "samples_per_standard": samples_per_standard,
             },
         )
-        raw_samples = payload.get("samples", [])
-        if not isinstance(raw_samples, list):
-            raise ValueError("Invalid fusion samples payload.")
+        raw_samples = payload["samples"]
+        assert isinstance(raw_samples, list)
         parsed: list[dict[pt.PdAngle, float]] = []
         for sample in raw_samples:
-            if not isinstance(sample, dict):
-                continue
             parsed.append(
                 {
                     cast(pt.PdAngle, angle): float(value)
@@ -192,7 +190,6 @@ def start_fusion_session() -> CalibrationSession:
         data={
             "channel_angle_map": to_builtins(channel_angle_map),
             "records": [],
-            "od_values": [],
         },
         created_at=utc_iso_timestamp(),
         updated_at=utc_iso_timestamp(),
@@ -222,7 +219,10 @@ class NameInput(SessionStep):
     step_id = "name"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
-        default_name = ctx.data.setdefault("default_name", f"od-fused-estimator-{current_utc_datestamp()}")
+        default_name = ctx.data.get("default_name")
+        if default_name is None:
+            default_name = f"od-fused-estimator-{current_utc_datestamp()}"
+            ctx.data["default_name"] = default_name
         return steps.form(
             "Name this estimator",
             "Choose a unique name for this fused OD estimator.",
@@ -230,7 +230,10 @@ class NameInput(SessionStep):
         )
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
-        default_name = ctx.data.setdefault("default_name", f"od-fused-estimator-{current_utc_datestamp()}")
+        default_name = ctx.data.get("default_name")
+        if default_name is None:
+            default_name = f"od-fused-estimator-{current_utc_datestamp()}"
+            ctx.data["default_name"] = default_name
         name = ctx.inputs.str("estimator_name", default=default_name)
         ctx.data["estimator_name"] = name
 
@@ -349,7 +352,6 @@ class MeasureStandard(SessionStep):
                 records.append([angle, log10(od_value), log(max(reading, 1e-12))])
 
         ctx.data["records"] = records
-        ctx.data.setdefault("od_values", []).append(od_value)
         return AnotherStandard()
 
 

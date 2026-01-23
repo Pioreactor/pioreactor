@@ -75,6 +75,38 @@ def spline_fit(
     )
 
 
+def spline_fit_interpolating(x: Sequence[float], y: Sequence[float]) -> structs.SplineFitData:
+    """
+    Fit a natural cubic spline that interpolates every data point.
+
+    Parameters
+    ----------
+    x, y
+        Observations. x values must be strictly increasing after sorting.
+    """
+    x_values = np.asarray(x, dtype=float)
+    y_values = np.asarray(y, dtype=float)
+
+    if x_values.size != y_values.size:
+        raise ValueError("x and y must have the same length.")
+    if x_values.size < 2:
+        raise ValueError("At least two data points are required.")
+
+    order = np.argsort(x_values)
+    x_sorted = x_values[order]
+    y_sorted = y_values[order]
+
+    if np.any(np.diff(x_sorted) <= 0):
+        raise ValueError("x values must be strictly increasing for interpolation.")
+
+    coefficients = _natural_cubic_spline_coefficients(x_sorted, y_sorted)
+
+    return structs.SplineFitData(
+        knots=_to_pyfloat(x_sorted.tolist()),
+        coefficients=[_to_pyfloat(coeff.tolist()) for coeff in coefficients],
+    )
+
+
 def spline_eval(spline_data: structs.SplineFitData, x: float) -> float:
     """Evaluate a spline produced by spline_fit at a point."""
     knots, coefficients = _parse_spline_data(spline_data)
@@ -82,6 +114,15 @@ def spline_eval(spline_data: structs.SplineFitData, x: float) -> float:
     u = x - knots[index]
     a, b, c, d = coefficients[index]
     return float(a + b * u + c * u**2 + d * u**3)
+
+
+def spline_eval_derivative(spline_data: structs.SplineFitData, x: float) -> float:
+    """Evaluate the first derivative of a spline at a point."""
+    knots, coefficients = _parse_spline_data(spline_data)
+    index = _interval_index(knots, x)
+    u = x - knots[index]
+    _, b, c, d = coefficients[index]
+    return float(b + 2.0 * c * u + 3.0 * d * u**2)
 
 
 def spline_solve(spline_data: structs.SplineFitData, y: float) -> list[float]:

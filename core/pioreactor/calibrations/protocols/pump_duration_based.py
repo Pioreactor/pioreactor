@@ -87,13 +87,9 @@ def _build_transient_calibration(hz: float, dc: float, unit: str) -> structs.Sim
 
 
 def _build_duration_chart_metadata(ctx: SessionContext) -> dict[str, object] | None:
-    durations = ctx.data.get("durations_to_test", [])
-    results = ctx.data.get("results", [])
-    if not isinstance(durations, list) or not isinstance(results, list):
-        return None
+    durations = ctx.data["durations_to_test"]
+    results = ctx.data["results"]
     count = min(len(durations), len(results))
-    if count <= 0:
-        return None
     points = [{"x": float(durations[i]), "y": float(results[i])} for i in range(count)]
     return {
         "title": "Calibration progress",
@@ -158,7 +154,11 @@ def _get_pump_device(ctx: SessionContext) -> PumpCalibrationDevices:
 
 def _get_default_calibration_name(ctx: SessionContext) -> str:
     pump_device = _get_pump_device(ctx)
-    return ctx.data.setdefault("default_name", f"{pump_device}-{current_utc_datestamp()}")
+    default_name = ctx.data.get("default_name")
+    if default_name is None:
+        default_name = f"{pump_device}-{current_utc_datestamp()}"
+        ctx.data["default_name"] = default_name
+    return default_name
 
 
 class IntroConfirm1(SessionStep):
@@ -166,7 +166,7 @@ class IntroConfirm1(SessionStep):
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
         pump_device = _get_pump_device(ctx)
-        channel = ctx.data.get("channel_pump_is_configured_for")
+        channel = ctx.data["channel_pump_is_configured_for"]
         return steps.info(
             "Pump calibration",
             (
@@ -246,8 +246,6 @@ class NameInput(SessionStep):
     def advance(self, ctx: SessionContext) -> SessionStep | None:
         default_name = _get_default_calibration_name(ctx)
         name = ctx.inputs.str("calibration_name", default=default_name)
-        if name == "":
-            raise ValueError("Calibration name cannot be empty.")
         existing_calibrations = list_of_calibrations_by_device(_get_pump_device(ctx))
         if name in existing_calibrations:
             ctx.data["pending_name"] = name
@@ -260,7 +258,7 @@ class NameOverwriteConfirm(SessionStep):
     step_id = "name_overwrite_confirm"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
-        pending_name = ctx.data.get("pending_name", _get_default_calibration_name(ctx))
+        pending_name = ctx.data["pending_name"]
         return steps.form(
             "Name already exists",
             f"Calibration name '{pending_name}' already exists.",
@@ -268,7 +266,7 @@ class NameOverwriteConfirm(SessionStep):
         )
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
-        pending_name = ctx.data.get("pending_name", _get_default_calibration_name(ctx))
+        pending_name = ctx.data["pending_name"]
         overwrite = ctx.inputs.bool("overwrite", default=False)
         if overwrite:
             ctx.data["calibration_name"] = pending_name
@@ -290,8 +288,6 @@ class VolumeTargets(SessionStep):
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
         mls = ctx.inputs.float_list("mls_to_calibrate_for", default=[1.0])
-        if any(ml <= 0 for ml in mls):
-            raise ValueError("All target volumes must be > 0.")
         ctx.data["mls_to_calibrate_for"] = mls
         return PwmSettings()
 
@@ -355,7 +351,7 @@ class PrimePumpDuration(SessionStep):
         duration_s = ctx.inputs.float("prime_duration_s", minimum=0.1, default=20.0)
         _execute_pump_for_calibration(ctx, _get_pump_device(ctx), duration_s)
         ctx.data["prime_duration_s"] = duration_s
-        ctx.data.setdefault("tracer_duration_s", 1.0)
+        ctx.data["tracer_duration_s"] = ctx.data.get("tracer_duration_s", 1.0)
         return TracerRun()
 
 
@@ -363,7 +359,7 @@ class TracerRun(SessionStep):
     step_id = "tracer_run"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
-        tracer_duration = float(ctx.data.get("tracer_duration_s", 1.0))
+        tracer_duration = float(ctx.data["tracer_duration_s"])
         step = steps.action(
             "Tracer run",
             (
@@ -382,7 +378,7 @@ class TracerRun(SessionStep):
         return step
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
-        tracer_duration = float(ctx.data.get("tracer_duration_s", 1.0))
+        tracer_duration = float(ctx.data["tracer_duration_s"])
         _execute_pump_for_calibration(ctx, _get_pump_device(ctx), tracer_duration)
         return TracerVolume()
 
@@ -419,7 +415,7 @@ class TestRun(SessionStep):
     def render(self, ctx: SessionContext) -> CalibrationStep:
         durations = ctx.data["durations_to_test"]
         test_index = int(ctx.data["test_index"])
-        results = ctx.data.get("results", [])
+        results = ctx.data["results"]
         duration = float(durations[test_index])
         step = steps.action(
             "Dispense",
@@ -447,13 +443,10 @@ class TestRun(SessionStep):
     def advance(self, ctx: SessionContext) -> SessionStep | None:
         durations = ctx.data["durations_to_test"]
         test_index = int(ctx.data["test_index"])
-        results = ctx.data.get("results", [])
-        action = None
-        if ctx.inputs.raw is not None:
-            action = ctx.inputs.raw.get("action")
-        if action == "redo_last" and results:
+        results = ctx.data["results"]
+        action = ctx.inputs.raw.get("action")  # type: ignore
+        if action == "redo_last":
             results.pop()
-            ctx.data["results"] = results
             test_index = max(test_index - 1, 0)
             ctx.data["test_index"] = test_index
         duration = float(durations[test_index])
@@ -551,8 +544,6 @@ def run_pump_calibration(
 ) -> structs.SimplePeristalticPumpCalibration:
     session = start_duration_based_session(pump_device)
     calibrations = run_session_in_cli(_PUMP_DURATION_STEPS, session)
-    if not calibrations:
-        raise ValueError("Calibration finished without producing a result.")
     return calibrations[0]
 
 

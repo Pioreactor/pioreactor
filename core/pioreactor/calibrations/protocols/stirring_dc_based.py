@@ -41,9 +41,7 @@ def _resolve_dc_bounds(min_dc: float | None, max_dc: float | None) -> tuple[floa
         config_initial_duty_cycle = config.getfloat("stirring.config", "initial_duty_cycle", fallback=30)
         min_dc = config_initial_duty_cycle * 0.66
         max_dc = clamp(0, config_initial_duty_cycle * 1.33, 100)
-    elif (max_dc is not None) and (min_dc is not None):
-        assert min_dc < max_dc, "min_dc >= max_dc"
-    else:
+    elif (max_dc is None) or (min_dc is None):
         raise ValueError("min_dc and max_dc must both be set.")
     return min_dc, max_dc
 
@@ -100,23 +98,9 @@ def collect_stirring_measurements(
                 logger.debug(f"Progress: {count / n_samples:.0%}")
 
         # drop any 0 in RPM, too little DC
-        try:
-            filtered_dcs, filtered_measured_rpms = zip(*filter(lambda d: d[1] > 0, zip(dcs, measured_rpms)))
-        except ValueError:
-            # the above can fail if all measured rpms are 0
-            logger.warning("No RPMs were measured. Is the stirring spinning?")
-            raise ValueError("No RPMs were measured. Is the stirring spinning?")
-
-        if len(filtered_dcs) <= n_samples * 0.75:
-            # the above can fail if all measured rpms are 0
-            logger.warning(
-                "Not enough RPMs were measured. Is the stirring spinning and working correctly? Try changing your initial_duty_cycle."
-            )
-            raise ValueError("Not enough RPMs were measured.")
-
+        filtered = [(dc, rpm) for dc, rpm in zip(dcs, measured_rpms) if rpm > 0]
+        filtered_dcs, filtered_measured_rpms = zip(*filtered)
         return list(filtered_dcs), list(filtered_measured_rpms)
-
-    raise ValueError("Stirring calibration did not return measurements.")
 
 
 def _build_stirring_calibration_from_measurements(
@@ -125,15 +109,9 @@ def _build_stirring_calibration_from_measurements(
     voltage: float,
     unit: str,
 ) -> SimpleStirringCalibration:
-    if not dcs or not rpms:
-        raise ValueError("No RPMs were measured. Is the stirring spinning?")
     (alpha, _), (beta, _) = simple_linear_regression(dcs, rpms)
     logger = create_logger("stirring_calibration", experiment="$experiment")
     logger.debug(f"rpm = {alpha:.2f} * dc% + {beta:.2f}")
-
-    if alpha <= 0:
-        logger.warning("Something went wrong - detected negative correlation between RPM and stirring.")
-        raise ValueError("Negative correlation between RPM and stirring.")
 
     from pioreactor.utils.splines import spline_fit
 
@@ -170,12 +148,10 @@ def _run_stirring_calibration_for_session(
             "stirring_calibration",
             {"min_dc": min_dc, "max_dc": max_dc},
         )
-        if not isinstance(payload, dict):
-            raise ValueError("Invalid stirring calibration payload.")
-        raw_dcs = payload.get("dcs")
-        raw_rpms = payload.get("rpms")
-        if not isinstance(raw_dcs, list) or not isinstance(raw_rpms, list):
-            raise ValueError("Invalid stirring calibration payload.")
+        raw_dcs = payload["dcs"]
+        raw_rpms = payload["rpms"]
+        assert isinstance(raw_dcs, list)
+        assert isinstance(raw_rpms, list)
         dcs = [float(dc) for dc in raw_dcs]
         rpms = [float(rpm) for rpm in raw_rpms]
         return _build_stirring_calibration_from_measurements(
@@ -242,8 +218,8 @@ class RunCalibration(SessionStep):
     def advance(self, ctx: SessionContext) -> SessionStep | None:
         calibration = _run_stirring_calibration_for_session(
             ctx,
-            min_dc=ctx.data.get("min_dc"),
-            max_dc=ctx.data.get("max_dc"),
+            min_dc=ctx.data["min_dc"],
+            max_dc=ctx.data["max_dc"],
         )
         link = ctx.store_calibration(calibration, "stirring")
         ctx.complete({"calibrations": [link]})
@@ -286,6 +262,4 @@ class DCBasedStirringProtocol(CalibrationProtocol[Literal["stirring"]]):
             max_dc=float(max_dc) if max_dc is not None else None,
         )
         calibrations = run_session_in_cli(_DC_BASED_STEPS, session)
-        if not calibrations:
-            raise ValueError("Calibration finished without producing a result.")
         return calibrations[0]
