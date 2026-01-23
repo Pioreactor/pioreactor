@@ -6,6 +6,7 @@ export LC_ALL=C
 
 DOT_PIOREACTOR=/home/pioreactor/.pioreactor
 CONFIG="$DOT_PIOREACTOR/config.ini"
+CALIBRATION_DIR="$DOT_PIOREACTOR/storage/calibrations"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOSTNAME=$(hostname)
 LEADER_HOSTNAME=$(/opt/pioreactor/venv/bin/crudini --get "$CONFIG" cluster.topology leader_hostname)
@@ -62,3 +63,7 @@ EOF
 sudo -u pioreactor /opt/pioreactor/venv/bin/python "$SCRIPT_DIR"/od_calibration_device_migration.py
 # Migrate curve_data_ serialization and strip legacy curve_type fields.
 sudo -u pioreactor /opt/pioreactor/venv/bin/python "$SCRIPT_DIR"/calibration_curve_data_migration.py
+
+if [ ! -d "$CALIBRATION_DIR" ] || ! find "$CALIBRATION_DIR" -maxdepth 2 -type f -name "*.yaml" -path "$CALIBRATION_DIR/od*" -print -quit | grep -q .; then
+    /opt/pioreactor/venv/bin/crudini --set "$CONFIG" od_reading.config ref_normalization unity
+fi

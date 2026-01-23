@@ -8,24 +8,18 @@
 #### Enhancements
 
  - Support for Pioreactor XR.
- - Support for the optics calibration jig.
- - Faster Stop commands in the UI, plugin listing, and data exports.
+ - Faster *Stop* commands in the UI, plugin listing, and data exports.
  - Added dosing start/stop events to `dosing_automation_events`, including exports.
- - Added unit-relative IR LED reference normalization for OD readings via `ref_normalization=unity`.
+ - Added unit-relative IR LED reference normalization for OD readings via `ref_normalization=unity`. This should significantly align different Pioreactors to the same starting values, especially v1.5 models. However, this does change the OD readings levels, so if you have an OD calibration, this isn't applied to you automatically.
  - New query pattern for faster Experiment Overview chart loading; large datasets may show randomized sampling in time series. Let us know if this is too distracting. Max point targets per series increased to 1400.
  - OD calibrations now support multiple photodiode angles; `pio calibrations run --device od` can emit per-angle calibrations for 45/90/135.
    - Added an update helper to migrate legacy OD calibrations into per-angle devices.
- - Reorganized calibration protocol modules into `core/pioreactor/calibrations/protocols/` and extracted a `registry.py` for protocol registration.
- - Calibration protocols are now exposed via API for the UI and CLI, with session IDs that can be advanced or aborted.
- - Self-test results now surface per-check pass/fail status in the Inventory page and support retrying failed checks.
- - Removed redundant `from __future__ import annotations` usage now that we run on Python 3.13.
+ - Calibration protocols are now exposed via API.
  - When a Pioreactor model is changed, a (non-blocking) hardware check is performed.
  - You can now restart the web server (lighttpd), and the background task queue, Huey, from the UI. Go to Leader -> "Long-running jobs", and see the "web server and queue" line.
  - Added spline curve support for calibrations, including OD standards sessions and calibration charts.
  - `pio calibrations analyze` now supports `--fit poly|spline` (default poly). You can use this to re-fit a dataset to a spline curve.
- - Added an update helper to migrate calibration curve data into the new tagged format (`poly`/`spline`).
  - Added estimator artifacts alongside calibrations, including OD fusion estimators stored under `storage/estimators` and managed via the calibration session flow.
- - OD fusion standards protocol now produces an estimator artifact and can save/set the active estimator via the protocol session.
 
 #### Breaking changes
  - Moved Self-test to the Inventory page. Pioreactors no longer need to be assigned to an experiment to run self-test.
@@ -38,7 +32,7 @@
  - OD Reading charts in the UI previously had a sensor label next to the unit, ex: `worker01-2`. Now it is the corresponding angle from config.ini. Note: only the global config.ini is used, not specific unit_config.inis.
  - New OD and stirring calibrations are now fit with a spline, and not a polynomial.
  - Calibration curve data is now serialized as tagged structs (`poly`/`spline`) instead of raw lists. `curve_type` is removed and existing calibration files are migrated during the update.
- - The calibration UI now expects `curve_data_` to be a tagged object; legacy list formats are rejected.
+ - Reorganized calibration protocol modules into `core/pioreactor/calibrations/protocols/` and extracted a `registry.py` for protocol registration.
 
 
 #### Bug fixes

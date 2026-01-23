@@ -1445,6 +1445,7 @@ def start_od_reading(
     unit: pt.Unit | None = None,
     experiment: pt.Experiment | None = None,
     calibration: bool | structs.ODCalibration | list[structs.ODCalibration] | None = True,
+    estimator: bool | structs.ODFusionEstimator | None = False,
     ir_led_intensity: float | None = None,
     penalizer: float = 0.0,
 ) -> "ODReader":
@@ -1520,21 +1521,21 @@ def start_od_reading(
         calibration_transformer = NullCalibrationTransformer()
 
     fusion_estimator: structs.ODFusionEstimator | None = None
-    try:
-        model = whoami.get_pioreactor_model()
-        if model.model_name.endswith("_XR"):
+
+    if estimator is True:
+        try:
             from pioreactor.estimators import load_active_estimator
-
-            candidate = load_active_estimator(pt.OD_FUSED_DEVICE)
-            if isinstance(candidate, structs.ODFusionEstimator):
-                available_angles = set(channel_angle_map.values())
-                if all(angle in available_angles for angle in candidate.angles):
-                    fusion_estimator = candidate
-                    # turn off calibrations, too
-                    calibration_transformer = NullCalibrationTransformer()
-
-    except Exception:
+            fusion_estimator = load_active_estimator(pt.OD_FUSED_DEVICE)
+        except Exception:
+            fusion_estimator = None
+    elif isinstance(estimator, structs.ODFusionEstimator): # TODO: put a intermediate class between the super class and ODFusionEstimator
+        fusion_estimator = estimator
+    else:
         fusion_estimator = None
+
+    if fusion_estimator:
+        # turn off calibrations, estimators work on raw data.
+        calibration_transformer = NullCalibrationTransformer()
 
     if interval is None:
         penalizer = 0.0
