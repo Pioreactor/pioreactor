@@ -346,6 +346,16 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
             return c.get(device) == self.calibration_name
 
 
+class EstimatorBase(Struct, tag_field="estimator_type", kw_only=True):
+    estimator_name: str
+    calibrated_on_pioreactor_unit: pt.Unit
+    created_at: t.Annotated[datetime, Meta(tz=True)]
+
+    @property
+    def estimator_type(self):
+        return self.__struct_config__.tag
+
+
 class ODCalibration(CalibrationBase, kw_only=True, tag="od"):
     ir_led_intensity: float
     angle: t.Literal["45", "90", "135", "180"]
@@ -358,7 +368,7 @@ class OD600Calibration(ODCalibration, kw_only=True, tag="od600"):
     x: str = "OD600"
 
 
-class ODFusionCalibration(CalibrationBase, kw_only=True, tag="od_fused"):
+class ODFusionEstimator(EstimatorBase, kw_only=True, tag="od_fused_estimator"):
     ir_led_intensity: float
     angles: list[pt.PdAngle]
     mu_splines: dict[pt.PdAngle, SplineFitData]
@@ -366,7 +376,7 @@ class ODFusionCalibration(CalibrationBase, kw_only=True, tag="od_fused"):
     min_logc: float
     max_logc: float
     sigma_floor: float
-    x: str = "log10(OD)"
+    recorded_data: dict[str, t.Any]
     y: str = "log(Voltage)"
 
 
@@ -396,9 +406,10 @@ AnyCalibration = t.Union[
     SimplePeristalticPumpCalibration,
     ODCalibration,
     OD600Calibration,
-    ODFusionCalibration,
     CalibrationBase,
 ]
+
+AnyEstimator = t.Union[ODFusionEstimator]
 
 
 class Log(JSONPrintedStruct):

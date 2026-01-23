@@ -8,14 +8,12 @@ import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import FormControl from "@mui/material/FormControl";
-import FormControlLabel from "@mui/material/FormControlLabel";
 import FormLabel from "@mui/material/FormLabel";
 import IconButton from "@mui/material/IconButton";
 import LinearProgress from "@mui/material/LinearProgress";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import Stack from "@mui/material/Stack";
-import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import CloseIcon from "@mui/icons-material/Close";
@@ -46,7 +44,11 @@ function buildInitialValues(step) {
       return;
     }
     if (field.field_type === "bool") {
-      nextValues[field.name] = Boolean(field.default);
+      if (typeof field.default === "string") {
+        nextValues[field.name] = field.default.toLowerCase() === "yes" ? "yes" : "no";
+        return;
+      }
+      nextValues[field.name] = field.default ? "yes" : "no";
       return;
     }
     if (field.default !== undefined && field.default !== null) {
@@ -69,6 +71,10 @@ function formatInputs(step, values) {
     if (field.field_type === "bool") {
       if (field.name === "confirmed") {
         output[field.name] = true;
+        return;
+      }
+      if (typeof rawValue === "string") {
+        output[field.name] = rawValue.toLowerCase() === "yes";
         return;
       }
       output[field.name] = Boolean(rawValue);
@@ -470,22 +476,29 @@ export default function CalibrationSessionDialog({
                   return null;
                 }
                 if (field.field_type === "bool") {
+                  const selectValue = sessionValues[field.name] ?? "no";
                   return (
-                    <FormControlLabel
-                      key={field.name}
-                      control={
-                        <Switch
-                          checked={Boolean(sessionValues[field.name])}
-                          onChange={(event) =>
-                            setSessionValues((prev) => ({
-                              ...prev,
-                              [field.name]: event.target.checked,
-                            }))
-                          }
-                        />
-                      }
-                      label={field.label}
-                    />
+                    <FormControl key={field.name} fullWidth size="small">
+                      <FormLabel>{field.label}</FormLabel>
+                      <Select
+                        value={selectValue}
+                        onChange={(event) =>
+                          setSessionValues((prev) => ({
+                            ...prev,
+                            [field.name]: event.target.value,
+                          }))
+                        }
+                      >
+                        {((field.options && field.options.length > 0)
+                          ? field.options
+                          : ["yes", "no"]
+                        ).map((option) => (
+                          <MenuItem key={option} value={option}>
+                            {option}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
                   );
                 }
                 if (field.field_type === "choice") {

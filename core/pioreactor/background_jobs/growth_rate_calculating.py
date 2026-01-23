@@ -63,6 +63,7 @@ from pioreactor.utils.streaming import MqttODSource
 from pioreactor.utils.streaming import ODObservationSource
 from pioreactor.utils.streaming_calculations import CultureGrowthEKF
 
+
 def _should_use_fused_od(unit: pt.Unit) -> bool:
     try:
         model = whoami.get_pioreactor_model(unit)
@@ -73,13 +74,13 @@ def _should_use_fused_od(unit: pt.Unit) -> bool:
         return False
 
     try:
-        from pioreactor.calibrations import load_active_calibration
+        from pioreactor.estimators import load_active_estimator
 
-        calibration = load_active_calibration(pt.OD_FUSED_DEVICE)
+        estimator = load_active_estimator(pt.OD_FUSED_DEVICE)
     except Exception:
         return False
 
-    return isinstance(calibration, structs.ODFusionCalibration)
+    return isinstance(estimator, structs.ODFusionEstimator)
 
 
 class GrowthRateProcessor(LoggerMixin):

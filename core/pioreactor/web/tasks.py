@@ -506,6 +506,20 @@ def calibration_save_calibration(device: str, calibration_payload: dict[str, obj
 
 
 @huey.task()
+def estimator_save_estimator(device: str, estimator_payload: dict[str, object]) -> dict[str, str]:
+    from msgspec.json import decode as json_decode
+    from msgspec.json import encode as json_encode
+    from pioreactor.estimators import save_estimator
+    from pioreactor.estimators import set_active_estimator
+    from pioreactor.structs import ODFusionEstimator
+
+    estimator = json_decode(json_encode(estimator_payload), type=ODFusionEstimator)
+    path = save_estimator(device, estimator)
+    set_active_estimator(device, estimator.estimator_name)
+    return {"path": path, "device": device, "estimator_name": estimator.estimator_name}
+
+
+@huey.task()
 def calibration_read_voltage() -> float:
     from pioreactor.hardware import voltage_in_aux
 
@@ -600,6 +614,17 @@ def _register_core_calibration_actions() -> None:
                 payload["calibration"],
             ),
             "Saving calibration",
+            _default_normalizer,
+        ),
+    )
+    register_calibration_action(
+        "save_estimator",
+        lambda payload: (
+            estimator_save_estimator(
+                payload["device"],
+                payload["estimator"],
+            ),
+            "Saving estimator",
             _default_normalizer,
         ),
     )

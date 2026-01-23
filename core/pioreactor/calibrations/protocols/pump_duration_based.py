@@ -264,17 +264,13 @@ class NameOverwriteConfirm(SessionStep):
         return steps.form(
             "Name already exists",
             f"Calibration name '{pending_name}' already exists.",
-            [
-                fields.choice(
-                    "overwrite", ["yes", "no"], label="Overwrite existing calibration?", default="no"
-                )
-            ],
+            [fields.bool("overwrite", label="Overwrite existing calibration?", default=False)],
         )
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
         pending_name = ctx.data.get("pending_name", _get_default_calibration_name(ctx))
-        overwrite = ctx.inputs.choice("overwrite", ["yes", "no"], default="no")
-        if overwrite == "yes":
+        overwrite = ctx.inputs.bool("overwrite", default=False)
+        if overwrite:
             ctx.data["calibration_name"] = pending_name
             ctx.data.pop("pending_name", None)
             return VolumeTargets()
@@ -560,7 +556,7 @@ def run_pump_calibration(
     return calibrations[0]
 
 
-class DurationBasedPumpProtocol(CalibrationProtocol[pt.PumpCalibrationDevices]):
+class DurationBasedPumpProtocol(CalibrationProtocol):
     target_device = cast(list[pt.PumpCalibrationDevices], pt.PUMP_DEVICES)
     protocol_name = "duration_based"
     title = "Duration-based pump calibration"

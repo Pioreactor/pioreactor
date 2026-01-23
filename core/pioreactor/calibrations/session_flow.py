@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-from dataclasses import dataclass
+from __future__ import annotations
+
 from typing import Any
 from typing import Callable
 from typing import Iterable
@@ -18,14 +19,13 @@ from pioreactor.calibrations.utils import curve_to_callable
 from pioreactor.calibrations.utils import plot_data
 
 SessionMode = Literal["ui", "cli"]
-SessionExecutor = Callable[[str, dict[str, object]], dict[str, object]]
 Str = str
 Float = float
-Int = int
+SessionExecutor = Callable[[Str, dict[Str, object]], dict[Str, object]]
 
 
 class SessionStep:
-    step_id: str = ""
+    step_id = ""
 
     def render(self, ctx: "SessionContext") -> CalibrationStep:
         raise NotImplementedError("Step must implement render().")
@@ -36,10 +36,10 @@ class SessionStep:
 
 StepLike = str | SessionStep | type[SessionStep]
 # Registry of step_id -> SessionStep class for a protocol's session flow.
-StepRegistry = dict[str, type[SessionStep]]
+StepRegistry = dict[Str, type[SessionStep]]
 
 
-def _step_id_from(step: StepLike) -> str:
+def _step_id_from(step: StepLike) -> Str:
     if isinstance(step, str):
         return step
     step_id = getattr(step, "step_id", None)
@@ -48,7 +48,7 @@ def _step_id_from(step: StepLike) -> str:
     return step_id
 
 
-def _curve_dict_to_struct(curve: dict[str, object]) -> structs.CalibrationCurveData | None:
+def _curve_dict_to_struct(curve: dict[Str, object]) -> structs.CalibrationCurveData | None:
     curve_type = curve.get("type")
     if curve_type == "poly":
         coefficients = curve.get("coefficients")
@@ -73,7 +73,7 @@ def _curve_dict_to_struct(curve: dict[str, object]) -> structs.CalibrationCurveD
     return None
 
 
-def resolve_step(registry: StepRegistry, step_id: str) -> SessionStep:
+def resolve_step(registry: StepRegistry, step_id: Str) -> SessionStep:
     step_class = registry.get(step_id)
     if step_class is None:
         raise KeyError(f"Unknown step: {step_id}")
@@ -88,9 +88,9 @@ def with_terminal_steps(step_registry: StepRegistry) -> StepRegistry:
     }
 
 
-@dataclass
 class SessionInputs:
-    raw: dict[str, object] | None
+    def __init__(self, raw: dict[Str, object] | None) -> None:
+        self.raw = raw
 
     @property
     def has_inputs(self) -> bool:
@@ -143,10 +143,10 @@ class SessionInputs:
     def int(
         self,
         name: Str,
-        minimum: Int | None = None,
-        maximum: Int | None = None,
-        default: Int | None = None,
-    ) -> Int:
+        minimum: int | None = None,
+        maximum: int | None = None,
+        default: int | None = None,
+    ) -> int:
         value = self._get_raw(name)
         if value is None or value == "":
             if default is None:
@@ -168,6 +168,24 @@ class SessionInputs:
         if maximum is not None and numeric > maximum:
             raise ValueError(f"'{name}' must be <= {maximum}.")
         return numeric
+
+    def bool(self, name: Str, default: bool | None = None) -> bool:
+        value = self._get_raw(name)
+        if value is None or value == "":
+            if default is None:
+                raise ValueError(f"Missing '{name}'.")
+            return default
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, (int, float)):
+            return bool(value)
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"true", "yes", "1", "y"}:
+                return True
+            if normalized in {"false", "no", "0", "n"}:
+                return False
+        raise ValueError(f"Invalid '{name}', expected boolean.")
 
     def choice(self, name: Str, options: Iterable[Str], default: Str | None = None) -> Str:
         value = self._get_raw(name)
@@ -200,16 +218,23 @@ class SessionInputs:
         raise ValueError(f"Invalid '{name}', expected list of numbers.")
 
 
-@dataclass
 class SessionContext:
-    session: CalibrationSession
-    mode: SessionMode
-    inputs: SessionInputs
-    collected_calibrations: list[Any]
-    executor: SessionExecutor | None = None
+    def __init__(
+        self,
+        session: CalibrationSession,
+        mode: SessionMode,
+        inputs: SessionInputs,
+        collected_calibrations: list[Any],
+        executor: SessionExecutor | None = None,
+    ) -> None:
+        self.session = session
+        self.mode = mode
+        self.inputs = inputs
+        self.collected_calibrations = collected_calibrations
+        self.executor = executor
 
     @property
-    def step(self) -> str:
+    def step(self) -> Str:
         return self.session.step_id
 
     @step.setter
@@ -217,24 +242,24 @@ class SessionContext:
         self.session.step_id = _step_id_from(value)
 
     @property
-    def data(self) -> dict[str, Any]:
+    def data(self) -> dict[Str, Any]:
         return self.session.data
 
-    def ensure(self, condition: bool, message: str) -> None:
+    def ensure(self, condition: bool, message: Str) -> None:
         if not condition:
             raise ValueError(message)
 
-    def abort(self, message: str) -> None:
+    def abort(self, message: Str) -> None:
         self.session.status = "aborted"
         self.session.error = message
         self.session.step_id = "ended"
 
-    def fail(self, message: str) -> None:
+    def fail(self, message: Str) -> None:
         self.session.status = "failed"
         self.session.error = message
         self.session.step_id = "ended"
 
-    def complete(self, result: dict[str, Any]) -> None:
+    def complete(self, result: dict[Str, Any]) -> None:
         self.session.status = "complete"
         self.session.result = result
         self.session.step_id = "complete"
@@ -242,8 +267,8 @@ class SessionContext:
     def store_calibration(
         self,
         calibration,
-        device: str,
-    ) -> dict[str, str | None]:
+        device: Str,
+    ) -> dict[Str, str | None]:
         self.collected_calibrations.append(calibration)
         if self.mode == "ui":
             if not self.executor:
@@ -261,6 +286,29 @@ class SessionContext:
         else:
             path = None
         return {"device": device, "calibration_name": calibration.calibration_name, "path": path}
+
+    def store_estimator(
+        self,
+        estimator,
+        device: Str,
+    ) -> dict[Str, str | None]:
+        self.collected_calibrations.append(estimator)
+        if self.mode == "ui":
+            if not self.executor:
+                raise ValueError("Estimator saver is only available in UI sessions.")
+            payload = self.executor(
+                "save_estimator",
+                {"device": device, "estimator": to_builtins(estimator)},
+            )
+            if not isinstance(payload, dict):
+                raise ValueError("Invalid estimator save payload.")
+            saved_path = payload.get("path")
+            if not isinstance(saved_path, str):
+                raise ValueError("Invalid estimator save payload.")
+            path = saved_path
+        else:
+            path = None
+        return {"device": device, "estimator_name": estimator.estimator_name, "path": path}
 
     def read_voltage(self) -> Float:
         if not self.executor or self.mode != "ui":
@@ -311,7 +359,7 @@ class SessionEngine:
             return step
         if self.session.result is not None:
             return steps.result(self.session.result)
-        return steps.info("Calibration ended", "This calibration session has ended.")
+        return steps.info("Protocol ended", "This protocol session has ended.")
 
     def _render_current_step(self) -> CalibrationStep:
         step_handler = resolve_step(self.step_registry, self.session.step_id)
@@ -326,7 +374,7 @@ class SessionEngine:
             return self._render_terminal_step()
         return self._render_current_step()
 
-    def advance(self, inputs: dict[str, object]) -> CalibrationStep:
+    def advance(self, inputs: dict[Str, object]) -> CalibrationStep:
         self.ctx.inputs = SessionInputs(inputs)
         self.session.updated_at = utc_iso_timestamp()
         if self.session.status == "in_progress":
@@ -378,9 +426,9 @@ class FieldBuilder:
         self,
         name: Str,
         label: Str | None = None,
-        minimum: Int | None = None,
-        maximum: Int | None = None,
-        default: Int | None = None,
+        minimum: int | None = None,
+        maximum: int | None = None,
+        default: int | None = None,
     ) -> CalibrationStepField:
         return CalibrationStepField(
             name=name,
@@ -388,6 +436,20 @@ class FieldBuilder:
             field_type="int",
             minimum=minimum,
             maximum=maximum,
+            default=default,
+        )
+
+    def bool(
+        self,
+        name: Str,
+        label: Str | None = None,
+        default: bool | None = None,
+    ) -> CalibrationStepField:
+        return CalibrationStepField(
+            name=name,
+            label=label or name,
+            field_type="bool",
+            options=["yes", "no"],
             default=default,
         )
 
@@ -418,16 +480,16 @@ class FieldBuilder:
 
 
 class StepBuilder:
-    def info(self, title: str, body: str) -> CalibrationStep:
+    def info(self, title: Str, body: Str) -> CalibrationStep:
         return CalibrationStep(step_id="", step_type="info", title=title, body=body)
 
-    def form(self, title: str, body: str, fields: list[CalibrationStepField]) -> CalibrationStep:
+    def form(self, title: Str, body: Str, fields: list[CalibrationStepField]) -> CalibrationStep:
         return CalibrationStep(step_id="", step_type="form", title=title, body=body, fields=fields)
 
-    def action(self, title: str, body: str) -> CalibrationStep:
+    def action(self, title: Str, body: Str) -> CalibrationStep:
         return CalibrationStep(step_id="", step_type="action", title=title, body=body)
 
-    def result(self, result: dict[str, Any]) -> CalibrationStep:
+    def result(self, result: dict[Str, Any]) -> CalibrationStep:
         return CalibrationStep(
             step_id="complete",
             step_type="result",
@@ -440,7 +502,7 @@ fields = FieldBuilder()
 steps = StepBuilder()
 
 
-def _render_chart_for_cli(chart: dict[str, object]) -> None:
+def _render_chart_for_cli(chart: dict[Str, object]) -> None:
     title = chart.get("title", "")
     x_label = chart.get("x_label", "")
     y_label = chart.get("y_label", "")
@@ -509,7 +571,7 @@ def run_session_in_cli(step_registry: StepRegistry, session: CalibrationSession)
         step = engine.get_step()
         render_step_for_cli(step)
 
-        inputs: dict[str, object] = {}
+        inputs: dict[Str, object] = {}
         if step.fields:
             for field in step.fields:
                 prompt = cli_helpers.green(field.label)
@@ -584,12 +646,12 @@ class CalibrationEnded(SessionStep):
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
         status = ctx.session.status
-        message = "This calibration session has ended."
+        message = "This protocol session has ended."
         if status == "aborted":
-            message = ctx.session.error or "This calibration session was aborted."
+            message = ctx.session.error or "This protocol session was aborted."
         elif status == "failed":
-            message = ctx.session.error or "This calibration session failed."
-        return steps.info("Calibration ended", message)
+            message = ctx.session.error or "This protocol session failed."
+        return steps.info("Protocol ended", message)
 
 
 def get_session_step(
@@ -609,7 +671,7 @@ def get_session_step(
 def advance_session(
     step_registry: StepRegistry,
     session: CalibrationSession,
-    inputs: dict[str, object],
+    inputs: dict[Str, object],
     executor: SessionExecutor | None = None,
 ) -> CalibrationSession:
     engine = SessionEngine(

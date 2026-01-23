@@ -12,7 +12,6 @@ from msgspec import to_builtins
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.background_jobs.od_reading import start_od_reading
-from pioreactor.calibrations import list_of_calibrations_by_device
 from pioreactor.calibrations.registry import CalibrationProtocol
 from pioreactor.calibrations.session_flow import CalibrationComplete
 from pioreactor.calibrations.session_flow import CalibrationStep
@@ -24,6 +23,7 @@ from pioreactor.calibrations.session_flow import steps
 from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.calibrations.structured_session import utc_iso_timestamp
 from pioreactor.config import config
+from pioreactor.estimators import list_of_estimators_by_device
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils.od_fusion import fit_fusion_model
 from pioreactor.utils.od_fusion import FUSION_ANGLES
@@ -47,11 +47,10 @@ def _ensure_xr_model() -> None:
 def _fusion_target_devices() -> list[pt.ODFusedCalibrationDevice]:
     try:
         model = get_pioreactor_model()
-    except Exception as e:
-        raise e
+    except Exception:
         return []
     if model.model_name.endswith("_XR"):
-        return [pt.OD_FUSED_DEVICE]
+        return [cast(pt.ODFusedCalibrationDevice, pt.OD_FUSED_DEVICE)]
     return []
 
 
@@ -226,46 +225,46 @@ class Intro(SessionStep):
         )
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
-        return NameInput
+        return NameInput()
 
 
 class NameInput(SessionStep):
     step_id = "name"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
-        default_name = ctx.data.setdefault("default_name", f"od-fused-cal-{current_utc_datestamp()}")
+        default_name = ctx.data.setdefault("default_name", f"od-fused-estimator-{current_utc_datestamp()}")
         return steps.form(
-            "Name this calibration",
-            "Choose a unique name for this fused OD calibration.",
-            [fields.str("calibration_name", label="Calibration name", default=default_name)],
+            "Name this estimator",
+            "Choose a unique name for this fused OD estimator.",
+            [fields.str("estimator_name", label="Estimator name", default=default_name)],
         )
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
-        default_name = ctx.data.setdefault("default_name", f"od-fused-cal-{current_utc_datestamp()}")
-        name = ctx.inputs.str("calibration_name", default=default_name)
-        ctx.data["calibration_name"] = name
+        default_name = ctx.data.setdefault("default_name", f"od-fused-estimator-{current_utc_datestamp()}")
+        name = ctx.inputs.str("estimator_name", default=default_name)
+        ctx.data["estimator_name"] = name
 
-        if name in list_of_calibrations_by_device(pt.OD_FUSED_DEVICE):
-            return NameOverwriteConfirm
-        return RpmInput
+        if name in list_of_estimators_by_device(pt.OD_FUSED_DEVICE):
+            return NameOverwriteConfirm()
+        return RpmInput()
 
 
 class NameOverwriteConfirm(SessionStep):
     step_id = "name_overwrite"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
-        name = ctx.data.get("calibration_name", "")
+        name = ctx.data.get("estimator_name", "")
         return steps.form(
-            "Calibration already exists",
-            f"A calibration named '{name}' already exists. Overwrite it?",
-            [fields.bool("overwrite", label="Overwrite existing calibration?", default=False)],
+            "Estimator already exists",
+            f"An estimator named '{name}' already exists. Overwrite it?",
+            [fields.bool("overwrite", label="Overwrite existing estimator?", default=False)],
         )
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
-        overwrite = ctx.inputs.bool("overwrite")
+        overwrite = ctx.inputs.bool("overwrite", default=False)
         if not overwrite:
-            return NameInput
-        return RpmInput
+            return NameInput()
+        return RpmInput()
 
 
 class RpmInput(SessionStep):
@@ -280,7 +279,7 @@ class RpmInput(SessionStep):
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
         ctx.data["rpm"] = ctx.inputs.float("rpm", minimum=0.0)
-        return SamplesInput
+        return SamplesInput()
 
 
 class SamplesInput(SessionStep):
@@ -304,7 +303,7 @@ class SamplesInput(SessionStep):
         ctx.data["samples_per_standard"] = ctx.inputs.int(
             "samples_per_standard", minimum=MIN_SAMPLES_PER_STANDARD
         )
-        return PlaceStandard
+        return PlaceStandard()
 
 
 class PlaceStandard(SessionStep):
@@ -330,7 +329,7 @@ class PlaceStandard(SessionStep):
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
         if ctx.inputs.has_inputs:
-            return MeasureStandard
+            return MeasureStandard()
         return None
 
 
@@ -361,7 +360,7 @@ class MeasureStandard(SessionStep):
 
         ctx.data["records"] = records
         ctx.data.setdefault("od_values", []).append(od_value)
-        return AnotherStandard
+        return AnotherStandard()
 
 
 class AnotherStandard(SessionStep):
@@ -379,9 +378,9 @@ class AnotherStandard(SessionStep):
         return step
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
-        another = ctx.inputs.bool("another")
+        another = ctx.inputs.bool("another", default=True)
         if another:
-            return PlaceStandard
+            return PlaceStandard()
 
         records = ctx.data.get("records", [])
         if not records:
@@ -389,11 +388,10 @@ class AnotherStandard(SessionStep):
 
         fit = fit_fusion_model([(angle, 10**logc, exp(logy)) for angle, logc, logy in records])
 
-        calibration = structs.ODFusionCalibration(
+        estimator = structs.ODFusionEstimator(
             created_at=current_utc_datetime(),
             calibrated_on_pioreactor_unit=get_unit_name(),
-            calibration_name=str(ctx.data["calibration_name"]),
-            curve_data_=fit.mu_splines["90"],
+            estimator_name=str(ctx.data["estimator_name"]),
             recorded_data=fit.recorded_data,
             ir_led_intensity=float(config["od_reading.config"]["ir_led_intensity"]),
             angles=list(FUSION_ANGLES),
@@ -404,17 +402,9 @@ class AnotherStandard(SessionStep):
             sigma_floor=fit.sigma_floor,
         )
 
-        ctx.session.result = {
-            "calibration": to_builtins(calibration),
-            "calibrations": [
-                {
-                    "device": pt.OD_FUSED_DEVICE,
-                    "calibration_name": calibration.calibration_name,
-                }
-            ],
-        }
-        ctx.collected_calibrations.append(calibration)
-        return CalibrationComplete
+        ctx.store_estimator(estimator, pt.OD_FUSED_DEVICE)
+        ctx.complete({"message": "Fusion estimator saved."})
+        return CalibrationComplete()
 
 
 _FUSION_STEPS: StepRegistry = {
@@ -431,7 +421,7 @@ _FUSION_STEPS: StepRegistry = {
 
 class FusionStandardsODProtocol(CalibrationProtocol[pt.ODFusedCalibrationDevice]):
     protocol_name = "od_fusion_standards"
-    target_device = [pt.OD_FUSED_DEVICE]
+    target_device = _fusion_target_devices()
     title = "OD fusion standards"
     description = "Fit a fused OD model using standards measured at 45°, 90°, and 135° sensors."
     requirements = ("Requires XR model with 45°, 90°, and 135° sensors configured.",)
@@ -443,6 +433,8 @@ class FusionStandardsODProtocol(CalibrationProtocol[pt.ODFusedCalibrationDevice]
             raise ValueError("Invalid target device for fusion calibration.")
         return start_fusion_session()
 
-    def run(self, target_device: pt.ODFusedCalibrationDevice, **kwargs) -> structs.ODFusionCalibration:
+    def run(
+        self, target_device: pt.ODFusedCalibrationDevice
+    ) -> structs.CalibrationBase | list[structs.CalibrationBase]:
         _ensure_xr_model()
         raise ValueError("Use the calibration session flow for fusion calibration.")

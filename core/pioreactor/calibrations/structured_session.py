@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+"""
+Protocol session structures used by calibrator/estimator workflows.
+"""
 from typing import Any
 from typing import Literal
 

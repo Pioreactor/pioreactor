@@ -25,6 +25,7 @@ from msgspec import to_builtins
 from msgspec.yaml import decode as yaml_decode
 from pioreactor import structs
 from pioreactor import whoami
+from pioreactor.calibrations import CALIBRATION_PATH
 from pioreactor.calibrations import calibration_protocols
 from pioreactor.config import get_leader_hostname
 from pioreactor.models import get_registered_models
@@ -732,12 +733,14 @@ def create_calibration(device: str) -> ResponseReturnValue:
     """
     Create a new calibration for the specified device.
     """
-    # calibration_dir = Path(os.environ["DOT_PIOREACTOR"]) / "storage" / "calibrations" / device
+    # calibration_dir = CALIBRATION_PATH / device
     # if folder does not exist, users should make it with mkdir -p ... && chown -R pioreactor:www-data ...
 
     try:
         raw_yaml = request.get_json()["calibration_data"]
         calibration_data = yaml_decode(raw_yaml, type=AllCalibrations)
+        if isinstance(calibration_data, structs.ODFusionEstimator):
+            abort_with(400, description="Fusion estimators must be created via the protocol flow.")
         calibration_name = calibration_data.calibration_name
 
         if not calibration_name or not is_valid_unix_filename(calibration_name):
@@ -761,18 +764,13 @@ def delete_calibration(device: str, calibration_name: str) -> ResponseReturnValu
     """
     Delete a specific calibration for a given device.
     """
-    calibration_path = (
-        Path(os.environ["DOT_PIOREACTOR"]) / "storage" / "calibrations" / device / f"{calibration_name}.yaml"
-    )
+    calibration_path = CALIBRATION_PATH / device / f"{calibration_name}.yaml"
 
     if not calibration_path.exists():
         abort_with(404, description=f"Calibration '{calibration_name}' not found for device '{device}'.")
 
     try:
-        # Remove the calibration file
         calibration_path.unlink()
-
-        # If the deleted calibration was active, remove its active status
         with local_persistent_storage("active_calibrations") as cache:
             if cache.get(device) == calibration_name:
                 cache.pop(device)
@@ -789,7 +787,7 @@ def delete_calibration(device: str, calibration_name: str) -> ResponseReturnValu
 
 @unit_api_bp.route("/calibrations", methods=["GET"])
 def get_all_calibrations() -> ResponseReturnValue:
-    calibration_dir = Path(os.environ["DOT_PIOREACTOR"]) / "storage" / "calibrations"
+    calibration_dir = CALIBRATION_PATH
 
     if not calibration_dir.exists():
         abort_with(404, "Calibration directory does not exist.")
@@ -815,7 +813,7 @@ def get_all_calibrations() -> ResponseReturnValue:
 
 @unit_api_bp.route("/active_calibrations", methods=["GET"])
 def get_all_active_calibrations() -> ResponseReturnValue:
-    calibration_dir = Path(os.environ["DOT_PIOREACTOR"]) / "storage" / "calibrations"
+    calibration_dir = CALIBRATION_PATH
 
     if not calibration_dir.exists():
         abort_with(404, "Calibration directory does not exist.")
@@ -841,7 +839,7 @@ def get_all_active_calibrations() -> ResponseReturnValue:
 
 @unit_api_bp.route("/zipped_calibrations", methods=["GET"])
 def get_all_calibrations_as_zipped_yaml() -> ResponseReturnValue:
-    calibration_dir = Path(os.environ["DOT_PIOREACTOR"]) / "storage" / "calibrations"
+    calibration_dir = CALIBRATION_PATH
 
     if not calibration_dir.exists():
         abort_with(404, "Calibration directory does not exist.")
@@ -1012,7 +1010,7 @@ def import_dot_pioreactor_from_zip() -> ResponseReturnValue:
 
 @unit_api_bp.route("/calibrations/<device>", methods=["GET"])
 def get_calibrations_by_device(device: str) -> ResponseReturnValue:
-    calibration_dir = Path(os.environ["DOT_PIOREACTOR"]) / "storage" / "calibrations" / device
+    calibration_dir = CALIBRATION_PATH / device
 
     if not calibration_dir.exists():
         abort_with(404, "Calibration directory does not exist.")
@@ -1022,7 +1020,6 @@ def get_calibrations_by_device(device: str) -> ResponseReturnValue:
     with local_persistent_storage("active_calibrations") as c:
         for file in sorted(calibration_dir.glob("*.yaml")):
             try:
-                # first try to open it using our struct, but only to verify it.
                 cal = to_builtins(yaml_decode(file.read_bytes(), type=AllCalibrations))
                 cal["is_active"] = c.get(device) == cal["calibration_name"]
                 cal["pioreactor_unit"] = HOSTNAME
@@ -1035,9 +1032,7 @@ def get_calibrations_by_device(device: str) -> ResponseReturnValue:
 
 @unit_api_bp.route("/calibrations/<device>/<cal_name>", methods=["GET"])
 def get_calibration(device: str, cal_name: str) -> ResponseReturnValue:
-    calibration_path = (
-        Path(os.environ["DOT_PIOREACTOR"]) / "storage" / "calibrations" / device / f"{cal_name}.yaml"
-    )
+    calibration_path = CALIBRATION_PATH / device / f"{cal_name}.yaml"
 
     if not calibration_path.exists():
         abort_with(404, "Calibration file does not exist.")

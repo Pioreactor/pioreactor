@@ -31,13 +31,6 @@ def load_active_calibration(device: pt.ODCalibrationDevices) -> structs.ODCalibr
 
 @overload
 def load_active_calibration(
-    device: pt.ODFusedCalibrationDevice,
-) -> structs.ODFusionCalibration | None:
-    pass
-
-
-@overload
-def load_active_calibration(
     device: pt.PumpCalibrationDevices,
 ) -> structs.SimplePeristalticPumpCalibration | None:
     pass

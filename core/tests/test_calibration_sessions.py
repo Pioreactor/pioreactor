@@ -81,6 +81,7 @@ def test_session_inputs_parsing() -> None:
             "count": "3",
             "mode": "fast",
             "values": "1.1, 2.2,3.3",
+            "enabled": "yes",
         }
     )
 
@@ -89,11 +90,15 @@ def test_session_inputs_parsing() -> None:
     assert inputs.int("count", minimum=1) == 3
     assert inputs.choice("mode", ["slow", "fast"]) == "fast"
     assert inputs.float_list("values") == [1.1, 2.2, 3.3]
+    assert inputs.bool("enabled") is True
+    assert inputs.bool("missing", default=False) is False
 
     with pytest.raises(ValueError):
         inputs.float("rpm", maximum=10.0)
     with pytest.raises(ValueError):
         inputs.choice("mode", ["slow"])
+    with pytest.raises(ValueError):
+        inputs.bool("missing_required")
 
 
 def test_session_engine_advances_and_completes() -> None:

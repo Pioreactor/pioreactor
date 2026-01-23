@@ -988,7 +988,7 @@ class ODReader(BackgroundJob):
         experiment: pt.Experiment,
         ir_led_reference_tracker: Optional[IrLedReferenceTracker] = None,
         calibration_transformer: Optional[CalibrationTransformerProtocol] = None,
-        fusion_calibration: structs.ODFusionCalibration | None = None,
+        fusion_estimator: structs.ODFusionEstimator | None = None,
         ir_led_intensity: float | None = None,
     ) -> None:
         super(ODReader, self).__init__(unit=unit, experiment=experiment)
@@ -1016,8 +1016,8 @@ class ODReader(BackgroundJob):
         else:
             self.calibration_transformer = calibration_transformer  # type: ignore
 
-        self.fusion_calibration: structs.ODFusionCalibration | None = fusion_calibration
-        if self.fusion_calibration is not None:
+        self.fusion_estimator: structs.ODFusionEstimator | None = fusion_estimator
+        if self.fusion_estimator is not None:
             self.add_to_published_settings("od_fused", {"datatype": "ODFused", "settable": False})
 
         self.adc_reader.add_external_logger(self.logger)
@@ -1306,7 +1306,7 @@ class ODReader(BackgroundJob):
     ############
 
     def _update_fused_od(self, raw_od_readings: structs.ODReadings) -> None:
-        if self.fusion_calibration is None:
+        if self.fusion_estimator is None:
             return
 
         readings_by_angle: dict[pt.PdAngle, list[float]] = {}
@@ -1316,7 +1316,7 @@ class ODReader(BackgroundJob):
                 continue
             readings_by_angle.setdefault(angle, []).append(float(reading.od))
 
-        missing_angles = [angle for angle in self.fusion_calibration.angles if angle not in readings_by_angle]
+        missing_angles = [angle for angle in self.fusion_estimator.angles if angle not in readings_by_angle]
         if missing_angles:
             self.logger.debug(f"Skipping fused OD: missing angles {missing_angles} in current reading.")
             return
@@ -1324,15 +1324,12 @@ class ODReader(BackgroundJob):
         fused_inputs = {angle: mean(values) for angle, values in readings_by_angle.items()}
 
         try:
-            debug = compute_fused_od(self.fusion_calibration, fused_inputs, return_debug=True)
+            od_fused_value = compute_fused_od(self.fusion_estimator, fused_inputs)
         except Exception as e:
             self.logger.debug(f"Failed to compute fused OD: {e}", exc_info=True)
             return
 
-        if isinstance(debug, dict):
-            od_fused_value = float(debug.get("od_fused"))
-            self.od_fused = structs.ODFused(od_fused=od_fused_value, timestamp=raw_od_readings.timestamp)
-            self.logger.debug(f"Fused OD computed: {od_fused_value:.5g}, nll={debug.get('nll')}")
+        self.od_fused = structs.ODFused(od_fused=od_fused_value, timestamp=raw_od_readings.timestamp)
 
     def on_sleeping(self) -> None:
         self.record_from_adc_timer.pause()
@@ -1533,19 +1530,19 @@ def start_od_reading(
     else:
         calibration_transformer = NullCalibrationTransformer()
 
-    fusion_calibration: structs.ODFusionCalibration | None = None
+    fusion_estimator: structs.ODFusionEstimator | None = None
     try:
         model = whoami.get_pioreactor_model()
         if model.model_name.endswith("_XR"):
-            from pioreactor.calibrations import load_active_calibration
+            from pioreactor.estimators import load_active_estimator
 
-            candidate = load_active_calibration(pt.OD_FUSED_DEVICE)
-            if isinstance(candidate, structs.ODFusionCalibration):
+            candidate = load_active_estimator(pt.OD_FUSED_DEVICE)
+            if isinstance(candidate, structs.ODFusionEstimator):
                 available_angles = set(channel_angle_map.values())
                 if all(angle in available_angles for angle in candidate.angles):
-                    fusion_calibration = candidate
+                    fusion_estimator = candidate
     except Exception:
-        fusion_calibration = None
+        fusion_estimator = None
 
     if interval is not None:
         penalizer = config.getfloat("od_reading.config", "smoothing_penalizer", fallback=3.0) / interval
@@ -1562,7 +1559,7 @@ def start_od_reading(
         ),
         ir_led_reference_tracker=ir_led_reference_tracker,
         calibration_transformer=calibration_transformer,
-        fusion_calibration=fusion_calibration,
+        fusion_estimator=fusion_estimator,
         ir_led_intensity=ir_led_intensity,
     )
 

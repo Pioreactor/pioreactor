@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
-from dataclasses import dataclass
 from math import exp
 from math import isfinite
 from math import log
@@ -10,6 +7,7 @@ from statistics import median
 from typing import Iterable
 from typing import Mapping
 
+from msgspec import Struct
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.utils.splines import spline_eval
@@ -18,8 +16,7 @@ from pioreactor.utils.splines import spline_fit
 FUSION_ANGLES: tuple[pt.PdAngle, ...] = ("45", "90", "135")
 
 
-@dataclass(frozen=True)
-class FusionFitResult:
+class FusionFitResult(Struct, frozen=True):
     mu_splines: dict[pt.PdAngle, structs.SplineFitData]
     sigma_splines_log: dict[pt.PdAngle, structs.SplineFitData]
     min_logc: float
@@ -156,63 +153,41 @@ def fit_fusion_model(
 
 
 def _sigma_from_model(
-    calibration: structs.ODFusionCalibration,
+    estimator: structs.ODFusionEstimator,
     angle: pt.PdAngle,
     logc: float,
 ) -> float:
-    sigma_log = spline_eval(calibration.sigma_splines_log[angle], logc)
+    sigma_log = spline_eval(estimator.sigma_splines_log[angle], logc)
     sigma = exp(sigma_log)
-    return max(sigma, calibration.sigma_floor)
+    return max(sigma, estimator.sigma_floor)
 
 
 def compute_fused_od(
-    calibration: structs.ODFusionCalibration,
+    estimator: structs.ODFusionEstimator,
     readings_by_angle: Mapping[pt.PdAngle, float],
-    *,
-    return_debug: bool = False,
-) -> float | dict[str, object]:
-    for angle in calibration.angles:
+) -> float:
+    for angle in estimator.angles:
         if angle not in readings_by_angle:
             raise ValueError(f"Missing fusion reading for angle {angle}.")
 
     log_obs: dict[pt.PdAngle, float] = {}
-    for angle in calibration.angles:
+    for angle in estimator.angles:
         reading = readings_by_angle[angle]
         log_obs[angle] = log(max(float(reading), 1e-12))
 
     def nll(logc: float) -> float:
         total = 0.0
-        for angle in calibration.angles:
-            mu = spline_eval(calibration.mu_splines[angle], logc)
-            sigma = _sigma_from_model(calibration, angle, logc)
+        for angle in estimator.angles:
+            mu = spline_eval(estimator.mu_splines[angle], logc)
+            sigma = _sigma_from_model(estimator, angle, logc)
             residual = log_obs[angle] - mu
             total += 0.5 * (residual / sigma) ** 2 + log(sigma)
         return total
 
-    logc_hat = _golden_section_minimize(nll, calibration.min_logc, calibration.max_logc)
+    logc_hat = _golden_section_minimize(nll, estimator.min_logc, estimator.max_logc)
     c_hat = 10**logc_hat
 
     if not isfinite(c_hat):
         raise ValueError("Fusion model produced non-finite OD estimate.")
 
-    if not return_debug:
-        return float(c_hat)
-
-    per_angle: dict[str, dict[str, float]] = {}
-    for angle in calibration.angles:
-        mu = spline_eval(calibration.mu_splines[angle], logc_hat)
-        sigma = _sigma_from_model(calibration, angle, logc_hat)
-        residual = log_obs[angle] - mu
-        per_angle[str(angle)] = {
-            "logy_obs": float(log_obs[angle]),
-            "logy_pred": float(mu),
-            "resid_logy": float(residual),
-            "sigma_logy": float(sigma),
-        }
-
-    return {
-        "logc_hat": float(logc_hat),
-        "od_fused": float(c_hat),
-        "nll": float(nll(logc_hat)),
-        "per_angle": per_angle,
-    }
+    return float(c_hat)

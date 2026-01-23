@@ -24,6 +24,8 @@
  - Added spline curve support for calibrations, including OD standards sessions and calibration charts.
  - `pio calibrations analyze` now supports `--fit poly|spline` (default poly). You can use this to re-fit a dataset to a spline curve.
  - Added an update helper to migrate calibration curve data into the new tagged format (`poly`/`spline`).
+ - Added estimator artifacts alongside calibrations, including OD fusion estimators stored under `storage/estimators` and managed via the calibration session flow.
+ - OD fusion standards protocol now produces an estimator artifact and can save/set the active estimator via the protocol session.
 
 #### Breaking changes
  - Moved Self-test to the Inventory page. Pioreactors no longer need to be assigned to an experiment to run self-test.

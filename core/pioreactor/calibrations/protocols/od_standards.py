@@ -323,17 +323,13 @@ class NameOverwriteConfirm(SessionStep):
         return steps.form(
             "Name already exists",
             f"Calibration name '{pending_name}' already exists. Overwrite it?",
-            [
-                fields.choice(
-                    "overwrite", ["yes", "no"], label="Overwrite existing calibration?", default="no"
-                )
-            ],
+            [fields.bool("overwrite", label="Overwrite existing calibration?", default=False)],
         )
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
         pending_name = ctx.data.get("pending_name", _default_calibration_name())
-        overwrite = ctx.inputs.choice("overwrite", ["yes", "no"], default="no")
-        if overwrite == "yes":
+        overwrite = ctx.inputs.bool("overwrite", default=False)
+        if overwrite:
             if not pending_name:
                 raise ValueError("Missing pending calibration name.")
             ctx.data["calibration_name"] = pending_name
