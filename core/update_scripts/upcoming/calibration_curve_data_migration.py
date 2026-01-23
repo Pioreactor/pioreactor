@@ -58,22 +58,6 @@ def _migrate_curve_data(data: dict) -> bool:
                 "coefficients": coefficients,
             }
             changed = True
-    elif isinstance(curve_data, dict):
-        tag = curve_data.get("type")
-        if tag == "PolyFitCoefficients":
-            data["curve_data_"] = {
-                "type": "poly",
-                "coefficients": _coerce_float_list(curve_data.get("coefficients", [])),
-            }
-            changed = True
-        elif tag == "SplineFitData":
-            data["curve_data_"] = {
-                "type": "spline",
-                "knots": _coerce_float_list(curve_data.get("knots", [])),
-                "coefficients": _coerce_float_matrix(curve_data.get("coefficients", [])),
-            }
-            changed = True
-
     if "curve_type" in data:
         data.pop("curve_type", None)
         changed = True
