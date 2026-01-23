@@ -71,7 +71,6 @@ from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import timing
 from pioreactor.utils.math_helpers import mean
 from pioreactor.utils.od_fusion import compute_fused_od
-from pioreactor.utils.od_fusion import FUSION_ANGLES
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 from pioreactor.utils.streaming_calculations import ExponentialMovingStd
 from pioreactor.utils.timing import catchtime
@@ -1309,20 +1308,9 @@ class ODReader(BackgroundJob):
         if self.fusion_estimator is None:
             return
 
-        readings_by_angle: dict[pt.PdAngle, list[float]] = {}
-        for reading in raw_od_readings.ods.values():
-            angle = cast(pt.PdAngle, reading.angle)
-            if angle not in FUSION_ANGLES:
-                continue
-            readings_by_angle.setdefault(angle, []).append(float(reading.od))
-
-        missing_angles = [angle for angle in self.fusion_estimator.angles if angle not in readings_by_angle]
-        if missing_angles:
-            self.logger.debug(f"Skipping fused OD: missing angles {missing_angles} in current reading.")
-            return
-
-        fused_inputs = {angle: mean(values) for angle, values in readings_by_angle.items()}
-
+        fused_inputs: dict[pt.PdAngle, float] = {
+            reading.angle: reading.od for reading in raw_od_readings.ods.values()
+        }
         try:
             od_fused_value = compute_fused_od(self.fusion_estimator, fused_inputs)
         except Exception as e:

@@ -516,7 +516,7 @@ class GrowthRateCalculator(BackgroundJob):
     ):
         super(GrowthRateCalculator, self).__init__(unit=unit, experiment=experiment)
         if cache_key is None:
-            cache_key = experiment if not use_fused_od else f"{experiment}::od_fused"
+            cache_key = experiment
         self.processor = GrowthRateProcessor(
             ignore_cache=ignore_cache,
             stopping_event=self._blocking_event,
@@ -596,17 +596,12 @@ def click_growth_rate_calculating(ctx, ignore_cache):
 def click_clear_cache() -> None:
     unit = whoami.get_unit_name()
     experiment = whoami.get_assigned_experiment_name(unit)
-    fused_cache_key = f"{experiment}::od_fused"
 
     with local_persistent_storage("od_filtered") as cache:
         cache.pop(experiment)
-        cache.pop(fused_cache_key, None)
     with local_persistent_storage("growth_rate") as cache:
         cache.pop(experiment)
-        cache.pop(fused_cache_key, None)
     with local_persistent_storage("od_normalization_mean") as cache:
         cache.pop(experiment)
-        cache.pop(fused_cache_key, None)
     with local_persistent_storage("od_normalization_variance") as cache:
         cache.pop(experiment)
-        cache.pop(fused_cache_key, None)

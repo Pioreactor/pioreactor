@@ -22,6 +22,9 @@ from pioreactor.config import temporary_config_changes
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistent_storage
+from pioreactor.utils.od_fusion import compute_fused_od
+from pioreactor.utils.od_fusion import fit_fusion_model
+from pioreactor.utils.od_fusion import FUSION_ANGLES
 from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
@@ -44,6 +47,56 @@ def pause(n=1) -> None:
 
 def _poly_curve(coefficients: list[float]) -> structs.PolyFitCoefficients:
     return structs.PolyFitCoefficients(coefficients=coefficients)
+
+
+def _build_fusion_estimator() -> structs.ODFusionEstimator:
+    concentrations = [0.1, 0.2, 0.4, 0.8]
+    records: list[tuple[pt.PdAngle, float, float]] = []
+    for idx, angle in enumerate(FUSION_ANGLES, start=1):
+        for concentration in concentrations:
+            reading = concentration * (1 + 0.1 * idx) + 0.01
+            records.append((angle, concentration, reading))
+    fit = fit_fusion_model(records)
+    return structs.ODFusionEstimator(
+        created_at=current_utc_datetime(),
+        calibrated_on_pioreactor_unit=get_unit_name(),
+        estimator_name="test_fusion",
+        recorded_data=fit.recorded_data,
+        ir_led_intensity=80.0,
+        angles=list(FUSION_ANGLES),
+        mu_splines=fit.mu_splines,
+        sigma_splines_log=fit.sigma_splines_log,
+        min_logc=fit.min_logc,
+        max_logc=fit.max_logc,
+        sigma_floor=fit.sigma_floor,
+    )
+
+
+def _build_readings_for_concentration(concentration: float) -> dict[pt.PdAngle, float]:
+    readings: dict[pt.PdAngle, float] = {}
+    for idx, angle in enumerate(FUSION_ANGLES, start=1):
+        readings[angle] = concentration * (1 + 0.1 * idx) + 0.01
+    return readings
+
+
+def _build_od_readings(readings_by_angle: dict[pt.PdAngle, float]) -> structs.ODReadings:
+    timestamp = current_utc_datetime()
+    channel_map: dict[pt.PdAngle, pt.PdChannel] = {
+        "45": "1",
+        "90": "2",
+        "135": "3",
+    }
+    ods: dict[pt.PdChannel, structs.ODReading] = {}
+    for angle, reading in readings_by_angle.items():
+        channel = channel_map[angle]
+        ods[channel] = structs.RawODReading(
+            timestamp=timestamp,
+            angle=angle,
+            od=reading,
+            channel=channel,
+            ir_led_intensity=80.0,
+        )
+    return structs.ODReadings(timestamp=timestamp, ods=ods)
 
 
 def test_sin_regression_exactly_60hz() -> None:
@@ -111,6 +164,48 @@ def test_sin_regression_estimator_is_consistent() -> None:
     assert C_ == pytest.approx(C, rel=2.5e-2, abs=5e-4)
     assert A_ == pytest.approx(A, rel=2.5e-2, abs=5e-3)
     assert phi_ == pytest.approx(phi, rel=2.5e-2, abs=0.1)
+
+
+def test_fused_od_updates_with_estimator() -> None:
+    estimator = _build_fusion_estimator()
+    readings_by_angle = _build_readings_for_concentration(0.2)
+    raw_readings = _build_od_readings(readings_by_angle)
+    expected = compute_fused_od(estimator, readings_by_angle)
+    assert isinstance(expected, float)
+    channel_angle_map: dict[pt.PdChannel, pt.PdAngle] = {"1": "45", "2": "90", "3": "135"}
+
+    with ODReader(
+        channel_angle_map,
+        interval=None,
+        unit=get_unit_name(),
+        experiment="test_fused_od_updates_with_estimator",
+        adc_reader=ADCReader(channels=list(channel_angle_map.keys()), fake_data=True, dynamic_gain=False),
+        calibration_transformer=NullCalibrationTransformer(),
+        fusion_estimator=estimator,
+    ) as reader:
+        reader._update_fused_od(raw_readings)
+        assert reader.od_fused is not None
+        assert reader.od_fused.od_fused == pytest.approx(expected)
+
+
+def test_fused_od_skips_when_angle_missing() -> None:
+    estimator = _build_fusion_estimator()
+    readings_by_angle = _build_readings_for_concentration(0.2)
+    readings_by_angle.pop("90")
+    raw_readings = _build_od_readings(readings_by_angle)
+    channel_angle_map: dict[pt.PdChannel, pt.PdAngle] = {"1": "45", "2": "90", "3": "135"}
+
+    with ODReader(
+        channel_angle_map,
+        interval=None,
+        unit=get_unit_name(),
+        experiment="test_fused_od_skips_when_angle_missing",
+        adc_reader=ADCReader(channels=list(channel_angle_map.keys()), fake_data=True, dynamic_gain=False),
+        calibration_transformer=NullCalibrationTransformer(),
+        fusion_estimator=estimator,
+    ) as reader:
+        reader._update_fused_od(raw_readings)
+        assert reader.od_fused is None
 
 
 def test_sin_regression_all_zeros_should_return_zeros() -> None:
