@@ -39,8 +39,9 @@ if estimator is not None:
 ## UI flow
 
 The estimator protocol runs through the calibration session UI. On completion, the session engine
-calls the `save_estimator` action, which persists the estimator YAML and marks it active for the
-device. Estimators do not appear in the calibrations UI after saving.
+calls the `save_estimator` action, which uses `EstimatorBase.save_to_disk_for_device` and
+`EstimatorBase.set_as_active_calibration_for_device` to persist the estimator YAML and mark it
+active for the device. Estimators do not appear in the calibrations UI after saving.
 
 ## Notes
 

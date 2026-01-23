@@ -7,7 +7,6 @@ from typing import TypeVar
 
 from msgspec import ValidationError
 from msgspec.yaml import decode as yaml_decode
-from msgspec.yaml import encode as yaml_encode
 from pioreactor import structs
 from pioreactor.utils import local_persistent_storage
 from pioreactor.whoami import is_testing_env
@@ -42,25 +41,6 @@ def load_estimator(device: Device, estimator_name: str) -> structs.ODFusionEstim
         return yaml_decode(target_file.read_bytes(), type=structs.ODFusionEstimator)
     except ValidationError as exc:
         raise ValidationError(f"Error reading {target_file.stem}: {exc}") from exc
-
-
-def save_estimator(device: Device, estimator: structs.ODFusionEstimator) -> str:
-    out_file = _estimator_path_for(device, estimator.estimator_name)
-    out_file.parent.mkdir(parents=True, exist_ok=True)
-    with out_file.open("wb") as handle:
-        handle.write(yaml_encode(estimator))
-    return str(out_file)
-
-
-def set_active_estimator(device: Device, estimator_name: str) -> None:
-    with local_persistent_storage("active_estimators") as storage:
-        storage[device] = estimator_name
-
-
-def remove_active_estimator(device: Device) -> None:
-    with local_persistent_storage("active_estimators") as storage:
-        if storage.get(device) is not None:
-            storage.pop(device, None)
 
 
 def list_of_estimators_by_device(device: Device) -> list[str]:

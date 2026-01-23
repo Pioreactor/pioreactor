@@ -355,6 +355,63 @@ class EstimatorBase(Struct, tag_field="estimator_type", kw_only=True):
     def estimator_type(self):
         return self.__struct_config__.tag
 
+    def path_on_disk_for_device(self, device: str) -> Path:
+        from pioreactor.estimators import ESTIMATOR_PATH
+
+        estimator_dir = ESTIMATOR_PATH / device
+        out_file = estimator_dir / f"{self.estimator_name}.yaml"
+        return out_file
+
+    def save_to_disk_for_device(self, device: str) -> str:
+        logger = create_logger("estimators", experiment="$experiment")
+
+        out_file = self.path_on_disk_for_device(device)
+        device_dir = out_file.parent
+        device_dir.mkdir(parents=True, exist_ok=True)
+
+        # Serialize to YAML
+        with out_file.open("wb") as f:
+            f.write(yaml_encode(self))
+
+        logger.info(f"Saved estimator {self.estimator_name} to {out_file}")
+        return str(out_file)
+
+    def set_as_active_calibration_for_device(self, device: str) -> None:
+        from pioreactor.utils import local_persistent_storage
+
+        logger = create_logger("estimators", experiment="$experiment")
+
+        if not self.exists_on_disk_for_device(device):
+            self.save_to_disk_for_device(device)
+
+        with local_persistent_storage("active_estimators") as c:
+            c[device] = self.estimator_name
+
+        logger.info(f"Set {self.estimator_name} as active estimator for {device}")
+
+    def remove_as_active_calibration_for_device(self, device: str) -> None:
+        from pioreactor.utils import local_persistent_storage
+
+        logger = create_logger("estimators", experiment="$experiment")
+
+        with local_persistent_storage("active_estimators") as c:
+            if c.get(device) == self.estimator_name:
+                del c[device]
+                logger.info(f"Removed {self.estimator_name} as active estimator for {device}")
+
+    def exists_on_disk_for_device(self, device: str) -> bool:
+        from pioreactor.estimators import ESTIMATOR_PATH
+
+        target_file = ESTIMATOR_PATH / device / f"{self.estimator_name}.yaml"
+
+        return target_file.exists()
+
+    def is_active(self, device: str) -> bool:
+        from pioreactor.utils import local_persistent_storage
+
+        with local_persistent_storage("active_estimators") as c:
+            return c.get(device) == self.estimator_name
+
 
 class ODCalibration(CalibrationBase, kw_only=True, tag="od"):
     ir_led_intensity: float

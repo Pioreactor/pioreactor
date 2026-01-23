@@ -393,7 +393,7 @@ class AnotherStandard(SessionStep):
         )
 
         ctx.store_estimator(estimator, pt.OD_FUSED_DEVICE)
-        ctx.complete({"message": "Fusion estimator saved."})
+        ctx.complete({"title": "Fusion estimator saved."})
         return CalibrationComplete()
 
 
@@ -412,7 +412,7 @@ _FUSION_STEPS: StepRegistry = {
 class FusionStandardsODProtocol(CalibrationProtocol[pt.ODFusedCalibrationDevice]):
     protocol_name = "od_fusion_standards"
     target_device = [cast(pt.ODFusedCalibrationDevice, pt.OD_FUSED_DEVICE)]
-    title = "OD fusion standards"
+    title = "Fusion OD using standards"
     description = "Fit a fused OD model using standards measured at 45°, 90°, and 135° sensors."
     requirements = ("Requires XR model with 45°, 90°, and 135° sensors configured.",)
     step_registry = _FUSION_STEPS

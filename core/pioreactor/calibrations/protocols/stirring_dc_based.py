@@ -259,7 +259,7 @@ _DC_BASED_STEPS: StepRegistry = {
 class DCBasedStirringProtocol(CalibrationProtocol[Literal["stirring"]]):
     target_device = "stirring"
     protocol_name = "dc_based"
-    title = "Stirring DC-based calibration"
+    title = "DC-based stirring calibration"
     description = "Maps duty cycle to RPM for the current stirrer configuration."
     requirements = (
         "Vial",

@@ -29,6 +29,7 @@ lazy_subcommands = {
     "run": "pioreactor.cli.run.run",
     "plugins": "pioreactor.cli.plugins.plugins",
     "calibrations": "pioreactor.cli.calibrations.calibration",
+    "estimators": "pioreactor.cli.estimators.estimators",
 }
 
 if whoami.am_I_leader():

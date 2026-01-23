@@ -345,7 +345,7 @@ class SessionEngine:
         return self.ctx.session
 
     def _render_terminal_step(self) -> CalibrationStep:
-        if self.session.step_id == "complete" and "complete" in self.step_registry:
+        if self.session.step_id == "complete":
             step_handler = resolve_step(self.step_registry, "complete")
             step = step_handler.render(self.ctx)
             if not step.step_id:
@@ -493,7 +493,7 @@ class StepBuilder:
         return CalibrationStep(
             step_id="complete",
             step_type="result",
-            title="Calibration complete!",
+            title=result.get("title", "Calibration complete!"),
             metadata={"result": result},
         )
 

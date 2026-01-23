@@ -434,6 +434,13 @@ def calibration_execute_pump(pump_device: str, duration_s: float, hz: float, dc:
     from pioreactor.calibrations.protocols.pump_duration_based import _get_execute_pump_for_device
     from pioreactor.whoami import get_testing_experiment_name
 
+    logger.debug(
+        "Starting pump calibration action: device=%s duration_s=%s hz=%s dc=%s",
+        pump_device,
+        duration_s,
+        hz,
+        dc,
+    )
     execute_pump = _get_execute_pump_for_device(cast(pt.PumpCalibrationDevices, pump_device))
     calibration = _build_transient_calibration(hz=hz, dc=dc, unit=get_unit_name())
     execute_pump(
@@ -443,6 +450,7 @@ def calibration_execute_pump(pump_device: str, duration_s: float, hz: float, dc:
         experiment=get_testing_experiment_name(),
         calibration=calibration,
     )
+    logger.debug("Finished pump calibration action for device=%s", pump_device)
     return True
 
 
@@ -453,6 +461,11 @@ def calibration_measure_standard(
 ) -> dict[str, float]:
     from pioreactor.calibrations.protocols.od_standards import _measure_standard
 
+    logger.debug(
+        "Starting OD standards measurement: rpm=%s channels=%s",
+        rpm,
+        sorted(channel_angle_map.keys()),
+    )
     typed_map = {
         cast(pt.PdChannel, channel): cast(pt.PdAngle, angle) for channel, angle in channel_angle_map.items()
     }
@@ -461,6 +474,7 @@ def calibration_measure_standard(
         rpm=rpm,
         channel_angle_map=typed_map,
     )
+    logger.debug("Finished OD standards measurement: rpm=%s", rpm)
     return {str(channel): float(voltage) for channel, voltage in voltages.items()}
 
 
@@ -472,6 +486,12 @@ def calibration_fusion_standards_measure(
 ) -> dict[str, object]:
     from pioreactor.calibrations.protocols.od_fusion_standards import _measure_fusion_standard
 
+    logger.debug(
+        "Starting fusion OD measurement: od_value=%s rpm=%s samples_per_standard=%s",
+        od_value,
+        rpm,
+        samples_per_standard,
+    )
     samples = _measure_fusion_standard(
         od_value=od_value,
         rpm=rpm,
@@ -480,6 +500,12 @@ def calibration_fusion_standards_measure(
     serialized_samples: list[dict[str, float]] = []
     for sample in samples:
         serialized_samples.append({str(angle): float(value) for angle, value in sample.items()})
+    logger.debug(
+        "Finished fusion OD measurement: od_value=%s rpm=%s sample_count=%s",
+        od_value,
+        rpm,
+        len(serialized_samples),
+    )
     return {"samples": serialized_samples}
 
 
@@ -487,7 +513,14 @@ def calibration_fusion_standards_measure(
 def calibration_run_stirring(min_dc: float | None, max_dc: float | None) -> dict[str, object]:
     from pioreactor.calibrations.protocols.stirring_dc_based import collect_stirring_measurements
 
+    logger.debug("Starting stirring calibration: min_dc=%s max_dc=%s", min_dc, max_dc)
     dcs, rpms = collect_stirring_measurements(min_dc=min_dc, max_dc=max_dc)
+    logger.debug(
+        "Finished stirring calibration: min_dc=%s max_dc=%s steps=%s",
+        min_dc,
+        max_dc,
+        len(dcs),
+    )
     return {"dcs": dcs, "rpms": rpms}
 
 
@@ -498,10 +531,21 @@ def calibration_save_calibration(device: str, calibration_payload: dict[str, obj
     from pioreactor.structs import CalibrationBase
     from pioreactor.structs import subclass_union
 
+    logger.debug(
+        "Starting calibration save: device=%s payload_keys=%s",
+        device,
+        sorted(calibration_payload.keys()),
+    )
     all_calibrations = subclass_union(CalibrationBase)
     calibration = json_decode(json_encode(calibration_payload), type=all_calibrations)
     path = calibration.save_to_disk_for_device(device)
     calibration.set_as_active_calibration_for_device(device)
+    logger.debug(
+        "Finished calibration save: device=%s calibration_name=%s path=%s",
+        device,
+        calibration.calibration_name,
+        path,
+    )
     return {"path": path, "device": device, "calibration_name": calibration.calibration_name}
 
 
@@ -509,13 +553,22 @@ def calibration_save_calibration(device: str, calibration_payload: dict[str, obj
 def estimator_save_estimator(device: str, estimator_payload: dict[str, object]) -> dict[str, str]:
     from msgspec.json import decode as json_decode
     from msgspec.json import encode as json_encode
-    from pioreactor.estimators import save_estimator
-    from pioreactor.estimators import set_active_estimator
     from pioreactor.structs import ODFusionEstimator
 
+    logger.debug(
+        "Starting estimator save: device=%s payload_keys=%s",
+        device,
+        sorted(estimator_payload.keys()),
+    )
     estimator = json_decode(json_encode(estimator_payload), type=ODFusionEstimator)
-    path = save_estimator(device, estimator)
-    set_active_estimator(device, estimator.estimator_name)
+    path = estimator.save_to_disk_for_device(device)
+    estimator.set_as_active_calibration_for_device(device)
+    logger.debug(
+        "Finished estimator save: device=%s estimator_name=%s path=%s",
+        device,
+        estimator.estimator_name,
+        path,
+    )
     return {"path": path, "device": device, "estimator_name": estimator.estimator_name}
 
 
@@ -523,7 +576,10 @@ def estimator_save_estimator(device: str, estimator_payload: dict[str, object]) 
 def calibration_read_voltage() -> float:
     from pioreactor.hardware import voltage_in_aux
 
-    return float(voltage_in_aux())
+    logger.debug("Starting aux voltage read")
+    voltage = float(voltage_in_aux())
+    logger.debug("Finished aux voltage read: voltage=%s", voltage)
+    return voltage
 
 
 def _default_normalizer(result: Any) -> dict[str, Any]:
