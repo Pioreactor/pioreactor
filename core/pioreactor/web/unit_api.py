@@ -739,8 +739,6 @@ def create_calibration(device: str) -> ResponseReturnValue:
     try:
         raw_yaml = request.get_json()["calibration_data"]
         calibration_data = yaml_decode(raw_yaml, type=AllCalibrations)
-        if isinstance(calibration_data, structs.ODFusionEstimator):
-            abort_with(400, description="Fusion estimators must be created via the protocol flow.")
         calibration_name = calibration_data.calibration_name
 
         if not calibration_name or not is_valid_unix_filename(calibration_name):

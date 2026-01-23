@@ -1529,6 +1529,9 @@ def start_od_reading(
                 available_angles = set(channel_angle_map.values())
                 if all(angle in available_angles for angle in candidate.angles):
                     fusion_estimator = candidate
+                    # turn off calibrations, too
+                    calibration_transformer = NullCalibrationTransformer()
+
     except Exception:
         fusion_estimator = None
 

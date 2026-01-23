@@ -512,15 +512,12 @@ class GrowthRateCalculator(BackgroundJob):
         experiment: pt.Experiment,
         ignore_cache: bool = False,
         use_fused_od: bool = False,
-        cache_key: str | None = None,
     ):
         super(GrowthRateCalculator, self).__init__(unit=unit, experiment=experiment)
-        if cache_key is None:
-            cache_key = experiment
         self.processor = GrowthRateProcessor(
             ignore_cache=ignore_cache,
             stopping_event=self._blocking_event,
-            cache_key=cache_key,
+            cache_key=self.experiment,
             use_fused_od=use_fused_od,
         )
         self.processor.add_external_logger(self.logger)
@@ -554,10 +551,10 @@ class GrowthRateCalculator(BackgroundJob):
         ) in self.processor.process_until_disconnected_or_exhausted(od_stream, dosing_stream):
             # save to cache
             with local_persistent_storage("growth_rate") as cache:
-                cache[self.processor.cache_key] = self.growth_rate.growth_rate
+                cache[self.experiment] = self.growth_rate.growth_rate
 
             with local_persistent_storage("od_filtered") as cache:
-                cache[self.processor.cache_key] = self.od_filtered.od_filtered
+                cache[self.experiment] = self.od_filtered.od_filtered
 
             yield self.growth_rate, self.od_filtered, self.kalman_filter_outputs
 
