@@ -3,7 +3,7 @@ import click
 from msgspec.yaml import decode as yaml_decode
 from pioreactor import structs
 from pioreactor import types as pt
-from pioreactor.calibrations import calibration_protocols
+from pioreactor.calibrations import get_calibration_protocols
 from pioreactor.estimators import ESTIMATOR_PATH
 from pioreactor.estimators import list_estimator_devices
 from pioreactor.estimators import list_of_estimators_by_device
@@ -82,7 +82,7 @@ def list_protocols() -> None:
     estimator_devices = [pt.OD_FUSED_DEVICE]
     shown = False
     for device in estimator_devices:
-        protocols = calibration_protocols.get(device, {})
+        protocols = get_calibration_protocols().get(device, {})
         if not protocols:
             continue
         click.echo(f"{bold(device)}: {', '.join(protocols.keys())}")

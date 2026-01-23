@@ -26,7 +26,7 @@ from msgspec.yaml import decode as yaml_decode
 from pioreactor import structs
 from pioreactor import whoami
 from pioreactor.calibrations import CALIBRATION_PATH
-from pioreactor.calibrations import calibration_protocols
+from pioreactor.calibrations import get_calibration_protocols as get_calibration_protocols_registry
 from pioreactor.config import get_leader_hostname
 from pioreactor.models import get_registered_models
 from pioreactor.structs import CalibrationBase
@@ -123,7 +123,7 @@ def _format_protocol_text(value: str, device: str) -> str:
 
 def _build_calibration_protocol_payloads() -> list[dict[str, Any]]:
     protocols: list[dict[str, Any]] = []
-    for device, device_protocols in calibration_protocols.items():
+    for device, device_protocols in get_calibration_protocols_registry().items():
         for protocol_name, protocol in device_protocols.items():
             if not hasattr(protocol, "step_registry"):
                 continue

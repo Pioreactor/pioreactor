@@ -10,8 +10,8 @@ from msgspec.yaml import decode as yaml_decode
 from msgspec.yaml import encode as yaml_encode
 from pioreactor import structs
 from pioreactor import types as pt
-from pioreactor.calibrations.registry import calibration_protocols  # re-export
 from pioreactor.calibrations.registry import CalibrationProtocol  # re-export
+from pioreactor.calibrations.registry import get_calibration_protocols  # re-export
 from pioreactor.utils import local_persistent_storage
 from pioreactor.whoami import is_testing_env
 
@@ -83,7 +83,7 @@ def list_devices() -> list[str]:
     return [f.name for f in calibration_dir.iterdir() if f.is_dir()]
 
 
-# Import protocols so they register with calibration_protocols.
+# Import protocols so they are discoverable by get_calibration_protocols.
 from pioreactor.calibrations.protocols.od_fusion_standards import (
     FusionStandardsODProtocol,
 )  # noqa: F401,E402

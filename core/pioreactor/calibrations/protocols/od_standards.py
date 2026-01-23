@@ -67,7 +67,7 @@ def to_struct(
 
 def _channel_angle_map_from_config(
     target_device: pt.ODCalibrationDevices,
-) -> tuple[dict[pt.PdChannel, pt.PdAngle], str]:
+) -> dict[pt.PdChannel, pt.PdAngle]:
     pd_channels = config["od_config.photodiode_channel"]
     ref_channels = [k for k, v in pd_channels.items() if v == REF_keyword]
     if not ref_channels:
@@ -92,11 +92,7 @@ def _channel_angle_map_from_config(
                 f"No channels configured for angle {target_angle}°. Check [od_config.photodiode_channel]."
             )
 
-    channel_summary = ", ".join(
-        f"{channel}={angle}°"
-        for channel, angle in sorted(channel_angle_map.items(), key=lambda item: int(item[0]))
-    )
-    return channel_angle_map, channel_summary
+    return channel_angle_map
 
 
 def _read_voltages_from_adc(
@@ -236,7 +232,8 @@ def start_standards_session(target_device: pt.ODCalibrationDevices) -> Calibrati
     if any(is_pio_job_running(["stirring", "od_reading"])):
         raise ValueError("Both stirring and OD reading must be off before starting.")
 
-    channel_angle_map, channel_summary = _channel_angle_map_from_config(target_device)
+    channel_angle_map = _channel_angle_map_from_config(target_device)
+    channel_summary = ", ".join(f"{channel}={angle}°" for channel, angle in channel_angle_map.items())
     devices_for_name_check = _devices_for_angles(channel_angle_map)
 
     session_id = str(uuid.uuid4())
@@ -312,7 +309,11 @@ class NameInput(SessionStep):
             ctx.data["pending_name"] = name
             return NameOverwriteConfirm()
         ctx.data["calibration_name"] = name
-        return ChannelConfirm()
+
+        if len(ctx.data["channel_angle_map"]) == 1:
+            return RpmInput()
+        else:
+            return ChannelConfirm()
 
 
 class NameOverwriteConfirm(SessionStep):
@@ -334,7 +335,12 @@ class NameOverwriteConfirm(SessionStep):
                 raise ValueError("Missing pending calibration name.")
             ctx.data["calibration_name"] = pending_name
             ctx.data.pop("pending_name", None)
-            return ChannelConfirm()
+
+            if len(ctx.data["channel_angle_map"]) == 1:
+                return RpmInput()
+            else:
+                return ChannelConfirm()
+
         ctx.data.pop("pending_name", None)
         return NameInput()
 
@@ -571,8 +577,6 @@ _OD_STANDARDS_STEPS: StepRegistry = {
 
 
 def get_valid_od_devices_for_this_unit() -> list[pt.ODCalibrationDevices]:
-    if is_testing_env():
-        return [cast(pt.ODCalibrationDevices, device) for device in pt.OD_DEVICES]
 
     pd_channels = config["od_config.photodiode_channel"]
     valid_devices: list[pt.ODCalibrationDevices] = []
@@ -583,6 +587,9 @@ def get_valid_od_devices_for_this_unit() -> list[pt.ODCalibrationDevices]:
         device = f"od{angle}"
         if device in pt.OD_DEVICES and device not in valid_devices:
             valid_devices.append(cast(pt.ODCalibrationDevices, device))
+
+    if len(valid_devices) >= 2:
+        valid_devices.append(cast(pt.ODCalibrationDevices, "od"))
 
     return valid_devices
 

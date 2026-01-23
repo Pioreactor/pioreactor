@@ -7,8 +7,8 @@ import pytest
 from msgspec import ValidationError
 from pioreactor import exc
 from pioreactor.calibrations import CALIBRATION_PATH
-from pioreactor.calibrations import calibration_protocols
 from pioreactor.calibrations import CalibrationProtocol
+from pioreactor.calibrations import get_calibration_protocols
 from pioreactor.calibrations import load_active_calibration
 from pioreactor.calibrations import load_calibration
 from pioreactor.calibrations.utils import calculate_poly_curve_of_best_fit
@@ -297,7 +297,7 @@ def test_custom_protocol() -> None:
         def run(target_device, **kwargs):
             pass
 
-    assert calibration_protocols["od90"]["custom"].__name__ == "CustomOD600CalibrationProtocol"
+    assert get_calibration_protocols()["od90"]["custom"].__name__ == "CustomOD600CalibrationProtocol"
 
     class CustomCalibrationProtocolWithList(CalibrationProtocol):
         protocol_name = "custom"
@@ -307,6 +307,7 @@ def test_custom_protocol() -> None:
         def run(target_device, **kwargs):
             pass
 
-    assert calibration_protocols["A"]["custom"].__name__ == "CustomCalibrationProtocolWithList"
-    assert calibration_protocols["B"]["custom"].__name__ == "CustomCalibrationProtocolWithList"
-    assert calibration_protocols["C"]["custom"].__name__ == "CustomCalibrationProtocolWithList"
+    protocols = get_calibration_protocols()
+    assert protocols["A"]["custom"].__name__ == "CustomCalibrationProtocolWithList"
+    assert protocols["B"]["custom"].__name__ == "CustomCalibrationProtocolWithList"
+    assert protocols["C"]["custom"].__name__ == "CustomCalibrationProtocolWithList"

@@ -7,7 +7,7 @@ from msgspec.yaml import decode as yaml_decode
 from msgspec.yaml import encode as yaml_encode
 from pioreactor import structs
 from pioreactor.calibrations import CALIBRATION_PATH
-from pioreactor.calibrations import calibration_protocols
+from pioreactor.calibrations import get_calibration_protocols
 from pioreactor.calibrations import list_devices
 from pioreactor.calibrations import list_of_calibrations_by_device
 from pioreactor.calibrations import load_active_calibration
@@ -95,32 +95,34 @@ def run_calibration(ctx, device: str, protocol_name: str | None, y: bool) -> Non
 
     # Dispatch to the assistant function for that device
     if protocol_name is None:
-        if len(calibration_protocols.get(device, {}).keys()) == 0:
+        protocols_by_device = get_calibration_protocols().get(device, {})
+        if len(protocols_by_device.keys()) == 0:
             click.echo(
                 f"No protocols found for device '{device}'. Try `pio calibrations protocols` to see available protocols."
             )
             raise click.Abort()
-        if len(calibration_protocols.get(device, {}).keys()) == 1:
-            protocol_name = list(calibration_protocols.get(device, {}).keys())[0]
+        if len(protocols_by_device.keys()) == 1:
+            protocol_name = list(protocols_by_device.keys())[0]
         else:
             # user will choose using click.prompt and click.Choice
             click.clear()
             click.echo()
             click.echo(f"Available protocols for {device}:")
             click.echo()
-            for protocol in calibration_protocols.get(device, {}).values():
+            for protocol in protocols_by_device.values():
                 click.echo(bold(f"  • {protocol.protocol_name}"))
                 click.echo(f"        Description: {protocol.description}")
             click.echo()
             protocol_name = click.prompt(
                 green("Choose a protocol"),
-                type=click.Choice(list(calibration_protocols.get(device, {}).keys())),
+                type=click.Choice(list(protocols_by_device.keys())),
             )
 
-    assistant = calibration_protocols.get(device, {}).get(protocol_name)
+    assistant = get_calibration_protocols().get(device, {}).get(protocol_name)
     if assistant is None:
+        available_protocols = list(get_calibration_protocols().get(device, {}).keys())
         click.echo(
-            f"No protocols found for device '{device}'. Available {device} protocols: {list(calibration_protocols[device].keys())}"
+            f"No protocols found for device '{device}'. Available {device} protocols: {available_protocols}"
         )
         raise click.Abort()
 
@@ -184,7 +186,7 @@ def list_protocols() -> None:
     """
     List available protocols for device calibrations.
     """
-    for device, protocols in calibration_protocols.items():
+    for device, protocols in get_calibration_protocols().items():
         click.echo(f"{bold(device)}: {', '.join(protocols.keys())}")
 
 
