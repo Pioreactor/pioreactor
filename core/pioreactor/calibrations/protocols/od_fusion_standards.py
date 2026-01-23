@@ -44,16 +44,6 @@ def _ensure_xr_model() -> None:
         raise ValueError("Fusion calibration is only available on XR models.")
 
 
-def _fusion_target_devices() -> list[pt.ODFusedCalibrationDevice]:
-    try:
-        model = get_pioreactor_model()
-    except Exception:
-        return []
-    if model.model_name.endswith("_XR"):
-        return [cast(pt.ODFusedCalibrationDevice, pt.OD_FUSED_DEVICE)]
-    return []
-
-
 def _channel_angle_map_from_config() -> dict[pt.PdChannel, pt.PdAngle]:
     pd_channels = config["od_config.photodiode_channel"]
     channel_angle_map: dict[pt.PdChannel, pt.PdAngle] = {}
@@ -421,7 +411,7 @@ _FUSION_STEPS: StepRegistry = {
 
 class FusionStandardsODProtocol(CalibrationProtocol[pt.ODFusedCalibrationDevice]):
     protocol_name = "od_fusion_standards"
-    target_device = _fusion_target_devices()
+    target_device = [cast(pt.ODFusedCalibrationDevice, pt.OD_FUSED_DEVICE)]
     title = "OD fusion standards"
     description = "Fit a fused OD model using standards measured at 45°, 90°, and 135° sensors."
     requirements = ("Requires XR model with 45°, 90°, and 135° sensors configured.",)
