@@ -105,18 +105,18 @@ def test_fusion_model_predicts_expected_concentration_range() -> None:
 def test_estimator_roundtrip_save_and_load(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
 
-    import pioreactor.estimators as estimators_module
-
     estimator = _build_estimator_from_records(_records_for_instrument("1"))  # type: ignore
-    saved_path = estimators_module.save_estimator(pt.OD_FUSED_DEVICE, estimator)
+    saved_path = estimator.save_to_disk_for_device(pt.OD_FUSED_DEVICE)
     assert estimator.estimator_name in saved_path
+
+    import pioreactor.estimators as estimators_module
 
     loaded = estimators_module.load_estimator(pt.OD_FUSED_DEVICE, estimator.estimator_name)
     assert isinstance(loaded, structs.ODFusionEstimator)
     assert loaded.estimator_name == estimator.estimator_name
     assert loaded.angles == estimator.angles
 
-    estimators_module.set_active_estimator(pt.OD_FUSED_DEVICE, estimator.estimator_name)
+    estimator.set_as_active_calibration_for_device(pt.OD_FUSED_DEVICE)
     active = estimators_module.load_active_estimator(pt.OD_FUSED_DEVICE)
     assert active is not None
     assert active.estimator_name == estimator.estimator_name

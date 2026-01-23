@@ -192,7 +192,7 @@ def test_protocols_expose_step_registries_and_start_sessions() -> None:
     assert "intro_confirm_1" in pump_protocol.step_registry
     assert callable(getattr(pump_protocol, "start_session", None))
 
-    standards_protocol = get_protocol(pt.OD_DEVICES[0], "standards")
+    standards_protocol = get_protocol(pt.OD_DEVICES[1], "standards")
     assert isinstance(standards_protocol.step_registry, dict)
     assert "intro" in standards_protocol.step_registry
     assert callable(getattr(standards_protocol, "start_session", None))
