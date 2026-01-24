@@ -1038,7 +1038,6 @@ class ODReader(BackgroundJob):
         "calibrated_od4": {"datatype": "CalibratedODReading", "settable": False},
         # below are used if a sensor fusion is used
         "od_fused": {"datatype": "ODFused", "settable": False},
-
     }
 
     _pre_read: list[Callable] = []
@@ -1520,7 +1519,7 @@ def start_od_reading(
     unit: pt.Unit | None = None,
     experiment: pt.Experiment | None = None,
     calibration: bool | structs.ODCalibration | list[structs.ODCalibration] | None = True,
-    estimator: bool | structs.ODFusionEstimator | None = False,
+    estimator: bool | structs.ODFusionEstimator | None = True,
     ir_led_intensity: float | None = None,
     penalizer: float = 0.0,
 ) -> "ODReader":
@@ -1595,17 +1594,19 @@ def start_od_reading(
     else:
         calibration_transformer = NullCalibrationTransformer()
 
-    fusion_estimator: structs.ODFusionEstimator | None = None
     estimator_transformer: EstimatorTransformerProtocol
 
     if estimator is True:
         try:
             from pioreactor.estimators import load_active_estimator
+
             estimator_transformer = CachedEstimatorTransformer()
             estimator_transformer.hydrate_estimator(load_active_estimator(pt.OD_FUSED_DEVICE))
         except Exception:
             estimator_transformer = NullEstimatorTransformer()
-    elif isinstance(estimator, structs.ODFusionEstimator):  # TODO: put a intermediate class between the super class and ODFusionEstimator
+    elif isinstance(
+        estimator, structs.ODFusionEstimator
+    ):  # TODO: put a intermediate class between the super class and ODFusionEstimator
         estimator_transformer = CachedEstimatorTransformer()
         estimator_transformer.hydrate_estimator(estimator)
     else:

@@ -97,7 +97,7 @@ def _build_estimator_from_records(
 def test_fusion_model_predicts_expected_concentration_range(instrument) -> None:
 
     records = _records_for_instrument(instrument)
-    calibration = _build_estimator_from_records(records)  # type: ignore
+    estimator = _build_estimator_from_records(records)  # type: ignore
 
     obs_by_vial, vial_concentrations = _aggregate_obs_for_instrument(instrument)
     running_max_error = 0.0
@@ -110,7 +110,7 @@ def test_fusion_model_predicts_expected_concentration_range(instrument) -> None:
             values = data[angle]
             readings_by_angle[angle] = sum(values) / len(values)  # average for now
 
-        fused = compute_fused_od(calibration, readings_by_angle)
+        fused = compute_fused_od(estimator, readings_by_angle)
         assert isinstance(fused, float)
         relative_error = abs(fused - concentration) / concentration
         running_max_error = max(running_max_error, relative_error)

@@ -479,29 +479,26 @@ def calibration_measure_standard(
 
 
 @huey.task()
-def calibration_fusion_standards_measure(
+def calibration_fusion_standard_observation(
     od_value: float,
     rpm: float,
-    samples_per_standard: int,
 ) -> dict[str, object]:
     from pioreactor.calibrations.protocols.od_fusion_standards import _measure_fusion_standard
 
     logger.debug(
-        "Starting fusion OD measurement: od_value=%s rpm=%s samples_per_standard=%s",
+        "Starting fusion OD observation: od_value=%s rpm=%s",
         od_value,
         rpm,
-        samples_per_standard,
     )
     samples = _measure_fusion_standard(
         od_value=od_value,
         rpm=rpm,
-        samples_per_standard=samples_per_standard,
     )
     serialized_samples: list[dict[str, float]] = []
     for sample in samples:
         serialized_samples.append({str(angle): float(value) for angle, value in sample.items()})
     logger.debug(
-        "Finished fusion OD measurement: od_value=%s rpm=%s sample_count=%s",
+        "Finished fusion OD observation: od_value=%s rpm=%s sample_count=%s",
         od_value,
         rpm,
         len(serialized_samples),
@@ -632,14 +629,13 @@ def _register_core_calibration_actions() -> None:
         ),
     )
     register_calibration_action(
-        "od_fusion_standards_measure",
+        "od_fusion_standard_observation",
         lambda payload: (
-            calibration_fusion_standards_measure(
+            calibration_fusion_standard_observation(
                 float(payload["od_value"]),
                 float(payload["rpm"]),
-                int(payload["samples_per_standard"]),
             ),
-            "Fusion OD measurement",
+            "Fusion OD observation",
             _default_normalizer,
         ),
     )
