@@ -61,6 +61,7 @@ class RunLazyGroup(LazyGroup):
             "led_automation",
             "temperature_automation",
         }:
+            # These commands rely on plugin registration side-effects (automation subclasses).
             self._load_plugins()
         elif cmd_name not in self.lazy_subcommands and cmd_name not in self.commands:
             self._load_plugins()
