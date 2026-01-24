@@ -311,7 +311,7 @@ def kill(
     """
     stop job(s).
     """
-    from pioreactor.utils import JobManager
+    from pioreactor.utils.job_manager import JobManager
 
     if not (job_name or experiment or job_source or all_jobs or job_id):
         raise click.Abort("Provide an option to kill. See --help")
@@ -356,7 +356,7 @@ def _format_job_history_line(
 @jobs.command(name="running", short_help="show status of running job(s)")
 def job_running() -> None:
 
-    from pioreactor.utils import JobManager
+    from pioreactor.utils.job_manager import JobManager
 
     with JobManager() as jm:
         jobs = jm.list_jobs(
@@ -371,7 +371,7 @@ def job_running() -> None:
 
 @jobs.command(name="list", short_help="list jobs current and previous")
 def job_history() -> None:
-    from pioreactor.utils import JobManager
+    from pioreactor.utils.job_manager import JobManager
 
     with JobManager() as jm:
         jobs = jm.list_job_history()
@@ -418,7 +418,7 @@ def job_info(job_id: int | None, job_name: str | None) -> None:
 
     assert job_id is not None
 
-    from pioreactor.utils import JobManager
+    from pioreactor.utils.job_manager import JobManager
 
     with JobManager() as jm:
         job = jm.get_job_info(job_id)
@@ -494,7 +494,7 @@ def job_remove(job_id: int | None, job_name: str | None) -> None:
 
     assert job_id is not None
 
-    from pioreactor.utils import JobManager
+    from pioreactor.utils.job_manager import JobManager
 
     with JobManager() as jm:
         job = jm.get_job_info(job_id)
