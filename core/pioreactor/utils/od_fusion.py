@@ -158,7 +158,7 @@ def _global_minimize(
 def fit_fusion_model(
     records: Iterable[tuple[pt.PdAngle, float, float]],
     *,
-    sigma_floor: float = 0.07,
+    sigma_floor: float = 0.04,
     angles: tuple[pt.PdAngle, ...] = FUSION_ANGLES,
 ) -> FusionFitResult:
     # Input records are (angle, concentration, reading).
@@ -301,14 +301,14 @@ def compute_fused_od(
         # Gentle prior: at low concentrations, 135 tends to be the cleanest,
         # but avoid over-weighting a single angle across instruments.
         low_logc = -2.5
-        high_logc = -1.0
+        high_logc = -0.1
         if logc <= low_logc:
             t = 1.0
         elif logc >= high_logc:
             t = 0.0
         else:
             t = (high_logc - logc) / (high_logc - low_logc)
-        low_scales = {"135": 0.08, "90": 1.2, "45": 9.0}
+        low_scales = {"135": 0.04, "90": 4.0, "45": 10.0}
         scale = low_scales[angle]
         return 1.0 * (1.0 - t) + scale * t
 
@@ -321,7 +321,7 @@ def compute_fused_od(
         #
         # We use a pseudo-Huber penalty on the normalized residual to reduce
         # the impact of occasional bubbles/artifacts without changing small-error behavior.
-        huber_delta = 2.0
+        huber_delta = 1.0
         total = 0.0
         for angle in estimator.angles:
             mu = spline_eval(estimator.mu_splines[angle], logc)
