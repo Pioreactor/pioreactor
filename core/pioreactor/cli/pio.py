@@ -9,7 +9,6 @@ import click
 from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
 from pioreactor import exc
-from pioreactor import plugin_management
 from pioreactor import whoami
 from pioreactor.cli.lazy_group import LazyGroup
 from pioreactor.config import config
@@ -233,9 +232,6 @@ def pio(ctx, show_version: bool) -> None:
     # https://click.palletsprojects.com/en/8.1.x/commands/#group-invocation-without-command
     if ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
-
-    # load plugins
-    plugin_management.get_plugins()
 
 
 @pio.command(name="logs", short_help="show recent logs")

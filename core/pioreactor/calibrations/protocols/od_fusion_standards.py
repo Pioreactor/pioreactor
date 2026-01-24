@@ -212,7 +212,7 @@ class Intro(SessionStep):
                 "This protocol fits a fused OD model using the 45°, 90°, and 135° sensors. "
                 "You will need:\n"
                 "1. A Pioreactor XR.\n"
-                "2. A set of OD600 standards in Pioreactor vials (at least 10 mL each), with stir bars.\n"
+                "2. A set of OD600 standards in Pioreactor vials (at least 10 mL each), with stir bars. It helps to enumerate them 1..N.\n"
             ),
         )
 
@@ -333,7 +333,7 @@ class MeasureStandard(SessionStep):
         standard_index = int(ctx.data.get("standard_index", 1))
         step = steps.form(
             f"Record standard vial {standard_index}",
-            f"Enter the OD600 measurement for the standard vial {standard_index}.",
+            f"Enter the OD600 measurement for standard vial {standard_index}.",
             [fields.float("od_value", label="OD600", minimum=0.0001)],
         )
         chart = _build_chart_metadata(ctx.data.get("records", []))
@@ -361,7 +361,7 @@ class PlaceObservation(SessionStep):
         current, total = _current_observation_index(ctx)
         standard_index = int(ctx.data.get("standard_index", 1))
         step = steps.action(
-            f"Insert standard vial {standard_index} ({current}/{total})",
+            f"Insert standard vial {standard_index} ({current}/{total} trials complete)",
             f"Place standard vial {standard_index} with a stir bar into the Pioreactor.",
         )
         step.metadata = {
@@ -386,8 +386,8 @@ class RecordObservation(SessionStep):
         current, total = _current_observation_index(ctx)
         standard_index = int(ctx.data.get("standard_index", 1))
         step = steps.action(
-            f"Recording standard vial {standard_index} ({current}/{total} complete)",
-            "We'll next take an OD reading for this standard.",
+            f"Recording standard vial {standard_index} ({current}/{total} trials complete)",
+            "Press Continue to take an OD reading for this standard.",
         )
         chart = _build_chart_metadata(ctx.data.get("records", []))
         if chart is not None:
@@ -415,7 +415,7 @@ class RemoveObservation(SessionStep):
         current, total = _current_observation_index(ctx)
         standard_index = int(ctx.data.get("standard_index", 1))
         step = steps.action(
-            f"Remove standard vial {standard_index} ({current}/{total})",
+            f"Remove standard vial {standard_index} ({current}/{total} trials complete)",
             "Remove the vial completely, then continue.",
         )
         step.metadata = {

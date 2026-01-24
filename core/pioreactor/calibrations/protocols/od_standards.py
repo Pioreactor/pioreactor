@@ -273,7 +273,7 @@ class Intro(SessionStep):
                 "This routine calibrates the Pioreactor to OD600 readings using standards. "
                 "You will need:\n"
                 "1. A Pioreactor.\n"
-                "2. A set of OD600 standards in Pioreactor vials (at least 10 mL each), with stir bars.\n"
+                "2. A set of OD600 standards in Pioreactor vials (at least 10 mL each), with stir bars. It helps to enumerate these 1..N.\n"
                 "3. One standard should be a blank (media only)."
             ),
         )
@@ -386,9 +386,10 @@ class PlaceStandard(SessionStep):
     step_id = "place_standard"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
+        standard_index = int(ctx.data.get("standard_index", 1))
         step = steps.info(
-            "Place standard",
-            "Place a non-blank standard vial with a stir bar into the Pioreactor.",
+            f"Place standard {standard_index}",
+            f"Place standard vial {standard_index} (non-blank) with a stir bar into the Pioreactor.",
         )
         chart = _build_standards_chart_metadata(
             ctx.data["od600_values"],
@@ -401,8 +402,8 @@ class PlaceStandard(SessionStep):
             step.metadata = {
                 "image": {
                     "src": "/static/svgs/place-standard-arrow-pioreactor.svg",
-                    "alt": "Place a non-blank standard vial with a stir bar into the Pioreactor.",
-                    "caption": "Place a non-blank standard vial with a stir bar into the Pioreactor.",
+                    "alt": f"Place standard vial {standard_index} (non-blank) with a stir bar into the Pioreactor.",
+                    "caption": f"Place standard vial {standard_index} (non-blank) with a stir bar into the Pioreactor.",
                 }
             }
         return step
@@ -417,9 +418,10 @@ class MeasureStandard(SessionStep):
     step_id = "measure_standard"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
+        standard_index = int(ctx.data.get("standard_index", 1))
         step = steps.form(
-            "Record standard",
-            "Enter the OD600 measurement for the current vial.",
+            f"Record standard {standard_index}",
+            f"Enter the OD600 measurement for standard vial {standard_index}. Then, press Continue to take a reading from the Pioreactor.",
             [fields.float("od600_value", label="OD600 value", minimum=0)],
         )
         chart = _build_standards_chart_metadata(
@@ -435,6 +437,7 @@ class MeasureStandard(SessionStep):
         channel_angle_map = _get_channel_angle_map(ctx)
         od600_value = ctx.inputs.float("od600_value", minimum=0)
         voltages = _measure_standard_for_session(ctx, od600_value, ctx.data["rpm"], channel_angle_map)
+        ctx.data.setdefault("standard_index", 1)
         ctx.data["od600_values"].append(od600_value)
         for channel, voltage in voltages.items():
             ctx.data["voltages_by_channel"][channel].append(voltage)
@@ -445,13 +448,18 @@ class AnotherStandard(SessionStep):
     step_id = "another_standard"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
+        standard_index = int(ctx.data.get("standard_index", 1))
+        next_standard_index = standard_index + 1
         step = steps.form(
             "Next standard",
-            "Record another standard, move on to the blank, or redo the last measurement?",
+            (
+                f"Record standard {next_standard_index}, move on to the blank, "
+                "or redo the last measurement?"
+            ),
             [
                 fields.choice(
                     "next_action",
-                    ["record another standard", "finish, and continue to blank"],
+                    ["record another standard", "continue to blank (media only)"],
                     label="Next action",
                     default="record another standard",
                 )
@@ -480,10 +488,11 @@ class AnotherStandard(SessionStep):
             return PlaceStandard()
         next_action = ctx.inputs.choice(
             "next_action",
-            ["record another standard", "finish, and continue to blank"],
+            ["record another standard", "continue to blank (media only)"],
             default="record another standard",
         )
         if next_action == "record another standard":
+            ctx.data["standard_index"] = int(ctx.data.get("standard_index", 1)) + 1
             return PlaceStandard()
         return PlaceBlank()
 
