@@ -414,6 +414,45 @@ function AssignPioreactors({ experiment, variant="text" }) {
     return differences;
   }
 
+  function getAssignmentDeltaCounts(delta) {
+    let assignedCount = 0;
+    let unassignedCount = 0;
+
+    for (const worker in delta) {
+      if (delta[worker].current && !delta[worker].initial) {
+        assignedCount += 1;
+      } else {
+        unassignedCount += 1;
+      }
+    }
+
+    return { assignedCount, unassignedCount };
+  }
+
+  function getAssignmentDeltaLabel(delta) {
+    const { assignedCount, unassignedCount } = getAssignmentDeltaCounts(delta);
+    const labelParts = [];
+    const totalCount = assignedCount + unassignedCount;
+
+    if (unassignedCount > 0) {
+      labelParts.push(`Unassign ${unassignedCount}`);
+    }
+
+    if (assignedCount > 0) {
+      labelParts.push(`Assign ${assignedCount}`);
+    }
+
+    if (labelParts.length === 0) {
+      return "No changes";
+    }
+
+    if (assignedCount > 0 && unassignedCount > 0) {
+      return `Update ${totalCount}`;
+    }
+
+    return labelParts.join(", ");
+  }
+
   const updateAssignments = async () => {
     const delta = compareObjects(assigned, initialAssigned);
     const promises = [];
@@ -480,6 +519,10 @@ function AssignPioreactors({ experiment, variant="text" }) {
     setSelectAll(allSelected ? true : (noneSelected ? false : null));
   }, [assigned, workers, experiment]);
 
+  const assignmentDelta = compareObjects(assigned, initialAssigned);
+  const assignmentDeltaCount = Object.keys(assignmentDelta).length;
+  const assignmentDeltaLabel = getAssignmentDeltaLabel(assignmentDelta);
+
   return (
     <React.Fragment>
       <Button variant={variant} style={{ textTransform: "none" }} onClick={handleClickOpen}>
@@ -514,7 +557,7 @@ function AssignPioreactors({ experiment, variant="text" }) {
         <DialogContent>
           <p>
             Assign and unassign Pioreactors to experiment{" "}
-            <Chip icon={<PlayCircleOutlinedIcon/>} size="small" label={experiment} clickable component={Link} onClick={() => selectExperiment(experiment)} data-experiment-name={experiment} />.
+            <Chip icon={<PlayCircleOutlinedIcon/>} size="small" label={experiment} />.
           </p>
           <FormControl sx={{ m: "auto" }} component="fieldset" variant="standard">
             <FormLabel component="legend">Pioreactors</FormLabel>
@@ -574,10 +617,10 @@ function AssignPioreactors({ experiment, variant="text" }) {
           <Button
             variant="contained"
             onClick={updateAssignments}
-            disabled={Object.keys(compareObjects(assigned, initialAssigned)).length === 0}
+            disabled={true && assignmentDeltaCount === 0}
             style={{ textTransform: "none" }}
           >
-            Update {Object.keys(compareObjects(assigned, initialAssigned)).length}
+            {assignmentDeltaLabel}
           </Button>
         </DialogActions>
       </Dialog>

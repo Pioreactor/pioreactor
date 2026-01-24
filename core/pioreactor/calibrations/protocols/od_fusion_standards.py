@@ -213,7 +213,6 @@ class Intro(SessionStep):
                 "You will need:\n"
                 "1. A Pioreactor XR.\n"
                 "2. A set of OD600 standards in Pioreactor vials (at least 10 mL each), with stir bars.\n"
-                "3. Multiple readings per standard."
             ),
         )
 
@@ -231,7 +230,7 @@ class NameInput(SessionStep):
             ctx.data["default_name"] = default_name
         return steps.form(
             "Name this estimator",
-            "Choose a unique name for this fused OD estimator.",
+            "Choose a name for this fused OD estimator.",
             [fields.str("estimator_name", label="Estimator name", default=default_name)],
         )
 
@@ -334,7 +333,7 @@ class MeasureStandard(SessionStep):
         standard_index = int(ctx.data.get("standard_index", 1))
         step = steps.form(
             f"Record standard vial {standard_index}",
-            f"Enter the OD600 measurement for the vial {standard_index}.",
+            f"Enter the OD600 measurement for the standard vial {standard_index}.",
             [fields.float("od_value", label="OD600", minimum=0.0001)],
         )
         chart = _build_chart_metadata(ctx.data.get("records", []))
@@ -363,7 +362,7 @@ class PlaceObservation(SessionStep):
         standard_index = int(ctx.data.get("standard_index", 1))
         step = steps.action(
             f"Insert standard vial {standard_index} ({current}/{total})",
-            f"Place the standard vial {standard_index} with a stir bar into the Pioreactor.",
+            f"Place standard vial {standard_index} with a stir bar into the Pioreactor.",
         )
         step.metadata = {
             "image": {
@@ -388,7 +387,7 @@ class RecordObservation(SessionStep):
         standard_index = int(ctx.data.get("standard_index", 1))
         step = steps.action(
             f"Recording standard vial {standard_index} ({current}/{total} complete)",
-            "We'll take an OD reading for this observation.",
+            "We'll next take an OD reading for this standard.",
         )
         chart = _build_chart_metadata(ctx.data.get("records", []))
         if chart is not None:
