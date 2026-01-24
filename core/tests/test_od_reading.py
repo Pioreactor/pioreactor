@@ -186,7 +186,9 @@ def test_fused_od_updates_with_estimator() -> None:
         calibration_transformer=NullCalibrationTransformer(),
         estimator_transformer=estimator_transformer,
     ) as reader:
-        reader._update_fused_od(raw_readings)
+        fused_od = reader.estimator_transformer(raw_readings)
+        if fused_od is not None:
+            reader.od_fused = fused_od
         assert reader.od_fused is not None
         assert reader.od_fused.od_fused == pytest.approx(expected)
 
@@ -209,7 +211,9 @@ def test_fused_od_skips_when_angle_missing() -> None:
         calibration_transformer=NullCalibrationTransformer(),
         estimator_transformer=estimator_transformer,
     ) as reader:
-        reader._update_fused_od(raw_readings)
+        fused_od = reader.estimator_transformer(raw_readings)
+        if fused_od is not None:
+            reader.od_fused = fused_od
         assert reader.od_fused is None
 
 

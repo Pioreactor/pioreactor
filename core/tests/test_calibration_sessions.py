@@ -3,6 +3,7 @@ from collections.abc import Generator
 
 import pytest
 from pioreactor import types as pt
+from pioreactor.calibrations.registry import get_calibration_protocols
 from pioreactor.calibrations.registry import get_protocol
 from pioreactor.calibrations.session_flow import CalibrationComplete
 from pioreactor.calibrations.session_flow import fields
@@ -192,7 +193,11 @@ def test_protocols_expose_step_registries_and_start_sessions() -> None:
     assert "intro_confirm_1" in pump_protocol.step_registry
     assert callable(getattr(pump_protocol, "start_session", None))
 
-    standards_protocol = get_protocol(pt.OD_DEVICES[1], "standards")
+    available_protocols = get_calibration_protocols()
+    standards_device = next(
+        device for device, protocols in available_protocols.items() if "standards" in protocols
+    )
+    standards_protocol = get_protocol(standards_device, "standards")
     assert isinstance(standards_protocol.step_registry, dict)
     assert "intro" in standards_protocol.step_registry
     assert callable(getattr(standards_protocol, "start_session", None))
