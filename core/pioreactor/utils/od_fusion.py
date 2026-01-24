@@ -158,7 +158,7 @@ def _global_minimize(
 def fit_fusion_model(
     records: Iterable[tuple[pt.PdAngle, float, float]],
     *,
-    sigma_floor: float = 0.05,
+    sigma_floor: float = 0.07,
     angles: tuple[pt.PdAngle, ...] = FUSION_ANGLES,
 ) -> FusionFitResult:
     # Input records are (angle, concentration, reading).
@@ -250,7 +250,7 @@ def fit_fusion_model(
         sig_points.sort(key=lambda pair: pair[0])
         sig_x = [lc for lc, _ in sig_points]
         sig_y = [log(sig) for _, sig in sig_points]
-        sigma_splines_log[angle] = spline_fit(sig_x, sig_y, knots=5)
+        sigma_splines_log[angle] = spline_fit(sig_x, sig_y, knots="auto")
 
     # Inversion bounds: restrict to the calibrated logc range.
     min_logc = min(logc_values)
@@ -298,7 +298,8 @@ def compute_fused_od(
     slope_floor = 0.05
 
     def _angle_noise_scale(angle: pt.PdAngle, logc: float) -> float:
-        # Domain knowledge: at low concentrations, 135 is most reliable, then 90, then 45.
+        # Gentle prior: at low concentrations, 135 tends to be the cleanest,
+        # but avoid over-weighting a single angle across instruments.
         low_logc = -2.5
         high_logc = -1.0
         if logc <= low_logc:
@@ -307,7 +308,7 @@ def compute_fused_od(
             t = 0.0
         else:
             t = (high_logc - logc) / (high_logc - low_logc)
-        low_scales = {"135": 0.1, "90": 1.0, "45": 8.0}
+        low_scales = {"135": 0.08, "90": 1.2, "45": 9.0}
         scale = low_scales[angle]
         return 1.0 * (1.0 - t) + scale * t
 
@@ -317,6 +318,10 @@ def compute_fused_od(
         #
         # Sum of per-angle NLL (dropping additive constants):
         #   0.5*(r/sigma)^2 + log(sigma)
+        #
+        # We use a pseudo-Huber penalty on the normalized residual to reduce
+        # the impact of occasional bubbles/artifacts without changing small-error behavior.
+        huber_delta = 2.0
         total = 0.0
         for angle in estimator.angles:
             mu = spline_eval(estimator.mu_splines[angle], logc)
@@ -325,7 +330,9 @@ def compute_fused_od(
             sigma_eff = sigma / max(slope, slope_floor)
             sigma_eff *= _angle_noise_scale(angle, logc)
             residual = log_obs[angle] - mu
-            total += 0.5 * (residual / sigma_eff) ** 2 + log(sigma_eff)
+            r = residual / sigma_eff
+            huber_term = huber_delta**2 * ((1.0 + (r / huber_delta) ** 2) ** 0.5 - 1.0)
+            total += huber_term + log(sigma_eff)
         return total
 
     # MAP / ML estimate:
