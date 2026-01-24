@@ -114,7 +114,6 @@ def test_fusion_model_predicts_expected_concentration_range(instrument) -> None:
         assert isinstance(fused, float)
         relative_error = abs(fused - concentration) / concentration
         running_max_error = max(running_max_error, relative_error)
-
     assert running_max_error < 0.1
 
 

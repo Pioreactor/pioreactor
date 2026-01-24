@@ -10,6 +10,7 @@ from pioreactor import types as pt
 from pioreactor.actions.led_intensity import ALL_LED_CHANNELS
 from pioreactor.background_jobs.od_reading import ADCReader
 from pioreactor.background_jobs.od_reading import CachedCalibrationTransformer
+from pioreactor.background_jobs.od_reading import CachedEstimatorTransformer
 from pioreactor.background_jobs.od_reading import NullCalibrationTransformer
 from pioreactor.background_jobs.od_reading import ODReader
 from pioreactor.background_jobs.od_reading import PhotodiodeIrLedReferenceTrackerStaticInit
@@ -172,6 +173,8 @@ def test_fused_od_updates_with_estimator() -> None:
     raw_readings = _build_od_readings(readings_by_angle)
     expected = compute_fused_od(estimator, readings_by_angle)
     assert isinstance(expected, float)
+    estimator_transformer = CachedEstimatorTransformer()
+    estimator_transformer.hydrate_estimator(estimator)
     channel_angle_map: dict[pt.PdChannel, pt.PdAngle] = {"1": "45", "2": "90", "3": "135"}
 
     with ODReader(
@@ -181,7 +184,7 @@ def test_fused_od_updates_with_estimator() -> None:
         experiment="test_fused_od_updates_with_estimator",
         adc_reader=ADCReader(channels=list(channel_angle_map.keys()), fake_data=True, dynamic_gain=False),
         calibration_transformer=NullCalibrationTransformer(),
-        fusion_estimator=estimator,
+        estimator_transformer=estimator_transformer,
     ) as reader:
         reader._update_fused_od(raw_readings)
         assert reader.od_fused is not None
@@ -193,6 +196,8 @@ def test_fused_od_skips_when_angle_missing() -> None:
     readings_by_angle = _build_readings_for_concentration(0.2)
     readings_by_angle.pop("90")
     raw_readings = _build_od_readings(readings_by_angle)
+    estimator_transformer = CachedEstimatorTransformer()
+    estimator_transformer.hydrate_estimator(estimator)
     channel_angle_map: dict[pt.PdChannel, pt.PdAngle] = {"1": "45", "2": "90", "3": "135"}
 
     with ODReader(
@@ -202,7 +207,7 @@ def test_fused_od_skips_when_angle_missing() -> None:
         experiment="test_fused_od_skips_when_angle_missing",
         adc_reader=ADCReader(channels=list(channel_angle_map.keys()), fake_data=True, dynamic_gain=False),
         calibration_transformer=NullCalibrationTransformer(),
-        fusion_estimator=estimator,
+        estimator_transformer=estimator_transformer,
     ) as reader:
         reader._update_fused_od(raw_readings)
         assert reader.od_fused is None

@@ -12,27 +12,53 @@ Internally, the ODReader runs a function every `interval` seconds. The function
 
 Dataflow of raw signal to final output:
 
-┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ODReader                                                                                                                  │
-│                                                                                                                          │
-│                                                                                                                          │
-│   ┌──────────────────────────────────────────────────────────┐  ┌────────────────────────┐  ┌────────────────────────┐   │
-│   │ADCReader                                                 │  │IrLedReferenceTracker   │  │CalibrationTransformer  │   │
-│   │                                                          │  │                        │  │                        │   │
-│   │                                                          │  │                        │  │                        │   │
-│   │ ┌──────────────┐   ┌──────────────┐    ┌───────────────┐ │  │  ┌─────────────────┐   │  │  ┌─────────────────┐   │   │
-│   │ │              ├───►              ├────►               │ │  │  │                 │   │  │  │                 │   │   │
-│   │ │              │   │              │    │               │ │  │  │                 │   │  │  │                 │   │   │
-│   │ │ samples from ├───►  ADC offset  ├────►      sin      ├─┼──┼──►  IR output      ├───┼──┼──►  Transform via  ├───┼───┼───►
-│   │ │     ADC      │   │   removed    │    │   regression  │ │  │  │  compensation   │   │  │  │  calibration    │   │   │
-│   │ │              ├───►              ├────►               │ │  │  │                 │   │  │  │  curve          │   │   │
-│   │ └──────────────┘   └──────────────┘    └───────────────┘ │  │  └─────────────────┘   │  │  │  (or no-op)     │   │   │
-│   │                                                          │  │                        │  │  └─────────────────┘   │   │
-│   │                                                          │  │                        │  │                        │   │
-│   └──────────────────────────────────────────────────────────┘  └────────────────────────┘  └────────────────────────┘   │
-│                                                                                                                          │
-│                                                                                                                          │
-└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    %% Top-level container
+    subgraph OD["ODReader"]
+        direction LR
+
+        %% ADCReader block
+        subgraph ADC["ADCReader"]
+            direction LR
+
+            A["Samples from ADC"]
+            B["ADC offset removed"]
+            C["Sin regression"]
+
+            A --> B --> C
+        end
+
+        %% IR LED Reference Tracker
+        subgraph IR["IrLedReferenceTracker"]
+            direction LR
+
+            D["IR output compensation"]
+        end
+
+        %% Calibration Transformer
+        subgraph CAL["CalibrationTransformer"]
+            direction LR
+
+            E["Transform via calibration curve
+(or no-op)"]
+        end
+
+        %% Estimator Transformer Protocol
+        subgraph EST["EstimatorTransformerProtocol"]
+            direction LR
+
+            F["Fuse signals via estimator
+(or no-op)"]
+        end
+
+        %% Cross-module connections
+        C --> D
+        D --> E
+        D --> F
+    end
+```
+
 
 In the ODReader class, we publish the `first_od_obs_time` to MQTT so other jobs can read it and
 make decisions. For example, if a bubbler/visible light LED is active, it should time itself
@@ -755,6 +781,14 @@ class CalibrationTransformerProtocol(Protocol):
     def __call__(self, batched_readings: structs.ODReadings) -> structs.ODReadings: ...
 
 
+class EstimatorTransformerProtocol(Protocol):
+    estimator: structs.ODFusionEstimator | None
+
+    def hydrate_estimator(self, estimator: structs.ODFusionEstimator | None) -> None: ...
+
+    def __call__(self, raw_od_readings: structs.ODReadings) -> structs.ODFused | None: ...
+
+
 class NullCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
     _logger_name = "calibration_transformer"
 
@@ -903,6 +937,49 @@ class CachedCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
         return calibrated_od_readings
 
 
+class NullEstimatorTransformer(LoggerMixin, EstimatorTransformerProtocol):
+    _logger_name = "estimator_transformer"
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.estimator: structs.ODFusionEstimator | None = None
+
+    def hydrate_estimator(self, estimator: structs.ODFusionEstimator | None) -> None:
+        return
+
+    def __call__(self, raw_od_readings: structs.ODReadings) -> structs.ODFused | None:
+        return None
+
+
+class CachedEstimatorTransformer(LoggerMixin, EstimatorTransformerProtocol):
+    _logger_name = "estimator_transformer"
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.estimator: structs.ODFusionEstimator | None = None
+
+    def hydrate_estimator(self, estimator: structs.ODFusionEstimator | None) -> None:
+        if estimator is None:
+            self.logger.debug("No estimator available for OD fusion, skipping.")
+            return
+        self.estimator = estimator
+
+    def __call__(self, raw_od_readings: structs.ODReadings) -> structs.ODFused | None:
+        if self.estimator is None:
+            return None
+
+        fused_inputs: dict[pt.PdAngle, float] = {
+            reading.angle: reading.od for reading in raw_od_readings.ods.values()
+        }
+        try:
+            od_fused_value = compute_fused_od(self.estimator, fused_inputs)
+        except Exception as e:
+            self.logger.debug(f"Failed to compute fused OD: {e}", exc_info=True)
+            return None
+
+        return structs.ODFused(od_fused=od_fused_value, timestamp=raw_od_readings.timestamp)
+
+
 class ODReader(BackgroundJob):
     """
     Produce a stream of OD readings from the sensors.
@@ -916,6 +993,7 @@ class ODReader(BackgroundJob):
     adc_reader: ADCReader
     ir_led_reference_tracker: IrLedReferenceTracker
     calibration_transformer:
+    estimator_transformer:
 
 
     Examples
@@ -958,6 +1036,9 @@ class ODReader(BackgroundJob):
         "calibrated_od2": {"datatype": "CalibratedODReading", "settable": False},
         "calibrated_od3": {"datatype": "CalibratedODReading", "settable": False},
         "calibrated_od4": {"datatype": "CalibratedODReading", "settable": False},
+        # below are used if a sensor fusion is used
+        "od_fused": {"datatype": "ODFused", "settable": False},
+
     }
 
     _pre_read: list[Callable] = []
@@ -987,7 +1068,7 @@ class ODReader(BackgroundJob):
         experiment: pt.Experiment,
         ir_led_reference_tracker: Optional[IrLedReferenceTracker] = None,
         calibration_transformer: Optional[CalibrationTransformerProtocol] = None,
-        fusion_estimator: structs.ODFusionEstimator | None = None,
+        estimator_transformer: Optional[EstimatorTransformerProtocol] = None,
         ir_led_intensity: float | None = None,
     ) -> None:
         super(ODReader, self).__init__(unit=unit, experiment=experiment)
@@ -1015,13 +1096,19 @@ class ODReader(BackgroundJob):
         else:
             self.calibration_transformer = calibration_transformer  # type: ignore
 
-        self.fusion_estimator: structs.ODFusionEstimator | None = fusion_estimator
-        if self.fusion_estimator is not None:
+        if estimator_transformer is None:
+            self.logger.debug("Not using any estimator.")
+            self.estimator_transformer = NullEstimatorTransformer()
+        else:
+            self.estimator_transformer = estimator_transformer  # type: ignore
+
+        if self.estimator_transformer.estimator is not None:
             self.add_to_published_settings("od_fused", {"datatype": "ODFused", "settable": False})
 
         self.adc_reader.add_external_logger(self.logger)
         self.calibration_transformer.add_external_logger(self.logger)
         self.ir_led_reference_transformer.add_external_logger(self.logger)
+        self.estimator_transformer.add_external_logger(self.logger)
 
         self.channel_angle_map = channel_angle_map
 
@@ -1261,7 +1348,10 @@ class ODReader(BackgroundJob):
                 if isinstance(od_readings.ods[channel], structs.CalibratedODReading):
                     setattr(self, f"raw_od{channel}", raw_od_readings.ods[channel])
                     setattr(self, f"calibrated_od{channel}", od_readings.ods[channel])
-            self._update_fused_od(raw_od_readings)
+
+            fused_od = self.estimator_transformer(raw_od_readings)
+            if fused_od is not None:
+                self.od_fused = fused_od
 
         finally:
             for post_function in self.post_read_callbacks:
@@ -1303,21 +1393,6 @@ class ODReader(BackgroundJob):
     ###########
     # Private
     ############
-
-    def _update_fused_od(self, raw_od_readings: structs.ODReadings) -> None:
-        if self.fusion_estimator is None:
-            return
-
-        fused_inputs: dict[pt.PdAngle, float] = {
-            reading.angle: reading.od for reading in raw_od_readings.ods.values()
-        }
-        try:
-            od_fused_value = compute_fused_od(self.fusion_estimator, fused_inputs)
-        except Exception as e:
-            self.logger.debug(f"Failed to compute fused OD: {e}", exc_info=True)
-            return
-
-        self.od_fused = structs.ODFused(od_fused=od_fused_value, timestamp=raw_od_readings.timestamp)
 
     def on_sleeping(self) -> None:
         self.record_from_adc_timer.pause()
@@ -1521,21 +1596,20 @@ def start_od_reading(
         calibration_transformer = NullCalibrationTransformer()
 
     fusion_estimator: structs.ODFusionEstimator | None = None
+    estimator_transformer: EstimatorTransformerProtocol
 
     if estimator is True:
         try:
             from pioreactor.estimators import load_active_estimator
-            fusion_estimator = load_active_estimator(pt.OD_FUSED_DEVICE)
+            estimator_transformer = CachedEstimatorTransformer()
+            estimator_transformer.hydrate_estimator(load_active_estimator(pt.OD_FUSED_DEVICE))
         except Exception:
-            fusion_estimator = None
-    elif isinstance(estimator, structs.ODFusionEstimator): # TODO: put a intermediate class between the super class and ODFusionEstimator
-        fusion_estimator = estimator
+            estimator_transformer = NullEstimatorTransformer()
+    elif isinstance(estimator, structs.ODFusionEstimator):  # TODO: put a intermediate class between the super class and ODFusionEstimator
+        estimator_transformer = CachedEstimatorTransformer()
+        estimator_transformer.hydrate_estimator(estimator)
     else:
-        fusion_estimator = None
-
-    if fusion_estimator:
-        # turn off calibrations, estimators work on raw data.
-        calibration_transformer = NullCalibrationTransformer()
+        estimator_transformer = NullEstimatorTransformer()
 
     if interval is None:
         penalizer = 0.0
@@ -1550,7 +1624,7 @@ def start_od_reading(
         ),
         ir_led_reference_tracker=ir_led_reference_tracker,
         calibration_transformer=calibration_transformer,
-        fusion_estimator=fusion_estimator,
+        estimator_transformer=estimator_transformer,
         ir_led_intensity=ir_led_intensity,
     )
 
