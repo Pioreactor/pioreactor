@@ -6,23 +6,9 @@ from typing import Any
 from typing import Optional
 
 import click
-from msgspec.json import decode as loads
-from msgspec.json import encode as dumps
 from pioreactor import exc
 from pioreactor import whoami
 from pioreactor.cli.lazy_group import LazyGroup
-from pioreactor.config import config
-from pioreactor.logging import create_logger
-from pioreactor.mureq import get
-from pioreactor.mureq import HTTPException
-from pioreactor.pubsub import post_into_leader
-from pioreactor.utils import get_running_pio_job_id
-from pioreactor.utils import JobManager
-from pioreactor.utils import local_intermittent_storage
-from pioreactor.utils import local_persistent_storage
-from pioreactor.utils.networking import is_using_local_access_point
-from pioreactor.utils.timing import current_utc_timestamp
-from pioreactor.utils.timing import to_datetime
 
 lazy_subcommands = {
     "run": "pioreactor.cli.run.run",
@@ -49,6 +35,11 @@ def get_update_app_commands(
     """Build the commands_and_priority list and return the installed version."""
     import tempfile
     import re
+    from msgspec.json import decode as loads
+    from pioreactor.config import config
+    from pioreactor.mureq import get
+    from pioreactor.mureq import HTTPException
+    from pioreactor.utils.networking import is_using_local_access_point
 
     commands_and_priority: list[tuple[str, float]] = []
     # source overrides branch/version
@@ -245,6 +236,8 @@ def logs(n: int, f: bool) -> None:
     """
     Tail & stream the logs from this unit to the terminal. CTRL-C to exit.
     """
+    from pioreactor.config import config
+
     log_file = config.get("logging", "log_file", fallback="/var/log/pioreactor.log")
     ui_log_file = config.get("logging", "ui_log_file", fallback="/var/log/pioreactor.log")
 
@@ -280,6 +273,8 @@ def logs(n: int, f: bool) -> None:
 @click.option("--local-only", is_flag=True, help="don't send to MQTT; write only to local disk")
 def log(message: str, level: str, name: str, local_only: bool):
     try:
+        from pioreactor.logging import create_logger
+
         logger = create_logger(
             name,
             unit=whoami.get_unit_name(),
@@ -299,6 +294,8 @@ def blink() -> None:
     """
     monitor job is required to be running.
     """
+    from pioreactor.pubsub import post_into_leader
+
     post_into_leader(f"/api/workers/{whoami.get_unit_name()}/blink")
 
 
@@ -314,6 +311,8 @@ def kill(
     """
     stop job(s).
     """
+    from pioreactor.utils import JobManager
+
     if not (job_name or experiment or job_source or all_jobs or job_id):
         raise click.Abort("Provide an option to kill. See --help")
 
@@ -357,6 +356,8 @@ def _format_job_history_line(
 @jobs.command(name="running", short_help="show status of running job(s)")
 def job_running() -> None:
 
+    from pioreactor.utils import JobManager
+
     with JobManager() as jm:
         jobs = jm.list_jobs(
             all_jobs=True,
@@ -370,6 +371,8 @@ def job_running() -> None:
 
 @jobs.command(name="list", short_help="list jobs current and previous")
 def job_history() -> None:
+    from pioreactor.utils import JobManager
+
     with JobManager() as jm:
         jobs = jm.list_job_history()
 
@@ -387,6 +390,8 @@ def _format_timestamp_to_seconds(timestamp: str | None) -> str:
         return ""
 
     try:
+        from pioreactor.utils.timing import to_datetime
+
         dt = to_datetime(timestamp)
     except ValueError:
         return timestamp
@@ -404,12 +409,16 @@ def job_info(job_id: int | None, job_name: str | None) -> None:
         return
 
     if job_id is None and job_name is not None:
+        from pioreactor.utils import get_running_pio_job_id
+
         job_id = get_running_pio_job_id(job_name)
         if job_id is None:
             click.echo(f"No running job found with name {job_name}.")
             return
 
     assert job_id is not None
+
+    from pioreactor.utils import JobManager
 
     with JobManager() as jm:
         job = jm.get_job_info(job_id)
@@ -476,12 +485,16 @@ def job_remove(job_id: int | None, job_name: str | None) -> None:
         return
 
     if job_id is None and job_name is not None:
+        from pioreactor.utils import get_running_pio_job_id
+
         job_id = get_running_pio_job_id(job_name)
         if job_id is None:
             click.echo(f"No running job found with name {job_name}.")
             return
 
     assert job_id is not None
+
+    from pioreactor.utils import JobManager
 
     with JobManager() as jm:
         job = jm.get_job_info(job_id)
@@ -541,6 +554,9 @@ def cache():
 @cache.command(name="view", short_help="print out the contents of a cache")
 @click.argument("cache")
 def view_cache(cache: str) -> None:
+    from pioreactor.utils import local_intermittent_storage
+    from pioreactor.utils import local_persistent_storage
+
     for cacher in [local_intermittent_storage, local_persistent_storage]:  # TODO: this sucks
         with cacher(cache) as c:
             for key in sorted(list(c.iterkeys())):
@@ -552,6 +568,9 @@ def view_cache(cache: str) -> None:
 @click.argument("key")
 @click.option("--as-int", is_flag=True, help="evict after casting key to int, useful for gpio pins.")
 def clear_cache(cache: str, key: str, as_int: bool) -> None:
+    from pioreactor.utils import local_intermittent_storage
+    from pioreactor.utils import local_persistent_storage
+
     key_to_evict = int(key) if as_int else key
     removed = False
 
@@ -618,6 +637,7 @@ def get_non_prerelease_tags_of_pioreactor(repo) -> list[str]:
     Returns a list of all the tag names associated with non-prerelease releases, sorted in descending order
     """
     from packaging.version import Version
+    from pioreactor.mureq import get
 
     url = f"https://api.github.com/repos/{repo}/releases"
     headers = {"Accept": "application/vnd.github.v3+json"}
@@ -709,6 +729,10 @@ def update_app(
     """
     Update the Pioreactor core software
     """
+    from msgspec.json import encode as dumps
+    from pioreactor.logging import create_logger
+    from pioreactor.utils.timing import current_utc_timestamp
+
     # initialize logger and build commands based on input parameters
     logger = create_logger("update_app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT)
     logger.debug(
@@ -783,6 +807,10 @@ def update_firmware(version: Optional[str]) -> None:
     # TODO: this needs accept a --source arg
     """
 
+    from msgspec.json import decode as loads
+    from pioreactor.logging import create_logger
+    from pioreactor.mureq import get
+
     logger = create_logger(
         "update_firmware", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
     )
@@ -834,6 +862,7 @@ if whoami.am_I_leader():
     @pio.command(short_help="access the database's CLI")
     def db() -> None:
         import os
+        from pioreactor.config import config
 
         os.system(f"sqlite3 {config.get('storage','database')} -column -header")
 
