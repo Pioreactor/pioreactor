@@ -16,7 +16,6 @@ lazy_subcommands: dict[str, str] = {
     "dosing_automation": "pioreactor.background_jobs.dosing_automation.click_dosing_automation",
     "led_automation": "pioreactor.background_jobs.led_automation.click_led_automation",
     "temperature_automation": "pioreactor.background_jobs.temperature_automation.click_temperature_automation",
-    "noop": "pioreactor.background_jobs.noop.click_noop",
     "led_intensity": "pioreactor.actions.led_intensity.click_led_intensity",
     "add_alt_media": "pioreactor.actions.pump.click_add_alt_media",
     "pumps": "pioreactor.actions.pumps.click_pumps",
