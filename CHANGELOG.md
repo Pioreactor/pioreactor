@@ -44,6 +44,7 @@
  - Fix timeouts being too short on some UI export operations
  - Re-save calibration files on `pio calibrations analyze` confirmation even when the curve is unchanged.
  - UI now logs _all_ warning and errors, including from the web backend.
+ - fix Mosquitto's pw.txt file
 
 ### 25.12.10
 

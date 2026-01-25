@@ -419,6 +419,7 @@ check_unit_api_core() {
   run_step "Checking /unit_api/jobs/running" curl_check http://localhost/unit_api/jobs/running 'type=="array"'
   run_step "Checking /unit_api/capabilities" curl_check http://localhost/unit_api/capabilities
   run_step "Checking /unit_api/system/utc_clock" curl_check http://localhost/unit_api/system/utc_clock
+  run_step "Checking /unit_api/calibration_protocols" curl_check http://localhost/unit_api/calibration_protocols
   run_step "Checking /unit_api/calibrations" curl_check http://localhost/unit_api/calibrations
   run_step "Checking /unit_api/active_calibrations" curl_check http://localhost/unit_api/active_calibrations
 }
@@ -716,8 +717,9 @@ ir_led_intensity: 50
 angle: "90"
 pd_channel: "1"
 curve_data_:
-  - 1.0
-curve_type: "poly"
+  type: poly
+  coefficients:
+    - 1.0
 x: "OD"
 y: "Voltage"
 recorded_data:

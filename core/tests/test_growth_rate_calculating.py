@@ -695,6 +695,8 @@ class TestGrowthRateCalculating:
 
         with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
             calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
+            # Allow background thread to initialize cached values.
+            time.sleep(0.05)
             publish(
                 f"pioreactor/{unit}/{experiment}/od_reading/ods",
                 create_encoded_od_raw_batched(
