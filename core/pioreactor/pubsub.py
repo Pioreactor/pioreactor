@@ -42,9 +42,15 @@ class Client(PahoClient):
         self.disconnect()
 
     def loop_stop(self) -> MQTTErrorCode:
-        r = super().loop_stop()
+        thread = self._thread
+        if thread is None:
+            return MQTTErrorCode.MQTT_ERR_INVAL
+        self._thread_terminate = True
+        # Wake the network loop so it can observe _thread_terminate promptly.
         self._reset_sockets(sockpair_only=True)
-        return r
+        if threading.current_thread() != thread:
+            thread.join()
+        return MQTTErrorCode.MQTT_ERR_SUCCESS
 
 
 class QOS:
