@@ -162,6 +162,7 @@ jobs:
 
       - name: Run tests
         run: |
+          export PLUGINS_DEV="${PLUGINS_DEV:-$GITHUB_WORKSPACE/plugins_dev}"
           echo "Running fast test"
           make fast-test
           echo "Running slow test"

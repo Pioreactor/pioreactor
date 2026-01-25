@@ -95,6 +95,9 @@ When searching the repo:
 
 * **Exclude** all `CHANGELOG.md` files.
 
+##  CI
+
+We run github actions for our CI, located in `.github/workflows/ci.yaml`
 
 ## Business logic
 

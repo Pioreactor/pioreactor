@@ -212,7 +212,7 @@ class Intro(SessionStep):
                 "This protocol fits a fused OD model using the 45°, 90°, and 135° sensors. "
                 "You will need:\n"
                 "1. A Pioreactor XR.\n"
-                "2. A set of OD600 standards in Pioreactor vials (at least 10 mL each), with stir bars. It helps to enumerate them 1..N.\n"
+                "2. At least four OD600 standards in Pioreactor vials, with stir bars. It helps to enumerate them 1..N.\n"
             ),
         )
 
@@ -311,7 +311,7 @@ class PlaceStandard(SessionStep):
         step = steps.action(
             "Choose standard",
             (
-                "Select the next standard vial. You'll insert and remove it for each observation, "
+                "Select the next standard vial. You'll insert and remove it for each observation to create variance, "
                 "so keep it nearby."
             ),
         )
@@ -502,7 +502,7 @@ class FusionStandardsODProtocol(CalibrationProtocol[pt.ODFusedCalibrationDevice]
     description = "Fit a fused OD model using standards measured at 45°, 90°, and 135° sensors."
     requirements = (
         "Requires XR model with 45°, 90°, and 135° sensors.",
-        "Vials containing standards with known OD600 value",
+        "At least four vials containing standards with known OD600 value",
         "Stir bars",
     )
     step_registry = _FUSION_STEPS
