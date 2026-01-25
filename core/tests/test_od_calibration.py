@@ -43,10 +43,8 @@ def test_run_od_standards() -> None:
     calibration_name = f"od-cal-{uuid4().hex}"
     input_ = "\n".join(
         [
-            "standards",
             "",
             calibration_name,
-            "",
             "500",
             "",
             "1",
@@ -56,11 +54,10 @@ def test_run_od_standards() -> None:
             "",
             "",
             "0.1",
-            "finish, and continue to blank",
+            "continue to blank (media only)",
             "",
             "0.0",
             "y",
-            "",
         ]
     )
     with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "70"):
