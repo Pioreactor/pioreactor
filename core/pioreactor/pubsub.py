@@ -48,12 +48,8 @@ class Client(PahoClient):
         self._thread_terminate = True
         # Wake the network loop (select) so it can observe _thread_terminate promptly.
         # Paho uses a sockpair to interrupt the loop; writing a byte is enough and avoids closing fds.
-        sockpair_writer = getattr(self, "_sockpairW", None)
-        if sockpair_writer is not None:
-            try:
-                sockpair_writer.send(b"0")
-            except OSError:
-                pass
+        self._reset_sockets(sockpair_only=True)
+
         if threading.current_thread() != thread:
             thread.join()
         return MQTTErrorCode.MQTT_ERR_SUCCESS
