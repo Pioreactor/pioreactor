@@ -734,7 +734,7 @@ def kill_jobs_task(
         logger.debug("No job filters provided for kill.")
         return False
 
-    from pioreactor.background_jobs.base import JobManager
+    from pioreactor.utils.job_manager import JobManager
 
     try:
         with JobManager() as jm:

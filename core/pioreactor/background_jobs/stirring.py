@@ -21,7 +21,7 @@ from pioreactor.config import config
 from pioreactor.states import JobState as st
 from pioreactor.utils import clamp
 from pioreactor.utils import is_pio_job_running
-from pioreactor.utils import JobManager
+from pioreactor.utils.job_manager import JobManager
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.streaming_calculations import PID
 from pioreactor.utils.timing import catchtime

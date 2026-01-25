@@ -17,8 +17,8 @@ from pioreactor.config import get_leader_hostname
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.utils import is_pio_job_running
-from pioreactor.utils import JobManager
 from pioreactor.utils import local_intermittent_storage
+from pioreactor.utils.job_manager import JobManager
 from tests.conftest import capture_requests
 
 

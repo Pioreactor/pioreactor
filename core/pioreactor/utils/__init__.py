@@ -34,10 +34,6 @@ from pioreactor.pubsub import create_client
 from pioreactor.pubsub import patch_into
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.states import JobState as st
-from pioreactor.utils.job_manager import JobManager
-from pioreactor.utils.job_manager import JobMetadataKey
-from pioreactor.utils.job_manager import LEDKill
-from pioreactor.utils.job_manager import ShellKill
 from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_timestamp
@@ -179,6 +175,8 @@ class managed_lifecycle:
         except ValueError:
             pass
 
+        from pioreactor.utils.job_manager import JobManager
+
         with JobManager() as jm:
             self.job_id = jm.register_and_set_running(
                 self.unit,
@@ -245,6 +243,8 @@ class managed_lifecycle:
             self.mqtt_client.loop_stop()
             self.mqtt_client.disconnect()
 
+        from pioreactor.utils.job_manager import JobManager
+
         with JobManager() as jm:
             jm.set_not_running(self.job_id)
 
@@ -275,6 +275,8 @@ class managed_lifecycle:
         self.mqtt_client.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_key}/{setting}", value, retain=True
         )
+        from pioreactor.utils.job_manager import JobManager
+
         with JobManager() as jm:
             jm.upsert_setting(self.job_id, setting, value)
 
@@ -489,6 +491,8 @@ def is_pio_job_running(target_jobs):
 
     results = []
 
+    from pioreactor.utils.job_manager import JobManager
+
     with JobManager() as jm:
         for job in target_jobs:
             results.append(jm.is_job_running(job))
@@ -503,6 +507,8 @@ def get_running_pio_job_id(job_name: str) -> int | None:
     """
     Return the running job_id for `job_name`, or None if not running.
     """
+    from pioreactor.utils.job_manager import JobManager
+
     with JobManager() as jm:
         return jm.get_running_job_id(job_name)
 
@@ -606,58 +612,3 @@ def boolean_retry(
             return res
         time.sleep(sleep_for)
     return False
-
-
-class ClusterJobManager:
-    # this is a context manager to mimic the kill API for JobManager.
-    def __init__(self) -> None:
-        if not whoami.am_I_leader():
-            raise RoleError("Must be leader to use this. Maybe you want JobManager?")
-
-    @staticmethod
-    def kill_jobs(
-        units: tuple[pt.Unit, ...],
-        all_jobs: bool = False,
-        experiment: pt.Experiment | None = None,
-        job_name: str | None = None,
-        job_source: str | None = None,
-        job_id: int | None = None,
-    ) -> list[tuple[bool, dict]]:
-        if len(units) == 0:
-            return []
-
-        body: dict[str, Any] = {}
-
-        if all_jobs:
-            endpoint = "/unit_api/jobs/stop/all"
-        else:
-            endpoint = "/unit_api/jobs/stop"
-
-            if experiment:
-                body["experiment"] = experiment
-            if job_name:
-                body["job_name"] = job_name
-            if job_source:
-                body["job_source"] = job_source
-            if job_id:
-                body["job_id"] = job_id
-
-        def _thread_function(unit: pt.Unit) -> tuple[bool, dict]:
-            try:
-                r = patch_into(resolve_to_address(unit), endpoint, json=body)
-                r.raise_for_status()
-                return True, r.json()
-            except Exception as e:
-                print(f"Failed to send kill command to {unit}: {e}")
-                return False, {"unit": unit}
-
-        with ThreadPoolExecutor(max_workers=len(units)) as executor:
-            results = executor.map(_thread_function, units)
-
-        return list(results)
-
-    def __enter__(self) -> "ClusterJobManager":
-        return self
-
-    def __exit__(self, *args) -> None:
-        return

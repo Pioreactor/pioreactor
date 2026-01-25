@@ -18,6 +18,13 @@ if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
 
     sudo -u pioreactor mkdir -p "$DOT_PIOREACTOR/exportable_datasets"
     sudo -u pioreactor cp -f "$SCRIPT_DIR"/28_od_readings_fused.yaml "$DOT_PIOREACTOR/exportable_datasets/28_od_readings_fused.yaml"
+
+    # fix mosquitto pw file
+    sudo chown mosquitto:mosquitto /etc/mosquitto/pw.txt
+    sudo chmod 0700 /etc/mosquitto/pw.txt
+
+
+
 fi
 
 sudo -u pioreactor mkdir -p "$DOT_PIOREACTOR/hardware/models/pioreactor_20ml_XR/1.5"

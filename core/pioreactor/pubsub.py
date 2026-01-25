@@ -46,7 +46,8 @@ class Client(PahoClient):
         if thread is None:
             return MQTTErrorCode.MQTT_ERR_INVAL
         self._thread_terminate = True
-        # Wake the network loop so it can observe _thread_terminate promptly.
+        # Wake the network loop (select) so it can observe _thread_terminate promptly.
+        # Paho uses a sockpair to interrupt the loop; resetting it here avoids the ~1s select timeout delay.
         self._reset_sockets(sockpair_only=True)
         if threading.current_thread() != thread:
             thread.join()

@@ -1,11 +1,18 @@
 # -*- coding: utf-8 -*-
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor
 from subprocess import run
 from typing import Any
 
+from msgspec import Struct
+from msgspec.json import encode as dumps
 from pioreactor import types as pt
+from pioreactor import whoami
 from pioreactor.config import config
 from pioreactor.exc import JobRequiredError
+from pioreactor.exc import RoleError
+from pioreactor.pubsub import patch_into
+from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import catchtime
 
 
@@ -144,15 +151,26 @@ class JobManager:
                 update_query = """
                 INSERT INTO pio_job_published_settings (setting, value, job_id, created_at, updated_at)
                 VALUES (:setting, :value, :job_id, STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW'), STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW'))
-                ON CONFLICT(setting, job_id) DO UPDATE SET
-                value = excluded.value,
-                updated_at = STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW')
+                    ON CONFLICT (setting, job_id) DO
+                    UPDATE SET value = :value,
+                                updated_at = STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW')
                 """
-                self.cursor.execute(update_query, {"setting": setting, "value": value, "job_id": job_id})
+                if isinstance(value, dict):
+                    value = dumps(value).decode()  # back to string, not bytes
+                elif isinstance(value, Struct):
+                    value = str(value)  # complex type
+
+                self.cursor.execute(
+                    update_query,
+                    {
+                        "setting": setting,
+                        "value": value,
+                        "job_id": job_id,
+                    },
+                )
 
         except sqlite3.IntegrityError:
-            # sometimes we hit a sqlite error if we try to upsert into a job that has been removed
-            return
+            raise sqlite3.IntegrityError(f"Integrity error for {job_id=}, {setting=} and {value=}.")
 
     def set_not_running(self, job_id: JobMetadataKey) -> None:
         update_query = "UPDATE pio_job_metadata SET is_running=0, ended_at=STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW') WHERE job_id=(?)"
@@ -341,4 +359,59 @@ class JobManager:
 
     def __exit__(self, exc_type, exc_val, tb) -> None:
         self.close()
+        return
+
+
+class ClusterJobManager:
+    # this is a context manager to mimic the kill API for JobManager.
+    def __init__(self) -> None:
+        if not whoami.am_I_leader():
+            raise RoleError("Must be leader to use this. Maybe you want JobManager?")
+
+    @staticmethod
+    def kill_jobs(
+        units: tuple[pt.Unit, ...],
+        all_jobs: bool = False,
+        experiment: pt.Experiment | None = None,
+        job_name: str | None = None,
+        job_source: str | None = None,
+        job_id: int | None = None,
+    ) -> list[tuple[bool, dict]]:
+        if len(units) == 0:
+            return []
+
+        body: dict[str, Any] = {}
+
+        if all_jobs:
+            endpoint = "/unit_api/jobs/stop/all"
+        else:
+            endpoint = "/unit_api/jobs/stop"
+
+            if experiment:
+                body["experiment"] = experiment
+            if job_name:
+                body["job_name"] = job_name
+            if job_source:
+                body["job_source"] = job_source
+            if job_id:
+                body["job_id"] = job_id
+
+        def _thread_function(unit: pt.Unit) -> tuple[bool, dict]:
+            try:
+                r = patch_into(resolve_to_address(unit), endpoint, json=body)
+                r.raise_for_status()
+                return True, r.json()
+            except Exception as e:
+                print(f"Failed to send kill command to {unit}: {e}")
+                return False, {"unit": unit}
+
+        with ThreadPoolExecutor(max_workers=len(units)) as executor:
+            results = executor.map(_thread_function, units)
+
+        return list(results)
+
+    def __enter__(self) -> "ClusterJobManager":
+        return self
+
+    def __exit__(self, *args) -> None:
         return

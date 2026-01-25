@@ -259,6 +259,15 @@ def generate_command_metadata(cmd, name: str) -> Dict[str, Any]:
 
 def collect_actions() -> List[Dict[str, Any]]:
     """Collect all subcommands under `pio run` and their parameters."""
+    if hasattr(run, "_load_plugins"):
+        run._load_plugins()
+
+    lazy_subcommands = getattr(run, "lazy_subcommands", {})
+    for name in lazy_subcommands:
+        cmd = run.get_command(None, name)
+        if cmd is not None:
+            run.commands[name] = cmd
+
     entries: List[Dict[str, Any]] = []
     for name, cmd in run.commands.items():
         if isinstance(cmd, click.Group):

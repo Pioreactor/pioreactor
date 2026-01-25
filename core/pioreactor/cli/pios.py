@@ -19,7 +19,7 @@ from pioreactor.exc import SSHError
 from pioreactor.logging import create_logger
 from pioreactor.mureq import HTTPException
 from pioreactor.pubsub import post_into
-from pioreactor.utils import ClusterJobManager
+from pioreactor.utils.job_manager import ClusterJobManager
 from pioreactor.utils.networking import cp_file_across_cluster
 from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.networking import ssh

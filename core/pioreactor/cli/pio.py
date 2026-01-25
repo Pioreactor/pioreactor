@@ -9,6 +9,7 @@ import click
 from pioreactor import exc
 from pioreactor import whoami
 from pioreactor.cli.lazy_group import LazyGroup
+from pioreactor.mureq import get
 
 lazy_subcommands = {
     "run": "pioreactor.cli.run.run",
@@ -637,7 +638,6 @@ def get_non_prerelease_tags_of_pioreactor(repo) -> list[str]:
     Returns a list of all the tag names associated with non-prerelease releases, sorted in descending order
     """
     from packaging.version import Version
-    from pioreactor.mureq import get
 
     url = f"https://api.github.com/repos/{repo}/releases"
     headers = {"Accept": "application/vnd.github.v3+json"}

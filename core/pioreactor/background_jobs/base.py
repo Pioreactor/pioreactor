@@ -26,7 +26,7 @@ from pioreactor.states import JobState as st
 from pioreactor.utils import append_signal_handlers
 from pioreactor.utils import get_running_pio_job_id
 from pioreactor.utils import is_pio_job_running
-from pioreactor.utils import JobManager
+from pioreactor.utils.job_manager import JobManager
 from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.whoami import is_active

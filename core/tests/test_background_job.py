@@ -17,7 +17,7 @@ from pioreactor.pubsub import subscribe
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.types import MQTTMessage
 from pioreactor.utils import is_pio_job_running
-from pioreactor.utils import JobManager
+from pioreactor.utils.job_manager import JobManager
 from pioreactor.whoami import get_unit_name
 
 from .utils import wait_for

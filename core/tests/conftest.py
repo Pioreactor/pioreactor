@@ -17,7 +17,7 @@ from pioreactor.utils.timing import to_datetime
 @pytest.fixture(autouse=True)
 def run_around_tests(request):
 
-    from pioreactor.utils import JobManager
+    from pioreactor.utils.job_manager import JobManager
     from pioreactor.utils import local_intermittent_storage
     from pioreactor.utils import local_persistent_storage
 

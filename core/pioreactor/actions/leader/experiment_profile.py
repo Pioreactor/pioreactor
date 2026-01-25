@@ -23,8 +23,8 @@ from pioreactor.pubsub import patch_into
 from pioreactor.pubsub import patch_into_leader
 from pioreactor.pubsub import post_into_leader
 from pioreactor.structs import subclass_union
-from pioreactor.utils import ClusterJobManager
 from pioreactor.utils import long_running_managed_lifecycle
+from pioreactor.utils.job_manager import ClusterJobManager
 from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import get_assigned_experiment_name

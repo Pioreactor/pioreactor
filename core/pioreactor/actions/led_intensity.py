@@ -17,8 +17,8 @@ from pioreactor.types import Experiment
 from pioreactor.types import LedChannel
 from pioreactor.types import LedIntensityValue
 from pioreactor.types import Unit
-from pioreactor.utils import JobManager
 from pioreactor.utils import local_intermittent_storage
+from pioreactor.utils.job_manager import JobManager
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
