@@ -3,6 +3,7 @@ pytest
 pytest-timeout
 pytest-random-order
 pytest-cov
+pytest-rerunfailures
 numpy
 pre-commit
 pytest-mock

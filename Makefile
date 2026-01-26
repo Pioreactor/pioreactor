@@ -90,7 +90,7 @@ slow-test: venv
 	@$(ACTIVATE) && pytest --rootdir=. $(CORE_DIR)/tests --timeout 300 --random-order --durations 15  --random-order-bucket=module -vv -m slow --random-order-seed=165038
 
 flakey-test: venv
-	@$(ACTIVATE) && pytest --rootdir=. $(CORE_DIR)/tests --timeout 300 --random-order --durations 15  --random-order-bucket=module -vv -m "flakey or xfail or skip"  --random-order-seed=676208
+	@$(ACTIVATE) && pytest --rootdir=. $(CORE_DIR)/tests --timeout 300 --random-order --durations 15  --random-order-bucket=module -vv -m "flakey or xfail or skip"  --random-order-seed=676208 --reruns 2 --reruns-delay 2
 
 core-test: venv  ## Backend tests only
 	@$(ACTIVATE) && pytest --rootdir=. $(CORE_DIR)/tests --timeout 300 --random-order --durations 15 --random-order-bucket=module --ignore=$(CORE_DIR)/tests/web  -vv
