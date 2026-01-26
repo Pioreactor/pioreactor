@@ -64,9 +64,7 @@ def test_REF_is_in_correct_position(managed_state, logger: CustomLogger, unit: s
     reference_channel = cast(PdChannel, next((k for k, v in pd_channels.items() if v == REF_keyword), None))
     assert reference_channel is not None, "REF required for this self-test"
 
-    signal_channels = [
-        channel for channel, angle in pd_channels.items() if angle != REF_keyword and angle != ""
-    ]
+    signal_channels = [channel for channel, angle in pd_channels.items() if angle != REF_keyword]
 
     test_channels = {str(channel): "90" for channel, angle in pd_channels.items()}
 
@@ -242,9 +240,8 @@ def test_all_positive_correlations_between_pds_and_leds(
     # correlation with the IR led
     pd_channels_to_test: list[PdChannel] = []
     for channel, angle_or_ref in config["od_config.photodiode_channel"].items():
-        if angle_or_ref != "":
-            channel = cast(PdChannel, channel)
-            pd_channels_to_test.append(channel)
+        channel = cast(PdChannel, channel)
+        pd_channels_to_test.append(channel)
 
     for ir_pd_channel in pd_channels_to_test:
         assert (
@@ -337,7 +334,7 @@ def test_PD_is_near_0_volts_for_blank(
     assert is_HAT_present(), "HAT is not detected."
 
     pd_channels = config["od_config.photodiode_channel"]
-    signal_pd_channels = {k: v for k, v in pd_channels.items() if v != REF_keyword and v != ""}
+    signal_pd_channels = {k: v for k, v in pd_channels.items() if v != REF_keyword}
 
     for channel, angle in signal_pd_channels.items():
         assert angle in ["90", "45", "135"], f"Angle {angle} not valid for this test."
