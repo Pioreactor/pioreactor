@@ -16,7 +16,6 @@ from pioreactor.calibrations.session_flow import steps
 from pioreactor.calibrations.session_flow import with_terminal_steps
 from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.calibrations.structured_session import CalibrationStep
-from pioreactor.calibrations.structured_session import delete_calibration_session
 from pioreactor.calibrations.structured_session import load_calibration_session
 from pioreactor.calibrations.structured_session import save_calibration_session
 from pioreactor.calibrations.structured_session import utc_iso_timestamp
@@ -70,7 +69,8 @@ def test_save_load_abort_delete_session() -> None:
     assert aborted.error == "Stop."
     assert aborted.updated_at != previous_updated_at
 
-    delete_calibration_session(session.session_id)
+    with local_persistent_storage("calibration_sessions") as store:
+        del store[session.session_id]
     assert load_calibration_session(session.session_id) is None
 
 

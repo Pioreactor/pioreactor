@@ -470,7 +470,6 @@ def calibration_measure_standard(
         cast(pt.PdChannel, channel): cast(pt.PdAngle, angle) for channel, angle in channel_angle_map.items()
     }
     voltages = _measure_standard(
-        od600_value=0.0,
         rpm=rpm,
         channel_angle_map=typed_map,
     )
@@ -491,7 +490,6 @@ def calibration_fusion_standard_observation(
         rpm,
     )
     sample = _measure_fusion_standard(
-        od_value=od_value,
         rpm=rpm,
     )
     serialized_sample = {str(angle): float(value) for angle, value in sample.items()}

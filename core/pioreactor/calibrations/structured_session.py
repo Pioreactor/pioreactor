@@ -9,7 +9,7 @@ from msgspec import Struct
 from msgspec.json import decode as json_decode
 from msgspec.json import encode as json_encode
 from pioreactor.utils import local_persistent_storage
-from pioreactor.utils.timing import current_utc_datetime
+from pioreactor.utils.timing import current_utc_timestamp
 
 SessionStatus = Literal["in_progress", "complete", "failed", "aborted"]
 StepType = Literal["info", "confirm", "form", "action", "result"]
@@ -51,7 +51,7 @@ class CalibrationSession(Struct, kw_only=True, frozen=False):
 
 
 def utc_iso_timestamp() -> str:
-    return current_utc_datetime().isoformat()
+    return current_utc_timestamp()
 
 
 def save_calibration_session(session: CalibrationSession) -> None:
@@ -66,9 +66,3 @@ def load_calibration_session(session_id: str) -> CalibrationSession | None:
     if payload is None:
         return None
     return json_decode(payload, type=CalibrationSession)
-
-
-def delete_calibration_session(session_id: str) -> None:
-    with local_persistent_storage("calibration_sessions") as store:
-        if session_id in store:
-            del store[session_id]

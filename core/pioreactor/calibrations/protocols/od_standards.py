@@ -125,7 +125,6 @@ def _read_voltages_from_adc(
 
 
 def _measure_standard(
-    od600_value: float,
     rpm: float,
     channel_angle_map: dict[pt.PdChannel, pt.PdAngle],
 ) -> dict[pt.PdChannel, pt.Voltage]:
@@ -143,7 +142,6 @@ def _measure_standard(
 
 def _measure_standard_for_session(
     ctx: SessionContext,
-    od600_value: float,
     rpm: float,
     channel_angle_map: dict[pt.PdChannel, pt.PdAngle],
 ) -> dict[pt.PdChannel, pt.Voltage]:
@@ -151,7 +149,6 @@ def _measure_standard_for_session(
         payload = ctx.executor(
             "od_standards_measure",
             {
-                "od600_value": od600_value,
                 "rpm": rpm,
                 "channel_angle_map": {str(k): str(v) for k, v in channel_angle_map.items()},
             },
@@ -159,7 +156,7 @@ def _measure_standard_for_session(
         raw = payload["voltages"]
         assert isinstance(raw, dict)
         return {cast(pt.PdChannel, channel): float(voltage) for channel, voltage in raw.items()}
-    return _measure_standard(od600_value, rpm, channel_angle_map)
+    return _measure_standard(rpm, channel_angle_map)
 
 
 def _default_calibration_name() -> str:
@@ -428,7 +425,7 @@ class MeasureStandard(SessionStep):
     def advance(self, ctx: SessionContext) -> SessionStep | None:
         channel_angle_map = _get_channel_angle_map(ctx)
         od600_value = ctx.inputs.float("od600_value", minimum=0)
-        voltages = _measure_standard_for_session(ctx, od600_value, ctx.data["rpm"], channel_angle_map)
+        voltages = _measure_standard_for_session(ctx, ctx.data["rpm"], channel_angle_map)
         ctx.data.setdefault("standard_index", 1)
         ctx.data["od600_values"].append(od600_value)
         for channel, voltage in voltages.items():
@@ -534,7 +531,7 @@ class MeasureBlank(SessionStep):
     def advance(self, ctx: SessionContext) -> SessionStep | None:
         channel_angle_map = _get_channel_angle_map(ctx)
         od600_blank = ctx.inputs.float("od600_blank", minimum=0)
-        voltages = _measure_standard_for_session(ctx, od600_blank, ctx.data["rpm"], channel_angle_map)
+        voltages = _measure_standard_for_session(ctx, ctx.data["rpm"], channel_angle_map)
         ctx.data["od600_values"].append(od600_blank)
         for channel, voltage in voltages.items():
             ctx.data["voltages_by_channel"][channel].append(voltage)

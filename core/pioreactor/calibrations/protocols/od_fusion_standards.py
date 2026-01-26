@@ -75,7 +75,6 @@ def _aggregate_angles(readings: structs.ODReadings) -> dict[pt.PdAngle, float]:
 
 
 def _measure_fusion_standard(
-    od_value: float,
     rpm: float,
 ) -> dict[pt.PdAngle, float]:
     from pioreactor.background_jobs.stirring import start_stirring as stirring
@@ -127,7 +126,7 @@ def _measure_fusion_standard_for_session(
             for angle, value in raw_sample.items()
             if angle in FUSION_ANGLES
         }
-    return _measure_fusion_standard(od_value, rpm)
+    return _measure_fusion_standard(rpm)
 
 
 def _build_chart_metadata(records: list[tuple[pt.PdAngle, float, float]]) -> dict[str, object] | None:

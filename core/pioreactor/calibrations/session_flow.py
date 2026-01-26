@@ -218,20 +218,6 @@ class SessionContext:
     def data(self) -> dict[Str, Any]:
         return self.session.data
 
-    def ensure(self, condition: bool, message: Str) -> None:
-        if not condition:
-            raise ValueError(message)
-
-    def abort(self, message: Str) -> None:
-        self.session.status = "aborted"
-        self.session.error = message
-        self.session.step_id = "ended"
-
-    def fail(self, message: Str) -> None:
-        self.session.status = "failed"
-        self.session.error = message
-        self.session.step_id = "ended"
-
     def complete(self, result: dict[Str, Any]) -> None:
         self.session.status = "complete"
         self.session.result = result
