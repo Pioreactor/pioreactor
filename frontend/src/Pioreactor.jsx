@@ -276,7 +276,7 @@ function ButtonStopProcess({experiment, unit}) {
       description: 'This will immediately stop all running activities. Do you wish to continue?',
       title: "Stop all activities?",
       confirmationText: "Confirm",
-      confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}},
+      confirmationButtonProps: {autoFocus: true, variant:"contained", color: "primary", sx: {textTransform: 'none'}},
       cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
 
       }).then(() =>

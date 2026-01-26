@@ -553,7 +553,7 @@ class DurationBasedPumpProtocol(CalibrationProtocol):
     title = "Duration-based pump calibration"
     description = "Build a duration-to-volume curve for the {device} using a simple multi-step flow."
     requirements = (
-        "Peristaltic pump assigned to {device}",
+        "DC Peristaltic pump assigned to {device}",
         "Pioreactor vial",
         "Container of clean water",
         "Measuring container or scale",

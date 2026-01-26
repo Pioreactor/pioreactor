@@ -77,7 +77,7 @@ def _aggregate_angles(readings: structs.ODReadings) -> dict[pt.PdAngle, float]:
 def _measure_fusion_standard(
     od_value: float,
     rpm: float,
-) -> list[dict[pt.PdAngle, float]]:
+) -> dict[pt.PdAngle, float]:
     from pioreactor.background_jobs.stirring import start_stirring as stirring
 
     with stirring(
@@ -102,16 +102,16 @@ def _measure_fusion_standard(
             od_readings = od_reader.record_from_adc()
             sleep(3)
             assert od_readings is not None
-            samples = [_aggregate_angles(od_readings)]
+            sample = _aggregate_angles(od_readings)
 
-    return samples
+    return sample
 
 
 def _measure_fusion_standard_for_session(
     ctx: SessionContext,
     od_value: float,
     rpm: float,
-) -> list[dict[pt.PdAngle, float]]:
+) -> dict[pt.PdAngle, float]:
     if ctx.executor and ctx.mode == "ui":
         payload = ctx.executor(
             "od_fusion_standard_observation",
@@ -120,18 +120,13 @@ def _measure_fusion_standard_for_session(
                 "rpm": rpm,
             },
         )
-        raw_samples = payload["samples"]
-        assert isinstance(raw_samples, list)
-        parsed: list[dict[pt.PdAngle, float]] = []
-        for sample in raw_samples:
-            parsed.append(
-                {
-                    cast(pt.PdAngle, angle): float(value)
-                    for angle, value in sample.items()
-                    if angle in FUSION_ANGLES
-                }
-            )
-        return parsed
+        raw_sample = payload["sample"]
+        assert isinstance(raw_sample, dict)
+        return {
+            cast(pt.PdAngle, angle): float(value)
+            for angle, value in raw_sample.items()
+            if angle in FUSION_ANGLES
+        }
     return _measure_fusion_standard(od_value, rpm)
 
 
@@ -398,11 +393,10 @@ class RecordObservation(SessionStep):
         od_value = float(ctx.data["current_standard_od"])
         rpm = float(ctx.data["rpm"])
 
-        samples = _measure_fusion_standard_for_session(ctx, od_value, rpm)
+        sample = _measure_fusion_standard_for_session(ctx, od_value, rpm)
         records = ctx.data.get("records", [])
-        for sample in samples:
-            for angle, reading in sample.items():
-                records.append([angle, log10(od_value), log(max(reading, 1e-12))])
+        for angle, reading in sample.items():
+            records.append([angle, log10(od_value), log(max(reading, 1e-12))])
 
         ctx.data["records"] = records
         return RemoveObservation()

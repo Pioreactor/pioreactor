@@ -8,14 +8,12 @@ from typing import Literal
 
 import click
 from msgspec import to_builtins
-from pioreactor import structs
 from pioreactor.calibrations import cli_helpers
 from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.calibrations.structured_session import CalibrationStep
 from pioreactor.calibrations.structured_session import CalibrationStepField
 from pioreactor.calibrations.structured_session import save_calibration_session
 from pioreactor.calibrations.structured_session import utc_iso_timestamp
-from pioreactor.calibrations.utils import curve_to_callable
 from pioreactor.calibrations.utils import plot_data
 
 SessionMode = Literal["ui", "cli"]
@@ -46,31 +44,6 @@ def _step_id_from(step: StepLike) -> Str:
     if not isinstance(step_id, str) or not step_id:
         raise ValueError("Invalid step identifier.")
     return step_id
-
-
-def _curve_dict_to_struct(curve: dict[Str, object]) -> structs.CalibrationCurveData | None:
-    curve_type = curve.get("type")
-    if curve_type == "poly":
-        coefficients = curve.get("coefficients")
-        if not isinstance(coefficients, list):
-            return None
-        return structs.PolyFitCoefficients(
-            coefficients=[float(value) for value in coefficients if isinstance(value, (int, float))]
-        )
-    if curve_type == "spline":
-        knots = curve.get("knots")
-        coefficients = curve.get("coefficients")
-        if not isinstance(knots, list) or not isinstance(coefficients, list):
-            return None
-        spline_coefficients: list[list[float]] = []
-        for row in coefficients:
-            if isinstance(row, list):
-                spline_coefficients.append([float(value) for value in row if isinstance(value, (int, float))])
-        return structs.SplineFitData(
-            knots=[float(value) for value in knots if isinstance(value, (int, float))],
-            coefficients=spline_coefficients,
-        )
-    return None
 
 
 def resolve_step(registry: StepRegistry, step_id: Str) -> SessionStep:
@@ -502,49 +475,33 @@ fields = FieldBuilder()
 steps = StepBuilder()
 
 
-def _render_chart_for_cli(chart: dict[Str, object]) -> None:
+def _render_chart_for_cli(chart: dict[Str, Any]) -> None:
     title = chart.get("title", "")
     x_label = chart.get("x_label", "")
     y_label = chart.get("y_label", "")
-    series = chart.get("series")
-    if not isinstance(series, list):
-        return
+    series: list = chart.get("series", [])
+
     multiple_series = len(series) > 1
     for entry in series:
-        if not isinstance(entry, dict):
-            continue
-        points = entry.get("points", [])
-        if not isinstance(points, list):
-            continue
+        points = entry["points"]
         x_vals: list[float] = []
         y_vals: list[float] = []
         for point in points:
-            if not isinstance(point, dict):
-                continue
-            x_val = point.get("x")
-            y_val = point.get("y")
-            if isinstance(x_val, (int, float)) and isinstance(y_val, (int, float)):
-                x_vals.append(float(x_val))
-                y_vals.append(float(y_val))
+            x_vals.append(float(point["x"]))
+            y_vals.append(float(point["y"]))
         if not x_vals or not y_vals:
             continue
         entry_title = str(title) if isinstance(title, str) else ""
         if multiple_series:
             label = entry.get("label", entry.get("id", "series"))
             entry_title = f"{entry_title} - {label}" if entry_title else str(label)
-        curve_callable = None
-        curve = entry.get("curve")
-        if isinstance(curve, dict):
-            curve_data = _curve_dict_to_struct(curve)
-            if curve_data is not None:
-                curve_callable = curve_to_callable(curve_data)
         plot_data(
             x_vals,
             y_vals,
             entry_title or "Calibration progress",
             str(x_label),
             str(y_label),
-            interpolation_curve=curve_callable,
+            interpolation_curve=None,
             highlight_recent_point=True,
         )
 
@@ -560,7 +517,7 @@ def render_step_for_cli(step: CalibrationStep) -> None:
             cli_helpers.info(step.body)
     if step.metadata and isinstance(step.metadata, dict):
         chart = step.metadata.get("chart")
-        if isinstance(chart, dict):
+        if chart:
             _render_chart_for_cli(chart)
     click.echo()
 

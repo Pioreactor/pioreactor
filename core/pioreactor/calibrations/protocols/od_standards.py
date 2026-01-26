@@ -21,7 +21,6 @@ from pioreactor.background_jobs.od_reading import average_over_od_readings
 from pioreactor.background_jobs.od_reading import REF_keyword
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.calibrations import list_of_calibrations_by_device
-from pioreactor.calibrations import utils
 from pioreactor.calibrations.registry import CalibrationProtocol
 from pioreactor.calibrations.session_flow import CalibrationComplete
 from pioreactor.calibrations.session_flow import fields
@@ -177,13 +176,9 @@ def _calculate_curve_data(
 ) -> structs.CalibrationCurveData:
     weights = [1.0] * len(voltages)
     weights[0] = len(voltages) / 2
-    if len(od600_values) >= 3:
-        from pioreactor.utils.splines import spline_fit
+    from pioreactor.utils.splines import spline_fit
 
-        return spline_fit(od600_values, voltages, knots="auto", weights=weights)
-
-    degree = min(3, max(1, len(od600_values) - 1))
-    return utils.calculate_poly_curve_of_best_fit(od600_values, voltages, degree, weights)
+    return spline_fit(od600_values, voltages, knots="auto", weights=weights)
 
 
 def _build_standards_chart_metadata(
@@ -198,16 +193,13 @@ def _build_standards_chart_metadata(
         if count <= 0:
             continue
         points = [{"x": float(od600_values[i]), "y": float(voltages[i])} for i in range(count)]
-        curve = None
-        if count > 1:
-            curve_data = _calculate_curve_data(od600_values[:count], voltages[:count])
-            curve = to_builtins(curve_data)
+
         series.append(
             {
                 "id": str(channel),
                 "label": f"{channel} ({angle}°)",
                 "points": points,
-                "curve": curve,
+                "curve": None,  # later we could add a curve to the UI
             }
         )
 

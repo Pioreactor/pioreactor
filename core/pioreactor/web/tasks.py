@@ -490,20 +490,17 @@ def calibration_fusion_standard_observation(
         od_value,
         rpm,
     )
-    samples = _measure_fusion_standard(
+    sample = _measure_fusion_standard(
         od_value=od_value,
         rpm=rpm,
     )
-    serialized_samples: list[dict[str, float]] = []
-    for sample in samples:
-        serialized_samples.append({str(angle): float(value) for angle, value in sample.items()})
+    serialized_sample = {str(angle): float(value) for angle, value in sample.items()}
     logger.debug(
-        "Finished fusion OD observation: od_value=%s rpm=%s sample_count=%s",
+        "Finished fusion OD observation: od_value=%s rpm=%s",
         od_value,
         rpm,
-        len(serialized_samples),
     )
-    return {"samples": serialized_samples}
+    return {"sample": serialized_sample}
 
 
 @huey.task()

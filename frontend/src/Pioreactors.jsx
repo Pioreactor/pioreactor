@@ -345,7 +345,7 @@ function ButtonStopProcess({experiment}) {
       description: 'This will immediately stop all running activities in assigned Pioreactor units, and any experiment profiles running for this experiment. Do you wish to continue?',
       title: "Stop all activities?",
       confirmationText: "Confirm",
-      confirmationButtonProps: {color: "primary", sx: {textTransform: 'none'}},
+      confirmationButtonProps: {autoFocus: true, variant:"contained", color: "primary", sx: {textTransform: 'none'}},
       cancellationButtonProps: {color: "secondary", sx: {textTransform: 'none'}},
 
       }).then(() =>

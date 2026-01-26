@@ -32,6 +32,17 @@ def test_spline_fit_auto_selects_knots() -> None:
     assert spline_data.knots[-1] == pytest.approx(max(x), rel=1e-6)
 
 
+def test_spline_fit_auto_selects_knots_with_two_observations() -> None:
+    x = [0.0, 2.0]
+    y = [1.0, 5.0]
+    spline_data = spline_fit(x, y, knots="auto")
+
+    expected = np.interp([0.5, 1.5], x, y)
+    assert spline_data.knots == pytest.approx([0.0, 2.0], rel=1e-6)
+    assert spline_eval(spline_data, 0.5) == pytest.approx(expected[0], rel=1e-6)
+    assert spline_eval(spline_data, 1.5) == pytest.approx(expected[1], rel=1e-6)
+
+
 def test_spline_fit_explicit_knots_interpolate_at_knots() -> None:
     x = [0.0, 1.0, 2.0]
     y = [0.0, 1.0, 0.0]
