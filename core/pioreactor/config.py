@@ -202,6 +202,12 @@ def get_config() -> ConfigParserMod:
     if "PWM" in config:
         config["PWM_reverse"] = config.invert_section("PWM")
 
+    if "od_config.od_config.photodiode_channel" in config:
+        # remove the empty lines, see https://github.com/Pioreactor/pioreactor/issues/131
+        for channel, v in config["od_config.od_config.photodiode_channel"].items():
+            if v == "":
+                config.remove_option("od_config.od_config.photodiode_channel", channel)
+
     # add this for hostname resolution using config.ini, see pioreactor.utils.networking.resolve_to_address
     if "cluster.addresses" not in config:
         config.add_section("cluster.addresses")
