@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import uuid
 from math import log10
+from statistics import fmean
 from typing import cast
 
 from msgspec.json import decode as json_decode
@@ -37,6 +38,8 @@ from pioreactor.whoami import get_unit_name
 
 
 ESTIMATOR_DEVICE = pt.OD_FUSED_DEVICE
+STANDARDS_REQUIRED = 2
+SAMPLES_PER_STANDARD = 4
 logger = create_logger("calibrations.od_fusion_offset", experiment="$experiment")
 
 
@@ -99,37 +102,62 @@ def _load_estimator_for_worker(worker: str, estimator_name: str) -> structs.ODFu
     return json_decode(json_encode(payload), type=structs.ODFusionEstimator)
 
 
-def _shift_spline_fit_data(spline_data: structs.SplineFitData, offset_logc: float) -> structs.SplineFitData:
+def _affine_transform_spline_fit_data(
+    spline_data: structs.SplineFitData,
+    scale_logc: float,
+    offset_logc: float,
+) -> structs.SplineFitData:
+    if scale_logc <= 0:
+        raise ValueError("Scale must be positive to transform spline data.")
     return structs.SplineFitData(
-        knots=[float(knot + offset_logc) for knot in spline_data.knots],
-        coefficients=[list(map(float, coeffs)) for coeffs in spline_data.coefficients],
+        knots=[float(scale_logc * knot + offset_logc) for knot in spline_data.knots],
+        coefficients=[
+            [
+                float(coeffs[0]),
+                float(coeffs[1] / scale_logc),
+                float(coeffs[2] / scale_logc**2),
+                float(coeffs[3] / scale_logc**3),
+            ]
+            for coeffs in spline_data.coefficients
+        ],
     )
 
 
-def _apply_logc_offset_to_estimator(
+def _apply_logc_affine_to_estimator(
     estimator: structs.ODFusionEstimator,
     *,
     estimator_name: str,
     calibrated_on_unit: str,
+    scale_logc: float,
     offset_logc: float,
-    standard_od: float,
-    estimated_od: float,
+    standards: list[dict[str, object]],
     source_unit: str,
     source_estimator_name: str,
-    observation: dict[pt.PdAngle, float],
 ) -> structs.ODFusionEstimator:
     mu_splines = {
-        angle: _shift_spline_fit_data(estimator.mu_splines[angle], offset_logc) for angle in estimator.angles
+        angle: _affine_transform_spline_fit_data(estimator.mu_splines[angle], scale_logc, offset_logc)
+        for angle in estimator.angles
     }
     sigma_splines_log = {
-        angle: _shift_spline_fit_data(estimator.sigma_splines_log[angle], offset_logc)
+        angle: _affine_transform_spline_fit_data(estimator.sigma_splines_log[angle], scale_logc, offset_logc)
         for angle in estimator.angles
     }
 
     recorded_data = {
-        "new_observation": {str(angle): float(value) for angle, value in observation.items()},
-        "by_angle": estimator.recorded_data,
+        "transform": {
+            "type": "logc_affine",
+            "scale_logc": float(scale_logc),
+            "offset_logc": float(offset_logc),
+            "source_unit": source_unit,
+            "source_estimator_name": source_estimator_name,
+            "source_ir_led_intensity": float(estimator.ir_led_intensity),
+        },
+        "standards": standards,
+        "base_recorded_data": estimator.recorded_data,
     }
+
+    min_logc = float(estimator.min_logc * scale_logc + offset_logc)
+    max_logc = float(estimator.max_logc * scale_logc + offset_logc)
 
     return structs.ODFusionEstimator(
         created_at=current_utc_datetime(),
@@ -140,8 +168,8 @@ def _apply_logc_offset_to_estimator(
         angles=list(estimator.angles),
         mu_splines=mu_splines,
         sigma_splines_log=sigma_splines_log,
-        min_logc=float(estimator.min_logc + offset_logc),
-        max_logc=float(estimator.max_logc + offset_logc),
+        min_logc=min_logc,
+        max_logc=max_logc,
         sigma_floor=float(estimator.sigma_floor),
     )
 
@@ -180,14 +208,15 @@ class Intro(SessionStep):
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
         return steps.info(
-            "Fusion OD single-point offset",
+            "Fusion OD two-point offset",
             (
-                "This protocol adjusts an existing fused OD estimator using a single OD600 standard. "
+                "This protocol adjusts an existing fused OD estimator using two OD600 standards. "
                 "You will need:\n"
                 "1. A Pioreactor XR.\n"
                 "2. An existing od_fused estimator on any worker.\n"
-                "3. One OD600 standard vial with a stir bar.\n\n"
-                "For best results, choose a standard near the regime you most care about (high, medium, or low density, etc.)"
+                "3. Two OD600 standard vials with stir bars.\n\n"
+                "For best results, choose standards that bracket the regime you care about and stay within "
+                "a locally monotonic region (i.e. not beyond the saturation point)."
             ),
         )
 
@@ -320,6 +349,8 @@ class RpmInput(SessionStep):
         default_rpm = float(ctx.data.get("rpm", 500.0))
         rpm = ctx.inputs.float("rpm", minimum=0.0, default=default_rpm)
         ctx.data["rpm"] = rpm
+        ctx.data["standard_index"] = 1
+        ctx.data["standards"] = []
         return PlaceStandard()
 
 
@@ -327,9 +358,10 @@ class PlaceStandard(SessionStep):
     step_id = "place_standard"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
+        standard_index = int(ctx.data.get("standard_index", 1))
         step = steps.action(
-            "Insert standard vial",
-            "Place the OD600 standard vial with a stir bar into the Pioreactor.",
+            f"Insert standard vial {standard_index} of {STANDARDS_REQUIRED}",
+            f"Place standard vial {standard_index} with a stir bar into the Pioreactor.",
         )
         step.metadata = {
             "image": {
@@ -350,8 +382,9 @@ class StandardOdInput(SessionStep):
     step_id = "standard_od"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
+        standard_index = int(ctx.data.get("standard_index", 1))
         return steps.form(
-            "Enter standard OD",
+            f"Enter OD600 for standard {standard_index} of {STANDARDS_REQUIRED}",
             "Enter the OD600 value for the standard vial.",
             [fields.float("standard_od", label="OD600", minimum=1e-6)],
         )
@@ -365,15 +398,15 @@ class RecordObservation(SessionStep):
     step_id = "record_observation"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
+        standard_index = int(ctx.data.get("standard_index", 1))
         return steps.action(
-            "Record OD reading",
-            "Press Continue to take an OD reading for the standard vial.",
+            f"Record OD reading for standard {standard_index} of {STANDARDS_REQUIRED}",
+            "Press Continue to take OD readings for the standard vial.",
         )
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
         source_unit = str(ctx.data.get("source_unit", get_unit_name()))
         source_estimator_name = str(ctx.data["source_estimator_name"])
-        estimator_name = str(ctx.data["estimator_name"])
         standard_od = float(ctx.data["standard_od"])
         rpm = float(ctx.data["rpm"])
 
@@ -388,29 +421,105 @@ class RecordObservation(SessionStep):
             standard_od,
             rpm,
         )
-        samples = _measure_fusion_standard_for_session(ctx, standard_od, rpm, repeats=1)
-        sample = samples[0]
-        logger.debug("Fusion offset observation sample keys=%s", sorted(sample.keys()))
-        for angle in base_estimator.angles:
-            if angle not in sample:
-                raise ValueError(f"Missing fusion reading for angle {angle}.")
+        samples = _measure_fusion_standard_for_session(
+            ctx,
+            standard_od,
+            rpm,
+            repeats=SAMPLES_PER_STANDARD,
+        )
+        for sample in samples:
+            logger.debug("Fusion offset observation sample keys=%s", sorted(sample.keys()))
+            for angle in base_estimator.angles:
+                if angle not in sample:
+                    raise ValueError(f"Missing fusion reading for angle {angle}.")
 
-        estimated_od = compute_fused_od(base_estimator, sample)
+        estimated_ods = [compute_fused_od(base_estimator, sample) for sample in samples]
+        estimated_od = fmean(estimated_ods)
         if estimated_od <= 0 or standard_od <= 0:
             raise ValueError("OD values must be positive to compute offset.")
 
-        offset_logc = log10(standard_od) - log10(estimated_od)
+        standards = ctx.data.get("standards", [])
+        if not isinstance(standards, list):
+            standards = []
+        standards.append(
+            {
+                "standard_od": float(standard_od),
+                "estimated_od": float(estimated_od),
+                "estimated_ods": [float(value) for value in estimated_ods],
+                "observations": samples,
+            }
+        )
+        ctx.data["standards"] = standards
+        return RemoveStandard()
 
-        new_estimator = _apply_logc_offset_to_estimator(
+
+class RemoveStandard(SessionStep):
+    step_id = "remove_standard"
+
+    def render(self, ctx: SessionContext) -> CalibrationStep:
+        standard_index = int(ctx.data.get("standard_index", 1))
+        step = steps.action(
+            f"Remove standard vial {standard_index} of {STANDARDS_REQUIRED}",
+            "Remove the vial completely, then continue.",
+        )
+        step.metadata = {
+            "image": {
+                "src": "/static/svgs/remove-standard-vial.svg",
+                "alt": "Remove the standard vial from the Pioreactor.",
+                "caption": "Remove the standard vial completely.",
+            }
+        }
+        return step
+
+    def advance(self, ctx: SessionContext) -> SessionStep | None:
+        standard_index = int(ctx.data.get("standard_index", 1))
+        if standard_index < STANDARDS_REQUIRED:
+            ctx.data["standard_index"] = standard_index + 1
+            return PlaceStandard()
+
+        standards = ctx.data.get("standards", [])
+        if not isinstance(standards, list) or len(standards) != STANDARDS_REQUIRED:
+            raise ValueError("Expected two standards to compute affine correction.")
+
+        source_unit = str(ctx.data.get("source_unit", get_unit_name()))
+        source_estimator_name = str(ctx.data["source_estimator_name"])
+        estimator_name = str(ctx.data["estimator_name"])
+
+        base_estimator = _load_estimator_for_worker(source_unit, source_estimator_name)
+        if set(base_estimator.angles) != set(FUSION_ANGLES):
+            raise ValueError("Selected estimator angles do not match fusion angles.")
+
+        od_true_1 = float(standards[0]["standard_od"])
+        od_true_2 = float(standards[1]["standard_od"])
+        od_est_1 = float(standards[0]["estimated_od"])
+        od_est_2 = float(standards[1]["estimated_od"])
+
+        log_true_1 = log10(od_true_1)
+        log_true_2 = log10(od_true_2)
+        log_est_1 = log10(od_est_1)
+        log_est_2 = log10(od_est_2)
+
+        if log_est_2 == log_est_1:
+            raise ValueError("Estimated OD values are identical; cannot fit affine correction.")
+
+        scale_logc = (log_true_2 - log_true_1) / (log_est_2 - log_est_1)
+        if scale_logc <= 0:
+            raise ValueError(
+                "Affine correction produced a non-positive scale. "
+                "Choose two standards within a locally monotonic region."
+            )
+
+        offset_logc = log_true_1 - scale_logc * log_est_1
+
+        new_estimator = _apply_logc_affine_to_estimator(
             base_estimator,
             estimator_name=estimator_name,
             calibrated_on_unit=get_unit_name(),
+            scale_logc=scale_logc,
             offset_logc=offset_logc,
-            standard_od=standard_od,
-            estimated_od=estimated_od,
+            standards=standards,
             source_unit=source_unit,
             source_estimator_name=source_estimator_name,
-            observation=sample,
         )
 
         result = ctx.store_estimator(new_estimator, ESTIMATOR_DEVICE)
@@ -420,8 +529,7 @@ class RecordObservation(SessionStep):
                 **result,
                 "source_unit": source_unit,
                 "source_estimator": source_estimator_name,
-                "standard_od": float(standard_od),
-                "estimated_od": float(estimated_od),
+                "scale_logc": float(scale_logc),
                 "offset_logc": float(offset_logc),
             }
         )
@@ -438,18 +546,19 @@ _FUSION_OFFSET_STEPS: StepRegistry = {
     PlaceStandard.step_id: PlaceStandard,
     StandardOdInput.step_id: StandardOdInput,
     RecordObservation.step_id: RecordObservation,
+    RemoveStandard.step_id: RemoveStandard,
 }
 
 
 class FusionOffsetODProtocol(CalibrationProtocol[pt.ODFusedCalibrationDevice]):
     protocol_name = "od_fusion_offset"
     target_device = [cast(pt.ODFusedCalibrationDevice, ESTIMATOR_DEVICE)]
-    title = "Fusion OD single-point offset"
-    description = "Adjust an existing fused OD estimator using a single OD600 standard."
+    title = "Fusion OD two-point offset"
+    description = "Adjust an existing fused OD estimator using two OD600 standards."
     requirements = (
         "Requires XR model with 45°, 90°, and 135° sensors.",
         "An existing od_fused estimator.",
-        "One OD600 standard vial with a stir bar.",
+        "Two OD600 standard vials with stir bars.",
     )
     step_registry = _FUSION_OFFSET_STEPS
     priority = 2
