@@ -65,7 +65,18 @@ import ManageExperimentMenu from "./components/ManageExperimentMenu";
 import { MQTTProvider, useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 import PatientButton from './components/PatientButton';
-import {getConfig, getRelabelMap, runPioreactorJob, disconnectedGrey, lostRed, disabledColor, stateDisplay, fetchTaskResult} from "./utilities"
+import {
+  getConfig,
+  getRelabelMap,
+  runPioreactorJob,
+  fetchTaskResult,
+} from "./utilities";
+import {
+  disconnectedGrey,
+  lostRed,
+  disabledColor,
+  stateDisplay,
+} from "./color";
 import cloudImage from './assets/pioreactor_cloud.webp'
 import MissingWorkerModelModal from "./components/MissingWorkerModelModal";
 

@@ -33,6 +33,7 @@ import Select from '@mui/material/Select';
 import InputLabel from '@mui/material/InputLabel';
 import FormControl from '@mui/material/FormControl';
 import CloseIcon from '@mui/icons-material/Close';
+import { lostRed } from "./color";
 
 const VisuallyHiddenInput = styled('input')({
   clip: 'rect(0 0 0 0)',
@@ -45,8 +46,6 @@ const VisuallyHiddenInput = styled('input')({
   whiteSpace: 'nowrap',
   width: 1,
 });
-
-const lostRed = "#DE3618"
 
 
 function UploadArchiveAndConfirm(props) {

@@ -7,7 +7,8 @@ import Chart from "./components/Chart";
 import MediaCard from "./components/MediaCard";
 import {RunningProfilesContainer} from "./Profiles";
 import { RunningProfilesProvider} from './providers/RunningProfilesContext';
-import {getConfig, getRelabelMap, colors, ColorCycler} from "./utilities"
+import { getConfig, getRelabelMap } from "./utilities";
+import { colors, ColorCycler } from "./color";
 import Card from "@mui/material/Card";
 import Stack from "@mui/material/Stack";
 import { useMQTT } from './providers/MQTTContext';

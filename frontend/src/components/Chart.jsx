@@ -133,10 +133,10 @@ function Chart(props) {
         return color;
       }
       if (suffix === "45") {
-        return shiftHue(color, 10);
+        return shiftHue(color, 6);
       }
       if (suffix === "135") {
-        return shiftHue(color, -10);
+        return shiftHue(color, -6);
       }
       return color;
     },

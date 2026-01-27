@@ -1,8 +1,7 @@
 import React from "react";
 import CircularProgress from '@mui/material/CircularProgress';
 import Button from "@mui/material/Button";
-
-const lostRed = "#DE3618"
+import { lostRed } from "../color";
 
 export default function PatientButton({buttonText, onClick, color, variant, disabled}) {
   const [text, setText] = React.useState(buttonText)

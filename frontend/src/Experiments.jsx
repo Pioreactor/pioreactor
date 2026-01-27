@@ -15,7 +15,8 @@ import MenuItem from '@mui/material/MenuItem';
 import Checkbox from '@mui/material/Checkbox';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import {getConfig, getRelabelMap, colors, ColorCycler} from "./utilities"
+import { getConfig, getRelabelMap } from "./utilities";
+import { colors, ColorCycler } from "./color";
 import DownloadIcon from '@mui/icons-material/Download';
 import { Link } from 'react-router';
 

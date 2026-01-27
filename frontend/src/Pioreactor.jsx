@@ -58,7 +58,19 @@ import LogTableByUnit from "./components/LogTableByUnit";
 import { MQTTProvider, useMQTT } from './providers/MQTTContext';
 import { useExperiment } from './providers/ExperimentContext';
 import PatientButton from './components/PatientButton';
-import {getConfig, getRelabelMap, runPioreactorJob, colors, disconnectedGrey, lostRed, disabledColor, stateDisplay, fetchTaskResult} from "./utilities"
+import {
+  getConfig,
+  getRelabelMap,
+  runPioreactorJob,
+  fetchTaskResult,
+} from "./utilities";
+import {
+  colors,
+  disconnectedGrey,
+  lostRed,
+  disabledColor,
+  stateDisplay,
+} from "./color";
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
 import { TimeFormatSwitch, TimeWindowSwitch } from "./components/TimeControls";
 

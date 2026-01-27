@@ -7,7 +7,8 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import IconButton from '@mui/material/IconButton';
-import {fetchTaskResult, colors, ColorCycler, readyGreen} from "./utilities"
+import { fetchTaskResult } from "./utilities";
+import { colors, ColorCycler, readyGreen } from "./color";
 import MuiLink from '@mui/material/Link';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';

@@ -21,7 +21,7 @@ import { Link } from 'react-router';
 import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
 import RecordEventLogDialog from './RecordEventLogDialog';
 
-import {ERROR_COLOR, WARNING_COLOR, NOTICE_COLOR} from "../utilities"
+import { ERROR_COLOR, WARNING_COLOR, NOTICE_COLOR } from "../color";
 
 // Activate the UTC plugin
 dayjs.extend(utc);

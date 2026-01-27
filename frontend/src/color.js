@@ -111,4 +111,83 @@ const shiftHue = (color, degrees) => {
   return color;
 };
 
-export { shiftHue };
+class ColorCycler {
+  constructor(colors) {
+    this.colors = colors;
+    this.index = 0;
+    this.data = {};
+    return new Proxy(this, {
+      get: (target, property) => {
+        if (property in target.data) {
+          return target.data[property];
+        }
+        const color = target.colors[target.index];
+        target.index = (target.index + 1) % target.colors.length;
+        target.data[property] = color;
+        return color;
+      },
+    });
+  }
+}
+
+const colors = [
+  "#0077BB",
+  "#009988",
+  "#CC3311",
+  "#33BBEE",
+  "#BE5F29",
+  "#EE3377",
+  "#8E958F",
+  "#A6CEE3",
+  "#33A02C",
+  "#C97B7A",
+  "#FDBF6F",
+  "#CAB2D6",
+  "#6A3D9A",
+  "#9ACD32",
+  "#40E0D0",
+  "#737B94",
+  "#AA5CAA",
+  "#15742A",
+  "#236AD3",
+  "#445210",
+  "#62F384",
+  "#311535",
+  "#803958",
+  "#B4F2AA",
+  "#1734B8",
+];
+
+const ERROR_COLOR = "#FF8F7B";
+const WARNING_COLOR = "#ffefa4";
+const NOTICE_COLOR = "#addcaf";
+
+const readyGreen = "#176114";
+const disconnectedGrey = "#585858";
+const lostRed = "#DE3618";
+const disabledColor = "rgba(0, 0, 0, 0.38)";
+const inactiveGrey = "#99999b";
+
+const stateDisplay = {
+  init: { display: "Starting", color: readyGreen, backgroundColor: "#DDFFDC" },
+  ready: { display: "On", color: readyGreen, backgroundColor: "#DDFFDC" },
+  sleeping: { display: "Paused", color: disconnectedGrey, backgroundColor: null },
+  disconnected: { display: "Off", color: disconnectedGrey, backgroundColor: null },
+  lost: { display: "Lost", color: lostRed, backgroundColor: null },
+  NA: { display: "Not available", color: disconnectedGrey, backgroundColor: null },
+};
+
+export {
+  shiftHue,
+  ColorCycler,
+  colors,
+  ERROR_COLOR,
+  WARNING_COLOR,
+  NOTICE_COLOR,
+  readyGreen,
+  disconnectedGrey,
+  lostRed,
+  disabledColor,
+  inactiveGrey,
+  stateDisplay,
+};

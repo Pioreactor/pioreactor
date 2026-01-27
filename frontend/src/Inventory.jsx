@@ -37,7 +37,8 @@ import { useNavigate, Link } from 'react-router';
 import UnderlineSpan from "./components/UnderlineSpan";
 import PioreactorIcon from "./components/PioreactorIcon";
 import PioreactorIconWithModel from "./components/PioreactorIconWithModel";
-import {getConfig, disconnectedGrey, lostRed, inactiveGrey, readyGreen} from "./utilities"
+import { getConfig } from "./utilities";
+import { disconnectedGrey, lostRed, inactiveGrey, readyGreen } from "./color";
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
 import Snackbar from '@mui/material/Snackbar';
 import Menu from "@mui/material/Menu";

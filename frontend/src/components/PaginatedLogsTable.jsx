@@ -15,7 +15,7 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import { styled } from '@mui/material/styles';
-import {ERROR_COLOR, WARNING_COLOR, NOTICE_COLOR} from "../utilities"
+import { ERROR_COLOR, WARNING_COLOR, NOTICE_COLOR } from "../color";
 import Chip from '@mui/material/Chip';
 import PioreactorIcon from "./PioreactorIcon"
 import { Link } from 'react-router';
