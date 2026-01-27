@@ -168,6 +168,8 @@ def start_dc_based_session(
     min_dc: float | None = None,
     max_dc: float | None = None,
 ) -> CalibrationSession:
+    if any(is_pio_job_running(["stirring"])):
+        raise ValueError("Stirring must be off before starting.")
     session_id = str(uuid.uuid4())
     now = utc_iso_timestamp()
     return CalibrationSession(

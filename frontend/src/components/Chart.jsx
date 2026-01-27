@@ -287,7 +287,7 @@ function Chart(props) {
     }
 
     const updateWidth = () => {
-      const nextWidth = Math.max(400, node.clientWidth || 600);
+      const nextWidth = Math.max(240, node.clientWidth || 600);
       setChartWidth(nextWidth);
     };
 
@@ -709,7 +709,7 @@ function Chart(props) {
     <div ref={chartContainerRef} style={{ position: "relative" }}>
       <VictoryChart
         key={chartStateKey}
-        style={{ parent: { maxWidth: "700px", width: "100%" } }}
+        style={{ parent: { width: "100%" } }}
         title={title}
         domainPadding={10}
         padding={{ left: 70, right: 50, bottom: legendBottomPadding, top: 50 }}
@@ -739,7 +739,7 @@ function Chart(props) {
       >
         <VictoryLabel
           text={title}
-          x={360}
+          x={chartWidth / 2}
           y={30}
           textAnchor="middle"
           style={{
@@ -797,8 +797,8 @@ function Chart(props) {
           }}
         />
         <VictoryLegend
-          x={65}
-          y={285}
+          x={70}
+          y={chartHeight - legendBottomPadding + 40}
           symbolSpacer={6}
           itemsPerRow={legendItemsPerRow}
           name="legend"

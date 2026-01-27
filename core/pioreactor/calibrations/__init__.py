@@ -87,6 +87,9 @@ def list_devices() -> list[str]:
 from pioreactor.calibrations.protocols.od_fusion_standards import (
     FusionStandardsODProtocol,
 )  # noqa: F401,E402
+from pioreactor.calibrations.protocols.od_fusion_offset import (  # noqa: F401,E402
+    FusionOffsetODProtocol,
+)
 from pioreactor.calibrations.protocols.od_standards import StandardsODProtocol  # noqa: F401,E402
 from pioreactor.calibrations.protocols.pump_duration_based import DurationBasedPumpProtocol  # noqa: F401,E402
 from pioreactor.calibrations.protocols.stirring_dc_based import DCBasedStirringProtocol  # noqa: F401,E402

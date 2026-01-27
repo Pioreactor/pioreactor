@@ -1427,6 +1427,15 @@ def get_all_active_calibrations(pioreactor_unit: str) -> DelayedResponseReturnVa
     return create_task_response(task)
 
 
+@api_bp.route("/workers/<pioreactor_unit>/active_estimators", methods=["GET"])
+def get_all_active_estimators(pioreactor_unit: str) -> DelayedResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        task = broadcast_get_across_workers("/unit_api/active_estimators")
+    else:
+        task = tasks.multicast_get("/unit_api/active_estimators", [pioreactor_unit])
+    return create_task_response(task)
+
+
 @api_bp.route("/workers/<pioreactor_unit>/zipped_calibrations", methods=["GET"])
 def get_all_calibrations_as_yamls(pioreactor_unit: str) -> ResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:

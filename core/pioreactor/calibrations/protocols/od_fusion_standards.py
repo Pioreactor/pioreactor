@@ -25,6 +25,7 @@ from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.calibrations.structured_session import utc_iso_timestamp
 from pioreactor.config import config
 from pioreactor.estimators import list_of_estimators_by_device
+from pioreactor.logging import create_logger
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils.od_fusion import fit_fusion_model
 from pioreactor.utils.od_fusion import FUSION_ANGLES
@@ -36,7 +37,8 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
 
-MIN_SAMPLES_PER_STANDARD = 4
+SAMPLES_PER_STANDARD = 4
+logger = create_logger("calibrations.od_fusion_standards", experiment="$experiment")
 
 
 def _ensure_xr_model() -> None:
@@ -74,10 +76,16 @@ def _aggregate_angles(readings: structs.ODReadings) -> dict[pt.PdAngle, float]:
     return {angle: fmean(values) for angle, values in by_angle.items()}
 
 
-def _measure_fusion_standard(
+def _measure_fusion_standard_samples(
     rpm: float,
-) -> dict[pt.PdAngle, float]:
+    repeats: int = SAMPLES_PER_STANDARD,
+) -> list[dict[pt.PdAngle, float]]:
     from pioreactor.background_jobs.stirring import start_stirring as stirring
+    from itertools import cycle
+
+    repeats = max(1, int(repeats))
+    samples: list[dict[pt.PdAngle, float]] = []
+    _jitter = cycle([0.9, 1.1, 0.8, 1.2])
 
     with stirring(
         target_rpm=rpm,
@@ -98,35 +106,55 @@ def _measure_fusion_standard(
                 od_reader.record_from_adc()
                 sleep(1)
 
-            od_readings = od_reader.record_from_adc()
-            sleep(3)
-            assert od_readings is not None
-            sample = _aggregate_angles(od_readings)
+            for i in range(repeats):
+                od_readings = od_reader.record_from_adc()
+                st.set_target_rpm(rpm * next(_jitter))
+                sleep(2)
+                assert od_readings is not None
+                samples.append(_aggregate_angles(od_readings))
 
-    return sample
+    return samples
 
 
 def _measure_fusion_standard_for_session(
     ctx: SessionContext,
     od_value: float,
     rpm: float,
-) -> dict[pt.PdAngle, float]:
+    repeats: int = 1,
+) -> list[dict[pt.PdAngle, float]]:
     if ctx.executor and ctx.mode == "ui":
+        logger.debug(
+            "Requesting fusion standard observation via executor: od_value=%s rpm=%s",
+            od_value,
+            rpm,
+        )
         payload = ctx.executor(
             "od_fusion_standard_observation",
             {
                 "od_value": od_value,
                 "rpm": rpm,
+                "repeats": repeats,
             },
         )
-        raw_sample = payload["sample"]
-        assert isinstance(raw_sample, dict)
-        return {
-            cast(pt.PdAngle, angle): float(value)
-            for angle, value in raw_sample.items()
-            if angle in FUSION_ANGLES
-        }
-    return _measure_fusion_standard(rpm)
+        logger.debug("Fusion observation payload type=%s payload=%r", type(payload).__name__, payload)
+
+        samples: list[dict[pt.PdAngle, float]] = []
+        for raw_sample in payload["samples"]:  # type: ignore
+            if not isinstance(raw_sample, dict):
+                continue
+            samples.append(
+                {
+                    cast(pt.PdAngle, angle): float(value)
+                    for angle, value in raw_sample.items()
+                    if angle in FUSION_ANGLES
+                }
+            )
+        if not samples:
+            raise ValueError(
+                "Fusion observation did not return sample data. Ensure the Huey consumer is running."
+            )
+        return samples
+    return _measure_fusion_standard_samples(rpm, repeats=repeats)
 
 
 def _build_chart_metadata(records: list[tuple[pt.PdAngle, float, float]]) -> dict[str, object] | None:
@@ -155,17 +183,6 @@ def _build_chart_metadata(records: list[tuple[pt.PdAngle, float, float]]) -> dic
         "y_label": "log(Voltage)",
         "series": series,
     }
-
-
-def _current_observation_index(ctx: SessionContext) -> tuple[int, int]:
-    total = int(ctx.data.get("samples_total", ctx.data.get("samples_per_standard", 1)))
-    remaining = int(ctx.data.get("samples_remaining", total))
-    current = total - remaining + 1
-    if current < 1:
-        current = 1
-    if current > total:
-        current = total
-    return current, total
 
 
 def start_fusion_session() -> CalibrationSession:
@@ -271,30 +288,6 @@ class RpmInput(SessionStep):
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
         ctx.data["rpm"] = ctx.inputs.float("rpm", minimum=0.0)
-        return SamplesInput()
-
-
-class SamplesInput(SessionStep):
-    step_id = "samples"
-
-    def render(self, ctx: SessionContext) -> CalibrationStep:
-        return steps.form(
-            "Samples per standard",
-            "How many readings should we take per standard?",
-            [
-                fields.int(
-                    "samples_per_standard",
-                    label="Samples per standard",
-                    minimum=MIN_SAMPLES_PER_STANDARD,
-                    default=MIN_SAMPLES_PER_STANDARD,
-                )
-            ],
-        )
-
-    def advance(self, ctx: SessionContext) -> SessionStep | None:
-        ctx.data["samples_per_standard"] = ctx.inputs.int(
-            "samples_per_standard", minimum=MIN_SAMPLES_PER_STANDARD
-        )
         return PlaceStandard()
 
 
@@ -302,16 +295,21 @@ class PlaceStandard(SessionStep):
     step_id = "place_standard"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
+        standard_index = int(ctx.data.get("standard_index", 1))
         step = steps.action(
-            "Choose standard",
+            f"Place standard vial {standard_index}",
             (
-                "Select the next standard vial. You'll insert and remove it for each observation to create variance, "
-                "so keep it nearby."
+                f"Place standard vial {standard_index} with a stir bar into the Pioreactor. "
+                "We will take OD readings, then you will remove it."
             ),
         )
-        chart = _build_chart_metadata(ctx.data.get("records", []))
-        if chart:
-            step.metadata = {"chart": chart}
+        step.metadata = {
+            "image": {
+                "src": "/static/svgs/place-standard-vial.svg",
+                "alt": "Place a standard vial with a stir bar into the Pioreactor.",
+                "caption": "Place a standard vial with a stir bar into the Pioreactor.",
+            }
+        }
         return step
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
@@ -330,72 +328,43 @@ class MeasureStandard(SessionStep):
             f"Enter the OD600 measurement for standard vial {standard_index}.",
             [fields.float("od_value", label="OD600", minimum=0.0001)],
         )
-        chart = _build_chart_metadata(ctx.data.get("records", []))
-        if chart is not None:
-            step.metadata = {"chart": chart}
         return step
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
         od_value = ctx.inputs.float("od_value", minimum=0.0001)
         rpm = float(ctx.data["rpm"])
-        samples_per_standard = int(ctx.data["samples_per_standard"])
 
         ctx.data.setdefault("standard_index", 1)
         ctx.data["current_standard_od"] = od_value
-        ctx.data["samples_total"] = samples_per_standard
-        ctx.data["samples_remaining"] = samples_per_standard
         ctx.data["rpm"] = rpm
-        return PlaceObservation()
-
-
-class PlaceObservation(SessionStep):
-    step_id = "place_observation"
-
-    def render(self, ctx: SessionContext) -> CalibrationStep:
-        current, total = _current_observation_index(ctx)
-        standard_index = int(ctx.data.get("standard_index", 1))
-        step = steps.action(
-            f"Insert standard vial {standard_index} ({current}/{total} trials complete)",
-            f"Place standard vial {standard_index} with a stir bar into the Pioreactor.",
-        )
-        step.metadata = {
-            "image": {
-                "src": "/static/svgs/place-standard-vial.svg",
-                "alt": "Place a standard vial with a stir bar into the Pioreactor.",
-                "caption": "Place a standard vial with a stir bar into the Pioreactor.",
-            }
-        }
-        return step
-
-    def advance(self, ctx: SessionContext) -> SessionStep | None:
-        if ctx.inputs.has_inputs:
-            return RecordObservation()
-        return None
+        return RecordObservation()
 
 
 class RecordObservation(SessionStep):
     step_id = "record_observation"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
-        current, total = _current_observation_index(ctx)
         standard_index = int(ctx.data.get("standard_index", 1))
         step = steps.action(
-            f"Recording standard vial {standard_index} ({current}/{total} trials complete)",
-            "Press Continue to take an OD reading for this standard.",
+            f"Recording standard vial {standard_index}",
+            "Press Continue to take OD readings for this standard.",
         )
-        chart = _build_chart_metadata(ctx.data.get("records", []))
-        if chart is not None:
-            step.metadata = {"chart": chart}
         return step
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
         od_value = float(ctx.data["current_standard_od"])
         rpm = float(ctx.data["rpm"])
 
-        sample = _measure_fusion_standard_for_session(ctx, od_value, rpm)
+        samples = _measure_fusion_standard_for_session(
+            ctx,
+            od_value,
+            rpm,
+            repeats=SAMPLES_PER_STANDARD,
+        )
         records = ctx.data.get("records", [])
-        for angle, reading in sample.items():
-            records.append([angle, log10(od_value), log(max(reading, 1e-12))])
+        for sample in samples:
+            for angle, reading in sample.items():
+                records.append([angle, log10(od_value), log(max(reading, 1e-12))])
 
         ctx.data["records"] = records
         return RemoveObservation()
@@ -405,10 +374,9 @@ class RemoveObservation(SessionStep):
     step_id = "remove_observation"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
-        current, total = _current_observation_index(ctx)
         standard_index = int(ctx.data.get("standard_index", 1))
         step = steps.action(
-            f"Remove standard vial {standard_index} ({current}/{total} trials complete)",
+            f"Remove standard vial {standard_index}",
             "Remove the vial completely, then continue.",
         )
         step.metadata = {
@@ -421,10 +389,6 @@ class RemoveObservation(SessionStep):
         return step
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
-        remaining = int(ctx.data.get("samples_remaining", 0)) - 1
-        ctx.data["samples_remaining"] = remaining
-        if remaining > 0:
-            return PlaceObservation()
         return AnotherStandard()
 
 
@@ -478,10 +442,8 @@ _FUSION_STEPS: StepRegistry = {
     NameInput.step_id: NameInput,
     NameOverwriteConfirm.step_id: NameOverwriteConfirm,
     RpmInput.step_id: RpmInput,
-    SamplesInput.step_id: SamplesInput,
     PlaceStandard.step_id: PlaceStandard,
     MeasureStandard.step_id: MeasureStandard,
-    PlaceObservation.step_id: PlaceObservation,
     RecordObservation.step_id: RecordObservation,
     RemoveObservation.step_id: RemoveObservation,
     AnotherStandard.step_id: AnotherStandard,
@@ -499,6 +461,7 @@ class FusionStandardsODProtocol(CalibrationProtocol[pt.ODFusedCalibrationDevice]
         "Stir bars",
     )
     step_registry = _FUSION_STEPS
+    priority = 1
 
     @classmethod
     def start_session(cls, target_device: pt.ODFusedCalibrationDevice) -> CalibrationSession:

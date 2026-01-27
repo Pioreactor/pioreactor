@@ -85,7 +85,12 @@ def list_protocols() -> None:
         protocols = get_calibration_protocols().get(device, {})
         if not protocols:
             continue
-        click.echo(f"{bold(device)}: {', '.join(protocols.keys())}")
+        sorted_protocols = sorted(
+            protocols.values(),
+            key=lambda protocol: (getattr(protocol, "priority", 99), protocol.protocol_name),
+        )
+        protocol_names = [protocol.protocol_name for protocol in sorted_protocols]
+        click.echo(f"{bold(device)}: {', '.join(protocol_names)}")
         shown = True
 
     if not shown:

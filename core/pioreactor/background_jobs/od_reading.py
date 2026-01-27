@@ -810,7 +810,7 @@ class CachedCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
         super().__init__()
         self.models: dict[pt.PdChannel, Callable] = {}
         self.verifiers: dict[pt.PdChannel, Callable] = {}
-        self.has_logged_warning = False
+        self._last_bound_warning_at: float | None = None
 
     def hydate_models(self, calibration_data: structs.ODCalibration | None) -> None:
         if calibration_data is None:
@@ -889,30 +889,34 @@ class CachedCalibrationTransformer(LoggerMixin, CalibrationTransformerProtocol):
             try:
                 return calibration_data.y_to_x(observed_voltage, enforce_bounds=True)
             except exc.NoSolutionsFoundError:
-                if not self.has_logged_warning:
+                if self._should_warn_about_bounds():
                     self.logger.warning(
                         f"No solution found for calibrated signal. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V, which would map outside the allowed values."
                     )
-                    self.has_logged_warning = True
                 return clamp_to_recorded_extrema()
             except exc.SolutionBelowDomainError:
-                if not self.has_logged_warning:
+                if self._should_warn_about_bounds():
                     below_or_above = "below" if observed_voltage <= min_voltage else "outside of"
                     self.logger.warning(
                         f"Signal {below_or_above} suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V, which would map outside the allowed values."
                     )
-                    self.has_logged_warning = True
                 return clamp_to_recorded_extrema()
             except exc.SolutionAboveDomainError:
-                if not self.has_logged_warning:
+                if self._should_warn_about_bounds():
                     above_or_outside = "above" if observed_voltage >= max_voltage else "outside of"
                     self.logger.warning(
                         f"Signal {above_or_outside} suggested calibration range. Trimming signal. Calibrated for OD=[{min_OD:0.3g}, {max_OD:0.3g}], V=[{min_voltage:0.3g}, {max_voltage:0.3g}]. Observed {observed_voltage:0.3f}V, which would map outside the allowed values."
                     )
-                    self.has_logged_warning = True
                 return clamp_to_recorded_extrema()
 
         return _calibrate_signal, _verify
+
+    def _should_warn_about_bounds(self) -> bool:
+        now = time()
+        if self._last_bound_warning_at is None or (now - self._last_bound_warning_at) > 300:
+            self._last_bound_warning_at = now
+            return True
+        return False
 
     def __call__(self, od_readings: structs.ODReadings) -> structs.ODReadings:
         calibrated_od_readings = structs.ODReadings(ods={}, timestamp=od_readings.timestamp)
@@ -957,6 +961,7 @@ class CachedEstimatorTransformer(LoggerMixin, EstimatorTransformerProtocol):
     def __init__(self) -> None:
         super().__init__()
         self.estimator: structs.ODFusionEstimator | None = None
+        self._last_bound_warning_at: float | None = None
 
     def hydrate_estimator(self, estimator: structs.ODFusionEstimator | None) -> None:
         if estimator is None:
@@ -973,11 +978,32 @@ class CachedEstimatorTransformer(LoggerMixin, EstimatorTransformerProtocol):
         }
         try:
             od_fused_value = compute_fused_od(self.estimator, fused_inputs)
+            if self._should_warn_about_bounds(od_fused_value):
+                self.logger.warning(
+                    "Fused OD estimate hit estimator bounds: estimator=%s min_logc=%s max_logc=%s od_fused=%s",
+                    self.estimator.estimator_name,
+                    self.estimator.min_logc,
+                    self.estimator.max_logc,
+                    od_fused_value,
+                )
         except Exception as e:
             self.logger.debug(f"Failed to compute fused OD: {e}", exc_info=True)
             return None
 
         return structs.ODFused(od_fused=od_fused_value, timestamp=raw_od_readings.timestamp)
+
+    def _should_warn_about_bounds(self, od_fused_value: float) -> bool:
+        if self.estimator is None:
+            return False
+
+        lower_bound = 10**self.estimator.min_logc
+        upper_bound = 10**self.estimator.max_logc
+        if (od_fused_value <= lower_bound * 1.001) or (od_fused_value >= upper_bound * 0.999):
+            now = time()
+            if self._last_bound_warning_at is None or (now - self._last_bound_warning_at) > 300:
+                self._last_bound_warning_at = now
+                return True
+        return False
 
 
 class ODReader(BackgroundJob):

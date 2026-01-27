@@ -146,13 +146,16 @@ def test_is_pio_job_running_multiple() -> None:
     unit = get_unit_name()
 
     assert not any(is_pio_job_running(["stirring", "od_reading"]))
+    assert is_pio_job_running(["stirring"]) == [False]
 
     with start_stirring(target_rpm=0, experiment=experiment, unit=unit):
         assert any(is_pio_job_running(["stirring", "od_reading"]))
         assert is_pio_job_running(["stirring", "od_reading"]) == [True, False]
         assert is_pio_job_running(["od_reading", "stirring"]) == [False, True]
+        assert is_pio_job_running(["stirring"]) == [True]
 
     assert not any(is_pio_job_running(["stirring", "od_reading"]))
+    assert is_pio_job_running(["stirring"]) == [False]
 
 
 def test_get_running_pio_job_id_single() -> None:
