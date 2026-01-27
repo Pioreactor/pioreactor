@@ -191,7 +191,7 @@ def update() -> DelayedResponseReturnValue:
         if value is not None:
             commands += (str(value),)
 
-    task = tasks.pio_update(*commands)
+    task = tasks.pio_update_app(*commands)
     return create_task_response(task)
 
 
@@ -717,7 +717,7 @@ def uninstall_plugin() -> DelayedResponseReturnValue:
 
 @unit_api_bp.route("/versions/app", methods=["GET"])
 def get_app_version() -> ResponseReturnValue:
-    return attach_cache_control(jsonify({"version": __version__}), max_age=30)
+    return attach_cache_control(jsonify({"version": __version__}), max_age=10000)
 
 
 ### CALIBRATIONS

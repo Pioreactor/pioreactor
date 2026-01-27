@@ -27,6 +27,7 @@ from tempfile import mkdtemp
 from time import sleep
 from typing import Any
 from typing import cast
+from uuid import uuid4
 
 from huey.exceptions import ResultTimeout
 from huey.exceptions import TaskException
@@ -343,6 +344,7 @@ def update_app_from_release_archive_across_cluster(archive_location: str, units:
         run(distribute_archive_to_workers)
 
         # this may include leader, and leader's UI. If it's not included, we need to update the UI later.
+        logger.debug(f"Updating cluster with `pios update --source {archive_location} -y`")
         update_app_across_all_workers = [
             PIOS_EXECUTABLE,
             "update",
@@ -351,6 +353,7 @@ def update_app_from_release_archive_across_cluster(archive_location: str, units:
             "-y",
         ]
         run(update_app_across_all_workers)
+        sleep(2)
 
         logger.debug("Restarting pioreactor-web.target after cluster update")
         check_call(["sudo", "systemctl", "restart", "pioreactor-web.target"])
@@ -891,19 +894,23 @@ def import_dot_pioreactor_archive(uploaded_zip_path: str) -> bool:
 @huey.lock_task("update-lock")
 def pio_update_app(*args: str, env: dict[str, str] | None = None) -> bool:
     env = filter_to_allowed_env(env or {})
-    logger.debug(f'Executing `{join(("pio", "update", "app") + args)}`, {env=}')
-    result = run((PIO_EXECUTABLE, "update", "app") + args, env=env)
+    # Launch via systemd-run so the update continues even if the Huey service restarts (separate cgroup).
+    unit_name = f"pio-update-{get_unit_name()}-{uuid4().hex}"
+    systemd_run_command = [
+        "systemd-run",
+        f"--unit={unit_name}",
+        "--collect",
+        "--property=User=pioreactor",
+        "--property=WorkingDirectory=/home/pioreactor",
+        "--property=EnvironmentFile=/etc/pioreactor.env",
+    ]
+    for key, value in sorted(env.items()):
+        systemd_run_command.append(f"--setenv={key}={value}")
+    systemd_run_command += [PIO_EXECUTABLE, "update", "app", *args]
+
+    logger.debug(f"Executing `{join(systemd_run_command)}`")
+    result = run(systemd_run_command)
     return result.returncode == 0
-
-
-@huey.task()
-@huey.lock_task("update-lock")
-def pio_update(*args: str, env: dict[str, str] | None = None) -> bool:
-    env = filter_to_allowed_env(env or {})
-    logger.debug(f'Executing `{join(("pio", "update") + args)}`, {env=}')
-    run((PIO_EXECUTABLE, "update") + args, env=env)
-    # HACK: this always returns >0 because it kills huey, I think, so just return true
-    return True
 
 
 @huey.task()

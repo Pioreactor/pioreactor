@@ -116,6 +116,7 @@ export default function CalibrationSessionDialog({
   open,
   sessionId: sessionIdProp,
   onSessionId,
+  onComplete,
   onPause,
   onClose,
   onAbortSuccess,
@@ -311,12 +312,15 @@ export default function CalibrationSessionDialog({
           }
         }
       }
+      if (!shouldAbort && onComplete) {
+        onComplete();
+      }
       resetSessionState();
       if (onClose) {
         onClose();
       }
     },
-    [onAbortFailure, onAbortSuccess, onClose, resetSessionState, sessionId, unit]
+    [onAbortFailure, onAbortSuccess, onClose, onComplete, resetSessionState, sessionId, unit]
   );
 
   React.useEffect(() => {
@@ -355,6 +359,10 @@ export default function CalibrationSessionDialog({
     <Dialog
       open={open}
       onClose={(_event, reason) => {
+        if (sessionResult) {
+          abortSession(false);
+          return;
+        }
         if (
           (reason === "backdropClick" || reason === "escapeKeyDown") &&
           !sessionResult &&

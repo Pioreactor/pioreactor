@@ -215,8 +215,8 @@ function UploadArchiveAndConfirm(props) {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose} color="secondary">Cancel</Button>
-          <LoadingButton variant="contained" loading={isUploading} disabled={selectedFile == null} onClick={handleUploadClick}>Update</LoadingButton>
+          <Button onClick={handleClose} color="secondary" sx={{textTransform: "None"}}>Cancel</Button>
+          <LoadingButton variant="contained" loading={isUploading} disabled={selectedFile == null} onClick={handleUploadClick}  sx={{textTransform: "None"}}>Update</LoadingButton>
         </DialogActions>
       </Dialog>
     </React.Fragment>

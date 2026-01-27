@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 260">
+  <g style="color:#616161">
+    <g transform="translate(96 18) scale(2.6)" stroke="currentColor" stroke-width="1.2" fill="none">
+      <rect x="0.95" y="11.2" width="9.4" height="7.8" rx="0.6" ry="0.6" fill="#e0d0b5" stroke="none" />
+      <rect x="3.1" y="17.2" width="4.9" height="0.9" rx="0.4" fill="currentColor" stroke="none" />
+      <path
+        d="M0.17 5.96L0.14 19.44H11.17V5.81L0.18 5.97Z"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+      <line x1="7.14" y1="0.00" x2="7.14" y2="12.94" />
+      <line x1="4" y1="-0.00" x2="4" y2="14.94" />
+      <rect
+        x="0.86"
+        y="0.5"
+        width="9.61"
+        height="3.0"
+        fill="currentColor"
+        stroke="currentColor"
+        stroke-linejoin="round"
+      />
+    </g>
+
+    <g fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="110" y1="92" x2="110" y2="140" />
+      <polyline points="104,132 110,140 116,132" />
+    </g>
+
+    <g transform="translate(88 160) scale(2.6)" stroke="currentColor" stroke-width="1.2" fill="none" fill-rule="evenodd">
+      <path d="M1.4,18.9 L1.4,14.7 L0,14.7 L0,11.2 L2.799,11.2 L2.8,0 L14,0 L13.999,11.2 L16.8,11.2 L16.8,14.7 L15.399,14.7 L15.4,18.9 L1.4,18.9 Z" />
+      <circle cx="8.4" cy="13.3" r="2.1" />
+    </g>
+  </g>
+</svg>

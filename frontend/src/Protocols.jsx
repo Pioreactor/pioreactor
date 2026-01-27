@@ -451,6 +451,13 @@ function Protocols(props) {
           setActiveSessionProtocolId(activeSessionProtocol?.id ?? null);
           setActiveSessionUnit(selectedUnit);
         }}
+        onComplete={() => {
+          setActiveSessionId(null);
+          setActiveSessionProtocolId(null);
+          setActiveSessionUnit(null);
+          setSnackbarMessage("Calibration session completed.");
+          setSnackbarOpen(true);
+        }}
         onPause={() => {
           setSnackbarMessage("Protocol paused.");
           setSnackbarOpen(true);

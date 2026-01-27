@@ -295,7 +295,7 @@ function SingleCalibrationPage(props) {
       if (!response.ok) {
         throw new Error("Failed to remove active calibration");
       }
-      showSnackbar("Calibration removed as Active")
+      showSnackbar("Calibration is no longer Active")
       await fetchSingleCalibration();
     } catch (err) {
       console.error("Error removing active calibration:", err);

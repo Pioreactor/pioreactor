@@ -589,7 +589,7 @@ check_stirring_job() {
 
 check_experiment_scoping() {
   info "Testing stop-all in experiment-specific way"
-  if curl -fsS -X POST -H "Content-Type: application/json" -d '{"experiment":"exp1"}' http://localhost/unit_api/jobs/run/job_name/stirring >/dev/null; then
+  if curl -fsS -X POST -H "Content-Type: application/json" -d '{"env":{"EXPERIMENT":"exp1"}}' http://localhost/unit_api/jobs/run/job_name/stirring >/dev/null; then
     ok "start stirring in exp1"
   else
     fail "start stirring exp1 failed"
