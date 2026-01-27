@@ -24,6 +24,7 @@ import {
 } from "victory";
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
+import { shiftHue } from "../color";
 
 // Activate the UTC plugin
 dayjs.extend(utc);
@@ -120,6 +121,26 @@ function Chart(props) {
   const getUnitColor = useCallback(
     (name) => resolveUnitColor(name, unitsColorMap),
     [unitsColorMap]
+  );
+
+  const applyAngleAlpha = useCallback(
+    (seriesName, color) => {
+      if (!isPartitionedBySensor) {
+        return color;
+      }
+      const { suffix } = splitPartitionedName(seriesName);
+      if (!suffix) {
+        return color;
+      }
+      if (suffix === "45") {
+        return shiftHue(color, 10);
+      }
+      if (suffix === "135") {
+        return shiftHue(color, -10);
+      }
+      return color;
+    },
+    [isPartitionedBySensor]
   );
 
   const breakString = useCallback((n) => (string) => {
@@ -239,16 +260,17 @@ function Chart(props) {
 
       const reformattedName = relabelAndFormatSeriesForLegend(name);
       const line = seriesMap[name];
+      const legendColor = applyAngleAlpha(name, line?.color);
       const item = {
         name: reformattedName,
-        symbol: { fill: line?.color },
+        symbol: { fill: legendColor },
       };
       if (hiddenSeries.has(reformattedName)) {
         return { ...item, symbol: { fill: "white" } };
       }
       return item;
     },
-    [hiddenSeries, relabelAndFormatSeriesForLegend, seriesMap]
+    [applyAngleAlpha, hiddenSeries, relabelAndFormatSeriesForLegend, seriesMap]
   );
 
   const legendItems = useMemo(
@@ -310,6 +332,7 @@ function Chart(props) {
         return null;
       }
 
+      const seriesColor = applyAngleAlpha(name, series?.color);
       let marker = null;
       if (series.data?.length === 1) {
         marker = (
@@ -319,7 +342,7 @@ function Chart(props) {
             name={reformattedName}
             style={{
               data: {
-                fill: series?.color,
+                fill: seriesColor,
               },
             }}
           />
@@ -331,9 +354,9 @@ function Chart(props) {
             key={`line-${reformattedName}${chartKey}`}
             name={reformattedName}
             style={{
-              labels: { fill: series?.color },
+              labels: { fill: seriesColor },
               data: {
-                stroke: series?.color,
+                stroke: seriesColor,
                 strokeWidth: 2,
               },
               parent: { border: "1px solid #ccc" },
@@ -356,7 +379,15 @@ function Chart(props) {
         </VictoryGroup>
       );
     },
-    [chartKey, hiddenSeries, interpolation, relabelAndFormatSeries, seriesMap, yTransformation]
+    [
+      applyAngleAlpha,
+      chartKey,
+      hiddenSeries,
+      interpolation,
+      relabelAndFormatSeries,
+      seriesMap,
+      yTransformation,
+    ]
   );
 
   const legendEvents = useMemo(

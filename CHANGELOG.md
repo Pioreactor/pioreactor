@@ -24,6 +24,7 @@
    - `/unit_api/estimators/<device>`
    - `/unit_api/estimators/<device>/<estimator_name>`
  - Faster start up and shutdown of pioreactor jobs.
+ - Charts on Experiment Overview now scale with window size!
 
 #### Breaking changes
  - Moved Self-test to the Inventory page. Pioreactors no longer need to be assigned to an experiment to run self-test.
