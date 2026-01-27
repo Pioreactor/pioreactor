@@ -897,6 +897,7 @@ def pio_update_app(*args: str, env: dict[str, str] | None = None) -> bool:
     # Launch via systemd-run so the update continues even if the Huey service restarts (separate cgroup).
     unit_name = f"pio-update-{get_unit_name()}-{uuid4().hex}"
     systemd_run_command = [
+        "sudo",
         "systemd-run",
         f"--unit={unit_name}",
         "--collect",

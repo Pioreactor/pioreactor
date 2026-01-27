@@ -407,7 +407,7 @@ if am_I_leader() or is_testing_env():
         json: bool,
     ) -> None:
         if ctx.invoked_subcommand is None:
-            units = resolve_target_units(units, experiments, active_only=False, include_leader=False)
+            units = resolve_target_units(units, experiments, active_only=False, include_leader=None)
 
             if len(units) == 0:
                 return
