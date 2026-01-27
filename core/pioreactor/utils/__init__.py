@@ -486,7 +486,8 @@ def is_pio_job_running(target_jobs):
     > result = is_pio_job_running(["od_reading", "stirring"])
     > # [True, False]
     """
-    if isinstance(target_jobs, str):
+    is_single_job_name = isinstance(target_jobs, str)
+    if is_single_job_name:
         target_jobs = (target_jobs,)
 
     results = []
@@ -497,10 +498,9 @@ def is_pio_job_running(target_jobs):
         for job in target_jobs:
             results.append(jm.is_job_running(job))
 
-    if len(target_jobs) == 1:
+    if is_single_job_name:
         return results[0]
-    else:
-        return results
+    return results
 
 
 def get_running_pio_job_id(job_name: str) -> int | None:
