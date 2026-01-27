@@ -484,24 +484,26 @@ def calibration_measure_standard(
 def calibration_fusion_standard_observation(
     od_value: float,
     rpm: float,
+    repeats: int = 1,
 ) -> dict[str, object]:
-    from pioreactor.calibrations.protocols.od_fusion_standards import _measure_fusion_standard
+    from pioreactor.calibrations.protocols.od_fusion_standards import _measure_fusion_standard_samples
 
     logger.debug(
         "Starting fusion OD observation: od_value=%s rpm=%s",
         od_value,
         rpm,
     )
-    sample = _measure_fusion_standard(
+    samples = _measure_fusion_standard_samples(
         rpm=rpm,
+        repeats=repeats,
     )
-    serialized_sample = {str(angle): float(value) for angle, value in sample.items()}
+    serialized_samples = [{str(angle): float(value) for angle, value in sample.items()} for sample in samples]
     logger.debug(
         "Finished fusion OD observation: od_value=%s rpm=%s",
         od_value,
         rpm,
     )
-    return {"sample": serialized_sample}
+    return {"samples": serialized_samples}
 
 
 @huey.task()
@@ -632,6 +634,7 @@ def _register_core_calibration_actions() -> None:
             calibration_fusion_standard_observation(
                 float(payload["od_value"]),
                 float(payload["rpm"]),
+                int(payload.get("repeats", 1)),
             ),
             "Fusion OD observation",
             _default_normalizer,

@@ -186,7 +186,8 @@ class Intro(SessionStep):
                 "You will need:\n"
                 "1. A Pioreactor XR.\n"
                 "2. An existing od_fused estimator on any worker.\n"
-                "3. One OD600 standard vial with a stir bar."
+                "3. One OD600 standard vial with a stir bar.\n\n"
+                "For best results, choose a standard near the regime you most care about (high, medium, or low density, etc.)"
             ),
         )
 
@@ -387,7 +388,8 @@ class RecordObservation(SessionStep):
             standard_od,
             rpm,
         )
-        sample = _measure_fusion_standard_for_session(ctx, standard_od, rpm)
+        samples = _measure_fusion_standard_for_session(ctx, standard_od, rpm, repeats=1)
+        sample = samples[0]
         logger.debug("Fusion offset observation sample keys=%s", sorted(sample.keys()))
         for angle in base_estimator.angles:
             if angle not in sample:
