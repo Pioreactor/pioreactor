@@ -300,7 +300,7 @@ class PlaceStandard(SessionStep):
             f"Place standard vial {standard_index}",
             (
                 f"Place standard vial {standard_index} with a stir bar into the Pioreactor. "
-                "We will take four readings, then you will remove it."
+                "We will take OD readings, then you will remove it."
             ),
         )
         step.metadata = {

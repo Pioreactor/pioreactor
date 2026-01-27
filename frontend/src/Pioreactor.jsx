@@ -29,6 +29,7 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import CloseIcon from '@mui/icons-material/Close';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import FlareIcon from '@mui/icons-material/Flare';
+import AutoGraphIcon from '@mui/icons-material/AutoGraph';
 import SettingsIcon from '@mui/icons-material/Settings';
 import TuneIcon from '@mui/icons-material/Tune';
 import IconButton from '@mui/material/IconButton';
@@ -361,13 +362,17 @@ function CalibrateDialog({ unit, experiment, odBlankReading, odBlankJobState, gr
   const [tabValue, setTabValue] = useState(0);
   const [activeCalibrations, setActiveCalibrations] = useState({});
   const [loadingCalibrations, setLoadingCalibrations] = useState(false);
+  const [activeEstimators, setActiveEstimators] = useState({});
+  const [loadingEstimators, setLoadingEstimators] = useState(false);
 
   useEffect(() => {
     if (!open) return;
 
     setLoadingCalibrations(true)
+    setLoadingEstimators(true)
 
     const apiUrl = `/api/workers/${unit}/active_calibrations`;
+    const estimatorsUrl = `/api/workers/${unit}/active_estimators`;
 
     const fetchCalibrations = async () => {
       try {
@@ -377,10 +382,23 @@ function CalibrateDialog({ unit, experiment, odBlankReading, odBlankJobState, gr
 
       } catch (err) {
         console.error("Failed to fetch calibration:", err);
+        setLoadingCalibrations(false);
+      }
+    };
+
+    const fetchEstimators = async () => {
+      try {
+        const data = await fetchTaskResult(estimatorsUrl, {delayMs: 2000})
+        setActiveEstimators(data.result[unit]);
+        setLoadingEstimators(false);
+      } catch (err) {
+        console.error("Failed to fetch estimators:", err);
+        setLoadingEstimators(false);
       }
     };
 
     fetchCalibrations();
+    fetchEstimators();
   }, [open, unit] )
 
 
@@ -428,6 +446,7 @@ function CalibrateDialog({ unit, experiment, odBlankReading, odBlankJobState, gr
   const isGrowRateJobRunning = growthRateJobState === "ready"
   const hasActiveODCalibration = Object.keys(activeCalibrations || {}).some((device) => device.startsWith("od"))
   const blankODButton = createUserButtonsBasedOnState(odBlankJobState, "od_blank", (isGrowRateJobRunning || hasActiveODCalibration))
+  const activeEstimatorEntries = Object.entries(activeEstimators || {}).filter(([, estimator]) => estimator?.is_active);
 
   return (
     <React.Fragment>
@@ -446,6 +465,7 @@ function CalibrateDialog({ unit, experiment, odBlankReading, odBlankJobState, gr
             textColor="primary"
             >
             <Tab sx={{textTransform: 'none'}} label="Calibrations"/>
+            <Tab sx={{textTransform: 'none'}} label="Estimators"/>
             <Tab sx={{textTransform: 'none'}} label="Blanks"/>
           </Tabs>
           <IconButton
@@ -462,7 +482,7 @@ function CalibrateDialog({ unit, experiment, odBlankReading, odBlankJobState, gr
           </IconButton>
         </DialogTitle>
         <DialogContent>
-          <TabPanel value={tabValue} index={1}>
+          <TabPanel value={tabValue} index={2}>
             <Typography  gutterBottom>
              Record optical densities of blank (optional)
             </Typography>
@@ -491,6 +511,57 @@ function CalibrateDialog({ unit, experiment, odBlankReading, odBlankJobState, gr
             </div>
             <ControlDivider/>
 
+          </TabPanel>
+          <TabPanel value={tabValue} index={1}>
+            <Typography gutterBottom>
+              Active estimators
+            </Typography>
+            <Typography variant="body2" component="p" gutterBottom>
+              Below are the active estimators that will be used when interpreting measurements on this Pioreactor.
+            </Typography>
+            {loadingEstimators ? (
+              <Box sx={{ textAlign: 'center', marginTop: '2rem' }}>
+                <CircularProgress />
+              </Box>
+            ) : activeEstimatorEntries.length === 0 ? (
+              (<Typography variant="body2" component="p" color="textSecondary" sx={{ mt: 3 }}>There are no active estimators available.
+                              </Typography>)
+            ) : (
+              (<Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell align="left" sx={{ padding: '6px 0px' }}>Device</TableCell>
+                    <TableCell align="left" sx={{ padding: '6px 0px' }}>Estimator name</TableCell>
+                    <TableCell align="left" sx={{ padding: '6px 0px' }}>Created on</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {activeEstimatorEntries.map(([device, estimator]) => {
+                    const estimatorName = estimator.estimator_name;
+                    return (
+                      <TableRow key={`${estimatorName}-${device}`}>
+                        <TableCell align="left" sx={{ padding: '6px 0px' }}>
+                          {device}
+                        </TableCell>
+                        <TableCell align="left" sx={{ padding: '6px 0px' }}>
+                          <Chip
+                            size="small"
+                            icon={<AutoGraphIcon />}
+                            label={estimatorName}
+                            data-estimator-name={estimatorName}
+                            data-device={device}
+                            sx={{maxWidth:"300px"}}
+                          />
+                        </TableCell>
+                        <TableCell align="left" sx={{ padding: '6px 0px' }}>
+                          {dayjs(estimator.created_at).format('YYYY-MM-DD')}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>)
+            )}
           </TabPanel>
           <TabPanel value={tabValue} index={0}>
             <Typography gutterBottom>

@@ -839,6 +839,34 @@ def get_all_active_calibrations() -> ResponseReturnValue:
     return attach_cache_control(jsonify(all_calibrations), max_age=10)
 
 
+@unit_api_bp.route("/active_estimators", methods=["GET"])
+def get_all_active_estimators() -> ResponseReturnValue:
+    estimator_dir = ESTIMATOR_PATH
+
+    if not estimator_dir.exists():
+        return attach_cache_control(jsonify({}), max_age=10)
+
+    all_estimators: dict[str, dict] = {}
+
+    with local_persistent_storage("active_estimators") as cache:
+        for device in cache.iterkeys():
+            estimator_name = cache[device]
+            estimator_file_path = estimator_dir / device / f"{estimator_name}.yaml"
+            if not estimator_file_path.exists():
+                continue
+            try:
+                estimator = to_builtins(yaml_decode(estimator_file_path.read_bytes(), type=AllEstimators))
+                estimator["is_active"] = True
+                estimator["pioreactor_unit"] = HOSTNAME
+                all_estimators[device] = estimator
+            except Exception as e:
+                publish_to_error_log(
+                    f"Error reading {estimator_file_path.stem}: {e}", "get_all_active_estimators"
+                )
+
+    return attach_cache_control(jsonify(all_estimators), max_age=10)
+
+
 @unit_api_bp.route("/zipped_calibrations", methods=["GET"])
 def get_all_calibrations_as_zipped_yaml() -> ResponseReturnValue:
     calibration_dir = CALIBRATION_PATH

@@ -23,6 +23,8 @@ if [ "$HOSTNAME" = "$LEADER_HOSTNAME" ]; then
     sudo chown mosquitto:mosquitto /etc/mosquitto/pw.txt
     sudo chmod 0700 /etc/mosquitto/pw.txt
 
+    /opt/pioreactor/venv/bin/crudini --set "$CONFIG" ui.overview.charts fused_optical_density 0
+
 
 
 fi
