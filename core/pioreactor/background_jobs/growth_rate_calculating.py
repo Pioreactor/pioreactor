@@ -41,6 +41,7 @@ from threading import Event
 from threading import Thread
 from time import sleep
 from typing import Generator
+from typing import Iterator
 
 import click
 from msgspec.json import decode as loads
@@ -55,6 +56,7 @@ from pioreactor.background_jobs.od_reading import VALID_PD_ANGLES
 from pioreactor.config import config
 from pioreactor.utils import local_persistent_storage
 from pioreactor.utils.streaming import DosingObservationSource
+from pioreactor.utils.streaming import IteratorBackedStream
 from pioreactor.utils.streaming import merge_historical_streams
 from pioreactor.utils.streaming import merge_live_streams
 from pioreactor.utils.streaming import MqttDosingSource
@@ -108,13 +110,13 @@ class GrowthRateProcessor(LoggerMixin):
         self._recent_dilution = False
 
     def initialize_extended_kalman_filter(
-        self, od_std: float, rate_std: float, obs_std: float, od_stream: ODObservationSource
+        self, od_std: float, rate_std: float, obs_std: float, od_iter: Iterator[structs.ODReadings]
     ) -> CultureGrowthEKF:
         import numpy as np
 
         self.logger.debug(f"{od_std=}, {rate_std=}, {obs_std=}")
 
-        initial_nOD, initial_growth_rate = self.get_initial_values(od_stream)
+        initial_nOD, initial_growth_rate = self.get_initial_values(od_iter)
 
         initial_state = np.array([initial_nOD, initial_growth_rate])
         self.logger.debug(f"Initial state: {repr(initial_state)}")
@@ -240,13 +242,13 @@ class GrowthRateProcessor(LoggerMixin):
 
         return means, variances
 
-    def get_initial_values(self, od_stream: ODObservationSource) -> tuple[float, float]:
+    def get_initial_values(self, od_iter: Iterator[structs.ODReadings]) -> tuple[float, float]:
         if self.ignore_cache:
             initial_growth_rate = 0.0
-            initial_nOD = self.get_filtered_od_from_stream(od_stream)
+            initial_nOD = self.get_filtered_od_from_iterator(od_iter)
         else:
             initial_growth_rate = self.get_growth_rate_from_cache()
-            initial_nOD = self.get_filtered_od_from_cache_or_stream(od_stream)
+            initial_nOD = self.get_filtered_od_from_cache_or_iterator(od_iter)
         return (initial_nOD, initial_growth_rate)
 
     def get_precomputed_values(
@@ -304,16 +306,16 @@ class GrowthRateProcessor(LoggerMixin):
         with local_persistent_storage("growth_rate") as cache:
             return cache.get(self.cache_key, 0.0)
 
-    def get_filtered_od_from_cache_or_stream(self, od_stream: ODObservationSource) -> float:
+    def get_filtered_od_from_cache_or_iterator(self, od_iter: Iterator[structs.ODReadings]) -> float:
         with local_persistent_storage("od_filtered") as cache:
             value = cache.get(self.cache_key)
         if value:
             return value
         else:
-            return self.get_filtered_od_from_stream(od_stream)
+            return self.get_filtered_od_from_iterator(od_iter)
 
-    def get_filtered_od_from_stream(self, od_stream: ODObservationSource) -> float:
-        scaled_od_readings = self.scale_raw_observations(next(iter(od_stream)))
+    def get_filtered_od_from_iterator(self, od_iter: Iterator[structs.ODReadings]) -> float:
+        scaled_od_readings = self.scale_raw_observations(next(od_iter))
         return mean(scaled_od_readings[channel] for channel in scaled_od_readings.keys())
 
     def get_od_normalization_from_cache(self) -> dict[pt.PdChannel, float]:
@@ -454,18 +456,20 @@ class GrowthRateProcessor(LoggerMixin):
         self.logger.debug(f"od_blank={dict(self.od_blank)}")
 
         # create kalman filter
+        od_iter = iter(od_stream)
         self.ekf = self.initialize_extended_kalman_filter(
             od_std=config.getfloat("growth_rate_kalman", "od_std"),
             rate_std=config.getfloat("growth_rate_kalman", "rate_std"),
             obs_std=config.getfloat("growth_rate_kalman", "obs_std"),
-            od_stream=od_stream,
+            od_iter=od_iter,
         )
 
         # how should we merge streams?
         if od_stream.is_live and dosing_stream.is_live:
-            merged_streams = merge_live_streams(od_stream, dosing_stream, stop_event=self.stopping_event)
+            od_iter_stream = IteratorBackedStream(od_iter, od_stream.set_stop_event)
+            merged_streams = merge_live_streams(od_iter_stream, dosing_stream, stop_event=self.stopping_event)
         elif not od_stream.is_live and not dosing_stream.is_live:
-            merged_streams = merge_historical_streams(od_stream, dosing_stream, key=lambda t: t.timestamp)
+            merged_streams = merge_historical_streams(od_iter, dosing_stream, key=lambda t: t.timestamp)
         else:
             raise ValueError("Both streams must be live or both must be historical.")
 

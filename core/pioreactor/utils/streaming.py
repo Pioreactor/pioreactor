@@ -256,6 +256,20 @@ T = ODReadings | DosingEvent
 S = ODObservationSource | DosingObservationSource
 
 
+class IteratorBackedStream(ODObservationSource):
+    is_live = True
+
+    def __init__(self, iterator: Iterator[ODReadings], stop_event_setter: Callable[[Event], None]) -> None:
+        self._iterator = iterator
+        self._stop_event_setter = stop_event_setter
+
+    def set_stop_event(self, ev: Event) -> None:
+        self._stop_event_setter(ev)
+
+    def __iter__(self) -> Iterator[ODReadings]:
+        return self._iterator
+
+
 def merge_live_streams(
     *iterables: S,
     stop_event: Event | None = None,

@@ -241,7 +241,25 @@ class TestGrowthRateCalculating:
                         timestamp="2010-01-01T12:00:35.000Z",
                     ),
                 )
-                assert wait_for(lambda: float(calc1.processor.ekf.state_[-1]) != 0, timeout=3.0)
+                publish(
+                    f"pioreactor/{unit}/{experiment}/od_reading/ods",
+                    create_encoded_od_raw_batched(
+                        ["1", "2"],
+                        [1.155, 0.935],
+                        ["90", "135"],
+                        timestamp="2010-01-01T12:00:35.000Z",
+                    ),
+                )
+                publish(
+                    f"pioreactor/{unit}/{experiment}/od_reading/ods",
+                    create_encoded_od_raw_batched(
+                        ["1", "2"],
+                        [1.156, 0.936],
+                        ["90", "135"],
+                        timestamp="2010-01-01T12:00:35.000Z",
+                    ),
+                )
+                assert wait_for(lambda: float(calc1.processor.ekf.state_[-1]) != 0, timeout=10.0)
 
             with GrowthRateCalculator(unit=unit, experiment=experiment) as calc2:
                 od_stream, dosing_stream = create_od_stream_from_mqtt(

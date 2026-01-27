@@ -980,12 +980,11 @@ class CachedEstimatorTransformer(LoggerMixin, EstimatorTransformerProtocol):
             od_fused_value = compute_fused_od(self.estimator, fused_inputs)
             if self._should_warn_about_bounds(od_fused_value):
                 self.logger.warning(
-                    "Fused OD estimate hit estimator bounds: estimator=%s min_logc=%s max_logc=%s od_fused=%s ref_normalization=%s",
+                    "Fused OD estimate hit estimator bounds: estimator=%s min_logc=%s max_logc=%s od_fused=%s",
                     self.estimator.estimator_name,
                     self.estimator.min_logc,
                     self.estimator.max_logc,
                     od_fused_value,
-                    config.get("od_reading.config", "ref_normalization", fallback="classic"),
                 )
         except Exception as e:
             self.logger.debug(f"Failed to compute fused OD: {e}", exc_info=True)
