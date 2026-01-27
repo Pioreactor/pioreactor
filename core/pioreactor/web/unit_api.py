@@ -28,6 +28,7 @@ from pioreactor import whoami
 from pioreactor.calibrations import CALIBRATION_PATH
 from pioreactor.calibrations import get_calibration_protocols as get_calibration_protocols_registry
 from pioreactor.config import get_leader_hostname
+from pioreactor.estimators import ESTIMATOR_PATH
 from pioreactor.models import get_registered_models
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import subclass_union
@@ -52,6 +53,7 @@ from pioreactor.web.utils import is_valid_unix_filename
 from werkzeug.utils import safe_join
 
 AllCalibrations = subclass_union(CalibrationBase)
+AllEstimators = subclass_union(structs.EstimatorBase)
 
 unit_api_bp = Blueprint("unit_api", __name__, url_prefix="/unit_api")
 
@@ -130,11 +132,13 @@ def _build_calibration_protocol_payloads() -> list[dict[str, Any]]:
             title = getattr(protocol, "title", "") or f"{protocol_name.replace('_', ' ').title()} calibration"
             description = getattr(protocol, "description", "")
             requirements = list(getattr(protocol, "requirements", ()))
+            priority = int(getattr(protocol, "priority", 99))
             protocols.append(
                 {
                     "id": f"{device}_{protocol_name}",
                     "target_device": device,
                     "protocol_name": protocol_name,
+                    "priority": priority,
                     "title": _format_protocol_text(title, device),
                     "description": _format_protocol_text(description, device),
                     "requirements": [
@@ -142,7 +146,7 @@ def _build_calibration_protocol_payloads() -> list[dict[str, Any]]:
                     ],
                 }
             )
-    return sorted(protocols, key=lambda item: (item["target_device"], item["title"]))
+    return sorted(protocols, key=lambda item: (item["target_device"], item["priority"], item["title"]))
 
 
 def require_leader(view_func):
@@ -1044,6 +1048,45 @@ def get_calibration(device: str, cal_name: str) -> ResponseReturnValue:
         except Exception as e:
             publish_to_error_log(f"Error reading {calibration_path.stem}: {e}", "get_calibration")
             abort_with(500, "Failed to read calibration file.")
+
+
+@unit_api_bp.route("/estimators/<device>", methods=["GET"])
+def get_estimators_by_device(device: str) -> ResponseReturnValue:
+    estimator_dir = ESTIMATOR_PATH / device
+
+    if not estimator_dir.exists():
+        return attach_cache_control(jsonify([]), max_age=10)
+
+    estimators: list[dict] = []
+    with local_persistent_storage("active_estimators") as c:
+        for file in sorted(estimator_dir.glob("*.yaml")):
+            try:
+                estimator = to_builtins(yaml_decode(file.read_bytes(), type=AllEstimators))
+                estimator["is_active"] = c.get(device) == estimator.get("estimator_name")
+                estimator["pioreactor_unit"] = HOSTNAME
+                estimators.append(estimator)
+            except Exception as e:
+                publish_to_error_log(f"Error reading {file.stem}: {e}", "get_estimators_by_device")
+
+    return attach_cache_control(jsonify(estimators), max_age=10)
+
+
+@unit_api_bp.route("/estimators/<device>/<estimator_name>", methods=["GET"])
+def get_estimator(device: str, estimator_name: str) -> ResponseReturnValue:
+    estimator_path = ESTIMATOR_PATH / device / f"{estimator_name}.yaml"
+
+    if not estimator_path.exists():
+        abort_with(404, description=f"Estimator '{estimator_name}' not found for device '{device}'.")
+
+    with local_persistent_storage("active_estimators") as c:
+        try:
+            estimator = to_builtins(yaml_decode(estimator_path.read_bytes(), type=AllEstimators))
+            estimator["is_active"] = c.get(device) == estimator.get("estimator_name")
+            estimator["pioreactor_unit"] = HOSTNAME
+            return attach_cache_control(jsonify(estimator), max_age=10)
+        except Exception as e:
+            publish_to_error_log(f"Error reading {estimator_path.stem}: {e}", "get_estimator")
+            abort_with(500, "Failed to read estimator file.")
 
 
 @unit_api_bp.route("/active_calibrations/<device>/<cal_name>", methods=["PATCH"])

@@ -21,8 +21,9 @@ The active estimator for a device is tracked in `active_estimators` persistent s
 
 ## Current estimators
 
-- `od_fused`: ODFusionEstimator produced by the `od_fusion_standards` protocol. This estimator
-  fuses 45°, 90°, and 135° OD sensor readings into a single fused OD value.
+- `od_fused`: ODFusionEstimator produced by the `od_fusion_standards` protocol (full fit) or the
+  `od_fusion_offset` protocol (single-point offset). This estimator fuses 45°, 90°, and 135°
+  OD sensor readings into a single fused OD value.
 
 ## Usage (Python)
 

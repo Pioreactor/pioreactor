@@ -25,6 +25,7 @@ from pioreactor.calibrations.structured_session import CalibrationSession
 from pioreactor.calibrations.structured_session import utc_iso_timestamp
 from pioreactor.config import config
 from pioreactor.estimators import list_of_estimators_by_device
+from pioreactor.logging import create_logger
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils.od_fusion import fit_fusion_model
 from pioreactor.utils.od_fusion import FUSION_ANGLES
@@ -37,6 +38,7 @@ from pioreactor.whoami import is_testing_env
 
 
 MIN_SAMPLES_PER_STANDARD = 4
+logger = create_logger("calibrations.od_fusion_standards", experiment="$experiment")
 
 
 def _ensure_xr_model() -> None:
@@ -112,6 +114,11 @@ def _measure_fusion_standard_for_session(
     rpm: float,
 ) -> dict[pt.PdAngle, float]:
     if ctx.executor and ctx.mode == "ui":
+        logger.debug(
+            "Requesting fusion standard observation via executor: od_value=%s rpm=%s",
+            od_value,
+            rpm,
+        )
         payload = ctx.executor(
             "od_fusion_standard_observation",
             {
@@ -119,8 +126,14 @@ def _measure_fusion_standard_for_session(
                 "rpm": rpm,
             },
         )
-        raw_sample = payload["sample"]
-        assert isinstance(raw_sample, dict)
+        logger.debug("Fusion observation payload type=%s payload=%r", type(payload).__name__, payload)
+        raw_sample = payload.get("sample") if isinstance(payload, dict) else None
+        if raw_sample is None and isinstance(payload, dict):
+            raw_sample = payload
+        if not isinstance(raw_sample, dict):
+            raise ValueError(
+                "Fusion observation did not return sample data. Ensure the Huey consumer is running."
+            )
         return {
             cast(pt.PdAngle, angle): float(value)
             for angle, value in raw_sample.items()
@@ -499,6 +512,7 @@ class FusionStandardsODProtocol(CalibrationProtocol[pt.ODFusedCalibrationDevice]
         "Stir bars",
     )
     step_registry = _FUSION_STEPS
+    priority = 1
 
     @classmethod
     def start_session(cls, target_device: pt.ODFusedCalibrationDevice) -> CalibrationSession:

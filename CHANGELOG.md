@@ -19,7 +19,10 @@
  - You can now restart the web server (lighttpd), and the background task queue, Huey, from the UI. Go to Leader -> "Long-running jobs", and see the "web server and queue" line.
  - Added spline curve support for calibrations, including OD standards sessions and calibration charts.
  - `pio calibrations analyze` now supports `--fit poly|spline` (default poly). You can use this to re-fit a dataset to a spline curve.
- - Added estimator artifacts alongside calibrations, including OD fusion estimators stored under `storage/estimators` and managed via the calibration session flow.
+ - Added estimator artifacts alongside calibrations, including OD fusion estimators stored under `storage/estimators` and managed via the calibration session flow. Estimators are like a "generalized" calibration for more complex algoriths. Calibrations will be restricted to 1D models.
+ - new unit_apis for estimators:
+   - `/unit_api/estimators/<device>`
+   - `/unit_api/estimators/<device>/<estimator_name>`
  - Faster start up and shutdown of pioreactor jobs.
 
 #### Breaking changes

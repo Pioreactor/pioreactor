@@ -101,21 +101,26 @@ def run_calibration(ctx, device: str, protocol_name: str | None, y: bool) -> Non
                 f"No protocols found for device '{device}'. Try `pio calibrations protocols` to see available protocols."
             )
             raise click.Abort()
-        if len(protocols_by_device.keys()) == 1:
-            protocol_name = list(protocols_by_device.keys())[0]
+        protocols_sorted = sorted(
+            protocols_by_device.values(),
+            key=lambda protocol: (getattr(protocol, "priority", 99), protocol.protocol_name),
+        )
+        protocol_names_sorted = [protocol.protocol_name for protocol in protocols_sorted]
+        if len(protocol_names_sorted) == 1:
+            protocol_name = protocol_names_sorted[0]
         else:
             # user will choose using click.prompt and click.Choice
             click.clear()
             click.echo()
             click.echo(f"Available protocols for {device}:")
             click.echo()
-            for protocol in protocols_by_device.values():
+            for protocol in protocols_sorted:
                 click.echo(bold(f"  • {protocol.protocol_name}"))
                 click.echo(f"        Description: {protocol.description}")
             click.echo()
             protocol_name = click.prompt(
                 green("Choose a protocol"),
-                type=click.Choice(list(protocols_by_device.keys())),
+                type=click.Choice(protocol_names_sorted),
             )
 
     assistant = get_calibration_protocols().get(device, {}).get(protocol_name)
@@ -187,7 +192,12 @@ def list_protocols() -> None:
     List available protocols for device calibrations.
     """
     for device, protocols in get_calibration_protocols().items():
-        click.echo(f"{bold(device)}: {', '.join(protocols.keys())}")
+        sorted_protocols = sorted(
+            protocols.values(),
+            key=lambda protocol: (getattr(protocol, "priority", 99), protocol.protocol_name),
+        )
+        protocol_names = [protocol.protocol_name for protocol in sorted_protocols]
+        click.echo(f"{bold(device)}: {', '.join(protocol_names)}")
 
 
 @calibration.command(name="display")
