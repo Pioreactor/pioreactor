@@ -454,8 +454,10 @@ class AnotherStandard(SessionStep):
             recorded_data=fit.recorded_data,
             ir_led_intensity=float(config["od_reading.config"]["ir_led_intensity"]),
             angles=list(FUSION_ANGLES),
-            mu_splines=fit.mu_splines,
-            sigma_splines_log=fit.sigma_splines_log,
+            mu_splines=cast(dict[pt.PdAngle, structs.AkimaFitData | structs.SplineFitData], fit.mu_splines),
+            sigma_splines_log=cast(
+                dict[pt.PdAngle, structs.AkimaFitData | structs.SplineFitData], fit.sigma_splines_log
+            ),
             min_logc=fit.min_logc,
             max_logc=fit.max_logc,
             sigma_floor=fit.sigma_floor,

@@ -285,7 +285,7 @@ def delete_calibration(device: str, calibration_name: str) -> None:
     "--fit",
     "fit",
     default="poly",
-    type=click.Choice(["poly", "spline"]),
+    type=click.Choice(["poly", "spline", "akima"]),
     show_default=True,
     help="Curve fit type to use when analyzing.",
 )

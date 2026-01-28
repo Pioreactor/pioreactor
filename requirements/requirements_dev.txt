@@ -5,6 +5,7 @@ pytest-random-order
 pytest-cov
 pytest-rerunfailures
 numpy
+scipy
 pre-commit
 pytest-mock
 zeroconf

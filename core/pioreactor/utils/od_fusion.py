@@ -10,10 +10,11 @@ from typing import Mapping
 from msgspec import Struct
 from pioreactor import structs
 from pioreactor import types as pt
+from pioreactor.utils.akimas import akima_eval
+from pioreactor.utils.akimas import akima_eval_derivative
+from pioreactor.utils.akimas import akima_fit
 from pioreactor.utils.splines import spline_eval
 from pioreactor.utils.splines import spline_eval_derivative
-from pioreactor.utils.splines import spline_fit
-from pioreactor.utils.splines import spline_fit_interpolating
 
 # Model: we fuse three angle-dependent channels into one scalar concentration estimate.
 # Each channel is treated as a noisy sensor of concentration with:
@@ -37,11 +38,11 @@ FUSION_ANGLES: tuple[pt.PdAngle, ...] = ("45", "90", "135")
 
 class FusionFitResult(Struct, frozen=True):
     # mu_splines[angle] stores the forward mean model mu_angle(logc) in log(signal) space.
-    mu_splines: dict[pt.PdAngle, structs.SplineFitData]
+    mu_splines: dict[pt.PdAngle, structs.AkimaFitData]
 
     # sigma_splines_log[angle] stores a model for log(sigma_angle(logc)).
     # We spline the log(sigma) so sigma stays positive after exp().
-    sigma_splines_log: dict[pt.PdAngle, structs.SplineFitData]
+    sigma_splines_log: dict[pt.PdAngle, structs.AkimaFitData]
 
     # Bounds on logc used during inversion. This prevents extrapolation.
     min_logc: float
@@ -53,6 +54,18 @@ class FusionFitResult(Struct, frozen=True):
 
     # Optional diagnostics / plotting payload. Stores per-angle median points.
     recorded_data: dict[str, object]
+
+
+def _curve_eval(curve: structs.AkimaFitData | structs.SplineFitData, x: float) -> float:
+    if isinstance(curve, structs.AkimaFitData):
+        return akima_eval(curve, x)
+    return spline_eval(curve, x)
+
+
+def _curve_eval_derivative(curve: structs.AkimaFitData | structs.SplineFitData, x: float) -> float:
+    if isinstance(curve, structs.AkimaFitData):
+        return akima_eval_derivative(curve, x)
+    return spline_eval_derivative(curve, x)
 
 
 def _golden_section_minimize(
@@ -193,8 +206,8 @@ def fit_fusion_model(
     if not any(by_angle.values()):
         raise ValueError("No usable fusion calibration records provided.")
 
-    mu_splines: dict[pt.PdAngle, structs.SplineFitData] = {}
-    sigma_splines_log: dict[pt.PdAngle, structs.SplineFitData] = {}
+    mu_splines: dict[pt.PdAngle, structs.AkimaFitData] = {}
+    sigma_splines_log: dict[pt.PdAngle, structs.AkimaFitData] = {}
 
     logc_values: list[float] = []
     recorded_data: dict[str, object] = {"by_angle": {}}
@@ -220,8 +233,7 @@ def fit_fusion_model(
         y_vals = [ly for _, ly in med_points]
 
         # mu_splines[angle] is forward model mu_angle(logc) in log(signal) space.
-        # Your spline_fit likely produces a natural cubic spline or equivalent depending on implementation.
-        mu_splines[angle] = spline_fit_interpolating(x_vals, y_vals)
+        mu_splines[angle] = akima_fit(x_vals, y_vals)
 
         cast_by_angle = recorded_data["by_angle"]
         if isinstance(cast_by_angle, dict):
@@ -231,7 +243,7 @@ def fit_fusion_model(
         # These residuals contain measurement noise + unmodeled effects.
         residuals_by_logc: dict[float, list[float]] = {}
         for logc, logy in records_for_angle:
-            mu = spline_eval(mu_splines[angle], logc)
+            mu = _curve_eval(mu_splines[angle], logc)
             residuals_by_logc.setdefault(logc, []).append(logy - mu)
 
         # Estimate sigma per concentration level using MAD (robust scale).
@@ -246,11 +258,11 @@ def fit_fusion_model(
             sigma = max(1.4826 * mad, sigma_floor)
             sig_points.append((logc, sigma))
 
-        # Fit a spline to log(sigma) vs logc, so sigma(logc) is smooth and positive.
+        # Fit a curve to log(sigma) vs logc, so sigma(logc) is smooth and positive.
         sig_points.sort(key=lambda pair: pair[0])
         sig_x = [lc for lc, _ in sig_points]
         sig_y = [log(sig) for _, sig in sig_points]
-        sigma_splines_log[angle] = spline_fit(sig_x, sig_y, knots="auto")
+        sigma_splines_log[angle] = akima_fit(sig_x, sig_y)
 
     # Inversion bounds: restrict to the calibrated logc range.
     min_logc = min(logc_values)
@@ -273,7 +285,7 @@ def _sigma_from_model(
 ) -> float:
     # sigma(logc) = exp( spline_eval( log_sigma_spline, logc ) )
     # Floor applied to avoid overconfident likelihood terms.
-    sigma_log = spline_eval(estimator.sigma_splines_log[angle], logc)
+    sigma_log = _curve_eval(estimator.sigma_splines_log[angle], logc)
     sigma = exp(sigma_log)
     return max(sigma, estimator.sigma_floor)
 
@@ -324,9 +336,9 @@ def compute_fused_od(
         huber_delta = 1.0
         total = 0.0
         for angle in estimator.angles:
-            mu = spline_eval(estimator.mu_splines[angle], logc)
+            mu = _curve_eval(estimator.mu_splines[angle], logc)
             sigma = _sigma_from_model(estimator, angle, logc)
-            slope = abs(spline_eval_derivative(estimator.mu_splines[angle], logc))
+            slope = abs(_curve_eval_derivative(estimator.mu_splines[angle], logc))
             sigma_eff = sigma / max(slope, slope_floor)
             sigma_eff *= _angle_noise_scale(angle, logc)
             residual = log_obs[angle] - mu

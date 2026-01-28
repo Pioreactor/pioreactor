@@ -44,6 +44,9 @@ def curve_to_functional_form(curve_data: structs.CalibrationCurveData) -> str:
     elif curve_type == "spline":
         spline_data = cast(structs.SplineFitData, curve_data)
         return f"natural cubic spline with {len(spline_data.knots)} knots"
+    elif curve_type == "akima":
+        akima_data = cast(structs.AkimaFitData, curve_data)
+        return f"Akima interpolator with {len(akima_data.knots)} knots"
     else:
         raise NotImplementedError()
 
@@ -65,6 +68,16 @@ def curve_to_callable(curve_data: structs.CalibrationCurveData) -> Callable[[flo
 
         def curve_callable(x: float):
             return spline_eval(spline_data, x)
+
+        return curve_callable
+
+    elif curve_type == "akima":
+        from pioreactor.utils.akimas import akima_eval
+
+        akima_data = cast(structs.AkimaFitData, curve_data)
+
+        def curve_callable(x: float):
+            return akima_eval(akima_data, x)
 
         return curve_callable
 
@@ -144,6 +157,8 @@ def crunch_data_and_confirm_with_user(
             candidate_curve = structs.PolyFitCoefficients(coefficients=[])
         elif fit == "spline":
             candidate_curve = structs.SplineFitData(knots=[], coefficients=[])
+        elif fit == "akima":
+            candidate_curve = structs.AkimaFitData(knots=[], coefficients=[])
         else:
             raise ValueError()
 
@@ -169,8 +184,12 @@ def crunch_data_and_confirm_with_user(
                     initial_knots = knots
 
                 candidate_curve = spline_fit(x, y, knots=knots, weights=weights)
+            elif fit == "akima":
+                from pioreactor.utils.akimas import akima_fit
+
+                candidate_curve = akima_fit(x, y)
             else:
-                raise ValueError("only `poly` or `spline` supported")
+                raise ValueError("only `poly`, `spline`, or `akima` supported")
 
         curve_callable = curve_to_callable(candidate_curve)
         plot_data(
@@ -229,6 +248,8 @@ def _fit_prompt_choices(fit: str) -> list[str]:
         return ["y", "q", "d"]
     if fit == "spline":
         return ["y", "q", "k"]
+    if fit == "akima":
+        return ["y", "q"]
     return ["y", "q"]
 
 
@@ -239,6 +260,8 @@ def _fit_prompt_hint(fit: str, candidate_curve: structs.CalibrationCurveData) ->
     if fit == "spline":
         spline_data = cast(structs.SplineFitData, candidate_curve)
         return f"k: choose a new knot count (currently {len(spline_data.knots)})"
+    if fit == "akima":
+        return ""
     return ""
 
 
@@ -249,4 +272,7 @@ def _curve_data_is_empty(fit: str, curve_data: structs.CalibrationCurveData) -> 
     if fit == "spline":
         spline_data = cast(structs.SplineFitData, curve_data)
         return len(spline_data.knots) == 0 or len(spline_data.coefficients) == 0
+    if fit == "akima":
+        akima_data = cast(structs.AkimaFitData, curve_data)
+        return len(akima_data.knots) == 0 or len(akima_data.coefficients) == 0
     return True
