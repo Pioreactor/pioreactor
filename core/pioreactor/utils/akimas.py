@@ -25,8 +25,16 @@ def akima_fit(x: Sequence[float], y: Sequence[float]) -> structs.AkimaFitData:
     x_sorted = x_values[order]
     y_sorted = y_values[order]
 
-    if np.any(np.diff(x_sorted) <= 0):
-        raise ValueError("x values must be strictly increasing for Akima interpolation.")
+    grouped: dict[float, list[float]] = {}
+    for x_value, y_value in zip(x_sorted.tolist(), y_sorted.tolist()):
+        grouped.setdefault(float(x_value), []).append(float(y_value))
+
+    unique_x = sorted(grouped.keys())
+    if len(unique_x) < 2:
+        raise ValueError("At least two unique x values are required.")
+
+    x_sorted = np.asarray(unique_x, dtype=float)
+    y_sorted = np.asarray([sum(grouped[x_value]) / len(grouped[x_value]) for x_value in unique_x], dtype=float)
 
     derivatives = _akima_derivatives(x_sorted, y_sorted)
     coefficients = _akima_coefficients(x_sorted, y_sorted, derivatives)

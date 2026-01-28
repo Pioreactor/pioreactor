@@ -33,6 +33,6 @@ def test_akima_solve_linear() -> None:
     assert solutions == pytest.approx([2.0], rel=1e-6)
 
 
-def test_akima_rejects_duplicate_x() -> None:
-    with pytest.raises(ValueError):
-        akima_fit([0.0, 1.0, 1.0], [0.0, 1.0, 2.0])
+def test_akima_allows_duplicate_x_by_averaging() -> None:
+    akima_data = akima_fit([0.0, 1.0, 1.0], [0.0, 1.0, 3.0])
+    assert akima_eval(akima_data, 1.0) == pytest.approx(2.0)
