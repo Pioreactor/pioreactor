@@ -109,6 +109,13 @@ function formatCurve(curveData) {
   if (curveData.type === "spline") {
     return formatSpline(curveData);
   }
+  if (curveData.type === "akima") {
+    const { knots } = curveData;
+    if (!Array.isArray(knots)) {
+      return "Invalid Akima data";
+    }
+    return `Akima interpolator (${knots.length} knots)`;
+  }
   if (curveData.type === "poly") {
     if (!Array.isArray(curveData.coefficients)) {
       return "Invalid polynomial data";

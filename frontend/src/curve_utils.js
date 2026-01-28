@@ -48,12 +48,19 @@ export function evaluateSpline(x, splineData) {
   return a + b * u + c * u * u + d * u * u * u;
 }
 
+export function evaluateAkima(x, akimaData) {
+  return evaluateSpline(x, akimaData);
+}
+
 export function evaluateCurve(x, curveData) {
   if (!curveData || Array.isArray(curveData)) {
     return null;
   }
   if (curveData.type === "spline") {
     return evaluateSpline(x, curveData);
+  }
+  if (curveData.type === "akima") {
+    return evaluateAkima(x, curveData);
   }
   if (curveData.type === "poly") {
     return evaluatePolynomial(x, curveData);

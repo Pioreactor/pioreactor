@@ -1,6 +1,7 @@
 import {
   evaluatePolynomial,
   evaluateSpline,
+  evaluateAkima,
   evaluateCurve,
   generateCurveData,
 } from "../curve_utils";
@@ -23,6 +24,18 @@ describe("curve_utils", () => {
     expect(evaluateSpline(1.5, splineData)).toBeCloseTo(0.5);
   });
 
+  test("evaluateAkima evaluates segment with local coordinates", () => {
+    const akimaData = {
+      knots: [0, 1, 2],
+      coefficients: [
+        [0, 1, 0, 0],
+        [1, -1, 0, 0],
+      ],
+    };
+    expect(evaluateAkima(0.5, akimaData)).toBeCloseTo(0.5);
+    expect(evaluateAkima(1.5, akimaData)).toBeCloseTo(0.5);
+  });
+
   test("evaluateCurve selects spline or polynomial", () => {
     const splineData = {
       type: "spline",
@@ -30,6 +43,7 @@ describe("curve_utils", () => {
       coefficients: [[1, 1, 0, 0]],
     };
     expect(evaluateCurve(0.25, splineData)).toBeCloseTo(1.25);
+    expect(evaluateCurve(0.25, { ...splineData, type: "akima" })).toBeCloseTo(1.25);
     expect(evaluateCurve(2, { type: "poly", coefficients: [1, 0] })).toBeCloseTo(2);
   });
 
