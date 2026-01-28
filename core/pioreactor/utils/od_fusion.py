@@ -13,8 +13,6 @@ from pioreactor import types as pt
 from pioreactor.utils.akimas import akima_eval
 from pioreactor.utils.akimas import akima_eval_derivative
 from pioreactor.utils.akimas import akima_fit
-from pioreactor.utils.splines import spline_eval
-from pioreactor.utils.splines import spline_eval_derivative
 
 # Model: we fuse three angle-dependent channels into one scalar concentration estimate.
 # Each channel is treated as a noisy sensor of concentration with:
@@ -56,16 +54,12 @@ class FusionFitResult(Struct, frozen=True):
     recorded_data: dict[str, object]
 
 
-def _curve_eval(curve: structs.AkimaFitData | structs.SplineFitData, x: float) -> float:
-    if isinstance(curve, structs.AkimaFitData):
-        return akima_eval(curve, x)
-    return spline_eval(curve, x)
+def _curve_eval(curve: structs.AkimaFitData, x: float) -> float:
+    return akima_eval(curve, x)
 
 
-def _curve_eval_derivative(curve: structs.AkimaFitData | structs.SplineFitData, x: float) -> float:
-    if isinstance(curve, structs.AkimaFitData):
-        return akima_eval_derivative(curve, x)
-    return spline_eval_derivative(curve, x)
+def _curve_eval_derivative(curve: structs.AkimaFitData, x: float) -> float:
+    return akima_eval_derivative(curve, x)
 
 
 def _golden_section_minimize(
@@ -184,12 +178,12 @@ def fit_fusion_model(
     #   logy = log(reading)
     #
     # Forward curve per angle:
-    #   mu_angle(logc) = spline_fit( logc -> median(logy at that logc) )
+    #   mu_angle(logc) = akima_fit( logc -> median(logy at that logc) )
     #
     # Reliability per angle:
     #   residuals r = logy - mu_angle(logc)
     #   sigma_angle(logc) estimated via MAD(residuals at that logc)
-    #   then spline_fit(logc -> log(sigma)) to get sigma at arbitrary logc.
+    #   then akima_fit(logc -> log(sigma)) to get sigma at arbitrary logc.
     by_angle: dict[pt.PdAngle, list[tuple[float, float]]] = {angle: [] for angle in angles}
 
     for angle, concentration, reading in records:
@@ -283,7 +277,7 @@ def _sigma_from_model(
     angle: pt.PdAngle,
     logc: float,
 ) -> float:
-    # sigma(logc) = exp( spline_eval( log_sigma_spline, logc ) )
+    # sigma(logc) = exp( akima_eval( log_sigma_curve, logc ) )
     # Floor applied to avoid overconfident likelihood terms.
     sigma_log = _curve_eval(estimator.sigma_splines_log[angle], logc)
     sigma = exp(sigma_log)
