@@ -331,6 +331,9 @@ function EstimatorsContainer() {
           <EstimatorCard />
         </Grid>
       </Grid>
+      <Grid size={12}>
+        <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/estimators" target="_blank" rel="noopener noreferrer">estimators</a>.</p>
+      </Grid>
     </React.Fragment>
   );
 }

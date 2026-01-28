@@ -35,6 +35,56 @@ import DisplaySourceCode from "./components/DisplaySourceCode";
 import CloseIcon from '@mui/icons-material/Close';
 
 
+function formatSplineType(curveData) {
+  if (!curveData || Array.isArray(curveData)) {
+    return "Unknown";
+  }
+  if (curveData.type === "spline") {
+    const { knots } = curveData;
+    return Array.isArray(knots) ? `Spline (${knots.length} knots)` : "Spline";
+  }
+  if (curveData.type === "akima") {
+    const { knots } = curveData;
+    return Array.isArray(knots) ? `Akima (${knots.length} knots)` : "Akima";
+  }
+  if (curveData.type === "poly") {
+    const { coefficients } = curveData;
+    if (Array.isArray(coefficients)) {
+      return `Polynomial (deg ${Math.max(coefficients.length - 1, 0)})`;
+    }
+    return "Polynomial";
+  }
+  return curveData.type || "Unknown";
+}
+
+
+function formatEstimatorCurve(estimator) {
+  if (!estimator || typeof estimator !== "object") {
+    return "Unknown";
+  }
+  const angles = Array.isArray(estimator.angles)
+    ? estimator.angles
+    : Object.keys(estimator.mu_splines || {});
+  const firstAngle = angles[0];
+  const muCurve = estimator.mu_splines ? estimator.mu_splines[firstAngle] : null;
+  const sigmaCurve = estimator.sigma_splines_log ? estimator.sigma_splines_log[firstAngle] : null;
+
+  const muText = formatSplineType(muCurve);
+  const sigmaText = formatSplineType(sigmaCurve);
+
+  if (muText !== "Unknown" && sigmaText !== "Unknown") {
+    return `mean: ${muText}; std: ${sigmaText}`;
+  }
+  if (muText !== "Unknown") {
+    return muText;
+  }
+  if (sigmaText !== "Unknown") {
+    return sigmaText;
+  }
+  return "Unknown";
+}
+
+
 function Delete({ pioreactorUnit, device, estimatorName }) {
   const navigate = useNavigate();
   const confirm = useConfirm();
@@ -291,6 +341,7 @@ function SingleEstimatorPageCard({ pioreactorUnit, device, estimatorName, estima
   } = estimator;
 
   const recordedDataText = recorded_data ? yaml.dump(recorded_data, { schema: yaml.JSON_SCHEMA }) : null;
+  const curveType = formatEstimatorCurve(estimator);
 
   return (
     <Grid container spacing={0}>
@@ -399,6 +450,10 @@ function SingleEstimatorPageCard({ pioreactorUnit, device, estimatorName, estima
                   <TableRow>
                     <TableCell><strong>Estimator type</strong></TableCell>
                     <TableCell>{estimator_type}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell><strong>Fit curve</strong></TableCell>
+                    <TableCell>{curveType}</TableCell>
                   </TableRow>
                 </TableBody>
               </Table>

@@ -103,10 +103,10 @@ def _load_estimator_for_worker(worker: str, estimator_name: str) -> structs.ODFu
 
 
 def _affine_transform_cubic_fit_data(
-    curve_data: structs.AkimaFitData | structs.SplineFitData,
+    curve_data: structs.AkimaFitData,
     scale_logc: float,
     offset_logc: float,
-) -> structs.AkimaFitData | structs.SplineFitData:
+) -> structs.AkimaFitData:
     if scale_logc <= 0:
         raise ValueError("Scale must be positive to transform curve data.")
 
@@ -121,9 +121,7 @@ def _affine_transform_cubic_fit_data(
         for coeffs in curve_data.coefficients
     ]
 
-    if isinstance(curve_data, structs.AkimaFitData):
-        return structs.AkimaFitData(knots=knots, coefficients=coefficients)
-    return structs.SplineFitData(knots=knots, coefficients=coefficients)
+    return structs.AkimaFitData(knots=knots, coefficients=coefficients)
 
 
 def _apply_logc_affine_to_estimator(

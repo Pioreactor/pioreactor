@@ -77,10 +77,8 @@ def _build_estimator_from_records(
         recorded_data=fit.recorded_data,
         ir_led_intensity=80.0,
         angles=list(FUSION_ANGLES),
-        mu_splines=cast(dict[pt.PdAngle, structs.AkimaFitData | structs.SplineFitData], fit.mu_splines),
-        sigma_splines_log=cast(
-            dict[pt.PdAngle, structs.AkimaFitData | structs.SplineFitData], fit.sigma_splines_log
-        ),
+        mu_splines=fit.mu_splines,
+        sigma_splines_log=fit.sigma_splines_log,
         min_logc=fit.min_logc,
         max_logc=fit.max_logc,
         sigma_floor=fit.sigma_floor,
@@ -156,7 +154,7 @@ angles:
 - '135'
 mu_splines:
   '45':
-    type: spline
+    type: akima
     knots:
     - -2.0
     - -0.3010299956639812
@@ -191,7 +189,7 @@ mu_splines:
       - -7.3415352343282985
       - 36.554081606382624
   '90':
-    type: spline
+    type: akima
     knots:
     - -2.0
     - -0.3010299956639812
@@ -226,7 +224,7 @@ mu_splines:
       - 3.5419541935843966
       - -17.63566863139888
   '135':
-    type: spline
+    type: akima
     knots:
     - -2.0
     - -0.3010299956639812
@@ -262,7 +260,7 @@ mu_splines:
       - -79.90998614914638
 sigma_splines_log:
   '45':
-    type: spline
+    type: akima
     knots:
     - -2.0
     - 0.04139268515822507
@@ -277,7 +275,7 @@ sigma_splines_log:
       - 3.9262454859872643e-16
       - -2.603566041973169e-16
   '90':
-    type: spline
+    type: akima
     knots:
     - -2.0
     - 0.04139268515822507
@@ -292,7 +290,7 @@ sigma_splines_log:
       - 3.9262454859872643e-16
       - -2.603566041973169e-16
   '135':
-    type: spline
+    type: akima
     knots:
     - -2.0
     - 0.04139268515822507

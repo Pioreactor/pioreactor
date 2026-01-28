@@ -17,14 +17,15 @@
  - Calibration protocols are now exposed via API.
  - When a Pioreactor model is changed, a (non-blocking) hardware check is performed.
  - You can now restart the web server (lighttpd) and the background task queue, Huey, from the UI. Go to Leader -> "Long-running jobs", and see the "web server and queue" line.
- - Added spline curve support for calibrations, including OD standards sessions and calibration charts.
- - `pio calibrations analyze` now supports `--fit poly|spline` (default: poly). You can use this to refit a dataset to a spline curve.
+ - Added spline and akima curve support for calibrations, including OD standards sessions and calibration charts.
+ - `pio calibrations analyze` now supports `--fit poly|spline|akima`. You can use this to refit a dataset to a spline or akima curve.
  - Added estimator artifacts alongside calibrations, including OD fusion estimators stored under `storage/estimators` and managed via the calibration session flow. Estimators are a generalized calibration for more complex algorithms. Calibrations will be restricted to 1D models.
  - New unit APIs for estimators:
    - `/unit_api/estimators/<device>`
    - `/unit_api/estimators/<device>/<estimator_name>`
  - Faster startup and shutdown of Pioreactor jobs.
  - Charts on Experiment Overview now scale with window size.
+ - New Estimators page in the UI.
 
 #### Breaking changes
  - Moved Self-test to the Inventory page. Pioreactors no longer need to be assigned to an experiment to run self-test.
@@ -35,8 +36,8 @@
  - OD calibration devices are now per-angle (`od45`, `od90`, `od135`) instead of just `od`. Physically, this changes the calibration directory in `~/.pioreactor/storage/calibrations/od` to  `~/.pioreactor/storage/calibrations/{od45,od90,od135}`. Existing `od` calibration files and active calibrations are migrated during the update.
  - Self-test no longer creates a stirring calibration.
  - OD reading charts in the UI previously had a sensor label next to the unit, ex: `worker01-2`. Now it is the corresponding angle from `config.ini`. Note: only the global `config.ini` is used, not specific `unit_config.ini` files.
- - New OD and stirring calibrations are now fit with a spline, and not a polynomial.
- - Calibration curve data is now serialized as tagged structs (`poly`/`spline`) instead of raw lists. `curve_type` is removed and existing calibration files are migrated during the update.
+ - New OD and stirring calibrations are now fit with a akima, and not a polynomial.
+ - Calibration curve data is now serialized as tagged structs (`poly`/`spline`/`akima`) instead of raw lists. `curve_type` is removed and existing calibration files are migrated during the update.
  - Reorganized calibration protocol modules into `core/pioreactor/calibrations/protocols/` and extracted a `registry.py` for protocol registration.
  - Removed OD calibration using a single vial.
 

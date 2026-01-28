@@ -428,7 +428,7 @@ function Protocols(props) {
             target="_blank"
             rel="noopener noreferrer"
           >
-            calibrations
+            protocols
           </a>
           .
         </Typography>
