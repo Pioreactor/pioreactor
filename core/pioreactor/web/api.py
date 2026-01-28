@@ -1436,6 +1436,15 @@ def get_all_active_estimators(pioreactor_unit: str) -> DelayedResponseReturnValu
     return create_task_response(task)
 
 
+@api_bp.route("/workers/<pioreactor_unit>/estimators", methods=["GET"])
+def get_all_estimators(pioreactor_unit: str) -> DelayedResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        task = broadcast_get_across_workers("/unit_api/estimators")
+    else:
+        task = tasks.multicast_get("/unit_api/estimators", [pioreactor_unit])
+    return create_task_response(task)
+
+
 @api_bp.route("/workers/<pioreactor_unit>/zipped_calibrations", methods=["GET"])
 def get_all_calibrations_as_yamls(pioreactor_unit: str) -> ResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
@@ -1600,6 +1609,24 @@ def get_calibration(pioreactor_unit: str, device: str, cal_name: str) -> Delayed
         task = broadcast_get_across_workers(f"/unit_api/calibrations/{device}/{cal_name}")
     else:
         task = tasks.multicast_get(f"/unit_api/calibrations/{device}/{cal_name}", [pioreactor_unit])
+    return create_task_response(task)
+
+
+@api_bp.route("/workers/<pioreactor_unit>/estimators/<device>", methods=["GET"])
+def get_estimators_by_device(pioreactor_unit: str, device: str) -> DelayedResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        task = broadcast_get_across_workers(f"/unit_api/estimators/{device}")
+    else:
+        task = tasks.multicast_get(f"/unit_api/estimators/{device}", [pioreactor_unit])
+    return create_task_response(task)
+
+
+@api_bp.route("/workers/<pioreactor_unit>/estimators/<device>/<estimator_name>", methods=["GET"])
+def get_estimator(pioreactor_unit: str, device: str, estimator_name: str) -> DelayedResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        task = broadcast_get_across_workers(f"/unit_api/estimators/{device}/{estimator_name}")
+    else:
+        task = tasks.multicast_get(f"/unit_api/estimators/{device}/{estimator_name}", [pioreactor_unit])
     return create_task_response(task)
 
 
@@ -1769,6 +1796,15 @@ def set_active_calibration(pioreactor_unit, device, cal_name) -> DelayedResponse
     return create_task_response(task)
 
 
+@api_bp.route("/workers/<pioreactor_unit>/active_estimators/<device>/<estimator_name>", methods=["PATCH"])
+def set_active_estimator(pioreactor_unit, device, estimator_name) -> DelayedResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        task = broadcast_patch_across_workers(f"/unit_api/active_estimators/{device}/{estimator_name}")
+    else:
+        task = tasks.multicast_patch(f"/unit_api/active_estimators/{device}/{estimator_name}", [pioreactor_unit])
+    return create_task_response(task)
+
+
 @api_bp.route("/workers/<pioreactor_unit>/active_calibrations/<device>", methods=["DELETE"])
 def remove_active_status_calibration(pioreactor_unit, device) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
@@ -1778,12 +1814,30 @@ def remove_active_status_calibration(pioreactor_unit, device) -> DelayedResponse
     return create_task_response(task)
 
 
+@api_bp.route("/workers/<pioreactor_unit>/active_estimators/<device>", methods=["DELETE"])
+def remove_active_status_estimator(pioreactor_unit, device) -> DelayedResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        task = broadcast_delete_across_workers(f"/unit_api/active_estimators/{device}")
+    else:
+        task = tasks.multicast_delete(f"/unit_api/active_estimators/{device}", [pioreactor_unit])
+    return create_task_response(task)
+
+
 @api_bp.route("/workers/<pioreactor_unit>/calibrations/<device>/<cal_name>", methods=["DELETE"])
 def delete_calibration(pioreactor_unit, device, cal_name) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_delete_across_workers(f"/unit_api/calibrations/{device}/{cal_name}")
     else:
         task = tasks.multicast_delete(f"/unit_api/calibrations/{device}/{cal_name}", [pioreactor_unit])
+    return create_task_response(task)
+
+
+@api_bp.route("/workers/<pioreactor_unit>/estimators/<device>/<estimator_name>", methods=["DELETE"])
+def delete_estimator(pioreactor_unit, device, estimator_name) -> DelayedResponseReturnValue:
+    if pioreactor_unit == UNIVERSAL_IDENTIFIER:
+        task = broadcast_delete_across_workers(f"/unit_api/estimators/{device}/{estimator_name}")
+    else:
+        task = tasks.multicast_delete(f"/unit_api/estimators/{device}/{estimator_name}", [pioreactor_unit])
     return create_task_response(task)
 
 

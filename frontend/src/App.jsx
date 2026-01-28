@@ -13,6 +13,7 @@ import Pioreactors from "./Pioreactors";
 import Pioreactor from "./Pioreactor";
 import StartNewExperiment from "./StartNewExperiment";
 import SingleCalibrationPage from "./SingleCalibrationPage";
+import SingleEstimatorPage from "./SingleEstimatorPage";
 import CreateExperimentProfile from "./CreateExperimentProfile";
 import EditExperimentProfile from "./EditExperimentProfile";
 import EditConfig from "./EditConfig";
@@ -26,6 +27,7 @@ import SystemLogs from "./SystemLogs";
 //import Analysis from "./Analysis";
 import Experiments from "./Experiments";
 import Calibrations from "./Calibrations";
+import Estimators from "./Estimators";
 import Protocols from "./Protocols";
 import SideNavAndHeader from "./components/SideNavAndHeader";
 import MissingWorkerModelModal from "./components/MissingWorkerModelModal";
@@ -137,6 +139,10 @@ function MainSite() {
                   <Route path="/calibrations/:pioreactorUnit/" element={<Calibrations title="Pioreactor ~ Calibrations"/>}/>
                   <Route path="/calibrations/:pioreactorUnit/:device" element={<Calibrations title="Pioreactor ~ Calibrations"/>}/>
                   <Route path="/calibrations/:pioreactorUnit/:device/:calibrationName" element={<SingleCalibrationPage title="Pioreactor ~ Calibration"/>}/>
+                  <Route path="/estimators" element={<Estimators title="Pioreactor ~ Estimators"/>}/>
+                  <Route path="/estimators/:pioreactorUnit/" element={<Estimators title="Pioreactor ~ Estimators"/>}/>
+                  <Route path="/estimators/:pioreactorUnit/:device" element={<Estimators title="Pioreactor ~ Estimators"/>}/>
+                  <Route path="/estimators/:pioreactorUnit/:device/:estimatorName" element={<SingleEstimatorPage title="Pioreactor ~ Estimator"/>}/>
                   <Route path="/protocols" element={<Protocols title="Pioreactor ~ Protocols"/>}/>
                   <Route path="/protocols/:pioreactorUnit" element={<Protocols title="Pioreactor ~ Protocols"/>}/>
                   <Route path="/protocols/:pioreactorUnit/:device" element={<Protocols title="Pioreactor ~ Protocols"/>}/>

@@ -392,10 +392,10 @@ export default function SideNavAndHeader() {
                 </SubMenu>
 
                 <SubMenu  label="Calibrations"
-                  open={isOpen("calibrations") || isOpen("protocols")}
+                  open={isOpen("calibrations") || isOpen("protocols") || isOpen("estimators")}
                   icon={<TuneIcon sx={{fontSize: "23px"}}/> }
                   component={<Link to="/calibrations" className="link" />}
-                  active={isSelected("/calibrations")}
+                  active={isSelected("/calibrations") || isSelected("/estimators") || isSelected("/protocols")}
 
                   >
                   <MenuItem
@@ -404,6 +404,13 @@ export default function SideNavAndHeader() {
                     icon={<SubdirectoryArrowRightIcon  sx={{fontSize: "23px"}}/>}
                     >
                     Protocols
+                  </MenuItem>
+                  <MenuItem
+                    component={<Link to="/estimators" className="link" />}
+                    active={isSelected("/estimators")}
+                    icon={<SubdirectoryArrowRightIcon  sx={{fontSize: "23px"}}/>}
+                    >
+                    Estimators
                   </MenuItem>
                 </SubMenu>
 

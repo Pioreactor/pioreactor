@@ -563,6 +563,9 @@ function CalibrateDialog({ unit, experiment, odBlankReading, odBlankJobState, gr
                             data-estimator-name={estimatorName}
                             data-device={device}
                             sx={{maxWidth:"300px"}}
+                            clickable
+                            component={Link}
+                            to={`/estimators/${unit}/${device}/${estimatorName}`}
                           />
                         </TableCell>
                         <TableCell align="left" sx={{ padding: '6px 0px' }}>

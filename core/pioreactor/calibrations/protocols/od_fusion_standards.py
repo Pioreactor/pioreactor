@@ -463,8 +463,8 @@ class AnotherStandard(SessionStep):
             sigma_floor=fit.sigma_floor,
         )
 
-        ctx.store_estimator(estimator, pt.OD_FUSED_DEVICE)
-        ctx.complete({"title": "Fusion estimator saved."})
+        result = ctx.store_estimator(estimator, pt.OD_FUSED_DEVICE)
+        ctx.complete({"title": "Fusion estimator saved.", **result})
         return CalibrationComplete()
 
 

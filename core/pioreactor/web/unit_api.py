@@ -867,6 +867,33 @@ def get_all_active_estimators() -> ResponseReturnValue:
     return attach_cache_control(jsonify(all_estimators), max_age=10)
 
 
+@unit_api_bp.route("/estimators", methods=["GET"])
+def get_all_estimators() -> ResponseReturnValue:
+    estimator_dir = ESTIMATOR_PATH
+
+    if not estimator_dir.exists():
+        return attach_cache_control(jsonify({}), max_age=10)
+
+    all_estimators: dict[str, list] = {}
+
+    with local_persistent_storage("active_estimators") as cache:
+        for file in sorted(estimator_dir.glob("*/*.yaml")):
+            try:
+                device = file.parent.name
+                estimator = to_builtins(yaml_decode(file.read_bytes(), type=AllEstimators))
+                estimator["is_active"] = cache.get(device) == estimator.get("estimator_name")
+                estimator["pioreactor_unit"] = HOSTNAME
+                estimator["device"] = device
+                if device in all_estimators:
+                    all_estimators[device].append(estimator)
+                else:
+                    all_estimators[device] = [estimator]
+            except Exception as e:
+                publish_to_error_log(f"Error reading {file.stem}: {e}", "get_all_estimators")
+
+    return attach_cache_control(jsonify(all_estimators), max_age=10)
+
+
 @unit_api_bp.route("/zipped_calibrations", methods=["GET"])
 def get_all_calibrations_as_zipped_yaml() -> ResponseReturnValue:
     calibration_dir = CALIBRATION_PATH
@@ -1092,6 +1119,7 @@ def get_estimators_by_device(device: str) -> ResponseReturnValue:
                 estimator = to_builtins(yaml_decode(file.read_bytes(), type=AllEstimators))
                 estimator["is_active"] = c.get(device) == estimator.get("estimator_name")
                 estimator["pioreactor_unit"] = HOSTNAME
+                estimator["device"] = device
                 estimators.append(estimator)
             except Exception as e:
                 publish_to_error_log(f"Error reading {file.stem}: {e}", "get_estimators_by_device")
@@ -1111,6 +1139,7 @@ def get_estimator(device: str, estimator_name: str) -> ResponseReturnValue:
             estimator = to_builtins(yaml_decode(estimator_path.read_bytes(), type=AllEstimators))
             estimator["is_active"] = c.get(device) == estimator.get("estimator_name")
             estimator["pioreactor_unit"] = HOSTNAME
+            estimator["device"] = device
             return attach_cache_control(jsonify(estimator), max_age=10)
         except Exception as e:
             publish_to_error_log(f"Error reading {estimator_path.stem}: {e}", "get_estimator")
@@ -1132,3 +1161,42 @@ def remove_active_status_calibration(device: str) -> ResponseReturnValue:
             c.pop(device)
 
     return {"status": "success"}, 200
+
+
+@unit_api_bp.route("/active_estimators/<device>/<estimator_name>", methods=["PATCH"])
+def set_active_estimator(device: str, estimator_name: str) -> ResponseReturnValue:
+    with local_persistent_storage("active_estimators") as c:
+        c[device] = estimator_name
+
+    return {"status": "success"}, 200
+
+
+@unit_api_bp.route("/active_estimators/<device>", methods=["DELETE"])
+def remove_active_status_estimator(device: str) -> ResponseReturnValue:
+    with local_persistent_storage("active_estimators") as c:
+        if device in c:
+            c.pop(device)
+
+    return {"status": "success"}, 200
+
+
+@unit_api_bp.route("/estimators/<device>/<estimator_name>", methods=["DELETE"])
+def delete_estimator(device: str, estimator_name: str) -> ResponseReturnValue:
+    estimator_path = ESTIMATOR_PATH / device / f"{estimator_name}.yaml"
+
+    if not estimator_path.exists():
+        abort_with(404, description=f"Estimator '{estimator_name}' not found for device '{device}'.")
+
+    try:
+        estimator_path.unlink()
+        with local_persistent_storage("active_estimators") as cache:
+            if cache.get(device) == estimator_name:
+                cache.pop(device)
+
+        return (
+            jsonify({"msg": f"Estimator '{estimator_name}' for device '{device}' deleted successfully."}),
+            200,
+        )
+    except Exception as e:
+        publish_to_error_log(f"Error deleting estimator: {e}", "delete_estimator")
+        abort_with(500, description="Failed to delete estimator.")

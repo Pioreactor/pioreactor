@@ -23,6 +23,7 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import CloseIcon from "@mui/icons-material/Close";
 import TuneIcon from "@mui/icons-material/Tune";
+import EstimatorIcon from "./EstimatorIcon";
 import { Link } from "react-router";
 import CalibrationSessionChart from "./CalibrationSessionChart";
 
@@ -635,6 +636,20 @@ export default function CalibrationSessionDialog({
                 label={sessionResult.calibration.calibration_name}
               />
             )}
+          {sessionResult?.estimator_name && unit && (
+            <Box sx={{ mt: 1 }}>
+              View{" "}
+              <Chip
+                size="small"
+                icon={<EstimatorIcon />}
+                clickable
+                component={Link}
+                sx={{ my: 1 }}
+                to={`/estimators/${unit}/${sessionResult.device || protocol?.device}/${sessionResult.estimator_name}`}
+                label={sessionResult.estimator_name}
+              />
+            </Box>
+          )}
         </Box>
       </DialogContent>
       <DialogActions sx={{ justifyContent: "right", alignItems: "center" }}>
