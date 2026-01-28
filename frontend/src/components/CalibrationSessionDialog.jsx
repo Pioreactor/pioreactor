@@ -578,7 +578,7 @@ export default function CalibrationSessionDialog({
                 icon={<TuneIcon />}
                 clickable
                 component={Link}
-                to={`/calibrations/${unit}/${protocol?.device}/${sessionResult.calibration.calibration_name}`}
+                to={`/calibrations/${unit}/${sessionResult.calibration.device || protocol?.device}/${sessionResult.calibration.calibration_name}`}
                 label={sessionResult.calibration.calibration_name}
               />
             )}

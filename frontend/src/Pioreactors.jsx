@@ -35,7 +35,7 @@ import LoadingButton from '@mui/lab/LoadingButton';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CloseIcon from '@mui/icons-material/Close';
 import FlareIcon from '@mui/icons-material/Flare';
-import AutoGraphIcon from '@mui/icons-material/AutoGraph';
+import EstimatorIcon from "./components/EstimatorIcon"
 import SettingsIcon from '@mui/icons-material/Settings';
 import TuneIcon from '@mui/icons-material/Tune';
 import IconButton from '@mui/material/IconButton';
@@ -853,7 +853,7 @@ function CalibrateDialog({ unit, experiment, odBlankReading, odBlankJobState, gr
                         <TableCell align="left" sx={{ padding: '6px 0px' }}>
                           <Chip
                             size="small"
-                            icon={<AutoGraphIcon />}
+                            icon={<EstimatorIcon />}
                             label={estimatorName}
                             data-estimator-name={estimatorName}
                             data-device={device}

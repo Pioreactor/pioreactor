@@ -320,7 +320,7 @@ class TubingIntoWater(SessionStep):
         pump_device = _get_pump_device(ctx)
         step = steps.info(
             f"Place tubing ends of {pump_device} in water",
-            f"Place both ends of the {pump_device} tubing into the larger container of water to prime.",
+            f"Place both ends of the {pump_device} tubing into the container of water to prime.",
         )
         step.metadata = {
             "image": {

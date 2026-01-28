@@ -424,7 +424,7 @@ function Protocols(props) {
         <Typography variant="body2">
           Learn more about{" "}
           <a
-            href="https://docs.pioreactor.com/user-guide/hardware-calibrations"
+            href="https://docs.pioreactor.com/user-guide/protocols"
             target="_blank"
             rel="noopener noreferrer"
           >
