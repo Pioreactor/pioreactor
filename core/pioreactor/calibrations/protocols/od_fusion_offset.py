@@ -102,25 +102,28 @@ def _load_estimator_for_worker(worker: str, estimator_name: str) -> structs.ODFu
     return json_decode(json_encode(payload), type=structs.ODFusionEstimator)
 
 
-def _affine_transform_spline_fit_data(
-    spline_data: structs.SplineFitData,
+def _affine_transform_cubic_fit_data(
+    curve_data: structs.AkimaFitData | structs.SplineFitData,
     scale_logc: float,
     offset_logc: float,
-) -> structs.SplineFitData:
+) -> structs.AkimaFitData | structs.SplineFitData:
     if scale_logc <= 0:
-        raise ValueError("Scale must be positive to transform spline data.")
-    return structs.SplineFitData(
-        knots=[float(scale_logc * knot + offset_logc) for knot in spline_data.knots],
-        coefficients=[
-            [
-                float(coeffs[0]),
-                float(coeffs[1] / scale_logc),
-                float(coeffs[2] / scale_logc**2),
-                float(coeffs[3] / scale_logc**3),
-            ]
-            for coeffs in spline_data.coefficients
-        ],
-    )
+        raise ValueError("Scale must be positive to transform curve data.")
+
+    knots = [float(scale_logc * knot + offset_logc) for knot in curve_data.knots]
+    coefficients = [
+        [
+            float(coeffs[0]),
+            float(coeffs[1] / scale_logc),
+            float(coeffs[2] / scale_logc**2),
+            float(coeffs[3] / scale_logc**3),
+        ]
+        for coeffs in curve_data.coefficients
+    ]
+
+    if isinstance(curve_data, structs.AkimaFitData):
+        return structs.AkimaFitData(knots=knots, coefficients=coefficients)
+    return structs.SplineFitData(knots=knots, coefficients=coefficients)
 
 
 def _apply_logc_affine_to_estimator(
@@ -135,11 +138,11 @@ def _apply_logc_affine_to_estimator(
     source_estimator_name: str,
 ) -> structs.ODFusionEstimator:
     mu_splines = {
-        angle: _affine_transform_spline_fit_data(estimator.mu_splines[angle], scale_logc, offset_logc)
+        angle: _affine_transform_cubic_fit_data(estimator.mu_splines[angle], scale_logc, offset_logc)
         for angle in estimator.angles
     }
     sigma_splines_log = {
-        angle: _affine_transform_spline_fit_data(estimator.sigma_splines_log[angle], scale_logc, offset_logc)
+        angle: _affine_transform_cubic_fit_data(estimator.sigma_splines_log[angle], scale_logc, offset_logc)
         for angle in estimator.angles
     }
 

@@ -59,7 +59,16 @@ class SplineFitData(Struct, tag="spline"):
         return self.__struct_config__.tag
 
 
-type CalibrationCurveData = PolyFitCoefficients | SplineFitData
+class AkimaFitData(Struct, tag="akima"):
+    knots: list[float]
+    coefficients: list[list[float]]
+
+    @property
+    def type(self):
+        return self.__struct_config__.tag
+
+
+type CalibrationCurveData = PolyFitCoefficients | SplineFitData | AkimaFitData
 
 
 class AutomationSettings(JSONPrintedStruct):
@@ -272,6 +281,13 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
             if len(spline_data.knots) == 0 or len(spline_data.coefficients) == 0:
                 raise exc.NoSolutionsFoundError(f"calibration {self}'s curve_data_ is empty")
             return round(spline_eval(spline_data, x), 10)
+        if self.curve_data_.type == "akima":
+            from pioreactor.utils.akimas import akima_eval
+
+            akima_data = t.cast(AkimaFitData, self.curve_data_)
+            if len(akima_data.knots) == 0 or len(akima_data.coefficients) == 0:
+                raise exc.NoSolutionsFoundError(f"calibration {self}'s curve_data_ is empty")
+            return round(akima_eval(akima_data, x), 10)
 
         raise NotImplementedError(f"Unsupported curve_type: {self.curve_data_.type}")
 
@@ -295,6 +311,13 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
             if len(spline_data.knots) == 0 or len(spline_data.coefficients) == 0:
                 raise exc.NoSolutionsFoundError(f"calibration {self}'s curve_data_ is empty")
             plausible_sols_ = spline_solve(spline_data, y)
+        elif self.curve_data_.type == "akima":
+            from pioreactor.utils.akimas import akima_solve
+
+            akima_data = t.cast(AkimaFitData, self.curve_data_)
+            if len(akima_data.knots) == 0 or len(akima_data.coefficients) == 0:
+                raise exc.NoSolutionsFoundError(f"calibration {self}'s curve_data_ is empty")
+            plausible_sols_ = akima_solve(akima_data, y)
         else:
             raise NotImplementedError(f"Unsupported curve_type: {self.curve_data_.type}")
 
@@ -428,8 +451,8 @@ class OD600Calibration(ODCalibration, kw_only=True, tag="od600"):
 class ODFusionEstimator(EstimatorBase, kw_only=True, tag="od_fused_estimator"):
     ir_led_intensity: float
     angles: list[pt.PdAngle]
-    mu_splines: dict[pt.PdAngle, SplineFitData]
-    sigma_splines_log: dict[pt.PdAngle, SplineFitData]
+    mu_splines: dict[pt.PdAngle, AkimaFitData | SplineFitData]
+    sigma_splines_log: dict[pt.PdAngle, AkimaFitData | SplineFitData]
     min_logc: float
     max_logc: float
     sigma_floor: float
