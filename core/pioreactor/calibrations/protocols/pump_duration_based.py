@@ -306,8 +306,8 @@ class PwmSettings(SessionStep):
         )
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
-        hz = ctx.inputs.float("hz", minimum=0.1, maximum=10000, default=250.0)
-        dc = ctx.inputs.float("dc", minimum=0, maximum=100, default=100.0)
+        hz = ctx.inputs.float("hz")
+        dc = ctx.inputs.float("dc")
         ctx.data["hz"] = hz
         ctx.data["dc"] = dc
         return TubingIntoWater()
@@ -348,7 +348,7 @@ class PrimePumpDuration(SessionStep):
         )
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
-        duration_s = ctx.inputs.float("prime_duration_s", minimum=0.1, default=20.0)
+        duration_s = ctx.inputs.float("prime_duration_s")
         _execute_pump_for_calibration(ctx, _get_pump_device(ctx), duration_s)
         ctx.data["prime_duration_s"] = duration_s
         ctx.data["tracer_duration_s"] = ctx.data.get("tracer_duration_s", 1.0)
@@ -394,7 +394,7 @@ class TracerVolume(SessionStep):
         )
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
-        tracer_ml = ctx.inputs.float("volume_ml", minimum=0.0001)
+        tracer_ml = ctx.inputs.float("volume_ml")
         mls_to_calibrate_for = ctx.data["mls_to_calibrate_for"]
         tracer_duration = float(ctx.data.get("tracer_duration_s", 1.0))
         min_duration = min(mls_to_calibrate_for) * 0.8 / tracer_ml * tracer_duration
@@ -469,7 +469,7 @@ class TestVolume(SessionStep):
         return step
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
-        volume_ml = ctx.inputs.float("volume_ml", minimum=0.0001)
+        volume_ml = ctx.inputs.float("volume_ml")
         results = ctx.data["results"]
         results.append(volume_ml)
         ctx.data["results"] = results

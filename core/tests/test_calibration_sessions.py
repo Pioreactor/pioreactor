@@ -147,6 +147,30 @@ def test_session_engine_advances_and_completes() -> None:
     assert loaded.status == "complete"
 
 
+def test_custom_min_error_message_for_numeric_fields() -> None:
+    session = _build_session()
+
+    class Start(SessionStep):
+        step_id = "start"
+
+        def render(self, ctx: SessionContext) -> CalibrationStep:
+            return steps.form(
+                "Inputs",
+                "Provide values.",
+                [fields.float("od", minimum=1.0, min_error_msg="Custom min error.")],
+            )
+
+        def advance(self, ctx: SessionContext) -> SessionStep | None:
+            ctx.inputs.float("od", minimum=1.0)
+            return CalibrationComplete()
+
+    registry: StepRegistry = {Start.step_id: Start}
+    engine = SessionEngine(step_registry=with_terminal_steps(registry), session=session, mode="ui")
+
+    with pytest.raises(ValueError, match="Custom min error."):
+        engine.advance({"od": 0.5})
+
+
 def test_read_voltage_requires_executor_in_ui() -> None:
     session = _build_session()
 

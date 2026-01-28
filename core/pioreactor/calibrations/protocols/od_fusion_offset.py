@@ -210,11 +210,11 @@ class Intro(SessionStep):
         return steps.info(
             "Fusion OD two-point offset",
             (
-                "This protocol adjusts an existing fused OD estimator using two OD600 standards. "
+                "This protocol adjusts an existing fused OD estimator using two OD standards. "
                 "You will need:\n"
                 "1. A Pioreactor XR.\n"
                 "2. An existing od_fused estimator on any worker.\n"
-                "3. Two OD600 standard vials with stir bars.\n\n"
+                "3. Two standard vials of known OD with stir bars.\n\n"
                 "For best results, choose standards that bracket the regime you care about and stay within "
                 "a locally monotonic region (i.e. not beyond the saturation point)."
             ),
@@ -346,8 +346,7 @@ class RpmInput(SessionStep):
         )
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
-        default_rpm = float(ctx.data.get("rpm", 500.0))
-        rpm = ctx.inputs.float("rpm", minimum=0.0, default=default_rpm)
+        rpm = ctx.inputs.float("rpm")
         ctx.data["rpm"] = rpm
         ctx.data["standard_index"] = 1
         ctx.data["standards"] = []
@@ -384,13 +383,13 @@ class StandardOdInput(SessionStep):
     def render(self, ctx: SessionContext) -> CalibrationStep:
         standard_index = int(ctx.data.get("standard_index", 1))
         return steps.form(
-            f"Enter OD600 for standard {standard_index} of {STANDARDS_REQUIRED}",
-            "Enter the OD600 value for the standard vial.",
-            [fields.float("standard_od", label="OD600", minimum=1e-6)],
+            f"Enter OD for standard {standard_index} of {STANDARDS_REQUIRED}",
+            "Enter the OD value for the standard vial.",
+            [fields.float("standard_od", label="OD", minimum=1e-6)],
         )
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
-        ctx.data["standard_od"] = ctx.inputs.float("standard_od", minimum=1e-6)
+        ctx.data["standard_od"] = ctx.inputs.float("standard_od")
         return RecordObservation()
 
 
@@ -554,11 +553,11 @@ class FusionOffsetODProtocol(CalibrationProtocol[pt.ODFusedCalibrationDevice]):
     protocol_name = "od_fusion_offset"
     target_device = [cast(pt.ODFusedCalibrationDevice, ESTIMATOR_DEVICE)]
     title = "Fusion OD two-point offset"
-    description = "Adjust an existing fused OD estimator using two OD600 standards."
+    description = "Adjust an existing fused OD estimator using two OD standards."
     requirements = (
         "Requires XR model with 45°, 90°, and 135° sensors.",
         "An existing od_fused estimator.",
-        "Two OD600 standard vials with stir bars.",
+        "Two standard vials of known OD with stir bars.",
     )
     step_registry = _FUSION_OFFSET_STEPS
     priority = 2

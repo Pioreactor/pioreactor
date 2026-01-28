@@ -92,7 +92,7 @@ def _measure_fusion_standard_samples(
         unit=get_unit_name(),
         experiment=get_testing_experiment_name(),
     ) as st:
-        st.block_until_rpm_is_close_to_target(abs_tolerance=120)
+        st.block_until_rpm_is_close_to_target(abs_tolerance=60)
 
         with start_od_reading(
             config["od_config.photodiode_channel"],
@@ -207,6 +207,7 @@ def start_fusion_session() -> CalibrationSession:
         data={
             "channel_angle_map": to_builtins(channel_angle_map),
             "records": [],
+            "standards": [],
         },
         created_at=utc_iso_timestamp(),
         updated_at=utc_iso_timestamp(),
@@ -218,12 +219,12 @@ class Intro(SessionStep):
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
         return steps.info(
-            "Fusion OD calibration",
+            "Introduction",
             (
-                "This protocol fits a fused OD model using the 45°, 90°, and 135° sensors. "
-                "You will need:\n"
+                "This protocol fits a OD model using fusing together 45°, 90°, and 135° signals into a single measurement."
+                "You will need:\n\n"
                 "1. A Pioreactor XR.\n"
-                "2. At least four OD600 standards in Pioreactor vials, with stir bars. It helps to enumerate them 1..N.\n"
+                "2. At least four OD600 standards in Pioreactor vials, with stir bars.\n\n\u00a0\u00a0\u00a0\u00a0- It helps to number them 1, 2, ... N.\n\u00a0\u00a0\u00a0\u00a0- You don't need one of the standard vials to be a blank.\n"
             ),
         )
 
@@ -287,7 +288,7 @@ class RpmInput(SessionStep):
         )
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
-        ctx.data["rpm"] = ctx.inputs.float("rpm", minimum=0.0)
+        ctx.data["rpm"] = ctx.inputs.float("rpm")
         return PlaceStandard()
 
 
@@ -298,10 +299,7 @@ class PlaceStandard(SessionStep):
         standard_index = int(ctx.data.get("standard_index", 1))
         step = steps.action(
             f"Place standard vial {standard_index}",
-            (
-                f"Place standard vial {standard_index} with a stir bar into the Pioreactor. "
-                "We will take OD readings, then you will remove it."
-            ),
+            (f"Place standard vial {standard_index} with a stir bar into the Pioreactor. "),
         )
         step.metadata = {
             "image": {
@@ -326,12 +324,37 @@ class MeasureStandard(SessionStep):
         step = steps.form(
             f"Record standard vial {standard_index}",
             f"Enter the OD600 measurement for standard vial {standard_index}.",
-            [fields.float("od_value", label="OD600", minimum=0.0001)],
+            [
+                fields.float(
+                    "od_value",
+                    label="OD600",
+                    minimum=0.0001,
+                    min_error_msg="Don't use a blank in this protocol — we fit in log-space.",
+                )
+            ],
         )
+        standards = ctx.data.get("standards", [])
+        if isinstance(standards, list):
+            rows = []
+            for item in standards:
+                if not isinstance(item, dict):
+                    continue
+                index = item.get("index")
+                value = item.get("od_value")
+                if isinstance(index, int) and isinstance(value, (int, float)):
+                    rows.append([index, value])
+            if rows:
+                step.metadata = {
+                    "table": {
+                        "title": "Standards recorded so far",
+                        "columns": ["#", "OD600"],
+                        "rows": rows,
+                    }
+                }
         return step
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
-        od_value = ctx.inputs.float("od_value", minimum=0.0001)
+        od_value = ctx.inputs.float("od_value")
         rpm = float(ctx.data["rpm"])
 
         ctx.data.setdefault("standard_index", 1)
@@ -347,12 +370,13 @@ class RecordObservation(SessionStep):
         standard_index = int(ctx.data.get("standard_index", 1))
         step = steps.action(
             f"Recording standard vial {standard_index}",
-            "Press Continue to take OD readings for this standard.",
+            "Press Continue to start stirring and take OD readings for this standard.",
         )
         return step
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
         od_value = float(ctx.data["current_standard_od"])
+        standard_index = int(ctx.data.get("standard_index", 1))
         rpm = float(ctx.data["rpm"])
 
         samples = _measure_fusion_standard_for_session(
@@ -367,6 +391,11 @@ class RecordObservation(SessionStep):
                 records.append([angle, log10(od_value), log(max(reading, 1e-12))])
 
         ctx.data["records"] = records
+        standards = ctx.data.get("standards", [])
+        if not isinstance(standards, list):
+            standards = []
+        standards.append({"index": standard_index, "od_value": od_value})
+        ctx.data["standards"] = standards
         return RemoveObservation()
 
 
@@ -454,10 +483,10 @@ class FusionStandardsODProtocol(CalibrationProtocol[pt.ODFusedCalibrationDevice]
     protocol_name = "od_fusion_standards"
     target_device = [cast(pt.ODFusedCalibrationDevice, pt.OD_FUSED_DEVICE)]
     title = "Fusion OD using standards"
-    description = "Fit a fused OD model using standards measured at 45°, 90°, and 135° sensors."
+    description = "Fit an OD model by fusing the 45°, 90°, and 135° sensor readings into a single measurement"
     requirements = (
         "Requires XR model with 45°, 90°, and 135° sensors.",
-        "At least four vials containing standards with known OD600 value",
+        "At least four vials containing standards with known OD value",
         "Stir bars",
     )
     step_registry = _FUSION_STEPS

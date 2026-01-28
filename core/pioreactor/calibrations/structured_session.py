@@ -25,6 +25,8 @@ class CalibrationStepField(Struct, kw_only=True):
     options: list[str] | None = None
     minimum: float | None = None
     maximum: float | None = None
+    min_error_msg: str | None = None
+    max_error_msg: str | None = None
     help_text: str | None = None
 
 

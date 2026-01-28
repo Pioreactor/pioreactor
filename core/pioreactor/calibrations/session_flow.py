@@ -22,6 +22,54 @@ Float = float
 SessionExecutor = Callable[[Str, dict[Str, object]], dict[Str, object]]
 
 
+def _parse_float_input(name: Str, value: object) -> Float:
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value.strip())
+        except ValueError as exc:
+            raise ValueError(f"Invalid '{name}', expected number.") from exc
+    raise ValueError(f"Invalid '{name}', expected number.")
+
+
+def _parse_int_input(name: Str, value: object) -> int:
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    if isinstance(value, str):
+        try:
+            return int(value.strip())
+        except ValueError as exc:
+            raise ValueError(f"Invalid '{name}', expected integer.") from exc
+    raise ValueError(f"Invalid '{name}', expected integer.")
+
+
+def _validate_field_bounds(
+    fields: Iterable[CalibrationStepField],
+    inputs: dict[Str, object],
+) -> None:
+    for field in fields:
+        if field.field_type not in ("float", "int"):
+            continue
+        if field.minimum is None and field.maximum is None:
+            continue
+        raw = inputs.get(field.name)
+        if raw is None or raw == "":
+            continue
+        if field.field_type == "float":
+            numeric = _parse_float_input(field.name, raw)
+        else:
+            numeric = _parse_int_input(field.name, raw)
+        if field.minimum is not None and numeric < field.minimum:
+            message = field.min_error_msg or f"'{field.name}' must be >= {field.minimum}."
+            raise ValueError(message)
+        if field.maximum is not None and numeric > field.maximum:
+            message = field.max_error_msg or f"'{field.name}' must be <= {field.maximum}."
+            raise ValueError(message)
+
+
 class SessionStep:
     step_id = ""
 
@@ -98,15 +146,7 @@ class SessionInputs:
             if default is None:
                 raise ValueError(f"Missing '{name}'.")
             return float(default)
-        if isinstance(value, (int, float)):
-            numeric = float(value)
-        elif isinstance(value, str):
-            try:
-                numeric = float(value.strip())
-            except ValueError as exc:
-                raise ValueError(f"Invalid '{name}', expected number.") from exc
-        else:
-            raise ValueError(f"Invalid '{name}', expected number.")
+        numeric = _parse_float_input(name, value)
         if minimum is not None and numeric < minimum:
             raise ValueError(f"'{name}' must be >= {minimum}.")
         if maximum is not None and numeric > maximum:
@@ -125,17 +165,7 @@ class SessionInputs:
             if default is None:
                 raise ValueError(f"Missing '{name}'.")
             return int(default)
-        if isinstance(value, int):
-            numeric = value
-        elif isinstance(value, float):
-            numeric = int(value)
-        elif isinstance(value, str):
-            try:
-                numeric = int(value.strip())
-            except ValueError as exc:
-                raise ValueError(f"Invalid '{name}', expected integer.") from exc
-        else:
-            raise ValueError(f"Invalid '{name}', expected integer.")
+        numeric = _parse_int_input(name, value)
         if minimum is not None and numeric < minimum:
             raise ValueError(f"'{name}' must be >= {minimum}.")
         if maximum is not None and numeric > maximum:
@@ -332,6 +362,9 @@ class SessionEngine:
         self.session.updated_at = utc_iso_timestamp()
         if self.session.status == "in_progress":
             step_handler = resolve_step(self.step_registry, self.session.step_id)
+            step_preview = step_handler.render(self.ctx)
+            if step_preview.fields:
+                _validate_field_bounds(step_preview.fields, inputs)
             next_step = step_handler.advance(self.ctx)
             if next_step is not None:
                 self.ctx.goto(next_step)
@@ -364,6 +397,8 @@ class FieldBuilder:
         label: Str | None = None,
         minimum: Float | None = None,
         maximum: Float | None = None,
+        min_error_msg: Str | None = None,
+        max_error_msg: Str | None = None,
         default: Float | None = None,
     ) -> CalibrationStepField:
         return CalibrationStepField(
@@ -372,6 +407,8 @@ class FieldBuilder:
             field_type="float",
             minimum=minimum,
             maximum=maximum,
+            min_error_msg=min_error_msg,
+            max_error_msg=max_error_msg,
             default=default,
         )
 
@@ -381,6 +418,8 @@ class FieldBuilder:
         label: Str | None = None,
         minimum: int | None = None,
         maximum: int | None = None,
+        min_error_msg: Str | None = None,
+        max_error_msg: Str | None = None,
         default: int | None = None,
     ) -> CalibrationStepField:
         return CalibrationStepField(
@@ -389,6 +428,8 @@ class FieldBuilder:
             field_type="int",
             minimum=minimum,
             maximum=maximum,
+            min_error_msg=min_error_msg,
+            max_error_msg=max_error_msg,
             default=default,
         )
 

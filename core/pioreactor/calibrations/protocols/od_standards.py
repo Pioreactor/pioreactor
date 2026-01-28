@@ -365,8 +365,7 @@ class RpmInput(SessionStep):
         )
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
-        default_rpm = ctx.data["rpm"]
-        rpm = ctx.inputs.float("rpm", minimum=0, maximum=10000, default=default_rpm)
+        rpm = ctx.inputs.float("rpm")
         ctx.data["rpm"] = rpm
         return PlaceStandard()
 
@@ -410,21 +409,35 @@ class MeasureStandard(SessionStep):
         standard_index = int(ctx.data.get("standard_index", 1))
         step = steps.form(
             f"Record standard {standard_index}",
-            f"Enter the OD600 measurement for standard vial {standard_index}. Then, press Continue to take a reading from the Pioreactor.",
+            f"Enter the OD600 measurement for standard vial {standard_index}. Then, press Continue to take an OD reading for this standard.",
             [fields.float("od600_value", label="OD600 value", minimum=0)],
         )
+        od600_values = ctx.data.get("od600_values", [])
+        if isinstance(od600_values, list) and od600_values:
+            rows = []
+            for index, value in enumerate(od600_values, start=1):
+                if isinstance(value, (int, float)):
+                    rows.append([index, value])
+            if rows:
+                step.metadata = {
+                    "table": {
+                        "title": "Standards recorded so far",
+                        "columns": ["#", "OD600"],
+                        "rows": rows,
+                    }
+                }
         chart = _build_standards_chart_metadata(
             ctx.data["od600_values"],
             ctx.data["voltages_by_channel"],
             _get_channel_angle_map(ctx),
         )
         if chart:
-            step.metadata = {"chart": chart}
+            step.metadata = {**step.metadata, "chart": chart} if step.metadata else {"chart": chart}
         return step
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
         channel_angle_map = _get_channel_angle_map(ctx)
-        od600_value = ctx.inputs.float("od600_value", minimum=0)
+        od600_value = ctx.inputs.float("od600_value")
         voltages = _measure_standard_for_session(ctx, ctx.data["rpm"], channel_angle_map)
         ctx.data.setdefault("standard_index", 1)
         ctx.data["od600_values"].append(od600_value)
@@ -519,18 +532,32 @@ class MeasureBlank(SessionStep):
             "Enter the OD600 measurement for the blank.",
             [fields.float("od600_blank", label="Blank OD600 value", minimum=0)],
         )
+        od600_values = ctx.data.get("od600_values", [])
+        if isinstance(od600_values, list) and od600_values:
+            rows = []
+            for index, value in enumerate(od600_values, start=1):
+                if isinstance(value, (int, float)):
+                    rows.append([index, value])
+            if rows:
+                step.metadata = {
+                    "table": {
+                        "title": "Standards recorded so far",
+                        "columns": ["#", "OD600"],
+                        "rows": rows,
+                    }
+                }
         chart = _build_standards_chart_metadata(
             ctx.data["od600_values"],
             ctx.data["voltages_by_channel"],
             _get_channel_angle_map(ctx),
         )
         if chart:
-            step.metadata = {"chart": chart}
+            step.metadata = {**step.metadata, "chart": chart} if step.metadata else {"chart": chart}
         return step
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
         channel_angle_map = _get_channel_angle_map(ctx)
-        od600_blank = ctx.inputs.float("od600_blank", minimum=0)
+        od600_blank = ctx.inputs.float("od600_blank")
         voltages = _measure_standard_for_session(ctx, ctx.data["rpm"], channel_angle_map)
         ctx.data["od600_values"].append(od600_blank)
         for channel, voltage in voltages.items():

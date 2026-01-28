@@ -14,6 +14,11 @@ import LinearProgress from "@mui/material/LinearProgress";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import Stack from "@mui/material/Stack";
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell from "@mui/material/TableCell";
+import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import CloseIcon from "@mui/icons-material/Close";
@@ -134,10 +139,16 @@ export default function CalibrationSessionDialog({
 
   const sessionResult = sessionStep?.result || sessionStep?.metadata?.result;
   const chartPayload = sessionStep?.metadata?.chart;
+  const tablePayload = sessionStep?.metadata?.table;
   const inlineActions = Array.isArray(sessionStep?.metadata?.actions)
     ? sessionStep.metadata.actions
     : [];
   const stepImage = sessionStep?.metadata?.image;
+  const tableColumns = Array.isArray(tablePayload?.columns) ? tablePayload.columns : [];
+  const tableRows = Array.isArray(tablePayload?.rows) ? tablePayload.rows : [];
+  const tableTitle = typeof tablePayload?.title === "string" ? tablePayload.title : "";
+  const tableEmptyMessage =
+    typeof tablePayload?.empty_message === "string" ? tablePayload.empty_message : "No entries yet.";
 
   const resetSessionState = React.useCallback(() => {
     setSessionId(null);
@@ -462,6 +473,48 @@ export default function CalibrationSessionDialog({
         {chartPayload && (
           <Box>
             <CalibrationSessionChart chart={chartPayload} />
+          </Box>
+        )}
+        {tablePayload && (
+          <Box sx={{ width: "70%", mx: "auto", mt: 2, mb: 4 }}>
+            {tableTitle && (
+              <Typography variant="subtitle2" color="text.secondary">
+                {tableTitle}
+              </Typography>
+            )}
+            {tableRows.length > 0 ? (
+              <Table size="small" sx={{ "& th, & td": { px: 1 } }}>
+                {tableColumns.length > 0 && (
+                  <TableHead>
+                    <TableRow>
+                      {tableColumns.map((column, index) => (
+                        <TableCell key={`${column}-${index}`} align={index === 0 ? "left" : "right"}>
+                          {column}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  </TableHead>
+                )}
+                <TableBody>
+                  {tableRows.map((row, rowIndex) => {
+                    const cells = Array.isArray(row) ? row : Object.values(row || {});
+                    return (
+                      <TableRow key={`row-${rowIndex}`}>
+                        {cells.map((cell, cellIndex) => (
+                          <TableCell key={`cell-${rowIndex}-${cellIndex}`} align={cellIndex === 0 ? "left" : "right"}>
+                            {cell}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            ) : (
+              <Typography variant="caption" color="text.secondary">
+                {tableEmptyMessage}
+              </Typography>
+            )}
           </Box>
         )}
         {sessionStep && (sessionStep.body) && (
