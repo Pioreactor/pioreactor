@@ -9,6 +9,7 @@ import pytest
 from pioreactor import structs
 from pioreactor.calibrations.protocols import od_fusion_offset
 from pioreactor.config import config
+from pioreactor.config import temporary_config_change
 
 
 def _example_akima() -> structs.AkimaFitData:
@@ -55,37 +56,38 @@ def test_affine_transform_cubic_fit_data_rejects_non_positive_scale() -> None:
 
 
 def test_apply_logc_affine_to_estimator_applies_transform() -> None:
-    estimator = _example_estimator()
 
-    updated = od_fusion_offset._apply_logc_affine_to_estimator(
-        estimator,
-        estimator_name="updated",
-        calibrated_on_unit="unit2",
-        scale_logc=2.0,
-        offset_logc=1.0,
-        standards=[{"od": 0.3}],
-        source_unit="unit1",
-        source_estimator_name="base-estimator",
-    )
+    with temporary_config_change(config, "od_reading.config", "ir_led_intensity", "70"):
 
-    assert updated.estimator_name == "updated"
-    assert updated.calibrated_on_pioreactor_unit == "unit2"
-    assert updated.min_logc == pytest.approx(1.2)
-    assert updated.max_logc == pytest.approx(3.4)
-    assert updated.angles == ["45"]
-    assert updated.mu_splines["45"].knots == [1.0, 3.0]
-    assert updated.sigma_splines_log["45"].knots == [1.0, 3.0]
+        estimator = _example_estimator()
 
-    recorded_data = updated.recorded_data
-    assert recorded_data["base_recorded_data"] == {"base": "data"}
-    assert recorded_data["standards"] == [{"od": 0.3}]
+        updated = od_fusion_offset._apply_logc_affine_to_estimator(
+            estimator,
+            estimator_name="updated",
+            calibrated_on_unit="unit2",
+            scale_logc=2.0,
+            offset_logc=1.0,
+            standards=[{"od": 0.3}],
+            source_unit="unit1",
+            source_estimator_name="base-estimator",
+        )
 
-    transform: dict[str, Any] = recorded_data["transform"]
-    assert transform["type"] == "logc_affine"
-    assert transform["scale_logc"] == 2.0
-    assert transform["offset_logc"] == 1.0
-    assert transform["source_unit"] == "unit1"
-    assert transform["source_estimator_name"] == "base-estimator"
-    assert transform["source_ir_led_intensity"] == 10.0
+        assert updated.estimator_name == "updated"
+        assert updated.calibrated_on_pioreactor_unit == "unit2"
+        assert updated.min_logc == pytest.approx(1.2)
+        assert updated.max_logc == pytest.approx(3.4)
+        assert updated.angles == ["45"]
+        assert updated.mu_splines["45"].knots == [1.0, 3.0]
+        assert updated.sigma_splines_log["45"].knots == [1.0, 3.0]
 
-    assert updated.ir_led_intensity == config.getfloat("od_reading.config", "ir_led_intensity")
+        recorded_data = updated.recorded_data
+        assert recorded_data["base_recorded_data"] == {"base": "data"}
+        assert recorded_data["standards"] == [{"od": 0.3}]
+
+        transform: dict[str, Any] = recorded_data["transform"]
+        assert transform["type"] == "logc_affine"
+        assert transform["scale_logc"] == 2.0
+        assert transform["offset_logc"] == 1.0
+        assert transform["source_unit"] == "unit1"
+        assert transform["source_estimator_name"] == "base-estimator"
+        assert transform["source_ir_led_intensity"] == 10.0
