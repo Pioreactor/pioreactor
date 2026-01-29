@@ -103,7 +103,7 @@ def run_calibration(ctx, device: str, protocol_name: str | None, y: bool) -> Non
             raise click.Abort()
         protocols_sorted = sorted(
             protocols_by_device.values(),
-            key=lambda protocol: (getattr(protocol, "priority", 99), protocol.protocol_name),
+            key=lambda protocol: protocol.priority,
         )
         protocol_names_sorted = [protocol.protocol_name for protocol in protocols_sorted]
         if len(protocol_names_sorted) == 1:
@@ -192,10 +192,7 @@ def list_protocols() -> None:
     List available protocols for device calibrations.
     """
     for device, protocols in get_calibration_protocols().items():
-        sorted_protocols = sorted(
-            protocols.values(),
-            key=lambda protocol: (getattr(protocol, "priority", 99), protocol.protocol_name),
-        )
+        sorted_protocols = sorted(protocols.values(), key=lambda protocol: protocol.priority)
         protocol_names = [protocol.protocol_name for protocol in sorted_protocols]
         click.echo(f"{bold(device)}: {', '.join(protocol_names)}")
 
@@ -211,7 +208,7 @@ def display_calibration(device: str, calibration_name: str) -> None:
         data = load_calibration(device, calibration_name)
     except (FileNotFoundError, ValidationError) as exc:
         click.echo(f"Error: {exc}", err=True)
-        raise SystemExit(1) from exc
+        raise click.Abort()
 
     click.echo()
     curve = curve_to_callable(data.curve_data_)

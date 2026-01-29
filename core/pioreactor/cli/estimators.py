@@ -92,10 +92,7 @@ def list_protocols() -> None:
         protocols = get_calibration_protocols().get(device, {})
         if not protocols:
             continue
-        sorted_protocols = sorted(
-            protocols.values(),
-            key=lambda protocol: (getattr(protocol, "priority", 99), protocol.protocol_name),
-        )
+        sorted_protocols = sorted(protocols.values(), key=lambda protocol: protocol.priority)
         protocol_names = [protocol.protocol_name for protocol in sorted_protocols]
         click.echo(f"{bold(device)}: {', '.join(protocol_names)}")
         shown = True
@@ -210,26 +207,26 @@ def analyze_estimator(device: str, estimator_name: str, fit: str) -> None:
     target_file = ESTIMATOR_PATH / device / f"{estimator_name}.yaml"
     if not target_file.exists():
         click.echo(f"No such estimator file: {target_file}", err=True)
-        raise SystemExit(1)
+        raise click.Abort()
 
     try:
         estimator = load_estimator(device, estimator_name)
     except Exception as exc:
         click.echo(f"Unable to load estimator: {exc}", err=True)
-        raise SystemExit(1) from exc
+        raise click.Abort()
 
     if not isinstance(estimator, structs.ODFusionEstimator):
         click.echo("Only od_fused estimators are supported for analyze.", err=True)
-        raise SystemExit(1)
+        raise click.Abort()
 
     if fit != "akima":
         click.echo("Only akima fits are supported for od_fused estimators.", err=True)
-        raise SystemExit(1)
+        raise click.Abort()
 
     by_angle = _extract_fusion_by_angle_records(estimator)
     if not by_angle:
         click.echo("No recorded fusion data available to analyze.", err=True)
-        raise SystemExit(1)
+        raise click.Abort()
 
     click.echo(f"Estimator: {estimator.estimator_name}")
     click.echo(f"Device: {device}")
@@ -257,7 +254,7 @@ def analyze_estimator(device: str, estimator_name: str, fit: str) -> None:
             mu_rmse = _rmse_for_fit(mu_curve, x_vals, y_vals)
         except Exception as exc:
             click.echo(f"{angle}°: unable to fit mu curve: {exc}", err=True)
-            raise SystemExit(1) from exc
+            raise click.Abort()
 
         sigma_reference = [akima_eval(estimator.sigma_splines_log[angle], float(x_val)) for x_val in x_vals]
         try:
@@ -265,7 +262,7 @@ def analyze_estimator(device: str, estimator_name: str, fit: str) -> None:
             sigma_rmse = _rmse_for_fit(sigma_curve, x_vals, sigma_reference)
         except Exception as exc:
             click.echo(f"{angle}°: unable to fit sigma curve: {exc}", err=True)
-            raise SystemExit(1) from exc
+            raise click.Abort()
 
         click.echo(f"{angle}° mu: {curve_to_functional_form(mu_curve)}")
         click.echo(f"{angle}° mu rmse: {mu_rmse:0.4f}")

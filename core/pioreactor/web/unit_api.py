@@ -132,7 +132,7 @@ def _build_calibration_protocol_payloads() -> list[dict[str, Any]]:
             title = getattr(protocol, "title", "") or f"{protocol_name.replace('_', ' ').title()} calibration"
             description = getattr(protocol, "description", "")
             requirements = list(getattr(protocol, "requirements", ()))
-            priority = int(getattr(protocol, "priority", 99))
+            priority = int(protocol.priority)
             protocols.append(
                 {
                     "id": f"{device}_{protocol_name}",

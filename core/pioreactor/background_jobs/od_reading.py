@@ -1127,9 +1127,6 @@ class ODReader(BackgroundJob):
         else:
             self.estimator_transformer = estimator_transformer  # type: ignore
 
-        if self.estimator_transformer.estimator is not None:
-            self.add_to_published_settings("od_fused", {"datatype": "ODFused", "settable": False})
-
         self.adc_reader.add_external_logger(self.logger)
         self.calibration_transformer.add_external_logger(self.logger)
         self.ir_led_reference_transformer.add_external_logger(self.logger)
