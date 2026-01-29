@@ -220,12 +220,12 @@ def fit_fusion_model(
             logc_values.append(logc)
 
         # Fit mu: use median at each concentration to be robust to bubbles/artifacts.
-        med_points = sorted((lc, mean(values)) for lc, values in grouped.items())
-        if len(med_points) < 4:
+        central_points = sorted((lc, mean(values)) for lc, values in grouped.items())
+        if len(central_points) < 4:
             raise ValueError(f"Need >=4 unique concentration levels to fit fusion spline for angle {angle}.")
 
-        x_vals = [lc for lc, _ in med_points]
-        y_vals = [ly for _, ly in med_points]
+        x_vals = [lc for lc, _ in central_points]
+        y_vals = [ly for _, ly in central_points]
 
         # mu_splines[angle] is forward model mu_angle(logc) in log(signal) space.
         mu_splines[angle] = akima_fit(x_vals, y_vals)
