@@ -224,7 +224,7 @@ class Intro(SessionStep):
                 "This protocol fits a OD model using fusing together 45°, 90°, and 135° signals into a single measurement."
                 "You will need:\n\n"
                 "1. A Pioreactor XR.\n"
-                "2. At least four OD600 standards in Pioreactor vials, with stir bars.\n\n\u00a0\u00a0\u00a0\u00a0- It helps to number them 1, 2, ... N.\n\u00a0\u00a0\u00a0\u00a0- You don't need one of the standard vials to be a blank.\n"
+                "2. At least four OD600 standards in Pioreactor vials, with stir bars.\n\n\u00a0\u00a0\u00a0\u00a0- It helps to number them 1, 2, ... N.\n\u00a0\u00a0\u00a0\u00a0- You don't need one of the standard vials to be a blank.\n\n\u00a0\u00a0\u00a0\u00a0- It's helpful if the dilutions span orders of magnitude.\n"
             ),
         )
 
