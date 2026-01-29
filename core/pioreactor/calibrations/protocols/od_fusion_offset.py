@@ -398,11 +398,23 @@ class RecordObservation(SessionStep):
     step_id = "record_observation"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
+        n_frames = 12
         standard_index = int(ctx.data.get("standard_index", 1))
-        return steps.action(
+        step = steps.action(
             f"Record OD reading for standard {standard_index} of {STANDARDS_REQUIRED}",
             "Press Continue to take OD readings for the standard vial.",
         )
+        step.metadata = {
+            "loading_images": [
+                {
+                    "src": f"/static/svgs/od-fusion-stir-{i:02d}.svg",
+                    "alt": "Stirring standard vial.",
+                    "caption": "One moment please...",
+                }
+                for i in range(1, n_frames + 1, 2)
+            ]
+        }
+        return step
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
         source_unit = str(ctx.data.get("source_unit", get_unit_name()))

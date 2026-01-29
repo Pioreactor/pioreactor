@@ -1,0 +1,24 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 200">
+  <g style="color:#616161" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+
+    <path d="M110 80V170H250V80" />
+    <rect x="118" y="120" width="124" height="44" fill="#9fd7f4" stroke="none" />
+
+
+    <circle cx="180" cy="40" r="22" />
+    <g transform="rotate(180.0 180 40)"><circle cx="180" cy="28" r="4" />
+    <circle cx="170" cy="46" r="4" />
+    <circle cx="190" cy="46" r="4" />
+
+
+    </g><path d="M160 52C150 70 140 88 140 132" />
+    <path d="M200 52C210 70 220 88 220 132" />
+    <circle cx="140" cy="132" r="4" fill="currentColor" stroke="none" />
+    <circle cx="220" cy="132" r="4" fill="currentColor" stroke="none" />
+  </g>
+  <g style="color:#616161" fill="none" stroke="currentColor" stroke-width="1.30" stroke-linecap="round" stroke-linejoin="round">
+    <text x="151" y="92" font-size="12" font-family="Menlo,Consolas,system-ui" fill="currentColor">In</text>
+    <text x="219" y="92" font-size="12" font-family="Menlo,Consolas,system-ui" fill="currentColor">Out</text>
+  </g>
+</svg>

@@ -377,21 +377,13 @@ class PlaceStandard(SessionStep):
             f"Place standard {standard_index}",
             f"Place standard vial {standard_index} (non-blank) with a stir bar into the Pioreactor.",
         )
-        chart = _build_standards_chart_metadata(
-            ctx.data["od600_values"],
-            ctx.data["voltages_by_channel"],
-            _get_channel_angle_map(ctx),
-        )
-        if chart:
-            step.metadata["chart"] = chart
-        else:
-            step.metadata = {
-                "image": {
-                    "src": "/static/svgs/place-standard-arrow-pioreactor.svg",
-                    "alt": f"Place standard vial {standard_index} (non-blank) with a stir bar into the Pioreactor.",
-                    "caption": f"Place standard vial {standard_index} (non-blank) with a stir bar into the Pioreactor.",
-                }
+        step.metadata = {
+            "image": {
+                "src": "/static/svgs/place-standard-arrow-pioreactor.svg",
+                "alt": f"Place standard vial {standard_index} (non-blank) with a stir bar into the Pioreactor.",
+                "caption": f"Place standard vial {standard_index} (non-blank) with a stir bar into the Pioreactor.",
             }
+        }
         return step
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
@@ -404,12 +396,23 @@ class MeasureStandard(SessionStep):
     step_id = "measure_standard"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
+        n_frames = 12
         standard_index = int(ctx.data.get("standard_index", 1))
         step = steps.form(
             f"Record standard {standard_index}",
-            f"Enter the OD600 measurement for standard vial {standard_index}. Then, press Continue to take an OD reading for this standard.",
+            f"Enter the OD600 measurement for standard vial {standard_index}. Then, press Continue to start stirring and take an OD reading for this standard.",
             [fields.float("od600_value", label="OD600 value", minimum=0)],
         )
+        step.metadata = {
+            "loading_images": [
+                {
+                    "src": f"/static/svgs/od-fusion-stir-{i:02d}.svg",
+                    "alt": "Stirring standard vial.",
+                    "caption": "One moment please...",
+                }
+                for i in range(1, n_frames + 1, 2)
+            ]
+        }
         od600_values = ctx.data.get("od600_values", [])
         if isinstance(od600_values, list) and od600_values:
             rows = []
@@ -422,15 +425,9 @@ class MeasureStandard(SessionStep):
                         "title": "Standards recorded so far",
                         "columns": ["#", "OD600"],
                         "rows": rows,
-                    }
+                    },
+                    **step.metadata,
                 }
-        chart = _build_standards_chart_metadata(
-            ctx.data["od600_values"],
-            ctx.data["voltages_by_channel"],
-            _get_channel_angle_map(ctx),
-        )
-        if chart:
-            step.metadata = {**step.metadata, "chart": chart} if step.metadata else {"chart": chart}
         return step
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
@@ -525,11 +522,22 @@ class MeasureBlank(SessionStep):
     step_id = "measure_blank"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
+        n_frames = 12
         step = steps.form(
             "Record blank",
             "Enter the OD600 measurement for the blank.",
             [fields.float("od600_blank", label="Blank OD600 value", minimum=0)],
         )
+        step.metadata = {
+            "loading_images": [
+                {
+                    "src": f"/static/svgs/od-fusion-stir-{i:02d}.svg",
+                    "alt": "Stirring standard vial.",
+                    "caption": "One moment please...",
+                }
+                for i in range(1, n_frames + 1, 2)
+            ]
+        }
         od600_values = ctx.data.get("od600_values", [])
         if isinstance(od600_values, list) and od600_values:
             rows = []
@@ -542,7 +550,8 @@ class MeasureBlank(SessionStep):
                         "title": "Standards recorded so far",
                         "columns": ["#", "OD600"],
                         "rows": rows,
-                    }
+                    },
+                    **step.metadata,
                 }
         chart = _build_standards_chart_metadata(
             ctx.data["od600_values"],

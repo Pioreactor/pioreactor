@@ -135,8 +135,10 @@ export default function CalibrationSessionDialog({
   const [sessionLoading, setSessionLoading] = React.useState(false);
   const [showLoading, setShowLoading] = React.useState(false);
   const [sessionValues, setSessionValues] = React.useState({});
+  const [loadingImageIndex, setLoadingImageIndex] = React.useState(0);
   const startInFlightRef = React.useRef(false);
   const loadingDelayTimerRef = React.useRef(null);
+  const loadingImageTimerRef = React.useRef(null);
 
   const sessionResult = sessionStep?.result || sessionStep?.metadata?.result;
   const chartPayload = sessionStep?.metadata?.chart;
@@ -145,6 +147,9 @@ export default function CalibrationSessionDialog({
     ? sessionStep.metadata.actions
     : [];
   const stepImage = sessionStep?.metadata?.image;
+  const loadingImages = Array.isArray(sessionStep?.metadata?.loading_images)
+    ? sessionStep.metadata.loading_images
+    : [];
   const tableColumns = Array.isArray(tablePayload?.columns) ? tablePayload.columns : [];
   const tableRows = Array.isArray(tablePayload?.rows) ? tablePayload.rows : [];
   const tableTitle = typeof tablePayload?.title === "string" ? tablePayload.title : "";
@@ -356,6 +361,11 @@ export default function CalibrationSessionDialog({
         loadingDelayTimerRef.current = null;
       }
       setShowLoading(false);
+      if (loadingImageTimerRef.current) {
+        clearInterval(loadingImageTimerRef.current);
+        loadingImageTimerRef.current = null;
+      }
+      setLoadingImageIndex(0);
       return;
     }
     if (loadingDelayTimerRef.current) {
@@ -366,6 +376,33 @@ export default function CalibrationSessionDialog({
       setShowLoading(true);
     }, 250);
   }, [sessionLoading]);
+
+  React.useEffect(() => {
+    if (!showLoading || loadingImages.length === 0) {
+      if (loadingImageTimerRef.current) {
+        clearInterval(loadingImageTimerRef.current);
+        loadingImageTimerRef.current = null;
+      }
+      setLoadingImageIndex(0);
+      return;
+    }
+    if (loadingImages.length === 1) {
+      setLoadingImageIndex(0);
+      return;
+    }
+    if (loadingImageTimerRef.current) {
+      return;
+    }
+    loadingImageTimerRef.current = setInterval(() => {
+      setLoadingImageIndex((prev) => (prev + 1) % loadingImages.length);
+    }, 45);
+    return () => {
+      if (loadingImageTimerRef.current) {
+        clearInterval(loadingImageTimerRef.current);
+        loadingImageTimerRef.current = null;
+      }
+    };
+  }, [showLoading, loadingImages.length]);
 
   return (
     <Dialog
@@ -446,12 +483,20 @@ export default function CalibrationSessionDialog({
         ) : (
           <></>
         )}
-        {stepImage && (
+        {(showLoading && loadingImages.length > 0) || stepImage ? (
           <Box>
             <Box
               component="img"
-              src={stepImage.src}
-              alt={stepImage.alt || ""}
+              src={
+                showLoading && loadingImages.length > 0
+                  ? loadingImages[loadingImageIndex]?.src
+                  : stepImage?.src
+              }
+              alt={
+                showLoading && loadingImages.length > 0
+                  ? loadingImages[loadingImageIndex]?.alt || ""
+                  : stepImage?.alt || ""
+              }
               sx={{
                 width: "100%",
                 maxHeight: 220,
@@ -460,23 +505,27 @@ export default function CalibrationSessionDialog({
                 backgroundColor: "action.hover",
               }}
             />
-            {stepImage.caption && (
+            {((showLoading && loadingImages.length > 0)
+              ? loadingImages[loadingImageIndex]?.caption
+              : stepImage?.caption) && (
               <Typography
                 variant="caption"
                 color="text.secondary"
                 sx={{ textAlign: "center", display: "block", width: "100%" }}
               >
-                {stepImage.caption}
+                {showLoading && loadingImages.length > 0
+                  ? loadingImages[loadingImageIndex].caption
+                  : stepImage.caption}
               </Typography>
             )}
           </Box>
-        )}
-        {chartPayload && (
+        ) : null}
+        {chartPayload && !(showLoading && loadingImages.length > 0) && (
           <Box>
             <CalibrationSessionChart chart={chartPayload} />
           </Box>
         )}
-        {tablePayload && (
+        {tablePayload && !(showLoading && loadingImages.length > 0) && (
           <Box sx={{ width: "70%", mx: "auto", mt: 2, mb: 4 }}>
             {tableTitle && (
               <Typography variant="subtitle2" color="text.secondary">

@@ -341,11 +341,41 @@ class PrimePumpDuration(SessionStep):
     step_id = "prime_pump_duration"
 
     def render(self, ctx: SessionContext) -> CalibrationStep:
-        return steps.form(
+        step = steps.form(
             "Prime pump",
             "Prime the pump by filling the tubes completely with water. There should be no air pockets by the end.",
             [fields.float("prime_duration_s", label="Prime duration (seconds)", default=15.0, minimum=5)],
         )
+        step.metadata = {
+            "image": {
+                "src": "/static/svgs/tubing-ends-in-water.svg",
+                "alt": "Place both ends of the tubing into the larger water container.",
+                "caption": "Both tubing ends should sit below the water line.",
+            },
+            "loading_images": [
+                {
+                    "src": "/static/svgs/tubing-ends-in-water-01.svg",
+                    "alt": "Place both ends of the tubing into the larger water container.",
+                    "caption": "Both tubing ends should sit below the water line.",
+                },
+                {
+                    "src": "/static/svgs/tubing-ends-in-water-02.svg",
+                    "alt": "Place both ends of the tubing into the larger water container.",
+                    "caption": "Both tubing ends should sit below the water line.",
+                },
+                {
+                    "src": "/static/svgs/tubing-ends-in-water-03.svg",
+                    "alt": "Place both ends of the tubing into the larger water container.",
+                    "caption": "Both tubing ends should sit below the water line.",
+                },
+                {
+                    "src": "/static/svgs/tubing-ends-in-water-04.svg",
+                    "alt": "Place both ends of the tubing into the larger water container.",
+                    "caption": "Both tubing ends should sit below the water line.",
+                },
+            ],
+        }
+        return step
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:
         duration_s = ctx.inputs.float("prime_duration_s")
