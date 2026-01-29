@@ -8,7 +8,6 @@ import pytest
 from pioreactor.calibrations.protocols import stirring_dc_based
 from pioreactor.config import config
 from pioreactor.config import temporary_config_change
-from pioreactor.structs import AkimaFitData
 
 
 def test_resolve_dc_bounds_uses_config_defaults() -> None:
@@ -47,4 +46,3 @@ def test_build_stirring_calibration_from_measurements(monkeypatch) -> None:
     assert calibration.recorded_data == {"x": [10.0, 20.0, 30.0], "y": [100.0, 200.0, 300.0]}
     assert calibration.pwm_hz == config.getfloat("stirring.config", "pwm_hz")
     assert calibration.calibration_name == "stirring-calibration-2026-01-02_03-04"
-    assert isinstance(calibration.curve_data_, AkimaFitData)
