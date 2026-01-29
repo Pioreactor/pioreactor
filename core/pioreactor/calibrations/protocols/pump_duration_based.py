@@ -394,8 +394,8 @@ class TracerRun(SessionStep):
             "Tracer run",
             (
                 f"Running the pump for {tracer_duration:.2f} seconds.\n\n"
-                "While running, hold the tube above the vial. Please measure the volume expelled.\n\n"
-                "Ready?"
+                "Hold the outflow tube above the vial. Keep the other end in the water container. Please measure the volume expelled.\n\n"
+                "The pump will begin running. Ready?"
             ),
         )
         step.metadata = {
