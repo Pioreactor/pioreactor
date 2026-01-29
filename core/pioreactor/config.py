@@ -175,7 +175,7 @@ def get_config() -> ConfigParserMod:
         else:
             local_config_path = "/home/pioreactor/.pioreactor/unit_config.ini"
 
-    if not Path(global_config_path).exists():
+    if not Path(global_config_path).is_file():
         raise FileNotFoundError(
             f"Configuration file at {global_config_path} is missing. Has it completed initializing? Does it need to connect to a leader? Alternatively, use the env variable GLOBAL_CONFIG to specify its location."
         )

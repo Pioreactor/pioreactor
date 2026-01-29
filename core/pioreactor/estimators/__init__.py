@@ -32,7 +32,7 @@ def load_active_estimator(device: Device) -> structs.ODFusionEstimator | None:
 
 def load_estimator(device: Device, estimator_name: str) -> structs.ODFusionEstimator:
     target_file = _estimator_path_for(device, estimator_name)
-    if not target_file.exists():
+    if not target_file.is_file():
         raise FileNotFoundError(f"Estimator {estimator_name} was not found in {ESTIMATOR_PATH / device}")
     if target_file.stat().st_size == 0:
         raise FileNotFoundError(f"Estimator {estimator_name} is empty")
@@ -45,12 +45,12 @@ def load_estimator(device: Device, estimator_name: str) -> structs.ODFusionEstim
 
 def list_of_estimators_by_device(device: Device) -> list[str]:
     device_dir = ESTIMATOR_PATH / device
-    if not device_dir.exists():
+    if not device_dir.is_dir():
         return []
     return [file.stem for file in device_dir.glob("*.yaml")]
 
 
 def list_estimator_devices() -> list[str]:
-    if not ESTIMATOR_PATH.exists():
+    if not ESTIMATOR_PATH.is_dir():
         return []
     return [path.name for path in ESTIMATOR_PATH.iterdir() if path.is_dir()]

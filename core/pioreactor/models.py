@@ -113,7 +113,7 @@ def load_contrib_model_definitions() -> list[Model]:
     MODEL_DEFINITIONS_PATH = Path(os.environ["DOT_PIOREACTOR"]) / "models"
 
     models: list[Model] = []
-    if not MODEL_DEFINITIONS_PATH.exists():
+    if not MODEL_DEFINITIONS_PATH.is_dir():
         return models
     for file in MODEL_DEFINITIONS_PATH.glob("*.y*ml"):
         try:

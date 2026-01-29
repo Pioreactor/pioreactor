@@ -930,7 +930,7 @@ def get_entire_dot_pioreactor_as_zip() -> ResponseReturnValue:
     - Uses a temp file on disk to avoid holding large zips in memory.
     - Zips all contents recursively with paths relative to DOT_PIOREACTOR.
     """
-    if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_FILE_SYSTEM"):
+    if (Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_FILE_SYSTEM").is_file():
         abort_with(403, "DISALLOW_UI_FILE_SYSTEM is present")
 
     base_dir = Path(os.environ["DOT_PIOREACTOR"]).resolve()
@@ -999,7 +999,7 @@ def import_dot_pioreactor_from_zip() -> ResponseReturnValue:
         return Response(status=202)
 
     disallow_file = Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_FILE_SYSTEM"
-    if os.path.isfile(disallow_file):
+    if disallow_file.is_file():
         publish_to_error_log(f"Import blocked because {disallow_file} is present", task_name)
         abort_with(403, "DISALLOW_UI_FILE_SYSTEM is present")
 

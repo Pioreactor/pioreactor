@@ -214,7 +214,7 @@ class RunCalibration(SessionStep):
     def render(self, ctx: SessionContext) -> CalibrationStep:
         return steps.action(
             "Record calibration",
-            "Press Continue to run the stirring calibration. This will take a ~1 minute.",
+            "Press Continue to run the stirring calibration. This will take up to one minute.",
         )
 
     def advance(self, ctx: SessionContext) -> SessionStep | None:

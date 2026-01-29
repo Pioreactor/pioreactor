@@ -62,7 +62,7 @@ from pioreactor.whoami import is_testing_env
 
 
 def _load_yaml_if_exists(path: Path) -> dict[str, Any]:
-    if path.exists():
+    if path.is_file():
         try:
             return yaml_decode(path.read_bytes()) or {}
         except Exception as e:

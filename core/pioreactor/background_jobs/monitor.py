@@ -295,7 +295,7 @@ class Monitor(LongRunningBackgroundJob):
         for file in [
             storage_path / "pioreactor.sqlite",
         ]:
-            if file.exists() and (file.owner() != "pioreactor" or file.group() != "www-data"):
+            if file.is_file() and (file.owner() != "pioreactor" or file.group() != "www-data"):
                 self.logger.warning(
                     f"Pioreactor sqlite database file {file} has the wrong permissions or does not exist."
                 )

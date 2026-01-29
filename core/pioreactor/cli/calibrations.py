@@ -53,7 +53,7 @@ def list_calibrations(device: str | None) -> None:
 
 def _display_calibrations_by_device(device: str) -> None:
     calibration_dir = CALIBRATION_PATH / device
-    if not calibration_dir.exists():
+    if not calibration_dir.is_dir():
         click.echo(
             f"No calibrations found for device '{device}'. Directory does not exist.",
             err=True,
@@ -263,7 +263,7 @@ def delete_calibration(device: str, calibration_name: str) -> None:
     """
     target_file = CALIBRATION_PATH / device / f"{calibration_name}.yaml"
 
-    if not target_file.exists():
+    if not target_file.is_file():
         click.echo(f"No such calibration file: {target_file}")
         raise click.Abort()
 
@@ -291,7 +291,7 @@ def analyze_calibration(device: str, calibration_name: str, fit: str) -> None:
     Analyze a calibration file from local storage.
     """
     target_file = CALIBRATION_PATH / device / f"{calibration_name}.yaml"
-    if not target_file.exists():
+    if not target_file.is_file():
         click.echo(f"No such calibration file: {target_file}")
         raise click.Abort()
 

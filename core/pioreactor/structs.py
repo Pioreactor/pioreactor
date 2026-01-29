@@ -261,7 +261,7 @@ class CalibrationBase(Struct, tag_field="calibration_type", kw_only=True):
 
         target_file = CALIBRATION_PATH / device / f"{self.calibration_name}.yaml"
 
-        return target_file.exists()
+        return target_file.is_file()
 
     def x_to_y(self, x: X) -> Y:
         """
@@ -427,7 +427,7 @@ class EstimatorBase(Struct, tag_field="estimator_type", kw_only=True):
 
         target_file = ESTIMATOR_PATH / device / f"{self.estimator_name}.yaml"
 
-        return target_file.exists()
+        return target_file.is_file()
 
     def is_active(self, device: str) -> bool:
         from pioreactor.utils import local_persistent_storage

@@ -54,7 +54,7 @@ def list_estimators(device: str | None) -> None:
 
 def _display_estimators_by_device(device: str) -> None:
     estimator_dir = ESTIMATOR_PATH / device
-    if not estimator_dir.exists():
+    if not estimator_dir.is_dir():
         click.echo(
             f"No estimators found for device '{device}'. Directory does not exist.",
             err=True,
@@ -136,7 +136,7 @@ def delete_estimator(device: str, estimator_name: str) -> None:
     """
     target_file = ESTIMATOR_PATH / device / f"{estimator_name}.yaml"
 
-    if not target_file.exists():
+    if not target_file.is_file():
         click.echo(f"No such estimator file: {target_file}")
         raise click.Abort()
 
@@ -205,7 +205,7 @@ def analyze_estimator(device: str, estimator_name: str, fit: str) -> None:
     Analyze an estimator file from local storage.
     """
     target_file = ESTIMATOR_PATH / device / f"{estimator_name}.yaml"
-    if not target_file.exists():
+    if not target_file.is_file():
         click.echo(f"No such estimator file: {target_file}", err=True)
         raise click.Abort()
 

@@ -54,7 +54,7 @@ def load_active_calibration(device: Device) -> structs.AnyCalibration | None:
 def load_calibration(device: Device, calibration_name: str) -> structs.AnyCalibration:
     target_file = CALIBRATION_PATH / device / f"{calibration_name}.yaml"
 
-    if not target_file.exists():
+    if not target_file.is_file():
         raise FileNotFoundError(
             f"Calibration {calibration_name} was not found in {CALIBRATION_PATH / device}"
         )
@@ -70,14 +70,14 @@ def load_calibration(device: Device, calibration_name: str) -> structs.AnyCalibr
 
 def list_of_calibrations_by_device(device: Device) -> list[str]:
     device_dir = CALIBRATION_PATH / device
-    if not device_dir.exists():
+    if not device_dir.is_dir():
         return []
     return [file.stem for file in device_dir.glob("*.yaml")]
 
 
 def list_devices() -> list[str]:
     calibration_dir = CALIBRATION_PATH
-    if not calibration_dir.exists():
+    if not calibration_dir.is_dir():
         return []
 
     return [f.name for f in calibration_dir.iterdir() if f.is_dir()]

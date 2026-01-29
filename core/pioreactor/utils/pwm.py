@@ -3,7 +3,9 @@ from contextlib import contextmanager
 from contextlib import suppress
 from json import dumps
 from os import getpid
+from time import sleep
 from typing import Any
+from typing import Callable
 from typing import Iterator
 from typing import Optional
 
@@ -49,7 +51,7 @@ class HardwarePWMOutputDevice(HardwarePWM):
 
     def start(self, initial_dc: pt.FloatBetween0and100) -> None:
         self._started = True
-        super().start(initial_dc)
+        self._retry_on_permission_error(lambda: super(HardwarePWMOutputDevice, self).start(initial_dc))
         self._dc = initial_dc
 
     def off(self) -> None:
@@ -63,7 +65,7 @@ class HardwarePWMOutputDevice(HardwarePWM):
     def dc(self, dc: pt.FloatBetween0and100) -> None:
         if self._started:
             dc = clamp(0.0, dc, 100.0)
-            self.change_duty_cycle(dc)
+            self._retry_on_permission_error(lambda: self.change_duty_cycle(dc))
             self._dc = dc
         elif dc == 0:
             pass
@@ -73,6 +75,16 @@ class HardwarePWMOutputDevice(HardwarePWM):
     def close(self) -> None:
         self._started = False
         pass
+
+    @staticmethod
+    def _retry_on_permission_error(action: Callable[[], None]) -> None:
+        for attempt in range(3):
+            try:
+                action()
+                return
+            except PermissionError:
+                sleep(0.05 * (attempt + 1))
+        action()
 
 
 class SoftwarePWMOutputDevice:
