@@ -113,7 +113,7 @@ def _build_stirring_calibration_from_measurements(
     logger = create_logger("stirring_calibration", experiment="$experiment")
     logger.debug(f"rpm = {alpha:.2f} * dc% + {beta:.2f}")
 
-    from pioreactor.utils.akimas import akima_fit
+    from pioreactor.utils.splines import spline_fit
 
     return SimpleStirringCalibration(
         pwm_hz=config.getfloat("stirring.config", "pwm_hz"),
@@ -121,7 +121,7 @@ def _build_stirring_calibration_from_measurements(
         calibration_name=f"stirring-calibration-{current_utc_datetime().strftime('%Y-%m-%d_%H-%M')}",
         calibrated_on_pioreactor_unit=unit,
         created_at=current_utc_datetime(),
-        curve_data_=akima_fit(dcs, rpms),
+        curve_data_=spline_fit(dcs, rpms),
         recorded_data={"x": dcs, "y": rpms},
     )
 

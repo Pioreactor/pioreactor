@@ -171,9 +171,9 @@ def _calculate_curve_data(
     od600_values: list[float],
     voltages: list[float],
 ) -> structs.CalibrationCurveData:
-    from pioreactor.utils.akimas import akima_fit
+    from pioreactor.utils.splines import spline_fit
 
-    return akima_fit(od600_values, voltages)
+    return spline_fit(od600_values, voltages)
 
 
 def _build_standards_chart_metadata(
