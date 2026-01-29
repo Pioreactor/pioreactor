@@ -529,7 +529,8 @@ function CalibrateDialog({ unit, experiment, odBlankReading, odBlankJobState, gr
               Active estimators
             </Typography>
             <Typography variant="body2" component="p" gutterBottom>
-              Below are the active estimators that will be used when interpreting measurements on this Pioreactor.
+              Below are the active estimators that will be used when interpreting measurements on this Pioreactor. Read more about{' '}
+              <a href="https://docs.pioreactor.com/user-guide/estimators">estimators</a>.
             </Typography>
             {loadingEstimators ? (
               <Box sx={{ textAlign: 'center', marginTop: '2rem' }}>

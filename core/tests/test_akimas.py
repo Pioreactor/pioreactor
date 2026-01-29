@@ -36,3 +36,13 @@ def test_akima_solve_linear() -> None:
 def test_akima_allows_duplicate_x_by_averaging() -> None:
     akima_data = akima_fit([0.0, 1.0, 1.0], [0.0, 1.0, 3.0])
     assert akima_eval(akima_data, 1.0) == pytest.approx(2.0)
+
+
+def test_akima_fit_requires_matching_lengths() -> None:
+    with pytest.raises(ValueError, match="x and y must have the same length"):
+        akima_fit([0.0, 1.0], [1.0])
+
+
+def test_akima_fit_requires_two_points() -> None:
+    with pytest.raises(ValueError, match="At least two data points"):
+        akima_fit([0.0], [1.0])

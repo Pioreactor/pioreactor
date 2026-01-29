@@ -12,6 +12,8 @@ from typing import cast
 import pytest
 from pioreactor import structs
 from pioreactor.structs import CalibrationBase
+from pioreactor.utils.akimas import akima_eval
+from pioreactor.utils.akimas import akima_fit
 from pioreactor.utils.polys import poly_eval
 from pioreactor.utils.polys import poly_fit
 from pioreactor.utils.splines import spline_eval
@@ -54,6 +56,10 @@ def _fit_spline(xs: list[float], ys: list[float]) -> structs.SplineFitData:
     return spline_fit(xs, ys, knots="auto")
 
 
+def _fit_akima(xs: list[float], ys: list[float]) -> structs.AkimaFitData:
+    return akima_fit(xs, ys)
+
+
 def _eval_poly(curve_data: structs.CalibrationCurveData, x: float) -> float:
     return poly_eval(cast(structs.PolyFitCoefficients, curve_data), x)
 
@@ -62,15 +68,21 @@ def _eval_spline(curve_data: structs.CalibrationCurveData, x: float) -> float:
     return spline_eval(cast(structs.SplineFitData, curve_data), x)
 
 
+def _eval_akima(curve_data: structs.CalibrationCurveData, x: float) -> float:
+    return akima_eval(cast(structs.AkimaFitData, curve_data), x)
+
+
 FITTERS: list[tuple[str, FitFunc]] = [
     ("poly", _fit_poly),
     ("spline", _fit_spline),
+    ("akima", _fit_akima),
 ]
 
 
 EVALUATORS: dict[str, EvalFunc] = {
     "poly": _eval_poly,
     "spline": _eval_spline,
+    "akima": _eval_akima,
 }
 
 

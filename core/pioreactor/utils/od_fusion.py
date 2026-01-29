@@ -3,6 +3,7 @@ from math import exp
 from math import isfinite
 from math import log
 from math import log10
+from statistics import mean
 from statistics import median
 from typing import Iterable
 from typing import Mapping
@@ -219,7 +220,7 @@ def fit_fusion_model(
             logc_values.append(logc)
 
         # Fit mu: use median at each concentration to be robust to bubbles/artifacts.
-        med_points = sorted((lc, median(values)) for lc, values in grouped.items())
+        med_points = sorted((lc, mean(values)) for lc, values in grouped.items())
         if len(med_points) < 4:
             raise ValueError(f"Need >=4 unique concentration levels to fit fusion spline for angle {angle}.")
 

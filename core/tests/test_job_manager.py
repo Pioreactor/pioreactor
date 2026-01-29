@@ -91,6 +91,15 @@ def test_is_job_running(job_manager: JobManager) -> None:
     assert job_manager.is_job_running("test_name") is False
 
 
+def test_does_pid_exist(job_manager: JobManager) -> None:
+    job_key = job_manager.register_and_set_running(
+        "test_unit", "test_experiment", "test_name", "test_source", 777, "test_leader", False
+    )
+    assert job_manager.does_pid_exist(777) is True
+    job_manager.set_not_running(job_key)
+    assert job_manager.does_pid_exist(777) is False
+
+
 def test_ClusterJobManager_sends_requests() -> None:
     workers = ("pio01", "pio02", "pio03")
     with capture_requests() as bucket:
