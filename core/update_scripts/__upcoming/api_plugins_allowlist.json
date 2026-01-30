@@ -1,0 +1,73 @@
+[{
+        "name": "pioreactor-air-bubbler",
+        "author": "Pioreactor",
+        "homepage": "https://github.com/Pioreactor/pioreactor-air-bubbler",
+        "description": "Add an air-pump / bubbler to your Pioreactor. This pump can run continuously, or if OD reading is running, will stop during a reading."
+    },
+    {
+        "name": "pioreactor-logs2slack",
+        "author": "Pioreactor",
+        "homepage": "https://github.com/Pioreactor/pioreactor-logs2slack",
+        "description": "Publish logs to your Slack workspace."
+    },
+    {
+        "name": "pioreactor-logs2discord",
+        "author": "Pioreactor",
+        "homepage": "https://github.com/Pioreactor/pioreactor-logs2discord",
+        "description": "Publish logs to your Discord server."
+    },
+    {
+        "name": "pioreactor-relay-plugin",
+        "author": "Pioreactor",
+        "homepage": "https://github.com/camdavidsonpilon/pioreactor-relay-plugin",
+        "description": "Turn your hardware add-on (light source, pinch-valve, pump, etc.) on or off from the UI or programmatically."
+    },
+    {
+        "name": "led-calibration-plugin",
+        "author": "Pioreactor",
+        "homepage": "https://github.com/pioreactor/pioreactor-led-calibration-plugin",
+        "description": "Calibrate your LEDs using an external light probe. Also comes with an Day/Night LED automation to use your new calibrated LEDs."
+    },
+    {
+        "name": "co2-reading-plugin",
+        "author": "Pioreactor",
+        "homepage": "https://github.com/Pioreactor/co2-reading-plugin",
+        "description": "Retrieve CO2, temperature, and humidity readings from an attached Adafruit SCD30 or SCD40/SCD41 sensor."
+    },
+    {
+        "name": "spectrometer-reading-plugin",
+        "author": "Pioreactor",
+        "homepage": "https://github.com/Pioreactor/spectrometer-reading-plugin",
+        "description": "Retrieve 415nm, 445nm, 480nm, 515nm, 555nm, 590nm, 630nm, and 680nm readings from an attached Adafruit AS7341 sensor."
+    },
+    {
+        "name": "pioled-display-plugin",
+        "author": "Pioreactor",
+        "homepage": "https://github.com/Pioreactor/pioled-display-plugin",
+        "description": "Display growth rate, normalized OD, and temperature for each Pioreactor using the Adafruit PiOLED display."
+    },
+    {
+        "name": "pioreactor-basic-auth-for-ui",
+        "author": "Pioreactor",
+        "homepage": "https://github.com/Pioreactor/pioreactor-basic-auth-for-ui",
+        "description": "Adding basic auth to the Pioreactor UI."
+    },
+    {
+        "name": "pioreactor-calibration-shrinkage",
+        "author": "Pioreactor",
+        "homepage": "https://github.com/Pioreactor/pioreactor-calibration-shrinkage",
+        "description": "Shrink multiple calibrations across workers in a Pioreactor cluster using multi-level modelling: better inference for free!"
+    },
+    {
+        "name": "temperature-expansion-kit-plugin",
+        "author": "Pioreactor",
+        "homepage": "https://github.com/Pioreactor/temperature-expansion-kit-plugin",
+        "description": "Expand the Pioreactor's temperature performance. Additional hardware kit required!"
+    },
+    {
+        "name": "laerke-eu-pressure-reading-plugin",
+        "author": "Laerke.eu",
+        "homepage": "https://www.laerke.eu",
+        "description": "A pressure sensor system for online tracking and analysis of gas formation or consumption in vials."
+    }
+]
