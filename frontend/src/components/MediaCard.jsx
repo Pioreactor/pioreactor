@@ -23,16 +23,21 @@ function MediaCard({experiment, relabelMap, activeUnits}) {
   const [mediaThroughput, setMediaThroughput] = useState(0);
   const [altMediaThroughput, setAltMediaThroughput] = useState(0);
   const [rates, setRates] = useState({ all: { mediaRate: 0, altMediaRate: 0 } });
-  const {client, subscribeToTopic } = useMQTT();
+  const {client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
 
   useEffect(() => {
-    if (experiment && client) {
-      subscribeToTopic(
-          [`pioreactor/+/${experiment}/dosing_automation/alt_media_throughput`, `pioreactor/+/${experiment}/dosing_automation/media_throughput`],
-          onMessage, "MediaCard")
+    if (!experiment || !client) {
+      return undefined;
     }
-
-  }, [experiment, client]);
+    const topics = [
+      `pioreactor/+/${experiment}/dosing_automation/alt_media_throughput`,
+      `pioreactor/+/${experiment}/dosing_automation/media_throughput`,
+    ];
+    subscribeToTopic(topics, onMessage, "MediaCard");
+    return () => {
+      unsubscribeFromTopic(topics, "MediaCard");
+    };
+  }, [experiment, client, subscribeToTopic, unsubscribeFromTopic]);
 
   useEffect(() => {
     async function getRecentRates() {

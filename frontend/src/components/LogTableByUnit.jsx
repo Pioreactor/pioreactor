@@ -70,7 +70,7 @@ const LEVELS = [
 
 function LogTableByUnit({ experiment, unit, level="info", byDuration=false, experimentStartTime=null }) {
   const [listOfLogs, setListOfLogs] = useState([]);
-  const { client, subscribeToTopic } = useMQTT();
+  const { client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
   const experimentStart = experimentStartTime ? dayjs.utc(experimentStartTime) : null;
 
   useEffect(() => {
@@ -94,32 +94,34 @@ function LogTableByUnit({ experiment, unit, level="info", byDuration=false, expe
   }, [experiment, unit]);
 
   useEffect(() => {
-    if (client) {
-      const levelRequested = 'INFO';
-      const ix = LEVELS.indexOf(levelRequested);
-      subscribeToTopic(
-        LEVELS.slice(ix).map(
-          (level) => `pioreactor/${unit}/$experiment/logs/+/${level.toLowerCase()}`
-        ),
-        onMessage,
-        'LogTableByUnit'
-      );
+    if (!client) {
+      return undefined;
     }
-  }, [client, unit]);
+    const levelRequested = 'INFO';
+    const ix = LEVELS.indexOf(levelRequested);
+    const topics = LEVELS.slice(ix).map(
+      (level) => `pioreactor/${unit}/$experiment/logs/+/${level.toLowerCase()}`
+    );
+    subscribeToTopic(topics, onMessage, 'LogTableByUnit');
+    return () => {
+      unsubscribeFromTopic(topics, 'LogTableByUnit');
+    };
+  }, [client, unit, subscribeToTopic, unsubscribeFromTopic]);
 
   useEffect(() => {
-    if (experiment && client) {
-      const levelRequested = 'INFO';
-      const ix = LEVELS.indexOf(levelRequested);
-      subscribeToTopic(
-        LEVELS.slice(ix).map(
-          (level) => `pioreactor/${unit}/${experiment}/logs/+/${level.toLowerCase()}`
-        ),
-        onMessage,
-        'LogTableByUnit'
-      );
+    if (!experiment || !client) {
+      return undefined;
     }
-  }, [client, experiment]);
+    const levelRequested = 'INFO';
+    const ix = LEVELS.indexOf(levelRequested);
+    const topics = LEVELS.slice(ix).map(
+      (level) => `pioreactor/${unit}/${experiment}/logs/+/${level.toLowerCase()}`
+    );
+    subscribeToTopic(topics, onMessage, 'LogTableByUnit');
+    return () => {
+      unsubscribeFromTopic(topics, 'LogTableByUnit');
+    };
+  }, [client, experiment, unit, subscribeToTopic, unsubscribeFromTopic]);
 
   const toTimestampObject = (timestamp) => {
     if (dayjs.isDayjs(timestamp)) {

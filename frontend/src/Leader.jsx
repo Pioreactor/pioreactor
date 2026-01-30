@@ -417,7 +417,7 @@ function DirectoryNavigatorCard({leaderHostname}) {
 function LeaderCard({leaderHostname}) {
 
   const unit = leaderHostname
-  const {client, subscribeToTopic} = useMQTT();
+  const {client, subscribeToTopic, unsubscribeFromTopic} = useMQTT();
   const [state, setState] = React.useState(null)
   const [versions, setVersions] = React.useState({})
   const [ipv4, setIpv4] = React.useState(null)
@@ -426,10 +426,15 @@ function LeaderCard({leaderHostname}) {
 
 
   React.useEffect(() => {
-    if (client) {
-      subscribeToTopic(`pioreactor/${unit}/$experiment/monitor/+`, onMonitorData, "WorkerCard");
+    if (!client) {
+      return undefined;
     }
-  }, [client]);
+    const topic = `pioreactor/${unit}/$experiment/monitor/+`;
+    subscribeToTopic(topic, onMonitorData, "WorkerCard");
+    return () => {
+      unsubscribeFromTopic(topic, "WorkerCard");
+    };
+  }, [client, subscribeToTopic, unsubscribeFromTopic, unit]);
 
 
   const onMonitorData = (topic, message) => {

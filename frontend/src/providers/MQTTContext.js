@@ -7,17 +7,28 @@ const MQTTContext = createContext();
 
 export const useMQTT = () => useContext(MQTTContext);
 
-const normalizeTopics = (topics) => (Array.isArray(topics) ? topics : [topics]).filter(Boolean);
+const hasOwn = Object.prototype.hasOwnProperty;
 
-const resetTrie = (node) => {
-  node.children = {};
-  node.handlers = {};
+const normalizeTopics = (topics) => {
+  const list = Array.isArray(topics) ? topics : [topics];
+  const unique = [];
+  const seen = new Set();
+
+  for (const topic of list) {
+    if (!topic || seen.has(topic)) continue;
+    seen.add(topic);
+    unique.push(topic);
+  }
+
+  return unique;
 };
 
-const TrieNode = function() {
-  this.children = {};
-  this.handlers = {}; // Using an object to store handlers by key
-};
+class TrieNode {
+  constructor() {
+    this.children = {};
+    this.handlers = {};
+  }
+}
 
 const getOrCreateTopicNode = (root, topic) => {
   let node = root;
@@ -49,14 +60,14 @@ const getTopicNode = (root, topic) => {
 
 const addHandlerToTrie = (root, topic, handler, key) => {
   const node = getOrCreateTopicNode(root, topic);
-  const hadHandler = Object.prototype.hasOwnProperty.call(node.handlers, key);
+  const hadHandler = hasOwn.call(node.handlers, key);
   node.handlers[key] = handler;
   return !hadHandler;
 };
 
 const removeHandlersFromTrie = (root, topic, key) => {
   const node = getTopicNode(root, topic);
-  if (!node || !Object.prototype.hasOwnProperty.call(node.handlers, key)) {
+  if (!node || !hasOwn.call(node.handlers, key)) {
     return false;
   }
 
@@ -64,9 +75,15 @@ const removeHandlersFromTrie = (root, topic, key) => {
   return true;
 };
 
-const findHandlersInTrie = (root, topic) => {
+const forEachHandlerInTrie = (root, topic, visitHandler) => {
   const levels = topic.split('/');
-  const handlers = [];
+  const emitHandlers = (node) => {
+    for (const handlerKey in node.handlers) {
+      if (hasOwn.call(node.handlers, handlerKey)) {
+        visitHandler(node.handlers[handlerKey]);
+      }
+    }
+  };
 
   const search = (index, currentNode) => {
     if (!currentNode) {
@@ -74,9 +91,7 @@ const findHandlersInTrie = (root, topic) => {
     }
 
     if (index === levels.length) {
-      for (const handlerKey in currentNode.handlers) {
-        handlers.push(currentNode.handlers[handlerKey]);
-      }
+      emitHandlers(currentNode);
       return;
     }
 
@@ -92,16 +107,11 @@ const findHandlersInTrie = (root, topic) => {
 
     // Check for multi-level wildcard '#'
     if (currentNode.children['#']) {
-      const wildcardNode = currentNode.children['#'];
-      for (const handlerKey in wildcardNode.handlers) {
-        handlers.push(wildcardNode.handlers[handlerKey]);
-      }
+      emitHandlers(currentNode.children['#']);
     }
   };
 
   search(0, root);
-
-  return handlers;
 };
 
 
@@ -111,10 +121,59 @@ const RETRY_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 100;
 
 // Simple sleep helper for retries
-const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+const connectToBroker = (uri, opts) =>
+  new Promise((resolve, reject) => {
+    const c = mqtt.connect(uri, opts);
+    const timer = setTimeout(() => {
+      c.end(true);
+      reject(new Error('timeout'));
+    }, CONNECT_TIMEOUT_MS);
+
+    c.once('connect', () => {
+      clearTimeout(timer);
+      resolve(c);
+    });
+    c.once('error', err => {
+      clearTimeout(timer);
+      c.end(true);
+      reject(err);
+    });
+  });
+
+const connectWithFallback = async ({
+  brokerAddress,
+  wsProtocol,
+  brokerWsPort,
+  username,
+  password,
+}) => {
+  const hosts = brokerAddress.split(';').map(h => h.trim()).filter(Boolean);
+  const opts = { username, password, keepalive: 120, clean: true };
+
+  for (let attempt = 1; attempt <= RETRY_ATTEMPTS; attempt++) {
+    for (const host of hosts) {
+      const uri = `${wsProtocol}://${host}:${brokerWsPort}/mqtt`;
+      try {
+        console.log(`MQTT trying ${uri} (attempt ${attempt}) …`);
+        return await connectToBroker(uri, opts);
+      } catch (e) {
+        console.warn(`MQTT could not connect to ${uri} (attempt ${attempt}): ${e.message}`);
+      }
+    }
+
+    if (attempt < RETRY_ATTEMPTS) {
+      console.log(`MQTT retrying all hosts in ${RETRY_DELAY_MS}ms...`);
+      await sleep(RETRY_DELAY_MS);
+    }
+  }
+
+  throw new Error('Unable to reach any MQTT broker');
+};
 
 
-export const MQTTProvider = ({ name, config, children, experiment }) => {
+export const MQTTProvider = ({ name, config, children }) => {
   const [client, setClient] = useState(null);
   const topicTrie = useRef(new TrieNode());
   const topicRefCounts = useRef(new Map());
@@ -131,57 +190,20 @@ export const MQTTProvider = ({ name, config, children, experiment }) => {
   const hasConfig = Boolean(config && Object.keys(config).length);
 
   useEffect(() => {
-    if (!hasConfig) return;
     setClient(null);
     setError(null);
-
-    /** try a single URI, resolve on 'connect', reject on 'error' or timeout */
-    const tryUri = (uri, opts) =>
-      new Promise((resolve, reject) => {
-        const c = mqtt.connect(uri, opts);
-        const timer = setTimeout(() => {
-          c.end(true);
-          reject(new Error('timeout'));
-        }, CONNECT_TIMEOUT_MS);
-
-        c.once('connect', () => {
-          clearTimeout(timer);
-          resolve(c);       // <- SUCCESS
-        });
-        c.once('error', err => {
-          clearTimeout(timer);
-          c.end(true);
-          reject(err);      // <- FAIL, will fall through to next host
-        });
-      });
-
-    /** retrying sequential fallback */
-    const connectWithFallback = async () => {
-      const hosts = broker_address.split(';').map(h => h.trim()).filter(Boolean);
-      const opts  = { username, password, keepalive: 120, clean: true };
-
-      for (let attempt = 1; attempt <= RETRY_ATTEMPTS; attempt++) {
-        for (const host of hosts) {
-          const uri = `${ws_protocol}://${host}:${broker_ws_port}/mqtt`;
-          try {
-            console.log(`MQTT trying ${uri} (attempt ${attempt}) …`);
-            return await tryUri(uri, opts); // first successful connection wins
-          } catch (e) {
-            console.warn(`MQTT could not connect to ${uri} (attempt ${attempt}): ${e.message}`);
-          }
-        }
-        if (attempt < RETRY_ATTEMPTS) {
-          console.log(`MQTT retrying all hosts in ${RETRY_DELAY_MS}ms...`);
-          await sleep(RETRY_DELAY_MS);
-        }
-      }
-      throw new Error('Unable to reach any MQTT broker');
-    };
+    if (!hasConfig) return;
 
     let mqttClient;
     let isActive = true;
 
-    connectWithFallback()
+    connectWithFallback({
+      brokerAddress: broker_address,
+      wsProtocol: ws_protocol,
+      brokerWsPort: broker_ws_port,
+      username,
+      password,
+    })
       .then(c => {
         if (!isActive) {
           c.end(true);
@@ -191,8 +213,9 @@ export const MQTTProvider = ({ name, config, children, experiment }) => {
         console.log(`Connected to MQTT broker for ${name}.`);
 
         mqttClient.on('message', (topic, message, packet) => {
-          const handlers = findHandlersInTrie(topicTrie.current, topic);
-          handlers.forEach(h => h(topic, message, packet));
+          forEachHandlerInTrie(topicTrie.current, topic, (handler) => {
+            handler(topic, message, packet);
+          });
         });
 
         mqttClient.on('error', err => {
@@ -230,7 +253,7 @@ export const MQTTProvider = ({ name, config, children, experiment }) => {
   ]);
 
   useEffect(() => () => {
-    resetTrie(topicTrie.current);
+    topicTrie.current = new TrieNode();
     topicRefCounts.current.clear();
   }, []);
 

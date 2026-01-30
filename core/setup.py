@@ -26,8 +26,8 @@ CORE_REQUIREMENTS = [
     # "pyyaml==6.0.2",
     # "rpi-lgpio==0.6"
     # "lgpio==0.2.2.0"
-    # pillow==12.0.0
-    # adafruit-circuitpython-ssd1306==2.12.22
+    # "pillow==12.0.0"
+    # "adafruit-circuitpython-ssd1306==2.12.22"
 ]
 
 

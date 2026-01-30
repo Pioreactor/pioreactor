@@ -11,7 +11,7 @@ function ErrorSnackbar() {
   const [msg, setMsg] = React.useState("")
   const [level, setLevel] = React.useState("error")
   const [task, setTask] = React.useState("")
-  const {client, subscribeToTopic } = useMQTT();
+  const {client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
   const { experimentMetadata } = useExperiment();
 
   const getAlertTitle = (taskName, alertLevel, unitName) => {
@@ -30,17 +30,25 @@ function ErrorSnackbar() {
   };
 
   React.useEffect(() => {
-    if (client && experimentMetadata){
-      subscribeToTopic([`pioreactor/+/${experimentMetadata.experiment}/logs/+/error`,
-                        `pioreactor/+/${experimentMetadata.experiment}/logs/+/warning`,
-                        `pioreactor/+/${experimentMetadata.experiment}/logs/+/notice`,
-                        `pioreactor/+/$experiment/logs/+/error`,
-                        `pioreactor/+/$experiment/logs/+/warning`,
-                        `pioreactor/+/$experiment/logs/+/notice`],
-                      onMessage, "ErrorSnackbar")
+    if (!client || !experimentMetadata) {
+      return undefined;
     }
 
-  },[client, experimentMetadata])
+    const topics = [
+      `pioreactor/+/${experimentMetadata.experiment}/logs/+/error`,
+      `pioreactor/+/${experimentMetadata.experiment}/logs/+/warning`,
+      `pioreactor/+/${experimentMetadata.experiment}/logs/+/notice`,
+      `pioreactor/+/$experiment/logs/+/error`,
+      `pioreactor/+/$experiment/logs/+/warning`,
+      `pioreactor/+/$experiment/logs/+/notice`,
+    ];
+
+    subscribeToTopic(topics, onMessage, "ErrorSnackbar");
+
+    return () => {
+      unsubscribeFromTopic(topics, "ErrorSnackbar");
+    };
+  }, [client, experimentMetadata, subscribeToTopic, unsubscribeFromTopic])
 
   const onMessage = (topic, message, packet) => {
       if (!message || !topic) return;

@@ -414,7 +414,7 @@ function WorkerCard({worker, config, leaderVersion}) {
 
 
   const [experimentAssigned, setExperimentAssigned] = React.useState(null)
-  const {client, subscribeToTopic} = useMQTT();
+  const {client, subscribeToTopic, unsubscribeFromTopic} = useMQTT();
   const selfTestDefinition = useSelfTestJobDefinition();
   const [state, setState] = React.useState(null)
   const [versions, setVersions] = React.useState({})
@@ -584,36 +584,46 @@ function WorkerCard({worker, config, leaderVersion}) {
 
 
   React.useEffect(() => {
-    if (unit && client) {
-      subscribeToTopic(`pioreactor/${unit}/$experiment/monitor/+`, onMonitorData, "WorkerCard");
-
-      const fetchExperiment = async () => {
-        try {
-          const response = await fetch(`/api/workers/${unit}/experiment`);
-          if (!response.ok) {
-            throw new Error(`No experiment found.`);
-          }
-          const json = await response.json();
-          setExperimentAssigned(json['experiment']);
-        } catch (error) {
-          return
-        }
-      };
-
-      fetchExperiment();
+    if (!unit || !client) {
+      return undefined;
     }
-  }, [unit, client]);
+    const topic = `pioreactor/${unit}/$experiment/monitor/+`;
+    subscribeToTopic(topic, onMonitorData, "WorkerCard");
+
+    const fetchExperiment = async () => {
+      try {
+        const response = await fetch(`/api/workers/${unit}/experiment`);
+        if (!response.ok) {
+          throw new Error(`No experiment found.`);
+        }
+        const json = await response.json();
+        setExperimentAssigned(json['experiment']);
+      } catch (error) {
+        return
+      }
+    };
+
+    fetchExperiment();
+
+    return () => {
+      unsubscribeFromTopic(topic, "WorkerCard");
+    };
+  }, [unit, client, subscribeToTopic, unsubscribeFromTopic]);
 
   React.useEffect(() => {
-    if (!client ||  !selfTestDefinition) {
-      return;
+    if (!client || !selfTestDefinition) {
+      return undefined;
     }
     const baseTopic = `pioreactor/${unit}/${selfTestExperiment}/self_test`;
-    subscribeToTopic(`${baseTopic}/$state`, onSelfTestData, "WorkerCard-self-test");
-    for (const setting of selfTestDefinition.published_settings) {
-      subscribeToTopic(`${baseTopic}/${setting.key}`, onSelfTestData, "WorkerCard-self-test");
-    }
-  }, [client, onSelfTestData, selfTestDefinition, subscribeToTopic, unit]);
+    const topics = [
+      `${baseTopic}/$state`,
+      ...selfTestDefinition.published_settings.map((setting) => `${baseTopic}/${setting.key}`),
+    ];
+    subscribeToTopic(topics, onSelfTestData, "WorkerCard-self-test");
+    return () => {
+      unsubscribeFromTopic(topics, "WorkerCard-self-test");
+    };
+  }, [client, onSelfTestData, selfTestDefinition, subscribeToTopic, unsubscribeFromTopic, unit]);
 
   const handleStatusChange = (event) => {
 

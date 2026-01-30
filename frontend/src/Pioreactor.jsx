@@ -1675,7 +1675,7 @@ function FlashLEDButton(props){
 function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, label: initialLabel }){
   const [jobFetchComplete, setJobFetchComplete] = useState(false)
   const [label, setLabel] = useState(initialLabel || "")
-  const {client, subscribeToTopic } = useMQTT();
+  const {client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
   const isXrModel = Boolean(modelDetails.model_name?.toLowerCase().includes("xr"));
 
   const [jobs, setJobs] = useState({
@@ -1749,37 +1749,40 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
   }
 
   useEffect(() => {
-
-
-    if (!jobFetchComplete){
-      return
+    if (!jobFetchComplete) {
+      return undefined;
     }
 
-    if (!experiment){
-      return
+    if (!experiment) {
+      return undefined;
     }
 
-    if (!client){
-      return
+    if (!client) {
+      return undefined;
     }
 
-    subscribeToTopic(`pioreactor/${unit}/$experiment/monitor/$state`, onMessage, "PioreactorCard");
+    const topics = [`pioreactor/${unit}/$experiment/monitor/$state`];
     for (const job of Object.keys(jobs)) {
-
-      subscribeToTopic(`pioreactor/${unit}/${experiment}/${job}/$state`, onMessage, "PioreactorCard");
-      for (const setting of Object.keys(jobs[job].publishedSettings)){
-          var topic = [
+      topics.push(`pioreactor/${unit}/${experiment}/${job}/$state`);
+      for (const setting of Object.keys(jobs[job].publishedSettings)) {
+        topics.push(
+          [
             "pioreactor",
             unit,
             (job === "monitor" ? "$experiment" : experiment),
             job,
-            setting
+            setting,
           ].join("/")
-          subscribeToTopic(topic, onMessage, "PioreactorCard");
+        );
       }
     }
 
-  },[experiment, jobFetchComplete, client])
+    subscribeToTopic(topics, onMessage, "PioreactorCard");
+
+    return () => {
+      unsubscribeFromTopic(topics, "PioreactorCard");
+    };
+  }, [experiment, jobFetchComplete, client, subscribeToTopic, unsubscribeFromTopic, unit])
 
   const onMessage = (topic, message, packet) => {
     if (!message || !topic) return;
@@ -2172,7 +2175,7 @@ function Pioreactor({title}) {
   )}
   else {
     return (
-      <MQTTProvider name={unit} config={config} experiment={experimentMetadata.experiment}>
+      <MQTTProvider name={unit} config={config}>
         <Grid container rowSpacing={1} columnSpacing={2} justifyContent="space-between">
           <Grid
             size={{

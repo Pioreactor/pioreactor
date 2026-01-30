@@ -39,7 +39,7 @@ const PIN_TO_PWM = {
 };
 
 const BioreactorDiagram = ({ experiment, unit, config, size }) => {
-  const { client, subscribeToTopic } = useMQTT();
+  const { client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
 
   const {
     canvasDim,
@@ -157,27 +157,28 @@ const BioreactorDiagram = ({ experiment, unit, config, size }) => {
   }
 
   useEffect(() => {
-    if (client && experiment && config && Object.keys(config).length > 0) {
-      subscribeToTopic(
-        [
-          `pioreactor/${unit}/${experiment}/temperature_automation/temperature`,
-          `pioreactor/${unit}/${experiment}/growth_rate_calculating/od_filtered`,
-          `pioreactor/${unit}/${experiment}/leds/intensity`,
-          `pioreactor/${unit}/${experiment}/dosing_automation/current_volume_ml`,
-          `pioreactor/${unit}/${experiment}/dosing_automation/max_working_volume_ml`,
-          `pioreactor/${unit}/${experiment}/pwms/dc`,
-          `pioreactor/${unit}/_testing_${experiment}/temperature_automation/temperature`,
-          `pioreactor/${unit}/_testing_${experiment}/growth_rate_calculating/od_filtered`,
-          `pioreactor/${unit}/_testing_${experiment}/leds/intensity`,
-          `pioreactor/${unit}/_testing_${experiment}/dosing_automation/current_volume_ml`,
-          `pioreactor/${unit}/_testing_${experiment}/dosing_automation/max_working_volume_ml`,
-          `pioreactor/${unit}/_testing_${experiment}/pwms/dc`,
-        ],
-        onMessage,
-        'BioreactorDiagram'
-      );
+    if (!client || !experiment || !config || Object.keys(config).length === 0) {
+      return undefined;
     }
-  }, [client, experiment, config, size]);
+    const topics = [
+      `pioreactor/${unit}/${experiment}/temperature_automation/temperature`,
+      `pioreactor/${unit}/${experiment}/growth_rate_calculating/od_filtered`,
+      `pioreactor/${unit}/${experiment}/leds/intensity`,
+      `pioreactor/${unit}/${experiment}/dosing_automation/current_volume_ml`,
+      `pioreactor/${unit}/${experiment}/dosing_automation/max_working_volume_ml`,
+      `pioreactor/${unit}/${experiment}/pwms/dc`,
+      `pioreactor/${unit}/_testing_${experiment}/temperature_automation/temperature`,
+      `pioreactor/${unit}/_testing_${experiment}/growth_rate_calculating/od_filtered`,
+      `pioreactor/${unit}/_testing_${experiment}/leds/intensity`,
+      `pioreactor/${unit}/_testing_${experiment}/dosing_automation/current_volume_ml`,
+      `pioreactor/${unit}/_testing_${experiment}/dosing_automation/max_working_volume_ml`,
+      `pioreactor/${unit}/_testing_${experiment}/pwms/dc`,
+    ];
+    subscribeToTopic(topics, onMessage, 'BioreactorDiagram');
+    return () => {
+      unsubscribeFromTopic(topics, 'BioreactorDiagram');
+    };
+  }, [client, experiment, config, size, subscribeToTopic, unsubscribeFromTopic, unit]);
 
   useEffect(() => {
     let animationFrameId;
