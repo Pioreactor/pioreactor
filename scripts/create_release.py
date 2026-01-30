@@ -29,6 +29,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 VERSION_FILE = REPO_ROOT / "core" / "pioreactor" / "version.py"
 CHANGELOG_FILE = REPO_ROOT / "CHANGELOG.md"
 UPDATE_SCRIPTS_DIR = REPO_ROOT / "core" / "update_scripts"
+FE_BUILD_DIR = REPO_ROOT / "core" / "pioreactor" / "web" / "static"
 
 
 def run_git_command(args: list[str], dry_run: bool) -> None:
@@ -160,11 +161,12 @@ def stage_if_exists(path: Path, dry_run: bool) -> None:
         subprocess.run(["git", "add", path.as_posix()], check=True)
 
 
-def ensure_frontend_build_is_up_to_date(dry_run: bool) -> None:
+def ensure_frontend_build_is_up_to_date(dry_run: bool) -> bool:
     if dry_run:
         print("DRY-RUN: would run make frontend-build and verify static assets are clean")
-        return
+        return False
     subprocess.run(["make", "frontend-build"], check=True)
+    return True
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -191,7 +193,7 @@ def main(argv: list[str]) -> int:
 
         if not args.force:
             ensure_clean_working_tree()
-            ensure_frontend_build_is_up_to_date(dry_run=args.dry_run)
+            fe_build_changed = ensure_frontend_build_is_up_to_date(dry_run=args.dry_run)
 
         print(f"Preparing production release for {calver}\n")
 
@@ -208,9 +210,11 @@ def main(argv: list[str]) -> int:
             stage_if_exists(CHANGELOG_FILE, dry_run=args.dry_run)
         if update_scripts_changed:
             stage_if_exists(UPDATE_SCRIPTS_DIR, dry_run=args.dry_run)
+        if fe_build_changed:
+            stage_if_exists(FE_BUILD_DIR, dry_run=args.dry_run)
 
         need_release_commit = args.dry_run and (
-            release_version_changed or changelog_changed or update_scripts_changed
+            release_version_changed or changelog_changed or update_scripts_changed or fe_build_changed
         )
         if not args.dry_run:
             need_release_commit = git_diff_cached_has_changes()
