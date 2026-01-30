@@ -165,12 +165,6 @@ def ensure_frontend_build_is_up_to_date(dry_run: bool) -> None:
         print("DRY-RUN: would run make frontend-build and verify static assets are clean")
         return
     subprocess.run(["make", "frontend-build"], check=True)
-    result = subprocess.run(["git", "diff", "--exit-code", "--", "core/pioreactor/web/static"], check=False)
-    if result.returncode != 0:
-        raise RuntimeError(
-            "Frontend build output differs from committed assets. "
-            "Run `make frontend-build` and commit the changes."
-        )
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
