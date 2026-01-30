@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, Link } from "react-router";
 import {
   CircularProgress,
   FormControl,
@@ -134,11 +134,6 @@ function EstimatorData() {
   };
 
   const isDataComplete = rawData && rawData.status === 'complete';
-  const hasEstimators = filteredEstimators.length > 0;
-
-  const emptyStateMessage = onlyActive
-    ? 'No active estimators match this view. Try turning off "Only Active estimators".'
-    : 'Estimators appear after you run an estimator job on a Pioreactor.';
 
   const filteredEstimators = React.useMemo(() => {
     if (!isDataComplete) {
@@ -179,6 +174,27 @@ function EstimatorData() {
       return a.estimator_name.localeCompare(b.estimator_name);
     });
   }, [isDataComplete, estimatorDataByDevice, selectedDevice, selectedUnit, onlyActive]);
+
+  const hasEstimators = filteredEstimators.length > 0;
+  const hasAnyEstimators = React.useMemo(
+    () => Object.values(estimatorDataByDevice).some((estimators) => estimators.length > 0),
+    [estimatorDataByDevice],
+  );
+
+  const emptyStateMessage = !hasAnyEstimators
+    ? (
+      <span>
+        No estimators exist. Try creating an estimator from a{" "}
+        <Link to="/protocols">protocol</Link>.
+      </span>
+    )
+    : (
+      <span>
+        {onlyActive
+          ? 'No active estimators match this view. Try turning off "Only Active estimators".'
+          : "No estimators match this view."}
+      </span>
+    );
 
   if (loading) {
     return (
@@ -241,94 +257,79 @@ function EstimatorData() {
         </Box>
       </Box>
 
-      {hasEstimators ? (
-        <TableContainer sx={{ px: 5, mt: 1, mb: 1, width: "100%", overflowY: "auto", overflowX: 'auto' }}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell sx={{ padding: "6px 0px" }}>Pioreactor</TableCell>
-                <TableCell align="left" sx={{ padding: "6px 0px" }}>Device</TableCell>
-                <TableCell align="left" sx={{ padding: "6px 0px" }}>Estimator name</TableCell>
-                <TableCell align="left" sx={{ padding: "6px 0px" }}>Active</TableCell>
-                <TableCell align="right" sx={{ padding: "6px 6px" }}>Created at</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredEstimators.map((estimator, i) => {
-                const unitName = estimator.pioreactor_unit;
-                const estimatorName = estimator.estimator_name;
-                const deviceName = estimator.device || selectedDevice;
+      <TableContainer sx={{ px: 5, mt: 1, mb: 1, width: "100%", overflowY: "auto", overflowX: 'auto' }}>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell sx={{ padding: "6px 0px" }}>Pioreactor</TableCell>
+              <TableCell align="left" sx={{ padding: "6px 0px" }}>Device</TableCell>
+              <TableCell align="left" sx={{ padding: "6px 0px" }}>Estimator name</TableCell>
+              <TableCell align="left" sx={{ padding: "6px 0px" }}>Active</TableCell>
+              <TableCell align="right" sx={{ padding: "6px 6px" }}>Created at</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filteredEstimators.map((estimator, i) => {
+              const unitName = estimator.pioreactor_unit;
+              const estimatorName = estimator.estimator_name;
+              const deviceName = estimator.device || selectedDevice;
 
-                return (
-                  <TableRow
-                    sx={{
-                      ':hover': {
-                        bgcolor: '#F7F7F7',
-                      },
-                      cursor: "pointer",
-                    }}
-                    onClick={() => navigate(`/estimators/${unitName}/${deviceName}/${estimatorName}`)}
-                    key={i}
-                  >
-                    <TableCell sx={{ padding: "6px 6px", display: "flex" }}>
+              return (
+                <TableRow
+                  sx={{
+                    ':hover': {
+                      bgcolor: '#F7F7F7',
+                    },
+                    cursor: "pointer",
+                  }}
+                  onClick={() => navigate(`/estimators/${unitName}/${deviceName}/${estimatorName}`)}
+                  key={i}
+                >
+                  <TableCell sx={{ padding: "6px 6px", display: "flex" }}>
+                    <Chip
+                      size="small"
+                      icon={<PioreactorIcon />}
+                      label={unitName}
+                      data-pioreactor-unit={unitName}
+                    />
+                  </TableCell>
+                  <TableCell align="left" sx={{ padding: "6px 0px" }}>{deviceName}</TableCell>
+                  <TableCell align="left" sx={{ padding: "6px 0px" }}>
+                    <Chip
+                      size="small"
+                      icon={<EstimatorIcon />}
+                      label={estimatorName}
+                      data-estimator-name={estimatorName}
+                    />
+                  </TableCell>
+                  <TableCell align="left" sx={{ padding: "6px 0px" }}>
+                    {estimator.is_active ? (
                       <Chip
                         size="small"
-                        icon={<PioreactorIcon />}
-                        label={unitName}
-                        data-pioreactor-unit={unitName}
+                        label={"Active"}
+                        icon={<CheckCircleOutlineOutlinedIcon />}
+                        sx={{
+                          color: readyGreen,
+                          border: "none",
+                          backgroundColor: "transparent",
+                          "& .MuiChip-icon": { color: readyGreen },
+                        }}
                       />
-                    </TableCell>
-                    <TableCell align="left" sx={{ padding: "6px 0px" }}>{deviceName}</TableCell>
-                    <TableCell align="left" sx={{ padding: "6px 0px" }}>
-                      <Chip
-                        size="small"
-                        icon={<EstimatorIcon />}
-                        label={estimatorName}
-                        data-estimator-name={estimatorName}
-                      />
-                    </TableCell>
-                    <TableCell align="left" sx={{ padding: "6px 0px" }}>
-                      {estimator.is_active ? (
-                        <Chip
-                          size="small"
-                          label={"Active"}
-                          icon={<CheckCircleOutlineOutlinedIcon />}
-                          sx={{
-                            color: readyGreen,
-                            border: "none",
-                            backgroundColor: "transparent",
-                            "& .MuiChip-icon": { color: readyGreen },
-                          }}
-                        />
-                      ) : ""}
-                    </TableCell>
-                    <TableCell align="right" sx={{ padding: "6px 6px" }}>
-                      {dayjs(estimator.created_at).format('MMMM D, YYYY, h:mm a')}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      ) : (
-        <Box
-          sx={{
-            border: "1px dashed",
-            borderColor: "divider",
-            borderRadius: 1,
-            px: 4,
-            py: 5,
-            mt: 1,
-            textAlign: "center",
-            color: "text.secondary",
-          }}
-        >
-          <EstimatorIcon sx={{ fontSize: 48, mb: 1 }} />
-          <Typography variant="h6" sx={{ mb: 1 }}>
-            No estimators found
-          </Typography>
-          <Typography variant="body2" color="textSecondary">
+                    ) : ""}
+                  </TableCell>
+                  <TableCell align="right" sx={{ padding: "6px 6px" }}>
+                    {dayjs(estimator.created_at).format('MMMM D, YYYY, h:mm a')}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      {!hasEstimators && (
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="10vh">
+          <Typography variant="body2" component="p" color="textSecondary">
             {emptyStateMessage}
           </Typography>
         </Box>

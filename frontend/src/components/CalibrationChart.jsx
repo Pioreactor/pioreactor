@@ -9,6 +9,7 @@ import ListItemText from "@mui/material/ListItemText";
 import DownloadIcon from "@mui/icons-material/Download";
 import SettingsIcon from "@mui/icons-material/Settings";
 import Typography from '@mui/material/Typography';
+import { Link } from 'react-router';
 
 import {
   VictoryChart,
@@ -163,7 +164,7 @@ function CalibrationChart({ calibrations, deviceName, unitsColorMap, highlighted
   };
 
   if (!deviceName){
-    return <Box display="flex" justifyContent="center" alignItems="center" minHeight="10vh"><Typography variant="body2" component="p" color="textSecondary">No calibrations exist. Try creating a calibration from the command line.</Typography></Box>
+    return <Box display="flex" justifyContent="center" alignItems="center" minHeight="10vh"><Typography variant="body2" component="p" color="textSecondary">No calibrations exist. Try creating a calibration from a <Link to="/protocols">protocol</Link>.</Typography></Box>
   }
   else if (!calibrations || calibrations.length === 0) {
     return <Box display="flex" justifyContent="center" alignItems="center" minHeight="10vh"><Typography variant="body2" component="p" color="textSecondary">No calibrations to plot for {deviceName}.</Typography></Box>;

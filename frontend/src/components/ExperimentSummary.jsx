@@ -136,7 +136,7 @@ function ExperimentSummary({experimentMetadata, updateExperiment, showAssignment
       </Box>
       {showAssignmentAlert &&
         <Alert severity="info" sx={{ mb: 1 }}>
-          No Pioreactors are currently assigned to this experiment. <Link to="/pioreactors"> Assign Pioreactors <ArrowOutwardIcon sx={{ fontSize: 12, verticalAlign: "-1px" }}/></Link>
+          No Pioreactors are currently assigned to this experiment. <Link to="/pioreactors"> Assign Pioreactors</Link>
         </Alert>
       }
       <Card >
