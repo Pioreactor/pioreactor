@@ -1801,7 +1801,9 @@ def set_active_estimator(pioreactor_unit, device, estimator_name) -> DelayedResp
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_patch_across_workers(f"/unit_api/active_estimators/{device}/{estimator_name}")
     else:
-        task = tasks.multicast_patch(f"/unit_api/active_estimators/{device}/{estimator_name}", [pioreactor_unit])
+        task = tasks.multicast_patch(
+            f"/unit_api/active_estimators/{device}/{estimator_name}", [pioreactor_unit]
+        )
     return create_task_response(task)
 
 
@@ -1857,7 +1859,7 @@ def get_plugins_on_machine(pioreactor_unit: str) -> DelayedResponseReturnValue:
 @api_bp.route("/units/<pioreactor_unit>/plugins/install", methods=["POST", "PATCH"])
 def install_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseReturnValue:
     # there is a security problem here. See https://github.com/Pioreactor/pioreactor/issues/421
-    if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS"):
+    if (Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS").is_file():
         abort_with(403, "Not UI installed allowed.")
 
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
@@ -1872,7 +1874,7 @@ def install_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseReturn
 
 @api_bp.route("/units/<pioreactor_unit>/plugins/uninstall", methods=["POST", "PATCH"])
 def uninstall_plugin_across_cluster(pioreactor_unit: str) -> DelayedResponseReturnValue:
-    if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS"):
+    if (Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS").is_file():
         abort_with(403, "No UI uninstall allowed")
 
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
@@ -1954,7 +1956,7 @@ def get_app_versions(pioreactor_unit: str) -> DelayedResponseReturnValue:
 
 @api_bp.route("/system/upload", methods=["POST"])
 def upload() -> ResponseReturnValue:
-    if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_UPLOADS"):
+    if (Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_UPLOADS").is_file():
         abort_with(403, "No UI uploads allowed")
 
     if "file" not in request.files:

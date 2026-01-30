@@ -9,6 +9,7 @@ from typing import Optional
 
 import click
 from pioreactor import error_codes
+from pioreactor import exc
 from pioreactor import types as pt
 from pioreactor import utils
 from pioreactor import version
@@ -337,7 +338,13 @@ class Monitor(LongRunningBackgroundJob):
         Originally from #220
         """
         # if no model assigned or missing hardware, skip
-        if get_pioreactor_model() is None:
+        model = None
+        try:
+            model = get_pioreactor_model()
+        except (exc.NoModelAssignedError, exc.UnknownModelAssignedError):
+            return
+
+        if model is None:
             return
         elif not is_HAT_present() or not is_heating_pcb_present():
             return
