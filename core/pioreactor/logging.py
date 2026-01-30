@@ -4,10 +4,10 @@ from logging import handlers
 from time import sleep
 from typing import TYPE_CHECKING
 
-from json_log_formatter import JSONFormatter  # type: ignore
 from pioreactor import types as pt
 from pioreactor.config import config
 from pioreactor.exc import NotAssignedAnExperimentError
+from pioreactor.json_log_formatter import JSONFormatter
 from pioreactor.whoami import get_assigned_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
