@@ -101,6 +101,7 @@ def test_load_calibration_validation_error(temp_calibration_dir) -> None:
         load_calibration("od90", "bad_cal")
 
     assert "Error reading bad_cal" in str(exc_info.value)
+    bad_calibration_file.unlink()
 
 
 # test calibration structs

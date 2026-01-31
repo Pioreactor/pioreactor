@@ -5,6 +5,7 @@ This should be run with a vial in, with a stirbar. Water is fine.
 
 """
 import uuid
+from contextlib import nullcontext
 from time import sleep
 from typing import ClassVar
 from typing import Literal
@@ -33,6 +34,10 @@ from pioreactor.utils.math_helpers import simple_linear_regression
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_testing_experiment_name
 from pioreactor.whoami import get_unit_name
+from pioreactor.whoami import is_testing_env
+
+if is_testing_env():
+    from pioreactor.utils.mock import MockRpmCalculator
 
 
 def _resolve_dc_bounds(min_dc: float | None, max_dc: float | None) -> tuple[float, float]:
@@ -68,7 +73,10 @@ def collect_stirring_measurements(
         dcs = linspace(max_dc, min_dc, 5) + linspace(min_dc, max_dc, 5) + linspace(max_dc, min_dc, 5)
         n_samples = len(dcs)
 
-        with stirring.RpmFromFrequency() as rpm_calc, stirring.Stirrer(
+        rpm_calc_context = (
+            nullcontext(MockRpmCalculator()) if is_testing_env() else stirring.RpmFromFrequency()
+        )
+        with rpm_calc_context as rpm_calc, stirring.Stirrer(
             target_rpm=0,
             unit=unit,
             experiment=experiment,

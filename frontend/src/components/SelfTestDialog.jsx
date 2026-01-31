@@ -281,7 +281,7 @@ export default function SelfTestDialog({disabled, experiment, unit, label , self
 
           <ManageDivider/>
           <Typography variant="body2" component="p" gutterBottom>
-            Learn more about self tests and <a rel="noopener noreferrer" target="_blank" href="https://docs.pioreactor.com/user-guide/running-self-test#explanation-of-each-test">what to do if a test fails.</a>
+            Learn more about self tests and <a rel="noopener noreferrer" target="_blank" href="https://docs.pioreactor.com/user-guide/self-test-reference">what to do if a test fails.</a>
           </Typography>
         </DialogContent>
       </Dialog>
