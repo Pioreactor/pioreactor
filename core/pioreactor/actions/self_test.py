@@ -7,6 +7,7 @@ Functions with prefix `test_` are ran, and any exception thrown means the test f
 Outputs from each test go into MQTT, and return to the command line.
 """
 import sys
+from contextlib import nullcontext
 from json import dumps
 from threading import Thread
 from time import sleep
@@ -48,6 +49,9 @@ from pioreactor.utils.math_helpers import variance
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
+
+if is_testing_env():
+    from pioreactor.utils.mock import MockRpmCalculator
 
 
 def test_pioreactor_HAT_present(managed_state, logger: CustomLogger, unit: str, experiment: str) -> None:
@@ -411,7 +415,8 @@ def test_positive_correlation_between_rpm_and_stirring(
     start = min(initial_dc * 1.2, 100)
     end = max(initial_dc * 0.8, 5)
 
-    with stirring.RpmFromFrequency() as rpm_calc:
+    rpm_calc_context = nullcontext(MockRpmCalculator()) if is_testing_env() else stirring.RpmFromFrequency()
+    with rpm_calc_context as rpm_calc:
         rpm_calc.setup()
         with stirring.Stirrer(
             target_rpm=None,

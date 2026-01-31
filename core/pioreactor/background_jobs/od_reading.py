@@ -968,6 +968,7 @@ class CachedEstimatorTransformer(LoggerMixin, EstimatorTransformerProtocol):
             self.logger.debug("No estimator available for OD fusion, skipping.")
             return
         self.estimator = estimator
+        self.logger.debug(f"Using OD estimator `{estimator.estimator_name}`.")
 
     def __call__(self, raw_od_readings: structs.ODReadings) -> structs.ODFused | None:
         if self.estimator is None:
