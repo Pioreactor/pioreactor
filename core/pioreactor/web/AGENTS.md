@@ -17,8 +17,6 @@ Key modules:
 *   **`utils.py`** – Helper utilities for caching responses, rate limiting, and validating filenames.
 
 
-
-
 The repository also includes a compiled frontend in the `static/` directory and startup scripts (`fcgi.py`).
 
 Overall, the project provides a REST API and task queue framework to manage Pioreactor clusters, interact with hardware via CLI commands, and expose data/logs to a web UI.
