@@ -8,4 +8,5 @@ from .chemostat import Chemostat
 from .fed_batch import FedBatch
 from .pid_morbidostat import PIDMorbidostat
 from .silent import Silent as DosingSilent
+from .turbidostat import EventBasedTurbidostat
 from .turbidostat import Turbidostat
