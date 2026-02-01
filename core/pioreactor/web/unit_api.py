@@ -98,8 +98,8 @@ def task_status(task_id: str):
         task = huey.result(task_id)
     except TaskLockedException:
         return (
-            jsonify(blob | {"status": "failed", "error": "could not complete task due to lock."}),
-            500,
+            jsonify(blob | {"status": "in_progress", "error": "task is locked and already running."}),
+            202,
         )
     except TaskException as e:
         # huey wraps the exception, so lets reraise it.

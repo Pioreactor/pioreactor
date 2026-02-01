@@ -264,6 +264,7 @@ def pio_run(
 
 
 @huey.task()
+@huey.lock_task("inventory-lock")
 def add_new_pioreactor(new_pioreactor_name: str, version: str, model: str) -> bool:
     command = [PIO_EXECUTABLE, "workers", "add", new_pioreactor_name, "-v", version, "-m", model]
     logger.debug(f"Executing `{join(command)}`")
@@ -782,6 +783,7 @@ def uninstall_plugin_task(name: str) -> bool:
 
 
 @huey.task()
+@huey.lock_task("clock-lock")
 def update_clock(new_time: str) -> bool:
     # iso8601 format
     if whoami.is_testing_env():
@@ -791,6 +793,7 @@ def update_clock(new_time: str) -> bool:
 
 
 @huey.task()
+@huey.lock_task("clock-lock")
 def sync_clock() -> bool:
     if whoami.is_testing_env():
         return True
@@ -801,6 +804,7 @@ def sync_clock() -> bool:
 
 
 @huey.task()
+@huey.lock_task("import-dot-pioreactor-lock")
 def import_dot_pioreactor_archive(uploaded_zip_path: str) -> bool:
     hostname = get_unit_name()
     archive_path = Path(uploaded_zip_path)
@@ -927,6 +931,7 @@ def rm(path: str) -> bool:
 
 
 @huey.task()
+@huey.lock_task("power-lock")
 def shutdown() -> bool:
     logger.debug("Shutting down now")
     if whoami.is_testing_env():
@@ -936,6 +941,7 @@ def shutdown() -> bool:
 
 
 @huey.task()
+@huey.lock_task("power-lock")
 def reboot(wait=0) -> bool:
     sleep(wait)
     logger.debug("Rebooting now")
@@ -946,6 +952,7 @@ def reboot(wait=0) -> bool:
 
 
 @huey.task()
+@huey.lock_task("web-restart-lock")
 def restart_pioreactor_web_target() -> bool:
     logger.debug("Restarting pioreactor-web.target")
     if whoami.is_testing_env():
@@ -977,6 +984,7 @@ def save_file(path: str, content: str) -> bool:
 
 
 @huey.task()
+@huey.lock_task("config-sync-lock")
 def write_config_and_sync(
     config_path: str, text: str, units: str, flags: tuple[str, ...] = (), env: dict[str, str] | None = None
 ) -> tuple[bool, str]:
