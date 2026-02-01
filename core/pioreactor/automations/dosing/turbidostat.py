@@ -124,5 +124,7 @@ class Turbidostat(DosingAutomationJob):
     def _set_biomass_signal(self, biomass_signal: str) -> None:
         allowed = ("normalized_od", "od_fused", "od")
         if biomass_signal not in allowed:
-            raise ValueError(f"Unsupported biomass_signal={biomass_signal}. Use one of: {', '.join(allowed)}.")
+            raise ValueError(
+                f"Unsupported biomass_signal={biomass_signal}. Use one of: {', '.join(allowed)}."
+            )
         self.biomass_signal = biomass_signal
