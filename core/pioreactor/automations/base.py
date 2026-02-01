@@ -26,12 +26,14 @@ class AutomationJob(BackgroundJob):
     previous_normalized_od: None | float = None
     previous_growth_rate: None | float = None
     previous_od: None | dict[pt.PdChannel, float] = None
+    previous_od_fused: None | float = None
     # latest_normalized_od: float  // defined as properties
     # latest_growth_rate: float  // defined as properties
     # latest_od: dict[pt.PdChannel, float]  // defined as properties
     _latest_growth_rate: None | float = None
     _latest_normalized_od: None | float = None
     _latest_od: None | dict[pt.PdChannel, float] = None
+    _latest_od_fused: None | float = None
 
     def __init__(self, unit: pt.Unit, experiment: pt.Experiment) -> None:
         super().__init__(unit, experiment)
@@ -60,6 +62,7 @@ class AutomationJob(BackgroundJob):
         self.latest_normalized_od_at = current_utc_datetime()
         self.latest_growth_rate_at = current_utc_datetime()
         self.latest_od_at = current_utc_datetime()
+        self.latest_od_fused_at = current_utc_datetime()
 
         self.start_passive_listeners()
 
@@ -83,6 +86,10 @@ class AutomationJob(BackgroundJob):
         self.subscribe_and_callback(
             self._set_ods,
             f"pioreactor/{self.unit}/{self.experiment}/od_reading/ods",
+        )
+        self.subscribe_and_callback(
+            self._set_od_fused,
+            f"pioreactor/{self.unit}/{self.experiment}/od_reading/od_fused",
         )
 
     def _set_growth_rate(self, message: pt.MQTTMessage) -> None:
@@ -111,6 +118,15 @@ class AutomationJob(BackgroundJob):
         payload = decode(message.payload, type=structs.ODReadings)
         self._latest_od: dict[pt.PdChannel, float] = {c: payload.ods[c].od for c in payload.ods}
         self.latest_od_at = payload.timestamp
+
+    def _set_od_fused(self, message: pt.MQTTMessage) -> None:
+        if not message.payload:
+            return
+
+        self.previous_od_fused = self._latest_od_fused
+        payload = decode(message.payload, type=structs.ODFused)
+        self._latest_od_fused = payload.od_fused
+        self.latest_od_fused_at = payload.timestamp
 
     @property
     def latest_growth_rate(self) -> float:
@@ -175,6 +191,44 @@ class AutomationJob(BackgroundJob):
 
         assert self._latest_od is not None
         return self._latest_od
+
+    @property
+    def latest_od_fused(self) -> float:
+        # check if None
+        if self._latest_od_fused is None:
+            self.logger.debug("Waiting for fused OD data to arrive")
+            if not is_pio_job_running("od_reading"):
+                raise exc.JobRequiredError("`od_reading` should be Ready.")
+            while True:
+                if self._latest_od_fused is not None:
+                    break
+                sleep(0.5)
+
+        # check most stale time
+        if (current_utc_datetime() - self.latest_od_fused_at).seconds > 5 * 60:
+            raise exc.JobRequiredError(
+                f"fused readings are too stale (over 5 minutes old) - is `od_reading` running?. Last reading occurred at {self.latest_od_fused_at}."
+            )
+
+        return cast(float, self._latest_od_fused)
+
+    def latest_biomass_value(
+        self,
+        biomass_signal: str,
+        od_channel: pt.PdChannel | None = None,
+    ) -> float:
+        if biomass_signal == "normalized_od":
+            return self.latest_normalized_od
+        elif biomass_signal == "od_fused":
+            return self.latest_od_fused
+        elif biomass_signal == "od":
+            if od_channel is None:
+                raise ValueError("od_channel is required when biomass_signal is 'od'.")
+            return self.latest_od[od_channel]
+        else:
+            raise ValueError(
+                f"Unsupported biomass_signal={biomass_signal}. Use one of: normalized_od, od_fused, od."
+            )
 
     @property
     def most_stale_time(self) -> datetime:

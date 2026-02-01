@@ -21,18 +21,18 @@ class Turbidostat(DosingAutomationJob):
     automation_name = "turbidostat"
     published_settings = {
         "exchange_volume_ml": {"datatype": "float", "settable": True, "unit": "mL"},
-        "target_normalized_od": {"datatype": "float", "settable": True, "unit": "AU"},
-        "target_od": {"datatype": "float", "settable": True, "unit": "OD"},
+        "target_biomass": {"datatype": "float", "settable": True},
+        "biomass_signal": {"datatype": "string", "settable": True},
         "duration": {"datatype": "float", "settable": False, "unit": "min"},
     }
-    target_od = None
-    target_normalized_od = None
+    target_biomass = None
+    biomass_signal = None
 
     def __init__(
         self,
         exchange_volume_ml: float | str,
-        target_normalized_od: Optional[float | str] = None,
-        target_od: Optional[float | str] = None,
+        target_biomass: Optional[float | str] = None,
+        biomass_signal: str = "normalized_od",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -43,15 +43,11 @@ class Turbidostat(DosingAutomationJob):
             elif "waste_pump" not in cache:
                 raise CalibrationError("Waste pump calibration must be performed first.")
 
-        if target_normalized_od is not None and target_od is not None:
-            raise ValueError("Only provide target nOD or target OD, not both.")
-        elif target_normalized_od is None and target_od is None:
-            raise ValueError("Provide a target nOD or target OD.")
+        if target_biomass is None:
+            raise ValueError("Provide a target biomass.")
 
-        if target_normalized_od is not None:
-            self.target_normalized_od = float(target_normalized_od)
-        elif target_od is not None:
-            self.target_od = float(target_od)
+        self._set_biomass_signal(biomass_signal)
+        self.target_biomass = float(target_biomass)
 
         self.exchange_volume_ml = float(exchange_volume_ml)
         self.ema_od = ExponentialMovingAverage(
@@ -61,10 +57,6 @@ class Turbidostat(DosingAutomationJob):
     def set_duration(self, value: float | None):
         # force duration to always be 0.25 - we want to check often.
         super().set_duration(0.25)
-
-    @property
-    def is_targeting_nOD(self) -> bool:
-        return self.target_normalized_od is not None
 
     @property
     def _od_channel(self) -> pt.PdChannel:
@@ -85,7 +77,7 @@ class Turbidostat(DosingAutomationJob):
         if len(signal_channels) > 1:
             selected_channel = min(signal_channels, key=lambda ch: int(ch))
             self.logger.warning(
-                "Multiple OD signal channels detected (%s). Using channel %s. Prefer od_fused or nOD in this case.",
+                "Multiple OD signal channels detected (%s). Using channel %s. Prefer od_fused or normalized_od in this case.",
                 ", ".join(signal_channels),
                 selected_channel,
             )
@@ -94,68 +86,43 @@ class Turbidostat(DosingAutomationJob):
         raise ValueError("No OD signal channels found in [od_config.photodiode_channel].")
 
     def execute(self) -> Optional[events.DilutionEvent]:
-        if self.is_targeting_nOD:
-            return self._execute_target_nod()
-        else:
-            return self._execute_target_od()
+        assert self.target_biomass is not None
+        latest_biomass = self.latest_biomass_value(self.biomass_signal, od_channel=self._od_channel)
+        if self.biomass_signal in {"od", "od_fused"}:
+            latest_biomass = self.ema_od.update(latest_biomass)
 
-    def set_target_normalized_od(self, new_target: float) -> None:
-        if not self.is_targeting_nOD:
-            self.logger.warning("You are currently targeting OD, and can only change that.")
-        else:
-            self.target_normalized_od = float(new_target)
-
-    def set_target_od(self, new_target: float) -> None:
-        if self.is_targeting_nOD:
-            self.logger.warning("You are currently targeting nOD, and can only change that.")
-        else:
-            self.target_od = float(new_target)
-
-    def _execute_target_od(self) -> Optional[events.DilutionEvent]:
-        assert self.target_od is not None
-        smoothed_od = self.ema_od.update(self.latest_od[self._od_channel])
-        if smoothed_od >= self.target_od:
+        if latest_biomass >= self.target_biomass:
             self.ema_od.clear()  # clear the ema so that we don't cause a second dosing to occur right after.
-            latest_od_before_dosing = smoothed_od
-            target_od_before_dosing = self.target_od
+            latest_biomass_before_dosing = latest_biomass
+            target_biomass_before_dosing = self.target_biomass
 
             results = self.execute_io_action(
                 media_ml=self.exchange_volume_ml, waste_ml=self.exchange_volume_ml
             )
 
             data = {
-                "latest_od": latest_od_before_dosing,
-                "target_od": target_od_before_dosing,
+                "latest_biomass": latest_biomass_before_dosing,
+                "target_biomass": target_biomass_before_dosing,
+                "biomass_signal": self.biomass_signal,
                 "exchange_volume_ml": self.exchange_volume_ml,
                 "volume_actually_moved_ml": results["media_ml"],
             }
 
             return events.DilutionEvent(
-                f"Latest OD = {latest_od_before_dosing:.2f} ≥ Target OD = {target_od_before_dosing:.2f}; cycled {results['media_ml']:.2f} mL",
+                f"Latest biomass ({self.biomass_signal}) = {latest_biomass_before_dosing:.2f} ≥ Target biomass = {target_biomass_before_dosing:.2f}; cycled {results['media_ml']:.2f} mL",
                 data,
             )
         else:
             return None
 
-    def _execute_target_nod(self) -> Optional[events.DilutionEvent]:
-        assert self.target_normalized_od is not None
-        if self.latest_normalized_od >= self.target_normalized_od:
-            latest_normalized_od_before_dosing = self.latest_normalized_od
-            target_normalized_od_before_dosing = self.target_normalized_od
-            results = self.execute_io_action(
-                media_ml=self.exchange_volume_ml, waste_ml=self.exchange_volume_ml
-            )
+    def set_target_biomass(self, new_target: float) -> None:
+        self.target_biomass = float(new_target)
 
-            data = {
-                "latest_normalized_od": latest_normalized_od_before_dosing,
-                "target_normalized_od": target_normalized_od_before_dosing,
-                "exchange_volume_ml": self.exchange_volume_ml,
-                "volume_actually_moved_ml": results["media_ml"],
-            }
+    def set_biomass_signal(self, new_signal: str) -> None:
+        self._set_biomass_signal(new_signal)
 
-            return events.DilutionEvent(
-                f"Latest Normalized OD = {latest_normalized_od_before_dosing:.2f} ≥ Target  nOD = {target_normalized_od_before_dosing:.2f}; cycled {results['media_ml']:.2f} mL",
-                data,
-            )
-        else:
-            return None
+    def _set_biomass_signal(self, biomass_signal: str) -> None:
+        allowed = ("normalized_od", "od_fused", "od")
+        if biomass_signal not in allowed:
+            raise ValueError(f"Unsupported biomass_signal={biomass_signal}. Use one of: {', '.join(allowed)}.")
+        self.biomass_signal = biomass_signal
