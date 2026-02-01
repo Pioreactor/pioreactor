@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 
-import React, {useState, useEffect} from "react";
+import React, {useState, useEffect, useMemo, useCallback} from "react";
 
 import Grid from '@mui/material/Grid';
 import { useMediaQuery } from "@mui/material";
@@ -22,14 +22,26 @@ import Tooltip from '@mui/material/Tooltip';
 import InputAdornment from '@mui/material/InputAdornment';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
+import Accordion from '@mui/material/Accordion';
+import AccordionSummary from '@mui/material/AccordionSummary';
+import AccordionDetails from '@mui/material/AccordionDetails';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
+import ListSubheader from '@mui/material/ListSubheader';
 import Button from "@mui/material/Button";
 import LoadingButton from '@mui/lab/LoadingButton';
 import ToggleOnIcon from '@mui/icons-material/ToggleOn';
 import CancelIcon from '@mui/icons-material/Cancel';
+import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import FlareIcon from '@mui/icons-material/Flare';
 import EstimatorIcon from "./components/EstimatorIcon"
+import IndeterminateCheckBoxIcon from '@mui/icons-material/IndeterminateCheckBox';
 import SettingsIcon from '@mui/icons-material/Settings';
 import TuneIcon from '@mui/icons-material/Tune';
 import IconButton from '@mui/material/IconButton';
@@ -38,6 +50,7 @@ import Stack from '@mui/material/Stack';
 import { useConfirm } from 'material-ui-confirm';
 import Alert from '@mui/material/Alert';
 import PlayCircleOutlinedIcon from '@mui/icons-material/PlayCircleOutlined';
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 
 import {Link, useParams, useNavigate} from 'react-router'
 
@@ -51,6 +64,7 @@ import ActionCirculatingForm from "./components/ActionCirculatingForm"
 import ActionLEDForm from "./components/ActionLEDForm"
 import PioreactorIcon from "./components/PioreactorIcon"
 import PioreactorIconWithModel from "./components/PioreactorIconWithModel"
+import RequirementsAlert from "./components/RequirementsAlert";
 import UnderlineSpan from "./components/UnderlineSpan";
 import BioreactorDiagram from "./components/BioreactorDiagram";
 import Chart from "./components/Chart";
@@ -68,6 +82,7 @@ import {
   colors,
   disconnectedGrey,
   lostRed,
+  readyGreen,
   disabledColor,
   stateDisplay,
 } from "./color";
@@ -137,6 +152,64 @@ function TabPanel({ children, value, index, ...other }) {
       )}
     </div>
   );
+}
+
+function parsePayloadToType(payloadString, typeOfSetting) {
+  if (typeOfSetting === "numeric") {
+    return [null, ""].includes(payloadString) ? payloadString : parseFloat(payloadString);
+  }
+  if (typeOfSetting === "boolean") {
+    if ([null, ""].includes(payloadString)) {
+      return null;
+    }
+    return (["1", "true", "True", 1].includes(payloadString));
+  }
+  return payloadString;
+}
+
+const SELF_TEST_GROUPS = [
+  {
+    title: "LEDs & photodiodes",
+    tests: [
+      { key: "test_pioreactor_HAT_present", label: "Pioreactor HAT is detected" },
+      {
+        key: "test_all_positive_correlations_between_pds_and_leds",
+        label: "Photodiodes are responsive to IR LED",
+        secondaryKey: "correlations_between_pds_and_leds",
+      },
+      { key: "test_ambient_light_interference", label: "No ambient IR light detected" },
+      { key: "test_REF_is_lower_than_0_dot_256_volts", label: "Reference photodiode is correct magnitude" },
+      { key: "test_REF_is_in_correct_position", label: "Reference photodiode is in correct position" },
+      { key: "test_PD_is_near_0_volts_for_blank", label: "Photodiode measures near zero signal for clear water" },
+    ],
+  },
+  {
+    title: "Heating & temperature",
+    tests: [
+      { key: "test_detect_heating_pcb", label: "Heating PCB is detected" },
+      { key: "test_positive_correlation_between_temperature_and_heating", label: "Heating is responsive" },
+    ],
+  },
+  {
+    title: "Stirring",
+    tests: [
+      { key: "test_positive_correlation_between_rpm_and_stirring", label: "Stirring RPM is responsive" },
+      { key: "test_aux_power_is_not_too_high", label: "AUX power supply is appropriate value" },
+    ],
+  },
+];
+
+function getAvailableSelfTestGroups(selfTestSettings) {
+  if (!selfTestSettings) {
+    return [];
+  }
+  const availableKeys = new Set(Object.keys(selfTestSettings));
+  return SELF_TEST_GROUPS
+    .map((group) => ({
+      ...group,
+      tests: group.tests.filter((test) => availableKeys.has(test.key)),
+    }))
+    .filter((group) => group.tests.length > 0);
 }
 
 function UnitSettingDisplaySubtext({ subtext }) {
@@ -652,11 +725,42 @@ function SettingsActionsDialog(props) {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [tabValue, setTabValue] = useState(0);
-  const [rebooting, setRebooting] = useState(false);
-  const [shuttingDown, setShuttingDown] = useState(false);
   const [openChangeDosingDialog, setOpenChangeDosingDialog] = useState(false);
   const [openChangeLEDDialog, setOpenChangeLEDDialog] = useState(false);
   const [openChangeTemperatureDialog, setOpenChangeTemperatureDialog] = useState(false);
+  const [selfTestResult, setSelfTestResult] = useState(null);
+  const [selfTestStartPending, setSelfTestStartPending] = useState(false);
+  const {client, subscribeToTopic, unsubscribeFromTopic} = useMQTT();
+  const selfTestExperiment = "$experiment";
+  const selfTestSettings = props.jobs?.self_test?.publishedSettings || null;
+  const selfTestDefinitionAvailable = Boolean(selfTestSettings);
+  const selfTestSettingTypes = useMemo(() => {
+    if (!selfTestSettings) {
+      return {};
+    }
+    return Object.entries(selfTestSettings).reduce((acc, [key, setting]) => {
+      acc[key] = setting.type;
+      return acc;
+    }, {});
+  }, [selfTestSettings]);
+  const availableSelfTestGroups = useMemo(
+    () => getAvailableSelfTestGroups(selfTestSettings),
+    [selfTestSettings]
+  );
+  const buildSelfTestBaseline = useCallback(() => {
+    const publishedSettings = {};
+    if (!selfTestSettings) {
+      return { state: null, publishedSettings };
+    }
+    for (const [key, setting] of Object.entries(selfTestSettings)) {
+      publishedSettings[key] = {
+        value: setting.value ?? null,
+        type: setting.type,
+        label: setting.label,
+      };
+    }
+    return { state: null, publishedSettings };
+  }, [selfTestSettings]);
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
@@ -669,20 +773,6 @@ function SettingsActionsDialog(props) {
     };
   }
 
-
-  function rebootRaspberryPi(){
-    return function() {
-      setRebooting(true)
-      fetch(`/api/units/${props.unit}/system/reboot`, {method: "POST"})
-    }
-  }
-
-  function shutDownRaspberryPi(){
-    return function() {
-      setShuttingDown(true)
-      fetch(`/api/units/${props.unit}/system/shutdown`, {method: "POST"})
-    }
-  }
 
   function stopPioreactorJob(job){
     return setPioreactorJobState(job, "disconnected")
@@ -735,6 +825,67 @@ function SettingsActionsDialog(props) {
     }
     setSnackbarOpen(false)
   }
+
+  useEffect(() => {
+    if (!selfTestSettings) {
+      return;
+    }
+    setSelfTestResult(buildSelfTestBaseline());
+  }, [buildSelfTestBaseline, selfTestSettings]);
+
+  const onSelfTestData = useCallback((topic, message) => {
+    if (!topic || !message) {
+      return;
+    }
+    const parts = topic.toString().split('/');
+    if (parts.length < 5) {
+      return;
+    }
+    const job = parts[3];
+    const setting = parts[4];
+    if (job !== "self_test") {
+      return;
+    }
+    if (setting === "$state") {
+      setSelfTestResult((prev) => {
+        const current = prev || buildSelfTestBaseline();
+        return { ...current, state: message.toString() };
+      });
+      return;
+    }
+    const payload = parsePayloadToType(message.toString(), selfTestSettingTypes[setting]);
+    setSelfTestResult((prev) => {
+      const current = prev || buildSelfTestBaseline();
+      const previousSetting = current.publishedSettings[setting] || {
+        type: selfTestSettingTypes[setting],
+      };
+      return {
+        ...current,
+        publishedSettings: {
+          ...current.publishedSettings,
+          [setting]: {
+            ...previousSetting,
+            value: payload,
+          },
+        },
+      };
+    });
+  }, [buildSelfTestBaseline, selfTestSettingTypes]);
+
+  useEffect(() => {
+    if (!open || !client || !selfTestSettings) {
+      return;
+    }
+    const baseTopic = `pioreactor/${props.unit}/${selfTestExperiment}/self_test`;
+    const topics = [
+      `${baseTopic}/$state`,
+      ...Object.keys(selfTestSettings).map((key) => `${baseTopic}/${key}`),
+    ];
+    subscribeToTopic(topics, onSelfTestData, "ControlSelfTest");
+    return () => {
+      unsubscribeFromTopic(topics, "ControlSelfTest");
+    };
+  }, [client, onSelfTestData, open, props.unit, selfTestExperiment, selfTestSettings, subscribeToTopic, unsubscribeFromTopic]);
 
   function createUserButtonsBasedOnState(jobState, job){
     switch (jobState){
@@ -841,17 +992,79 @@ function SettingsActionsDialog(props) {
 
   const LEDMap = props.config['leds'] || {}
   const buttons = Object.fromEntries(Object.entries(props.jobs).map( ([job_key, job], i) => [job_key, createUserButtonsBasedOnState(job.state, job_key)]))
-  const versionInfo = JSON.parse(props.jobs.monitor.publishedSettings.versions.value || "{}")
-  const voltageInfo = JSON.parse(props.jobs.monitor.publishedSettings.voltage_on_pwm_rail.value || "{}")
-  const ipInfo = props.jobs.monitor.publishedSettings.ipv4.value
-  const macInfoWlan = props.jobs.monitor.publishedSettings.wlan_mac_address.value
-  const macInfoEth = props.jobs.monitor.publishedSettings.eth_mac_address.value
   const isXrModel = Boolean(props.modelDetails?.model_name?.toLowerCase().includes("xr"));
 
   const isLargeScreen = useMediaQuery(theme => theme.breakpoints.down('xl'));
   const dosingControlJob = props.jobs.dosing_automation
   const ledControlJob = props.jobs.led_automation
   const temperatureControlJob = props.jobs.temperature_automation
+  const isSelfTestRunningState = (state) =>
+    ["init", "ready", "sleeping"].includes(state);
+
+  const renderSelfTestIcon = (settingKey) => {
+    const settingValue = selfTestResult?.publishedSettings?.[settingKey]?.value;
+    if (settingValue === true) {
+      return <CheckIcon sx={{color: readyGreen}} />;
+    }
+    if (settingValue === false) {
+      return <ErrorOutlineIcon sx={{color: lostRed}} />;
+    }
+    if (isSelfTestRunningState(selfTestResult?.state)) {
+      return <CircularProgress size={18} />;
+    }
+    return <IndeterminateCheckBoxIcon sx={{color: disabledColor}} />;
+  };
+
+  const renderSelfTestSummaryIcon = () => {
+    const overallStatus = selfTestResult?.publishedSettings?.all_tests_passed?.value;
+    if (overallStatus === true) {
+      return <CheckIcon sx={{color: readyGreen}} />;
+    }
+    if (overallStatus === false) {
+      return <ErrorOutlineIcon sx={{color: lostRed}} />;
+    }
+    if (isSelfTestRunningState(selfTestResult?.state)) {
+      return <CircularProgress size={18} />;
+    }
+    return <IndeterminateCheckBoxIcon sx={{color: disabledColor}} />;
+  };
+
+  const renderSelfTestSecondary = (test) => {
+    if (test.secondaryKey !== "correlations_between_pds_and_leds") {
+      return test.description || null;
+    }
+    const rawValue = selfTestResult?.publishedSettings?.correlations_between_pds_and_leds?.value;
+    if (!rawValue) {
+      return null;
+    }
+    try {
+      const parsed = typeof rawValue === "string" ? JSON.parse(rawValue) : rawValue;
+      if (Array.isArray(parsed)) {
+        return parsed.map((ledPd) => `${ledPd[0]} ⇝ ${ledPd[1]}`).join(",  ");
+      }
+    } catch (error) {
+      return null;
+    }
+    return null;
+  };
+
+  const isSelfTestRunning = isSelfTestRunningState(selfTestResult?.state);
+
+  const handleRunSelfTest = () => {
+    setSelfTestStartPending(true);
+    runPioreactorJob(props.unit, selfTestExperiment, "self_test")
+      .then(() => {
+        setSnackbarMessage(`Starting self test on ${props.unit}`);
+        setSnackbarOpen(true);
+      })
+      .catch(() => {
+        setSnackbarMessage(`Failed to start self test on ${props.unit}`);
+        setSnackbarOpen(true);
+      })
+      .finally(() => {
+        setSelfTestStartPending(false);
+      });
+  };
 
   return (
     <div>
@@ -893,7 +1106,7 @@ function SettingsActionsDialog(props) {
         <Tab sx={{textTransform: 'none'}} label="Settings"/>
         <Tab sx={{textTransform: 'none'}} label="Dosing"/>
         <Tab sx={{textTransform: 'none'}} label="LEDs"/>
-        <Tab sx={{textTransform: 'none'}} label="System"/>
+        <Tab sx={{textTransform: 'none'}} label="Self-test"/>
       </Tabs>
       </DialogTitle>
       <DialogContent>
@@ -1298,163 +1511,86 @@ function SettingsActionsDialog(props) {
           <ControlDivider/>
         </TabPanel>
         <TabPanel value={tabValue} index={4}>
-
-          <Typography  gutterBottom>
-            Addresses and hostname
+          <Typography gutterBottom>
+            Self-test
           </Typography>
+          <Typography variant="body2" component="p" gutterBottom>
+            Run a hardware self-test on this Pioreactor. Results will update as the unit reports back.
+          </Typography>
+          <RequirementsAlert sx={{mb: 2, pb: 0}}>
+            Add a closed vial, half-filled with water, and a stirbar into the Pioreactor.
+            <Box
+              component="img"
+              src="/static/svgs/prepare-vial-arrow-pioreactor-compact.svg"
+              alt="Prepare vial"
+              sx={{width: "150px", display: "block", mb: 0, mx: "auto"}}
+            />
+          </RequirementsAlert>
 
-            <Typography variant="body2" component="p" gutterBottom>
-              Learn about how to <a target="_blank" rel="noopener noreferrer" href="https://docs.pioreactor.com/user-guide/accessing-raspberry-pi">access the Pioreactor's Raspberry Pi</a>.
-            </Typography>
-
-            <table style={{borderCollapse: "separate", borderSpacing: "5px", fontSize: "0.90rem"}}>
-              <tr>
-                <td style={{textAlign: "right", minWidth: "120px", color: ""}}>
-                    IPv4
-                </td>
-                <td>
-                  <StylizedCode>{ipInfo || "-"}</StylizedCode>
-                </td>
-              </tr>
-              <tr>
-                <td style={{textAlign: "right", minWidth: "120px", color: ""}}>
-                    Hostname
-                </td>
-                <td>
-                  <StylizedCode>{props.unit}.local</StylizedCode>
-                </td>
-              </tr>
-              <tr>
-                <td style={{textAlign: "right", minWidth: "120px", color: ""}}>
-                    WLAN MAC
-                </td>
-                <td>
-                  <StylizedCode>{macInfoWlan || "-"}</StylizedCode>
-                </td>
-              </tr>
-              <tr>
-                <td style={{textAlign: "right", minWidth: "120px", color: ""}}>
-                    Ethernet MAC
-                </td>
-                <td>
-                  <StylizedCode>{macInfoEth || "-"}</StylizedCode>
-                </td>
-              </tr>
-            </table>
-
+          <Box sx={{display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap"}}>
+            <LoadingButton
+              variant="contained"
+              loading={isSelfTestRunning || selfTestStartPending}
+              loadingPosition="start"
+              endIcon={<PlayArrowIcon />}
+              disabled={isSelfTestRunning || selfTestStartPending || !selfTestDefinitionAvailable}
+              onClick={handleRunSelfTest}
+              sx={{textTransform: "none"}}
+            >
+              {isSelfTestRunning ? "Running" : "Start"}
+            </LoadingButton>
+          </Box>
 
           <ControlDivider/>
 
-          <Typography  gutterBottom>
-            Version information
-          </Typography>
+          {!selfTestDefinitionAvailable && (
+            <Alert severity="warning">
+              Self-test is unavailable on this cluster.
+            </Alert>
+          )}
 
-
-            <table style={{borderCollapse: "separate", borderSpacing: "5px", fontSize: "0.90rem"}}>
-              <tr>
-                <td style={{textAlign: "right", minWidth: "120px", color: ""}}>
-                    Software version
-                </td>
-                <td >
-                  <StylizedCode>{versionInfo.app || "-"}</StylizedCode>
-                </td>
-              </tr>
-              <tr>
-                <td style={{textAlign: "right", minWidth: "120px", color: ""}}>
-                    Raspberry Pi
-                </td>
-                <td >
-                  <StylizedCode>{versionInfo.rpi_machine || "-"}</StylizedCode>
-                </td>
-              </tr>
-              <tr>
-                <td style={{textAlign: "right", minWidth: "120px", color: ""}}>
-                    HAT version
-                </td>
-                <td >
-                  <StylizedCode>{versionInfo.hat || "-"}</StylizedCode>
-                </td>
-              </tr>
-              <tr>
-                <td style={{textAlign: "right", minWidth: "120px", color: ""}}>
-                    HAT serial number
-                </td>
-                <td >
-                  <StylizedCode>{versionInfo.hat_serial || "-"}</StylizedCode>
-                </td>
-              </tr>
-            </table>
-
-
-          <ControlDivider/>
-
-          <Typography  gutterBottom>
-            Voltage on PWM rail
-          </Typography>
-
-            <table style={{borderCollapse: "separate", borderSpacing: "5px", fontSize: "0.90rem"}}>
-              <tr>
-                <td style={{textAlign: "right", minWidth: "120px", color: ""}}>
-                    Voltage
-                </td>
-                <td >
-                  <StylizedCode>{voltageInfo.voltage ? `${voltageInfo.voltage} V` : "-" }</StylizedCode>
-                </td>
-              </tr>
-              <tr>
-                <td style={{textAlign: "right", minWidth: "120px", color: ""}}>
-                    Last updated at
-                </td>
-                <td >
-                  <StylizedCode>{voltageInfo.timestamp ? dayjs.utc(voltageInfo.timestamp, 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]').local().format('MMMM D, h:mm a') : "-"}</StylizedCode>
-                </td>
-              </tr>
-            </table>
-
-
-          <ControlDivider/>
-
-          <Typography  gutterBottom>
-            Reboot
-          </Typography>
-          <Typography variant="body2" component="p">
-            Reboot the Raspberry Pi operating system. This will stop all jobs, and the Pioreactor will be inaccessible for a few minutes. It will blink its blue LED when back up, or press the onboard button to light up the blue LED.
-          </Typography>
-
-          <LoadingButton
-            loadingIndicator="Rebooting"
-            loading={rebooting}
-            variant="text"
-            color="primary"
-            style={{marginTop: "15px", textTransform: 'none'}}
-            onClick={rebootRaspberryPi()}
-          >
-            Reboot RPi
-          </LoadingButton>
-
-          <ControlDivider/>
-
-          <Typography  gutterBottom>
-            Shut down
-          </Typography>
-          <Typography variant="body2" component="p">
-            After 20 seconds, shut down the Pioreactor. This will stop all jobs, and the Pioreactor will be inaccessible until it is restarted by unplugging and replugging the power supply.
-          </Typography>
-          <LoadingButton
-            loadingIndicator="😵"
-            loading={shuttingDown}
-            variant="text"
-            color="primary"
-            style={{marginTop: "15px", textTransform: 'none'}}
-            onClick={shutDownRaspberryPi()}
-          >
-            Shut down
-          </LoadingButton>
-
-          <ControlDivider/>
-
-
-
+          {selfTestDefinitionAvailable && (
+            <Accordion disableGutters sx={{boxShadow: "none", "&:before": {display: "none"}}}>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Box sx={{display: "flex", alignItems: "center", gap: 1}}>
+                  {renderSelfTestSummaryIcon()}
+                  <Typography>{props.label ? `${props.label} / ${props.unit}` : props.unit}</Typography>
+                </Box>
+              </AccordionSummary>
+              <AccordionDetails>
+                {availableSelfTestGroups.length === 0 ? (
+                  <Typography variant="body2">No self-test checks available.</Typography>
+                ) : (
+                  <>
+                    {availableSelfTestGroups.map((group) => (
+                      <List
+                        key={`self-test-${props.unit}-${group.title}`}
+                        dense
+                        disablePadding
+                        subheader={
+                          <ListSubheader style={{lineHeight: "20px"}} component="div" disableSticky={true} disableGutters={true}>
+                            {group.title}
+                          </ListSubheader>
+                        }
+                      >
+                        {group.tests.map((test) => (
+                          <ListItem key={`self-test-${props.unit}-${test.key}`} sx={{pt: 0, pb: 0}}>
+                            <ListItemIcon sx={{minWidth: "30px"}}>
+                              {renderSelfTestIcon(test.key)}
+                            </ListItemIcon>
+                            <ListItemText
+                              primary={test.label}
+                              secondary={renderSelfTestSecondary(test)}
+                            />
+                          </ListItem>
+                        ))}
+                      </List>
+                    ))}
+                  </>
+                )}
+              </AccordionDetails>
+            </Accordion>
+          )}
         </TabPanel>
 
       </DialogContent>
@@ -1677,6 +1813,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
   const [label, setLabel] = useState(initialLabel || "")
   const {client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
   const isXrModel = Boolean(modelDetails.model_name?.toLowerCase().includes("xr"));
+  const modelBadgeContent = modelDetails.model_name?.endsWith("XR") ? "XR" : modelDetails.reactor_capacity_ml;
 
   const [jobs, setJobs] = useState({
     monitor: {
@@ -1858,7 +1995,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
             }
           })}>
             <div style={{display: "flex", justifyContent: "left"}}>
-              <PioreactorIconWithModel badgeContent={modelDetails.reactor_capacity_ml} />
+              <PioreactorIconWithModel badgeContent={modelBadgeContent} />
               <Typography sx={{
                   fontSize: 20,
                   color: "rgba(0, 0, 0, 0.87)",

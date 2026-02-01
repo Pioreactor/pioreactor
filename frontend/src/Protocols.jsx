@@ -300,20 +300,7 @@ function Protocols(props) {
         <Typography variant="h5" component="h2">
           <Box fontWeight="fontWeightBold">Protocols</Box>
         </Typography>
-        <Button
-          component={Link}
-          to={
-            selectedUnit && selectedDevice
-              ? `/calibrations/${selectedUnit}/${
-                  selectedDevice === "od" ? "od90" : selectedDevice
-                }`
-              : "/calibrations"
-          }
-          startIcon={<TuneIcon />}
-          sx={{ textTransform: "none" }}
-        >
-          {`View ${selectedDevice || "device"} calibrations`}
-        </Button>
+
       </Box>
       <Divider sx={{ marginTop: "0px", marginBottom: "15px" }} />
       <Card sx={{ mb: 2 }}>

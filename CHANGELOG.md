@@ -1,3 +1,8 @@
+### Upcoming
+
+ - removed System tab from the Pioreactor's "Control" dialog. You can see (most) of this data on the Inventory page
+ - added a Self-test tab back to the Pioreactor's "Control" dialog, and to the "Control all Pioreactors"
+
 ### 26.1.30
 
 #### Highlights

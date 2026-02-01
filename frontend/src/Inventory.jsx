@@ -411,6 +411,7 @@ function WorkerCard({worker, config, leaderVersion}) {
       ({model_name, model_version}) => model_name === model[0] && model_version === model[1]
     );
   const currentModelCapacity = currentModelDetails ? currentModelDetails.reactor_capacity_ml : "";
+  const modelBadgeContent = model[0]?.endsWith("XR") ? "XR" : currentModelCapacity;
 
 
   const [experimentAssigned, setExperimentAssigned] = React.useState(null)
@@ -675,7 +676,7 @@ function WorkerCard({worker, config, leaderVersion}) {
         <div style={{display: "flex", justifyContent: "space-between"}}>
 
           <div style={{display: "flex", justifyContent: "left"}}>
-            <PioreactorIconWithModel badgeContent={currentModelCapacity} badgeColor={isLeader ? "#fff2cc" : ""} />
+            <PioreactorIconWithModel badgeContent={modelBadgeContent}/>
             <Typography sx={{
                 fontSize: 20,
                 color: "rgba(0, 0, 0, 0.87)",
