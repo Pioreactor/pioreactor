@@ -236,16 +236,16 @@ def stop_specific_job_on_unit(
 
 
 @api_bp.route(
-    "/units/<pioreactor_unit>/jobs/run/job_name/<job>/experiments/<experiment>",
+    "/units/<pioreactor_unit>/jobs/run/job_name/<job_name>/experiments/<experiment>",
     methods=["PATCH", "POST"],
 )
 @api_bp.route(
-    "/workers/<pioreactor_unit>/jobs/run/job_name/<job>/experiments/<experiment>",
+    "/workers/<pioreactor_unit>/jobs/run/job_name/<job_name>/experiments/<experiment>",
     methods=["PATCH", "POST"],
 )
 def run_job_on_unit_in_experiment(
     pioreactor_unit: str,
-    job: str,
+    job_name: str,
     experiment: str,
 ) -> DelayedResponseReturnValue:
     """
@@ -337,7 +337,7 @@ def run_job_on_unit_in_experiment(
     # Note we can include experiment in the env since we know these workers are in the experiment!
 
     t = tasks.multicast_post(
-        f"/unit_api/jobs/run/job_name/{job}",
+        f"/unit_api/jobs/run/job_name/{job_name}",
         [worker["pioreactor_unit"] for worker in assigned_workers],
         json=[
             {
@@ -382,14 +382,14 @@ def blink_worker(pioreactor_unit: str) -> ResponseReturnValue:
 
 
 @api_bp.route(
-    "/workers/<pioreactor_unit>/jobs/update/job_name/<job>/experiments/<experiment>",
+    "/workers/<pioreactor_unit>/jobs/update/job_name/<job_name>/experiments/<experiment>",
     methods=["PATCH"],
 )
 @api_bp.route(
-    "/units/<pioreactor_unit>/jobs/update/job_name/<job>/experiments/<experiment>",
+    "/units/<pioreactor_unit>/jobs/update/job_name/<job_name>/experiments/<experiment>",
     methods=["PATCH"],
 )
-def update_job_on_unit(pioreactor_unit: str, job: str, experiment: str) -> ResponseReturnValue:
+def update_job_on_unit(pioreactor_unit: str, job_name: str, experiment: str) -> ResponseReturnValue:
     """
     Update specified job on unit. Use $broadcast for everyone.
 
@@ -418,7 +418,7 @@ def update_job_on_unit(pioreactor_unit: str, job: str, experiment: str) -> Respo
     try:
         for setting, value in request.get_json()["settings"].items():
             client.publish(
-                f"pioreactor/{pioreactor_unit}/{experiment}/{job}/{setting}/set",
+                f"pioreactor/{pioreactor_unit}/{experiment}/{job_name}/{setting}/set",
                 value,
                 qos=2,
             )

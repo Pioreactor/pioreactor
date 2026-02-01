@@ -389,8 +389,8 @@ def dir_listing(req_path: str):
 ## RUNNING JOBS CONTROL
 
 
-@unit_api_bp.route("/jobs/run/job_name/<job>", methods=["PATCH", "POST"])
-def run_job(job: str) -> DelayedResponseReturnValue:
+@unit_api_bp.route("/jobs/run/job_name/<job_name>", methods=["PATCH", "POST"])
+def run_job(job_name: str) -> DelayedResponseReturnValue:
     """
     Body should look like (all optional)
     {
@@ -412,7 +412,7 @@ def run_job(job: str) -> DelayedResponseReturnValue:
       "args": []
     }'
     """
-    if is_rate_limited(job):
+    if is_rate_limited(job_name):
         abort_with(429, "Too many requests, please try again later.")
 
     json = current_app.get_json(request.data, type=structs.ArgsOptionsEnvsConfigOverrides)
@@ -427,7 +427,7 @@ def run_job(job: str) -> DelayedResponseReturnValue:
         [("--config-override",) + tuple(_args) for _args in config_overrides], tuple()
     )
 
-    commands: tuple[str, ...] = (job,)
+    commands: tuple[str, ...] = (job_name,)
     commands += tuple(args)
     for option, value in options.items():
         commands += (f"--{option.replace('_', '-')}",)
@@ -483,10 +483,10 @@ def get_all_running_jobs() -> ResponseReturnValue:
     return jsonify(jobs)
 
 
-@unit_api_bp.route("/jobs/running/<job>", methods=["GET"])
-def get_running_job(job: str) -> ResponseReturnValue:
+@unit_api_bp.route("/jobs/running/<job_name>", methods=["GET"])
+def get_running_job(job_name: str) -> ResponseReturnValue:
     jobs = query_temp_local_metadata_db(
-        "SELECT * FROM pio_job_metadata where is_running=1 and job_name=?", (job,)
+        "SELECT * FROM pio_job_metadata where is_running=1 and job_name=?", (job_name,)
     )
     return jsonify(jobs)
 
