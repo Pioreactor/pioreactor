@@ -19,6 +19,7 @@ from pioreactor.config import get_leader_hostname
 from pioreactor.logging import create_logger
 from pioreactor.plugin_management import load_plugins
 from pioreactor.version import __version__
+from pioreactor.web.utils import ensure_error_info
 from pioreactor.whoami import am_I_leader
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
@@ -126,6 +127,23 @@ def create_app():
             jsonify({"error": f"{e.description}"}),
             502,
         )
+
+    @app.after_request
+    def ensure_error_payload(response: t.Any) -> t.Any:
+        if response.status_code < 400:
+            return response
+
+        if response.mimetype != "application/json":
+            return response
+
+        payload = response.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return response
+
+        updated_payload = ensure_error_info(payload, response.status_code)
+        response.set_data(app.json.dumps(updated_payload))
+        response.headers["Content-Type"] = "application/json"
+        return response
 
     app.json = MsgspecJsonProvider(app)
     app.get_json = app.json.loads

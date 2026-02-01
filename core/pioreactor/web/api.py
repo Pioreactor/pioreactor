@@ -1513,7 +1513,12 @@ def get_entire_dot_pioreactor(pioreactor_unit: str) -> ResponseReturnValue:
     if isinstance(results, dict) and len(results) == 1:
         content = next(iter(results.values()))
         if content is None:
-            abort_with(502, "No data received from worker")
+            abort_with(
+                502,
+                "No data received from worker",
+                cause="Worker returned an empty response body.",
+                remediation="Check worker connectivity and retry.",
+            )
         buf = BytesIO(content)
         buf.seek(0)
         return send_file(
@@ -1549,11 +1554,21 @@ def get_entire_dot_pioreactor(pioreactor_unit: str) -> ResponseReturnValue:
 @api_bp.route("/units/<pioreactor_unit>/import_zipped_dot_pioreactor", methods=["POST"])
 def import_dot_pioreactor_archive(pioreactor_unit: str) -> ResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        abort_with(400, "Cannot import to $broadcast; choose a specific Pioreactor.")
+        abort_with(
+            400,
+            "Cannot import to $broadcast; choose a specific Pioreactor.",
+            cause="Import requires a single target unit.",
+            remediation="Specify a concrete pioreactor_unit in the URL.",
+        )
 
     uploaded = request.files.get("archive")
     if uploaded is None or uploaded.filename == "":
-        abort_with(400, "No archive uploaded")
+        abort_with(
+            400,
+            "No archive uploaded",
+            cause="Missing 'archive' file in multipart form-data.",
+            remediation="Upload a zip file using the 'archive' field.",
+        )
 
     try:
         filename = secure_filename(uploaded.filename) or "archive.zip"
@@ -1562,7 +1577,12 @@ def import_dot_pioreactor_archive(pioreactor_unit: str) -> ResponseReturnValue:
         uploaded.save(temp_path)
     except Exception as exc:
         publish_to_error_log(str(exc), "import_zipped_dot_pioreactor")
-        abort_with(500, "Failed to save uploaded archive")
+        abort_with(
+            500,
+            "Failed to save uploaded archive",
+            cause="Unable to write uploaded file to temporary storage.",
+            remediation="Check disk space and file permissions, then retry.",
+        )
 
     payload = temp_path.read_bytes()
     temp_path.unlink(missing_ok=True)
@@ -1585,7 +1605,12 @@ def import_dot_pioreactor_archive(pioreactor_unit: str) -> ResponseReturnValue:
         response.raise_for_status()
     except (HTTPErrorStatus, HTTPException) as exc:
         publish_to_error_log(str(exc), "import_zipped_dot_pioreactor")
-        abort_with(502, f"Importing system files failed on {pioreactor_unit}. See system logs.")
+        abort_with(
+            502,
+            f"Importing system files failed on {pioreactor_unit}. See system logs.",
+            cause="Worker returned an error during import.",
+            remediation="Check worker logs and retry the import.",
+        )
 
     return Response(
         response.content,
@@ -1635,7 +1660,12 @@ def create_calibration(pioreactor_unit: str, device: str) -> DelayedResponseRetu
     yaml_data = request.get_json()["calibration_data"]
 
     if not yaml_data:
-        abort_with(400, "YAML data is missing.")
+        abort_with(
+            400,
+            "YAML data is missing.",
+            cause="Request JSON missing calibration_data.",
+            remediation="Provide calibration_data with a valid YAML payload.",
+        )
 
     try:
         yaml_decode(yaml_data, type=AllCalibrations)
@@ -1644,6 +1674,8 @@ def create_calibration(pioreactor_unit: str, device: str) -> DelayedResponseRetu
         abort_with(
             400,
             description=f"YAML data is not correct, or required calibration struct missing: {str(e)}",
+            cause="Calibration YAML failed schema validation.",
+            remediation="Fix the YAML structure and retry.",
         )
 
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
@@ -1656,11 +1688,21 @@ def create_calibration(pioreactor_unit: str, device: str) -> DelayedResponseRetu
 @api_bp.route("/workers/<pioreactor_unit>/calibrations/sessions", methods=["POST"])
 def start_calibration_session(pioreactor_unit: str) -> ResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        abort_with(400, "Cannot start sessions with $broadcast; choose a specific Pioreactor.")
+        abort_with(
+            400,
+            "Cannot start sessions with $broadcast; choose a specific Pioreactor.",
+            cause="Calibration sessions require a single target unit.",
+            remediation="Specify a concrete pioreactor_unit in the URL.",
+        )
 
     body = request.get_json()
     if body is None:
-        abort_with(400, description="Missing JSON payload.")
+        abort_with(
+            400,
+            description="Missing JSON payload.",
+            cause="Request body is empty or not JSON.",
+            remediation="Send a JSON payload describing the calibration session.",
+        )
 
     response: Response | None = None
     try:
@@ -1692,7 +1734,12 @@ def start_calibration_session(pioreactor_unit: str) -> ResponseReturnValue:
 @api_bp.route("/workers/<pioreactor_unit>/calibrations/sessions/<session_id>", methods=["GET"])
 def get_calibration_session(pioreactor_unit: str, session_id: str) -> ResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        abort_with(400, "Cannot fetch sessions with $broadcast; choose a specific Pioreactor.")
+        abort_with(
+            400,
+            "Cannot fetch sessions with $broadcast; choose a specific Pioreactor.",
+            cause="Calibration sessions require a single target unit.",
+            remediation="Specify a concrete pioreactor_unit in the URL.",
+        )
 
     response: Response | None = None
     try:
@@ -1723,11 +1770,21 @@ def get_calibration_session(pioreactor_unit: str, session_id: str) -> ResponseRe
 @api_bp.route("/workers/<pioreactor_unit>/calibrations/sessions/<session_id>/inputs", methods=["POST"])
 def advance_calibration_session(pioreactor_unit: str, session_id: str) -> ResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        abort_with(400, "Cannot update sessions with $broadcast; choose a specific Pioreactor.")
+        abort_with(
+            400,
+            "Cannot update sessions with $broadcast; choose a specific Pioreactor.",
+            cause="Calibration sessions require a single target unit.",
+            remediation="Specify a concrete pioreactor_unit in the URL.",
+        )
 
     body = request.get_json()
     if body is None:
-        abort_with(400, description="Missing JSON payload.")
+        abort_with(
+            400,
+            description="Missing JSON payload.",
+            cause="Request body is empty or not JSON.",
+            remediation="Send a JSON payload with calibration inputs.",
+        )
 
     response: Response | None = None
     try:
@@ -1759,7 +1816,12 @@ def advance_calibration_session(pioreactor_unit: str, session_id: str) -> Respon
 @api_bp.route("/workers/<pioreactor_unit>/calibrations/sessions/<session_id>/abort", methods=["POST"])
 def abort_calibration_session(pioreactor_unit: str, session_id: str) -> ResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        abort_with(400, "Cannot abort sessions with $broadcast; choose a specific Pioreactor.")
+        abort_with(
+            400,
+            "Cannot abort sessions with $broadcast; choose a specific Pioreactor.",
+            cause="Calibration sessions require a single target unit.",
+            remediation="Specify a concrete pioreactor_unit in the URL.",
+        )
 
     response: Response | None = None
     try:
@@ -1960,16 +2022,31 @@ def upload() -> ResponseReturnValue:
         abort_with(403, "No UI uploads allowed")
 
     if "file" not in request.files:
-        return jsonify({"error": "No file part"}), 400
+        abort_with(
+            400,
+            "No file part",
+            cause="Request missing multipart form-data field 'file'.",
+            remediation="Send a multipart form-data request with a 'file' field.",
+        )
 
     file = request.files["file"]
 
     # If the user does not select a file, the browser submits an
     # empty file without a filename.
     if file.filename == "":
-        return jsonify({"error": "No selected file"}), 400
+        abort_with(
+            400,
+            "No selected file",
+            cause="Uploaded file field has an empty filename.",
+            remediation="Select a file before submitting the form.",
+        )
     if file.content_length >= 30_000_000:  # 30mb?
-        return jsonify({"error": "Too large"}), 400
+        abort_with(
+            400,
+            "Too large",
+            cause="Uploaded file exceeds 30 MB limit.",
+            remediation="Upload a smaller file (under 30 MB).",
+        )
 
     filename = secure_filename(file.filename)
     save_path = safe_join(tempfile.gettempdir(), filename)
@@ -1981,7 +2058,9 @@ def upload() -> ResponseReturnValue:
 def get_automation_contrib(automation_type: str) -> ResponseReturnValue:
     # security to prevent possibly reading arbitrary file
     if automation_type not in {"temperature", "dosing", "led"}:
-        abort_with(400, "Not a valid automation type")
+        abort_with(
+            400, "Not a valid automation type", remediation="choose one of 'temperature', 'dosing', 'led'"
+        )
 
     try:
         automation_path_plugins = (
@@ -2108,7 +2187,12 @@ def preview_exportable_datasets(target_dataset) -> ResponseReturnValue:
                 return jsonify(result)
         except (ValidationError, DecodeError):
             pass
-    abort_with(404, f"{target_dataset} not found")
+    abort_with(
+        404,
+        f"{target_dataset} not found",
+        cause="Dataset name not found in built-in or plugin exportable datasets.",
+        remediation="List exportable datasets and choose a valid dataset_name.",
+    )
 
 
 @api_bp.route("/contrib/exportable_datasets/export_datasets", methods=["POST"])
@@ -2173,13 +2257,33 @@ def create_experiment() -> ResponseReturnValue:
     proposed_experiment_name = body.get("experiment")
 
     if not proposed_experiment_name:
-        abort_with(400, "Experiment name is required")
+        abort_with(
+            400,
+            "Experiment name is required",
+            cause="Request JSON missing 'experiment'.",
+            remediation="Provide an experiment name in the 'experiment' field.",
+        )
     elif len(proposed_experiment_name) >= 200:  # just too big
-        abort_with(400, "Experiment name is too long")
+        abort_with(
+            400,
+            "Experiment name is too long",
+            cause="Experiment name exceeds 199 characters.",
+            remediation="Shorten the experiment name to under 200 characters.",
+        )
     elif proposed_experiment_name.lower() == "current":  # too much API rework
-        abort_with(400, "Experiment name cannot be 'current'")
+        abort_with(
+            400,
+            "Experiment name cannot be 'current'",
+            cause="'current' is a reserved experiment identifier.",
+            remediation="Choose a different experiment name.",
+        )
     elif proposed_experiment_name.startswith("_testing"):  # jobs won't run as expected
-        abort_with(400, "Experiment name cannot start with '_testing'")
+        abort_with(
+            400,
+            "Experiment name cannot start with '_testing'",
+            cause="Experiment names starting with '_testing' are reserved.",
+            remediation="Choose a name that does not start with '_testing'.",
+        )
     elif (
         ("#" in proposed_experiment_name)
         or ("+" in proposed_experiment_name)
@@ -2188,7 +2292,12 @@ def create_experiment() -> ResponseReturnValue:
         or ("%" in proposed_experiment_name)
         or ("\\" in proposed_experiment_name)
     ):
-        abort_with(400, "Experiment name cannot contain special characters (#, $, %, +, /, \\)")
+        abort_with(
+            400,
+            "Experiment name cannot contain special characters (#, $, %, +, /, \\)",
+            cause="Experiment name contains disallowed characters.",
+            remediation="Use letters, digits, spaces, dots, dashes, or underscores.",
+        )
 
     try:
         row_count = modify_app_db(
@@ -2234,7 +2343,12 @@ def delete_experiment(experiment: str) -> ResponseReturnValue:
         finally:
             return {"status": "success"}, 200
     else:
-        abort_with(404, f"Experiment {experiment} not found")
+        abort_with(
+            404,
+            f"Experiment {experiment} not found",
+            cause="Experiment name not found in database.",
+            remediation="List experiments and choose a valid experiment name.",
+        )
 
 
 @api_bp.route("/experiments/latest", methods=["GET"])
@@ -2852,7 +2966,12 @@ def add_worker() -> ResponseReturnValue:
     model_version = data.get("model_version")  # optional
 
     if not pioreactor_unit:
-        return jsonify({"error": "Missing unit name"}), 400
+        abort_with(
+            400,
+            "Missing unit name",
+            cause="Request JSON missing 'pioreactor_unit'.",
+            remediation="Provide a pioreactor_unit in the JSON payload.",
+        )
 
     nrows = modify_app_db(
         "INSERT OR REPLACE INTO workers (pioreactor_unit, added_at, is_active, model_name, model_version) VALUES (?, STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW'), 1, ?, ?);",
@@ -2861,7 +2980,12 @@ def add_worker() -> ResponseReturnValue:
     if nrows > 0:
         return {"status": "success"}, 201
     else:
-        abort_with(500, "Failed to add worker to database.")
+        abort_with(
+            500,
+            "Failed to add worker to database.",
+            cause="Failed to insert worker into database.",
+            remediation="Check database logs and retry.",
+        )
 
 
 @api_bp.route("/workers/<pioreactor_unit>", methods=["DELETE"])
@@ -2901,7 +3025,12 @@ def delete_worker(pioreactor_unit: str) -> ResponseReturnValue:
 
         return {"status": "success"}, 202
     else:
-        abort_with(404, f"Worker {pioreactor_unit} not found")
+        abort_with(
+            404,
+            f"Worker {pioreactor_unit} not found",
+            cause="Worker name not found in database.",
+            remediation="Check the unit name or add the worker to the inventory.",
+        )
 
 
 @api_bp.route("/workers/<pioreactor_unit>/is_active", methods=["PUT"])
@@ -2911,7 +3040,12 @@ def change_worker_status(pioreactor_unit: str) -> ResponseReturnValue:
     new_status = data.get("is_active")
 
     if new_status not in [0, 1]:
-        return jsonify({"error": "Invalid status. Status must be integer 0 or 1."}), 400
+        abort_with(
+            400,
+            "Invalid status. Status must be integer 0 or 1.",
+            cause=f"Received status '{new_status}'.",
+            remediation="Send is_active as 0 or 1.",
+        )
 
     # Update the status of the worker in the database
     row_count = modify_app_db(
@@ -2929,7 +3063,12 @@ def change_worker_status(pioreactor_unit: str) -> ResponseReturnValue:
             tasks.multicast_post("/unit_api/jobs/stop/all", [pioreactor_unit])
         return {"status": "success"}, 200
     else:
-        abort_with(404, f"Worker {pioreactor_unit} not found")
+        abort_with(
+            404,
+            f"Worker {pioreactor_unit} not found",
+            cause="Worker name not found in database.",
+            remediation="Check the unit name or add the worker to the inventory.",
+        )
 
 
 @api_bp.route("/workers/<pioreactor_unit>/model", methods=["PUT"])
@@ -2939,10 +3078,20 @@ def change_worker_model(pioreactor_unit: str) -> ResponseReturnValue:
     model_version, model_name = data.get("model_version"), data.get("model_name")
 
     if not model_version or not model_name:
-        abort_with(400, "Missing model_version or model_name")
+        abort_with(
+            400,
+            "Missing model_version or model_name",
+            cause="Request JSON missing model_version or model_name.",
+            remediation="Provide both model_name and model_version in the JSON payload.",
+        )
 
     if (model_name, model_version) not in get_registered_models():
-        abort_with(400, "Model name or version not found in available models.")
+        abort_with(
+            400,
+            "Model name or version not found in available models.",
+            cause=f"Unknown model '{model_name}' with version '{model_version}'.",
+            remediation="Use a model_name and model_version from the registered models list.",
+        )
 
     # Update the status of the worker in the database
     row_count = modify_app_db(
@@ -2966,7 +3115,12 @@ def change_worker_model(pioreactor_unit: str) -> ResponseReturnValue:
             )
         return {"status": "success"}, 200
     else:
-        abort_with(404, f"Worker {pioreactor_unit} not found")
+        abort_with(
+            404,
+            f"Worker {pioreactor_unit} not found",
+            cause="Worker name not found in database.",
+            remediation="Check the unit name or add the worker to the inventory.",
+        )
 
 
 @api_bp.route("/workers/<pioreactor_unit>/model", methods=["GET"])
@@ -2983,7 +3137,12 @@ def get_worker_model_and_metadata(pioreactor_unit: str) -> ResponseReturnValue:
     )
     if result is None:
         # If the worker is not found, return an error
-        return abort_with(404, "Worker not found")
+        return abort_with(
+            404,
+            "Worker not found",
+            cause="Worker name not found in database.",
+            remediation="Check the unit name or add the worker to the inventory.",
+        )
     else:
         assert isinstance(result, dict)
         # If the worker is found, return the model and metadata
@@ -3016,7 +3175,12 @@ def get_worker(pioreactor_unit: str) -> ResponseReturnValue:
     if result:
         return jsonify(result)
     else:
-        return jsonify({"error": "Worker not found"}), 404
+        abort_with(
+            404,
+            "Worker not found",
+            cause=f"Worker '{pioreactor_unit}' not in leader database.",
+            remediation="Check the unit name or add the worker to the inventory.",
+        )
 
 
 ### Experiment worker assignments
@@ -3121,14 +3285,18 @@ def get_experiment_assignment_for_worker(pioreactor_unit: str) -> ResponseReturn
     )
     assert isinstance(result, dict | None)
     if result is None:
-        return (
-            jsonify({"error": f"Worker {pioreactor_unit} does not exist in the cluster."}),
+        abort_with(
             404,
+            f"Worker {pioreactor_unit} does not exist in the cluster.",
+            cause=f"Worker '{pioreactor_unit}' not in leader database.",
+            remediation="Check the unit name or add the worker to the inventory.",
         )
     elif result["experiment"] is None:  # type: ignore
-        return (
-            jsonify({"error": f"Worker `{pioreactor_unit}` is not assigned to any experiment."}),
+        abort_with(
             404,
+            f"Worker `{pioreactor_unit}` is not assigned to any experiment.",
+            cause=f"No experiment assignment for worker '{pioreactor_unit}'.",
+            remediation="Assign the worker to an experiment before querying its assignment.",
         )
     else:
         return attach_cache_control(jsonify(result), max_age=2)
@@ -3170,7 +3338,12 @@ def add_worker_to_experiment(experiment: str) -> ResponseReturnValue:
     data = request.get_json()
     pioreactor_unit = data.get("pioreactor_unit")
     if not pioreactor_unit:
-        return jsonify({"error": "Missing pioreactor_unit"}), 400
+        abort_with(
+            400,
+            "Missing pioreactor_unit",
+            cause="Request JSON missing 'pioreactor_unit'.",
+            remediation="Provide a pioreactor_unit in the JSON payload.",
+        )
 
     row_counts = modify_app_db(
         "INSERT OR REPLACE INTO experiment_worker_assignments (pioreactor_unit, experiment, assigned_at) VALUES (?, ?, STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW'))",
@@ -3187,7 +3360,12 @@ def add_worker_to_experiment(experiment: str) -> ResponseReturnValue:
         return {"status": "success"}, 200
     else:
         # probably an integrity error
-        abort_with(500, "Failed to add to database.")
+        abort_with(
+            500,
+            "Failed to add to database.",
+            cause="Failed to insert assignment into database.",
+            remediation="Check database logs and retry.",
+        )
 
 
 @api_bp.route("/experiments/<experiment>/workers/<pioreactor_unit>", methods=["DELETE"])
@@ -3207,7 +3385,12 @@ def remove_worker_from_experiment(experiment: str, pioreactor_unit: str) -> Resp
         )
         return {"status": "success"}, 200
     else:
-        abort_with(404, f"Worker {pioreactor_unit} not found")
+        abort_with(
+            404,
+            f"Worker {pioreactor_unit} not found",
+            cause="Worker name not found in database or not assigned to experiment.",
+            remediation="Check the unit name and assignment, then retry.",
+        )
 
 
 @api_bp.route("/experiments/<experiment>/workers", methods=["DELETE"])

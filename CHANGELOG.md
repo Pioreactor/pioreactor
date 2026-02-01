@@ -2,6 +2,8 @@
 
  - removed System tab from the Pioreactor's "Control" dialog. You can see (most) of this data on the Inventory page
  - added a Self-test tab back to the Pioreactor's "Control" dialog, and to the "Control all Pioreactors"
+ - improved unit API retry safety by returning in-progress responses when Huey task locks are held
+ - improved API error messages with structured causes and remediation hints for agents and UI clients
 
 ### 26.1.30
 
