@@ -159,11 +159,22 @@ def require_leader(view_func):
     return _wrapped
 
 
+def _task_is_locked(lock_name: str) -> bool:
+    return huey.lock_task(lock_name).is_locked()
+
+
+def _locked_task_response(lock_name: str) -> ResponseReturnValue:
+    return jsonify({"status": "in_progress", "lock": lock_name}), 202
+
+
 ### SYSTEM
 
 
 @unit_api_bp.route("/system/update/<target>", methods=["POST", "PATCH"])
 def update_target(target: str) -> DelayedResponseReturnValue:
+    if _task_is_locked("update-lock"):
+        return _locked_task_response("update-lock")
+
     if target not in ("app",):  # todo: firmware
         abort_with(404, description="Invalid target")
 
@@ -186,6 +197,9 @@ def update_target(target: str) -> DelayedResponseReturnValue:
 
 @unit_api_bp.route("/system/update", methods=["POST", "PATCH"])
 def update() -> DelayedResponseReturnValue:
+    if _task_is_locked("update-lock"):
+        return _locked_task_response("update-lock")
+
     body = current_app.get_json(request.data, type=structs.ArgsOptionsEnvs)
 
     commands: tuple[str, ...] = tuple()
@@ -203,6 +217,8 @@ def update() -> DelayedResponseReturnValue:
 def reboot() -> DelayedResponseReturnValue:
     """Reboots unit"""
     # TODO: only let requests from the leader do this. Use lighttpd conf for this.
+    if _task_is_locked("power-lock"):
+        return _locked_task_response("power-lock")
 
     # don't reboot the leader right away, give time for any other posts/gets to occur.
     if HOSTNAME == get_leader_hostname():
@@ -214,6 +230,9 @@ def reboot() -> DelayedResponseReturnValue:
 @unit_api_bp.route("/system/shutdown", methods=["POST", "PATCH"])
 def shutdown() -> DelayedResponseReturnValue:
     """Shutdown unit"""
+    if _task_is_locked("power-lock"):
+        return _locked_task_response("power-lock")
+
     task = tasks.shutdown()
     return create_task_response(task)
 
@@ -265,6 +284,9 @@ def get_web_server_status() -> ResponseReturnValue:
 @unit_api_bp.route("/system/web_server/restart", methods=["POST", "PATCH"])
 @require_leader
 def restart_web_server() -> DelayedResponseReturnValue:
+    if _task_is_locked("web-restart-lock"):
+        return _locked_task_response("web-restart-lock")
+
     task = tasks.restart_pioreactor_web_target()
     return create_task_response(task)
 
@@ -312,6 +334,9 @@ def get_clock_time():
 # PATCH / POST to set clock time
 @unit_api_bp.route("/system/utc_clock", methods=["PATCH", "POST"])
 def set_clock_time() -> DelayedResponseReturnValue:  # type: ignore[return]
+    if _task_is_locked("clock-lock"):
+        return _locked_task_response("clock-lock")
+
     if HOSTNAME == get_leader_hostname():
         data = request.get_json(silent=True)  # don't throw 415
         if not data:
@@ -1002,6 +1027,9 @@ def import_dot_pioreactor_from_zip() -> ResponseReturnValue:
     if disallow_file.is_file():
         publish_to_error_log(f"Import blocked because {disallow_file} is present", task_name)
         abort_with(403, "DISALLOW_UI_FILE_SYSTEM is present")
+
+    if _task_is_locked("import-dot-pioreactor-lock"):
+        return _locked_task_response("import-dot-pioreactor-lock")
 
     uploaded = request.files.get("archive")
     if uploaded is None or uploaded.filename == "":
