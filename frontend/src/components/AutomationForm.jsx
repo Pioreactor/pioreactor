@@ -2,6 +2,7 @@ import React, {useEffect } from "react";
 import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
 import Typography from "@mui/material/Typography";
+import MenuItem from "@mui/material/MenuItem";
 
 
 function AutomationForm(props){
@@ -23,19 +24,45 @@ function AutomationForm(props){
       label: field.label,
       defaultValue: field.default,
       disabled: field.disabled,
-      InputProps: {
-        endAdornment: <InputAdornment position="end">{field.unit}</InputAdornment>,
-      },
       variant: "outlined",
       onKeyPress: (e) => { e.key === 'Enter' && e.preventDefault(); },
       sx: { mt: 3, mr: 2, mb: 0, width: "18ch" },
     };
 
-    return <TextField
-      key={field.key + props.name}
-      type={field.type === 'numeric' ? "number" : "text"}
-      onChange={field.type === 'numeric' ? (e) => onSettingsChange(e.target.id, e.target.valueAsNumber || null) : (e) => onSettingsChange((e.target.id, e.target.value))}
-      {...commonProps} />;
+    if (field.type === "select") {
+      return (
+        <TextField
+          key={field.key + props.name}
+          select
+          onChange={(e) => onSettingsChange(e.target.id, e.target.value)}
+          {...commonProps}
+        >
+          {(field.options || []).map((option) => (
+            <MenuItem key={`${field.key}-${option}`} value={option}>
+              {option}
+            </MenuItem>
+          ))}
+        </TextField>
+      );
+    }
+
+    const inputProps = field.unit ? {
+      endAdornment: <InputAdornment position="end">{field.unit}</InputAdornment>,
+    } : undefined;
+
+    return (
+      <TextField
+        key={field.key + props.name}
+        type={field.type === "numeric" ? "number" : "text"}
+        onChange={
+          field.type === "numeric"
+            ? (e) => onSettingsChange(e.target.id, e.target.valueAsNumber || null)
+            : (e) => onSettingsChange((e.target.id, e.target.value))
+        }
+        InputProps={inputProps}
+        {...commonProps}
+      />
+    );
   });
 
 

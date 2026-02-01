@@ -580,7 +580,8 @@ class AutomationFieldsDescriptor(Struct, forbid_unknown_fields=True):  # type: i
     label: str
     disabled: bool = False
     unit: t.Optional[str] = None
-    type: t.Literal["numeric", "string"] = "numeric"  # TODO we will include boolean
+    type: t.Literal["numeric", "string", "select"] = "numeric"  # TODO we will include boolean
+    options: t.Optional[list[str]] = None
 
 
 class AutomationDescriptor(Struct, forbid_unknown_fields=True):  # type: ignore
