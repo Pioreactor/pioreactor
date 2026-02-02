@@ -1307,7 +1307,12 @@ def test_PhotodiodeIrLedReferenceTrackerStaticInit() -> None:
 
 
 def test_PhotodiodeIrLedReferenceTrackerUnitInit() -> None:
-    tracker = PhotodiodeIrLedReferenceTrackerUnitInit(channel="1")
+    experiment = "test_PhotodiodeIrLedReferenceTrackerUnitInit"
+    with local_persistent_storage("ir_led_reference_normalization") as cache:
+        if experiment in cache:
+            del cache[experiment]
+
+    tracker = PhotodiodeIrLedReferenceTrackerUnitInit(channel="1", experiment=experiment)
 
     for i in range(1000):
         v = 0.001 * np.random.randn() + 0.25
@@ -1322,6 +1327,22 @@ def test_PhotodiodeIrLedReferenceTrackerUnitInit() -> None:
 
     assert abs(tracker.led_output_ema.get_latest() - 0.8) < 0.05
     assert abs(tracker.transform(1.0) - 1.25) < 0.1
+
+
+def test_PhotodiodeIrLedReferenceTrackerUnitInit_uses_cached_reference() -> None:
+    experiment = "test_ir_led_reference_cache"
+    with local_persistent_storage("ir_led_reference_normalization") as cache:
+        cache[experiment] = 0.25
+
+    try:
+        tracker = PhotodiodeIrLedReferenceTrackerUnitInit(channel="1", experiment=experiment)
+        assert tracker.initial_ref == 0.25
+        tracker.update(0.50)
+        assert tracker.initial_ref == 0.25
+    finally:
+        with local_persistent_storage("ir_led_reference_normalization") as cache:
+            if experiment in cache:
+                del cache[experiment]
 
 
 def test_ref_normalization_unity_uses_unit_init() -> None:
