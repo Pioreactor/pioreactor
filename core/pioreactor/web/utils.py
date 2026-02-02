@@ -21,9 +21,8 @@ def abort_with(
     error_info: dict[str, t.Any] | None = None,
     remediation: str | None = None,
     cause: str | None = None,
-    details: dict[str, t.Any] | None = None,
 ) -> NoReturn:
-    if error_info is None and remediation is None and cause is None and details is None:
+    if error_info is None and remediation is None and cause is None:
         abort(status, description=description)
         raise AssertionError("abort should not return")
 
@@ -35,8 +34,6 @@ def abort_with(
         merged_error_info["remediation"] = remediation
     if cause is not None:
         merged_error_info["cause"] = cause
-    if details is not None:
-        merged_error_info["details"] = details
     if merged_error_info:
         payload["error_info"] = merged_error_info
 
@@ -60,12 +57,6 @@ def ensure_error_info(payload: dict[str, t.Any], status: int) -> dict[str, t.Any
     error_info.setdefault("cause", message)
     error_info.setdefault("remediation", _default_remediation_for_status(status))
     error_info.setdefault("status", status)
-
-    if "error_code" in payload and "error_code" not in error_info:
-        error_info["error_code"] = payload["error_code"]
-
-    if "details" in payload and "details" not in error_info:
-        error_info["details"] = payload["details"]
 
     payload["error_info"] = error_info
     return payload
