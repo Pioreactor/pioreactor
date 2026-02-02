@@ -733,7 +733,6 @@ function SettingsActionsDialog(props) {
   const {client, subscribeToTopic, unsubscribeFromTopic} = useMQTT();
   const selfTestExperiment = "$experiment";
   const selfTestSettings = props.jobs?.self_test?.publishedSettings || null;
-  const selfTestDefinitionAvailable = Boolean(selfTestSettings);
   const selfTestSettingTypes = useMemo(() => {
     if (!selfTestSettings) {
       return {};
@@ -1533,7 +1532,7 @@ function SettingsActionsDialog(props) {
               loading={isSelfTestRunning || selfTestStartPending}
               loadingPosition="start"
               endIcon={<PlayArrowIcon />}
-              disabled={isSelfTestRunning || selfTestStartPending || !selfTestDefinitionAvailable}
+              disabled={isSelfTestRunning || selfTestStartPending }
               onClick={handleRunSelfTest}
               sx={{textTransform: "none"}}
             >
@@ -1543,54 +1542,47 @@ function SettingsActionsDialog(props) {
 
           <ControlDivider/>
 
-          {!selfTestDefinitionAvailable && (
-            <Alert severity="warning">
-              Self-test is unavailable on this cluster.
-            </Alert>
-          )}
 
-          {selfTestDefinitionAvailable && (
-            <Accordion disableGutters sx={{boxShadow: "none", "&:before": {display: "none"}}}>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Box sx={{display: "flex", alignItems: "center", gap: 1}}>
-                  {renderSelfTestSummaryIcon()}
-                  <Typography>{props.label ? `${props.label} / ${props.unit}` : props.unit}</Typography>
-                </Box>
-              </AccordionSummary>
-              <AccordionDetails>
-                {availableSelfTestGroups.length === 0 ? (
-                  <Typography variant="body2">No self-test checks available.</Typography>
-                ) : (
-                  <>
-                    {availableSelfTestGroups.map((group) => (
-                      <List
-                        key={`self-test-${props.unit}-${group.title}`}
-                        dense
-                        disablePadding
-                        subheader={
-                          <ListSubheader style={{lineHeight: "20px"}} component="div" disableSticky={true} disableGutters={true}>
-                            {group.title}
-                          </ListSubheader>
-                        }
-                      >
-                        {group.tests.map((test) => (
-                          <ListItem key={`self-test-${props.unit}-${test.key}`} sx={{pt: 0, pb: 0}}>
-                            <ListItemIcon sx={{minWidth: "30px"}}>
-                              {renderSelfTestIcon(test.key)}
-                            </ListItemIcon>
-                            <ListItemText
-                              primary={test.label}
-                              secondary={renderSelfTestSecondary(test)}
-                            />
-                          </ListItem>
-                        ))}
-                      </List>
-                    ))}
-                  </>
-                )}
-              </AccordionDetails>
-            </Accordion>
-          )}
+          <Accordion disableGutters sx={{boxShadow: "none", "&:before": {display: "none"}}}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Box sx={{display: "flex", alignItems: "center", gap: 1}}>
+                {renderSelfTestSummaryIcon()}
+                <Typography>{props.label ? `${props.label} / ${props.unit}` : props.unit}</Typography>
+              </Box>
+            </AccordionSummary>
+            <AccordionDetails>
+              {availableSelfTestGroups.length === 0 ? (
+                <Typography variant="body2">No self-test checks available.</Typography>
+              ) : (
+                <>
+                  {availableSelfTestGroups.map((group) => (
+                    <List
+                      key={`self-test-${props.unit}-${group.title}`}
+                      dense
+                      disablePadding
+                      subheader={
+                        <ListSubheader style={{lineHeight: "20px"}} component="div" disableSticky={true} disableGutters={true}>
+                          {group.title}
+                        </ListSubheader>
+                      }
+                    >
+                      {group.tests.map((test) => (
+                        <ListItem key={`self-test-${props.unit}-${test.key}`} sx={{pt: 0, pb: 0}}>
+                          <ListItemIcon sx={{minWidth: "30px"}}>
+                            {renderSelfTestIcon(test.key)}
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={test.label}
+                            secondary={renderSelfTestSecondary(test)}
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  ))}
+                </>
+              )}
+            </AccordionDetails>
+          </Accordion>
         </TabPanel>
 
       </DialogContent>

@@ -4,6 +4,7 @@ import { useConfirm } from 'material-ui-confirm';
 import { CircularProgress, Button, Typography, Box, Divider } from "@mui/material";
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
+import Alert from '@mui/material/Alert';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import IconButton from '@mui/material/IconButton';
@@ -258,7 +259,12 @@ function SingleCalibrationPage(props) {
     const apiUrl = `/api/workers/${pioreactorUnit}/calibrations/${device}/${calibrationName}`;
     try {
       const data = await fetchTaskResult(apiUrl)
-      setCalibration(data.result[pioreactorUnit]);
+      if (data.result[pioreactorUnit].error){
+        setCalibration(null);
+      } else{
+        setCalibration(data.result[pioreactorUnit]);
+      }
+
     } catch (err) {
       console.error("Failed to fetch calibration:", err);
     } finally {
@@ -377,9 +383,9 @@ function SingleCalibrationPageCard({ pioreactorUnit, device, calibrationName, ca
   if (!calibration) {
     return (
       <Box sx={{textAlign: "center", mb: '50px', mt: "50px"}}>
-        <Typography  variant="body2" component="p" color="textSecondary">
+        <Alert severity="error" sx={{ display: "inline-flex", textAlign: "left" }}>
            Unable to find calibration data.
-        </Typography>
+        </Alert>
       </Box>
     );
   }

@@ -131,10 +131,27 @@ export async function checkTaskCallback(callbackURL, {maxRetries = 100, delayMs 
 export async function fetchTaskResult(endpoint, {fetchOptions = {}, maxRetries = 100, delayMs = 200} = {}) {
   const response = await fetch(endpoint, fetchOptions);
   if (!response.ok) {
-    throw new Error(`HTTP error! Status: ${response.status}`);
+    let message = `HTTP error! Status: ${response.status}`;
+    try {
+      const payload = await response.json();
+      if (payload?.error_info?.message) {
+        message = payload.error_info.message;
+      } else if (payload?.error) {
+        message = payload.error;
+      }
+    } catch (error) {
+      // ignore JSON parse errors and fall back to default message
+    }
+    throw new Error(message);
   }
   const payload = await response.json();
   if (!payload.result_url_path) {
+    if (payload?.error_info?.message) {
+      throw new Error(payload.error_info.message);
+    }
+    if (payload?.error) {
+      throw new Error(payload.error);
+    }
     throw new Error('No result_url_path in response');
   }
   return checkTaskCallback(payload.result_url_path, {maxRetries, delayMs});

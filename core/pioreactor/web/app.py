@@ -23,6 +23,7 @@ from pioreactor.web.utils import ensure_error_info
 from pioreactor.whoami import am_I_leader
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
+from werkzeug.exceptions import HTTPException
 
 VERSION = __version__
 HOSTNAME = get_unit_name()
@@ -127,6 +128,10 @@ def create_app():
             jsonify({"error": f"{e.description}"}),
             502,
         )
+
+    @app.errorhandler(HTTPException)
+    def handle_http_exception(e: HTTPException):
+        return jsonify({"error": e.description}), e.code or 500
 
     @app.after_request
     def ensure_error_payload(response: t.Any) -> t.Any:

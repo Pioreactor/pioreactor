@@ -40,7 +40,9 @@ def abort_with(
     if merged_error_info:
         payload["error_info"] = merged_error_info
 
-    abort(jsonify(payload), status)
+    response = jsonify(payload)
+    response.status_code = status
+    abort(response)
     raise AssertionError("abort should not return")
 
 

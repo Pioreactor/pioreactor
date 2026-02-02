@@ -1455,7 +1455,12 @@ def get_all_calibrations_as_yamls(pioreactor_unit: str) -> ResponseReturnValue:
     try:
         results = task.get(blocking=True, timeout=60)
     except (HueyException, TaskException):
-        return {"result": False, "filename": None, "msg": "Timed out"}, 500
+        abort_with(
+            500,
+            "Timed out fetching calibrations",
+            cause="Timed out waiting for workers to provide calibration archives.",
+            remediation="Retry the request and check worker connectivity.",
+        )
 
     aggregate_buffer = BytesIO()
 
@@ -1507,7 +1512,12 @@ def get_entire_dot_pioreactor(pioreactor_unit: str) -> ResponseReturnValue:
     try:
         results = task.get(blocking=True, timeout=120)
     except (HueyException, TaskException):
-        return {"result": False, "filename": None, "msg": "Timed out"}, 500
+        abort_with(
+            500,
+            "Timed out fetching .pioreactor archive",
+            cause="Timed out waiting for worker responses.",
+            remediation="Retry the request and check worker connectivity.",
+        )
 
     # If only one worker, proxy its ZIP directly
     if isinstance(results, dict) and len(results) == 1:
@@ -2223,12 +2233,21 @@ def export_datasets() -> ResponseReturnValue:
     try:
         status, msg = result(blocking=True, timeout=5 * 60)
     except (HueyException, TaskException):
-        status = False
-        return {"result": status, "filename": None, "msg": "Task error, or time out"}, 500
+        abort_with(
+            500,
+            "Export task failed or timed out",
+            cause="Task error or timeout while exporting datasets.",
+            remediation="Retry the export and check server logs if it persists.",
+        )
 
     if not status:
         publish_to_error_log(msg, "export_datasets")
-        return {"result": status, "filename": None, "msg": msg}, 500
+        abort_with(
+            500,
+            "Export task failed",
+            cause=msg,
+            remediation="Check server logs for details and retry the export.",
+        )
 
     return {"result": status, "filename": filename, "msg": "Finished"}, 200
 
@@ -2323,7 +2342,12 @@ def create_experiment() -> ResponseReturnValue:
         return {"status": "success"}, 201
 
     except sqlite3.IntegrityError:
-        return {"status": "error"}, 409
+        abort_with(
+            409,
+            "Experiment already exists",
+            cause="Experiment name conflicts with an existing experiment.",
+            remediation="Choose a different experiment name and retry.",
+        )
     except Exception as e:
         publish_to_error_log(str(e), "create_experiment")
         abort_with(500, str(e))
@@ -3287,7 +3311,7 @@ def get_experiment_assignment_for_worker(pioreactor_unit: str) -> ResponseReturn
     if result is None:
         abort_with(
             404,
-            f"Worker {pioreactor_unit} does not exist in the cluster.",
+            f"Worker {pioreactor_unit} not found.",
             cause=f"Worker '{pioreactor_unit}' not in leader database.",
             remediation="Check the unit name or add the worker to the inventory.",
         )

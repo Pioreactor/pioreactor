@@ -386,7 +386,12 @@ def get_clock_time():
         current_time = current_utc_timestamp()
         return jsonify({"status": "success", "clock_time": current_time}), 200
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        abort_with(
+            500,
+            "Failed to read clock time",
+            cause=str(e),
+            remediation="Check system clock availability and server logs, then retry.",
+        )
 
 
 # PATCH / POST to set clock time
