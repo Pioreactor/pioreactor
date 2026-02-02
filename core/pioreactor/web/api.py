@@ -95,7 +95,7 @@ def _extract_unit_api_error(response: Response | None) -> str | None:
     except Exception:
         return None
     if isinstance(payload, dict):
-        for key in ("error", "message", "description"):
+        for key in ("error", "description"):
             value = payload.get(key)
             if isinstance(value, str) and value.strip():
                 return value.strip()

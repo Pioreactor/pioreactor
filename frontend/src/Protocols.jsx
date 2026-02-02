@@ -275,7 +275,7 @@ function Protocols(props) {
         let errorMessage = `Failed to abort calibration session (${response.status}).`;
         try {
           const payload = await response.json();
-          errorMessage = payload.error || payload.message || JSON.stringify(payload);
+          errorMessage = payload.error || JSON.stringify(payload);
         } catch (_error) {
           // Keep the fallback message.
         }

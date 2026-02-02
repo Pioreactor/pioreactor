@@ -54,12 +54,9 @@ def ensure_error_info(payload: dict[str, t.Any], status: int) -> dict[str, t.Any
     error_info = payload.get("error_info")
     if not isinstance(error_info, dict):
         error_info = {}
+    if "message" in error_info:
+        error_info.pop("message", None)
 
-    existing_message = error_info.get("message")
-    if isinstance(existing_message, str) and existing_message.strip():
-        message = existing_message.strip()
-
-    error_info["message"] = message
     error_info.setdefault("cause", message)
     error_info.setdefault("remediation", _default_remediation_for_status(status))
     error_info.setdefault("status", status)
@@ -75,12 +72,12 @@ def ensure_error_info(payload: dict[str, t.Any], status: int) -> dict[str, t.Any
 
 
 def _extract_error_message(payload: dict[str, t.Any]) -> str:
-    for key in ("error", "message", "description"):
+    for key in ("error", "description"):
         value = payload.get(key)
         if isinstance(value, str) and value.strip():
             return value.strip()
         if isinstance(value, dict):
-            nested_value = value.get("message")
+            nested_value = value.get("error") or value.get("description")
             if isinstance(nested_value, str) and nested_value.strip():
                 return nested_value.strip()
     return "Request failed."

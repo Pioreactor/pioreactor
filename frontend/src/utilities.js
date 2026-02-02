@@ -134,9 +134,7 @@ export async function fetchTaskResult(endpoint, {fetchOptions = {}, maxRetries =
     let message = `HTTP error! Status: ${response.status}`;
     try {
       const payload = await response.json();
-      if (payload?.error_info?.message) {
-        message = payload.error_info.message;
-      } else if (payload?.error) {
+      if (payload?.error) {
         message = payload.error;
       }
     } catch (error) {
@@ -146,9 +144,6 @@ export async function fetchTaskResult(endpoint, {fetchOptions = {}, maxRetries =
   }
   const payload = await response.json();
   if (!payload.result_url_path) {
-    if (payload?.error_info?.message) {
-      throw new Error(payload.error_info.message);
-    }
     if (payload?.error) {
       throw new Error(payload.error);
     }
