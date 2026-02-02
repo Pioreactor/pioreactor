@@ -130,3 +130,8 @@ dmypy.json
 
 # vscode
 .vscode
+
+
+# my dev
+.tickets/
+scratch/
