@@ -86,6 +86,16 @@ def test_REF_is_in_correct_position(managed_state, logger: CustomLogger, unit: s
     ) as od_stream:
         st.block_until_rpm_is_close_to_target(abs_tolerance=150, timeout=10)
 
+        warmup_samples = 5
+        total_samples = 50
+
+        # Warm-up: discard a few initial readings to allow signals to stabilize.
+        for _ in range(warmup_samples):
+            try:
+                next(od_stream)
+            except StopIteration:
+                break
+
         for i, reading in enumerate(od_stream, start=1):
             for channel in signals:
                 signals[channel].append(reading.ods[channel].od)
@@ -95,7 +105,7 @@ def test_REF_is_in_correct_position(managed_state, logger: CustomLogger, unit: s
             elif i % 5 == 0:
                 st.set_state(JobState.SLEEPING)
 
-            if i == 25:
+            if i == total_samples:
                 break
 
     logger.debug(f"{signals=}")
