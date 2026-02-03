@@ -108,10 +108,10 @@ def test_endpoints_exist_in_api_and_unit_api(app) -> None:
     assert "/api/workers/assignments" in routes
     assert "/api/units/<pioreactor_unit>/capabilities" in routes
     assert "/api/workers/<pioreactor_unit>/capabilities" in routes
-    assert "/api/workers/<pioreactor_unit>/jobs/run/job_name/<job>/experiments/<experiment>" in routes
-    assert "/api/units/<pioreactor_unit>/jobs/run/job_name/<job>/experiments/<experiment>" in routes
-    assert "/api/workers/<pioreactor_unit>/jobs/update/job_name/<job>/experiments/<experiment>" in routes
-    assert "/api/units/<pioreactor_unit>/jobs/update/job_name/<job>/experiments/<experiment>" in routes
+    assert "/api/workers/<pioreactor_unit>/jobs/run/job_name/<job_name>/experiments/<experiment>" in routes
+    assert "/api/units/<pioreactor_unit>/jobs/run/job_name/<job_name>/experiments/<experiment>" in routes
+    assert "/api/workers/<pioreactor_unit>/jobs/update/job_name/<job_name>/experiments/<experiment>" in routes
+    assert "/api/units/<pioreactor_unit>/jobs/update/job_name/<job_name>/experiments/<experiment>" in routes
     assert "/api/workers/<pioreactor_unit>/jobs/stop/experiments/<experiment>" in routes
     assert "/api/workers/<pioreactor_unit>/jobs/stop/job_name/<job_name>/experiments/<experiment>" in routes
     assert "/api/units/<pioreactor_unit>/jobs/stop/job_name/<job_name>/experiments/<experiment>" in routes

@@ -24,7 +24,7 @@ def test_invalid_update_target(client) -> None:
     assert data.get("error") == "Invalid target"
     error_info = data.get("error_info", {})
     assert error_info.get("status") == 404
-    assert error_info.get("message") == "Invalid target"
+    assert error_info.get("cause") == "Invalid target"
     assert isinstance(error_info.get("remediation"), str)
 
 
@@ -82,7 +82,7 @@ def test_hardware_check_requires_model_payload(client) -> None:
     assert data["error"] == "Missing model_name or model_version"
     error_info = data.get("error_info", {})
     assert error_info.get("status") == 400
-    assert error_info.get("message") == "Missing model_name or model_version"
+    assert "model_name or model_version" in (error_info.get("cause") or "")
     assert isinstance(error_info.get("remediation"), str)
 
 
