@@ -146,11 +146,39 @@ def ensure_update_scripts_folder(calver: str, dry_run: bool) -> bool:
     if target.exists():
         return False
     if upcoming.exists():
+        pre_update_path = upcoming / "pre_update.sh"
+        if not pre_update_path.exists():
+            raise RuntimeError(f"Missing pre_update.sh in {upcoming}")
         print(f"Renaming update scripts: upcoming -> {calver}")
         run_git_command(["mv", upcoming.as_posix(), target.as_posix()], dry_run)
         return True
     print("No upcoming update scripts folder found; skipping rename.")
     return False
+
+
+def ensure_pre_update_script_exists(calver: str, update_scripts_changed: bool, dry_run: bool) -> bool:
+    target = UPDATE_SCRIPTS_DIR / calver
+    upcoming = UPDATE_SCRIPTS_DIR / "upcoming"
+
+    if target.exists() or update_scripts_changed:
+        target_dir = target
+    elif upcoming.exists():
+        target_dir = upcoming
+    else:
+        print("No update scripts directory found to ensure pre_update.sh; skipping.")
+        return False
+
+    pre_update_path = target_dir / "pre_update.sh"
+    if pre_update_path.exists():
+        return False
+
+    print(f"Creating missing pre_update.sh in {target_dir}")
+    if dry_run:
+        print(f"DRY-RUN: would write {pre_update_path}")
+        return True
+
+    pre_update_path.write_text("#!/bin/bash\n\n" "set -euo pipefail\n\n" "# Intentionally left blank.\n")
+    return True
 
 
 def stage_if_exists(path: Path, dry_run: bool) -> None:
@@ -203,18 +231,25 @@ def main(argv: list[str]) -> int:
         release_version_changed = ensure_release_version(calver, dry_run=args.dry_run)
         changelog_changed = ensure_changelog_top_matches(calver, dry_run=args.dry_run)
         update_scripts_changed = ensure_update_scripts_folder(calver, dry_run=args.dry_run)
+        pre_update_created = ensure_pre_update_script_exists(
+            calver, update_scripts_changed=update_scripts_changed, dry_run=args.dry_run
+        )
 
         if release_version_changed:
             stage_if_exists(VERSION_FILE, dry_run=args.dry_run)
         if changelog_changed:
             stage_if_exists(CHANGELOG_FILE, dry_run=args.dry_run)
-        if update_scripts_changed:
+        if update_scripts_changed or pre_update_created:
             stage_if_exists(UPDATE_SCRIPTS_DIR, dry_run=args.dry_run)
         if fe_build_changed:
             stage_if_exists(FE_BUILD_DIR, dry_run=args.dry_run)
 
         need_release_commit = args.dry_run and (
-            release_version_changed or changelog_changed or update_scripts_changed or fe_build_changed
+            release_version_changed
+            or changelog_changed
+            or update_scripts_changed
+            or pre_update_created
+            or fe_build_changed
         )
         if not args.dry_run:
             need_release_commit = git_diff_cached_has_changes()
