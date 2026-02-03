@@ -285,15 +285,19 @@ def cluster_status() -> None:
     import socket
 
     def get_metadata(hostname):
+        resolved_address = "localhost"
         # get ip
         if whoami.get_unit_name() == hostname:
             ip = networking.get_ip()
+            resolved_address = "localhost"
         else:
             try:
                 # TODO: we can get this from MQTT, too?
-                ip = socket.gethostbyname(networking.resolve_to_address(hostname))
+                resolved_address = networking.resolve_to_address(hostname)
+                ip = socket.gethostbyname(resolved_address)
             except (OSError, Exception):
                 ip = "unknown"
+                resolved_address = hostname
 
         # get state
         result = subscribe(
@@ -306,16 +310,27 @@ def cluster_status() -> None:
         else:
             state = "unknown"
 
+        # is web API reachable?
+        web_ok = False
+        try:
+            web_resp = get_from(resolved_address, "/unit_api/health", timeout=2)
+            web_ok = web_resp.ok
+        except HTTPException:
+            web_ok = False
+
+        if state == "unknown" and web_ok:
+            state = "unknown(mqtt)"
+
         # get version
         try:
-            r = get_from(networking.resolve_to_address(hostname), "/unit_api/versions/app")
+            r = get_from(resolved_address, "/unit_api/versions/app", timeout=2)
             r.raise_for_status()
             app_version = r.json()["version"]
         except HTTPException:
-            app_version = "unknown"
+            app_version = "unknown(api)" if web_ok else "unknown"
 
         # is reachable? # TODO: change to webserver?
-        reachable = networking.is_reachable(networking.resolve_to_address(hostname))
+        reachable = web_ok or networking.is_reachable(resolved_address)
 
         # get experiment
         try:
@@ -323,7 +338,7 @@ def cluster_status() -> None:
             r.raise_for_status()
             experiment = r.json()["experiment"]
         except HTTPException:
-            experiment = ""
+            experiment = "unknown"
 
         return ip, state, reachable, app_version, experiment
 

@@ -16,7 +16,7 @@ the saved artifact differs.
 
 
 - Calibrations are saved under `.../storage/calibrations/` and are listed in calibration APIs/CLI.
-- Estimators are saved under `.../storage/estimators/` and are not listed in calibration APIs/CLI.
+- Estimators are saved under `.../storage/estimators/` and are listed in estimators APIs/CLI.
 
 ## Example
 

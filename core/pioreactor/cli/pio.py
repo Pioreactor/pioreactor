@@ -257,22 +257,32 @@ def logs(n: int, f: bool) -> None:
             click.echo(line.decode("utf8").rstrip("\n"))
 
 
-@pio.command(name="log", short_help="logs a message from the CLI")
+@pio.command(name="log", short_help="append a log message from the CLI")
 @click.option("-m", "--message", required=True, type=str, help="the message to append to the log")
 @click.option(
     "-l",
     "--level",
     default="debug",
     type=click.Choice(["debug", "info", "notice", "warning", "error", "critical"], case_sensitive=False),
+    help="the log level to use",
 )
 @click.option(
     "-n",
     "--name",
     default="CLI",
     type=str,
+    help="logger name to display in the log record",
 )
 @click.option("--local-only", is_flag=True, help="don't send to MQTT; write only to local disk")
 def log(message: str, level: str, name: str, local_only: bool):
+    """
+    Append a single log entry from the CLI.
+
+    \b
+    Examples:
+      pio log -m "Calibration started" -l info
+      pio log -m "Skipping pump test" --local-only
+    """
     try:
         from pioreactor.logging import create_logger
 
@@ -547,14 +557,169 @@ def version(verbose: bool) -> None:
         click.echo(tuple_to_text(software_version_info))
 
 
+@pio.command(name="status", short_help="show local system status")
+def status() -> None:
+    """
+    Show a quick, local-only status report for this unit.
+    """
+    import shutil
+    import socket
+    import sqlite3
+    import subprocess
+    from pathlib import Path
+
+    from pioreactor import mureq
+    from pioreactor.config import config
+    from pioreactor.pubsub import create_webserver_path
+    from pioreactor.utils.job_manager import JobManager
+    from pioreactor.version import get_firmware_version
+    from pioreactor.version import software_version_info
+    from pioreactor.version import tuple_to_text
+
+    checks: list[tuple[str, str, str]] = []
+
+    def add_check(name: str, status: str, details: str) -> None:
+        checks.append((name, status, details))
+
+    unit = whoami.get_unit_name()
+    role = "leader" if whoami.am_I_leader() else "worker"
+    experiment = whoami.get_assigned_experiment_name(unit)
+    add_check("identity", "OK", f"unit={unit} role={role} experiment={experiment}")
+
+    version_details = f"app={tuple_to_text(software_version_info)}"
+    version_status = "OK"
+    if whoami.am_I_a_worker():
+        try:
+            version_details += f" firmware={tuple_to_text(get_firmware_version())}"
+        except Exception:
+            version_details += " firmware=unknown"
+            version_status = "WARN"
+    add_check("version", version_status, version_details)
+
+    broker_host = config.get("mqtt", "broker_address", fallback="localhost").split(";")[0].strip()
+    broker_port = config.getint("mqtt", "broker_port", fallback=1883)
+    try:
+        with socket.create_connection((broker_host, broker_port), timeout=2):
+            add_check("connectivity:mqtt", "OK", f"{broker_host}:{broker_port}")
+    except OSError as exc:
+        add_check("connectivity:mqtt", "FAIL", f"{broker_host}:{broker_port} ({exc})")
+
+    webserver_url = create_webserver_path("localhost", "unit_api/health")
+    try:
+        response = mureq.get(webserver_url, timeout=2)
+        if response.ok:
+            add_check("services:web", "OK", webserver_url)
+        else:
+            add_check("services:web", "FAIL", f"{webserver_url} (HTTP {response.status_code})")
+    except Exception as exc:
+        add_check("services:web", "FAIL", f"{webserver_url} ({exc})")
+
+    systemctl_path = shutil.which("systemctl")
+    if systemctl_path is None:
+        add_check("services:huey", "WARN", "systemctl not available")
+    else:
+        result = subprocess.run(
+            [systemctl_path, "is-active", "huey.service"],
+            capture_output=True,
+            text=True,
+        )
+        raw_status = (result.stdout or result.stderr).strip()
+        huey_status = "OK" if result.returncode == 0 and raw_status == "active" else "FAIL"
+        add_check("services:huey", huey_status, raw_status or "unknown")
+
+    with JobManager() as jm:
+        running_jobs = jm.list_jobs(all_jobs=True)
+    add_check("jobs:running", "OK", f"count={len(running_jobs)}")
+
+    log_file = Path(config.get("logging", "log_file", fallback="/var/log/pioreactor.log"))
+    log_status = "OK" if log_file.exists() else "WARN"
+    log_details = str(log_file) if log_file.exists() else f"missing: {log_file}"
+    add_check("storage:logs", log_status, log_details)
+
+    db_path = Path(config.get("storage", "database"))
+    if whoami.am_I_leader():
+        db_status = "OK"
+        db_details = [str(db_path)]
+        try:
+            conn = sqlite3.connect(str(db_path))
+            conn.execute("select 1;")
+            conn.close()
+        except Exception as exc:
+            add_check("storage:db", "FAIL", f"{db_path} ({exc})")
+        else:
+            shm_path = Path(f"{db_path}-shm")
+            wal_path = Path(f"{db_path}-wal")
+            file_checks = {
+                "db": db_path,
+                "shm": shm_path,
+                "wal": wal_path,
+            }
+
+            try:
+                import grp
+                import pwd
+
+                expected_uid = pwd.getpwnam("pioreactor").pw_uid
+                expected_gid = grp.getgrnam("www-data").gr_gid
+                expected_owner = "pioreactor:www-data"
+            except KeyError:
+                expected_uid = None
+                expected_gid = None
+                expected_owner = "pioreactor:www-data (missing on this system)"
+
+            for label, path in file_checks.items():
+                if not path.exists():
+                    db_status = "WARN"
+                    db_details.append(f"{label}=missing")
+                    continue
+
+                if expected_uid is not None and expected_gid is not None:
+                    stat_result = path.stat()
+                    if stat_result.st_uid != expected_uid or stat_result.st_gid != expected_gid:
+                        db_status = "WARN"
+                        db_details.append(f"{label}=owner!= {expected_owner}")
+
+            add_check("storage:db", db_status, " ".join(db_details))
+
+    disk_root = db_path.parent
+    if disk_root.exists():
+        free_bytes = shutil.disk_usage(disk_root).free
+        free_gb = free_bytes / (1024**3)
+        disk_status = "WARN" if free_gb < 1.0 else "OK"
+        add_check("storage:disk", disk_status, f"free={free_gb:.1f}GB path={disk_root}")
+
+    name_width = 22
+    status_width = 7
+    click.echo(f"{'Check':{name_width}s} {'Status':{status_width}s} Details")
+    for name, status, details in checks:
+        padded_status = f"{status:{status_width}s}"
+        if status == "OK":
+            status_display = click.style(padded_status, fg="green", bold=True)
+        elif status == "WARN":
+            status_display = click.style(padded_status, fg="yellow", bold=True)
+        elif status == "FAIL":
+            status_display = click.style(padded_status, fg="red", bold=True)
+        else:
+            status_display = padded_status
+        click.echo(f"{name:{name_width}s} {status_display} {details}")
+
+
 @pio.group(short_help="manage the local caches")
 def cache():
+    """Inspect or clear local caches."""
     pass
 
 
 @cache.command(name="view", short_help="print out the contents of a cache")
-@click.argument("cache")
+@click.argument("cache", metavar="CACHE")
 def view_cache(cache: str) -> None:
+    """
+    Print all key/value pairs for a cache.
+
+    \b
+    Examples:
+      pio cache view pwm
+    """
     from pioreactor.utils import local_intermittent_storage
     from pioreactor.utils import local_persistent_storage
 
@@ -564,11 +729,19 @@ def view_cache(cache: str) -> None:
                 click.echo(f"{click.style(key, bold=True)} = {c[key]}")
 
 
-@cache.command(name="clear", short_help="clear out the contents of a cache")
-@click.argument("cache")
-@click.argument("key")
+@cache.command(name="clear", short_help="remove a key from a cache")
+@click.argument("cache", metavar="CACHE")
+@click.argument("key", metavar="KEY")
 @click.option("--as-int", is_flag=True, help="evict after casting key to int, useful for gpio pins.")
 def clear_cache(cache: str, key: str, as_int: bool) -> None:
+    """
+    Remove a single entry from a cache.
+
+    \b
+    Examples:
+      pio cache clear pwm 12
+      pio cache clear gpio 18 --as-int
+    """
     from pioreactor.utils import local_intermittent_storage
     from pioreactor.utils import local_persistent_storage
 
@@ -861,6 +1034,13 @@ if whoami.am_I_leader():
 
     @pio.command(short_help="access the database's CLI")
     def db() -> None:
+        """
+        Open an interactive SQLite shell to the local Pioreactor database.
+
+        \b
+        Examples:
+          pio db
+        """
         import os
         from pioreactor.config import config
 

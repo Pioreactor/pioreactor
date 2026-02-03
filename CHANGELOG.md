@@ -5,6 +5,9 @@
  - reused cached IR LED reference normalization per experiment when `ref_normalization=unity`, instead of always taking the first reading
  - improved unit API retry safety by returning in-progress responses when Huey task locks are held
  - improved API error messages with structured causes and remediation hints for agents and UI clients
+ - added `pio status` for a quick local health summary (identity, versions, MQTT, web API, Huey, jobs, storage)
+ - improved `pio db`, `pio cache`, and `pio log` help output with clearer descriptions and examples
+ - improved `pio workers status` to use unit API health checks for reachability and provide brief reasons when state/version are unknown
 
 ### 26.1.30
 
