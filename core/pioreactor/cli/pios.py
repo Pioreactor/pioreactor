@@ -304,7 +304,7 @@ if am_I_leader() or is_testing_env():
                 raise e
         return
 
-    @pios.command("cp", short_help="cp a file across the cluster")
+    @pios.command("cp", short_help="copy a local file from leader to workers")
     @click.argument("filepath", type=click.Path(exists=True, resolve_path=True))
     @which_units
     @confirmation
@@ -314,6 +314,14 @@ if am_I_leader() or is_testing_env():
         experiments: tuple[str, ...],
         yes: bool,
     ) -> None:
+        """
+        Copy a local file from the leader onto workers at the same path.
+
+        \b
+        Examples:
+          pios cp /home/pioreactor/.pioreactor/config.ini --units worker1
+          pios cp /home/pioreactor/.pioreactor/plugins/my_plugin.py
+        """
         units = resolve_target_units(units, experiments, active_only=False, include_leader=False)
 
         if len(units) == 0:
@@ -342,7 +350,7 @@ if am_I_leader() or is_testing_env():
         if not all(results):
             raise click.Abort()
 
-    @pios.command("rm", short_help="rm a file across the cluster")
+    @pios.command("rm", short_help="remove a file on workers")
     @click.argument("filepath", type=click.Path(resolve_path=True))
     @which_units
     @confirmation
@@ -352,6 +360,14 @@ if am_I_leader() or is_testing_env():
         experiments: tuple[str, ...],
         yes: bool,
     ) -> None:
+        """
+        Remove a file from workers.
+
+        \b
+        Examples:
+          pios rm /home/pioreactor/.pioreactor/plugins/my_plugin.py --units worker1
+          pios rm /home/pioreactor/.pioreactor/unit_config.ini --experiments testing
+        """
         units = resolve_target_units(units, experiments, active_only=False, include_leader=False)
 
         if len(units) == 0:
@@ -406,6 +422,11 @@ if am_I_leader() or is_testing_env():
         yes: bool,
         json: bool,
     ) -> None:
+        """
+        Update Pioreactor software across workers.
+
+        If no subcommand is provided, this behaves like `pios update app`.
+        """
         if ctx.invoked_subcommand is None:
             units = resolve_target_units(units, experiments, active_only=False, include_leader=None)
 
@@ -556,6 +577,15 @@ if am_I_leader() or is_testing_env():
 
     @pios.group()
     def plugins():
+        """
+        Manage plugins on workers.
+
+        \b
+        Examples:
+          pios plugins install pioreactor-foo
+          pios plugins install /path/to/plugin.whl --units worker1
+          pios plugins uninstall pioreactor-foo
+        """
         pass
 
     @plugins.command("install", short_help="install a plugin on workers")
@@ -577,7 +607,13 @@ if am_I_leader() or is_testing_env():
         json: bool,
     ) -> None:
         """
-        Installs a plugin to worker and leader
+        Install a plugin on workers (and leader if targeted).
+
+        \b
+        Examples:
+          pios plugins install pioreactor-foo
+          pios plugins install /path/to/plugin.whl --units worker1
+          pios plugins install pioreactor-foo --source https://example.com/release.zip
         """
 
         units = resolve_target_units(units, experiments, active_only=False, include_leader=True)
@@ -627,7 +663,12 @@ if am_I_leader() or is_testing_env():
         plugin: str, units: tuple[str, ...], experiments: tuple[str, ...], yes: bool, json: bool
     ) -> None:
         """
-        Uninstalls a plugin from worker and leader
+        Uninstall a plugin from workers (and leader if targeted).
+
+        \b
+        Examples:
+          pios plugins uninstall pioreactor-foo
+          pios plugins uninstall pioreactor-foo --units worker1
         """
 
         units = resolve_target_units(units, experiments, active_only=False, include_leader=True)
@@ -696,6 +737,11 @@ if am_I_leader() or is_testing_env():
         Deploys the shared config.ini and specific config.inis to the pioreactor units.
 
         If neither `--shared` not `--specific` are specified, both are set to true.
+
+        \b
+        Examples:
+          pios sync-configs --shared
+          pios sync-configs --specific --units worker1
         """
         units = resolve_target_units(
             units,
@@ -737,7 +783,6 @@ if am_I_leader() or is_testing_env():
             raise click.Abort()
 
     @pios.command("kill", short_help="kill a job(s) on workers")
-    @click.option("--job")
     @click.option("--all-jobs", is_flag=True, help="kill all worker jobs")
     @click.option("--experiment", type=click.STRING)
     @click.option("--job-source", type=click.STRING)
@@ -746,7 +791,6 @@ if am_I_leader() or is_testing_env():
     @confirmation
     @json_output
     def kill(
-        job: str | None,
         all_jobs: bool,
         experiment: str | None,
         job_source: str | None,
@@ -757,17 +801,13 @@ if am_I_leader() or is_testing_env():
         json: bool,
     ) -> None:
         """
-        Send a SIG signal to JOB. JOB can be any Pioreactor job name, like "stirring".
-        Example:
+        Kill jobs on workers by name, experiment, or source.
 
-        > pios kill --job-name stirring
-
-
-        Kill all worker jobs (i.e. this excludes leader jobs like monitor). Ignores `job` argument.
-
-        > pios kill --all-jobs -y
-
-
+        \b
+        Examples:
+          pios kill --job-name stirring
+          pios kill --experiment testing2
+          pios kill --all-jobs -y
         """
         units = resolve_target_units(units, experiments, active_only=True, include_leader=None)
 
@@ -806,19 +846,17 @@ if am_I_leader() or is_testing_env():
         ctx, job: str, units: tuple[str, ...], experiments: tuple[str, ...], yes: bool, json: bool
     ) -> None:
         """
-        Run a job on all, or specific, workers. Ex:
-
-        > pios run stirring
+        Run a job on all, or specific, workers.
 
         Will start stirring on all workers, after asking for confirmation.
-        Each job has their own unique options:
+        Each job has their own unique options.
 
-        > pios run stirring --target-rpm 100
-        > pios run od_reading
-
-        To specify specific units, use the `--units` keyword multiple times, ex:
-
-        > pios run stirring --units pio01 --units pio03
+        \b
+        Examples:
+          pios run stirring
+          pios run stirring --target-rpm 100
+          pios run od_reading
+          pios run stirring --units pio01 --units pio03
 
         """
         extra_args = list(ctx.args)
@@ -946,11 +984,12 @@ if am_I_leader() or is_testing_env():
         ctx, job: str, units: tuple[str, ...], experiments: tuple[str, ...], yes: bool
     ) -> None:
         """
+        Update settings on a running job across workers.
 
+        \b
         Examples:
-
-        > pios update-settings stirring --target_rpm 500 --units worker1
-
+          pios update-settings stirring --target_rpm 500 --units worker1
+          pios update-settings od_reading --interval 10 --experiments testing2
         """
         from pioreactor.pubsub import create_client
 

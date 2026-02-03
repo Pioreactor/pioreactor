@@ -357,7 +357,7 @@ def cluster_status() -> None:
         statef = click.style(f"{state:15s}", fg=state_color, bold=True)
         ipf = f"{ip if (ip is not None) else 'unknown':20s}"
 
-        is_leader_value = "Y" if hostname == leader_hostname else "N"
+        is_leader_value = "Y" if hostname == leader_hostname else ""
         is_leader_color = "green" if is_leader_value == "Y" else "red"
         is_leaderf = click.style(f"{is_leader_value:15s}", fg=is_leader_color, bold=True)
         hostnamef = f"{hostname:20s}"

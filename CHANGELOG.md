@@ -8,6 +8,8 @@
  - added `pio status` for a quick local health summary (identity, versions, MQTT, web API, Huey, jobs, storage)
  - improved `pio db`, `pio cache`, and `pio log` help output with clearer descriptions and examples
  - improved `pio workers status` to use unit API health checks for reachability and provide brief reasons when state/version are unknown
+ - improved `pios` help output with clearer descriptions and examples for cluster actions
+ - removed the redundant `--job` flag from `pios kill` (use `--job-name`)
 
 ### 26.1.30
 
