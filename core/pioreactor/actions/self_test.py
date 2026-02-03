@@ -7,6 +7,7 @@ Functions with prefix `test_` are ran, and any exception thrown means the test f
 Outputs from each test go into MQTT, and return to the command line.
 """
 import sys
+from contextlib import nullcontext
 from json import dumps
 from threading import Thread
 from time import sleep
@@ -49,6 +50,9 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
+if is_testing_env():
+    from pioreactor.utils.mock import MockRpmCalculator
+
 
 def test_pioreactor_HAT_present(managed_state, logger: CustomLogger, unit: str, experiment: str) -> None:
     assert is_HAT_present(), "HAT is not connected"
@@ -82,6 +86,16 @@ def test_REF_is_in_correct_position(managed_state, logger: CustomLogger, unit: s
     ) as od_stream:
         st.block_until_rpm_is_close_to_target(abs_tolerance=150, timeout=10)
 
+        warmup_samples = 5
+        total_samples = 50
+
+        # Warm-up: discard a few initial readings to allow signals to stabilize.
+        for _ in range(warmup_samples):
+            try:
+                next(od_stream)
+            except StopIteration:
+                break
+
         for i, reading in enumerate(od_stream, start=1):
             for channel in signals:
                 signals[channel].append(reading.ods[channel].od)
@@ -91,7 +105,7 @@ def test_REF_is_in_correct_position(managed_state, logger: CustomLogger, unit: s
             elif i % 5 == 0:
                 st.set_state(JobState.SLEEPING)
 
-            if i == 25:
+            if i == total_samples:
                 break
 
     logger.debug(f"{signals=}")
@@ -411,7 +425,8 @@ def test_positive_correlation_between_rpm_and_stirring(
     start = min(initial_dc * 1.2, 100)
     end = max(initial_dc * 0.8, 5)
 
-    with stirring.RpmFromFrequency() as rpm_calc:
+    rpm_calc_context = nullcontext(MockRpmCalculator()) if is_testing_env() else stirring.RpmFromFrequency()
+    with rpm_calc_context as rpm_calc:
         rpm_calc.setup()
         with stirring.Stirrer(
             target_rpm=None,

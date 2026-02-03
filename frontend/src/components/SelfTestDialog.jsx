@@ -149,7 +149,7 @@ export default function SelfTestDialog({disabled, experiment, unit, label , self
             Perform a check of the heating & temperature sensor, LEDs & photodiodes, and stirring.
           </Typography>
           <RequirementsAlert sx={{mb: 2, pb: 0}}>
-            Add a closed vial, half-filled with water, and stirbar into the Pioreactor.
+            Add a closed vial, half-filled with water or media, and stirbar into the Pioreactor.
             <Box
               component="img"
               src="/static/svgs/prepare-vial-arrow-pioreactor-compact.svg"
@@ -281,7 +281,7 @@ export default function SelfTestDialog({disabled, experiment, unit, label , self
 
           <ManageDivider/>
           <Typography variant="body2" component="p" gutterBottom>
-            Learn more about self tests and <a rel="noopener noreferrer" target="_blank" href="https://docs.pioreactor.com/user-guide/running-self-test#explanation-of-each-test">what to do if a test fails.</a>
+            Learn more about self tests and <a rel="noopener noreferrer" target="_blank" href="https://docs.pioreactor.com/user-guide/self-test-reference">what to do if a test fails.</a>
           </Typography>
         </DialogContent>
       </Dialog>

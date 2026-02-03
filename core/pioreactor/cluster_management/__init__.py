@@ -285,15 +285,19 @@ def cluster_status() -> None:
     import socket
 
     def get_metadata(hostname):
+        resolved_address = "localhost"
         # get ip
         if whoami.get_unit_name() == hostname:
             ip = networking.get_ip()
+            resolved_address = "localhost"
         else:
             try:
                 # TODO: we can get this from MQTT, too?
-                ip = socket.gethostbyname(networking.resolve_to_address(hostname))
+                resolved_address = networking.resolve_to_address(hostname)
+                ip = socket.gethostbyname(resolved_address)
             except (OSError, Exception):
                 ip = "unknown"
+                resolved_address = hostname
 
         # get state
         result = subscribe(
@@ -306,16 +310,27 @@ def cluster_status() -> None:
         else:
             state = "unknown"
 
+        # is web API reachable?
+        web_ok = False
+        try:
+            web_resp = get_from(resolved_address, "/unit_api/health", timeout=2)
+            web_ok = web_resp.ok
+        except HTTPException:
+            web_ok = False
+
+        if state == "unknown" and web_ok:
+            state = "unknown(mqtt)"
+
         # get version
         try:
-            r = get_from(networking.resolve_to_address(hostname), "/unit_api/versions/app")
+            r = get_from(resolved_address, "/unit_api/versions/app", timeout=2)
             r.raise_for_status()
             app_version = r.json()["version"]
         except HTTPException:
-            app_version = "unknown"
+            app_version = "unknown(api)" if web_ok else "unknown"
 
         # is reachable? # TODO: change to webserver?
-        reachable = networking.is_reachable(networking.resolve_to_address(hostname))
+        reachable = web_ok or networking.is_reachable(resolved_address)
 
         # get experiment
         try:
@@ -323,7 +338,7 @@ def cluster_status() -> None:
             r.raise_for_status()
             experiment = r.json()["experiment"]
         except HTTPException:
-            experiment = ""
+            experiment = "unknown"
 
         return ip, state, reachable, app_version, experiment
 
@@ -332,14 +347,27 @@ def cluster_status() -> None:
 
         ip, state, reachable, version, experiment = get_metadata(hostname)
 
-        statef = click.style(f"{state:15s}", fg="green" if state in ("ready", "init") else "red")
+        state_lower = state.lower()
+        if state_lower in ("ready", "init"):
+            state_color = "green"
+        elif state_lower.startswith("unknown"):
+            state_color = "yellow"
+        else:
+            state_color = "red"
+        statef = click.style(f"{state:15s}", fg=state_color, bold=True)
         ipf = f"{ip if (ip is not None) else 'unknown':20s}"
 
-        is_leaderf = f"{('Y' if hostname == leader_hostname else 'N'):15s}"
+        is_leader_value = "Y" if hostname == leader_hostname else ""
+        is_leader_color = "green" if is_leader_value == "Y" else "red"
+        is_leaderf = click.style(f"{is_leader_value:15s}", fg=is_leader_color, bold=True)
         hostnamef = f"{hostname:20s}"
-        reachablef = f"{(click.style('Y', fg='green') if reachable else click.style('N', fg='red')):23s}"
+        reachable_value = "Y" if reachable else "N"
+        reachable_color = "green" if reachable else "red"
+        reachablef = click.style(f"{reachable_value:14s}", fg=reachable_color, bold=True)
         versionf = f"{version:15s}"
-        is_activef = f"{(click.style('Y', fg='green') if is_active else click.style('N', fg='red')):24s}"
+        is_active_value = "Y" if is_active else "N"
+        is_active_color = "green" if is_active else "red"
+        is_activef = click.style(f"{is_active_value:15s}", fg=is_active_color, bold=True)
         experimentf = f"{experiment:15s}"
 
         return f"{hostnamef} {is_leaderf} {ipf} {statef} {is_activef} {reachablef} {versionf} {experimentf}"

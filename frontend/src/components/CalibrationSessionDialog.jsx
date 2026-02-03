@@ -199,7 +199,7 @@ export default function CalibrationSessionDialog({
         let errorMessage = `Failed to start session (${response.status}).`;
         try {
           const payload = await response.json();
-          errorMessage = payload.error || payload.message || JSON.stringify(payload);
+          errorMessage = payload.error || JSON.stringify(payload);
         } catch (_error) {
           // Keep the fallback message.
         }
@@ -292,7 +292,7 @@ export default function CalibrationSessionDialog({
         let errorMessage = `Failed to advance session (${response.status}).`;
         try {
           const payload = await response.json();
-          errorMessage = payload.error || payload.message || JSON.stringify(payload);
+          errorMessage = payload.error || JSON.stringify(payload);
         } catch (_error) {
           // Keep the fallback message.
         }

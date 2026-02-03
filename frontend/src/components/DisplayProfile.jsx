@@ -95,6 +95,24 @@ function displayVariable(string){
   return  <Chip size="small" sx={{marginTop: "0px", marginBottom: "3px"}}  label={<span style={expression}>{String(string).trim()}</span>} />
 }
 
+function findQuotedString(expressionString){
+  if (typeof expressionString !== 'string') return null;
+  const match = expressionString.match(/"[^"]*"|'[^']*'/);
+  return match ? match[0] : null;
+}
+
+function findFirstDisallowedCharacter(expressionString){
+  if (typeof expressionString !== 'string') return null;
+  const allowedPattern = /^[a-zA-Z0-9_\$\.\:\s\(\)\+\-\*\/<>=!]+$/;
+  if (allowedPattern.test(expressionString)) return null;
+  for (let i = 0; i < expressionString.length; i += 1) {
+    if (!allowedPattern.test(expressionString[i])) {
+      return expressionString[i];
+    }
+  }
+  return null;
+}
+
 function almostExpressionSyntax(string){
     const almostPattern1 = /{+(.*?)}+/;
     const almostPattern2 = /{{(.*?)}}/;
@@ -152,6 +170,14 @@ function processBracketedExpression(value) {
     var match = pattern.exec(String(value));
 
     if (match) {
+      const quoted = findQuotedString(match[1]);
+      if (quoted) {
+        return <UnderlineSpan title={`Quoted string literals aren't supported. Found ${quoted}.`}>??</UnderlineSpan>;
+      }
+      const invalidChar = findFirstDisallowedCharacter(match[1]);
+      if (invalidChar) {
+        return <UnderlineSpan title={`Invalid character in expression: ${invalidChar}`}>??</UnderlineSpan>;
+      }
       return displayExpression(match[1])
     }
 
@@ -570,6 +596,9 @@ export const DisplayProfile = ({ data }) => {
         <Typography variant="h6"><ViewTimelineOutlinedIcon sx={{verticalAlign: "middle", margin:"0px 3px"}}/>{data?.experiment_profile_name || <UnderlineSpan title="missing `experiment_profile_name`">??</UnderlineSpan>}</Typography>
         <AuthorSection author={data?.metadata?.author} />
         <DescriptionSection description={data?.metadata?.description} />
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          Note: quoted strings aren&apos;t supported in profile expressions. Use bare tokens like <span style={expression}>ready</span>, not <span style={expression}>&quot;ready&quot;</span>.
+        </Typography>
         <br/>
         <PluginsSection plugins={data?.plugins} />
         <ParametersSection parameters={data?.inputs} />

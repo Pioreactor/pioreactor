@@ -127,19 +127,30 @@ def evaluate_bool_expression(bool_expression: BoolExpression, env: dict) -> bool
     return parse_profile_expression_to_bool(bool_expression, env=env)
 
 
-def check_syntax_of_bool_expression(bool_expression: BoolExpression) -> bool:
+def check_syntax_of_bool_expression(bool_expression: BoolExpression) -> str | None:
     from pioreactor.experiment_profiles.parser import check_syntax
 
     if isinstance(bool_expression, bool):
-        return True
+        return None
 
     if is_bracketed_expression(bool_expression):
         bool_expression = strip_expression_brackets(bool_expression)
 
+    import re
+
+    # Detect quoted strings early to provide a clearer error.
+    quoted_matches = re.findall(r'"[^"]*"|\'[^\']*\'', bool_expression)
+    if quoted_matches:
+        return (
+            "Quoted string literals are not supported in profile expressions. " f"Found {quoted_matches[0]}."
+        )
+
     # TODO: in a common expressions, users can use ::word:work which is technically not valid syntax. For checking, we replace with garbage
     bool_expression = bool_expression.replace("::", "dummy:", 1)
 
-    return check_syntax(bool_expression)
+    if check_syntax(bool_expression):
+        return None
+    return "Syntax error in expression."
 
 
 def check_if_job_running(unit: pt.Unit, job: str) -> bool:
@@ -895,14 +906,20 @@ def _verify_experiment_profile(profile: struct.Profile) -> bool:
 
     for job in actions_per_job:
         for action in actions_per_job[job]:
-            if hasattr(action, "if_") and action.if_ and not check_syntax_of_bool_expression(action.if_):  # type: ignore
-                raise SyntaxError(f"Syntax error in {job}.{action}: `{action.if_}`")
+            if hasattr(action, "if_") and action.if_:
+                error = check_syntax_of_bool_expression(action.if_)  # type: ignore
+                if error:
+                    raise SyntaxError(f"{error} In {job}.{action}: `{action.if_}`")
 
-            if hasattr(action, "condition_") and action.condition_ and not check_syntax_of_bool_expression(action.condition_):  # type: ignore
-                raise SyntaxError(f"Syntax error in {job}.{action}: `{action.condition_}`")
+            if hasattr(action, "condition_") and action.condition_:
+                error = check_syntax_of_bool_expression(action.condition_)  # type: ignore
+                if error:
+                    raise SyntaxError(f"{error} In {job}.{action}: `{action.condition_}`")
 
-            if hasattr(action, "while_") and action.while_ and not check_syntax_of_bool_expression(action.while_):  # type: ignore
-                raise SyntaxError(f"Syntax error in {job}.{action}: `{action.while_}`")
+            if hasattr(action, "while_") and action.while_:
+                error = check_syntax_of_bool_expression(action.while_)  # type: ignore
+                if error:
+                    raise SyntaxError(f"{error} In {job}.{action}: `{action.while_}`")
 
     return True
 

@@ -177,7 +177,7 @@ const MissingWorkerModelModal = ({ triggerCheckKey = 0 }) => {
                   const detail =
                     typeof payload === "string"
                       ? payload
-                      : payload?.error || payload?.message || JSON.stringify(payload);
+                      : payload?.error || JSON.stringify(payload);
                   throw new Error(
                     `Unable to update ${worker.pioreactor_unit}: ${detail || response.status}`
                   );

@@ -878,6 +878,20 @@ def test_profiles_in_github_repo() -> None:
         assert _verify_experiment_profile(profile)
 
 
+def test_verify_rejects_quoted_string_literals_in_if() -> None:
+    action = Start(hours_elapsed=0.0, if_='${{ pio02:monitor:$state == "ready" }}')
+    profile = Profile(
+        experiment_profile_name="test_profile",
+        plugins=[],
+        common=CommonBlock(jobs={"job1": Job(actions=[action])}),
+        pioreactors={},
+        metadata=Metadata(author="test_author"),
+    )
+
+    with pytest.raises(SyntaxError, match=r'Quoted string literals are not supported.*"ready"'):
+        _verify_experiment_profile(profile)
+
+
 @patch("pioreactor.actions.leader.experiment_profile._load_experiment_profile")
 def test_api_requests_are_made(
     mock__load_experiment_profile,

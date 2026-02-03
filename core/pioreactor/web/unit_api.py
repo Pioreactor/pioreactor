@@ -82,9 +82,19 @@ def check_hardware_for_model() -> DelayedResponseReturnValue:
     model_name = data.get("model_name")
     model_version = data.get("model_version")
     if not model_name or not model_version:
-        abort_with(400, "Missing model_name or model_version")
+        abort_with(
+            400,
+            "Missing model_name or model_version",
+            cause="Request JSON missing model_name or model_version.",
+            remediation="Provide both model_name and model_version in the JSON payload.",
+        )
     if (model_name, model_version) not in get_registered_models():
-        abort_with(400, "Model name or version not found in available models.")
+        abort_with(
+            400,
+            "Model name or version not found in available models.",
+            cause=f"Unknown model '{model_name}' with version '{model_version}'.",
+            remediation="Use a model_name and model_version from the registered models list.",
+        )
 
     task = tasks.check_model_hardware(model_name, model_version)
     return create_task_response(task)
@@ -98,20 +108,53 @@ def task_status(task_id: str):
         task = huey.result(task_id)
     except TaskLockedException:
         return (
-            jsonify(blob | {"status": "failed", "error": "could not complete task due to lock."}),
-            500,
+            jsonify(
+                blob
+                | {
+                    "status": "in_progress",
+                    "error": "task is locked and already running.",
+                    "error_info": {
+                        "cause": "Another task with this ID is currently running.",
+                        "remediation": "Wait for the task to finish, then retry.",
+                    },
+                }
+            ),
+            202,
         )
     except TaskException as e:
         # huey wraps the exception, so lets reraise it.
         return (
-            jsonify(blob | {"status": "failed", "error": str(e)}),
+            jsonify(
+                blob
+                | {
+                    "status": "failed",
+                    "error": str(e),
+                    "error_info": {
+                        "cause": "Huey task failed with an exception.",
+                        "remediation": "Check logs and retry.",
+                    },
+                }
+            ),
             500,
         )
 
     if task is None:
         return jsonify(blob | {"status": "pending or not present"}), 202
     elif isinstance(task, Exception):
-        return jsonify(blob | {"status": "failed", "error": str(task)}), 500
+        return (
+            jsonify(
+                blob
+                | {
+                    "status": "failed",
+                    "error": str(task),
+                    "error_info": {
+                        "cause": "Huey task failed with an exception.",
+                        "remediation": "Check logs and retry.",
+                    },
+                }
+            ),
+            500,
+        )
     else:
         return jsonify(blob | {"status": "complete", "result": task}), 200
 
@@ -159,11 +202,22 @@ def require_leader(view_func):
     return _wrapped
 
 
+def _task_is_locked(lock_name: str) -> bool:
+    return huey.lock_task(lock_name).is_locked()
+
+
+def _locked_task_response(lock_name: str) -> ResponseReturnValue:
+    return jsonify({"status": "in_progress", "lock": lock_name}), 202
+
+
 ### SYSTEM
 
 
 @unit_api_bp.route("/system/update/<target>", methods=["POST", "PATCH"])
 def update_target(target: str) -> DelayedResponseReturnValue:
+    if _task_is_locked("update-lock"):
+        return _locked_task_response("update-lock")
+
     if target not in ("app",):  # todo: firmware
         abort_with(404, description="Invalid target")
 
@@ -186,6 +240,9 @@ def update_target(target: str) -> DelayedResponseReturnValue:
 
 @unit_api_bp.route("/system/update", methods=["POST", "PATCH"])
 def update() -> DelayedResponseReturnValue:
+    if _task_is_locked("update-lock"):
+        return _locked_task_response("update-lock")
+
     body = current_app.get_json(request.data, type=structs.ArgsOptionsEnvs)
 
     commands: tuple[str, ...] = tuple()
@@ -203,6 +260,8 @@ def update() -> DelayedResponseReturnValue:
 def reboot() -> DelayedResponseReturnValue:
     """Reboots unit"""
     # TODO: only let requests from the leader do this. Use lighttpd conf for this.
+    if _task_is_locked("power-lock"):
+        return _locked_task_response("power-lock")
 
     # don't reboot the leader right away, give time for any other posts/gets to occur.
     if HOSTNAME == get_leader_hostname():
@@ -214,6 +273,9 @@ def reboot() -> DelayedResponseReturnValue:
 @unit_api_bp.route("/system/shutdown", methods=["POST", "PATCH"])
 def shutdown() -> DelayedResponseReturnValue:
     """Shutdown unit"""
+    if _task_is_locked("power-lock"):
+        return _locked_task_response("power-lock")
+
     task = tasks.shutdown()
     return create_task_response(task)
 
@@ -265,6 +327,9 @@ def get_web_server_status() -> ResponseReturnValue:
 @unit_api_bp.route("/system/web_server/restart", methods=["POST", "PATCH"])
 @require_leader
 def restart_web_server() -> DelayedResponseReturnValue:
+    if _task_is_locked("web-restart-lock"):
+        return _locked_task_response("web-restart-lock")
+
     task = tasks.restart_pioreactor_web_target()
     return create_task_response(task)
 
@@ -275,13 +340,23 @@ def remove_file() -> DelayedResponseReturnValue:
     disallow_file = Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_FILE_SYSTEM"
     if os.path.isfile(disallow_file):
         publish_to_error_log(f"Delete blocked because {disallow_file} is present", task_name)
-        abort_with(403, "DISALLOW_UI_FILE_SYSTEM is present")
+        abort_with(
+            403,
+            "DISALLOW_UI_FILE_SYSTEM is present",
+            cause="File system operations are disabled on this unit.",
+            remediation="Remove DISALLOW_UI_FILE_SYSTEM or run the action locally via SSH.",
+        )
 
     # use filepath in body
     body = current_app.get_json(request.data) or {}
     filepath = body.get("filepath")
     if not filepath:
-        abort_with(400, "filepath field is required")
+        abort_with(
+            400,
+            "filepath field is required",
+            cause="Request JSON missing 'filepath'.",
+            remediation="Include a 'filepath' field in the JSON payload.",
+        )
     assert filepath is not None
 
     base_dir = Path(os.environ["DOT_PIOREACTOR"]).resolve()
@@ -293,7 +368,12 @@ def remove_file() -> DelayedResponseReturnValue:
     try:
         candidate_path.relative_to(base_dir)
     except ValueError:
-        abort_with(403, "Access to this path is not allowed")
+        abort_with(
+            403,
+            "Access to this path is not allowed",
+            cause="Requested path is outside the .pioreactor directory.",
+            remediation="Provide a path within the .pioreactor directory.",
+        )
 
     task = tasks.rm(str(candidate_path))
     return create_task_response(task)
@@ -306,26 +386,49 @@ def get_clock_time():
         current_time = current_utc_timestamp()
         return jsonify({"status": "success", "clock_time": current_time}), 200
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        abort_with(
+            500,
+            "Failed to read clock time",
+            cause=str(e),
+            remediation="Check system clock availability and server logs, then retry.",
+        )
 
 
 # PATCH / POST to set clock time
 @unit_api_bp.route("/system/utc_clock", methods=["PATCH", "POST"])
 def set_clock_time() -> DelayedResponseReturnValue:  # type: ignore[return]
+    if _task_is_locked("clock-lock"):
+        return _locked_task_response("clock-lock")
+
     if HOSTNAME == get_leader_hostname():
         data = request.get_json(silent=True)  # don't throw 415
         if not data:
-            abort_with(400, "utc_clock_time field is required")
+            abort_with(
+                400,
+                "utc_clock_time field is required",
+                cause="Request body is empty or not JSON.",
+                remediation="Send JSON with a 'utc_clock_time' field.",
+            )
 
         new_time = data.get("utc_clock_time")
         if not new_time:
-            abort_with(400, "utc_clock_time field is required")
+            abort_with(
+                400,
+                "utc_clock_time field is required",
+                cause="Missing 'utc_clock_time' value in JSON payload.",
+                remediation="Provide an ISO 8601 timestamp in 'utc_clock_time'.",
+            )
 
         # validate the timestamp
         try:
             to_datetime(new_time)
         except ValueError:
-            abort_with(400, "Invalid utc_clock_time format. Use ISO 8601.")
+            abort_with(
+                400,
+                "Invalid utc_clock_time format. Use ISO 8601.",
+                cause=f"Unable to parse '{new_time}' as ISO 8601.",
+                remediation="Use an ISO 8601 timestamp, e.g. 2025-01-31T12:34:56Z.",
+            )
 
         # Update the system clock (requires admin privileges)
         t = tasks.update_clock(new_time)
@@ -341,23 +444,43 @@ def set_clock_time() -> DelayedResponseReturnValue:  # type: ignore[return]
 @unit_api_bp.route("/system/path/<path:req_path>")
 def dir_listing(req_path: str):
     if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_FILE_SYSTEM"):
-        abort_with(403, "DISALLOW_UI_FILE_SYSTEM is present")
+        abort_with(
+            403,
+            "DISALLOW_UI_FILE_SYSTEM is present",
+            cause="File system browsing is disabled on this unit.",
+            remediation="Remove DISALLOW_UI_FILE_SYSTEM or browse locally via SSH.",
+        )
 
     BASE_DIR = os.environ["DOT_PIOREACTOR"]
 
     # Safely join to prevent directory traversal
     safe_path = safe_join(BASE_DIR, req_path)
     if not safe_path:
-        abort_with(403, "Invalid path.")
+        abort_with(
+            403,
+            "Invalid path.",
+            cause="Requested path could not be safely resolved.",
+            remediation="Provide a path within the .pioreactor directory.",
+        )
 
     # Check if the path actually exists
     if not os.path.exists(safe_path):
-        abort_with(404, "Path not found.")
+        abort_with(
+            404,
+            "Path not found.",
+            cause=f"Path does not exist: {req_path}",
+            remediation="Check the path and try again.",
+        )
 
     # If it's a file, serve the file
     if os.path.isfile(safe_path):
         if safe_path.endswith((".sqlite", ".sqlite.backup", ".sqlite-shm", ".sqlite-wal")):
-            abort_with(403, "Access to downloading sqlite files is restricted.")
+            abort_with(
+                403,
+                "Access to downloading sqlite files is restricted.",
+                cause="SQLite files are blocked from download via the API.",
+                remediation="Access the database directly on the device.",
+            )
 
         return send_file(safe_path, mimetype="text/plain")
 
@@ -366,7 +489,12 @@ def dir_listing(req_path: str):
 
     # Return 404 if path doesn't exist
     if not os.path.exists(abs_path):
-        abort_with(404, "Path not found.")
+        abort_with(
+            404,
+            "Path not found.",
+            cause=f"Path does not exist: {req_path}",
+            remediation="Check the path and try again.",
+        )
 
     # Check if path is a file and serve
     if os.path.isfile(abs_path):
@@ -389,8 +517,8 @@ def dir_listing(req_path: str):
 ## RUNNING JOBS CONTROL
 
 
-@unit_api_bp.route("/jobs/run/job_name/<job>", methods=["PATCH", "POST"])
-def run_job(job: str) -> DelayedResponseReturnValue:
+@unit_api_bp.route("/jobs/run/job_name/<job_name>", methods=["PATCH", "POST"])
+def run_job(job_name: str) -> DelayedResponseReturnValue:
     """
     Body should look like (all optional)
     {
@@ -412,7 +540,7 @@ def run_job(job: str) -> DelayedResponseReturnValue:
       "args": []
     }'
     """
-    if is_rate_limited(job):
+    if is_rate_limited(job_name):
         abort_with(429, "Too many requests, please try again later.")
 
     json = current_app.get_json(request.data, type=structs.ArgsOptionsEnvsConfigOverrides)
@@ -427,7 +555,7 @@ def run_job(job: str) -> DelayedResponseReturnValue:
         [("--config-override",) + tuple(_args) for _args in config_overrides], tuple()
     )
 
-    commands: tuple[str, ...] = (job,)
+    commands: tuple[str, ...] = (job_name,)
     commands += tuple(args)
     for option, value in options.items():
         commands += (f"--{option.replace('_', '-')}",)
@@ -483,10 +611,10 @@ def get_all_running_jobs() -> ResponseReturnValue:
     return jsonify(jobs)
 
 
-@unit_api_bp.route("/jobs/running/<job>", methods=["GET"])
-def get_running_job(job: str) -> ResponseReturnValue:
+@unit_api_bp.route("/jobs/running/<job_name>", methods=["GET"])
+def get_running_job(job_name: str) -> ResponseReturnValue:
     jobs = query_temp_local_metadata_db(
-        "SELECT * FROM pio_job_metadata where is_running=1 and job_name=?", (job,)
+        "SELECT * FROM pio_job_metadata where is_running=1 and job_name=?", (job_name,)
     )
     return jsonify(jobs)
 
@@ -637,9 +765,19 @@ def get_plugin(filename: str) -> ResponseReturnValue:
             )
         )
     except IOError:
-        abort_with(404, "must provide a .py file")
+        abort_with(
+            404,
+            "must provide a .py file",
+            cause="Requested plugin filename is not a .py file.",
+            remediation="Request a specific plugin file ending with .py.",
+        )
     except Exception:
-        abort_with(500, "server error")
+        abort_with(
+            500,
+            "server error",
+            cause="Failed to load the requested plugin file.",
+            remediation="Check file permissions and server logs.",
+        )
 
 
 @unit_api_bp.route("/plugins/install", methods=["POST", "PATCH"])
@@ -667,7 +805,12 @@ def install_plugin() -> DelayedResponseReturnValue:
 
     # there is a security problem here. See https://github.com/Pioreactor/pioreactor/issues/421
     if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_INSTALLS"):
-        abort_with(403, "DISALLOW_UI_INSTALLS is present")
+        abort_with(
+            403,
+            "DISALLOW_UI_INSTALLS is present",
+            cause="Plugin installs are disabled on this unit.",
+            remediation="Remove DISALLOW_UI_INSTALLS or install via SSH.",
+        )
 
     # allowlist = _load_plugin_allowlist()
     # if not allowlist:
@@ -679,9 +822,19 @@ def install_plugin() -> DelayedResponseReturnValue:
     body = current_app.get_json(request.data, type=structs.ArgsOptionsEnvs)
 
     if not body.args:
-        abort_with(400, "Plugin name is required")
+        abort_with(
+            400,
+            "Plugin name is required",
+            cause="No plugin name provided in args.",
+            remediation="Provide a single plugin name in args.",
+        )
     if len(body.args) > 1:
-        abort_with(400, "Install one plugin at a time via the API")
+        abort_with(
+            400,
+            "Install one plugin at a time via the API",
+            cause=f"Received {len(body.args)} plugin arguments.",
+            remediation="Provide exactly one plugin name in args.",
+        )
 
     # requested_plugin = _canonicalize_package_name(body.args[0])
     # if requested_plugin not in allowlist:
@@ -710,7 +863,12 @@ def uninstall_plugin() -> DelayedResponseReturnValue:
     body = current_app.get_json(request.data, type=structs.ArgsOptionsEnvs)
 
     if len(body.args) != 1:
-        abort_with(400, "Uninstall one plugin at a time via the API")
+        abort_with(
+            400,
+            "Uninstall one plugin at a time via the API",
+            cause=f"Received {len(body.args)} plugin arguments.",
+            remediation="Provide exactly one plugin name in args.",
+        )
 
     task = tasks.uninstall_plugin_task(body.args[0])
     return create_task_response(task)
@@ -746,9 +904,19 @@ def create_calibration(device: str) -> ResponseReturnValue:
         calibration_name = calibration_data.calibration_name
 
         if not calibration_name or not is_valid_unix_filename(calibration_name):
-            abort_with(400, description="Missing or invalid 'calibration_name'.")
+            abort_with(
+                400,
+                description="Missing or invalid 'calibration_name'.",
+                cause="Calibration name missing or contains invalid characters.",
+                remediation="Provide a valid calibration_name using letters, digits, dashes, or underscores.",
+            )
         elif not device or not is_valid_unix_filename(device):
-            abort_with(400, description="Missing or invalid 'device'.")
+            abort_with(
+                400,
+                description="Missing or invalid 'device'.",
+                cause="Device name missing or contains invalid characters.",
+                remediation="Provide a valid device name (letters, digits, dashes, or underscores).",
+            )
 
         path = calibration_data.path_on_disk_for_device(device)
         tasks.save_file(path, raw_yaml)
@@ -758,7 +926,12 @@ def create_calibration(device: str) -> ResponseReturnValue:
 
     except Exception as e:
         publish_to_error_log(f"Error creating calibration: {e}", "create_calibration")
-        abort_with(500, description="Failed to create calibration.")
+        abort_with(
+            500,
+            description="Failed to create calibration.",
+            cause="Unable to save calibration file.",
+            remediation="Check file permissions and server logs.",
+        )
 
 
 @unit_api_bp.route("/calibrations/<device>/<calibration_name>", methods=["DELETE"])
@@ -769,7 +942,12 @@ def delete_calibration(device: str, calibration_name: str) -> ResponseReturnValu
     calibration_path = CALIBRATION_PATH / device / f"{calibration_name}.yaml"
 
     if not calibration_path.exists():
-        abort_with(404, description=f"Calibration '{calibration_name}' not found for device '{device}'.")
+        abort_with(
+            404,
+            description=f"Calibration '{calibration_name}' not found for device '{device}'.",
+            cause="Calibration file is missing from disk.",
+            remediation="List available calibrations for this device and retry.",
+        )
 
     try:
         calibration_path.unlink()
@@ -784,7 +962,12 @@ def delete_calibration(device: str, calibration_name: str) -> ResponseReturnValu
 
     except Exception as e:
         publish_to_error_log(f"Error deleting calibration: {e}", "delete_calibration")
-        abort_with(500, description="Failed to delete calibration.")
+        abort_with(
+            500,
+            description="Failed to delete calibration.",
+            cause="Unable to delete calibration file.",
+            remediation="Check file permissions and server logs.",
+        )
 
 
 @unit_api_bp.route("/calibrations", methods=["GET"])
@@ -792,7 +975,12 @@ def get_all_calibrations() -> ResponseReturnValue:
     calibration_dir = CALIBRATION_PATH
 
     if not calibration_dir.exists():
-        abort_with(404, "Calibration directory does not exist.")
+        abort_with(
+            404,
+            "Calibration directory does not exist.",
+            cause="Calibration storage directory is missing on disk.",
+            remediation="Create the calibration directory or restore from backup.",
+        )
 
     all_calibrations: dict[str, list] = {}
 
@@ -818,7 +1006,12 @@ def get_all_active_calibrations() -> ResponseReturnValue:
     calibration_dir = CALIBRATION_PATH
 
     if not calibration_dir.exists():
-        abort_with(404, "Calibration directory does not exist.")
+        abort_with(
+            404,
+            "Calibration directory does not exist.",
+            cause="Calibration storage directory is missing on disk.",
+            remediation="Create the calibration directory or restore from backup.",
+        )
 
     all_calibrations: dict[str, dict] = {}
 
@@ -899,7 +1092,12 @@ def get_all_calibrations_as_zipped_yaml() -> ResponseReturnValue:
     calibration_dir = CALIBRATION_PATH
 
     if not calibration_dir.exists():
-        abort_with(404, "Calibration directory does not exist.")
+        abort_with(
+            404,
+            "Calibration directory does not exist.",
+            cause="Calibration storage directory is missing on disk.",
+            remediation="Create the calibration directory or restore from backup.",
+        )
 
     buffer = BytesIO()
 
@@ -931,7 +1129,12 @@ def get_entire_dot_pioreactor_as_zip() -> ResponseReturnValue:
     - Zips all contents recursively with paths relative to DOT_PIOREACTOR.
     """
     if (Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_FILE_SYSTEM").is_file():
-        abort_with(403, "DISALLOW_UI_FILE_SYSTEM is present")
+        abort_with(
+            403,
+            "DISALLOW_UI_FILE_SYSTEM is present",
+            cause="File system access is disabled on this unit.",
+            remediation="Remove DISALLOW_UI_FILE_SYSTEM or export files locally via SSH.",
+        )
 
     base_dir = Path(os.environ["DOT_PIOREACTOR"]).resolve()
 
@@ -1001,12 +1204,25 @@ def import_dot_pioreactor_from_zip() -> ResponseReturnValue:
     disallow_file = Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_FILE_SYSTEM"
     if disallow_file.is_file():
         publish_to_error_log(f"Import blocked because {disallow_file} is present", task_name)
-        abort_with(403, "DISALLOW_UI_FILE_SYSTEM is present")
+        abort_with(
+            403,
+            "DISALLOW_UI_FILE_SYSTEM is present",
+            cause="File system operations are disabled on this unit.",
+            remediation="Remove DISALLOW_UI_FILE_SYSTEM or run the import locally via SSH.",
+        )
+
+    if _task_is_locked("import-dot-pioreactor-lock"):
+        return _locked_task_response("import-dot-pioreactor-lock")
 
     uploaded = request.files.get("archive")
     if uploaded is None or uploaded.filename == "":
         publish_to_error_log("No archive uploaded in import request", task_name)
-        abort_with(400, "No archive uploaded")
+        abort_with(
+            400,
+            "No archive uploaded",
+            cause="Missing 'archive' file in multipart form-data.",
+            remediation="Upload a zip file using the 'archive' field.",
+        )
 
     tmp = NamedTemporaryFile(prefix="import_dot_pioreactor_", suffix=".zip", delete=False)
     tmp_path = Path(tmp.name)
@@ -1023,15 +1239,30 @@ def import_dot_pioreactor_from_zip() -> ResponseReturnValue:
     except ValueError as exc:
         publish_to_error_log(f"Zip validation failed: {exc}", task_name)
         tmp_path.unlink(missing_ok=True)
-        abort_with(400, str(exc))
+        abort_with(
+            400,
+            str(exc),
+            cause="Zip archive failed validation.",
+            remediation="Ensure the archive is a valid Pioreactor export and retry.",
+        )
     except zipfile.BadZipFile:
         publish_to_error_log("Uploaded file is not a valid zip archive", task_name)
         tmp_path.unlink(missing_ok=True)
-        abort_with(400, "Uploaded file is not a valid zip archive")
+        abort_with(
+            400,
+            "Uploaded file is not a valid zip archive",
+            cause="Archive could not be read as a zip file.",
+            remediation="Upload a valid .zip file.",
+        )
     except Exception as exc:
         publish_to_error_log(f"Failed to inspect uploaded archive: {exc}", task_name)
         tmp_path.unlink(missing_ok=True)
-        abort_with(500, "Failed to inspect uploaded archive")
+        abort_with(
+            500,
+            "Failed to inspect uploaded archive",
+            cause="Unexpected error while inspecting the uploaded archive.",
+            remediation="Check server logs and retry with a fresh export.",
+        )
 
     if metadata is None:
         publish_to_log(
@@ -1055,11 +1286,21 @@ def import_dot_pioreactor_from_zip() -> ResponseReturnValue:
     except HueyException as exc:
         publish_to_error_log(f"Failed to enqueue import task: {exc}", task_name)
         tmp_path.unlink(missing_ok=True)
-        abort_with(500, "Failed to enqueue import task")
+        abort_with(
+            500,
+            "Failed to enqueue import task",
+            cause="Huey queue rejected the import task.",
+            remediation="Check Huey worker status and retry.",
+        )
     except Exception as exc:  # pragma: no cover - unexpected failure
         publish_to_error_log(f"Failed to enqueue import task: {exc}", task_name)
         tmp_path.unlink(missing_ok=True)
-        abort_with(500, "Failed to enqueue import task")
+        abort_with(
+            500,
+            "Failed to enqueue import task",
+            cause="Unexpected error while enqueueing the import task.",
+            remediation="Check server logs and retry.",
+        )
 
     publish_to_log("Import task submitted to Huey", task_name, "DEBUG")
     return create_task_response(task)
@@ -1070,7 +1311,12 @@ def get_calibrations_by_device(device: str) -> ResponseReturnValue:
     calibration_dir = CALIBRATION_PATH / device
 
     if not calibration_dir.exists():
-        abort_with(404, "Calibration directory does not exist.")
+        abort_with(
+            404,
+            "Calibration directory does not exist.",
+            cause="Calibration storage directory is missing on disk.",
+            remediation="Create the calibration directory or restore from backup.",
+        )
 
     calibrations: list[dict] = []
 
@@ -1092,7 +1338,12 @@ def get_calibration(device: str, cal_name: str) -> ResponseReturnValue:
     calibration_path = CALIBRATION_PATH / device / f"{cal_name}.yaml"
 
     if not calibration_path.exists():
-        abort_with(404, "Calibration file does not exist.")
+        abort_with(
+            404,
+            "Calibration file does not exist.",
+            cause=f"Calibration '{cal_name}' missing for device '{device}'.",
+            remediation="List available calibrations for the device and retry.",
+        )
 
     with local_persistent_storage("active_calibrations") as c:
         try:
@@ -1102,7 +1353,12 @@ def get_calibration(device: str, cal_name: str) -> ResponseReturnValue:
             return attach_cache_control(jsonify(cal), max_age=10)
         except Exception as e:
             publish_to_error_log(f"Error reading {calibration_path.stem}: {e}", "get_calibration")
-            abort_with(500, "Failed to read calibration file.")
+            abort_with(
+                500,
+                "Failed to read calibration file.",
+                cause="Unable to parse calibration YAML.",
+                remediation="Check calibration file contents or re-upload the calibration.",
+            )
 
 
 @unit_api_bp.route("/estimators/<device>", methods=["GET"])
@@ -1132,7 +1388,12 @@ def get_estimator(device: str, estimator_name: str) -> ResponseReturnValue:
     estimator_path = ESTIMATOR_PATH / device / f"{estimator_name}.yaml"
 
     if not estimator_path.exists():
-        abort_with(404, description=f"Estimator '{estimator_name}' not found for device '{device}'.")
+        abort_with(
+            404,
+            description=f"Estimator '{estimator_name}' not found for device '{device}'.",
+            cause="Estimator file is missing from disk.",
+            remediation="List available estimators for this device and retry.",
+        )
 
     with local_persistent_storage("active_estimators") as c:
         try:
@@ -1143,7 +1404,12 @@ def get_estimator(device: str, estimator_name: str) -> ResponseReturnValue:
             return attach_cache_control(jsonify(estimator), max_age=10)
         except Exception as e:
             publish_to_error_log(f"Error reading {estimator_path.stem}: {e}", "get_estimator")
-            abort_with(500, "Failed to read estimator file.")
+            abort_with(
+                500,
+                "Failed to read estimator file.",
+                cause="Unable to parse estimator YAML.",
+                remediation="Check estimator file contents or re-upload the estimator.",
+            )
 
 
 @unit_api_bp.route("/active_calibrations/<device>/<cal_name>", methods=["PATCH"])
@@ -1185,7 +1451,12 @@ def delete_estimator(device: str, estimator_name: str) -> ResponseReturnValue:
     estimator_path = ESTIMATOR_PATH / device / f"{estimator_name}.yaml"
 
     if not estimator_path.exists():
-        abort_with(404, description=f"Estimator '{estimator_name}' not found for device '{device}'.")
+        abort_with(
+            404,
+            description=f"Estimator '{estimator_name}' not found for device '{device}'.",
+            cause="Estimator file is missing from disk.",
+            remediation="List available estimators for this device and retry.",
+        )
 
     try:
         estimator_path.unlink()
@@ -1199,4 +1470,9 @@ def delete_estimator(device: str, estimator_name: str) -> ResponseReturnValue:
         )
     except Exception as e:
         publish_to_error_log(f"Error deleting estimator: {e}", "delete_estimator")
-        abort_with(500, description="Failed to delete estimator.")
+        abort_with(
+            500,
+            description="Failed to delete estimator.",
+            cause="Unable to delete estimator file.",
+            remediation="Check file permissions and server logs.",
+        )

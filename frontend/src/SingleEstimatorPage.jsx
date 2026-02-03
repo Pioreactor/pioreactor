@@ -5,6 +5,7 @@ import { CircularProgress, Button, Typography, Box, Divider } from "@mui/materia
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
+import Alert from '@mui/material/Alert';
 import DialogActions from '@mui/material/DialogActions';
 import IconButton from '@mui/material/IconButton';
 import { fetchTaskResult } from "./utilities";
@@ -208,8 +209,13 @@ function SingleEstimatorPage(props) {
     setLoading(true);
     const apiUrl = `/api/workers/${pioreactorUnit}/estimators/${device}/${estimatorName}`;
     try {
-      const data = await fetchTaskResult(apiUrl);
-      setEstimator(data.result[pioreactorUnit]);
+      const data = await fetchTaskResult(apiUrl)
+      const result = data.result?.[pioreactorUnit];
+      if (!result || result.error) {
+        setEstimator(null);
+      } else {
+        setEstimator(result);
+      }
     } catch (err) {
       console.error("Failed to fetch estimator:", err);
     } finally {
@@ -326,9 +332,9 @@ function SingleEstimatorPageCard({ pioreactorUnit, device, estimatorName, estima
   if (!estimator) {
     return (
       <Box sx={{ textAlign: "center", mb: '50px', mt: "50px" }}>
-        <Typography variant="body2" component="p" color="textSecondary">
+        <Alert severity="error" sx={{ display: "inline-flex", textAlign: "left" }}>
           Unable to find estimator data.
-        </Typography>
+        </Alert>
       </Box>
     );
   }

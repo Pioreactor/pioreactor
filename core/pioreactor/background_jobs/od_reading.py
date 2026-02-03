@@ -94,6 +94,7 @@ from pioreactor.states import JobState as st
 from pioreactor.utils import adcs as madcs
 from pioreactor.utils import argextrema
 from pioreactor.utils import local_intermittent_storage
+from pioreactor.utils import local_persistent_storage
 from pioreactor.utils import timing
 from pioreactor.utils.math_helpers import mean
 from pioreactor.utils.od_fusion import compute_fused_od
@@ -721,21 +722,36 @@ class PhotodiodeIrLedReferenceTrackerUnitInit(IrLedReferenceTracker):
     SIGNAL / f(REF).
     """
 
-    def __init__(self, channel: pt.PdChannel) -> None:
+    _PERSISTENT_CACHE_NAME = "ir_led_reference_normalization"
+
+    def __init__(self, channel: pt.PdChannel, experiment: pt.Experiment | None = None) -> None:
         super().__init__()
         self.channel = channel
-        self.initial_ref: float | None = None
+        self.experiment = experiment
+        self.initial_ref = self._get_cached_initial_ref()
         self.led_output_ema = ExponentialMovingAverage(
             config.getfloat("od_reading.config", "pd_reference_ema")
         )
         self.led_output_emstd = ExponentialMovingStd(alpha=0.95, ema_alpha=0.8, initial_std_value=0.001)
 
+    def _get_cached_initial_ref(self) -> float | None:
+        with local_persistent_storage(self._PERSISTENT_CACHE_NAME) as cache:
+            cached = cache.get(self.experiment)
+
+        if cached is None:
+            return None
+        if isinstance(cached, bytes):
+            try:
+                cached = float(cached.decode())
+            except ValueError:
+                return None
+        return float(cached)
+
     def update(self, ir_output_reading: pt.Voltage) -> None:
         if self.initial_ref is None:
             self.initial_ref = ir_output_reading
-
-        if self.initial_ref <= 0.0:
-            raise ValueError("Initial IR reference is 0.0. Is it connected correctly? Is the IR LED working?")
+            with local_persistent_storage(self._PERSISTENT_CACHE_NAME) as cache:
+                cache.set(self.experiment, self.initial_ref)
 
         relative_ref = ir_output_reading / self.initial_ref
 
@@ -968,6 +984,7 @@ class CachedEstimatorTransformer(LoggerMixin, EstimatorTransformerProtocol):
             self.logger.debug("No estimator available for OD fusion, skipping.")
             return
         self.estimator = estimator
+        self.logger.debug(f"Using OD estimator `{estimator.estimator_name}`.")
 
     def __call__(self, raw_od_readings: structs.ODReadings) -> structs.ODFused | None:
         if self.estimator is None:
@@ -1588,6 +1605,7 @@ def start_od_reading(
         if ref_normalization == "unity":
             ir_led_reference_tracker = PhotodiodeIrLedReferenceTrackerUnitInit(
                 ir_led_reference_channel,
+                experiment=experiment,
             )
         else:
             ir_led_reference_tracker = PhotodiodeIrLedReferenceTrackerStaticInit(

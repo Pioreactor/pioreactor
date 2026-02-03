@@ -5,6 +5,7 @@ from typing import Optional
 from pioreactor import types as pt
 from pioreactor.automations import events
 from pioreactor.automations.dosing.base import DosingAutomationJob
+from pioreactor.background_jobs.od_reading import REF_keyword
 from pioreactor.config import config
 from pioreactor.exc import CalibrationError
 from pioreactor.utils import local_persistent_storage
@@ -67,10 +68,30 @@ class Turbidostat(DosingAutomationJob):
 
     @property
     def _od_channel(self) -> pt.PdChannel:
-        return cast(
-            pt.PdChannel,
-            config.get("turbidostat.config", "signal_channel", fallback="2"),
-        )
+        if not hasattr(self, "_resolved_od_channel"):
+            self._resolved_od_channel = self._resolve_od_channel()
+        return self._resolved_od_channel
+
+    def _resolve_od_channel(self) -> pt.PdChannel:
+        channels = config["od_config.photodiode_channel"]
+        signal_channels: list[pt.PdChannel] = []
+        for channel, angle in channels.items():
+            if angle is None or angle == "" or angle == REF_keyword:
+                continue
+            signal_channels.append(cast(pt.PdChannel, channel))
+
+        if len(signal_channels) == 1:
+            return signal_channels[0]
+        if len(signal_channels) > 1:
+            selected_channel = min(signal_channels, key=lambda ch: int(ch))
+            self.logger.warning(
+                "Multiple OD signal channels detected (%s). Using channel %s. Prefer od_fused or nOD in this case.",
+                ", ".join(signal_channels),
+                selected_channel,
+            )
+            return selected_channel
+
+        raise ValueError("No OD signal channels found in [od_config.photodiode_channel].")
 
     def execute(self) -> Optional[events.DilutionEvent]:
         if self.is_targeting_nOD:

@@ -91,6 +91,8 @@ pioreactors:
 # - Numbers: integer or float (e.g., 1, -2.5)
 # - Booleans: true, false (case-insensitive)
 # - Names resolve to values provided in the expression environment (inputs, etc.); otherwise they remain strings.
+#   Note: quoted string literals are not supported. Use bare tokens for string comparison
+#   (e.g., `state == ready`, not `state == "ready"`).
 #
 # Operators
 # - Arithmetic: +, -, *, / (raises on division by zero), ** (exponent)
@@ -108,7 +110,7 @@ pioreactors:
 # MQTT lookups
 # - <unit>:<job>:<setting>[.<nested_key>]*
 # - ::<job>:<setting>[.<nested_key>]* (uses current unit)
-#   Examples: unit():od_reading:od600, ::stirring:setting.target_rpm
+#   Examples: unit():od_reading:od600, ::stirring:setting.target_rpm, pio02:monitor:$state
 #   Fails if worker is inactive or topic missing.
 #
 # Conversion rules
