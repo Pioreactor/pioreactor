@@ -6,6 +6,7 @@ repos:
     -   id: check-ast
     -   id: check-yaml
     -   id: end-of-file-fixer
+        exclude: ^core/pioreactor/web/static/
     -   id: fix-encoding-pragma
     -   id: mixed-line-ending
     -   id: trailing-whitespace
