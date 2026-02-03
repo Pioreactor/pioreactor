@@ -55,15 +55,7 @@ class RunLazyGroup(LazyGroup):
         return super().list_commands(ctx)
 
     def get_command(self, ctx, cmd_name):
-        if cmd_name in {
-            "dosing_automation",
-            "led_automation",
-            "temperature_automation",
-        }:
-            # These commands rely on plugin registration side-effects (automation subclasses).
-            self._load_plugins()
-        elif cmd_name not in self.lazy_subcommands and cmd_name not in self.commands:
-            self._load_plugins()
+        self._load_plugins()
         return super().get_command(ctx, cmd_name)
 
 
