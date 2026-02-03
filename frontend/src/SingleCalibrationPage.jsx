@@ -259,10 +259,11 @@ function SingleCalibrationPage(props) {
     const apiUrl = `/api/workers/${pioreactorUnit}/calibrations/${device}/${calibrationName}`;
     try {
       const data = await fetchTaskResult(apiUrl)
-      if (data.result[pioreactorUnit].error){
+      const result = data.result?.[pioreactorUnit];
+      if (!result || result.error) {
         setCalibration(null);
-      } else{
-        setCalibration(data.result[pioreactorUnit]);
+      } else {
+        setCalibration(result);
       }
 
     } catch (err) {

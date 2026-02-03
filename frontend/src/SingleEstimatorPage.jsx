@@ -210,10 +210,11 @@ function SingleEstimatorPage(props) {
     const apiUrl = `/api/workers/${pioreactorUnit}/estimators/${device}/${estimatorName}`;
     try {
       const data = await fetchTaskResult(apiUrl)
-      if (data.result[pioreactorUnit].error){
+      const result = data.result?.[pioreactorUnit];
+      if (!result || result.error) {
         setEstimator(null);
-      } else{
-        setEstimator(data.result[pioreactorUnit]);
+      } else {
+        setEstimator(result);
       }
     } catch (err) {
       console.error("Failed to fetch estimator:", err);
