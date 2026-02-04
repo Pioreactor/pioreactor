@@ -186,12 +186,12 @@ export default function SideNavAndHeader() {
 
   React.useEffect(() => {
     async function getLAP() {
-       await fetch("/api/is_local_access_point_active")
+       await fetch("/api/local_access_point")
       .then((response) => {
-        return response.text();
+        return response.json();
       })
       .then((data) => {
-        setLAP(data === "true")
+        setLAP(Boolean(data?.active))
       });
     }
 

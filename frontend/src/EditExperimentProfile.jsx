@@ -81,9 +81,9 @@ const EditExperimentProfilesContent = ({ initialCode, profileFilename }) => {
   const saveCurrentCode = () => {
 
     setIsError(false);
-    fetch("/api/contrib/experiment_profiles", {
+    fetch(`/api/experiment_profiles/${encodeURIComponent(profileFilename)}`, {
       method: "PATCH",
-      body: JSON.stringify({ body: code, filename: profileFilename }),
+      body: JSON.stringify({ body: code }),
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json'
@@ -199,7 +199,7 @@ function ProfilesContainer(){
   const [openCapabilities, setOpenCapabilities] = React.useState(false)
 
   React.useEffect(() => {
-    fetch(`/api/contrib/experiment_profiles/${profileFilename}`, {
+    fetch(`/api/experiment_profiles/${encodeURIComponent(profileFilename)}`, {
           method: "GET",
       }).then(res => {
         if (res.ok) {

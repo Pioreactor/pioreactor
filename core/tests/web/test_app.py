@@ -346,7 +346,7 @@ def test_get_config_rejects_non_ini(client) -> None:
 
 def test_create_experiment_profile_invalid_filename_returns_400(client) -> None:
     response = client.post(
-        "/api/contrib/experiment_profiles",
+        "/api/experiment_profiles",
         json={"body": "experiment_profile_name: demo", "filename": "bad?name.yaml"},
     )
     assert response.status_code == 400
@@ -354,8 +354,8 @@ def test_create_experiment_profile_invalid_filename_returns_400(client) -> None:
 
 def test_update_experiment_profile_invalid_filename_returns_400(client) -> None:
     response = client.patch(
-        "/api/contrib/experiment_profiles",
-        json={"body": "experiment_profile_name: demo", "filename": "bad?name.yaml"},
+        "/api/experiment_profiles/bad:name.yaml",
+        json={"body": "experiment_profile_name: demo"},
     )
     assert response.status_code == 400
 

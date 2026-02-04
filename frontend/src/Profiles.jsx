@@ -75,7 +75,7 @@ function RunExperimentProfilesContent({
       cancellationButtonProps: { color: "secondary" },
     })
       .then(() => {
-        fetch(`/api/contrib/experiment_profiles/${selectedExperimentProfile}`, {
+        fetch(`/api/experiment_profiles/${selectedExperimentProfile}`, {
           method: "DELETE",
         }).then(res => {
           if (res.ok) {
@@ -89,7 +89,7 @@ function RunExperimentProfilesContent({
   const getSourceAndView = () => {
     // fetch the raw file content only if we are about to toggle into “view source”
     if (!viewSource) {
-      fetch(`/api/contrib/experiment_profiles/${selectedExperimentProfile}`, {
+      fetch(`/api/experiment_profiles/${selectedExperimentProfile}`, {
         method: "GET",
       }).then(res => {
         if (res.ok) {
@@ -106,7 +106,7 @@ function RunExperimentProfilesContent({
     if (!selectedExperimentProfile) {
       return;
     }
-    fetch(`/api/contrib/experiment_profiles/${selectedExperimentProfile}`, { method: 'GET' })
+    fetch(`/api/experiment_profiles/${selectedExperimentProfile}`, { method: 'GET' })
       .then(res => {
         if (!res.ok) {
           throw new Error('Failed to fetch profile');
@@ -419,7 +419,7 @@ function Profiles(props) {
   }, [experimentMetadata.experiment]);
 
   React.useEffect(() => {
-    fetch("/api/contrib/experiment_profiles")
+    fetch("/api/experiment_profiles")
       .then(response => response.json())
       .then(profiles => {
         // shape: [ {file: "...", experimentProfile: {...}}, ... ]

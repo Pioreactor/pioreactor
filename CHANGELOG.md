@@ -1,3 +1,14 @@
+### Upcoming
+
+#### Breaking changes
+
+ - Renamed `/api/is_local_access_point_active` to `/api/local_access_point` (now returns `{active: <bool>}`).
+ - Consolidated experiment profile routes under `/api/experiment_profiles` and `/api/experiments/<experiment>/experiment_profiles/*`. Removed `/api/contrib/experiment_profiles` and `/api/experiment_profiles/running/experiments/<experiment>`. `PATCH` now targets `/api/experiment_profiles/<filename>`.
+
+#### Enhancements
+
+ - Added `/api/units/<pioreactor_unit>/jobs/stop/experiments/<experiment>` to mirror worker stop-all behavior.
+
 ### 26.2.3
 
 #### Enhancements

@@ -95,7 +95,7 @@ metadata:
     }
 
     setIsError(false);
-    fetch("/api/contrib/experiment_profiles", {
+    fetch("/api/experiment_profiles", {
       method: "POST",
       body: JSON.stringify({ body: code, filename: filename + '.yaml' }),
       headers: {

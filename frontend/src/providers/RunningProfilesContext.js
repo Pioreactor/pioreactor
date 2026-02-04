@@ -29,7 +29,7 @@ export function RunningProfilesProvider({ children, experiment }) {
     setLoading(true);
     try {
       const response = await fetch(
-        `/api/experiment_profiles/running/experiments/${experiment}`
+        `/api/experiments/${encodeURIComponent(experiment)}/experiment_profiles/running`
       );
       if (!response.ok) {
         throw new Error(`Failed to fetch running profiles: ${response.statusText}`);

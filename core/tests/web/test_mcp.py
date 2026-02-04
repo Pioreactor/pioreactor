@@ -124,5 +124,5 @@ def test_endpoints_exist_in_api_and_unit_api(app) -> None:
         "/api/workers/<pioreactor_unit>/jobs/settings/job_name/<job_name>/experiments/<experiment>" in routes
     )
     assert "/api/experiments/<experiment>/recent_logs" in routes
-    assert "/api/contrib/experiment_profiles" in routes
+    assert "/api/experiment_profiles" in routes
     assert "/api/units/<pioreactor_unit>/configuration" in routes

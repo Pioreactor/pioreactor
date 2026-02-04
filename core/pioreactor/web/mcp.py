@@ -382,7 +382,7 @@ def get_experiment_profiles() -> dict:
 
     List available experiment profiles (filename, fullpath, and parsed metadata).
     """
-    return get_from_leader("/api/contrib/experiment_profiles")
+    return get_from_leader("/api/experiment_profiles")
 
 
 @mcp.tool()

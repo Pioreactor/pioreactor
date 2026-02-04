@@ -35,6 +35,7 @@ from pioreactor.pubsub import get_from
 from pioreactor.pubsub import post_into
 from pioreactor.structs import CalibrationBase
 from pioreactor.structs import Dataset
+from pioreactor.utils.networking import is_using_local_access_point
 from pioreactor.utils.networking import resolve_to_address
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import current_utc_timestamp
@@ -197,8 +198,12 @@ def get_models() -> ResponseReturnValue:
     "/workers/<pioreactor_unit>/jobs/stop/experiments/<experiment>",
     methods=["POST", "PATCH"],
 )
-def stop_all_jobs_on_worker_for_experiment(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
-    """Kills all jobs for worker assigned to experiment"""
+@api_bp.route(
+    "/units/<pioreactor_unit>/jobs/stop/experiments/<experiment>",
+    methods=["POST", "PATCH"],
+)
+def stop_all_jobs_on_unit_for_experiment(pioreactor_unit: str, experiment: str) -> ResponseReturnValue:
+    """Kills all jobs for worker or unit assigned to experiment"""
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         broadcast_post_across_cluster("/unit_api/jobs/stop", json={"experiment": experiment})
     else:
@@ -2716,17 +2721,18 @@ def get_historical_config_for(filename: str) -> ResponseReturnValue:
     return attach_cache_control(jsonify(configs_for_filename), max_age=15)
 
 
-@api_bp.route("/is_local_access_point_active", methods=["GET"])
-def is_local_access_point_active() -> ResponseReturnValue:
+@api_bp.route("/local_access_point", methods=["GET"])
+def get_local_access_point() -> ResponseReturnValue:
     return attach_cache_control(
-        jsonify({"result": os.path.isfile("/boot/firmware/local_access_point")}), max_age=10_000
+        jsonify({"active": is_using_local_access_point()}),
+        max_age=10_000,
     )
 
 
 ### experiment profiles
 
 
-@api_bp.route("/experiment_profiles/running/experiments/<experiment>", methods=["GET"])
+@api_bp.route("/experiments/<experiment>/experiment_profiles/running", methods=["GET"])
 def get_running_profiles(experiment: str) -> ResponseReturnValue:
     jobs = query_temp_local_metadata_db(
         """
@@ -2771,7 +2777,7 @@ def get_recent_experiment_profile_runs(experiment: str) -> ResponseReturnValue:
     return attach_cache_control(jsonify(recent_runs), max_age=5)
 
 
-@api_bp.route("/contrib/experiment_profiles", methods=["POST"])
+@api_bp.route("/experiment_profiles", methods=["POST"])
 def create_experiment_profile() -> ResponseReturnValue:
     body = request.get_json()
     experiment_profile_body = body["body"]
@@ -2815,11 +2821,11 @@ def create_experiment_profile() -> ResponseReturnValue:
     return {"status": "success"}, 200
 
 
-@api_bp.route("/contrib/experiment_profiles", methods=["PATCH"])
-def update_experiment_profile() -> ResponseReturnValue:
+@api_bp.route("/experiment_profiles/<filename>", methods=["PATCH"])
+def update_experiment_profile(filename: str) -> ResponseReturnValue:
     body = request.get_json()
     experiment_profile_body = body["body"]
-    experiment_profile_filename = Path(body["filename"]).name
+    experiment_profile_filename = Path(filename).name
 
     # verify content
     try:
@@ -2853,7 +2859,7 @@ def update_experiment_profile() -> ResponseReturnValue:
     return {"status": "success"}, 200
 
 
-@api_bp.route("/contrib/experiment_profiles", methods=["GET"])
+@api_bp.route("/experiment_profiles", methods=["GET"])
 def get_experiment_profiles() -> ResponseReturnValue:
     try:
         profile_path = Path(os.environ["DOT_PIOREACTOR"]) / "experiment_profiles"
@@ -2890,7 +2896,7 @@ def get_experiment_profiles() -> ResponseReturnValue:
         abort_with(400, str(e))
 
 
-@api_bp.route("/contrib/experiment_profiles/<filename>", methods=["GET"])
+@api_bp.route("/experiment_profiles/<filename>", methods=["GET"])
 def get_experiment_profile(filename: str) -> ResponseReturnValue:
     file = Path(filename).name
     try:
@@ -2908,7 +2914,7 @@ def get_experiment_profile(filename: str) -> ResponseReturnValue:
         abort_with(404, str(e))
 
 
-@api_bp.route("/contrib/experiment_profiles/<filename>", methods=["DELETE"])
+@api_bp.route("/experiment_profiles/<filename>", methods=["DELETE"])
 def delete_experiment_profile(filename: str) -> ResponseReturnValue:
     file = Path(filename).name
     try:
