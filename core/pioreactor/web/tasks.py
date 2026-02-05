@@ -551,14 +551,15 @@ def calibration_save_calibration(device: str, calibration_payload: dict[str, obj
 def estimator_save_estimator(device: str, estimator_payload: dict[str, object]) -> dict[str, str]:
     from msgspec.json import decode as json_decode
     from msgspec.json import encode as json_encode
-    from pioreactor.structs import ODFusionEstimator
+    from pioreactor.structs import EstimatorBase
+    from pioreactor.structs import subclass_union
 
     logger.debug(
         "Starting estimator save: device=%s payload_keys=%s",
         device,
         sorted(estimator_payload.keys()),
     )
-    estimator = json_decode(json_encode(estimator_payload), type=ODFusionEstimator)
+    estimator = json_decode(json_encode(estimator_payload), type=subclass_union(EstimatorBase))
     path = estimator.save_to_disk_for_device(device)
     estimator.set_as_active_calibration_for_device(device)
     logger.debug(
