@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 200">
+  <title>two touching bacillus cells</title>
+
+  <g style="color:#616161" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round">
+    <g transform="rotate(12 180 100)">
+      <rect x="84" y="78" width="96" height="44" rx="22" fill="#d7efff" />
+      <rect x="102" y="91" width="58" height="18" rx="9" fill="#c8e7ff" />
+      <circle cx="116" cy="100" r="3.1" fill="currentColor" stroke="none" />
+      <circle cx="130" cy="96" r="2.7" fill="currentColor" stroke="none" />
+      <circle cx="147" cy="103" r="4.1" fill="currentColor" stroke="none" />
+    </g>
+
+    <g transform="rotate(-10 180 100)">
+      <rect x="180" y="78" width="96" height="44" rx="22" fill="#cde9ff" />
+      <rect x="198" y="91" width="58" height="18" rx="9" fill="#bfe0ff" />
+      <circle cx="212" cy="101" r="3.9" fill="currentColor" stroke="none" />
+      <circle cx="228" cy="97" r="2.8" fill="currentColor" stroke="none" />
+      <circle cx="244" cy="103" r="3.4" fill="none" stroke="currentColor" stroke-width="2" />
+    </g>
+  </g>
+</svg>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useMQTT } from '../providers/MQTTContext'; // Import the useMQTT hook
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
@@ -19,7 +19,6 @@ import { ERROR_COLOR, WARNING_COLOR, NOTICE_COLOR } from "../color";
 import Chip from '@mui/material/Chip';
 import PioreactorIcon from "./PioreactorIcon"
 import { Link } from 'react-router';
-import emptyStateIllustration from '../assets/undraw_clouds_bmtk.svg';
 
 // Activate the UTC plugin
 dayjs.extend(utc);
@@ -68,11 +67,24 @@ const LEVELS = [
   "CRITICAL"
 ]
 
+const EMPTY_STATE_ILLUSTRATIONS = [
+  "/static/svgs/yeast-cells.svg",
+  "/static/svgs/bacteria-cells.svg",
+  "/static/svgs/coccus-cells.svg",
+  "/static/svgs/spore-forming-bacilli.svg",
+  "/static/svgs/bacteria-two-bacillus-touching.svg",
+  "/static/svgs/bacteria-three-bacillus-touching.svg",
+];
+
 function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) {
   const [listOfLogs, setListOfLogs] = useState([]);
   const [skip, setSkip] = useState(0); // Tracks the number of logs already loaded
   const [loading, setLoading] = useState(false); // Tracks if the logs are currently loading
   const [onlyAssignedLogs, setOnlyAssignedLogs] = useState(true);
+  const emptyStateIllustration = useMemo(() => {
+    const randomIndex = Math.floor(Math.random() * EMPTY_STATE_ILLUSTRATIONS.length);
+    return EMPTY_STATE_ILLUSTRATIONS[randomIndex];
+  }, []);
   const { client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
 
   const getAPIURL = (unit, onlyAssignedLogs, experiment) => {
@@ -236,7 +248,7 @@ function PaginatedLogTable({pioreactorUnit, experiment, relabelMap, logLevel }) 
             </TableContainer>
           ) : showEmptyState ? (
             <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" sx={{ minHeight: "350px", gap: 2, textAlign: "center" }}>
-              <Box component="img" src={emptyStateIllustration} alt="No logs illustration" sx={{ maxWidth: "320px", width: "100%", opacity: 0.9 }} />
+              <Box component="img" src={emptyStateIllustration} alt="No logs illustration" sx={{ maxWidth: "350px", width: "100%", opacity: 0.8 }} />
               <Box sx={{ color: "#5f6a7d", fontSize: "14px" }}>
                 No logs yet. They will appear here once your Pioreactor starts reporting activity.
               </Box>

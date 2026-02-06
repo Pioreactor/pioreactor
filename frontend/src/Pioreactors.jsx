@@ -92,11 +92,19 @@ import {
   disabledColor,
   stateDisplay,
 } from "./color";
-import cloudImage from './assets/pioreactor_cloud.webp'
 import MissingWorkerModelModal from "./components/MissingWorkerModelModal";
 
 const workerMissingModelDetails = (worker) =>
   worker?.model_name == null || worker?.model_version == null;
+
+const EMPTY_STATE_ILLUSTRATIONS = [
+  "/static/svgs/yeast-cells.svg",
+  "/static/svgs/bacteria-cells.svg",
+  "/static/svgs/coccus-cells.svg",
+  "/static/svgs/spore-forming-bacilli.svg",
+  "/static/svgs/bacteria-two-bacillus-touching.svg",
+  "/static/svgs/bacteria-three-bacillus-touching.svg",
+];
 
 
 
@@ -3373,6 +3381,10 @@ function Pioreactors({title}) {
   const [isLoading, setIsLoading] = useState(true);
   const [availableModels, setAvailableModels] = useState([]);
   const [modelCheckKey, setModelCheckKey] = useState(0);
+  const emptyStateIllustration = useMemo(() => {
+    const randomIndex = Math.floor(Math.random() * EMPTY_STATE_ILLUSTRATIONS.length);
+    return EMPTY_STATE_ILLUSTRATIONS[randomIndex];
+  }, []);
 
   useEffect(() => {
     document.title = title;
@@ -3434,7 +3446,11 @@ function Pioreactors({title}) {
     <Box sx={{textAlign: "center"}}>
       {isLoading ? <CircularProgress /> : (
       <>
-      <img alt="filler image for no pioreactor assigned" src={cloudImage} style={{width: "500px", opacity: 0.9, filter: "grayscale(50%)", marginLeft: "30px"}}/>
+      <img
+        alt="filler image for no pioreactor assigned"
+        src={emptyStateIllustration}
+        style={{width: "420px", opacity: 0.8, marginBottom: "8px"}}
+      />
       <Typography component='div' variant='h6' sx={{mb: 2}}>
         No Pioreactors assigned to this experiment
       </Typography>

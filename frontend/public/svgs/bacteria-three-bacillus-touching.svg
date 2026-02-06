@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 200">
+  <title>three tangent bacillus cells</title>
+
+  <g style="color:#616161" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round">
+    <g transform="rotate(11 132 100)">
+      <rect x="36" y="78" width="96" height="44" rx="22" fill="#d7efff" />
+      <rect x="54" y="91" width="58" height="18" rx="9" fill="#c8e7ff" />
+      <circle cx="68" cy="101" r="3.1" fill="currentColor" stroke="none" />
+      <circle cx="83" cy="96" r="2.6" fill="currentColor" stroke="none" />
+      <circle cx="100" cy="103" r="4.1" fill="currentColor" stroke="none" />
+    </g>
+
+    <rect x="132" y="78" width="96" height="44" rx="22" fill="#cde9ff" />
+    <rect x="150" y="91" width="58" height="18" rx="9" fill="#bfe0ff" />
+    <circle cx="164" cy="97" r="2.8" fill="currentColor" stroke="none" />
+    <circle cx="182" cy="102" r="3.8" fill="currentColor" stroke="none" />
+    <circle cx="200" cy="96" r="3.6" fill="none" stroke="currentColor" stroke-width="2" />
+
+    <g transform="rotate(-11 228 100)">
+      <rect x="228" y="78" width="96" height="44" rx="22" fill="#d7efff" />
+      <rect x="246" y="91" width="58" height="18" rx="9" fill="#c8e7ff" />
+      <circle cx="260" cy="100" r="4" fill="currentColor" stroke="none" />
+      <circle cx="276" cy="96" r="2.7" fill="currentColor" stroke="none" />
+      <circle cx="292" cy="103" r="3.3" fill="currentColor" stroke="none" />
+    </g>
+  </g>
+</svg>
