@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
+import os
 import subprocess
 from os import geteuid
+from pathlib import Path
 from shlex import quote
 from typing import Any
 from typing import Optional
@@ -224,6 +226,135 @@ def pio(ctx, show_version: bool) -> None:
     # https://click.palletsprojects.com/en/8.1.x/commands/#group-invocation-without-command
     if ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
+
+
+def _resolve_config_paths_like_runtime() -> tuple[str, str]:
+    """
+    Resolve global and local config paths with runtime-like precedence.
+    """
+    from pioreactor.whoami import is_testing_env
+
+    if os.environ.get("GLOBAL_CONFIG") is not None:
+        global_config_path = os.environ["GLOBAL_CONFIG"]
+    elif os.environ.get("DOT_PIOREACTOR") is not None:
+        global_config_path = os.environ["DOT_PIOREACTOR"] + "/config.ini"
+    else:
+        if is_testing_env():
+            global_config_path = "./.pioreactor/config.ini"
+        else:
+            global_config_path = "/home/pioreactor/.pioreactor/config.ini"
+
+    if os.environ.get("LOCAL_CONFIG") is not None:
+        local_config_path = os.environ["LOCAL_CONFIG"]
+    elif os.environ.get("DOT_PIOREACTOR") is not None:
+        local_config_path = os.environ["DOT_PIOREACTOR"] + "/unit_config.ini"
+    else:
+        if is_testing_env():
+            local_config_path = "./.pioreactor/unit_config.ini"
+        else:
+            local_config_path = "/home/pioreactor/.pioreactor/unit_config.ini"
+
+    return global_config_path, local_config_path
+
+
+def _load_config_file(path: str):
+    from pioreactor.config import ConfigParserMod
+
+    parser = ConfigParserMod(strict=False)
+    config_path = Path(path)
+    if config_path.is_file():
+        parser.read([str(config_path)])
+    return parser
+
+
+def _format_config_key_value(option_name: str, option_value: str | None) -> str:
+    if option_value is None:
+        return option_name
+    return f"{option_name}={option_value}"
+
+
+@pio.group(name="config", short_help="inspect effective configuration")
+def config_group() -> None:
+    """Show effective configuration values."""
+    pass
+
+
+@config_group.command(name="show", short_help="show the effective merged config")
+@click.option("--section", "section_name", type=click.STRING, help="show only one section")
+@click.option("--key", "key_name", type=click.STRING, help="show only one key (requires --section)")
+@click.option("--json", "json_output", is_flag=True, help="output as json")
+@click.option("--with-source", is_flag=True, help="include source: global/local/derived")
+def show_config(
+    section_name: str | None,
+    key_name: str | None,
+    json_output: bool,
+    with_source: bool,
+) -> None:
+    """
+    Print the merged config (global + local + derived sections).
+    """
+    from msgspec.json import encode as dumps
+    from pioreactor.config import get_config
+
+    if key_name is not None and section_name is None:
+        raise click.BadParameter("--key requires --section.", param_hint="--key")
+
+    global_config_path, local_config_path = _resolve_config_paths_like_runtime()
+    global_config = _load_config_file(global_config_path)
+    local_config = _load_config_file(local_config_path)
+
+    def value_source(section: str, key: str) -> str:
+        if local_config.has_section(section) and local_config.has_option(section, key):
+            return "local"
+        if global_config.has_section(section) and global_config.has_option(section, key):
+            return "global"
+        return "derived"
+
+    effective_config = get_config()
+    payload: dict[str, dict[str, str | None]] = {}
+    for section in sorted(effective_config.sections()):
+        payload[section] = {
+            option_name: option_value
+            for option_name, option_value in sorted(effective_config[section].items())
+        }
+
+    if section_name is not None:
+        if section_name not in payload:
+            raise click.ClickException(f"Section '{section_name}' not found in effective config.")
+        payload = {section_name: payload[section_name]}
+
+    if key_name is not None:
+        assert section_name is not None
+        if key_name not in payload[section_name]:
+            raise click.ClickException(f"Key '{key_name}' not found in section '{section_name}'.")
+        payload = {section_name: {key_name: payload[section_name][key_name]}}
+
+    if json_output:
+        if with_source:
+            payload_with_source = {
+                section: {
+                    key: {"value": value, "source": value_source(section, key)}
+                    for key, value in options.items()
+                }
+                for section, options in payload.items()
+            }
+            click.echo(dumps(payload_with_source).decode())
+            return
+
+        click.echo(dumps(payload).decode())
+        return
+
+    sections = list(payload.items())
+    for section_index, (section, options) in enumerate(sections):
+        click.echo(f"[{section}]")
+        for key, value in options.items():
+            line = _format_config_key_value(key, value)
+            if with_source:
+                line = f"{line}  # source={value_source(section, key)}"
+            click.echo(line)
+
+        if section_index < len(sections) - 1:
+            click.echo("")
 
 
 @pio.command(name="logs", short_help="show recent logs")

@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 # test_cli.py
+import json
 import re
 import time
+from pathlib import Path
 
 import click
 import pytest
@@ -13,6 +15,7 @@ from pioreactor.cli.pios import kill
 from pioreactor.cli.pios import pios
 from pioreactor.cli.pios import reboot
 from pioreactor.cli.pios import run
+from pioreactor.config import get_config
 from pioreactor.config import get_leader_hostname
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import subscribe_and_callback
@@ -37,6 +40,82 @@ def test_run() -> None:
     runner = CliRunner()
     result = runner.invoke(pio, ["run"])
     assert result.exit_code == 0
+
+
+def test_pio_config_show_json_with_sources(tmp_path: Path, monkeypatch) -> None:
+    (tmp_path / "config.ini").write_text(
+        """
+[cluster.topology]
+leader_hostname=leader
+leader_address=leader.local
+
+[mqtt]
+broker_address=global-broker
+
+[PWM]
+0=stirring
+""".strip()
+    )
+    (tmp_path / "unit_config.ini").write_text(
+        """
+[mqtt]
+broker_address=local-broker
+""".strip()
+    )
+
+    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
+    get_config.cache_clear()
+    try:
+        runner = CliRunner()
+        result = runner.invoke(pio, ["config", "show", "--json", "--with-source"])
+        assert result.exit_code == 0
+
+        payload = json.loads(result.output)
+        assert payload["mqtt"]["broker_address"]["value"] == "local-broker"
+        assert payload["mqtt"]["broker_address"]["source"] == "local"
+        assert payload["cluster.topology"]["leader_hostname"]["source"] == "global"
+        assert payload["PWM_reverse"]["stirring"]["source"] == "derived"
+    finally:
+        get_config.cache_clear()
+
+
+def test_pio_config_show_section_and_key_filter(tmp_path: Path, monkeypatch) -> None:
+    (tmp_path / "config.ini").write_text(
+        """
+[cluster.topology]
+leader_hostname=leader
+leader_address=leader.local
+
+[mqtt]
+broker_address=global-broker
+""".strip()
+    )
+    (tmp_path / "unit_config.ini").write_text(
+        """
+[mqtt]
+broker_address=local-broker
+""".strip()
+    )
+
+    monkeypatch.setenv("DOT_PIOREACTOR", str(tmp_path))
+    get_config.cache_clear()
+    try:
+        runner = CliRunner()
+        result = runner.invoke(
+            pio,
+            ["config", "show", "--json", "--section", "mqtt", "--key", "broker_address"],
+        )
+        assert result.exit_code == 0
+        assert json.loads(result.output) == {"mqtt": {"broker_address": "local-broker"}}
+    finally:
+        get_config.cache_clear()
+
+
+def test_pio_config_show_key_requires_section() -> None:
+    runner = CliRunner()
+    result = runner.invoke(pio, ["config", "show", "--key", "broker_address"])
+    assert result.exit_code != 0
+    assert "--key requires --section." in result.output
 
 
 def test_led_intensity() -> None:
