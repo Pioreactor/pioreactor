@@ -71,7 +71,6 @@ const EMPTY_STATE_ILLUSTRATIONS = [
   "/static/svgs/yeast-cells.svg",
   "/static/svgs/bacteria-cells.svg",
   "/static/svgs/coccus-cells.svg",
-  "/static/svgs/spore-forming-bacilli.svg",
   "/static/svgs/bacteria-two-bacillus-touching.svg",
   "/static/svgs/bacteria-three-bacillus-touching.svg",
 ];

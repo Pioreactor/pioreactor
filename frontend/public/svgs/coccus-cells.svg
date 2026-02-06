@@ -3,14 +3,12 @@
   <title>coccus cells</title>
 
   <g style="color:#616161" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round">
-    <circle cx="168" cy="108" r="54" fill="#e8f6ff" />
-    <circle cx="224" cy="92" r="34" fill="#d7efff" />
-    <circle cx="238" cy="132" r="22" fill="#cde9ff" />
-    <circle cx="124" cy="76" r="22" fill="#dff2ff" />
+    <circle cx="161" cy="104" r="54" fill="#e8f6ff" />
+    <circle cx="226" cy="95" r="34" fill="#d7efff" />
+    <circle cx="126" cy="73" r="22" fill="#dff2ff" />
 
-    <circle cx="154" cy="122" r="9" fill="#c6e5ff" />
-    <circle cx="216" cy="84" r="8" fill="#c6e5ff" />
-    <circle cx="244" cy="123" r="5.5" fill="#c6e5ff" />
+    <circle cx="171" cy="125" r="9" fill="#c6e5ff" />
+    <circle cx="218" cy="83" r="8" fill="#c6e5ff" />
     <circle cx="119" cy="76" r="6.5" fill="#c6e5ff" />
   </g>
 </svg>
