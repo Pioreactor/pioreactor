@@ -38,6 +38,7 @@ from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.config import config as pioreactor_config
 from pioreactor.logging import create_logger
+from pioreactor.models import CORE_MODELS
 from pioreactor.mureq import HTTPErrorStatus
 from pioreactor.mureq import HTTPException
 from pioreactor.mureq import Response
@@ -286,6 +287,11 @@ def check_model_hardware(model_name: str, model_version: str) -> None:
     if model_version != "1.5":
         return
 
+    if (model_name, model_version) in CORE_MODELS:
+        display_name = CORE_MODELS[(model_name, model_version)].display_name
+    else:
+        display_name = f"{model_name} {model_version}"
+
     try:
         addresses = _get_adc_addresses_for_model(model_name, model_version)
     except exc.HardwareNotFoundError as err:
@@ -295,21 +301,19 @@ def check_model_hardware(model_name: str, model_version: str) -> None:
         return
 
     if not addresses:
-        logger.debug(
-            f"Hardware check found no ADC addresses for {model_name} {model_version} on {get_unit_name()}."
-        )
+        logger.debug(f"Hardware check found no ADC addresses for {display_name} on {get_unit_name()}.")
         return
 
     missing = sorted(addr for addr in addresses if not hardware.is_i2c_device_present(addr))
     if missing:
         missing_hex = ", ".join(hex(addr) for addr in missing)
         logger.warning(
-            f"Hardware check failed for {model_name} {model_version} on {get_unit_name()}: "
+            f"Hardware check failed for {display_name} on {get_unit_name()}: "
             f"missing I2C devices at {missing_hex}."
         )
         return
 
-    logger.notice(f"Correct hardware found for {model_name} {model_version} on {get_unit_name()}.")
+    logger.notice(f"Correct hardware found for {display_name} on {get_unit_name()}.")
     return
 
 

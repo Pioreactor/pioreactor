@@ -11,12 +11,14 @@
 
 #### Enhancements
 
- - Added `/api/units/<pioreactor_unit>/jobs/stop/experiments/<experiment>` to mirror worker stop-all behavior.
  - Normalized calibration route parameter naming to `calibration_name` across API and unit API calibration endpoints for more consistent endpoint templates.
+ - Added `pios jobs list` and `pios jobs list running` to inspect worker job history and running jobs from the leader CLI.
+ - Added `GET /unit_api/jobs` for per-unit job history (ordered by newest first), complementing the existing `GET /unit_api/jobs/running` endpoint.
 
 #### Bug fixes
 
  - Fixed `/api/config/units/$broadcast` to correctly merge each unit's own `config_<unit>.ini` instead of using a shared `config_$broadcast.ini` path.
+ - Improved the UI's "Assign Pioreactors" dialog: units already assigned to another experiment can now be selected for reassignment, their status text updates to "Will be unassigned from <experiment>" when selected, and "Select all" now applies consistently to all listed units.
 
 ### 26.2.3
 

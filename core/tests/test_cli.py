@@ -243,6 +243,74 @@ def test_pios_kill_requests() -> None:
     assert bucket[1].json == {"experiment": "demo"}
 
 
+def test_pios_jobs_list_requests_history_endpoint(monkeypatch) -> None:
+    class DummyResponse:
+        def raise_for_status(self) -> None:
+            return
+
+        def json(self) -> list[dict[str, str | int | None]]:
+            return [
+                {
+                    "job_id": 42,
+                    "job_name": "stirring",
+                    "experiment": "_testing_experiment",
+                    "job_source": "cli",
+                    "unit": "unit1",
+                    "started_at": "2026-01-01T00:00:00.000Z",
+                    "ended_at": "2026-01-01T00:10:00.000Z",
+                }
+            ]
+
+    captured: list[tuple[str, str]] = []
+
+    def fake_get_from(address: str, endpoint: str, **_kwargs):
+        captured.append((address, endpoint))
+        return DummyResponse()
+
+    monkeypatch.setattr("pioreactor.cli.pios.get_from", fake_get_from)
+
+    runner = CliRunner()
+    result = runner.invoke(pios, ["jobs", "list", "--units", "unit1"])
+    assert result.exit_code == 0
+    assert captured == [("unit1.local", "/unit_api/jobs")]
+    assert "[job_id=42]" in result.output
+    assert "stirring" in result.output
+
+
+def test_pios_jobs_list_running_requests_running_endpoint(monkeypatch) -> None:
+    class DummyResponse:
+        def raise_for_status(self) -> None:
+            return
+
+        def json(self) -> list[dict[str, str | int | None]]:
+            return [
+                {
+                    "job_id": 43,
+                    "job_name": "od_reading",
+                    "experiment": "_testing_experiment",
+                    "job_source": "cli",
+                    "unit": "unit1",
+                    "started_at": "2026-01-01T00:00:00.000Z",
+                    "ended_at": None,
+                }
+            ]
+
+    captured: list[tuple[str, str]] = []
+
+    def fake_get_from(address: str, endpoint: str, **_kwargs):
+        captured.append((address, endpoint))
+        return DummyResponse()
+
+    monkeypatch.setattr("pioreactor.cli.pios.get_from", fake_get_from)
+
+    runner = CliRunner()
+    result = runner.invoke(pios, ["jobs", "list", "running", "--units", "unit1"])
+    assert result.exit_code == 0
+    assert captured == [("unit1.local", "/unit_api/jobs/running")]
+    assert "[job_id=43]" in result.output
+    assert "still running" in result.output
+
+
 def test_pio_job_info_lists_job() -> None:
     runner = CliRunner()
     job_name = "test_job"

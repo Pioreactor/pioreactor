@@ -594,6 +594,25 @@ def stop_jobs() -> DelayedResponseReturnValue:
     return create_task_response(task)
 
 
+@unit_api_bp.route("/jobs", methods=["GET"])
+def get_jobs() -> ResponseReturnValue:
+    jobs = query_temp_local_metadata_db(
+        """
+        SELECT
+            job_id,
+            job_name,
+            experiment,
+            job_source,
+            unit,
+            started_at,
+            ended_at
+        FROM pio_job_metadata
+        ORDER BY started_at DESC
+        """
+    )
+    return jsonify(jobs)
+
+
 @unit_api_bp.route("/jobs/running/experiments/<experiment>", methods=["GET"])
 def get_running_jobs_for_experiment(experiment: str) -> ResponseReturnValue:
     jobs = query_temp_local_metadata_db(

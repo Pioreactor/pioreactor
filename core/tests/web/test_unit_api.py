@@ -167,3 +167,80 @@ def test_install_plugin_allows_allowlisted(client, monkeypatch) -> None:
     data = resp.get_json()
     assert data["task_id"] == "task-123"
     assert captured["args"] == ("install", "pioreactor-air-bubbler")
+
+
+def test_get_jobs_returns_history(client) -> None:
+    from time import sleep
+
+    from pioreactor.utils.job_manager import JobManager
+
+    with JobManager() as jm:
+        old_job_id = jm.register_and_set_running(
+            unit="unit1",
+            experiment="exp_old",
+            job_name="old_job",
+            job_source="test",
+            pid=1001,
+            leader="leader",
+            is_long_running_job=False,
+        )
+        jm.set_not_running(old_job_id)
+
+        sleep(0.02)
+
+        newest_job_id = jm.register_and_set_running(
+            unit="unit1",
+            experiment="exp_new",
+            job_name="new_job",
+            job_source="test",
+            pid=1002,
+            leader="leader",
+            is_long_running_job=False,
+        )
+
+    response = client.get("/unit_api/jobs")
+    assert response.status_code == 200
+    rows = response.get_json()
+    assert isinstance(rows, list)
+    assert [row["job_id"] for row in rows[:2]] == [newest_job_id, old_job_id]
+    assert set(rows[0]) == {
+        "job_id",
+        "job_name",
+        "experiment",
+        "job_source",
+        "unit",
+        "started_at",
+        "ended_at",
+    }
+
+
+def test_get_running_jobs_endpoint_filters_results(client) -> None:
+    from pioreactor.utils.job_manager import JobManager
+
+    with JobManager() as jm:
+        stopped_job_id = jm.register_and_set_running(
+            unit="unit1",
+            experiment="exp_old",
+            job_name="old_job",
+            job_source="test",
+            pid=1003,
+            leader="leader",
+            is_long_running_job=False,
+        )
+        jm.set_not_running(stopped_job_id)
+
+        running_job_id = jm.register_and_set_running(
+            unit="unit1",
+            experiment="exp_new",
+            job_name="new_job",
+            job_source="test",
+            pid=1004,
+            leader="leader",
+            is_long_running_job=False,
+        )
+
+    response = client.get("/unit_api/jobs/running")
+    assert response.status_code == 200
+    rows = response.get_json()
+    assert isinstance(rows, list)
+    assert [row["job_id"] for row in rows] == [running_job_id]

@@ -596,9 +596,6 @@ export const DisplayProfile = ({ data }) => {
         <Typography variant="h6"><ViewTimelineOutlinedIcon sx={{verticalAlign: "middle", margin:"0px 3px"}}/>{data?.experiment_profile_name || <UnderlineSpan title="missing `experiment_profile_name`">??</UnderlineSpan>}</Typography>
         <AuthorSection author={data?.metadata?.author} />
         <DescriptionSection description={data?.metadata?.description} />
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          Note: quoted strings aren&apos;t supported in profile expressions. Use bare tokens like <span style={expression}>ready</span>, not <span style={expression}>&quot;ready&quot;</span>.
-        </Typography>
         <br/>
         <PluginsSection plugins={data?.plugins} />
         <ParametersSection parameters={data?.inputs} />

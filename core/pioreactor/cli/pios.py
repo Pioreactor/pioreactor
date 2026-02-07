@@ -4,6 +4,7 @@ CLI for running the commands on workers, or otherwise interacting with the worke
 """
 import os
 from concurrent.futures import ThreadPoolExecutor
+from typing import Any
 
 import click
 from msgspec import DecodeError
@@ -18,6 +19,7 @@ from pioreactor.exc import RsyncError
 from pioreactor.exc import SSHError
 from pioreactor.logging import create_logger
 from pioreactor.mureq import HTTPException
+from pioreactor.pubsub import get_from
 from pioreactor.pubsub import post_into
 from pioreactor.utils.job_manager import ClusterJobManager
 from pioreactor.utils.networking import cp_file_across_cluster
@@ -208,6 +210,107 @@ if am_I_leader() or is_testing_env():
             i += 1
 
         return {"args": args, "options": opts}
+
+    def _format_timestamp_to_seconds(timestamp: str | None) -> str:
+        if timestamp is None:
+            return ""
+
+        from pioreactor.utils.timing import to_datetime
+
+        try:
+            dt = to_datetime(timestamp)
+        except ValueError:
+            return timestamp
+
+        return dt.replace(microsecond=0).strftime("%Y-%m-%dT%H:%M:%S")
+
+    def _format_job_history_line(
+        job_id: int,
+        job_name: str,
+        experiment: str,
+        job_source: str | None,
+        unit: str,
+        started_at: str,
+        ended_at: str | None,
+    ) -> str:
+        job_source_display = job_source or "unknown"
+        ended_at_display = _format_timestamp_to_seconds(ended_at) or "still running"
+        job_id_label = click.style(f"[job_id={job_id}]", fg="cyan")
+        job_name_label = click.style(job_name, fg="green", bold=True)
+        ended_at_label = (
+            click.style(ended_at_display, fg="yellow", bold=True) if ended_at is None else ended_at_display
+        )
+
+        return (
+            f"{job_id_label} {job_name_label} "
+            f"experiment={experiment}, source={job_source_display}, "
+            f"started_at={_format_timestamp_to_seconds(started_at)}, ended_at={ended_at_label}"
+        )
+
+    def _show_cluster_job_history(
+        units: tuple[str, ...],
+        experiments: tuple[str, ...],
+        *,
+        running_only: bool = False,
+    ) -> None:
+        units = resolve_target_units(units, experiments, active_only=True, include_leader=None)
+        if len(units) == 0:
+            click.echo("No jobs recorded.")
+            return
+
+        endpoint = "/unit_api/jobs/running" if running_only else "/unit_api/jobs"
+        all_rows: list[tuple[int, str, str, str | None, str, str, str | None]] = []
+
+        def _thread_function(unit: str) -> tuple[bool, str, list[dict[str, Any]]]:
+            try:
+                response = get_from(resolve_to_address(unit), endpoint)
+                response.raise_for_status()
+                payload = response.json()
+                if not isinstance(payload, list):
+                    raise ValueError("Expected list payload")
+                return True, unit, payload
+            except (HTTPException, ValueError) as e:
+                click.echo(f"Unable to list jobs on {unit}: {e}", err=True)
+                return False, unit, []
+
+        with ThreadPoolExecutor(max_workers=len(units)) as executor:
+            results = executor.map(_thread_function, units)
+
+        for _, unit, rows in results:
+            for raw_row in rows:
+                if not isinstance(raw_row, dict):
+                    continue
+
+                try:
+                    job_id = int(raw_row["job_id"])
+                    job_name = str(raw_row["job_name"])
+                    experiment = str(raw_row["experiment"])
+                    job_source_raw = raw_row.get("job_source")
+                    row_unit = str(raw_row.get("unit", unit))
+                    started_at = str(raw_row["started_at"])
+                    ended_at_raw = raw_row.get("ended_at")
+                except (KeyError, TypeError, ValueError):
+                    continue
+
+                all_rows.append(
+                    (
+                        job_id,
+                        job_name,
+                        experiment,
+                        None if job_source_raw is None else str(job_source_raw),
+                        row_unit,
+                        started_at,
+                        None if ended_at_raw is None else str(ended_at_raw),
+                    )
+                )
+
+        if not all_rows:
+            click.echo("No jobs recorded.")
+            return
+
+        all_rows.sort(key=lambda job_row: job_row[5], reverse=True)
+        for job_row in all_rows:
+            click.echo(_format_job_history_line(*job_row))
 
     def universal_identifier_to_all_active_workers(workers: tuple[str, ...]) -> tuple[str, ...]:
         try:
@@ -781,6 +884,23 @@ if am_I_leader() or is_testing_env():
 
         if not all(results):
             raise click.Abort()
+
+    @pios.group(name="jobs", short_help="job-related commands")
+    def jobs():
+        """Interact with worker jobs."""
+        pass
+
+    @jobs.group(name="list", short_help="list jobs current and previous", invoke_without_command=True)
+    @which_units
+    @click.pass_context
+    def list_jobs(ctx, units: tuple[str, ...], experiments: tuple[str, ...]) -> None:
+        if ctx.invoked_subcommand is None:
+            _show_cluster_job_history(units, experiments, running_only=False)
+
+    @list_jobs.command(name="running", short_help="show status of running job(s)")
+    @which_units
+    def list_running_jobs(units: tuple[str, ...], experiments: tuple[str, ...]) -> None:
+        _show_cluster_job_history(units, experiments, running_only=True)
 
     @pios.command("kill", short_help="kill a job(s) on workers")
     @click.option("--all-jobs", is_flag=True, help="kill all worker jobs")
