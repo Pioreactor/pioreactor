@@ -458,7 +458,7 @@ def shutdown_unit(pioreactor_unit: str) -> DelayedResponseReturnValue:
 
 
 @api_bp.route("/units/<pioreactor_unit>/system/utc_clock", methods=["GET"])
-def get_clocktime(pioreactor_unit: str) -> DelayedResponseReturnValue:
+def get_unit_utc_clock(pioreactor_unit: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_get_across_cluster("/unit_api/system/utc_clock")
     else:
@@ -467,7 +467,7 @@ def get_clocktime(pioreactor_unit: str) -> DelayedResponseReturnValue:
 
 
 @api_bp.route("/system/utc_clock", methods=["POST"])
-def set_clocktime() -> DelayedResponseReturnValue:
+def set_system_utc_clock() -> DelayedResponseReturnValue:
     # first update the leader:
     task1 = tasks.multicast_post(
         "/unit_api/system/utc_clock", [get_leader_hostname()], json=request.get_json()
@@ -1451,7 +1451,7 @@ def get_all_estimators(pioreactor_unit: str) -> DelayedResponseReturnValue:
 
 
 @api_bp.route("/workers/<pioreactor_unit>/zipped_calibrations", methods=["GET"])
-def get_all_calibrations_as_yamls(pioreactor_unit: str) -> ResponseReturnValue:
+def get_zipped_calibrations(pioreactor_unit: str) -> ResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         task = broadcast_get_across_workers("/unit_api/zipped_calibrations", return_raw=True)
     else:
@@ -1501,7 +1501,7 @@ def get_all_calibrations_as_yamls(pioreactor_unit: str) -> ResponseReturnValue:
 
 
 @api_bp.route("/units/<pioreactor_unit>/zipped_dot_pioreactor", methods=["GET"])
-def get_entire_dot_pioreactor(pioreactor_unit: str) -> ResponseReturnValue:
+def get_zipped_dot_pioreactor(pioreactor_unit: str) -> ResponseReturnValue:
     """Download a ZIP of ~/.pioreactor from one or all workers.
 
     - For a specific worker, fetch raw bytes from its unit_api and proxy as a download.
@@ -2038,7 +2038,7 @@ def get_app_versions(pioreactor_unit: str) -> DelayedResponseReturnValue:
 
 
 @api_bp.route("/system/upload", methods=["POST"])
-def upload() -> ResponseReturnValue:
+def upload_system_file() -> ResponseReturnValue:
     if (Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_UPLOADS").is_file():
         abort_with(403, "No UI uploads allowed")
 
@@ -2076,7 +2076,7 @@ def upload() -> ResponseReturnValue:
 
 
 @api_bp.route("/automations/descriptors/<automation_type>", methods=["GET"])
-def get_automation_contrib(automation_type: str) -> ResponseReturnValue:
+def get_automation_descriptors(automation_type: str) -> ResponseReturnValue:
     # security to prevent possibly reading arbitrary file
     if automation_type not in {"temperature", "dosing", "led"}:
         abort_with(
@@ -2099,17 +2099,17 @@ def get_automation_contrib(automation_type: str) -> ResponseReturnValue:
                 decoded_yaml = yaml_decode(file.read_bytes(), type=structs.AutomationDescriptor)
                 parsed_yaml[decoded_yaml.automation_name] = decoded_yaml
             except (ValidationError, DecodeError) as e:
-                publish_to_error_log(f"Yaml error in {Path(file).name}: {e}", "get_automation_contrib")
+                publish_to_error_log(f"Yaml error in {Path(file).name}: {e}", "get_automation_descriptors")
 
         return attach_cache_control(jsonify(list(parsed_yaml.values())))
 
     except Exception as e:
-        publish_to_error_log(str(e), "get_automation_contrib")
+        publish_to_error_log(str(e), "get_automation_descriptors")
         abort_with(400, str(e))
 
 
 @api_bp.route("/jobs/descriptors", methods=["GET"])
-def get_job_contrib() -> ResponseReturnValue:
+def get_job_descriptors() -> ResponseReturnValue:
     try:
         job_path_builtins = Path(os.environ["DOT_PIOREACTOR"]) / "ui" / "jobs"
         job_path_plugins = Path(os.environ["DOT_PIOREACTOR"]) / "plugins" / "ui" / "jobs"
@@ -2123,17 +2123,17 @@ def get_job_contrib() -> ResponseReturnValue:
                 decoded_yaml = yaml_decode(file.read_bytes(), type=structs.BackgroundJobDescriptor)
                 parsed_yaml[decoded_yaml.job_name] = decoded_yaml
             except (ValidationError, DecodeError) as e:
-                publish_to_error_log(f"Yaml error in {Path(file).name}: {e}", "get_job_contrib")
+                publish_to_error_log(f"Yaml error in {Path(file).name}: {e}", "get_job_descriptors")
 
         return attach_cache_control(jsonify(list(parsed_yaml.values())))
 
     except Exception as e:
-        publish_to_error_log(str(e), "get_job_contrib")
+        publish_to_error_log(str(e), "get_job_descriptors")
         abort_with(400, str(e))
 
 
 @api_bp.route("/charts/descriptors", methods=["GET"])
-def get_charts_contrib() -> ResponseReturnValue:
+def get_chart_descriptors() -> ResponseReturnValue:
     try:
         chart_path_builtins = Path(os.environ["DOT_PIOREACTOR"]) / "ui" / "charts"
         chart_path_plugins = Path(os.environ["DOT_PIOREACTOR"]) / "plugins" / "ui" / "charts"
@@ -2146,12 +2146,12 @@ def get_charts_contrib() -> ResponseReturnValue:
                 decoded_yaml = yaml_decode(file.read_bytes(), type=structs.ChartDescriptor)
                 parsed_yaml[decoded_yaml.chart_key] = decoded_yaml
             except (ValidationError, DecodeError) as e:
-                publish_to_error_log(f"Yaml error in {Path(file).name}: {e}", "get_charts_contrib")
+                publish_to_error_log(f"Yaml error in {Path(file).name}: {e}", "get_chart_descriptors")
 
         return attach_cache_control(jsonify(list(parsed_yaml.values())))
 
     except Exception as e:
-        publish_to_error_log(str(e), "get_charts_contrib")
+        publish_to_error_log(str(e), "get_chart_descriptors")
         abort_with(400, str(e))
 
 
@@ -2193,7 +2193,7 @@ def get_exportable_datasets() -> ResponseReturnValue:
 
 
 @api_bp.route("/datasets/exportable/<target_dataset>/preview", methods=["GET"])
-def preview_exportable_datasets(target_dataset) -> ResponseReturnValue:
+def preview_exportable_dataset(target_dataset: str) -> ResponseReturnValue:
     builtins = sorted((Path(os.environ["DOT_PIOREACTOR"]) / "exportable_datasets").glob("*.y*ml"))
     plugins = sorted((Path(os.environ["DOT_PIOREACTOR"]) / "plugins" / "exportable_datasets").glob("*.y*ml"))
 
@@ -2217,7 +2217,7 @@ def preview_exportable_datasets(target_dataset) -> ResponseReturnValue:
 
 
 @api_bp.route("/datasets/exportable/export", methods=["POST"])
-def export_datasets() -> ResponseReturnValue:
+def export_exportable_datasets() -> ResponseReturnValue:
     body = request.get_json()
 
     dataset_names: list[str] = body["datasets"]
@@ -2718,7 +2718,7 @@ def update_config_file(filename: str) -> ResponseReturnValue:
 
 
 @api_bp.route("/config/files/<filename>/history", methods=["GET"])
-def get_historical_config_for(filename: str) -> ResponseReturnValue:
+def get_config_file_history(filename: str) -> ResponseReturnValue:
     configs_for_filename = query_app_db(
         "SELECT filename, timestamp, data FROM config_files_histories WHERE filename=? ORDER BY timestamp DESC",
         (filename,),

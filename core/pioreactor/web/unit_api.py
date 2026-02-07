@@ -102,7 +102,7 @@ def check_hardware_for_model() -> DelayedResponseReturnValue:
 
 # Endpoint to check the status of a background task. unit_api is required to ping workers (who only expose unit_api)
 @unit_api_bp.route("/task_results/<task_id>", methods=["GET"])
-def task_status(task_id: str):
+def get_task_status(task_id: str):
     blob = {"task_id": task_id, "result_url_path": "/unit_api/task_results/" + task_id}
     try:
         task = huey.result(task_id)
@@ -214,7 +214,7 @@ def _locked_task_response(lock_name: str) -> ResponseReturnValue:
 
 
 @unit_api_bp.route("/system/update/<target>", methods=["POST", "PATCH"])
-def update_target(target: str) -> DelayedResponseReturnValue:
+def update_software_target(target: str) -> DelayedResponseReturnValue:
     if _task_is_locked("update-lock"):
         return _locked_task_response("update-lock")
 
@@ -239,7 +239,7 @@ def update_target(target: str) -> DelayedResponseReturnValue:
 
 
 @unit_api_bp.route("/system/update", methods=["POST", "PATCH"])
-def update() -> DelayedResponseReturnValue:
+def update_software() -> DelayedResponseReturnValue:
     if _task_is_locked("update-lock"):
         return _locked_task_response("update-lock")
 
@@ -257,7 +257,7 @@ def update() -> DelayedResponseReturnValue:
 
 
 @unit_api_bp.route("/system/reboot", methods=["POST", "PATCH"])
-def reboot() -> DelayedResponseReturnValue:
+def reboot_system() -> DelayedResponseReturnValue:
     """Reboots unit"""
     # TODO: only let requests from the leader do this. Use lighttpd conf for this.
     if _task_is_locked("power-lock"):
@@ -271,7 +271,7 @@ def reboot() -> DelayedResponseReturnValue:
 
 
 @unit_api_bp.route("/system/shutdown", methods=["POST", "PATCH"])
-def shutdown() -> DelayedResponseReturnValue:
+def shutdown_system() -> DelayedResponseReturnValue:
     """Shutdown unit"""
     if _task_is_locked("power-lock"):
         return _locked_task_response("power-lock")
@@ -442,7 +442,7 @@ def set_clock_time() -> DelayedResponseReturnValue:  # type: ignore[return]
 #### DIR
 @unit_api_bp.route("/system/path/", defaults={"req_path": ""})
 @unit_api_bp.route("/system/path/<path:req_path>")
-def dir_listing(req_path: str):
+def list_system_path(req_path: str):
     if os.path.isfile(Path(os.environ["DOT_PIOREACTOR"]) / "DISALLOW_UI_FILE_SYSTEM"):
         abort_with(
             403,
@@ -631,7 +631,7 @@ def get_all_long_running_jobs() -> ResponseReturnValue:
 
 
 @unit_api_bp.route("/jobs/settings/job_name/<job_name>", methods=["GET"])
-def get_settings_for_a_specific_job(job_name: str) -> ResponseReturnValue:
+def get_job_settings(job_name: str) -> ResponseReturnValue:
     """
     {
       "settings": {
@@ -658,7 +658,7 @@ def get_settings_for_a_specific_job(job_name: str) -> ResponseReturnValue:
 
 
 @unit_api_bp.route("/jobs/settings/job_name/<job_name>/setting/<setting>", methods=["GET"])
-def get_specific_setting_for_a_job(job_name: str, setting: str) -> ResponseReturnValue:
+def get_job_setting(job_name: str, setting: str) -> ResponseReturnValue:
     setting_metadata = query_temp_local_metadata_db(
         """
     SELECT s.setting, s.value FROM
@@ -694,7 +694,7 @@ def update_job(job_name: str) -> ResponseReturnValue:
 
 
 @unit_api_bp.route("/capabilities", methods=["GET"])
-def discover_jobs_and_settings_available() -> ResponseReturnValue:
+def get_capabilities() -> ResponseReturnValue:
     from pioreactor.utils.capabilities import collect_capabilities
 
     return jsonify(collect_capabilities())
@@ -747,7 +747,7 @@ def get_installed_plugins() -> ResponseReturnValue:
 
 
 @unit_api_bp.route("/plugins/installed/<filename>", methods=["GET"])
-def get_plugin(filename: str) -> ResponseReturnValue:
+def get_installed_plugin(filename: str) -> ResponseReturnValue:
     """get a specific Python file in the .pioreactor/plugin folder"""
     # security bit: strip out any paths that may be attached, ex: ../../../root/bad
     file = Path(filename).name
@@ -1088,7 +1088,7 @@ def get_all_estimators() -> ResponseReturnValue:
 
 
 @unit_api_bp.route("/zipped_calibrations", methods=["GET"])
-def get_all_calibrations_as_zipped_yaml() -> ResponseReturnValue:
+def get_zipped_calibrations() -> ResponseReturnValue:
     calibration_dir = CALIBRATION_PATH
 
     if not calibration_dir.exists():
@@ -1120,7 +1120,7 @@ def get_all_calibrations_as_zipped_yaml() -> ResponseReturnValue:
 
 
 @unit_api_bp.route("/zipped_dot_pioreactor", methods=["GET"])
-def get_entire_dot_pioreactor_as_zip() -> ResponseReturnValue:
+def get_zipped_dot_pioreactor() -> ResponseReturnValue:
     """Create and return a ZIP of the entire DOT_PIOREACTOR directory.
 
     Notes:
