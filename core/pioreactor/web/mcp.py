@@ -438,7 +438,7 @@ def db_query_db(query: str) -> list:
 @mcp.tool()
 def get_pioreactor_unit_configuration(pioreactor_unit: str) -> dict:
     """Get merged configuration for a given unit (global config.ini and unit-specific unit_config.ini)."""
-    return get_from_leader(f"/api/units/{pioreactor_unit}/configuration")
+    return get_from_leader(f"/api/config/units/{pioreactor_unit}")
 
 
 for tool, kwargs in registered_mcp_tools():

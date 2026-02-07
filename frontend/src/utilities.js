@@ -30,7 +30,7 @@ function parseINIString(data){
 
 
 export function getConfig(setCallback) {
-  fetch("/api/configs/config.ini")
+  fetch("/api/config/files/config.ini")
     .then((response) => {
         if (response.ok) {
           return response.text();

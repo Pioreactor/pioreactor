@@ -93,7 +93,7 @@ function ChartSelection(props) {
 
   React.useEffect(() => {
     async function getCharts() {
-        await fetch("/api/contrib/charts")
+        await fetch("/api/charts/descriptors")
         .then((response) => {
           return response.json();
         })

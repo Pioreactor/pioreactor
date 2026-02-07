@@ -71,7 +71,7 @@ function requestSelfTestJobDefinition() {
     return Promise.resolve(cachedSelfTestJobDefinition);
   }
   if (!selfTestJobDefinitionPromise) {
-    const pendingRequest = fetch("/api/contrib/jobs")
+    const pendingRequest = fetch("/api/jobs/descriptors")
       .then((response) => {
         if (!response.ok) {
           throw new Error("Failed to fetch contrib jobs");

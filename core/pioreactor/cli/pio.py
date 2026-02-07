@@ -495,28 +495,11 @@ def _format_job_history_line(
     )
 
 
-@jobs.command(name="running", short_help="show status of running job(s)")
-def job_running() -> None:
-
+def _show_job_history(running_only: bool = False) -> None:
     from pioreactor.utils.job_manager import JobManager
 
     with JobManager() as jm:
-        jobs = jm.list_jobs(
-            all_jobs=True,
-        )
-
-    for job_name, _pid, found_job_id, *_ in jobs:
-        job_id_label = click.style(f"[job_id={found_job_id}]", fg="cyan")
-        job_name_label = click.style(job_name, fg="green", bold=True)
-        click.echo(f"{job_id_label} {job_name_label} is running.")
-
-
-@jobs.command(name="list", short_help="list jobs current and previous")
-def job_history() -> None:
-    from pioreactor.utils.job_manager import JobManager
-
-    with JobManager() as jm:
-        jobs = jm.list_job_history()
+        jobs = jm.list_job_history(running_only=running_only)
 
     if not jobs:
         click.echo("No jobs recorded.")
@@ -524,6 +507,18 @@ def job_history() -> None:
 
     for job in jobs:
         click.echo(_format_job_history_line(*job))
+
+
+@jobs.group(name="list", short_help="list jobs current and previous", invoke_without_command=True)
+@click.pass_context
+def job_list(ctx: click.Context) -> None:
+    if ctx.invoked_subcommand is None:
+        _show_job_history()
+
+
+@job_list.command(name="running", short_help="show status of running job(s)")
+def job_list_running() -> None:
+    _show_job_history(running_only=True)
 
 
 def _format_timestamp_to_seconds(timestamp: str | None) -> str:
@@ -618,10 +613,10 @@ def job_info(job_id: int | None, job_name: str | None) -> None:
         )
 
 
-@jobs.command(name="remove", short_help="remove a job record")
+@jobs.command(name="purge", short_help="remove a job record")
 @click.option("--job-id", type=click.INT)
 @click.option("--job-name", type=click.STRING)
-def job_remove(job_id: int | None, job_name: str | None) -> None:
+def job_purge(job_id: int | None, job_name: str | None) -> None:
     if job_id is None and job_name is None:
         click.echo("Provide --job-id or --job-name.")
         return

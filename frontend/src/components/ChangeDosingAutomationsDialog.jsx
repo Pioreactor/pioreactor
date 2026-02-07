@@ -38,7 +38,7 @@ function ChangeDosingAutomationsDialog(props) {
 
   useEffect(() => {
     function fetchAutomations() {
-      fetch("/api/contrib/automations/" + automationType)
+      fetch("/api/automations/descriptors/" + automationType)
         .then((response) => {
             if (response.ok) {
               return response.json();

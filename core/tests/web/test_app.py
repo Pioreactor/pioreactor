@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 import os
+from pathlib import Path
 
 import pytest
+from flask.testing import FlaskClient
 from pioreactor.web.config import huey
+from pytest import MonkeyPatch
 
 from .conftest import capture_requests
 
@@ -340,8 +343,28 @@ def test_404_for_unknown_api(client) -> None:
 
 
 def test_get_config_rejects_non_ini(client) -> None:
-    response = client.get("/api/configs/not-a-config.txt")
+    response = client.get("/api/config/files/not-a-config.txt")
     assert response.status_code == 400
+
+
+def test_get_config_for_broadcast_uses_each_units_specific_file(
+    client: FlaskClient, monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    dot_pioreactor = tmp_path / ".pioreactor"
+    dot_pioreactor.mkdir()
+    (dot_pioreactor / "config.ini").write_text("[shared]\nvalue=global\n")
+    (dot_pioreactor / "config_unit1.ini").write_text("[shared]\nvalue=unit1\n")
+    (dot_pioreactor / "config_unit2.ini").write_text("[shared]\nvalue=unit2\n")
+
+    monkeypatch.setenv("DOT_PIOREACTOR", str(dot_pioreactor))
+    monkeypatch.setattr("pioreactor.web.api.get_all_units", lambda: ["unit1", "unit2"])
+
+    response = client.get("/api/config/units/$broadcast")
+    assert response.status_code == 200
+
+    data = response.get_json()
+    assert data["unit1"]["shared"]["value"] == "unit1"
+    assert data["unit2"]["shared"]["value"] == "unit2"
 
 
 def test_create_experiment_profile_invalid_filename_returns_400(client) -> None:

@@ -155,7 +155,7 @@ const Dataset = ({ dataset, isSelected, handleChange }) => {
     }
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/contrib/exportable_datasets/${dataset.dataset_name}/preview`);
+      const response = await fetch(`/api/datasets/exportable/${dataset.dataset_name}/preview`);
       const data = await response.json();
       setPreviewData(data);
     } catch (error) {
@@ -344,7 +344,7 @@ function ExportDataContainer() {
 
     async function getDatasets() {
       try {
-        const response = await fetch("/api/contrib/exportable_datasets");
+        const response = await fetch("/api/datasets/exportable");
         const data = await response.json();
         setDatasets(data);
       } catch (error) {
@@ -366,7 +366,7 @@ function ExportDataContainer() {
     setIsRunning(true);
     setErrorMsg("");
     try {
-      const res = await fetch('/api/contrib/exportable_datasets/export_datasets',{
+      const res = await fetch('/api/datasets/exportable/export',{
           method: "POST",
           body: JSON.stringify({
             experiments: state.experimentSelection,

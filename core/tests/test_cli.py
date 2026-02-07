@@ -298,6 +298,58 @@ def test_pio_job_list_lists_job() -> None:
     assert "still running" not in matching_lines[0]
 
 
+def test_pio_job_list_running_lists_running_job() -> None:
+    runner = CliRunner()
+    job_name_running = "test_job_list_running_active"
+    job_name_stopped = "test_job_list_running_stopped"
+    unit = whoami.get_unit_name()
+    experiment = whoami.UNIVERSAL_EXPERIMENT
+
+    with JobManager() as jm:
+        running_job_id = jm.register_and_set_running(
+            unit=unit,
+            experiment=experiment,
+            job_name=job_name_running,
+            job_source="cli",
+            pid=98766,
+            leader=get_leader_hostname(),
+            is_long_running_job=False,
+        )
+        stopped_job_id = jm.register_and_set_running(
+            unit=unit,
+            experiment=experiment,
+            job_name=job_name_stopped,
+            job_source="cli",
+            pid=98767,
+            leader=get_leader_hostname(),
+            is_long_running_job=False,
+        )
+        jm.set_not_running(stopped_job_id)
+
+    try:
+        result = runner.invoke(pio, ["jobs", "list", "running"])
+
+        assert result.exit_code == 0
+        running_lines = [line for line in result.output.splitlines() if f"[job_id={running_job_id}]" in line]
+        stopped_lines = [line for line in result.output.splitlines() if f"[job_id={stopped_job_id}]" in line]
+
+        assert running_lines, result.output
+        assert not stopped_lines, result.output
+        assert "started_at=" in running_lines[0]
+        assert "ended_at=" in running_lines[0]
+        assert "still running" in running_lines[0]
+    finally:
+        with JobManager() as jm:
+            jm.set_not_running(running_job_id)
+
+
+def test_pio_jobs_running_command_is_removed() -> None:
+    runner = CliRunner()
+    result = runner.invoke(pio, ["jobs", "running"])
+    assert result.exit_code != 0
+    assert "No such command 'running'" in result.output
+
+
 def test_pio_job_info_shows_metadata_and_settings() -> None:
     runner = CliRunner()
     job_name = "test_job_info"
@@ -340,7 +392,7 @@ def test_pio_job_info_shows_metadata_and_settings() -> None:
             jm.set_not_running(job_id)
 
 
-def test_pio_job_remove_deletes_finished_job() -> None:
+def test_pio_job_purge_deletes_finished_job() -> None:
     runner = CliRunner()
     job_name = "test_job_remove"
     unit = whoami.get_unit_name()
@@ -359,12 +411,12 @@ def test_pio_job_remove_deletes_finished_job() -> None:
         jm.upsert_setting(job_id, "speed", "fast")
         jm.set_not_running(job_id)
 
-    result = runner.invoke(pio, ["jobs", "remove", "--job-id", str(job_id)])
+    result = runner.invoke(pio, ["jobs", "purge", "--job-id", str(job_id)])
     assert result.exit_code == 0
     assert "Removed job record" in result.output
 
     # via job-name, should fail gracefully since job removed
-    result_by_name = runner.invoke(pio, ["jobs", "remove", "--job-name", job_name])
+    result_by_name = runner.invoke(pio, ["jobs", "purge", "--job-name", job_name])
     assert "No running job found with name" in result_by_name.output
 
     with JobManager() as jm:

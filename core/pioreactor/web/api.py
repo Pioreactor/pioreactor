@@ -1643,12 +1643,12 @@ def get_calibrations(pioreactor_unit: str, device: str) -> DelayedResponseReturn
     return create_task_response(task)
 
 
-@api_bp.route("/workers/<pioreactor_unit>/calibrations/<device>/<cal_name>", methods=["GET"])
-def get_calibration(pioreactor_unit: str, device: str, cal_name: str) -> DelayedResponseReturnValue:
+@api_bp.route("/workers/<pioreactor_unit>/calibrations/<device>/<calibration_name>", methods=["GET"])
+def get_calibration(pioreactor_unit: str, device: str, calibration_name: str) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        task = broadcast_get_across_workers(f"/unit_api/calibrations/{device}/{cal_name}")
+        task = broadcast_get_across_workers(f"/unit_api/calibrations/{device}/{calibration_name}")
     else:
-        task = tasks.multicast_get(f"/unit_api/calibrations/{device}/{cal_name}", [pioreactor_unit])
+        task = tasks.multicast_get(f"/unit_api/calibrations/{device}/{calibration_name}", [pioreactor_unit])
     return create_task_response(task)
 
 
@@ -1864,12 +1864,15 @@ def abort_calibration_session(pioreactor_unit: str, session_id: str) -> Response
     )
 
 
-@api_bp.route("/workers/<pioreactor_unit>/active_calibrations/<device>/<cal_name>", methods=["PATCH"])
-def set_active_calibration(pioreactor_unit, device, cal_name) -> DelayedResponseReturnValue:
+@api_bp.route("/workers/<pioreactor_unit>/active_calibrations/<device>/<calibration_name>", methods=["PATCH"])
+def set_active_calibration(pioreactor_unit, device, calibration_name) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        task = broadcast_patch_across_workers(f"/unit_api/active_calibrations/{device}/{cal_name}")
+        task = broadcast_patch_across_workers(f"/unit_api/active_calibrations/{device}/{calibration_name}")
     else:
-        task = tasks.multicast_patch(f"/unit_api/active_calibrations/{device}/{cal_name}", [pioreactor_unit])
+        task = tasks.multicast_patch(
+            f"/unit_api/active_calibrations/{device}/{calibration_name}",
+            [pioreactor_unit],
+        )
     return create_task_response(task)
 
 
@@ -1902,12 +1905,15 @@ def remove_active_status_estimator(pioreactor_unit, device) -> DelayedResponseRe
     return create_task_response(task)
 
 
-@api_bp.route("/workers/<pioreactor_unit>/calibrations/<device>/<cal_name>", methods=["DELETE"])
-def delete_calibration(pioreactor_unit, device, cal_name) -> DelayedResponseReturnValue:
+@api_bp.route("/workers/<pioreactor_unit>/calibrations/<device>/<calibration_name>", methods=["DELETE"])
+def delete_calibration(pioreactor_unit, device, calibration_name) -> DelayedResponseReturnValue:
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
-        task = broadcast_delete_across_workers(f"/unit_api/calibrations/{device}/{cal_name}")
+        task = broadcast_delete_across_workers(f"/unit_api/calibrations/{device}/{calibration_name}")
     else:
-        task = tasks.multicast_delete(f"/unit_api/calibrations/{device}/{cal_name}", [pioreactor_unit])
+        task = tasks.multicast_delete(
+            f"/unit_api/calibrations/{device}/{calibration_name}",
+            [pioreactor_unit],
+        )
     return create_task_response(task)
 
 
@@ -2069,7 +2075,7 @@ def upload() -> ResponseReturnValue:
     return jsonify({"message": "File successfully uploaded", "save_path": save_path}), 200
 
 
-@api_bp.route("/contrib/automations/<automation_type>", methods=["GET"])
+@api_bp.route("/automations/descriptors/<automation_type>", methods=["GET"])
 def get_automation_contrib(automation_type: str) -> ResponseReturnValue:
     # security to prevent possibly reading arbitrary file
     if automation_type not in {"temperature", "dosing", "led"}:
@@ -2102,7 +2108,7 @@ def get_automation_contrib(automation_type: str) -> ResponseReturnValue:
         abort_with(400, str(e))
 
 
-@api_bp.route("/contrib/jobs", methods=["GET"])
+@api_bp.route("/jobs/descriptors", methods=["GET"])
 def get_job_contrib() -> ResponseReturnValue:
     try:
         job_path_builtins = Path(os.environ["DOT_PIOREACTOR"]) / "ui" / "jobs"
@@ -2126,7 +2132,7 @@ def get_job_contrib() -> ResponseReturnValue:
         abort_with(400, str(e))
 
 
-@api_bp.route("/contrib/charts", methods=["GET"])
+@api_bp.route("/charts/descriptors", methods=["GET"])
 def get_charts_contrib() -> ResponseReturnValue:
     try:
         chart_path_builtins = Path(os.environ["DOT_PIOREACTOR"]) / "ui" / "charts"
@@ -2164,7 +2170,7 @@ def update_app_from_release_archive() -> DelayedResponseReturnValue:
     return create_task_response(task)
 
 
-@api_bp.route("/contrib/exportable_datasets", methods=["GET"])
+@api_bp.route("/datasets/exportable", methods=["GET"])
 def get_exportable_datasets() -> ResponseReturnValue:
     try:
         builtins = sorted((Path(os.environ["DOT_PIOREACTOR"]) / "exportable_datasets").glob("*.y*ml"))
@@ -2186,7 +2192,7 @@ def get_exportable_datasets() -> ResponseReturnValue:
         abort_with(400, str(e))
 
 
-@api_bp.route("/contrib/exportable_datasets/<target_dataset>/preview", methods=["GET"])
+@api_bp.route("/datasets/exportable/<target_dataset>/preview", methods=["GET"])
 def preview_exportable_datasets(target_dataset) -> ResponseReturnValue:
     builtins = sorted((Path(os.environ["DOT_PIOREACTOR"]) / "exportable_datasets").glob("*.y*ml"))
     plugins = sorted((Path(os.environ["DOT_PIOREACTOR"]) / "plugins" / "exportable_datasets").glob("*.y*ml"))
@@ -2210,7 +2216,7 @@ def preview_exportable_datasets(target_dataset) -> ResponseReturnValue:
     )
 
 
-@api_bp.route("/contrib/exportable_datasets/export_datasets", methods=["POST"])
+@api_bp.route("/datasets/exportable/export", methods=["POST"])
 def export_datasets() -> ResponseReturnValue:
     body = request.get_json()
 
@@ -2533,9 +2539,9 @@ def get_experiment(experiment: str) -> ResponseReturnValue:
 ## CONFIG CONTROL
 
 
-@api_bp.route("/units/<pioreactor_unit>/configuration", methods=["GET"])
-def get_configuration_for_pioreactor_unit(pioreactor_unit: str) -> ResponseReturnValue:
-    """get configuration for a pioreactor unit"""
+@api_bp.route("/config/units/<pioreactor_unit>", methods=["GET"])
+def get_config_for_pioreactor_unit(pioreactor_unit: str) -> ResponseReturnValue:
+    """get merged config for a pioreactor unit"""
     if pioreactor_unit == UNIVERSAL_IDENTIFIER:
         pioreactor_units = get_all_units()
     else:
@@ -2547,7 +2553,7 @@ def get_configuration_for_pioreactor_unit(pioreactor_unit: str) -> ResponseRetur
         try:
             global_config_path = Path(os.environ["DOT_PIOREACTOR"]) / "config.ini"
 
-            specific_config_path = Path(os.environ["DOT_PIOREACTOR"]) / f"config_{pioreactor_unit}.ini"
+            specific_config_path = Path(os.environ["DOT_PIOREACTOR"]) / f"config_{unit}.ini"
 
             config_files = [global_config_path, specific_config_path]
             config = configparser.ConfigParser(strict=False)
@@ -2556,14 +2562,14 @@ def get_configuration_for_pioreactor_unit(pioreactor_unit: str) -> ResponseRetur
             result[unit] = {section: dict(config[section]) for section in config.sections()}
 
         except Exception as e:
-            publish_to_error_log(str(e), "get_configuration_for_pioreactor_unit")
+            publish_to_error_log(str(e), "get_config_for_pioreactor_unit")
             abort_with(400, str(e))
 
     return result
 
 
-@api_bp.route("/configs/<filename>", methods=["GET"])
-def get_config(filename: str) -> ResponseReturnValue:
+@api_bp.route("/config/files/<filename>", methods=["GET"])
+def get_config_file(filename: str) -> ResponseReturnValue:
     """get a specific config.ini file in the .pioreactor folder"""
 
     # security bit: strip out any paths that may be attached, ex: ../../../root/bad
@@ -2585,12 +2591,12 @@ def get_config(filename: str) -> ResponseReturnValue:
         )
 
     except Exception as e:
-        publish_to_error_log(str(e), "get_config_of_file")
+        publish_to_error_log(str(e), "get_config_file")
         abort_with(400, str(e))
 
 
-@api_bp.route("/configs", methods=["GET"])
-def get_configs() -> ResponseReturnValue:
+@api_bp.route("/config/files", methods=["GET"])
+def get_config_files() -> ResponseReturnValue:
     """get a list of all config.ini files in the .pioreactor folder, _and_ are part of the inventory _or_ are leader"""
 
     all_workers = query_app_db("SELECT pioreactor_unit FROM workers;")
@@ -2617,8 +2623,8 @@ def get_configs() -> ResponseReturnValue:
     )
 
 
-@api_bp.route("/configs/<filename>", methods=["PATCH"])
-def update_config(filename: str) -> ResponseReturnValue:
+@api_bp.route("/config/files/<filename>", methods=["PATCH"])
+def update_config_file(filename: str) -> ResponseReturnValue:
     body = request.get_json()
     code = body["code"]
 
@@ -2673,26 +2679,26 @@ def update_config(filename: str) -> ResponseReturnValue:
 
     except configparser.DuplicateSectionError as e:
         msg = f"Duplicate section [{e.section}] was found. Please fix and try again."
-        publish_to_error_log(msg, "update_config")
+        publish_to_error_log(msg, "update_config_file")
         abort_with(400, msg)
     except configparser.DuplicateOptionError as e:
         msg = f"Duplicate option, `{e.option}`, was found in section [{e.section}]. Please fix and try again."
-        publish_to_error_log(msg, "update_config")
+        publish_to_error_log(msg, "update_config_file")
         abort_with(400, msg)
     except configparser.ParsingError:
         msg = "Incorrect syntax. Please fix and try again."
-        publish_to_error_log(msg, "update_config")
+        publish_to_error_log(msg, "update_config_file")
         abort_with(400, msg)
     except (AssertionError, configparser.NoSectionError, KeyError) as e:
         msg = f"Missing required field(s): {e}"
-        publish_to_error_log(msg, "update_config")
+        publish_to_error_log(msg, "update_config_file")
         abort_with(400, msg)
     except ValueError as e:
         msg = str(e)
-        publish_to_error_log(msg, "update_config")
+        publish_to_error_log(msg, "update_config_file")
         abort_with(400, msg)
     except Exception as e:
-        publish_to_error_log(str(e), "update_config")
+        publish_to_error_log(str(e), "update_config_file")
         msg = "Hm, something went wrong, check Pioreactor logs."
         abort_with(500, msg)
 
@@ -2711,7 +2717,7 @@ def update_config(filename: str) -> ResponseReturnValue:
     return {"status": "success"}, 200
 
 
-@api_bp.route("/configs/<filename>/history", methods=["GET"])
+@api_bp.route("/config/files/<filename>/history", methods=["GET"])
 def get_historical_config_for(filename: str) -> ResponseReturnValue:
     configs_for_filename = query_app_db(
         "SELECT filename, timestamp, data FROM config_files_histories WHERE filename=? ORDER BY timestamp DESC",

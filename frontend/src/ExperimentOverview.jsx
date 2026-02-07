@@ -25,7 +25,7 @@ function Charts(props) {
   useEffect(() => {
     const fetchCharts = async () => {
       try {
-        const response = await fetch('/api/contrib/charts');
+        const response = await fetch('/api/charts/descriptors');
         if (!response.ok) {
           throw new Error('Failed to fetch charts');
         }

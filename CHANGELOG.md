@@ -4,10 +4,19 @@
 
  - Renamed `/api/is_local_access_point_active` to `/api/local_access_point` (now returns `{active: <bool>}`).
  - Consolidated experiment profile routes under `/api/experiment_profiles` and `/api/experiments/<experiment>/experiment_profiles/*`. Removed `/api/contrib/experiment_profiles` and `/api/experiment_profiles/running/experiments/<experiment>`. `PATCH` now targets `/api/experiment_profiles/<filename>`.
+ - Consolidated config API routes under `/api/config/*`: `/api/units/<pioreactor_unit>/configuration` is now `/api/config/units/<pioreactor_unit>`, and `/api/configs` + `/api/configs/<filename>` + `/api/configs/<filename>/history` are now `/api/config/files` + `/api/config/files/<filename>` + `/api/config/files/<filename>/history`.
+ - Removed `/api/contrib/*` endpoints in favor of resource-scoped routes: `/api/automations/descriptors/<automation_type>`, `/api/jobs/descriptors`, `/api/charts/descriptors`, and `/api/datasets/exportable*`.
+ - Renamed `pio jobs remove` to `pio jobs purge`.
+ - Replaced `pio jobs running` with `pio jobs list running` (`list running` is now a running-only filter of `pio jobs list` output).
 
 #### Enhancements
 
  - Added `/api/units/<pioreactor_unit>/jobs/stop/experiments/<experiment>` to mirror worker stop-all behavior.
+ - Normalized calibration route parameter naming to `calibration_name` across API and unit API calibration endpoints for more consistent endpoint templates.
+
+#### Bug fixes
+
+ - Fixed `/api/config/units/$broadcast` to correctly merge each unit's own `config_<unit>.ini` instead of using a shared `config_$broadcast.ini` path.
 
 ### 26.2.3
 

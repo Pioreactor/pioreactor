@@ -38,7 +38,7 @@ function EditableCodeDiv() {
 
   const getConfig = async (filename) => {
     try {
-      const response = await fetch(`/api/configs/${filename}`);
+      const response = await fetch(`/api/config/files/${filename}`);
       const text = await response.text();
       setState(prev => ({ ...prev, code: text }));
     } catch (err) {
@@ -50,7 +50,7 @@ function EditableCodeDiv() {
 
   const getHistoricalConfigFiles = async (filename) => {
     try {
-      const response = await fetch(`/api/configs/${filename}/history`);
+      const response = await fetch(`/api/config/files/${filename}/history`);
       const listOfHistoricalConfigs = await response.json();
       setState(prev => ({
         ...prev,
@@ -65,7 +65,7 @@ function EditableCodeDiv() {
   const saveCurrentCode = async () => {
     setState(prev => ({ ...prev, saving: true, isError: false }));
     try {
-      const res = await fetch(`/api/configs/${state.filename}`, {
+      const res = await fetch(`/api/config/files/${state.filename}`, {
         method: "PATCH",
         body: JSON.stringify({ code: state.code, filename: state.filename }),
         headers: {
@@ -106,7 +106,7 @@ function EditableCodeDiv() {
 
     async function getConfigs() {
       try {
-        const response = await fetch("/api/configs");
+        const response = await fetch("/api/config/files");
         const json = await response.json();
         if (ignore){
           return

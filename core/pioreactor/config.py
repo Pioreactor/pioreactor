@@ -166,7 +166,7 @@ def get_config() -> ConfigParserMod:
             global_config_path = "/home/pioreactor/.pioreactor/config.ini"
 
     if os.environ.get("LOCAL_CONFIG") is not None:
-        local_config_path = os.environ["GLOBAL_CONFIG"]
+        local_config_path = os.environ["LOCAL_CONFIG"]
     elif os.environ.get("DOT_PIOREACTOR") is not None:
         local_config_path = os.environ["DOT_PIOREACTOR"] + "/unit_config.ini"
     else:

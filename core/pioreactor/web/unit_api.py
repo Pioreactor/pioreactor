@@ -1333,15 +1333,15 @@ def get_calibrations_by_device(device: str) -> ResponseReturnValue:
     return attach_cache_control(jsonify(calibrations), max_age=10)
 
 
-@unit_api_bp.route("/calibrations/<device>/<cal_name>", methods=["GET"])
-def get_calibration(device: str, cal_name: str) -> ResponseReturnValue:
-    calibration_path = CALIBRATION_PATH / device / f"{cal_name}.yaml"
+@unit_api_bp.route("/calibrations/<device>/<calibration_name>", methods=["GET"])
+def get_calibration(device: str, calibration_name: str) -> ResponseReturnValue:
+    calibration_path = CALIBRATION_PATH / device / f"{calibration_name}.yaml"
 
     if not calibration_path.exists():
         abort_with(
             404,
             "Calibration file does not exist.",
-            cause=f"Calibration '{cal_name}' missing for device '{device}'.",
+            cause=f"Calibration '{calibration_name}' missing for device '{device}'.",
             remediation="List available calibrations for the device and retry.",
         )
 
@@ -1412,10 +1412,10 @@ def get_estimator(device: str, estimator_name: str) -> ResponseReturnValue:
             )
 
 
-@unit_api_bp.route("/active_calibrations/<device>/<cal_name>", methods=["PATCH"])
-def set_active_calibration(device: str, cal_name: str) -> ResponseReturnValue:
+@unit_api_bp.route("/active_calibrations/<device>/<calibration_name>", methods=["PATCH"])
+def set_active_calibration(device: str, calibration_name: str) -> ResponseReturnValue:
     with local_persistent_storage("active_calibrations") as c:
-        c[device] = cal_name
+        c[device] = calibration_name
 
     return {"status": "success"}, 200
 

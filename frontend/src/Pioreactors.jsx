@@ -159,7 +159,7 @@ function requestContribJobsList() {
     return Promise.resolve(cachedContribJobsList);
   }
   if (!contribJobsListPromise) {
-    const pendingRequest = fetch("/api/contrib/jobs")
+    const pendingRequest = fetch("/api/jobs/descriptors")
       .then((response) => {
         if (!response.ok) {
           throw new Error("Failed to fetch contrib jobs");
@@ -1137,7 +1137,7 @@ function SettingsActionsDialog({ unit, experiment, jobs, setLabel, label, disabl
       return
     }
 
-    fetch(`/api/units/${unit}/configuration`).then((response) => {
+    fetch(`/api/config/units/${unit}`).then((response) => {
       if (!response.ok) {
         return response.json().then((errorData) => {
           console.log(errorData)

@@ -1838,7 +1838,7 @@ function PioreactorCard({ unit, modelDetails, isUnitActive, experiment, config, 
 
   useEffect(() => {
     function fetchContribBackgroundJobs() {
-      fetch("/api/contrib/jobs")
+      fetch("/api/jobs/descriptors")
         .then((response) => {
             if (response.ok) {
               return response.json();
@@ -2143,7 +2143,7 @@ function Charts(props) {
   const { client, subscribeToTopic, unsubscribeFromTopic } = useMQTT();
 
   useEffect(() => {
-    fetch('/api/contrib/charts')
+    fetch('/api/charts/descriptors')
       .then((response) => response.json())
       .then((data) => {
         setCharts(data.reduce((map, obj) => ((map[obj.chart_key] = obj), map), {}));
@@ -2228,7 +2228,7 @@ function Pioreactor({title}) {
   }, [title]);
 
   useEffect(() => {
-    fetch(`/api/units/${unit}/configuration`).then((response) => {
+    fetch(`/api/config/units/${unit}`).then((response) => {
       if (!response.ok) {
         return response.json().then((errorData) => {
           console.log(errorData)
