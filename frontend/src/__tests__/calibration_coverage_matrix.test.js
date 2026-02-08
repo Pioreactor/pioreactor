@@ -47,7 +47,7 @@ describe("deriveCalibrationCoverageMatrix", () => {
 
     expect(matrix.cells.unitC.od.status).toEqual(COVERAGE_STATUS.MISSING);
 
-    expect(matrix.cells.unitB.od.status).toEqual(COVERAGE_STATUS.NOT_APPLICABLE);
+    expect(matrix.cells.unitB.od.status).toEqual(COVERAGE_STATUS.MISSING);
 
     expect(matrix.cells.unitD.od.status).toEqual(COVERAGE_STATUS.UNKNOWN);
   });

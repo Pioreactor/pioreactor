@@ -37,6 +37,7 @@ import PioreactorIcon from "./components/PioreactorIcon"
 import PioreactorsIcon from './components/PioreactorsIcon';
 import TuneIcon from '@mui/icons-material/Tune';
 import CheckCircleOutlineOutlinedIcon from '@mui/icons-material/CheckCircleOutlineOutlined';
+import WindowOutlinedIcon from '@mui/icons-material/WindowOutlined';
 import ViewListIcon from '@mui/icons-material/ViewList';
 import Editor from 'react-simple-code-editor';
 import { highlight, languages } from 'prismjs';
@@ -647,7 +648,7 @@ function CalibrationsContainer() {
               component={Link}
               to="/calibration-coverage"
             >
-              <ViewListIcon fontSize="small"/>{" "}
+              <WindowOutlinedIcon fontSize="small"/>{" "}
               Calibration coverage
             </Button>
             <Button style={{textTransform: 'none', marginRight: "0px", float: "right"}}

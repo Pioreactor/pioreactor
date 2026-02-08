@@ -5,8 +5,9 @@ export const COVERAGE_STATUS = {
   AVAILABLE_NOT_ACTIVE: "available_not_active",
   MISSING: "missing",
   UNKNOWN: "unknown",
-  NOT_APPLICABLE: "not_applicable",
 };
+
+const ALWAYS_VISIBLE_DEVICES = ["stirring"];
 
 function getLatestCalibration(calibrations = []) {
   if (!Array.isArray(calibrations) || calibrations.length === 0) {
@@ -49,10 +50,13 @@ export function deriveCalibrationCoverageMatrix(availableByUnit, activeByUnit) {
 
   const devices = Array.from(
     new Set(
-      units.flatMap((unit) => [
-        ...listDevicesForUnit(availableByUnit?.[unit]),
-        ...listDevicesForUnit(activeByUnit?.[unit]),
-      ]),
+      [
+        ...ALWAYS_VISIBLE_DEVICES,
+        ...units.flatMap((unit) => [
+          ...listDevicesForUnit(availableByUnit?.[unit]),
+          ...listDevicesForUnit(activeByUnit?.[unit]),
+        ]),
+      ],
     ),
   ).sort();
 
@@ -114,10 +118,10 @@ export function deriveCalibrationCoverageMatrix(availableByUnit, activeByUnit) {
 
       if (!knownApplicable && unitHasAnyKnownShape[unit]) {
         cells[unit][device] = {
-          status: COVERAGE_STATUS.NOT_APPLICABLE,
+          status: COVERAGE_STATUS.MISSING,
           calibrationName: null,
           detailPath: null,
-          note: "Device appears to be unavailable on this unit.",
+          note: "No calibration files exist for this device.",
         };
         return;
       }

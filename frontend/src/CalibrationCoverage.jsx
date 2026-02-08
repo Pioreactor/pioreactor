@@ -17,6 +17,7 @@ import {
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import TuneIcon from "@mui/icons-material/Tune";
+import ArrowOutwardIcon from "@mui/icons-material/ArrowOutward";
 
 import { fetchTaskResult } from "./utilities";
 import PioreactorIcon from "./components/PioreactorIcon";
@@ -48,10 +49,10 @@ function CoverageCell({ unit, device, cell, onNavigate }) {
           <Button
             size="small"
             variant="text"
+
             sx={{
               textTransform: "none",
               minWidth: 0,
-              color: "text.secondary",
               justifyContent: "flex-start",
               alignSelf: "flex-start",
             }}
@@ -69,7 +70,6 @@ function CoverageCell({ unit, device, cell, onNavigate }) {
             sx={{
               textTransform: "none",
               minWidth: 0,
-              color: "error.main",
               justifyContent: "flex-start",
               alignSelf: "flex-start",
             }}
@@ -78,16 +78,6 @@ function CoverageCell({ unit, device, cell, onNavigate }) {
           >
             Create a calibration
           </Button>
-        )}
-
-        {status === COVERAGE_STATUS.NOT_APPLICABLE && (
-          <Typography
-            component="span"
-            variant="caption"
-            color="text.secondary"
-          >
-            N/A
-          </Typography>
         )}
 
         {status === COVERAGE_STATUS.UNKNOWN && (
