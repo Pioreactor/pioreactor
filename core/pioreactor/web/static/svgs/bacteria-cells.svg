@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 200">
+  <title>bacteria cells</title>
+
+  <g style="color:#616161" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round">
+    <g transform="rotate(-8 178 108)">
+      <rect x="108" y="80" width="152" height="56" rx="28" fill="#d7efff" />
+      <rect x="132" y="95" width="104" height="26" rx="13" fill="#c8e7ff" />
+      <circle cx="152" cy="103" r="4" fill="currentColor" stroke="none" />
+      <circle cx="186" cy="112" r="4" fill="currentColor" stroke="none" />
+      <circle cx="216" cy="101" r="4" fill="currentColor" stroke="none" />
+    </g>
+
+    <circle cx="244" cy="132" r="24" fill="#e8f6ff" />
+    <circle cx="250" cy="126" r="8" fill="#cfeaff" />
+  </g>
+</svg>

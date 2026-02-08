@@ -27,6 +27,7 @@ import SystemLogs from "./SystemLogs";
 //import Analysis from "./Analysis";
 import Experiments from "./Experiments";
 import Calibrations from "./Calibrations";
+import CalibrationCoverage from "./CalibrationCoverage";
 import Estimators from "./Estimators";
 import Protocols from "./Protocols";
 import SideNavAndHeader from "./components/SideNavAndHeader";
@@ -136,6 +137,7 @@ function MainSite() {
                   <Route path="/config/:pioreactorUnit/" element={<EditConfig title="Pioreactor ~ Configuration"/>}/>
                   <Route path="/leader" element={<Leader title="Pioreactor ~ Leader"/>}/>
                   <Route path="/calibrations" element={<Calibrations title="Pioreactor ~ Calibrations"/>}/>
+                  <Route path="/calibration-coverage" element={<CalibrationCoverage title="Pioreactor ~ Calibration Coverage"/>}/>
                   <Route path="/calibrations/:pioreactorUnit/" element={<Calibrations title="Pioreactor ~ Calibrations"/>}/>
                   <Route path="/calibrations/:pioreactorUnit/:device" element={<Calibrations title="Pioreactor ~ Calibrations"/>}/>
                   <Route path="/calibrations/:pioreactorUnit/:device/:calibrationName" element={<SingleCalibrationPage title="Pioreactor ~ Calibration"/>}/>

@@ -14,6 +14,7 @@
  - Normalized calibration route parameter naming to `calibration_name` across API and unit API calibration endpoints for more consistent endpoint templates.
  - Added `pios jobs list` and `pios jobs list running` to inspect worker job history and running jobs from the leader CLI.
  - Added `GET /unit_api/jobs` for per-unit job history (ordered by newest first), complementing the existing `GET /unit_api/jobs/running` endpoint.
+ - Added a new calibration coverage matrix page in the UI (linked from Calibrations) to show cluster-wide per-unit/per-device coverage and quick actions: open active calibration details, view available calibrations for a device, or create missing calibrations via `/protocols/<unit>/<device>`.
 
 #### Bug fixes
 

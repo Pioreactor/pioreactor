@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 200">
+  <title>spore forming bacilli</title>
+
+  <g style="color:#616161" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round">
+    <g transform="rotate(9 150 102)">
+      <rect x="78" y="78" width="150" height="48" rx="24" fill="#d7efff" />
+      <rect x="104" y="92" width="102" height="20" rx="10" fill="#c8e7ff" />
+      <circle cx="120" cy="101" r="3.4" fill="currentColor" stroke="none" />
+      <circle cx="142" cy="98" r="2.8" fill="currentColor" stroke="none" />
+      <circle cx="164" cy="103" r="3.8" fill="currentColor" stroke="none" />
+      <circle cx="186" cy="97" r="3.1" fill="currentColor" stroke="none" />
+      <circle cx="216" cy="102" r="11" fill="#eaf7ff" />
+      <circle cx="216" cy="102" r="5" fill="#cfeaff" />
+    </g>
+
+    <g transform="rotate(-10 238 112)">
+      <rect x="196" y="88" width="104" height="42" rx="21" fill="#cde9ff" />
+      <rect x="214" y="99" width="66" height="20" rx="10" fill="#bfe0ff" />
+      <circle cx="228" cy="107" r="3.4" fill="currentColor" stroke="none" />
+      <circle cx="246" cy="103" r="2.8" fill="currentColor" stroke="none" />
+      <circle cx="264" cy="108" r="3.8" fill="currentColor" stroke="none" />
+    </g>
+
+    <circle cx="270" cy="126" r="18" fill="#e8f6ff" />
+    <circle cx="270" cy="126" r="7" fill="#cfeaff" />
+  </g>
+</svg>

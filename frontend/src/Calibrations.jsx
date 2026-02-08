@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, Link } from "react-router";
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
 import {
@@ -32,11 +32,12 @@ import Chip from '@mui/material/Chip';
 import Button from '@mui/material/Button';
 import UploadIcon from '@mui/icons-material/Upload';
 import DownloadIcon from '@mui/icons-material/Download';
+import GridViewIcon from '@mui/icons-material/GridView';
 import PioreactorIcon from "./components/PioreactorIcon"
 import PioreactorsIcon from './components/PioreactorsIcon';
 import TuneIcon from '@mui/icons-material/Tune';
 import CheckCircleOutlineOutlinedIcon from '@mui/icons-material/CheckCircleOutlineOutlined';
-
+import ViewListIcon from '@mui/icons-material/ViewList';
 import Editor from 'react-simple-code-editor';
 import { highlight, languages } from 'prismjs';
 import 'prismjs/components/prism-yaml';
@@ -640,6 +641,15 @@ function CalibrationsContainer() {
             </Box>
           </Typography>
           <Box sx={{display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}}>
+            <Button
+              style={{textTransform: 'none', marginRight: "0px", float: "right"}}
+              color="primary"
+              component={Link}
+              to="/calibration-coverage"
+            >
+              <ViewListIcon fontSize="small"/>{" "}
+              Calibration coverage
+            </Button>
             <Button style={{textTransform: 'none', marginRight: "0px", float: "right"}}
                     color="primary"
                     onClick={() => setOpenUploadDialog(true)}
