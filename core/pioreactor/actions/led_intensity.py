@@ -2,6 +2,7 @@
 import os
 from contextlib import contextmanager
 from contextlib import nullcontext
+from time import time_ns
 from typing import Any
 from typing import Iterator
 
@@ -55,15 +56,19 @@ def change_leds_intensities_temporarily(
 
 @contextmanager
 def lock_leds_temporarily(channels: list[LedChannel]) -> Iterator[None]:
+    lock_id = f"{os.getpid()}:{time_ns()}"
+    acquired_channels: list[LedChannel] = []
     try:
         with local_intermittent_storage("led_locks") as cache:
             for c in channels:
-                cache[c] = os.getpid()
+                if cache.set_if_absent(c, lock_id):
+                    acquired_channels.append(c)
         yield
     finally:
         with local_intermittent_storage("led_locks") as cache:
-            for c in channels:
-                cache.pop(c)
+            for c in acquired_channels:
+                if cache.get(c) == lock_id:
+                    cache.pop(c)
 
 
 def is_led_channel_locked(channel: LedChannel) -> bool:

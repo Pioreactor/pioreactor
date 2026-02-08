@@ -314,9 +314,15 @@ def _pump_action(
                 )
                 return 0.0
 
-        with PWMPump(
-            unit, experiment, pin, calibration=calibration, mqtt_client=mqtt_client, logger=logger
-        ) as pump:
+        try:
+            pump_instance = PWMPump(
+                unit, experiment, pin, calibration=calibration, mqtt_client=mqtt_client, logger=logger
+            )
+        except exc.PWMError as e:
+            logger.error(str(e))
+            return 0.0
+
+        with pump_instance as pump:
             sub_duration = 0.5
             volume_moved_ml = 0.0
 

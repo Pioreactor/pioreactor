@@ -156,8 +156,13 @@ def is_rate_limited(job: str, expire_time_seconds=1.0) -> bool:
     Check if the user has made a request within the debounce duration.
     """
     with local_intermittent_storage("debounce") as cache:
-        if cache.get(job) and (time() - cache.get(job)) < expire_time_seconds:
-            return True
-        else:
-            cache.set(job, time())
+        now = time()
+        if cache.set_if_absent(job, now):
             return False
+
+        last_request_time = cache.get(job)
+        if (last_request_time is not None) and ((now - float(last_request_time)) < expire_time_seconds):
+            return True
+
+        cache.set(job, now)
+        return False

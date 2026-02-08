@@ -380,6 +380,16 @@ class cache:
     def set(self, key, value):
         return self.__setitem__(key, value)
 
+    def set_if_absent(self, key, value) -> bool:
+        self.cursor.execute(
+            f"""
+            INSERT OR IGNORE INTO {self.table_name} (key, value)
+            VALUES (?, ?)
+        """,
+            (key, value),
+        )
+        return self.cursor.rowcount == 1
+
     def get(self, key, default=None):
         self.cursor.execute(f"SELECT value FROM {self.table_name} WHERE key = ?", (key,))
         result = self.cursor.fetchone()

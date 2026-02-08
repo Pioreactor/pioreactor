@@ -123,8 +123,10 @@ class SoftwarePWMOutputDevice:
         if self._started:
             try:
                 lgpio.tx_pwm(self._handle, self.pin, self.frequency, self.dc)
-            except lgpio.error:
-                pass
+            except lgpio.error as e:
+                raise PWMError(
+                    f"Failed to set software PWM on GPIO-{self.pin} to {dc:.5g}% duty cycle at {self.frequency:.5g} Hz."
+                ) from e
         elif dc == 0:
             pass
         else:
@@ -213,6 +215,7 @@ class PWM:
         self.pin: GpioPin = pin
         self.hz = hz
         self.duty_cycle = 0.0
+        self._lock_id = f"{getpid()}:{id(self)}"
 
         if self.is_locked():
             msg = f"GPIO-{self.pin} is currently locked but a task is overwriting it. Either too many jobs are trying to access this pin, or a job didn't clean up properly. If your confident you can release it, use `pio cache clear pwm_locks {self.pin} --as-int` on the command line for {self.unit}."
@@ -318,11 +321,21 @@ class PWM:
 
     def lock(self) -> None:
         with local_intermittent_storage("pwm_locks") as pwm_locks:
-            pwm_locks[self.pin] = getpid()
+            if pwm_locks.set_if_absent(self.pin, self._lock_id):
+                return
+
+            raise PWMError(
+                f"GPIO-{self.pin} is currently locked but a task is overwriting it. Either too many jobs are trying to access this pin, or a job didn't clean up properly. If your confident you can release it, use `pio cache clear pwm_locks {self.pin} --as-int` on the command line for {self.unit}."
+            )
 
     def unlock(self) -> None:
         with local_intermittent_storage("pwm_locks") as pwm_locks:
-            pwm_locks.pop(self.pin)
+            owner_lock_id = pwm_locks.get(self.pin)
+            if owner_lock_id is None:
+                return
+
+            if owner_lock_id == self._lock_id:
+                pwm_locks.pop(self.pin)
 
     @contextmanager
     def lock_temporarily(self) -> Iterator[None]:

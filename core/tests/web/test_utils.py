@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 import pytest
+from pioreactor.utils import local_intermittent_storage
+from pioreactor.web import utils as web_utils
+from pioreactor.web.utils import is_rate_limited
 from pioreactor.web.utils import is_valid_unix_filename
 from pioreactor.web.utils import scrub_to_valid
 
@@ -53,3 +56,25 @@ def test_valid_unix_filenames(name) -> None:
 )
 def test_invalid_unix_filenames(name) -> None:
     assert not is_valid_unix_filename(name)
+
+
+def test_is_rate_limited_blocks_second_request_within_window() -> None:
+    job_name = "test_rate_limit_second_blocked"
+    with local_intermittent_storage("debounce") as cache:
+        cache.pop(job_name)
+
+    assert not is_rate_limited(job_name, expire_time_seconds=10.0)
+    assert is_rate_limited(job_name, expire_time_seconds=10.0)
+
+
+def test_is_rate_limited_allows_after_expiry(monkeypatch: pytest.MonkeyPatch) -> None:
+    job_name = "test_rate_limit_allows_after_expiry"
+    with local_intermittent_storage("debounce") as cache:
+        cache.pop(job_name)
+
+    timeline = iter([1000.0, 1002.0, 1002.2])
+    monkeypatch.setattr(web_utils, "time", lambda: next(timeline))
+
+    assert not is_rate_limited(job_name, expire_time_seconds=1.0)
+    assert not is_rate_limited(job_name, expire_time_seconds=1.0)
+    assert is_rate_limited(job_name, expire_time_seconds=1.0)

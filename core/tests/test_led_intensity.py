@@ -149,6 +149,18 @@ def test_is_led_channel_locked_directly() -> None:
     assert not is_led_channel_locked("A")
 
 
+def test_nested_lock_leds_temporarily_does_not_release_outer_lock() -> None:
+    assert not is_led_channel_locked("A")
+
+    with lock_leds_temporarily(["A"]):
+        assert is_led_channel_locked("A")
+        with lock_leds_temporarily(["A"]):
+            assert is_led_channel_locked("A")
+        assert is_led_channel_locked("A")
+
+    assert not is_led_channel_locked("A")
+
+
 def test_change_leds_intensities_temporarily_invalid_raises_and_state_unchanged() -> None:
     unit = get_unit_name()
     exp = "test_change_leds_invalid"
