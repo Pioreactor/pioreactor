@@ -1,11 +1,16 @@
 # -*- coding: utf-8 -*-
+import csv
 import json
 import time
+from threading import Event
+from typing import cast
+from typing import Iterator
 
 import numpy as np
 import pytest
 from msgspec.json import encode
 from pioreactor import structs
+from pioreactor import types as pt
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
 from pioreactor.config import config
 from pioreactor.config import temporary_config_changes
@@ -13,9 +18,6 @@ from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import publish
 from pioreactor.utils import local_persistent_storage
-from pioreactor.utils.streaming import EmptyDosingSource
-from pioreactor.utils.streaming import ExportDosingSource
-from pioreactor.utils.streaming import ExportODSource
 from pioreactor.utils.streaming import MqttDosingSource
 from pioreactor.utils.streaming import MqttODSource
 from pioreactor.utils.timing import current_utc_timestamp
@@ -70,6 +72,110 @@ def create_dosing_stream_from_mqtt(unit, experiment):
     Create a stream of OD readings from the MQTT topic for a given experiment.
     """
     return MqttDosingSource(unit, experiment)
+
+
+class EmptyLiveDosingSource:
+    is_live = True
+
+    def __iter__(self) -> Iterator[structs.DosingEvent]:
+        return iter(())
+
+    def set_stop_event(self, ev: Event) -> None:
+        return None
+
+
+class HistoricalODReadingsCSVSource:
+    is_live = False
+
+    def __init__(
+        self,
+        filename: str,
+        skip_first: int = 0,
+        pioreactor_unit: str = "$broadcast",
+        experiment: str = "$experiment",
+    ) -> None:
+        self.filename = filename
+        self.skip_first = skip_first
+        self.pioreactor_unit = pioreactor_unit
+        self.experiment = experiment
+
+    def set_stop_event(self, ev: Event) -> None:
+        raise NotImplementedError("Historical source does not support stop events.")
+
+    def __iter__(self) -> Iterator[structs.ODReadings]:
+        with open(self.filename, "r", encoding="utf-8") as file:
+            csv_reader = csv.DictReader(file, quoting=csv.QUOTE_MINIMAL)
+            for i, line in enumerate(csv_reader, start=1):
+                if i <= self.skip_first:
+                    continue
+                if self.pioreactor_unit != "$broadcast" and self.pioreactor_unit != line["pioreactor_unit"]:
+                    continue
+                if self.experiment != "$experiment" and self.experiment != line["experiment"]:
+                    continue
+                dt = to_datetime(line["timestamp"])
+                angle = cast(pt.PdAngle, line["angle"])
+                channel = cast(pt.PdChannel, line["channel"])
+                od = structs.RawODReading(
+                    angle=angle,
+                    channel=channel,
+                    timestamp=dt,
+                    od=float(line["od_reading"]),
+                    ir_led_intensity=80,
+                )
+                yield structs.ODReadings(timestamp=dt, ods={channel: od})
+
+
+class EmptyHistoricalDosingSource:
+    is_live = False
+
+    def __iter__(self) -> Iterator[structs.DosingEvent]:
+        return iter(())
+
+    def set_stop_event(self, ev: Event) -> None:
+        raise NotImplementedError("Historical source does not support stop events.")
+
+
+class HistoricalODReadingsListSource:
+    is_live = False
+
+    def __init__(self, readings: list[structs.ODReadings]) -> None:
+        self._readings = readings
+
+    def __iter__(self) -> Iterator[structs.ODReadings]:
+        return iter(self._readings)
+
+    def set_stop_event(self, ev: Event) -> None:
+        raise NotImplementedError("Historical source does not support stop events.")
+
+
+class HistoricalDosingEventsListSource:
+    is_live = False
+
+    def __init__(self, events: list[structs.DosingEvent]) -> None:
+        self._events = events
+
+    def __iter__(self) -> Iterator[structs.DosingEvent]:
+        return iter(self._events)
+
+    def set_stop_event(self, ev: Event) -> None:
+        raise NotImplementedError("Historical source does not support stop events.")
+
+
+class LiveODReadingsListSource:
+    is_live = True
+
+    def __init__(self, readings: list[structs.ODReadings]) -> None:
+        self._readings = readings
+        self._stop_event = Event()
+
+    def __iter__(self) -> Iterator[structs.ODReadings]:
+        for reading in self._readings:
+            if self._stop_event.is_set():
+                break
+            yield reading
+
+    def set_stop_event(self, ev: Event) -> None:
+        self._stop_event = ev
 
 
 class TestGrowthRateCalculating:
@@ -149,7 +255,7 @@ class TestGrowthRateCalculating:
                 )
                 pause()
 
-                assert calc.processor.ekf is not None
+                assert calc.ekf is not None
 
                 publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/ods",
@@ -183,7 +289,7 @@ class TestGrowthRateCalculating:
 
                 pause()
 
-                assert calc.processor.ekf.state_ is not None
+                assert calc.ekf.state_ is not None
 
     @pytest.mark.flakey
     def test_restart(self) -> None:
@@ -259,7 +365,7 @@ class TestGrowthRateCalculating:
                         timestamp="2010-01-01T12:00:35.000Z",
                     ),
                 )
-                assert wait_for(lambda: float(calc1.processor.ekf.state_[-1]) != 0, timeout=10.0)
+                assert wait_for(lambda: float(calc1.ekf.state_[-1]) != 0, timeout=10.0)
 
             with GrowthRateCalculator(unit=unit, experiment=experiment) as calc2:
                 od_stream, dosing_stream = create_od_stream_from_mqtt(
@@ -278,7 +384,7 @@ class TestGrowthRateCalculating:
                         timestamp="2010-01-01T12:00:35.000Z",
                     ),
                 )
-                assert wait_for(lambda: float(calc2.processor.ekf.state_[-1]) != 0, timeout=3.0)
+                assert wait_for(lambda: float(calc2.ekf.state_[-1]) != 0, timeout=3.0)
 
     def test_scaling_works(self) -> None:
         unit = get_unit_name()
@@ -304,7 +410,7 @@ class TestGrowthRateCalculating:
                 ),
             )
             pause()
-            assert calc.processor.od_normalization_factors == {"2": 0.8, "1": 0.5}
+            assert calc.od_normalization_factors == {"2": 0.8, "1": 0.5}
 
             # job expects one more od reading for initial values, else it WARNs.
             publish(
@@ -391,7 +497,7 @@ class TestGrowthRateCalculating:
                     ),
                 )
                 pause()
-                assert calc.processor._recent_dilution
+                assert calc._recent_dilution
                 pause()
                 publish(
                     f"pioreactor/{unit}/{experiment}/od_reading/ods",
@@ -404,7 +510,7 @@ class TestGrowthRateCalculating:
                 )
                 pause()
                 pause()
-                assert not calc.processor._recent_dilution
+                assert not calc._recent_dilution
 
     @pytest.mark.slow
     def test_180_angle(self) -> None:
@@ -470,7 +576,7 @@ class TestGrowthRateCalculating:
                 calc.process_until_disconnected_or_exhausted_in_background(od_stream, dosing_stream)
                 time.sleep(35)
 
-                assert calc.processor.ekf.state_[1] > 0
+                assert calc.ekf.state_[1] > 0
                 thread.cancel()
 
     @pytest.mark.slow
@@ -533,7 +639,7 @@ class TestGrowthRateCalculating:
 
                 time.sleep(35)
 
-                assert calc.processor.ekf.state_[1] > 0
+                assert calc.ekf.state_[1] > 0
 
             thread.cancel()
 
@@ -578,9 +684,9 @@ class TestGrowthRateCalculating:
                 pause()
                 pause()
 
-                assert calc.processor.od_normalization_factors == {"2": 0.8, "1": 0.5}
-                assert calc.processor.od_blank == {"2": 0.4, "1": 0.25}
-                results = calc.processor.scale_raw_observations(
+                assert calc.od_normalization_factors == {"2": 0.8, "1": 0.5}
+                assert calc.od_blank == {"2": 0.4, "1": 0.25}
+                results = calc.scale_raw_observations(
                     create_od_raw_batched(
                         ["1", "2"], [0.6, 1.0], ["90", "90"], timestamp="2010-01-01T12:03:00.000Z"
                     )
@@ -685,9 +791,9 @@ class TestGrowthRateCalculating:
                 )
                 pause()
                 pause()
-                assert calc.processor.od_normalization_factors == {"2": 0.8, "1": 0.5}
-                assert calc.processor.od_blank == {"2": 0.0, "1": 0.0}
-                results = calc.processor.scale_raw_observations(
+                assert calc.od_normalization_factors == {"2": 0.8, "1": 0.5}
+                assert calc.od_blank == {"2": 0.0, "1": 0.0}
+                results = calc.scale_raw_observations(
                     create_od_raw_batched(
                         ["1", "2"], [0.6, 1.0], ["90", "90"], timestamp="2010-01-01T12:02:16.000Z"
                     )
@@ -723,7 +829,7 @@ class TestGrowthRateCalculating:
                 retain=True,
             )
 
-            assert calc.processor.scale_raw_observations(
+            assert calc.scale_raw_observations(
                 create_od_raw_batched(
                     ["1", "2"], [0.5, 2.0], ["90", "90"], timestamp="2010-01-01T12:03:00.000Z"
                 )
@@ -747,7 +853,7 @@ class TestGrowthRateCalculating:
         od_stream = create_od_stream_from_mqtt(unit, experiment)
         with collect_all_logs_of_level("ERROR", unit, experiment) as bucket:
             with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
-                calc.process_until_disconnected_or_exhausted_in_background(od_stream, EmptyDosingSource())
+                calc.process_until_disconnected_or_exhausted_in_background(od_stream, EmptyLiveDosingSource())
                 pause()
                 pause()
                 assert len(bucket) > 0
@@ -1090,12 +1196,13 @@ class TestGrowthRateCalculating:
                 ("growth_rate_calculating.config", "ekf_outlier_std_threshold", "3"),
             ],
         ):
-            with ExportODSource(
+            od_stream = HistoricalODReadingsCSVSource(
                 "./core/tests/data/od_readings_with_too_frequently_outlier_detections.csv",
                 skip_first=40,
-            ) as od_stream, ExportDosingSource(None) as dosing_stream, GrowthRateCalculator(
-                unit=unit, experiment=experiment
-            ) as calc:
+            )
+            dosing_stream = EmptyHistoricalDosingSource()
+
+            with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
                 for _, result in enumerate(
                     calc.process_until_disconnected_or_exhausted(od_stream, dosing_stream)
                 ):
@@ -1104,3 +1211,120 @@ class TestGrowthRateCalculating:
                         break
 
                 assert True
+
+    def test_background_wait_for_initialization_with_historical_streams(self) -> None:
+        experiment = "test_background_wait_for_initialization_with_historical_streams"
+        unit = get_unit_name()
+
+        with temporary_config_changes(
+            config,
+            [("od_config.photodiode_channel", "1", "REF"), ("od_config.photodiode_channel", "2", "90")],
+        ):
+            with local_persistent_storage("od_normalization_mean") as cache:
+                cache[experiment] = json.dumps({"2": 1.0})
+
+            with local_persistent_storage("od_normalization_variance") as cache:
+                cache[experiment] = json.dumps({"2": 1e-6})
+
+            od_stream = HistoricalODReadingsListSource(
+                [
+                    create_od_raw_batched(
+                        ["2"],
+                        [1.01],
+                        ["90"],
+                        timestamp="2010-01-01T12:00:01.000Z",
+                    )
+                ]
+            )
+            dosing_stream = EmptyHistoricalDosingSource()
+
+            with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
+                calc.process_until_disconnected_or_exhausted_in_background(
+                    od_stream,
+                    dosing_stream,
+                    wait_for_initialization=True,
+                    timeout=1.0,
+                )
+                assert calc._initialization_complete.is_set()
+                assert calc.ekf is not None
+
+    def test_historical_processing_persists_latest_values_to_cache(self) -> None:
+        experiment = "test_historical_processing_persists_latest_values_to_cache"
+        unit = get_unit_name()
+
+        with temporary_config_changes(
+            config,
+            [("od_config.photodiode_channel", "1", "REF"), ("od_config.photodiode_channel", "2", "90")],
+        ):
+            with local_persistent_storage("od_normalization_mean") as cache:
+                cache[experiment] = json.dumps({"2": 1.0})
+
+            with local_persistent_storage("od_normalization_variance") as cache:
+                cache[experiment] = json.dumps({"2": 1e-6})
+
+            od_stream = HistoricalODReadingsListSource(
+                [
+                    create_od_raw_batched(["2"], [1.01], ["90"], timestamp="2010-01-01T12:00:01.000Z"),
+                    create_od_raw_batched(["2"], [1.02], ["90"], timestamp="2010-01-01T12:00:02.000Z"),
+                    create_od_raw_batched(["2"], [1.03], ["90"], timestamp="2010-01-01T12:00:03.000Z"),
+                ]
+            )
+            dosing_stream = HistoricalDosingEventsListSource(
+                [
+                    structs.DosingEvent(
+                        volume_change=1.0,
+                        event="add_media",
+                        source_of_event="test",
+                        timestamp=to_datetime("2010-01-01T12:00:02.500Z"),
+                    )
+                ]
+            )
+
+            with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
+                results = list(calc.process_until_disconnected_or_exhausted(od_stream, dosing_stream))
+
+                assert len(results) == 3
+                latest_growth_rate, latest_od_filtered, latest_kf_outputs = results[-1]
+                assert isinstance(latest_kf_outputs, structs.KalmanFilterOutput)
+                assert not calc._recent_dilution
+
+                with local_persistent_storage("growth_rate") as cache:
+                    assert cache[experiment] == latest_growth_rate.growth_rate
+
+                with local_persistent_storage("od_filtered") as cache:
+                    assert cache[experiment] == latest_od_filtered.od_filtered
+
+    def test_mixed_live_and_historical_streams_raise_value_error(self) -> None:
+        experiment = "test_mixed_live_and_historical_streams_raise_value_error"
+        unit = get_unit_name()
+
+        with temporary_config_changes(
+            config,
+            [("od_config.photodiode_channel", "1", "REF"), ("od_config.photodiode_channel", "2", "90")],
+        ):
+            with local_persistent_storage("od_normalization_mean") as cache:
+                cache[experiment] = json.dumps({"2": 1.0})
+
+            with local_persistent_storage("od_normalization_variance") as cache:
+                cache[experiment] = json.dumps({"2": 1e-6})
+
+            live_od_stream = LiveODReadingsListSource(
+                [
+                    create_od_raw_batched(
+                        ["2"],
+                        [1.01],
+                        ["90"],
+                        timestamp="2010-01-01T12:00:01.000Z",
+                    )
+                ]
+            )
+            historical_dosing_stream = EmptyHistoricalDosingSource()
+
+            with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
+                with pytest.raises(ValueError, match="Both streams must be live or both must be historical."):
+                    list(
+                        calc.process_until_disconnected_or_exhausted(
+                            live_od_stream,
+                            historical_dosing_stream,
+                        )
+                    )
